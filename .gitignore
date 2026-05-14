@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+
+# Data caches (raw vendor downloads + bulk price caches — not checked in)
+data/raw_ishares/
+data/prices_cache.parquet
+data/prices_cache/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
