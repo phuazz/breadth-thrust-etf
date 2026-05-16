@@ -507,6 +507,7 @@ def monte_carlo_null(
     n_paths: int = MC_PATHS,
     seed: int = MC_SEED,
     cost_bps_one_side: int = COST_BPS_ONE_SIDE,
+    eligible_end: pd.Timestamp | None = None,
 ) -> dict:
     """Random-entry null with bootstrapped holding periods, costs applied
     identically to the strategy. Returns percentile rank of strategy
@@ -519,12 +520,22 @@ def monte_carlo_null(
     holdings = np.array([t.holding_days for t in trades])
     cost = cost_bps_one_side / 10_000.0
 
-    # Eligible entry-bar pool: any trading day from eligible_start up to
-    # (last day - max_holding_period) so every random trade can fully run.
+    # Eligible entry-bar pool: any trading day from eligible_start to
+    # eligible_end (default: end of data). Trades that would exit after
+    # eligible_end are filtered out so every random trade fully runs
+    # within the eligible window.
     max_h = int(holdings.max())
     eligible_mask = (soxx.index >= eligible_start)
+    if eligible_end is not None:
+        eligible_mask &= (soxx.index <= eligible_end)
     eligible_indices = np.where(eligible_mask)[0]
-    eligible_indices = eligible_indices[eligible_indices + max_h < len(soxx)]
+    # Find the last index whose exit (entry + max_h) still falls inside the
+    # eligible window — bound by eligible_end if set, else end of data.
+    if eligible_end is not None:
+        end_idx = soxx.index.searchsorted(eligible_end, side="right") - 1
+    else:
+        end_idx = len(soxx) - 1
+    eligible_indices = eligible_indices[eligible_indices + max_h <= end_idx]
     if len(eligible_indices) < n_trades:
         return {"n_paths": n_paths, "n_trades": n_trades, "note": "insufficient sample"}
 

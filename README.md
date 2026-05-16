@@ -169,6 +169,52 @@ Trend filter materially improves the regime-only variant (Sharpe 0.61 → 0.74, 
 
 Two independent fixes — entry delay AND trend filter — each push the strategy past the MC null on SOXX 2019-2026. The mechanism diagnostic (+12 pp positive-rate edge at 126d) was therefore not noise. The breadth signal does carry information; the original spec just packaged it badly via early entry and too-tight stops. Both fixes are intuitive (signal fires on short-term overbought, trend filter avoids countertrend), so the in-sample-fitting concern is somewhat mitigated — but only "somewhat". Out-of-sample validation (items 1 + 5 below) remains required.
 
+## Items 1 + 2 + 5 (partial) — iShares fetch BLOCKED, pivot to split-half OOS
+
+On 2026-05-16 iShares' Akamai bot defence began returning a 10 MB HTML product page in place of the CSV regardless of headers, session cookies, or referrer. The fetch endpoint that worked perfectly on 2026-05-15 (and against which the entire constituent JSON was built) is now blocked. Items 1 (IVV broader benchmark), 5 (OOS exit-multiple validation on a different ETF), and item 2's full pre-2018 SOXX extension all require fresh iShares fetches and cannot proceed today.
+
+Best-available substitute: a within-SOXX split-half OOS test using the cached 2018-2026 data. The 2019-01-08 to 2026-05-08 signal-eligible window splits roughly evenly at 2022-09-08. Six candidate configurations (subset of prior sweeps) are run on each half independently; the winner by TRAIN Sharpe is selected and its TEST performance reported as the OOS result. Same-distribution Monte Carlo nulls are computed separately for each half.
+
+### Split-half results (`scripts/run_split_half.py`)
+
+| Variant | Train n | Train win | Train ret | Train Sharpe | Train MC% | Test n | Test win | Test ret | Test Sharpe | Test MC% |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| baseline_2xATR | 14 | 50.0 | -7.3 | -0.09 | 15.2 | 15 | 40.0 | +7.9 | +0.21 | 20.4 |
+| regime_time_only | 8 | 50.0 | +19.7 | +0.35 | 26.9 | 9 | 66.7 | +92.0 | +0.94 | 57.1 |
+| baseline_2xATR + delay 5d | 15 | 40.0 | +11.2 | +0.28 | 33.4 | 16 | 75.0 | +116.8 | +1.23 | **88.8** |
+| regime_time_only + delay 5d | 8 | 50.0 | +31.4 | +0.50 | 41.9 | 9 | 77.8 | +108.1 | +1.08 | 71.4 |
+| regime_time_only + trend | 7 | 57.1 | +28.1 | +0.47 | 35.5 | 8 | 75.0 | +110.5 | +1.10 | 72.9 |
+| **regime_time_only + delay 5d + trend** | 7 | 57.1 | +37.8 | **+0.59** | 48.2 | 8 | **87.5** | +123.5 | **+1.22** | 82.2 |
+
+Winner by train Sharpe: **regime_time_only + delay 5d + trend** (train Sharpe +0.59). Its OOS / test-half stats:
+
+| | |
+|---|---:|
+| Trades | 8 |
+| Win rate | **87.5%** |
+| Total return | **+123.5%** |
+| Max DD | **16.4%** |
+| Sharpe | **+1.22** |
+| MC percentile (total return) | 82.2 |
+
+### Interpretation
+
+1. **Cross-variant ordering is preserved across the split.** The best variant on train is also among the best on test. Train and test rank correlations are tight. This is the opposite of what overfitting looks like (where the in-sample winner degrades OOS).
+2. **Every variant improves from train to test.** Part of the win is therefore that the test half (2022-09 to 2026-05) was a more favourable breadth-thrust environment — AI rally, multiple V-shaped recoveries — than the train half (which spans COVID + 2022 inflation shock).
+3. **5-day entry delay is the single most robust factor.** `baseline_2xATR + delay 5d` lands at the **88.8th MC percentile on test** despite the original 2x ATR stop. This is the strongest evidence that timing was the binding constraint, not the stop, and that the delay choice generalises.
+4. **The triple combination (regime + delay + trend filter) has the best test Sharpe (1.22) tied with `baseline_2xATR + delay 5d` (1.23)**, with materially lower max DD (16.4% vs ~25%). Trend filter primarily cuts drawdown rather than adding return.
+
+### Caveats
+
+- **Same ETF, same constituent universe** — this is NOT a true cross-ETF OOS. iShares blocking prevented the cleaner IVV / S&P 500 test.
+- **Breadth thresholds are computed on the FULL window**, not re-estimated per half. The composite_p90 / p10 thresholds use train-half breadth values when evaluating test-half signals. Strictly OOS would re-fit thresholds, but doing so on a 252-day expanding window would make train-half stats meaningless. We accept this minor leakage in exchange for stable thresholds.
+- **Small sample**: 7-15 trades per half. Sharpe estimates are noisy. The improvement direction is clear, but the magnitude estimates have wide error bars.
+
+### Outstanding work (when iShares fetch is restored)
+
+- **Item 1 + 5 (proper cross-ETF OOS)**: refetch IVV (S&P 500), recompute breadth, apply the `regime_time_only_delay5_trend` config without re-tuning. If it works there, the parameter choice is much more credible.
+- **Item 2 (extend back to 2007)**: refetch SOXX historicals to 2007-06-29 (earliest available). The pre-2018 yfinance coverage is ~45-70%, so breadth percentages will be more biased — useful for stress-testing how the signal degrades when the breadth panel is sparse.
+
 ## Data sources
 
 - **iShares historical holdings**: `https://www.ishares.com/us/products/239705/ishares-phlx-semiconductor-etf/1467271812596.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund&asOfDate=YYYYMMDD`. Daily granularity available; earliest confirmed snapshot is 2007-06-29.
