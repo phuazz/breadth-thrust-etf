@@ -99,13 +99,39 @@ The signal **shifts the positive-rate distribution materially** (88.8 per cent a
 - Strategy win-rate percentile: 4.8
 - Strategy mean-return percentile: 10.3
 
-### Interpretation (for the next session, not this one)
+### Interpretation
 
-All 28 closed trades exit via trailing stop. Zero regime exits, zero time stops. The 2 x ATR(20) trailing stop is firing 2-3 weeks after entry on average, well before any breadth-thrust trend has time to develop. Asymmetric reward: when the stop survives long enough (Nov 2020 +15.8 per cent, Nov 2023 +8.7 per cent, May 2025 +10.4 per cent, Apr 2026 +33.9 per cent open) the trades work; otherwise they clip out a -5 per cent loss.
+All 28 closed trades exit via trailing stop. Zero regime exits, zero time stops. The 2 x ATR(20) trailing stop is firing 2-3 weeks after entry on average, well before any breadth-thrust trend has time to develop.
 
-Mechanism diagnostic confirms the signal carries information — positive-rate edge of +12 percentage points at 126 days is meaningful. The next session should narrow to where the exit asymmetry hurts least: either looser stops (3-4 x ATR), or different exit logic (e.g. trailing stop on closing high minus N-day low, or no stop and rely on time / regime exits), or a per-ETF tuned stop.
+### Exit-logic variant sweep (`scripts/run_variants.py`)
 
-Per session brief, no parameter re-fit is performed here.
+Diagnostic sweep over five exit configurations on the same 2018-2026 signal stream. **Picking the best variant is in-sample fitting**; this is a diagnostic to confirm whether the trailing-stop mechanic is the binding constraint and to quantify the slack.
+
+| Variant | Trades | Win % | Median hold | Total return | Max DD | Sharpe | MC %ile |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `baseline_2xATR` | 29 | 44.8 | 14d | -0.9% | 36.2% | 0.06 | 10.1 |
+| `loose_3xATR` | 21 | 52.4 | 30d | +77.1% | 28.7% | 0.48 | 40.0 |
+| `loose_4xATR` | 18 | 55.6 | 45d | +109.7% | 33.1% | 0.57 | 42.6 |
+| `regime_time_only` (no stop) | 17 | 58.8 | 49d | **+127.8%** | 33.1% | **+0.61** | 47.3 |
+| `profit_anchored_3xATR_arm_at_5pct` | 19 | 57.9 | 32d | +112.5% | 29.9% | 0.59 | 46.1 |
+
+Two clear conclusions:
+
+1. **The 2 x ATR stop was actively destructive.** Removing it (`regime_time_only`) or loosening it materially (`loose_4xATR`) turns -1 per cent into +110 to +128 per cent total return over seven years. Median holding period more than triples.
+
+2. **Even the best variant lands at the 47th percentile of the Monte Carlo null.** The null over 2019-2026 produces a median random-entry total return of +66.7 per cent because SOXX itself returned roughly +300 per cent across the window. Same-distribution random entries do at least as well as the timed strategy. **The signal does not generate timing alpha over this window on this ETF.**
+
+The mechanism diagnostic still shows a real +12 pp positive-rate edge at 126 days, so the signal is not noise — but it is not capturing return outside what a random-time replication produces. Two compatible explanations remain:
+
+- SOXX 2019-2026 was a one-way uptrend; the breadth signal cannot beat the unconditional drift.
+- The signal fires AFTER short-term overbought conditions and entries are systematically a few days late, eating the easy part of the move.
+
+### Open candidates for the next session
+1. **Test on a less volatile sector (XLP, XLV) or a broader benchmark (SPY, QQQ)** where breadth thrusts are rarer and may carry more information. The Zweig framework was originally designed on broad market breadth, not single-sector.
+2. **Different regime windows** — pre-2018 if the data permits, or post-2026 forward — to break the one-way-bull bias.
+3. **Entry delay**: enter k bars after the signal fires (k = 3, 5, 10) and check whether the slight delay improves selection.
+4. **Combine the breadth signal with a trend filter** (e.g. SOXX above 200d MA) — the signal might add value as one component of a composite rather than standalone.
+5. **Out-of-sample exit-multiple validation**: take the regime-only or 4xATR result here as a hypothesis and validate on a different ETF before treating either as deployable.
 
 ## Data sources
 

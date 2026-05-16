@@ -74,7 +74,7 @@ SOXX_CACHE = DATA_DIR / "soxx_ohlc_cache.parquet"
 SPY_CACHE = DATA_DIR / "spy_close_cache.parquet"
 OUT_PATH = DATA_DIR / "backtest_soxx.json"
 
-# --- Trade mechanics (session-confirmed) ----------------------------------
+# --- Trade mechanics (session-confirmed defaults) -------------------------
 COST_BPS_ONE_SIDE = 5
 ATR_PERIOD = 20
 TRAILING_STOP_K = 2.0           # stop = max_close - K * ATR
@@ -85,6 +85,23 @@ HORIZONS = [21, 63, 126, 252]   # mechanism-diagnostic forward windows
 # --- Monte Carlo ---------------------------------------------------------
 MC_PATHS = 1000
 MC_SEED = 20260516
+
+
+# --- Default config dict (consumed by simulate_trade / run_strategy) -----
+# Any caller can pass a custom config dict to test exit-logic variants
+# without touching this module. See scripts/run_variants.py for example
+# alternative configs (looser stop, regime-only, profit-anchored).
+DEFAULT_CONFIG: dict = {
+    "trailing_stop_k": TRAILING_STOP_K,              # None disables trailing stop
+    "stop_active_after_profit_pct": None,            # None: stop active from entry
+    "use_regime_composite_p10": True,
+    "use_regime_ma_floor": True,
+    "regime_ma_floor": REGIME_MA_FLOOR,
+    "use_time_stop": True,
+    "time_stop_days": TIME_STOP_DAYS,
+    "atr_period": ATR_PERIOD,
+    "cost_bps_one_side": COST_BPS_ONE_SIDE,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -176,40 +193,71 @@ def simulate_trade(
     soxx: pd.DataFrame,
     atr: pd.Series,
     breadth: pd.DataFrame,
+    entry_price: float | None = None,
+    config: dict | None = None,
 ) -> tuple[int, str]:
     """Walk forward from entry_idx and return (exit_idx, exit_reason).
 
     Exit checks are evaluated at the CLOSE of each subsequent day, using
-    only same-day-or-earlier information. The trailing stop uses ATR(20)
-    through today's close.
+    only same-day-or-earlier information. Knobs come from `config` (see
+    DEFAULT_CONFIG); when None, the default settings are used.
+
+    Supported knobs:
+      - trailing_stop_k                : float or None (None disables stop)
+      - stop_active_after_profit_pct   : float (e.g. 0.05 for "arm at +5%")
+                                          or None (stop active from entry)
+      - use_regime_composite_p10       : bool
+      - use_regime_ma_floor            : bool
+      - regime_ma_floor                : float (default 0.40)
+      - use_time_stop                  : bool
+      - time_stop_days                 : int (default 252)
     """
+    cfg = {**DEFAULT_CONFIG, **(config or {})}
+    stop_k = cfg["trailing_stop_k"]
+    profit_threshold = cfg["stop_active_after_profit_pct"]
+    use_regime_comp = cfg["use_regime_composite_p10"]
+    use_regime_ma = cfg["use_regime_ma_floor"]
+    ma_floor = cfg["regime_ma_floor"]
+    use_time_stop = cfg["use_time_stop"]
+    time_stop_days = cfg["time_stop_days"]
+
     max_close = float(soxx["Close"].iloc[entry_idx])
-    last_idx = min(entry_idx + TIME_STOP_DAYS, len(soxx) - 1)
+    last_idx = (min(entry_idx + time_stop_days, len(soxx) - 1)
+                if use_time_stop else len(soxx) - 1)
+
     for i in range(entry_idx + 1, last_idx + 1):
         close_i = float(soxx["Close"].iloc[i])
         max_close = max(max_close, close_i)
         atr_i = float(atr.iloc[i]) if pd.notna(atr.iloc[i]) else None
 
-        if atr_i is not None and atr_i > 0.0:
-            stop_level = max_close - TRAILING_STOP_K * atr_i
-            # Strict inequality: stop fires when close BREAKS the level.
-            # Prevents degenerate firing on flat markets with near-zero ATR.
-            if close_i < stop_level:
-                return i, "trailing_stop"
+        # Trailing stop, optionally gated by a profit-armed condition.
+        if stop_k is not None and atr_i is not None and atr_i > 0.0:
+            stop_armed = (
+                profit_threshold is None
+                or (entry_price is not None
+                    and max_close >= entry_price * (1.0 + profit_threshold))
+            )
+            if stop_armed:
+                stop_level = max_close - stop_k * atr_i
+                # Strict inequality: stop fires when close BREAKS the level.
+                if close_i < stop_level:
+                    return i, "trailing_stop"
 
-        # Regime exit: align breadth by exact date; if missing (shouldn't be)
-        # treat as no-signal rather than crash.
+        # Regime exits (close-aligned, using same-day breadth).
         soxx_date = soxx.index[i]
         if soxx_date in breadth.index:
-            comp_z = breadth.loc[soxx_date, "composite_z"]
-            comp_p10 = breadth.loc[soxx_date, "composite_p10"]
-            ma_b = breadth.loc[soxx_date, "ma_breadth"]
-            if pd.notna(comp_z) and pd.notna(comp_p10) and comp_z < comp_p10:
-                return i, "regime_exit_composite"
-            if pd.notna(ma_b) and ma_b < REGIME_MA_FLOOR:
-                return i, "regime_exit_ma_floor"
+            if use_regime_comp:
+                comp_z = breadth.loc[soxx_date, "composite_z"]
+                comp_p10 = breadth.loc[soxx_date, "composite_p10"]
+                if (pd.notna(comp_z) and pd.notna(comp_p10)
+                        and comp_z < comp_p10):
+                    return i, "regime_exit_composite"
+            if use_regime_ma:
+                ma_b = breadth.loc[soxx_date, "ma_breadth"]
+                if pd.notna(ma_b) and ma_b < ma_floor:
+                    return i, "regime_exit_ma_floor"
 
-        if i - entry_idx >= TIME_STOP_DAYS:
+        if use_time_stop and (i - entry_idx >= time_stop_days):
             return i, "time_stop"
 
     return last_idx, "data_end"
@@ -219,24 +267,25 @@ def run_strategy(
     signal_dates: list[str],
     soxx: pd.DataFrame,
     breadth: pd.DataFrame,
+    config: dict | None = None,
 ) -> list[Trade]:
     """Iterate signal-fire days; pick first eligible (no overlap with prior
     trade) and simulate to exit. Returns a list of completed Trade records.
     """
-    atr = compute_atr_wilder(soxx["High"], soxx["Low"], soxx["Close"])
-    cost_factor = COST_BPS_ONE_SIDE / 10_000.0
+    cfg = {**DEFAULT_CONFIG, **(config or {})}
+    atr = compute_atr_wilder(
+        soxx["High"], soxx["Low"], soxx["Close"], period=cfg["atr_period"]
+    )
+    cost_factor = cfg["cost_bps_one_side"] / 10_000.0
     trades: list[Trade] = []
     last_exit_idx = -1
 
     for sd_str in signal_dates:
         sd = pd.Timestamp(sd_str)
         if sd not in soxx.index:
-            # signal day not a trading day — find next trading day index
-            # via searchsorted
             pos = soxx.index.searchsorted(sd, side="left")
         else:
             pos = soxx.index.get_loc(sd)
-        # entry is at OPEN of NEXT trading day
         entry_idx = pos + 1 if soxx.index[pos] <= sd else pos
         if entry_idx >= len(soxx):
             break
@@ -248,7 +297,10 @@ def run_strategy(
             continue
         entry_price = entry_open * (1.0 + cost_factor)
 
-        exit_idx, exit_reason = simulate_trade(entry_idx, soxx, atr, breadth)
+        exit_idx, exit_reason = simulate_trade(
+            entry_idx, soxx, atr, breadth,
+            entry_price=entry_price, config=cfg,
+        )
         exit_close = float(soxx["Close"].iloc[exit_idx])
         exit_price = exit_close * (1.0 - cost_factor)
 
@@ -288,27 +340,24 @@ def run_strategy(
 def build_daily_returns(trades: list[Trade], soxx: pd.DataFrame) -> pd.Series:
     """Build a daily P&L series: per-day return when in a trade, else 0.
 
-    On entry day: from cost-adjusted entry open to close.
-    On exit day : from prior close to cost-adjusted exit close.
+    On entry day: from cost-adjusted entry price to close.
+    On exit day : from prior close to cost-adjusted exit price.
     Between     : standard close-to-close.
+
+    Per-trade entry_price and exit_price already include the cost
+    adjustment, so we read them off the Trade record directly — this
+    means daily returns honour whatever cost config produced the trade.
     """
     out = pd.Series(0.0, index=soxx.index)
     closes = soxx["Close"].astype(float)
-    opens = soxx["Open"].astype(float)
-    cost = COST_BPS_ONE_SIDE / 10_000.0
     for t in trades:
         entry_idx = soxx.index.get_loc(pd.Timestamp(t.entry_date))
         exit_idx = soxx.index.get_loc(pd.Timestamp(t.exit_date))
-        # entry day
-        entry_eff = opens.iloc[entry_idx] * (1.0 + cost)
-        out.iloc[entry_idx] = closes.iloc[entry_idx] / entry_eff - 1.0
-        # intermediate days
+        out.iloc[entry_idx] = closes.iloc[entry_idx] / t.entry_price - 1.0
         for j in range(entry_idx + 1, exit_idx):
             out.iloc[j] = closes.iloc[j] / closes.iloc[j - 1] - 1.0
-        # exit day
         if exit_idx > entry_idx:
-            exit_eff = closes.iloc[exit_idx] * (1.0 - cost)
-            out.iloc[exit_idx] = exit_eff / closes.iloc[exit_idx - 1] - 1.0
+            out.iloc[exit_idx] = t.exit_price / closes.iloc[exit_idx - 1] - 1.0
     return out
 
 
@@ -433,6 +482,7 @@ def monte_carlo_null(
     eligible_start: pd.Timestamp,
     n_paths: int = MC_PATHS,
     seed: int = MC_SEED,
+    cost_bps_one_side: int = COST_BPS_ONE_SIDE,
 ) -> dict:
     """Random-entry null with bootstrapped holding periods, costs applied
     identically to the strategy. Returns percentile rank of strategy
@@ -443,7 +493,7 @@ def monte_carlo_null(
     if n_trades == 0:
         return {"n_paths": n_paths, "n_trades": 0}
     holdings = np.array([t.holding_days for t in trades])
-    cost = COST_BPS_ONE_SIDE / 10_000.0
+    cost = cost_bps_one_side / 10_000.0
 
     # Eligible entry-bar pool: any trading day from eligible_start up to
     # (last day - max_holding_period) so every random trade can fully run.

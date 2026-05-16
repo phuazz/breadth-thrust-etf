@@ -133,6 +133,59 @@ def test_regime_exit_on_ma_floor():
     assert trades[0].exit_date == soxx.index[100].strftime("%Y-%m-%d")
 
 
+def test_trailing_stop_disabled_via_config():
+    """Setting trailing_stop_k=None must disable the trailing stop. On a
+    sharp -15 per cent shock that would normally fire it, the trade should
+    instead run to time stop because regime exits also do not trigger in
+    our test breadth panel."""
+    idx = pd.date_range("2020-01-02", periods=300, freq="B")
+    closes = [100.0 + i * 0.1 for i in range(200)]
+    closes += [closes[-1] * 0.85] * 100  # -15 per cent shock, stays low
+    soxx = pd.DataFrame({
+        "Open":  closes,
+        "High":  [c * 1.001 for c in closes],
+        "Low":   [c * 0.999 for c in closes],
+        "Close": closes,
+    }, index=idx)
+    breadth = _make_breadth(soxx.index)
+    signal_dates = [soxx.index[30].strftime("%Y-%m-%d")]
+    # Disable trailing stop
+    from backtest import DEFAULT_CONFIG
+    cfg = {**DEFAULT_CONFIG, "trailing_stop_k": None}
+    trades = run_strategy(signal_dates, soxx, breadth, config=cfg)
+    assert len(trades) == 1
+    assert trades[0].exit_reason != "trailing_stop"
+
+
+def test_profit_anchored_stop_does_not_fire_below_threshold():
+    """With stop_active_after_profit_pct=0.10, the stop is inert until
+    the trade reaches +10 per cent profit. A small -3 per cent dip
+    before profit threshold should NOT trigger the stop."""
+    idx = pd.date_range("2020-01-02", periods=80, freq="B")
+    # Rise 5 per cent over 30 days, then drop 3 per cent, then recover.
+    base = 100.0
+    rise = [base + i * (0.05 * base / 30) for i in range(30)]
+    dip = [rise[-1] * (1 - 0.03 * i / 10) for i in range(11)]
+    recover = [dip[-1] + i * 0.5 for i in range(80 - len(rise) - len(dip))]
+    closes = rise + dip + recover
+    closes = closes[:80]
+    soxx = pd.DataFrame({
+        "Open":  closes,
+        "High":  [c * 1.005 for c in closes],
+        "Low":   [c * 0.995 for c in closes],
+        "Close": closes,
+    }, index=idx)
+    breadth = _make_breadth(soxx.index)
+    signal_dates = [soxx.index[3].strftime("%Y-%m-%d")]
+    from backtest import DEFAULT_CONFIG
+    cfg = {**DEFAULT_CONFIG, "stop_active_after_profit_pct": 0.10}
+    trades = run_strategy(signal_dates, soxx, breadth, config=cfg)
+    assert len(trades) == 1
+    # Trade should still be running through the dip — exit only at
+    # time-stop or end of data, not via trailing stop.
+    assert trades[0].exit_reason != "trailing_stop"
+
+
 def test_atr_wilder_matches_manual():
     """Sanity-check ATR computation against a manual EMA-of-TR on a tiny
     series."""
