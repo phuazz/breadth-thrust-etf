@@ -1,0 +1,519 @@
+"""Step 2 — compute breadth components, z-scores, and signal flags for SOXX.
+
+Inputs : data/constituents_soxx.json (Step 1 output)
+Outputs: data/breadth_soxx.json + data/prices_cache.parquet (gitignored cache)
+
+Pipeline:
+  1. Build the union universe of all tickers that ever appeared in a SOXX
+     weekly snapshot 2018-2026.
+  2. Download adjusted-close history for that universe from yfinance with
+     parquet-backed disk cache.
+  3. For each NYSE trading day in [start_friday, end_friday], resolve the
+     active constituent roster (most recent Friday snapshot with date <= T)
+     and compute three breadth components on data available at T:
+       - RSI breadth   : share of constituents with 14d Wilder-RSI > 70
+       - MA breadth    : share above 50d simple MA
+       - Highs breadth : share at a 63d closing high
+     Each component's denominator is "constituents with enough price
+     history at T", which by design excludes the yfinance-missing names.
+     Per-day n_constituents and n_with_price are logged as a quality flag.
+  4. Z-score each component on an EXPANDING window of past data (the day-T
+     stat uses only data through T-1). Composite = mean of the three z's.
+  5. Component triggers:
+       - RSI    : top decile of its own expanding history (>= expanding p90 of past)
+       - MA     : Zweig thrust — crosses from < 50% to >= 80% within 20 trading days
+       - Highs  : top decile of expanding history
+  6. Composite "fires" when (a) composite_z crosses above its expanding 90th
+     percentile AND (b) at least 2 of 3 components are triggered AND (c) at
+     least SIGNAL_ELIGIBLE_AFTER days of breadth history have accumulated.
+  7. Also compute the composite expanding 10th percentile threshold so Step 3
+     can detect the regime-exit condition without recomputing.
+
+Three ways this could be silently wrong (and our defences):
+  - Look-ahead in threshold      -> .shift(1).expanding() throughout.
+  - Stale-roster contamination   -> binary-walk through Friday snapshots,
+                                    never use future or current rosters.
+  - Differential missingness     -> cannot be fixed at this data source;
+                                    logged per day so Step 3 can quarantine
+                                    suspect periods or weight signals down.
+
+Run:
+    python scripts/compute_breadth.py
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import sys
+import warnings
+from bisect import bisect_right
+from datetime import datetime, timezone
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pandas_market_calendars as mcal
+import yfinance as yf
+
+# Force UTF-8 stdout for Windows console.
+sys.stdout.reconfigure(encoding="utf-8")
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+CONSTITUENTS_PATH = DATA_DIR / "constituents_soxx.json"
+PRICES_CACHE = DATA_DIR / "prices_cache.parquet"
+OUT_PATH = DATA_DIR / "breadth_soxx.json"
+
+# Indicator periods, all in trading days.
+RSI_PERIOD = 14
+MA_PERIOD = 50
+HIGH_PERIOD = 63
+RSI_OVERBOUGHT = 70.0
+
+# Statistical window controls.
+# - Z-scores need a minimum number of past observations before they are
+#   meaningful; under this they are NaN.
+# - Percentile thresholds need a wider base — 63 trading days (~3 months).
+# - Signal eligibility kicks in only after 252 trading days (~1 year) of
+#   breadth history so the percentile thresholds are stable.
+Z_SCORE_MIN_PERIODS = 20
+PCT_MIN_PERIODS = 63
+SIGNAL_ELIGIBLE_AFTER = 252
+
+# Zweig MA thrust parameters.
+ZWEIG_LOW = 0.50
+ZWEIG_HIGH = 0.80
+ZWEIG_WINDOW = 20
+
+# Composite signal threshold percentile.
+COMPOSITE_HIGH_PCT = 0.90
+COMPOSITE_LOW_PCT = 0.10  # logged for use by Step 3 regime exit
+
+# Warmup period (calendar days) of price data to download before
+# START_FRIDAY so RSI / MA / high computations have full lookback on
+# the first breadth date.
+PRICE_WARMUP_CALENDAR_DAYS = 180
+
+
+# ---------------------------------------------------------------------------
+# Helper functions (importable for tests)
+# ---------------------------------------------------------------------------
+
+
+def normalise_for_yfinance(ticker: str) -> str:
+    """Convert iShares dot-separated share classes (e.g. BRK.B) to yfinance's
+    dash convention (BRK-B). Most SOXX tickers are unaffected."""
+    return ticker.replace(".", "-")
+
+
+def compute_rsi(prices: pd.DataFrame, period: int = 14) -> pd.DataFrame:
+    """Wilder-smoothed RSI across multiple price series simultaneously.
+
+    Implemented with EMA of gains / losses, alpha = 1/period (Wilder).
+    Vectorised across columns; the result has NaN until `period` rows are
+    available per column.
+    """
+    delta = prices.diff()
+    gain = delta.clip(lower=0)
+    loss = (-delta).clip(lower=0)
+    avg_gain = gain.ewm(alpha=1.0 / period, adjust=False, min_periods=period).mean()
+    avg_loss = loss.ewm(alpha=1.0 / period, adjust=False, min_periods=period).mean()
+    rs = avg_gain / avg_loss.replace(0, np.nan)
+    rsi = 100.0 - 100.0 / (1.0 + rs)
+    return rsi
+
+
+def zweig_trigger(
+    ma_breadth: pd.Series,
+    window: int = ZWEIG_WINDOW,
+    low: float = ZWEIG_LOW,
+    high: float = ZWEIG_HIGH,
+) -> pd.Series:
+    """Zweig-style breadth thrust: ma_breadth >= high today AND any value in
+    the prior `window` trading days was below `low`.
+
+    "Prior" means strictly before today (shift(1)) so the trigger respects
+    no-look-ahead.
+    """
+    prior_min = ma_breadth.shift(1).rolling(window, min_periods=1).min()
+    return (ma_breadth >= high) & (prior_min < low)
+
+
+def expanding_zscore(s: pd.Series, min_periods: int = Z_SCORE_MIN_PERIODS) -> pd.Series:
+    """z-score where the (mean, std) used at time T are computed on data
+    strictly before T — guarantees no look-ahead.
+    """
+    prior = s.shift(1)
+    mean_t = prior.expanding(min_periods=min_periods).mean()
+    std_t = prior.expanding(min_periods=min_periods).std()
+    z = (s - mean_t) / std_t
+    return z.replace([np.inf, -np.inf], np.nan)
+
+
+def expanding_percentile(
+    s: pd.Series,
+    q: float,
+    min_periods: int = PCT_MIN_PERIODS,
+) -> pd.Series:
+    """`q` quantile of s's history strictly prior to each date."""
+    return s.shift(1).expanding(min_periods=min_periods).quantile(q)
+
+
+def active_roster_at(snapshot_dates: list[str], snapshot_map: dict, d: str) -> list[str]:
+    """Return the constituent roster active on date `d` (ISO YYYY-MM-DD).
+
+    Uses bisect on the sorted snapshot_dates list so this is O(log N) per
+    call rather than O(N). The active roster on day d is the snapshot whose
+    target Friday is the rightmost one <= d.
+    """
+    idx = bisect_right(snapshot_dates, d) - 1
+    if idx < 0:
+        return []
+    return snapshot_map[snapshot_dates[idx]]["tickers"]
+
+
+# ---------------------------------------------------------------------------
+# Price download with cache
+# ---------------------------------------------------------------------------
+
+
+def download_prices(
+    tickers: list[str],
+    start: str,
+    end: str,
+    cache_path: Path = PRICES_CACHE,
+    force: bool = False,
+) -> pd.DataFrame:
+    """Download adjusted-close history. Cache to parquet so reruns are free.
+
+    Cache hit policy: reuse cache when it covers the requested date range
+    and all requested tickers. Any change to either invalidates and re-pulls.
+    """
+    requested = set(tickers)
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end)
+    if not force and cache_path.exists():
+        try:
+            cached = pd.read_parquet(cache_path)
+            covers_dates = (
+                cached.index.min() <= start_ts and cached.index.max() >= end_ts
+            )
+            covers_tickers = requested.issubset(set(cached.columns))
+            if covers_dates and covers_tickers:
+                print(f"  Using cached prices: {cache_path.name}", flush=True)
+                return cached[list(tickers)].loc[start_ts:end_ts]
+        except Exception as e:
+            print(f"  Cache read failed ({e}); re-downloading.", flush=True)
+
+    yf_syms = [normalise_for_yfinance(t) for t in tickers]
+    print(f"  Downloading {len(yf_syms)} tickers from yfinance "
+          f"({start} -> {end}) ...", flush=True)
+    raw = yf.download(
+        yf_syms,
+        start=start,
+        end=end,
+        auto_adjust=True,
+        threads=True,
+        progress=False,
+        group_by="column",
+    )
+    if isinstance(raw.columns, pd.MultiIndex):
+        if "Close" not in raw.columns.get_level_values(0):
+            raise RuntimeError("yfinance multi-index download lacks 'Close'")
+        close = raw["Close"].copy()
+    else:
+        # Single ticker — DataFrame has one level, with OHLCV columns.
+        close = raw[["Close"]].copy()
+        close.columns = [yf_syms[0]]
+
+    # Reverse the dot->dash normalisation so column names match input tickers.
+    rev_map = {normalise_for_yfinance(t): t for t in tickers}
+    close = close.rename(columns=rev_map)
+
+    # Ensure all requested tickers exist as columns (NaN if yfinance returned nothing).
+    for t in tickers:
+        if t not in close.columns:
+            close[t] = np.nan
+    close = close[list(tickers)]
+    close.index = pd.to_datetime(close.index).tz_localize(None)
+
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    close.to_parquet(cache_path)
+    return close
+
+
+# ---------------------------------------------------------------------------
+# Main breadth pipeline
+# ---------------------------------------------------------------------------
+
+
+def main() -> int:
+    print("Loading constituents JSON ...", flush=True)
+    consts = json.loads(CONSTITUENTS_PATH.read_text(encoding="utf-8"))
+    snapshot_dates = sorted(consts["snapshots"].keys())
+    snapshot_map = consts["snapshots"]
+    universe = sorted({t for snap in snapshot_map.values() for t in snap["tickers"]})
+    print(f"  Snapshots: {len(snapshot_dates)}")
+    print(f"  Unique tickers across history: {len(universe)}")
+
+    start_friday = pd.Timestamp(consts["start_friday"])
+    end_friday = pd.Timestamp(consts["end_friday"])
+    dl_start = (start_friday - pd.Timedelta(days=PRICE_WARMUP_CALENDAR_DAYS)).strftime("%Y-%m-%d")
+    dl_end = (end_friday + pd.Timedelta(days=5)).strftime("%Y-%m-%d")
+
+    print("Downloading prices ...", flush=True)
+    prices = download_prices(universe, dl_start, dl_end)
+    n_with_any_data = int((prices.notna().any(axis=0)).sum())
+    print(f"  Prices shape: {prices.shape}, tickers with any data: "
+          f"{n_with_any_data}/{len(universe)}")
+
+    # Pre-compute per-ticker indicators on the full price panel.
+    print("Computing per-ticker indicators ...", flush=True)
+    rsi = compute_rsi(prices, RSI_PERIOD)
+    ma50 = prices.rolling(MA_PERIOD, min_periods=MA_PERIOD).mean()
+    rolling_high = prices.rolling(HIGH_PERIOD, min_periods=HIGH_PERIOD).max()
+    above_ma = (prices > ma50) & ma50.notna()
+    at_high = (prices >= rolling_high) & rolling_high.notna()
+    rsi_overbought = (rsi > RSI_OVERBOUGHT) & rsi.notna()
+
+    # NYSE trading days in the breadth window.
+    nyse = mcal.get_calendar("NYSE")
+    schedule = nyse.schedule(start_date=start_friday, end_date=end_friday)
+    trading_days = pd.DatetimeIndex(schedule.index.normalize().tz_localize(None))
+    print(f"  Trading days in window: {len(trading_days)}")
+
+    # Walk each trading day, build the breadth panel.
+    print("Building breadth series ...", flush=True)
+    rows = []
+    for d in trading_days:
+        d_str = d.strftime("%Y-%m-%d")
+        roster = active_roster_at(snapshot_dates, snapshot_map, d_str)
+        if not roster:
+            continue
+        # Skip dates the price panel does not cover.
+        if d not in prices.index:
+            continue
+        roster_in_panel = [t for t in roster if t in prices.columns]
+        # Per-component "has enough history" masks for this date.
+        row_price = prices.loc[d, roster_in_panel]
+        has_price = row_price.notna()
+        n_with_price = int(has_price.sum())
+
+        rsi_at = rsi.loc[d, roster_in_panel]
+        rsi_valid = rsi_at.notna() & has_price
+        ma_at = ma50.loc[d, roster_in_panel]
+        ma_valid = ma_at.notna() & has_price
+        high_at = rolling_high.loc[d, roster_in_panel]
+        high_valid = high_at.notna() & has_price
+
+        if rsi_valid.any():
+            rsi_b = float(rsi_overbought.loc[d, roster_in_panel][rsi_valid].sum() /
+                          rsi_valid.sum())
+        else:
+            rsi_b = np.nan
+        if ma_valid.any():
+            ma_b = float(above_ma.loc[d, roster_in_panel][ma_valid].sum() /
+                         ma_valid.sum())
+        else:
+            ma_b = np.nan
+        if high_valid.any():
+            high_b = float(at_high.loc[d, roster_in_panel][high_valid].sum() /
+                           high_valid.sum())
+        else:
+            high_b = np.nan
+
+        rows.append({
+            "date": d_str,
+            "n_constituents": len(roster),
+            "n_with_price": n_with_price,
+            "n_with_rsi": int(rsi_valid.sum()),
+            "n_with_ma50": int(ma_valid.sum()),
+            "n_with_high63": int(high_valid.sum()),
+            "rsi_breadth": rsi_b,
+            "ma_breadth": ma_b,
+            "highs_breadth": high_b,
+        })
+
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.set_index("date").sort_index()
+
+    # Per-component z-scores (no look-ahead).
+    print("Computing z-scores, thresholds, triggers ...", flush=True)
+    df["rsi_breadth_z"] = expanding_zscore(df["rsi_breadth"])
+    df["ma_breadth_z"] = expanding_zscore(df["ma_breadth"])
+    df["highs_breadth_z"] = expanding_zscore(df["highs_breadth"])
+    df["composite_z"] = df[["rsi_breadth_z", "ma_breadth_z", "highs_breadth_z"]].mean(
+        axis=1, skipna=False
+    )
+
+    # Component triggers.
+    df["rsi_p90"] = expanding_percentile(df["rsi_breadth"], COMPOSITE_HIGH_PCT)
+    df["rsi_trigger"] = (df["rsi_breadth"] >= df["rsi_p90"]) & df["rsi_p90"].notna()
+    df["highs_p90"] = expanding_percentile(df["highs_breadth"], COMPOSITE_HIGH_PCT)
+    df["highs_trigger"] = (df["highs_breadth"] >= df["highs_p90"]) & df["highs_p90"].notna()
+    df["ma_zweig_trigger"] = zweig_trigger(df["ma_breadth"])
+
+    # Composite high threshold + crossover.
+    df["composite_p90"] = expanding_percentile(df["composite_z"], COMPOSITE_HIGH_PCT)
+    df["composite_p10"] = expanding_percentile(df["composite_z"], COMPOSITE_LOW_PCT)
+    above_p90 = (df["composite_z"] >= df["composite_p90"]) & df["composite_p90"].notna()
+    df["composite_above_p90"] = above_p90
+    df["composite_crosses_p90"] = above_p90 & ~above_p90.shift(1).fillna(False)
+
+    df["trigger_count"] = (
+        df["rsi_trigger"].astype(int)
+        + df["highs_trigger"].astype(int)
+        + df["ma_zweig_trigger"].astype(int)
+    )
+
+    # Signal eligibility: enough history accumulated.
+    history_position = np.arange(len(df))
+    df["signal_eligible"] = history_position >= SIGNAL_ELIGIBLE_AFTER
+    df["signal_fires"] = (
+        df["composite_crosses_p90"] & (df["trigger_count"] >= 2) & df["signal_eligible"]
+    )
+
+    # ----- Output -----------------------------------------------------------
+    missing_pct = 1.0 - (df["n_with_price"] / df["n_constituents"])
+    signal_rows = df[df["signal_fires"]]
+    signals_list = []
+    for ts, r in signal_rows.iterrows():
+        triggered = []
+        if bool(r["rsi_trigger"]):
+            triggered.append("rsi")
+        if bool(r["ma_zweig_trigger"]):
+            triggered.append("ma_zweig")
+        if bool(r["highs_trigger"]):
+            triggered.append("highs")
+        signals_list.append({
+            "date": ts.strftime("%Y-%m-%d"),
+            "composite_z": _safe_float(r["composite_z"]),
+            "composite_p90": _safe_float(r["composite_p90"]),
+            "rsi_breadth": _safe_float(r["rsi_breadth"]),
+            "ma_breadth": _safe_float(r["ma_breadth"]),
+            "highs_breadth": _safe_float(r["highs_breadth"]),
+            "triggered_components": triggered,
+            "n_constituents": int(r["n_constituents"]),
+            "n_with_price": int(r["n_with_price"]),
+        })
+
+    def col_to_jsonlist(s: pd.Series, ndigits: int | None = 6) -> list:
+        out = []
+        for v in s.tolist():
+            if isinstance(v, (bool, np.bool_)):
+                out.append(int(v))
+            elif v is None or (isinstance(v, float) and (math.isnan(v) or math.isinf(v))):
+                out.append(None)
+            elif isinstance(v, float) and ndigits is not None:
+                out.append(round(v, ndigits))
+            else:
+                out.append(v)
+        return out
+
+    payload = {
+        "etf": consts["etf"],
+        "computed_at_utc": datetime.now(timezone.utc).isoformat(),
+        "constituents_source": str(CONSTITUENTS_PATH.relative_to(PROJECT_ROOT)),
+        "start_date": df.index[0].strftime("%Y-%m-%d"),
+        "end_date": df.index[-1].strftime("%Y-%m-%d"),
+        "n_trading_days": int(len(df)),
+        "n_signals": int(df["signal_fires"].sum()),
+        "first_eligible_signal_date": df.index[SIGNAL_ELIGIBLE_AFTER].strftime("%Y-%m-%d")
+            if len(df) > SIGNAL_ELIGIBLE_AFTER else None,
+        "config": {
+            "rsi_period": RSI_PERIOD,
+            "rsi_overbought_threshold": RSI_OVERBOUGHT,
+            "ma_period": MA_PERIOD,
+            "high_period": HIGH_PERIOD,
+            "z_score_min_periods": Z_SCORE_MIN_PERIODS,
+            "pct_min_periods": PCT_MIN_PERIODS,
+            "signal_eligible_after": SIGNAL_ELIGIBLE_AFTER,
+            "zweig_low": ZWEIG_LOW,
+            "zweig_high": ZWEIG_HIGH,
+            "zweig_window": ZWEIG_WINDOW,
+            "composite_high_pct": COMPOSITE_HIGH_PCT,
+            "composite_low_pct": COMPOSITE_LOW_PCT,
+            "price_warmup_calendar_days": PRICE_WARMUP_CALENDAR_DAYS,
+        },
+        "data_quality": {
+            "universe_size": len(universe),
+            "tickers_with_any_yf_data": n_with_any_data,
+            "tickers_with_no_yf_data": len(universe) - n_with_any_data,
+            "max_missing_constituent_pct": _safe_float(missing_pct.max()),
+            "mean_missing_constituent_pct": _safe_float(missing_pct.mean()),
+            "first_date_below_10pct_missing": (
+                missing_pct[missing_pct < 0.10].index[0].strftime("%Y-%m-%d")
+                if (missing_pct < 0.10).any() else None
+            ),
+            "note": (
+                "Constituents with no yfinance price history (mostly acquired or "
+                "delisted semis like XLNX, MXIM, BRCM, ALTR, LLTC, CY, IDTI) are "
+                "dropped from both numerator and denominator. This biases breadth "
+                "percentages toward survivors. Daily n_with_price vs n_constituents "
+                "lets Step 3 quarantine suspect periods."
+            ),
+        },
+        "signals": signals_list,
+        "series": {
+            "dates": [d.strftime("%Y-%m-%d") for d in df.index],
+            "n_constituents": df["n_constituents"].astype(int).tolist(),
+            "n_with_price": df["n_with_price"].astype(int).tolist(),
+            "n_with_rsi": df["n_with_rsi"].astype(int).tolist(),
+            "n_with_ma50": df["n_with_ma50"].astype(int).tolist(),
+            "n_with_high63": df["n_with_high63"].astype(int).tolist(),
+            "rsi_breadth": col_to_jsonlist(df["rsi_breadth"]),
+            "ma_breadth": col_to_jsonlist(df["ma_breadth"]),
+            "highs_breadth": col_to_jsonlist(df["highs_breadth"]),
+            "rsi_breadth_z": col_to_jsonlist(df["rsi_breadth_z"]),
+            "ma_breadth_z": col_to_jsonlist(df["ma_breadth_z"]),
+            "highs_breadth_z": col_to_jsonlist(df["highs_breadth_z"]),
+            "composite_z": col_to_jsonlist(df["composite_z"]),
+            "composite_p90": col_to_jsonlist(df["composite_p90"]),
+            "composite_p10": col_to_jsonlist(df["composite_p10"]),
+            "rsi_p90": col_to_jsonlist(df["rsi_p90"]),
+            "highs_p90": col_to_jsonlist(df["highs_p90"]),
+            "rsi_trigger": col_to_jsonlist(df["rsi_trigger"]),
+            "ma_zweig_trigger": col_to_jsonlist(df["ma_zweig_trigger"]),
+            "highs_trigger": col_to_jsonlist(df["highs_trigger"]),
+            "trigger_count": df["trigger_count"].astype(int).tolist(),
+            "composite_above_p90": col_to_jsonlist(df["composite_above_p90"]),
+            "composite_crosses_p90": col_to_jsonlist(df["composite_crosses_p90"]),
+            "signal_eligible": col_to_jsonlist(df["signal_eligible"]),
+            "signal_fires": col_to_jsonlist(df["signal_fires"]),
+        },
+    }
+
+    OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print()
+    print(f"Wrote {OUT_PATH.relative_to(PROJECT_ROOT)}")
+    print(f"  Trading days   : {len(df)}")
+    print(f"  Signals fired  : {int(df['signal_fires'].sum())}")
+    print(f"  Max missing %  : {missing_pct.max() * 100:.1f}%")
+    print(f"  Mean missing % : {missing_pct.mean() * 100:.1f}%")
+    print(f"  Signal-eligible from : {payload['first_eligible_signal_date']}")
+    if signals_list:
+        print("  Signal dates   :")
+        for s in signals_list:
+            print(f"    {s['date']}  comp_z={s['composite_z']:.2f}  "
+                  f"trig={s['triggered_components']}  "
+                  f"n={s['n_with_price']}/{s['n_constituents']}")
+    return 0
+
+
+def _safe_float(x) -> float | None:
+    """Convert numpy/pandas scalars to float, mapping NaN/inf to None."""
+    try:
+        f = float(x)
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(f) or math.isinf(f):
+        return None
+    return f
+
+
+if __name__ == "__main__":
+    sys.exit(main())

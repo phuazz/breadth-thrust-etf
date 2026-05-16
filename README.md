@@ -66,6 +66,7 @@ breadth-thrust-etf/
 
 - 2026-05-14: Project initialised. Step 0 smoke test complete (see "Backtest window" above).
 - 2026-05-15: Backtest window confirmed as 2018-present. Step 1 (`scripts/fetch_constituents.py`) complete. 436 weekly snapshots written to `data/constituents_soxx.json`. 13 walkbacks for US market holidays (Good Friday, Christmas Eve, July 3/4, New Year, plus one iShares hiccup on 2022-07-08). Zero carry-forwards required. Universe size stable at 30 to 31 across the full window. The mid-2021 SOXX index switch (PHLX SOX to ICE Semiconductor) shows up correctly as a 6-in / 6-out membership churn on 2021-06-18.
+- 2026-05-16: Step 2 (`scripts/compute_breadth.py`) complete. `data/breadth_soxx.json` covers 2,096 trading days 2018-01-05 to 2026-05-08. Signal-eligibility begins 2019-01-08 (one year of breadth history accumulated). Universe of 57 unique tickers ever-active; 46 have yfinance coverage, 11 are total losses (XLNX, MXIM, BRCM, ALTR, LLTC, CY, IDTI, MLNX, CREE, INFN, etc.). Mean per-day missing-constituent share 8.2 per cent, max 22.6 per cent in early 2018; drops below 10 per cent from 2021-06-18 onward. 163 raw signal-fire days collapse to **20 distinct signal clusters** across the window, anchored at well-known inflection points (Jan 2019 post-Q4-2018 selloff, Jun 2020 COVID recovery, Aug-Oct 2020 second-leg rally, Aug-Nov 2021, Aug-Nov 2022 bear-market rallies, Jan 2023 AI thrust, several 2023-25 follow-throughs, Apr 2026 recent thrust). Step 3 will dedupe clusters via no-re-entry-while-in-trade.
 
 ## Data sources
 
