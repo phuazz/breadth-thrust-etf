@@ -64,7 +64,8 @@ breadth-thrust-etf/
 
 ## Status
 
-- 2026-05-14: Project initialised. Step 0 smoke test complete (see "Backtest window" above). Awaiting user decision on start year before writing Step 1 (`fetch_constituents.py`).
+- 2026-05-14: Project initialised. Step 0 smoke test complete (see "Backtest window" above).
+- 2026-05-15: Backtest window confirmed as 2018-present. Step 1 (`scripts/fetch_constituents.py`) complete. 436 weekly snapshots written to `data/constituents_soxx.json`. 13 walkbacks for US market holidays (Good Friday, Christmas Eve, July 3/4, New Year, plus one iShares hiccup on 2022-07-08). Zero carry-forwards required. Universe size stable at 30 to 31 across the full window. The mid-2021 SOXX index switch (PHLX SOX to ICE Semiconductor) shows up correctly as a 6-in / 6-out membership churn on 2021-06-18.
 
 ## Data sources
 
