@@ -88,9 +88,9 @@ MC_SEED = 20260516
 
 
 # --- Default config dict (consumed by simulate_trade / run_strategy) -----
-# Any caller can pass a custom config dict to test exit-logic variants
-# without touching this module. See scripts/run_variants.py for example
-# alternative configs (looser stop, regime-only, profit-anchored).
+# Any caller can pass a custom config dict to test exit-logic, entry-timing,
+# or signal-filtering variants without touching this module. See
+# scripts/run_variants.py and scripts/run_sensitivity.py for examples.
 DEFAULT_CONFIG: dict = {
     "trailing_stop_k": TRAILING_STOP_K,              # None disables trailing stop
     "stop_active_after_profit_pct": None,            # None: stop active from entry
@@ -101,6 +101,15 @@ DEFAULT_CONFIG: dict = {
     "time_stop_days": TIME_STOP_DAYS,
     "atr_period": ATR_PERIOD,
     "cost_bps_one_side": COST_BPS_ONE_SIDE,
+    # Item 3 — entry timing. 0 = next trading day open (default); k > 0 = enter
+    # k trading days LATER (still at the open). Tests the "signal fires after
+    # short-term overbought, entry is too early" hypothesis.
+    "entry_delay_bars": 0,
+    # Item 4 — trend filter. If True, only enter signals where the parent ETF's
+    # close at the signal date is above its `trend_filter_period` SMA. Tests
+    # whether the signal works better when paired with a regime filter.
+    "use_trend_filter": False,
+    "trend_filter_period": 200,
 }
 
 
@@ -277,6 +286,14 @@ def run_strategy(
         soxx["High"], soxx["Low"], soxx["Close"], period=cfg["atr_period"]
     )
     cost_factor = cfg["cost_bps_one_side"] / 10_000.0
+    entry_delay = int(cfg.get("entry_delay_bars", 0))
+    # Optional trend filter — apply at SIGNAL DATE on the parent ETF's own price.
+    if cfg.get("use_trend_filter", False):
+        tf_period = int(cfg.get("trend_filter_period", 200))
+        trend_ma = soxx["Close"].rolling(tf_period, min_periods=tf_period).mean()
+        above_trend = (soxx["Close"] > trend_ma) & trend_ma.notna()
+    else:
+        above_trend = None
     trades: list[Trade] = []
     last_exit_idx = -1
 
@@ -286,11 +303,18 @@ def run_strategy(
             pos = soxx.index.searchsorted(sd, side="left")
         else:
             pos = soxx.index.get_loc(sd)
-        entry_idx = pos + 1 if soxx.index[pos] <= sd else pos
+        # Apply entry-delay: still entering at OPEN, just k trading days later.
+        entry_idx = pos + 1 + entry_delay if soxx.index[pos] <= sd else pos + entry_delay
         if entry_idx >= len(soxx):
             break
         if entry_idx <= last_exit_idx:
             continue  # signal lands inside or before prior trade exit — skip
+
+        # Trend filter is evaluated at the SIGNAL date (close of), not entry day,
+        # so the decision uses only information available when the signal fires.
+        if above_trend is not None and sd in above_trend.index:
+            if not bool(above_trend.loc[sd]):
+                continue  # below trend filter — skip this signal
 
         entry_open = float(soxx["Open"].iloc[entry_idx])
         if not np.isfinite(entry_open):

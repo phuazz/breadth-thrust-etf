@@ -186,6 +186,59 @@ def test_profit_anchored_stop_does_not_fire_below_threshold():
     assert trades[0].exit_reason != "trailing_stop"
 
 
+def test_entry_delay_shifts_entry_by_k_bars():
+    """entry_delay_bars = 3 should push the entry from T+1 to T+4 open."""
+    soxx = _make_flat_soxx(n=100)
+    breadth = _make_breadth(soxx.index)
+    signal_dates = [soxx.index[30].strftime("%Y-%m-%d")]
+    from backtest import DEFAULT_CONFIG
+    cfg = {**DEFAULT_CONFIG, "entry_delay_bars": 3}
+    trades = run_strategy(signal_dates, soxx, breadth, config=cfg)
+    assert len(trades) == 1
+    # Default entry was T+1 = index 31; delayed entry should be index 34.
+    assert trades[0].entry_date == soxx.index[34].strftime("%Y-%m-%d")
+
+
+def test_trend_filter_skips_signal_below_ma():
+    """When the parent ETF's close at the signal date is BELOW its trend MA,
+    the signal must be skipped — no trade opens."""
+    # Construct a clear downtrend: prices step down each day.
+    idx = pd.date_range("2020-01-02", periods=400, freq="B")
+    closes = [200.0 - i * 0.3 for i in range(400)]  # 200 → 80 over 400d
+    soxx = pd.DataFrame({
+        "Open":  closes,
+        "High":  [c + 0.5 for c in closes],
+        "Low":   [c - 0.5 for c in closes],
+        "Close": closes,
+    }, index=idx)
+    breadth = _make_breadth(soxx.index)
+    # Signal at day 350 — well below the rising 200d MA of the earlier highs
+    signal_dates = [soxx.index[350].strftime("%Y-%m-%d")]
+    from backtest import DEFAULT_CONFIG
+    cfg = {**DEFAULT_CONFIG, "use_trend_filter": True, "trend_filter_period": 200}
+    trades = run_strategy(signal_dates, soxx, breadth, config=cfg)
+    assert len(trades) == 0, "Trend filter should have skipped the signal"
+
+
+def test_trend_filter_keeps_signal_above_ma():
+    """Mirror case: when close is ABOVE its trend MA, signal is taken."""
+    idx = pd.date_range("2020-01-02", periods=400, freq="B")
+    # Uptrend: 100 → 220 over 400d. By day 350, close >> 200d MA.
+    closes = [100.0 + i * 0.3 for i in range(400)]
+    soxx = pd.DataFrame({
+        "Open":  closes,
+        "High":  [c + 0.5 for c in closes],
+        "Low":   [c - 0.5 for c in closes],
+        "Close": closes,
+    }, index=idx)
+    breadth = _make_breadth(soxx.index)
+    signal_dates = [soxx.index[350].strftime("%Y-%m-%d")]
+    from backtest import DEFAULT_CONFIG
+    cfg = {**DEFAULT_CONFIG, "use_trend_filter": True, "trend_filter_period": 200}
+    trades = run_strategy(signal_dates, soxx, breadth, config=cfg)
+    assert len(trades) == 1
+
+
 def test_atr_wilder_matches_manual():
     """Sanity-check ATR computation against a manual EMA-of-TR on a tiny
     series."""
