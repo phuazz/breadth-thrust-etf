@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Breadth-Thrust ETF Research</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      --ink: #111418;
+      --ink-soft: #4a5159;
+      --ink-faint: #6b727a;
+      --bg: #ffffff;
+      --bg-soft: #f7f8fa;
+      --bg-card: #ffffff;
+      --border: #e3e6ea;
+      --border-strong: #c8ccd2;
+      --accent: #1351b4;
+      --good: #1d7a3a;
+      --bad: #b3261e;
+      --warn: #b76e00;
+      --neutral: #4a5159;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    header.top {
+      border-bottom: 1px solid var(--border);
+      padding: 22px 0;
+      background: var(--bg);
+    }
+    header.top h1 {
+      margin: 0 0 4px 0;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    header.top .sub {
+      color: var(--ink-faint);
+      font-size: 14px;
+    }
+    header.top .meta {
+      float: right;
+      font-size: 13px;
+      color: var(--ink-faint);
+      text-align: right;
+    }
+    header.top .meta a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    header.top .meta a:hover { text-decoration: underline; }
+
+    .verdict {
+      margin: 32px 0 24px 0;
+      padding: 22px 26px;
+      background: var(--bg-soft);
+      border-left: 3px solid var(--accent);
+      border-radius: 2px;
+    }
+    .verdict h2 {
+      margin: 0 0 12px 0;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      font-weight: 600;
+    }
+    .verdict p {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--ink);
+    }
+    .verdict p:last-child { margin-bottom: 0; }
+    .verdict strong { color: var(--accent); }
+
+    section {
+      margin: 40px 0;
+    }
+    section h2 {
+      font-size: 19px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      letter-spacing: -0.01em;
+    }
+    section .section-sub {
+      color: var(--ink-faint);
+      font-size: 14px;
+      margin: 0 0 18px 0;
+    }
+
+    table.matrix {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+    }
+    table.matrix thead th {
+      text-align: left;
+      padding: 10px 12px;
+      background: var(--bg-soft);
+      font-weight: 600;
+      color: var(--ink-soft);
+      border-bottom: 1px solid var(--border-strong);
+      font-size: 13px;
+      letter-spacing: 0.01em;
+    }
+    table.matrix tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    table.matrix tbody tr:last-child td { border-bottom: none; }
+    table.matrix tbody tr:hover { background: var(--bg-soft); }
+    table.matrix td.etf-name {
+      font-weight: 600;
+      color: var(--ink);
+    }
+    table.matrix td.etf-desc {
+      color: var(--ink-faint);
+      font-size: 13px;
+    }
+    table.matrix td.cell {
+      font-variant-numeric: tabular-nums;
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+    }
+    table.matrix td.cell .sharpe { font-weight: 600; }
+    table.matrix td.cell .mc { color: var(--ink-faint); font-size: 12px; margin-left: 6px; }
+    table.matrix td.cell .qual {
+      display: inline-block; margin-left: 6px; padding: 1px 5px;
+      background: rgba(19, 81, 180, 0.08); color: var(--accent);
+      font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+      border-radius: 2px; vertical-align: middle;
+    }
+    table.matrix td.cell.win-strong { background: rgba(29, 122, 58, 0.10); }
+    table.matrix td.cell.win-weak   { background: rgba(29, 122, 58, 0.05); }
+    table.matrix td.cell.lose-weak  { background: rgba(183, 110, 0, 0.05); }
+    table.matrix td.cell.lose-strong{ background: rgba(179, 38, 30, 0.06); }
+
+    .legend {
+      display: flex;
+      gap: 18px;
+      font-size: 12px;
+      color: var(--ink-faint);
+      margin-top: 10px;
+    }
+    .legend .sw {
+      display: inline-block;
+      width: 12px; height: 12px;
+      vertical-align: middle;
+      margin-right: 5px;
+      border: 1px solid var(--border-strong);
+    }
+    .legend .sw.win-strong { background: rgba(29, 122, 58, 0.18); }
+    .legend .sw.win-weak   { background: rgba(29, 122, 58, 0.09); }
+    .legend .sw.lose-weak  { background: rgba(183, 110, 0, 0.09); }
+    .legend .sw.lose-strong{ background: rgba(179, 38, 30, 0.10); }
+
+    .chart-controls {
+      margin: 0 0 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--ink-soft);
+    }
+    .chart-controls label { color: var(--ink-faint); }
+    .chart-controls select {
+      padding: 5px 8px;
+      border: 1px solid var(--border-strong);
+      border-radius: 3px;
+      background: var(--bg);
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    .chart {
+      width: 100%;
+      height: 460px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+      margin-top: 10px;
+    }
+    .card {
+      padding: 14px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+    .card .sym { font-weight: 600; font-size: 15px; }
+    .card .desc { color: var(--ink-faint); font-size: 12px; margin-bottom: 8px; }
+    .card .stat {
+      display: flex; justify-content: space-between;
+      font-size: 13px; font-variant-numeric: tabular-nums;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 2px 0;
+    }
+    .card .stat span:first-child { color: var(--ink-faint); }
+
+    footer {
+      margin-top: 60px;
+      padding: 24px 0 36px 0;
+      border-top: 1px solid var(--border);
+      color: var(--ink-faint);
+      font-size: 13px;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 720px) {
+      .container { padding: 0 14px; }
+      header.top .meta { float: none; text-align: left; margin-top: 8px; }
+      table.matrix { font-size: 12px; }
+      table.matrix td.cell { font-size: 11px; }
+      .chart { height: 320px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <div class="meta">
+      Repo: <a href="https://github.com/phuazz/breadth-thrust-etf">github.com/phuazz/breadth-thrust-etf</a><br>
+      <span id="ts-built"></span>
+    </div>
+    <h1>Breadth-thrust ETF research</h1>
+    <div class="sub">A multi-component breadth-thrust signal computed from point-in-time ETF constituents, tested across five universes.</div>
+  </div>
+</header>
+
+<main class="container">
+
+  <div class="verdict">
+    <h2>Verdict</h2>
+    <p id="verdict-body">Loading…</p>
+  </div>
+
+  <section id="sec-matrix">
+    <h2>Cross-ETF result matrix</h2>
+    <p class="section-sub">Sharpe (annualised) and Monte Carlo percentile of strategy total return vs 1,000 random-entry paths with bootstrapped holding distribution. 2018-2026 window, signal-eligible from 2019-01-08. All same costs (10 bps round-trip). Configs are not re-tuned per ETF.</p>
+    <table class="matrix" id="cross-etf-table">
+      <thead>
+        <tr>
+          <th>ETF</th>
+          <th>Universe</th>
+          <th>baseline_2xATR</th>
+          <th>regime_time_only</th>
+          <th>regime + delay 5d + trend filter</th>
+        </tr>
+      </thead>
+      <tbody id="cross-etf-tbody"></tbody>
+    </table>
+    <div class="legend">
+      <span><span class="sw win-strong"></span>MC ≥ 50 (beats random)</span>
+      <span><span class="sw win-weak"></span>40 ≤ MC &lt; 50</span>
+      <span><span class="sw lose-weak"></span>20 ≤ MC &lt; 40</span>
+      <span><span class="sw lose-strong"></span>MC &lt; 20</span>
+    </div>
+  </section>
+
+  <section id="sec-equity">
+    <h2>Equity curves — strategy vs buy-and-hold</h2>
+    <p class="section-sub">Daily equity normalised to 1.0 at the start of the signal-eligible window. Currently SOXX with the baseline 2× ATR config — extended per-ETF curves arrive in Phase 2.</p>
+    <div id="equity-chart" class="chart"></div>
+  </section>
+
+  <section id="sec-per-etf">
+    <h2>Per-ETF best result</h2>
+    <p class="section-sub">For each ETF, the headline metrics of its best-Sharpe config from the cross-ETF matrix.</p>
+    <div class="cards" id="cards-grid"></div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    Open-source under MIT. Built with cached iShares constituent data + yfinance prices. The conclusion section in
+    the <a href="https://github.com/phuazz/breadth-thrust-etf#cross-sector-oos-sweep-next-session-item-1-executed--does-the-parameter-choice-transfer">README</a>
+    has the full narrative.
+  </div>
+</footer>
+
+<script>
+// __DASHBOARD_DATA_START__
+const DASHBOARD_DATA_INLINE = null;
+// __DASHBOARD_DATA_END__
+
+async function loadData() {
+  if (DASHBOARD_DATA_INLINE) return DASHBOARD_DATA_INLINE;
+  // Dev fallback — fetch source JSONs directly when running locally via npx serve .
+  const fetchJson = (p) => fetch(p).then((r) => r.json());
+  const [soxx, csp1, iues, iufs, cndx, soxxBacktest] = await Promise.all([
+    fetchJson('data/backtest_soxx.json').then((j) => ({source: 'backtest_soxx', stats: j.primary, mc: j.benchmarks.monte_carlo_null, eq: j.equity_curves})),
+    fetchJson('data/backtest_csp1_oos.json'),
+    fetchJson('data/backtest_iues_oos.json'),
+    fetchJson('data/backtest_iufs_oos.json'),
+    fetchJson('data/backtest_cndx_oos.json'),
+    fetchJson('data/backtest_soxx.json'),
+  ]);
+  // In dev mode we build a quick approximation of the inlined data shape.
+  return {
+    built_at: null,
+    cross_etf: [],
+    equity_curves: { SOXX: soxxBacktest.equity_curves },
+    notice: 'Dev fallback active — pipeline-built data will look different.',
+  };
+}
+
+const ETF_LABELS = {
+  SOXX: { desc: 'iShares Semiconductor (semis)', proxy: 'SOXX', universe: '30' },
+  IUES: { desc: 'S&P 500 Energy sector', proxy: 'XLE', universe: '22–32' },
+  IUFS: { desc: 'S&P 500 Financials sector', proxy: 'XLF', universe: '67–71' },
+  CNDX: { desc: 'NASDAQ-100', proxy: 'QQQ', universe: '101' },
+  CSP1: { desc: 'S&P 500 (full)', proxy: 'SPY', universe: '503' },
+};
+
+const CONFIG_KEYS = ['baseline_2xATR', 'regime_time_only', 'regime_time_only_delay5_trend'];
+
+function classifyMC(mc) {
+  if (mc == null) return '';
+  if (mc >= 50) return 'win-strong';
+  if (mc >= 40) return 'win-weak';
+  if (mc >= 20) return 'lose-weak';
+  return 'lose-strong';
+}
+
+function fmtPct(x, signed = false) {
+  if (x == null || Number.isNaN(x)) return '—';
+  const v = (x * 100).toFixed(1);
+  return (signed && x > 0 ? '+' : '') + v + '%';
+}
+function fmtNum(x, digits = 2, signed = false) {
+  if (x == null || Number.isNaN(x)) return '—';
+  return (signed && x > 0 ? '+' : '') + Number(x).toFixed(digits);
+}
+
+function renderMatrix(rows) {
+  const tbody = document.getElementById('cross-etf-tbody');
+  tbody.innerHTML = '';
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    const meta = ETF_LABELS[r.etf] || { desc: '', universe: '' };
+    tr.innerHTML = `
+      <td class="etf-name">${r.etf}<div class="etf-desc">${meta.desc}</div></td>
+      <td class="cell">${meta.universe}</td>
+    `;
+    for (const k of CONFIG_KEYS) {
+      const c = r.configs[k];
+      if (!c) {
+        tr.innerHTML += `<td class="cell">—</td>`;
+        continue;
+      }
+      const cls = classifyMC(c.mc_pct);
+      const qual = c._label_qualifier
+        ? `<span class="qual" title="Measured on the held-out 2nd half of the window">${c._label_qualifier}</span>`
+        : '';
+      tr.innerHTML += `
+        <td class="cell ${cls}">
+          <span class="sharpe">${fmtNum(c.sharpe, 2, true)}</span>
+          <span class="mc">MC ${c.mc_pct == null ? '—' : c.mc_pct.toFixed(0)}</span>
+          ${qual}
+        </td>`;
+    }
+    tbody.appendChild(tr);
+  }
+}
+
+function renderEquityChart(eq) {
+  if (!eq || !eq.dates || !eq.strategy) {
+    document.getElementById('equity-chart').innerHTML =
+      '<p style="padding: 24px; color: var(--ink-faint);">Equity curve unavailable.</p>';
+    return;
+  }
+  const dates = eq.dates;
+  const traces = [
+    { x: dates, y: eq.strategy, mode: 'lines', name: 'Strategy (SOXX, 2× ATR baseline)',
+      line: { color: '#1351b4', width: 1.6 } },
+    { x: dates, y: eq.soxx_buy_hold, mode: 'lines', name: 'SOXX buy-and-hold',
+      line: { color: '#6b727a', width: 1.2, dash: 'dot' } },
+    { x: dates, y: eq.spy_buy_hold, mode: 'lines', name: 'SPY buy-and-hold',
+      line: { color: '#b76e00', width: 1.2, dash: 'dot' } },
+  ];
+  const layout = {
+    margin: { l: 56, r: 14, t: 14, b: 38 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+    yaxis: { title: 'Equity (normalised to 1)', gridcolor: '#eef0f3', zeroline: false, type: 'log',
+             tickformat: '.2f' },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', x: 0, y: 1.06 },
+  };
+  Plotly.newPlot('equity-chart', traces, layout, { displayModeBar: false, responsive: true });
+}
+
+function renderCards(rows) {
+  const grid = document.getElementById('cards-grid');
+  grid.innerHTML = '';
+  for (const r of rows) {
+    const meta = ETF_LABELS[r.etf] || { desc: '', proxy: r.etf };
+    let best = null;
+    for (const k of CONFIG_KEYS) {
+      const c = r.configs[k];
+      if (!c) continue;
+      if (best == null || (c.sharpe != null && c.sharpe > (best.sharpe ?? -Infinity))) {
+        best = { ...c, label: k };
+      }
+    }
+    if (!best) continue;
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `
+      <div class="sym">${r.etf} <span style="color:var(--ink-faint);font-weight:400;font-size:12px;">→ trade ${meta.proxy}</span></div>
+      <div class="desc">${meta.desc}</div>
+      <div class="stat"><span>Best config</span><span style="font-size:11px;">${best.label}</span></div>
+      <div class="stat"><span>Sharpe</span><span>${fmtNum(best.sharpe, 2, true)}</span></div>
+      <div class="stat"><span>Total return</span><span>${fmtPct(best.total_return, true)}</span></div>
+      <div class="stat"><span>Max DD</span><span>${fmtPct(best.max_dd)}</span></div>
+      <div class="stat"><span>Win rate</span><span>${fmtPct(best.win_rate)}</span></div>
+      <div class="stat"><span>MC %ile</span><span>${best.mc_pct == null ? '—' : best.mc_pct.toFixed(0)}</span></div>
+    `;
+    grid.appendChild(div);
+  }
+}
+
+(async function init() {
+  const data = await loadData();
+  if (data.built_at) document.getElementById('ts-built').textContent = 'Built ' + data.built_at;
+  if (data.verdict_html) document.getElementById('verdict-body').innerHTML = data.verdict_html;
+  if (data.cross_etf && data.cross_etf.length) {
+    renderMatrix(data.cross_etf);
+    renderCards(data.cross_etf);
+  }
+  if (data.equity_curves && data.equity_curves.SOXX) {
+    renderEquityChart(data.equity_curves.SOXX);
+  }
+})();
+</script>
+</body>
+</html>
