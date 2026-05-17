@@ -301,6 +301,44 @@ The half-window comparison is somewhat unfair (the CSP1 window includes the diff
 3. **Extend SOXX back to 2007** if iShares US unblocks. Test signal in the GFC + early-2010s regimes.
 4. **Position-sized portfolio**: rather than pick one ETF, combine signals across N sector ETFs with equal sizing. The diversification might smooth the equity curve without diluting the per-signal edge.
 
+## Cross-sector OOS sweep (next-session item 1, executed) — does the parameter choice transfer?
+
+Three additional iShares UK funds added to the registry and run through the same fetch → breadth → OOS backtest pipeline, applying the SOXX-tuned configs without re-tuning:
+
+- **IUES** — S&P 500 Energy Sector UCITS (22-32 constituents) — traded via **XLE** (SPDR Energy Select Sector)
+- **IUFS** — S&P 500 Financials Sector UCITS (67-71 constituents) — traded via **XLF** (SPDR Financial Select Sector)
+- **CNDX** — iShares NASDAQ 100 UCITS (101-104 constituents) — traded via **QQQ** (Invesco QQQ Trust)
+
+Three configs run on each: `baseline_2xATR`, `regime_time_only` (SOXX exit-logic winner), `regime_time_only_delay5_trend` (SOXX split-half winner).
+
+### Cross-ETF result matrix (Sharpe / MC %ile, 2019-01-08 to 2026-05-15)
+
+| ETF | Universe | baseline_2xATR | regime_time_only | regime+delay5+trend |
+|---|---:|---|---|---|
+| **SOXX** (semis) | 30 | 0.06 / 10 | 0.61 / 47 | **0.74 / 65** |
+| **IUES** (energy) | 22-32 | **0.23 / 46** | 0.11 / 28 | 0.09 / 30 |
+| **IUFS** (financials) | 67-71 | **0.09 / 23** | 0.06 / 16 | 0.01 / 15 |
+| **CNDX** (NDX-100) | 101 | 0.19 / 22 | 0.29 / 19 | **0.51 / 39** |
+| **CSP1** (S&P 500) | 503 | -0.19 / 5 | 0.44 / 28 | **0.59 / 43** |
+
+### Five honest findings
+
+1. **Only SOXX has a config that beats random entry**, and only the regime+delay+trend variant does so (65th percentile of the MC null). On every other ETF, the best config still underperforms the MC null. The split-half SOXX OOS test (82nd percentile on test half) was a window-favoured outcome, not a generic effect.
+
+2. **Parameter choices are sector-dependent, not universal.** On trending tech-heavy universes (SOXX, CNDX, CSP1), the SOXX-tuned `regime+delay+trend` config wins. On mean-reverting cyclicals (Energy, Financials), the original tight 2× ATR stop wins. The "destructive stop" verdict from SOXX is therefore not a universal truth — it depends on whether the underlying tends to trend post-thrust.
+
+3. **Universe size does not predict signal strength cleanly.** IUES (22 names — narrower than SOXX) has weaker results than CNDX (101 names) or CSP1 (503 names). What seems to matter is the underlying's tendency to trend after a breadth surge. Energy is cyclical → breadth thrusts often mark exhaustion. Tech / broad market tend to trend → breadth thrusts mark acceleration.
+
+4. **Financials is the worst sector for this signal** — Sharpe ≤ 0.09 in every config, MC %ile ≤ 23. The breadth-thrust mechanism does not work on regime-driven sectors where the underlying rotates between bull and bear regimes on macro catalysts.
+
+5. **The signal is a SOXX phenomenon more than a sector-concentration phenomenon.** Originally we conjectured "narrow sectors → strong signal" — the data does not support that. SOXX is the outlier; even adjacent narrow tech universes (CNDX) do worse, and similar-size narrow sectors (IUES) do worse still.
+
+### Summary verdict
+
+The signal carries some marginal information (positive-rate edge at 126d on SOXX) but the strategy does NOT generalise as deployable across sectors. SOXX is the home universe; everything else underperforms a random-entry null at the same trade count and holding distribution.
+
+This is the kind of result CLAUDE.md anticipates: "narrow the universe to where the signal mechanism is structurally strongest." After surveying 5 ETFs, that universe is SOXX. Further work would either (a) accept SOXX-only deployment with realistic capacity caveats, or (b) attempt to identify what makes SOXX different (semiconductor capex cycle? earnings clustering? supply-chain correlation?) so the same property can be found in other universes.
+
 ## Data sources
 
 - **iShares historical holdings**: `https://www.ishares.com/us/products/239705/ishares-phlx-semiconductor-etf/1467271812596.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund&asOfDate=YYYYMMDD`. Daily granularity available; earliest confirmed snapshot is 2007-06-29.

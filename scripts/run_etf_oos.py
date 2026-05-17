@@ -1,22 +1,32 @@
-"""Item 5 — true cross-ETF OOS validation on the S&P 500 (CSP1 / SPY).
+"""Cross-ETF OOS validation — apply SOXX-tuned configs to any other ETF.
 
-Applies the configuration that won the SOXX in-sample split-half test
-(regime_time_only + delay 5d + trend filter) to CSP1 (iShares Core S&P 500
-UCITS) breadth signals WITHOUT any re-tuning. Trades the SPY ETF for OHLC
-and stops (same constituents as CSP1, but US-listed in USD).
+Loads the chosen ETF's breadth file, then runs three configs against it:
 
-Also runs the baseline_2xATR config and the regime_time_only config for
-comparison, so we can see whether the SOXX-tuned parameters transfer.
+  1. baseline_2xATR                  — original specification
+  2. regime_time_only                — SOXX exit-logic winner
+  3. regime_time_only_delay5_trend   — SOXX split-half winner
+
+No re-tuning. The point is to see whether the SOXX-tuned parameter
+choices generalise to other universes (S&P 500, sector slices, NDX-100).
+
+The OHLC for the trading vehicle defaults to the ETF's `yfinance_trading_proxy`
+in scripts/etf_registry.py (e.g. CSP1 -> SPY, IUES -> XLE, IUFS -> XLF,
+CNDX -> QQQ) so we always trade a liquid US-listed ETF in USD even when
+the breadth comes from a UK UCITS file.
 
 Output:
-  - data/backtest_csp1_oos.json
+  - data/backtest_<etf_lower>_oos.json
 
 Run:
-    python scripts/run_csp1_oos.py
+    python scripts/run_etf_oos.py --etf CSP1
+    python scripts/run_etf_oos.py --etf IUES
+    python scripts/run_etf_oos.py --etf IUFS
+    python scripts/run_etf_oos.py --etf CNDX
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import sys
@@ -40,18 +50,14 @@ from backtest import (  # noqa: E402
     run_strategy,
     HORIZONS,
 )
+from etf_registry import get_etf  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-OUT_PATH = PROJECT_ROOT / "data" / "backtest_csp1_oos.json"
 
 
-# Three configs to evaluate on CSP1:
-#   1. baseline_2xATR — original specification
-#   2. regime_time_only — SOXX exit-logic winner
-#   3. regime_time_only + delay 5d + trend — SOXX split-half winner (true OOS test)
 CONFIGS: dict[str, dict] = {
     "baseline_2xATR": {**DEFAULT_CONFIG},
     "regime_time_only": {**DEFAULT_CONFIG, "trailing_stop_k": None},
@@ -100,33 +106,47 @@ def _clean(o):
     return o
 
 
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--etf", required=True,
+                   help="ETF symbol whose breadth file to load (must be in etf_registry).")
+    p.add_argument("--yf-symbol", default=None,
+                   help="Override yfinance ticker for OHLC trading proxy. "
+                        "Defaults to the registry's yfinance_trading_proxy or the ETF itself.")
+    return p.parse_args()
+
+
 def main() -> int:
-    print("Loading CSP1 breadth signal ...", flush=True)
-    breadth, signal_records = load_breadth(etf="CSP1")
+    args = parse_args()
+    etf = args.etf
+    cfg = get_etf(etf)
+    yf_sym = args.yf_symbol or cfg.get("yfinance_trading_proxy") or etf
+    out_path = PROJECT_ROOT / "data" / f"backtest_{etf.lower()}_oos.json"
+
+    print(f"Loading {etf} breadth signal ...", flush=True)
+    breadth, signal_records = load_breadth(etf=etf)
     signal_dates = [s["date"] for s in signal_records]
     print(f"  Breadth covers {breadth.index[0].date()} -> {breadth.index[-1].date()}, "
           f"{len(breadth)} trading days; {len(signal_dates)} signal-fire days")
 
     dl_start = (breadth.index[0] - pd.Timedelta(days=60)).strftime("%Y-%m-%d")
     dl_end = (breadth.index[-1] + pd.Timedelta(days=5)).strftime("%Y-%m-%d")
-    # Use SPY (US-listed, USD) as the tradable proxy for the S&P 500 — CSP1 is
-    # UCITS GBP-denominated, less convenient for backtest comparison.
-    print("Downloading SPY OHLC and SPY close ...", flush=True)
-    spy_ohlc = download_soxx_ohlc(dl_start, dl_end, etf="SPY", yf_symbol="SPY")
+    print(f"Downloading {yf_sym} OHLC (trading proxy) and SPY close ...", flush=True)
+    ohlc = download_soxx_ohlc(dl_start, dl_end, etf=yf_sym, yf_symbol=yf_sym)
     spy_close = download_spy_close(dl_start, dl_end)
-    spy_ohlc = spy_ohlc[~spy_ohlc.index.duplicated(keep="first")]
+    ohlc = ohlc[~ohlc.index.duplicated(keep="first")]
     eligible_start = breadth.index[252] if len(breadth) > 252 else breadth.index[0]
 
-    diag = mechanism_diagnostic(signal_dates, spy_ohlc, HORIZONS)
+    diag = mechanism_diagnostic(signal_dates, ohlc, HORIZONS)
 
     rows = []
     full = {}
-    for label, cfg in CONFIGS.items():
+    for label, conf in CONFIGS.items():
         print(f"\n[{label}]")
-        trades = run_strategy(signal_dates, spy_ohlc, breadth, config=cfg)
-        daily_returns = build_daily_returns(trades, spy_ohlc)
+        trades = run_strategy(signal_dates, ohlc, breadth, config=conf)
+        daily_returns = build_daily_returns(trades, ohlc)
         stats = aggregate_stats(trades, daily_returns)
-        mc = monte_carlo_null(trades, spy_ohlc, eligible_start)
+        mc = monte_carlo_null(trades, ohlc, eligible_start)
         print(f"  n={stats.get('n_trades',0):>3}  "
               f"win={(stats.get('win_rate') or 0):.1%}  "
               f"medHold={(stats.get('median_holding_days') or 0):>3.0f}d  "
@@ -136,35 +156,32 @@ def main() -> int:
               f"MC%={(mc.get('strategy_total_return_percentile') or 0):.1f}")
         rows.append(_summarise(label, stats, mc))
         full[label] = {
-            "config": cfg,
+            "config": conf,
             "trades": [asdict(t) for t in trades],
             "primary": stats,
             "monte_carlo_null": mc,
         }
 
     payload = {
-        "etf_breadth_source": "CSP1",
-        "etf_traded": "SPY",
+        "etf_breadth_source": etf,
+        "etf_traded_yf_symbol": yf_sym,
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
-        "breadth_source_file": "data/breadth_csp1.json",
         "n_signal_fire_days": len(signal_dates),
         "mechanism_diagnostic": diag,
         "summary_table": rows,
         "variants": full,
         "note": (
-            "TRUE CROSS-ETF OOS validation. The 'regime_time_only_delay5_trend' "
-            "config was chosen on SOXX 2019-2022 train half and validated on "
-            "SOXX 2022-2026 test half (see oos_split_half_soxx.json). Here it "
-            "is applied to S&P 500 (CSP1 constituents, SPY OHLC) over the same "
-            "2018-2026 window WITHOUT re-tuning. baseline_2xATR and "
-            "regime_time_only are included for reference."
+            f"Cross-ETF OOS: configs tuned on SOXX 2019-2026 applied to {etf} "
+            f"(traded via {yf_sym}) without re-tuning. baseline_2xATR is the "
+            "original spec; regime_time_only is the SOXX exit-logic winner; "
+            "regime_time_only_delay5_trend is the SOXX split-half winner."
         ),
     }
-    OUT_PATH.write_text(json.dumps(_clean(payload), indent=2), encoding="utf-8")
+    out_path.write_text(json.dumps(_clean(payload), indent=2), encoding="utf-8")
 
     print()
     print("=" * 110)
-    print("CSP1 (S&P 500) CROSS-ETF OOS — SOXX-tuned config applied without re-tuning")
+    print(f"{etf} (breadth) traded via {yf_sym} -- SOXX-tuned configs, no re-tuning")
     print("=" * 110)
     print(f"{'variant':<38} {'n':>3} {'win%':>6} {'medH':>5} {'totRet%':>9} "
           f"{'maxDD%':>7} {'Sharpe':>7} {'MC%':>6}")
@@ -179,7 +196,7 @@ def main() -> int:
               f"{(r['sharpe_annualised'] or 0):>+7.2f} "
               f"{(r['mc_strategy_total_return_percentile'] or 0):>6.1f}")
     print()
-    print(f"Wrote {OUT_PATH.relative_to(PROJECT_ROOT)}")
+    print(f"Wrote {out_path.relative_to(PROJECT_ROOT)}")
     return 0
 
 

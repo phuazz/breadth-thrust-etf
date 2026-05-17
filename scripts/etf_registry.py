@@ -83,6 +83,70 @@ ETF_REGISTRY: dict[str, dict] = {
         },
         # Date format in CSV preamble: "28/Jun/2024"
         "csv_date_format": "uk",
+        # When backtesting, trade the US-listed equivalent in USD for liquidity.
+        "yfinance_trading_proxy": "SPY",
+    },
+    # --- iShares UK S&P 500 sector slice UCITS funds --------------------------
+    # Each fund tracks the relevant S&P 500 sector index. Probed 2018-01-05
+    # populated, 2017 empty (same gap as CSP1).
+    "IUES": {
+        "symbol": "IUES",
+        "ishares_region": "uk",
+        "product_id": "280503",
+        "url_slug": "ishares-sp-500-energy-sector-ucits-etf",
+        "ajax_id": "1506575576011",
+        "filename": "IUES_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/280503/"
+            "ishares-sp-500-energy-sector-ucits-etf/1506575576011.ajax"
+            "?fileType=csv&fileName=IUES_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {
+            "BRKB": "BRK-B", "BRK.B": "BRK-B",
+            "BFB": "BF-B", "BF.B": "BF-B",
+        },
+        "csv_date_format": "uk",
+        # Trade SPDR XLE (Energy Select Sector SPDR) as the US-listed proxy.
+        "yfinance_trading_proxy": "XLE",
+    },
+    "IUFS": {
+        "symbol": "IUFS",
+        "ishares_region": "uk",
+        "product_id": "280523",
+        "url_slug": "ishares-sp-500-financials-sector-ucits-etf",
+        "ajax_id": "1506575576011",
+        "filename": "IUFS_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/280523/"
+            "ishares-sp-500-financials-sector-ucits-etf/1506575576011.ajax"
+            "?fileType=csv&fileName=IUFS_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {
+            "BRKB": "BRK-B", "BRK.B": "BRK-B",
+            "BFB": "BF-B", "BF.B": "BF-B",
+            "BRKA": "BRK-A", "BRK.A": "BRK-A",
+        },
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "XLF",  # SPDR Financial Select Sector
+    },
+    "CNDX": {
+        "symbol": "CNDX",
+        "ishares_region": "uk",
+        "product_id": "253741",
+        "url_slug": "ishares-nasdaq-100-ucits-etf",
+        "ajax_id": "1506575576011",
+        "filename": "CNDX_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/253741/"
+            "ishares-nasdaq-100-ucits-etf/1506575576011.ajax"
+            "?fileType=csv&fileName=CNDX_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "QQQ",  # Invesco QQQ Trust
     },
 }
 
