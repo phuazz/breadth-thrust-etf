@@ -369,12 +369,37 @@ def build_improvements() -> dict | None:
     if not path.exists():
         return None
     blob = json.loads(path.read_text(encoding="utf-8"))
-    # Rename top-level keys to short keys the template uses.
     return {
         "test_1_regime_overlay": blob.get("test_1_regime_overlay", {}),
         "test_2_size_scaled": blob.get("test_2_size_scaled", {}),
         "test_3_multi_etf_rotation": blob.get("test_3_multi_etf_rotation", {}),
         "baselines": blob.get("baselines", {}),
+        "computed_at_utc": blob.get("computed_at_utc"),
+    }
+
+
+def build_tuning() -> dict | None:
+    """Load data/tuning.json (Phase 2 sensitivity work) into the dashboard."""
+    path = DATA_DIR / "tuning.json"
+    if not path.exists():
+        return None
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    # Strip equity-curve series from the continuous + master tables — they
+    # are not plotted in the current Tuning tab. Keeps the inlined payload
+    # small. Equity arrays remain in tuning.json for future use.
+    cont_trimmed = {}
+    for etf, r in blob.get("continuous_signal_base50", {}).items():
+        cont_trimmed[etf] = {k: v for k, v in r.items() if k not in ("dates", "equity")}
+    master_trimmed = {}
+    for etf, r in blob.get("master_csp1_overlay_on_50_100", {}).items():
+        master_trimmed[etf] = {
+            "with_master_filter": r.get("with_master_filter"),
+            "without_master_filter": r.get("without_master_filter"),
+        }
+    return {
+        "base_thrust_grid": blob.get("base_thrust_grid", {}),
+        "continuous_signal_base50": cont_trimmed,
+        "master_csp1_overlay_on_50_100": master_trimmed,
         "computed_at_utc": blob.get("computed_at_utc"),
     }
 
@@ -411,6 +436,13 @@ def main() -> int:
         print(f"  test_2: {len(improvements['test_2_size_scaled'])} ETFs")
         print(f"  test_3: portfolio block present")
 
+    print("Loading tuning ...", flush=True)
+    tuning = build_tuning()
+    if tuning:
+        print(f"  grid    : {len(tuning['base_thrust_grid'])} ETFs")
+        print(f"  cont    : {len(tuning['continuous_signal_base50'])} ETFs")
+        print(f"  master  : {len(tuning['master_csp1_overlay_on_50_100'])} ETFs")
+
     verdict = build_verdict_html(rows)
 
     data = {
@@ -423,6 +455,7 @@ def main() -> int:
         "variants": variants,
         "splithalf": splithalf,
         "improvements": improvements,
+        "tuning": tuning,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")

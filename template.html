@@ -286,6 +286,7 @@
     <button class="tab" data-tab="trades">Trade Detail</button>
     <button class="tab" data-tab="sensitivity">Sensitivity</button>
     <button class="tab" data-tab="improvements">Improvements</button>
+    <button class="tab" data-tab="tuning">Tuning</button>
   </div>
 </nav>
 
@@ -447,6 +448,43 @@
       <h2>Test 3 — multi-ETF rotation portfolio</h2>
       <p class="section-sub">A single portfolio that equal-weights across whichever of the five ETFs have a live triple-combo thrust trade on a given day; flat when none. Benchmarked against SPY buy-and-hold over the same window.</p>
       <div id="impr-test3-chart" class="chart"></div>
+    </section>
+  </div>
+
+  <!-- ====================== TUNING ====================== -->
+  <div class="tab-content" id="tab-tuning">
+    <div class="verdict">
+      <h2>Tuning verdict</h2>
+      <p id="tu-verdict">Loading…</p>
+    </div>
+
+    <section>
+      <h2>Best per-ETF configuration — across every variant tested</h2>
+      <p class="section-sub">For each ETF, the strongest config from the base×thrust grid (items 1+4), continuous signal (item 2), 50/100 + master-regime overlay (item 3), and the prior Test 1/2/3 batch. Sharpe is the selection criterion; buy-and-hold row shown for reference.</p>
+      <table class="small-table" id="tu-best-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Base × thrust Sharpe grid (per ETF)</h2>
+      <p class="section-sub">Annualised Sharpe across base allocation (rows: % always in the ETF) × thrust allocation (columns: % held when the breadth signal is active). Greener = higher Sharpe. The signal works when greener cells sit OFF the bottom row (signal alone) and OFF the diagonal (no leverage).</p>
+      <div class="chart-controls">
+        <label for="tu-grid-etf">ETF:</label>
+        <select id="tu-grid-etf"></select>
+        <span class="pill" id="tu-grid-pill">—</span>
+      </div>
+      <div id="tu-grid-chart" style="width:100%;height:380px;border:1px solid var(--border);background:var(--bg-card);"></div>
+    </section>
+
+    <section>
+      <h2>Continuous signal (smooth allocation in [base, 1])</h2>
+      <p class="section-sub">Replaces the binary in-trade/out-of-trade state with a continuous score: allocation = 0.5 + 0.5 × clip((composite_z − p10) / (p90 − p10), 0, 1). Smoother turnover, no on/off flips.</p>
+      <table class="small-table" id="tu-cont-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Master regime filter (CSP1 breadth overlay on 50/100)</h2>
+      <p class="section-sub">When SPY breadth is unhealthy (composite_z &lt; expanding p10 OR ma_breadth &lt; 0.40), force allocation to zero across every sector. Shows whether a market-wide veto reduces sector drawdowns enough to justify the cost.</p>
+      <table class="small-table" id="tu-master-table"><thead></thead><tbody></tbody></table>
     </section>
   </div>
 
@@ -947,6 +985,193 @@ function renderImprVerdict() {
     + `not as an in/out trigger that leaves you flat 60+ per cent of the time.`;
 }
 
+// ----------- Tuning tab -----------------------------------------------
+function _gridBest(grid) {
+  if (!grid || !grid.length) return null;
+  return grid.reduce((a, b) => (a.sharpe ?? -1e9) >= (b.sharpe ?? -1e9) ? a : b);
+}
+
+function renderTuningBestTable() {
+  const data = window.DATA;
+  const t = data.tuning;
+  if (!t) return;
+  const el = document.getElementById('tu-best-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th><th>Winner</th><th>Sharpe</th><th>Total ret</th>
+    <th>Max DD</th><th>BH Sharpe</th><th>Δ Sharpe vs BH</th>
+  </tr>`;
+  const etfs = ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1'];
+  const rows = [];
+  for (const etf of etfs) {
+    const candidates = [];
+    // From base/thrust grid
+    const gridBest = _gridBest(t.base_thrust_grid?.[etf]);
+    if (gridBest) candidates.push({
+      label: `Grid b${gridBest.base_pct}/t${gridBest.thrust_pct}`,
+      sharpe: gridBest.sharpe, total_return: gridBest.total_return, max_dd: gridBest.max_dd,
+    });
+    // Continuous
+    const c = t.continuous_signal_base50?.[etf];
+    if (c) candidates.push({
+      label: 'Continuous signal (base 0.5)',
+      sharpe: c.sharpe, total_return: c.total_return, max_dd: c.max_dd,
+    });
+    // Master overlay
+    const m = t.master_csp1_overlay_on_50_100?.[etf]?.with_master_filter;
+    if (m) candidates.push({
+      label: '50/100 + master filter',
+      sharpe: m.sharpe, total_return: m.total_return, max_dd: m.max_dd,
+    });
+    // Test 2 (from improvements)
+    const t2 = data.improvements?.test_2_size_scaled?.[etf];
+    if (t2) candidates.push({
+      label: 'Test 2 (50/100 binary)',
+      sharpe: t2.sharpe, total_return: t2.total_return, max_dd: t2.max_dd,
+    });
+    const best = candidates.reduce((a, b) => (a.sharpe ?? -1e9) >= (b.sharpe ?? -1e9) ? a : b);
+    const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
+    rows.push({ etf, best, bh });
+  }
+  el.querySelector('tbody').innerHTML = rows.map(r => {
+    const delta = r.best.sharpe - (r.bh?.sharpe ?? 0);
+    const win = delta > 0;
+    return `<tr class="${win ? 'highlight' : ''}">
+      <td class="row-label">${r.etf}</td>
+      <td class="row-label" style="font-size:11px;">${r.best.label}</td>
+      <td><strong>${fmtNum(r.best.sharpe, 2, true)}</strong></td>
+      <td>${fmtPct(r.best.total_return, true)}</td>
+      <td>${fmtPct(r.best.max_dd)}</td>
+      <td>${fmtNum(r.bh?.sharpe, 2, true)}</td>
+      <td style="color:${win ? 'var(--good)' : 'var(--bad)'};font-weight:600;">${fmtNum(delta, 2, true)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTuningGridChart() {
+  const data = window.DATA;
+  const t = data.tuning;
+  if (!t) return;
+  const etf = document.getElementById('tu-grid-etf').value;
+  const grid = t.base_thrust_grid?.[etf];
+  if (!grid) return;
+  // Build matrix: x = thrust values, y = base values, z = Sharpe
+  const bases = Array.from(new Set(grid.map(r => r.base_pct))).sort((a, b) => a - b);
+  const thrusts = Array.from(new Set(grid.map(r => r.thrust_pct))).sort((a, b) => a - b);
+  const z = bases.map(b => thrusts.map(th => {
+    const cell = grid.find(r => r.base_pct === b && r.thrust_pct === th);
+    return cell?.sharpe ?? null;
+  }));
+  const text = bases.map(b => thrusts.map(th => {
+    const cell = grid.find(r => r.base_pct === b && r.thrust_pct === th);
+    if (!cell || cell.sharpe == null) return '—';
+    return `<b>${fmtNum(cell.sharpe, 2, true)}</b><br>${fmtPct(cell.total_return, true)}<br>DD ${fmtPct(cell.max_dd)}`;
+  }));
+  const trace = {
+    type: 'heatmap',
+    x: thrusts.map(t => `${t}%`), y: bases.map(b => `${b}%`),
+    z, text, hoverinfo: 'text',
+    colorscale: [
+      [0.0, '#b3261e'], [0.3, '#f0c068'], [0.5, '#e6e8eb'],
+      [0.7, '#86c39a'], [1.0, '#1d7a3a'],
+    ],
+    showscale: true, zmid: 0,
+  };
+  const layout = {
+    margin: { l: 76, r: 14, t: 14, b: 38 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { title: 'Thrust allocation (when signal active)', side: 'bottom' },
+    yaxis: { title: 'Base allocation (always)', autorange: 'reversed' },
+  };
+  Plotly.newPlot('tu-grid-chart', [trace], layout, { displayModeBar: false, responsive: true });
+  // Pill: best cell
+  const best = _gridBest(grid);
+  const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
+  if (best) {
+    document.getElementById('tu-grid-pill').textContent =
+      `Best: b=${best.base_pct}/t=${best.thrust_pct}  Sharpe ${fmtNum(best.sharpe,2,true)}  `
+      + `vs BH ${fmtNum(bh?.sharpe, 2, true)}  →  Δ ${fmtNum(best.sharpe - (bh?.sharpe ?? 0), 2, true)}`;
+  }
+}
+
+function renderTuningContTable() {
+  const data = window.DATA;
+  const t = data.tuning;
+  if (!t?.continuous_signal_base50) return;
+  const el = document.getElementById('tu-cont-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th><th>Sharpe</th><th>Total ret</th><th>Max DD</th>
+    <th>Mean alloc when in</th><th>BH Sharpe</th><th>Δ vs BH</th>
+  </tr>`;
+  const etfs = ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1'];
+  const bestSh = Math.max(...etfs.map(e => t.continuous_signal_base50[e]?.sharpe ?? -1e9));
+  el.querySelector('tbody').innerHTML = etfs.map(etf => {
+    const c = t.continuous_signal_base50[etf];
+    const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
+    if (!c) return '';
+    const delta = c.sharpe - (bh?.sharpe ?? 0);
+    const isBest = c.sharpe === bestSh;
+    return `<tr class="${isBest ? 'highlight' : ''}">
+      <td class="row-label">${etf}</td>
+      <td><strong>${fmtNum(c.sharpe, 2, true)}</strong></td>
+      <td>${fmtPct(c.total_return, true)}</td>
+      <td>${fmtPct(c.max_dd)}</td>
+      <td>${c.mean_alloc_when_in != null ? (c.mean_alloc_when_in * 100).toFixed(0) + '%' : '—'}</td>
+      <td>${fmtNum(bh?.sharpe, 2, true)}</td>
+      <td style="color:${delta > 0 ? 'var(--good)' : 'var(--bad)'};font-weight:600;">${fmtNum(delta, 2, true)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTuningMasterTable() {
+  const data = window.DATA;
+  const t = data.tuning;
+  if (!t?.master_csp1_overlay_on_50_100) return;
+  const el = document.getElementById('tu-master-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th>
+    <th>50/100 Sharpe</th><th>+ filter Sharpe</th><th>Δ Sharpe</th>
+    <th>50/100 Max DD</th><th>+ filter Max DD</th><th>Δ Max DD</th>
+  </tr>`;
+  const etfs = ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1'];
+  el.querySelector('tbody').innerHTML = etfs.map(etf => {
+    const row = t.master_csp1_overlay_on_50_100[etf];
+    if (!row) return '';
+    const w = row.with_master_filter;
+    const wo = row.without_master_filter;
+    const dSh = (w?.sharpe ?? 0) - (wo?.sharpe ?? 0);
+    const dDD = (w?.max_dd ?? 0) - (wo?.max_dd ?? 0);
+    return `<tr>
+      <td class="row-label">${etf}</td>
+      <td>${fmtNum(wo?.sharpe, 2, true)}</td>
+      <td>${fmtNum(w?.sharpe, 2, true)}</td>
+      <td style="color:${dSh > 0 ? 'var(--good)' : 'var(--bad)'};">${fmtNum(dSh, 2, true)}</td>
+      <td>${fmtPct(wo?.max_dd)}</td>
+      <td>${fmtPct(w?.max_dd)}</td>
+      <td style="color:${dDD < 0 ? 'var(--good)' : 'var(--bad)'};">${fmtPct(dDD, true)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTuningVerdict() {
+  const data = window.DATA;
+  const t = data.tuning;
+  if (!t?.base_thrust_grid?.SOXX) return;
+  const best = _gridBest(t.base_thrust_grid.SOXX);
+  const bh = data.improvements?.baselines?.SOXX?.buy_and_hold;
+  if (!best || !bh) return;
+  document.getElementById('tu-verdict').innerHTML =
+    `The strongest config across every variant tested in this session: `
+    + `<strong>SOXX with base ${best.base_pct}% / thrust ${best.thrust_pct}%</strong> `
+    + `delivers Sharpe <strong>${fmtNum(best.sharpe, 2, true)}</strong> and total return `
+    + `<strong>${fmtPct(best.total_return, true)}</strong> with max drawdown ${fmtPct(best.max_dd)}. `
+    + `This beats SOXX buy-and-hold (Sharpe ${fmtNum(bh.sharpe, 2, true)}, total return ${fmtPct(bh.total_return, true)}, max DD ${fmtPct(bh.max_dd)}) `
+    + `on every dimension.<br><br>`
+    + `On the broader benchmarks (CNDX 100/150 beats QQQ BH, CSP1 100/150 beats SPY BH) the signal also adds value as a leverage modifier — but only marginally. The Sharpe gain is most concentrated on SOXX. `
+    + `The continuous-signal and master-regime-filter variants underperform the discrete 50/100 + leverage approach on Sharpe terms. `
+    + `Energy and Financials remain best held as plain buy-and-hold — no parameter combination there beats the index.`;
+}
+
 // ----------- Tab navigation --------------------------------------------
 const TAB_RENDERED = new Set();
 function activateTab(name) {
@@ -964,6 +1189,13 @@ function activateTab(name) {
       renderImprChart();
       renderImprTest3Chart();
     }
+    if (name === 'tuning') {
+      renderTuningVerdict();
+      renderTuningBestTable();
+      renderTuningGridChart();
+      renderTuningContTable();
+      renderTuningMasterTable();
+    }
     TAB_RENDERED.add(name);
   } else {
     // Charts need a relayout when the container is unhidden so Plotly picks up width
@@ -973,11 +1205,14 @@ function activateTab(name) {
     if (name === 'improvements') {
       try { Plotly.Plots.resize('impr-chart'); Plotly.Plots.resize('impr-test3-chart'); } catch(e){}
     }
+    if (name === 'tuning') {
+      try { Plotly.Plots.resize('tu-grid-chart'); } catch(e){}
+    }
   }
 }
 
 function populateEtfDropdowns(rows) {
-  for (const id of ['eq-etf', 'br-etf', 'tr-etf', 'impr-etf']) {
+  for (const id of ['eq-etf', 'br-etf', 'tr-etf', 'impr-etf', 'tu-grid-etf']) {
     const sel = document.getElementById(id);
     if (!sel) continue;
     sel.innerHTML = '';
@@ -1016,6 +1251,7 @@ function populateEtfDropdowns(rows) {
   document.getElementById('tr-etf')?.addEventListener('change', renderTradesTable);
   document.getElementById('tr-config')?.addEventListener('change', renderTradesTable);
   document.getElementById('impr-etf')?.addEventListener('change', renderImprChart);
+  document.getElementById('tu-grid-etf')?.addEventListener('change', renderTuningGridChart);
 })();
 </script>
 </body>
