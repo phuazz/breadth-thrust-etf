@@ -1,24 +1,29 @@
 """Dashboard pipeline — inject result JSONs into template.html, write docs/index.html.
 
-Phase 1 dashboard (single page):
-  - Cross-ETF result matrix (5 ETFs x 3 configs: Sharpe + MC %ile)
-  - SOXX equity curve (strategy vs SOXX vs SPY buy-and-hold)
-  - Per-ETF best-result cards
+Phase 2 dashboard (tabbed):
+  - Overview      : verdict + cross-ETF matrix + per-ETF best-result cards
+  - Equity Curves : per-ETF equity for the 3 standard configs vs ETF & SPY buy-and-hold
+  - Breadth       : per-ETF composite z-score + breadth components + signal-fire markers
+  - Trade Detail  : per-trade sortable table + exit-reason pie per ETF×config
+  - Sensitivity   : SOXX exit-logic, entry-delay, trend-filter variant tables, plus split-half
 
 Inputs (loaded automatically):
-  - data/backtest_soxx.json                    (baseline backtest + equity curves)
-  - data/backtest_csp1_oos.json                (S&P 500 cross-ETF OOS)
-  - data/backtest_iues_oos.json                (Energy)
-  - data/backtest_iufs_oos.json                (Financials)
-  - data/backtest_cndx_oos.json                (NASDAQ-100)
+  - data/backtest_soxx.json                    (SOXX baseline + equity curves)
+  - data/backtest_<etf>_oos.json  for each of  CSP1, IUES, IUFS, CNDX
+  - data/breadth_<etf>.json       for each of  SOXX, CSP1, IUES, IUFS, CNDX
+  - data/backtest_variants_soxx.json
+  - data/sensitivity_entry_delay_soxx.json
+  - data/sensitivity_trend_filter_soxx.json
+  - data/oos_split_half_soxx.json
 
 Output:
   - docs/index.html  (GitHub Pages root)
 
 Per CLAUDE.md:
-  - Default styling: white theme, sans-serif, high contrast.
-  - template.html stays under 200 KB; built docs/index.html may exceed 500 KB
-    (data is inlined). NEVER open docs/index.html in this script — only write.
+  - White theme, sans-serif, high contrast.
+  - template.html stays under 200 KB. The built docs/index.html may exceed
+    500 KB once all the time-series data are inlined; that is the expected
+    pattern (NEVER re-read it into Claude context — only write).
 
 Run:
     python scripts/pipeline.py
@@ -41,9 +46,7 @@ TEMPLATE = PROJECT_ROOT / "template.html"
 DOCS = PROJECT_ROOT / "docs"
 OUT = DOCS / "index.html"
 
-
-# ----- ETF metadata (for table rendering) ---------------------------------
-
+ETFS = ["SOXX", "CSP1", "CNDX", "IUES", "IUFS"]
 
 ETF_DESC = {
     "SOXX": "iShares Semiconductor (semis)",
@@ -54,6 +57,11 @@ ETF_DESC = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
 def _safe(v):
     try:
         f = float(v)
@@ -62,8 +70,20 @@ def _safe(v):
     return None if (math.isnan(f) or math.isinf(f)) else f
 
 
+def round_series(values, ndigits=4):
+    out = []
+    for v in values:
+        if v is None:
+            out.append(None); continue
+        try:
+            f = float(v)
+            out.append(round(f, ndigits) if not (math.isnan(f) or math.isinf(f)) else None)
+        except (TypeError, ValueError):
+            out.append(None)
+    return out
+
+
 def _row_from_summary(label: str, summary: dict) -> dict:
-    """Pull just the headline metrics needed for the dashboard table."""
     return {
         "sharpe": _safe(summary.get("sharpe_annualised")),
         "total_return": _safe(summary.get("equity_curve_total_return")),
@@ -75,156 +95,213 @@ def _row_from_summary(label: str, summary: dict) -> dict:
     }
 
 
-def _row_for_etf(etf: str, file_path: Path, is_baseline_backtest: bool = False) -> dict:
-    """Build one ETF's row from either backtest_<etf>_oos.json (3 configs) OR
-    backtest_soxx.json (the 1 baseline_2xATR config). Returns {etf, configs}.
-    """
-    payload = json.loads(file_path.read_text(encoding="utf-8"))
-    configs: dict[str, dict] = {}
-    if is_baseline_backtest:
-        # backtest_soxx.json has only the baseline result + monte_carlo.
-        primary = payload["primary"]
-        mc = payload["benchmarks"]["monte_carlo_null"]
-        configs["baseline_2xATR"] = {
-            "sharpe": _safe(primary.get("sharpe_annualised")),
-            "total_return": _safe(primary.get("equity_curve_total_return")),
-            "max_dd": _safe(primary.get("equity_curve_max_dd")),
-            "win_rate": _safe(primary.get("win_rate")),
-            "mc_pct": _safe(mc.get("strategy_total_return_percentile")),
-            "n_trades": primary.get("n_trades"),
-            "median_holding_days": _safe(primary.get("median_holding_days")),
-        }
-    else:
-        # backtest_<etf>_oos.json has a summary_table with 3 rows.
-        for s in payload.get("summary_table", []):
-            label = s["variant"]
-            configs[label] = _row_from_summary(label, s)
-    return {"etf": etf, "configs": configs}
+# ---------------------------------------------------------------------------
+# Cross-ETF result matrix (Overview)
+# ---------------------------------------------------------------------------
 
 
 def build_cross_etf_rows() -> list[dict]:
     """Assemble the 5-ETF cross-matrix.
 
-    SOXX uses its full backtest result (we have all three configs from the
-    sensitivity sweeps, but only baseline_2xATR is in the headline
-    backtest_soxx.json). For SOXX we therefore pull all three configs from
-    the variants + sensitivity files instead of just the baseline.
+    All five ETFs are read from their backtest_<etf>_oos.json file so the
+    window, MC null, and reporting basis are apples-to-apples. SOXX is
+    still 'in-sample' in the sense that the triple-combo config was tuned
+    on it — that nuance is conveyed by the split-half OOS table in the
+    Sensitivity tab.
     """
     rows: list[dict] = []
-
-    # SOXX — pull baseline from backtest_soxx.json + regime_time_only from
-    # backtest_variants_soxx.json + regime_time_only_delay5_trend from
-    # sensitivity_entry_delay_soxx.json (with delay 5 applied to that config).
-    soxx_configs: dict[str, dict] = {}
-    bs = json.loads((DATA_DIR / "backtest_soxx.json").read_text(encoding="utf-8"))
-    primary = bs["primary"]
-    mc = bs["benchmarks"]["monte_carlo_null"]
-    soxx_configs["baseline_2xATR"] = {
-        "sharpe": _safe(primary.get("sharpe_annualised")),
-        "total_return": _safe(primary.get("equity_curve_total_return")),
-        "max_dd": _safe(primary.get("equity_curve_max_dd")),
-        "win_rate": _safe(primary.get("win_rate")),
-        "mc_pct": _safe(mc.get("strategy_total_return_percentile")),
-        "n_trades": primary.get("n_trades"),
-        "median_holding_days": _safe(primary.get("median_holding_days")),
-    }
-    variants = json.loads(
-        (DATA_DIR / "backtest_variants_soxx.json").read_text(encoding="utf-8")
-    )
-    for entry in variants.get("summary_table", []):
-        if entry["variant"] == "regime_time_only":
-            soxx_configs["regime_time_only"] = _row_from_summary("regime_time_only", entry)
-            break
-    sens = json.loads(
-        (DATA_DIR / "sensitivity_trend_filter_soxx.json").read_text(encoding="utf-8")
-    )
-    for entry in sens.get("summary_table", []):
-        if entry["variant"] == "regime_time_only+trendTrue":
-            # Trend-filter sweep doesn't combine with delay-5. The closest single
-            # config we have for SOXX matching CSP1/IUES/etc. is the split-half
-            # winner from oos_split_half_soxx.json, which uses the full window
-            # but only the train-half eligible signals. Use sensitivity entry-delay
-            # data instead.
-            pass
-    # Find the regime_time_only + delay 5 result from entry-delay sensitivity.
-    sens2 = json.loads(
-        (DATA_DIR / "sensitivity_entry_delay_soxx.json").read_text(encoding="utf-8")
-    )
-    delay5_row = None
-    for entry in sens2.get("summary_table", []):
-        if entry["variant"] == "regime_time_only+delay5d":
-            delay5_row = entry
-            break
-    # The triple combo (regime + delay 5 + trend) is in the split-half full-
-    # window file as the winning variant; pull from there if available.
-    triple_row = None
-    sh_file = DATA_DIR / "oos_split_half_soxx.json"
-    if sh_file.exists():
-        sh = json.loads(sh_file.read_text(encoding="utf-8"))
-        for r in sh.get("rows", []):
-            if r["variant"] == "regime_time_only_delay5_trend":
-                # split-half stores train/test halves; total = sum of train + test
-                # is not meaningful; for the dashboard use the larger test-half
-                # window as the headline result.
-                test = r.get("test", {})
-                triple_row = {
-                    "sharpe": _safe(test.get("sharpe_annualised")),
-                    "total_return": _safe(test.get("equity_curve_total_return")),
-                    "max_dd": _safe(test.get("equity_curve_max_dd")),
-                    "win_rate": _safe(test.get("win_rate")),
-                    "mc_pct": _safe(test.get("mc_strategy_total_return_percentile")),
-                    "n_trades": test.get("n_trades"),
-                    "median_holding_days": _safe(test.get("median_holding_days")),
-                    "_label_qualifier": "TEST-HALF",
-                }
-                break
-    if triple_row:
-        soxx_configs["regime_time_only_delay5_trend"] = triple_row
-    elif delay5_row:
-        # Fallback: regime+delay5 only (no trend filter).
-        soxx_configs["regime_time_only_delay5_trend"] = _row_from_summary(
-            "regime_time_only+delay5d", delay5_row
-        )
-
-    rows.append({"etf": "SOXX", "configs": soxx_configs})
-
-    # CSP1, IUES, IUFS, CNDX — pull from their OOS files (all 3 configs each).
-    for etf in ("IUES", "IUFS", "CNDX", "CSP1"):
+    for etf in ("SOXX", "IUES", "IUFS", "CNDX", "CSP1"):
         path = DATA_DIR / f"backtest_{etf.lower()}_oos.json"
         if not path.exists():
             continue
-        rows.append(_row_for_etf(etf, path, is_baseline_backtest=False))
-
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        configs: dict[str, dict] = {}
+        for s in payload.get("summary_table", []):
+            configs[s["variant"]] = _row_from_summary(s["variant"], s)
+        rows.append({"etf": etf, "configs": configs})
     return rows
 
 
-# ----- Equity curves ------------------------------------------------------
-
-
-def round_series(values, ndigits=4):
-    return [round(float(v), ndigits) if v is not None else None for v in values]
+# ---------------------------------------------------------------------------
+# Equity curves (per ETF × config)
+# ---------------------------------------------------------------------------
 
 
 def build_equity_curves() -> dict:
-    """Phase 1: SOXX equity curve only. Phase 2 will extend to per-ETF."""
+    """Per-ETF equity curves on the signal-eligible window.
+
+    All five ETFs come from their backtest_<etf>_oos.json variants block,
+    which since the Phase 2 rerun stores an equity_curve per variant.
+
+    Structure:
+      { ETF: { dates: [...], configs: { cfg: {strategy, traded_etf_buy_hold, spy_buy_hold} } } }
+    """
     out: dict[str, dict] = {}
-    bs = json.loads((DATA_DIR / "backtest_soxx.json").read_text(encoding="utf-8"))
-    eq = bs.get("equity_curves", {})
-    if eq:
-        out["SOXX"] = {
-            "dates": eq["dates"],
-            "strategy": round_series(eq["strategy"]),
-            "soxx_buy_hold": round_series(eq["soxx_buy_hold"]),
-            "spy_buy_hold": round_series(eq["spy_buy_hold"]),
+    for etf in ("SOXX", "IUES", "IUFS", "CNDX", "CSP1"):
+        path = DATA_DIR / f"backtest_{etf.lower()}_oos.json"
+        if not path.exists():
+            continue
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        configs_out: dict[str, dict] = {}
+        dates_out = None
+        for cfg_name, cfg_data in payload.get("variants", {}).items():
+            eq = cfg_data.get("equity_curve")
+            if not eq:
+                continue
+            if dates_out is None:
+                dates_out = eq["dates"]
+            configs_out[cfg_name] = {
+                "strategy": round_series(eq["strategy"], 4),
+                "traded_etf_buy_hold": round_series(eq["traded_etf_buy_hold"], 4),
+                "spy_buy_hold": round_series(eq["spy_buy_hold"], 4),
+            }
+        if dates_out:
+            out[etf] = {"dates": dates_out, "configs": configs_out}
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Breadth time series (per ETF) — for the Breadth Signals tab
+# ---------------------------------------------------------------------------
+
+
+def build_breadth_series() -> dict:
+    """Extract minimal breadth fields per ETF.
+
+    Trims to the signal-eligible window (from index `signal_eligible_after`)
+    to keep size down. Pulls dates + composite_z + the three component %s
+    + the dates of every signal_fires == 1 row.
+    """
+    out: dict[str, dict] = {}
+    for etf in ETFS:
+        path = DATA_DIR / f"breadth_{etf.lower()}.json"
+        if not path.exists():
+            continue
+        blob = json.loads(path.read_text(encoding="utf-8"))
+        ser = blob["series"]
+        start_idx = blob["config"].get("signal_eligible_after", 252)
+        dates = ser["dates"][start_idx:]
+        comp_z = ser["composite_z"][start_idx:]
+        ma_b = ser["ma_breadth"][start_idx:]
+        rsi_b = ser["rsi_breadth"][start_idx:]
+        hi_b = ser["highs_breadth"][start_idx:]
+        sig = ser["signal_fires"][start_idx:]
+        signal_dates = [d for d, s in zip(dates, sig) if s]
+        out[etf] = {
+            "dates": dates,
+            "composite_z": round_series(comp_z, 3),
+            "ma_breadth": round_series(ma_b, 4),
+            "rsi_breadth": round_series(rsi_b, 4),
+            "highs_breadth": round_series(hi_b, 4),
+            "signal_dates": signal_dates,
         }
     return out
 
 
-# ----- Verdict block ------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Trades per ETF × config
+# ---------------------------------------------------------------------------
 
 
-def _ordinal(n: int) -> str:
-    """English ordinal suffix: 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th, 21st, 22nd, 23rd ..."""
+def _trim_trade(t: dict) -> dict:
+    """Keep only what the dashboard trade table needs."""
+    return {
+        "signal_date": t.get("signal_date"),
+        "entry_date": t.get("entry_date"),
+        "exit_date": t.get("exit_date"),
+        "holding_days": t.get("holding_days"),
+        "trade_return": _safe(t.get("trade_return")),
+        "max_drawdown": _safe(t.get("max_drawdown")),
+        "exit_reason": t.get("exit_reason"),
+    }
+
+
+def build_trades_by_etf() -> dict:
+    """For each ETF × config, the list of trades.
+
+    All five ETFs read from backtest_<etf>_oos.json variants block — same
+    file family the cross-ETF matrix uses, so trade lists, equity curves,
+    and headline cells all stay in sync.
+    """
+    out: dict[str, dict] = {}
+    for etf in ("SOXX", "IUES", "IUFS", "CNDX", "CSP1"):
+        path = DATA_DIR / f"backtest_{etf.lower()}_oos.json"
+        if not path.exists():
+            continue
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        out[etf] = {}
+        for cfg_name, cfg_data in payload.get("variants", {}).items():
+            out[etf][cfg_name] = [_trim_trade(t) for t in cfg_data.get("trades", [])]
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Sensitivity tables — for the Sensitivity tab
+# ---------------------------------------------------------------------------
+
+
+def _summarise_for_table(s: dict) -> dict:
+    return {
+        "variant": s.get("variant"),
+        "n_trades": s.get("n_trades"),
+        "win_rate": _safe(s.get("win_rate")),
+        "median_holding_days": _safe(s.get("median_holding_days")),
+        "equity_curve_total_return": _safe(s.get("equity_curve_total_return")),
+        "equity_curve_max_dd": _safe(s.get("equity_curve_max_dd")),
+        "sharpe_annualised": _safe(s.get("sharpe_annualised")),
+        "mc_strategy_total_return_percentile": _safe(s.get("mc_strategy_total_return_percentile")),
+    }
+
+
+def build_variants() -> dict:
+    """SOXX exit-logic, entry-delay, and trend-filter sweeps + split-half."""
+    out: dict[str, list[dict]] = {}
+    vfile = DATA_DIR / "backtest_variants_soxx.json"
+    if vfile.exists():
+        v = json.loads(vfile.read_text(encoding="utf-8"))
+        out["exit_logic"] = [_summarise_for_table(r) for r in v.get("summary_table", [])]
+    dfile = DATA_DIR / "sensitivity_entry_delay_soxx.json"
+    if dfile.exists():
+        d = json.loads(dfile.read_text(encoding="utf-8"))
+        out["entry_delay"] = [_summarise_for_table(r) for r in d.get("summary_table", [])]
+    tfile = DATA_DIR / "sensitivity_trend_filter_soxx.json"
+    if tfile.exists():
+        t = json.loads(tfile.read_text(encoding="utf-8"))
+        out["trend_filter"] = [_summarise_for_table(r) for r in t.get("summary_table", [])]
+    return out
+
+
+def build_splithalf() -> list[dict]:
+    sh_file = DATA_DIR / "oos_split_half_soxx.json"
+    if not sh_file.exists():
+        return []
+    sh = json.loads(sh_file.read_text(encoding="utf-8"))
+    out = []
+    for r in sh.get("rows", []):
+        out.append({
+            "variant": r.get("variant"),
+            "train": {
+                "n_trades": r.get("train", {}).get("n_trades"),
+                "sharpe_annualised": _safe(r.get("train", {}).get("sharpe_annualised")),
+                "equity_curve_total_return": _safe(r.get("train", {}).get("equity_curve_total_return")),
+                "mc_strategy_total_return_percentile": _safe(r.get("train", {}).get("mc_strategy_total_return_percentile")),
+            },
+            "test": {
+                "n_trades": r.get("test", {}).get("n_trades"),
+                "sharpe_annualised": _safe(r.get("test", {}).get("sharpe_annualised")),
+                "equity_curve_total_return": _safe(r.get("test", {}).get("equity_curve_total_return")),
+                "mc_strategy_total_return_percentile": _safe(r.get("test", {}).get("mc_strategy_total_return_percentile")),
+            },
+        })
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Verdict block + ordinal
+# ---------------------------------------------------------------------------
+
+
+def _ordinal(n) -> str:
     n = int(round(n))
     if 11 <= (n % 100) <= 13:
         suffix = "th"
@@ -234,7 +311,6 @@ def _ordinal(n: int) -> str:
 
 
 def build_verdict_html(rows: list[dict]) -> str:
-    """Two-sentence verdict + a single-line headline number."""
     soxx = next((r for r in rows if r["etf"] == "SOXX"), None)
     csp1 = next((r for r in rows if r["etf"] == "CSP1"), None)
     soxx_triple = soxx["configs"].get("regime_time_only_delay5_trend") if soxx else None
@@ -247,7 +323,7 @@ def build_verdict_html(rows: list[dict]) -> str:
         f"With the tuned config (regime exits + 5-day entry delay + 200-day trend filter), "
         f"SOXX delivers Sharpe <strong>{soxx_sh:+.2f}</strong> at the "
         f"<strong>{_ordinal(soxx_mc)} percentile</strong> of a same-distribution random-entry null "
-        f"(measured on the held-out second half of the 2018-2026 window)."
+        f"over the 2019-2026 signal-eligible window."
         f"<br><br>"
         f"Applied without re-tuning to four other ETFs (S&amp;P 500, NASDAQ-100, Energy sector, Financials sector), "
         f"the best config across the board underperforms the random null — broadest case (S&amp;P 500) lands at the "
@@ -256,7 +332,9 @@ def build_verdict_html(rows: list[dict]) -> str:
     )
 
 
-# ----- Inline + write -----------------------------------------------------
+# ---------------------------------------------------------------------------
+# Inline + write
+# ---------------------------------------------------------------------------
 
 
 PLACEHOLDER_START = "// __DASHBOARD_DATA_START__"
@@ -287,14 +365,27 @@ def inject(template_text: str, data: dict) -> str:
 def main() -> int:
     print("Loading per-ETF results ...", flush=True)
     rows = build_cross_etf_rows()
-    print(f"  Built {len(rows)} ETF rows for cross-matrix")
-    for r in rows:
-        cfgs = ", ".join(r["configs"].keys())
-        print(f"    {r['etf']:5}  configs=[{cfgs}]")
+    print(f"  Cross-ETF matrix rows: {len(rows)}")
 
-    print("Building equity curves ...", flush=True)
+    print("Loading equity curves ...", flush=True)
     eq = build_equity_curves()
-    print(f"  ETFs with equity curves: {list(eq.keys())}")
+    for etf, blob in eq.items():
+        print(f"  {etf}: {len(blob['dates'])} dates, configs={list(blob['configs'].keys())}")
+
+    print("Loading breadth series ...", flush=True)
+    breadth = build_breadth_series()
+    for etf, blob in breadth.items():
+        print(f"  {etf}: {len(blob['dates'])} dates, "
+              f"{len(blob['signal_dates'])} signal-fire days")
+
+    print("Loading trades ...", flush=True)
+    trades = build_trades_by_etf()
+    total_trades = sum(len(v) for e in trades.values() for v in e.values())
+    print(f"  Total trade records across ETFs×configs: {total_trades}")
+
+    print("Loading sensitivity sweeps ...", flush=True)
+    variants = build_variants()
+    splithalf = build_splithalf()
 
     verdict = build_verdict_html(rows)
 
@@ -303,14 +394,21 @@ def main() -> int:
         "verdict_html": verdict,
         "cross_etf": rows,
         "equity_curves": eq,
+        "breadth": breadth,
+        "trades": trades,
+        "variants": variants,
+        "splithalf": splithalf,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")
-    print(f"Template size: {len(template_text):,} bytes", flush=True)
+    print(f"\nTemplate size: {len(template_text):,} bytes")
     built = inject(template_text, data)
     DOCS.mkdir(parents=True, exist_ok=True)
     OUT.write_text(built, encoding="utf-8")
-    print(f"Wrote {OUT.relative_to(PROJECT_ROOT)}  ({len(built):,} bytes)")
+    size_kb = len(built) / 1024
+    print(f"Wrote {OUT.relative_to(PROJECT_ROOT)}  ({len(built):,} bytes, {size_kb:.1f} KB)")
+    if size_kb > 1500:
+        print(f"  WARNING: built file is large ({size_kb:.1f} KB).")
     return 0
 
 

@@ -141,6 +141,15 @@ def main() -> int:
 
     rows = []
     full = {}
+    # Pre-compute buy-and-hold equity curves once on the eligible window so
+    # the per-variant strategy equity is comparable to a "do nothing" baseline.
+    eligible_mask = ohlc.index >= eligible_start
+    eligible_idx = ohlc.index[eligible_mask]
+    bh_traded_close = ohlc["Close"].astype(float).reindex(eligible_idx)
+    bh_traded_eq = (bh_traded_close / bh_traded_close.iloc[0]).round(6).tolist()
+    bh_spy_close = spy_close.astype(float).reindex(eligible_idx).ffill()
+    bh_spy_eq = (bh_spy_close / bh_spy_close.iloc[0]).round(6).tolist()
+
     for label, conf in CONFIGS.items():
         print(f"\n[{label}]")
         trades = run_strategy(signal_dates, ohlc, breadth, config=conf)
@@ -154,12 +163,21 @@ def main() -> int:
               f"maxDD={(stats.get('equity_curve_max_dd') or 0):.1%}  "
               f"Shp={(stats.get('sharpe_annualised') or 0):+.2f}  "
               f"MC%={(mc.get('strategy_total_return_percentile') or 0):.1f}")
+        # Strategy equity curve on the eligible window only — for the dashboard.
+        strat_eq = (1.0 + daily_returns).cumprod().reindex(eligible_idx).ffill()
+        strat_eq = (strat_eq / strat_eq.iloc[0]).round(6).tolist()
         rows.append(_summarise(label, stats, mc))
         full[label] = {
             "config": conf,
             "trades": [asdict(t) for t in trades],
             "primary": stats,
             "monte_carlo_null": mc,
+            "equity_curve": {
+                "dates": [d.strftime("%Y-%m-%d") for d in eligible_idx],
+                "strategy": strat_eq,
+                "traded_etf_buy_hold": bh_traded_eq,
+                "spy_buy_hold": bh_spy_eq,
+            },
         }
 
     payload = {

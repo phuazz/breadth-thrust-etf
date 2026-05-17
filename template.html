@@ -19,6 +19,7 @@
       --border: #e3e6ea;
       --border-strong: #c8ccd2;
       --accent: #1351b4;
+      --accent-soft: rgba(19, 81, 180, 0.08);
       --good: #1d7a3a;
       --bad: #b3261e;
       --warn: #b76e00;
@@ -28,114 +29,94 @@
     html, body {
       margin: 0; padding: 0;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      color: var(--ink);
-      background: var(--bg);
-      line-height: 1.55;
-      font-size: 15px;
+      color: var(--ink); background: var(--bg);
+      line-height: 1.55; font-size: 15px;
       -webkit-font-smoothing: antialiased;
     }
-    .container {
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 0 24px;
-    }
+    .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
     header.top {
       border-bottom: 1px solid var(--border);
-      padding: 22px 0;
+      padding: 22px 0 16px 0;
       background: var(--bg);
     }
     header.top h1 {
-      margin: 0 0 4px 0;
-      font-size: 22px;
-      font-weight: 600;
-      letter-spacing: -0.01em;
+      margin: 0 0 4px 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em;
     }
-    header.top .sub {
-      color: var(--ink-faint);
-      font-size: 14px;
-    }
+    header.top .sub { color: var(--ink-faint); font-size: 14px; }
     header.top .meta {
-      float: right;
-      font-size: 13px;
-      color: var(--ink-faint);
-      text-align: right;
+      float: right; font-size: 13px; color: var(--ink-faint); text-align: right;
     }
-    header.top .meta a {
-      color: var(--accent);
-      text-decoration: none;
-    }
+    header.top .meta a { color: var(--accent); text-decoration: none; }
     header.top .meta a:hover { text-decoration: underline; }
 
+    nav.tabs {
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky; top: 0; z-index: 10;
+    }
+    nav.tabs .container { display: flex; gap: 2px; }
+    nav.tabs button {
+      background: none; border: none; cursor: pointer;
+      font: inherit; font-size: 14px;
+      padding: 12px 16px;
+      color: var(--ink-soft);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      font-weight: 500;
+      transition: color 0.1s, border-color 0.1s;
+    }
+    nav.tabs button:hover { color: var(--ink); }
+    nav.tabs button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
     .verdict {
-      margin: 32px 0 24px 0;
+      margin: 28px 0 24px 0;
       padding: 22px 26px;
       background: var(--bg-soft);
       border-left: 3px solid var(--accent);
       border-radius: 2px;
     }
     .verdict h2 {
-      margin: 0 0 12px 0;
-      font-size: 13px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--ink-faint);
-      font-weight: 600;
+      margin: 0 0 12px 0; font-size: 13px;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--ink-faint); font-weight: 600;
     }
     .verdict p {
-      margin: 0 0 12px 0;
-      font-size: 16px;
-      line-height: 1.6;
-      color: var(--ink);
+      margin: 0 0 12px 0; font-size: 16px; line-height: 1.6;
     }
     .verdict p:last-child { margin-bottom: 0; }
     .verdict strong { color: var(--accent); }
 
-    section {
-      margin: 40px 0;
-    }
+    section { margin: 36px 0; }
     section h2 {
-      font-size: 19px;
-      font-weight: 600;
-      margin: 0 0 4px 0;
-      letter-spacing: -0.01em;
+      font-size: 19px; font-weight: 600; margin: 0 0 4px 0; letter-spacing: -0.01em;
     }
-    section .section-sub {
-      color: var(--ink-faint);
-      font-size: 14px;
-      margin: 0 0 18px 0;
-    }
+    section .section-sub { color: var(--ink-faint); font-size: 14px; margin: 0 0 18px 0; }
 
     table.matrix {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
+      width: 100%; border-collapse: collapse; font-size: 14px;
+      background: var(--bg-card); border: 1px solid var(--border);
     }
     table.matrix thead th {
-      text-align: left;
-      padding: 10px 12px;
-      background: var(--bg-soft);
-      font-weight: 600;
-      color: var(--ink-soft);
+      text-align: left; padding: 10px 12px;
+      background: var(--bg-soft); font-weight: 600; color: var(--ink-soft);
       border-bottom: 1px solid var(--border-strong);
-      font-size: 13px;
-      letter-spacing: 0.01em;
+      font-size: 13px; letter-spacing: 0.01em;
     }
     table.matrix tbody td {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
+      padding: 10px 12px; border-bottom: 1px solid var(--border);
     }
     table.matrix tbody tr:last-child td { border-bottom: none; }
     table.matrix tbody tr:hover { background: var(--bg-soft); }
-    table.matrix td.etf-name {
-      font-weight: 600;
-      color: var(--ink);
-    }
-    table.matrix td.etf-desc {
-      color: var(--ink-faint);
-      font-size: 13px;
-    }
+    table.matrix td.etf-name { font-weight: 600; color: var(--ink); }
+    table.matrix td.etf-desc { color: var(--ink-faint); font-size: 13px; }
     table.matrix td.cell {
       font-variant-numeric: tabular-nums;
       font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -145,7 +126,7 @@
     table.matrix td.cell .mc { color: var(--ink-faint); font-size: 12px; margin-left: 6px; }
     table.matrix td.cell .qual {
       display: inline-block; margin-left: 6px; padding: 1px 5px;
-      background: rgba(19, 81, 180, 0.08); color: var(--accent);
+      background: var(--accent-soft); color: var(--accent);
       font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
       border-radius: 2px; vertical-align: middle;
     }
@@ -154,19 +135,10 @@
     table.matrix td.cell.lose-weak  { background: rgba(183, 110, 0, 0.05); }
     table.matrix td.cell.lose-strong{ background: rgba(179, 38, 30, 0.06); }
 
-    .legend {
-      display: flex;
-      gap: 18px;
-      font-size: 12px;
-      color: var(--ink-faint);
-      margin-top: 10px;
-    }
+    .legend { display: flex; gap: 18px; font-size: 12px; color: var(--ink-faint); margin-top: 10px; flex-wrap: wrap; }
     .legend .sw {
-      display: inline-block;
-      width: 12px; height: 12px;
-      vertical-align: middle;
-      margin-right: 5px;
-      border: 1px solid var(--border-strong);
+      display: inline-block; width: 12px; height: 12px;
+      vertical-align: middle; margin-right: 5px; border: 1px solid var(--border-strong);
     }
     .legend .sw.win-strong { background: rgba(29, 122, 58, 0.18); }
     .legend .sw.win-weak   { background: rgba(29, 122, 58, 0.09); }
@@ -174,59 +146,110 @@
     .legend .sw.lose-strong{ background: rgba(179, 38, 30, 0.10); }
 
     .chart-controls {
-      margin: 0 0 10px 0;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      color: var(--ink-soft);
+      margin: 0 0 12px 0;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      font-size: 13px; color: var(--ink-soft);
     }
     .chart-controls label { color: var(--ink-faint); }
-    .chart-controls select {
-      padding: 5px 8px;
-      border: 1px solid var(--border-strong);
-      border-radius: 3px;
-      background: var(--bg);
-      font-family: inherit;
-      font-size: 13px;
-      color: var(--ink);
+    .chart-controls select, .chart-controls input[type="search"] {
+      padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: 3px;
+      background: var(--bg); font-family: inherit; font-size: 13px; color: var(--ink);
+    }
+    .chart-controls input[type="search"] { width: 180px; }
+    .chart-controls .pill {
+      padding: 2px 8px; border-radius: 12px; background: var(--bg-soft);
+      color: var(--ink-faint); font-size: 12px;
     }
 
     .chart {
-      width: 100%;
-      height: 460px;
-      border: 1px solid var(--border);
-      background: var(--bg-card);
+      width: 100%; height: 480px;
+      border: 1px solid var(--border); background: var(--bg-card);
     }
+    .chart.tall { height: 560px; }
 
     .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 14px;
-      margin-top: 10px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px; margin-top: 10px;
     }
     .card {
-      padding: 14px 16px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 3px;
+      padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 3px;
     }
     .card .sym { font-weight: 600; font-size: 15px; }
     .card .desc { color: var(--ink-faint); font-size: 12px; margin-bottom: 8px; }
     .card .stat {
       display: flex; justify-content: space-between;
       font-size: 13px; font-variant-numeric: tabular-nums;
-      font-family: 'JetBrains Mono', monospace;
-      padding: 2px 0;
+      font-family: 'JetBrains Mono', monospace; padding: 2px 0;
     }
     .card .stat span:first-child { color: var(--ink-faint); }
 
+    table.trades {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-variant-numeric: tabular-nums;
+    }
+    table.trades thead th {
+      text-align: left; padding: 8px 12px;
+      background: var(--bg-soft); font-weight: 600;
+      color: var(--ink-soft); border-bottom: 1px solid var(--border-strong);
+      cursor: pointer; user-select: none; font-size: 12px;
+      letter-spacing: 0.02em;
+      position: sticky; top: 0;
+    }
+    table.trades thead th:hover { color: var(--accent); }
+    table.trades thead th.sorted::after {
+      content: " ↑"; color: var(--accent);
+    }
+    table.trades thead th.sorted.desc::after { content: " ↓"; }
+    table.trades tbody td { padding: 6px 12px; border-bottom: 1px solid var(--border); }
+    table.trades tbody tr:last-child td { border-bottom: none; }
+    table.trades tbody tr:hover { background: var(--bg-soft); }
+    table.trades .pos { color: var(--good); font-weight: 500; }
+    table.trades .neg { color: var(--bad); font-weight: 500; }
+    table.trades .reason {
+      padding: 1px 6px; border-radius: 2px;
+      background: var(--bg-soft); color: var(--ink-soft); font-size: 11px;
+    }
+    table.trades .reason.trailing_stop  { background: rgba(183, 110, 0, 0.10); color: var(--warn); }
+    table.trades .reason.regime_exit_composite { background: rgba(19, 81, 180, 0.08); color: var(--accent); }
+    table.trades .reason.regime_exit_ma_floor { background: rgba(19, 81, 180, 0.08); color: var(--accent); }
+    table.trades .reason.time_stop      { background: rgba(75, 75, 75, 0.06); color: var(--neutral); }
+    table.trades .reason.data_end       { background: rgba(75, 75, 75, 0.06); color: var(--neutral); }
+
+    .table-scroll {
+      max-height: 560px; overflow-y: auto;
+      border: 1px solid var(--border); background: var(--bg-card);
+    }
+
+    .two-col {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    }
+    @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+
+    .small-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    .small-table thead th {
+      text-align: left; padding: 8px 10px;
+      background: var(--bg-soft); font-weight: 600; color: var(--ink-soft);
+      border-bottom: 1px solid var(--border-strong); font-size: 12px;
+    }
+    .small-table tbody td {
+      padding: 7px 10px; border-bottom: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+    }
+    .small-table .row-label {
+      font-family: 'Inter', sans-serif; color: var(--ink-soft);
+    }
+    .small-table .highlight { background: rgba(29, 122, 58, 0.05); }
+
     footer {
-      margin-top: 60px;
-      padding: 24px 0 36px 0;
-      border-top: 1px solid var(--border);
-      color: var(--ink-faint);
-      font-size: 13px;
+      margin-top: 60px; padding: 24px 0 36px 0;
+      border-top: 1px solid var(--border); color: var(--ink-faint); font-size: 13px;
     }
     footer a { color: var(--accent); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
@@ -236,7 +259,9 @@
       header.top .meta { float: none; text-align: left; margin-top: 8px; }
       table.matrix { font-size: 12px; }
       table.matrix td.cell { font-size: 11px; }
-      .chart { height: 320px; }
+      .chart { height: 340px; }
+      nav.tabs .container { overflow-x: auto; }
+      nav.tabs button { padding: 10px 12px; font-size: 13px; }
     }
   </style>
 </head>
@@ -253,47 +278,145 @@
   </div>
 </header>
 
+<nav class="tabs">
+  <div class="container">
+    <button class="tab active" data-tab="overview">Overview</button>
+    <button class="tab" data-tab="equity">Equity Curves</button>
+    <button class="tab" data-tab="breadth">Breadth Signals</button>
+    <button class="tab" data-tab="trades">Trade Detail</button>
+    <button class="tab" data-tab="sensitivity">Sensitivity</button>
+  </div>
+</nav>
+
 <main class="container">
 
-  <div class="verdict">
-    <h2>Verdict</h2>
-    <p id="verdict-body">Loading…</p>
+  <!-- ====================== OVERVIEW ====================== -->
+  <div class="tab-content active" id="tab-overview">
+    <div class="verdict">
+      <h2>Verdict</h2>
+      <p id="verdict-body">Loading…</p>
+    </div>
+
+    <section id="sec-matrix">
+      <h2>Cross-ETF result matrix</h2>
+      <p class="section-sub">Sharpe (annualised) and Monte Carlo percentile of strategy total return vs 1,000 random-entry paths with bootstrapped holding distribution. 2018-2026 window, signal-eligible from 2019-01-08. All same costs (10 bps round-trip). Configs are not re-tuned per ETF.</p>
+      <table class="matrix" id="cross-etf-table">
+        <thead>
+          <tr>
+            <th>ETF</th>
+            <th>Universe</th>
+            <th>baseline_2xATR</th>
+            <th>regime_time_only</th>
+            <th>regime + delay 5d + trend filter</th>
+          </tr>
+        </thead>
+        <tbody id="cross-etf-tbody"></tbody>
+      </table>
+      <div class="legend">
+        <span><span class="sw win-strong"></span>MC ≥ 50 (beats random)</span>
+        <span><span class="sw win-weak"></span>40 ≤ MC &lt; 50</span>
+        <span><span class="sw lose-weak"></span>20 ≤ MC &lt; 40</span>
+        <span><span class="sw lose-strong"></span>MC &lt; 20</span>
+      </div>
+    </section>
+
+    <section id="sec-per-etf">
+      <h2>Per-ETF best result</h2>
+      <p class="section-sub">For each ETF, the headline metrics of its best-Sharpe config from the cross-ETF matrix.</p>
+      <div class="cards" id="cards-grid"></div>
+    </section>
   </div>
 
-  <section id="sec-matrix">
-    <h2>Cross-ETF result matrix</h2>
-    <p class="section-sub">Sharpe (annualised) and Monte Carlo percentile of strategy total return vs 1,000 random-entry paths with bootstrapped holding distribution. 2018-2026 window, signal-eligible from 2019-01-08. All same costs (10 bps round-trip). Configs are not re-tuned per ETF.</p>
-    <table class="matrix" id="cross-etf-table">
-      <thead>
-        <tr>
-          <th>ETF</th>
-          <th>Universe</th>
-          <th>baseline_2xATR</th>
-          <th>regime_time_only</th>
-          <th>regime + delay 5d + trend filter</th>
-        </tr>
-      </thead>
-      <tbody id="cross-etf-tbody"></tbody>
-    </table>
-    <div class="legend">
-      <span><span class="sw win-strong"></span>MC ≥ 50 (beats random)</span>
-      <span><span class="sw win-weak"></span>40 ≤ MC &lt; 50</span>
-      <span><span class="sw lose-weak"></span>20 ≤ MC &lt; 40</span>
-      <span><span class="sw lose-strong"></span>MC &lt; 20</span>
-    </div>
-  </section>
+  <!-- ====================== EQUITY CURVES ====================== -->
+  <div class="tab-content" id="tab-equity">
+    <section>
+      <h2>Equity curves — strategy vs buy-and-hold</h2>
+      <p class="section-sub">Daily equity normalised to 1.0 at the signal-eligible start (2019-01-08). Log scale. The strategy variant being plotted is shown by the dropdown below; the dotted lines are the traded ETF and SPY buy-and-hold over the same window.</p>
+      <div class="chart-controls">
+        <label for="eq-etf">ETF:</label>
+        <select id="eq-etf"></select>
+        <label for="eq-config">Config:</label>
+        <select id="eq-config">
+          <option value="baseline_2xATR">baseline_2xATR</option>
+          <option value="regime_time_only">regime_time_only</option>
+          <option value="regime_time_only_delay5_trend">regime + delay5 + trend</option>
+        </select>
+        <span class="pill" id="eq-pill">—</span>
+      </div>
+      <div id="equity-chart" class="chart tall"></div>
+    </section>
+  </div>
 
-  <section id="sec-equity">
-    <h2>Equity curves — strategy vs buy-and-hold</h2>
-    <p class="section-sub">Daily equity normalised to 1.0 at the start of the signal-eligible window. Currently SOXX with the baseline 2× ATR config — extended per-ETF curves arrive in Phase 2.</p>
-    <div id="equity-chart" class="chart"></div>
-  </section>
+  <!-- ====================== BREADTH SIGNALS ====================== -->
+  <div class="tab-content" id="tab-breadth">
+    <section>
+      <h2>Breadth components + signal-fire days</h2>
+      <p class="section-sub">Composite breadth z-score and the three underlying breadth components (% above 50d MA, % with RSI > 70, % at 63d high) on the same date axis. Signal-fire days are marked.</p>
+      <div class="chart-controls">
+        <label for="br-etf">ETF:</label>
+        <select id="br-etf"></select>
+        <span class="pill" id="br-pill">—</span>
+      </div>
+      <div id="breadth-chart" class="chart tall"></div>
+    </section>
+  </div>
 
-  <section id="sec-per-etf">
-    <h2>Per-ETF best result</h2>
-    <p class="section-sub">For each ETF, the headline metrics of its best-Sharpe config from the cross-ETF matrix.</p>
-    <div class="cards" id="cards-grid"></div>
-  </section>
+  <!-- ====================== TRADE DETAIL ====================== -->
+  <div class="tab-content" id="tab-trades">
+    <section>
+      <h2>Per-trade detail</h2>
+      <p class="section-sub">Every individual trade taken by the strategy on the chosen ETF and config. Click a column header to sort.</p>
+      <div class="chart-controls">
+        <label for="tr-etf">ETF:</label>
+        <select id="tr-etf"></select>
+        <label for="tr-config">Config:</label>
+        <select id="tr-config">
+          <option value="baseline_2xATR">baseline_2xATR</option>
+          <option value="regime_time_only">regime_time_only</option>
+          <option value="regime_time_only_delay5_trend">regime + delay5 + trend</option>
+        </select>
+        <span class="pill" id="tr-pill">—</span>
+      </div>
+      <div class="two-col" style="grid-template-columns: 2fr 1fr; align-items: start;">
+        <div class="table-scroll">
+          <table class="trades">
+            <thead>
+              <tr id="trades-thead"></tr>
+            </thead>
+            <tbody id="trades-tbody"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3 style="font-size: 14px; margin: 0 0 10px 0; color: var(--ink-soft);">Exit reasons</h3>
+          <div id="exit-reason-chart" style="width: 100%; height: 320px; border: 1px solid var(--border); background: var(--bg-card);"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ====================== SENSITIVITY ====================== -->
+  <div class="tab-content" id="tab-sensitivity">
+    <section>
+      <h2>Exit-logic variant sweep (SOXX)</h2>
+      <p class="section-sub">In-sample sensitivity on SOXX — five exit configurations swept against the original spec. Demonstrates that the 2× ATR stop was the binding constraint.</p>
+      <table class="small-table" id="variants-exit-table"><thead></thead><tbody></tbody></table>
+    </section>
+    <section>
+      <h2>Entry-delay sweep (SOXX)</h2>
+      <p class="section-sub">Entering k trading days after the signal fires, instead of next-bar open. Tests the "signal fires after short-term overbought, entry is too early" hypothesis.</p>
+      <table class="small-table" id="variants-delay-table"><thead></thead><tbody></tbody></table>
+    </section>
+    <section>
+      <h2>Trend-filter sweep (SOXX)</h2>
+      <p class="section-sub">Take signals only when SOXX is above its 200-day MA at the signal date. Applied independently to two exit configs.</p>
+      <table class="small-table" id="variants-trend-table"><thead></thead><tbody></tbody></table>
+    </section>
+    <section>
+      <h2>Split-half OOS (SOXX, train / test 2022-09-08)</h2>
+      <p class="section-sub">Within-SOXX out-of-sample test: pick the variant by train-half Sharpe, report test-half stats.</p>
+      <table class="small-table" id="splithalf-table"><thead></thead><tbody></tbody></table>
+    </section>
+  </div>
 
 </main>
 
@@ -310,36 +433,19 @@
 const DASHBOARD_DATA_INLINE = null;
 // __DASHBOARD_DATA_END__
 
-async function loadData() {
-  if (DASHBOARD_DATA_INLINE) return DASHBOARD_DATA_INLINE;
-  // Dev fallback — fetch source JSONs directly when running locally via npx serve .
-  const fetchJson = (p) => fetch(p).then((r) => r.json());
-  const [soxx, csp1, iues, iufs, cndx, soxxBacktest] = await Promise.all([
-    fetchJson('data/backtest_soxx.json').then((j) => ({source: 'backtest_soxx', stats: j.primary, mc: j.benchmarks.monte_carlo_null, eq: j.equity_curves})),
-    fetchJson('data/backtest_csp1_oos.json'),
-    fetchJson('data/backtest_iues_oos.json'),
-    fetchJson('data/backtest_iufs_oos.json'),
-    fetchJson('data/backtest_cndx_oos.json'),
-    fetchJson('data/backtest_soxx.json'),
-  ]);
-  // In dev mode we build a quick approximation of the inlined data shape.
-  return {
-    built_at: null,
-    cross_etf: [],
-    equity_curves: { SOXX: soxxBacktest.equity_curves },
-    notice: 'Dev fallback active — pipeline-built data will look different.',
-  };
-}
-
 const ETF_LABELS = {
   SOXX: { desc: 'iShares Semiconductor (semis)', proxy: 'SOXX', universe: '30' },
-  IUES: { desc: 'S&P 500 Energy sector', proxy: 'XLE', universe: '22–32' },
-  IUFS: { desc: 'S&P 500 Financials sector', proxy: 'XLF', universe: '67–71' },
-  CNDX: { desc: 'NASDAQ-100', proxy: 'QQQ', universe: '101' },
-  CSP1: { desc: 'S&P 500 (full)', proxy: 'SPY', universe: '503' },
+  IUES: { desc: 'S&P 500 Energy sector',         proxy: 'XLE',  universe: '22–32' },
+  IUFS: { desc: 'S&P 500 Financials sector',     proxy: 'XLF',  universe: '67–71' },
+  CNDX: { desc: 'NASDAQ-100',                    proxy: 'QQQ',  universe: '101' },
+  CSP1: { desc: 'S&P 500 (full)',                proxy: 'SPY',  universe: '503' },
 };
-
 const CONFIG_KEYS = ['baseline_2xATR', 'regime_time_only', 'regime_time_only_delay5_trend'];
+const CONFIG_COLOR = {
+  baseline_2xATR: '#b76e00',
+  regime_time_only: '#1d7a3a',
+  regime_time_only_delay5_trend: '#1351b4',
+};
 
 function classifyMC(mc) {
   if (mc == null) return '';
@@ -348,7 +454,6 @@ function classifyMC(mc) {
   if (mc >= 20) return 'lose-weak';
   return 'lose-strong';
 }
-
 function fmtPct(x, signed = false) {
   if (x == null || Number.isNaN(x)) return '—';
   const v = (x * 100).toFixed(1);
@@ -359,6 +464,7 @@ function fmtNum(x, digits = 2, signed = false) {
   return (signed && x > 0 ? '+' : '') + Number(x).toFixed(digits);
 }
 
+// ----------- Overview tab -----------------------------------------------
 function renderMatrix(rows) {
   const tbody = document.getElementById('cross-etf-tbody');
   tbody.innerHTML = '';
@@ -371,10 +477,7 @@ function renderMatrix(rows) {
     `;
     for (const k of CONFIG_KEYS) {
       const c = r.configs[k];
-      if (!c) {
-        tr.innerHTML += `<td class="cell">—</td>`;
-        continue;
-      }
+      if (!c) { tr.innerHTML += `<td class="cell">—</td>`; continue; }
       const cls = classifyMC(c.mc_pct);
       const qual = c._label_qualifier
         ? `<span class="qual" title="Measured on the held-out 2nd half of the window">${c._label_qualifier}</span>`
@@ -389,35 +492,6 @@ function renderMatrix(rows) {
     tbody.appendChild(tr);
   }
 }
-
-function renderEquityChart(eq) {
-  if (!eq || !eq.dates || !eq.strategy) {
-    document.getElementById('equity-chart').innerHTML =
-      '<p style="padding: 24px; color: var(--ink-faint);">Equity curve unavailable.</p>';
-    return;
-  }
-  const dates = eq.dates;
-  const traces = [
-    { x: dates, y: eq.strategy, mode: 'lines', name: 'Strategy (SOXX, 2× ATR baseline)',
-      line: { color: '#1351b4', width: 1.6 } },
-    { x: dates, y: eq.soxx_buy_hold, mode: 'lines', name: 'SOXX buy-and-hold',
-      line: { color: '#6b727a', width: 1.2, dash: 'dot' } },
-    { x: dates, y: eq.spy_buy_hold, mode: 'lines', name: 'SPY buy-and-hold',
-      line: { color: '#b76e00', width: 1.2, dash: 'dot' } },
-  ];
-  const layout = {
-    margin: { l: 56, r: 14, t: 14, b: 38 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
-    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
-    yaxis: { title: 'Equity (normalised to 1)', gridcolor: '#eef0f3', zeroline: false, type: 'log',
-             tickformat: '.2f' },
-    hovermode: 'x unified',
-    legend: { orientation: 'h', x: 0, y: 1.06 },
-  };
-  Plotly.newPlot('equity-chart', traces, layout, { displayModeBar: false, responsive: true });
-}
-
 function renderCards(rows) {
   const grid = document.getElementById('cards-grid');
   grid.innerHTML = '';
@@ -448,17 +522,298 @@ function renderCards(rows) {
   }
 }
 
-(async function init() {
-  const data = await loadData();
+// ----------- Equity tab -------------------------------------------------
+const EQ_LAYOUT_BASE = {
+  margin: { l: 56, r: 14, t: 14, b: 38 },
+  paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+  font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+  xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+  yaxis: { title: 'Equity (normalised to 1)', gridcolor: '#eef0f3',
+           zeroline: false, type: 'log', tickformat: '.2f' },
+  hovermode: 'x unified',
+  legend: { orientation: 'h', x: 0, y: 1.08 },
+};
+function renderEquityChart() {
+  const data = window.DATA;
+  const etf = document.getElementById('eq-etf').value;
+  const cfg = document.getElementById('eq-config').value;
+  const pill = document.getElementById('eq-pill');
+  const eqAll = data.equity_curves[etf];
+  if (!eqAll) { document.getElementById('equity-chart').innerHTML = '<p style="padding:24px;color:var(--ink-faint);">No equity data.</p>'; return; }
+  const cfgEq = eqAll.configs ? eqAll.configs[cfg] : null;
+  if (!cfgEq) { document.getElementById('equity-chart').innerHTML = `<p style="padding:24px;color:var(--ink-faint);">No equity curve for ${etf} / ${cfg}.</p>`; return; }
+  const dates = eqAll.dates;
+  const proxy = ETF_LABELS[etf]?.proxy || etf;
+  const traces = [
+    { x: dates, y: cfgEq.strategy, mode: 'lines',
+      name: `Strategy — ${etf}, ${cfg}`,
+      line: { color: CONFIG_COLOR[cfg] || '#1351b4', width: 1.7 } },
+    { x: dates, y: cfgEq.traded_etf_buy_hold, mode: 'lines',
+      name: `${proxy} buy-and-hold`,
+      line: { color: '#4a5159', width: 1.2, dash: 'dot' } },
+    { x: dates, y: cfgEq.spy_buy_hold, mode: 'lines',
+      name: 'SPY buy-and-hold',
+      line: { color: '#b76e00', width: 1.0, dash: 'dot' } },
+  ];
+  Plotly.newPlot('equity-chart', traces, EQ_LAYOUT_BASE, { displayModeBar: false, responsive: true });
+  // Update pill with key stats
+  const r = data.cross_etf.find((x) => x.etf === etf);
+  const c = r?.configs?.[cfg];
+  pill.textContent = c
+    ? `n=${c.n_trades}  Sharpe ${fmtNum(c.sharpe,2,true)}  totRet ${fmtPct(c.total_return,true)}  MC ${c.mc_pct?.toFixed(0) ?? '—'}`
+    : '';
+}
+
+// ----------- Breadth tab -----------------------------------------------
+function renderBreadthChart() {
+  const data = window.DATA;
+  const etf = document.getElementById('br-etf').value;
+  const pill = document.getElementById('br-pill');
+  const bs = data.breadth?.[etf];
+  if (!bs) { document.getElementById('breadth-chart').innerHTML = '<p style="padding:24px;color:var(--ink-faint);">No breadth data.</p>'; return; }
+  const traces = [
+    { x: bs.dates, y: bs.composite_z, mode: 'lines',
+      name: 'Composite z-score',
+      line: { color: '#1351b4', width: 1.5 }, yaxis: 'y' },
+    { x: bs.dates, y: bs.ma_breadth, mode: 'lines',
+      name: '% above 50d MA', line: { color: '#1d7a3a', width: 1 }, yaxis: 'y2' },
+    { x: bs.dates, y: bs.rsi_breadth, mode: 'lines',
+      name: '% RSI > 70', line: { color: '#b76e00', width: 1 }, yaxis: 'y2' },
+    { x: bs.dates, y: bs.highs_breadth, mode: 'lines',
+      name: '% at 63d high', line: { color: '#b3261e', width: 1 }, yaxis: 'y2' },
+  ];
+  if (bs.signal_dates && bs.signal_dates.length) {
+    traces.push({
+      x: bs.signal_dates,
+      y: bs.signal_dates.map((_) => 0),
+      mode: 'markers',
+      name: 'Signal fires',
+      marker: { color: '#b3261e', size: 7, symbol: 'triangle-up' },
+      yaxis: 'y',
+      hovertemplate: 'Signal: %{x|%Y-%m-%d}<extra></extra>',
+    });
+  }
+  const layout = {
+    margin: { l: 56, r: 56, t: 14, b: 38 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+    yaxis: { title: 'Composite z-score', gridcolor: '#eef0f3', zeroline: true,
+             zerolinecolor: '#c8ccd2', side: 'left' },
+    yaxis2: { title: 'Component share', overlaying: 'y', side: 'right',
+              tickformat: '.0%', range: [0, 1], gridcolor: 'transparent' },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', x: 0, y: 1.08 },
+  };
+  Plotly.newPlot('breadth-chart', traces, layout, { displayModeBar: false, responsive: true });
+  pill.textContent = `${bs.dates.length} trading days  ·  ${bs.signal_dates?.length || 0} signal-fire days`;
+}
+
+// ----------- Trade detail tab ------------------------------------------
+const TRADE_COLS = [
+  { key: 'signal_date',  label: 'Signal',  type: 'str' },
+  { key: 'entry_date',   label: 'Entry',   type: 'str' },
+  { key: 'exit_date',    label: 'Exit',    type: 'str' },
+  { key: 'holding_days', label: 'Days',    type: 'num' },
+  { key: 'trade_return', label: 'Return',  type: 'pct' },
+  { key: 'max_drawdown', label: 'Max DD',  type: 'pct' },
+  { key: 'exit_reason',  label: 'Exit',    type: 'reason' },
+];
+let TRADE_SORT = { key: 'entry_date', desc: false };
+
+function renderTradesTable() {
+  const data = window.DATA;
+  const etf = document.getElementById('tr-etf').value;
+  const cfg = document.getElementById('tr-config').value;
+  const pill = document.getElementById('tr-pill');
+  const trades = (data.trades?.[etf]?.[cfg] || []).slice();
+  trades.sort((a, b) => {
+    const av = a[TRADE_SORT.key]; const bv = b[TRADE_SORT.key];
+    if (av == null) return 1; if (bv == null) return -1;
+    if (av < bv) return TRADE_SORT.desc ? 1 : -1;
+    if (av > bv) return TRADE_SORT.desc ? -1 : 1;
+    return 0;
+  });
+  // Header (with sort hooks)
+  const thead = document.getElementById('trades-thead');
+  thead.innerHTML = TRADE_COLS.map((col) => {
+    const sortedClass = TRADE_SORT.key === col.key ? ' sorted' + (TRADE_SORT.desc ? ' desc' : '') : '';
+    return `<th data-key="${col.key}" class="${sortedClass}">${col.label}</th>`;
+  }).join('');
+  thead.querySelectorAll('th').forEach((th) => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if (TRADE_SORT.key === key) TRADE_SORT.desc = !TRADE_SORT.desc;
+      else { TRADE_SORT.key = key; TRADE_SORT.desc = false; }
+      renderTradesTable();
+    });
+  });
+  // Body
+  const tbody = document.getElementById('trades-tbody');
+  tbody.innerHTML = '';
+  if (trades.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="${TRADE_COLS.length}" style="text-align:center;padding:20px;color:var(--ink-faint);">No trades for ${etf} / ${cfg}.</td></tr>`;
+  }
+  for (const t of trades) {
+    const tr = document.createElement('tr');
+    const cells = TRADE_COLS.map((col) => {
+      const v = t[col.key];
+      if (v == null) return '<td>—</td>';
+      if (col.type === 'pct') {
+        const cls = v > 0 ? 'pos' : (v < 0 ? 'neg' : '');
+        return `<td class="${cls}">${fmtPct(v, true)}</td>`;
+      }
+      if (col.type === 'reason') return `<td><span class="reason ${v}">${v}</span></td>`;
+      if (col.type === 'num') return `<td>${v}</td>`;
+      return `<td>${v}</td>`;
+    });
+    tr.innerHTML = cells.join('');
+    tbody.appendChild(tr);
+  }
+  // Exit-reason chart
+  const counts = {};
+  for (const t of trades) counts[t.exit_reason] = (counts[t.exit_reason] || 0) + 1;
+  const labels = Object.keys(counts).sort();
+  const values = labels.map((l) => counts[l]);
+  if (labels.length) {
+    Plotly.newPlot('exit-reason-chart', [{
+      labels, values, type: 'pie', hole: 0.45,
+      marker: { colors: ['#b76e00', '#1d7a3a', '#1351b4', '#4a5159', '#b3261e'] },
+      textinfo: 'label+percent', textposition: 'outside',
+      automargin: true,
+    }], {
+      margin: { l: 8, r: 8, t: 8, b: 8 },
+      font: { family: 'Inter, sans-serif', size: 11 },
+      showlegend: false,
+      paper_bgcolor: '#ffffff',
+    }, { displayModeBar: false, responsive: true });
+  } else {
+    document.getElementById('exit-reason-chart').innerHTML = '';
+  }
+  // pill
+  const r = data.cross_etf.find((x) => x.etf === etf);
+  const c = r?.configs?.[cfg];
+  pill.textContent = c
+    ? `n=${trades.length}  Sharpe ${fmtNum(c.sharpe,2,true)}  totRet ${fmtPct(c.total_return,true)}`
+    : `n=${trades.length}`;
+}
+
+// ----------- Sensitivity tab -------------------------------------------
+function renderVariantsTables() {
+  const data = window.DATA;
+  const tables = [
+    { id: 'variants-exit-table',  rows: data.variants?.exit_logic,  bestKey: 'sharpe_annualised' },
+    { id: 'variants-delay-table', rows: data.variants?.entry_delay, bestKey: 'sharpe_annualised' },
+    { id: 'variants-trend-table', rows: data.variants?.trend_filter, bestKey: 'sharpe_annualised' },
+  ];
+  for (const tbl of tables) {
+    const el = document.getElementById(tbl.id);
+    if (!el || !tbl.rows) continue;
+    const rows = tbl.rows;
+    const bestVal = Math.max(...rows.map((r) => r[tbl.bestKey] ?? -Infinity));
+    el.querySelector('thead').innerHTML = `<tr>
+      <th>Variant</th><th>Trades</th><th>Win %</th><th>Median hold</th>
+      <th>Total ret</th><th>Max DD</th><th>Sharpe</th><th>MC %ile</th>
+    </tr>`;
+    el.querySelector('tbody').innerHTML = rows.map((r) => {
+      const isBest = r[tbl.bestKey] != null && r[tbl.bestKey] === bestVal;
+      return `<tr class="${isBest ? 'highlight' : ''}">
+        <td class="row-label">${r.variant}</td>
+        <td>${r.n_trades ?? '—'}</td>
+        <td>${fmtPct(r.win_rate)}</td>
+        <td>${r.median_holding_days != null ? r.median_holding_days.toFixed(0) + 'd' : '—'}</td>
+        <td>${fmtPct(r.equity_curve_total_return, true)}</td>
+        <td>${fmtPct(r.equity_curve_max_dd)}</td>
+        <td>${fmtNum(r.sharpe_annualised, 2, true)}</td>
+        <td>${r.mc_strategy_total_return_percentile != null ? r.mc_strategy_total_return_percentile.toFixed(0) : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+  // Split-half table
+  const sh = data.splithalf;
+  const el = document.getElementById('splithalf-table');
+  if (sh && el) {
+    el.querySelector('thead').innerHTML = `<tr>
+      <th>Variant</th>
+      <th>Train n</th><th>Train Sharpe</th><th>Train MC%</th>
+      <th>Test n</th><th>Test Sharpe</th><th>Test totRet</th><th>Test MC%</th>
+    </tr>`;
+    const bestTrainSh = Math.max(...sh.map((r) => r.train?.sharpe_annualised ?? -Infinity));
+    el.querySelector('tbody').innerHTML = sh.map((r) => {
+      const isBest = r.train?.sharpe_annualised === bestTrainSh;
+      return `<tr class="${isBest ? 'highlight' : ''}">
+        <td class="row-label">${r.variant}</td>
+        <td>${r.train?.n_trades ?? '—'}</td>
+        <td>${fmtNum(r.train?.sharpe_annualised, 2, true)}</td>
+        <td>${r.train?.mc_strategy_total_return_percentile != null ? r.train.mc_strategy_total_return_percentile.toFixed(0) : '—'}</td>
+        <td>${r.test?.n_trades ?? '—'}</td>
+        <td>${fmtNum(r.test?.sharpe_annualised, 2, true)}</td>
+        <td>${fmtPct(r.test?.equity_curve_total_return, true)}</td>
+        <td>${r.test?.mc_strategy_total_return_percentile != null ? r.test.mc_strategy_total_return_percentile.toFixed(0) : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+// ----------- Tab navigation --------------------------------------------
+const TAB_RENDERED = new Set();
+function activateTab(name) {
+  document.querySelectorAll('nav.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-content').forEach((c) => c.classList.toggle('active', c.id === 'tab-' + name));
+  // Lazy-render heavy content
+  if (!TAB_RENDERED.has(name)) {
+    if (name === 'equity')      renderEquityChart();
+    if (name === 'breadth')     renderBreadthChart();
+    if (name === 'trades')      renderTradesTable();
+    if (name === 'sensitivity') renderVariantsTables();
+    TAB_RENDERED.add(name);
+  } else {
+    // Charts need a relayout when the container is unhidden so Plotly picks up width
+    if (name === 'equity')   { try { Plotly.Plots.resize('equity-chart'); } catch(e){} }
+    if (name === 'breadth')  { try { Plotly.Plots.resize('breadth-chart'); } catch(e){} }
+    if (name === 'trades')   { try { Plotly.Plots.resize('exit-reason-chart'); } catch(e){} }
+  }
+}
+
+function populateEtfDropdowns(rows) {
+  for (const id of ['eq-etf', 'br-etf', 'tr-etf']) {
+    const sel = document.getElementById(id);
+    if (!sel) continue;
+    sel.innerHTML = '';
+    for (const r of rows) {
+      const opt = document.createElement('option');
+      opt.value = r.etf;
+      opt.textContent = `${r.etf} — ${ETF_LABELS[r.etf]?.desc || ''}`;
+      sel.appendChild(opt);
+    }
+  }
+}
+
+(function init() {
+  const data = DASHBOARD_DATA_INLINE;
+  if (!data) {
+    document.getElementById('verdict-body').textContent =
+      'Build artefact missing. Run `python scripts/pipeline.py` to populate docs/index.html.';
+    return;
+  }
+  window.DATA = data;
   if (data.built_at) document.getElementById('ts-built').textContent = 'Built ' + data.built_at;
   if (data.verdict_html) document.getElementById('verdict-body').innerHTML = data.verdict_html;
-  if (data.cross_etf && data.cross_etf.length) {
+  if (data.cross_etf?.length) {
     renderMatrix(data.cross_etf);
     renderCards(data.cross_etf);
+    populateEtfDropdowns(data.cross_etf);
   }
-  if (data.equity_curves && data.equity_curves.SOXX) {
-    renderEquityChart(data.equity_curves.SOXX);
-  }
+  // Tab clicks
+  document.querySelectorAll('nav.tabs button').forEach((btn) => {
+    btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+  });
+  // Dropdown change handlers (re-render relevant tab)
+  document.getElementById('eq-etf')?.addEventListener('change', renderEquityChart);
+  document.getElementById('eq-config')?.addEventListener('change', renderEquityChart);
+  document.getElementById('br-etf')?.addEventListener('change', renderBreadthChart);
+  document.getElementById('tr-etf')?.addEventListener('change', renderTradesTable);
+  document.getElementById('tr-config')?.addEventListener('change', renderTradesTable);
 })();
 </script>
 </body>
