@@ -362,6 +362,23 @@ def inject(template_text: str, data: dict) -> str:
     )
 
 
+def build_improvements() -> dict | None:
+    """Load data/improvements.json if it exists; passed through to the
+    Improvements tab in the dashboard."""
+    path = DATA_DIR / "improvements.json"
+    if not path.exists():
+        return None
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    # Rename top-level keys to short keys the template uses.
+    return {
+        "test_1_regime_overlay": blob.get("test_1_regime_overlay", {}),
+        "test_2_size_scaled": blob.get("test_2_size_scaled", {}),
+        "test_3_multi_etf_rotation": blob.get("test_3_multi_etf_rotation", {}),
+        "baselines": blob.get("baselines", {}),
+        "computed_at_utc": blob.get("computed_at_utc"),
+    }
+
+
 def main() -> int:
     print("Loading per-ETF results ...", flush=True)
     rows = build_cross_etf_rows()
@@ -387,6 +404,13 @@ def main() -> int:
     variants = build_variants()
     splithalf = build_splithalf()
 
+    print("Loading improvements ...", flush=True)
+    improvements = build_improvements()
+    if improvements:
+        print(f"  test_1: {len(improvements['test_1_regime_overlay'])} ETFs")
+        print(f"  test_2: {len(improvements['test_2_size_scaled'])} ETFs")
+        print(f"  test_3: portfolio block present")
+
     verdict = build_verdict_html(rows)
 
     data = {
@@ -398,6 +422,7 @@ def main() -> int:
         "trades": trades,
         "variants": variants,
         "splithalf": splithalf,
+        "improvements": improvements,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")

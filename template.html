@@ -285,6 +285,7 @@
     <button class="tab" data-tab="breadth">Breadth Signals</button>
     <button class="tab" data-tab="trades">Trade Detail</button>
     <button class="tab" data-tab="sensitivity">Sensitivity</button>
+    <button class="tab" data-tab="improvements">Improvements</button>
   </div>
 </nav>
 
@@ -415,6 +416,37 @@
       <h2>Split-half OOS (SOXX, train / test 2022-09-08)</h2>
       <p class="section-sub">Within-SOXX out-of-sample test: pick the variant by train-half Sharpe, report test-half stats.</p>
       <table class="small-table" id="splithalf-table"><thead></thead><tbody></tbody></table>
+    </section>
+  </div>
+
+  <!-- ====================== IMPROVEMENTS ====================== -->
+  <div class="tab-content" id="tab-improvements">
+    <div class="verdict">
+      <h2>Improvement-experiment verdict</h2>
+      <p id="impr-verdict">Loading…</p>
+    </div>
+
+    <section>
+      <h2>Strategy comparison — five ETFs, four strategies</h2>
+      <p class="section-sub">Each ETF runs against four strategies: buy-and-hold (no signal), the triple-combo thrust strategy (current best), Test&nbsp;1 (long-by-default with regime exits), and Test&nbsp;2 (50&nbsp;per&nbsp;cent base allocation, stepping to 100&nbsp;per&nbsp;cent when the thrust trade is active). Bottom row is Test&nbsp;3 (multi-ETF rotation, single portfolio across all five). Best Sharpe per ETF group highlighted.</p>
+      <table class="small-table" id="impr-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Equity curves — strategies overlaid</h2>
+      <p class="section-sub">Pick an ETF below; the chart overlays buy-and-hold, triple-combo, Test&nbsp;1 (regime overlay), and Test&nbsp;2 (50/100 size scaled). All normalised to 1.0 at the signal-eligible start.</p>
+      <div class="chart-controls">
+        <label for="impr-etf">ETF:</label>
+        <select id="impr-etf"></select>
+        <span class="pill" id="impr-pill">—</span>
+      </div>
+      <div id="impr-chart" class="chart tall"></div>
+    </section>
+
+    <section>
+      <h2>Test 3 — multi-ETF rotation portfolio</h2>
+      <p class="section-sub">A single portfolio that equal-weights across whichever of the five ETFs have a live triple-combo thrust trade on a given day; flat when none. Benchmarked against SPY buy-and-hold over the same window.</p>
+      <div id="impr-test3-chart" class="chart"></div>
     </section>
   </div>
 
@@ -755,6 +787,166 @@ function renderVariantsTables() {
   }
 }
 
+// ----------- Improvements tab ------------------------------------------
+const IMPR_STRATEGY_KEYS = [
+  { key: 'buy_and_hold',          label: '0. Buy-and-hold',           color: '#6b727a' },
+  { key: 'triple_combo',          label: '0. Triple combo',           color: '#1351b4' },
+  { key: 'test_1_regime_overlay', label: '1. Long-by-default regime', color: '#1d7a3a' },
+  { key: 'test_2_size_scaled',    label: '2. Size-scaled 50/100',     color: '#b3261e' },
+];
+
+function _getImprStrategy(data, etf, key) {
+  if (key === 'buy_and_hold' || key === 'triple_combo') {
+    return data.improvements?.baselines?.[etf]?.[key];
+  }
+  return data.improvements?.[key]?.[etf];
+}
+
+function renderImprTable() {
+  const data = window.DATA;
+  if (!data.improvements) return;
+  const el = document.getElementById('impr-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Strategy</th><th>ETF</th><th>TotRet</th><th>CAGR</th>
+    <th>Sharpe</th><th>Max DD</th><th>Time in mkt</th>
+  </tr>`;
+  const tbody = el.querySelector('tbody');
+  tbody.innerHTML = '';
+  const etfs = ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1'];
+  for (const etf of etfs) {
+    // find best Sharpe for this ETF
+    let bestSh = -Infinity;
+    for (const s of IMPR_STRATEGY_KEYS) {
+      const v = _getImprStrategy(data, etf, s.key);
+      if (v?.sharpe != null && v.sharpe > bestSh) bestSh = v.sharpe;
+    }
+    for (const s of IMPR_STRATEGY_KEYS) {
+      const v = _getImprStrategy(data, etf, s.key);
+      if (!v) continue;
+      const isBest = v.sharpe === bestSh;
+      tbody.innerHTML += `<tr class="${isBest ? 'highlight' : ''}">
+        <td class="row-label">${s.label}</td>
+        <td>${etf}</td>
+        <td>${fmtPct(v.total_return, true)}</td>
+        <td>${fmtPct(v.cagr, true)}</td>
+        <td><strong>${fmtNum(v.sharpe, 2, true)}</strong></td>
+        <td>${fmtPct(v.max_dd)}</td>
+        <td>${v.time_in_market != null ? (v.time_in_market * 100).toFixed(0) + '%' : '—'}</td>
+      </tr>`;
+    }
+  }
+  // Test 3 row
+  const t3 = data.improvements.test_3_multi_etf_rotation;
+  if (t3) {
+    tbody.innerHTML += `<tr style="border-top: 2px solid var(--border-strong);">
+      <td class="row-label">3. Multi-ETF rotation</td>
+      <td>PORT</td>
+      <td>${fmtPct(t3.total_return, true)}</td>
+      <td>${fmtPct(t3.cagr, true)}</td>
+      <td><strong>${fmtNum(t3.sharpe, 2, true)}</strong></td>
+      <td>${fmtPct(t3.max_dd)}</td>
+      <td>${t3.time_in_market != null ? (t3.time_in_market * 100).toFixed(0) + '%' : '—'}</td>
+    </tr>`;
+    const spy = t3.spy_buy_hold;
+    if (spy) {
+      tbody.innerHTML += `<tr style="color:var(--ink-faint);">
+        <td class="row-label" style="padding-left: 22px;">↳ SPY buy-and-hold (bench)</td>
+        <td>SPY</td>
+        <td>${fmtPct(spy.total_return, true)}</td>
+        <td>${fmtPct(spy.cagr, true)}</td>
+        <td>${fmtNum(spy.sharpe, 2, true)}</td>
+        <td>${fmtPct(spy.max_dd)}</td>
+        <td>100%</td>
+      </tr>`;
+    }
+  }
+}
+
+function renderImprChart() {
+  const data = window.DATA;
+  if (!data.improvements) return;
+  const etf = document.getElementById('impr-etf').value;
+  const traces = [];
+  for (const s of IMPR_STRATEGY_KEYS) {
+    const v = _getImprStrategy(data, etf, s.key);
+    if (!v?.dates || !v?.equity) continue;
+    traces.push({
+      x: v.dates, y: v.equity, mode: 'lines',
+      name: `${s.label}${v.sharpe != null ? ` — Shp ${fmtNum(v.sharpe, 2, true)}` : ''}`,
+      line: { color: s.color, width: s.key === 'buy_and_hold' ? 1.2 : 1.6,
+              dash: s.key === 'buy_and_hold' ? 'dot' : 'solid' },
+    });
+  }
+  const layout = {
+    margin: { l: 56, r: 14, t: 14, b: 38 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+    yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3',
+             zeroline: false, type: 'log', tickformat: '.2f' },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', x: 0, y: 1.08 },
+  };
+  Plotly.newPlot('impr-chart', traces, layout, { displayModeBar: false, responsive: true });
+  // Pill
+  const bh = data.improvements.baselines[etf]?.buy_and_hold;
+  const t2 = data.improvements.test_2_size_scaled[etf];
+  const pill = document.getElementById('impr-pill');
+  if (bh && t2) {
+    pill.textContent = `BH Sharpe ${fmtNum(bh.sharpe, 2, true)}  ·  Test 2 (50/100) Sharpe ${fmtNum(t2.sharpe, 2, true)}`;
+  } else {
+    pill.textContent = '—';
+  }
+}
+
+function renderImprTest3Chart() {
+  const data = window.DATA;
+  const t3 = data.improvements?.test_3_multi_etf_rotation;
+  if (!t3?.dates) return;
+  const traces = [
+    { x: t3.dates, y: t3.equity, mode: 'lines',
+      name: `Multi-ETF rotation — Shp ${fmtNum(t3.sharpe, 2, true)}`,
+      line: { color: '#1351b4', width: 1.7 } },
+  ];
+  if (t3.spy_buy_hold) {
+    traces.push({
+      x: t3.spy_buy_hold.dates, y: t3.spy_buy_hold.equity, mode: 'lines',
+      name: `SPY buy-and-hold — Shp ${fmtNum(t3.spy_buy_hold.sharpe, 2, true)}`,
+      line: { color: '#6b727a', width: 1.2, dash: 'dot' },
+    });
+  }
+  const layout = {
+    margin: { l: 56, r: 14, t: 14, b: 38 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+    yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3',
+             zeroline: false, type: 'log', tickformat: '.2f' },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', x: 0, y: 1.08 },
+  };
+  Plotly.newPlot('impr-test3-chart', traces, layout, { displayModeBar: false, responsive: true });
+}
+
+function renderImprVerdict() {
+  const data = window.DATA;
+  if (!data.improvements) return;
+  // Pull SOXX comparison since it's the headline
+  const bh = data.improvements.baselines.SOXX?.buy_and_hold;
+  const t2 = data.improvements.test_2_size_scaled?.SOXX;
+  const tr = data.improvements.baselines.SOXX?.triple_combo;
+  if (!bh || !t2 || !tr) return;
+  document.getElementById('impr-verdict').innerHTML =
+    `On SOXX, the 50/100 size-scaled variant (Test 2) delivers Sharpe `
+    + `<strong>${fmtNum(t2.sharpe, 2, true)}</strong>, beating both buy-and-hold (${fmtNum(bh.sharpe, 2, true)}) `
+    + `and the original triple-combo signal-only strategy (${fmtNum(tr.sharpe, 2, true)}), with `
+    + `materially lower max drawdown (${fmtPct(t2.max_dd)} vs ${fmtPct(bh.max_dd)} buy-and-hold).<br><br>`
+    + `Test 1 (regime overlay) recovers most of the buy-and-hold return on every ETF but `
+    + `does not beat it on Sharpe. Test 3 (multi-ETF rotation) underperforms SPY buy-and-hold. `
+    + `The clean lesson: <strong>the thrust signal works best as a sizing modifier on top of an always-on base position</strong>, `
+    + `not as an in/out trigger that leaves you flat 60+ per cent of the time.`;
+}
+
 // ----------- Tab navigation --------------------------------------------
 const TAB_RENDERED = new Set();
 function activateTab(name) {
@@ -762,21 +954,30 @@ function activateTab(name) {
   document.querySelectorAll('.tab-content').forEach((c) => c.classList.toggle('active', c.id === 'tab-' + name));
   // Lazy-render heavy content
   if (!TAB_RENDERED.has(name)) {
-    if (name === 'equity')      renderEquityChart();
-    if (name === 'breadth')     renderBreadthChart();
-    if (name === 'trades')      renderTradesTable();
-    if (name === 'sensitivity') renderVariantsTables();
+    if (name === 'equity')       renderEquityChart();
+    if (name === 'breadth')      renderBreadthChart();
+    if (name === 'trades')       renderTradesTable();
+    if (name === 'sensitivity')  renderVariantsTables();
+    if (name === 'improvements') {
+      renderImprVerdict();
+      renderImprTable();
+      renderImprChart();
+      renderImprTest3Chart();
+    }
     TAB_RENDERED.add(name);
   } else {
     // Charts need a relayout when the container is unhidden so Plotly picks up width
-    if (name === 'equity')   { try { Plotly.Plots.resize('equity-chart'); } catch(e){} }
-    if (name === 'breadth')  { try { Plotly.Plots.resize('breadth-chart'); } catch(e){} }
-    if (name === 'trades')   { try { Plotly.Plots.resize('exit-reason-chart'); } catch(e){} }
+    if (name === 'equity')       { try { Plotly.Plots.resize('equity-chart'); } catch(e){} }
+    if (name === 'breadth')      { try { Plotly.Plots.resize('breadth-chart'); } catch(e){} }
+    if (name === 'trades')       { try { Plotly.Plots.resize('exit-reason-chart'); } catch(e){} }
+    if (name === 'improvements') {
+      try { Plotly.Plots.resize('impr-chart'); Plotly.Plots.resize('impr-test3-chart'); } catch(e){}
+    }
   }
 }
 
 function populateEtfDropdowns(rows) {
-  for (const id of ['eq-etf', 'br-etf', 'tr-etf']) {
+  for (const id of ['eq-etf', 'br-etf', 'tr-etf', 'impr-etf']) {
     const sel = document.getElementById(id);
     if (!sel) continue;
     sel.innerHTML = '';
@@ -814,6 +1015,7 @@ function populateEtfDropdowns(rows) {
   document.getElementById('br-etf')?.addEventListener('change', renderBreadthChart);
   document.getElementById('tr-etf')?.addEventListener('change', renderTradesTable);
   document.getElementById('tr-config')?.addEventListener('change', renderTradesTable);
+  document.getElementById('impr-etf')?.addEventListener('change', renderImprChart);
 })();
 </script>
 </body>
