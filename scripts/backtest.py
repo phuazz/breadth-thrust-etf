@@ -51,6 +51,7 @@ Run:
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import sys
@@ -69,10 +70,28 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
-BREADTH_PATH = DATA_DIR / "breadth_soxx.json"
-SOXX_CACHE = DATA_DIR / "soxx_ohlc_cache.parquet"
 SPY_CACHE = DATA_DIR / "spy_close_cache.parquet"
-OUT_PATH = DATA_DIR / "backtest_soxx.json"
+
+DEFAULT_ETF = "SOXX"
+
+
+def paths_for(etf: str) -> dict:
+    """Per-ETF input / output file paths used by backtest.py and its sweeps."""
+    e = etf.lower()
+    return {
+        "breadth": DATA_DIR / f"breadth_{e}.json",
+        "ohlc_cache": DATA_DIR / f"{e}_ohlc_cache.parquet",
+        "out": DATA_DIR / f"backtest_{e}.json",
+    }
+
+
+# Back-compat module-level constants pointing at the default ETF (SOXX).
+# Existing callers (run_variants, run_sensitivity, run_split_half) keep
+# working unchanged.
+_default_paths = paths_for(DEFAULT_ETF)
+BREADTH_PATH = _default_paths["breadth"]
+SOXX_CACHE = _default_paths["ohlc_cache"]
+OUT_PATH = _default_paths["out"]
 
 # --- Trade mechanics (session-confirmed defaults) -------------------------
 COST_BPS_ONE_SIDE = 5
@@ -118,9 +137,10 @@ DEFAULT_CONFIG: dict = {
 # ---------------------------------------------------------------------------
 
 
-def load_breadth() -> tuple[pd.DataFrame, list[dict]]:
+def load_breadth(etf: str = DEFAULT_ETF) -> tuple[pd.DataFrame, list[dict]]:
     """Load the breadth JSON into (per-day DataFrame, signals list)."""
-    blob = json.loads(BREADTH_PATH.read_text(encoding="utf-8"))
+    breadth_path = paths_for(etf)["breadth"]
+    blob = json.loads(breadth_path.read_text(encoding="utf-8"))
     ser = blob["series"]
     df = pd.DataFrame({
         "composite_z": ser["composite_z"],
@@ -131,20 +151,30 @@ def load_breadth() -> tuple[pd.DataFrame, list[dict]]:
     return df, blob["signals"]
 
 
-def download_soxx_ohlc(start: str, end: str) -> pd.DataFrame:
-    """Download SOXX OHLC + Close, with parquet cache."""
-    if SOXX_CACHE.exists():
-        cached = pd.read_parquet(SOXX_CACHE)
+def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
+                       yf_symbol: str | None = None) -> pd.DataFrame:
+    """Download the parent ETF's OHLC + Close, with parquet cache.
+
+    Despite the legacy name, this function is ETF-parameterised. Callers that
+    want SOXX get the original behaviour (cache at data/soxx_ohlc_cache.parquet).
+    Pass etf="CSP1" to fetch S&P 500 (cache at data/csp1_ohlc_cache.parquet).
+    yf_symbol overrides the yfinance ticker; useful when the parent ETF and
+    the yfinance ticker differ (e.g. CSP1 trades in London as CSP1.L).
+    """
+    cache_path = paths_for(etf)["ohlc_cache"]
+    if cache_path.exists():
+        cached = pd.read_parquet(cache_path)
         if (cached.index.min() <= pd.Timestamp(start)
                 and cached.index.max() >= pd.Timestamp(end)):
             return cached.loc[start:end]
-    raw = yf.download("SOXX", start=start, end=end, auto_adjust=True,
+    sym = yf_symbol or etf
+    raw = yf.download(sym, start=start, end=end, auto_adjust=True,
                       progress=False, threads=False)
     if isinstance(raw.columns, pd.MultiIndex):
         raw.columns = raw.columns.get_level_values(0)
     raw = raw[["Open", "High", "Low", "Close"]].copy()
     raw.index = pd.to_datetime(raw.index).tz_localize(None)
-    raw.to_parquet(SOXX_CACHE)
+    raw.to_parquet(cache_path)
     return raw
 
 
@@ -617,9 +647,27 @@ def monte_carlo_null(
 # ---------------------------------------------------------------------------
 
 
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--etf", default=DEFAULT_ETF,
+                   help=f"ETF symbol (must be in etf_registry). Default: {DEFAULT_ETF}.")
+    p.add_argument("--yf-symbol", default=None,
+                   help="Override yfinance ticker for OHLC fetch — useful when "
+                        "the iShares ETF and the US-listed equivalent differ "
+                        "(e.g. --etf CSP1 --yf-symbol SPY).")
+    return p.parse_args()
+
+
 def main() -> int:
-    print("Loading breadth signal ...", flush=True)
-    breadth, signal_records = load_breadth()
+    args = parse_args()
+    etf = args.etf
+    yf_sym = args.yf_symbol or etf
+    paths = paths_for(etf)
+    breadth_path = paths["breadth"]
+    out_path = paths["out"]
+
+    print(f"Loading breadth signal ({breadth_path.name}) ...", flush=True)
+    breadth, signal_records = load_breadth(etf=etf)
     signal_dates = [s["date"] for s in signal_records]
     print(f"  Breadth covers {breadth.index[0].date()} -> {breadth.index[-1].date()}, "
           f"{len(breadth)} trading days")
@@ -627,11 +675,11 @@ def main() -> int:
 
     dl_start = (breadth.index[0] - pd.Timedelta(days=60)).strftime("%Y-%m-%d")
     dl_end = (breadth.index[-1] + pd.Timedelta(days=5)).strftime("%Y-%m-%d")
-    print("Downloading SOXX OHLC and SPY close ...", flush=True)
-    soxx = download_soxx_ohlc(dl_start, dl_end)
+    print(f"Downloading {yf_sym} OHLC and SPY close ...", flush=True)
+    soxx = download_soxx_ohlc(dl_start, dl_end, etf=etf, yf_symbol=yf_sym)
     spy = download_spy_close(dl_start, dl_end)
     soxx = soxx[~soxx.index.duplicated(keep="first")]
-    print(f"  SOXX rows: {len(soxx)}; SPY rows: {len(spy)}")
+    print(f"  {yf_sym} rows: {len(soxx)}; SPY rows: {len(spy)}")
 
     print("Running strategy ...", flush=True)
     trades = run_strategy(signal_dates, soxx, breadth)
@@ -648,8 +696,7 @@ def main() -> int:
     spy_base = base_rate_returns(spy.astype(float), HORIZONS)
 
     print("Monte Carlo null ...", flush=True)
-    eligible_start = pd.Timestamp(load_breadth()[0].index[252].date()) \
-        if len(breadth) > 252 else breadth.index[0]
+    eligible_start = breadth.index[252] if len(breadth) > 252 else breadth.index[0]
     mc = monte_carlo_null(trades, soxx, eligible_start)
 
     # Equity curves for plotting / sanity
@@ -660,9 +707,10 @@ def main() -> int:
     spy_eq = aligned_spy / aligned_spy.iloc[0]
 
     payload = {
-        "etf": "SOXX",
+        "etf": etf,
+        "yf_symbol_for_ohlc": yf_sym,
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
-        "breadth_source": str(BREADTH_PATH.relative_to(PROJECT_ROOT)),
+        "breadth_source": str(breadth_path.relative_to(PROJECT_ROOT)),
         "config": {
             "cost_bps_one_side": COST_BPS_ONE_SIDE,
             "atr_period": ATR_PERIOD,
@@ -679,14 +727,14 @@ def main() -> int:
         "primary": primary,
         "mechanism_diagnostic": diag,
         "benchmarks": {
-            "soxx_unconditional_base_rate": soxx_base,
+            f"{yf_sym.lower()}_unconditional_base_rate": soxx_base,
             "spy_unconditional_base_rate": spy_base,
             "monte_carlo_null": mc,
         },
         "equity_curves": {
             "dates": [d.strftime("%Y-%m-%d") for d in daily_returns.index],
             "strategy": [round(float(x), 6) for x in strat_eq.ffill().values],
-            "soxx_buy_hold": [round(float(x), 6) for x in soxx_eq.ffill().values],
+            f"{yf_sym.lower()}_buy_hold": [round(float(x), 6) for x in soxx_eq.ffill().values],
             "spy_buy_hold": [round(float(x), 6) for x in spy_eq.ffill().values],
         },
     }
@@ -702,9 +750,9 @@ def main() -> int:
         return o
     payload = clean(payload)
 
-    OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print()
-    print(f"Wrote {OUT_PATH.relative_to(PROJECT_ROOT)}")
+    print(f"Wrote {out_path.relative_to(PROJECT_ROOT)}")
     print("=" * 60)
     print("PRIMARY (per-trade with exits + costs)")
     print("=" * 60)
@@ -724,7 +772,7 @@ def main() -> int:
         bm = base.get("mean")
         bp = base.get("positive_rate")
         print(f"  {h:>3}d  signal mean = {m:+.4f}  pos rate = {pr:.2%}   "
-              f"|  SOXX base mean = {bm:+.4f}  pos = {bp:.2%}")
+              f"|  {yf_sym} base mean = {bm:+.4f}  pos = {bp:.2%}")
     print()
     print("=" * 60)
     print("MONTE CARLO NULL (1,000 random-entry paths, bootstrapped holds)")

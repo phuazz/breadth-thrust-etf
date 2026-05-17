@@ -43,6 +43,7 @@ Run:
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import sys
@@ -63,9 +64,26 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
-CONSTITUENTS_PATH = DATA_DIR / "constituents_soxx.json"
-PRICES_CACHE = DATA_DIR / "prices_cache.parquet"
-OUT_PATH = DATA_DIR / "breadth_soxx.json"
+
+DEFAULT_ETF = "SOXX"
+
+
+def paths_for(etf: str) -> dict:
+    """Return per-ETF input / output file paths."""
+    e = etf.lower()
+    return {
+        "constituents": DATA_DIR / f"constituents_{e}.json",
+        "prices_cache": DATA_DIR / f"prices_cache_{e}.parquet",
+        "out": DATA_DIR / f"breadth_{e}.json",
+    }
+
+
+# Back-compat module-level constants (SOXX). Existing callers / tests that
+# imported these by name still work.
+_paths = paths_for(DEFAULT_ETF)
+CONSTITUENTS_PATH = _paths["constituents"]
+PRICES_CACHE = _paths["prices_cache"]
+OUT_PATH = _paths["out"]
 
 # Indicator periods, all in trading days.
 RSI_PERIOD = 14
@@ -250,12 +268,28 @@ def download_prices(
 # ---------------------------------------------------------------------------
 
 
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--etf", default=DEFAULT_ETF,
+        help=f"ETF symbol to compute breadth for. Default: {DEFAULT_ETF}",
+    )
+    return p.parse_args()
+
+
 def main() -> int:
-    print("Loading constituents JSON ...", flush=True)
-    consts = json.loads(CONSTITUENTS_PATH.read_text(encoding="utf-8"))
+    args = parse_args()
+    paths = paths_for(args.etf)
+    constituents_path = paths["constituents"]
+    out_path = paths["out"]
+    prices_cache = paths["prices_cache"]
+
+    print(f"Loading constituents JSON ({constituents_path.name}) ...", flush=True)
+    consts = json.loads(constituents_path.read_text(encoding="utf-8"))
     snapshot_dates = sorted(consts["snapshots"].keys())
     snapshot_map = consts["snapshots"]
     universe = sorted({t for snap in snapshot_map.values() for t in snap["tickers"]})
+    print(f"  ETF: {consts['etf']}")
     print(f"  Snapshots: {len(snapshot_dates)}")
     print(f"  Unique tickers across history: {len(universe)}")
 
@@ -265,7 +299,7 @@ def main() -> int:
     dl_end = (end_friday + pd.Timedelta(days=5)).strftime("%Y-%m-%d")
 
     print("Downloading prices ...", flush=True)
-    prices = download_prices(universe, dl_start, dl_end)
+    prices = download_prices(universe, dl_start, dl_end, cache_path=prices_cache)
     n_with_any_data = int((prices.notna().any(axis=0)).sum())
     print(f"  Prices shape: {prices.shape}, tickers with any data: "
           f"{n_with_any_data}/{len(universe)}")
@@ -417,7 +451,7 @@ def main() -> int:
     payload = {
         "etf": consts["etf"],
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
-        "constituents_source": str(CONSTITUENTS_PATH.relative_to(PROJECT_ROOT)),
+        "constituents_source": str(constituents_path.relative_to(PROJECT_ROOT)),
         "start_date": df.index[0].strftime("%Y-%m-%d"),
         "end_date": df.index[-1].strftime("%Y-%m-%d"),
         "n_trading_days": int(len(df)),
@@ -487,9 +521,9 @@ def main() -> int:
         },
     }
 
-    OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print()
-    print(f"Wrote {OUT_PATH.relative_to(PROJECT_ROOT)}")
+    print(f"Wrote {out_path.relative_to(PROJECT_ROOT)}")
     print(f"  Trading days   : {len(df)}")
     print(f"  Signals fired  : {int(df['signal_fires'].sum())}")
     print(f"  Max missing %  : {missing_pct.max() * 100:.1f}%")

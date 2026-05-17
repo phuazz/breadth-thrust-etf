@@ -9,7 +9,8 @@ __pycache__/
 data/raw_ishares/
 data/prices_cache.parquet
 data/prices_cache/
-data/soxx_ohlc_cache.parquet
+data/prices_cache_*.parquet
+data/*_ohlc_cache.parquet
 data/spy_close_cache.parquet
 
 # OS / editor noise

@@ -215,6 +215,92 @@ Winner by train Sharpe: **regime_time_only + delay 5d + trend** (train Sharpe +0
 - **Item 1 + 5 (proper cross-ETF OOS)**: refetch IVV (S&P 500), recompute breadth, apply the `regime_time_only_delay5_trend` config without re-tuning. If it works there, the parameter choice is much more credible.
 - **Item 2 (extend back to 2007)**: refetch SOXX historicals to 2007-06-29 (earliest available). The pre-2018 yfinance coverage is ~45-70%, so breadth percentages will be more biased — useful for stress-testing how the signal degrades when the breadth panel is sparse.
 
+## Alternative data sources surveyed (2026-05-17)
+
+After iShares US blocked, we systematically probed alternatives. Findings:
+
+### Working today
+
+| Source | Endpoint pattern | History depth | Notes |
+|---|---|---|---|
+| **iShares UK** | `ishares.com/uk/individual/en/products/<pid>/<slug>/<ajax>.ajax?fileType=csv&...&asOfDate=YYYYMMDD` | Daily, back to ~2014 for major funds | Cloudflare configured differently from US. **CSP1** (S&P 500 UCITS) returns full 503 constituents. **CNDX** (NASDAQ 100 UCITS) returns 101 constituents. Both full-replication. |
+| **iShares Switzerland** | `ishares.com/ch/individual/en/products/<pid>/<slug>/<ajax>.ajax?...` | Same as UK | Same fund data via Swiss path. Useful redundancy. |
+| **State Street SSGA** | `ssga.com/.../holdings-daily-us-en-spy.xlsx` | Current only | XLSX download for SPY. No `asOfDate` query parameter for history. |
+| **SEC EDGAR N-PORT** | `efts.sec.gov/LATEST/search-index?forms=NPORT-P` | Monthly snapshots quarterly-filed, 2019-present | All US-registered funds. XML/JSON. Requires a dedicated extractor (not implemented). The serious fallback for serious work. |
+
+### Tested today and not viable
+
+- **iShares US (`ishares.com/us/...`)** — Akamai bot defence returns 10 MB HTML in place of CSV
+- **BlackRock parent (`blackrock.com/us/individual/...`)** — same Akamai block as iShares US
+- **iShares Germany (`ishares.com/de/privatanleger/de/...`)** — different URL pattern, 404 on direct adaptation
+- **Invesco QQQ direct URL** — 406 on probed endpoint; correct endpoint not found in time-boxed search
+- **iShares CSPX (other share class)** — UCITS sample replication, only 30-107 names. Not usable for breadth.
+
+### Paid alternatives (not tested)
+
+Bloomberg Terminal, FactSet, S&P Capital IQ, Refinitiv, Polygon.io, CRSP/Compustat. The user has CFA-side Bloomberg access; not callable from CLI.
+
+### Practical mapping
+
+- **S&P 500 (IVV / SPY / VOO)**: iShares UK **CSP1**. 503 names, daily granularity, 2014-2026. **Used this session for item 1 + 5.**
+- **NASDAQ 100 (QQQ)**: iShares UK **CNDX**. 101 names, daily.
+- **Russell 2000 (IWM)**: probe iShares UK for an equivalent (none confirmed).
+- **Single sectors (XLK, XLV, etc.)**: no direct UCITS equivalents for all 11 SPDR sectors. Falls back to SEC EDGAR N-PORT.
+- **SOXX (this project)**: already cached 2018-2026 via US endpoint before block. To extend back to 2007 would need either US unblock OR a UK semiconductor UCITS equivalent (none confirmed).
+
+## Item 1 + 5 (proper) — true cross-ETF OOS via CSP1 (S&P 500)
+
+Confirmed CSP1 endpoint works → built the full pipeline. Refactored `fetch_constituents.py`, `compute_breadth.py`, and `backtest.py` to be ETF-parameterised via `scripts/etf_registry.py`. Pass `--etf SOXX` (default, unchanged behaviour) or `--etf CSP1`.
+
+### CSP1 pipeline output
+
+- **437 weekly snapshots** 2018-01-05 → 2026-05-15
+- 0 walkbacks, 10 carry-forwards (5 from iShares data gaps, 5 from late-session DNS hiccups carry-forwarded from 2026-04-10)
+- 503 unique tickers per snapshot (full S&P 500)
+- yfinance coverage: 96-100% in 2018-2026
+- 2,101 trading days of breadth, **113 signal-fire days**, signal-eligible from 2019-01-08 (matches SOXX)
+- Mean missing-constituent share 8.0%, max 18.0%
+
+### Cross-ETF OOS backtest (`scripts/run_csp1_oos.py`)
+
+Three configs applied to CSP1 breadth signals, traded on SPY OHLC (S&P 500 in USD). **No re-tuning** — the configs are exactly what won on SOXX.
+
+| Variant | Trades | Win % | Median hold | Total ret | Max DD | Sharpe | MC %ile |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| baseline_2xATR | 26 | 42.3 | 17d | -11.1% | 17.9% | -0.19 | 5.0 |
+| regime_time_only | 14 | 64.3 | 68d | +33.3% | 15.5% | +0.44 | 27.7 |
+| regime_time_only + delay 5d + trend | 15 | 53.3 | 49d | **+42.0%** | **14.0%** | **+0.59** | 43.4 |
+
+### Interpretation — the honest read
+
+1. **Parameter ordering generalises across ETFs.** The same ranking holds on both SOXX and S&P 500: `baseline_2xATR` is worst, `regime_time_only` is middle, `regime_time_only_delay5_trend` is best. Adding the entry delay + trend filter helps in both universes.
+2. **But the signal magnitude does NOT generalise.** On the SOXX OOS test half the winning config produced Sharpe +1.22 and 82nd-percentile MC; on the broader S&P 500 the same config delivers only Sharpe +0.59 and 43rd-percentile MC — *underperforming a random-entry null*.
+3. **The breadth-thrust mechanism is sector-concentrated.** A diverse 500-name universe dilutes the correlated breadth surges that the signal feeds on. Semis (30 names, highly correlated) produces clean breadth-thrust events; the S&P 500 (500 names across 11 sectors) does not.
+4. **The 2x ATR stop is structurally bad on both.** -0.9% on SOXX, -11.1% on S&P 500. The destructive-stop finding is robust.
+
+The result is consistent with the CLAUDE.md backtesting principle: "If a backtest Sharpe is low, narrow the universe to where the signal mechanism is structurally strongest." SOXX is structurally strong for this signal; the S&P 500 is not. The strategy is therefore not a generic "breadth-thrust on any ETF" framework — it works on sector-concentrated universes, not broad benchmarks.
+
+### Honest comparison: SOXX (test half) vs CSP1 (full window), same config
+
+| | SOXX OOS test half | CSP1 (S&P 500) full window |
+|---|---:|---:|
+| Window | 2022-09 → 2026-05 | 2019-01 → 2026-05 |
+| Trades | 8 | 15 |
+| Win rate | **87.5%** | 53.3% |
+| Total return | +123.5% | +42.0% |
+| Sharpe | **+1.22** | +0.59 |
+| Max DD | 16.4% | 14.0% |
+| MC %ile | 82.2 | 43.4 |
+
+The half-window comparison is somewhat unfair (the CSP1 window includes the difficult 2022 bear market while the SOXX test half misses the early 2022 drawdown), but even adjusting for that, the CSP1 result is meaningfully weaker. The S&P 500 is the wrong universe for this signal.
+
+### Next session candidates
+
+1. **Sector-concentrated ETFs**: test on XLF (financials), XLE (energy), XLU (utilities), XBI (biotech). The hypothesis is that breadth thrusts in narrow sectors carry more information than in broad indexes.
+2. **NDX-100 (CNDX) test**: closer to S&P 500 in size but more sector-concentrated (mostly tech). Should fall between SOXX and S&P 500 in signal strength.
+3. **Extend SOXX back to 2007** if iShares US unblocks. Test signal in the GFC + early-2010s regimes.
+4. **Position-sized portfolio**: rather than pick one ETF, combine signals across N sector ETFs with equal sizing. The diversification might smooth the equity curve without diluting the per-signal edge.
+
 ## Data sources
 
 - **iShares historical holdings**: `https://www.ishares.com/us/products/239705/ishares-phlx-semiconductor-etf/1467271812596.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund&asOfDate=YYYYMMDD`. Daily granularity available; earliest confirmed snapshot is 2007-06-29.

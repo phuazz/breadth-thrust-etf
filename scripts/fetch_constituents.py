@@ -1,7 +1,12 @@
-"""Step 1 — pull point-in-time SOXX constituent rosters from iShares.
+"""Step 1 — pull point-in-time ETF constituent rosters from iShares.
 
-Pulls one snapshot per Friday from START_FRIDAY through the most recent
-completed Friday and writes a structured JSON to data/constituents_soxx.json.
+Pulls one snapshot per Friday from the ETF's start_friday through the most
+recent completed Friday and writes a structured JSON to
+data/constituents_{etf_lower}.json.
+
+The ETF symbol selects URL + start_friday + ticker overrides from
+scripts/etf_registry.py. Pass --etf SYMBOL on the command line. Default
+is SOXX for backward compatibility.
 
 Per session decisions (2026-05-14):
   - Backtest window starts 2018; collection starts 2018-01-05 (first Friday).
@@ -35,11 +40,13 @@ Output layout:
 }
 
 Run:
-    python scripts/fetch_constituents.py
+    python scripts/fetch_constituents.py             # default: SOXX
+    python scripts/fetch_constituents.py --etf CSP1  # S&P 500 via iShares UK
 """
 
 from __future__ import annotations
 
+import argparse
 import csv
 import io
 import json
@@ -53,6 +60,9 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from etf_registry import get_etf  # noqa: E402
+
 # Force UTF-8 stdout so the BOM in iShares CSVs and any non-ASCII names do
 # not crash on the Windows cp1252 console.
 sys.stdout.reconfigure(encoding="utf-8")
@@ -61,43 +71,40 @@ sys.stdout.reconfigure(encoding="utf-8")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 RAW_DIR = DATA_DIR / "raw_ishares"
-OUT_PATH = DATA_DIR / "constituents_soxx.json"
 
-ETF = "SOXX"
-ISHARES_URL = (
-    "https://www.ishares.com/us/products/239705/ishares-phlx-semiconductor-etf/"
-    "1467271812596.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund"
-)
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 )
 
-# Per session decision 2026-05-14: backtest window starts 2018.
-# Note: Python's datetime constructor is 1-indexed for months (Jan=1), unlike
-# JavaScript's Date which is 0-indexed (Jan=0). We always use Python here.
-START_FRIDAY = date(2018, 1, 5)  # first Friday of 2018
+# Default selected by argparse — kept for backward compatibility with the
+# original SOXX-only invocation.
+DEFAULT_ETF = "SOXX"
+
 MAX_WALKBACK_DAYS = 5  # how far back from a target Friday to search
 
 THROTTLE_BASE_SECONDS = 1.5
 THROTTLE_JITTER_SECONDS = 0.5
 RETRY_BACKOFFS = [5, 10, 30]  # seconds; 3 retries on transport failure or 5xx
 
+# Note: Python's datetime constructor is 1-indexed for months (Jan=1), unlike
+# JavaScript's Date which is 0-indexed (Jan=0). We always use Python here.
 
-def fetch_with_retry(target: date) -> str:
+
+def fetch_with_retry(target: date, etf_cfg: dict) -> str:
     """Fetch the raw iShares CSV for `target` and return the body.
 
     Caches successful 200 responses to disk so reruns do not re-hit iShares.
     Empty-template responses (Fund Holdings as of "-") are also cached because
-    they are stable over time for old dates (US holidays, the 2017 data gap)
+    they are stable over time for old dates (US holidays, data gaps)
     — re-fetching them would waste requests.
     """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    cache_path = RAW_DIR / f"{ETF}_{target.strftime('%Y%m%d')}.csv"
+    cache_path = RAW_DIR / f"{etf_cfg['symbol']}_{target.strftime('%Y%m%d')}.csv"
     if cache_path.exists():
         return cache_path.read_text(encoding="utf-8")
 
-    url = f"{ISHARES_URL}&asOfDate={target.strftime('%Y%m%d')}"
+    url = f"{etf_cfg['csv_url_template']}&asOfDate={target.strftime('%Y%m%d')}"
     last_err: Exception | None = None
     for backoff in [0, *RETRY_BACKOFFS]:
         if backoff:
@@ -112,10 +119,12 @@ def fetch_with_retry(target: date) -> str:
             time.sleep(THROTTLE_BASE_SECONDS + random.uniform(0, THROTTLE_JITTER_SECONDS))
             return r.text
         last_err = RuntimeError(f"HTTP {r.status_code}, body {len(r.text)} bytes")
-    raise RuntimeError(f"Failed to fetch SOXX holdings for {target}: {last_err}")
+    raise RuntimeError(
+        f"Failed to fetch {etf_cfg['symbol']} holdings for {target}: {last_err}"
+    )
 
 
-def parse_holdings(body: str) -> list[str]:
+def parse_holdings(body: str, ticker_overrides: dict | None = None) -> list[str]:
     """Parse iShares CSV body and return Equity-only ticker list, or [] if empty.
 
     CSV layout: preamble of fund-level metadata (Fund name, "Fund Holdings as
@@ -124,11 +133,16 @@ def parse_holdings(body: str) -> list[str]:
     blank line that terminates the holdings block. The file then continues
     with disclosures we do not need.
 
-    An "empty template" file (no holdings) is detected by the literal token
-    'Fund Holdings as of,"-"' in the preamble.
+    An "empty template" file (no holdings) is detected by 'Fund Holdings as
+    of,"-"' or 'Fund Holdings as of,-'.
+
+    ticker_overrides: optional dict mapping the raw ticker as it appears in
+    the CSV (e.g. 'BRKB') to the form expected downstream by yfinance
+    (e.g. 'BRK-B'). UK iShares strips share-class dots; US iShares does not.
     """
-    if 'Fund Holdings as of,"-"' in body:
+    if 'Fund Holdings as of,"-"' in body or 'Fund Holdings as of,-' in body:
         return []
+    overrides = ticker_overrides or {}
     tickers: list[str] = []
     header: list[str] | None = None
     asset_class_idx: int | None = None
@@ -146,7 +160,8 @@ def parse_holdings(body: str) -> list[str]:
         if asset_class_idx is not None and len(row) > asset_class_idx:
             if row[asset_class_idx].strip() != "Equity":
                 continue
-        tickers.append(row[0].strip())
+        raw = row[0].strip()
+        tickers.append(overrides.get(raw, raw))
     return tickers
 
 
@@ -173,7 +188,9 @@ def latest_completed_friday(today: date) -> date:
     return today - timedelta(days=days_since_friday)
 
 
-def get_snapshot(target_friday: date) -> tuple[list[str] | None, date | None, str]:
+def get_snapshot(
+    target_friday: date, etf_cfg: dict
+) -> tuple[list[str] | None, date | None, str]:
     """Walk back from `target_friday` looking for a populated holdings file.
 
     Returns (tickers, actual_date, status). `status` is one of:
@@ -181,23 +198,39 @@ def get_snapshot(target_friday: date) -> tuple[list[str] | None, date | None, st
       - "walkback"  : an earlier weekday in the same week returned data
       - "not_found" : no data within MAX_WALKBACK_DAYS days
     """
+    overrides = etf_cfg.get("ticker_overrides", {})
     for days_back in range(MAX_WALKBACK_DAYS + 1):
         try_date = target_friday - timedelta(days=days_back)
-        body = fetch_with_retry(try_date)
-        tickers = parse_holdings(body)
+        body = fetch_with_retry(try_date, etf_cfg)
+        tickers = parse_holdings(body, ticker_overrides=overrides)
         if tickers:
             status = "exact" if days_back == 0 else "walkback"
             return tickers, try_date, status
     return None, None, "not_found"
 
 
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--etf", default=DEFAULT_ETF,
+        help=f"ETF symbol to fetch (must be in etf_registry). Default: {DEFAULT_ETF}",
+    )
+    return p.parse_args()
+
+
 def main() -> int:
+    args = parse_args()
+    etf_cfg = get_etf(args.etf)
+    symbol = etf_cfg["symbol"]
+    start_friday: date = etf_cfg["start_friday"]
+    out_path = DATA_DIR / f"constituents_{symbol.lower()}.json"
+
     today = date.today()
     end_friday = latest_completed_friday(today)
-    fridays = fridays_between(START_FRIDAY, end_friday)
+    fridays = fridays_between(start_friday, end_friday)
     print(
-        f"Fetching SOXX point-in-time holdings for {len(fridays)} Fridays "
-        f"({START_FRIDAY} -> {end_friday})",
+        f"Fetching {symbol} point-in-time holdings for {len(fridays)} Fridays "
+        f"({start_friday} -> {end_friday})",
         flush=True,
     )
 
@@ -212,7 +245,7 @@ def main() -> int:
         if i == 1 or i % 25 == 0 or i == len(fridays):
             print(f"  [{i}/{len(fridays)}] {friday.isoformat()}", flush=True)
         try:
-            tickers, actual, status = get_snapshot(friday)
+            tickers, actual, status = get_snapshot(friday, etf_cfg)
         except Exception as e:
             print(f"  ERROR on {friday}: {e}", flush=True)
             tickers, actual, status = None, None, "not_found"
@@ -263,29 +296,30 @@ def main() -> int:
             prev_tickers, prev_actual, prev_target = tickers, actual, friday
 
     payload = {
-        "etf": ETF,
-        "source": ISHARES_URL,
+        "etf": symbol,
+        "source": etf_cfg["csv_url_template"],
         "fetched_at_utc": datetime.now(timezone.utc).isoformat(),
-        "start_friday": START_FRIDAY.isoformat(),
+        "start_friday": start_friday.isoformat(),
         "end_friday": end_friday.isoformat(),
         "n_target_fridays": len(fridays),
         "n_snapshots_written": len(snapshots),
         "membership_assumption": (
-            "Constituents held static between weekly Friday snapshots. SOXX "
-            "rebalances quarterly; weekly oversamples membership and protects "
-            "against off-cycle add/drops."
+            f"Constituents held static between weekly Friday snapshots. "
+            f"Index typically rebalances quarterly; weekly oversamples "
+            f"membership and protects against off-cycle add/drops."
         ),
         "asset_class_filter": "Equity",
+        "ticker_overrides_applied": etf_cfg.get("ticker_overrides", {}),
         "walkbacks": walkbacks,
         "carry_forwards": carry_forwards,
         "snapshots": snapshots,
     }
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     print()
     print(
-        f"Wrote {OUT_PATH.relative_to(PROJECT_ROOT)} -- "
+        f"Wrote {out_path.relative_to(PROJECT_ROOT)} -- "
         f"{len(snapshots)} snapshots, "
         f"{len(walkbacks)} walkbacks, "
         f"{len(carry_forwards)} carry-forwards"
