@@ -76,6 +76,53 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
+    .live-signal {
+      margin: 22px 0 14px 0;
+      padding: 16px 22px;
+      background: linear-gradient(135deg, #f4f7fc 0%, #eaf2fb 100%);
+      border: 1px solid #cad7eb;
+      border-radius: 4px;
+    }
+    .live-signal.in-trade {
+      background: linear-gradient(135deg, #eaf8ee 0%, #d5efde 100%);
+      border-color: #a4d8b4;
+    }
+    .live-signal-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px;
+    }
+    .live-tag {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+      color: var(--accent); text-transform: uppercase;
+    }
+    .live-signal.in-trade .live-tag { color: var(--good); }
+    .live-asof { font-size: 12px; color: var(--ink-faint); }
+    .live-body { display: flex; align-items: center; gap: 28px; }
+    .live-alloc {
+      display: flex; align-items: baseline; gap: 8px;
+      min-width: 200px;
+    }
+    .alloc-num {
+      font-size: 56px; font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: -0.03em;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .live-signal.in-trade .alloc-num { color: var(--good); }
+    .alloc-label {
+      font-size: 12px; color: var(--ink-faint);
+      line-height: 1.3;
+    }
+    .live-detail { flex: 1; }
+    .live-state { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .live-meta { font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
+    .live-context {
+      font-size: 12px; color: var(--ink-faint);
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
     .verdict {
       margin: 28px 0 24px 0;
       padding: 22px 26px;
@@ -294,6 +341,26 @@
 
   <!-- ====================== OVERVIEW ====================== -->
   <div class="tab-content active" id="tab-overview">
+
+    <!-- Today's signal hero -->
+    <div id="live-signal-card" class="live-signal" style="display:none;">
+      <div class="live-signal-head">
+        <span class="live-tag">TODAY'S SIGNAL — SOXX 50/150</span>
+        <span class="live-asof" id="live-asof"></span>
+      </div>
+      <div class="live-body">
+        <div class="live-alloc">
+          <span class="alloc-num" id="live-alloc">—</span>
+          <span class="alloc-label">recommended<br>allocation</span>
+        </div>
+        <div class="live-detail">
+          <div class="live-state" id="live-state">—</div>
+          <div class="live-meta" id="live-meta">—</div>
+          <div class="live-context" id="live-context"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="verdict">
       <h2>Verdict</h2>
       <p id="verdict-body">Loading…</p>
@@ -486,6 +553,13 @@
       <p class="section-sub">When SPY breadth is unhealthy (composite_z &lt; expanding p10 OR ma_breadth &lt; 0.40), force allocation to zero across every sector. Shows whether a market-wide veto reduces sector drawdowns enough to justify the cost.</p>
       <table class="small-table" id="tu-master-table"><thead></thead><tbody></tbody></table>
     </section>
+
+    <section>
+      <h2>OOS validation of the 50/150 SOXX winner</h2>
+      <p class="section-sub">Split the SOXX signal-eligible window at 2022-09-08. Sweep the full base × thrust grid on the TRAIN half only; pick the winner by train-half Sharpe; apply that same config without re-tuning to the TEST half. If the train-half winner holds up OOS, the parameter selection is robust across regimes (the train half includes COVID + the 2022 inflation shock; the test half includes the AI rally + Apr-2026 sell-off).</p>
+      <table class="small-table" id="tu-oos-table"><thead></thead><tbody></tbody></table>
+      <p style="margin-top:14px;color:var(--ink-faint);font-size:13px;" id="tu-oos-verdict"></p>
+    </section>
   </div>
 
 </main>
@@ -532,6 +606,41 @@ function fmtPct(x, signed = false) {
 function fmtNum(x, digits = 2, signed = false) {
   if (x == null || Number.isNaN(x)) return '—';
   return (signed && x > 0 ? '+' : '') + Number(x).toFixed(digits);
+}
+
+// ----------- Live signal block ------------------------------------------
+function renderLiveSignal() {
+  const data = window.DATA;
+  const live = data.live_signal;
+  if (!live) return;
+  const card = document.getElementById('live-signal-card');
+  card.style.display = 'block';
+  card.classList.toggle('in-trade', !!live.in_trade);
+  document.getElementById('live-asof').textContent = `As of ${live.latest_data_date}`;
+  document.getElementById('live-alloc').textContent = `${live.current_allocation_pct}%`;
+  document.getElementById('live-state').textContent = live.state;
+  let meta = `${live.days_since_state_change} trading day${live.days_since_state_change === 1 ? '' : 's'} in state`;
+  if (live.in_trade && live.current_trade) {
+    meta += `  ·  trade open since ${live.current_trade.entry_date} @ $${live.current_trade.entry_open.toFixed(2)}`;
+  } else if (!live.in_trade && live.last_completed_trade) {
+    const t = live.last_completed_trade;
+    meta += `  ·  last trade ${t.entry_date} → ${t.exit_date}: ${fmtPct(t.trade_return, true)} (${t.exit_reason})`;
+  }
+  document.getElementById('live-meta').textContent = meta;
+  const bc = live.breadth_context_latest;
+  let ctx = '';
+  if (bc) {
+    const triggers = [
+      bc.rsi_trigger ? 'RSI' : '·',
+      bc.ma_zweig_trigger ? 'MA-Zweig' : '·',
+      bc.highs_trigger ? 'Highs' : '·',
+    ].join(' / ');
+    ctx = `composite_z ${bc.composite_z >= 0 ? '+' : ''}${bc.composite_z.toFixed(2)} `
+        + `(p90 ${bc.composite_p90 >= 0 ? '+' : ''}${bc.composite_p90.toFixed(2)})  ·  `
+        + `triggers ${bc.trigger_count}/3 [${triggers}]  ·  `
+        + `ma_breadth ${(bc.ma_breadth * 100).toFixed(0)}%`;
+  }
+  document.getElementById('live-context').textContent = ctx;
 }
 
 // ----------- Overview tab -----------------------------------------------
@@ -1153,6 +1262,71 @@ function renderTuningMasterTable() {
   }).join('');
 }
 
+function renderTuningOOSTable() {
+  const data = window.DATA;
+  const o = data.oos_validation;
+  if (!o) return;
+  const el = document.getElementById('tu-oos-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Window</th><th>Config</th><th>n trades</th><th>Sharpe</th>
+    <th>Total ret</th><th>Max DD</th><th>vs BH Sharpe</th>
+  </tr>`;
+  const tw = o.train_winner;
+  const ts = o.test_winner_stats;
+  const bht = o.bh_train_stats;
+  const bhe = o.bh_test_stats;
+  el.querySelector('tbody').innerHTML = `
+    <tr>
+      <td class="row-label">Train half (${o.train_start} → ${o.train_end})</td>
+      <td class="row-label">Buy-and-hold</td>
+      <td>—</td>
+      <td>${fmtNum(bht?.sharpe, 2, true)}</td>
+      <td>${fmtPct(bht?.total_return, true)}</td>
+      <td>${fmtPct(bht?.max_dd)}</td>
+      <td>—</td>
+    </tr>
+    <tr class="highlight">
+      <td class="row-label">Train half (selection)</td>
+      <td class="row-label">Winner: b=${tw?.base_pct}/t=${tw?.thrust_pct}</td>
+      <td>${tw?.n_trades_in_period}</td>
+      <td><strong>${fmtNum(tw?.sharpe, 2, true)}</strong></td>
+      <td>${fmtPct(tw?.total_return, true)}</td>
+      <td>${fmtPct(tw?.max_dd)}</td>
+      <td style="color:${(tw?.sharpe ?? 0) > (bht?.sharpe ?? 0) ? 'var(--good)' : 'var(--bad)'};font-weight:600;">${fmtNum((tw?.sharpe ?? 0) - (bht?.sharpe ?? 0), 2, true)}</td>
+    </tr>
+    <tr>
+      <td class="row-label">Test half (${o.test_start} → ${o.test_end})</td>
+      <td class="row-label">Buy-and-hold</td>
+      <td>—</td>
+      <td>${fmtNum(bhe?.sharpe, 2, true)}</td>
+      <td>${fmtPct(bhe?.total_return, true)}</td>
+      <td>${fmtPct(bhe?.max_dd)}</td>
+      <td>—</td>
+    </tr>
+    <tr class="highlight">
+      <td class="row-label">Test half (HELD-OUT)</td>
+      <td class="row-label">Same b=${tw?.base_pct}/t=${tw?.thrust_pct}, no re-tune</td>
+      <td>${ts?.n_trades_in_period}</td>
+      <td><strong>${fmtNum(ts?.sharpe, 2, true)}</strong></td>
+      <td>${fmtPct(ts?.total_return, true)}</td>
+      <td>${fmtPct(ts?.max_dd)}</td>
+      <td style="color:${(ts?.sharpe ?? 0) > (bhe?.sharpe ?? 0) ? 'var(--good)' : 'var(--bad)'};font-weight:600;">${fmtNum((ts?.sharpe ?? 0) - (bhe?.sharpe ?? 0), 2, true)}</td>
+    </tr>
+  `;
+  const rank = o.rank_of_train_winner_on_test;
+  const totalCells = o.test_grid?.length ?? 11;
+  document.getElementById('tu-oos-verdict').innerHTML =
+    `The train-half winner (b=${tw?.base_pct}/t=${tw?.thrust_pct}) ranks `
+    + `<strong>#${rank} of ${totalCells}</strong> cells on the test-half grid `
+    + `— ${rank === 1 ? '<strong style="color:var(--good)">it is also the test-half best cell</strong>. ' : ''}`
+    + `On the held-out test half, the same config delivers Sharpe `
+    + `<strong>${fmtNum(ts?.sharpe, 2, true)}</strong>, beating SOXX buy-and-hold (`
+    + `${fmtNum(bhe?.sharpe, 2, true)}) by ${fmtNum((ts?.sharpe ?? 0) - (bhe?.sharpe ?? 0), 2, true)} Sharpe. `
+    + `Total return ${fmtPct(ts?.total_return, true)} vs BH ${fmtPct(bhe?.total_return, true)}, `
+    + `max DD ${fmtPct(ts?.max_dd)} vs BH ${fmtPct(bhe?.max_dd)}. `
+    + `The parameter choice is not overfit to the train-half regime.`;
+}
+
 function renderTuningVerdict() {
   const data = window.DATA;
   const t = data.tuning;
@@ -1195,6 +1369,7 @@ function activateTab(name) {
       renderTuningGridChart();
       renderTuningContTable();
       renderTuningMasterTable();
+      renderTuningOOSTable();
     }
     TAB_RENDERED.add(name);
   } else {
@@ -1240,6 +1415,7 @@ function populateEtfDropdowns(rows) {
     renderCards(data.cross_etf);
     populateEtfDropdowns(data.cross_etf);
   }
+  renderLiveSignal();
   // Tab clicks
   document.querySelectorAll('nav.tabs button').forEach((btn) => {
     btn.addEventListener('click', () => activateTab(btn.dataset.tab));

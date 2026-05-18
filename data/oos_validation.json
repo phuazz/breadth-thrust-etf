@@ -1,0 +1,302 @@
+{
+  "etf": "SOXX",
+  "computed_at_utc": "2026-05-18T12:34:40.831727+00:00",
+  "train_start": "2019-01-08",
+  "train_end": "2022-09-08",
+  "test_start": "2022-09-09",
+  "test_end": "2026-05-15",
+  "n_train_trades": 7,
+  "n_test_trades": 8,
+  "train_grid": [
+    {
+      "total_return": 0.5429439702139209,
+      "cagr": 0.125414978535751,
+      "sharpe": 0.7676130665532204,
+      "max_dd": 0.20771841748062614,
+      "n_days": 925,
+      "time_in_market": 0.3891891891891892,
+      "n_trades_in_period": 7,
+      "base_pct": 0,
+      "thrust_pct": 100
+    },
+    {
+      "total_return": 0.788778632969843,
+      "cagr": 0.17166810689401424,
+      "sharpe": 0.9243626885979705,
+      "max_dd": 0.16699754056750926,
+      "n_days": 925,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 7,
+      "base_pct": 25,
+      "thrust_pct": 100
+    },
+    {
+      "total_return": 1.024946664723136,
+      "cagr": 0.2119285021027304,
+      "sharpe": 0.9312686033345741,
+      "max_dd": 0.21876873708583655,
+      "n_days": 925,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 7,
+      "base_pct": 50,
+      "thrust_pct": 100
+    },
+    {
+      "total_return": 1.2380896620845716,
+      "cagr": 0.2454261298321454,
+      "sharpe": 0.8878522755093786,
+      "max_dd": 0.303867172539539,
+      "n_days": 925,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 7,
+      "base_pct": 75,
+      "thrust_pct": 100
+    },
+    {
+      "total_return": 1.4148240237562324,
+      "cagr": 0.2714826101278818,
+      "sharpe": 0.8409138544519291,
+      "max_dd": 0.3908116377808434,
+      "n_days": 925,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 7,
+      "base_pct": 100,
+      "thrust_pct": 100
+    },
+    {
+      "total_return": 0.8381830749806085,
+      "cagr": 0.18039693683013347,
+      "sharpe": 0.7676130665532183,
+      "max_dd": 0.299657719126753,
+      "n_days": 925,
+      "time_in_market": 0.3891891891891892,
+      "n_trades_in_period": 7,
+      "base_pct": 0,
+      "thrust_pct": 150
+    },
+    {
+      "total_return": 1.412383020708727,
+      "cagr": 0.27113233295779327,
+      "sharpe": 0.9378848450354189,
+      "max_dd": 0.23445638846661498,
+      "n_days": 925,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 7,
+      "base_pct": 50,
+      "thrust_pct": 150
+    },
+    {
+      "total_return": 1.87681664297503,
+      "cagr": 0.3335907121354702,
+      "sharpe": 0.903892836201808,
+      "max_dd": 0.3961778358200676,
+      "n_days": 925,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 7,
+      "base_pct": 100,
+      "thrust_pct": 150
+    },
+    {
+      "total_return": 1.1293589612018535,
+      "cagr": 0.22864280217904231,
+      "sharpe": 0.7676130665532188,
+      "max_dd": 0.3838624783856166,
+      "n_days": 925,
+      "time_in_market": 0.3891891891891892,
+      "n_trades_in_period": 7,
+      "base_pct": 0,
+      "thrust_pct": 200
+    },
+    {
+      "total_return": 1.7944775133712505,
+      "cagr": 0.32308200679513366,
+      "sharpe": 0.9243626885979663,
+      "max_dd": 0.31966206511699014,
+      "n_days": 925,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 7,
+      "base_pct": 50,
+      "thrust_pct": 200
+    },
+    {
+      "total_return": 2.332427669008955,
+      "cagr": 0.3880879295627704,
+      "sharpe": 0.9312686033345736,
+      "max_dd": 0.40920550224625585,
+      "n_days": 925,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 7,
+      "base_pct": 100,
+      "thrust_pct": 200
+    }
+  ],
+  "train_winner": {
+    "base_pct": 50,
+    "thrust_pct": 150,
+    "sharpe": 0.9378848450354189,
+    "total_return": 1.412383020708727,
+    "max_dd": 0.23445638846661498,
+    "cagr": 0.27113233295779327,
+    "time_in_market": 1.0,
+    "n_trades_in_period": 7
+  },
+  "test_winner_stats": {
+    "total_return": 3.6409369449634807,
+    "cagr": 0.5198528624859011,
+    "sharpe": 1.4205986925811198,
+    "max_dd": 0.2820661660173508,
+    "n_days": 924,
+    "time_in_market": 1.0,
+    "n_trades_in_period": 8,
+    "base_pct": 50,
+    "thrust_pct": 150
+  },
+  "test_grid": [
+    {
+      "total_return": 1.2982915960927581,
+      "cagr": 0.25477262480632223,
+      "sharpe": 1.2384266902705092,
+      "max_dd": 0.14273868266852918,
+      "n_days": 924,
+      "time_in_market": 0.3971861471861472,
+      "n_trades_in_period": 8,
+      "base_pct": 0,
+      "thrust_pct": 100
+    },
+    {
+      "total_return": 1.753966977108219,
+      "cagr": 0.31822257281679356,
+      "sharpe": 1.4054766573698603,
+      "max_dd": 0.16402447812965937,
+      "n_days": 924,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 8,
+      "base_pct": 25,
+      "thrust_pct": 100
+    },
+    {
+      "total_return": 2.233065233313385,
+      "cagr": 0.3771643247608589,
+      "sharpe": 1.4098500263466072,
+      "max_dd": 0.25165528348956134,
+      "n_days": 924,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 8,
+      "base_pct": 50,
+      "thrust_pct": 100
+    },
+    {
+      "total_return": 2.7189671237786963,
+      "cagr": 0.43076968193857423,
+      "sharpe": 1.3438487611709682,
+      "max_dd": 0.33506056338398493,
+      "n_days": 924,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 8,
+      "base_pct": 75,
+      "thrust_pct": 100
+    },
+    {
+      "total_return": 3.19194246714601,
+      "cagr": 0.47825593378075393,
+      "sharpe": 1.2663723853726718,
+      "max_dd": 0.4136104392459302,
+      "n_days": 924,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 8,
+      "base_pct": 100,
+      "thrust_pct": 100
+    },
+    {
+      "total_return": 2.299105554714074,
+      "cagr": 0.38478000733898843,
+      "sharpe": 1.2384266902705074,
+      "max_dd": 0.21179692673542894,
+      "n_days": 924,
+      "time_in_market": 0.3971861471861472,
+      "n_trades_in_period": 8,
+      "base_pct": 0,
+      "thrust_pct": 150
+    },
+    {
+      "total_return": 3.6409369449634807,
+      "cagr": 0.5198528624859011,
+      "sharpe": 1.4205986925811198,
+      "max_dd": 0.2820661660173508,
+      "n_days": 924,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 8,
+      "base_pct": 50,
+      "thrust_pct": 150
+    },
+    {
+      "total_return": 5.01736768410111,
+      "cagr": 0.6314186492365397,
+      "sharpe": 1.3689513994913092,
+      "max_dd": 0.4374424681874588,
+      "n_days": 924,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 8,
+      "base_pct": 100,
+      "thrust_pct": 150
+    },
+    {
+      "total_return": 3.566626152901385,
+      "cagr": 0.5131767885090031,
+      "sharpe": 1.2384266902705097,
+      "max_dd": 0.2788176000239472,
+      "n_days": 924,
+      "time_in_market": 0.3971861471861472,
+      "n_trades_in_period": 8,
+      "base_pct": 0,
+      "thrust_pct": 200
+    },
+    {
+      "total_return": 5.423995966743367,
+      "cagr": 0.6607739547117324,
+      "sharpe": 1.4054766573698572,
+      "max_dd": 0.31955284470218526,
+      "n_days": 924,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 8,
+      "base_pct": 50,
+      "thrust_pct": 200
+    },
+    {
+      "total_return": 7.329259660004274,
+      "cagr": 0.7826844369193924,
+      "sharpe": 1.4098500263466078,
+      "max_dd": 0.4616867047218316,
+      "n_days": 924,
+      "time_in_market": 1.0,
+      "n_trades_in_period": 8,
+      "base_pct": 100,
+      "thrust_pct": 200
+    }
+  ],
+  "test_actual_winner": {
+    "base_pct": 50,
+    "thrust_pct": 150,
+    "sharpe": 1.4205986925811198,
+    "total_return": 3.6409369449634807,
+    "max_dd": 0.2820661660173508
+  },
+  "rank_of_train_winner_on_test": 1,
+  "bh_train_stats": {
+    "total_return": 1.414824023756235,
+    "cagr": 0.2714826101278822,
+    "sharpe": 0.8409138544519319,
+    "max_dd": 0.39081163778084294,
+    "n_days": 925,
+    "time_in_market": 1.0
+  },
+  "bh_test_stats": {
+    "total_return": 3.1919424671460153,
+    "cagr": 0.4782559337807546,
+    "sharpe": 1.2663723853726734,
+    "max_dd": 0.41361043924593044,
+    "n_days": 924,
+    "time_in_market": 1.0
+  },
+  "delta_test_winner_vs_bh_sharpe": 0.15422630720844643
+}

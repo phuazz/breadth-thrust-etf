@@ -378,6 +378,22 @@ def build_improvements() -> dict | None:
     }
 
 
+def build_live_signal() -> dict | None:
+    """Load data/live_signal.json (today's recommended allocation)."""
+    path = DATA_DIR / "live_signal.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def build_oos_validation() -> dict | None:
+    """Load data/oos_validation.json (train/test split on SOXX)."""
+    path = DATA_DIR / "oos_validation.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def build_tuning() -> dict | None:
     """Load data/tuning.json (Phase 2 sensitivity work) into the dashboard."""
     path = DATA_DIR / "tuning.json"
@@ -443,6 +459,18 @@ def main() -> int:
         print(f"  cont    : {len(tuning['continuous_signal_base50'])} ETFs")
         print(f"  master  : {len(tuning['master_csp1_overlay_on_50_100'])} ETFs")
 
+    print("Loading live signal + OOS validation ...", flush=True)
+    live_signal = build_live_signal()
+    oos_validation = build_oos_validation()
+    if live_signal:
+        print(f"  live    : as of {live_signal.get('latest_data_date')} -- "
+              f"alloc {live_signal.get('current_allocation_pct')}%")
+    if oos_validation:
+        tw = oos_validation.get("train_winner", {})
+        ts = oos_validation.get("test_winner_stats", {})
+        print(f"  oos     : train winner b={tw.get('base_pct')}/t={tw.get('thrust_pct')}, "
+              f"test Sharpe {ts.get('sharpe'):+.2f}")
+
     verdict = build_verdict_html(rows)
 
     data = {
@@ -456,6 +484,8 @@ def main() -> int:
         "splithalf": splithalf,
         "improvements": improvements,
         "tuning": tuning,
+        "live_signal": live_signal,
+        "oos_validation": oos_validation,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")

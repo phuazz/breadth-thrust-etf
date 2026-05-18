@@ -1,0 +1,113 @@
+{
+  "computed_at_utc": "2026-05-18T12:35:38.656562+00:00",
+  "etf": "SOXX",
+  "strategy": "SOXX 50/150 (base 50% always-on + 100% leveraged when triple-combo thrust signal is active)",
+  "latest_data_date": "2026-05-12",
+  "state": "IN-TRADE \u2014 allocation 150% (50% base + 100% leveraged signal layer)",
+  "in_trade": true,
+  "current_allocation_pct": 150,
+  "base_allocation_pct": 50,
+  "thrust_allocation_pct": 150,
+  "days_since_state_change": 22,
+  "current_trade": {
+    "signal_date": "2026-04-10",
+    "entry_date": "2026-04-20",
+    "entry_open": 417.42999267578125,
+    "entry_price": 417.6387076721191,
+    "exit_date": "2026-05-12",
+    "exit_close": 515.989990234375,
+    "exit_price": 515.7319952392578,
+    "exit_reason": "data_end",
+    "holding_days": 16,
+    "trade_return": 0.2348759484337597,
+    "max_drawdown": 0.04958841929327086
+  },
+  "last_completed_trade": {
+    "signal_date": "2025-12-10",
+    "entry_date": "2025-12-18",
+    "entry_open": 295.5379258721328,
+    "entry_price": 295.68569483506883,
+    "exit_date": "2026-03-06",
+    "exit_close": 323.3108215332031,
+    "exit_price": 323.14916612243655,
+    "exit_reason": "regime_exit_ma_floor",
+    "holding_days": 52,
+    "trade_return": 0.09288062211696313,
+    "max_drawdown": 0.12089668422204297
+  },
+  "breadth_context_latest": null,
+  "recent_signal_fires": [
+    {
+      "date": "2026-05-01",
+      "composite_z": 1.7858164669187104,
+      "composite_p90": 1.2744082960394503,
+      "rsi_breadth": 0.43333333333333335,
+      "ma_breadth": 1.0,
+      "highs_breadth": 0.23333333333333334,
+      "triggered_components": [
+        "rsi",
+        "ma_zweig"
+      ],
+      "n_constituents": 30,
+      "n_with_price": 30
+    },
+    {
+      "date": "2026-05-04",
+      "composite_z": 1.333468120698435,
+      "composite_p90": 1.2748042168386846,
+      "rsi_breadth": 0.36666666666666664,
+      "ma_breadth": 0.9666666666666667,
+      "highs_breadth": 0.13333333333333333,
+      "triggered_components": [
+        "rsi",
+        "ma_zweig"
+      ],
+      "n_constituents": 30,
+      "n_with_price": 30
+    },
+    {
+      "date": "2026-05-05",
+      "composite_z": 2.480095506161994,
+      "composite_p90": 1.2950016590108766,
+      "rsi_breadth": 0.4666666666666667,
+      "ma_breadth": 1.0,
+      "highs_breadth": 0.5,
+      "triggered_components": [
+        "rsi",
+        "ma_zweig",
+        "highs"
+      ],
+      "n_constituents": 30,
+      "n_with_price": 30
+    },
+    {
+      "date": "2026-05-06",
+      "composite_z": 3.114921915298114,
+      "composite_p90": 1.297793935339517,
+      "rsi_breadth": 0.5333333333333333,
+      "ma_breadth": 1.0,
+      "highs_breadth": 0.7,
+      "triggered_components": [
+        "rsi",
+        "highs"
+      ],
+      "n_constituents": 30,
+      "n_with_price": 30
+    },
+    {
+      "date": "2026-05-08",
+      "composite_z": 2.145069231665822,
+      "composite_p90": 1.3021553468928335,
+      "rsi_breadth": 0.43333333333333335,
+      "ma_breadth": 1.0,
+      "highs_breadth": 0.4,
+      "triggered_components": [
+        "rsi",
+        "highs"
+      ],
+      "n_constituents": 30,
+      "n_with_price": 30
+    }
+  ],
+  "refresh_note": "This is a snapshot of state as of latest_data_date. To get a right-now read, re-run the upstream pipeline first: fetch_constituents.py --etf SOXX -> compute_breadth.py --etf SOXX -> run_etf_oos.py --etf SOXX, then live_signal.py."
+}
