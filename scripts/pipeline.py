@@ -386,6 +386,28 @@ def build_live_signal() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def build_ma200() -> dict | None:
+    """Load data/ma200_sweep.json (single-indicator MA200 breadth tests).
+
+    Trims the inlined payload: only Family D winner equity + buy-and-hold
+    are charted. The full sweep tables stay (needed for tables) but the
+    winner-equity blobs for families A/B/C are dropped to keep the built
+    docs/index.html under ~2.5 MB.
+    """
+    path = DATA_DIR / "ma200_sweep.json"
+    if not path.exists():
+        return None
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    trimmed_we = {}
+    for etf, ws in blob.get("winner_equity_curves", {}).items():
+        trimmed_we[etf] = {
+            k: v for k, v in ws.items()
+            if k in ("family_d", "buy_and_hold")
+        }
+    blob["winner_equity_curves"] = trimmed_we
+    return blob
+
+
 def build_oos_validation() -> dict | None:
     """Load data/oos_validation.json (train/test split on SOXX)."""
     path = DATA_DIR / "oos_validation.json"
@@ -459,9 +481,10 @@ def main() -> int:
         print(f"  cont    : {len(tuning['continuous_signal_base50'])} ETFs")
         print(f"  master  : {len(tuning['master_csp1_overlay_on_50_100'])} ETFs")
 
-    print("Loading live signal + OOS validation ...", flush=True)
+    print("Loading live signal + OOS validation + MA200 sweep ...", flush=True)
     live_signal = build_live_signal()
     oos_validation = build_oos_validation()
+    ma200 = build_ma200()
     if live_signal:
         print(f"  live    : as of {live_signal.get('latest_data_date')} -- "
               f"alloc {live_signal.get('current_allocation_pct')}%")
@@ -486,6 +509,7 @@ def main() -> int:
         "tuning": tuning,
         "live_signal": live_signal,
         "oos_validation": oos_validation,
+        "ma200": ma200,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")

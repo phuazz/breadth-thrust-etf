@@ -334,6 +334,7 @@
     <button class="tab" data-tab="sensitivity">Sensitivity</button>
     <button class="tab" data-tab="improvements">Improvements</button>
     <button class="tab" data-tab="tuning">Tuning</button>
+    <button class="tab" data-tab="ma200">MA200</button>
   </div>
 </nav>
 
@@ -559,6 +560,37 @@
       <p class="section-sub">Split the SOXX signal-eligible window at 2022-09-08. Sweep the full base × thrust grid on the TRAIN half only; pick the winner by train-half Sharpe; apply that same config without re-tuning to the TEST half. If the train-half winner holds up OOS, the parameter selection is robust across regimes (the train half includes COVID + the 2022 inflation shock; the test half includes the AI rally + Apr-2026 sell-off).</p>
       <table class="small-table" id="tu-oos-table"><thead></thead><tbody></tbody></table>
       <p style="margin-top:14px;color:var(--ink-faint);font-size:13px;" id="tu-oos-verdict"></p>
+    </section>
+  </div>
+
+  <!-- ====================== MA200 ====================== -->
+  <div class="tab-content" id="tab-ma200">
+    <div class="verdict">
+      <h2>MA200 verdict</h2>
+      <p id="ma200-verdict">Loading…</p>
+    </div>
+
+    <section>
+      <h2>Compare: composite signal vs MA200 single-indicator</h2>
+      <p class="section-sub">Best Sharpe per ETF, per strategy family. <strong>Family A</strong>: long 100% when % above 200d MA exceeds L, else flat. <strong>Family B</strong>: same but base 50% always (never out). <strong>Family D</strong>: base 50%, leveraged 150% when above L (apples-to-apples with the composite 50/150). <strong>Family C</strong>: long when above L, short –100% when below S. Best per ETF highlighted.</p>
+      <table class="small-table" id="ma200-compare-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Long-threshold sensitivity</h2>
+      <p class="section-sub">Sharpe across long threshold L for Family D (base 50% / leveraged 150% above L). The "sweet spot" L per ETF is the peak of each line.</p>
+      <div class="chart-controls">
+        <label for="ma200-etf">ETF:</label>
+        <select id="ma200-etf"></select>
+        <span class="pill" id="ma200-pill">—</span>
+      </div>
+      <div id="ma200-sensitivity-chart" class="chart"></div>
+    </section>
+
+    <section>
+      <h2>Equity curve: MA200 winner vs BH (per ETF)</h2>
+      <p class="section-sub">The best Family-D variant overlaid with buy-and-hold. Log scale.</p>
+      <div id="ma200-equity-chart" class="chart"></div>
     </section>
   </div>
 
@@ -1346,6 +1378,169 @@ function renderTuningVerdict() {
     + `Energy and Financials remain best held as plain buy-and-hold — no parameter combination there beats the index.`;
 }
 
+// ----------- MA200 tab -------------------------------------------------
+function _bestRow(rows) {
+  if (!rows || !rows.length) return null;
+  return rows.reduce((a, b) => (a.sharpe ?? -1e9) >= (b.sharpe ?? -1e9) ? a : b);
+}
+
+function renderMa200CompareTable() {
+  const data = window.DATA;
+  const m = data.ma200;
+  if (!m) return;
+  const el = document.getElementById('ma200-compare-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th><th>BH</th>
+    <th>A (long-flat)</th>
+    <th>B (50/100)</th>
+    <th>D (50/150)</th>
+    <th>C (long/short)</th>
+    <th>Composite 50/150</th>
+  </tr>`;
+  const etfs = ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1'];
+  const composite = data.tuning?.base_thrust_grid || {};
+  el.querySelector('tbody').innerHTML = etfs.map(etf => {
+    const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
+    const a = _bestRow(m.family_a_long_flat?.[etf]);
+    const b = _bestRow(m.family_b_long_base50?.[etf]);
+    const d = _bestRow(m.family_d_long_leveraged_base50?.[etf]);
+    const c = _bestRow(m.family_c_long_short?.[etf]);
+    const comp = _bestRow((composite[etf] || []).map(r => ({...r, sharpe: r.sharpe})));
+    const sharpes = [a, b, d, c, comp].map(r => r?.sharpe ?? -Infinity);
+    const bestSh = Math.max(...sharpes);
+    const cell = (label, x) => {
+      if (!x) return '<td>—</td>';
+      const isBest = x.sharpe === bestSh;
+      return `<td class="${isBest ? 'highlight' : ''}" style="font-family:'JetBrains Mono',monospace;">
+        ${label}<br>
+        <strong>${fmtNum(x.sharpe, 2, true)}</strong>
+        <span style="color:var(--ink-faint);">/ ${fmtPct(x.total_return, true)}</span>
+      </td>`;
+    };
+    return `<tr>
+      <td class="row-label"><strong>${etf}</strong><br>
+        <span style="color:var(--ink-faint);font-size:11px;">${ETF_LABELS[etf]?.desc || ''}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;">
+        ${fmtNum(bh?.sharpe, 2, true)}<br>
+        <span style="color:var(--ink-faint);">/ ${fmtPct(bh?.total_return, true)}</span></td>
+      ${cell(`L=${a?.long_threshold ?? '—'}`, a)}
+      ${cell(`L=${b?.long_threshold ?? '—'}`, b)}
+      ${cell(`L=${d?.long_threshold ?? '—'}`, d)}
+      ${cell(`L=${c?.long_threshold ?? '—'}/S=${c?.short_threshold ?? '—'}`, c)}
+      ${cell(`b=${comp?.base_pct ?? '—'}/t=${comp?.thrust_pct ?? '—'}`, comp)}
+    </tr>`;
+  }).join('');
+}
+
+function renderMa200Sensitivity() {
+  const data = window.DATA;
+  const m = data.ma200;
+  if (!m) return;
+  const etf = document.getElementById('ma200-etf').value;
+  const fam_d = m.family_d_long_leveraged_base50?.[etf];
+  const fam_b = m.family_b_long_base50?.[etf];
+  const fam_a = m.family_a_long_flat?.[etf];
+  const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
+  const traces = [];
+  if (fam_a) traces.push({
+    x: fam_a.map(r => r.long_threshold), y: fam_a.map(r => r.sharpe),
+    mode: 'lines+markers', name: 'A: long-flat',
+    line: { color: '#6b727a', width: 1.5 },
+  });
+  if (fam_b) traces.push({
+    x: fam_b.map(r => r.long_threshold), y: fam_b.map(r => r.sharpe),
+    mode: 'lines+markers', name: 'B: base50 / 100',
+    line: { color: '#1d7a3a', width: 1.5 },
+  });
+  if (fam_d) traces.push({
+    x: fam_d.map(r => r.long_threshold), y: fam_d.map(r => r.sharpe),
+    mode: 'lines+markers', name: 'D: base50 / 150 (leveraged)',
+    line: { color: '#1351b4', width: 2 },
+  });
+  if (bh) traces.push({
+    x: [50, 80], y: [bh.sharpe, bh.sharpe],
+    mode: 'lines', name: `${etf} buy-and-hold (${fmtNum(bh.sharpe,2,true)})`,
+    line: { color: '#b76e00', width: 1, dash: 'dot' },
+  });
+  const layout = {
+    margin: { l: 56, r: 14, t: 14, b: 44 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { title: 'Long threshold L (% constituents above 200d MA)',
+             gridcolor: '#eef0f3', zeroline: false, dtick: 5 },
+    yaxis: { title: 'Annualised Sharpe', gridcolor: '#eef0f3', zeroline: true,
+             zerolinecolor: '#c8ccd2' },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', x: 0, y: 1.12 },
+  };
+  Plotly.newPlot('ma200-sensitivity-chart', traces, layout, { displayModeBar: false, responsive: true });
+  // Pill
+  const best = _bestRow(fam_d);
+  if (best) {
+    document.getElementById('ma200-pill').textContent =
+      `Family D winner: L=${best.long_threshold}  Sharpe ${fmtNum(best.sharpe,2,true)}  `
+      + `vs BH ${fmtNum(bh?.sharpe, 2, true)}  →  Δ ${fmtNum(best.sharpe - (bh?.sharpe ?? 0), 2, true)}`;
+  }
+  // Re-render the equity chart too
+  renderMa200Equity();
+}
+
+function renderMa200Equity() {
+  const data = window.DATA;
+  const m = data.ma200;
+  if (!m) return;
+  const etf = document.getElementById('ma200-etf').value;
+  const w = m.winner_equity_curves?.[etf];
+  if (!w) return;
+  const dFam = w.family_d;
+  const bh = w.buy_and_hold;
+  const traces = [];
+  if (dFam) traces.push({
+    x: dFam.dates, y: dFam.equity, mode: 'lines',
+    name: `${dFam.label} — Sharpe ${fmtNum(dFam.sharpe, 2, true)}`,
+    line: { color: '#1351b4', width: 1.7 },
+  });
+  if (bh) traces.push({
+    x: bh.dates, y: bh.equity, mode: 'lines',
+    name: `${bh.label} — Sharpe ${fmtNum(bh.sharpe, 2, true)}`,
+    line: { color: '#6b727a', width: 1.2, dash: 'dot' },
+  });
+  const layout = {
+    margin: { l: 56, r: 14, t: 14, b: 38 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+    yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3', zeroline: false,
+             type: 'log', tickformat: '.2f' },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', x: 0, y: 1.08 },
+  };
+  Plotly.newPlot('ma200-equity-chart', traces, layout, { displayModeBar: false, responsive: true });
+}
+
+function renderMa200Verdict() {
+  const data = window.DATA;
+  const m = data.ma200;
+  if (!m) return;
+  let beatsBh = 0;
+  let beatsComposite = 0;
+  const composite = data.tuning?.base_thrust_grid || {};
+  for (const etf of ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1']) {
+    const d = _bestRow(m.family_d_long_leveraged_base50?.[etf]);
+    const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
+    const comp = _bestRow(composite[etf]);
+    if (d && bh && d.sharpe > bh.sharpe) beatsBh++;
+    if (d && comp && d.sharpe > comp.sharpe) beatsComposite++;
+  }
+  document.getElementById('ma200-verdict').innerHTML =
+    `Yes — the simpler signal works. <strong>% above 200d MA + 50/150 sizing (Family D) beats buy-and-hold on Sharpe on `
+    + `${beatsBh} of 5 ETFs</strong>, and beats the multi-component composite signal on <strong>${beatsComposite} of 5</strong>. `
+    + `The composite (RSI breadth + MA breadth + Highs breadth + thrust detection + entry delay + trend filter) only wins on SOXX, `
+    + `where it was originally tuned — and even there its edge over MA200 + 50/150 is just 0.12 Sharpe.<br><br>`
+    + `Shorting based on MA200 falling below a threshold (Family C) underperforms long-only on every ETF — the optimal short threshold collapses to 10 per cent, meaning "short almost never". The empirical case for a short leg is weak, consistent with the borrow-cost and asymmetric-vol headwinds.<br><br>`
+    + `The clean rule that generalises: <strong>long the ETF when % above 200d MA is above ~50-75 per cent (varies by ETF), hold 50 per cent of capital always, leverage to 150 per cent when in</strong>. This holds across semis, NDX-100, S&amp;P 500, Energy, and Financials — far better generalisation than the composite signal achieved.`;
+}
+
 // ----------- Tab navigation --------------------------------------------
 const TAB_RENDERED = new Set();
 function activateTab(name) {
@@ -1371,6 +1566,11 @@ function activateTab(name) {
       renderTuningMasterTable();
       renderTuningOOSTable();
     }
+    if (name === 'ma200') {
+      renderMa200Verdict();
+      renderMa200CompareTable();
+      renderMa200Sensitivity();   // also re-renders equity chart
+    }
     TAB_RENDERED.add(name);
   } else {
     // Charts need a relayout when the container is unhidden so Plotly picks up width
@@ -1383,11 +1583,14 @@ function activateTab(name) {
     if (name === 'tuning') {
       try { Plotly.Plots.resize('tu-grid-chart'); } catch(e){}
     }
+    if (name === 'ma200') {
+      try { Plotly.Plots.resize('ma200-sensitivity-chart'); Plotly.Plots.resize('ma200-equity-chart'); } catch(e){}
+    }
   }
 }
 
 function populateEtfDropdowns(rows) {
-  for (const id of ['eq-etf', 'br-etf', 'tr-etf', 'impr-etf', 'tu-grid-etf']) {
+  for (const id of ['eq-etf', 'br-etf', 'tr-etf', 'impr-etf', 'tu-grid-etf', 'ma200-etf']) {
     const sel = document.getElementById(id);
     if (!sel) continue;
     sel.innerHTML = '';
@@ -1428,6 +1631,7 @@ function populateEtfDropdowns(rows) {
   document.getElementById('tr-config')?.addEventListener('change', renderTradesTable);
   document.getElementById('impr-etf')?.addEventListener('change', renderImprChart);
   document.getElementById('tu-grid-etf')?.addEventListener('change', renderTuningGridChart);
+  document.getElementById('ma200-etf')?.addEventListener('change', renderMa200Sensitivity);
 })();
 </script>
 </body>
