@@ -46,10 +46,25 @@ PLACEHOLDER_END = "// __DASHBOARD_DATA_END__"
 
 
 def load_ma200() -> dict | None:
+    """Load data/ma200_sweep.json. Trims winner_equity_curves to only the
+    series the dashboard actually renders (family_b, family_d, buy_and_hold)
+    — family_a and family_c equity curves stay in the source JSON for
+    reproducibility but are dropped from the inlined dashboard payload to
+    keep docs/index.html under ~3 MB.
+    """
     path = DATA_DIR / "ma200_sweep.json"
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    if "winner_equity_curves" in blob:
+        trimmed = {}
+        for etf, ws in blob["winner_equity_curves"].items():
+            trimmed[etf] = {
+                k: v for k, v in ws.items()
+                if k in ("family_b", "family_d", "buy_and_hold")
+            }
+        blob["winner_equity_curves"] = trimmed
+    return blob
 
 
 def load_portfolio() -> dict | None:

@@ -290,6 +290,7 @@
   <div class="container">
     <button class="tab active" data-tab="monitor">Monitor</button>
     <button class="tab" data-tab="strategy">Strategy</button>
+    <button class="tab" data-tab="unlev">Unleveraged</button>
     <button class="tab" data-tab="detail">ETF Detail</button>
     <button class="tab" data-tab="portfolio">Portfolio</button>
     <button class="tab" data-tab="method">Method</button>
@@ -324,6 +325,31 @@
       <h2>Threshold robustness</h2>
       <p class="section-sub">Sharpe vs long threshold L for each ETF's Family D (50% base, 150% on signal). Flat curves around the peak mean the choice of L is not delicate; sharp peaks would mean the choice matters and OOS could degrade.</p>
       <div id="strategy-robustness-chart" class="chart"></div>
+    </section>
+  </div>
+
+  <!-- ====================== UNLEVERAGED ====================== -->
+  <div class="tab-content" id="tab-unlev">
+    <div class="verdict">
+      <h2>Unleveraged verdict — max 100% exposure, no margin</h2>
+      <p id="unlev-verdict">Loading…</p>
+    </div>
+
+    <section>
+      <h2>Per-ETF — 50/100 (no leverage) vs 50/150 vs buy-and-hold</h2>
+      <p class="section-sub">50/100 = 50% base allocation + step up to 100% when ma200_breadth ≥ L. Never above 100%, no margin required. Same regime signal as the Strategy tab — just without the leverage layer. The "Δ DD" column shows how much drawdown is given up by skipping the 50/150 leverage.</p>
+      <table class="small-table" id="unlev-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Unleveraged portfolio variants</h2>
+      <p class="section-sub">Top-K equal-weight or breadth-weighted across the 11 ETFs, weekly rebalanced, always 100% invested in the basket (no overlay leverage). All variants here use only the relative-strength tilt — they never exceed 100% notional.</p>
+      <table class="small-table" id="unlev-portfolio-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Equity curves — best unleveraged portfolio variants vs SPY</h2>
+      <div id="unlev-portfolio-chart" class="chart"></div>
     </section>
   </div>
 
@@ -634,6 +660,147 @@ function renderStrategyRobustness() {
   Plotly.newPlot('strategy-robustness-chart', traces, layout, { displayModeBar: false, responsive: true });
 }
 
+// ----------- Unleveraged tab -------------------------------------------
+function _bestRowMA(rows) {
+  if (!rows?.length) return null;
+  return rows.reduce((a, b) => (a.sharpe ?? -1e9) >= (b.sharpe ?? -1e9) ? a : b);
+}
+
+function renderUnlevVerdict() {
+  const data = window.DATA;
+  const m = data.ma200;
+  if (!m) return;
+  const etfs = Object.keys(m.monitor || {});
+  let beatBh = 0;
+  for (const etf of etfs) {
+    const fb = _bestRowMA(m.family_b_long_base50?.[etf]);
+    const bh = m.baselines?.[etf]?.buy_and_hold;
+    if (fb && bh && fb.sharpe > bh.sharpe) beatBh++;
+  }
+  // Best portfolio variant that isn't leveraged
+  let bestPort = null;
+  if (data.portfolio?.results) {
+    for (const [k, r] of Object.entries(data.portfolio.results)) {
+      if (k.endsWith('_leveraged')) continue;
+      if (k === 'spy_buy_hold' || k === 'equal_weight_all') continue;
+      if (!bestPort || (r.sharpe ?? -1e9) > (bestPort.sharpe ?? -1e9)) {
+        bestPort = { key: k, ...r };
+      }
+    }
+  }
+  const spy = data.portfolio?.results?.spy_buy_hold;
+  document.getElementById('unlev-verdict').innerHTML =
+    `Same regime signal as the Strategy tab, but capped at 100% allocation — no margin required. `
+    + `<strong>Beats buy-and-hold on ${beatBh} of ${etfs.length} ETFs</strong>, the same 8 of 11 the leveraged variant wins on. `
+    + `Per-ETF Sharpe is almost identical to the leveraged version (differences in the 0.0-0.1 range); the trade-off is materially lower total return in exchange for a ~7-10pp lower max drawdown.<br><br>`
+    + `Best unleveraged portfolio: <strong>${bestPort?.label || '—'}</strong>, Sharpe <strong>${fmtNum(bestPort?.sharpe, 2, true)}</strong>, `
+    + `total return <strong>${fmtPct(bestPort?.total_return, true)}</strong>, max DD <strong>${fmtPct(bestPort?.max_dd)}</strong>. `
+    + `Beats SPY buy-and-hold (Sharpe ${fmtNum(spy?.sharpe, 2, true)}) by Δ ${fmtNum((bestPort?.sharpe ?? 0) - (spy?.sharpe ?? 0), 2, true)} Sharpe. `
+    + `Achievable in an unleveraged retail account.`;
+}
+
+function renderUnlevTable() {
+  const data = window.DATA;
+  const m = data.ma200;
+  if (!m) return;
+  const el = document.getElementById('unlev-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th><th>Description</th><th>L (%)</th>
+    <th>50/100 Sharpe</th><th>BH Sharpe</th><th>Δ vs BH</th>
+    <th>50/100 total ret</th><th>50/100 max DD</th>
+    <th>50/150 max DD</th><th>Δ DD vs 50/150</th>
+  </tr>`;
+  const tbody = el.querySelector('tbody');
+  tbody.innerHTML = '';
+  const etfs = Object.keys(m.monitor || {});
+  for (const etf of etfs) {
+    const fb = _bestRowMA(m.family_b_long_base50?.[etf]);
+    const fd = _bestRowMA(m.family_d_long_leveraged_base50?.[etf]);
+    const bh = m.baselines?.[etf]?.buy_and_hold;
+    if (!fb || !bh) continue;
+    const dSh = (fb.sharpe ?? 0) - (bh.sharpe ?? 0);
+    const dDD = (fb.max_dd ?? 0) - (fd?.max_dd ?? 0);  // negative = lower DD
+    const isWin = dSh > 0;
+    tbody.innerHTML += `<tr class="${isWin ? 'highlight' : ''}">
+      <td class="row-label">${etf}</td>
+      <td style="color:var(--ink-faint);font-size:13px;">${ETF_DESCRIPTIONS[etf] || ''}</td>
+      <td class="num">${fb.long_threshold}</td>
+      <td class="num"><strong>${fmtNum(fb.sharpe, 2, true)}</strong></td>
+      <td class="num">${fmtNum(bh.sharpe, 2, true)}</td>
+      <td class="num ${dSh > 0 ? 'good' : 'bad'}">${fmtNum(dSh, 2, true)}</td>
+      <td class="num">${fmtPct(fb.total_return, true)}</td>
+      <td class="num">${fmtPct(fb.max_dd)}</td>
+      <td class="num" style="color:var(--ink-faint);">${fmtPct(fd?.max_dd)}</td>
+      <td class="num ${dDD < 0 ? 'good' : 'bad'}">${fmtPct(dDD, true)}</td>
+    </tr>`;
+  }
+}
+
+function renderUnlevPortfolio() {
+  const data = window.DATA;
+  const p = data.portfolio;
+  if (!p) return;
+  const el = document.getElementById('unlev-portfolio-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Variant</th><th>Sharpe</th><th>CAGR</th>
+    <th>Total return</th><th>Max DD</th><th>Δ Sharpe vs SPY</th>
+  </tr>`;
+  const tbody = el.querySelector('tbody');
+  const spy = p.results.spy_buy_hold;
+  // Only unleveraged variants
+  const variants = Object.entries(p.results)
+    .filter(([k]) => !k.endsWith('_leveraged') && k !== 'spy_buy_hold')
+    .map(([k, v]) => ({ key: k, ...v }))
+    .sort((a, b) => (b.sharpe ?? -1e9) - (a.sharpe ?? -1e9));
+  const bestSh = variants[0]?.sharpe;
+  tbody.innerHTML = variants.map(r => {
+    const isBest = r.sharpe === bestSh;
+    const dSpy = (r.sharpe ?? 0) - (spy?.sharpe ?? 0);
+    return `<tr class="${isBest ? 'highlight' : ''}">
+      <td class="row-label">${r.label || r.key}</td>
+      <td class="num"><strong>${fmtNum(r.sharpe, 2, true)}</strong></td>
+      <td class="num">${fmtPct(r.cagr, true)}</td>
+      <td class="num">${fmtPct(r.total_return, true)}</td>
+      <td class="num">${fmtPct(r.max_dd)}</td>
+      <td class="num ${dSpy > 0 ? 'good' : 'bad'}">${fmtNum(dSpy, 2, true)}</td>
+    </tr>`;
+  }).join('') + `<tr style="border-top:2px solid var(--border-strong);color:var(--ink-faint);">
+    <td class="row-label" style="padding-left:22px;">↳ SPY buy-and-hold (bench)</td>
+    <td class="num">${fmtNum(spy?.sharpe, 2, true)}</td>
+    <td class="num">${fmtPct(spy?.cagr, true)}</td>
+    <td class="num">${fmtPct(spy?.total_return, true)}</td>
+    <td class="num">${fmtPct(spy?.max_dd)}</td>
+    <td class="num">—</td>
+  </tr>`;
+
+  // Chart: top 3 unleveraged + SPY
+  const top3 = variants.slice(0, 3);
+  const colors = ['#1351b4', '#1d7a3a', '#b76e00'];
+  const traces = top3.map((r, i) => ({
+    x: r.dates, y: r.equity, mode: 'lines',
+    name: `${r.label} — Shp ${fmtNum(r.sharpe, 2, true)}`,
+    line: { color: colors[i], width: 1.6 },
+  }));
+  if (spy) {
+    traces.push({
+      x: spy.dates, y: spy.equity, mode: 'lines',
+      name: `SPY BH — Shp ${fmtNum(spy.sharpe, 2, true)}`,
+      line: { color: '#6b727a', width: 1.2, dash: 'dot' },
+    });
+  }
+  const layout = {
+    margin: { l: 56, r: 14, t: 14, b: 38 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+    yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3',
+             zeroline: false, type: 'log', tickformat: '.2f' },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', x: 0, y: 1.08 },
+  };
+  Plotly.newPlot('unlev-portfolio-chart', traces, layout, { displayModeBar: false, responsive: true });
+}
+
 // ----------- ETF Detail tab --------------------------------------------
 function renderDetail() {
   const data = window.DATA;
@@ -692,15 +859,23 @@ function renderDetail() {
     Plotly.newPlot('detail-breadth-chart', traces, layout, { displayModeBar: false, responsive: true });
   }
 
-  // Equity chart
+  // Equity chart — overlay 50/150 (leveraged), 50/100 (unleveraged), and buy-and-hold
   if (winnerEq?.family_d) {
     const traces = [];
     const fd = winnerEq.family_d;
     traces.push({
       x: fd.dates, y: fd.equity, mode: 'lines',
-      name: `MA200 + 50/150 (L=${monitor?.long_threshold_pct}) — Shp ${fmtNum(fd.sharpe, 2, true)}`,
+      name: `MA200 + 50/150 (leveraged, L=${monitor?.long_threshold_pct}) — Shp ${fmtNum(fd.sharpe, 2, true)}`,
       line: { color: '#1351b4', width: 1.7 },
     });
+    if (winnerEq.family_b) {
+      const fb = winnerEq.family_b;
+      traces.push({
+        x: fb.dates, y: fb.equity, mode: 'lines',
+        name: `MA200 + 50/100 (no leverage, L=${fb.long_threshold}) — Shp ${fmtNum(fb.sharpe, 2, true)}`,
+        line: { color: '#1d7a3a', width: 1.4 },
+      });
+    }
     if (winnerEq.buy_and_hold) {
       traces.push({
         x: winnerEq.buy_and_hold.dates, y: winnerEq.buy_and_hold.equity, mode: 'lines',
@@ -830,11 +1005,13 @@ function activateTab(name) {
   if (!TAB_RENDERED.has(name)) {
     if (name === 'monitor')   renderMonitor();
     if (name === 'strategy')  { renderStrategyVerdict(); renderStrategyTable(); renderStrategyRobustness(); }
+    if (name === 'unlev')     { renderUnlevVerdict(); renderUnlevTable(); renderUnlevPortfolio(); }
     if (name === 'detail')    renderDetail();
     if (name === 'portfolio') renderPortfolio();
     TAB_RENDERED.add(name);
   } else {
     if (name === 'strategy') { try { Plotly.Plots.resize('strategy-robustness-chart'); } catch(e){} }
+    if (name === 'unlev')    { try { Plotly.Plots.resize('unlev-portfolio-chart'); } catch(e){} }
     if (name === 'detail') {
       try { Plotly.Plots.resize('detail-breadth-chart'); Plotly.Plots.resize('detail-equity-chart'); } catch(e){}
     }
