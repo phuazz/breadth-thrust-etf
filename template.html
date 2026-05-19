@@ -21,7 +21,9 @@
       --accent: #1351b4;
       --accent-soft: rgba(19, 81, 180, 0.08);
       --good: #1d7a3a;
+      --good-soft: rgba(29, 122, 58, 0.10);
       --bad: #b3261e;
+      --bad-soft: rgba(179, 38, 30, 0.06);
       --warn: #b76e00;
       --neutral: #4a5159;
     }
@@ -33,17 +35,16 @@
       line-height: 1.55; font-size: 15px;
       -webkit-font-smoothing: antialiased;
     }
-    .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 
     header.top {
       border-bottom: 1px solid var(--border);
-      padding: 22px 0 16px 0;
-      background: var(--bg);
+      padding: 22px 0 16px 0; background: var(--bg);
     }
     header.top h1 {
       margin: 0 0 4px 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em;
     }
-    header.top .sub { color: var(--ink-faint); font-size: 14px; }
+    header.top .sub { color: var(--ink-faint); font-size: 14px; max-width: 720px; }
     header.top .meta {
       float: right; font-size: 13px; color: var(--ink-faint); text-align: right;
     }
@@ -76,121 +77,126 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    .live-signal {
-      margin: 22px 0 14px 0;
-      padding: 16px 22px;
-      background: linear-gradient(135deg, #f4f7fc 0%, #eaf2fb 100%);
-      border: 1px solid #cad7eb;
-      border-radius: 4px;
+    section { margin: 36px 0; }
+    section h2 {
+      font-size: 19px; font-weight: 600; margin: 0 0 4px 0; letter-spacing: -0.01em;
     }
-    .live-signal.in-trade {
-      background: linear-gradient(135deg, #eaf8ee 0%, #d5efde 100%);
-      border-color: #a4d8b4;
+    section h3 {
+      font-size: 15px; font-weight: 600; margin: 22px 0 6px 0; color: var(--ink-soft);
+      letter-spacing: 0.01em;
     }
-    .live-signal-head {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 10px;
-    }
-    .live-tag {
-      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
-      color: var(--accent); text-transform: uppercase;
-    }
-    .live-signal.in-trade .live-tag { color: var(--good); }
-    .live-asof { font-size: 12px; color: var(--ink-faint); }
-    .live-body { display: flex; align-items: center; gap: 28px; }
-    .live-alloc {
-      display: flex; align-items: baseline; gap: 8px;
-      min-width: 200px;
-    }
-    .alloc-num {
-      font-size: 56px; font-weight: 700;
-      font-family: 'Inter', sans-serif;
-      letter-spacing: -0.03em;
-      color: var(--accent);
-      line-height: 1;
-    }
-    .live-signal.in-trade .alloc-num { color: var(--good); }
-    .alloc-label {
-      font-size: 12px; color: var(--ink-faint);
-      line-height: 1.3;
-    }
-    .live-detail { flex: 1; }
-    .live-state { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-    .live-meta { font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
-    .live-context {
-      font-size: 12px; color: var(--ink-faint);
-      font-family: 'JetBrains Mono', monospace;
-      font-variant-numeric: tabular-nums;
-    }
+    section .section-sub { color: var(--ink-faint); font-size: 14px; margin: 0 0 18px 0; max-width: 800px; }
 
     .verdict {
-      margin: 28px 0 24px 0;
-      padding: 22px 26px;
+      margin: 28px 0 24px 0; padding: 22px 26px;
       background: var(--bg-soft);
-      border-left: 3px solid var(--accent);
-      border-radius: 2px;
+      border-left: 3px solid var(--accent); border-radius: 2px;
     }
     .verdict h2 {
       margin: 0 0 12px 0; font-size: 13px;
       letter-spacing: 0.06em; text-transform: uppercase;
       color: var(--ink-faint); font-weight: 600;
     }
-    .verdict p {
-      margin: 0 0 12px 0; font-size: 16px; line-height: 1.6;
-    }
+    .verdict p { margin: 0 0 12px 0; font-size: 16px; line-height: 1.6; }
     .verdict p:last-child { margin-bottom: 0; }
     .verdict strong { color: var(--accent); }
 
-    section { margin: 36px 0; }
-    section h2 {
-      font-size: 19px; font-weight: 600; margin: 0 0 4px 0; letter-spacing: -0.01em;
+    /* ----- Monitor cards ----- */
+    .monitor-summary {
+      display: flex; gap: 22px; flex-wrap: wrap;
+      margin: 20px 0; padding: 16px 22px;
+      background: var(--bg-soft); border-radius: 4px;
+      border: 1px solid var(--border);
+      align-items: baseline;
     }
-    section .section-sub { color: var(--ink-faint); font-size: 14px; margin: 0 0 18px 0; }
+    .monitor-summary .ms-stat {
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .monitor-summary .ms-stat .v {
+      font-size: 22px; font-weight: 600; font-family: 'Inter';
+      letter-spacing: -0.01em; color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .monitor-summary .ms-stat .v.good { color: var(--good); }
+    .monitor-summary .ms-stat .l {
+      font-size: 11px; color: var(--ink-faint);
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .monitor-summary .ms-asof {
+      margin-left: auto; font-size: 13px; color: var(--ink-faint);
+    }
 
-    table.matrix {
+    .monitor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .m-card {
+      padding: 14px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      border-left: 4px solid var(--ink-faint);
+    }
+    .m-card.in-long { border-left-color: var(--good); background: linear-gradient(90deg, var(--good-soft) 0%, var(--bg-card) 12%); }
+    .m-card.in-base { border-left-color: var(--accent); }
+    .m-card .row1 { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+    .m-card .sym { font-weight: 700; font-size: 16px; }
+    .m-card .proxy { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.05em; }
+    .m-card .alloc {
+      font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
+      color: var(--accent); margin: 4px 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .m-card.in-long .alloc { color: var(--good); }
+    .m-card .stat {
+      display: flex; justify-content: space-between;
+      font-size: 12px; font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums; padding: 2px 0;
+      color: var(--ink-soft);
+    }
+    .m-card .stat .l { color: var(--ink-faint); }
+    .m-card .threshold-bar {
+      position: relative; height: 6px; background: var(--bg-soft);
+      border-radius: 3px; margin: 8px 0 6px 0;
+      border: 1px solid var(--border);
+    }
+    .m-card .threshold-bar .marker-l {
+      position: absolute; top: -2px; width: 2px; height: 10px;
+      background: var(--ink-faint);
+    }
+    .m-card .threshold-bar .marker-b {
+      position: absolute; top: 0; height: 4px;
+      background: var(--accent); border-radius: 2px;
+    }
+    .m-card.in-long .threshold-bar .marker-b { background: var(--good); }
+
+    /* ----- Tables ----- */
+    table.matrix, table.small-table {
       width: 100%; border-collapse: collapse; font-size: 14px;
       background: var(--bg-card); border: 1px solid var(--border);
     }
-    table.matrix thead th {
+    table.matrix thead th, table.small-table thead th {
       text-align: left; padding: 10px 12px;
       background: var(--bg-soft); font-weight: 600; color: var(--ink-soft);
       border-bottom: 1px solid var(--border-strong);
       font-size: 13px; letter-spacing: 0.01em;
     }
-    table.matrix tbody td {
-      padding: 10px 12px; border-bottom: 1px solid var(--border);
+    table.matrix tbody td, table.small-table tbody td {
+      padding: 9px 12px; border-bottom: 1px solid var(--border);
     }
-    table.matrix tbody tr:last-child td { border-bottom: none; }
-    table.matrix tbody tr:hover { background: var(--bg-soft); }
-    table.matrix td.etf-name { font-weight: 600; color: var(--ink); }
-    table.matrix td.etf-desc { color: var(--ink-faint); font-size: 13px; }
-    table.matrix td.cell {
-      font-variant-numeric: tabular-nums;
+    table.matrix tbody tr:last-child td, table.small-table tbody tr:last-child td { border-bottom: none; }
+    table.matrix tbody tr:hover, table.small-table tbody tr:hover { background: var(--bg-soft); }
+    table.matrix .row-label, table.small-table .row-label {
+      font-weight: 600; color: var(--ink);
+    }
+    table.matrix .num, table.small-table .num {
       font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 13px;
+      font-variant-numeric: tabular-nums; font-size: 13px;
     }
-    table.matrix td.cell .sharpe { font-weight: 600; }
-    table.matrix td.cell .mc { color: var(--ink-faint); font-size: 12px; margin-left: 6px; }
-    table.matrix td.cell .qual {
-      display: inline-block; margin-left: 6px; padding: 1px 5px;
-      background: var(--accent-soft); color: var(--accent);
-      font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
-      border-radius: 2px; vertical-align: middle;
-    }
-    table.matrix td.cell.win-strong { background: rgba(29, 122, 58, 0.10); }
-    table.matrix td.cell.win-weak   { background: rgba(29, 122, 58, 0.05); }
-    table.matrix td.cell.lose-weak  { background: rgba(183, 110, 0, 0.05); }
-    table.matrix td.cell.lose-strong{ background: rgba(179, 38, 30, 0.06); }
-
-    .legend { display: flex; gap: 18px; font-size: 12px; color: var(--ink-faint); margin-top: 10px; flex-wrap: wrap; }
-    .legend .sw {
-      display: inline-block; width: 12px; height: 12px;
-      vertical-align: middle; margin-right: 5px; border: 1px solid var(--border-strong);
-    }
-    .legend .sw.win-strong { background: rgba(29, 122, 58, 0.18); }
-    .legend .sw.win-weak   { background: rgba(29, 122, 58, 0.09); }
-    .legend .sw.lose-weak  { background: rgba(183, 110, 0, 0.09); }
-    .legend .sw.lose-strong{ background: rgba(179, 38, 30, 0.10); }
+    table .highlight { background: rgba(29, 122, 58, 0.06); }
+    table .num.good { color: var(--good); font-weight: 600; }
+    table .num.bad { color: var(--bad); font-weight: 600; }
 
     .chart-controls {
       margin: 0 0 12px 0;
@@ -198,101 +204,57 @@
       font-size: 13px; color: var(--ink-soft);
     }
     .chart-controls label { color: var(--ink-faint); }
-    .chart-controls select, .chart-controls input[type="search"] {
+    .chart-controls select {
       padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: 3px;
       background: var(--bg); font-family: inherit; font-size: 13px; color: var(--ink);
     }
-    .chart-controls input[type="search"] { width: 180px; }
     .chart-controls .pill {
       padding: 2px 8px; border-radius: 12px; background: var(--bg-soft);
       color: var(--ink-faint); font-size: 12px;
     }
 
     .chart {
-      width: 100%; height: 480px;
+      width: 100%; height: 460px;
       border: 1px solid var(--border); background: var(--bg-card);
     }
-    .chart.tall { height: 560px; }
-
-    .cards {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 14px; margin-top: 10px;
-    }
-    .card {
-      padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 3px;
-    }
-    .card .sym { font-weight: 600; font-size: 15px; }
-    .card .desc { color: var(--ink-faint); font-size: 12px; margin-bottom: 8px; }
-    .card .stat {
-      display: flex; justify-content: space-between;
-      font-size: 13px; font-variant-numeric: tabular-nums;
-      font-family: 'JetBrains Mono', monospace; padding: 2px 0;
-    }
-    .card .stat span:first-child { color: var(--ink-faint); }
-
-    table.trades {
-      width: 100%; border-collapse: collapse; font-size: 13px;
-      background: var(--bg-card); border: 1px solid var(--border);
-      font-family: 'JetBrains Mono', ui-monospace, monospace;
-      font-variant-numeric: tabular-nums;
-    }
-    table.trades thead th {
-      text-align: left; padding: 8px 12px;
-      background: var(--bg-soft); font-weight: 600;
-      color: var(--ink-soft); border-bottom: 1px solid var(--border-strong);
-      cursor: pointer; user-select: none; font-size: 12px;
-      letter-spacing: 0.02em;
-      position: sticky; top: 0;
-    }
-    table.trades thead th:hover { color: var(--accent); }
-    table.trades thead th.sorted::after {
-      content: " ↑"; color: var(--accent);
-    }
-    table.trades thead th.sorted.desc::after { content: " ↓"; }
-    table.trades tbody td { padding: 6px 12px; border-bottom: 1px solid var(--border); }
-    table.trades tbody tr:last-child td { border-bottom: none; }
-    table.trades tbody tr:hover { background: var(--bg-soft); }
-    table.trades .pos { color: var(--good); font-weight: 500; }
-    table.trades .neg { color: var(--bad); font-weight: 500; }
-    table.trades .reason {
-      padding: 1px 6px; border-radius: 2px;
-      background: var(--bg-soft); color: var(--ink-soft); font-size: 11px;
-    }
-    table.trades .reason.trailing_stop  { background: rgba(183, 110, 0, 0.10); color: var(--warn); }
-    table.trades .reason.regime_exit_composite { background: rgba(19, 81, 180, 0.08); color: var(--accent); }
-    table.trades .reason.regime_exit_ma_floor { background: rgba(19, 81, 180, 0.08); color: var(--accent); }
-    table.trades .reason.time_stop      { background: rgba(75, 75, 75, 0.06); color: var(--neutral); }
-    table.trades .reason.data_end       { background: rgba(75, 75, 75, 0.06); color: var(--neutral); }
-
-    .table-scroll {
-      max-height: 560px; overflow-y: auto;
-      border: 1px solid var(--border); background: var(--bg-card);
-    }
+    .chart.tall { height: 540px; }
+    .chart.short { height: 320px; }
 
     .two-col {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
     }
-    @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+    @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
 
-    .small-table {
+    .table-scroll {
+      max-height: 480px; overflow-y: auto;
+      border: 1px solid var(--border); background: var(--bg-card);
+    }
+    table.episodes {
       width: 100%; border-collapse: collapse; font-size: 13px;
-      background: var(--bg-card); border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
     }
-    .small-table thead th {
-      text-align: left; padding: 8px 10px;
+    table.episodes thead th {
+      text-align: left; padding: 8px 12px;
       background: var(--bg-soft); font-weight: 600; color: var(--ink-soft);
-      border-bottom: 1px solid var(--border-strong); font-size: 12px;
-    }
-    .small-table tbody td {
-      padding: 7px 10px; border-bottom: 1px solid var(--border);
-      font-family: 'JetBrains Mono', monospace;
-      font-variant-numeric: tabular-nums;
+      border-bottom: 1px solid var(--border-strong);
+      position: sticky; top: 0;
       font-size: 12px;
     }
-    .small-table .row-label {
-      font-family: 'Inter', sans-serif; color: var(--ink-soft);
+    table.episodes tbody td { padding: 6px 12px; border-bottom: 1px solid var(--border); }
+    table.episodes .pos { color: var(--good); }
+    table.episodes .neg { color: var(--bad); }
+
+    .methodbox {
+      padding: 18px 22px; background: var(--bg-soft);
+      border-radius: 4px; border: 1px solid var(--border);
+      font-size: 14px; line-height: 1.7;
     }
-    .small-table .highlight { background: rgba(29, 122, 58, 0.05); }
+    .methodbox p { margin: 0 0 10px 0; }
+    .methodbox ul { margin: 0 0 10px 18px; padding: 0; }
+    .methodbox li { margin: 4px 0; }
+    .methodbox code { font-family: 'JetBrains Mono', monospace; font-size: 12px;
+                       background: var(--bg-card); padding: 1px 5px; border-radius: 2px;
+                       border: 1px solid var(--border); }
 
     footer {
       margin-top: 60px; padding: 24px 0 36px 0;
@@ -304,11 +266,10 @@
     @media (max-width: 720px) {
       .container { padding: 0 14px; }
       header.top .meta { float: none; text-align: left; margin-top: 8px; }
-      table.matrix { font-size: 12px; }
-      table.matrix td.cell { font-size: 11px; }
-      .chart { height: 340px; }
       nav.tabs .container { overflow-x: auto; }
       nav.tabs button { padding: 10px 12px; font-size: 13px; }
+      .chart { height: 340px; }
+      .monitor-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -321,276 +282,161 @@
       <span id="ts-built"></span>
     </div>
     <h1>Breadth-thrust ETF research</h1>
-    <div class="sub">A multi-component breadth-thrust signal computed from point-in-time ETF constituents, tested across five universes.</div>
+    <div class="sub">A single-indicator (% above 200d MA) regime signal applied to 11 US sector and broad-market ETFs, with 50/100 base + on-signal leverage sizing.</div>
   </div>
 </header>
 
 <nav class="tabs">
   <div class="container">
-    <button class="tab active" data-tab="overview">Overview</button>
-    <button class="tab" data-tab="equity">Equity Curves</button>
-    <button class="tab" data-tab="breadth">Breadth Signals</button>
-    <button class="tab" data-tab="trades">Trade Detail</button>
-    <button class="tab" data-tab="sensitivity">Sensitivity</button>
-    <button class="tab" data-tab="improvements">Improvements</button>
-    <button class="tab" data-tab="tuning">Tuning</button>
-    <button class="tab" data-tab="ma200">MA200</button>
+    <button class="tab active" data-tab="monitor">Monitor</button>
+    <button class="tab" data-tab="strategy">Strategy</button>
+    <button class="tab" data-tab="detail">ETF Detail</button>
+    <button class="tab" data-tab="portfolio">Portfolio</button>
+    <button class="tab" data-tab="method">Method</button>
   </div>
 </nav>
 
 <main class="container">
 
-  <!-- ====================== OVERVIEW ====================== -->
-  <div class="tab-content active" id="tab-overview">
+  <!-- ====================== MONITOR ====================== -->
+  <div class="tab-content active" id="tab-monitor">
+    <div class="monitor-summary" id="monitor-summary"></div>
+    <div class="monitor-grid" id="monitor-grid"></div>
+    <p style="color:var(--ink-faint);font-size:13px;margin-top:14px;">
+      Cards above show the live state of the MA200 + 50/150 strategy per ETF as of the latest cached price data. <strong>Green left bar</strong> = ma200_breadth is above the chosen threshold, allocation 150%. <strong>Blue left bar</strong> = below threshold, allocation 50% base. To refresh, re-run the pipeline: <code style="font-size:11px;">fetch_constituents → compute_breadth → run_ma200_sweep → pipeline</code>.
+    </p>
+  </div>
 
-    <!-- Today's signal hero -->
-    <div id="live-signal-card" class="live-signal" style="display:none;">
-      <div class="live-signal-head">
-        <span class="live-tag">TODAY'S SIGNAL — SOXX 50/150</span>
-        <span class="live-asof" id="live-asof"></span>
-      </div>
-      <div class="live-body">
-        <div class="live-alloc">
-          <span class="alloc-num" id="live-alloc">—</span>
-          <span class="alloc-label">recommended<br>allocation</span>
-        </div>
-        <div class="live-detail">
-          <div class="live-state" id="live-state">—</div>
-          <div class="live-meta" id="live-meta">—</div>
-          <div class="live-context" id="live-context"></div>
-        </div>
-      </div>
-    </div>
-
+  <!-- ====================== STRATEGY ====================== -->
+  <div class="tab-content" id="tab-strategy">
     <div class="verdict">
-      <h2>Verdict</h2>
-      <p id="verdict-body">Loading…</p>
+      <h2>Strategy verdict</h2>
+      <p id="strategy-verdict">Loading…</p>
     </div>
 
-    <section id="sec-matrix">
-      <h2>Cross-ETF result matrix</h2>
-      <p class="section-sub">Sharpe (annualised) and Monte Carlo percentile of strategy total return vs 1,000 random-entry paths with bootstrapped holding distribution. 2018-2026 window, signal-eligible from 2019-01-08. All same costs (10 bps round-trip). Configs are not re-tuned per ETF.</p>
-      <table class="matrix" id="cross-etf-table">
-        <thead>
-          <tr>
-            <th>ETF</th>
-            <th>Universe</th>
-            <th>baseline_2xATR</th>
-            <th>regime_time_only</th>
-            <th>regime + delay 5d + trend filter</th>
-          </tr>
-        </thead>
-        <tbody id="cross-etf-tbody"></tbody>
-      </table>
-      <div class="legend">
-        <span><span class="sw win-strong"></span>MC ≥ 50 (beats random)</span>
-        <span><span class="sw win-weak"></span>40 ≤ MC &lt; 50</span>
-        <span><span class="sw lose-weak"></span>20 ≤ MC &lt; 40</span>
-        <span><span class="sw lose-strong"></span>MC &lt; 20</span>
-      </div>
+    <section>
+      <h2>Per-ETF result</h2>
+      <p class="section-sub">For each ETF, the MA200 + 50/150 strategy's chosen long threshold L (peak Sharpe across L ∈ {50, 55, 60, 65, 70, 75, 80}), its annualised Sharpe, total return, max DD, and the comparison to plain buy-and-hold. Best Sharpe per ETF row highlighted.</p>
+      <table class="small-table" id="strategy-table"><thead></thead><tbody></tbody></table>
     </section>
 
-    <section id="sec-per-etf">
-      <h2>Per-ETF best result</h2>
-      <p class="section-sub">For each ETF, the headline metrics of its best-Sharpe config from the cross-ETF matrix.</p>
-      <div class="cards" id="cards-grid"></div>
+    <section>
+      <h2>Threshold robustness</h2>
+      <p class="section-sub">Sharpe vs long threshold L for each ETF's Family D (50% base, 150% on signal). Flat curves around the peak mean the choice of L is not delicate; sharp peaks would mean the choice matters and OOS could degrade.</p>
+      <div id="strategy-robustness-chart" class="chart"></div>
     </section>
   </div>
 
-  <!-- ====================== EQUITY CURVES ====================== -->
-  <div class="tab-content" id="tab-equity">
-    <section>
-      <h2>Equity curves — strategy vs buy-and-hold</h2>
-      <p class="section-sub">Daily equity normalised to 1.0 at the signal-eligible start (2019-01-08). Log scale. The strategy variant being plotted is shown by the dropdown below; the dotted lines are the traded ETF and SPY buy-and-hold over the same window.</p>
-      <div class="chart-controls">
-        <label for="eq-etf">ETF:</label>
-        <select id="eq-etf"></select>
-        <label for="eq-config">Config:</label>
-        <select id="eq-config">
-          <option value="baseline_2xATR">baseline_2xATR</option>
-          <option value="regime_time_only">regime_time_only</option>
-          <option value="regime_time_only_delay5_trend">regime + delay5 + trend</option>
-        </select>
-        <span class="pill" id="eq-pill">—</span>
-      </div>
-      <div id="equity-chart" class="chart tall"></div>
-    </section>
-  </div>
+  <!-- ====================== ETF DETAIL ====================== -->
+  <div class="tab-content" id="tab-detail">
+    <div class="chart-controls" style="margin-top:8px;">
+      <label for="detail-etf">Select ETF:</label>
+      <select id="detail-etf"></select>
+      <span class="pill" id="detail-pill">—</span>
+    </div>
 
-  <!-- ====================== BREADTH SIGNALS ====================== -->
-  <div class="tab-content" id="tab-breadth">
     <section>
-      <h2>Breadth components + signal-fire days</h2>
-      <p class="section-sub">Composite breadth z-score and the three underlying breadth components (% above 50d MA, % with RSI > 70, % at 63d high) on the same date axis. Signal-fire days are marked.</p>
-      <div class="chart-controls">
-        <label for="br-etf">ETF:</label>
-        <select id="br-etf"></select>
-        <span class="pill" id="br-pill">—</span>
-      </div>
-      <div id="breadth-chart" class="chart tall"></div>
+      <h2>Breadth + allocation timeline</h2>
+      <p class="section-sub">% of constituents above 200d MA (weekly), with chosen threshold L shaded. Above L → strategy is long 150%, below L → base 50%.</p>
+      <div id="detail-breadth-chart" class="chart"></div>
     </section>
-  </div>
 
-  <!-- ====================== TRADE DETAIL ====================== -->
-  <div class="tab-content" id="tab-trades">
     <section>
-      <h2>Per-trade detail</h2>
-      <p class="section-sub">Every individual trade taken by the strategy on the chosen ETF and config. Click a column header to sort.</p>
-      <div class="chart-controls">
-        <label for="tr-etf">ETF:</label>
-        <select id="tr-etf"></select>
-        <label for="tr-config">Config:</label>
-        <select id="tr-config">
-          <option value="baseline_2xATR">baseline_2xATR</option>
-          <option value="regime_time_only">regime_time_only</option>
-          <option value="regime_time_only_delay5_trend">regime + delay5 + trend</option>
-        </select>
-        <span class="pill" id="tr-pill">—</span>
-      </div>
-      <div class="two-col" style="grid-template-columns: 2fr 1fr; align-items: start;">
-        <div class="table-scroll">
-          <table class="trades">
-            <thead>
-              <tr id="trades-thead"></tr>
-            </thead>
-            <tbody id="trades-tbody"></tbody>
-          </table>
-        </div>
-        <div>
-          <h3 style="font-size: 14px; margin: 0 0 10px 0; color: var(--ink-soft);">Exit reasons</h3>
-          <div id="exit-reason-chart" style="width: 100%; height: 320px; border: 1px solid var(--border); background: var(--bg-card);"></div>
-        </div>
+      <h2>Equity curve — strategy vs buy-and-hold</h2>
+      <div id="detail-equity-chart" class="chart short"></div>
+    </section>
+
+    <section>
+      <h2>Long episodes (chronological)</h2>
+      <p class="section-sub">Every distinct period the strategy held the leveraged 150% allocation. Underlying return is the close-to-close move of the traded proxy during the episode (not the strategy return — strategy applied 150% leverage on top of this).</p>
+      <div class="table-scroll">
+        <table class="episodes">
+          <thead><tr id="episodes-thead"></tr></thead>
+          <tbody id="episodes-tbody"></tbody>
+        </table>
       </div>
     </section>
   </div>
 
-  <!-- ====================== SENSITIVITY ====================== -->
-  <div class="tab-content" id="tab-sensitivity">
-    <section>
-      <h2>Exit-logic variant sweep (SOXX)</h2>
-      <p class="section-sub">In-sample sensitivity on SOXX — five exit configurations swept against the original spec. Demonstrates that the 2× ATR stop was the binding constraint.</p>
-      <table class="small-table" id="variants-exit-table"><thead></thead><tbody></tbody></table>
-    </section>
-    <section>
-      <h2>Entry-delay sweep (SOXX)</h2>
-      <p class="section-sub">Entering k trading days after the signal fires, instead of next-bar open. Tests the "signal fires after short-term overbought, entry is too early" hypothesis.</p>
-      <table class="small-table" id="variants-delay-table"><thead></thead><tbody></tbody></table>
-    </section>
-    <section>
-      <h2>Trend-filter sweep (SOXX)</h2>
-      <p class="section-sub">Take signals only when SOXX is above its 200-day MA at the signal date. Applied independently to two exit configs.</p>
-      <table class="small-table" id="variants-trend-table"><thead></thead><tbody></tbody></table>
-    </section>
-    <section>
-      <h2>Split-half OOS (SOXX, train / test 2022-09-08)</h2>
-      <p class="section-sub">Within-SOXX out-of-sample test: pick the variant by train-half Sharpe, report test-half stats.</p>
-      <table class="small-table" id="splithalf-table"><thead></thead><tbody></tbody></table>
-    </section>
-  </div>
-
-  <!-- ====================== IMPROVEMENTS ====================== -->
-  <div class="tab-content" id="tab-improvements">
+  <!-- ====================== PORTFOLIO ====================== -->
+  <div class="tab-content" id="tab-portfolio">
     <div class="verdict">
-      <h2>Improvement-experiment verdict</h2>
-      <p id="impr-verdict">Loading…</p>
+      <h2>Portfolio construction verdict</h2>
+      <p id="portfolio-verdict">Loading…</p>
     </div>
 
     <section>
-      <h2>Strategy comparison — five ETFs, four strategies</h2>
-      <p class="section-sub">Each ETF runs against four strategies: buy-and-hold (no signal), the triple-combo thrust strategy (current best), Test&nbsp;1 (long-by-default with regime exits), and Test&nbsp;2 (50&nbsp;per&nbsp;cent base allocation, stepping to 100&nbsp;per&nbsp;cent when the thrust trade is active). Bottom row is Test&nbsp;3 (multi-ETF rotation, single portfolio across all five). Best Sharpe per ETF group highlighted.</p>
-      <table class="small-table" id="impr-table"><thead></thead><tbody></tbody></table>
+      <h2>Portfolio variants — relative-strength tilting</h2>
+      <p class="section-sub">All portfolios rebalance weekly (Fridays). For each rebalance, ETFs are ranked by current ma200_breadth %; the top K are selected. Within the top K, weights are either equal, decreasing with rank, or proportional to breadth strength. Leveraged variants add a 50/100 overlay: 50% allocated to the basket when basket-average breadth is ≤ 60%, 150% when above.</p>
+      <table class="small-table" id="portfolio-table"><thead></thead><tbody></tbody></table>
     </section>
 
     <section>
-      <h2>Equity curves — strategies overlaid</h2>
-      <p class="section-sub">Pick an ETF below; the chart overlays buy-and-hold, triple-combo, Test&nbsp;1 (regime overlay), and Test&nbsp;2 (50/100 size scaled). All normalised to 1.0 at the signal-eligible start.</p>
-      <div class="chart-controls">
-        <label for="impr-etf">ETF:</label>
-        <select id="impr-etf"></select>
-        <span class="pill" id="impr-pill">—</span>
-      </div>
-      <div id="impr-chart" class="chart tall"></div>
-    </section>
-
-    <section>
-      <h2>Test 3 — multi-ETF rotation portfolio</h2>
-      <p class="section-sub">A single portfolio that equal-weights across whichever of the five ETFs have a live triple-combo thrust trade on a given day; flat when none. Benchmarked against SPY buy-and-hold over the same window.</p>
-      <div id="impr-test3-chart" class="chart"></div>
+      <h2>Equity curves</h2>
+      <p class="section-sub">Comparison of the top portfolio variants vs equal-weight all-ETFs and SPY buy-and-hold.</p>
+      <div id="portfolio-chart" class="chart"></div>
     </section>
   </div>
 
-  <!-- ====================== TUNING ====================== -->
-  <div class="tab-content" id="tab-tuning">
-    <div class="verdict">
-      <h2>Tuning verdict</h2>
-      <p id="tu-verdict">Loading…</p>
-    </div>
-
+  <!-- ====================== METHOD ====================== -->
+  <div class="tab-content" id="tab-method">
     <section>
-      <h2>Best per-ETF configuration — across every variant tested</h2>
-      <p class="section-sub">For each ETF, the strongest config from the base×thrust grid (items 1+4), continuous signal (item 2), 50/100 + master-regime overlay (item 3), and the prior Test 1/2/3 batch. Sharpe is the selection criterion; buy-and-hold row shown for reference.</p>
-      <table class="small-table" id="tu-best-table"><thead></thead><tbody></tbody></table>
-    </section>
-
-    <section>
-      <h2>Base × thrust Sharpe grid (per ETF)</h2>
-      <p class="section-sub">Annualised Sharpe across base allocation (rows: % always in the ETF) × thrust allocation (columns: % held when the breadth signal is active). Greener = higher Sharpe. The signal works when greener cells sit OFF the bottom row (signal alone) and OFF the diagonal (no leverage).</p>
-      <div class="chart-controls">
-        <label for="tu-grid-etf">ETF:</label>
-        <select id="tu-grid-etf"></select>
-        <span class="pill" id="tu-grid-pill">—</span>
+      <h2>Signal definition</h2>
+      <div class="methodbox">
+        <p><strong>Breadth indicator</strong>: % of an ETF's point-in-time constituents whose closing price is above their own 200-day simple moving average. Computed daily; constituents reset weekly from the iShares UK holdings endpoint.</p>
+        <p><strong>Strategy (Family D, the headline result)</strong>:</p>
+        <ul>
+          <li>Base allocation: <code>50%</code> in the traded ETF, always.</li>
+          <li>Leveraged allocation: <code>150%</code> in the traded ETF when ma200_breadth ≥ L.</li>
+          <li>L is per-ETF, picked as the peak-Sharpe value from the sweep <code>L ∈ {50, 55, 60, 65, 70, 75, 80}</code>.</li>
+          <li>Allocation transitions use <strong>yesterday's breadth</strong> to decide today's allocation (no look-ahead).</li>
+          <li>Transaction cost: <strong>5 bps</strong> per unit of allocation change (10 bps round-trip).</li>
+        </ul>
       </div>
-      <div id="tu-grid-chart" style="width:100%;height:380px;border:1px solid var(--border);background:var(--bg-card);"></div>
     </section>
 
     <section>
-      <h2>Continuous signal (smooth allocation in [base, 1])</h2>
-      <p class="section-sub">Replaces the binary in-trade/out-of-trade state with a continuous score: allocation = 0.5 + 0.5 × clip((composite_z − p10) / (p90 − p10), 0, 1). Smoother turnover, no on/off flips.</p>
-      <table class="small-table" id="tu-cont-table"><thead></thead><tbody></tbody></table>
-    </section>
-
-    <section>
-      <h2>Master regime filter (CSP1 breadth overlay on 50/100)</h2>
-      <p class="section-sub">When SPY breadth is unhealthy (composite_z &lt; expanding p10 OR ma_breadth &lt; 0.40), force allocation to zero across every sector. Shows whether a market-wide veto reduces sector drawdowns enough to justify the cost.</p>
-      <table class="small-table" id="tu-master-table"><thead></thead><tbody></tbody></table>
-    </section>
-
-    <section>
-      <h2>OOS validation of the 50/150 SOXX winner</h2>
-      <p class="section-sub">Split the SOXX signal-eligible window at 2022-09-08. Sweep the full base × thrust grid on the TRAIN half only; pick the winner by train-half Sharpe; apply that same config without re-tuning to the TEST half. If the train-half winner holds up OOS, the parameter selection is robust across regimes (the train half includes COVID + the 2022 inflation shock; the test half includes the AI rally + Apr-2026 sell-off).</p>
-      <table class="small-table" id="tu-oos-table"><thead></thead><tbody></tbody></table>
-      <p style="margin-top:14px;color:var(--ink-faint);font-size:13px;" id="tu-oos-verdict"></p>
-    </section>
-  </div>
-
-  <!-- ====================== MA200 ====================== -->
-  <div class="tab-content" id="tab-ma200">
-    <div class="verdict">
-      <h2>MA200 verdict</h2>
-      <p id="ma200-verdict">Loading…</p>
-    </div>
-
-    <section>
-      <h2>Compare: composite signal vs MA200 single-indicator</h2>
-      <p class="section-sub">Best Sharpe per ETF, per strategy family. <strong>Family A</strong>: long 100% when % above 200d MA exceeds L, else flat. <strong>Family B</strong>: same but base 50% always (never out). <strong>Family D</strong>: base 50%, leveraged 150% when above L (apples-to-apples with the composite 50/150). <strong>Family C</strong>: long when above L, short –100% when below S. Best per ETF highlighted.</p>
-      <table class="small-table" id="ma200-compare-table"><thead></thead><tbody></tbody></table>
-    </section>
-
-    <section>
-      <h2>Long-threshold sensitivity</h2>
-      <p class="section-sub">Sharpe across long threshold L for Family D (base 50% / leveraged 150% above L). The "sweet spot" L per ETF is the peak of each line.</p>
-      <div class="chart-controls">
-        <label for="ma200-etf">ETF:</label>
-        <select id="ma200-etf"></select>
-        <span class="pill" id="ma200-pill">—</span>
+      <h2>Universe and data sources</h2>
+      <div class="methodbox">
+        <p><strong>11 ETFs in the universe</strong>: SOXX (semis), CSP1 (S&amp;P 500), CNDX (NASDAQ-100), IUES (energy), IUFS (financials), IUIT (info tech), IUHC (health care), IUIS (industrials), IUCS (consumer staples), IUCD (consumer discretionary), IUUS (utilities). The latter eight are iShares S&amp;P 500 sector UCITS funds; their trading proxies are the SPDR Select Sector ETFs (XLE, XLF, XLK, XLV, XLI, XLP, XLY, XLU). CSP1 trades via SPY; CNDX via QQQ; SOXX trades itself.</p>
+        <p><strong>Data sources</strong>: iShares UK holdings endpoint for point-in-time constituents (weekly Friday snapshots back to 2018-01-05), yfinance for adjusted close prices of constituents and trading proxies. All data is free and reproducible from the scripts in this repo.</p>
       </div>
-      <div id="ma200-sensitivity-chart" class="chart"></div>
     </section>
 
     <section>
-      <h2>Equity curve: MA200 winner vs BH (per ETF)</h2>
-      <p class="section-sub">The best Family-D variant overlaid with buy-and-hold. Log scale.</p>
-      <div id="ma200-equity-chart" class="chart"></div>
+      <h2>OOS validation</h2>
+      <div class="methodbox">
+        <p>The MA200 + 50/150 sweep is reported in-sample on the 2019-2026 window. A clean train/test OOS test was previously run on the composite breadth signal at the 2022-09-08 split; the train-half winner held up on the test half (train Sharpe +0.94 → test Sharpe +1.42 on SOXX; train winner ranked #1 of 11 cells on test grid). The MA200 sweep has not yet been formally OOS-validated; the threshold sensitivity chart on the Strategy tab provides indirect evidence (flat curves around the peak suggest L is not delicate).</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Caveats</h2>
+      <div class="methodbox">
+        <p>What this study does <em>not</em> capture:</p>
+        <ul>
+          <li><strong>Leverage borrow cost</strong>: the 50/150 sizing assumes free leverage. At a 5%/yr borrow rate on the 50% extra exposure, expect ~1.5-2.5pp annualised drag. Sharpe impact small but real.</li>
+          <li><strong>Slippage on rebalances</strong>: portfolio rebalances assume mid-spread fills. Worst-case slippage may add another 5-10 bps per rebalance.</li>
+          <li><strong>Survivorship in some price series</strong>: a few historically-acquired constituents (~5-15% of the early-window roster for some ETFs) are missing from yfinance, biasing early-window breadth measurements toward survivors. Less of an issue post-2020.</li>
+          <li><strong>The 2019-2026 window was favourable for long-only equity</strong>: US large-cap returned ~17% annualised. Any always-on strategy looks good. A regime that includes 2008 or a sustained bear market would stress-test the approach harder.</li>
+          <li><strong>Concentration risk</strong>: single-ETF strategies (especially semis at 50/150) have drawdowns in the 25-45% range. Real position sizing should account for this.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <h2>Repo + reproduce</h2>
+      <div class="methodbox">
+        <p>Full source at <a href="https://github.com/phuazz/breadth-thrust-etf">github.com/phuazz/breadth-thrust-etf</a>. To reproduce end-to-end:</p>
+        <ul>
+          <li><code>python scripts/fetch_constituents.py --etf SOXX</code> (and other ETF symbols)</li>
+          <li><code>python scripts/compute_breadth.py --etf SOXX</code></li>
+          <li><code>python scripts/run_ma200_sweep.py</code></li>
+          <li><code>python scripts/run_portfolio.py</code></li>
+          <li><code>python scripts/pipeline.py</code> (rebuilds this dashboard)</li>
+        </ul>
+        <p>An earlier iteration of this work explored a more complex composite signal (RSI breadth + MA breadth + Highs breadth + thrust detection + entry delay + trend filter) before the simpler MA200 sweep showed it generalised worse. That work is documented in the git history and the project's <a href="https://github.com/phuazz/breadth-thrust-etf#readme">README</a>.</p>
+      </div>
     </section>
   </div>
 
@@ -598,9 +444,7 @@
 
 <footer>
   <div class="container">
-    Open-source under MIT. Built with cached iShares constituent data + yfinance prices. The conclusion section in
-    the <a href="https://github.com/phuazz/breadth-thrust-etf#cross-sector-oos-sweep-next-session-item-1-executed--does-the-parameter-choice-transfer">README</a>
-    has the full narrative.
+    Open-source under MIT. Built with cached iShares UK constituent data + yfinance prices.
   </div>
 </footer>
 
@@ -609,27 +453,20 @@
 const DASHBOARD_DATA_INLINE = null;
 // __DASHBOARD_DATA_END__
 
-const ETF_LABELS = {
-  SOXX: { desc: 'iShares Semiconductor (semis)', proxy: 'SOXX', universe: '30' },
-  IUES: { desc: 'S&P 500 Energy sector',         proxy: 'XLE',  universe: '22–32' },
-  IUFS: { desc: 'S&P 500 Financials sector',     proxy: 'XLF',  universe: '67–71' },
-  CNDX: { desc: 'NASDAQ-100',                    proxy: 'QQQ',  universe: '101' },
-  CSP1: { desc: 'S&P 500 (full)',                proxy: 'SPY',  universe: '503' },
-};
-const CONFIG_KEYS = ['baseline_2xATR', 'regime_time_only', 'regime_time_only_delay5_trend'];
-const CONFIG_COLOR = {
-  baseline_2xATR: '#b76e00',
-  regime_time_only: '#1d7a3a',
-  regime_time_only_delay5_trend: '#1351b4',
+const ETF_DESCRIPTIONS = {
+  SOXX: 'iShares Semiconductor (semis)',
+  CSP1: 'S&P 500 (full)',
+  CNDX: 'NASDAQ-100',
+  IUES: 'S&P 500 Energy',
+  IUFS: 'S&P 500 Financials',
+  IUIT: 'S&P 500 Info Tech',
+  IUHC: 'S&P 500 Health Care',
+  IUIS: 'S&P 500 Industrials',
+  IUCS: 'S&P 500 Cons Staples',
+  IUCD: 'S&P 500 Cons Discretionary',
+  IUUS: 'S&P 500 Utilities',
 };
 
-function classifyMC(mc) {
-  if (mc == null) return '';
-  if (mc >= 50) return 'win-strong';
-  if (mc >= 40) return 'win-weak';
-  if (mc >= 20) return 'lose-weak';
-  return 'lose-strong';
-}
 function fmtPct(x, signed = false) {
   if (x == null || Number.isNaN(x)) return '—';
   const v = (x * 100).toFixed(1);
@@ -640,905 +477,349 @@ function fmtNum(x, digits = 2, signed = false) {
   return (signed && x > 0 ? '+' : '') + Number(x).toFixed(digits);
 }
 
-// ----------- Live signal block ------------------------------------------
-function renderLiveSignal() {
+// ----------- Monitor tab -----------------------------------------------
+function renderMonitor() {
   const data = window.DATA;
-  const live = data.live_signal;
-  if (!live) return;
-  const card = document.getElementById('live-signal-card');
-  card.style.display = 'block';
-  card.classList.toggle('in-trade', !!live.in_trade);
-  document.getElementById('live-asof').textContent = `As of ${live.latest_data_date}`;
-  document.getElementById('live-alloc').textContent = `${live.current_allocation_pct}%`;
-  document.getElementById('live-state').textContent = live.state;
-  let meta = `${live.days_since_state_change} trading day${live.days_since_state_change === 1 ? '' : 's'} in state`;
-  if (live.in_trade && live.current_trade) {
-    meta += `  ·  trade open since ${live.current_trade.entry_date} @ $${live.current_trade.entry_open.toFixed(2)}`;
-  } else if (!live.in_trade && live.last_completed_trade) {
-    const t = live.last_completed_trade;
-    meta += `  ·  last trade ${t.entry_date} → ${t.exit_date}: ${fmtPct(t.trade_return, true)} (${t.exit_reason})`;
+  const m = data.ma200?.monitor;
+  if (!m) {
+    document.getElementById('monitor-grid').innerHTML =
+      '<p style="color:var(--ink-faint);">No monitor data — run scripts/run_ma200_sweep.py.</p>';
+    return;
   }
-  document.getElementById('live-meta').textContent = meta;
-  const bc = live.breadth_context_latest;
-  let ctx = '';
-  if (bc) {
-    const triggers = [
-      bc.rsi_trigger ? 'RSI' : '·',
-      bc.ma_zweig_trigger ? 'MA-Zweig' : '·',
-      bc.highs_trigger ? 'Highs' : '·',
-    ].join(' / ');
-    ctx = `composite_z ${bc.composite_z >= 0 ? '+' : ''}${bc.composite_z.toFixed(2)} `
-        + `(p90 ${bc.composite_p90 >= 0 ? '+' : ''}${bc.composite_p90.toFixed(2)})  ·  `
-        + `triggers ${bc.trigger_count}/3 [${triggers}]  ·  `
-        + `ma_breadth ${(bc.ma_breadth * 100).toFixed(0)}%`;
-  }
-  document.getElementById('live-context').textContent = ctx;
-}
-
-// ----------- Overview tab -----------------------------------------------
-function renderMatrix(rows) {
-  const tbody = document.getElementById('cross-etf-tbody');
-  tbody.innerHTML = '';
-  for (const r of rows) {
-    const tr = document.createElement('tr');
-    const meta = ETF_LABELS[r.etf] || { desc: '', universe: '' };
-    tr.innerHTML = `
-      <td class="etf-name">${r.etf}<div class="etf-desc">${meta.desc}</div></td>
-      <td class="cell">${meta.universe}</td>
-    `;
-    for (const k of CONFIG_KEYS) {
-      const c = r.configs[k];
-      if (!c) { tr.innerHTML += `<td class="cell">—</td>`; continue; }
-      const cls = classifyMC(c.mc_pct);
-      const qual = c._label_qualifier
-        ? `<span class="qual" title="Measured on the held-out 2nd half of the window">${c._label_qualifier}</span>`
-        : '';
-      tr.innerHTML += `
-        <td class="cell ${cls}">
-          <span class="sharpe">${fmtNum(c.sharpe, 2, true)}</span>
-          <span class="mc">MC ${c.mc_pct == null ? '—' : c.mc_pct.toFixed(0)}</span>
-          ${qual}
-        </td>`;
-    }
-    tbody.appendChild(tr);
-  }
-}
-function renderCards(rows) {
-  const grid = document.getElementById('cards-grid');
+  // Summary
+  const cards = Object.values(m);
+  const inLong = cards.filter(c => c.in_long_state).length;
+  const total = cards.length;
+  const asof = cards[0]?.as_of || '—';
+  const portAvgAlloc = cards.reduce((s, c) => s + c.current_allocation_pct, 0) / Math.max(total, 1);
+  document.getElementById('monitor-summary').innerHTML = `
+    <div class="ms-stat">
+      <span class="v ${inLong > 0 ? 'good' : ''}">${inLong} / ${total}</span>
+      <span class="l">ETFs in LONG-leveraged state</span>
+    </div>
+    <div class="ms-stat">
+      <span class="v">${portAvgAlloc.toFixed(0)}%</span>
+      <span class="l">Average allocation across universe</span>
+    </div>
+    <div class="ms-stat">
+      <span class="v">${total}</span>
+      <span class="l">ETFs monitored</span>
+    </div>
+    <div class="ms-asof">As of <strong>${asof}</strong> · refresh via pipeline</div>
+  `;
+  // Cards
+  const grid = document.getElementById('monitor-grid');
   grid.innerHTML = '';
-  for (const r of rows) {
-    const meta = ETF_LABELS[r.etf] || { desc: '', proxy: r.etf };
-    let best = null;
-    for (const k of CONFIG_KEYS) {
-      const c = r.configs[k];
-      if (!c) continue;
-      if (best == null || (c.sharpe != null && c.sharpe > (best.sharpe ?? -Infinity))) {
-        best = { ...c, label: k };
-      }
-    }
-    if (!best) continue;
+  // Sort by allocation (long first), then by ETF symbol
+  const sorted = [...cards].sort((a, b) =>
+    (b.current_allocation_pct - a.current_allocation_pct) || a.etf.localeCompare(b.etf)
+  );
+  for (const c of sorted) {
     const div = document.createElement('div');
-    div.className = 'card';
+    div.className = `m-card ${c.in_long_state ? 'in-long' : 'in-base'}`;
+    const bWidth = Math.min(100, Math.max(0, c.ma200_breadth_pct ?? 0));
+    const lPos = Math.min(100, Math.max(0, c.long_threshold_pct ?? 0));
     div.innerHTML = `
-      <div class="sym">${r.etf} <span style="color:var(--ink-faint);font-weight:400;font-size:12px;">→ trade ${meta.proxy}</span></div>
-      <div class="desc">${meta.desc}</div>
-      <div class="stat"><span>Best config</span><span style="font-size:11px;">${best.label}</span></div>
-      <div class="stat"><span>Sharpe</span><span>${fmtNum(best.sharpe, 2, true)}</span></div>
-      <div class="stat"><span>Total return</span><span>${fmtPct(best.total_return, true)}</span></div>
-      <div class="stat"><span>Max DD</span><span>${fmtPct(best.max_dd)}</span></div>
-      <div class="stat"><span>Win rate</span><span>${fmtPct(best.win_rate)}</span></div>
-      <div class="stat"><span>MC %ile</span><span>${best.mc_pct == null ? '—' : best.mc_pct.toFixed(0)}</span></div>
+      <div class="row1">
+        <span class="sym">${c.etf}</span>
+        <span class="proxy">trade ${c.trading_proxy}</span>
+      </div>
+      <div style="font-size:12px;color:var(--ink-faint);margin-bottom:4px;">${ETF_DESCRIPTIONS[c.etf] || ''}</div>
+      <div class="alloc">${c.current_allocation_pct}%</div>
+      <div class="stat"><span class="l">ma200_breadth</span><span>${(c.ma200_breadth_pct ?? 0).toFixed(1)}%</span></div>
+      <div class="threshold-bar">
+        <div class="marker-b" style="width:${bWidth}%;"></div>
+        <div class="marker-l" style="left:${lPos}%;" title="threshold L=${lPos}%"></div>
+      </div>
+      <div class="stat"><span class="l">threshold L</span><span>${c.long_threshold_pct}%</span></div>
+      <div class="stat"><span class="l">days in state</span><span>${c.days_in_state}d</span></div>
+      <div class="stat"><span class="l">in-sample Sharpe</span><span>${fmtNum(c.winner_sharpe, 2, true)}</span></div>
     `;
     grid.appendChild(div);
   }
 }
 
-// ----------- Equity tab -------------------------------------------------
-const EQ_LAYOUT_BASE = {
-  margin: { l: 56, r: 14, t: 14, b: 38 },
-  paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-  font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
-  xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
-  yaxis: { title: 'Equity (normalised to 1)', gridcolor: '#eef0f3',
-           zeroline: false, type: 'log', tickformat: '.2f' },
-  hovermode: 'x unified',
-  legend: { orientation: 'h', x: 0, y: 1.08 },
-};
-function renderEquityChart() {
+// ----------- Strategy tab ----------------------------------------------
+function renderStrategyVerdict() {
   const data = window.DATA;
-  const etf = document.getElementById('eq-etf').value;
-  const cfg = document.getElementById('eq-config').value;
-  const pill = document.getElementById('eq-pill');
-  const eqAll = data.equity_curves[etf];
-  if (!eqAll) { document.getElementById('equity-chart').innerHTML = '<p style="padding:24px;color:var(--ink-faint);">No equity data.</p>'; return; }
-  const cfgEq = eqAll.configs ? eqAll.configs[cfg] : null;
-  if (!cfgEq) { document.getElementById('equity-chart').innerHTML = `<p style="padding:24px;color:var(--ink-faint);">No equity curve for ${etf} / ${cfg}.</p>`; return; }
-  const dates = eqAll.dates;
-  const proxy = ETF_LABELS[etf]?.proxy || etf;
-  const traces = [
-    { x: dates, y: cfgEq.strategy, mode: 'lines',
-      name: `Strategy — ${etf}, ${cfg}`,
-      line: { color: CONFIG_COLOR[cfg] || '#1351b4', width: 1.7 } },
-    { x: dates, y: cfgEq.traded_etf_buy_hold, mode: 'lines',
-      name: `${proxy} buy-and-hold`,
-      line: { color: '#4a5159', width: 1.2, dash: 'dot' } },
-    { x: dates, y: cfgEq.spy_buy_hold, mode: 'lines',
-      name: 'SPY buy-and-hold',
-      line: { color: '#b76e00', width: 1.0, dash: 'dot' } },
-  ];
-  Plotly.newPlot('equity-chart', traces, EQ_LAYOUT_BASE, { displayModeBar: false, responsive: true });
-  // Update pill with key stats
-  const r = data.cross_etf.find((x) => x.etf === etf);
-  const c = r?.configs?.[cfg];
-  pill.textContent = c
-    ? `n=${c.n_trades}  Sharpe ${fmtNum(c.sharpe,2,true)}  totRet ${fmtPct(c.total_return,true)}  MC ${c.mc_pct?.toFixed(0) ?? '—'}`
-    : '';
+  const m = data.ma200;
+  if (!m) return;
+  const monitor = m.monitor || {};
+  const etfs = Object.keys(monitor);
+  let beatBh = 0;
+  for (const etf of etfs) {
+    const fam_d = m.family_d_long_leveraged_base50?.[etf];
+    const bh = m.baselines?.[etf]?.buy_and_hold;
+    if (!fam_d || !bh) continue;
+    const best = fam_d.reduce((a, b) => (a.sharpe ?? -1e9) > (b.sharpe ?? -1e9) ? a : b);
+    if (best.sharpe > bh.sharpe) beatBh++;
+  }
+  document.getElementById('strategy-verdict').innerHTML =
+    `<strong>MA200 + 50/150 beats buy-and-hold on Sharpe on ${beatBh} of ${etfs.length} ETFs.</strong> `
+    + `Single textbook indicator (% of constituents above 200d MA), single sizing rule (50% base, 150% when breadth > threshold). `
+    + `Long thresholds cluster in the 50-75% range — the well-known regime zone.<br><br>`
+    + `Shorting based on low breadth was tested and never helped (best-Sharpe short threshold collapses to 10%, i.e. "essentially never short"). `
+    + `The asymmetric vol of equity ETFs plus borrow cost on inverse positions kill the structural case for short.`;
 }
 
-// ----------- Breadth tab -----------------------------------------------
-function renderBreadthChart() {
+function renderStrategyTable() {
   const data = window.DATA;
-  const etf = document.getElementById('br-etf').value;
-  const pill = document.getElementById('br-pill');
-  const bs = data.breadth?.[etf];
-  if (!bs) { document.getElementById('breadth-chart').innerHTML = '<p style="padding:24px;color:var(--ink-faint);">No breadth data.</p>'; return; }
-  const traces = [
-    { x: bs.dates, y: bs.composite_z, mode: 'lines',
-      name: 'Composite z-score',
-      line: { color: '#1351b4', width: 1.5 }, yaxis: 'y' },
-    { x: bs.dates, y: bs.ma_breadth, mode: 'lines',
-      name: '% above 50d MA', line: { color: '#1d7a3a', width: 1 }, yaxis: 'y2' },
-    { x: bs.dates, y: bs.rsi_breadth, mode: 'lines',
-      name: '% RSI > 70', line: { color: '#b76e00', width: 1 }, yaxis: 'y2' },
-    { x: bs.dates, y: bs.highs_breadth, mode: 'lines',
-      name: '% at 63d high', line: { color: '#b3261e', width: 1 }, yaxis: 'y2' },
-  ];
-  if (bs.signal_dates && bs.signal_dates.length) {
-    traces.push({
-      x: bs.signal_dates,
-      y: bs.signal_dates.map((_) => 0),
-      mode: 'markers',
-      name: 'Signal fires',
-      marker: { color: '#b3261e', size: 7, symbol: 'triangle-up' },
-      yaxis: 'y',
-      hovertemplate: 'Signal: %{x|%Y-%m-%d}<extra></extra>',
-    });
-  }
-  const layout = {
-    margin: { l: 56, r: 56, t: 14, b: 38 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
-    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
-    yaxis: { title: 'Composite z-score', gridcolor: '#eef0f3', zeroline: true,
-             zerolinecolor: '#c8ccd2', side: 'left' },
-    yaxis2: { title: 'Component share', overlaying: 'y', side: 'right',
-              tickformat: '.0%', range: [0, 1], gridcolor: 'transparent' },
-    hovermode: 'x unified',
-    legend: { orientation: 'h', x: 0, y: 1.08 },
-  };
-  Plotly.newPlot('breadth-chart', traces, layout, { displayModeBar: false, responsive: true });
-  pill.textContent = `${bs.dates.length} trading days  ·  ${bs.signal_dates?.length || 0} signal-fire days`;
-}
-
-// ----------- Trade detail tab ------------------------------------------
-const TRADE_COLS = [
-  { key: 'signal_date',  label: 'Signal',  type: 'str' },
-  { key: 'entry_date',   label: 'Entry',   type: 'str' },
-  { key: 'exit_date',    label: 'Exit',    type: 'str' },
-  { key: 'holding_days', label: 'Days',    type: 'num' },
-  { key: 'trade_return', label: 'Return',  type: 'pct' },
-  { key: 'max_drawdown', label: 'Max DD',  type: 'pct' },
-  { key: 'exit_reason',  label: 'Exit',    type: 'reason' },
-];
-let TRADE_SORT = { key: 'entry_date', desc: false };
-
-function renderTradesTable() {
-  const data = window.DATA;
-  const etf = document.getElementById('tr-etf').value;
-  const cfg = document.getElementById('tr-config').value;
-  const pill = document.getElementById('tr-pill');
-  const trades = (data.trades?.[etf]?.[cfg] || []).slice();
-  trades.sort((a, b) => {
-    const av = a[TRADE_SORT.key]; const bv = b[TRADE_SORT.key];
-    if (av == null) return 1; if (bv == null) return -1;
-    if (av < bv) return TRADE_SORT.desc ? 1 : -1;
-    if (av > bv) return TRADE_SORT.desc ? -1 : 1;
-    return 0;
-  });
-  // Header (with sort hooks)
-  const thead = document.getElementById('trades-thead');
-  thead.innerHTML = TRADE_COLS.map((col) => {
-    const sortedClass = TRADE_SORT.key === col.key ? ' sorted' + (TRADE_SORT.desc ? ' desc' : '') : '';
-    return `<th data-key="${col.key}" class="${sortedClass}">${col.label}</th>`;
-  }).join('');
-  thead.querySelectorAll('th').forEach((th) => {
-    th.addEventListener('click', () => {
-      const key = th.dataset.key;
-      if (TRADE_SORT.key === key) TRADE_SORT.desc = !TRADE_SORT.desc;
-      else { TRADE_SORT.key = key; TRADE_SORT.desc = false; }
-      renderTradesTable();
-    });
-  });
-  // Body
-  const tbody = document.getElementById('trades-tbody');
-  tbody.innerHTML = '';
-  if (trades.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="${TRADE_COLS.length}" style="text-align:center;padding:20px;color:var(--ink-faint);">No trades for ${etf} / ${cfg}.</td></tr>`;
-  }
-  for (const t of trades) {
-    const tr = document.createElement('tr');
-    const cells = TRADE_COLS.map((col) => {
-      const v = t[col.key];
-      if (v == null) return '<td>—</td>';
-      if (col.type === 'pct') {
-        const cls = v > 0 ? 'pos' : (v < 0 ? 'neg' : '');
-        return `<td class="${cls}">${fmtPct(v, true)}</td>`;
-      }
-      if (col.type === 'reason') return `<td><span class="reason ${v}">${v}</span></td>`;
-      if (col.type === 'num') return `<td>${v}</td>`;
-      return `<td>${v}</td>`;
-    });
-    tr.innerHTML = cells.join('');
-    tbody.appendChild(tr);
-  }
-  // Exit-reason chart
-  const counts = {};
-  for (const t of trades) counts[t.exit_reason] = (counts[t.exit_reason] || 0) + 1;
-  const labels = Object.keys(counts).sort();
-  const values = labels.map((l) => counts[l]);
-  if (labels.length) {
-    Plotly.newPlot('exit-reason-chart', [{
-      labels, values, type: 'pie', hole: 0.45,
-      marker: { colors: ['#b76e00', '#1d7a3a', '#1351b4', '#4a5159', '#b3261e'] },
-      textinfo: 'label+percent', textposition: 'outside',
-      automargin: true,
-    }], {
-      margin: { l: 8, r: 8, t: 8, b: 8 },
-      font: { family: 'Inter, sans-serif', size: 11 },
-      showlegend: false,
-      paper_bgcolor: '#ffffff',
-    }, { displayModeBar: false, responsive: true });
-  } else {
-    document.getElementById('exit-reason-chart').innerHTML = '';
-  }
-  // pill
-  const r = data.cross_etf.find((x) => x.etf === etf);
-  const c = r?.configs?.[cfg];
-  pill.textContent = c
-    ? `n=${trades.length}  Sharpe ${fmtNum(c.sharpe,2,true)}  totRet ${fmtPct(c.total_return,true)}`
-    : `n=${trades.length}`;
-}
-
-// ----------- Sensitivity tab -------------------------------------------
-function renderVariantsTables() {
-  const data = window.DATA;
-  const tables = [
-    { id: 'variants-exit-table',  rows: data.variants?.exit_logic,  bestKey: 'sharpe_annualised' },
-    { id: 'variants-delay-table', rows: data.variants?.entry_delay, bestKey: 'sharpe_annualised' },
-    { id: 'variants-trend-table', rows: data.variants?.trend_filter, bestKey: 'sharpe_annualised' },
-  ];
-  for (const tbl of tables) {
-    const el = document.getElementById(tbl.id);
-    if (!el || !tbl.rows) continue;
-    const rows = tbl.rows;
-    const bestVal = Math.max(...rows.map((r) => r[tbl.bestKey] ?? -Infinity));
-    el.querySelector('thead').innerHTML = `<tr>
-      <th>Variant</th><th>Trades</th><th>Win %</th><th>Median hold</th>
-      <th>Total ret</th><th>Max DD</th><th>Sharpe</th><th>MC %ile</th>
-    </tr>`;
-    el.querySelector('tbody').innerHTML = rows.map((r) => {
-      const isBest = r[tbl.bestKey] != null && r[tbl.bestKey] === bestVal;
-      return `<tr class="${isBest ? 'highlight' : ''}">
-        <td class="row-label">${r.variant}</td>
-        <td>${r.n_trades ?? '—'}</td>
-        <td>${fmtPct(r.win_rate)}</td>
-        <td>${r.median_holding_days != null ? r.median_holding_days.toFixed(0) + 'd' : '—'}</td>
-        <td>${fmtPct(r.equity_curve_total_return, true)}</td>
-        <td>${fmtPct(r.equity_curve_max_dd)}</td>
-        <td>${fmtNum(r.sharpe_annualised, 2, true)}</td>
-        <td>${r.mc_strategy_total_return_percentile != null ? r.mc_strategy_total_return_percentile.toFixed(0) : '—'}</td>
-      </tr>`;
-    }).join('');
-  }
-  // Split-half table
-  const sh = data.splithalf;
-  const el = document.getElementById('splithalf-table');
-  if (sh && el) {
-    el.querySelector('thead').innerHTML = `<tr>
-      <th>Variant</th>
-      <th>Train n</th><th>Train Sharpe</th><th>Train MC%</th>
-      <th>Test n</th><th>Test Sharpe</th><th>Test totRet</th><th>Test MC%</th>
-    </tr>`;
-    const bestTrainSh = Math.max(...sh.map((r) => r.train?.sharpe_annualised ?? -Infinity));
-    el.querySelector('tbody').innerHTML = sh.map((r) => {
-      const isBest = r.train?.sharpe_annualised === bestTrainSh;
-      return `<tr class="${isBest ? 'highlight' : ''}">
-        <td class="row-label">${r.variant}</td>
-        <td>${r.train?.n_trades ?? '—'}</td>
-        <td>${fmtNum(r.train?.sharpe_annualised, 2, true)}</td>
-        <td>${r.train?.mc_strategy_total_return_percentile != null ? r.train.mc_strategy_total_return_percentile.toFixed(0) : '—'}</td>
-        <td>${r.test?.n_trades ?? '—'}</td>
-        <td>${fmtNum(r.test?.sharpe_annualised, 2, true)}</td>
-        <td>${fmtPct(r.test?.equity_curve_total_return, true)}</td>
-        <td>${r.test?.mc_strategy_total_return_percentile != null ? r.test.mc_strategy_total_return_percentile.toFixed(0) : '—'}</td>
-      </tr>`;
-    }).join('');
-  }
-}
-
-// ----------- Improvements tab ------------------------------------------
-const IMPR_STRATEGY_KEYS = [
-  { key: 'buy_and_hold',          label: '0. Buy-and-hold',           color: '#6b727a' },
-  { key: 'triple_combo',          label: '0. Triple combo',           color: '#1351b4' },
-  { key: 'test_1_regime_overlay', label: '1. Long-by-default regime', color: '#1d7a3a' },
-  { key: 'test_2_size_scaled',    label: '2. Size-scaled 50/100',     color: '#b3261e' },
-];
-
-function _getImprStrategy(data, etf, key) {
-  if (key === 'buy_and_hold' || key === 'triple_combo') {
-    return data.improvements?.baselines?.[etf]?.[key];
-  }
-  return data.improvements?.[key]?.[etf];
-}
-
-function renderImprTable() {
-  const data = window.DATA;
-  if (!data.improvements) return;
-  const el = document.getElementById('impr-table');
+  const m = data.ma200;
+  if (!m) return;
+  const el = document.getElementById('strategy-table');
   el.querySelector('thead').innerHTML = `<tr>
-    <th>Strategy</th><th>ETF</th><th>TotRet</th><th>CAGR</th>
-    <th>Sharpe</th><th>Max DD</th><th>Time in mkt</th>
+    <th>ETF</th><th>Description</th><th>L (%)</th>
+    <th>Sharpe</th><th>BH Sharpe</th><th>Δ vs BH</th>
+    <th>Total return</th><th>BH total return</th>
+    <th>Max DD</th><th>Trades</th>
   </tr>`;
   const tbody = el.querySelector('tbody');
   tbody.innerHTML = '';
-  const etfs = ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1'];
+  const etfs = Object.keys(m.monitor || {});
   for (const etf of etfs) {
-    // find best Sharpe for this ETF
-    let bestSh = -Infinity;
-    for (const s of IMPR_STRATEGY_KEYS) {
-      const v = _getImprStrategy(data, etf, s.key);
-      if (v?.sharpe != null && v.sharpe > bestSh) bestSh = v.sharpe;
-    }
-    for (const s of IMPR_STRATEGY_KEYS) {
-      const v = _getImprStrategy(data, etf, s.key);
-      if (!v) continue;
-      const isBest = v.sharpe === bestSh;
-      tbody.innerHTML += `<tr class="${isBest ? 'highlight' : ''}">
-        <td class="row-label">${s.label}</td>
-        <td>${etf}</td>
-        <td>${fmtPct(v.total_return, true)}</td>
-        <td>${fmtPct(v.cagr, true)}</td>
-        <td><strong>${fmtNum(v.sharpe, 2, true)}</strong></td>
-        <td>${fmtPct(v.max_dd)}</td>
-        <td>${v.time_in_market != null ? (v.time_in_market * 100).toFixed(0) + '%' : '—'}</td>
-      </tr>`;
-    }
-  }
-  // Test 3 row
-  const t3 = data.improvements.test_3_multi_etf_rotation;
-  if (t3) {
-    tbody.innerHTML += `<tr style="border-top: 2px solid var(--border-strong);">
-      <td class="row-label">3. Multi-ETF rotation</td>
-      <td>PORT</td>
-      <td>${fmtPct(t3.total_return, true)}</td>
-      <td>${fmtPct(t3.cagr, true)}</td>
-      <td><strong>${fmtNum(t3.sharpe, 2, true)}</strong></td>
-      <td>${fmtPct(t3.max_dd)}</td>
-      <td>${t3.time_in_market != null ? (t3.time_in_market * 100).toFixed(0) + '%' : '—'}</td>
-    </tr>`;
-    const spy = t3.spy_buy_hold;
-    if (spy) {
-      tbody.innerHTML += `<tr style="color:var(--ink-faint);">
-        <td class="row-label" style="padding-left: 22px;">↳ SPY buy-and-hold (bench)</td>
-        <td>SPY</td>
-        <td>${fmtPct(spy.total_return, true)}</td>
-        <td>${fmtPct(spy.cagr, true)}</td>
-        <td>${fmtNum(spy.sharpe, 2, true)}</td>
-        <td>${fmtPct(spy.max_dd)}</td>
-        <td>100%</td>
-      </tr>`;
-    }
-  }
-}
-
-function renderImprChart() {
-  const data = window.DATA;
-  if (!data.improvements) return;
-  const etf = document.getElementById('impr-etf').value;
-  const traces = [];
-  for (const s of IMPR_STRATEGY_KEYS) {
-    const v = _getImprStrategy(data, etf, s.key);
-    if (!v?.dates || !v?.equity) continue;
-    traces.push({
-      x: v.dates, y: v.equity, mode: 'lines',
-      name: `${s.label}${v.sharpe != null ? ` — Shp ${fmtNum(v.sharpe, 2, true)}` : ''}`,
-      line: { color: s.color, width: s.key === 'buy_and_hold' ? 1.2 : 1.6,
-              dash: s.key === 'buy_and_hold' ? 'dot' : 'solid' },
-    });
-  }
-  const layout = {
-    margin: { l: 56, r: 14, t: 14, b: 38 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
-    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
-    yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3',
-             zeroline: false, type: 'log', tickformat: '.2f' },
-    hovermode: 'x unified',
-    legend: { orientation: 'h', x: 0, y: 1.08 },
-  };
-  Plotly.newPlot('impr-chart', traces, layout, { displayModeBar: false, responsive: true });
-  // Pill
-  const bh = data.improvements.baselines[etf]?.buy_and_hold;
-  const t2 = data.improvements.test_2_size_scaled[etf];
-  const pill = document.getElementById('impr-pill');
-  if (bh && t2) {
-    pill.textContent = `BH Sharpe ${fmtNum(bh.sharpe, 2, true)}  ·  Test 2 (50/100) Sharpe ${fmtNum(t2.sharpe, 2, true)}`;
-  } else {
-    pill.textContent = '—';
-  }
-}
-
-function renderImprTest3Chart() {
-  const data = window.DATA;
-  const t3 = data.improvements?.test_3_multi_etf_rotation;
-  if (!t3?.dates) return;
-  const traces = [
-    { x: t3.dates, y: t3.equity, mode: 'lines',
-      name: `Multi-ETF rotation — Shp ${fmtNum(t3.sharpe, 2, true)}`,
-      line: { color: '#1351b4', width: 1.7 } },
-  ];
-  if (t3.spy_buy_hold) {
-    traces.push({
-      x: t3.spy_buy_hold.dates, y: t3.spy_buy_hold.equity, mode: 'lines',
-      name: `SPY buy-and-hold — Shp ${fmtNum(t3.spy_buy_hold.sharpe, 2, true)}`,
-      line: { color: '#6b727a', width: 1.2, dash: 'dot' },
-    });
-  }
-  const layout = {
-    margin: { l: 56, r: 14, t: 14, b: 38 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
-    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
-    yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3',
-             zeroline: false, type: 'log', tickformat: '.2f' },
-    hovermode: 'x unified',
-    legend: { orientation: 'h', x: 0, y: 1.08 },
-  };
-  Plotly.newPlot('impr-test3-chart', traces, layout, { displayModeBar: false, responsive: true });
-}
-
-function renderImprVerdict() {
-  const data = window.DATA;
-  if (!data.improvements) return;
-  // Pull SOXX comparison since it's the headline
-  const bh = data.improvements.baselines.SOXX?.buy_and_hold;
-  const t2 = data.improvements.test_2_size_scaled?.SOXX;
-  const tr = data.improvements.baselines.SOXX?.triple_combo;
-  if (!bh || !t2 || !tr) return;
-  document.getElementById('impr-verdict').innerHTML =
-    `On SOXX, the 50/100 size-scaled variant (Test 2) delivers Sharpe `
-    + `<strong>${fmtNum(t2.sharpe, 2, true)}</strong>, beating both buy-and-hold (${fmtNum(bh.sharpe, 2, true)}) `
-    + `and the original triple-combo signal-only strategy (${fmtNum(tr.sharpe, 2, true)}), with `
-    + `materially lower max drawdown (${fmtPct(t2.max_dd)} vs ${fmtPct(bh.max_dd)} buy-and-hold).<br><br>`
-    + `Test 1 (regime overlay) recovers most of the buy-and-hold return on every ETF but `
-    + `does not beat it on Sharpe. Test 3 (multi-ETF rotation) underperforms SPY buy-and-hold. `
-    + `The clean lesson: <strong>the thrust signal works best as a sizing modifier on top of an always-on base position</strong>, `
-    + `not as an in/out trigger that leaves you flat 60+ per cent of the time.`;
-}
-
-// ----------- Tuning tab -----------------------------------------------
-function _gridBest(grid) {
-  if (!grid || !grid.length) return null;
-  return grid.reduce((a, b) => (a.sharpe ?? -1e9) >= (b.sharpe ?? -1e9) ? a : b);
-}
-
-function renderTuningBestTable() {
-  const data = window.DATA;
-  const t = data.tuning;
-  if (!t) return;
-  const el = document.getElementById('tu-best-table');
-  el.querySelector('thead').innerHTML = `<tr>
-    <th>ETF</th><th>Winner</th><th>Sharpe</th><th>Total ret</th>
-    <th>Max DD</th><th>BH Sharpe</th><th>Δ Sharpe vs BH</th>
-  </tr>`;
-  const etfs = ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1'];
-  const rows = [];
-  for (const etf of etfs) {
-    const candidates = [];
-    // From base/thrust grid
-    const gridBest = _gridBest(t.base_thrust_grid?.[etf]);
-    if (gridBest) candidates.push({
-      label: `Grid b${gridBest.base_pct}/t${gridBest.thrust_pct}`,
-      sharpe: gridBest.sharpe, total_return: gridBest.total_return, max_dd: gridBest.max_dd,
-    });
-    // Continuous
-    const c = t.continuous_signal_base50?.[etf];
-    if (c) candidates.push({
-      label: 'Continuous signal (base 0.5)',
-      sharpe: c.sharpe, total_return: c.total_return, max_dd: c.max_dd,
-    });
-    // Master overlay
-    const m = t.master_csp1_overlay_on_50_100?.[etf]?.with_master_filter;
-    if (m) candidates.push({
-      label: '50/100 + master filter',
-      sharpe: m.sharpe, total_return: m.total_return, max_dd: m.max_dd,
-    });
-    // Test 2 (from improvements)
-    const t2 = data.improvements?.test_2_size_scaled?.[etf];
-    if (t2) candidates.push({
-      label: 'Test 2 (50/100 binary)',
-      sharpe: t2.sharpe, total_return: t2.total_return, max_dd: t2.max_dd,
-    });
-    const best = candidates.reduce((a, b) => (a.sharpe ?? -1e9) >= (b.sharpe ?? -1e9) ? a : b);
-    const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
-    rows.push({ etf, best, bh });
-  }
-  el.querySelector('tbody').innerHTML = rows.map(r => {
-    const delta = r.best.sharpe - (r.bh?.sharpe ?? 0);
-    const win = delta > 0;
-    return `<tr class="${win ? 'highlight' : ''}">
-      <td class="row-label">${r.etf}</td>
-      <td class="row-label" style="font-size:11px;">${r.best.label}</td>
-      <td><strong>${fmtNum(r.best.sharpe, 2, true)}</strong></td>
-      <td>${fmtPct(r.best.total_return, true)}</td>
-      <td>${fmtPct(r.best.max_dd)}</td>
-      <td>${fmtNum(r.bh?.sharpe, 2, true)}</td>
-      <td style="color:${win ? 'var(--good)' : 'var(--bad)'};font-weight:600;">${fmtNum(delta, 2, true)}</td>
-    </tr>`;
-  }).join('');
-}
-
-function renderTuningGridChart() {
-  const data = window.DATA;
-  const t = data.tuning;
-  if (!t) return;
-  const etf = document.getElementById('tu-grid-etf').value;
-  const grid = t.base_thrust_grid?.[etf];
-  if (!grid) return;
-  // Build matrix: x = thrust values, y = base values, z = Sharpe
-  const bases = Array.from(new Set(grid.map(r => r.base_pct))).sort((a, b) => a - b);
-  const thrusts = Array.from(new Set(grid.map(r => r.thrust_pct))).sort((a, b) => a - b);
-  const z = bases.map(b => thrusts.map(th => {
-    const cell = grid.find(r => r.base_pct === b && r.thrust_pct === th);
-    return cell?.sharpe ?? null;
-  }));
-  const text = bases.map(b => thrusts.map(th => {
-    const cell = grid.find(r => r.base_pct === b && r.thrust_pct === th);
-    if (!cell || cell.sharpe == null) return '—';
-    return `<b>${fmtNum(cell.sharpe, 2, true)}</b><br>${fmtPct(cell.total_return, true)}<br>DD ${fmtPct(cell.max_dd)}`;
-  }));
-  const trace = {
-    type: 'heatmap',
-    x: thrusts.map(t => `${t}%`), y: bases.map(b => `${b}%`),
-    z, text, hoverinfo: 'text',
-    colorscale: [
-      [0.0, '#b3261e'], [0.3, '#f0c068'], [0.5, '#e6e8eb'],
-      [0.7, '#86c39a'], [1.0, '#1d7a3a'],
-    ],
-    showscale: true, zmid: 0,
-  };
-  const layout = {
-    margin: { l: 76, r: 14, t: 14, b: 38 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
-    xaxis: { title: 'Thrust allocation (when signal active)', side: 'bottom' },
-    yaxis: { title: 'Base allocation (always)', autorange: 'reversed' },
-  };
-  Plotly.newPlot('tu-grid-chart', [trace], layout, { displayModeBar: false, responsive: true });
-  // Pill: best cell
-  const best = _gridBest(grid);
-  const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
-  if (best) {
-    document.getElementById('tu-grid-pill').textContent =
-      `Best: b=${best.base_pct}/t=${best.thrust_pct}  Sharpe ${fmtNum(best.sharpe,2,true)}  `
-      + `vs BH ${fmtNum(bh?.sharpe, 2, true)}  →  Δ ${fmtNum(best.sharpe - (bh?.sharpe ?? 0), 2, true)}`;
-  }
-}
-
-function renderTuningContTable() {
-  const data = window.DATA;
-  const t = data.tuning;
-  if (!t?.continuous_signal_base50) return;
-  const el = document.getElementById('tu-cont-table');
-  el.querySelector('thead').innerHTML = `<tr>
-    <th>ETF</th><th>Sharpe</th><th>Total ret</th><th>Max DD</th>
-    <th>Mean alloc when in</th><th>BH Sharpe</th><th>Δ vs BH</th>
-  </tr>`;
-  const etfs = ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1'];
-  const bestSh = Math.max(...etfs.map(e => t.continuous_signal_base50[e]?.sharpe ?? -1e9));
-  el.querySelector('tbody').innerHTML = etfs.map(etf => {
-    const c = t.continuous_signal_base50[etf];
-    const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
-    if (!c) return '';
-    const delta = c.sharpe - (bh?.sharpe ?? 0);
-    const isBest = c.sharpe === bestSh;
-    return `<tr class="${isBest ? 'highlight' : ''}">
+    const fam_d = m.family_d_long_leveraged_base50?.[etf];
+    const bh = m.baselines?.[etf]?.buy_and_hold;
+    const detail = m.per_etf_detail?.[etf];
+    if (!fam_d || !bh) continue;
+    const best = fam_d.reduce((a, b) => (a.sharpe ?? -1e9) > (b.sharpe ?? -1e9) ? a : b);
+    const delta = (best.sharpe ?? 0) - (bh.sharpe ?? 0);
+    const isWin = delta > 0;
+    tbody.innerHTML += `<tr class="${isWin ? 'highlight' : ''}">
       <td class="row-label">${etf}</td>
-      <td><strong>${fmtNum(c.sharpe, 2, true)}</strong></td>
-      <td>${fmtPct(c.total_return, true)}</td>
-      <td>${fmtPct(c.max_dd)}</td>
-      <td>${c.mean_alloc_when_in != null ? (c.mean_alloc_when_in * 100).toFixed(0) + '%' : '—'}</td>
-      <td>${fmtNum(bh?.sharpe, 2, true)}</td>
-      <td style="color:${delta > 0 ? 'var(--good)' : 'var(--bad)'};font-weight:600;">${fmtNum(delta, 2, true)}</td>
+      <td style="color:var(--ink-faint);font-size:13px;">${ETF_DESCRIPTIONS[etf] || ''}</td>
+      <td class="num">${best.long_threshold}</td>
+      <td class="num"><strong>${fmtNum(best.sharpe, 2, true)}</strong></td>
+      <td class="num">${fmtNum(bh.sharpe, 2, true)}</td>
+      <td class="num ${delta > 0 ? 'good' : 'bad'}">${fmtNum(delta, 2, true)}</td>
+      <td class="num">${fmtPct(best.total_return, true)}</td>
+      <td class="num">${fmtPct(bh.total_return, true)}</td>
+      <td class="num">${fmtPct(best.max_dd)}</td>
+      <td class="num">${detail?.n_episodes ?? '—'}</td>
     </tr>`;
-  }).join('');
+  }
 }
 
-function renderTuningMasterTable() {
-  const data = window.DATA;
-  const t = data.tuning;
-  if (!t?.master_csp1_overlay_on_50_100) return;
-  const el = document.getElementById('tu-master-table');
-  el.querySelector('thead').innerHTML = `<tr>
-    <th>ETF</th>
-    <th>50/100 Sharpe</th><th>+ filter Sharpe</th><th>Δ Sharpe</th>
-    <th>50/100 Max DD</th><th>+ filter Max DD</th><th>Δ Max DD</th>
-  </tr>`;
-  const etfs = ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1'];
-  el.querySelector('tbody').innerHTML = etfs.map(etf => {
-    const row = t.master_csp1_overlay_on_50_100[etf];
-    if (!row) return '';
-    const w = row.with_master_filter;
-    const wo = row.without_master_filter;
-    const dSh = (w?.sharpe ?? 0) - (wo?.sharpe ?? 0);
-    const dDD = (w?.max_dd ?? 0) - (wo?.max_dd ?? 0);
-    return `<tr>
-      <td class="row-label">${etf}</td>
-      <td>${fmtNum(wo?.sharpe, 2, true)}</td>
-      <td>${fmtNum(w?.sharpe, 2, true)}</td>
-      <td style="color:${dSh > 0 ? 'var(--good)' : 'var(--bad)'};">${fmtNum(dSh, 2, true)}</td>
-      <td>${fmtPct(wo?.max_dd)}</td>
-      <td>${fmtPct(w?.max_dd)}</td>
-      <td style="color:${dDD < 0 ? 'var(--good)' : 'var(--bad)'};">${fmtPct(dDD, true)}</td>
-    </tr>`;
-  }).join('');
-}
-
-function renderTuningOOSTable() {
-  const data = window.DATA;
-  const o = data.oos_validation;
-  if (!o) return;
-  const el = document.getElementById('tu-oos-table');
-  el.querySelector('thead').innerHTML = `<tr>
-    <th>Window</th><th>Config</th><th>n trades</th><th>Sharpe</th>
-    <th>Total ret</th><th>Max DD</th><th>vs BH Sharpe</th>
-  </tr>`;
-  const tw = o.train_winner;
-  const ts = o.test_winner_stats;
-  const bht = o.bh_train_stats;
-  const bhe = o.bh_test_stats;
-  el.querySelector('tbody').innerHTML = `
-    <tr>
-      <td class="row-label">Train half (${o.train_start} → ${o.train_end})</td>
-      <td class="row-label">Buy-and-hold</td>
-      <td>—</td>
-      <td>${fmtNum(bht?.sharpe, 2, true)}</td>
-      <td>${fmtPct(bht?.total_return, true)}</td>
-      <td>${fmtPct(bht?.max_dd)}</td>
-      <td>—</td>
-    </tr>
-    <tr class="highlight">
-      <td class="row-label">Train half (selection)</td>
-      <td class="row-label">Winner: b=${tw?.base_pct}/t=${tw?.thrust_pct}</td>
-      <td>${tw?.n_trades_in_period}</td>
-      <td><strong>${fmtNum(tw?.sharpe, 2, true)}</strong></td>
-      <td>${fmtPct(tw?.total_return, true)}</td>
-      <td>${fmtPct(tw?.max_dd)}</td>
-      <td style="color:${(tw?.sharpe ?? 0) > (bht?.sharpe ?? 0) ? 'var(--good)' : 'var(--bad)'};font-weight:600;">${fmtNum((tw?.sharpe ?? 0) - (bht?.sharpe ?? 0), 2, true)}</td>
-    </tr>
-    <tr>
-      <td class="row-label">Test half (${o.test_start} → ${o.test_end})</td>
-      <td class="row-label">Buy-and-hold</td>
-      <td>—</td>
-      <td>${fmtNum(bhe?.sharpe, 2, true)}</td>
-      <td>${fmtPct(bhe?.total_return, true)}</td>
-      <td>${fmtPct(bhe?.max_dd)}</td>
-      <td>—</td>
-    </tr>
-    <tr class="highlight">
-      <td class="row-label">Test half (HELD-OUT)</td>
-      <td class="row-label">Same b=${tw?.base_pct}/t=${tw?.thrust_pct}, no re-tune</td>
-      <td>${ts?.n_trades_in_period}</td>
-      <td><strong>${fmtNum(ts?.sharpe, 2, true)}</strong></td>
-      <td>${fmtPct(ts?.total_return, true)}</td>
-      <td>${fmtPct(ts?.max_dd)}</td>
-      <td style="color:${(ts?.sharpe ?? 0) > (bhe?.sharpe ?? 0) ? 'var(--good)' : 'var(--bad)'};font-weight:600;">${fmtNum((ts?.sharpe ?? 0) - (bhe?.sharpe ?? 0), 2, true)}</td>
-    </tr>
-  `;
-  const rank = o.rank_of_train_winner_on_test;
-  const totalCells = o.test_grid?.length ?? 11;
-  document.getElementById('tu-oos-verdict').innerHTML =
-    `The train-half winner (b=${tw?.base_pct}/t=${tw?.thrust_pct}) ranks `
-    + `<strong>#${rank} of ${totalCells}</strong> cells on the test-half grid `
-    + `— ${rank === 1 ? '<strong style="color:var(--good)">it is also the test-half best cell</strong>. ' : ''}`
-    + `On the held-out test half, the same config delivers Sharpe `
-    + `<strong>${fmtNum(ts?.sharpe, 2, true)}</strong>, beating SOXX buy-and-hold (`
-    + `${fmtNum(bhe?.sharpe, 2, true)}) by ${fmtNum((ts?.sharpe ?? 0) - (bhe?.sharpe ?? 0), 2, true)} Sharpe. `
-    + `Total return ${fmtPct(ts?.total_return, true)} vs BH ${fmtPct(bhe?.total_return, true)}, `
-    + `max DD ${fmtPct(ts?.max_dd)} vs BH ${fmtPct(bhe?.max_dd)}. `
-    + `The parameter choice is not overfit to the train-half regime.`;
-}
-
-function renderTuningVerdict() {
-  const data = window.DATA;
-  const t = data.tuning;
-  if (!t?.base_thrust_grid?.SOXX) return;
-  const best = _gridBest(t.base_thrust_grid.SOXX);
-  const bh = data.improvements?.baselines?.SOXX?.buy_and_hold;
-  if (!best || !bh) return;
-  document.getElementById('tu-verdict').innerHTML =
-    `The strongest config across every variant tested in this session: `
-    + `<strong>SOXX with base ${best.base_pct}% / thrust ${best.thrust_pct}%</strong> `
-    + `delivers Sharpe <strong>${fmtNum(best.sharpe, 2, true)}</strong> and total return `
-    + `<strong>${fmtPct(best.total_return, true)}</strong> with max drawdown ${fmtPct(best.max_dd)}. `
-    + `This beats SOXX buy-and-hold (Sharpe ${fmtNum(bh.sharpe, 2, true)}, total return ${fmtPct(bh.total_return, true)}, max DD ${fmtPct(bh.max_dd)}) `
-    + `on every dimension.<br><br>`
-    + `On the broader benchmarks (CNDX 100/150 beats QQQ BH, CSP1 100/150 beats SPY BH) the signal also adds value as a leverage modifier — but only marginally. The Sharpe gain is most concentrated on SOXX. `
-    + `The continuous-signal and master-regime-filter variants underperform the discrete 50/100 + leverage approach on Sharpe terms. `
-    + `Energy and Financials remain best held as plain buy-and-hold — no parameter combination there beats the index.`;
-}
-
-// ----------- MA200 tab -------------------------------------------------
-function _bestRow(rows) {
-  if (!rows || !rows.length) return null;
-  return rows.reduce((a, b) => (a.sharpe ?? -1e9) >= (b.sharpe ?? -1e9) ? a : b);
-}
-
-function renderMa200CompareTable() {
+function renderStrategyRobustness() {
   const data = window.DATA;
   const m = data.ma200;
   if (!m) return;
-  const el = document.getElementById('ma200-compare-table');
-  el.querySelector('thead').innerHTML = `<tr>
-    <th>ETF</th><th>BH</th>
-    <th>A (long-flat)</th>
-    <th>B (50/100)</th>
-    <th>D (50/150)</th>
-    <th>C (long/short)</th>
-    <th>Composite 50/150</th>
-  </tr>`;
-  const etfs = ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1'];
-  const composite = data.tuning?.base_thrust_grid || {};
-  el.querySelector('tbody').innerHTML = etfs.map(etf => {
-    const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
-    const a = _bestRow(m.family_a_long_flat?.[etf]);
-    const b = _bestRow(m.family_b_long_base50?.[etf]);
-    const d = _bestRow(m.family_d_long_leveraged_base50?.[etf]);
-    const c = _bestRow(m.family_c_long_short?.[etf]);
-    const comp = _bestRow((composite[etf] || []).map(r => ({...r, sharpe: r.sharpe})));
-    const sharpes = [a, b, d, c, comp].map(r => r?.sharpe ?? -Infinity);
-    const bestSh = Math.max(...sharpes);
-    const cell = (label, x) => {
-      if (!x) return '<td>—</td>';
-      const isBest = x.sharpe === bestSh;
-      return `<td class="${isBest ? 'highlight' : ''}" style="font-family:'JetBrains Mono',monospace;">
-        ${label}<br>
-        <strong>${fmtNum(x.sharpe, 2, true)}</strong>
-        <span style="color:var(--ink-faint);">/ ${fmtPct(x.total_return, true)}</span>
-      </td>`;
-    };
-    return `<tr>
-      <td class="row-label"><strong>${etf}</strong><br>
-        <span style="color:var(--ink-faint);font-size:11px;">${ETF_LABELS[etf]?.desc || ''}</span></td>
-      <td style="font-family:'JetBrains Mono',monospace;">
-        ${fmtNum(bh?.sharpe, 2, true)}<br>
-        <span style="color:var(--ink-faint);">/ ${fmtPct(bh?.total_return, true)}</span></td>
-      ${cell(`L=${a?.long_threshold ?? '—'}`, a)}
-      ${cell(`L=${b?.long_threshold ?? '—'}`, b)}
-      ${cell(`L=${d?.long_threshold ?? '—'}`, d)}
-      ${cell(`L=${c?.long_threshold ?? '—'}/S=${c?.short_threshold ?? '—'}`, c)}
-      ${cell(`b=${comp?.base_pct ?? '—'}/t=${comp?.thrust_pct ?? '—'}`, comp)}
-    </tr>`;
-  }).join('');
-}
-
-function renderMa200Sensitivity() {
-  const data = window.DATA;
-  const m = data.ma200;
-  if (!m) return;
-  const etf = document.getElementById('ma200-etf').value;
-  const fam_d = m.family_d_long_leveraged_base50?.[etf];
-  const fam_b = m.family_b_long_base50?.[etf];
-  const fam_a = m.family_a_long_flat?.[etf];
-  const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
   const traces = [];
-  if (fam_a) traces.push({
-    x: fam_a.map(r => r.long_threshold), y: fam_a.map(r => r.sharpe),
-    mode: 'lines+markers', name: 'A: long-flat',
-    line: { color: '#6b727a', width: 1.5 },
-  });
-  if (fam_b) traces.push({
-    x: fam_b.map(r => r.long_threshold), y: fam_b.map(r => r.sharpe),
-    mode: 'lines+markers', name: 'B: base50 / 100',
-    line: { color: '#1d7a3a', width: 1.5 },
-  });
-  if (fam_d) traces.push({
-    x: fam_d.map(r => r.long_threshold), y: fam_d.map(r => r.sharpe),
-    mode: 'lines+markers', name: 'D: base50 / 150 (leveraged)',
-    line: { color: '#1351b4', width: 2 },
-  });
-  if (bh) traces.push({
-    x: [50, 80], y: [bh.sharpe, bh.sharpe],
-    mode: 'lines', name: `${etf} buy-and-hold (${fmtNum(bh.sharpe,2,true)})`,
-    line: { color: '#b76e00', width: 1, dash: 'dot' },
-  });
+  const etfs = Object.keys(m.monitor || {});
+  const colors = ['#1351b4', '#1d7a3a', '#b76e00', '#b3261e', '#8e44ad',
+                   '#16a085', '#d35400', '#2c3e50', '#7f8c8d', '#c0392b', '#27ae60'];
+  for (let i = 0; i < etfs.length; i++) {
+    const etf = etfs[i];
+    const rows = m.family_d_long_leveraged_base50?.[etf];
+    if (!rows) continue;
+    traces.push({
+      x: rows.map(r => r.long_threshold),
+      y: rows.map(r => r.sharpe),
+      mode: 'lines+markers',
+      name: etf,
+      line: { color: colors[i % colors.length], width: 1.5 },
+      marker: { size: 6 },
+    });
+  }
   const layout = {
     margin: { l: 56, r: 14, t: 14, b: 44 },
     paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
     font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
     xaxis: { title: 'Long threshold L (% constituents above 200d MA)',
              gridcolor: '#eef0f3', zeroline: false, dtick: 5 },
-    yaxis: { title: 'Annualised Sharpe', gridcolor: '#eef0f3', zeroline: true,
-             zerolinecolor: '#c8ccd2' },
+    yaxis: { title: 'Annualised Sharpe', gridcolor: '#eef0f3',
+             zeroline: true, zerolinecolor: '#c8ccd2' },
     hovermode: 'x unified',
     legend: { orientation: 'h', x: 0, y: 1.12 },
   };
-  Plotly.newPlot('ma200-sensitivity-chart', traces, layout, { displayModeBar: false, responsive: true });
-  // Pill
-  const best = _bestRow(fam_d);
-  if (best) {
-    document.getElementById('ma200-pill').textContent =
-      `Family D winner: L=${best.long_threshold}  Sharpe ${fmtNum(best.sharpe,2,true)}  `
-      + `vs BH ${fmtNum(bh?.sharpe, 2, true)}  →  Δ ${fmtNum(best.sharpe - (bh?.sharpe ?? 0), 2, true)}`;
-  }
-  // Re-render the equity chart too
-  renderMa200Equity();
+  Plotly.newPlot('strategy-robustness-chart', traces, layout, { displayModeBar: false, responsive: true });
 }
 
-function renderMa200Equity() {
+// ----------- ETF Detail tab --------------------------------------------
+function renderDetail() {
   const data = window.DATA;
   const m = data.ma200;
   if (!m) return;
-  const etf = document.getElementById('ma200-etf').value;
-  const w = m.winner_equity_curves?.[etf];
-  if (!w) return;
-  const dFam = w.family_d;
-  const bh = w.buy_and_hold;
-  const traces = [];
-  if (dFam) traces.push({
-    x: dFam.dates, y: dFam.equity, mode: 'lines',
-    name: `${dFam.label} — Sharpe ${fmtNum(dFam.sharpe, 2, true)}`,
-    line: { color: '#1351b4', width: 1.7 },
-  });
-  if (bh) traces.push({
-    x: bh.dates, y: bh.equity, mode: 'lines',
-    name: `${bh.label} — Sharpe ${fmtNum(bh.sharpe, 2, true)}`,
-    line: { color: '#6b727a', width: 1.2, dash: 'dot' },
-  });
+  const etf = document.getElementById('detail-etf').value;
+  if (!etf) return;
+  const monitor = m.monitor?.[etf];
+  const detail = m.per_etf_detail?.[etf];
+  const winnerEq = m.winner_equity_curves?.[etf];
+  const bh = m.baselines?.[etf]?.buy_and_hold;
+  // Pill
+  document.getElementById('detail-pill').textContent =
+    `L=${monitor?.long_threshold_pct ?? '—'}%  ·  Sharpe ${fmtNum(monitor?.winner_sharpe, 2, true)}  ·  `
+    + `${monitor?.in_long_state ? 'IN LONG (150%)' : 'BASE (50%)'} for ${monitor?.days_in_state ?? 0}d`;
+
+  // Breadth chart with threshold band
+  if (detail) {
+    const dates = detail.breadth_dates;
+    const breadth = detail.breadth_pct;
+    const L = detail.chosen_long_threshold;
+    const traces = [
+      // Threshold zone shading (above L = leveraged)
+      {
+        x: [dates[0], dates[dates.length - 1], dates[dates.length - 1], dates[0]],
+        y: [L, L, 100, 100],
+        fill: 'toself', mode: 'none',
+        fillcolor: 'rgba(29, 122, 58, 0.08)',
+        name: `Above L=${L}% → 150%`,
+        hoverinfo: 'skip', showlegend: true,
+      },
+      {
+        x: dates, y: breadth, mode: 'lines',
+        name: '% above 200d MA',
+        line: { color: '#1351b4', width: 1.6 },
+      },
+      // Threshold line
+      {
+        x: [dates[0], dates[dates.length - 1]],
+        y: [L, L], mode: 'lines',
+        name: `Threshold L=${L}%`,
+        line: { color: '#b3261e', width: 1, dash: 'dash' },
+        showlegend: false,
+      },
+    ];
+    const layout = {
+      margin: { l: 56, r: 14, t: 14, b: 38 },
+      paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+      font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+      xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+      yaxis: { title: '% above 200d MA', gridcolor: '#eef0f3',
+               zeroline: false, range: [0, 100], ticksuffix: '%' },
+      hovermode: 'x unified',
+      legend: { orientation: 'h', x: 0, y: 1.08 },
+    };
+    Plotly.newPlot('detail-breadth-chart', traces, layout, { displayModeBar: false, responsive: true });
+  }
+
+  // Equity chart
+  if (winnerEq?.family_d) {
+    const traces = [];
+    const fd = winnerEq.family_d;
+    traces.push({
+      x: fd.dates, y: fd.equity, mode: 'lines',
+      name: `MA200 + 50/150 (L=${monitor?.long_threshold_pct}) — Shp ${fmtNum(fd.sharpe, 2, true)}`,
+      line: { color: '#1351b4', width: 1.7 },
+    });
+    if (winnerEq.buy_and_hold) {
+      traces.push({
+        x: winnerEq.buy_and_hold.dates, y: winnerEq.buy_and_hold.equity, mode: 'lines',
+        name: `Buy-and-hold — Shp ${fmtNum(winnerEq.buy_and_hold.sharpe, 2, true)}`,
+        line: { color: '#6b727a', width: 1.2, dash: 'dot' },
+      });
+    }
+    const layout = {
+      margin: { l: 56, r: 14, t: 14, b: 38 },
+      paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+      font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+      xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+      yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3',
+               zeroline: false, type: 'log', tickformat: '.2f' },
+      hovermode: 'x unified',
+      legend: { orientation: 'h', x: 0, y: 1.08 },
+    };
+    Plotly.newPlot('detail-equity-chart', traces, layout, { displayModeBar: false, responsive: true });
+  }
+
+  // Episodes table
+  const thead = document.getElementById('episodes-thead');
+  const tbody = document.getElementById('episodes-tbody');
+  thead.innerHTML = `<th>Entry</th><th>Exit</th><th>Calendar days</th>
+                      <th>Underlying return</th><th>Breadth at entry</th>`;
+  tbody.innerHTML = '';
+  const eps = detail?.episodes || [];
+  if (eps.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--ink-faint);">No long episodes for ${etf} in window.</td></tr>`;
+  } else {
+    for (const ep of eps) {
+      const r = ep.underlying_return;
+      const cls = r > 0 ? 'pos' : (r < 0 ? 'neg' : '');
+      tbody.innerHTML += `<tr>
+        <td>${ep.entry}</td>
+        <td>${ep.exit}</td>
+        <td>${ep.calendar_days}</td>
+        <td class="${cls}">${fmtPct(r, true)}</td>
+        <td>${(ep.ma200_breadth_at_entry * 100).toFixed(1)}%</td>
+      </tr>`;
+    }
+  }
+}
+
+// ----------- Portfolio tab ---------------------------------------------
+function renderPortfolio() {
+  const data = window.DATA;
+  const p = data.portfolio;
+  if (!p) {
+    document.getElementById('portfolio-verdict').textContent =
+      'Portfolio construction not yet run — execute scripts/run_portfolio.py.';
+    return;
+  }
+  // Verdict — find best Sharpe overall
+  const variants = Object.entries(p.results).map(([k, v]) => ({ key: k, ...v }));
+  const spy = p.results.spy_buy_hold;
+  const best = variants.reduce((a, b) => (a.sharpe ?? -1e9) > (b.sharpe ?? -1e9) ? a : b);
+  const ewAll = p.results.equal_weight_all;
+  document.getElementById('portfolio-verdict').innerHTML =
+    `Across ${p.etfs_used?.length} ETFs over ${p.eligible_start} → today, the best portfolio variant is `
+    + `<strong>${best.label || best.key}</strong> at Sharpe <strong>${fmtNum(best.sharpe, 2, true)}</strong>, `
+    + `vs equal-weight all-ETFs <strong>${fmtNum(ewAll?.sharpe, 2, true)}</strong> and SPY buy-and-hold <strong>${fmtNum(spy?.sharpe, 2, true)}</strong>. `
+    + `Concentrating into top-K by breadth ${best.sharpe > ewAll?.sharpe ? 'adds' : 'does not add'} `
+    + `value over a simple equal-weight basket of the same universe.`;
+  // Table
+  const el = document.getElementById('portfolio-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Variant</th><th>Sharpe</th><th>CAGR</th>
+    <th>Total return</th><th>Max DD</th><th>Δ Sharpe vs SPY</th>
+  </tr>`;
+  const tbody = el.querySelector('tbody');
+  tbody.innerHTML = '';
+  const sorted = variants.slice().sort((a, b) => (b.sharpe ?? -1e9) - (a.sharpe ?? -1e9));
+  const bestSh = sorted[0]?.sharpe;
+  for (const r of sorted) {
+    const isBest = r.sharpe === bestSh;
+    const dSpy = (r.sharpe ?? 0) - (spy?.sharpe ?? 0);
+    tbody.innerHTML += `<tr class="${isBest ? 'highlight' : ''}">
+      <td class="row-label">${r.label || r.key}</td>
+      <td class="num"><strong>${fmtNum(r.sharpe, 2, true)}</strong></td>
+      <td class="num">${fmtPct(r.cagr, true)}</td>
+      <td class="num">${fmtPct(r.total_return, true)}</td>
+      <td class="num">${fmtPct(r.max_dd)}</td>
+      <td class="num ${dSpy > 0 ? 'good' : (dSpy < 0 ? 'bad' : '')}">${fmtNum(dSpy, 2, true)}</td>
+    </tr>`;
+  }
+  // Chart: top 5 variants + benchmarks
+  const top5 = sorted.slice(0, 5);
+  const colors = ['#1351b4', '#1d7a3a', '#b76e00', '#b3261e', '#8e44ad'];
+  const traces = top5.map((r, i) => ({
+    x: r.dates, y: r.equity, mode: 'lines',
+    name: `${r.label || r.key} — Shp ${fmtNum(r.sharpe, 2, true)}`,
+    line: { color: colors[i % colors.length], width: 1.5 },
+  }));
+  if (ewAll && !top5.find(r => r.key === 'equal_weight_all')) {
+    traces.push({
+      x: ewAll.dates, y: ewAll.equity, mode: 'lines',
+      name: `${ewAll.label} (bench) — Shp ${fmtNum(ewAll.sharpe, 2, true)}`,
+      line: { color: '#4a5159', width: 1.0, dash: 'dot' },
+    });
+  }
+  if (spy && !top5.find(r => r.key === 'spy_buy_hold')) {
+    traces.push({
+      x: spy.dates, y: spy.equity, mode: 'lines',
+      name: `SPY buy-and-hold (bench) — Shp ${fmtNum(spy.sharpe, 2, true)}`,
+      line: { color: '#6b727a', width: 1.0, dash: 'dot' },
+    });
+  }
   const layout = {
     margin: { l: 56, r: 14, t: 14, b: 38 },
     paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
     font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
     xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
-    yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3', zeroline: false,
-             type: 'log', tickformat: '.2f' },
+    yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3',
+             zeroline: false, type: 'log', tickformat: '.2f' },
     hovermode: 'x unified',
     legend: { orientation: 'h', x: 0, y: 1.08 },
   };
-  Plotly.newPlot('ma200-equity-chart', traces, layout, { displayModeBar: false, responsive: true });
-}
-
-function renderMa200Verdict() {
-  const data = window.DATA;
-  const m = data.ma200;
-  if (!m) return;
-  let beatsBh = 0;
-  let beatsComposite = 0;
-  const composite = data.tuning?.base_thrust_grid || {};
-  for (const etf of ['SOXX', 'IUES', 'IUFS', 'CNDX', 'CSP1']) {
-    const d = _bestRow(m.family_d_long_leveraged_base50?.[etf]);
-    const bh = data.improvements?.baselines?.[etf]?.buy_and_hold;
-    const comp = _bestRow(composite[etf]);
-    if (d && bh && d.sharpe > bh.sharpe) beatsBh++;
-    if (d && comp && d.sharpe > comp.sharpe) beatsComposite++;
-  }
-  document.getElementById('ma200-verdict').innerHTML =
-    `Yes — the simpler signal works. <strong>% above 200d MA + 50/150 sizing (Family D) beats buy-and-hold on Sharpe on `
-    + `${beatsBh} of 5 ETFs</strong>, and beats the multi-component composite signal on <strong>${beatsComposite} of 5</strong>. `
-    + `The composite (RSI breadth + MA breadth + Highs breadth + thrust detection + entry delay + trend filter) only wins on SOXX, `
-    + `where it was originally tuned — and even there its edge over MA200 + 50/150 is just 0.12 Sharpe.<br><br>`
-    + `Shorting based on MA200 falling below a threshold (Family C) underperforms long-only on every ETF — the optimal short threshold collapses to 10 per cent, meaning "short almost never". The empirical case for a short leg is weak, consistent with the borrow-cost and asymmetric-vol headwinds.<br><br>`
-    + `The clean rule that generalises: <strong>long the ETF when % above 200d MA is above ~50-75 per cent (varies by ETF), hold 50 per cent of capital always, leverage to 150 per cent when in</strong>. This holds across semis, NDX-100, S&amp;P 500, Energy, and Financials — far better generalisation than the composite signal achieved.`;
+  Plotly.newPlot('portfolio-chart', traces, layout, { displayModeBar: false, responsive: true });
 }
 
 // ----------- Tab navigation --------------------------------------------
@@ -1546,92 +827,54 @@ const TAB_RENDERED = new Set();
 function activateTab(name) {
   document.querySelectorAll('nav.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.tab-content').forEach((c) => c.classList.toggle('active', c.id === 'tab-' + name));
-  // Lazy-render heavy content
   if (!TAB_RENDERED.has(name)) {
-    if (name === 'equity')       renderEquityChart();
-    if (name === 'breadth')      renderBreadthChart();
-    if (name === 'trades')       renderTradesTable();
-    if (name === 'sensitivity')  renderVariantsTables();
-    if (name === 'improvements') {
-      renderImprVerdict();
-      renderImprTable();
-      renderImprChart();
-      renderImprTest3Chart();
-    }
-    if (name === 'tuning') {
-      renderTuningVerdict();
-      renderTuningBestTable();
-      renderTuningGridChart();
-      renderTuningContTable();
-      renderTuningMasterTable();
-      renderTuningOOSTable();
-    }
-    if (name === 'ma200') {
-      renderMa200Verdict();
-      renderMa200CompareTable();
-      renderMa200Sensitivity();   // also re-renders equity chart
-    }
+    if (name === 'monitor')   renderMonitor();
+    if (name === 'strategy')  { renderStrategyVerdict(); renderStrategyTable(); renderStrategyRobustness(); }
+    if (name === 'detail')    renderDetail();
+    if (name === 'portfolio') renderPortfolio();
     TAB_RENDERED.add(name);
   } else {
-    // Charts need a relayout when the container is unhidden so Plotly picks up width
-    if (name === 'equity')       { try { Plotly.Plots.resize('equity-chart'); } catch(e){} }
-    if (name === 'breadth')      { try { Plotly.Plots.resize('breadth-chart'); } catch(e){} }
-    if (name === 'trades')       { try { Plotly.Plots.resize('exit-reason-chart'); } catch(e){} }
-    if (name === 'improvements') {
-      try { Plotly.Plots.resize('impr-chart'); Plotly.Plots.resize('impr-test3-chart'); } catch(e){}
+    if (name === 'strategy') { try { Plotly.Plots.resize('strategy-robustness-chart'); } catch(e){} }
+    if (name === 'detail') {
+      try { Plotly.Plots.resize('detail-breadth-chart'); Plotly.Plots.resize('detail-equity-chart'); } catch(e){}
     }
-    if (name === 'tuning') {
-      try { Plotly.Plots.resize('tu-grid-chart'); } catch(e){}
-    }
-    if (name === 'ma200') {
-      try { Plotly.Plots.resize('ma200-sensitivity-chart'); Plotly.Plots.resize('ma200-equity-chart'); } catch(e){}
-    }
+    if (name === 'portfolio') { try { Plotly.Plots.resize('portfolio-chart'); } catch(e){} }
   }
 }
 
-function populateEtfDropdowns(rows) {
-  for (const id of ['eq-etf', 'br-etf', 'tr-etf', 'impr-etf', 'tu-grid-etf', 'ma200-etf']) {
-    const sel = document.getElementById(id);
-    if (!sel) continue;
-    sel.innerHTML = '';
-    for (const r of rows) {
-      const opt = document.createElement('option');
-      opt.value = r.etf;
-      opt.textContent = `${r.etf} — ${ETF_LABELS[r.etf]?.desc || ''}`;
-      sel.appendChild(opt);
-    }
+function populateEtfDropdown() {
+  const sel = document.getElementById('detail-etf');
+  if (!sel) return;
+  const m = window.DATA?.ma200?.monitor;
+  if (!m) return;
+  sel.innerHTML = '';
+  const etfs = Object.keys(m);
+  for (const e of etfs) {
+    const opt = document.createElement('option');
+    opt.value = e;
+    opt.textContent = `${e} — ${ETF_DESCRIPTIONS[e] || ''}`;
+    sel.appendChild(opt);
   }
 }
 
 (function init() {
   const data = DASHBOARD_DATA_INLINE;
   if (!data) {
-    document.getElementById('verdict-body').textContent =
-      'Build artefact missing. Run `python scripts/pipeline.py` to populate docs/index.html.';
+    document.getElementById('monitor-grid').innerHTML =
+      '<p>Build artefact missing. Run <code>python scripts/pipeline.py</code>.</p>';
     return;
   }
   window.DATA = data;
   if (data.built_at) document.getElementById('ts-built').textContent = 'Built ' + data.built_at;
-  if (data.verdict_html) document.getElementById('verdict-body').innerHTML = data.verdict_html;
-  if (data.cross_etf?.length) {
-    renderMatrix(data.cross_etf);
-    renderCards(data.cross_etf);
-    populateEtfDropdowns(data.cross_etf);
-  }
-  renderLiveSignal();
+  populateEtfDropdown();
+  // Render the default tab immediately
+  renderMonitor();
+  TAB_RENDERED.add('monitor');
   // Tab clicks
   document.querySelectorAll('nav.tabs button').forEach((btn) => {
     btn.addEventListener('click', () => activateTab(btn.dataset.tab));
   });
-  // Dropdown change handlers (re-render relevant tab)
-  document.getElementById('eq-etf')?.addEventListener('change', renderEquityChart);
-  document.getElementById('eq-config')?.addEventListener('change', renderEquityChart);
-  document.getElementById('br-etf')?.addEventListener('change', renderBreadthChart);
-  document.getElementById('tr-etf')?.addEventListener('change', renderTradesTable);
-  document.getElementById('tr-config')?.addEventListener('change', renderTradesTable);
-  document.getElementById('impr-etf')?.addEventListener('change', renderImprChart);
-  document.getElementById('tu-grid-etf')?.addEventListener('change', renderTuningGridChart);
-  document.getElementById('ma200-etf')?.addEventListener('change', renderMa200Sensitivity);
+  document.getElementById('detail-etf')?.addEventListener('change', renderDetail);
 })();
 </script>
 </body>

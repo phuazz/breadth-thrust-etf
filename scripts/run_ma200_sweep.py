@@ -50,7 +50,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 OUT_PATH = DATA_DIR / "ma200_sweep.json"
 
-ETFS = ["SOXX", "IUES", "IUFS", "CNDX", "CSP1"]
+ETFS = ["SOXX", "CSP1", "CNDX", "IUES", "IUFS", "IUIT", "IUHC", "IUIS", "IUCS", "IUCD", "IUUS"]
 LONG_THRESHOLDS = [50, 55, 60, 65, 70, 75, 80]
 SHORT_THRESHOLDS = [10, 15, 20, 25, 30, 35, 40]
 MA_PERIOD = 200
@@ -339,6 +339,89 @@ def main() -> int:
             **baselines[etf]["buy_and_hold"],
         }
 
+    # ---------- Per-ETF detail: breadth series, long-episodes, monitor state
+    print("\n=== Building per-ETF detail blocks (breadth series, episodes, monitor) ===", flush=True)
+    detail: dict[str, dict] = {}
+    monitor: dict[str, dict] = {}
+    for etf in per_etf:
+        ma200_b = per_etf[etf]["ma200_b"]
+        close = per_etf[etf]["close"]
+        eligible = eligible_starts[etf]
+        # Family D winner threshold for this ETF
+        d_best = max(family_d[etf], key=lambda r: r["sharpe"] or -1e9)
+        L = d_best["long_threshold"]
+        # Align ma200_b to close trading days, restrict to eligible window
+        aligned_b = ma200_b.reindex(close.index, method="ffill")
+        win_mask = aligned_b.index >= eligible
+        b_window = aligned_b.loc[win_mask]
+        # Downsample to weekly for the chart (Friday close) to keep payload small
+        weekly_b = b_window.resample("W-FRI").last().dropna()
+        # Long-episodes: contiguous runs where lagged b >= L/100
+        regime = (aligned_b.shift(1) >= L / 100.0).astype(int)
+        regime.loc[regime.index < eligible] = 0
+        # Find transitions
+        transitions = regime.diff().fillna(0)
+        entries = regime[(transitions == 1)].index
+        exits = regime[(transitions == -1)].index
+        # If still in long state at end, treat last date as exit
+        episodes = []
+        if len(entries) > 0:
+            for entry in entries:
+                # Find next exit after this entry
+                later_exits = exits[exits > entry]
+                exit_ = later_exits[0] if len(later_exits) > 0 else close.index[-1]
+                # Return over the episode (close-to-close)
+                if entry in close.index and exit_ in close.index:
+                    entry_c = float(close.loc[entry])
+                    exit_c = float(close.loc[exit_])
+                    ret = exit_c / entry_c - 1.0
+                    days = (exit_ - entry).days
+                    episodes.append({
+                        "entry": entry.strftime("%Y-%m-%d"),
+                        "exit": exit_.strftime("%Y-%m-%d"),
+                        "calendar_days": int(days),
+                        "underlying_return": _safe(ret),
+                        "ma200_breadth_at_entry": _safe(aligned_b.loc[entry]) if entry in aligned_b.index else None,
+                    })
+        # Current state for Monitor tab
+        latest_date = close.index[-1]
+        latest_b = float(aligned_b.iloc[-1]) if pd.notna(aligned_b.iloc[-1]) else None
+        in_long = latest_b is not None and latest_b >= L / 100.0
+        current_alloc = 150 if in_long else 50
+        # Days in current state
+        days_in_state = 0
+        if len(regime) > 1:
+            current_state = int(regime.iloc[-1])
+            # Walk back through regime series to find where state last changed
+            for i in range(len(regime) - 2, -1, -1):
+                if int(regime.iloc[i]) != current_state:
+                    days_in_state = (regime.index[-1] - regime.index[i + 1]).days
+                    break
+            else:
+                days_in_state = (regime.index[-1] - regime.index[0]).days
+        detail[etf] = {
+            "breadth_dates": [d.strftime("%Y-%m-%d") for d in weekly_b.index],
+            "breadth_pct": round_series(weekly_b.values * 100, 2),  # in percent
+            "chosen_long_threshold": L,
+            "episodes": episodes,
+            "n_episodes": len(episodes),
+        }
+        monitor[etf] = {
+            "etf": etf,
+            "trading_proxy": get_etf(etf).get("yfinance_trading_proxy") or etf,
+            "as_of": latest_date.strftime("%Y-%m-%d"),
+            "ma200_breadth_pct": round(latest_b * 100, 1) if latest_b is not None else None,
+            "long_threshold_pct": L,
+            "in_long_state": bool(in_long),
+            "current_allocation_pct": current_alloc,
+            "days_in_state": int(days_in_state),
+            "winner_sharpe": d_best["sharpe"],
+            "winner_total_return": d_best["total_return"],
+        }
+        print(f"  {etf:5}  L={L:>3}  ma200_b now {latest_b*100:>5.1f}%  "
+              f"-> {'LONG (150%)' if in_long else 'BASE (50%)'}  "
+              f"{days_in_state}d in state  {len(episodes)} episodes total")
+
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
         "ma_period": MA_PERIOD,
@@ -351,6 +434,8 @@ def main() -> int:
         "family_d_long_leveraged_base50": family_d,
         "winner_equity_curves": winners_eq,
         "baselines": baselines,
+        "per_etf_detail": detail,
+        "monitor": monitor,
     }
     OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 

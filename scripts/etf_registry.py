@@ -148,6 +148,115 @@ ETF_REGISTRY: dict[str, dict] = {
         "csv_date_format": "uk",
         "yfinance_trading_proxy": "QQQ",  # Invesco QQQ Trust
     },
+    # --- Six additional S&P 500 sector slice UCITS funds (Phase 3) -----------
+    # All track the relevant S&P 500 sector. Trading proxies are the SPDR
+    # Select Sector ETFs (US-listed, USD, deep liquidity).
+    "IUIT": {  # Information Technology
+        "symbol": "IUIT",
+        "ishares_region": "uk",
+        "product_id": "280510",
+        "url_slug": "ishares-sp-500-information-technology-sector-ucits-etf",
+        "ajax_id": "1506575576011",
+        "filename": "IUIT_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/280510/"
+            "ishares-sp-500-information-technology-sector-ucits-etf/"
+            "1506575576011.ajax"
+            "?fileType=csv&fileName=IUIT_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {"BRKB": "BRK-B", "BRK.B": "BRK-B"},
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "XLK",
+    },
+    "IUHC": {  # Health Care
+        "symbol": "IUHC",
+        "ishares_region": "uk",
+        "product_id": "280507",
+        "url_slug": "ishares-sp-500-health-care-sector-ucits-etf",
+        "ajax_id": "1506575576011",
+        "filename": "IUHC_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/280507/"
+            "ishares-sp-500-health-care-sector-ucits-etf/1506575576011.ajax"
+            "?fileType=csv&fileName=IUHC_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "XLV",
+    },
+    "IUIS": {  # Industrials
+        "symbol": "IUIS",
+        "ishares_region": "uk",
+        "product_id": "287109",
+        "url_slug": "ishares-s-p-500-industrials-sector-ucits-etf-fund",
+        "ajax_id": "1506575576011",
+        "filename": "IUIS_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/287109/"
+            "ishares-s-p-500-industrials-sector-ucits-etf-fund/"
+            "1506575576011.ajax"
+            "?fileType=csv&fileName=IUIS_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "XLI",
+    },
+    "IUCS": {  # Consumer Staples
+        "symbol": "IUCS",
+        "ishares_region": "uk",
+        "product_id": "287102",
+        "url_slug": "ishares-s-p-500-consumer-staples-sector-ucits-etf-fund",
+        "ajax_id": "1506575576011",
+        "filename": "IUCS_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/287102/"
+            "ishares-s-p-500-consumer-staples-sector-ucits-etf-fund/"
+            "1506575576011.ajax"
+            "?fileType=csv&fileName=IUCS_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "XLP",
+    },
+    "IUCD": {  # Consumer Discretionary
+        "symbol": "IUCD",
+        "ishares_region": "uk",
+        "product_id": "280526",
+        "url_slug": "ishares-sp-500-consumer-discretionary-sector-ucits-etf",
+        "ajax_id": "1506575576011",
+        "filename": "IUCD_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/280526/"
+            "ishares-sp-500-consumer-discretionary-sector-ucits-etf/"
+            "1506575576011.ajax"
+            "?fileType=csv&fileName=IUCD_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "XLY",
+    },
+    "IUUS": {  # Utilities
+        "symbol": "IUUS",
+        "ishares_region": "uk",
+        "product_id": "287115",
+        "url_slug": "ishares-s-p-500-utilities-sector-ucits-etf-fund",
+        "ajax_id": "1506575576011",
+        "filename": "IUUS_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/287115/"
+            "ishares-s-p-500-utilities-sector-ucits-etf-fund/1506575576011.ajax"
+            "?fileType=csv&fileName=IUUS_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "XLU",
+    },
 }
 
 

@@ -1,8 +1,53 @@
 # breadth-thrust-etf
 
-Sector / thematic ETF breadth-thrust signal — research and backtest.
+Single-indicator breadth regime signal across 11 US sector and broad-market ETFs, with relative-strength portfolio construction. **Live dashboard**: [phuazz.github.io/breadth-thrust-etf](https://phuazz.github.io/breadth-thrust-etf/)
 
-## What this is
+## Current state (Phase 3 — May 2026)
+
+**Headline finding**: % of constituents above 200d MA, used as a regime indicator with 50% base + 100% leveraged on-signal sizing (50/150), beats buy-and-hold on Sharpe on 8 of 11 ETFs tested.
+
+**Per-ETF MA200 + 50/150 results** (in-sample, 2019-2026 window):
+
+| ETF | Description | Best L | Sharpe | BH Sharpe | Δ |
+|---|---|---:|---:|---:|---:|
+| SOXX | Semiconductors | 65 | +1.07 | +0.98 | +0.09 |
+| CSP1 | S&P 500 | 55 | +1.04 | +0.84 | **+0.20** |
+| CNDX | NASDAQ-100 | 55 | +1.05 | +0.92 | +0.13 |
+| IUES | Energy | 60 | +0.60 | +0.49 | +0.11 |
+| IUFS | Financials | 75 | +0.71 | +0.53 | **+0.18** |
+| IUIT | Info Tech | 60 | +1.09 | +0.96 | +0.13 |
+| IUHC | Health Care | 80 | +0.55 | +0.60 | -0.05 |
+| IUIS | Industrials | 50 | +0.74 | +0.68 | +0.06 |
+| IUCS | Cons Staples | 65 | +0.48 | +0.68 | -0.20 |
+| IUCD | Cons Discretionary | 50 | +0.68 | +0.59 | +0.09 |
+| IUUS | Utilities | 60 | +0.51 | +0.59 | -0.08 |
+
+The three losing ETFs (IUHC, IUCS, IUUS) are the classic defensive sectors. Their constituents tend to rally during risk-off rotation, so a "buy when regime is healthy" filter actively works against them. The signal is therefore best applied to cyclical / growth / broad-market exposure, not defensives.
+
+**Portfolio construction**: rank the 11 ETFs by current ma200_breadth each week; equal-weight (or breadth-weight) the top K; rebalance weekly with 10bps round-trip.
+
+| Variant | Sharpe | Total return | Max DD |
+|---|---:|---:|---:|
+| **Top 7 leveraged (50/100 overlay on basket)** | **+1.00** | +349% | **25%** |
+| Top 7 breadth-weighted leveraged | +1.00 | +375% | 25% |
+| Top 5 breadth-weighted unleveraged | +1.00 | +298% | 31% |
+| Equal-weight all 11 (benchmark) | +0.81 | +215% | 35% |
+| SPY buy-and-hold (benchmark) | +0.77 | +193% | 34% |
+
+The relative-strength tilt (top-K by breadth) materially improves both Sharpe and max DD over equal-weight-all and over SPY. Best variant beats SPY by 0.23 Sharpe with 9 pp lower drawdown.
+
+**Signal**: very simple. Per ETF, compute % of constituents above their 200d MA. Pick a long threshold L (per-ETF, in the 50-75% range — peak Sharpe across the sweep). Allocation = 50% always; step up to 150% when ma200_breadth ≥ L. Rebalance weekly. That's the entire strategy.
+
+## Research journey (historical)
+
+This project went through three explicit phases before landing on the MA200 finding:
+1. **Phase 1**: composite signal (RSI breadth + MA breadth + Highs breadth + Zweig thrust + entry delay + trend filter) tuned on SOXX. Sharpe +1.19 in-sample, +1.42 OOS on the held-out test half. Beat BH on SOXX but did not generalise to other ETFs.
+2. **Phase 2**: explored size-scaling, leverage, multi-ETF rotation, and master regime filters on the composite signal. Confirmed the composite signal added value only on SOXX.
+3. **Phase 3 (current)**: replaced the composite with a single % above 200d MA indicator. Generalises to 8 of 11 ETFs, beats SPY in portfolio form, materially simpler. The dashboard archives this approach.
+
+The composite signal's research is preserved in the git history (see commits before `9e0...` / READMEs below) and in data files prefixed `backtest_`, `improvements_`, `tuning_`, `oos_validation_`, `sensitivity_`. The current dashboard exposes only the MA200 results.
+
+## Original brief (kept for historical context)
 
 A composite breadth-thrust signal computed from the **point-in-time constituents** of a sector or thematic ETF, plus a backtest of the signal applied to the parent ETF. This session validates the mechanism end-to-end on a single ETF (SOXX, iShares Semiconductor) before any attempt to generalise across sectors.
 
