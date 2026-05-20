@@ -967,16 +967,13 @@ function _curatedSeries(data) {
       color: '#b76e00', width: 1.6,
     });
   }
-  // 4. SOXX single-ETF MA200 50/150 (best single-sector — concentration extreme)
-  if (meq.SOXX?.family_d) {
-    const s = meq.SOXX.family_d;
+  // 4. Eq-weight ensemble of 11 single-ETF MA200 strategies (fair no-tilt baseline)
+  if (r.eq_weight_11_family_d) {
     out.push({
-      label: 'SOXX — single ETF MA200 + 50/150 (best single-sector)',
-      category: 'Single-ETF strategy',
-      sharpe: s.sharpe, total_return: s.total_return, max_dd: s.max_dd,
-      cagr: s.cagr,
-      dates: s.dates, equity: s.equity,
-      color: '#b3261e', width: 1.4,
+      label: 'Eq-weight ensemble: 11 single-ETF MA200 50/150 strategies (no tilt)',
+      category: 'Multi-ETF (no tilt)',
+      ...r.eq_weight_11_family_d,
+      color: '#b3261e', width: 1.7,
     });
   }
   // 5. Naive equal-weight all 11 (no signal, just diversification)
@@ -1014,13 +1011,13 @@ function renderPortfolio() {
   const bestLev = p.results.top7_breadth_weight_leveraged;
   const bestUnlev = p.results.top5_breadth_weight;
 
-  // Verdict — compare best leveraged / unleveraged / single broad-ETF vs SPY
+  // Verdict — the honest read after replacing SOXX with the ex-ante-fair ensemble
+  const ensemble = p.results.eq_weight_11_family_d;
+  const csp1 = m?.winner_equity_curves?.CSP1?.family_d;
   document.getElementById('portfolio-verdict').innerHTML =
-    `The relative-strength tilt across 11 ETFs adds real value. Best <strong>leveraged</strong> portfolio (Top 7, breadth-weighted, 50/150 overlay) delivers Sharpe `
-    + `<strong>${fmtNum(bestLev?.sharpe, 2, true)}</strong>, totRet ${fmtPct(bestLev?.total_return, true)}, max DD ${fmtPct(bestLev?.max_dd)}. `
-    + `Best <strong>unleveraged</strong> portfolio (Top 5, breadth-weighted, no margin) delivers Sharpe `
-    + `<strong>${fmtNum(bestUnlev?.sharpe, 2, true)}</strong>, totRet ${fmtPct(bestUnlev?.total_return, true)}, max DD ${fmtPct(bestUnlev?.max_dd)}.<br><br>`
-    + `Both beat SPY buy-and-hold (Sharpe ${fmtNum(spy?.sharpe, 2, true)}) by ~0.23 Sharpe and a naive equal-weight basket of the same 11 ETFs (Sharpe ${fmtNum(p.results.equal_weight_all?.sharpe, 2, true)}) by ~0.18-0.20. The "top-K by breadth" tilt is doing real work — it is not just the 11-ETF universe.`;
+    `What matters is <strong>the MA200 signal applied to a diversified basket</strong>. The "relative-strength tilt" (picking top K by breadth) does <strong>not</strong> add risk-adjusted value: the simplest no-tilt baseline — equal-weight ensemble of 11 single-ETF MA200 50/150 strategies — actually has the best Sharpe at <strong>${fmtNum(ensemble?.sharpe, 2, true)}</strong>, beating both the leveraged top-K portfolio (Sharpe ${fmtNum(bestLev?.sharpe, 2, true)}) and the unleveraged top-K (Sharpe ${fmtNum(bestUnlev?.sharpe, 2, true)}).<br><br>`
+    + `Single broad-ETF (CSP1 MA200 + 50/150) is competitive at Sharpe <strong>${fmtNum(csp1?.sharpe, 2, true)}</strong> — almost identical to the multi-ETF variants. So if you want simplicity, just run the MA200 + 50/150 signal on the S&P 500. The diversification benefit of going multi-ETF is modest in this dataset.<br><br>`
+    + `All four signal-based variants beat naive equal-weight all 11 (Sharpe ${fmtNum(p.results.equal_weight_all?.sharpe, 2, true)}) and SPY buy-and-hold (Sharpe ${fmtNum(spy?.sharpe, 2, true)}) by ~0.20-0.30 Sharpe. <strong>The signal is doing the work, not the tilt.</strong>`;
 
   // Headline table — curated 6 rows
   const el = document.getElementById('portfolio-table');

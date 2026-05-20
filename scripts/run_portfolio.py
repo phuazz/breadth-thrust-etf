@@ -202,6 +202,45 @@ def equal_weight_all_fn(b_row):
     return w
 
 
+def family_d_eq_weight_ensemble(
+    closes: pd.DataFrame,
+    breadths: pd.DataFrame,
+    etf_thresholds: dict[str, float],
+    base: float = 0.5,
+    on: float = 1.5,
+    cost: float = COST_BPS / 10_000,
+    window_start: pd.Timestamp | None = None,
+) -> dict:
+    """Equal-weight ensemble of N single-ETF MA200 50/150 (Family D) strategies.
+
+    For each ETF in the universe, allocate `base` (50%) of THAT ETF's share
+    of capital when its breadth is below its chosen L, `on` (150%) when at
+    or above L. Then equal-weight across the N ETF strategies (1/N each).
+
+    This is the FAIR no-selection baseline for "what does the MA200 signal
+    earn if you run it on the whole universe with zero relative-strength
+    tilt and zero ex-ante ETF selection." Comparing the top-K tilted
+    portfolios against this isolates the value-add of the tilt itself.
+    """
+    n = len(closes.columns)
+    rets = closes.pct_change().fillna(0)
+    alloc = pd.DataFrame(base, index=closes.index, columns=closes.columns, dtype=float)
+    for etf in closes.columns:
+        L = etf_thresholds.get(etf)
+        if L is None:
+            continue
+        b_shifted = breadths[etf].shift(1).fillna(0)
+        alloc.loc[b_shifted >= L / 100.0, etf] = on
+    if window_start is not None:
+        alloc.loc[alloc.index < window_start] = 0.0
+    weight = 1.0 / n
+    daily_ret = (alloc * rets * weight).sum(axis=1)
+    turnover = (alloc.diff().abs() * weight).sum(axis=1).fillna(0)
+    daily_ret = daily_ret - turnover * cost
+    equity = (1.0 + daily_ret).cumprod()
+    return {"equity": equity, "alloc": alloc}
+
+
 def apply_leverage_overlay(equity: pd.Series, weights: pd.DataFrame,
                             breadths: pd.DataFrame, threshold: float = LEVERAGE_THRESHOLD,
                             cost: float = COST_BPS / 10_000) -> pd.Series:
@@ -296,6 +335,33 @@ def main() -> int:
                 **{k: _safe(v) if isinstance(v, float) else v for k, v in st_l.items()},
             }
             print(f"  {weight_name + '_leveraged':<25} Shp {st_l['sharpe']:+.2f}  totRet {st_l['total_return']*100:+.0f}%  DD {st_l['max_dd']*100:.0f}%")
+
+    # Eq-weight ensemble of 11 single-ETF MA200 50/150 strategies — fair
+    # baseline for "MA200 signal everywhere, no relative-strength tilt"
+    print()
+    ma200_path = DATA_DIR / "ma200_sweep.json"
+    if ma200_path.exists():
+        ma200 = json.loads(ma200_path.read_text(encoding="utf-8"))
+        etf_thresholds: dict[str, float] = {}
+        for etf, info in ma200.get("monitor", {}).items():
+            L = info.get("long_threshold_pct")
+            if L is not None and etf in closes.columns:
+                etf_thresholds[etf] = float(L)
+        if etf_thresholds:
+            r = family_d_eq_weight_ensemble(closes, breadths, etf_thresholds,
+                                              base=0.5, on=1.5,
+                                              window_start=eligible)
+            eq_window = r["equity"].loc[r["equity"].index >= eligible]
+            eq_window = eq_window / eq_window.iloc[0]
+            st = compute_stats(r["equity"], eligible)
+            results["eq_weight_11_family_d"] = {
+                "label": "Eq-weight ensemble of 11 single-ETF MA200 50/150 strategies",
+                "dates": [d.strftime("%Y-%m-%d") for d in eq_window.index],
+                "equity": round_series(eq_window.values),
+                **{k: _safe(v) if isinstance(v, float) else v for k, v in st.items()},
+            }
+            print(f"  eq_weight_11_family_d     Shp {st['sharpe']:+.2f}  "
+                  f"totRet {st['total_return']*100:+.0f}%  DD {st['max_dd']*100:.0f}%")
 
     # SPY benchmark
     spy_window = spy_close.loc[spy_close.index >= eligible]
