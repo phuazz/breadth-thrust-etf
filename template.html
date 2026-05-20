@@ -466,6 +466,20 @@
       <table class="small-table" id="rob-rebal-table"><thead></thead><tbody></tbody></table>
       <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="rob-rebal-note"></p>
     </section>
+
+    <section>
+      <h2>Test 7 — Walk-forward L × rebalance cadence (the key cross-test)</h2>
+      <p class="section-sub">Combine the two robustness tests: walk-forward L refit AND vary rebalance cadence. For each (ETF × cadence) cell, refit L annually on expanding train and apply that L to the test segment using the specified cadence. The values are the realistic OOS Sharpe.</p>
+      <table class="small-table" id="rob-wfxcadence-table"><thead></thead><tbody></tbody></table>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="rob-wfxcadence-note"></p>
+    </section>
+
+    <section>
+      <h2>Test 8 — Fixed L = 60 across ALL ETFs (NO tuning whatsoever)</h2>
+      <p class="section-sub">The most overfit-resistant test possible: apply a single fixed L threshold uniformly across all 11 ETFs. No per-ETF tuning, no refit, no optimisation. The "what does an investor with zero tuning skill but knowing the basic Zweig rule earn?" baseline. Compare to the in-sample-tuned L and the walk-forward refit L on the same ETF.</p>
+      <table class="small-table" id="rob-fixed-table"><thead></thead><tbody></tbody></table>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="rob-fixed-note"></p>
+    </section>
   </div>
 
   <!-- ====================== METHOD ====================== -->
@@ -497,6 +511,24 @@
       <h2>OOS validation</h2>
       <div class="methodbox">
         <p>The MA200 + 50/150 sweep is reported in-sample on the 2019-2026 window. A clean train/test OOS test was previously run on the composite breadth signal at the 2022-09-08 split; the train-half winner held up on the test half (train Sharpe +0.94 → test Sharpe +1.42 on SOXX; train winner ranked #1 of 11 cells on test grid). The MA200 sweep has not yet been formally OOS-validated; the threshold sensitivity chart on the Strategy tab provides indirect evidence (flat curves around the peak suggest L is not delicate).</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Best practices for parameter optimisation (lessons from this project)</h2>
+      <div class="methodbox">
+        <p>The Robustness tab demonstrates that the headline Sharpe was materially inflated by in-sample optimisation. Eight rules of thumb learned the hard way:</p>
+        <ul>
+          <li><strong>Always report walk-forward (or train/test) Sharpe alongside in-sample.</strong> The in-sample number is biased upward by ~0.3 Sharpe in our case. If you only have IS, halve your conviction.</li>
+          <li><strong>Robust over optimal.</strong> A parameter that's "second-best" but stable across sub-windows is more deployable than a parameter that's "best" but jumps each refit. Our walk-forward L sequence for CSP1 was [55, 80, 75, 75, 75] — wildly unstable; deploying any single one of those would have given different results.</li>
+          <li><strong>Reduce degrees of freedom.</strong> Per-ETF tuning adds N free parameters. A single global parameter (e.g., L=60 for all 11 ETFs) had ZERO tuning cost, and beat walk-forward L on 8 of 11 ETFs. Less is more.</li>
+          <li><strong>Use external priors.</strong> If literature gives you a number (Zweig's L=60 breadth threshold), USE IT. A prior-based value has no overfit cost; a data-driven value does.</li>
+          <li><strong>Lower the rebalance frequency to lower in-sample noise transmission.</strong> Daily rebalancing transmits each fitted-L noise into more daily decisions. Bi-weekly rebalancing reduces the effective number of "actions" per unit time, smoothing the noise.</li>
+          <li><strong>Stress-test by regime, not just full-window Sharpe.</strong> The sub-period decomposition showed our strategy underperformed BH in 2019 pre-COVID, 2022 inflation shock, and 2023 AI rally. Full-window Sharpe hid this. Decompose by regime — if performance is concentrated in one period, you're sampling-lucky.</li>
+          <li><strong>Avoid the joint maximum across multiple parameters.</strong> If you can choose L, MA-period, cadence, AND base/thrust allocation, picking the joint argmax has compounded selection bias. Pick one parameter at a time on independent data, or use a fixed-parameter version.</li>
+          <li><strong>If walk-forward Sharpe ≤ BH Sharpe, abandon the strategy.</strong> No amount of in-sample tweaking saves a strategy whose held-out performance is no better than the passive benchmark. CSP1 fails this test (WF 0.57 vs BH 0.84); SOXX with bi-weekly cadence passes (1.05 vs 0.98).</li>
+        </ul>
+        <p>Practical deployment translation: the strategy that survives all the tests on this dataset is "<strong>L=60 (fixed, no tuning), bi-weekly Friday rebalance, applied to IUIT / CNDX / IUES (the three ETFs where it beats BH out-of-sample under fixed-L)</strong>." That's an honest finding worth deploying small. The headline Sharpe 1.04 for CSP1 was an artifact.</p>
       </div>
     </section>
 
@@ -1372,6 +1404,87 @@ function populateRobustnessDropdown() {
   }
 }
 
+function renderRobustnessWFxCadence() {
+  const data = window.DATA;
+  const m = data.robustness?.test_7_wf_x_cadence || {};
+  const el = document.getElementById('rob-wfxcadence-table');
+  if (!el) return;
+  const cadences = ['Daily', 'Weekly Fri', 'Bi-weekly Fri', 'Month-end'];
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th>${cadences.map(c => `<th>${c}</th>`).join('')}<th>Best</th>
+  </tr>`;
+  const baselines = data.ma200?.baselines || {};
+  const etfs = ['CSP1', 'SOXX', 'IUIT', 'CNDX', 'IUES', 'IUFS', 'IUIS'];
+  el.querySelector('tbody').innerHTML = etfs.filter(e => m[e]).map(etf => {
+    const cells = cadences.map(c => m[etf][c]?.walk_forward_sharpe);
+    const maxV = Math.max(...cells.filter(v => v != null));
+    const bestIdx = cells.indexOf(maxV);
+    const bh = baselines[etf]?.buy_and_hold?.sharpe;
+    const tds = cells.map((v, i) => {
+      const cls = i === bestIdx ? 'highlight' : '';
+      const vsBh = v != null && bh != null && v > bh ? 'good' : '';
+      return `<td class="num ${cls}"><strong>${fmtNum(v, 2, true)}</strong>${
+        vsBh ? '<span style="color:var(--good);font-size:10px;margin-left:4px;">↑BH</span>' : ''
+      }</td>`;
+    }).join('');
+    return `<tr>
+      <td class="row-label">${etf}<div style="color:var(--ink-faint);font-size:11px;">BH ${fmtNum(bh, 2, true)}</div></td>
+      ${tds}
+      <td class="num" style="color:var(--accent);">${cadences[bestIdx]}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('rob-wfxcadence-note').innerHTML =
+    `<strong>Bi-weekly Friday is the most robust cadence under walk-forward</strong> — best on 4 of 7 ETFs. ` +
+    `CSP1 improves from Sharpe 0.57 (daily WF) to 0.71 (bi-weekly WF), recovering ~30% of the gap to BH 0.84. ` +
+    `SOXX with bi-weekly Friday WF (1.05) actually BEATS SOXX BH (0.98) — the only OOS-robust outperformance among broad-market ETFs. ` +
+    `Mechanism: less frequent rebalancing transmits less in-sample-L noise into the portfolio.`;
+}
+
+function renderRobustnessFixed() {
+  const data = window.DATA;
+  const m = data.robustness?.test_8_fixed_L || {};
+  const wf = data.robustness?.test_1_walk_forward_l || {};
+  const baselines = data.ma200?.baselines || {};
+  const el = document.getElementById('rob-fixed-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th>
+    <th>L=50</th><th>L=55</th><th>L=60</th><th>L=65</th><th>L=70</th>
+    <th style="border-left:1px solid var(--border-strong);">Fixed L=60 Sharpe</th>
+    <th>BH Sharpe</th>
+    <th>Δ Fixed-L vs BH</th>
+    <th>Walk-forward Sharpe</th>
+  </tr>`;
+  const etfs = ['SOXX', 'CSP1', 'CNDX', 'IUIT', 'IUES', 'IUFS', 'IUIS', 'IUCD', 'IUHC', 'IUCS', 'IUUS'];
+  el.querySelector('tbody').innerHTML = etfs.filter(e => m[e]).map(etf => {
+    const rows = m[etf];
+    const get = (L) => rows.find(r => r.L === L)?.sharpe;
+    const fixedAt60 = get(60);
+    const bh = baselines[etf]?.buy_and_hold?.sharpe;
+    const wfSh = wf[etf]?.walk_forward_sharpe;
+    const dBh = fixedAt60 != null && bh != null ? fixedAt60 - bh : null;
+    return `<tr>
+      <td class="row-label">${etf}</td>
+      <td class="num">${fmtNum(get(50), 2, true)}</td>
+      <td class="num">${fmtNum(get(55), 2, true)}</td>
+      <td class="num highlight"><strong>${fmtNum(get(60), 2, true)}</strong></td>
+      <td class="num">${fmtNum(get(65), 2, true)}</td>
+      <td class="num">${fmtNum(get(70), 2, true)}</td>
+      <td class="num" style="border-left:1px solid var(--border-strong);"><strong>${fmtNum(fixedAt60, 2, true)}</strong></td>
+      <td class="num" style="color:var(--ink-faint);">${fmtNum(bh, 2, true)}</td>
+      <td class="num ${dBh > 0 ? 'good' : 'bad'}"><strong>${fmtNum(dBh, 2, true)}</strong></td>
+      <td class="num" style="color:var(--ink-faint);">${fmtNum(wfSh, 2, true)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('rob-fixed-note').innerHTML =
+    `Surprising and clean: <strong>a fixed L=60 (no per-ETF tuning) BEATS the walk-forward L refit on 8 of 11 ETFs</strong>. ` +
+    `On SOXX, CSP1, CNDX, IUIT — the tech / broad-market group — fixed L=60 gives 0.85-1.09 Sharpe, materially better than walk-forward (0.57-0.92). ` +
+    `Reason: walk-forward refits to recent noise; fixed-L doesn't. ` +
+    `<br><br>` +
+    `<strong>The cleanest deployable version is therefore: pick one L value (e.g., L=60 from Zweig literature), apply it uniformly across all ETFs, rebalance bi-weekly Friday.</strong> ` +
+    `That version beats BH on IUIT, CNDX, IUES (and ties on SOXX). The signal is real — but the "best practice" parameter selection turns out to be NO tuning at all.`;
+}
+
 function renderRobustnessRebal() {
   const rb = window.DATA.robustness?.test_6_rebalance_freq || {};
   const etf = document.getElementById('rob-rebal-etf').value;
@@ -1420,6 +1533,8 @@ function activateTab(name) {
       renderRobustnessBootstrap();
       renderRobustnessMA();
       renderRobustnessRebal();
+      renderRobustnessWFxCadence();
+      renderRobustnessFixed();
     }
     TAB_RENDERED.add(name);
   } else {

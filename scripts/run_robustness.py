@@ -386,6 +386,66 @@ def run_with_rebalance_freq(close: pd.Series, breadth: pd.Series, L_pct: float,
     return {"equity": equity, "alloc": alloc, "turnover": turnover}
 
 
+def walk_forward_l_with_cadence(close: pd.Series, breadth: pd.Series,
+                                   eligible_start: pd.Timestamp,
+                                   initial_train_end: pd.Timestamp,
+                                   refit_freq: str = "YE",
+                                   rebal_freq: str = "D") -> dict:
+    """Walk-forward L (annual refit) applied at a specific REBALANCE cadence
+    during the test segments. Each refit uses the daily-rebalance Sharpe to
+    select L; the test segment then uses `rebal_freq` for the actual trade
+    decisions."""
+    last_date = close.index[-1]
+    refit_ends = pd.date_range(initial_train_end, last_date, freq=refit_freq)
+    refit_ends = [close.index[close.index.searchsorted(r, side="right") - 1]
+                  for r in refit_ends]
+    refit_ends = [r for r in refit_ends if r >= eligible_start]
+    if not refit_ends:
+        return {}
+
+    segments = []
+    test_eq_pieces = []
+    for i, train_end in enumerate(refit_ends):
+        train_end_idx = close.index.get_loc(train_end)
+        if i + 1 < len(refit_ends):
+            test_end = refit_ends[i + 1]
+        else:
+            test_end = last_date
+        test_start_idx = train_end_idx + 1
+        if test_start_idx >= len(close):
+            break
+        test_start = close.index[test_start_idx]
+        if test_start > test_end:
+            continue
+
+        # Fit L on train (using daily-rebalance evaluation for picking L)
+        fitted_L, _ = best_L_in_window(close, breadth, eligible_start, train_end)
+        if fitted_L is None:
+            continue
+
+        # Apply with the SPECIFIED rebalance cadence over the full series,
+        # then slice the test segment.
+        full_run = run_with_rebalance_freq(
+            close, breadth, fitted_L, rebal_freq,
+            window_start=eligible_start,
+        )
+        test_eq = full_run["equity"].loc[test_start:test_end]
+        base_val = float(full_run["equity"].iloc[test_start_idx - 1]) if test_start_idx > 0 else 1.0
+        test_eq = test_eq / base_val
+        segments.append({"fitted_L": fitted_L, "test_start": test_start.strftime("%Y-%m-%d"),
+                          "test_end": test_end.strftime("%Y-%m-%d")})
+        last_wf_val = test_eq_pieces[-1].iloc[-1] if test_eq_pieces else 1.0
+        test_eq_pieces.append(test_eq * last_wf_val / test_eq.iloc[0])
+
+    if not test_eq_pieces:
+        return {}
+    wf_equity = pd.concat(test_eq_pieces)
+    return {
+        "walk_forward_sharpe": _safe(sharpe_of(wf_equity)),
+        "segments": segments,
+    }
+
+
 def rebalance_freq_test(close: pd.Series, breadth: pd.Series,
                           L_pct: float, eligible_start: pd.Timestamp,
                           freqs: list[tuple[str, str]]) -> list[dict]:
@@ -590,6 +650,68 @@ def main() -> int:
               f"Sharpe {r['sharpe']:+.2f}  totRet {r['total_return']*100:+.0f}%  "
               f"DD {r['max_dd']*100:.0f}%")
 
+    # ===== TEST 7: WALK-FORWARD L x REBALANCE CADENCE =====
+    print("\n=== TEST 7: Walk-forward L crossed with rebalance cadence ===")
+    rebal_freqs_t7 = [
+        ("Daily",        "D"),
+        ("Weekly Fri",   "W-FRI"),
+        ("Bi-weekly Fri", "2W-FRI"),
+        ("Month-end",    "BME"),
+    ]
+    wf_cadence_results: dict[str, dict] = {}
+    for etf in ["CSP1", "SOXX", "IUIT", "CNDX", "IUES", "IUFS", "IUIS"]:
+        if etf not in per_etf:
+            continue
+        d = per_etf[etf]
+        wf_cadence_results[etf] = {}
+        for label, freq in rebal_freqs_t7:
+            r = walk_forward_l_with_cadence(
+                d["close"], d["breadth"], d["eligible"],
+                pd.Timestamp(WF_INITIAL_TRAIN_END), refit_freq="YE",
+                rebal_freq=freq,
+            )
+            if not r:
+                continue
+            wf_cadence_results[etf][label] = {
+                "rebalance_label": label,
+                "rebalance_freq": freq,
+                "walk_forward_sharpe": r["walk_forward_sharpe"],
+            }
+        print(f"\n  {etf:5} WF Sharpe by rebalance cadence:")
+        for label, freq in rebal_freqs_t7:
+            r = wf_cadence_results[etf].get(label)
+            if r:
+                print(f"    {label:<14}  WF Sharpe {r['walk_forward_sharpe']:+.2f}")
+
+    # ===== TEST 8: FIXED L (NO PER-ETF TUNING) =====
+    print("\n=== TEST 8: Fixed L=60 for ALL ETFs (no tuning whatsoever) ===")
+    fixed_L_values = [50, 55, 60, 65, 70]
+    fixed_L_results: dict[str, list[dict]] = {}
+    for etf in ETFS:
+        if etf not in per_etf:
+            continue
+        d = per_etf[etf]
+        rows = []
+        for L in fixed_L_values:
+            alloc = family_d_alloc_series(d["breadth"], d["close"].index, L,
+                                            window_start=d["eligible"])
+            eq = equity_from_alloc(alloc, d["close"])
+            sh = sharpe_of(eq, d["eligible"])
+            rows.append({"L": L, "sharpe": _safe(sh)})
+        fixed_L_results[etf] = rows
+    # Pretty print the matrix
+    print(f"\n  {'ETF':<5} | " + " | ".join(f"{f'L={L}':>6}" for L in fixed_L_values) + " | best in-sample | walk-forward")
+    print("  " + "-" * 90)
+    for etf in ETFS:
+        if etf not in fixed_L_results:
+            continue
+        is_L = per_etf_in_sample_L.get(etf) if 'per_etf_in_sample_L' in dir() else None
+        wf_sh = wf_per_etf.get(etf, {}).get("walk_forward_sharpe")
+        cells = " | ".join(f"{r['sharpe']:>+6.2f}" for r in fixed_L_results[etf])
+        is_sh = wf_per_etf.get(etf, {}).get("in_sample_sharpe")
+        is_L = wf_per_etf.get(etf, {}).get("in_sample_L")
+        print(f"  {etf:<5} | {cells} | L={is_L}: {is_sh:+.2f}      | {wf_sh:+.2f}")
+
     # ===== TEST 6: REBALANCE FREQUENCY =====
     print("\n=== TEST 6: Rebalance frequency sensitivity ===")
     rebal_freqs = [
@@ -630,6 +752,8 @@ def main() -> int:
         "test_5_ma_period_csp1": ma_results_csp1,
         "test_5b_ma_period_soxx": ma_results_soxx,
         "test_6_rebalance_freq": rebal_results,
+        "test_7_wf_x_cadence": wf_cadence_results,
+        "test_8_fixed_L": fixed_L_results,
     }
 
     def clean(o):
