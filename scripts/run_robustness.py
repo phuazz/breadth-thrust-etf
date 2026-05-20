@@ -386,6 +386,104 @@ def run_with_rebalance_freq(close: pd.Series, breadth: pd.Series, L_pct: float,
     return {"equity": equity, "alloc": alloc, "turnover": turnover}
 
 
+def walk_forward_topK_portfolio(closes: pd.DataFrame, breadths: pd.DataFrame,
+                                   eligible_start: pd.Timestamp,
+                                   initial_train_end: pd.Timestamp,
+                                   K_grid: list[int] = [3, 5, 7],
+                                   refit_freq: str = "YE",
+                                   rebal_freq: str = "W-FRI") -> dict:
+    """Walk-forward K selection for the top-K-by-breadth portfolio.
+
+    For each annual refit boundary, find the K (from K_grid) that gives
+    the best Sharpe on the train segment using breadth-weighted top-K
+    construction. Apply that K to the next test segment. Concatenate.
+    """
+    last_date = closes.index[-1]
+    refit_ends = pd.date_range(initial_train_end, last_date, freq=refit_freq)
+    refit_ends = [closes.index[closes.index.searchsorted(r, side="right") - 1]
+                   for r in refit_ends]
+    refit_ends = [r for r in refit_ends if r >= eligible_start]
+    if not refit_ends:
+        return {}
+
+    # Import portfolio helpers locally to avoid circular import burden
+    sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+    from run_portfolio import run_portfolio, top_k_breadth_weight  # noqa: E402
+
+    def _portfolio_equity(K, win_start, win_end):
+        r = run_portfolio(closes, breadths, top_k_breadth_weight(K), win_start)
+        return r["equity"]
+
+    def _sharpe_in_window(equity, win_start, win_end):
+        eq = equity.loc[(equity.index >= win_start) & (equity.index <= win_end)]
+        if len(eq) < 5:
+            return float("nan")
+        eq = eq / float(eq.iloc[0])
+        daily = eq.pct_change().fillna(0)
+        if daily.std() == 0:
+            return 0.0
+        return float(daily.mean() / daily.std() * math.sqrt(252))
+
+    segments = []
+    test_eq_pieces = []
+    for i, train_end in enumerate(refit_ends):
+        train_end_idx = closes.index.get_loc(train_end)
+        if i + 1 < len(refit_ends):
+            test_end = refit_ends[i + 1]
+        else:
+            test_end = last_date
+        test_start_idx = train_end_idx + 1
+        if test_start_idx >= len(closes):
+            break
+        test_start = closes.index[test_start_idx]
+        if test_start > test_end:
+            continue
+
+        # Find best K on train window
+        best_K = None
+        best_train_sh = -1e9
+        for K in K_grid:
+            full_eq = _portfolio_equity(K, eligible_start, last_date)
+            train_sh = _sharpe_in_window(full_eq, eligible_start, train_end)
+            if not np.isnan(train_sh) and train_sh > best_train_sh:
+                best_train_sh = train_sh
+                best_K = K
+        if best_K is None:
+            continue
+
+        # Apply best_K to test segment
+        full_eq = _portfolio_equity(best_K, eligible_start, last_date)
+        test_eq = full_eq.loc[test_start:test_end]
+        base_val = float(full_eq.iloc[test_start_idx - 1]) if test_start_idx > 0 else 1.0
+        test_eq = test_eq / base_val
+
+        test_sh = _sharpe_in_window(test_eq, test_start, test_end)
+        segments.append({
+            "train_end": train_end.strftime("%Y-%m-%d"),
+            "test_start": test_start.strftime("%Y-%m-%d"),
+            "test_end": test_end.strftime("%Y-%m-%d"),
+            "best_K": best_K,
+            "train_sharpe": _safe(best_train_sh),
+            "test_sharpe": _safe(test_sh),
+            "n_test_days": int(len(test_eq)),
+        })
+        last_wf_val = test_eq_pieces[-1].iloc[-1] if test_eq_pieces else 1.0
+        test_eq_pieces.append(test_eq * last_wf_val / test_eq.iloc[0])
+
+    if not test_eq_pieces:
+        return {}
+    wf_equity = pd.concat(test_eq_pieces)
+    return {
+        "segments": segments,
+        "walk_forward_sharpe": _safe(sharpe_of(wf_equity)),
+        "wf_dates": [d.strftime("%Y-%m-%d") for d in wf_equity.index],
+        "wf_equity": [round(float(x), 6) for x in wf_equity.values],
+        "in_sample_K_3_sharpe": None,  # filled in by caller
+        "in_sample_K_5_sharpe": None,
+        "in_sample_K_7_sharpe": None,
+    }
+
+
 def walk_forward_l_with_cadence(close: pd.Series, breadth: pd.Series,
                                    eligible_start: pd.Timestamp,
                                    initial_train_end: pd.Timestamp,
@@ -650,6 +748,40 @@ def main() -> int:
               f"Sharpe {r['sharpe']:+.2f}  totRet {r['total_return']*100:+.0f}%  "
               f"DD {r['max_dd']*100:.0f}%")
 
+    # ===== TEST 10: WALK-FORWARD CROSS-SECTIONAL ROTATION (top-K portfolio) =====
+    print("\n=== TEST 10: Walk-forward K selection for cross-sectional rotation ===")
+    sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+    from run_portfolio import build_panels  # noqa: E402
+
+    print("  Building 11-ETF panels for portfolio (closes + breadths) ...")
+    pf_closes, pf_breadths, pf_etfs_used = build_panels()
+    # Eligible start: latest of all ETFs' breadth eligible dates + 200d
+    pf_eligible = max(eligible_starts.values())
+    pf_eligible = pf_closes.index[pf_closes.index >= pf_eligible][0]
+    print(f"  Portfolio eligible from {pf_eligible.date()}")
+
+    wf_portfolio = walk_forward_topK_portfolio(
+        pf_closes, pf_breadths, pf_eligible,
+        pd.Timestamp(WF_INITIAL_TRAIN_END),
+        K_grid=[3, 5, 7], refit_freq="YE", rebal_freq="W-FRI",
+    )
+    if wf_portfolio:
+        print(f"  Top-K walk-forward Sharpe: {wf_portfolio['walk_forward_sharpe']:+.2f}")
+        print(f"  Refit K sequence: {[s['best_K'] for s in wf_portfolio['segments']]}")
+        print(f"  Per-segment test Sharpes: " +
+              ", ".join(f"{s['test_sharpe']:+.2f}" for s in wf_portfolio['segments']))
+
+    # Also compute in-sample K Sharpes for comparison (use full-window with fixed K)
+    from run_portfolio import run_portfolio as _run_pf, top_k_breadth_weight  # noqa: E402
+    in_sample_K_results = {}
+    for K in [3, 5, 7]:
+        r = _run_pf(pf_closes, pf_breadths, top_k_breadth_weight(K), pf_eligible)
+        eq_window = r["equity"].loc[r["equity"].index >= pf_eligible]
+        eq_window = eq_window / eq_window.iloc[0]
+        sh = sharpe_of(eq_window)
+        in_sample_K_results[K] = _safe(sh)
+        print(f"  In-sample K={K} (full window) Sharpe: {sh:+.2f}")
+
     # ===== TEST 7: WALK-FORWARD L x REBALANCE CADENCE =====
     print("\n=== TEST 7: Walk-forward L crossed with rebalance cadence ===")
     rebal_freqs_t7 = [
@@ -754,6 +886,10 @@ def main() -> int:
         "test_6_rebalance_freq": rebal_results,
         "test_7_wf_x_cadence": wf_cadence_results,
         "test_8_fixed_L": fixed_L_results,
+        "test_10_wf_topk_portfolio": {
+            **wf_portfolio,
+            "in_sample_K_sharpes": in_sample_K_results,
+        } if wf_portfolio else {},
     }
 
     def clean(o):
