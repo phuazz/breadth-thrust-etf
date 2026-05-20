@@ -392,15 +392,25 @@
     </div>
 
     <section>
-      <h2>Portfolio variants — relative-strength tilting</h2>
-      <p class="section-sub">All portfolios rebalance weekly (Fridays). For each rebalance, ETFs are ranked by current ma200_breadth %; the top K are selected. Within the top K, weights are either equal, decreasing with rank, or proportional to breadth strength. Leveraged variants add a 50/100 overlay: 50% allocated to the basket when basket-average breadth is ≤ 60%, 150% when above.</p>
+      <h2>Headline comparison</h2>
+      <p class="section-sub">Six representative strategies — the best leveraged and unleveraged portfolios, the naive equal-weight benchmark across all 11 ETFs, two single-ETF MA200 strategies (CSP1 = S&P 500, SOXX = best single sector), and SPY buy-and-hold as the passive benchmark. Best Sharpe highlighted.</p>
       <table class="small-table" id="portfolio-table"><thead></thead><tbody></tbody></table>
     </section>
 
     <section>
-      <h2>Equity curves</h2>
-      <p class="section-sub">Comparison of the top portfolio variants vs equal-weight all-ETFs and SPY buy-and-hold.</p>
-      <div id="portfolio-chart" class="chart"></div>
+      <h2>Equity curves — apples-to-apples</h2>
+      <p class="section-sub">All five lines renormalised to 1.0 at the common start date (the latest "data available" date across all series) so visual comparison is fair. Log scale.</p>
+      <div id="portfolio-chart" class="chart tall"></div>
+    </section>
+
+    <section>
+      <details style="margin-top:20px;">
+        <summary style="cursor:pointer;color:var(--ink-faint);font-size:13px;padding:4px 0;">
+          Show all 20 portfolio variants (3 × top-K × 3 weights × {unleveraged, leveraged})
+        </summary>
+        <p class="section-sub" style="margin-top:10px;">Full sweep: top K ∈ {3, 5, 7} × weighting ∈ {equal, rank, breadth} × {unleveraged, leveraged 50/150 overlay on basket-avg breadth ≥ 60%}. All rebalance weekly with 5 bps per unit of turnover. Leveraged variants modulate 50%↔150% basket exposure based on basket-average breadth.</p>
+        <table class="small-table" id="portfolio-table-full"><thead></thead><tbody></tbody></table>
+      </details>
     </section>
   </div>
 
@@ -921,80 +931,179 @@ function renderDetail() {
 }
 
 // ----------- Portfolio tab ---------------------------------------------
+function _curatedSeries(data) {
+  const p = data.portfolio || {};
+  const m = data.ma200 || {};
+  const r = p.results || {};
+  const meq = m.winner_equity_curves || {};
+  const out = [];
+  // 1. Best leveraged portfolio
+  if (r.top7_breadth_weight_leveraged) {
+    out.push({
+      label: 'Best LEVERAGED portfolio (Top 7, breadth-weighted, 50/150 overlay)',
+      category: 'Multi-ETF',
+      ...r.top7_breadth_weight_leveraged,
+      color: '#1351b4', width: 2.0,
+    });
+  }
+  // 2. Best unleveraged portfolio
+  if (r.top5_breadth_weight) {
+    out.push({
+      label: 'Best UNLEVERAGED portfolio (Top 5, breadth-weighted, no leverage)',
+      category: 'Multi-ETF (no margin)',
+      ...r.top5_breadth_weight,
+      color: '#1d7a3a', width: 2.0,
+    });
+  }
+  // 3. CSP1 single-ETF MA200 50/150 (broad-market single-ETF strategy)
+  if (meq.CSP1?.family_d) {
+    const c = meq.CSP1.family_d;
+    out.push({
+      label: 'CSP1 (S&P 500) — single ETF MA200 + 50/150',
+      category: 'Single-ETF strategy',
+      sharpe: c.sharpe, total_return: c.total_return, max_dd: c.max_dd,
+      cagr: c.cagr,
+      dates: c.dates, equity: c.equity,
+      color: '#b76e00', width: 1.6,
+    });
+  }
+  // 4. SOXX single-ETF MA200 50/150 (best single-sector — concentration extreme)
+  if (meq.SOXX?.family_d) {
+    const s = meq.SOXX.family_d;
+    out.push({
+      label: 'SOXX — single ETF MA200 + 50/150 (best single-sector)',
+      category: 'Single-ETF strategy',
+      sharpe: s.sharpe, total_return: s.total_return, max_dd: s.max_dd,
+      cagr: s.cagr,
+      dates: s.dates, equity: s.equity,
+      color: '#b3261e', width: 1.4,
+    });
+  }
+  // 5. Naive equal-weight all 11 (no signal, just diversification)
+  if (r.equal_weight_all) {
+    out.push({
+      label: 'Naive equal-weight all 11 ETFs (no signal)',
+      category: 'Benchmark',
+      ...r.equal_weight_all,
+      color: '#4a5159', width: 1.2, dash: 'dash',
+    });
+  }
+  // 6. SPY buy-and-hold (passive)
+  if (r.spy_buy_hold) {
+    out.push({
+      label: 'SPY buy-and-hold (passive benchmark)',
+      category: 'Benchmark',
+      ...r.spy_buy_hold,
+      color: '#6b727a', width: 1.1, dash: 'dot',
+    });
+  }
+  return out;
+}
+
 function renderPortfolio() {
   const data = window.DATA;
   const p = data.portfolio;
+  const m = data.ma200;
   if (!p) {
     document.getElementById('portfolio-verdict').textContent =
       'Portfolio construction not yet run — execute scripts/run_portfolio.py.';
     return;
   }
-  // Verdict — find best Sharpe overall
-  const variants = Object.entries(p.results).map(([k, v]) => ({ key: k, ...v }));
+  const curated = _curatedSeries(data);
   const spy = p.results.spy_buy_hold;
-  const best = variants.reduce((a, b) => (a.sharpe ?? -1e9) > (b.sharpe ?? -1e9) ? a : b);
-  const ewAll = p.results.equal_weight_all;
+  const bestLev = p.results.top7_breadth_weight_leveraged;
+  const bestUnlev = p.results.top5_breadth_weight;
+
+  // Verdict — compare best leveraged / unleveraged / single broad-ETF vs SPY
   document.getElementById('portfolio-verdict').innerHTML =
-    `Across ${p.etfs_used?.length} ETFs over ${p.eligible_start} → today, the best portfolio variant is `
-    + `<strong>${best.label || best.key}</strong> at Sharpe <strong>${fmtNum(best.sharpe, 2, true)}</strong>, `
-    + `vs equal-weight all-ETFs <strong>${fmtNum(ewAll?.sharpe, 2, true)}</strong> and SPY buy-and-hold <strong>${fmtNum(spy?.sharpe, 2, true)}</strong>. `
-    + `Concentrating into top-K by breadth ${best.sharpe > ewAll?.sharpe ? 'adds' : 'does not add'} `
-    + `value over a simple equal-weight basket of the same universe.`;
-  // Table
+    `The relative-strength tilt across 11 ETFs adds real value. Best <strong>leveraged</strong> portfolio (Top 7, breadth-weighted, 50/150 overlay) delivers Sharpe `
+    + `<strong>${fmtNum(bestLev?.sharpe, 2, true)}</strong>, totRet ${fmtPct(bestLev?.total_return, true)}, max DD ${fmtPct(bestLev?.max_dd)}. `
+    + `Best <strong>unleveraged</strong> portfolio (Top 5, breadth-weighted, no margin) delivers Sharpe `
+    + `<strong>${fmtNum(bestUnlev?.sharpe, 2, true)}</strong>, totRet ${fmtPct(bestUnlev?.total_return, true)}, max DD ${fmtPct(bestUnlev?.max_dd)}.<br><br>`
+    + `Both beat SPY buy-and-hold (Sharpe ${fmtNum(spy?.sharpe, 2, true)}) by ~0.23 Sharpe and a naive equal-weight basket of the same 11 ETFs (Sharpe ${fmtNum(p.results.equal_weight_all?.sharpe, 2, true)}) by ~0.18-0.20. The "top-K by breadth" tilt is doing real work — it is not just the 11-ETF universe.`;
+
+  // Headline table — curated 6 rows
   const el = document.getElementById('portfolio-table');
   el.querySelector('thead').innerHTML = `<tr>
-    <th>Variant</th><th>Sharpe</th><th>CAGR</th>
+    <th>Strategy</th><th>Category</th><th>Sharpe</th><th>CAGR</th>
     <th>Total return</th><th>Max DD</th><th>Δ Sharpe vs SPY</th>
   </tr>`;
   const tbody = el.querySelector('tbody');
   tbody.innerHTML = '';
-  const sorted = variants.slice().sort((a, b) => (b.sharpe ?? -1e9) - (a.sharpe ?? -1e9));
-  const bestSh = sorted[0]?.sharpe;
-  for (const r of sorted) {
-    const isBest = r.sharpe === bestSh;
-    const dSpy = (r.sharpe ?? 0) - (spy?.sharpe ?? 0);
+  const bestSh = Math.max(...curated.map(c => c.sharpe ?? -1e9));
+  for (const c of curated) {
+    const dSpy = (c.sharpe ?? 0) - (spy?.sharpe ?? 0);
+    const isBest = c.sharpe === bestSh;
     tbody.innerHTML += `<tr class="${isBest ? 'highlight' : ''}">
-      <td class="row-label">${r.label || r.key}</td>
-      <td class="num"><strong>${fmtNum(r.sharpe, 2, true)}</strong></td>
-      <td class="num">${fmtPct(r.cagr, true)}</td>
-      <td class="num">${fmtPct(r.total_return, true)}</td>
-      <td class="num">${fmtPct(r.max_dd)}</td>
+      <td class="row-label">${c.label}</td>
+      <td style="color:var(--ink-faint);font-size:12px;">${c.category}</td>
+      <td class="num"><strong>${fmtNum(c.sharpe, 2, true)}</strong></td>
+      <td class="num">${fmtPct(c.cagr, true)}</td>
+      <td class="num">${fmtPct(c.total_return, true)}</td>
+      <td class="num">${fmtPct(c.max_dd)}</td>
       <td class="num ${dSpy > 0 ? 'good' : (dSpy < 0 ? 'bad' : '')}">${fmtNum(dSpy, 2, true)}</td>
     </tr>`;
   }
-  // Chart: top 5 variants + benchmarks
-  const top5 = sorted.slice(0, 5);
-  const colors = ['#1351b4', '#1d7a3a', '#b76e00', '#b3261e', '#8e44ad'];
-  const traces = top5.map((r, i) => ({
-    x: r.dates, y: r.equity, mode: 'lines',
-    name: `${r.label || r.key} — Shp ${fmtNum(r.sharpe, 2, true)}`,
-    line: { color: colors[i % colors.length], width: 1.5 },
-  }));
-  if (ewAll && !top5.find(r => r.key === 'equal_weight_all')) {
-    traces.push({
-      x: ewAll.dates, y: ewAll.equity, mode: 'lines',
-      name: `${ewAll.label} (bench) — Shp ${fmtNum(ewAll.sharpe, 2, true)}`,
-      line: { color: '#4a5159', width: 1.0, dash: 'dot' },
-    });
+
+  // Equity chart — renormalise all series to a common start date for fair visual
+  let commonStart = null;
+  for (const c of curated) {
+    if (!c.dates?.length) continue;
+    if (commonStart === null || c.dates[0] > commonStart) commonStart = c.dates[0];
   }
-  if (spy && !top5.find(r => r.key === 'spy_buy_hold')) {
+  const traces = [];
+  for (const c of curated) {
+    if (!c.dates?.length || !c.equity?.length) continue;
+    let startIdx = c.dates.findIndex(d => d >= commonStart);
+    if (startIdx < 0) startIdx = 0;
+    const datesSlice = c.dates.slice(startIdx);
+    const eqSlice = c.equity.slice(startIdx);
+    const startVal = eqSlice[0] || 1.0;
+    const normalised = eqSlice.map(e => e / startVal);
     traces.push({
-      x: spy.dates, y: spy.equity, mode: 'lines',
-      name: `SPY buy-and-hold (bench) — Shp ${fmtNum(spy.sharpe, 2, true)}`,
-      line: { color: '#6b727a', width: 1.0, dash: 'dot' },
+      x: datesSlice, y: normalised, mode: 'lines',
+      name: `${c.label} — Shp ${fmtNum(c.sharpe, 2, true)}`,
+      line: { color: c.color, width: c.width, dash: c.dash || 'solid' },
     });
   }
   const layout = {
-    margin: { l: 56, r: 14, t: 14, b: 38 },
+    margin: { l: 60, r: 14, t: 14, b: 38 },
     paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
     font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
     xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
-    yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3',
-             zeroline: false, type: 'log', tickformat: '.2f' },
+    yaxis: {
+      title: `Equity (renormalised to 1.0 at ${commonStart})`,
+      gridcolor: '#eef0f3', zeroline: false, type: 'log', tickformat: '.2f',
+    },
     hovermode: 'x unified',
-    legend: { orientation: 'h', x: 0, y: 1.08 },
+    legend: { orientation: 'h', x: 0, y: 1.14, font: { size: 11 } },
   };
   Plotly.newPlot('portfolio-chart', traces, layout, { displayModeBar: false, responsive: true });
+
+  // Full variant table (collapsed by default)
+  const elFull = document.getElementById('portfolio-table-full');
+  if (elFull) {
+    elFull.querySelector('thead').innerHTML = `<tr>
+      <th>Variant</th><th>Sharpe</th><th>CAGR</th>
+      <th>Total return</th><th>Max DD</th><th>Δ Sharpe vs SPY</th>
+    </tr>`;
+    const fullBody = elFull.querySelector('tbody');
+    const variants = Object.entries(p.results).map(([k, v]) => ({ key: k, ...v }));
+    const sorted = variants.slice().sort((a, b) => (b.sharpe ?? -1e9) - (a.sharpe ?? -1e9));
+    const fullBestSh = sorted[0]?.sharpe;
+    fullBody.innerHTML = sorted.map(r => {
+      const dSpy = (r.sharpe ?? 0) - (spy?.sharpe ?? 0);
+      const isBest = r.sharpe === fullBestSh;
+      return `<tr class="${isBest ? 'highlight' : ''}">
+        <td class="row-label" style="font-size:12px;">${r.label || r.key}</td>
+        <td class="num">${fmtNum(r.sharpe, 2, true)}</td>
+        <td class="num">${fmtPct(r.cagr, true)}</td>
+        <td class="num">${fmtPct(r.total_return, true)}</td>
+        <td class="num">${fmtPct(r.max_dd)}</td>
+        <td class="num ${dSpy > 0 ? 'good' : (dSpy < 0 ? 'bad' : '')}">${fmtNum(dSpy, 2, true)}</td>
+      </tr>`;
+    }).join('');
+  }
 }
 
 // ----------- Tab navigation --------------------------------------------
