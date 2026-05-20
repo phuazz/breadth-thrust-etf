@@ -293,6 +293,7 @@
     <button class="tab" data-tab="unlev">Unleveraged</button>
     <button class="tab" data-tab="detail">ETF Detail</button>
     <button class="tab" data-tab="portfolio">Portfolio</button>
+    <button class="tab" data-tab="robustness">Robustness</button>
     <button class="tab" data-tab="method">Method</button>
   </div>
 </nav>
@@ -411,6 +412,48 @@
         <p class="section-sub" style="margin-top:10px;">Full sweep: top K ∈ {3, 5, 7} × weighting ∈ {equal, rank, breadth} × {unleveraged, leveraged 50/150 overlay on basket-avg breadth ≥ 60%}. All rebalance weekly with 5 bps per unit of turnover. Leveraged variants modulate 50%↔150% basket exposure based on basket-average breadth.</p>
         <table class="small-table" id="portfolio-table-full"><thead></thead><tbody></tbody></table>
       </details>
+    </section>
+  </div>
+
+  <!-- ====================== ROBUSTNESS ====================== -->
+  <div class="tab-content" id="tab-robustness">
+    <div class="verdict">
+      <h2>Robustness verdict — the headline Sharpe is in-sample inflated</h2>
+      <p id="robustness-verdict">Loading…</p>
+    </div>
+
+    <section>
+      <h2>Test 1 — Walk-forward L selection (the headline test)</h2>
+      <p class="section-sub">Annual refit: train on expanding window ending each Dec 31, apply the fitted L to the next calendar year. Concatenate the test segments. This is the realistic OOS Sharpe with no in-sample threshold selection.</p>
+      <table class="small-table" id="rob-wf-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Test 2 — Borrow cost on 50/150 leverage</h2>
+      <p class="section-sub">The 50/150 variant assumes free margin. Recomputed Sharpe with 5%/yr broker call rate on the 50% extra notional during the long-state. Shows the practical drag.</p>
+      <table class="small-table" id="rob-borrow-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Test 3 — Sub-period Sharpe (strategy vs buy-and-hold)</h2>
+      <p class="section-sub">Per-regime Sharpe decomposition. Identifies whether the in-sample edge is regime-driven (e.g., concentrated in one favourable period) or genuine across regimes. Δ = strategy Sharpe − BH Sharpe (positive = strategy beats BH).</p>
+      <div class="chart-controls">
+        <label for="rob-subperiod-etf">ETF:</label>
+        <select id="rob-subperiod-etf"></select>
+      </div>
+      <table class="small-table" id="rob-subperiod-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Test 4 — Bootstrap Sharpe confidence interval</h2>
+      <p class="section-sub">Block bootstrap (60-day blocks, 1,000 samples) of the daily strategy return series. The point Sharpe is the in-sample number; the bootstrap p5/p50/p95 give the realistic range when paths could have differed.</p>
+      <table class="small-table" id="rob-bootstrap-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Test 5 — MA-period robustness</h2>
+      <p class="section-sub">Was MA200 specifically the "right" lookback, or just a lucky single point? Sweep MA period ∈ {100, 150, 200, 250, 300} for two key ETFs and re-find the best L for each. If MA200 is an obvious peak, the choice was in-sample-tuned and adds another layer of bias.</p>
+      <table class="small-table" id="rob-ma-table"><thead></thead><tbody></tbody></table>
     </section>
   </div>
 
@@ -1103,6 +1146,209 @@ function renderPortfolio() {
   }
 }
 
+// ----------- Robustness tab --------------------------------------------
+function renderRobustnessVerdict() {
+  const data = window.DATA;
+  const r = data.robustness;
+  if (!r) return;
+  // Compute average degradation across ETFs
+  const wf = r.test_1_walk_forward_l || {};
+  const etfs = Object.keys(wf);
+  let totalDelta = 0, count = 0;
+  let csp1Wf = null, csp1Is = null;
+  let beatsBh = 0, total = 0;
+  // We need BH per-ETF Sharpe — pull from ma200 baselines
+  const baselines = data.ma200?.baselines || {};
+  for (const etf of etfs) {
+    const seg = wf[etf];
+    if (!seg) continue;
+    const wfSh = seg.walk_forward_sharpe;
+    const isSh = seg.in_sample_sharpe;
+    if (wfSh != null && isSh != null) {
+      totalDelta += (wfSh - isSh);
+      count++;
+    }
+    if (etf === 'CSP1') { csp1Wf = wfSh; csp1Is = isSh; }
+    const bh = baselines[etf]?.buy_and_hold?.sharpe;
+    if (bh != null && wfSh != null) {
+      total++;
+      if (wfSh > bh) beatsBh++;
+    }
+  }
+  const avgDelta = count > 0 ? totalDelta / count : 0;
+  document.getElementById('robustness-verdict').innerHTML =
+    `The MA200 + 50/150 headline Sharpe was <strong>materially inflated by in-sample L selection</strong>. `
+    + `Walk-forward (annual L refit on expanding window, apply to next 12 months) degrades Sharpe by an average of `
+    + `<strong>${avgDelta.toFixed(2)}</strong> across the 11 ETFs. For CSP1 specifically, in-sample Sharpe `
+    + `<strong>${fmtNum(csp1Is, 2, true)}</strong> collapses to <strong>${fmtNum(csp1Wf, 2, true)}</strong> walk-forward — that is BELOW the SPY buy-and-hold Sharpe of ~0.84.<br><br>`
+    + `Out-of-sample, the strategy <strong>beats buy-and-hold on only ${beatsBh} of ${total} ETFs</strong>. `
+    + `The OOS winners are <strong>IUES (Energy)</strong> and <strong>IUIS (Industrials)</strong> — much smaller universe than the in-sample picture suggested. SOXX, CSP1, CNDX, IUIT all degrade to roughly tie or underperform their BH benchmarks.<br><br>`
+    + `Other layers of bias: borrow cost on the 50% leverage layer cuts another ~0.05-0.10 Sharpe. Picking MA200 over {100, 150, 200, 250, 300} was itself an in-sample choice (MA200 happens to be the peak for both CSP1 and SOXX — likely adds another ~0.10 of bias).<br><br>`
+    + `<strong>Realistic deployment Sharpe for CSP1 MA200 50/150 is probably 0.40-0.65</strong>, not 1.04. That is at best comparable to SPY buy-and-hold after borrow costs. The strategy in this form does not have a robust edge on broad-market or tech ETFs. It may have a modest edge on Energy and Industrials.`;
+}
+
+function renderRobustnessWF() {
+  const data = window.DATA;
+  const wf = data.robustness?.test_1_walk_forward_l || {};
+  const baselines = data.ma200?.baselines || {};
+  const el = document.getElementById('rob-wf-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th><th>IS L</th>
+    <th>In-sample Sharpe</th><th>Walk-forward Sharpe</th><th>Δ (WF−IS)</th>
+    <th>BH Sharpe</th><th>WF vs BH</th><th>Refit L sequence</th>
+  </tr>`;
+  const etfs = ['SOXX','CSP1','CNDX','IUIT','IUIS','IUFS','IUES','IUCD','IUHC','IUCS','IUUS'];
+  const tbody = el.querySelector('tbody');
+  tbody.innerHTML = etfs.filter(e => wf[e]).map(etf => {
+    const r = wf[etf];
+    const bh = baselines[etf]?.buy_and_hold?.sharpe;
+    const wfSh = r.walk_forward_sharpe;
+    const isSh = r.in_sample_sharpe;
+    const delta = (wfSh ?? 0) - (isSh ?? 0);
+    const vsBh = wfSh != null && bh != null ? wfSh - bh : null;
+    const ls = r.segments?.map(s => s.fitted_L).join(', ') || '';
+    return `<tr>
+      <td class="row-label">${etf}</td>
+      <td class="num">${r.in_sample_L}</td>
+      <td class="num">${fmtNum(isSh, 2, true)}</td>
+      <td class="num"><strong>${fmtNum(wfSh, 2, true)}</strong></td>
+      <td class="num ${delta > -0.1 ? 'good' : delta < -0.3 ? 'bad' : ''}">${fmtNum(delta, 2, true)}</td>
+      <td class="num" style="color:var(--ink-faint);">${fmtNum(bh, 2, true)}</td>
+      <td class="num ${vsBh > 0 ? 'good' : 'bad'}">${vsBh != null ? fmtNum(vsBh, 2, true) : '—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-faint);">[${ls}]</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRobustnessBorrow() {
+  const r = window.DATA.robustness?.test_2_borrow_cost || {};
+  const el = document.getElementById('rob-borrow-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th><th>L</th>
+    <th>Sharpe (free borrow)</th><th>Sharpe (5% borrow)</th><th>Δ Sharpe</th>
+    <th>Total return drag</th>
+  </tr>`;
+  el.querySelector('tbody').innerHTML = Object.entries(r).map(([etf, x]) => {
+    const dSh = (x.sharpe_with_borrow ?? 0) - (x.sharpe_free_borrow ?? 0);
+    const dRet = (x.total_return_paid ?? 0) - (x.total_return_free ?? 0);
+    return `<tr>
+      <td class="row-label">${etf}</td>
+      <td class="num">${x.L}</td>
+      <td class="num">${fmtNum(x.sharpe_free_borrow, 2, true)}</td>
+      <td class="num"><strong>${fmtNum(x.sharpe_with_borrow, 2, true)}</strong></td>
+      <td class="num bad">${fmtNum(dSh, 2, true)}</td>
+      <td class="num bad">${fmtPct(dRet, true)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRobustnessSubperiod() {
+  const data = window.DATA;
+  const sp = data.robustness?.test_3_sub_periods || {};
+  const etf = document.getElementById('rob-subperiod-etf').value;
+  const block = sp[etf];
+  const el = document.getElementById('rob-subperiod-table');
+  if (!el || !block) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Period</th><th>Window</th>
+    <th>Strategy Sharpe</th><th>BH Sharpe</th><th>Δ Strategy − BH</th>
+    <th>Strategy total return</th><th>BH total return</th>
+  </tr>`;
+  const tbody = el.querySelector('tbody');
+  tbody.innerHTML = '';
+  for (let i = 0; i < (block.strategy?.length || 0); i++) {
+    const s = block.strategy[i];
+    const b = block.buy_and_hold[i];
+    if (!s || s.sharpe == null) continue;
+    const dSh = (s.sharpe ?? 0) - (b?.sharpe ?? 0);
+    tbody.innerHTML += `<tr>
+      <td class="row-label">${s.label}</td>
+      <td style="font-size:12px;color:var(--ink-faint);">${s.start} → ${s.end}</td>
+      <td class="num">${fmtNum(s.sharpe, 2, true)}</td>
+      <td class="num">${fmtNum(b?.sharpe, 2, true)}</td>
+      <td class="num ${dSh > 0 ? 'good' : 'bad'}"><strong>${fmtNum(dSh, 2, true)}</strong></td>
+      <td class="num">${fmtPct(s.total_return, true)}</td>
+      <td class="num" style="color:var(--ink-faint);">${fmtPct(b?.total_return, true)}</td>
+    </tr>`;
+  }
+}
+
+function renderRobustnessBootstrap() {
+  const r = window.DATA.robustness?.test_4_bootstrap || {};
+  const el = document.getElementById('rob-bootstrap-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th><th>Point Sharpe</th>
+    <th>Bootstrap p5</th><th>Bootstrap p50</th><th>Bootstrap p95</th>
+    <th>p95 − p5 (width)</th><th>% paths positive</th>
+  </tr>`;
+  el.querySelector('tbody').innerHTML = Object.entries(r).map(([etf, x]) => {
+    const width = (x.bootstrap_p95 ?? 0) - (x.bootstrap_p5 ?? 0);
+    return `<tr>
+      <td class="row-label">${etf}</td>
+      <td class="num">${fmtNum(x.point_sharpe, 2, true)}</td>
+      <td class="num bad">${fmtNum(x.bootstrap_p5, 2, true)}</td>
+      <td class="num"><strong>${fmtNum(x.bootstrap_p50, 2, true)}</strong></td>
+      <td class="num good">${fmtNum(x.bootstrap_p95, 2, true)}</td>
+      <td class="num" style="color:var(--ink-faint);">${fmtNum(width, 2, true)}</td>
+      <td class="num">${(x.pct_positive * 100).toFixed(0)}%</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRobustnessMA() {
+  const data = window.DATA;
+  const csp1 = data.robustness?.test_5_ma_period_csp1 || [];
+  const soxx = data.robustness?.test_5b_ma_period_soxx || [];
+  const el = document.getElementById('rob-ma-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>MA period</th>
+    <th colspan="3" style="text-align:center;border-left:1px solid var(--border-strong);">CSP1 (S&P 500)</th>
+    <th colspan="3" style="text-align:center;border-left:1px solid var(--border-strong);">SOXX (semis)</th>
+  </tr>
+  <tr>
+    <th></th>
+    <th style="border-left:1px solid var(--border-strong);">Best L</th><th>Sharpe</th><th>Total ret</th>
+    <th style="border-left:1px solid var(--border-strong);">Best L</th><th>Sharpe</th><th>Total ret</th>
+  </tr>`;
+  const periods = [100, 150, 200, 250, 300];
+  const tbody = el.querySelector('tbody');
+  tbody.innerHTML = '';
+  const csp1MaxSh = Math.max(...csp1.map(r => r.sharpe ?? -1e9));
+  const soxxMaxSh = Math.max(...soxx.map(r => r.sharpe ?? -1e9));
+  for (const ma of periods) {
+    const c = csp1.find(x => x.ma_period === ma);
+    const s = soxx.find(x => x.ma_period === ma);
+    const cBest = c?.sharpe === csp1MaxSh ? 'highlight' : '';
+    const sBest = s?.sharpe === soxxMaxSh ? 'highlight' : '';
+    tbody.innerHTML += `<tr>
+      <td class="row-label">MA${ma}</td>
+      <td class="num ${cBest}" style="border-left:1px solid var(--border-strong);">${c?.best_L ?? '—'}</td>
+      <td class="num ${cBest}"><strong>${fmtNum(c?.sharpe, 2, true)}</strong></td>
+      <td class="num ${cBest}">${fmtPct(c?.total_return, true)}</td>
+      <td class="num ${sBest}" style="border-left:1px solid var(--border-strong);">${s?.best_L ?? '—'}</td>
+      <td class="num ${sBest}"><strong>${fmtNum(s?.sharpe, 2, true)}</strong></td>
+      <td class="num ${sBest}">${fmtPct(s?.total_return, true)}</td>
+    </tr>`;
+  }
+}
+
+function populateRobustnessDropdown() {
+  const sel = document.getElementById('rob-subperiod-etf');
+  if (!sel) return;
+  const sp = window.DATA.robustness?.test_3_sub_periods || {};
+  sel.innerHTML = '';
+  for (const etf of Object.keys(sp)) {
+    const opt = document.createElement('option');
+    opt.value = etf;
+    opt.textContent = `${etf} — ${ETF_DESCRIPTIONS[etf] || ''}`;
+    sel.appendChild(opt);
+  }
+}
+
 // ----------- Tab navigation --------------------------------------------
 const TAB_RENDERED = new Set();
 function activateTab(name) {
@@ -1114,6 +1360,15 @@ function activateTab(name) {
     if (name === 'unlev')     { renderUnlevVerdict(); renderUnlevTable(); renderUnlevPortfolio(); }
     if (name === 'detail')    renderDetail();
     if (name === 'portfolio') renderPortfolio();
+    if (name === 'robustness') {
+      populateRobustnessDropdown();
+      renderRobustnessVerdict();
+      renderRobustnessWF();
+      renderRobustnessBorrow();
+      renderRobustnessSubperiod();
+      renderRobustnessBootstrap();
+      renderRobustnessMA();
+    }
     TAB_RENDERED.add(name);
   } else {
     if (name === 'strategy') { try { Plotly.Plots.resize('strategy-robustness-chart'); } catch(e){} }
@@ -1158,6 +1413,7 @@ function populateEtfDropdown() {
     btn.addEventListener('click', () => activateTab(btn.dataset.tab));
   });
   document.getElementById('detail-etf')?.addEventListener('change', renderDetail);
+  document.getElementById('rob-subperiod-etf')?.addEventListener('change', renderRobustnessSubperiod);
 })();
 </script>
 </body>

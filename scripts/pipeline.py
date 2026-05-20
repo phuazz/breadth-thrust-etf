@@ -74,6 +74,20 @@ def load_portfolio() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_robustness() -> dict | None:
+    """Load data/robustness.json. Trims wf_dates/wf_equity (heavy series
+    not currently rendered) to keep the inlined payload compact."""
+    path = DATA_DIR / "robustness.json"
+    if not path.exists():
+        return None
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    wf = blob.get("test_1_walk_forward_l", {})
+    for etf in wf:
+        wf[etf].pop("wf_dates", None)
+        wf[etf].pop("wf_equity", None)
+    return blob
+
+
 def inject(template_text: str, data: dict) -> str:
     payload_json = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     replacement = (
@@ -113,10 +127,17 @@ def main() -> int:
     else:
         print("  WARNING: no portfolio_construction.json found")
 
+    print("Loading robustness ...", flush=True)
+    robustness = load_robustness()
+    if robustness:
+        wf = robustness.get("test_1_walk_forward_l", {})
+        print(f"  walk-forward L for {len(wf)} ETFs")
+
     data = {
         "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "ma200": ma200,
         "portfolio": portfolio,
+        "robustness": robustness,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")
