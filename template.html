@@ -587,29 +587,22 @@
     </div>
 
     <section>
-      <h2>How the portfolio evolved</h2>
-      <p class="section-sub">Two charts side-by-side: equity curve and number of positions held (almost always K = 7, but the chart confirms there are no gaps where the signal was undefined).</p>
-      <div class="two-col">
-        <div>
-          <h3 style="margin-top:0;">Equity curve (K = 7 weekly Fri)</h3>
-          <div id="trade-equity-chart" class="chart short"></div>
-        </div>
-        <div>
-          <h3 style="margin-top:0;">Number of positions held</h3>
-          <div id="trade-positions-chart" class="chart short"></div>
-        </div>
-      </div>
+      <h2>Equity vs benchmarks</h2>
+      <p class="section-sub">Strategy (K = 7, weekly Friday) versus the two relevant passive benchmarks: <strong>SPY buy-and-hold</strong> (broad-market passive) and <strong>naive equal-weight across all 11 ETFs</strong> (diversification only, no signal). All series renormalised to 1.0 at the eligible start date. Log scale.</p>
+      <div id="trade-equity-chart" class="chart"></div>
+      <table class="small-table" id="trade-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
+      <p style="margin-top:10px;color:var(--ink-faint);font-size:13px;">CAGR = compound annual growth rate. Δ = strategy minus benchmark.</p>
     </section>
 
     <section>
-      <h2>Time in portfolio — which sectors does the strategy actually own?</h2>
-      <p class="section-sub">% of trading days each ETF appeared in the headline portfolio, and the average weight when held. ETFs with very low time-in-portfolio mean the strategy persistently judged them weak relative to peers.</p>
-      <table class="small-table" id="tip-table"><thead></thead><tbody></tbody></table>
+      <h2>Sector allocation over time</h2>
+      <p class="section-sub">Weekly snapshot of the portfolio composition — stacked to 100%. Colours by ETF. Wide bands = persistent leadership; thin slivers = brief appearances. Tells you what the rotation was actually <em>betting on</em> in each market regime.</p>
+      <div id="trade-allocation-chart" class="chart tall"></div>
     </section>
 
     <section>
       <h2>Trade history</h2>
-      <p class="section-sub">409 rebalances over 8+ years. Use the filter to find rebalances containing a specific ETF or close to a specific date.</p>
+      <p class="section-sub" id="trade-history-sub">409 rebalances over 8+ years, newest first. Use the filter to find rebalances containing a specific ETF or close to a specific date.</p>
       <div class="trade-controls">
         <label class="toggle"><input type="checkbox" id="trade-recent-only" checked> Show last 50 only</label>
         <input type="text" id="trade-filter" placeholder="Filter by ETF (e.g. IUES) or date (e.g. 2024-03)">
@@ -618,6 +611,12 @@
       <div class="trade-table-wrap">
         <table class="trade-table" id="trade-table"><thead></thead><tbody></tbody></table>
       </div>
+    </section>
+
+    <section>
+      <h2>Performance attribution — where did the returns come from?</h2>
+      <p class="section-sub">For each ETF, the contribution to the strategy's total return. <em>Contribution</em> = sum of (yesterday's weight × today's ETF return) over all days in the backtest, in absolute strategy-NAV terms. <em>% of total</em> normalises across ETFs (positives net of negatives). <em>Annualised return when held</em> is the geometric daily return of just the ETF on days the strategy held it — answers "did the strategy time this sector well, or just own it through good periods?". Sorted by contribution.</p>
+      <table class="small-table" id="tip-table"><thead></thead><tbody></tbody></table>
     </section>
   </div>
 
@@ -1944,73 +1943,179 @@ function renderRecipeStats() {
   `;
 }
 
+// Stable per-ETF palette used for the stacked allocation chart
+const ETF_COLOURS = {
+  SOXX: '#1351b4',  // blue
+  CSP1: '#374151',  // slate
+  CNDX: '#7c3aed',  // violet (NASDAQ tech)
+  IUES: '#b76e00',  // amber (energy)
+  IUFS: '#0e7490',  // cyan (financials)
+  IUIT: '#1d7a3a',  // green (info tech)
+  IUHC: '#be185d',  // pink (health care)
+  IUIS: '#a16207',  // bronze (industrials)
+  IUCS: '#52525b',  // grey (staples)
+  IUCD: '#dc2626',  // red (consumer disc)
+  IUUS: '#0891b2',  // teal (utilities)
+};
+
 function renderTradeCharts() {
   const topk = window.DATA.topk;
   if (!topk || !topk.headline) return;
   const h = topk.headline;
+  const bm = topk.benchmarks || {};
 
-  Plotly.newPlot('trade-equity-chart', [
+  // ============ Equity vs benchmarks ============
+  const traces = [
     {
       x: h.headline_equity_dates, y: h.headline_equity,
-      mode: 'lines', name: 'K=7 Weekly Fri',
-      line: { color: '#1d7a3a', width: 2 },
-      hovertemplate: '%{x|%Y-%m-%d}<br>Equity: %{y:.2f}<extra></extra>',
+      mode: 'lines', name: 'Top-K Rotation (K=7 Weekly Fri)',
+      line: { color: '#1d7a3a', width: 2.4 },
+      hovertemplate: '%{x|%Y-%m-%d}<br>Strategy: %{y:.2f}<extra></extra>',
     },
-  ], {
-    margin: { t: 8, r: 16, b: 36, l: 50 },
-    xaxis: { showgrid: false, color: '#4a5159', fixedrange: false },
+  ];
+  if (bm.equal_weight_11) {
+    traces.push({
+      x: bm.equal_weight_11.dates, y: bm.equal_weight_11.equity,
+      mode: 'lines', name: 'Equal-weight 11 ETFs',
+      line: { color: '#b76e00', width: 1.5, dash: 'dash' },
+      hovertemplate: '%{x|%Y-%m-%d}<br>EW-11: %{y:.2f}<extra></extra>',
+    });
+  }
+  if (bm.spy_buy_hold) {
+    traces.push({
+      x: bm.spy_buy_hold.dates, y: bm.spy_buy_hold.equity,
+      mode: 'lines', name: 'SPY buy-and-hold',
+      line: { color: '#6b727a', width: 1.4, dash: 'dot' },
+      hovertemplate: '%{x|%Y-%m-%d}<br>SPY: %{y:.2f}<extra></extra>',
+    });
+  }
+  Plotly.newPlot('trade-equity-chart', traces, {
+    margin: { t: 8, r: 16, b: 40, l: 56 },
+    xaxis: { showgrid: false, color: '#4a5159' },
     yaxis: { type: 'log', gridcolor: '#eef0f3', color: '#4a5159',
-              title: { text: 'Equity (log)', font: { size: 11 } } },
+              title: { text: 'Equity, normalised to 1.0 (log)', font: { size: 11 } } },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
-    showlegend: false, hovermode: 'x unified',
+    legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 12 } },
+    hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
   }, { displayModeBar: false, responsive: true });
 
-  Plotly.newPlot('trade-positions-chart', [
-    {
-      x: topk.headline_n_positions_dates,
-      y: topk.headline_n_positions,
-      mode: 'lines', name: 'N positions',
-      line: { color: '#1351b4', width: 1.4, shape: 'hv' },
-      fill: 'tozeroy', fillcolor: 'rgba(19,81,180,0.10)',
-      hovertemplate: '%{x|%Y-%m-%d}<br>Holdings: %{y}<extra></extra>',
-    },
-  ], {
-    margin: { t: 8, r: 16, b: 36, l: 38 },
+  // Stats panel under equity chart
+  renderTradeStatsTable();
+
+  // ============ Stacked allocation area ============
+  const wkDates = topk.headline_weekly_allocation_dates || [];
+  const alloc = topk.headline_weekly_allocation || {};
+  // Order ETFs by total contribution (biggest at the BOTTOM of the stack)
+  const attr = topk.headline_attribution || {};
+  const ordered = Object.keys(alloc).sort((a, b) => {
+    const ca = attr[a]?.contribution_to_total_return ?? 0;
+    const cb = attr[b]?.contribution_to_total_return ?? 0;
+    return ca - cb;  // ascending → smallest first, largest last (top of stack)
+  });
+  const stackedTraces = ordered.map(etf => ({
+    x: wkDates,
+    y: (alloc[etf] || []).map(v => (v == null ? 0 : v * 100)),
+    name: `${etf}${ETF_DESCRIPTIONS[etf] ? ' — ' + ETF_DESCRIPTIONS[etf] : ''}`,
+    stackgroup: 'one',
+    mode: 'none',
+    fillcolor: ETF_COLOURS[etf] || '#999',
+    hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:.1f}%<extra></extra>',
+  }));
+  Plotly.newPlot('trade-allocation-chart', stackedTraces, {
+    margin: { t: 8, r: 16, b: 80, l: 50 },
     xaxis: { showgrid: false, color: '#4a5159' },
-    yaxis: { gridcolor: '#eef0f3', color: '#4a5159', dtick: 1, range: [0, 8],
-              title: { text: 'N held', font: { size: 11 } } },
+    yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
+              title: { text: 'Allocation %', font: { size: 11 } },
+              range: [0, 100], ticksuffix: '%' },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
-    showlegend: false, hovermode: 'x unified',
+    legend: { orientation: 'h', y: -0.20, x: 0, font: { size: 11 } },
+    hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
   }, { displayModeBar: false, responsive: true });
+}
+
+function renderTradeStatsTable() {
+  const topk = window.DATA.topk;
+  if (!topk) return;
+  const st = topk.headline?.headline_stats_full || topk.headline?.headline_stats || {};
+  const spy = topk.benchmarks?.spy_buy_hold || {};
+  const ew = topk.benchmarks?.equal_weight_11 || {};
+  const el = document.getElementById('trade-stats-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Strategy</th>
+    <th>Sharpe</th>
+    <th>CAGR</th>
+    <th>Total return</th>
+    <th>Max drawdown</th>
+    <th>Δ Sharpe vs SPY</th>
+    <th>Δ CAGR vs SPY</th>
+  </tr>`;
+  const rows = [
+    { label: 'Top-K Rotation (K=7 Weekly Fri)', data: st, highlight: true },
+    { label: 'Equal-weight 11 ETFs (no signal)', data: ew, highlight: false },
+    { label: 'SPY buy-and-hold (broad-market passive)', data: spy, highlight: false },
+  ];
+  const spySh = spy.sharpe ?? 0;
+  const spyCagr = spy.cagr ?? 0;
+  el.querySelector('tbody').innerHTML = rows.map(r => {
+    const dSh = (r.data.sharpe ?? 0) - spySh;
+    const dCagr = (r.data.cagr ?? 0) - spyCagr;
+    const isStrat = r.highlight;
+    return `<tr class="${isStrat ? 'highlight' : ''}">
+      <td class="row-label">${isStrat ? '<strong>' : ''}${r.label}${isStrat ? '</strong>' : ''}</td>
+      <td class="num"><strong>${fmtNum(r.data.sharpe, 2, true)}</strong></td>
+      <td class="num">${fmtPct(r.data.cagr, true)}</td>
+      <td class="num">${fmtPct(r.data.total_return, true)}</td>
+      <td class="num">${fmtPct(r.data.max_dd)}</td>
+      <td class="num ${isStrat ? (dSh > 0 ? 'good' : 'bad') : ''}">${isStrat ? fmtNum(dSh, 2, true) : '—'}</td>
+      <td class="num ${isStrat ? (dCagr > 0 ? 'good' : 'bad') : ''}">${isStrat ? fmtPct(dCagr, true) : '—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderTimeInPortfolio() {
   const topk = window.DATA.topk;
   if (!topk) return;
-  const tip = topk.headline_time_in_portfolio || {};
+  // New shape: headline_attribution. Fallback to headline_time_in_portfolio for older payloads.
+  const attr = topk.headline_attribution || topk.headline_time_in_portfolio || {};
   const el = document.getElementById('tip-table');
   if (!el) return;
   el.querySelector('thead').innerHTML = `<tr>
     <th>ETF</th>
     <th>Description</th>
-    <th>Days held</th>
-    <th>% of trading days</th>
+    <th>% time held</th>
     <th>Avg weight when held</th>
+    <th>Ann. return when held</th>
+    <th>Contribution to NAV</th>
+    <th>% of total contribution</th>
   </tr>`;
-  const sorted = Object.entries(tip).sort((a, b) => b[1].pct_of_days - a[1].pct_of_days);
+  // Maximum absolute contribution % to scale bars
+  const maxPct = Math.max(0.01, ...Object.values(attr).map(a => Math.abs(a.pct_of_total_contribution ?? 0)));
+  const sorted = Object.entries(attr).sort((a, b) =>
+    (b[1].contribution_to_total_return ?? 0) - (a[1].contribution_to_total_return ?? 0)
+  );
   el.querySelector('tbody').innerHTML = sorted.map(([etf, info]) => {
-    const pct = info.pct_of_days;
-    const bar = `<div style="position:relative;height:8px;background:var(--bg-soft);border-radius:4px;border:1px solid var(--border);width:160px;display:inline-block;vertical-align:middle;margin-left:8px;">
-      <div style="position:absolute;top:0;left:0;height:100%;width:${pct}%;background:${pct > 60 ? 'var(--good)' : pct > 40 ? 'var(--accent)' : 'var(--ink-faint)'};border-radius:4px;"></div>
+    const pctT = info.pct_of_days ?? 0;
+    const contrib = info.contribution_to_total_return ?? 0;
+    const pctContrib = info.pct_of_total_contribution ?? 0;
+    const annRet = info.ann_return_when_held;
+    const barWidth = Math.abs(pctContrib) / maxPct * 100;
+    const barColor = contrib >= 0 ? 'var(--good)' : 'var(--bad)';
+    const bar = `<div style="position:relative;height:10px;background:var(--bg-soft);border-radius:5px;border:1px solid var(--border);width:160px;display:inline-block;vertical-align:middle;margin-left:8px;">
+      <div style="position:absolute;top:0;left:0;height:100%;width:${barWidth}%;background:${barColor};border-radius:5px;opacity:0.85;"></div>
     </div>`;
+    // Pip mark for color of ETF (matches stacked-area)
+    const swatch = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${ETF_COLOURS[etf] || '#999'};vertical-align:middle;margin-right:6px;"></span>`;
     return `<tr>
-      <td class="row-label">${etf}</td>
+      <td class="row-label">${swatch}${etf}</td>
       <td style="color:var(--ink-faint);font-size:13px;">${ETF_DESCRIPTIONS[etf] || ''}</td>
-      <td class="num">${info.days_held}</td>
-      <td class="num"><strong>${pct.toFixed(1)}%</strong>${bar}</td>
-      <td class="num">${(info.avg_weight_when_held * 100).toFixed(1)}%</td>
+      <td class="num">${pctT.toFixed(1)}%</td>
+      <td class="num">${((info.avg_weight_when_held ?? 0) * 100).toFixed(1)}%</td>
+      <td class="num ${annRet != null && annRet > 0.15 ? 'good' : ''}">${annRet != null ? fmtPct(annRet, true) : '—'}</td>
+      <td class="num ${contrib >= 0 ? 'good' : 'bad'}"><strong>${(contrib * 100).toFixed(1)} pp</strong></td>
+      <td class="num"><strong>${pctContrib > 0 ? '+' : ''}${pctContrib.toFixed(1)}%</strong>${bar}</td>
     </tr>`;
   }).join('');
 }
@@ -2018,37 +2123,38 @@ function renderTimeInPortfolio() {
 function renderTradeTable() {
   const topk = window.DATA.topk;
   if (!topk?.headline?.trade_history) return;
-  const history = topk.headline.trade_history;
+  const history = topk.headline.trade_history;  // ascending by date in source
 
   document.getElementById('trade-first-date').textContent = history[0]?.date || '—';
   document.getElementById('trade-last-date').textContent = history[history.length - 1]?.date || '—';
   document.getElementById('trade-summary').textContent =
     `${history.length} rebalances. Each row is a Friday close — the holdings shown apply from that date forward.`;
 
-  let rows = history.slice();
-  // Apply text filter
+  // Filter on a copy in ascending order first
+  let asc = history.slice();
   const q = (_tradeStateFilter || '').trim().toUpperCase();
   if (q) {
-    rows = rows.filter(r =>
+    asc = asc.filter(r =>
       r.date.includes(q) ||
       r.holdings.some(h => h.etf.toUpperCase().includes(q))
     );
   }
-  // Recent-only
-  if (_tradeStateRecentOnly && rows.length > 50) {
-    rows = rows.slice(-50);
+  // Apply recent-only: take the LAST 50 chronologically (most recent)
+  if (_tradeStateRecentOnly && asc.length > 50) {
+    asc = asc.slice(-50);
   }
+  // Render newest-first
+  const rows = asc.slice().reverse();
 
   document.getElementById('trade-count').textContent =
     `${rows.length} of ${history.length} rebalances`;
 
-  // Build entered/exited diffs by comparing each row to the previous row in
-  // the FULL history (not the filtered view).
+  // entered/exited diff vs the chronologically prior rebalance in the FULL history
   const indexByDate = new Map(history.map((r, i) => [r.date, i]));
 
   const el = document.getElementById('trade-table');
   el.querySelector('thead').innerHTML = `<tr>
-    <th class="date-col">Date</th>
+    <th class="date-col">Date ↓</th>
     <th>Holdings (weight · breadth%)</th>
   </tr>`;
   el.querySelector('tbody').innerHTML = rows.map(r => {
@@ -2290,7 +2396,7 @@ function activateTab(name) {
     }
     if (name === 'portfolio') { try { Plotly.Plots.resize('portfolio-chart'); } catch(e){} }
     if (name === 'trades') {
-      try { Plotly.Plots.resize('trade-equity-chart'); Plotly.Plots.resize('trade-positions-chart'); } catch(e){}
+      try { Plotly.Plots.resize('trade-equity-chart'); Plotly.Plots.resize('trade-allocation-chart'); } catch(e){}
     }
   }
 }

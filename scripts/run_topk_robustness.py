@@ -39,10 +39,11 @@ sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 sys.stdout.reconfigure(encoding="utf-8")
 
 from run_portfolio import (  # noqa: E402
-    build_panels, run_portfolio, top_k_breadth_weight,
+    build_panels, run_portfolio, top_k_breadth_weight, equal_weight_all_fn,
 )
 from run_improvements import compute_stats  # noqa: E402
 from run_ma200_sweep import MA_PERIOD, COST_BPS  # noqa: E402
+from backtest import download_spy_close  # noqa: E402
 
 
 REBAL_FREQS = [
@@ -211,27 +212,118 @@ def main() -> int:
     eq3 = eq3 / eq3.iloc[0]
 
     # =====================================================================
-    # 3. Position-count time series for the headline variant
+    # 3. Headline portfolio: weight panel, attribution, weekly allocation
     # =====================================================================
-    headline_weights = run_portfolio(closes, breadths,
-                                      top_k_breadth_weight(HEADLINE_K),
-                                      eligible, rebalance_freq=HEADLINE_FREQ)["weights"]
-    headline_weights = headline_weights.loc[headline_weights.index >= eligible]
-    n_held = (headline_weights > 1e-6).sum(axis=1)
-    # Per-ETF time-in-portfolio percentage
-    time_in_portfolio = {}
+    headline_run = run_portfolio(closes, breadths,
+                                  top_k_breadth_weight(HEADLINE_K),
+                                  eligible, rebalance_freq=HEADLINE_FREQ)
+    headline_weights = headline_run["weights"].loc[headline_run["weights"].index >= eligible]
+
+    # Per-ETF performance attribution
+    # daily_ret_etf = closes.pct_change(); used_weight = yesterday's weight
+    # daily contribution per ETF = used_weight * daily_ret_etf
+    # sum over the in-window days → P&L contribution. Express also annualised.
+    rets = closes.pct_change().fillna(0).loc[headline_weights.index]
+    used_w = headline_weights.shift(1).fillna(0)
+    daily_contrib = used_w * rets  # DataFrame: per-ETF daily contribution
+    total_contrib_per_etf = daily_contrib.sum()  # additive contribution
+    total_all = float(total_contrib_per_etf.sum())
+    avg_ret_when_held = {}
     for etf in closes.columns:
-        if etf in headline_weights.columns:
-            held_days = int((headline_weights[etf] > 1e-6).sum())
-            total_days = len(headline_weights)
-            time_in_portfolio[etf] = {
-                "days_held": held_days,
-                "pct_of_days": round(held_days / total_days * 100, 1) if total_days else 0.0,
-                "avg_weight_when_held": (
-                    round(float(headline_weights[etf][headline_weights[etf] > 1e-6].mean()), 4)
-                    if held_days else 0.0
-                ),
+        if etf not in daily_contrib.columns:
+            continue
+        # Average daily *ETF* return on days when we held this ETF
+        held_mask = used_w[etf] > 1e-6
+        n_held = int(held_mask.sum())
+        if n_held == 0:
+            avg_ret_when_held[etf] = {"days_held": 0, "ann_return_when_held": None}
+        else:
+            mean_daily = float(rets.loc[held_mask, etf].mean())
+            ann_return = (1.0 + mean_daily) ** 252 - 1.0
+            avg_ret_when_held[etf] = {
+                "days_held": n_held,
+                "ann_return_when_held": _safe(ann_return),
             }
+
+    # Per-ETF time-in-portfolio + attribution
+    attribution = {}
+    for etf in closes.columns:
+        if etf not in headline_weights.columns:
+            continue
+        held_days = int((headline_weights[etf] > 1e-6).sum())
+        total_days = len(headline_weights)
+        pnl = float(total_contrib_per_etf.get(etf, 0.0))
+        attribution[etf] = {
+            "days_held": held_days,
+            "pct_of_days": round(held_days / total_days * 100, 1) if total_days else 0.0,
+            "avg_weight_when_held": (
+                round(float(headline_weights[etf][headline_weights[etf] > 1e-6].mean()), 4)
+                if held_days else 0.0
+            ),
+            "ann_return_when_held": avg_ret_when_held[etf].get("ann_return_when_held"),
+            "contribution_to_total_return": _safe(pnl),
+            "pct_of_total_contribution": (
+                round(pnl / total_all * 100, 1) if total_all != 0 else 0.0
+            ),
+        }
+
+    # Weekly allocation snapshot (Fridays only) for stacked-area chart
+    weekly_idx = headline_weights.index[headline_weights.index.dayofweek == 4]
+    weekly_w = headline_weights.loc[weekly_idx]
+    weekly_w = weekly_w.loc[(weekly_w.sum(axis=1) > 0.5)]  # skip warm-up
+
+    # =====================================================================
+    # 4. Benchmarks: SPY buy-and-hold and equal-weight all 11
+    # =====================================================================
+    print("\n=== Benchmarks ===")
+    spy_close = download_spy_close(closes.index.min().strftime("%Y-%m-%d"),
+                                    (closes.index.max() + pd.Timedelta(days=5)).strftime("%Y-%m-%d"))
+    spy_close = spy_close.reindex(closes.index).ffill()
+    spy_window = spy_close.loc[spy_close.index >= eligible]
+    spy_eq = (spy_window / spy_window.iloc[0])
+    spy_stats = compute_stats(spy_close, eligible)
+    print(f"  SPY               Sharpe {spy_stats['sharpe']:+.2f}   "
+          f"totRet {spy_stats['total_return']*100:+.0f}%   DD {spy_stats['max_dd']*100:.1f}%")
+
+    ew_run = run_portfolio(closes, breadths, equal_weight_all_fn,
+                            eligible, rebalance_freq=HEADLINE_FREQ)
+    ew_eq = ew_run["equity"].loc[ew_run["equity"].index >= eligible]
+    ew_eq = ew_eq / ew_eq.iloc[0]
+    ew_stats = compute_stats(ew_run["equity"], eligible)
+    print(f"  Equal-weight 11   Sharpe {ew_stats['sharpe']:+.2f}   "
+          f"totRet {ew_stats['total_return']*100:+.0f}%   DD {ew_stats['max_dd']*100:.1f}%")
+
+    benchmarks = {
+        "spy_buy_hold": {
+            "label": "SPY buy-and-hold",
+            "dates": [d.strftime("%Y-%m-%d") for d in spy_eq.index],
+            "equity": round_series(spy_eq.values),
+            "sharpe": _safe(spy_stats["sharpe"]),
+            "total_return": _safe(spy_stats["total_return"]),
+            "max_dd": _safe(spy_stats["max_dd"]),
+            "cagr": _safe(spy_stats.get("cagr")),
+        },
+        "equal_weight_11": {
+            "label": "Equal-weight 11 ETFs (no signal)",
+            "dates": [d.strftime("%Y-%m-%d") for d in ew_eq.index],
+            "equity": round_series(ew_eq.values),
+            "sharpe": _safe(ew_stats["sharpe"]),
+            "total_return": _safe(ew_stats["total_return"]),
+            "max_dd": _safe(ew_stats["max_dd"]),
+            "cagr": _safe(ew_stats.get("cagr")),
+        },
+    }
+
+    # Strategy stats — recompute with cagr included
+    strat_stats_full = compute_stats(headline_run["equity"], eligible)
+    headline_payload["headline_stats_full"] = {
+        "sharpe": _safe(strat_stats_full["sharpe"]),
+        "total_return": _safe(strat_stats_full["total_return"]),
+        "max_dd": _safe(strat_stats_full["max_dd"]),
+        "cagr": _safe(strat_stats_full.get("cagr")),
+        "annual_turnover": headline_payload["headline_stats"]["annual_turnover"],
+        "n_flips": headline_payload["headline_stats"]["n_flips"],
+    }
 
     # =====================================================================
     # Output payload
@@ -244,9 +336,14 @@ def main() -> int:
         "k5_weekly_equity": round_series(eq5.values),
         "k3_weekly_dates": [d.strftime("%Y-%m-%d") for d in eq3.index],
         "k3_weekly_equity": round_series(eq3.values),
-        "headline_n_positions_dates": [d.strftime("%Y-%m-%d") for d in n_held.index],
-        "headline_n_positions": [int(x) for x in n_held.values],
-        "headline_time_in_portfolio": time_in_portfolio,
+        "headline_weekly_allocation_dates": [d.strftime("%Y-%m-%d")
+                                               for d in weekly_w.index],
+        "headline_weekly_allocation": {
+            etf: round_series(weekly_w[etf].values, ndigits=4)
+            for etf in weekly_w.columns
+        },
+        "headline_attribution": attribution,
+        "benchmarks": benchmarks,
     }
 
     OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
