@@ -256,6 +256,155 @@
                        background: var(--bg-card); padding: 1px 5px; border-radius: 2px;
                        border: 1px solid var(--border); }
 
+    /* ----- Hero recipe callout (deployment summary) ----- */
+    .recipe {
+      margin: 24px 0;
+      background: linear-gradient(180deg, rgba(29,122,58,0.06), rgba(29,122,58,0.02));
+      border: 1px solid rgba(29,122,58,0.25);
+      border-left: 4px solid var(--good);
+      border-radius: 6px;
+      padding: 22px 26px;
+    }
+    .recipe h3 {
+      margin: 0 0 4px 0; font-size: 13px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--good); font-weight: 700;
+    }
+    .recipe .recipe-title {
+      font-size: 20px; font-weight: 600; letter-spacing: -0.01em;
+      margin: 0 0 14px 0; color: var(--ink);
+    }
+    .recipe .recipe-stats {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px 28px;
+      margin: 14px 0;
+    }
+    .recipe .recipe-stat .v {
+      font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em; color: var(--ink);
+    }
+    .recipe .recipe-stat .v.good { color: var(--good); }
+    .recipe .recipe-stat .l {
+      font-size: 11px; color: var(--ink-faint);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px;
+    }
+    .recipe ol.recipe-steps {
+      margin: 14px 0 0 22px; padding: 0; font-size: 14px;
+    }
+    .recipe ol.recipe-steps li { margin: 6px 0; }
+
+    /* ----- Trade Explorer ----- */
+    .trade-controls {
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .trade-controls input[type="text"], .trade-controls select {
+      padding: 7px 11px; border: 1px solid var(--border-strong); border-radius: 3px;
+      background: var(--bg); font-family: inherit; font-size: 13px; color: var(--ink);
+    }
+    .trade-controls .toggle {
+      display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+      font-size: 13px; color: var(--ink-soft);
+    }
+    table.trade-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    table.trade-table thead th {
+      text-align: left; padding: 9px 12px;
+      background: var(--bg-soft); font-weight: 600; color: var(--ink-soft);
+      border-bottom: 1px solid var(--border-strong);
+      font-size: 12px; letter-spacing: 0.02em;
+      position: sticky; top: 0;
+    }
+    table.trade-table tbody td {
+      padding: 7px 12px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    table.trade-table tbody tr:hover { background: var(--bg-soft); }
+    table.trade-table .date-col { width: 110px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    table.trade-table .holdings-cell {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      font-variant-numeric: tabular-nums; line-height: 1.7;
+    }
+    .holding-chip {
+      display: inline-block; padding: 1px 8px; margin: 1px 4px 1px 0;
+      background: var(--accent-soft); color: var(--accent);
+      border-radius: 10px; border: 1px solid rgba(19,81,180,0.2);
+      font-weight: 500;
+    }
+    .holding-chip.entered { background: var(--good-soft); color: var(--good);
+      border-color: rgba(29,122,58,0.30); }
+    .holding-chip.exited { background: var(--bad-soft); color: var(--bad);
+      border-color: rgba(179,38,30,0.30); text-decoration: line-through;
+      opacity: 0.65;
+    }
+    .holding-chip .w { font-weight: 700; }
+    .holding-chip .b { font-size: 11px; color: var(--ink-faint); margin-left: 4px;
+      font-weight: 400;
+    }
+    .trade-table-wrap {
+      max-height: 720px; overflow-y: auto;
+      border-radius: 4px;
+    }
+
+    /* ----- Cadence heat grid ----- */
+    table.heat {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    table.heat thead th, table.heat tbody td {
+      padding: 10px 12px; text-align: center;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    table.heat tbody td.label, table.heat thead th.label {
+      text-align: left; font-weight: 600;
+      background: var(--bg-soft);
+    }
+    table.heat .v {
+      font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
+      font-weight: 600; font-size: 14px;
+    }
+    table.heat .v .sub { display: block; font-size: 10px; font-weight: 400;
+      color: var(--ink-faint); margin-top: 2px;
+      letter-spacing: 0.02em;
+    }
+    table.heat td.best { background: rgba(29,122,58,0.10); }
+    table.heat td.best .v { color: var(--good); }
+    table.heat td.worst { background: rgba(179,38,30,0.06); }
+    table.heat td.worst .v { color: var(--bad); }
+
+    /* ----- Plain-English explainer ----- */
+    .plain-box {
+      margin: 24px 0;
+      padding: 22px 26px;
+      background: #fdfaf2;
+      border: 1px solid #efe5cb;
+      border-left: 4px solid #d4a017;
+      border-radius: 6px;
+    }
+    .plain-box h3 {
+      margin: 0 0 12px 0; font-size: 13px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: #8a6914; font-weight: 700;
+    }
+    .plain-box .lead {
+      font-size: 17px; font-weight: 500; line-height: 1.55;
+      color: var(--ink); margin: 0 0 12px 0;
+    }
+    .plain-box p { margin: 8px 0; font-size: 14.5px; line-height: 1.65; }
+    .plain-box .step {
+      display: flex; gap: 16px; align-items: baseline; margin: 12px 0;
+    }
+    .plain-box .step-n {
+      flex: 0 0 28px; height: 28px; border-radius: 14px;
+      background: #d4a017; color: white; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+    }
+    .plain-box .step-body { flex: 1; font-size: 14px; }
+
     footer {
       margin-top: 60px; padding: 24px 0 36px 0;
       border-top: 1px solid var(--border); color: var(--ink-faint); font-size: 13px;
@@ -282,17 +431,18 @@
       <span id="ts-built"></span>
     </div>
     <h1>Breadth-thrust ETF research</h1>
-    <div class="sub">A single-indicator (% above 200d MA) regime signal applied to 11 US sector and broad-market ETFs, with 50/100 base + on-signal leverage sizing.</div>
+    <div class="sub">A breadth-led sector rotation strategy: rank 11 US sector / broad-market ETFs by % of their constituents above the 200-day moving average, own the top K each week. Walk-forward Sharpe ≈ 1.05 with no overfit penalty.</div>
   </div>
 </header>
 
 <nav class="tabs">
   <div class="container">
     <button class="tab active" data-tab="monitor">Monitor</button>
-    <button class="tab" data-tab="strategy">Strategy</button>
+    <button class="tab" data-tab="portfolio">Top-K Rotation</button>
+    <button class="tab" data-tab="trades">Trade Explorer</button>
+    <button class="tab" data-tab="strategy">Single-ETF L</button>
     <button class="tab" data-tab="unlev">Unleveraged</button>
     <button class="tab" data-tab="detail">ETF Detail</button>
-    <button class="tab" data-tab="portfolio">Portfolio</button>
     <button class="tab" data-tab="robustness">Robustness</button>
     <button class="tab" data-tab="method">Method</button>
   </div>
@@ -387,6 +537,20 @@
 
   <!-- ====================== PORTFOLIO ====================== -->
   <div class="tab-content" id="tab-portfolio">
+    <div class="recipe">
+      <h3>Deployable strategy</h3>
+      <div class="recipe-title">Top-K-by-breadth sector rotation</div>
+      <p style="margin:0;color:var(--ink-soft);">Each Friday close, compute % above 200d MA for each of the 11 ETFs. Rank them. Hold the top K = 7 next week, weighted by breadth (highest-breadth sector gets the largest slice). Refit K only annually on expanding-window Sharpe — the choice has been stable at K = 5 or 7 throughout the backtest.</p>
+      <div class="recipe-stats" id="recipe-stats"></div>
+      <ol class="recipe-steps">
+        <li><strong>Every Friday close</strong>: pull the 11 ETF rosters, compute % of constituents above their own 200d simple MA.</li>
+        <li><strong>Rank ETFs by breadth</strong>. Take the top 7.</li>
+        <li><strong>Weight each by its breadth share</strong>: weight_i = breadth_i / Σ(top-7 breadths). High-breadth sectors get more capital, weak ones less.</li>
+        <li><strong>Rebalance to the new mix</strong>. The Trade Explorer tab shows the exact weights at every rebalance.</li>
+        <li><strong>Once a year</strong>, re-evaluate K ∈ {3, 5, 7}. So far the answer has been K = 7 for the last three years.</li>
+      </ol>
+    </div>
+
     <div class="verdict">
       <h2>Portfolio construction verdict</h2>
       <p id="portfolio-verdict">Loading…</p>
@@ -412,6 +576,48 @@
         <p class="section-sub" style="margin-top:10px;">Full sweep: top K ∈ {3, 5, 7} × weighting ∈ {equal, rank, breadth} × {unleveraged, leveraged 50/150 overlay on basket-avg breadth ≥ 60%}. All rebalance weekly with 5 bps per unit of turnover. Leveraged variants modulate 50%↔150% basket exposure based on basket-average breadth.</p>
         <table class="small-table" id="portfolio-table-full"><thead></thead><tbody></tbody></table>
       </details>
+    </section>
+  </div>
+
+  <!-- ====================== TRADE EXPLORER ====================== -->
+  <div class="tab-content" id="tab-trades">
+    <div class="verdict">
+      <h2>Trade Explorer</h2>
+      <p>Every rebalance of the headline strategy (<strong>K = 7, weekly Friday</strong>), from <strong id="trade-first-date">—</strong> to <strong id="trade-last-date">—</strong>. <span id="trade-summary"></span> Each row is a Friday close: the holdings shown are what the strategy <em>should be in</em> for the following week. Green chips entered this week; red chips exited; blue chips persisted. Weight = portfolio share; breadth = % of that ETF's constituents above their own 200d MA at the rebalance date.</p>
+    </div>
+
+    <section>
+      <h2>How the portfolio evolved</h2>
+      <p class="section-sub">Two charts side-by-side: equity curve and number of positions held (almost always K = 7, but the chart confirms there are no gaps where the signal was undefined).</p>
+      <div class="two-col">
+        <div>
+          <h3 style="margin-top:0;">Equity curve (K = 7 weekly Fri)</h3>
+          <div id="trade-equity-chart" class="chart short"></div>
+        </div>
+        <div>
+          <h3 style="margin-top:0;">Number of positions held</h3>
+          <div id="trade-positions-chart" class="chart short"></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Time in portfolio — which sectors does the strategy actually own?</h2>
+      <p class="section-sub">% of trading days each ETF appeared in the headline portfolio, and the average weight when held. ETFs with very low time-in-portfolio mean the strategy persistently judged them weak relative to peers.</p>
+      <table class="small-table" id="tip-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Trade history</h2>
+      <p class="section-sub">409 rebalances over 8+ years. Use the filter to find rebalances containing a specific ETF or close to a specific date.</p>
+      <div class="trade-controls">
+        <label class="toggle"><input type="checkbox" id="trade-recent-only" checked> Show last 50 only</label>
+        <input type="text" id="trade-filter" placeholder="Filter by ETF (e.g. IUES) or date (e.g. 2024-03)">
+        <span class="pill" id="trade-count">—</span>
+      </div>
+      <div class="trade-table-wrap">
+        <table class="trade-table" id="trade-table"><thead></thead><tbody></tbody></table>
+      </div>
     </section>
   </div>
 
@@ -517,15 +723,57 @@
       <p class="section-sub">For the cross-sectional rotation paradigm, K (number of top-breadth ETFs to own) is refit annually on the expanding train window. Each refit picks the K ∈ {3, 5, 7} that maximised Sharpe so far, then applies it to the next 12 months. Concatenate to get the realistic OOS curve.</p>
       <table class="small-table" id="rob-paradigm-segments"><thead></thead><tbody></tbody></table>
     </section>
+
+    <section>
+      <h2>Test 11 — Top-K rotation: K × rebalance-cadence sensitivity</h2>
+      <p class="section-sub">For the deployable paradigm only. How sensitive is the result to the two free choices: how many ETFs to own (K) and how often to rebalance? Each cell is the in-sample Sharpe; sub-cell shows max drawdown, annual turnover (a unit = full portfolio replacement), and number of position flips. Best cell highlighted green, worst red. The cleanest deployment falls in the K = 5–7 × weekly-Friday region: stable Sharpe ~1.0, drawdown ~31%, turnover ~10–14× per year.</p>
+      <table class="heat" id="topk-cadence-table"><thead></thead><tbody></tbody></table>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="topk-cadence-note"></p>
+    </section>
   </div>
 
   <!-- ====================== METHOD ====================== -->
   <div class="tab-content" id="tab-method">
+
+    <div class="plain-box">
+      <h3>The strategy explained, plain English</h3>
+      <p class="lead">Pick the strongest seven sectors of the US stock market each week. Own them. Update weekly. That is the whole strategy.</p>
+      <p><strong>What is a "sector"?</strong> The US stock market is split into industry groups — Technology, Financials, Energy, Health Care, Industrials, Consumer Discretionary, Consumer Staples, Utilities, plus a few broad-market and concentrated picks (S&amp;P 500, NASDAQ-100, Semiconductors). We use the 11 ETFs that represent these groups.</p>
+      <p><strong>How do we judge which sector is "strong"?</strong> Every sector contains 30 to 500 individual companies. We count what percentage of those companies are currently trading above their own 200-day moving average. A stock above its 200-day average is in an uptrend; below it, a downtrend. So if 85% of the companies in a sector are in uptrends, that sector is strong — broadly strong, not just lifted by a few mega-caps. We call this number the <em>breadth</em> of the sector. It ranges from 0% (everything broken) to 100% (everything in an uptrend).</p>
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body"><strong>Every Friday after market close</strong>, look up the constituents of each of the 11 ETFs and compute the breadth (% above 200d MA) for each one.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body"><strong>Rank the 11 ETFs by breadth</strong>. Whichever seven are highest, those are your portfolio next week.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body"><strong>Weight them by breadth share</strong>. If the top seven breadths are (85, 80, 70, 65, 55, 50, 45) — sum is 450 — then their portfolio weights are 85/450 = 19%, 80/450 = 18%, and so on. The strongest sector gets more of your money than the weakest of the seven.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">4</div>
+        <div class="step-body"><strong>Re-check next Friday.</strong> Some sectors will have weakened and dropped out of the top 7; others will have strengthened and entered. Sell what dropped out, buy what came in, adjust the rest. Costs are about 5 basis points (0.05%) per unit of weight change — a typical retail ETF brokerage fee. The Trade Explorer tab shows every single rebalance.</div>
+      </div>
+      <p style="margin-top:18px;"><strong>What this strategy is NOT doing.</strong> It is not trying to time the market — there is no "stay in cash if everything looks bad" rule. It is always 100% invested. It is also not trying to predict which individual sector will go up next. It is doing something simpler: <em>own whatever is leading, trim whatever is lagging</em>. Markets reward this pattern more often than they punish it, because trends in market breadth tend to persist for weeks-to-months at a time.</p>
+      <p><strong>Why we trust it.</strong> The "Robustness" tab shows the strategy holds up when we apply the standard quant-research stress tests: walk-forward validation (refitting the only free parameter, K = the number of sectors to own, each year on out-of-sample data), bootstrap confidence intervals, sub-period decomposition through bear markets, sensitivity to the moving-average lookback and the rebalance frequency. The walk-forward Sharpe ratio is approximately 1.05 with no degradation from the in-sample number — that is unusual and is the main reason we picked this paradigm over per-ETF threshold tuning or fixed-threshold timing.</p>
+      <p style="font-size:13px;color:var(--ink-faint);margin-top:14px;"><em>Caveats and what would kill it:</em> a regime where all 11 sectors fall together (2008-style systemic crisis) hurts the strategy because owning the "strongest" of a falling universe is still owning falling stuff. We do not currently hedge or shift to cash. A modest improvement on the to-do list is to add a "if median breadth across all sectors is below 40%, reduce gross exposure to 50%" overlay — but we have not yet validated it OOS so it is not in the headline numbers.</p>
+    </div>
+
     <section>
-      <h2>Signal definition</h2>
+      <h2>Signal definition (formal)</h2>
       <div class="methodbox">
         <p><strong>Breadth indicator</strong>: % of an ETF's point-in-time constituents whose closing price is above their own 200-day simple moving average. Computed daily; constituents reset weekly from the iShares UK holdings endpoint.</p>
-        <p><strong>Strategy (Family D, the headline result)</strong>:</p>
+        <p><strong>Headline strategy — top-K rotation</strong>:</p>
+        <ul>
+          <li>Universe: 11 ETFs (SOXX, CSP1, CNDX, IUES, IUFS, IUIT, IUHC, IUIS, IUCS, IUCD, IUUS).</li>
+          <li>Each Friday close, rank the 11 by current breadth. Pick the top K = 7.</li>
+          <li>Weight each held ETF by its breadth share: w_i = breadth_i / Σ(top-K breadths).</li>
+          <li>Transaction cost: 5 bps per unit of weight change (10 bps round-trip).</li>
+          <li>K is refit only annually on expanding-window Sharpe over K ∈ {3, 5, 7}; choice has been stable at K = 5 (2022) → K = 7 (2024 onwards).</li>
+        </ul>
+        <p><strong>Legacy single-ETF strategy (Family D) — shown for reference on the Strategy / Unleveraged tabs</strong>:</p>
         <ul>
           <li>Base allocation: <code>50%</code> in the traded ETF, always.</li>
           <li>Leveraged allocation: <code>150%</code> in the traded ETF when ma200_breadth ≥ L.</li>
@@ -715,11 +963,11 @@ function renderStrategyVerdict() {
     if (best.sharpe > bh.sharpe) beatBh++;
   }
   document.getElementById('strategy-verdict').innerHTML =
-    `<strong>MA200 + 50/150 beats buy-and-hold on Sharpe on ${beatBh} of ${etfs.length} ETFs.</strong> `
-    + `Single textbook indicator (% of constituents above 200d MA), single sizing rule (50% base, 150% when breadth > threshold). `
-    + `Long thresholds cluster in the 50-75% range — the well-known regime zone.<br><br>`
-    + `Shorting based on low breadth was tested and never helped (best-Sharpe short threshold collapses to 10%, i.e. "essentially never short"). `
-    + `The asymmetric vol of equity ETFs plus borrow cost on inverse positions kill the structural case for short.`;
+    `<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--warn);background:rgba(183,110,0,0.10);padding:2px 8px;border-radius:3px;margin-right:8px;">LEGACY — PARADIGM 1</span>`
+    + `These are <strong>single-ETF</strong> in-sample results for "buy each ETF separately, switch to 150% when its own breadth crosses an in-sample-fitted L threshold". `
+    + `The Test 10 paradigm comparison (Robustness tab) showed this approach <strong>loses ~0.3 Sharpe out-of-sample</strong> because L has to be re-tuned each regime. The deployable strategy is <a href="#" onclick="document.querySelector('[data-tab=portfolio]').click();return false;">top-K rotation</a> instead — kept here for reference and as a sanity check on the single-asset signal.<br><br>`
+    + `<strong>MA200 + 50/150 beats buy-and-hold on Sharpe on ${beatBh} of ${etfs.length} ETFs in-sample.</strong> `
+    + `Single textbook indicator (% of constituents above 200d MA), single sizing rule (50% base, 150% when breadth > threshold). Long thresholds cluster in the 50-75% range. Shorting low-breadth was tested and never helped.`;
 }
 
 function renderStrategyTable() {
@@ -824,8 +1072,9 @@ function renderUnlevVerdict() {
   }
   const spy = data.portfolio?.results?.spy_buy_hold;
   document.getElementById('unlev-verdict').innerHTML =
-    `Same regime signal as the Strategy tab, but capped at 100% allocation — no margin required. `
-    + `<strong>Beats buy-and-hold on ${beatBh} of ${etfs.length} ETFs</strong>, the same 8 of 11 the leveraged variant wins on. `
+    `<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--warn);background:rgba(183,110,0,0.10);padding:2px 8px;border-radius:3px;margin-right:8px;">LEGACY — PARADIGM 1 (UNLEVERAGED)</span>`
+    + `Same regime signal as the Single-ETF L tab, but capped at 100% allocation — no margin required. Same out-of-sample weakness — kept here as a no-leverage reference. The deployable strategy remains <a href="#" onclick="document.querySelector('[data-tab=portfolio]').click();return false;">top-K rotation</a>.<br><br>`
+    + `<strong>Beats buy-and-hold on ${beatBh} of ${etfs.length} ETFs in-sample</strong>, the same 8 of 11 the leveraged variant wins on. `
     + `Per-ETF Sharpe is almost identical to the leveraged version (differences in the 0.0-0.1 range); the trade-off is materially lower total return in exchange for a ~7-10pp lower max drawdown.<br><br>`
     + `Best unleveraged portfolio: <strong>${bestPort?.label || '—'}</strong>, Sharpe <strong>${fmtNum(bestPort?.sharpe, 2, true)}</strong>, `
     + `total return <strong>${fmtPct(bestPort?.total_return, true)}</strong>, max DD <strong>${fmtPct(bestPort?.max_dd)}</strong>. `
@@ -1061,43 +1310,43 @@ function _curatedSeries(data) {
   const r = p.results || {};
   const meq = m.winner_equity_curves || {};
   const out = [];
-  // 1. Best leveraged portfolio
-  if (r.top7_breadth_weight_leveraged) {
-    out.push({
-      label: 'Best LEVERAGED portfolio (Top 7, breadth-weighted, 50/150 overlay)',
-      category: 'Multi-ETF',
-      ...r.top7_breadth_weight_leveraged,
-      color: '#1351b4', width: 2.0,
-    });
-  }
-  // 2. Best unleveraged portfolio
+  // 1. Top-5 breadth-weighted rotation (the deployable strategy, unleveraged)
   if (r.top5_breadth_weight) {
     out.push({
-      label: 'Best UNLEVERAGED portfolio (Top 5, breadth-weighted, no leverage)',
-      category: 'Multi-ETF (no margin)',
+      label: 'Top-5 breadth-weighted rotation (deployable, unleveraged)',
+      category: 'Top-K rotation',
       ...r.top5_breadth_weight,
-      color: '#1d7a3a', width: 2.0,
+      color: '#1d7a3a', width: 2.4,
     });
   }
-  // 3. CSP1 single-ETF MA200 50/150 (broad-market single-ETF strategy)
+  // 2. Top-7 breadth-weighted rotation with 50/150 leverage overlay
+  if (r.top7_breadth_weight_leveraged) {
+    out.push({
+      label: 'Top-7 breadth-weighted rotation + 50/150 leverage overlay',
+      category: 'Top-K rotation (leveraged)',
+      ...r.top7_breadth_weight_leveraged,
+      color: '#1351b4', width: 1.8,
+    });
+  }
+  // 3. Eq-weight ensemble of 11 single-ETF MA200 strategies (paradigm 2 baseline)
+  if (r.eq_weight_11_family_d) {
+    out.push({
+      label: '11-ETF MA200 ensemble (legacy paradigm — per-ETF L)',
+      category: 'Legacy single-ETF L',
+      ...r.eq_weight_11_family_d,
+      color: '#b76e00', width: 1.4, dash: 'dot',
+    });
+  }
+  // 4. CSP1 single-ETF MA200 50/150 (broad-market single-ETF reference)
   if (meq.CSP1?.family_d) {
     const c = meq.CSP1.family_d;
     out.push({
-      label: 'CSP1 (S&P 500) — single ETF MA200 + 50/150',
-      category: 'Single-ETF strategy',
+      label: 'CSP1 (S&P 500) single-ETF MA200 + 50/150 (legacy reference)',
+      category: 'Legacy single-ETF L',
       sharpe: c.sharpe, total_return: c.total_return, max_dd: c.max_dd,
       cagr: c.cagr,
       dates: c.dates, equity: c.equity,
-      color: '#b76e00', width: 1.6,
-    });
-  }
-  // 4. Eq-weight ensemble of 11 single-ETF MA200 strategies (fair no-tilt baseline)
-  if (r.eq_weight_11_family_d) {
-    out.push({
-      label: 'Eq-weight ensemble: 11 single-ETF MA200 50/150 strategies (no tilt)',
-      category: 'Multi-ETF (no tilt)',
-      ...r.eq_weight_11_family_d,
-      color: '#b3261e', width: 1.7,
+      color: '#b3261e', width: 1.3, dash: 'dot',
     });
   }
   // 5. Naive equal-weight all 11 (no signal, just diversification)
@@ -1135,13 +1384,15 @@ function renderPortfolio() {
   const bestLev = p.results.top7_breadth_weight_leveraged;
   const bestUnlev = p.results.top5_breadth_weight;
 
-  // Verdict — the honest read after replacing SOXX with the ex-ante-fair ensemble
+  // Verdict — Test 10 reset the conclusion: rotation matters out-of-sample
   const ensemble = p.results.eq_weight_11_family_d;
   const csp1 = m?.winner_equity_curves?.CSP1?.family_d;
+  const wfTopK = data.robustness?.test_10_wf_topk_portfolio?.walk_forward_sharpe;
+  const wfL_csp1 = data.robustness?.test_1_walk_forward_l?.CSP1?.walk_forward_sharpe;
   document.getElementById('portfolio-verdict').innerHTML =
-    `What matters is <strong>the MA200 signal applied to a diversified basket</strong>. The "relative-strength tilt" (picking top K by breadth) does <strong>not</strong> add risk-adjusted value: the simplest no-tilt baseline — equal-weight ensemble of 11 single-ETF MA200 50/150 strategies — actually has the best Sharpe at <strong>${fmtNum(ensemble?.sharpe, 2, true)}</strong>, beating both the leveraged top-K portfolio (Sharpe ${fmtNum(bestLev?.sharpe, 2, true)}) and the unleveraged top-K (Sharpe ${fmtNum(bestUnlev?.sharpe, 2, true)}).<br><br>`
-    + `Single broad-ETF (CSP1 MA200 + 50/150) is competitive at Sharpe <strong>${fmtNum(csp1?.sharpe, 2, true)}</strong> — almost identical to the multi-ETF variants. So if you want simplicity, just run the MA200 + 50/150 signal on the S&P 500. The diversification benefit of going multi-ETF is modest in this dataset.<br><br>`
-    + `All four signal-based variants beat naive equal-weight all 11 (Sharpe ${fmtNum(p.results.equal_weight_all?.sharpe, 2, true)}) and SPY buy-and-hold (Sharpe ${fmtNum(spy?.sharpe, 2, true)}) by ~0.20-0.30 Sharpe. <strong>The signal is doing the work, not the tilt.</strong>`;
+    `In-sample, the no-tilt ensemble (Sharpe <strong>${fmtNum(ensemble?.sharpe, 2, true)}</strong>) ties or beats every tilted variant including top-K rotation (Sharpe <strong>${fmtNum(bestUnlev?.sharpe, 2, true)}</strong>). But this is the wrong test. The ensemble carries an in-sample-fitted L threshold per ETF; the rotation does not. Strip out the fitting cost and the picture flips.<br><br>`
+    + `<strong>Walk-forward, the rotation paradigm wins outright</strong>: top-K rotation OOS Sharpe is <strong>${fmtNum(wfTopK, 2, true)}</strong> (essentially equal to in-sample), while the ensemble's underlying per-ETF L choices degrade — e.g. CSP1's walk-forward Sharpe drops to ${fmtNum(wfL_csp1, 2, true)}. See Robustness → Test 10 for the full paradigm comparison. The single-ETF MA200 strategies on this tab are kept as a sanity check on the underlying breadth signal, not as deployment candidates.<br><br>`
+    + `All four signal-based variants beat naive equal-weight all 11 (Sharpe ${fmtNum(p.results.equal_weight_all?.sharpe, 2, true)}) and SPY buy-and-hold (Sharpe ${fmtNum(spy?.sharpe, 2, true)}) by ~0.20-0.30 Sharpe in-sample. <strong>The deployable version is top-K rotation</strong> because it is the only one whose Sharpe survives walk-forward validation.`;
 
   // Headline table — curated 6 rows
   const el = document.getElementById('portfolio-table');
@@ -1627,6 +1878,200 @@ function renderRobustnessParadigm() {
   `).join('');
 }
 
+// ----------- Top-K Rebalance Cadence sensitivity (Robustness Test 11) -----
+function renderTopKCadence() {
+  const topk = window.DATA.topk;
+  if (!topk) return;
+  const grid = topk.rebalance_freq_grid || {};
+  const Ks = Object.keys(grid);
+  if (Ks.length === 0) return;
+  const freqs = Object.keys(grid[Ks[0]] || {});
+
+  // Find best/worst Sharpe across the whole grid
+  let best = -Infinity, worst = Infinity;
+  Ks.forEach(K => freqs.forEach(f => {
+    const s = grid[K][f]?.sharpe;
+    if (s != null && Number.isFinite(s)) {
+      if (s > best) best = s;
+      if (s < worst) worst = s;
+    }
+  }));
+
+  const el = document.getElementById('topk-cadence-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th class="label">Cadence \\ K</th>
+    ${Ks.map(K => `<th>${K}</th>`).join('')}
+  </tr>`;
+  el.querySelector('tbody').innerHTML = freqs.map(f => {
+    const cells = Ks.map(K => {
+      const c = grid[K][f] || {};
+      const s = c.sharpe;
+      const cls = s === best ? 'best' : (s === worst ? 'worst' : '');
+      return `<td class="${cls}">
+        <span class="v">${fmtNum(s, 2, true)}
+          <span class="sub">DD ${fmtPct(c.max_dd)} · tov ${fmtNum(c.annual_turnover, 1)}×/yr · ${c.n_flips} flips</span>
+        </span>
+      </td>`;
+    }).join('');
+    return `<tr><td class="label">${f}</td>${cells}</tr>`;
+  }).join('');
+
+  document.getElementById('topk-cadence-note').innerHTML =
+    `Headline cell: <strong>K = ${topk.headline?.K} × ${topk.headline?.rebal_freq}</strong>, Sharpe ${fmtNum(topk.headline?.headline_stats?.sharpe, 2, true)}. ` +
+    `<strong>Daily rebalancing destroys Sharpe</strong> on every K — the strategy churns on intraday breadth noise. ` +
+    `<strong>Bi-weekly Fri</strong> is the lowest-turnover cadence that preserves >95% of the weekly Sharpe; if execution cost is your bottleneck (e.g., spread on UCITS sector funds), use it. ` +
+    `<strong>Month-end</strong> works for K = 3 but loses edge at K ≥ 5 because breadth ranks turn over faster than the rebalance can track them.`;
+}
+
+// ----------- Trade Explorer tab ----------------------------------------
+let _tradeStateRecentOnly = true;
+let _tradeStateFilter = '';
+
+function renderRecipeStats() {
+  const topk = window.DATA.topk;
+  if (!topk) return;
+  const h = topk.headline?.headline_stats;
+  const el = document.getElementById('recipe-stats');
+  if (!el || !h) return;
+  el.innerHTML = `
+    <div class="recipe-stat"><div class="v good">${fmtNum(h.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
+    <div class="recipe-stat"><div class="v good">${fmtNum(window.DATA.robustness?.test_10_wf_topk_portfolio?.walk_forward_sharpe, 2, true)}</div><div class="l">Walk-forward Sharpe</div></div>
+    <div class="recipe-stat"><div class="v">${fmtPct(h.total_return, true)}</div><div class="l">Total return (8 yrs)</div></div>
+    <div class="recipe-stat"><div class="v">${fmtPct(h.max_dd)}</div><div class="l">Max drawdown</div></div>
+    <div class="recipe-stat"><div class="v">${fmtNum(h.annual_turnover, 1)}×</div><div class="l">Turnover / yr</div></div>
+    <div class="recipe-stat"><div class="v">${topk.headline?.n_rebalances}</div><div class="l">Rebalances</div></div>
+  `;
+}
+
+function renderTradeCharts() {
+  const topk = window.DATA.topk;
+  if (!topk || !topk.headline) return;
+  const h = topk.headline;
+
+  Plotly.newPlot('trade-equity-chart', [
+    {
+      x: h.headline_equity_dates, y: h.headline_equity,
+      mode: 'lines', name: 'K=7 Weekly Fri',
+      line: { color: '#1d7a3a', width: 2 },
+      hovertemplate: '%{x|%Y-%m-%d}<br>Equity: %{y:.2f}<extra></extra>',
+    },
+  ], {
+    margin: { t: 8, r: 16, b: 36, l: 50 },
+    xaxis: { showgrid: false, color: '#4a5159', fixedrange: false },
+    yaxis: { type: 'log', gridcolor: '#eef0f3', color: '#4a5159',
+              title: { text: 'Equity (log)', font: { size: 11 } } },
+    paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+    showlegend: false, hovermode: 'x unified',
+    font: { family: 'Inter', size: 12, color: '#4a5159' },
+  }, { displayModeBar: false, responsive: true });
+
+  Plotly.newPlot('trade-positions-chart', [
+    {
+      x: topk.headline_n_positions_dates,
+      y: topk.headline_n_positions,
+      mode: 'lines', name: 'N positions',
+      line: { color: '#1351b4', width: 1.4, shape: 'hv' },
+      fill: 'tozeroy', fillcolor: 'rgba(19,81,180,0.10)',
+      hovertemplate: '%{x|%Y-%m-%d}<br>Holdings: %{y}<extra></extra>',
+    },
+  ], {
+    margin: { t: 8, r: 16, b: 36, l: 38 },
+    xaxis: { showgrid: false, color: '#4a5159' },
+    yaxis: { gridcolor: '#eef0f3', color: '#4a5159', dtick: 1, range: [0, 8],
+              title: { text: 'N held', font: { size: 11 } } },
+    paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+    showlegend: false, hovermode: 'x unified',
+    font: { family: 'Inter', size: 12, color: '#4a5159' },
+  }, { displayModeBar: false, responsive: true });
+}
+
+function renderTimeInPortfolio() {
+  const topk = window.DATA.topk;
+  if (!topk) return;
+  const tip = topk.headline_time_in_portfolio || {};
+  const el = document.getElementById('tip-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th>
+    <th>Description</th>
+    <th>Days held</th>
+    <th>% of trading days</th>
+    <th>Avg weight when held</th>
+  </tr>`;
+  const sorted = Object.entries(tip).sort((a, b) => b[1].pct_of_days - a[1].pct_of_days);
+  el.querySelector('tbody').innerHTML = sorted.map(([etf, info]) => {
+    const pct = info.pct_of_days;
+    const bar = `<div style="position:relative;height:8px;background:var(--bg-soft);border-radius:4px;border:1px solid var(--border);width:160px;display:inline-block;vertical-align:middle;margin-left:8px;">
+      <div style="position:absolute;top:0;left:0;height:100%;width:${pct}%;background:${pct > 60 ? 'var(--good)' : pct > 40 ? 'var(--accent)' : 'var(--ink-faint)'};border-radius:4px;"></div>
+    </div>`;
+    return `<tr>
+      <td class="row-label">${etf}</td>
+      <td style="color:var(--ink-faint);font-size:13px;">${ETF_DESCRIPTIONS[etf] || ''}</td>
+      <td class="num">${info.days_held}</td>
+      <td class="num"><strong>${pct.toFixed(1)}%</strong>${bar}</td>
+      <td class="num">${(info.avg_weight_when_held * 100).toFixed(1)}%</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTradeTable() {
+  const topk = window.DATA.topk;
+  if (!topk?.headline?.trade_history) return;
+  const history = topk.headline.trade_history;
+
+  document.getElementById('trade-first-date').textContent = history[0]?.date || '—';
+  document.getElementById('trade-last-date').textContent = history[history.length - 1]?.date || '—';
+  document.getElementById('trade-summary').textContent =
+    `${history.length} rebalances. Each row is a Friday close — the holdings shown apply from that date forward.`;
+
+  let rows = history.slice();
+  // Apply text filter
+  const q = (_tradeStateFilter || '').trim().toUpperCase();
+  if (q) {
+    rows = rows.filter(r =>
+      r.date.includes(q) ||
+      r.holdings.some(h => h.etf.toUpperCase().includes(q))
+    );
+  }
+  // Recent-only
+  if (_tradeStateRecentOnly && rows.length > 50) {
+    rows = rows.slice(-50);
+  }
+
+  document.getElementById('trade-count').textContent =
+    `${rows.length} of ${history.length} rebalances`;
+
+  // Build entered/exited diffs by comparing each row to the previous row in
+  // the FULL history (not the filtered view).
+  const indexByDate = new Map(history.map((r, i) => [r.date, i]));
+
+  const el = document.getElementById('trade-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th class="date-col">Date</th>
+    <th>Holdings (weight · breadth%)</th>
+  </tr>`;
+  el.querySelector('tbody').innerHTML = rows.map(r => {
+    const idx = indexByDate.get(r.date);
+    const prev = idx > 0 ? history[idx - 1] : null;
+    const prevSet = new Set(prev ? prev.holdings.map(h => h.etf) : []);
+    const currSet = new Set(r.holdings.map(h => h.etf));
+    const exited = prev ? prev.holdings.filter(h => !currSet.has(h.etf)) : [];
+    const chips = r.holdings.map(h => {
+      const isEntered = prev && !prevSet.has(h.etf);
+      const cls = isEntered ? 'holding-chip entered' : 'holding-chip';
+      return `<span class="${cls}">${h.etf} <span class="w">${(h.weight * 100).toFixed(1)}%</span><span class="b">${h.breadth_pct != null ? h.breadth_pct + '%' : ''}</span></span>`;
+    }).join('');
+    const exitChips = exited.map(h =>
+      `<span class="holding-chip exited">${h.etf}</span>`
+    ).join('');
+    return `<tr>
+      <td class="date-col">${r.date}</td>
+      <td class="holdings-cell">${chips} ${exitChips ? '<span style="color:var(--ink-faint);font-size:11px;margin-left:6px;">— exited:</span> ' + exitChips : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
 function renderExtendedHistory() {
   const data = window.DATA;
   const ext = data.extended;
@@ -1815,7 +2260,12 @@ function activateTab(name) {
     if (name === 'strategy')  { renderStrategyVerdict(); renderStrategyTable(); renderStrategyRobustness(); }
     if (name === 'unlev')     { renderUnlevVerdict(); renderUnlevTable(); renderUnlevPortfolio(); }
     if (name === 'detail')    renderDetail();
-    if (name === 'portfolio') renderPortfolio();
+    if (name === 'portfolio') { renderRecipeStats(); renderPortfolio(); }
+    if (name === 'trades') {
+      renderTradeCharts();
+      renderTimeInPortfolio();
+      renderTradeTable();
+    }
     if (name === 'robustness') {
       populateRobustnessDropdown();
       renderRobustnessVerdict();
@@ -1828,6 +2278,7 @@ function activateTab(name) {
       renderRobustnessWFxCadence();
       renderRobustnessFixed();
       renderRobustnessParadigm();
+      renderTopKCadence();
       renderExtendedHistory();
     }
     TAB_RENDERED.add(name);
@@ -1838,6 +2289,9 @@ function activateTab(name) {
       try { Plotly.Plots.resize('detail-breadth-chart'); Plotly.Plots.resize('detail-equity-chart'); } catch(e){}
     }
     if (name === 'portfolio') { try { Plotly.Plots.resize('portfolio-chart'); } catch(e){} }
+    if (name === 'trades') {
+      try { Plotly.Plots.resize('trade-equity-chart'); Plotly.Plots.resize('trade-positions-chart'); } catch(e){}
+    }
   }
 }
 
@@ -1877,6 +2331,14 @@ function populateEtfDropdown() {
   document.getElementById('rob-subperiod-etf')?.addEventListener('change', renderRobustnessSubperiod);
   document.getElementById('rob-rebal-etf')?.addEventListener('change', renderRobustnessRebal);
   document.getElementById('ext-etf')?.addEventListener('change', renderExtendedHistory);
+  document.getElementById('trade-recent-only')?.addEventListener('change', (e) => {
+    _tradeStateRecentOnly = e.target.checked;
+    renderTradeTable();
+  });
+  document.getElementById('trade-filter')?.addEventListener('input', (e) => {
+    _tradeStateFilter = e.target.value;
+    renderTradeTable();
+  });
 })();
 </script>
 </body>

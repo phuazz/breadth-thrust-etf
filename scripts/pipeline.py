@@ -81,6 +81,15 @@ def load_extended_history() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_topk_robustness() -> dict | None:
+    """Load data/topk_robustness.json: rebalance-frequency grid + trade history
+    for the top-K rotation headline variant (K=7 weekly Friday)."""
+    path = DATA_DIR / "topk_robustness.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_robustness() -> dict | None:
     """Load data/robustness.json. Trims wf_dates/wf_equity (heavy series
     not currently rendered) to keep the inlined payload compact."""
@@ -145,12 +154,21 @@ def main() -> int:
     if extended:
         print(f"  extended history {extended.get('start_date')} → {extended.get('end_date')}")
 
+    print("Loading top-K rotation robustness ...", flush=True)
+    topk = load_topk_robustness()
+    if topk:
+        h = topk.get("headline", {})
+        print(f"  top-K rotation: K={h.get('K')} {h.get('rebal_freq')}, "
+              f"{h.get('n_rebalances')} rebalances, "
+              f"Sharpe {h.get('headline_stats', {}).get('sharpe', 0):+.2f}")
+
     data = {
         "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "ma200": ma200,
         "portfolio": portfolio,
         "robustness": robustness,
         "extended": extended,
+        "topk": topk,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")
