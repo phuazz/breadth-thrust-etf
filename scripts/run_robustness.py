@@ -345,6 +345,76 @@ def sharpe_of_daily(daily: pd.Series) -> float:
 # ----------------------------------------------------------------------
 
 
+def run_with_rebalance_freq(close: pd.Series, breadth: pd.Series, L_pct: float,
+                              freq: str, base: float = 0.5, on: float = 1.5,
+                              cost: float = COST_BPS / 10_000,
+                              window_start: pd.Timestamp | None = None) -> dict:
+    """Apply MA200 + 50/150 with a specific rebalance frequency.
+
+    freq in {"D", "W-FRI", "W-MON", "2W-FRI", "BME"}.
+    On non-rebalance days the allocation is held constant.
+    """
+    aligned = breadth.reindex(close.index, method="ffill").shift(1).fillna(0)
+    raw_alloc = pd.Series(base, index=close.index, dtype=float)
+    raw_alloc.loc[aligned >= L_pct / 100.0] = on
+
+    if freq == "D":
+        alloc = raw_alloc.copy()
+    else:
+        rebal_target = pd.date_range(close.index[0], close.index[-1], freq=freq)
+        # Snap each rebalance target to the previous trading day
+        rebal_dates = []
+        for r in rebal_target:
+            pos = close.index.searchsorted(r, side="right") - 1
+            if pos >= 0:
+                rebal_dates.append(close.index[pos])
+        rebal_dates = pd.DatetimeIndex(rebal_dates).unique()
+        # Hold alloc constant between rebalances
+        alloc = pd.Series(np.nan, index=close.index, dtype=float)
+        for rd in rebal_dates:
+            alloc.loc[rd] = raw_alloc.loc[rd]
+        alloc = alloc.ffill().fillna(base)
+
+    if window_start is not None:
+        alloc.loc[alloc.index < window_start] = 0.0
+
+    daily = close.pct_change().fillna(0)
+    strat_ret = alloc * daily
+    turnover = alloc.diff().abs().fillna(0)
+    strat_ret = strat_ret - turnover * cost
+    equity = (1.0 + strat_ret).cumprod()
+    return {"equity": equity, "alloc": alloc, "turnover": turnover}
+
+
+def rebalance_freq_test(close: pd.Series, breadth: pd.Series,
+                          L_pct: float, eligible_start: pd.Timestamp,
+                          freqs: list[tuple[str, str]]) -> list[dict]:
+    """Run the strategy at multiple rebalance frequencies; report stats."""
+    rows = []
+    for label, freq in freqs:
+        r = run_with_rebalance_freq(close, breadth, L_pct, freq,
+                                       window_start=eligible_start)
+        eq_window = r["equity"].loc[r["equity"].index >= eligible_start]
+        eq_window = eq_window / eq_window.iloc[0]
+        sh = sharpe_of(eq_window)
+        peaks = eq_window.cummax()
+        max_dd = float((1.0 - eq_window / peaks).max())
+        total = float(eq_window.iloc[-1] - 1)
+        annual_turnover = float(r["turnover"].loc[r["turnover"].index >= eligible_start].sum()
+                                  / (len(eq_window) / 252.0))
+        n_changes = int((r["alloc"].diff().abs() > 1e-6).sum())
+        rows.append({
+            "rebalance_label": label,
+            "rebalance_freq": freq,
+            "sharpe": _safe(sh),
+            "total_return": _safe(total),
+            "max_dd": _safe(max_dd),
+            "annual_turnover": _safe(annual_turnover),
+            "n_allocation_changes": n_changes,
+        })
+    return rows
+
+
 def ma_period_robustness(target_etf: str,
                             ma_periods: list[int] = [100, 150, 200, 250, 300],
                             eligible_start: pd.Timestamp | None = None) -> list[dict]:
@@ -520,6 +590,32 @@ def main() -> int:
               f"Sharpe {r['sharpe']:+.2f}  totRet {r['total_return']*100:+.0f}%  "
               f"DD {r['max_dd']*100:.0f}%")
 
+    # ===== TEST 6: REBALANCE FREQUENCY =====
+    print("\n=== TEST 6: Rebalance frequency sensitivity ===")
+    rebal_freqs = [
+        ("Daily",        "D"),
+        ("Weekly Fri",   "W-FRI"),
+        ("Weekly Mon",   "W-MON"),
+        ("Bi-weekly Fri", "2W-FRI"),
+        ("Month-end",    "BME"),
+    ]
+    rebal_etfs = ["CSP1", "SOXX", "IUIT", "CNDX", "IUES"]
+    rebal_results: dict[str, list[dict]] = {}
+    for etf in rebal_etfs:
+        if etf not in per_etf:
+            continue
+        d = per_etf[etf]
+        in_L, _ = best_L_in_window(d["close"], d["breadth"], d["eligible"], d["close"].index[-1])
+        if in_L is None:
+            continue
+        rows = rebalance_freq_test(d["close"], d["breadth"], in_L, d["eligible"], rebal_freqs)
+        rebal_results[etf] = rows
+        print(f"\n  {etf:5}  (L={in_L} in-sample):")
+        for r in rows:
+            print(f"    {r['rebalance_label']:<14}  Sharpe {r['sharpe']:+.2f}  "
+                  f"totRet {r['total_return']*100:+5.0f}%  DD {r['max_dd']*100:>4.1f}%  "
+                  f"turnover/yr {r['annual_turnover']:.2f}  flips {r['n_allocation_changes']}")
+
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
         "etfs": list(per_etf.keys()),
@@ -533,6 +629,7 @@ def main() -> int:
         "test_4_bootstrap": bootstrap_results,
         "test_5_ma_period_csp1": ma_results_csp1,
         "test_5b_ma_period_soxx": ma_results_soxx,
+        "test_6_rebalance_freq": rebal_results,
     }
 
     def clean(o):
