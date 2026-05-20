@@ -74,6 +74,13 @@ def load_portfolio() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_extended_history() -> dict | None:
+    path = DATA_DIR / "extended_history.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_robustness() -> dict | None:
     """Load data/robustness.json. Trims wf_dates/wf_equity (heavy series
     not currently rendered) to keep the inlined payload compact."""
@@ -133,11 +140,17 @@ def main() -> int:
         wf = robustness.get("test_1_walk_forward_l", {})
         print(f"  walk-forward L for {len(wf)} ETFs")
 
+    print("Loading extended history ...", flush=True)
+    extended = load_extended_history()
+    if extended:
+        print(f"  extended history {extended.get('start_date')} → {extended.get('end_date')}")
+
     data = {
         "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "ma200": ma200,
         "portfolio": portfolio,
         "robustness": robustness,
+        "extended": extended,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")

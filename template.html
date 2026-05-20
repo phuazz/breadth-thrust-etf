@@ -480,6 +480,32 @@
       <table class="small-table" id="rob-fixed-table"><thead></thead><tbody></tbody></table>
       <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="rob-fixed-note"></p>
     </section>
+
+    <section>
+      <h2>Test 9 — Extended history 2000-2026 (incl. dot-com bust + 2008 GFC)</h2>
+      <p class="section-sub">The 2018-2026 main backtest has no extended bear market — buy-and-hold has a structural advantage. To see whether the MA200 regime overlay earns its keep during real crashes, we extended the test to 2000-2026 by using today's CSP1 and SOXX constituents (survivor-biased universe, but the broad pattern of MA200 breadth collapsing in 2000-2002 and 2007-2009 is robust).</p>
+      <div class="chart-controls">
+        <label for="ext-etf">Traded ETF:</label>
+        <select id="ext-etf">
+          <option value="SPY">SPY (S&P 500)</option>
+          <option value="SOXX">SOXX (semis)</option>
+        </select>
+      </div>
+      <div id="ext-equity-chart" class="chart tall"></div>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="ext-note"></p>
+
+      <h3 style="margin-top:24px;">Sub-period Sharpe breakdown</h3>
+      <p class="section-sub">Strategy variants vs buy-and-hold across each major regime. Negative ∆ in bear markets is the key test of the regime overlay's value.</p>
+      <table class="small-table" id="ext-subperiod-table"><thead></thead><tbody></tbody></table>
+
+      <h3 style="margin-top:24px;">L-threshold sweep (full 2000-2026 window)</h3>
+      <p class="section-sub">Sharpe / total return / max DD across L ∈ {40, 45, 50, 55, 60, 65, 70} for both 50/100 (unleveraged) and 0/100 (pure regime overlay).</p>
+      <table class="small-table" id="ext-L-table"><thead></thead><tbody></tbody></table>
+
+      <p style="margin-top:16px;padding:12px;background:var(--bg-soft);border-left:3px solid var(--warn);font-size:13px;">
+        <strong>Caveat</strong>: this test uses today's CSP1 / SOXX constituent rosters back to 2000 (survivor-biased universe). The breadth metric is slightly upward-biased — true historical breadth would have collapsed harder during 2008 because the universe included Lehman, Bear Stearns, Citi-pre-bailout, etc. that subsequently went bankrupt. So this is a <strong>conservative (pessimistic) estimate</strong> of the strategy's value during crashes; with proper point-in-time data the regime signal would likely have fired sharper and earlier in 2008. Take the results as a directional answer, not a precise one.
+      </p>
+    </section>
   </div>
 
   <!-- ====================== METHOD ====================== -->
@@ -1485,6 +1511,156 @@ function renderRobustnessFixed() {
     `That version beats BH on IUIT, CNDX, IUES (and ties on SOXX). The signal is real — but the "best practice" parameter selection turns out to be NO tuning at all.`;
 }
 
+function renderExtendedHistory() {
+  const data = window.DATA;
+  const ext = data.extended;
+  if (!ext) return;
+  const etf = document.getElementById('ext-etf').value;
+  const block = ext.results?.[etf];
+  if (!block) return;
+
+  // Equity chart — overlay 50/100, 0/100 (regime overlay), and BH
+  const traces = [
+    {
+      x: block.headline_equity_50_100_L60.dates,
+      y: block.headline_equity_50_100_L60.equity,
+      mode: 'lines', name: '50/100 L=60 (unleveraged)',
+      line: { color: '#1351b4', width: 1.6 },
+    },
+    {
+      x: block.headline_equity_0_100_L60.dates,
+      y: block.headline_equity_0_100_L60.equity,
+      mode: 'lines', name: '0/100 L=60 (regime overlay, cash off)',
+      line: { color: '#1d7a3a', width: 1.6 },
+    },
+    {
+      x: block.buy_and_hold_equity.dates,
+      y: block.buy_and_hold_equity.equity,
+      mode: 'lines', name: `${etf} buy-and-hold`,
+      line: { color: '#6b727a', width: 1.4, dash: 'dot' },
+    },
+  ];
+  const layout = {
+    margin: { l: 60, r: 14, t: 14, b: 38 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+    yaxis: {
+      title: `Equity (norm to 1 at ${block.eligible_start})`,
+      gridcolor: '#eef0f3', zeroline: false, type: 'log', tickformat: '.2f',
+    },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', x: 0, y: 1.10 },
+    shapes: [
+      // Shade bear-market windows for visual cue
+      { type: 'rect', xref: 'x', yref: 'paper',
+        x0: '2000-03-24', x1: '2002-10-09', y0: 0, y1: 1,
+        fillcolor: 'rgba(179, 38, 30, 0.06)', line: { width: 0 } },
+      { type: 'rect', xref: 'x', yref: 'paper',
+        x0: '2007-10-09', x1: '2009-03-09', y0: 0, y1: 1,
+        fillcolor: 'rgba(179, 38, 30, 0.06)', line: { width: 0 } },
+      { type: 'rect', xref: 'x', yref: 'paper',
+        x0: '2020-02-19', x1: '2020-03-23', y0: 0, y1: 1,
+        fillcolor: 'rgba(179, 38, 30, 0.06)', line: { width: 0 } },
+      { type: 'rect', xref: 'x', yref: 'paper',
+        x0: '2022-01-03', x1: '2022-10-12', y0: 0, y1: 1,
+        fillcolor: 'rgba(179, 38, 30, 0.04)', line: { width: 0 } },
+    ],
+    annotations: [
+      { x: '2001-04-01', y: 1, yref: 'paper', text: 'Dot-com', showarrow: false,
+        font: { size: 10, color: 'var(--bad)' } },
+      { x: '2008-06-15', y: 1, yref: 'paper', text: 'GFC', showarrow: false,
+        font: { size: 10, color: 'var(--bad)' } },
+    ],
+  };
+  Plotly.newPlot('ext-equity-chart', traces, layout, { displayModeBar: false, responsive: true });
+
+  // Headline note
+  const v_50100 = block.variants['50/100_L=60'];
+  const v_0100 = block.variants['0/100_L=60'];
+  const v_bh = block.variants.buy_and_hold;
+  document.getElementById('ext-note').innerHTML =
+    `<strong>${etf} 2000-2026 (${block.eligible_start} → present, ${block.universe_size}-name universe):</strong> `
+    + `50/100 L=60 Sharpe ${fmtNum(v_50100?.sharpe, 2, true)} | totRet ${fmtPct(v_50100?.total_return, true)} | maxDD ${fmtPct(v_50100?.max_dd)}; `
+    + `0/100 regime overlay Sharpe ${fmtNum(v_0100?.sharpe, 2, true)} | totRet ${fmtPct(v_0100?.total_return, true)} | maxDD ${fmtPct(v_0100?.max_dd)}; `
+    + `BH Sharpe ${fmtNum(v_bh?.sharpe, 2, true)} | totRet ${fmtPct(v_bh?.total_return, true)} | maxDD ${fmtPct(v_bh?.max_dd)}. `
+    + `Red-shaded periods on the chart are bear markets.`;
+
+  // Sub-period table
+  const sp = block.sub_periods;
+  const el = document.getElementById('ext-subperiod-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Period</th><th>Window</th>
+    <th>50/100 Sharpe</th><th>0/100 Sharpe</th><th>BH Sharpe</th>
+    <th>Δ 50/100 − BH</th><th>Δ 0/100 − BH</th>
+  </tr>`;
+  const tbody = el.querySelector('tbody');
+  tbody.innerHTML = '';
+  for (let i = 0; i < sp['50_100_L60'].length; i++) {
+    const a = sp['50_100_L60'][i];
+    const b = sp['0_100_L60'][i];
+    const c = sp.buy_and_hold[i];
+    if (!a || a.sharpe == null) continue;
+    const dA = (a.sharpe ?? 0) - (c?.sharpe ?? 0);
+    const dB = (b.sharpe ?? 0) - (c?.sharpe ?? 0);
+    const isBear = ['2000_2002_dotcom_bust', '2007_2009_gfc', '2018q4_correction', '2020_covid', '2022_inflation'].includes(a.label);
+    tbody.innerHTML += `<tr style="${isBear ? 'background:rgba(179, 38, 30, 0.04);' : ''}">
+      <td class="row-label">${a.label}${isBear ? ' <span style="color:var(--bad);font-size:10px;">●</span>' : ''}</td>
+      <td style="font-size:12px;color:var(--ink-faint);">${a.start} → ${a.end}</td>
+      <td class="num">${fmtNum(a.sharpe, 2, true)}</td>
+      <td class="num">${fmtNum(b?.sharpe, 2, true)}</td>
+      <td class="num" style="color:var(--ink-faint);">${fmtNum(c?.sharpe, 2, true)}</td>
+      <td class="num ${dA > 0 ? 'good' : 'bad'}">${fmtNum(dA, 2, true)}</td>
+      <td class="num ${dB > 0 ? 'good' : 'bad'}">${fmtNum(dB, 2, true)}</td>
+    </tr>`;
+  }
+
+  // L-threshold sweep table
+  const el2 = document.getElementById('ext-L-table');
+  el2.querySelector('thead').innerHTML = `<tr>
+    <th>L (%)</th>
+    <th colspan="3" style="border-left:1px solid var(--border-strong);text-align:center;">50/100 (unleveraged)</th>
+    <th colspan="3" style="border-left:1px solid var(--border-strong);text-align:center;">0/100 (regime overlay)</th>
+  </tr>
+  <tr>
+    <th></th>
+    <th style="border-left:1px solid var(--border-strong);">Sharpe</th><th>Total ret</th><th>Max DD</th>
+    <th style="border-left:1px solid var(--border-strong);">Sharpe</th><th>Total ret</th><th>Max DD</th>
+  </tr>`;
+  const L_grid = ext.L_grid || [40, 45, 50, 55, 60, 65, 70];
+  const tbody2 = el2.querySelector('tbody');
+  tbody2.innerHTML = '';
+  // Find best Sharpe per family
+  const best50 = Math.max(...L_grid.map(L => block.variants[`50/100_L=${L}`]?.sharpe ?? -1e9));
+  const best00 = Math.max(...L_grid.map(L => block.variants[`0/100_L=${L}`]?.sharpe ?? -1e9));
+  for (const L of L_grid) {
+    const a = block.variants[`50/100_L=${L}`];
+    const b = block.variants[`0/100_L=${L}`];
+    if (!a || !b) continue;
+    const a_best = a.sharpe === best50 ? 'highlight' : '';
+    const b_best = b.sharpe === best00 ? 'highlight' : '';
+    tbody2.innerHTML += `<tr>
+      <td class="row-label">${L}</td>
+      <td class="num ${a_best}" style="border-left:1px solid var(--border-strong);"><strong>${fmtNum(a.sharpe, 2, true)}</strong></td>
+      <td class="num ${a_best}">${fmtPct(a.total_return, true)}</td>
+      <td class="num ${a_best}">${fmtPct(a.max_dd)}</td>
+      <td class="num ${b_best}" style="border-left:1px solid var(--border-strong);"><strong>${fmtNum(b.sharpe, 2, true)}</strong></td>
+      <td class="num ${b_best}">${fmtPct(b.total_return, true)}</td>
+      <td class="num ${b_best}">${fmtPct(b.max_dd)}</td>
+    </tr>`;
+  }
+  // BH footer
+  tbody2.innerHTML += `<tr style="border-top:2px solid var(--border-strong);color:var(--ink-faint);">
+    <td class="row-label">BH</td>
+    <td class="num" style="border-left:1px solid var(--border-strong);">${fmtNum(v_bh?.sharpe, 2, true)}</td>
+    <td class="num">${fmtPct(v_bh?.total_return, true)}</td>
+    <td class="num">${fmtPct(v_bh?.max_dd)}</td>
+    <td class="num" style="border-left:1px solid var(--border-strong);">—</td>
+    <td class="num">—</td>
+    <td class="num">—</td>
+  </tr>`;
+}
+
 function renderRobustnessRebal() {
   const rb = window.DATA.robustness?.test_6_rebalance_freq || {};
   const etf = document.getElementById('rob-rebal-etf').value;
@@ -1535,6 +1711,7 @@ function activateTab(name) {
       renderRobustnessRebal();
       renderRobustnessWFxCadence();
       renderRobustnessFixed();
+      renderExtendedHistory();
     }
     TAB_RENDERED.add(name);
   } else {
@@ -1582,6 +1759,7 @@ function populateEtfDropdown() {
   document.getElementById('detail-etf')?.addEventListener('change', renderDetail);
   document.getElementById('rob-subperiod-etf')?.addEventListener('change', renderRobustnessSubperiod);
   document.getElementById('rob-rebal-etf')?.addEventListener('change', renderRobustnessRebal);
+  document.getElementById('ext-etf')?.addEventListener('change', renderExtendedHistory);
 })();
 </script>
 </body>
