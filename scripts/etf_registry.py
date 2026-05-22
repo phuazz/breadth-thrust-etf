@@ -257,6 +257,93 @@ ETF_REGISTRY: dict[str, dict] = {
         "csv_date_format": "uk",
         "yfinance_trading_proxy": "XLU",
     },
+    # --- Phase 1 expansion (2026-05-22): 3 missing S&P 500 sectors +
+    #     S&P SmallCap 600. Brings universe from 11 → 15 ETFs.
+    # -------------------------------------------------------------------------
+    "IUMS": {  # S&P 500 Materials
+        "symbol": "IUMS",
+        "ishares_region": "uk",
+        "product_id": "287104",
+        "url_slug": "ishares-s-p-500-materials-sector-ucits-etf-fund",
+        "ajax_id": "1506575576011",
+        "filename": "IUMS_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/287104/"
+            "ishares-s-p-500-materials-sector-ucits-etf-fund/1506575576011.ajax"
+            "?fileType=csv&fileName=IUMS_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "XLB",  # SPDR Materials Select Sector
+    },
+    "IUCM": {  # S&P 500 Communication Services
+        # Note: launched 2018 with the GICS sector reclassification; iShares
+        # UK fund inception around 2018-12. start_friday backdated to
+        # 2018-01-05 for symmetry; warm-up months will return empty CSVs
+        # and the fetch script handles that via carry-forward.
+        "symbol": "IUCM",
+        "ishares_region": "uk",
+        "product_id": "304659",
+        "url_slug": "ishares-s-p-500-communication-sector-ucits-etf-usd-acc-fund",
+        "ajax_id": "1506575576011",
+        "filename": "IUCM_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/304659/"
+            "ishares-s-p-500-communication-sector-ucits-etf-usd-acc-fund/"
+            "1506575576011.ajax"
+            "?fileType=csv&fileName=IUCM_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "XLC",  # SPDR Communication Select Sector
+    },
+    "IUSP": {  # US Property Yield (REIT proxy for Real Estate sector)
+        # CAVEAT: tracks FTSE EPRA NAREIT US Dividend+ index (~38 US REITs),
+        # NOT S&P 500 Real Estate. Broader REIT universe with a dividend
+        # tilt — different index methodology than the other sectors. The
+        # breadth signal still works because it is constituent-relative
+        # (% above 200d MA), but the constituent set will not exactly
+        # match the S&P 500 Real Estate sub-sector. No S&P 500 Real Estate
+        # UCITS fund exists on iShares UK as of 2026-05.
+        "symbol": "IUSP",
+        "ishares_region": "uk",
+        "product_id": "251803",
+        "url_slug": "ishares-us-property-yield-ucits-etf",
+        "ajax_id": "1506575576011",
+        "filename": "IUSP_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/251803/"
+            "ishares-us-property-yield-ucits-etf/1506575576011.ajax"
+            "?fileType=csv&fileName=IUSP_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "XLRE",  # SPDR Real Estate Select Sector
+    },
+    "IDP6": {  # S&P SmallCap 600 (US small-cap, categorically a market-cap
+              # slice rather than a sector — but useful breadth dimension)
+        "symbol": "IDP6",
+        "ishares_region": "uk",
+        "product_id": "251920",
+        "url_slug": "ishares-sp-smallcap-600-ucits-etf",
+        "ajax_id": "1506575576011",
+        "filename": "ISP6_holdings",  # download filename uses ISP6 not IDP6
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/251920/"
+            "ishares-sp-smallcap-600-ucits-etf/1506575576011.ajax"
+            "?fileType=csv&fileName=ISP6_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {
+            "BRKB": "BRK-B", "BRK.B": "BRK-B",
+            "BFB": "BF-B", "BF.B": "BF-B",
+        },
+        "csv_date_format": "uk",
+        "yfinance_trading_proxy": "IJR",  # iShares Core S&P Small-Cap (US-listed)
+    },
 }
 
 
@@ -269,3 +356,30 @@ def get_etf(symbol: str) -> dict:
             "Add an entry to scripts/etf_registry.py to extend."
         )
     return ETF_REGISTRY[sym]
+
+
+# =========================================================================
+# Active backtest universe — single source of truth.
+# Downstream scripts import this constant rather than redeclaring the list.
+# Edit here to add / remove ETFs from the backtest universe.
+# =========================================================================
+UNIVERSE_ETFS: list[str] = [
+    # Broad-market / concentrated
+    "SOXX",   # iShares Semiconductor (semis)
+    "CSP1",   # S&P 500 (full)
+    "CNDX",   # NASDAQ-100
+    # Complete S&P 500 sector slices (iShares UK UCITS, SPDR proxies)
+    "IUES",   # Energy            → XLE
+    "IUFS",   # Financials        → XLF
+    "IUIT",   # Information Tech  → XLK
+    "IUHC",   # Health Care       → XLV
+    "IUIS",   # Industrials       → XLI
+    "IUCS",   # Consumer Staples  → XLP
+    "IUCD",   # Consumer Disc     → XLY
+    "IUUS",   # Utilities         → XLU
+    "IUMS",   # Materials         → XLB         (added 2026-05-22)
+    "IUCM",   # Comm Services     → XLC         (added 2026-05-22)
+    "IUSP",   # US REITs          → XLRE        (added 2026-05-22, REIT proxy)
+    # Market-cap dimension (not a sector — different universe slice)
+    "IDP6",   # S&P SmallCap 600  → IJR         (added 2026-05-22)
+]

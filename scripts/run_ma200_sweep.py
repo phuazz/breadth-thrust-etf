@@ -41,7 +41,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from backtest import download_soxx_ohlc  # noqa: E402
-from etf_registry import get_etf  # noqa: E402
+from etf_registry import get_etf, UNIVERSE_ETFS as ETFS  # noqa: E402
 from run_improvements import COST_BPS, compute_stats  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -49,8 +49,6 @@ sys.stdout.reconfigure(encoding="utf-8")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 OUT_PATH = DATA_DIR / "ma200_sweep.json"
-
-ETFS = ["SOXX", "CSP1", "CNDX", "IUES", "IUFS", "IUIT", "IUHC", "IUIS", "IUCS", "IUCD", "IUUS"]
 LONG_THRESHOLDS = [50, 55, 60, 65, 70, 75, 80]
 SHORT_THRESHOLDS = [10, 15, 20, 25, 30, 35, 40]
 MA_PERIOD = 200

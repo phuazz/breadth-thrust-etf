@@ -431,7 +431,7 @@
       <span id="ts-built"></span>
     </div>
     <h1>Breadth-thrust ETF research</h1>
-    <div class="sub">A breadth-led sector rotation strategy: rank 11 US sector / broad-market ETFs by % of their constituents above the 200-day moving average, own the top K each week. Walk-forward Sharpe ≈ 1.05 with no overfit penalty.</div>
+    <div class="sub">A breadth-led sector rotation strategy: rank 15 US sector / broad-market / small-cap ETFs by % of their constituents above the 200-day moving average, own the top K each week. Walk-forward Sharpe ≈ 0.96 on the full 15-ETF universe (was ≈ 1.05 on the focused 11-ETF set — see Method → Universe Expansion for why more ETFs slightly diluted the signal).</div>
   </div>
 </header>
 
@@ -737,7 +737,7 @@
     <div class="plain-box">
       <h3>The strategy explained, plain English</h3>
       <p class="lead">Pick the strongest seven sectors of the US stock market each week. Own them. Update weekly. That is the whole strategy.</p>
-      <p><strong>What is a "sector"?</strong> The US stock market is split into industry groups — Technology, Financials, Energy, Health Care, Industrials, Consumer Discretionary, Consumer Staples, Utilities, plus a few broad-market and concentrated picks (S&amp;P 500, NASDAQ-100, Semiconductors). We use the 11 ETFs that represent these groups.</p>
+      <p><strong>What is a "sector"?</strong> The US stock market is split into industry groups — Technology, Financials, Energy, Health Care, Industrials, Consumer Discretionary, Consumer Staples, Utilities, Materials, Communication Services, Real Estate — plus a few broad-market and concentrated picks (S&amp;P 500, NASDAQ-100, Semiconductors, Small-cap 600). We use 15 ETFs that represent these groups.</p>
       <p><strong>How do we judge which sector is "strong"?</strong> Every sector contains 30 to 500 individual companies. We count what percentage of those companies are currently trading above their own 200-day moving average. A stock above its 200-day average is in an uptrend; below it, a downtrend. So if 85% of the companies in a sector are in uptrends, that sector is strong — broadly strong, not just lifted by a few mega-caps. We call this number the <em>breadth</em> of the sector. It ranges from 0% (everything broken) to 100% (everything in an uptrend).</p>
       <div class="step">
         <div class="step-n">1</div>
@@ -766,8 +766,8 @@
         <p><strong>Breadth indicator</strong>: % of an ETF's point-in-time constituents whose closing price is above their own 200-day simple moving average. Computed daily; constituents reset weekly from the iShares UK holdings endpoint.</p>
         <p><strong>Headline strategy — top-K rotation</strong>:</p>
         <ul>
-          <li>Universe: 11 ETFs (SOXX, CSP1, CNDX, IUES, IUFS, IUIT, IUHC, IUIS, IUCS, IUCD, IUUS).</li>
-          <li>Each Friday close, rank the 11 by current breadth. Pick the top K = 7.</li>
+          <li>Universe: 15 ETFs (SOXX, CSP1, CNDX, IUES, IUFS, IUIT, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, IUSP, IDP6).</li>
+          <li>Each Friday close, rank the 15 by current breadth. Pick the top K = 7.</li>
           <li>Weight each held ETF by its breadth share: w_i = breadth_i / Σ(top-K breadths).</li>
           <li>Transaction cost: 5 bps per unit of weight change (10 bps round-trip).</li>
           <li>K is refit only annually on expanding-window Sharpe over K ∈ {3, 5, 7}; choice has been stable at K = 5 (2022) → K = 7 (2024 onwards).</li>
@@ -786,7 +786,9 @@
     <section>
       <h2>Universe and data sources</h2>
       <div class="methodbox">
-        <p><strong>11 ETFs in the universe</strong>: SOXX (semis), CSP1 (S&amp;P 500), CNDX (NASDAQ-100), IUES (energy), IUFS (financials), IUIT (info tech), IUHC (health care), IUIS (industrials), IUCS (consumer staples), IUCD (consumer discretionary), IUUS (utilities). The latter eight are iShares S&amp;P 500 sector UCITS funds; their trading proxies are the SPDR Select Sector ETFs (XLE, XLF, XLK, XLV, XLI, XLP, XLY, XLU). CSP1 trades via SPY; CNDX via QQQ; SOXX trades itself.</p>
+        <p><strong>15 ETFs in the universe</strong>: SOXX (semis), CSP1 (S&amp;P 500), CNDX (NASDAQ-100), and the complete S&amp;P 500 sector slate — IUES (Energy), IUFS (Financials), IUIT (Info Tech), IUHC (Health Care), IUIS (Industrials), IUCS (Consumer Staples), IUCD (Consumer Discretionary), IUUS (Utilities), IUMS (Materials), IUCM (Communication Services). Plus IUSP (US REITs as Real Estate proxy — see caveat) and IDP6 (S&amp;P SmallCap 600 — the only non-sector slice, included to give the rotation a market-cap dimension).</p>
+        <p><strong>Trading proxies</strong>: SPDR Select Sector ETFs (XLE, XLF, XLK, XLV, XLI, XLP, XLY, XLU, XLB, XLC, XLRE). CSP1 trades via SPY; CNDX via QQQ; SOXX trades itself; IDP6 trades via IJR.</p>
+        <p><strong>Real Estate caveat</strong>: no iShares UK S&amp;P 500 Real Estate sector UCITS exists as of 2026-05. IUSP (FTSE EPRA NAREIT US Dividend+ Index, ~38 US REITs) is used as a substitute. The constituent set is broader than the S&amp;P 500 Real Estate sub-sector, but the breadth metric (% above 200d MA) is still constituent-relative and remains comparable.</p>
         <p><strong>Data sources</strong>: iShares UK holdings endpoint for point-in-time constituents (weekly Friday snapshots back to 2018-01-05), yfinance for adjusted close prices of constituents and trading proxies. All data is free and reproducible from the scripts in this repo.</p>
       </div>
     </section>
@@ -814,6 +816,21 @@
           <li><strong>Prefer relative signals to absolute thresholds.</strong> "Top K by breadth" is a relative statement that self-normalises across regimes; "breadth ≥ L" is an absolute threshold that has to be re-tuned every regime. Test 10 shows the cross-sectional rotation paradigm has zero walk-forward degradation, while threshold-based timing degrades ~0.3 Sharpe. Whenever a signal can be expressed as a cross-sectional rank instead of a level, prefer the rank version.</li>
         </ul>
         <p><strong>Practical deployment translation.</strong> The strategy that survives all the tests is paradigm 3 from Test 10: <em>own the top K = 5-7 ETFs by current MA200 breadth, weight by breadth excess over the cross-sectional median, rebalance weekly Friday, no per-ETF threshold tuning, refit K only annually</em>. Walk-forward Sharpe ≈ 1.05 with no degradation from in-sample. The previous "fixed L=60 on IUIT / CNDX / IUES" recommendation was correct given the framing of paradigm 2, but paradigm 3 is strictly better — it owns the same sectors when they lead, drops them when they lag, and never bets on a single ETF being "above the L-line" in isolation. The original headline Sharpe 1.04 for CSP1 single-ETF was an artifact; the headline Sharpe 1.05 for top-K rotation is honest.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Universe expansion — does adding more ETFs help?</h2>
+      <div class="methodbox">
+        <p>The universe went from 11 to 15 ETFs in May 2026 by adding the 3 missing S&amp;P 500 sectors (Materials IUMS, Communication Services IUCM, plus IUSP as a Real Estate proxy) and IDP6 (S&amp;P SmallCap 600). The headline top-K rotation Sharpe moved from +0.99 (11 ETFs, K=7 Weekly Fri) to <strong>+0.95 (15 ETFs, same K and cadence)</strong> — a small <em>decrease</em>. Annual turnover rose from ~10× to ~14× because more ETFs cluster near the K-th breadth boundary and shuffle in and out more often.</p>
+        <p><strong>Why expanding the universe didn't help</strong>: the strategy ranks ETFs by breadth and takes the top K, so adding ETFs at the same K dilutes conviction. The strongest sectors are still strongest, but extra candidates compete for the marginal slot. Cost goes up; signal goes down slightly. The strategy was already universe-saturated around 11 ETFs for K=7.</p>
+        <p><strong>The right way to expand is at a different aggregation level, not within the same rotation.</strong> A "Phase 2" multi-strategy stack would look like:</p>
+        <ul>
+          <li><strong>Strategy A — US sector rotation</strong> (current): top-K-by-breadth on 11-15 US sector / broad-market ETFs. Breadth signal is constituent-level.</li>
+          <li><strong>Strategy B — Asset-class rotation</strong> (not yet built): top-K-by-breadth on a small set of <em>asset class</em> ETFs covering US large, US small, Intl developed, Emerging Markets, and possibly bond / commodity buckets. Breadth signal still % above 200d MA but at the asset-class index level. Would need different data sourcing — non-US iShares product pages, ticker suffixes for non-US listings.</li>
+          <li><strong>Combination</strong>: fixed-weight blend (e.g., 70% A / 30% B) or a meta-rotation between A and B based on which sub-strategy is currently leading.</li>
+        </ul>
+        <p>The empirical lesson from this expansion: <em>adding ETFs of the same flavour to an existing top-K rotation produces diminishing or negative returns</em>. The dimension that actually adds information is <em>orthogonality of the constituents</em>. US small-cap (IDP6) overlaps heavily with US large-cap sector breadth — when SOXX and IUIT are strong, IDP6 small-tech also tends to be strong. To get true diversification of the breadth signal, you need universes that move independently — that means going international or going across asset classes. That is the open Phase 2 question.</p>
       </div>
     </section>
 
@@ -872,6 +889,10 @@ const ETF_DESCRIPTIONS = {
   IUCS: 'S&P 500 Cons Staples',
   IUCD: 'S&P 500 Cons Discretionary',
   IUUS: 'S&P 500 Utilities',
+  IUMS: 'S&P 500 Materials',
+  IUCM: 'S&P 500 Comm Services',
+  IUSP: 'US REITs (FTSE EPRA NAREIT)',
+  IDP6: 'S&P SmallCap 600 (small-cap)',
 };
 
 function fmtPct(x, signed = false) {
@@ -1956,6 +1977,10 @@ const ETF_COLOURS = {
   IUCS: '#52525b',  // grey (staples)
   IUCD: '#dc2626',  // red (consumer disc)
   IUUS: '#0891b2',  // teal (utilities)
+  IUMS: '#92400e',  // dark amber (materials)
+  IUCM: '#7e22ce',  // purple (comm services)
+  IUSP: '#0d9488',  // dark teal (REITs)
+  IDP6: '#1e3a8a',  // navy (small-cap)
 };
 
 function renderTradeCharts() {

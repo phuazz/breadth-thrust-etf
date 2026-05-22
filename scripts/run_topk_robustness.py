@@ -290,7 +290,7 @@ def main() -> int:
     ew_eq = ew_run["equity"].loc[ew_run["equity"].index >= eligible]
     ew_eq = ew_eq / ew_eq.iloc[0]
     ew_stats = compute_stats(ew_run["equity"], eligible)
-    print(f"  Equal-weight 11   Sharpe {ew_stats['sharpe']:+.2f}   "
+    print(f"  Equal-weight all   Sharpe {ew_stats['sharpe']:+.2f}   "
           f"totRet {ew_stats['total_return']*100:+.0f}%   DD {ew_stats['max_dd']*100:.1f}%")
 
     benchmarks = {
@@ -304,7 +304,7 @@ def main() -> int:
             "cagr": _safe(spy_stats.get("cagr")),
         },
         "equal_weight_11": {
-            "label": "Equal-weight 11 ETFs (no signal)",
+            "label": "Equal-weight all ETFs (no signal)",
             "dates": [d.strftime("%Y-%m-%d") for d in ew_eq.index],
             "equity": round_series(ew_eq.values),
             "sharpe": _safe(ew_stats["sharpe"]),

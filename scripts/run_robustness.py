@@ -48,7 +48,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from backtest import download_soxx_ohlc  # noqa: E402
-from etf_registry import get_etf  # noqa: E402
+from etf_registry import get_etf, UNIVERSE_ETFS as ETFS  # noqa: E402
 from run_improvements import compute_stats  # noqa: E402
 from run_ma200_sweep import (  # noqa: E402
     compute_ma200_breadth, load_constituent_prices, COST_BPS, LONG_THRESHOLDS,
@@ -59,8 +59,6 @@ sys.stdout.reconfigure(encoding="utf-8")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 OUT_PATH = DATA_DIR / "robustness.json"
-
-ETFS = ["SOXX", "CSP1", "CNDX", "IUES", "IUFS", "IUIT", "IUHC", "IUIS", "IUCS", "IUCD", "IUUS"]
 
 # Borrow cost on extra notional above 100%
 BORROW_RATE_ANNUAL = 0.05
