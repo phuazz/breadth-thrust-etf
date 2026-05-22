@@ -431,15 +431,17 @@
       <span id="ts-built"></span>
     </div>
     <h1>Breadth-thrust ETF research</h1>
-    <div class="sub">A breadth-led sector rotation strategy: rank 15 US sector / broad-market / small-cap ETFs by % of their constituents above the 200-day moving average, own the top K each week. Walk-forward Sharpe ≈ 0.96 on the full 15-ETF universe (was ≈ 1.05 on the focused 11-ETF set — see Method → Universe Expansion for why more ETFs slightly diluted the signal).</div>
+    <div class="sub">Two-strategy stack. <strong>Strategy A</strong>: rank 15 US sector ETFs by constituent breadth (% above 200d MA), own top K weekly — Sharpe +0.95, walk-forward +0.96. <strong>Strategy B</strong>: rank 14 broad asset-class ETFs (equities × regions × bonds × commodities) by their own distance above 200d MA — Sharpe +0.78, walk-forward +0.74, max DD only -14%. <strong>50/50 blend hits Sharpe +1.01 with max DD -20%</strong> — better than either alone. See Multi-Strategy A+B tab for the combination.</div>
   </div>
 </header>
 
 <nav class="tabs">
   <div class="container">
     <button class="tab active" data-tab="monitor">Monitor</button>
-    <button class="tab" data-tab="portfolio">Top-K Rotation</button>
-    <button class="tab" data-tab="trades">Trade Explorer</button>
+    <button class="tab" data-tab="portfolio">Strategy A (Sectors)</button>
+    <button class="tab" data-tab="trades">A: Trade Explorer</button>
+    <button class="tab" data-tab="asset">Strategy B (Asset Class)</button>
+    <button class="tab" data-tab="multi">Multi-Strategy A+B</button>
     <button class="tab" data-tab="strategy">Single-ETF L</button>
     <button class="tab" data-tab="unlev">Unleveraged</button>
     <button class="tab" data-tab="detail">ETF Detail</button>
@@ -617,6 +619,95 @@
       <h2>Performance attribution — where did the returns come from?</h2>
       <p class="section-sub">For each ETF, the contribution to the strategy's total return. <em>Contribution</em> = sum of (yesterday's weight × today's ETF return) over all days in the backtest, in absolute strategy-NAV terms. <em>% of total</em> normalises across ETFs (positives net of negatives). <em>Annualised return when held</em> is the geometric daily return of just the ETF on days the strategy held it — answers "did the strategy time this sector well, or just own it through good periods?". Sorted by contribution.</p>
       <table class="small-table" id="tip-table"><thead></thead><tbody></tbody></table>
+    </section>
+  </div>
+
+  <!-- ====================== STRATEGY B: ASSET CLASS ROTATION ====================== -->
+  <div class="tab-content" id="tab-asset">
+    <div class="recipe">
+      <h3>Strategy B — Phase 2</h3>
+      <div class="recipe-title">Asset-class momentum rotation</div>
+      <p style="margin:0;color:var(--ink-soft);">A separate strategy that operates at the asset-class level instead of within US sectors. 14 broad ETFs across US equity, international developed, emerging markets, real estate, commodities, and bonds. Each Friday close, rank by distance above own 200d MA. Hold the top K with positive signal, weight by signal strength; idle capital sits in IEF (intermediate Treasury) as a cash proxy. This is "<em>which asset classes should I be in at all?</em>" — orthogonal to Strategy A's "<em>within US equities, which sector?</em>".</p>
+      <div class="recipe-stats" id="asset-recipe-stats"></div>
+      <ol class="recipe-steps">
+        <li><strong>Each Friday close</strong>, compute (price − MA200) / MA200 for each of the 14 asset-class ETFs.</li>
+        <li><strong>Drop any ETF with negative signal</strong> (price below its 200d MA — in a downtrend).</li>
+        <li><strong>Rank survivors</strong>. Take the top K = 7.</li>
+        <li><strong>Weight by signal share</strong>. If only N &lt; K ETFs have positive signal, allocate (N/K) of capital to them and the remaining (K − N)/K to IEF as cash proxy. Built-in cash floor when the world is broadly weak — unlike Strategy A which stays 100% invested.</li>
+        <li><strong>Rebalance to the new mix</strong>. Costs 5 bps × turnover.</li>
+      </ol>
+    </div>
+
+    <section>
+      <h2>Equity vs benchmarks (18-year backtest)</h2>
+      <p class="section-sub">Strategy B versus SPY buy-and-hold (broad-market passive — note its catastrophic -51% drawdown in 2008), the 60/40 SPY/IEF balanced portfolio (the conventional benchmark), and naive equal-weight across all 14 ETFs (diversification only, no signal). Strategy B's longer history (back to 2008) catches the GFC, the 2011 mini-crash, 2015-2016 commodity bust, 2018 Q4, COVID 2020, 2022 rates shock, and the recoveries in between. <strong>The headline result is the massive drawdown reduction</strong>.</p>
+      <div id="asset-equity-chart" class="chart tall"></div>
+      <table class="small-table" id="asset-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Asset-class allocation over time</h2>
+      <p class="section-sub">Weekly stacked-to-100% allocation. Notice the regime shifts — the strategy rotated decisively into bonds (TLT/IEF) in 2008 and 2020, into commodities during the 2022 inflation shock, and into equities through the 2017-2019 and 2023-2024 expansions. <strong>This regime-following behaviour is what produces the drawdown reduction</strong>.</p>
+      <div id="asset-allocation-chart" class="chart tall"></div>
+    </section>
+
+    <section>
+      <h2>K × cadence sensitivity</h2>
+      <p class="section-sub">Same heat-grid format as Strategy A's Test 11. Best Sharpe cell highlighted green, worst red.</p>
+      <table class="heat" id="asset-cadence-table"><thead></thead><tbody></tbody></table>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="asset-cadence-note"></p>
+    </section>
+
+    <section>
+      <h2>Walk-forward K refit</h2>
+      <p class="section-sub">Annual refit picking K ∈ {3, 4, 5, 6, 7} on expanding-window Sharpe, applying that K to the next 12 months. Same methodology as Strategy A's Test 10.</p>
+      <table class="small-table" id="asset-wf-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Trade history</h2>
+      <p class="section-sub" id="asset-trade-history-sub">Newest first. Filter to find specific ETFs or dates.</p>
+      <div class="trade-controls">
+        <label class="toggle"><input type="checkbox" id="asset-trade-recent-only" checked> Show last 50 only</label>
+        <input type="text" id="asset-trade-filter" placeholder="Filter by ETF or date">
+        <span class="pill" id="asset-trade-count">—</span>
+      </div>
+      <div class="trade-table-wrap">
+        <table class="trade-table" id="asset-trade-table"><thead></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Performance attribution</h2>
+      <p class="section-sub">Per-ETF contribution to the strategy's total NAV. The <em>signal</em> column shows the asset class — tells you which classes drove returns across the 18-year window.</p>
+      <table class="small-table" id="asset-attribution-table"><thead></thead><tbody></tbody></table>
+    </section>
+  </div>
+
+  <!-- ====================== MULTI-STRATEGY A+B ====================== -->
+  <div class="tab-content" id="tab-multi">
+    <div class="recipe">
+      <h3>Multi-strategy combination — Phase 2 conclusion</h3>
+      <div class="recipe-title">Combine Strategy A and B for best Sharpe and drawdown</div>
+      <p style="margin:0;color:var(--ink-soft);">Empirically, the cleanest result. Strategy A alone gives the highest CAGR but a 30% drawdown; Strategy B gives lower CAGR but caps drawdown at ~14%. A fixed-weight blend of the two captures most of A's return while inheriting B's drawdown control. Tested over the common 2018-2026 window where both strategies have data.</p>
+      <div class="recipe-stats" id="multi-recipe-stats"></div>
+    </div>
+
+    <section>
+      <h2>All five variants side-by-side</h2>
+      <p class="section-sub">Strategy A, Strategy B, and the three fixed-weight blends (70/30, 50/50, 30/70 of A:B). All renormalised to 1.0 at the common start date.</p>
+      <div id="multi-equity-chart" class="chart tall"></div>
+      <table class="small-table" id="multi-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="multi-note"></p>
+    </section>
+
+    <section>
+      <h2>Why combination works (and meta-rotation doesn't)</h2>
+      <div class="methodbox">
+        <p>The 50/50 blend posts the highest Sharpe of any variant tested in this study because Strategy A and Strategy B are <strong>negatively correlated on drawdowns</strong>. When A drops (cyclical sector unwind), B rotates into bonds and cuts losses. When B has tepid stretches (sideways markets where its 200d MA signal flips often), A's relative-strength sector signal still earns a tilt. The diversification benefit is real and measurable: combined volatility &lt; weighted sum of individual vols.</p>
+        <p>The <strong>meta-rotation</strong> variant (own only A or only B each week, picking by trailing 6-month Sharpe) performs worse than either strategy alone. The 6-month Sharpe lookback is too noisy — by the time it identifies that B is "winning", A has often started winning again. Naive momentum on meta-strategies destroys value because the meta-signal lags the underlying regime change. <em>Static blends beat dynamic blends in this dataset</em>.</p>
+        <p>Practical deployment: <strong>50/50 fixed-weight rebalanced weekly</strong> is the recommended blend. CAGR drops from A's +16.6% to +13.0% but Sharpe improves from +0.95 to +1.01 and max drawdown shrinks from -30.7% to -20.2%. If you can tolerate a bigger drawdown for higher CAGR, use 70/30 (Sharpe +1.00, DD -24.5%). If drawdown control is paramount, use 30/70 (Sharpe +0.96, DD -17.5%).</p>
+      </div>
     </section>
   </div>
 
@@ -823,14 +914,9 @@
       <h2>Universe expansion — does adding more ETFs help?</h2>
       <div class="methodbox">
         <p>The universe went from 11 to 15 ETFs in May 2026 by adding the 3 missing S&amp;P 500 sectors (Materials IUMS, Communication Services IUCM, plus IUSP as a Real Estate proxy) and IDP6 (S&amp;P SmallCap 600). The headline top-K rotation Sharpe moved from +0.99 (11 ETFs, K=7 Weekly Fri) to <strong>+0.95 (15 ETFs, same K and cadence)</strong> — a small <em>decrease</em>. Annual turnover rose from ~10× to ~14× because more ETFs cluster near the K-th breadth boundary and shuffle in and out more often.</p>
-        <p><strong>Why expanding the universe didn't help</strong>: the strategy ranks ETFs by breadth and takes the top K, so adding ETFs at the same K dilutes conviction. The strongest sectors are still strongest, but extra candidates compete for the marginal slot. Cost goes up; signal goes down slightly. The strategy was already universe-saturated around 11 ETFs for K=7.</p>
-        <p><strong>The right way to expand is at a different aggregation level, not within the same rotation.</strong> A "Phase 2" multi-strategy stack would look like:</p>
-        <ul>
-          <li><strong>Strategy A — US sector rotation</strong> (current): top-K-by-breadth on 11-15 US sector / broad-market ETFs. Breadth signal is constituent-level.</li>
-          <li><strong>Strategy B — Asset-class rotation</strong> (not yet built): top-K-by-breadth on a small set of <em>asset class</em> ETFs covering US large, US small, Intl developed, Emerging Markets, and possibly bond / commodity buckets. Breadth signal still % above 200d MA but at the asset-class index level. Would need different data sourcing — non-US iShares product pages, ticker suffixes for non-US listings.</li>
-          <li><strong>Combination</strong>: fixed-weight blend (e.g., 70% A / 30% B) or a meta-rotation between A and B based on which sub-strategy is currently leading.</li>
-        </ul>
-        <p>The empirical lesson from this expansion: <em>adding ETFs of the same flavour to an existing top-K rotation produces diminishing or negative returns</em>. The dimension that actually adds information is <em>orthogonality of the constituents</em>. US small-cap (IDP6) overlaps heavily with US large-cap sector breadth — when SOXX and IUIT are strong, IDP6 small-tech also tends to be strong. To get true diversification of the breadth signal, you need universes that move independently — that means going international or going across asset classes. That is the open Phase 2 question.</p>
+        <p><strong>Why expanding within the same rotation didn't help</strong>: the strategy ranks ETFs by breadth and takes the top K, so adding ETFs at the same K dilutes conviction. The strongest sectors are still strongest, but extra candidates compete for the marginal slot. Cost goes up; signal goes down slightly. The strategy was already universe-saturated around 11 ETFs for K=7. The lesson: <em>adding ETFs of the same flavour to an existing top-K rotation produces diminishing or negative returns</em>. The dimension that actually adds information is <em>orthogonality</em>.</p>
+        <p><strong>That motivated Phase 2: build a separate Strategy B at the asset-class level</strong> (see the Strategy B and Multi-Strategy A+B tabs). Strategy B operates on 14 broad asset-class ETFs (US equity / international / EM / real estate / commodities / bonds), ranking by distance above the ETF's own 200d MA — at the index level rather than the constituent level. <strong>Empirical result: combining A and B 50/50 gives Sharpe +1.01 with max DD -20% — better than either strategy alone</strong> (A: +0.95, DD -31%; B: +0.78, DD -14%). The 18-year Strategy B backtest (2008-2026, including GFC and COVID) shows the regime-following behaviour: it rotates into bonds and gold in crisis periods and into equities in expansions. Diversification benefit is real — the combined Sharpe exceeds the weighted sum of individual Sharpes because A and B are negatively correlated on drawdowns.</p>
+        <p>The meta-rotation variant (own only A or only B each week, switching based on trailing 6-month Sharpe) <em>destroys value</em> — the lookback lags too much and the meta-signal chases the previous regime. <strong>Static blends beat dynamic blends.</strong></p>
       </div>
     </section>
 
@@ -2203,6 +2289,400 @@ function renderTradeTable() {
   }).join('');
 }
 
+// ============= Strategy B: Asset-class rotation =========================
+let _assetTradeRecentOnly = true;
+let _assetTradeFilter = '';
+
+function renderAssetRecipeStats() {
+  const ac = window.DATA.asset_class;
+  if (!ac) return;
+  const h = ac.headline?.headline_stats;
+  const wf = ac.walk_forward?.walk_forward_sharpe;
+  const el = document.getElementById('asset-recipe-stats');
+  if (!el || !h) return;
+  el.innerHTML = `
+    <div class="recipe-stat"><div class="v good">${fmtNum(h.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
+    <div class="recipe-stat"><div class="v good">${fmtNum(wf, 2, true)}</div><div class="l">Walk-forward Sharpe</div></div>
+    <div class="recipe-stat"><div class="v">${fmtPct(h.cagr, true)}</div><div class="l">CAGR (18 yrs)</div></div>
+    <div class="recipe-stat"><div class="v good">${fmtPct(h.max_dd)}</div><div class="l">Max drawdown</div></div>
+    <div class="recipe-stat"><div class="v">${fmtNum(h.annual_turnover, 1)}×</div><div class="l">Turnover / yr</div></div>
+    <div class="recipe-stat"><div class="v">${ac.headline?.n_rebalances || '—'}</div><div class="l">Rebalances</div></div>
+  `;
+}
+
+function renderAssetCharts() {
+  const ac = window.DATA.asset_class;
+  if (!ac?.headline) return;
+  const h = ac.headline;
+  const bm = ac.benchmarks || {};
+  const colours = ac.asset_class_colours || {};
+
+  // Equity vs benchmarks
+  const traces = [
+    {
+      x: h.headline_equity_dates, y: h.headline_equity,
+      mode: 'lines', name: 'Asset-Class Rotation (K=7 Weekly Fri)',
+      line: { color: '#1d7a3a', width: 2.4 },
+      hovertemplate: '%{x|%Y-%m-%d}<br>Strategy B: %{y:.2f}<extra></extra>',
+    },
+  ];
+  if (bm.sixty_forty) traces.push({
+    x: bm.sixty_forty.dates, y: bm.sixty_forty.equity,
+    mode: 'lines', name: '60/40 SPY/IEF',
+    line: { color: '#b76e00', width: 1.5, dash: 'dash' },
+    hovertemplate: '%{x|%Y-%m-%d}<br>60/40: %{y:.2f}<extra></extra>',
+  });
+  if (bm.equal_weight_14) traces.push({
+    x: bm.equal_weight_14.dates, y: bm.equal_weight_14.equity,
+    mode: 'lines', name: 'Equal-weight 14 ETFs',
+    line: { color: '#52525b', width: 1.4, dash: 'dashdot' },
+    hovertemplate: '%{x|%Y-%m-%d}<br>EW14: %{y:.2f}<extra></extra>',
+  });
+  if (bm.spy_buy_hold) traces.push({
+    x: bm.spy_buy_hold.dates, y: bm.spy_buy_hold.equity,
+    mode: 'lines', name: 'SPY buy-and-hold',
+    line: { color: '#6b727a', width: 1.4, dash: 'dot' },
+    hovertemplate: '%{x|%Y-%m-%d}<br>SPY: %{y:.2f}<extra></extra>',
+  });
+  Plotly.newPlot('asset-equity-chart', traces, {
+    margin: { t: 8, r: 16, b: 60, l: 56 },
+    xaxis: { showgrid: false, color: '#4a5159' },
+    yaxis: { type: 'log', gridcolor: '#eef0f3', color: '#4a5159',
+              title: { text: 'Equity, normalised to 1.0 (log)', font: { size: 11 } } },
+    paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+    legend: { orientation: 'h', y: -0.16, x: 0, font: { size: 12 } },
+    hovermode: 'x unified',
+    font: { family: 'Inter', size: 12, color: '#4a5159' },
+  }, { displayModeBar: false, responsive: true });
+
+  // Stats panel
+  renderAssetStatsTable();
+
+  // Stacked allocation
+  const wkDates = h.weekly_allocation_dates || [];
+  const alloc = h.weekly_allocation || {};
+  const attr = h.attribution || {};
+  const ordered = Object.keys(alloc).sort((a, b) => {
+    const ca = attr[a]?.contribution_to_total_return ?? 0;
+    const cb = attr[b]?.contribution_to_total_return ?? 0;
+    return ca - cb;
+  });
+  const stackedTraces = ordered.map(etf => {
+    const meta = (window.DATA.asset_class.universe || []).find(u => u.etf === etf) || {};
+    const label = meta.label ? `${etf} — ${meta.label}` : etf;
+    return {
+      x: wkDates,
+      y: (alloc[etf] || []).map(v => (v == null ? 0 : v * 100)),
+      name: label,
+      stackgroup: 'one',
+      mode: 'none',
+      fillcolor: colours[etf] || '#999',
+      hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:.1f}%<extra></extra>',
+    };
+  });
+  Plotly.newPlot('asset-allocation-chart', stackedTraces, {
+    margin: { t: 8, r: 16, b: 100, l: 50 },
+    xaxis: { showgrid: false, color: '#4a5159' },
+    yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
+              title: { text: 'Allocation %', font: { size: 11 } },
+              range: [0, 100], ticksuffix: '%' },
+    paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+    legend: { orientation: 'h', y: -0.26, x: 0, font: { size: 10 } },
+    hovermode: 'x unified',
+    font: { family: 'Inter', size: 12, color: '#4a5159' },
+  }, { displayModeBar: false, responsive: true });
+}
+
+function renderAssetStatsTable() {
+  const ac = window.DATA.asset_class;
+  if (!ac) return;
+  const h = ac.headline?.headline_stats || {};
+  const bm = ac.benchmarks || {};
+  const wf = ac.walk_forward?.walk_forward_sharpe;
+  const spy = bm.spy_buy_hold || {};
+  const sf = bm.sixty_forty || {};
+  const ew = bm.equal_weight_14 || {};
+  const el = document.getElementById('asset-stats-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Strategy</th><th>Sharpe</th><th>CAGR</th><th>Total return</th>
+    <th>Max DD</th><th>Δ Sharpe vs 60/40</th><th>Δ DD vs SPY</th>
+  </tr>`;
+  const sfSh = sf.sharpe ?? 0;
+  const spyDd = spy.max_dd ?? 0;
+  const wfRow = (wf != null) ? `
+    <tr>
+      <td class="row-label" style="color:var(--ink-faint);">Walk-forward (annual K refit, OOS)</td>
+      <td class="num"><strong>${fmtNum(wf, 2, true)}</strong></td>
+      <td class="num">—</td><td class="num">—</td><td class="num">—</td>
+      <td class="num">${fmtNum(wf - sfSh, 2, true)}</td><td class="num">—</td>
+    </tr>` : '';
+  const rows = [
+    { label: 'Strategy B: K=7 Weekly Fri (in-sample)', data: h, highlight: true },
+    { label: '60/40 SPY/IEF (rebalanced weekly)', data: sf },
+    { label: 'Equal-weight 14 ETFs (no signal)', data: ew },
+    { label: 'SPY buy-and-hold (broad market)', data: spy },
+  ];
+  el.querySelector('tbody').innerHTML = rows.map(r => {
+    const dSh = (r.data.sharpe ?? 0) - sfSh;
+    const dDd = (r.data.max_dd ?? 0) - spyDd;
+    const isStrat = r.highlight;
+    return `<tr class="${isStrat ? 'highlight' : ''}">
+      <td class="row-label">${isStrat ? '<strong>' + r.label + '</strong>' : r.label}</td>
+      <td class="num"><strong>${fmtNum(r.data.sharpe, 2, true)}</strong></td>
+      <td class="num">${fmtPct(r.data.cagr, true)}</td>
+      <td class="num">${fmtPct(r.data.total_return, true)}</td>
+      <td class="num">${fmtPct(r.data.max_dd)}</td>
+      <td class="num ${dSh > 0 ? 'good' : 'bad'}">${fmtNum(dSh, 2, true)}</td>
+      <td class="num ${dDd > 0 ? 'good' : 'bad'}">${fmtPct(dDd, true)}</td>
+    </tr>`;
+  }).join('') + wfRow;
+}
+
+function renderAssetCadenceGrid() {
+  const ac = window.DATA.asset_class;
+  if (!ac) return;
+  const grid = ac.rebalance_freq_grid || {};
+  const Ks = Object.keys(grid);
+  if (!Ks.length) return;
+  const freqs = Object.keys(grid[Ks[0]] || {});
+  let best = -Infinity, worst = Infinity;
+  Ks.forEach(K => freqs.forEach(f => {
+    const s = grid[K][f]?.sharpe;
+    if (s != null && Number.isFinite(s)) {
+      if (s > best) best = s;
+      if (s < worst) worst = s;
+    }
+  }));
+  const el = document.getElementById('asset-cadence-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th class="label">Cadence \\ K</th>
+    ${Ks.map(K => `<th>${K}</th>`).join('')}
+  </tr>`;
+  el.querySelector('tbody').innerHTML = freqs.map(f => {
+    const cells = Ks.map(K => {
+      const c = grid[K][f] || {};
+      const s = c.sharpe;
+      const cls = s === best ? 'best' : (s === worst ? 'worst' : '');
+      return `<td class="${cls}">
+        <span class="v">${fmtNum(s, 2, true)}
+          <span class="sub">DD ${fmtPct(c.max_dd)} · CAGR ${fmtPct(c.cagr, true)} · tov ${fmtNum(c.annual_turnover, 1)}×/yr</span>
+        </span>
+      </td>`;
+    }).join('');
+    return `<tr><td class="label">${f}</td>${cells}</tr>`;
+  }).join('');
+  document.getElementById('asset-cadence-note').innerHTML =
+    `Headline: K=${ac.headline?.K} ${ac.headline?.rebal_freq} (Sharpe ${fmtNum(ac.headline?.headline_stats?.sharpe, 2, true)}). ` +
+    `<strong>K=7 Month-end is the global best cell</strong> at Sharpe ${fmtNum(grid['K=7']?.['Month-end']?.sharpe, 2, true)} with DD ${fmtPct(grid['K=7']?.['Month-end']?.max_dd)} — cheaper to run (~6× turnover) than Weekly. ` +
+    `<strong>Daily destroys Sharpe</strong> on every K — same intraday-noise effect as Strategy A.`;
+}
+
+function renderAssetWalkForward() {
+  const ac = window.DATA.asset_class;
+  if (!ac?.walk_forward?.segments) return;
+  const wf = ac.walk_forward;
+  const el = document.getElementById('asset-wf-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Train window ends</th><th>Test segment</th>
+    <th>Best K (on train)</th><th>Train Sharpe</th>
+    <th>Test Sharpe</th><th>n test days</th>
+  </tr>`;
+  el.querySelector('tbody').innerHTML = wf.segments.map(s => `
+    <tr>
+      <td>${s.train_end}</td>
+      <td>${s.test_start} → ${s.test_end}</td>
+      <td class="num"><strong>${s.best_K}</strong></td>
+      <td class="num" style="color:var(--ink-faint);">${fmtNum(s.train_sharpe, 2, true)}</td>
+      <td class="num ${s.test_sharpe > 0.3 ? 'good' : s.test_sharpe < 0 ? 'bad' : ''}"><strong>${fmtNum(s.test_sharpe, 2, true)}</strong></td>
+      <td class="num" style="color:var(--ink-faint);">${s.n_test_days}</td>
+    </tr>
+  `).join('') + `<tr style="background:rgba(29,122,58,0.06);">
+    <td colspan="2" class="row-label"><strong>Concatenated walk-forward</strong></td>
+    <td class="num"></td><td class="num"></td>
+    <td class="num"><strong>${fmtNum(wf.walk_forward_sharpe, 2, true)}</strong></td>
+    <td class="num"></td>
+  </tr>`;
+}
+
+function renderAssetTradeTable() {
+  const ac = window.DATA.asset_class;
+  if (!ac?.headline?.trade_history) return;
+  const history = ac.headline.trade_history;
+  let asc = history.slice();
+  const q = (_assetTradeFilter || '').trim().toUpperCase();
+  if (q) {
+    asc = asc.filter(r => r.date.includes(q) ||
+      r.holdings.some(h => h.etf.toUpperCase().includes(q)));
+  }
+  if (_assetTradeRecentOnly && asc.length > 50) asc = asc.slice(-50);
+  const rows = asc.slice().reverse();
+  document.getElementById('asset-trade-count').textContent =
+    `${rows.length} of ${history.length} rebalances`;
+  document.getElementById('asset-trade-history-sub').textContent =
+    `${history.length} rebalances from ${history[0]?.date} to ${history[history.length-1]?.date}. Newest first. Filter to find specific ETFs or dates.`;
+  const indexByDate = new Map(history.map((r, i) => [r.date, i]));
+  const colours = ac.asset_class_colours || {};
+  const el = document.getElementById('asset-trade-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th class="date-col">Date ↓</th>
+    <th>Holdings (weight · signal % above MA200)</th>
+  </tr>`;
+  el.querySelector('tbody').innerHTML = rows.map(r => {
+    const idx = indexByDate.get(r.date);
+    const prev = idx > 0 ? history[idx - 1] : null;
+    const prevSet = new Set(prev ? prev.holdings.map(h => h.etf) : []);
+    const currSet = new Set(r.holdings.map(h => h.etf));
+    const exited = prev ? prev.holdings.filter(h => !currSet.has(h.etf)) : [];
+    const chips = r.holdings.map(h => {
+      const isEntered = prev && !prevSet.has(h.etf);
+      const cls = isEntered ? 'holding-chip entered' : 'holding-chip';
+      const sigStr = h.signal_pct != null ? `${h.signal_pct >= 0 ? '+' : ''}${h.signal_pct}%` : '';
+      return `<span class="${cls}" style="border-left:3px solid ${colours[h.etf]||'#999'};">${h.etf} <span class="w">${(h.weight*100).toFixed(1)}%</span><span class="b">${sigStr}</span></span>`;
+    }).join('');
+    const exitChips = exited.map(h =>
+      `<span class="holding-chip exited">${h.etf}</span>`).join('');
+    return `<tr>
+      <td class="date-col">${r.date}</td>
+      <td class="holdings-cell">${chips} ${exitChips ? '<span style="color:var(--ink-faint);font-size:11px;margin-left:6px;">— exited:</span> ' + exitChips : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAssetAttribution() {
+  const ac = window.DATA.asset_class;
+  if (!ac) return;
+  const attr = ac.headline?.attribution || {};
+  const universeMeta = Object.fromEntries(
+    (ac.universe || []).map(u => [u.etf, u]));
+  const colours = ac.asset_class_colours || {};
+  const el = document.getElementById('asset-attribution-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th><th>Asset class</th>
+    <th>% time held</th><th>Avg weight when held</th>
+    <th>Ann. return when held</th>
+    <th>Contribution to NAV</th><th>% of total</th>
+  </tr>`;
+  const maxPct = Math.max(0.01,
+    ...Object.values(attr).map(a => Math.abs(a.pct_of_total_contribution ?? 0)));
+  const sorted = Object.entries(attr).sort((a, b) =>
+    (b[1].contribution_to_total_return ?? 0) - (a[1].contribution_to_total_return ?? 0));
+  el.querySelector('tbody').innerHTML = sorted.map(([etf, info]) => {
+    const pctT = info.pct_of_days ?? 0;
+    const contrib = info.contribution_to_total_return ?? 0;
+    const pctContrib = info.pct_of_total_contribution ?? 0;
+    const annRet = info.ann_return_when_held;
+    const barW = Math.abs(pctContrib) / maxPct * 100;
+    const barColor = contrib >= 0 ? 'var(--good)' : 'var(--bad)';
+    const bar = `<div style="position:relative;height:10px;background:var(--bg-soft);border-radius:5px;border:1px solid var(--border);width:140px;display:inline-block;vertical-align:middle;margin-left:8px;">
+      <div style="position:absolute;top:0;left:0;height:100%;width:${barW}%;background:${barColor};border-radius:5px;opacity:0.85;"></div>
+    </div>`;
+    const swatch = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colours[etf]||'#999'};vertical-align:middle;margin-right:6px;"></span>`;
+    const meta = universeMeta[etf] || {};
+    return `<tr>
+      <td class="row-label">${swatch}${etf}</td>
+      <td style="color:var(--ink-faint);font-size:13px;">${meta.asset_class || ''} <span style="color:var(--ink-faint);">·</span> ${meta.label || ''}</td>
+      <td class="num">${pctT.toFixed(1)}%</td>
+      <td class="num">${((info.avg_weight_when_held ?? 0)*100).toFixed(1)}%</td>
+      <td class="num ${annRet != null && annRet > 0.10 ? 'good' : ''}">${annRet != null ? fmtPct(annRet, true) : '—'}</td>
+      <td class="num ${contrib >= 0 ? 'good' : 'bad'}"><strong>${(contrib*100).toFixed(1)} pp</strong></td>
+      <td class="num"><strong>${pctContrib > 0 ? '+' : ''}${pctContrib.toFixed(1)}%</strong>${bar}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============= Multi-Strategy A+B ========================================
+function renderMultiRecipeStats() {
+  const m = window.DATA.multi;
+  if (!m?.strategies) return;
+  const s = m.strategies.blend_50_50 || {};
+  const el = document.getElementById('multi-recipe-stats');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="recipe-stat"><div class="v good">${fmtNum(s.sharpe, 2, true)}</div><div class="l">50/50 blend Sharpe</div></div>
+    <div class="recipe-stat"><div class="v">${fmtPct(s.cagr, true)}</div><div class="l">50/50 blend CAGR</div></div>
+    <div class="recipe-stat"><div class="v good">${fmtPct(s.max_dd)}</div><div class="l">50/50 blend max DD</div></div>
+    <div class="recipe-stat"><div class="v">${fmtPct(s.total_return, true)}</div><div class="l">50/50 total return</div></div>
+  `;
+}
+
+function renderMultiCharts() {
+  const m = window.DATA.multi;
+  if (!m?.strategies) return;
+  const s = m.strategies;
+  const colours = {
+    strategy_a:    '#1d7a3a',  // green
+    strategy_b:    '#1351b4',  // blue
+    blend_70_30:   '#7c3aed',  // purple
+    blend_50_50:   '#dc2626',  // red — highlight winner
+    blend_30_70:   '#b76e00',  // amber
+  };
+  const widths = {
+    strategy_a: 1.6, strategy_b: 1.6,
+    blend_70_30: 1.6, blend_50_50: 2.6, blend_30_70: 1.6,
+  };
+  const order = ['blend_50_50', 'blend_70_30', 'strategy_a', 'blend_30_70', 'strategy_b'];
+  const traces = order.filter(k => s[k]).map(k => {
+    const v = s[k];
+    return {
+      x: v.dates, y: v.equity, mode: 'lines',
+      name: v.label,
+      line: { color: colours[k], width: widths[k] || 1.4 },
+      hovertemplate: '%{x|%Y-%m-%d}<br>' + k + ': %{y:.2f}<extra></extra>',
+    };
+  });
+  Plotly.newPlot('multi-equity-chart', traces, {
+    margin: { t: 8, r: 16, b: 80, l: 56 },
+    xaxis: { showgrid: false, color: '#4a5159' },
+    yaxis: { type: 'log', gridcolor: '#eef0f3', color: '#4a5159',
+              title: { text: 'Equity, normalised to 1.0 (log)', font: { size: 11 } } },
+    paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+    legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 11 } },
+    hovermode: 'x unified',
+    font: { family: 'Inter', size: 12, color: '#4a5159' },
+  }, { displayModeBar: false, responsive: true });
+
+  renderMultiStatsTable();
+}
+
+function renderMultiStatsTable() {
+  const m = window.DATA.multi;
+  if (!m?.strategies) return;
+  const s = m.strategies;
+  const el = document.getElementById('multi-stats-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Variant</th><th>Sharpe</th><th>CAGR</th>
+    <th>Total return</th><th>Max drawdown</th>
+  </tr>`;
+  const rows = [
+    { key: 'strategy_a', label: 'Strategy A alone (US sector breadth rotation)' },
+    { key: 'strategy_b', label: 'Strategy B alone (asset-class momentum)' },
+    { key: 'blend_70_30', label: '70% A + 30% B (more A — higher CAGR)' },
+    { key: 'blend_50_50', label: '50% A + 50% B (best Sharpe — recommended)', highlight: true },
+    { key: 'blend_30_70', label: '30% A + 70% B (more B — lowest DD)' },
+    { key: 'meta_rotation', label: 'Meta-rotation (pick A or B by 126d Sharpe — naive, fails)' },
+  ];
+  el.querySelector('tbody').innerHTML = rows.map(r => {
+    const v = s[r.key];
+    if (!v) return '';
+    return `<tr class="${r.highlight ? 'highlight' : ''}">
+      <td class="row-label">${r.highlight ? '<strong>' + r.label + '</strong>' : r.label}</td>
+      <td class="num"><strong>${fmtNum(v.sharpe, 2, true)}</strong></td>
+      <td class="num">${fmtPct(v.cagr, true)}</td>
+      <td class="num">${fmtPct(v.total_return, true)}</td>
+      <td class="num">${fmtPct(v.max_dd)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('multi-note').innerHTML =
+    `Common window: <strong>${m.common_start} to ${m.common_end}</strong> (~8 years). ` +
+    `Both Strategy A and Strategy B exist as full backtests over this window. ` +
+    `Strategy B alone has data back to 2008 (see its own tab for the longer history including GFC and COVID).`;
+}
+
 function renderExtendedHistory() {
   const data = window.DATA;
   const ext = data.extended;
@@ -2397,6 +2877,18 @@ function activateTab(name) {
       renderTimeInPortfolio();
       renderTradeTable();
     }
+    if (name === 'asset') {
+      renderAssetRecipeStats();
+      renderAssetCharts();
+      renderAssetCadenceGrid();
+      renderAssetWalkForward();
+      renderAssetTradeTable();
+      renderAssetAttribution();
+    }
+    if (name === 'multi') {
+      renderMultiRecipeStats();
+      renderMultiCharts();
+    }
     if (name === 'robustness') {
       populateRobustnessDropdown();
       renderRobustnessVerdict();
@@ -2422,6 +2914,12 @@ function activateTab(name) {
     if (name === 'portfolio') { try { Plotly.Plots.resize('portfolio-chart'); } catch(e){} }
     if (name === 'trades') {
       try { Plotly.Plots.resize('trade-equity-chart'); Plotly.Plots.resize('trade-allocation-chart'); } catch(e){}
+    }
+    if (name === 'asset') {
+      try { Plotly.Plots.resize('asset-equity-chart'); Plotly.Plots.resize('asset-allocation-chart'); } catch(e){}
+    }
+    if (name === 'multi') {
+      try { Plotly.Plots.resize('multi-equity-chart'); } catch(e){}
     }
   }
 }
@@ -2469,6 +2967,14 @@ function populateEtfDropdown() {
   document.getElementById('trade-filter')?.addEventListener('input', (e) => {
     _tradeStateFilter = e.target.value;
     renderTradeTable();
+  });
+  document.getElementById('asset-trade-recent-only')?.addEventListener('change', (e) => {
+    _assetTradeRecentOnly = e.target.checked;
+    renderAssetTradeTable();
+  });
+  document.getElementById('asset-trade-filter')?.addEventListener('input', (e) => {
+    _assetTradeFilter = e.target.value;
+    renderAssetTradeTable();
   });
 })();
 </script>

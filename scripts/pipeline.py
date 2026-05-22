@@ -90,6 +90,25 @@ def load_topk_robustness() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_asset_class() -> dict | None:
+    """Load data/asset_class_rotation.json: Strategy B (Phase 2) — asset-class
+    momentum rotation across 14 broad ETFs (US equity / Intl / EM / RE /
+    commodities / bonds)."""
+    path = DATA_DIR / "asset_class_rotation.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_multi_strategy() -> dict | None:
+    """Load data/multi_strategy.json: combinations of Strategy A + Strategy B
+    — fixed-weight blends (70/30, 50/50, 30/70) and meta-rotation."""
+    path = DATA_DIR / "multi_strategy.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_robustness() -> dict | None:
     """Load data/robustness.json. Trims wf_dates/wf_equity (heavy series
     not currently rendered) to keep the inlined payload compact."""
@@ -162,6 +181,21 @@ def main() -> int:
               f"{h.get('n_rebalances')} rebalances, "
               f"Sharpe {h.get('headline_stats', {}).get('sharpe', 0):+.2f}")
 
+    print("Loading asset-class rotation (Strategy B) ...", flush=True)
+    asset_class = load_asset_class()
+    if asset_class:
+        h = asset_class.get("headline", {})
+        print(f"  asset-class: K={h.get('K')} {h.get('rebal_freq')}, "
+              f"{h.get('n_rebalances')} rebalances, "
+              f"Sharpe {h.get('headline_stats', {}).get('sharpe', 0):+.2f}")
+
+    print("Loading multi-strategy combinations (A+B) ...", flush=True)
+    multi = load_multi_strategy()
+    if multi:
+        strats = multi.get("strategies", {})
+        print(f"  multi-strategy: {len(strats)} variants on common window "
+              f"{multi.get('common_start')} -> {multi.get('common_end')}")
+
     data = {
         "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "ma200": ma200,
@@ -169,6 +203,8 @@ def main() -> int:
         "robustness": robustness,
         "extended": extended,
         "topk": topk,
+        "asset_class": asset_class,
+        "multi": multi,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")

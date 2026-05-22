@@ -12,6 +12,7 @@ data/prices_cache/
 data/prices_cache_*.parquet
 data/*_ohlc_cache.parquet
 data/spy_close_cache.parquet
+data/asset_class_prices_cache.parquet
 
 # OS / editor noise
 .DS_Store
