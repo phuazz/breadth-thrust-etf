@@ -607,6 +607,20 @@ def main() -> int:
         print(f"  Walk-forward Sharpe: {wf['walk_forward_sharpe']:+.2f}")
         print(f"  K sequence: {[s['best_K'] for s in wf['segments']]}")
 
+    # ===== Per-ETF signal time series (weekly samples) for ETF Detail tab =====
+    # Sample on Fridays only to keep JSON size down; that matches the chart
+    # cadence elsewhere and ETF Detail's weekly granularity.
+    signal_window = signal.loc[signal.index >= eligible]
+    weekly_signal = signal_window.loc[signal_window.index.dayofweek == 4]
+    per_etf_signals = {}
+    for etf in TICKERS:
+        if etf in weekly_signal.columns:
+            ser = weekly_signal[etf].dropna()
+            per_etf_signals[etf] = {
+                "dates": [d.strftime("%Y-%m-%d") for d in ser.index],
+                "signal_pct": [round(float(v) * 100, 2) for v in ser.values],
+            }
+
     # ===== Output =====
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -622,6 +636,7 @@ def main() -> int:
         "benchmarks": benchmarks,
         "walk_forward": wf,
         "asset_class_colours": ASSET_CLASS_COLOURS,
+        "per_etf_signal": per_etf_signals,
     }
     OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"\nWrote {OUT_PATH.relative_to(PROJECT_ROOT)}")

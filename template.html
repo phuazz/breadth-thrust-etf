@@ -755,21 +755,28 @@
 
   <!-- ====================== ETF DETAIL ====================== -->
   <div class="tab-content" id="tab-detail">
-    <p class="section-sub" style="margin-top:8px;">Compare the breadth signal across multiple ETFs to see relative leadership. The default view is <strong>Leader vs Market</strong> — Strategy A's top-breadth holding plus CSP1 (S&amp;P 500) as a broad-market reference. Use the quick-action buttons or click any chip to add or remove ETFs. Each chart line uses the same colour as that ETF's chip and the swatches elsewhere in the dashboard.</p>
-
-    <div class="etf-chip-actions" id="detail-actions"></div>
-    <div class="etf-chip-group" id="detail-chips"></div>
+    <p class="section-sub" style="margin-top:8px;">Inspect the underlying signal for any ETF in the deployed universe. <strong>Two sections</strong> because the two signal types differ: Strategy A uses <em>constituent breadth</em> (% of an ETF's holdings above their own 200d MA, range 0-100%); Strategies B and C use <em>ETF-level momentum</em> (distance of the ETF price above its own 200d MA, can be negative). Each section has its own chip group and chart.</p>
 
     <section>
-      <h2>Breadth signal over time — comparison</h2>
-      <p class="section-sub">% of each ETF's constituents above their own 200d MA, sampled weekly. The strategy ranks ETFs by this metric every Friday and owns the top 7 — so when one ETF's line is consistently above the others, that sector is structurally leading. Crossings indicate rotations.</p>
+      <h2>Section 1 · US Sector Breadth (Strategy A universe)</h2>
+      <p class="section-sub">Default: Leader vs Market — Strategy A's top-breadth holding plus CSP1 (S&amp;P 500) as a broad-market reference. Click any chip to add or remove.</p>
+      <div class="etf-chip-actions" id="detail-actions"></div>
+      <div class="etf-chip-group" id="detail-chips"></div>
       <div id="detail-breadth-chart" class="chart tall"></div>
+      <h3 style="margin-top:24px;">Trend snapshot</h3>
+      <p class="section-sub">Current breadth + change over recent past. Positive Δ = strengthening; negative = weakening. Sorted by current breadth.</p>
+      <table class="small-table" id="detail-snapshot-table"><thead></thead><tbody></tbody></table>
     </section>
 
     <section>
-      <h2>Trend snapshot per ETF</h2>
-      <p class="section-sub">Where each selected ETF sits today and how its breadth changed over the recent past. ETFs accelerating (positive 4w / 13w deltas) are strengthening; deceleratin​g ones are weakening. Sorted by current breadth.</p>
-      <table class="small-table" id="detail-snapshot-table"><thead></thead><tbody></tbody></table>
+      <h2>Section 2 · Asset Class &amp; Thematic Momentum (Strategy B + C universes)</h2>
+      <p class="section-sub">Default: today's Strategy B leader + SPY as reference. The Y-axis is distance above the 200d MA (can be negative). IEF is included even though it is the cash proxy — useful for seeing when Treasury duration is rallying or selling off. Strategy C's +5% signal floor is shown as a horizontal guide.</p>
+      <div class="etf-chip-actions" id="detail-bc-actions"></div>
+      <div class="etf-chip-group" id="detail-bc-chips"></div>
+      <div id="detail-momentum-chart" class="chart tall"></div>
+      <h3 style="margin-top:24px;">Trend snapshot</h3>
+      <p class="section-sub">Current momentum signal + change over recent past. Sorted by current signal value.</p>
+      <table class="small-table" id="detail-bc-snapshot-table"><thead></thead><tbody></tbody></table>
     </section>
   </div>
 
@@ -1885,6 +1892,259 @@ function renderDetail() {
       <td>${r.inTop ? '<span class="strategy-tag a">YES</span>' : '<span style="color:var(--ink-faint);font-size:12px;">no</span>'}</td>
     </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--ink-faint);">No ETFs selected — click chips above to add some.</td></tr>`;
   }
+  // Also render Section 2 (B + C momentum)
+  renderDetailMomentumSection();
+}
+
+// ============= ETF Detail — Section 2 (B + C momentum) ===================
+// Strategies B and C use ETF-level momentum (distance above own 200d MA)
+// rather than constituent breadth. Different y-axis (can be negative),
+// different chip group, but same compare-multiple UX as Section 1.
+
+let _detailBCSelected = null;
+
+function _bcLabel(etf) {
+  // Look up label across B and C universes
+  const ac = window.DATA?.asset_class?.universe || [];
+  const tc = window.DATA?.thematic?.universe || [];
+  const fromB = ac.find(u => u.etf === etf);
+  if (fromB) return `${fromB.label} (B: ${fromB.asset_class})`;
+  const fromC = tc.find(u => u.etf === etf);
+  if (fromC) return `${fromC.label} (C: ${fromC.theme})`;
+  if (etf === 'IEF') return '7-10y Treasury (B + C cash proxy)';
+  return etf;
+}
+
+function _bcColour(etf) {
+  const acC = window.DATA?.asset_class?.asset_class_colours || {};
+  const tcC = window.DATA?.thematic?.thematic_colours || {};
+  return acC[etf] || tcC[etf] || ETF_COLOURS[etf] || '#999';
+}
+
+function _allBCEtfs() {
+  const bMap = window.DATA?.asset_class?.per_etf_signal || {};
+  const cMap = window.DATA?.thematic?.per_etf_signal || {};
+  return [...new Set([...Object.keys(bMap), ...Object.keys(cMap)])];
+}
+
+function _initDetailBCSelection() {
+  if (_detailBCSelected !== null) return;
+  _detailBCSelected = new Set();
+  _bcSelectLeaderVsSPY();
+}
+
+function _bcSelectLeaderVsSPY() {
+  _detailBCSelected.clear();
+  // Today's Strategy B leader + SPY as reference
+  const last = window.DATA?.asset_class?.headline?.trade_history?.slice(-1)[0];
+  const leader = last?.holdings?.[0]?.etf;
+  if (leader) _detailBCSelected.add(leader);
+  if (_allBCEtfs().includes('SPY')) _detailBCSelected.add('SPY');
+  if (_detailBCSelected.size < 2 && last?.holdings?.[1]) {
+    _detailBCSelected.add(last.holdings[1].etf);
+  }
+}
+
+function _bcSelectStrategyB() {
+  _detailBCSelected.clear();
+  const last = window.DATA?.asset_class?.headline?.trade_history?.slice(-1)[0];
+  last?.holdings?.forEach(h => _detailBCSelected.add(h.etf));
+}
+
+function _bcSelectStrategyC() {
+  _detailBCSelected.clear();
+  const last = window.DATA?.thematic?.headline?.trade_history?.slice(-1)[0];
+  last?.holdings?.forEach(h => _detailBCSelected.add(h.etf));
+}
+
+function _bcSelectAll() {
+  _detailBCSelected.clear();
+  _allBCEtfs().forEach(e => _detailBCSelected.add(e));
+}
+
+function _bcSelectClear() {
+  _detailBCSelected.clear();
+}
+
+function _renderDetailBCChips() {
+  const allEtfs = _allBCEtfs();
+  if (allEtfs.length === 0) return;
+  const chipsEl = document.getElementById('detail-bc-chips');
+  if (!chipsEl) return;
+  // Group chips by family: B universe first, then C-only, then IEF (cash)
+  const bSet = new Set(Object.keys(window.DATA?.asset_class?.per_etf_signal || {}));
+  const cSet = new Set(Object.keys(window.DATA?.thematic?.per_etf_signal || {}));
+  const ordered = [
+    ...[...bSet].filter(e => e !== 'IEF'),
+    ...[...cSet].filter(e => !bSet.has(e) && e !== 'IEF'),
+    ...(bSet.has('IEF') || cSet.has('IEF') ? ['IEF'] : []),
+  ];
+  chipsEl.innerHTML = ordered.map(etf => {
+    const isSel = _detailBCSelected.has(etf);
+    const colour = _bcColour(etf);
+    // Current signal value for the meta-pill
+    const ser = window.DATA?.asset_class?.per_etf_signal?.[etf]
+      || window.DATA?.thematic?.per_etf_signal?.[etf];
+    const cur = ser?.signal_pct?.[ser.signal_pct.length - 1];
+    const curStr = cur != null ? `${cur >= 0 ? '+' : ''}${cur.toFixed(0)}%` : '';
+    const family = bSet.has(etf) && etf !== 'IEF' ? 'B'
+                 : (cSet.has(etf) && etf !== 'IEF' ? 'C' : '∗');
+    return `<div class="etf-chip ${isSel ? 'selected' : ''}" data-etf="${etf}">
+      <span class="swatch" style="background:${isSel ? colour : 'var(--border-strong)'};"></span>
+      <span>${etf}</span>
+      <span class="chip-meta">${family} · ${curStr}</span>
+    </div>`;
+  }).join('');
+  chipsEl.querySelectorAll('.etf-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const etf = chip.dataset.etf;
+      if (_detailBCSelected.has(etf)) _detailBCSelected.delete(etf);
+      else _detailBCSelected.add(etf);
+      renderDetailMomentumSection();
+    });
+  });
+  const actionsEl = document.getElementById('detail-bc-actions');
+  if (actionsEl) {
+    actionsEl.innerHTML = `
+      <button data-action="vs-spy" title="Strategy B's top holding + SPY">B leader vs SPY</button>
+      <button data-action="stratb" title="All Strategy B current holdings">Strategy B today</button>
+      <button data-action="stratc" title="All Strategy C current holdings">Strategy C today</button>
+      <button data-action="all" title="All B + C ETFs (busy)">All</button>
+      <button data-action="none">Clear</button>
+    `;
+    const handlers = {
+      'vs-spy': _bcSelectLeaderVsSPY,
+      'stratb': _bcSelectStrategyB,
+      'stratc': _bcSelectStrategyC,
+      'all':    _bcSelectAll,
+      'none':   _bcSelectClear,
+    };
+    actionsEl.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        handlers[b.dataset.action]?.();
+        renderDetailMomentumSection();
+      });
+    });
+  }
+}
+
+function renderDetailMomentumSection() {
+  _initDetailBCSelection();
+  _renderDetailBCChips();
+
+  const bMap = window.DATA?.asset_class?.per_etf_signal || {};
+  const cMap = window.DATA?.thematic?.per_etf_signal || {};
+  const selected = [..._detailBCSelected].sort();
+
+  // For each selected ETF, prefer B's series if present, else C's. B's
+  // series goes back to 2008, C's only to 2018-11, so this gives the
+  // longest history for ETFs that exist in both (none currently except IEF).
+  const traces = selected.map(etf => {
+    const d = bMap[etf] || cMap[etf];
+    if (!d) return null;
+    return {
+      x: d.dates, y: d.signal_pct,
+      mode: 'lines',
+      name: `${etf} — ${_bcLabel(etf)}`,
+      line: { color: _bcColour(etf), width: 1.5 },
+      hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:+.1f}%<extra></extra>',
+    };
+  }).filter(Boolean);
+
+  // Compute sensible y-axis range from the visible data
+  let yMin = -20, yMax = 50;
+  traces.forEach(t => {
+    t.y.forEach(v => {
+      if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; }
+    });
+  });
+  yMin = Math.floor(yMin / 5) * 5 - 2;
+  yMax = Math.ceil(yMax / 5) * 5 + 2;
+
+  // Add zero line + +5% floor (Strategy C's signal floor) as horizontal guides
+  const guides = [];
+  if (traces.length > 0) {
+    const x0 = traces[0].x[0];
+    const xN = traces[0].x[traces[0].x.length - 1];
+    guides.push({
+      x: [x0, xN], y: [0, 0], mode: 'lines', name: '0% (200d MA)',
+      line: { color: '#9ca3af', width: 1, dash: 'dash' },
+      hoverinfo: 'skip', showlegend: false,
+    });
+    guides.push({
+      x: [x0, xN], y: [5, 5], mode: 'lines', name: 'C signal floor (+5%)',
+      line: { color: '#dc2626', width: 1, dash: 'dot' },
+      hoverinfo: 'skip', showlegend: false,
+    });
+  }
+
+  const layout = {
+    margin: { l: 56, r: 14, t: 14, b: 80 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+    yaxis: {
+      title: 'Distance above own 200d MA (%)',
+      gridcolor: '#eef0f3', zeroline: false,
+      range: [yMin, yMax], ticksuffix: '%',
+    },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 11 } },
+  };
+  if (traces.length === 0) {
+    document.getElementById('detail-momentum-chart').innerHTML =
+      '<p style="padding:40px;color:var(--ink-faint);text-align:center;">Select one or more ETFs above to compare momentum signals.</p>';
+  } else {
+    Plotly.newPlot('detail-momentum-chart', [...guides, ...traces], layout,
+                    { displayModeBar: false, responsive: true });
+  }
+
+  // Snapshot table
+  const snap = document.getElementById('detail-bc-snapshot-table');
+  if (!snap) return;
+  snap.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th><th>Description / family</th>
+    <th class="num">Current signal</th>
+    <th class="num">Δ 4 weeks</th>
+    <th class="num">Δ 13 weeks</th>
+    <th class="num">Δ 52 weeks</th>
+    <th>In portfolio?</th>
+  </tr>`;
+  const bLast = window.DATA?.asset_class?.headline?.trade_history?.slice(-1)[0];
+  const cLast = window.DATA?.thematic?.headline?.trade_history?.slice(-1)[0];
+  const bHeld = new Set((bLast?.holdings || []).map(h => h.etf));
+  const cHeld = new Set((cLast?.holdings || []).map(h => h.etf));
+  const rows = selected.map(etf => {
+    const d = bMap[etf] || cMap[etf];
+    if (!d) return null;
+    const s = d.signal_pct;
+    const cur = s[s.length - 1];
+    const d4 = s.length > 4  ? cur - s[s.length - 5]  : null;
+    const d13 = s.length > 13 ? cur - s[s.length - 14] : null;
+    const d52 = s.length > 52 ? cur - s[s.length - 53] : null;
+    return { etf, cur, d4, d13, d52, inB: bHeld.has(etf), inC: cHeld.has(etf) };
+  }).filter(Boolean).sort((a, b) => b.cur - a.cur);
+  const arrow = (v) => v == null ? '—' :
+    (v > 0 ? `<span class="good">▲ ${v.toFixed(1)}pp</span>`
+           : v < 0 ? `<span class="bad">▼ ${Math.abs(v).toFixed(1)}pp</span>`
+                   : '0.0pp');
+  snap.querySelector('tbody').innerHTML = rows.map(r => {
+    const tags = [];
+    if (r.inB) tags.push('<span class="strategy-tag b">B</span>');
+    if (r.inC) tags.push('<span class="strategy-tag c">C</span>');
+    const tagStr = tags.join(' ') || '<span style="color:var(--ink-faint);font-size:12px;">no</span>';
+    const sgn = r.cur >= 0 ? '+' : '';
+    const curCls = r.cur >= 5 ? 'good' : r.cur >= 0 ? '' : 'bad';
+    return `<tr>
+      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${r.etf}</strong></td>
+      <td style="color:var(--ink-faint);font-size:12px;">${_bcLabel(r.etf)}</td>
+      <td class="num ${curCls}"><strong>${sgn}${r.cur.toFixed(1)}%</strong></td>
+      <td class="num">${arrow(r.d4)}</td>
+      <td class="num">${arrow(r.d13)}</td>
+      <td class="num">${arrow(r.d52)}</td>
+      <td>${tagStr}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--ink-faint);">No ETFs selected — click chips above to add some.</td></tr>`;
 }
 
 // ----------- Portfolio tab ---------------------------------------------
