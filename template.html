@@ -227,11 +227,42 @@
       font-size: 10px; color: var(--ink-faint);
       letter-spacing: 0.05em; text-transform: uppercase;
     }
+    .formula-box {
+      margin: 10px 0 14px 0;
+      padding: 10px 14px;
+      background: var(--bg-soft);
+      border-radius: 4px;
+      border-left: 3px solid var(--accent);
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--ink-soft);
+    }
+    .formula-box.b { border-left-color: var(--good); }
+    .formula-box .eq {
+      display: inline-block;
+      margin: 4px 0;
+      padding: 4px 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; color: var(--ink);
+    }
+    .formula-box .eq .num { color: var(--good); font-weight: 600; }
+    .formula-box code {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-card);
+      padding: 1px 5px; border-radius: 2px;
+      border: 1px solid var(--border);
+      font-size: 11px;
+    }
     .holding-row {
       display: flex; align-items: center;
       padding: 8px 0; border-bottom: 1px solid var(--border);
       gap: 12px;
+      cursor: help;
     }
+    .holding-row:hover { background: var(--bg-soft); }
     .holding-row:last-child { border-bottom: none; }
     .holding-row .hsym {
       font-family: 'JetBrains Mono', monospace; font-weight: 700;
@@ -581,6 +612,9 @@
     <section>
       <h2>Combined holdings</h2>
       <p class="section-sub">Every position in the deployed portfolio, sorted by total weight. Each row shows the ETF, which strategy holds it (A = US sector breadth rotation, B = asset-class momentum), why it's in the portfolio (the signal that put it there), the within-strategy weight, and the effective weight after the 50/50 blend. <strong>If you have $100,000 to deploy, the "Total weight" column tells you how much capital each ETF gets.</strong></p>
+      <p class="section-sub" style="margin-top:-12px;font-size:13px;background:var(--bg-soft);padding:10px 14px;border-radius:4px;border-left:3px solid var(--accent);">
+        <strong>How "Total weight" is built</strong>, with one row as a worked example. Say IUES sits in Strategy A only with a within-strategy weight of 19.3%. Strategy A allocates 50% of total NAV, so IUES gets <code>0.50 × 19.3% = 9.65%</code> of the combined portfolio. On $100k, that is $9,650 in XLE (the trade proxy for IUES). The two-strategy panels below show how each within-strategy weight is computed from the underlying breadth or momentum signal — hover any row for the exact arithmetic.
+      </p>
       <table class="holdings" id="live-holdings-table"><thead></thead><tbody></tbody></table>
     </section>
 
@@ -1380,12 +1414,28 @@ function renderMonitor() {
     <div class="panel-stat"><div class="v">${fmtPct(aS.cagr, true)}</div><div class="l">CAGR</div></div>
     <div class="panel-stat"><div class="v">${fmtPct(aS.max_dd)}</div><div class="l">Max DD</div></div>
   `;
+  // Weight derivation for Strategy A: weight_i = breadth_i / sum(top-K breadths)
+  const aSumBreadth = aLatest.holdings.reduce((s, h) => s + (h.breadth_pct || 0), 0);
   const maxAW = Math.max(...aLatest.holdings.map(h => h.weight));
-  document.getElementById('live-a-holdings').innerHTML = aLatest.holdings
+  const aFormula = `
+    <div class="formula-box">
+      <strong>How each weight is computed</strong> · the strategy adds up the breadth of all ${aLatest.holdings.length} held ETFs, then gives each ETF a share proportional to its own breadth.
+      <div style="margin:6px 0;">
+        <span class="eq">weight<sub>i</sub> = breadth<sub>i</sub> ÷ Σ(top-K breadths)</span>
+      </div>
+      Today: Σ = ${aSumBreadth.toFixed(1)}%. Hover any row to see the exact arithmetic. Multiply the within-strategy weight by 0.5 for the effective weight in the 50/50 A+B blend.
+    </div>
+  `;
+  document.getElementById('live-a-holdings').innerHTML = aFormula + aLatest.holdings
     .slice().sort((x, y) => y.weight - x.weight)
-    .map(h => {
+    .map((h, idx) => {
       const bar = (h.weight / maxAW) * 100;
-      return `<div class="holding-row">
+      const calc = `${h.breadth_pct}% ÷ ${aSumBreadth.toFixed(1)}% = ${(h.weight*100).toFixed(1)}%`;
+      const tip = `Rank ${idx+1} of ${aLatest.holdings.length}. ` +
+                  `Breadth ${h.breadth_pct}% (% of ${h.etf}'s constituents above their own 200d MA).\n` +
+                  `Weight: ${calc}\n` +
+                  `Effective weight in 50/50 A+B blend: ${(h.weight*0.5*100).toFixed(2)}% of total NAV.`;
+      return `<div class="holding-row" title="${tip}">
         <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
         <span class="hlabel">${ETF_DESCRIPTIONS[h.etf] || ''}</span>
         <span class="hsignal">breadth ${h.breadth_pct}%</span>
@@ -1403,15 +1453,45 @@ function renderMonitor() {
     <div class="panel-stat"><div class="v">${fmtPct(bS.cagr, true)}</div><div class="l">CAGR (18 yrs)</div></div>
     <div class="panel-stat"><div class="v">${fmtPct(bS.max_dd)}</div><div class="l">Max DD</div></div>
   `;
+  // Weight derivation for Strategy B. Note: the rotation engine uses the
+  // PRIOR DAY's signal to decide the weights (no look-ahead). The signal_pct
+  // shown here is the value at the rebalance date itself — so the
+  // weight × Σ(signals) check is only approximate by a small day-over-day
+  // change in the underlying signal.
+  const bPositive = bLatest.holdings.filter(h => h.signal_pct != null && h.signal_pct > 0);
+  const bSumSig = bPositive.reduce((s, h) => s + h.signal_pct, 0);
+  const bK = ac.headline.K;
+  const investedFrac = bPositive.length / bK;
   const maxBW = Math.max(...bLatest.holdings.map(h => h.weight));
-  document.getElementById('live-b-holdings').innerHTML = bLatest.holdings
+  const cashNote = investedFrac < 1
+    ? ` Only ${bPositive.length} of ${bK} candidates have positive signal today, so ${((1-investedFrac)*100).toFixed(0)}% of Strategy B's capital sits in <code>IEF</code> as cash floor.`
+    : ` All ${bK} slots filled (cash floor not active today).`;
+  const bFormula = `
+    <div class="formula-box b">
+      <strong>How each weight is computed</strong> · weight by signal share among the ${bPositive.length} positive-signal ETFs, then scale by (n positives / K) — if fewer than K are positive, the rest goes to cash.
+      <div style="margin:6px 0;">
+        <span class="eq">weight<sub>i</sub> = (signal<sub>i</sub> ÷ Σ positive signals) × (n positives ÷ K)</span>
+      </div>
+      Today: Σ = ${bSumSig.toFixed(1)}%, n positives = ${bPositive.length}, K = ${bK}.${cashNote} Multiply the within-strategy weight by 0.5 for the effective weight in the 50/50 A+B blend.
+      <div style="margin-top:6px;font-size:11px;color:var(--ink-faint);">
+        Small reconciliation footnote: weights were calculated from <em>last Thursday's</em> signal (no look-ahead). The "signal" column shows <em>this Friday's</em> value, so the share-math reproduces weights to within ~1pp, not exactly.
+      </div>
+    </div>
+  `;
+  document.getElementById('live-b-holdings').innerHTML = bFormula + bLatest.holdings
     .slice().sort((x, y) => y.weight - x.weight)
-    .map(h => {
+    .map((h, idx) => {
       const universe = ac.universe || [];
       const u = universe.find(x => x.etf === h.etf) || {};
       const bar = (h.weight / maxBW) * 100;
       const sgn = h.signal_pct >= 0 ? '+' : '';
-      return `<div class="holding-row b">
+      const expectedShare = bSumSig > 0 ? (h.signal_pct / bSumSig) * investedFrac * 100 : 0;
+      const tip = `Rank ${idx+1} of ${bPositive.length} positive-signal ETFs. ` +
+                  `Signal ${sgn}${h.signal_pct}% (price is that % above its own 200d MA).\n` +
+                  `Weight share (today's signal): ${h.signal_pct}% ÷ ${bSumSig.toFixed(1)}% × ${bPositive.length}/${bK} = ${expectedShare.toFixed(1)}%\n` +
+                  `Actual weight (decision used prior day's signal): ${(h.weight*100).toFixed(1)}%\n` +
+                  `Effective weight in 50/50 A+B blend: ${(h.weight*0.5*100).toFixed(2)}% of total NAV.`;
+      return `<div class="holding-row b" title="${tip}">
         <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
         <span class="hlabel">${u.label || ''}</span>
         <span class="hsignal">${sgn}${h.signal_pct}% vs MA</span>
