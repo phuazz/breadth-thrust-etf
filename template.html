@@ -397,6 +397,52 @@
       color: var(--ink-faint); font-size: 12px;
     }
 
+    /* ETF chip-toggle group (multi-select compare) */
+    .etf-chip-group {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin: 10px 0 16px 0;
+    }
+    .etf-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--bg);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 600;
+      color: var(--ink-faint);
+      transition: all 0.12s;
+      user-select: none;
+    }
+    .etf-chip:hover { background: var(--bg-soft); color: var(--ink); }
+    .etf-chip.selected {
+      background: var(--bg-card);
+      color: var(--ink);
+      border-color: var(--ink-faint);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .etf-chip .swatch {
+      display: inline-block; width: 8px; height: 8px; border-radius: 2px;
+      background: var(--border-strong);
+      transition: background 0.12s;
+    }
+    .etf-chip.selected .swatch { /* swatch color set inline */ }
+    .etf-chip .chip-meta {
+      font-family: 'Inter', sans-serif; font-weight: 400;
+      font-size: 11px; color: var(--ink-faint);
+      margin-left: 4px;
+    }
+    .etf-chip-actions {
+      display: flex; gap: 8px; margin-bottom: 8px;
+    }
+    .etf-chip-actions button {
+      background: none; border: 1px solid var(--border); color: var(--ink-faint);
+      font: inherit; font-size: 12px; padding: 3px 9px; border-radius: 3px;
+      cursor: pointer;
+    }
+    .etf-chip-actions button:hover { background: var(--bg-soft); color: var(--ink); }
+
     .chart {
       width: 100%; height: 460px;
       border: 1px solid var(--border); background: var(--bg-card);
@@ -696,24 +742,21 @@
 
   <!-- ====================== ETF DETAIL ====================== -->
   <div class="tab-content" id="tab-detail">
-    <p class="section-sub" style="margin-top:8px;">Inspect the breadth signal for any single ETF in the Strategy A universe. The same metric (% of constituents above their own 200d MA) is what drives the top-K rotation — use this view to see why a sector is currently in or out of the top-7.</p>
+    <p class="section-sub" style="margin-top:8px;">Compare the breadth signal across multiple ETFs to see relative leadership. Each chip toggles an ETF on or off; the chart overlays all selected. Strategy A's current top-7 holdings are pre-selected so you can immediately see why those sectors are in the deployed portfolio. Click chips to add or remove ETFs.</p>
 
-    <div class="chart-controls" style="margin-top:8px;">
-      <label for="detail-etf">Select ETF:</label>
-      <select id="detail-etf"></select>
-      <span class="pill" id="detail-pill">—</span>
-    </div>
+    <div class="etf-chip-actions" id="detail-actions"></div>
+    <div class="etf-chip-group" id="detail-chips"></div>
 
     <section>
-      <h2>Breadth signal over time</h2>
-      <p class="section-sub">% of the ETF's constituents above their own 200d MA, sampled weekly. Higher = broad-based participation in the uptrend (the kind of state that lands a sector in Strategy A's top-7).</p>
-      <div id="detail-breadth-chart" class="chart"></div>
+      <h2>Breadth signal over time — comparison</h2>
+      <p class="section-sub">% of each ETF's constituents above their own 200d MA, sampled weekly. The strategy ranks ETFs by this metric every Friday and owns the top 7 — so when one ETF's line is consistently above the others, that sector is structurally leading. Crossings indicate rotations.</p>
+      <div id="detail-breadth-chart" class="chart tall"></div>
     </section>
 
     <section>
-      <h2>Price history</h2>
-      <p class="section-sub">Trading proxy's adjusted close, log scale. For context — pair with the breadth chart above to see when breadth was strong vs the price action.</p>
-      <div id="detail-equity-chart" class="chart short"></div>
+      <h2>Trend snapshot per ETF</h2>
+      <p class="section-sub">Where each selected ETF sits today and how its breadth changed over the recent past. ETFs accelerating (positive 4w / 13w deltas) are strengthening; deceleratin​g ones are weakening. Sorted by current breadth.</p>
+      <table class="small-table" id="detail-snapshot-table"><thead></thead><tbody></tbody></table>
     </section>
   </div>
 
@@ -1488,71 +1531,151 @@ function renderMonitor() {
 }
 
 // ----------- ETF Detail tab --------------------------------------------
-// Inspection tool: shows the breadth signal time series (which drives
-// Strategy A's top-K rotation) and the trading proxy's price for any
-// single ETF in the universe. Read-only context — no strategy overlays.
+// Compare the breadth signal across multiple ETFs to see relative
+// leadership. Chip toggles control which ETFs overlay on the chart.
+// Pre-selects Strategy A's current top-7 holdings.
+let _detailSelected = null;  // Set<string>; initialised on first render
+
+function _initDetailSelection() {
+  if (_detailSelected !== null) return;
+  _detailSelected = new Set();
+  const last = window.DATA?.topk?.headline?.trade_history?.slice(-1)[0];
+  if (last?.holdings) {
+    last.holdings.forEach(h => _detailSelected.add(h.etf));
+  }
+  // Fallback: pre-select the first 4 ETFs alphabetically if topk missing
+  if (_detailSelected.size === 0) {
+    const m = window.DATA?.ma200?.per_etf_detail || {};
+    Object.keys(m).slice(0, 4).forEach(e => _detailSelected.add(e));
+  }
+}
+
+function _renderDetailChips() {
+  const m = window.DATA?.ma200;
+  if (!m) return;
+  const allEtfs = Object.keys(m.per_etf_detail || {});
+  const chipsEl = document.getElementById('detail-chips');
+  if (!chipsEl) return;
+  chipsEl.innerHTML = allEtfs.map(etf => {
+    const isSel = _detailSelected.has(etf);
+    const colour = ETF_COLOURS[etf] || '#999';
+    const monitor = m.monitor?.[etf];
+    const breadth = monitor?.ma200_breadth_pct;
+    return `<div class="etf-chip ${isSel ? 'selected' : ''}" data-etf="${etf}">
+      <span class="swatch" style="background:${isSel ? colour : 'var(--border-strong)'};"></span>
+      <span>${etf}</span>
+      <span class="chip-meta">${breadth != null ? breadth.toFixed(0) + '%' : ''}</span>
+    </div>`;
+  }).join('');
+  // Wire click handlers
+  chipsEl.querySelectorAll('.etf-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const etf = chip.dataset.etf;
+      if (_detailSelected.has(etf)) _detailSelected.delete(etf);
+      else _detailSelected.add(etf);
+      renderDetail();
+    });
+  });
+
+  // Quick-action buttons
+  const actionsEl = document.getElementById('detail-actions');
+  if (actionsEl) {
+    actionsEl.innerHTML = `
+      <button data-action="top7">Strategy A top-7</button>
+      <button data-action="all">All 15</button>
+      <button data-action="none">Clear</button>
+    `;
+    actionsEl.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        const a = b.dataset.action;
+        _detailSelected.clear();
+        if (a === 'top7') {
+          const last = window.DATA?.topk?.headline?.trade_history?.slice(-1)[0];
+          last?.holdings?.forEach(h => _detailSelected.add(h.etf));
+        } else if (a === 'all') {
+          allEtfs.forEach(e => _detailSelected.add(e));
+        }
+        renderDetail();
+      });
+    });
+  }
+}
+
 function renderDetail() {
   const data = window.DATA;
   const m = data.ma200;
   if (!m) return;
-  const etf = document.getElementById('detail-etf').value;
-  if (!etf) return;
-  const monitor = m.monitor?.[etf];
-  const detail = m.per_etf_detail?.[etf];
-  const winnerEq = m.winner_equity_curves?.[etf];
+  _initDetailSelection();
+  _renderDetailChips();
 
-  // Pill — current breadth + whether this ETF is in Strategy A's top-7 today
-  const topk = data.topk;
-  const inTopK = topk?.headline?.trade_history
-    ?.slice(-1)[0]?.holdings?.some(h => h.etf === etf);
-  const currentBreadth = monitor?.ma200_breadth_pct;
-  const pill = `breadth ${currentBreadth?.toFixed(1) ?? '—'}%` +
-    (inTopK ? '  ·  ✓ in Strategy A top-7' : '  ·  not in top-7 today');
-  document.getElementById('detail-pill').textContent = pill;
-
-  // Breadth time series (no threshold shading — purely the signal)
-  if (detail) {
-    const dates = detail.breadth_dates;
-    const breadth = detail.breadth_pct;
-    const traces = [
-      {
-        x: dates, y: breadth, mode: 'lines',
-        name: '% of constituents above 200d MA',
-        line: { color: '#1d7a3a', width: 1.7 },
-        hovertemplate: '%{x|%Y-%m-%d}<br>Breadth: %{y:.1f}%<extra></extra>',
-      },
-    ];
-    const layout = {
-      margin: { l: 56, r: 14, t: 14, b: 38 },
-      paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-      font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
-      xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
-      yaxis: { title: '% above 200d MA', gridcolor: '#eef0f3',
-               zeroline: false, range: [0, 100], ticksuffix: '%' },
-      hovermode: 'x unified', showlegend: false,
+  // Build overlay breadth chart
+  const detailMap = m.per_etf_detail || {};
+  const selected = [..._detailSelected].sort();
+  const traces = selected.map(etf => {
+    const d = detailMap[etf];
+    if (!d) return null;
+    return {
+      x: d.breadth_dates, y: d.breadth_pct,
+      mode: 'lines',
+      name: `${etf}${ETF_DESCRIPTIONS[etf] ? ' — ' + ETF_DESCRIPTIONS[etf] : ''}`,
+      line: { color: ETF_COLOURS[etf] || '#999', width: 1.6 },
+      hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:.1f}%<extra></extra>',
     };
-    Plotly.newPlot('detail-breadth-chart', traces, layout, { displayModeBar: false, responsive: true });
+  }).filter(Boolean);
+  const layout = {
+    margin: { l: 56, r: 14, t: 14, b: 80 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+    yaxis: { title: '% of constituents above own 200d MA', gridcolor: '#eef0f3',
+             zeroline: false, range: [0, 100], ticksuffix: '%' },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 11 } },
+  };
+  if (traces.length === 0) {
+    document.getElementById('detail-breadth-chart').innerHTML =
+      '<p style="padding:40px;color:var(--ink-faint);text-align:center;">Select one or more ETFs above to compare breadth signals.</p>';
+  } else {
+    Plotly.newPlot('detail-breadth-chart', traces, layout,
+                    { displayModeBar: false, responsive: true });
   }
 
-  // Price chart — just buy-and-hold of the trading proxy, log scale.
-  if (winnerEq?.buy_and_hold) {
-    const bh = winnerEq.buy_and_hold;
-    const traces = [{
-      x: bh.dates, y: bh.equity, mode: 'lines',
-      name: `${monitor?.trading_proxy || etf} price (normalised)`,
-      line: { color: '#1351b4', width: 1.4 },
-      hovertemplate: '%{x|%Y-%m-%d}<br>Price: %{y:.2f}<extra></extra>',
-    }];
-    const layout = {
-      margin: { l: 56, r: 14, t: 14, b: 38 },
-      paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-      font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
-      xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
-      yaxis: { title: `${monitor?.trading_proxy || etf} (norm to 1, log)`, gridcolor: '#eef0f3',
-               zeroline: false, type: 'log', tickformat: '.2f' },
-      hovermode: 'x unified', showlegend: false,
-    };
-    Plotly.newPlot('detail-equity-chart', traces, layout, { displayModeBar: false, responsive: true });
+  // Trend snapshot table — current breadth + change vs N weeks ago
+  const snap = document.getElementById('detail-snapshot-table');
+  if (snap) {
+    snap.querySelector('thead').innerHTML = `<tr>
+      <th>ETF</th><th>Description</th>
+      <th class="num">Current breadth</th>
+      <th class="num">Δ 4 weeks</th>
+      <th class="num">Δ 13 weeks</th>
+      <th class="num">Δ 52 weeks</th>
+      <th>In Strategy A top-7?</th>
+    </tr>`;
+    const last = data.topk?.headline?.trade_history?.slice(-1)[0];
+    const topKSet = new Set((last?.holdings || []).map(h => h.etf));
+    const rows = selected.map(etf => {
+      const d = detailMap[etf];
+      if (!d) return null;
+      const b = d.breadth_pct;
+      const cur = b[b.length - 1];
+      const d4 = b.length > 4  ? cur - b[b.length - 5]  : null;
+      const d13 = b.length > 13 ? cur - b[b.length - 14] : null;
+      const d52 = b.length > 52 ? cur - b[b.length - 53] : null;
+      return { etf, cur, d4, d13, d52, inTop: topKSet.has(etf) };
+    }).filter(Boolean).sort((a, b) => b.cur - a.cur);
+    const arrow = (v) => v == null ? '—' :
+      (v > 0 ? `<span class="good">▲ ${v.toFixed(1)}pp</span>`
+             : v < 0 ? `<span class="bad">▼ ${Math.abs(v).toFixed(1)}pp</span>`
+                     : '0.0pp');
+    snap.querySelector('tbody').innerHTML = rows.map(r => `<tr>
+      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${ETF_COLOURS[r.etf]||'#999'};margin-right:8px;vertical-align:middle;"></span><strong>${r.etf}</strong></td>
+      <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
+      <td class="num"><strong>${r.cur.toFixed(1)}%</strong></td>
+      <td class="num">${arrow(r.d4)}</td>
+      <td class="num">${arrow(r.d13)}</td>
+      <td class="num">${arrow(r.d52)}</td>
+      <td>${r.inTop ? '<span class="strategy-tag a">YES</span>' : '<span style="color:var(--ink-faint);font-size:12px;">no</span>'}</td>
+    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--ink-faint);">No ETFs selected — click chips above to add some.</td></tr>`;
   }
 }
 
@@ -3042,7 +3165,7 @@ function activateTab(name) {
     TAB_RENDERED.add(name);
   } else {
     if (name === 'detail') {
-      try { Plotly.Plots.resize('detail-breadth-chart'); Plotly.Plots.resize('detail-equity-chart'); } catch(e){}
+      try { Plotly.Plots.resize('detail-breadth-chart'); } catch(e){}
     }
     if (name === 'portfolio') { try { Plotly.Plots.resize('portfolio-chart'); } catch(e){} }
     if (name === 'trades') {
@@ -3057,21 +3180,6 @@ function activateTab(name) {
   }
 }
 
-function populateEtfDropdown() {
-  const sel = document.getElementById('detail-etf');
-  if (!sel) return;
-  const m = window.DATA?.ma200?.monitor;
-  if (!m) return;
-  sel.innerHTML = '';
-  const etfs = Object.keys(m);
-  for (const e of etfs) {
-    const opt = document.createElement('option');
-    opt.value = e;
-    opt.textContent = `${e} — ${ETF_DESCRIPTIONS[e] || ''}`;
-    sel.appendChild(opt);
-  }
-}
-
 (function init() {
   const data = DASHBOARD_DATA_INLINE;
   if (!data) {
@@ -3081,7 +3189,6 @@ function populateEtfDropdown() {
   }
   window.DATA = data;
   if (data.built_at) document.getElementById('ts-built').textContent = 'Built ' + data.built_at;
-  populateEtfDropdown();
   // Render the default tab immediately
   renderMonitor();
   TAB_RENDERED.add('monitor');
@@ -3089,7 +3196,6 @@ function populateEtfDropdown() {
   document.querySelectorAll('nav.tabs button').forEach((btn) => {
     btn.addEventListener('click', () => activateTab(btn.dataset.tab));
   });
-  document.getElementById('detail-etf')?.addEventListener('change', renderDetail);
   document.getElementById('rob-subperiod-etf')?.addEventListener('change', renderRobustnessSubperiod);
   document.getElementById('rob-rebal-etf')?.addEventListener('change', renderRobustnessRebal);
   document.getElementById('ext-etf')?.addEventListener('change', renderExtendedHistory);
