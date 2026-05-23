@@ -261,7 +261,7 @@
     }
     .holding-row:last-child { border-bottom: none; }
     .holding-row .hrow-top {
-      display: flex; align-items: center; gap: 12px;
+      display: flex; align-items: baseline; gap: 12px;
     }
     .holding-row .hsym {
       font-family: 'JetBrains Mono', monospace; font-weight: 700;
@@ -275,20 +275,32 @@
       font-variant-numeric: tabular-nums; font-size: 16px;
       min-width: 60px; text-align: right;
     }
-    .holding-row .hbar-wrap {
-      flex: 0 0 100px; height: 8px;
-      background: var(--bg-soft);
-      border-radius: 4px; overflow: hidden;
-      border: 1px solid var(--border);
-    }
-    .holding-row .hbar {
-      height: 100%; background: var(--accent); border-radius: 4px;
-    }
-    .holding-row.b .hbar { background: var(--good); }
     .holding-row .swatch {
       display: inline-block; width: 8px; height: 8px;
       border-radius: 2px; margin-right: 6px;
       vertical-align: middle;
+    }
+    /* Per-strategy allocation strip: stacks all K holdings as one visual */
+    .strat-alloc-strip {
+      display: flex; height: 28px;
+      border-radius: 4px; overflow: hidden;
+      border: 1px solid var(--border);
+      margin: 0 0 16px 0;
+    }
+    .strat-alloc-strip .seg {
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 600;
+      padding: 0 4px; overflow: hidden;
+      white-space: nowrap; text-overflow: ellipsis;
+      transition: opacity 0.15s;
+    }
+    .strat-alloc-strip .seg:hover { opacity: 0.85; }
+    .strat-alloc-strip-label {
+      font-size: 11px; color: var(--ink-faint);
+      margin-bottom: 4px;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      font-weight: 600;
     }
     /* Always-visible calculation breakdown line under each holding */
     .holding-row .hcalc {
@@ -297,6 +309,8 @@
       font-size: 11.5px; color: var(--ink-faint);
       font-variant-numeric: tabular-nums;
       letter-spacing: 0.01em;
+      display: flex; flex-wrap: wrap; align-items: baseline;
+      gap: 6px;
     }
     .holding-row .hcalc .lhs { color: var(--ink-soft); }
     .holding-row .hcalc .arrow { color: var(--ink-faint); margin: 0 4px; }
@@ -1432,7 +1446,6 @@ function renderMonitor() {
   `;
   // Weight derivation for Strategy A: weight_i = breadth_i / sum(top-K breadths)
   const aSumBreadth = aLatest.holdings.reduce((s, h) => s + (h.breadth_pct || 0), 0);
-  const maxAW = Math.max(...aLatest.holdings.map(h => h.weight));
   const aFormula = `
     <div class="formula-box">
       <strong>How each weight is computed</strong> · the strategy adds up the breadth of all ${aLatest.holdings.length} held ETFs, then gives each ETF a share proportional to its own breadth. The line under each ETF below shows the exact arithmetic.
@@ -1443,17 +1456,21 @@ function renderMonitor() {
       In the 50/50 A+B blend, each ETF's effective NAV weight is half its within-strategy weight (green badge on the right of each row).
     </div>
   `;
-  document.getElementById('live-a-holdings').innerHTML = aFormula + aLatest.holdings
-    .slice().sort((x, y) => y.weight - x.weight)
+  const aSorted = aLatest.holdings.slice().sort((x, y) => y.weight - x.weight);
+  // Stacked allocation strip showing all 7 holdings as one visual
+  const aStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy A (100% = 50% of NAV)</div>`;
+  const aStrip = aStripLabel + `<div class="strat-alloc-strip">${aSorted.map(h => {
+    const pct = h.weight * 100;
+    return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${h.etf}: ${pct.toFixed(1)}%">${pct >= 7 ? h.etf : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
+  }).join('')}</div>`;
+  document.getElementById('live-a-holdings').innerHTML = aFormula + aStrip + aSorted
     .map((h, idx) => {
-      const bar = (h.weight / maxAW) * 100;
       const wPct = (h.weight*100).toFixed(1);
       const navEff = (h.weight*50).toFixed(2);
       return `<div class="holding-row">
         <div class="hrow-top">
           <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
           <span class="hlabel">${ETF_DESCRIPTIONS[h.etf] || ''}</span>
-          <span class="hbar-wrap"><span class="hbar" style="width:${bar}%;"></span></span>
           <span class="hweight">${wPct}%</span>
         </div>
         <div class="hcalc">
@@ -1485,7 +1502,6 @@ function renderMonitor() {
   const bSumSig = bPositive.reduce((s, h) => s + h.signal_pct, 0);
   const bK = ac.headline.K;
   const investedFrac = bPositive.length / bK;
-  const maxBW = Math.max(...bLatest.holdings.map(h => h.weight));
   const cashNote = investedFrac < 1
     ? ` Only ${bPositive.length} of ${bK} candidates have positive signal today, so ${((1-investedFrac)*100).toFixed(0)}% of Strategy B's capital sits in <code>IEF</code> as cash floor.`
     : ` All ${bK} slots filled (cash floor not active today).`;
@@ -1502,12 +1518,16 @@ function renderMonitor() {
       </div>
     </div>
   `;
-  document.getElementById('live-b-holdings').innerHTML = bFormula + bLatest.holdings
-    .slice().sort((x, y) => y.weight - x.weight)
+  const bSorted = bLatest.holdings.slice().sort((x, y) => y.weight - x.weight);
+  const bStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy B (100% = 50% of NAV${investedFrac < 1 ? `, includes IEF cash floor` : ''})</div>`;
+  const bStrip = bStripLabel + `<div class="strat-alloc-strip">${bSorted.map(h => {
+    const pct = h.weight * 100;
+    return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${h.etf}: ${pct.toFixed(1)}%">${pct >= 7 ? h.etf : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
+  }).join('')}</div>`;
+  document.getElementById('live-b-holdings').innerHTML = bFormula + bStrip + bSorted
     .map((h, idx) => {
       const universe = ac.universe || [];
       const u = universe.find(x => x.etf === h.etf) || {};
-      const bar = (h.weight / maxBW) * 100;
       const sgn = h.signal_pct >= 0 ? '+' : '';
       const expectedShare = bSumSig > 0 ? (h.signal_pct / bSumSig) * investedFrac * 100 : 0;
       const actualPct = h.weight * 100;
@@ -1520,7 +1540,6 @@ function renderMonitor() {
         <div class="hrow-top">
           <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
           <span class="hlabel">${u.label || ''}</span>
-          <span class="hbar-wrap"><span class="hbar" style="width:${bar}%;"></span></span>
           <span class="hweight">${actualPct.toFixed(1)}%</span>
         </div>
         <div class="hcalc">
