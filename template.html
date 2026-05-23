@@ -257,13 +257,12 @@
       font-size: 11px;
     }
     .holding-row {
-      display: flex; align-items: center;
-      padding: 8px 0; border-bottom: 1px solid var(--border);
-      gap: 12px;
-      cursor: help;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
     }
-    .holding-row:hover { background: var(--bg-soft); }
     .holding-row:last-child { border-bottom: none; }
+    .holding-row .hrow-top {
+      display: flex; align-items: center; gap: 12px;
+    }
     .holding-row .hsym {
       font-family: 'JetBrains Mono', monospace; font-weight: 700;
       font-size: 14px; min-width: 60px;
@@ -271,14 +270,9 @@
     .holding-row .hlabel {
       flex: 1; color: var(--ink-soft); font-size: 12px;
     }
-    .holding-row .hsignal {
-      font-family: 'JetBrains Mono', monospace;
-      font-variant-numeric: tabular-nums; font-size: 12px;
-      min-width: 60px; text-align: right; color: var(--ink-soft);
-    }
     .holding-row .hweight {
       font-family: 'JetBrains Mono', monospace; font-weight: 700;
-      font-variant-numeric: tabular-nums; font-size: 14px;
+      font-variant-numeric: tabular-nums; font-size: 16px;
       min-width: 60px; text-align: right;
     }
     .holding-row .hbar-wrap {
@@ -295,6 +289,26 @@
       display: inline-block; width: 8px; height: 8px;
       border-radius: 2px; margin-right: 6px;
       vertical-align: middle;
+    }
+    /* Always-visible calculation breakdown line under each holding */
+    .holding-row .hcalc {
+      margin: 4px 0 0 70px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px; color: var(--ink-faint);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.01em;
+    }
+    .holding-row .hcalc .lhs { color: var(--ink-soft); }
+    .holding-row .hcalc .arrow { color: var(--ink-faint); margin: 0 4px; }
+    .holding-row .hcalc .rhs { font-weight: 600; color: var(--ink); }
+    .holding-row .hcalc .nav-eff {
+      margin-left: 8px; padding: 1px 6px;
+      background: rgba(29,122,58,0.08); color: var(--good);
+      border-radius: 3px; font-size: 11px; font-weight: 600;
+    }
+    .holding-row .hcalc .approx {
+      color: var(--warn); font-style: italic; font-size: 11px;
+      margin-left: 4px;
     }
 
     /* ----- Asset class roll-up bar ----- */
@@ -1322,7 +1336,7 @@ function renderMonitor() {
   el.querySelector('thead').innerHTML = `<tr>
     <th>ETF</th><th>Description</th><th>Strategy</th><th>Trade as</th>
     <th>Why it's in</th>
-    <th class="num">Within-strategy</th>
+    <th class="num">How total weight is built</th>
     <th class="num">Total weight</th>
   </tr>`;
   let totW = 0;
@@ -1339,9 +1353,11 @@ function renderMonitor() {
     const stratTags = [];
     if (e.in_a) stratTags.push('<span class="strategy-tag a">A</span>');
     if (e.in_b) stratTags.push('<span class="strategy-tag b">B</span>');
-    const withinStrat = [];
-    if (e.in_a) withinStrat.push(`A ${(e.a_weight*100).toFixed(1)}%`);
-    if (e.in_b) withinStrat.push(`B ${(e.b_weight*100).toFixed(1)}%`);
+    // Build the calculation breakdown: A contribution + B contribution
+    const parts = [];
+    if (e.in_a) parts.push(`<span style="color:var(--accent);">A: 0.50 × ${(e.a_weight*100).toFixed(1)}% = ${((e.eff_a||0)*100).toFixed(2)}%</span>`);
+    if (e.in_b) parts.push(`<span style="color:var(--good);">B: 0.50 × ${(e.b_weight*100).toFixed(1)}% = ${((e.eff_b||0)*100).toFixed(2)}%</span>`);
+    const calcBreakdown = parts.join(' + ');
     totW += e.total;
     return `<tr>
       <td><span class="swatch" style="background:${colourFor(e.etf)};"></span><span class="sym">${e.etf}</span></td>
@@ -1349,7 +1365,7 @@ function renderMonitor() {
       <td>${stratTags.join(' ')}</td>
       <td><span class="sym" style="font-size:13px;color:var(--ink-soft);">${e.in_a ? e.a_proxy : e.etf}</span></td>
       <td class="why">${why.join(' · ')}</td>
-      <td class="num" style="color:var(--ink-faint);font-size:12px;">${withinStrat.join(' · ')}</td>
+      <td class="num" style="font-size:11.5px;font-family:'JetBrains Mono',monospace;text-align:left;">${calcBreakdown}</td>
       <td class="num"><strong>${(e.total*100).toFixed(1)}%</strong></td>
     </tr>`;
   }).join('');
@@ -1419,28 +1435,35 @@ function renderMonitor() {
   const maxAW = Math.max(...aLatest.holdings.map(h => h.weight));
   const aFormula = `
     <div class="formula-box">
-      <strong>How each weight is computed</strong> · the strategy adds up the breadth of all ${aLatest.holdings.length} held ETFs, then gives each ETF a share proportional to its own breadth.
+      <strong>How each weight is computed</strong> · the strategy adds up the breadth of all ${aLatest.holdings.length} held ETFs, then gives each ETF a share proportional to its own breadth. The line under each ETF below shows the exact arithmetic.
       <div style="margin:6px 0;">
         <span class="eq">weight<sub>i</sub> = breadth<sub>i</sub> ÷ Σ(top-K breadths)</span>
+        <span style="margin-left:8px;color:var(--ink-faint);">where Σ = <strong>${aSumBreadth.toFixed(1)}%</strong> today</span>
       </div>
-      Today: Σ = ${aSumBreadth.toFixed(1)}%. Hover any row to see the exact arithmetic. Multiply the within-strategy weight by 0.5 for the effective weight in the 50/50 A+B blend.
+      In the 50/50 A+B blend, each ETF's effective NAV weight is half its within-strategy weight (green badge on the right of each row).
     </div>
   `;
   document.getElementById('live-a-holdings').innerHTML = aFormula + aLatest.holdings
     .slice().sort((x, y) => y.weight - x.weight)
     .map((h, idx) => {
       const bar = (h.weight / maxAW) * 100;
-      const calc = `${h.breadth_pct}% ÷ ${aSumBreadth.toFixed(1)}% = ${(h.weight*100).toFixed(1)}%`;
-      const tip = `Rank ${idx+1} of ${aLatest.holdings.length}. ` +
-                  `Breadth ${h.breadth_pct}% (% of ${h.etf}'s constituents above their own 200d MA).\n` +
-                  `Weight: ${calc}\n` +
-                  `Effective weight in 50/50 A+B blend: ${(h.weight*0.5*100).toFixed(2)}% of total NAV.`;
-      return `<div class="holding-row" title="${tip}">
-        <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
-        <span class="hlabel">${ETF_DESCRIPTIONS[h.etf] || ''}</span>
-        <span class="hsignal">breadth ${h.breadth_pct}%</span>
-        <span class="hbar-wrap"><span class="hbar" style="width:${bar}%;"></span></span>
-        <span class="hweight">${(h.weight*100).toFixed(1)}%</span>
+      const wPct = (h.weight*100).toFixed(1);
+      const navEff = (h.weight*50).toFixed(2);
+      return `<div class="holding-row">
+        <div class="hrow-top">
+          <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
+          <span class="hlabel">${ETF_DESCRIPTIONS[h.etf] || ''}</span>
+          <span class="hbar-wrap"><span class="hbar" style="width:${bar}%;"></span></span>
+          <span class="hweight">${wPct}%</span>
+        </div>
+        <div class="hcalc">
+          <span class="lhs">rank ${idx+1} · breadth ${h.breadth_pct}%</span>
+          <span class="arrow">→</span>
+          <span class="lhs">${h.breadth_pct}% ÷ ${aSumBreadth.toFixed(1)}%</span>
+          <span class="arrow">=</span>
+          <span class="rhs">${wPct}%</span>
+          <span class="nav-eff">${navEff}% of total NAV</span>
+        </div>
       </div>`;
     }).join('');
 
@@ -1468,13 +1491,14 @@ function renderMonitor() {
     : ` All ${bK} slots filled (cash floor not active today).`;
   const bFormula = `
     <div class="formula-box b">
-      <strong>How each weight is computed</strong> · weight by signal share among the ${bPositive.length} positive-signal ETFs, then scale by (n positives / K) — if fewer than K are positive, the rest goes to cash.
+      <strong>How each weight is computed</strong> · weight by signal share among the ${bPositive.length} positive-signal ETFs, then scale by (n positives / K) — if fewer than K are positive, the rest goes to cash. The line under each ETF below shows the exact arithmetic.
       <div style="margin:6px 0;">
         <span class="eq">weight<sub>i</sub> = (signal<sub>i</sub> ÷ Σ positive signals) × (n positives ÷ K)</span>
+        <span style="margin-left:8px;color:var(--ink-faint);">where Σ = <strong>${bSumSig.toFixed(1)}%</strong>, n = <strong>${bPositive.length}</strong>, K = <strong>${bK}</strong> today</span>
       </div>
-      Today: Σ = ${bSumSig.toFixed(1)}%, n positives = ${bPositive.length}, K = ${bK}.${cashNote} Multiply the within-strategy weight by 0.5 for the effective weight in the 50/50 A+B blend.
-      <div style="margin-top:6px;font-size:11px;color:var(--ink-faint);">
-        Small reconciliation footnote: weights were calculated from <em>last Thursday's</em> signal (no look-ahead). The "signal" column shows <em>this Friday's</em> value, so the share-math reproduces weights to within ~1pp, not exactly.
+      ${cashNote} Each ETF's effective NAV weight in the 50/50 A+B blend is half its within-strategy weight (green badge on the right of each row).
+      <div style="margin-top:8px;font-size:11px;color:var(--ink-faint);">
+        <em>Footnote:</em> the engine uses <em>last Thursday's</em> signal to decide weights (no look-ahead). The "signal" column under each ETF shows <em>this Friday's</em> value, so the share-math may differ from the actual weight by ~1pp. When that happens, both numbers are shown with a "≈" marker.
       </div>
     </div>
   `;
@@ -1486,17 +1510,28 @@ function renderMonitor() {
       const bar = (h.weight / maxBW) * 100;
       const sgn = h.signal_pct >= 0 ? '+' : '';
       const expectedShare = bSumSig > 0 ? (h.signal_pct / bSumSig) * investedFrac * 100 : 0;
-      const tip = `Rank ${idx+1} of ${bPositive.length} positive-signal ETFs. ` +
-                  `Signal ${sgn}${h.signal_pct}% (price is that % above its own 200d MA).\n` +
-                  `Weight share (today's signal): ${h.signal_pct}% ÷ ${bSumSig.toFixed(1)}% × ${bPositive.length}/${bK} = ${expectedShare.toFixed(1)}%\n` +
-                  `Actual weight (decision used prior day's signal): ${(h.weight*100).toFixed(1)}%\n` +
-                  `Effective weight in 50/50 A+B blend: ${(h.weight*0.5*100).toFixed(2)}% of total NAV.`;
-      return `<div class="holding-row b" title="${tip}">
-        <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
-        <span class="hlabel">${u.label || ''}</span>
-        <span class="hsignal">${sgn}${h.signal_pct}% vs MA</span>
-        <span class="hbar-wrap"><span class="hbar" style="width:${bar}%;"></span></span>
-        <span class="hweight">${(h.weight*100).toFixed(1)}%</span>
+      const actualPct = h.weight * 100;
+      const navEff = (h.weight * 50).toFixed(2);
+      const diff = Math.abs(expectedShare - actualPct);
+      const approxNote = diff > 0.3
+        ? `<span class="approx" title="Share-math from today's signal yields ${expectedShare.toFixed(1)}%; actual weight used prior-day signal.">≈ ${actualPct.toFixed(1)}% actual</span>`
+        : '';
+      return `<div class="holding-row b">
+        <div class="hrow-top">
+          <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
+          <span class="hlabel">${u.label || ''}</span>
+          <span class="hbar-wrap"><span class="hbar" style="width:${bar}%;"></span></span>
+          <span class="hweight">${actualPct.toFixed(1)}%</span>
+        </div>
+        <div class="hcalc">
+          <span class="lhs">rank ${idx+1} · ${sgn}${h.signal_pct}% above 200d MA</span>
+          <span class="arrow">→</span>
+          <span class="lhs">${h.signal_pct}% ÷ ${bSumSig.toFixed(1)}% × ${bPositive.length}/${bK}</span>
+          <span class="arrow">=</span>
+          <span class="rhs">${expectedShare.toFixed(1)}%</span>
+          ${approxNote}
+          <span class="nav-eff">${navEff}% of total NAV</span>
+        </div>
       </div>`;
     }).join('');
 }
