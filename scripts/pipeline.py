@@ -100,6 +100,16 @@ def load_asset_class() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_thematic() -> dict | None:
+    """Load data/thematic_rotation.json: Strategy C (Phase 3) — thematic
+    momentum rotation across 16 thematic ETFs (AI / cyber / clean energy /
+    biotech / commodity-equity / etc) with signal floor + per-ETF cap."""
+    path = DATA_DIR / "thematic_rotation.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_multi_strategy() -> dict | None:
     """Load data/multi_strategy.json: combinations of Strategy A + Strategy B
     — fixed-weight blends (70/30, 50/50, 30/70) and meta-rotation."""
@@ -189,7 +199,15 @@ def main() -> int:
               f"{h.get('n_rebalances')} rebalances, "
               f"Sharpe {h.get('headline_stats', {}).get('sharpe', 0):+.2f}")
 
-    print("Loading multi-strategy combinations (A+B) ...", flush=True)
+    print("Loading thematic rotation (Strategy C) ...", flush=True)
+    thematic = load_thematic()
+    if thematic:
+        h = thematic.get("headline", {})
+        print(f"  thematic: K={h.get('K')} {h.get('rebal_freq')}, "
+              f"{h.get('n_rebalances')} rebalances, "
+              f"Sharpe {h.get('headline_stats', {}).get('sharpe', 0):+.2f}")
+
+    print("Loading multi-strategy combinations (A+B[+C]) ...", flush=True)
     multi = load_multi_strategy()
     if multi:
         strats = multi.get("strategies", {})
@@ -204,6 +222,7 @@ def main() -> int:
         "extended": extended,
         "topk": topk,
         "asset_class": asset_class,
+        "thematic": thematic,
         "multi": multi,
     }
 
