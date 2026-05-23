@@ -742,7 +742,7 @@
 
   <!-- ====================== ETF DETAIL ====================== -->
   <div class="tab-content" id="tab-detail">
-    <p class="section-sub" style="margin-top:8px;">Compare the breadth signal across multiple ETFs to see relative leadership. Each chip toggles an ETF on or off; the chart overlays all selected. Strategy A's current top-7 holdings are pre-selected so you can immediately see why those sectors are in the deployed portfolio. Click chips to add or remove ETFs.</p>
+    <p class="section-sub" style="margin-top:8px;">Compare the breadth signal across multiple ETFs to see relative leadership. The default view is <strong>Leader vs Market</strong> — Strategy A's top-breadth holding plus CSP1 (S&amp;P 500) as a broad-market reference. Use the quick-action buttons or click any chip to add or remove ETFs. Each chart line uses the same colour as that ETF's chip and the swatches elsewhere in the dashboard.</p>
 
     <div class="etf-chip-actions" id="detail-actions"></div>
     <div class="etf-chip-group" id="detail-chips"></div>
@@ -1539,15 +1539,37 @@ let _detailSelected = null;  // Set<string>; initialised on first render
 function _initDetailSelection() {
   if (_detailSelected !== null) return;
   _detailSelected = new Set();
+  _selectLeaderVsMarket();  // "Leader vs market" — 2 lines, the cleanest default
+}
+
+// Selection helpers used by both init and the quick-action buttons.
+function _selectLeaderVsMarket() {
+  _detailSelected.clear();
   const last = window.DATA?.topk?.headline?.trade_history?.slice(-1)[0];
-  if (last?.holdings) {
-    last.holdings.forEach(h => _detailSelected.add(h.etf));
+  const leader = last?.holdings?.[0]?.etf;  // already sorted by weight in trade_history
+  if (leader) _detailSelected.add(leader);
+  // Add the broad-market reference. CSP1 is the S&P 500.
+  if (window.DATA?.ma200?.per_etf_detail?.CSP1) _detailSelected.add('CSP1');
+  // If leader happened to be CSP1, also add the #2 holding for a 2-line view.
+  if (_detailSelected.size < 2 && last?.holdings?.[1]) {
+    _detailSelected.add(last.holdings[1].etf);
   }
-  // Fallback: pre-select the first 4 ETFs alphabetically if topk missing
-  if (_detailSelected.size === 0) {
-    const m = window.DATA?.ma200?.per_etf_detail || {};
-    Object.keys(m).slice(0, 4).forEach(e => _detailSelected.add(e));
-  }
+}
+
+function _selectStrategyATop7() {
+  _detailSelected.clear();
+  const last = window.DATA?.topk?.headline?.trade_history?.slice(-1)[0];
+  last?.holdings?.forEach(h => _detailSelected.add(h.etf));
+}
+
+function _selectAll() {
+  _detailSelected.clear();
+  const allEtfs = Object.keys(window.DATA?.ma200?.per_etf_detail || {});
+  allEtfs.forEach(e => _detailSelected.add(e));
+}
+
+function _selectClear() {
+  _detailSelected.clear();
 }
 
 function _renderDetailChips() {
@@ -1581,20 +1603,20 @@ function _renderDetailChips() {
   const actionsEl = document.getElementById('detail-actions');
   if (actionsEl) {
     actionsEl.innerHTML = `
-      <button data-action="top7">Strategy A top-7</button>
-      <button data-action="all">All 15</button>
+      <button data-action="vs-market" title="Top-breadth ETF + CSP1 (S&P 500) — cleanest 2-line comparison">Leader vs market</button>
+      <button data-action="top7" title="All 7 currently deployed positions">Strategy A top-7</button>
+      <button data-action="all" title="Overlay all 15 ETFs — visually busy but useful for spotting outliers">All 15</button>
       <button data-action="none">Clear</button>
     `;
+    const handlers = {
+      'vs-market': _selectLeaderVsMarket,
+      'top7':      _selectStrategyATop7,
+      'all':       _selectAll,
+      'none':      _selectClear,
+    };
     actionsEl.querySelectorAll('button').forEach(b => {
       b.addEventListener('click', () => {
-        const a = b.dataset.action;
-        _detailSelected.clear();
-        if (a === 'top7') {
-          const last = window.DATA?.topk?.headline?.trade_history?.slice(-1)[0];
-          last?.holdings?.forEach(h => _detailSelected.add(h.etf));
-        } else if (a === 'all') {
-          allEtfs.forEach(e => _detailSelected.add(e));
-        }
+        handlers[b.dataset.action]?.();
         renderDetail();
       });
     });
