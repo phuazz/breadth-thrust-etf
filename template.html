@@ -653,7 +653,7 @@
       <span id="ts-built"></span>
     </div>
     <h1>Breadth-thrust ETF research</h1>
-    <div class="sub">Three-strategy stack. <strong>Strategy A</strong>: rank 15 US sector ETFs by constituent breadth, own top K weekly — Sharpe +0.95. <strong>Strategy B</strong>: rank 14 broad asset-class ETFs by distance above 200d MA — Sharpe +0.78, max DD only -14%. <strong>Strategy C</strong>: rank 16 thematic ETFs (AI / cyber / clean energy / etc) with +5% signal floor and 35% per-ETF cap — Sharpe +0.71, deeper DD; sized at 10% as optionality on the next thematic bull. Deployed <strong>45/45/10 A:B:C blend hits Sharpe +1.07 with max DD -21%</strong>. The 50/50 A+B blend without C is fractionally better on Sharpe (+1.09) — see Multi-Strategy tab for the trade-off.</div>
+    <div class="sub">Three-strategy stack. <strong>Strategy A</strong>: rank 14 US sector ETFs by constituent breadth, own top K weekly — Sharpe +0.95 (walk-forward +0.99 after pruning IUIT for redundancy with CNDX). <strong>Strategy B</strong>: rank 14 broad asset-class ETFs by distance above 200d MA — Sharpe +0.78, max DD only -14%. <strong>Strategy C</strong>: rank 16 thematic ETFs (AI / cyber / clean energy / etc) with +5% signal floor and 35% per-ETF cap — Sharpe +0.71, deeper DD; sized at 10% as optionality on the next thematic bull. Deployed <strong>45/45/10 A:B:C blend hits Sharpe +1.09 with max DD -22%</strong>. The 50/50 A+B blend without C is marginally better on Sharpe (+1.10) — see Multi-Strategy tab for the trade-off.</div>
   </div>
 </header>
 
@@ -738,7 +738,7 @@
         </div>
         <div class="step">
           <div class="step-n">3</div>
-          <div class="step-body"><strong>Strategy A — within US equities, which sectors lead?</strong> Compute % of each ETF's constituents above their 200d MA. Rank the 15 ETFs. Take the top 7. Weight by breadth share.</div>
+          <div class="step-body"><strong>Strategy A — within US equities, which sectors lead?</strong> Compute % of each ETF's constituents above their 200d MA. Rank the 14 ETFs. Take the top 7. Weight by breadth share.</div>
         </div>
         <div class="step">
           <div class="step-n">4</div>
@@ -1142,7 +1142,7 @@
       <div class="two-col" style="margin-top:14px;">
         <div>
           <h3 style="margin-top:0;">Strategy A — breadth signal correlations</h3>
-          <p class="section-sub" style="font-size:12px;">15 US sector/broad ETFs. Each cell = Pearson correlation of weekly breadth series. Red = highly correlated (redundant). Blue = uncorrelated (diversifying).</p>
+          <p class="section-sub" style="font-size:12px;">14 US sector/broad ETFs (after pruning IUIT in May 2026). Each cell = Pearson correlation of weekly breadth series. Red = highly correlated (redundant). Blue = uncorrelated (diversifying).</p>
           <div id="corr-a-chart" class="chart tall"></div>
           <div id="corr-a-stats" style="margin-top:12px;"></div>
         </div>
@@ -1164,7 +1164,7 @@
     <div class="plain-box">
       <h3>The strategy explained, plain English</h3>
       <p class="lead">Pick the strongest seven sectors of the US stock market each week. Own them. Update weekly. That is the whole strategy.</p>
-      <p><strong>What is a "sector"?</strong> The US stock market is split into industry groups — Technology, Financials, Energy, Health Care, Industrials, Consumer Discretionary, Consumer Staples, Utilities, Materials, Communication Services, Real Estate — plus a few broad-market and concentrated picks (S&amp;P 500, NASDAQ-100, Semiconductors, Small-cap 600). We use 15 ETFs that represent these groups.</p>
+      <p><strong>What is a "sector"?</strong> The US stock market is split into industry groups — Financials, Energy, Health Care, Industrials, Consumer Discretionary, Consumer Staples, Utilities, Materials, Communication Services, Real Estate — plus a few broad-market and concentrated picks (S&amp;P 500, NASDAQ-100, Semiconductors, Small-cap 600). We use 14 ETFs that represent these groups. (NASDAQ-100 already gives us the large-cap tech exposure; we pruned the S&amp;P 500 Info Tech ETF in May 2026 because it duplicated the NASDAQ-100 too closely.)</p>
       <p><strong>How do we judge which sector is "strong"?</strong> Every sector contains 30 to 500 individual companies. We count what percentage of those companies are currently trading above their own 200-day moving average. A stock above its 200-day average is in an uptrend; below it, a downtrend. So if 85% of the companies in a sector are in uptrends, that sector is strong — broadly strong, not just lifted by a few mega-caps. We call this number the <em>breadth</em> of the sector. It ranges from 0% (everything broken) to 100% (everything in an uptrend).</p>
       <div class="step">
         <div class="step-n">1</div>
@@ -1194,7 +1194,7 @@
         <p><strong>Momentum signal (Strategy B)</strong>: distance above own 200-day MA per ETF, <code>(close − MA200) / MA200</code>. Positive = uptrend, negative = downtrend. Computed daily from yfinance adjusted close.</p>
         <p><strong>Headline strategy — Multi-Strategy 45/45/10 A:B:C blend (no leverage)</strong>:</p>
         <ul>
-          <li><strong>Strategy A</strong>: rank 15 US sector/broad ETFs by breadth, take top K = 7, weight by breadth share. Universe: SOXX, CSP1, CNDX, IUES, IUFS, IUIT, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, IUSP, IDP6.</li>
+          <li><strong>Strategy A</strong>: rank 14 US sector/broad ETFs by breadth, take top K = 7, weight by breadth share. Universe: SOXX, CSP1, CNDX, IUES, IUFS, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, IUSP, IDP6. <em>IUIT (S&amp;P 500 Info Tech) was pruned May 2026 because of 0.97 correlation with CNDX — see Robustness Test 12.</em></li>
           <li><strong>Strategy B</strong>: rank 14 broad asset-class ETFs by distance above 200d MA, drop negatives, take top K = 7, weight by signal share, cash floor in IEF for unfilled slots. Universe: SPY, IJR, QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, TIP, HYG.</li>
           <li><strong>Strategy C</strong> (10% sleeve): rank 16 thematic ETFs by distance above 200d MA, drop any below +5% (signal floor), take top K = 4, weight by signal share with 35% per-ETF cap, cash floor in IEF for unfilled slots. Universe: ARKK, CIBR, SKYY, BOTZ, BLOK, ICLN, TAN, LIT, URA, XBI, ARKG, JETS, GDX, COPX, MOO, PAVE.</li>
           <li><strong>Combination</strong>: 45% A + 45% B + 10% C, rebalanced weekly Friday.</li>
@@ -1209,8 +1209,9 @@
     <section>
       <h2>Universe and data sources</h2>
       <div class="methodbox">
-        <p><strong>15 ETFs in the universe</strong>: SOXX (semis), CSP1 (S&amp;P 500), CNDX (NASDAQ-100), and the complete S&amp;P 500 sector slate — IUES (Energy), IUFS (Financials), IUIT (Info Tech), IUHC (Health Care), IUIS (Industrials), IUCS (Consumer Staples), IUCD (Consumer Discretionary), IUUS (Utilities), IUMS (Materials), IUCM (Communication Services). Plus IUSP (US REITs as Real Estate proxy — see caveat) and IDP6 (S&amp;P SmallCap 600 — the only non-sector slice, included to give the rotation a market-cap dimension).</p>
-        <p><strong>Trading proxies</strong>: SPDR Select Sector ETFs (XLE, XLF, XLK, XLV, XLI, XLP, XLY, XLU, XLB, XLC, XLRE). CSP1 trades via SPY; CNDX via QQQ; SOXX trades itself; IDP6 trades via IJR.</p>
+        <p><strong>14 ETFs in the universe</strong>: SOXX (semis), CSP1 (S&amp;P 500), CNDX (NASDAQ-100), and the S&amp;P 500 sector slate — IUES (Energy), IUFS (Financials), IUHC (Health Care), IUIS (Industrials), IUCS (Consumer Staples), IUCD (Consumer Discretionary), IUUS (Utilities), IUMS (Materials), IUCM (Communication Services). Plus IUSP (US REITs as Real Estate proxy — see caveat) and IDP6 (S&amp;P SmallCap 600).</p>
+        <p><strong>Pruned (May 2026)</strong>: IUIT (S&amp;P 500 Info Tech) was removed because of 0.97 correlation with CNDX (NASDAQ-100). CNDX has much higher trading liquidity via its US-listed equivalent QQQ, so keeping IUIT was double-counting the same large-cap tech bet with a less-tradeable variant. The prune improved walk-forward Sharpe by +0.034 (Robustness Test 12).</p>
+        <p><strong>Trading proxies</strong>: SPDR Select Sector ETFs (XLE, XLF, XLV, XLI, XLP, XLY, XLU, XLB, XLC, XLRE). CSP1 trades via SPY; CNDX via QQQ; SOXX trades itself; IDP6 trades via IJR.</p>
         <p><strong>Real Estate caveat</strong>: no iShares UK S&amp;P 500 Real Estate sector UCITS exists as of 2026-05. IUSP (FTSE EPRA NAREIT US Dividend+ Index, ~38 US REITs) is used as a substitute. The constituent set is broader than the S&amp;P 500 Real Estate sub-sector, but the breadth metric (% above 200d MA) is still constituent-relative and remains comparable.</p>
         <p><strong>Data sources</strong>: iShares UK holdings endpoint for point-in-time constituents (weekly Friday snapshots back to 2018-01-05), yfinance for adjusted close prices of constituents and trading proxies. All data is free and reproducible from the scripts in this repo.</p>
       </div>
@@ -1247,7 +1248,8 @@
       <div class="methodbox">
         <p>The universe went from 11 to 15 ETFs in May 2026 by adding the 3 missing S&amp;P 500 sectors (Materials IUMS, Communication Services IUCM, plus IUSP as a Real Estate proxy) and IDP6 (S&amp;P SmallCap 600). The headline top-K rotation Sharpe moved from +0.99 (11 ETFs, K=7 Weekly Fri) to <strong>+0.95 (15 ETFs, same K and cadence)</strong> — a small <em>decrease</em>. Annual turnover rose from ~10× to ~14× because more ETFs cluster near the K-th breadth boundary and shuffle in and out more often.</p>
         <p><strong>Why expanding within the same rotation didn't help</strong>: the strategy ranks ETFs by breadth and takes the top K, so adding ETFs at the same K dilutes conviction. The strongest sectors are still strongest, but extra candidates compete for the marginal slot. Cost goes up; signal goes down slightly. The strategy was already universe-saturated around 11 ETFs for K=7. The lesson: <em>adding ETFs of the same flavour to an existing top-K rotation produces diminishing or negative returns</em>. The dimension that actually adds information is <em>orthogonality</em>.</p>
-        <p><strong>That motivated Phase 2: build a separate Strategy B at the asset-class level</strong> (see the Strategy B and Multi-Strategy A+B tabs). Strategy B operates on 14 broad asset-class ETFs (US equity / international / EM / real estate / commodities / bonds), ranking by distance above the ETF's own 200d MA — at the index level rather than the constituent level. <strong>Empirical result: combining A and B 50/50 gives Sharpe +1.00 with max DD -20% — better than either strategy alone</strong> (A: +0.95, DD -31%; B: +0.78, DD -14%). The 18-year Strategy B backtest (2008-2026, including GFC and COVID) shows the regime-following behaviour: it rotates into bonds and gold in crisis periods and into equities in expansions. Diversification benefit is real — the combined Sharpe exceeds the weighted sum of individual Sharpes because A and B are negatively correlated on drawdowns.</p>
+        <p><strong>Universe pruning (May 2026, post-expansion)</strong>: the correlation diagnostic (Robustness Test 12) flagged IUIT (S&amp;P 500 Info Tech) at 0.97 breadth correlation with CNDX (NASDAQ-100). Since CNDX is the more-traded variant of the same large-cap tech exposure (via QQQ which has ~10× IUIT's liquidity), keeping IUIT was double-counting. Pruning it brought the active universe to <strong>14 ETFs</strong>. <strong>Result: walk-forward Sharpe improved +0.034</strong> (from +0.955 to +0.989), turnover dropped 5%, and every multi-strategy blend variant gained +0.009 to +0.014 Sharpe. <em>Pruning a redundant ETF helped slightly more than carrying it.</em></p>
+        <p><strong>That motivated Phase 2: build a separate Strategy B at the asset-class level</strong> (see the Strategy B and Multi-Strategy A+B tabs). Strategy B operates on 14 broad asset-class ETFs (US equity / international / EM / real estate / commodities / bonds), ranking by distance above the ETF's own 200d MA — at the index level rather than the constituent level. <strong>Empirical result: combining A and B 50/50 gives Sharpe +1.10 with max DD -21% — better than either strategy alone</strong> (A: +0.95, DD -31%; B: +0.78, DD -14%). The 18-year Strategy B backtest (2008-2026, including GFC and COVID) shows the regime-following behaviour: it rotates into bonds and gold in crisis periods and into equities in expansions. Diversification benefit is real — the combined Sharpe exceeds the weighted sum of individual Sharpes because A and B are negatively correlated on drawdowns.</p>
         <p>The meta-rotation variant (own only A or only B each week, switching based on trailing 6-month Sharpe) <em>destroys value</em> — the lookback lags too much and the meta-signal chases the previous regime. <strong>Static blends beat dynamic blends.</strong></p>
       </div>
     </section>
@@ -1574,7 +1576,7 @@ function renderMonitor() {
 
   // ===== Strategy A panel =====
   document.getElementById('live-a-sub').textContent =
-    `Rank 15 US sector/broad-market ETFs by % of constituents above 200d MA. Take top K=${topk.headline.K}. Weight by breadth share. Allocates ${(W_A*100).toFixed(0)}% of total NAV.`;
+    `Rank 14 US sector/broad-market ETFs by % of constituents above 200d MA. Take top K=${topk.headline.K}. Weight by breadth share. Allocates ${(W_A*100).toFixed(0)}% of total NAV.`;
   const aS = aStats || {};
   document.getElementById('live-a-stats').innerHTML = `
     <div class="panel-stat"><div class="v">${fmtNum(aS.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>

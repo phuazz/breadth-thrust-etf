@@ -371,7 +371,10 @@ UNIVERSE_ETFS: list[str] = [
     # Complete S&P 500 sector slices (iShares UK UCITS, SPDR proxies)
     "IUES",   # Energy            → XLE
     "IUFS",   # Financials        → XLF
-    "IUIT",   # Information Tech  → XLK
+    # IUIT (S&P 500 Info Tech) PRUNED 2026-05-23 — correlation with CNDX
+    # is 0.97 (Test 12 diagnostic), and CNDX/QQQ is the more-traded variant
+    # of the same large-cap tech exposure. Keeping both was double-counting.
+    # The registry entry remains for reference; just removed from active list.
     "IUHC",   # Health Care       → XLV
     "IUIS",   # Industrials       → XLI
     "IUCS",   # Consumer Staples  → XLP
