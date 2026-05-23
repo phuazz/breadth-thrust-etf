@@ -413,20 +413,6 @@
       max-height: 480px; overflow-y: auto;
       border: 1px solid var(--border); background: var(--bg-card);
     }
-    table.episodes {
-      width: 100%; border-collapse: collapse; font-size: 13px;
-      font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
-    }
-    table.episodes thead th {
-      text-align: left; padding: 8px 12px;
-      background: var(--bg-soft); font-weight: 600; color: var(--ink-soft);
-      border-bottom: 1px solid var(--border-strong);
-      position: sticky; top: 0;
-      font-size: 12px;
-    }
-    table.episodes tbody td { padding: 6px 12px; border-bottom: 1px solid var(--border); }
-    table.episodes .pos { color: var(--good); }
-    table.episodes .neg { color: var(--bad); }
 
     .methodbox {
       padding: 18px 22px; background: var(--bg-soft);
@@ -626,8 +612,6 @@
     <button class="tab" data-tab="trades">A: Trade Explorer</button>
     <button class="tab" data-tab="asset">Strategy B (Asset Class)</button>
     <button class="tab" data-tab="multi">Multi-Strategy A+B</button>
-    <button class="tab" data-tab="strategy">Single-ETF L</button>
-    <button class="tab" data-tab="unlev">Unleveraged</button>
     <button class="tab" data-tab="detail">ETF Detail</button>
     <button class="tab" data-tab="robustness">Robustness</button>
     <button class="tab" data-tab="method">Method</button>
@@ -710,53 +694,10 @@
     </section>
   </div>
 
-  <!-- ====================== STRATEGY ====================== -->
-  <div class="tab-content" id="tab-strategy">
-    <div class="verdict">
-      <h2>Strategy verdict</h2>
-      <p id="strategy-verdict">Loading…</p>
-    </div>
-
-    <section>
-      <h2>Per-ETF result</h2>
-      <p class="section-sub">For each ETF, the MA200 + 50/150 strategy's chosen long threshold L (peak Sharpe across L ∈ {50, 55, 60, 65, 70, 75, 80}), its annualised Sharpe, total return, max DD, and the comparison to plain buy-and-hold. Best Sharpe per ETF row highlighted.</p>
-      <table class="small-table" id="strategy-table"><thead></thead><tbody></tbody></table>
-    </section>
-
-    <section>
-      <h2>Threshold robustness</h2>
-      <p class="section-sub">Sharpe vs long threshold L for each ETF's Family D (50% base, 150% on signal). Flat curves around the peak mean the choice of L is not delicate; sharp peaks would mean the choice matters and OOS could degrade.</p>
-      <div id="strategy-robustness-chart" class="chart"></div>
-    </section>
-  </div>
-
-  <!-- ====================== UNLEVERAGED ====================== -->
-  <div class="tab-content" id="tab-unlev">
-    <div class="verdict">
-      <h2>Unleveraged verdict — max 100% exposure, no margin</h2>
-      <p id="unlev-verdict">Loading…</p>
-    </div>
-
-    <section>
-      <h2>Per-ETF — 50/100 (no leverage) vs 50/150 vs buy-and-hold</h2>
-      <p class="section-sub">50/100 = 50% base allocation + step up to 100% when ma200_breadth ≥ L. Never above 100%, no margin required. Same regime signal as the Strategy tab — just without the leverage layer. The "Δ DD" column shows how much drawdown is given up by skipping the 50/150 leverage.</p>
-      <table class="small-table" id="unlev-table"><thead></thead><tbody></tbody></table>
-    </section>
-
-    <section>
-      <h2>Unleveraged portfolio variants</h2>
-      <p class="section-sub">Top-K equal-weight or breadth-weighted across the 11 ETFs, weekly rebalanced, always 100% invested in the basket (no overlay leverage). All variants here use only the relative-strength tilt — they never exceed 100% notional.</p>
-      <table class="small-table" id="unlev-portfolio-table"><thead></thead><tbody></tbody></table>
-    </section>
-
-    <section>
-      <h2>Equity curves — best unleveraged portfolio variants vs SPY</h2>
-      <div id="unlev-portfolio-chart" class="chart"></div>
-    </section>
-  </div>
-
   <!-- ====================== ETF DETAIL ====================== -->
   <div class="tab-content" id="tab-detail">
+    <p class="section-sub" style="margin-top:8px;">Inspect the breadth signal for any single ETF in the Strategy A universe. The same metric (% of constituents above their own 200d MA) is what drives the top-K rotation — use this view to see why a sector is currently in or out of the top-7.</p>
+
     <div class="chart-controls" style="margin-top:8px;">
       <label for="detail-etf">Select ETF:</label>
       <select id="detail-etf"></select>
@@ -764,25 +705,15 @@
     </div>
 
     <section>
-      <h2>Breadth + allocation timeline</h2>
-      <p class="section-sub">% of constituents above 200d MA (weekly), with chosen threshold L shaded. Above L → strategy is long 150%, below L → base 50%.</p>
+      <h2>Breadth signal over time</h2>
+      <p class="section-sub">% of the ETF's constituents above their own 200d MA, sampled weekly. Higher = broad-based participation in the uptrend (the kind of state that lands a sector in Strategy A's top-7).</p>
       <div id="detail-breadth-chart" class="chart"></div>
     </section>
 
     <section>
-      <h2>Equity curve — strategy vs buy-and-hold</h2>
+      <h2>Price history</h2>
+      <p class="section-sub">Trading proxy's adjusted close, log scale. For context — pair with the breadth chart above to see when breadth was strong vs the price action.</p>
       <div id="detail-equity-chart" class="chart short"></div>
-    </section>
-
-    <section>
-      <h2>Long episodes (chronological)</h2>
-      <p class="section-sub">Every distinct period the strategy held the leveraged 150% allocation. Underlying return is the close-to-close move of the traded proxy during the episode (not the strategy return — strategy applied 150% leverage on top of this).</p>
-      <div class="table-scroll">
-        <table class="episodes">
-          <thead><tr id="episodes-thead"></tr></thead>
-          <tbody id="episodes-tbody"></tbody>
-        </table>
-      </div>
     </section>
   </div>
 
@@ -809,7 +740,7 @@
 
     <section>
       <h2>Headline comparison</h2>
-      <p class="section-sub">Top row (highlighted green, tagged DEPLOYED) is the actual Strategy A used in the Multi-Strategy A+B 50/50 blend: <strong>Top-7 breadth-weighted rotation, weekly Friday, no leverage</strong>. Other rows are reference variants: the leveraged version (not deployed — the A+B blend captures most of the upside without margin), the K=5 unleveraged sensitivity, the legacy single-ETF L paradigm (kept for context — see Robustness → Test 10 for why this was superseded), and the two passive benchmarks.</p>
+      <p class="section-sub">Top row (highlighted green, tagged DEPLOYED) is the actual Strategy A used in the Multi-Strategy A+B 50/50 blend: <strong>Top-7 breadth-weighted rotation, weekly Friday, no leverage</strong>. Below it: the K=5 unleveraged variant as a K-sensitivity reference, and the two passive benchmarks (naive equal-weight, SPY buy-and-hold).</p>
       <table class="small-table" id="portfolio-table"><thead></thead><tbody></tbody></table>
     </section>
 
@@ -822,9 +753,9 @@
     <section>
       <details style="margin-top:20px;">
         <summary style="cursor:pointer;color:var(--ink-faint);font-size:13px;padding:4px 0;">
-          Show all 20 portfolio variants (3 × top-K × 3 weights × {unleveraged, leveraged})
+          Show all top-K variants (K ∈ {3,5,7} × weighting ∈ {equal, rank, breadth}, unleveraged)
         </summary>
-        <p class="section-sub" style="margin-top:10px;">Full sweep: top K ∈ {3, 5, 7} × weighting ∈ {equal, rank, breadth} × {unleveraged, leveraged 50/150 overlay on basket-avg breadth ≥ 60%}. All rebalance weekly with 5 bps per unit of turnover. Leveraged variants modulate 50%↔150% basket exposure based on basket-average breadth.</p>
+        <p class="section-sub" style="margin-top:10px;">Full unleveraged sweep — different ways to pick and weight the top-K-by-breadth basket. Weekly rebalance, 5 bps per unit of turnover.</p>
         <table class="small-table" id="portfolio-table-full"><thead></thead><tbody></tbody></table>
       </details>
     </section>
@@ -1103,22 +1034,16 @@
     <section>
       <h2>Signal definition (formal)</h2>
       <div class="methodbox">
-        <p><strong>Breadth indicator</strong>: % of an ETF's point-in-time constituents whose closing price is above their own 200-day simple moving average. Computed daily; constituents reset weekly from the iShares UK holdings endpoint.</p>
-        <p><strong>Headline strategy — top-K rotation</strong>:</p>
+        <p><strong>Breadth indicator (Strategy A)</strong>: % of an ETF's point-in-time constituents whose closing price is above their own 200-day simple moving average. Computed daily; constituents reset weekly from the iShares UK holdings endpoint.</p>
+        <p><strong>Momentum signal (Strategy B)</strong>: distance above own 200-day MA per ETF, <code>(close − MA200) / MA200</code>. Positive = uptrend, negative = downtrend. Computed daily from yfinance adjusted close.</p>
+        <p><strong>Headline strategy — Multi-Strategy A+B 50/50 blend (no leverage)</strong>:</p>
         <ul>
-          <li>Universe: 15 ETFs (SOXX, CSP1, CNDX, IUES, IUFS, IUIT, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, IUSP, IDP6).</li>
-          <li>Each Friday close, rank the 15 by current breadth. Pick the top K = 7.</li>
-          <li>Weight each held ETF by its breadth share: w_i = breadth_i / Σ(top-K breadths).</li>
+          <li><strong>Strategy A</strong>: rank 15 US sector/broad ETFs by breadth, take top K = 7, weight by breadth share. Universe: SOXX, CSP1, CNDX, IUES, IUFS, IUIT, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, IUSP, IDP6.</li>
+          <li><strong>Strategy B</strong>: rank 14 broad asset-class ETFs by distance above 200d MA, drop negatives, take top K = 7, weight by signal share, cash floor in IEF for unfilled slots. Universe: SPY, IJR, QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, TIP, HYG.</li>
+          <li><strong>Combination</strong>: 50% A + 50% B, rebalanced weekly Friday.</li>
           <li>Transaction cost: 5 bps per unit of weight change (10 bps round-trip).</li>
-          <li>K is refit only annually on expanding-window Sharpe over K ∈ {3, 5, 7}; choice has been stable at K = 5 (2022) → K = 7 (2024 onwards).</li>
-        </ul>
-        <p><strong>Legacy single-ETF strategy (Family D) — shown for reference on the Strategy / Unleveraged tabs</strong>:</p>
-        <ul>
-          <li>Base allocation: <code>50%</code> in the traded ETF, always.</li>
-          <li>Leveraged allocation: <code>150%</code> in the traded ETF when ma200_breadth ≥ L.</li>
-          <li>L is per-ETF, picked as the peak-Sharpe value from the sweep <code>L ∈ {50, 55, 60, 65, 70, 75, 80}</code>.</li>
-          <li>Allocation transitions use <strong>yesterday's breadth</strong> to decide today's allocation (no look-ahead).</li>
-          <li>Transaction cost: <strong>5 bps</strong> per unit of allocation change (10 bps round-trip).</li>
+          <li>No look-ahead: every weight is decided using the prior trading day's signal.</li>
+          <li>K is refit only annually on expanding-window Sharpe over K ∈ {3, 5, 7} (A) and {3, 4, 5, 6, 7} (B); both choices have been stable at K = 7.</li>
         </ul>
       </div>
     </section>
@@ -1136,7 +1061,7 @@
     <section>
       <h2>OOS validation</h2>
       <div class="methodbox">
-        <p>The MA200 + 50/150 sweep is reported in-sample on the 2019-2026 window. A clean train/test OOS test was previously run on the composite breadth signal at the 2022-09-08 split; the train-half winner held up on the test half (train Sharpe +0.94 → test Sharpe +1.42 on SOXX; train winner ranked #1 of 11 cells on test grid). The MA200 sweep has not yet been formally OOS-validated; the threshold sensitivity chart on the Strategy tab provides indirect evidence (flat curves around the peak suggest L is not delicate).</p>
+        <p>Both Strategy A and Strategy B are validated walk-forward (see Robustness → Test 10 for Strategy A's annual K refit and Strategy B's tab for its own walk-forward). The breadth signal itself was earlier validated via a 2022-09-08 train/test split on a composite breadth indicator: the train-half winner held up on the test half (train Sharpe +0.94 → test Sharpe +1.42 on SOXX; train winner ranked #1 of 11 cells on test grid). The current top-K rotation paradigm strips away the per-ETF threshold tuning that earlier work relied on, eliminating most of the in-sample selection bias.</p>
       </div>
     </section>
 
@@ -1174,11 +1099,11 @@
       <div class="methodbox">
         <p>What this study does <em>not</em> capture:</p>
         <ul>
-          <li><strong>Leverage borrow cost</strong>: the 50/150 sizing assumes free leverage. At a 5%/yr borrow rate on the 50% extra exposure, expect ~1.5-2.5pp annualised drag. Sharpe impact small but real.</li>
-          <li><strong>Slippage on rebalances</strong>: portfolio rebalances assume mid-spread fills. Worst-case slippage may add another 5-10 bps per rebalance.</li>
+          <li><strong>Slippage on rebalances</strong>: rebalances assume mid-spread fills. Worst-case slippage may add another 5-10 bps per rebalance on top of the 5 bps transaction cost already modelled.</li>
           <li><strong>Survivorship in some price series</strong>: a few historically-acquired constituents (~5-15% of the early-window roster for some ETFs) are missing from yfinance, biasing early-window breadth measurements toward survivors. Less of an issue post-2020.</li>
-          <li><strong>The 2019-2026 window was favourable for long-only equity</strong>: US large-cap returned ~17% annualised. Any always-on strategy looks good. A regime that includes 2008 or a sustained bear market would stress-test the approach harder.</li>
-          <li><strong>Concentration risk</strong>: single-ETF strategies (especially semis at 50/150) have drawdowns in the 25-45% range. Real position sizing should account for this.</li>
+          <li><strong>Strategy A common window 2019-2026 was favourable for long-only equity</strong>: US large-cap returned ~17% annualised. Strategy B's 2008-2026 window covers two real crises (GFC, COVID, 2022 rates shock) which is part of why its max DD is much lower. The 50/50 blend inherits some of that — but a sustained bear market would still stress the combined approach.</li>
+          <li><strong>Concentration risk in Strategy A</strong>: even at K = 7 the top breadth tilts toward 1-2 dominant sectors, so a semis or energy reversal can move 10-20% of NAV in a week. The 50/50 blend with Strategy B cushions but does not eliminate this.</li>
+          <li><strong>Strategy B cash-floor mechanic</strong>: when fewer than K asset classes are positive-trend, the deficit sits in IEF (intermediate Treasury). Earns ~3-4% Treasury carry but introduces small duration risk in a rising-rate shock.</li>
         </ul>
       </div>
     </section>
@@ -1188,10 +1113,14 @@
       <div class="methodbox">
         <p>Full source at <a href="https://github.com/phuazz/breadth-thrust-etf">github.com/phuazz/breadth-thrust-etf</a>. To reproduce end-to-end:</p>
         <ul>
-          <li><code>python scripts/fetch_constituents.py --etf SOXX</code> (and other ETF symbols)</li>
-          <li><code>python scripts/compute_breadth.py --etf SOXX</code></li>
-          <li><code>python scripts/run_ma200_sweep.py</code></li>
-          <li><code>python scripts/run_portfolio.py</code></li>
+          <li><code>python scripts/fetch_constituents.py --etf SOXX</code> (and each of the 15 ETF symbols)</li>
+          <li><code>python scripts/compute_breadth.py --etf SOXX</code> (likewise for each ETF)</li>
+          <li><code>python scripts/run_ma200_sweep.py</code> (per-ETF L sweep — feeds Robustness Test 1)</li>
+          <li><code>python scripts/run_portfolio.py</code> (Strategy A portfolio variants)</li>
+          <li><code>python scripts/run_topk_robustness.py</code> (Strategy A — K × cadence grid + trade history)</li>
+          <li><code>python scripts/run_asset_class_rotation.py</code> (Strategy B — ETF-level momentum rotation)</li>
+          <li><code>python scripts/run_multi_strategy.py</code> (A+B blends and meta-rotation)</li>
+          <li><code>python scripts/run_robustness.py</code> (full robustness suite, slow ~10 min)</li>
           <li><code>python scripts/pipeline.py</code> (rebuilds this dashboard)</li>
         </ul>
         <p>An earlier iteration of this work explored a more complex composite signal (RSI breadth + MA breadth + Highs breadth + thrust detection + entry delay + trend filter) before the simpler MA200 sweep showed it generalised worse. That work is documented in the git history and the project's <a href="https://github.com/phuazz/breadth-thrust-etf#readme">README</a>.</p>
@@ -1558,244 +1487,10 @@ function renderMonitor() {
     }).join('');
 }
 
-// ----------- Strategy tab ----------------------------------------------
-function renderStrategyVerdict() {
-  const data = window.DATA;
-  const m = data.ma200;
-  if (!m) return;
-  const monitor = m.monitor || {};
-  const etfs = Object.keys(monitor);
-  let beatBh = 0;
-  for (const etf of etfs) {
-    const fam_d = m.family_d_long_leveraged_base50?.[etf];
-    const bh = m.baselines?.[etf]?.buy_and_hold;
-    if (!fam_d || !bh) continue;
-    const best = fam_d.reduce((a, b) => (a.sharpe ?? -1e9) > (b.sharpe ?? -1e9) ? a : b);
-    if (best.sharpe > bh.sharpe) beatBh++;
-  }
-  document.getElementById('strategy-verdict').innerHTML =
-    `<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--warn);background:rgba(183,110,0,0.10);padding:2px 8px;border-radius:3px;margin-right:8px;">LEGACY — PARADIGM 1</span>`
-    + `These are <strong>single-ETF</strong> in-sample results for "buy each ETF separately, switch to 150% when its own breadth crosses an in-sample-fitted L threshold". `
-    + `The Test 10 paradigm comparison (Robustness tab) showed this approach <strong>loses ~0.3 Sharpe out-of-sample</strong> because L has to be re-tuned each regime. The deployable strategy is <a href="#" onclick="document.querySelector('[data-tab=portfolio]').click();return false;">top-K rotation</a> instead — kept here for reference and as a sanity check on the single-asset signal.<br><br>`
-    + `<strong>MA200 + 50/150 beats buy-and-hold on Sharpe on ${beatBh} of ${etfs.length} ETFs in-sample.</strong> `
-    + `Single textbook indicator (% of constituents above 200d MA), single sizing rule (50% base, 150% when breadth > threshold). Long thresholds cluster in the 50-75% range. Shorting low-breadth was tested and never helped.`;
-}
-
-function renderStrategyTable() {
-  const data = window.DATA;
-  const m = data.ma200;
-  if (!m) return;
-  const el = document.getElementById('strategy-table');
-  el.querySelector('thead').innerHTML = `<tr>
-    <th>ETF</th><th>Description</th><th>L (%)</th>
-    <th>Sharpe</th><th>BH Sharpe</th><th>Δ vs BH</th>
-    <th>Total return</th><th>BH total return</th>
-    <th>Max DD</th><th>Trades</th>
-  </tr>`;
-  const tbody = el.querySelector('tbody');
-  tbody.innerHTML = '';
-  const etfs = Object.keys(m.monitor || {});
-  for (const etf of etfs) {
-    const fam_d = m.family_d_long_leveraged_base50?.[etf];
-    const bh = m.baselines?.[etf]?.buy_and_hold;
-    const detail = m.per_etf_detail?.[etf];
-    if (!fam_d || !bh) continue;
-    const best = fam_d.reduce((a, b) => (a.sharpe ?? -1e9) > (b.sharpe ?? -1e9) ? a : b);
-    const delta = (best.sharpe ?? 0) - (bh.sharpe ?? 0);
-    const isWin = delta > 0;
-    tbody.innerHTML += `<tr class="${isWin ? 'highlight' : ''}">
-      <td class="row-label">${etf}</td>
-      <td style="color:var(--ink-faint);font-size:13px;">${ETF_DESCRIPTIONS[etf] || ''}</td>
-      <td class="num">${best.long_threshold}</td>
-      <td class="num"><strong>${fmtNum(best.sharpe, 2, true)}</strong></td>
-      <td class="num">${fmtNum(bh.sharpe, 2, true)}</td>
-      <td class="num ${delta > 0 ? 'good' : 'bad'}">${fmtNum(delta, 2, true)}</td>
-      <td class="num">${fmtPct(best.total_return, true)}</td>
-      <td class="num">${fmtPct(bh.total_return, true)}</td>
-      <td class="num">${fmtPct(best.max_dd)}</td>
-      <td class="num">${detail?.n_episodes ?? '—'}</td>
-    </tr>`;
-  }
-}
-
-function renderStrategyRobustness() {
-  const data = window.DATA;
-  const m = data.ma200;
-  if (!m) return;
-  const traces = [];
-  const etfs = Object.keys(m.monitor || {});
-  const colors = ['#1351b4', '#1d7a3a', '#b76e00', '#b3261e', '#8e44ad',
-                   '#16a085', '#d35400', '#2c3e50', '#7f8c8d', '#c0392b', '#27ae60'];
-  for (let i = 0; i < etfs.length; i++) {
-    const etf = etfs[i];
-    const rows = m.family_d_long_leveraged_base50?.[etf];
-    if (!rows) continue;
-    traces.push({
-      x: rows.map(r => r.long_threshold),
-      y: rows.map(r => r.sharpe),
-      mode: 'lines+markers',
-      name: etf,
-      line: { color: colors[i % colors.length], width: 1.5 },
-      marker: { size: 6 },
-    });
-  }
-  const layout = {
-    margin: { l: 56, r: 14, t: 14, b: 44 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
-    xaxis: { title: 'Long threshold L (% constituents above 200d MA)',
-             gridcolor: '#eef0f3', zeroline: false, dtick: 5 },
-    yaxis: { title: 'Annualised Sharpe', gridcolor: '#eef0f3',
-             zeroline: true, zerolinecolor: '#c8ccd2' },
-    hovermode: 'x unified',
-    legend: { orientation: 'h', x: 0, y: 1.12 },
-  };
-  Plotly.newPlot('strategy-robustness-chart', traces, layout, { displayModeBar: false, responsive: true });
-}
-
-// ----------- Unleveraged tab -------------------------------------------
-function _bestRowMA(rows) {
-  if (!rows?.length) return null;
-  return rows.reduce((a, b) => (a.sharpe ?? -1e9) >= (b.sharpe ?? -1e9) ? a : b);
-}
-
-function renderUnlevVerdict() {
-  const data = window.DATA;
-  const m = data.ma200;
-  if (!m) return;
-  const etfs = Object.keys(m.monitor || {});
-  let beatBh = 0;
-  for (const etf of etfs) {
-    const fb = _bestRowMA(m.family_b_long_base50?.[etf]);
-    const bh = m.baselines?.[etf]?.buy_and_hold;
-    if (fb && bh && fb.sharpe > bh.sharpe) beatBh++;
-  }
-  // Best portfolio variant that isn't leveraged
-  let bestPort = null;
-  if (data.portfolio?.results) {
-    for (const [k, r] of Object.entries(data.portfolio.results)) {
-      if (k.endsWith('_leveraged')) continue;
-      if (k === 'spy_buy_hold' || k === 'equal_weight_all') continue;
-      if (!bestPort || (r.sharpe ?? -1e9) > (bestPort.sharpe ?? -1e9)) {
-        bestPort = { key: k, ...r };
-      }
-    }
-  }
-  const spy = data.portfolio?.results?.spy_buy_hold;
-  document.getElementById('unlev-verdict').innerHTML =
-    `<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--warn);background:rgba(183,110,0,0.10);padding:2px 8px;border-radius:3px;margin-right:8px;">LEGACY — PARADIGM 1 (UNLEVERAGED)</span>`
-    + `Same regime signal as the Single-ETF L tab, but capped at 100% allocation — no margin required. Same out-of-sample weakness — kept here as a no-leverage reference. The deployable strategy remains <a href="#" onclick="document.querySelector('[data-tab=portfolio]').click();return false;">top-K rotation</a>.<br><br>`
-    + `<strong>Beats buy-and-hold on ${beatBh} of ${etfs.length} ETFs in-sample</strong>, the same 8 of 11 the leveraged variant wins on. `
-    + `Per-ETF Sharpe is almost identical to the leveraged version (differences in the 0.0-0.1 range); the trade-off is materially lower total return in exchange for a ~7-10pp lower max drawdown.<br><br>`
-    + `Best unleveraged portfolio: <strong>${bestPort?.label || '—'}</strong>, Sharpe <strong>${fmtNum(bestPort?.sharpe, 2, true)}</strong>, `
-    + `total return <strong>${fmtPct(bestPort?.total_return, true)}</strong>, max DD <strong>${fmtPct(bestPort?.max_dd)}</strong>. `
-    + `Beats SPY buy-and-hold (Sharpe ${fmtNum(spy?.sharpe, 2, true)}) by Δ ${fmtNum((bestPort?.sharpe ?? 0) - (spy?.sharpe ?? 0), 2, true)} Sharpe. `
-    + `Achievable in an unleveraged retail account.`;
-}
-
-function renderUnlevTable() {
-  const data = window.DATA;
-  const m = data.ma200;
-  if (!m) return;
-  const el = document.getElementById('unlev-table');
-  el.querySelector('thead').innerHTML = `<tr>
-    <th>ETF</th><th>Description</th><th>L (%)</th>
-    <th>50/100 Sharpe</th><th>BH Sharpe</th><th>Δ vs BH</th>
-    <th>50/100 total ret</th><th>50/100 max DD</th>
-    <th>50/150 max DD</th><th>Δ DD vs 50/150</th>
-  </tr>`;
-  const tbody = el.querySelector('tbody');
-  tbody.innerHTML = '';
-  const etfs = Object.keys(m.monitor || {});
-  for (const etf of etfs) {
-    const fb = _bestRowMA(m.family_b_long_base50?.[etf]);
-    const fd = _bestRowMA(m.family_d_long_leveraged_base50?.[etf]);
-    const bh = m.baselines?.[etf]?.buy_and_hold;
-    if (!fb || !bh) continue;
-    const dSh = (fb.sharpe ?? 0) - (bh.sharpe ?? 0);
-    const dDD = (fb.max_dd ?? 0) - (fd?.max_dd ?? 0);  // negative = lower DD
-    const isWin = dSh > 0;
-    tbody.innerHTML += `<tr class="${isWin ? 'highlight' : ''}">
-      <td class="row-label">${etf}</td>
-      <td style="color:var(--ink-faint);font-size:13px;">${ETF_DESCRIPTIONS[etf] || ''}</td>
-      <td class="num">${fb.long_threshold}</td>
-      <td class="num"><strong>${fmtNum(fb.sharpe, 2, true)}</strong></td>
-      <td class="num">${fmtNum(bh.sharpe, 2, true)}</td>
-      <td class="num ${dSh > 0 ? 'good' : 'bad'}">${fmtNum(dSh, 2, true)}</td>
-      <td class="num">${fmtPct(fb.total_return, true)}</td>
-      <td class="num">${fmtPct(fb.max_dd)}</td>
-      <td class="num" style="color:var(--ink-faint);">${fmtPct(fd?.max_dd)}</td>
-      <td class="num ${dDD < 0 ? 'good' : 'bad'}">${fmtPct(dDD, true)}</td>
-    </tr>`;
-  }
-}
-
-function renderUnlevPortfolio() {
-  const data = window.DATA;
-  const p = data.portfolio;
-  if (!p) return;
-  const el = document.getElementById('unlev-portfolio-table');
-  el.querySelector('thead').innerHTML = `<tr>
-    <th>Variant</th><th>Sharpe</th><th>CAGR</th>
-    <th>Total return</th><th>Max DD</th><th>Δ Sharpe vs SPY</th>
-  </tr>`;
-  const tbody = el.querySelector('tbody');
-  const spy = p.results.spy_buy_hold;
-  // Only unleveraged variants
-  const variants = Object.entries(p.results)
-    .filter(([k]) => !k.endsWith('_leveraged') && k !== 'spy_buy_hold')
-    .map(([k, v]) => ({ key: k, ...v }))
-    .sort((a, b) => (b.sharpe ?? -1e9) - (a.sharpe ?? -1e9));
-  const bestSh = variants[0]?.sharpe;
-  tbody.innerHTML = variants.map(r => {
-    const isBest = r.sharpe === bestSh;
-    const dSpy = (r.sharpe ?? 0) - (spy?.sharpe ?? 0);
-    return `<tr class="${isBest ? 'highlight' : ''}">
-      <td class="row-label">${r.label || r.key}</td>
-      <td class="num"><strong>${fmtNum(r.sharpe, 2, true)}</strong></td>
-      <td class="num">${fmtPct(r.cagr, true)}</td>
-      <td class="num">${fmtPct(r.total_return, true)}</td>
-      <td class="num">${fmtPct(r.max_dd)}</td>
-      <td class="num ${dSpy > 0 ? 'good' : 'bad'}">${fmtNum(dSpy, 2, true)}</td>
-    </tr>`;
-  }).join('') + `<tr style="border-top:2px solid var(--border-strong);color:var(--ink-faint);">
-    <td class="row-label" style="padding-left:22px;">↳ SPY buy-and-hold (bench)</td>
-    <td class="num">${fmtNum(spy?.sharpe, 2, true)}</td>
-    <td class="num">${fmtPct(spy?.cagr, true)}</td>
-    <td class="num">${fmtPct(spy?.total_return, true)}</td>
-    <td class="num">${fmtPct(spy?.max_dd)}</td>
-    <td class="num">—</td>
-  </tr>`;
-
-  // Chart: top 3 unleveraged + SPY
-  const top3 = variants.slice(0, 3);
-  const colors = ['#1351b4', '#1d7a3a', '#b76e00'];
-  const traces = top3.map((r, i) => ({
-    x: r.dates, y: r.equity, mode: 'lines',
-    name: `${r.label} — Shp ${fmtNum(r.sharpe, 2, true)}`,
-    line: { color: colors[i], width: 1.6 },
-  }));
-  if (spy) {
-    traces.push({
-      x: spy.dates, y: spy.equity, mode: 'lines',
-      name: `SPY BH — Shp ${fmtNum(spy.sharpe, 2, true)}`,
-      line: { color: '#6b727a', width: 1.2, dash: 'dot' },
-    });
-  }
-  const layout = {
-    margin: { l: 56, r: 14, t: 14, b: 38 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
-    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
-    yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3',
-             zeroline: false, type: 'log', tickformat: '.2f' },
-    hovermode: 'x unified',
-    legend: { orientation: 'h', x: 0, y: 1.08 },
-  };
-  Plotly.newPlot('unlev-portfolio-chart', traces, layout, { displayModeBar: false, responsive: true });
-}
-
 // ----------- ETF Detail tab --------------------------------------------
+// Inspection tool: shows the breadth signal time series (which drives
+// Strategy A's top-K rotation) and the trading proxy's price for any
+// single ETF in the universe. Read-only context — no strategy overlays.
 function renderDetail() {
   const data = window.DATA;
   const m = data.ma200;
@@ -1805,39 +1500,26 @@ function renderDetail() {
   const monitor = m.monitor?.[etf];
   const detail = m.per_etf_detail?.[etf];
   const winnerEq = m.winner_equity_curves?.[etf];
-  const bh = m.baselines?.[etf]?.buy_and_hold;
-  // Pill
-  document.getElementById('detail-pill').textContent =
-    `L=${monitor?.long_threshold_pct ?? '—'}%  ·  Sharpe ${fmtNum(monitor?.winner_sharpe, 2, true)}  ·  `
-    + `${monitor?.in_long_state ? 'IN LONG (150%)' : 'BASE (50%)'} for ${monitor?.days_in_state ?? 0}d`;
 
-  // Breadth chart with threshold band
+  // Pill — current breadth + whether this ETF is in Strategy A's top-7 today
+  const topk = data.topk;
+  const inTopK = topk?.headline?.trade_history
+    ?.slice(-1)[0]?.holdings?.some(h => h.etf === etf);
+  const currentBreadth = monitor?.ma200_breadth_pct;
+  const pill = `breadth ${currentBreadth?.toFixed(1) ?? '—'}%` +
+    (inTopK ? '  ·  ✓ in Strategy A top-7' : '  ·  not in top-7 today');
+  document.getElementById('detail-pill').textContent = pill;
+
+  // Breadth time series (no threshold shading — purely the signal)
   if (detail) {
     const dates = detail.breadth_dates;
     const breadth = detail.breadth_pct;
-    const L = detail.chosen_long_threshold;
     const traces = [
-      // Threshold zone shading (above L = leveraged)
-      {
-        x: [dates[0], dates[dates.length - 1], dates[dates.length - 1], dates[0]],
-        y: [L, L, 100, 100],
-        fill: 'toself', mode: 'none',
-        fillcolor: 'rgba(29, 122, 58, 0.08)',
-        name: `Above L=${L}% → 150%`,
-        hoverinfo: 'skip', showlegend: true,
-      },
       {
         x: dates, y: breadth, mode: 'lines',
-        name: '% above 200d MA',
-        line: { color: '#1351b4', width: 1.6 },
-      },
-      // Threshold line
-      {
-        x: [dates[0], dates[dates.length - 1]],
-        y: [L, L], mode: 'lines',
-        name: `Threshold L=${L}%`,
-        line: { color: '#b3261e', width: 1, dash: 'dash' },
-        showlegend: false,
+        name: '% of constituents above 200d MA',
+        line: { color: '#1d7a3a', width: 1.7 },
+        hovertemplate: '%{x|%Y-%m-%d}<br>Breadth: %{y:.1f}%<extra></extra>',
       },
     ];
     const layout = {
@@ -1847,70 +1529,30 @@ function renderDetail() {
       xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
       yaxis: { title: '% above 200d MA', gridcolor: '#eef0f3',
                zeroline: false, range: [0, 100], ticksuffix: '%' },
-      hovermode: 'x unified',
-      legend: { orientation: 'h', x: 0, y: 1.08 },
+      hovermode: 'x unified', showlegend: false,
     };
     Plotly.newPlot('detail-breadth-chart', traces, layout, { displayModeBar: false, responsive: true });
   }
 
-  // Equity chart — overlay 50/150 (leveraged), 50/100 (unleveraged), and buy-and-hold
-  if (winnerEq?.family_d) {
-    const traces = [];
-    const fd = winnerEq.family_d;
-    traces.push({
-      x: fd.dates, y: fd.equity, mode: 'lines',
-      name: `MA200 + 50/150 (leveraged, L=${monitor?.long_threshold_pct}) — Shp ${fmtNum(fd.sharpe, 2, true)}`,
-      line: { color: '#1351b4', width: 1.7 },
-    });
-    if (winnerEq.family_b) {
-      const fb = winnerEq.family_b;
-      traces.push({
-        x: fb.dates, y: fb.equity, mode: 'lines',
-        name: `MA200 + 50/100 (no leverage, L=${fb.long_threshold}) — Shp ${fmtNum(fb.sharpe, 2, true)}`,
-        line: { color: '#1d7a3a', width: 1.4 },
-      });
-    }
-    if (winnerEq.buy_and_hold) {
-      traces.push({
-        x: winnerEq.buy_and_hold.dates, y: winnerEq.buy_and_hold.equity, mode: 'lines',
-        name: `Buy-and-hold — Shp ${fmtNum(winnerEq.buy_and_hold.sharpe, 2, true)}`,
-        line: { color: '#6b727a', width: 1.2, dash: 'dot' },
-      });
-    }
+  // Price chart — just buy-and-hold of the trading proxy, log scale.
+  if (winnerEq?.buy_and_hold) {
+    const bh = winnerEq.buy_and_hold;
+    const traces = [{
+      x: bh.dates, y: bh.equity, mode: 'lines',
+      name: `${monitor?.trading_proxy || etf} price (normalised)`,
+      line: { color: '#1351b4', width: 1.4 },
+      hovertemplate: '%{x|%Y-%m-%d}<br>Price: %{y:.2f}<extra></extra>',
+    }];
     const layout = {
       margin: { l: 56, r: 14, t: 14, b: 38 },
       paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
       font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
       xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
-      yaxis: { title: 'Equity (norm to 1)', gridcolor: '#eef0f3',
+      yaxis: { title: `${monitor?.trading_proxy || etf} (norm to 1, log)`, gridcolor: '#eef0f3',
                zeroline: false, type: 'log', tickformat: '.2f' },
-      hovermode: 'x unified',
-      legend: { orientation: 'h', x: 0, y: 1.08 },
+      hovermode: 'x unified', showlegend: false,
     };
     Plotly.newPlot('detail-equity-chart', traces, layout, { displayModeBar: false, responsive: true });
-  }
-
-  // Episodes table
-  const thead = document.getElementById('episodes-thead');
-  const tbody = document.getElementById('episodes-tbody');
-  thead.innerHTML = `<th>Entry</th><th>Exit</th><th>Calendar days</th>
-                      <th>Underlying return</th><th>Breadth at entry</th>`;
-  tbody.innerHTML = '';
-  const eps = detail?.episodes || [];
-  if (eps.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--ink-faint);">No long episodes for ${etf} in window.</td></tr>`;
-  } else {
-    for (const ep of eps) {
-      const r = ep.underlying_return;
-      const cls = r > 0 ? 'pos' : (r < 0 ? 'neg' : '');
-      tbody.innerHTML += `<tr>
-        <td>${ep.entry}</td>
-        <td>${ep.exit}</td>
-        <td>${ep.calendar_days}</td>
-        <td class="${cls}">${fmtPct(r, true)}</td>
-        <td>${(ep.ma200_breadth_at_entry * 100).toFixed(1)}%</td>
-      </tr>`;
-    }
   }
 }
 
@@ -1933,47 +1575,16 @@ function _curatedSeries(data) {
       color: '#1d7a3a', width: 2.6,
     });
   }
-  // 2. Top-7 with 50/150 leverage overlay — kept for reference but NOT
-  //    used in the 50/50 deployment (user moved away from leverage).
-  if (r.top7_breadth_weight_leveraged) {
-    out.push({
-      label: 'Top-7 + 50/150 leverage overlay (reference only — not deployed)',
-      category: 'Leveraged variant',
-      ...r.top7_breadth_weight_leveraged,
-      color: '#1351b4', width: 1.4, dash: 'dashdot',
-    });
-  }
-  // 3. Top-5 unleveraged — second-best K choice, kept for sensitivity context
+  // 2. Top-5 unleveraged — K-sensitivity reference (is K=7 unique or robust?)
   if (r.top5_breadth_weight) {
     out.push({
       label: 'Top-5 breadth-weighted rotation (K-sensitivity reference)',
-      category: 'Strategy A — K variant',
+      category: 'K variant',
       ...r.top5_breadth_weight,
       color: '#7c3aed', width: 1.3, dash: 'dot',
     });
   }
-  // 4. Eq-weight ensemble of 15 single-ETF MA200 strategies (legacy paradigm 2)
-  if (r.eq_weight_11_family_d) {
-    out.push({
-      label: 'Legacy: equal-weight ensemble of 15 single-ETF MA200 50/150 strategies',
-      category: 'Legacy single-ETF L',
-      ...r.eq_weight_11_family_d,
-      color: '#b76e00', width: 1.3, dash: 'dot',
-    });
-  }
-  // 5. CSP1 single-ETF MA200 50/150 (legacy reference)
-  if (meq.CSP1?.family_d) {
-    const c = meq.CSP1.family_d;
-    out.push({
-      label: 'Legacy: CSP1 (S&P 500) single-ETF MA200 + 50/150',
-      category: 'Legacy single-ETF L',
-      sharpe: c.sharpe, total_return: c.total_return, max_dd: c.max_dd,
-      cagr: c.cagr,
-      dates: c.dates, equity: c.equity,
-      color: '#b3261e', width: 1.2, dash: 'dot',
-    });
-  }
-  // 6. Naive equal-weight all (no signal — diversification only)
+  // 3. Naive equal-weight all (no signal — pure diversification benchmark)
   if (r.equal_weight_all) {
     out.push({
       label: 'Benchmark: equal-weight all 15 ETFs (no signal)',
@@ -1982,7 +1593,7 @@ function _curatedSeries(data) {
       color: '#4a5159', width: 1.1, dash: 'dash',
     });
   }
-  // 7. SPY buy-and-hold (passive benchmark)
+  // 4. SPY buy-and-hold (passive benchmark)
   if (r.spy_buy_hold) {
     out.push({
       label: 'Benchmark: SPY buy-and-hold (passive)',
@@ -2013,9 +1624,8 @@ function renderPortfolio() {
   const wfTopK = data.robustness?.test_10_wf_topk_portfolio?.walk_forward_sharpe;
   const wfL_csp1 = data.robustness?.test_1_walk_forward_l?.CSP1?.walk_forward_sharpe;
   document.getElementById('portfolio-verdict').innerHTML =
-    `<strong>Strategy A is the top row in the table below: Top-7 breadth-weighted rotation, weekly Friday, no leverage.</strong> In-sample Sharpe <strong>${fmtNum(stratA?.sharpe, 2, true)}</strong>, CAGR <strong>${fmtPct(stratA?.cagr, true)}</strong>, max DD <strong>${fmtPct(stratA?.max_dd)}</strong>. Walk-forward Sharpe <strong>${fmtNum(wfTopK, 2, true)}</strong> (Robustness → Test 10) — essentially equal to in-sample, no overfit. In the deployed Multi-Strategy A+B 50/50 blend, this row contributes 50% of total NAV; the other 50% is Strategy B (Asset Class tab).<br><br>`
-    + `<strong>Why not the leveraged variant?</strong> The 50/150 leverage overlay on basket breadth boosts CAGR by ~1.6pp but costs borrow (5%/yr modelled) and is now superseded by Strategy A + Strategy B diversification, which captures most of the upside without margin. Leveraged row kept for reference only.<br><br>`
-    + `<strong>Why not the no-tilt ensemble (the row with Sharpe ${fmtNum(ensemble?.sharpe, 2, true)})?</strong> That row carries in-sample-fitted L thresholds per ETF; walk-forward those thresholds degrade (e.g. CSP1 drops to ${fmtNum(wfL_csp1, 2, true)}). The Top-7 rotation has no per-ETF fitting cost — that is why it survives walk-forward and the ensemble does not.`;
+    `<strong>Strategy A is the top row in the table below: Top-7 breadth-weighted rotation, weekly Friday, no leverage.</strong> In-sample Sharpe <strong>${fmtNum(stratA?.sharpe, 2, true)}</strong>, CAGR <strong>${fmtPct(stratA?.cagr, true)}</strong>, max DD <strong>${fmtPct(stratA?.max_dd)}</strong>. Walk-forward Sharpe <strong>${fmtNum(wfTopK, 2, true)}</strong> (Robustness → Test 10) — essentially equal to in-sample, no overfit.<br><br>`
+    + `In the deployed <a href="#" onclick="document.querySelector('[data-tab=multi]').click();return false;">Multi-Strategy A+B 50/50 blend</a>, this row contributes 50% of total NAV; the other 50% is <a href="#" onclick="document.querySelector('[data-tab=asset]').click();return false;">Strategy B</a> (asset-class momentum rotation). The K=5 row below shows the K-sensitivity reference. Benchmarks are equal-weight all 15 ETFs (no signal) and SPY buy-and-hold. For why per-ETF threshold tuning was abandoned in favour of this paradigm, see Robustness → Test 10.`;
 
   // Headline table — Strategy A on top, highlighted; others as reference
   const el = document.getElementById('portfolio-table');
@@ -2089,7 +1699,11 @@ function renderPortfolio() {
       <th>Total return</th><th>Max DD</th><th>Δ Sharpe vs SPY</th>
     </tr>`;
     const fullBody = elFull.querySelector('tbody');
-    const variants = Object.entries(p.results).map(([k, v]) => ({ key: k, ...v }));
+    // Drop leveraged variants and the legacy single-ETF L ensemble from the
+    // expandable. Keep only unleveraged top-K variants + the two benchmarks.
+    const variants = Object.entries(p.results)
+      .filter(([k]) => !k.endsWith('_leveraged') && k !== 'eq_weight_11_family_d')
+      .map(([k, v]) => ({ key: k, ...v }));
     const sorted = variants.slice().sort((a, b) => (b.sharpe ?? -1e9) - (a.sharpe ?? -1e9));
     const fullBestSh = sorted[0]?.sharpe;
     fullBody.innerHTML = sorted.map(r => {
@@ -3391,8 +3005,6 @@ function activateTab(name) {
   document.querySelectorAll('.tab-content').forEach((c) => c.classList.toggle('active', c.id === 'tab-' + name));
   if (!TAB_RENDERED.has(name)) {
     if (name === 'monitor')   renderMonitor();
-    if (name === 'strategy')  { renderStrategyVerdict(); renderStrategyTable(); renderStrategyRobustness(); }
-    if (name === 'unlev')     { renderUnlevVerdict(); renderUnlevTable(); renderUnlevPortfolio(); }
     if (name === 'detail')    renderDetail();
     if (name === 'portfolio') { renderRecipeStats(); renderPortfolio(); }
     if (name === 'trades') {
@@ -3429,8 +3041,6 @@ function activateTab(name) {
     }
     TAB_RENDERED.add(name);
   } else {
-    if (name === 'strategy') { try { Plotly.Plots.resize('strategy-robustness-chart'); } catch(e){} }
-    if (name === 'unlev')    { try { Plotly.Plots.resize('unlev-portfolio-chart'); } catch(e){} }
     if (name === 'detail') {
       try { Plotly.Plots.resize('detail-breadth-chart'); Plotly.Plots.resize('detail-equity-chart'); } catch(e){}
     }
