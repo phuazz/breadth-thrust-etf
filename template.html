@@ -738,7 +738,7 @@
 
     <section>
       <h2>Headline comparison</h2>
-      <p class="section-sub">Six representative strategies — the best leveraged and unleveraged portfolios, the naive equal-weight benchmark across all 11 ETFs, two single-ETF MA200 strategies (CSP1 = S&P 500, SOXX = best single sector), and SPY buy-and-hold as the passive benchmark. Best Sharpe highlighted.</p>
+      <p class="section-sub">Top row (highlighted green, tagged DEPLOYED) is the actual Strategy A used in the Multi-Strategy A+B 50/50 blend: <strong>Top-7 breadth-weighted rotation, weekly Friday, no leverage</strong>. Other rows are reference variants: the leveraged version (not deployed — the A+B blend captures most of the upside without margin), the K=5 unleveraged sensitivity, the legacy single-ETF L paradigm (kept for context — see Robustness → Test 10 for why this was superseded), and the two passive benchmarks.</p>
       <table class="small-table" id="portfolio-table"><thead></thead><tbody></tbody></table>
     </section>
 
@@ -1784,61 +1784,74 @@ function _curatedSeries(data) {
   const r = p.results || {};
   const meq = m.winner_equity_curves || {};
   const out = [];
-  // 1. Top-5 breadth-weighted rotation (the deployable strategy, unleveraged)
-  if (r.top5_breadth_weight) {
+  // 1. STRATEGY A (deployed) — top-7 breadth-weighted rotation, weekly Fri,
+  //    NO LEVERAGE. This row matches run_topk_robustness HEADLINE_K=7 and
+  //    is the row used by the Multi-Strategy A+B 50/50 blend.
+  if (r.top7_breadth_weight) {
     out.push({
-      label: 'Top-5 breadth-weighted rotation (deployable, unleveraged)',
-      category: 'Top-K rotation',
-      ...r.top5_breadth_weight,
-      color: '#1d7a3a', width: 2.4,
+      label: 'STRATEGY A — Top-7 breadth-weighted rotation (DEPLOYED, no leverage)',
+      category: 'Strategy A',
+      isStrategyA: true,
+      ...r.top7_breadth_weight,
+      color: '#1d7a3a', width: 2.6,
     });
   }
-  // 2. Top-7 breadth-weighted rotation with 50/150 leverage overlay
+  // 2. Top-7 with 50/150 leverage overlay — kept for reference but NOT
+  //    used in the 50/50 deployment (user moved away from leverage).
   if (r.top7_breadth_weight_leveraged) {
     out.push({
-      label: 'Top-7 breadth-weighted rotation + 50/150 leverage overlay',
-      category: 'Top-K rotation (leveraged)',
+      label: 'Top-7 + 50/150 leverage overlay (reference only — not deployed)',
+      category: 'Leveraged variant',
       ...r.top7_breadth_weight_leveraged,
-      color: '#1351b4', width: 1.8,
+      color: '#1351b4', width: 1.4, dash: 'dashdot',
     });
   }
-  // 3. Eq-weight ensemble of 11 single-ETF MA200 strategies (paradigm 2 baseline)
+  // 3. Top-5 unleveraged — second-best K choice, kept for sensitivity context
+  if (r.top5_breadth_weight) {
+    out.push({
+      label: 'Top-5 breadth-weighted rotation (K-sensitivity reference)',
+      category: 'Strategy A — K variant',
+      ...r.top5_breadth_weight,
+      color: '#7c3aed', width: 1.3, dash: 'dot',
+    });
+  }
+  // 4. Eq-weight ensemble of 15 single-ETF MA200 strategies (legacy paradigm 2)
   if (r.eq_weight_11_family_d) {
     out.push({
-      label: '11-ETF MA200 ensemble (legacy paradigm — per-ETF L)',
+      label: 'Legacy: equal-weight ensemble of 15 single-ETF MA200 50/150 strategies',
       category: 'Legacy single-ETF L',
       ...r.eq_weight_11_family_d,
-      color: '#b76e00', width: 1.4, dash: 'dot',
+      color: '#b76e00', width: 1.3, dash: 'dot',
     });
   }
-  // 4. CSP1 single-ETF MA200 50/150 (broad-market single-ETF reference)
+  // 5. CSP1 single-ETF MA200 50/150 (legacy reference)
   if (meq.CSP1?.family_d) {
     const c = meq.CSP1.family_d;
     out.push({
-      label: 'CSP1 (S&P 500) single-ETF MA200 + 50/150 (legacy reference)',
+      label: 'Legacy: CSP1 (S&P 500) single-ETF MA200 + 50/150',
       category: 'Legacy single-ETF L',
       sharpe: c.sharpe, total_return: c.total_return, max_dd: c.max_dd,
       cagr: c.cagr,
       dates: c.dates, equity: c.equity,
-      color: '#b3261e', width: 1.3, dash: 'dot',
+      color: '#b3261e', width: 1.2, dash: 'dot',
     });
   }
-  // 5. Naive equal-weight all 11 (no signal, just diversification)
+  // 6. Naive equal-weight all (no signal — diversification only)
   if (r.equal_weight_all) {
     out.push({
-      label: 'Naive equal-weight all 11 ETFs (no signal)',
+      label: 'Benchmark: equal-weight all 15 ETFs (no signal)',
       category: 'Benchmark',
       ...r.equal_weight_all,
-      color: '#4a5159', width: 1.2, dash: 'dash',
+      color: '#4a5159', width: 1.1, dash: 'dash',
     });
   }
-  // 6. SPY buy-and-hold (passive)
+  // 7. SPY buy-and-hold (passive benchmark)
   if (r.spy_buy_hold) {
     out.push({
-      label: 'SPY buy-and-hold (passive benchmark)',
+      label: 'Benchmark: SPY buy-and-hold (passive)',
       category: 'Benchmark',
       ...r.spy_buy_hold,
-      color: '#6b727a', width: 1.1, dash: 'dot',
+      color: '#6b727a', width: 1.0, dash: 'dot',
     });
   }
   return out;
@@ -1855,8 +1868,7 @@ function renderPortfolio() {
   }
   const curated = _curatedSeries(data);
   const spy = p.results.spy_buy_hold;
-  const bestLev = p.results.top7_breadth_weight_leveraged;
-  const bestUnlev = p.results.top5_breadth_weight;
+  const stratA = p.results.top7_breadth_weight;  // deployed K=7 unleveraged
 
   // Verdict — Test 10 reset the conclusion: rotation matters out-of-sample
   const ensemble = p.results.eq_weight_11_family_d;
@@ -1864,11 +1876,11 @@ function renderPortfolio() {
   const wfTopK = data.robustness?.test_10_wf_topk_portfolio?.walk_forward_sharpe;
   const wfL_csp1 = data.robustness?.test_1_walk_forward_l?.CSP1?.walk_forward_sharpe;
   document.getElementById('portfolio-verdict').innerHTML =
-    `In-sample, the no-tilt ensemble (Sharpe <strong>${fmtNum(ensemble?.sharpe, 2, true)}</strong>) ties or beats every tilted variant including top-K rotation (Sharpe <strong>${fmtNum(bestUnlev?.sharpe, 2, true)}</strong>). But this is the wrong test. The ensemble carries an in-sample-fitted L threshold per ETF; the rotation does not. Strip out the fitting cost and the picture flips.<br><br>`
-    + `<strong>Walk-forward, the rotation paradigm wins outright</strong>: top-K rotation OOS Sharpe is <strong>${fmtNum(wfTopK, 2, true)}</strong> (essentially equal to in-sample), while the ensemble's underlying per-ETF L choices degrade — e.g. CSP1's walk-forward Sharpe drops to ${fmtNum(wfL_csp1, 2, true)}. See Robustness → Test 10 for the full paradigm comparison. The single-ETF MA200 strategies on this tab are kept as a sanity check on the underlying breadth signal, not as deployment candidates.<br><br>`
-    + `All four signal-based variants beat naive equal-weight all 11 (Sharpe ${fmtNum(p.results.equal_weight_all?.sharpe, 2, true)}) and SPY buy-and-hold (Sharpe ${fmtNum(spy?.sharpe, 2, true)}) by ~0.20-0.30 Sharpe in-sample. <strong>The deployable version is top-K rotation</strong> because it is the only one whose Sharpe survives walk-forward validation.`;
+    `<strong>Strategy A is the top row in the table below: Top-7 breadth-weighted rotation, weekly Friday, no leverage.</strong> In-sample Sharpe <strong>${fmtNum(stratA?.sharpe, 2, true)}</strong>, CAGR <strong>${fmtPct(stratA?.cagr, true)}</strong>, max DD <strong>${fmtPct(stratA?.max_dd)}</strong>. Walk-forward Sharpe <strong>${fmtNum(wfTopK, 2, true)}</strong> (Robustness → Test 10) — essentially equal to in-sample, no overfit. In the deployed Multi-Strategy A+B 50/50 blend, this row contributes 50% of total NAV; the other 50% is Strategy B (Asset Class tab).<br><br>`
+    + `<strong>Why not the leveraged variant?</strong> The 50/150 leverage overlay on basket breadth boosts CAGR by ~1.6pp but costs borrow (5%/yr modelled) and is now superseded by Strategy A + Strategy B diversification, which captures most of the upside without margin. Leveraged row kept for reference only.<br><br>`
+    + `<strong>Why not the no-tilt ensemble (the row with Sharpe ${fmtNum(ensemble?.sharpe, 2, true)})?</strong> That row carries in-sample-fitted L thresholds per ETF; walk-forward those thresholds degrade (e.g. CSP1 drops to ${fmtNum(wfL_csp1, 2, true)}). The Top-7 rotation has no per-ETF fitting cost — that is why it survives walk-forward and the ensemble does not.`;
 
-  // Headline table — curated 6 rows
+  // Headline table — Strategy A on top, highlighted; others as reference
   const el = document.getElementById('portfolio-table');
   el.querySelector('thead').innerHTML = `<tr>
     <th>Strategy</th><th>Category</th><th>Sharpe</th><th>CAGR</th>
@@ -1876,12 +1888,14 @@ function renderPortfolio() {
   </tr>`;
   const tbody = el.querySelector('tbody');
   tbody.innerHTML = '';
-  const bestSh = Math.max(...curated.map(c => c.sharpe ?? -1e9));
   for (const c of curated) {
     const dSpy = (c.sharpe ?? 0) - (spy?.sharpe ?? 0);
-    const isBest = c.sharpe === bestSh;
-    tbody.innerHTML += `<tr class="${isBest ? 'highlight' : ''}">
-      <td class="row-label">${c.label}</td>
+    const hl = c.isStrategyA ? 'highlight' : '';
+    const tag = c.isStrategyA
+      ? '<span class="strategy-tag a" style="margin-right:8px;">DEPLOYED</span>'
+      : '';
+    tbody.innerHTML += `<tr class="${hl}">
+      <td class="row-label">${tag}${c.label}</td>
       <td style="color:var(--ink-faint);font-size:12px;">${c.category}</td>
       <td class="num"><strong>${fmtNum(c.sharpe, 2, true)}</strong></td>
       <td class="num">${fmtPct(c.cagr, true)}</td>
@@ -1906,9 +1920,13 @@ function renderPortfolio() {
     const eqSlice = c.equity.slice(startIdx);
     const startVal = eqSlice[0] || 1.0;
     const normalised = eqSlice.map(e => e / startVal);
+    // Strategy A gets a punchier short legend name; everything else uses its full label
+    const legendName = c.isStrategyA
+      ? `★ STRATEGY A (Top-7 K=7 Weekly Fri, no leverage) — Shp ${fmtNum(c.sharpe, 2, true)}`
+      : `${c.label} — Shp ${fmtNum(c.sharpe, 2, true)}`;
     traces.push({
       x: datesSlice, y: normalised, mode: 'lines',
-      name: `${c.label} — Shp ${fmtNum(c.sharpe, 2, true)}`,
+      name: legendName,
       line: { color: c.color, width: c.width, dash: c.dash || 'solid' },
     });
   }
