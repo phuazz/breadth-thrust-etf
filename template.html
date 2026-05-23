@@ -101,75 +101,191 @@
     .verdict p:last-child { margin-bottom: 0; }
     .verdict strong { color: var(--accent); }
 
-    /* ----- Monitor cards ----- */
-    .monitor-summary {
-      display: flex; gap: 22px; flex-wrap: wrap;
-      margin: 20px 0; padding: 16px 22px;
-      background: var(--bg-soft); border-radius: 4px;
-      border: 1px solid var(--border);
-      align-items: baseline;
+    /* ----- Monitor: live portfolio view ----- */
+    .live-hero {
+      margin: 22px 0;
+      padding: 24px 28px;
+      background: linear-gradient(180deg, rgba(29,122,58,0.06), rgba(29,122,58,0.02));
+      border: 1px solid rgba(29,122,58,0.25);
+      border-left: 4px solid var(--good);
+      border-radius: 6px;
     }
-    .monitor-summary .ms-stat {
-      display: flex; flex-direction: column; gap: 2px;
+    .live-hero h2 {
+      margin: 0 0 4px 0; font-size: 13px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--good); font-weight: 700;
     }
-    .monitor-summary .ms-stat .v {
-      font-size: 22px; font-weight: 600; font-family: 'Inter';
-      letter-spacing: -0.01em; color: var(--ink);
-      font-variant-numeric: tabular-nums;
+    .live-hero .title {
+      font-size: 20px; font-weight: 600; letter-spacing: -0.01em;
+      margin: 0 0 6px 0;
     }
-    .monitor-summary .ms-stat .v.good { color: var(--good); }
-    .monitor-summary .ms-stat .l {
+    .live-hero .asof {
+      font-size: 13px; color: var(--ink-faint);
+      margin-bottom: 16px;
+    }
+    .live-hero .asof strong { color: var(--ink); }
+    .live-hero .hero-stats {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 18px 28px; margin-top: 14px;
+    }
+    .live-hero .hero-stat .v {
+      font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em;
+    }
+    .live-hero .hero-stat .v.good { color: var(--good); }
+    .live-hero .hero-stat .l {
       font-size: 11px; color: var(--ink-faint);
-      text-transform: uppercase; letter-spacing: 0.05em;
+      text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px;
     }
-    .monitor-summary .ms-asof {
-      margin-left: auto; font-size: 13px; color: var(--ink-faint);
+    .live-hero .stale {
+      margin-top: 12px; padding: 8px 12px;
+      background: rgba(183,110,0,0.08); border: 1px solid rgba(183,110,0,0.3);
+      border-radius: 4px; font-size: 12px; color: var(--warn);
     }
 
-    .monitor-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 14px;
+    /* ----- Combined portfolio holdings table ----- */
+    table.holdings {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      background: var(--bg-card); border: 1px solid var(--border);
     }
-    .m-card {
-      padding: 14px 16px;
+    table.holdings thead th {
+      text-align: left; padding: 10px 12px;
+      background: var(--bg-soft); font-weight: 600; color: var(--ink-soft);
+      border-bottom: 1px solid var(--border-strong);
+      font-size: 12px; letter-spacing: 0.02em;
+    }
+    table.holdings tbody td {
+      padding: 9px 12px; border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    table.holdings tbody tr:hover { background: var(--bg-soft); }
+    table.holdings tbody tr:last-child td { border-bottom: none; }
+    table.holdings .sym {
+      font-weight: 700; font-size: 14px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    table.holdings .swatch {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 2px; margin-right: 8px; vertical-align: middle;
+    }
+    table.holdings td.num {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+    table.holdings .strategy-tag {
+      display: inline-block; padding: 1px 7px;
+      border-radius: 3px; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    table.holdings .strategy-tag.a {
+      background: rgba(19,81,180,0.10); color: var(--accent);
+    }
+    table.holdings .strategy-tag.b {
+      background: rgba(29,122,58,0.10); color: var(--good);
+    }
+    table.holdings .why {
+      font-size: 12px; color: var(--ink-faint);
+    }
+    table.holdings .total-row {
+      background: var(--bg-soft); font-weight: 600;
+    }
+    table.holdings .total-row td { padding: 12px; }
+
+    /* ----- Strategy panel layout (side-by-side cards) ----- */
+    .strat-panels {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+      margin-top: 18px;
+    }
+    @media (max-width: 980px) { .strat-panels { grid-template-columns: 1fr; } }
+    .strat-panel {
+      padding: 18px 20px;
       background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 4px;
-      border-left: 4px solid var(--ink-faint);
+      border-radius: 6px;
+      border-top: 3px solid var(--accent);
     }
-    .m-card.in-long { border-left-color: var(--good); background: linear-gradient(90deg, var(--good-soft) 0%, var(--bg-card) 12%); }
-    .m-card.in-base { border-left-color: var(--accent); }
-    .m-card .row1 { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-    .m-card .sym { font-weight: 700; font-size: 16px; }
-    .m-card .proxy { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.05em; }
-    .m-card .alloc {
-      font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
-      color: var(--accent); margin: 4px 0;
+    .strat-panel.b { border-top-color: var(--good); }
+    .strat-panel .panel-title {
+      font-size: 15px; font-weight: 600;
+      margin: 0 0 2px 0;
+    }
+    .strat-panel .panel-sub {
+      font-size: 12px; color: var(--ink-faint);
+      margin: 0 0 12px 0;
+    }
+    .strat-panel .panel-stats {
+      display: flex; gap: 18px; margin: 10px 0 16px 0;
+      padding: 10px 12px; background: var(--bg-soft);
+      border-radius: 4px; flex-wrap: wrap;
+    }
+    .strat-panel .panel-stat .v {
+      font-size: 16px; font-weight: 700;
       font-variant-numeric: tabular-nums;
     }
-    .m-card.in-long .alloc { color: var(--good); }
-    .m-card .stat {
-      display: flex; justify-content: space-between;
-      font-size: 12px; font-family: 'JetBrains Mono', monospace;
-      font-variant-numeric: tabular-nums; padding: 2px 0;
-      color: var(--ink-soft);
+    .strat-panel .panel-stat .l {
+      font-size: 10px; color: var(--ink-faint);
+      letter-spacing: 0.05em; text-transform: uppercase;
     }
-    .m-card .stat .l { color: var(--ink-faint); }
-    .m-card .threshold-bar {
-      position: relative; height: 6px; background: var(--bg-soft);
-      border-radius: 3px; margin: 8px 0 6px 0;
+    .holding-row {
+      display: flex; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid var(--border);
+      gap: 12px;
+    }
+    .holding-row:last-child { border-bottom: none; }
+    .holding-row .hsym {
+      font-family: 'JetBrains Mono', monospace; font-weight: 700;
+      font-size: 14px; min-width: 60px;
+    }
+    .holding-row .hlabel {
+      flex: 1; color: var(--ink-soft); font-size: 12px;
+    }
+    .holding-row .hsignal {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums; font-size: 12px;
+      min-width: 60px; text-align: right; color: var(--ink-soft);
+    }
+    .holding-row .hweight {
+      font-family: 'JetBrains Mono', monospace; font-weight: 700;
+      font-variant-numeric: tabular-nums; font-size: 14px;
+      min-width: 60px; text-align: right;
+    }
+    .holding-row .hbar-wrap {
+      flex: 0 0 100px; height: 8px;
+      background: var(--bg-soft);
+      border-radius: 4px; overflow: hidden;
       border: 1px solid var(--border);
     }
-    .m-card .threshold-bar .marker-l {
-      position: absolute; top: -2px; width: 2px; height: 10px;
-      background: var(--ink-faint);
+    .holding-row .hbar {
+      height: 100%; background: var(--accent); border-radius: 4px;
     }
-    .m-card .threshold-bar .marker-b {
-      position: absolute; top: 0; height: 4px;
-      background: var(--accent); border-radius: 2px;
+    .holding-row.b .hbar { background: var(--good); }
+    .holding-row .swatch {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 2px; margin-right: 6px;
+      vertical-align: middle;
     }
-    .m-card.in-long .threshold-bar .marker-b { background: var(--good); }
+
+    /* ----- Asset class roll-up bar ----- */
+    .ac-rollup {
+      display: flex; height: 36px; border-radius: 4px;
+      overflow: hidden; border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    }
+    .ac-rollup .ac-slice {
+      display: flex; align-items: center; justify-content: center;
+      color: white; padding: 0 4px; overflow: hidden;
+      white-space: nowrap; text-overflow: ellipsis;
+      font-weight: 600;
+    }
+    .ac-legend {
+      display: flex; flex-wrap: wrap; gap: 14px 18px;
+      margin-top: 10px; font-size: 12px; color: var(--ink-soft);
+    }
+    .ac-legend .leg { display: flex; align-items: center; gap: 6px; }
+    .ac-legend .leg .swatch {
+      display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+    }
 
     /* ----- Tables ----- */
     table.matrix, table.small-table {
@@ -454,11 +570,73 @@
 
   <!-- ====================== MONITOR ====================== -->
   <div class="tab-content active" id="tab-monitor">
-    <div class="monitor-summary" id="monitor-summary"></div>
-    <div class="monitor-grid" id="monitor-grid"></div>
-    <p style="color:var(--ink-faint);font-size:13px;margin-top:14px;">
-      Cards above show the live state of the MA200 + 50/150 strategy per ETF as of the latest cached price data. <strong>Green left bar</strong> = ma200_breadth is above the chosen threshold, allocation 150%. <strong>Blue left bar</strong> = below threshold, allocation 50% base. To refresh, re-run the pipeline: <code style="font-size:11px;">fetch_constituents → compute_breadth → run_ma200_sweep → pipeline</code>.
-    </p>
+    <div class="live-hero">
+      <h2>Live Portfolio — what to own today</h2>
+      <div class="title" id="live-title">Multi-Strategy A+B (50/50 blend, no leverage)</div>
+      <div class="asof" id="live-asof"></div>
+      <div class="hero-stats" id="live-hero-stats"></div>
+      <div id="live-stale-warning"></div>
+    </div>
+
+    <section>
+      <h2>Combined holdings</h2>
+      <p class="section-sub">Every position in the deployed portfolio, sorted by total weight. Each row shows the ETF, which strategy holds it (A = US sector breadth rotation, B = asset-class momentum), why it's in the portfolio (the signal that put it there), the within-strategy weight, and the effective weight after the 50/50 blend. <strong>If you have $100,000 to deploy, the "Total weight" column tells you how much capital each ETF gets.</strong></p>
+      <table class="holdings" id="live-holdings-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Exposure by asset class</h2>
+      <p class="section-sub">Roll-up of the combined portfolio by broad category. Tells you what the strategy is <em>actually betting on</em> right now beyond individual ticker symbols.</p>
+      <div id="live-rollup"></div>
+      <div class="ac-legend" id="live-rollup-legend"></div>
+    </section>
+
+    <section>
+      <h2>Strategy A and Strategy B — side by side</h2>
+      <p class="section-sub">The two engines that produced today's holdings. Strategy A picks the strongest US sectors by constituent breadth. Strategy B picks the strongest asset classes by ETF-level momentum. The combined portfolio is 50% in each.</p>
+      <div class="strat-panels">
+        <div class="strat-panel a">
+          <div class="panel-title">Strategy A — US sector top-K rotation</div>
+          <div class="panel-sub" id="live-a-sub">Loading…</div>
+          <div class="panel-stats" id="live-a-stats"></div>
+          <div id="live-a-holdings"></div>
+        </div>
+        <div class="strat-panel b">
+          <div class="panel-title">Strategy B — Asset-class top-K momentum</div>
+          <div class="panel-sub" id="live-b-sub">Loading…</div>
+          <div class="panel-stats" id="live-b-stats"></div>
+          <div id="live-b-holdings"></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>How the deployment works in 5 steps</h2>
+      <div class="plain-box">
+        <h3>Recipe — combined 50/50 A+B, no leverage</h3>
+        <div class="step">
+          <div class="step-n">1</div>
+          <div class="step-body"><strong>Split your capital 50/50 between Strategy A and Strategy B.</strong> Strategy A's job: rotate within US sectors. Strategy B's job: rotate across asset classes. They are negatively correlated on drawdowns — when one drops, the other often offsets.</div>
+        </div>
+        <div class="step">
+          <div class="step-n">2</div>
+          <div class="step-body"><strong>Every Friday close</strong>, refresh both strategies' rankings (the dashboard does this automatically when the pipeline runs).</div>
+        </div>
+        <div class="step">
+          <div class="step-n">3</div>
+          <div class="step-body"><strong>Strategy A — within US equities, which sectors lead?</strong> Compute % of each ETF's constituents above their 200d MA. Rank the 15 ETFs. Take the top 7. Weight by breadth share.</div>
+        </div>
+        <div class="step">
+          <div class="step-n">4</div>
+          <div class="step-body"><strong>Strategy B — which asset classes are in an uptrend?</strong> Compute distance above 200d MA for each of the 14 asset-class ETFs. Drop any with negative signal (below their MA — in a downtrend). Take the top 7. Weight by signal share. If fewer than 7 are positive, the gap goes to IEF (Treasury) as cash floor.</div>
+        </div>
+        <div class="step">
+          <div class="step-n">5</div>
+          <div class="step-body"><strong>Combine.</strong> Multiply each within-strategy weight by 0.5 to get the effective weight in the deployed portfolio. Rebalance your actual positions to match. Transaction cost runs ~5 bps per unit of weight change.</div>
+        </div>
+        <p style="margin-top:18px;font-size:13px;color:var(--ink-faint);"><strong>Expected statistics (in-sample, common 2018-2026 window):</strong> Sharpe +1.01, CAGR +13%, max drawdown -20%. Better risk-adjusted return than either strategy alone, with materially lower drawdown than SPY buy-and-hold.</p>
+      </div>
+    </section>
   </div>
 
   <!-- ====================== STRATEGY ====================== -->
@@ -992,65 +1170,255 @@ function fmtNum(x, digits = 2, signed = false) {
 }
 
 // ----------- Monitor tab -----------------------------------------------
+// Map Strategy A's sector ETF -> a high-level "asset class" label for the
+// roll-up. Strategy A holdings are all US equity, but split into sectors.
+function _aAssetClass(etf) {
+  if (etf === 'IUSP') return 'Real Estate';
+  if (etf === 'IDP6') return 'US Equity (small-cap)';
+  // Everything else in Strategy A is a US-equity sector / broad-market slice
+  return 'US Equity (sectors)';
+}
+
+// Use Strategy B's universe metadata for its asset-class labels
+function _bAssetClass(etf) {
+  const universe = window.DATA.asset_class?.universe || [];
+  const u = universe.find(x => x.etf === etf);
+  return u?.asset_class || 'Other';
+}
+
+// Trading proxy for each ETF in Strategy A. Same as the ma200_sweep.
+function _proxy(etf) {
+  const m = window.DATA.ma200?.monitor?.[etf];
+  return m?.trading_proxy || etf;
+}
+
+function _trafficLightStrength(breadthPct) {
+  if (breadthPct >= 70) return { word: 'leading', cls: 'good' };
+  if (breadthPct >= 55) return { word: 'firm', cls: '' };
+  return { word: 'borderline', cls: 'warn' };
+}
+
 function renderMonitor() {
   const data = window.DATA;
-  const m = data.ma200?.monitor;
-  if (!m) {
-    document.getElementById('monitor-grid').innerHTML =
-      '<p style="color:var(--ink-faint);">No monitor data — run scripts/run_ma200_sweep.py.</p>';
+  const topk = data.topk;
+  const ac = data.asset_class;
+  const multi = data.multi;
+  if (!topk?.headline?.trade_history || !ac?.headline?.trade_history) {
+    document.getElementById('live-asof').innerHTML =
+      '<span style="color:var(--bad);">Missing Strategy A or B data. Run the pipeline.</span>';
     return;
   }
-  // Summary
-  const cards = Object.values(m);
-  const inLong = cards.filter(c => c.in_long_state).length;
-  const total = cards.length;
-  const asof = cards[0]?.as_of || '—';
-  const portAvgAlloc = cards.reduce((s, c) => s + c.current_allocation_pct, 0) / Math.max(total, 1);
-  document.getElementById('monitor-summary').innerHTML = `
-    <div class="ms-stat">
-      <span class="v ${inLong > 0 ? 'good' : ''}">${inLong} / ${total}</span>
-      <span class="l">ETFs in LONG-leveraged state</span>
-    </div>
-    <div class="ms-stat">
-      <span class="v">${portAvgAlloc.toFixed(0)}%</span>
-      <span class="l">Average allocation across universe</span>
-    </div>
-    <div class="ms-stat">
-      <span class="v">${total}</span>
-      <span class="l">ETFs monitored</span>
-    </div>
-    <div class="ms-asof">As of <strong>${asof}</strong> · refresh via pipeline</div>
-  `;
-  // Cards
-  const grid = document.getElementById('monitor-grid');
-  grid.innerHTML = '';
-  // Sort by allocation (long first), then by ETF symbol
-  const sorted = [...cards].sort((a, b) =>
-    (b.current_allocation_pct - a.current_allocation_pct) || a.etf.localeCompare(b.etf)
-  );
-  for (const c of sorted) {
-    const div = document.createElement('div');
-    div.className = `m-card ${c.in_long_state ? 'in-long' : 'in-base'}`;
-    const bWidth = Math.min(100, Math.max(0, c.ma200_breadth_pct ?? 0));
-    const lPos = Math.min(100, Math.max(0, c.long_threshold_pct ?? 0));
-    div.innerHTML = `
-      <div class="row1">
-        <span class="sym">${c.etf}</span>
-        <span class="proxy">trade ${c.trading_proxy}</span>
-      </div>
-      <div style="font-size:12px;color:var(--ink-faint);margin-bottom:4px;">${ETF_DESCRIPTIONS[c.etf] || ''}</div>
-      <div class="alloc">${c.current_allocation_pct}%</div>
-      <div class="stat"><span class="l">ma200_breadth</span><span>${(c.ma200_breadth_pct ?? 0).toFixed(1)}%</span></div>
-      <div class="threshold-bar">
-        <div class="marker-b" style="width:${bWidth}%;"></div>
-        <div class="marker-l" style="left:${lPos}%;" title="threshold L=${lPos}%"></div>
-      </div>
-      <div class="stat"><span class="l">threshold L</span><span>${c.long_threshold_pct}%</span></div>
-      <div class="stat"><span class="l">days in state</span><span>${c.days_in_state}d</span></div>
-      <div class="stat"><span class="l">in-sample Sharpe</span><span>${fmtNum(c.winner_sharpe, 2, true)}</span></div>
-    `;
-    grid.appendChild(div);
+
+  // ===== Latest rebalances =====
+  const aHist = topk.headline.trade_history;
+  const bHist = ac.headline.trade_history;
+  const aLatest = aHist[aHist.length - 1];
+  const bLatest = bHist[bHist.length - 1];
+  const aDate = aLatest.date;
+  const bDate = bLatest.date;
+  const blendStats = multi?.strategies?.blend_50_50;
+  const aStats = multi?.strategies?.strategy_a || topk.headline.headline_stats_full;
+  const bStats = multi?.strategies?.strategy_b || ac.headline.headline_stats;
+
+  // ===== Header =====
+  document.getElementById('live-asof').innerHTML =
+    `Last rebalance: <strong>${aDate}</strong> (Strategy A) · <strong>${bDate}</strong> (Strategy B). ` +
+    `${aLatest.holdings.length} positions in A · ${bLatest.holdings.length} positions in B. ` +
+    `<em>Refresh by re-running the pipeline.</em>`;
+
+  // Stale-data check: warn if either side is more than 7 trading days old
+  const today = new Date();
+  const aAge = Math.round((today - new Date(aDate)) / (24*3600*1000));
+  const bAge = Math.round((today - new Date(bDate)) / (24*3600*1000));
+  if (aAge > 14 || bAge > 14) {
+    document.getElementById('live-stale-warning').innerHTML =
+      `<div class="stale">⚠ Data is more than 14 days old (A: ${aAge}d, B: ${bAge}d). Re-run the pipeline before deploying.</div>`;
   }
+
+  document.getElementById('live-hero-stats').innerHTML = `
+    <div class="hero-stat"><div class="v good">${fmtNum(blendStats?.sharpe ?? 1.01, 2, true)}</div><div class="l">50/50 Sharpe (in-sample)</div></div>
+    <div class="hero-stat"><div class="v good">${fmtPct(blendStats?.max_dd ?? -0.20)}</div><div class="l">50/50 max drawdown</div></div>
+    <div class="hero-stat"><div class="v">${fmtPct(blendStats?.cagr ?? 0.13, true)}</div><div class="l">50/50 CAGR</div></div>
+    <div class="hero-stat"><div class="v">${aLatest.holdings.length + bLatest.holdings.length}</div><div class="l">Total positions today</div></div>
+    <div class="hero-stat"><div class="v">${aLatest.holdings.length}</div><div class="l">In Strategy A (sectors)</div></div>
+    <div class="hero-stat"><div class="v">${bLatest.holdings.length}</div><div class="l">In Strategy B (asset class)</div></div>
+  `;
+
+  // ===== Build combined holdings =====
+  // Each strategy contributes 50% of total NAV, so effective_weight = 0.5 * weight_within
+  const combined = new Map();  // etf -> { etf, a_weight, b_weight, breadth, signal, proxy }
+  for (const h of aLatest.holdings) {
+    const eff = 0.5 * h.weight;
+    const e = combined.get(h.etf) || {
+      etf: h.etf, label: ETF_DESCRIPTIONS[h.etf] || '',
+      a_weight: 0, b_weight: 0,
+      a_signal: null, b_signal: null,
+      a_proxy: _proxy(h.etf), in_a: false, in_b: false,
+    };
+    e.a_weight = h.weight; e.a_signal = h.breadth_pct;
+    e.in_a = true; e.eff_a = eff;
+    combined.set(h.etf, e);
+  }
+  for (const h of bLatest.holdings) {
+    const eff = 0.5 * h.weight;
+    const e = combined.get(h.etf) || {
+      etf: h.etf, label: ETF_DESCRIPTIONS[h.etf] || '',
+      a_weight: 0, b_weight: 0,
+      a_signal: null, b_signal: null,
+      a_proxy: h.etf, in_a: false, in_b: false,
+    };
+    e.b_weight = h.weight; e.b_signal = h.signal_pct;
+    e.in_b = true; e.eff_b = eff;
+    if (!e.label) {
+      const u = (ac.universe || []).find(x => x.etf === h.etf);
+      e.label = u?.label || '';
+    }
+    combined.set(h.etf, e);
+  }
+  // Total effective weight = eff_a + eff_b
+  const rows = [...combined.values()].map(e => {
+    e.total = (e.eff_a || 0) + (e.eff_b || 0);
+    return e;
+  }).sort((x, y) => y.total - x.total);
+
+  // ===== Combined holdings table =====
+  const acAColours = window.DATA.asset_class?.asset_class_colours || {};
+  const colourFor = (etf) => ETF_COLOURS[etf] || acAColours[etf] || '#999';
+  const el = document.getElementById('live-holdings-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th><th>Description</th><th>Strategy</th><th>Trade as</th>
+    <th>Why it's in</th>
+    <th class="num">Within-strategy</th>
+    <th class="num">Total weight</th>
+  </tr>`;
+  let totW = 0;
+  const tbodyHtml = rows.map(e => {
+    const why = [];
+    if (e.in_a && e.a_signal != null) {
+      const ts = _trafficLightStrength(e.a_signal);
+      why.push(`<span class="${ts.cls === 'good' ? 'good' : ''}">A: breadth ${e.a_signal}% (${ts.word})</span>`);
+    }
+    if (e.in_b && e.b_signal != null) {
+      const sgn = e.b_signal >= 0 ? '+' : '';
+      why.push(`<span class="good">B: ${sgn}${e.b_signal}% above 200d MA</span>`);
+    }
+    const stratTags = [];
+    if (e.in_a) stratTags.push('<span class="strategy-tag a">A</span>');
+    if (e.in_b) stratTags.push('<span class="strategy-tag b">B</span>');
+    const withinStrat = [];
+    if (e.in_a) withinStrat.push(`A ${(e.a_weight*100).toFixed(1)}%`);
+    if (e.in_b) withinStrat.push(`B ${(e.b_weight*100).toFixed(1)}%`);
+    totW += e.total;
+    return `<tr>
+      <td><span class="swatch" style="background:${colourFor(e.etf)};"></span><span class="sym">${e.etf}</span></td>
+      <td style="font-size:13px;">${e.label || ''}</td>
+      <td>${stratTags.join(' ')}</td>
+      <td><span class="sym" style="font-size:13px;color:var(--ink-soft);">${e.in_a ? e.a_proxy : e.etf}</span></td>
+      <td class="why">${why.join(' · ')}</td>
+      <td class="num" style="color:var(--ink-faint);font-size:12px;">${withinStrat.join(' · ')}</td>
+      <td class="num"><strong>${(e.total*100).toFixed(1)}%</strong></td>
+    </tr>`;
+  }).join('');
+  const totalRow = `<tr class="total-row">
+    <td colspan="6" style="text-align:right;font-weight:700;">Total deployed</td>
+    <td class="num"><strong>${(totW*100).toFixed(1)}%</strong></td>
+  </tr>`;
+  el.querySelector('tbody').innerHTML = tbodyHtml + totalRow;
+
+  // ===== Asset-class roll-up =====
+  const rollup = new Map();
+  for (const e of rows) {
+    let cls;
+    if (e.in_a && !e.in_b) cls = _aAssetClass(e.etf);
+    else if (e.in_b && !e.in_a) cls = _bAssetClass(e.etf);
+    else {
+      // In both — split contribution by strategy origin
+      const aCls = _aAssetClass(e.etf);
+      const bCls = _bAssetClass(e.etf);
+      rollup.set(aCls, (rollup.get(aCls) || 0) + (e.eff_a || 0));
+      rollup.set(bCls, (rollup.get(bCls) || 0) + (e.eff_b || 0));
+      continue;
+    }
+    rollup.set(cls, (rollup.get(cls) || 0) + e.total);
+  }
+  // Order categories: equity then RE then commodities then bonds
+  const classOrder = ['US Equity (sectors)', 'US Equity (small-cap)', 'US Equity',
+                      'Intl Developed', 'Emerging Mkts', 'Real Estate',
+                      'Commodities', 'Bonds', 'Other'];
+  const classColours = {
+    'US Equity (sectors)': '#1351b4',
+    'US Equity (small-cap)': '#1e3a8a',
+    'US Equity': '#374151',
+    'Intl Developed': '#0e7490',
+    'Emerging Mkts': '#dc2626',
+    'Real Estate': '#0d9488',
+    'Commodities': '#ca8a04',
+    'Bonds': '#1d7a3a',
+    'Other': '#52525b',
+  };
+  const orderedRollup = [...rollup.entries()].sort((a, b) => {
+    const ia = classOrder.indexOf(a[0]); const ib = classOrder.indexOf(b[0]);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+  const totalRollup = orderedRollup.reduce((s, [_, v]) => s + v, 0);
+  const slices = orderedRollup.map(([cls, w]) => {
+    const pct = w / totalRollup * 100;
+    return `<div class="ac-slice" style="background:${classColours[cls] || '#999'};flex:${pct};" title="${cls}: ${pct.toFixed(1)}%">${pct >= 6 ? pct.toFixed(0) + '%' : ''}</div>`;
+  }).join('');
+  document.getElementById('live-rollup').innerHTML = `<div class="ac-rollup">${slices}</div>`;
+  document.getElementById('live-rollup-legend').innerHTML = orderedRollup.map(([cls, w]) => {
+    const pct = w / totalRollup * 100;
+    return `<span class="leg"><span class="swatch" style="background:${classColours[cls]||'#999'};"></span>${cls} <strong>${pct.toFixed(1)}%</strong></span>`;
+  }).join('');
+
+  // ===== Strategy A panel =====
+  document.getElementById('live-a-sub').textContent =
+    `Rank 15 US sector/broad-market ETFs by % of constituents above 200d MA. Take top K=${topk.headline.K}. Weight by breadth share. Allocates 50% of total NAV.`;
+  const aS = aStats || {};
+  document.getElementById('live-a-stats').innerHTML = `
+    <div class="panel-stat"><div class="v">${fmtNum(aS.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
+    <div class="panel-stat"><div class="v">${fmtPct(aS.cagr, true)}</div><div class="l">CAGR</div></div>
+    <div class="panel-stat"><div class="v">${fmtPct(aS.max_dd)}</div><div class="l">Max DD</div></div>
+  `;
+  const maxAW = Math.max(...aLatest.holdings.map(h => h.weight));
+  document.getElementById('live-a-holdings').innerHTML = aLatest.holdings
+    .slice().sort((x, y) => y.weight - x.weight)
+    .map(h => {
+      const bar = (h.weight / maxAW) * 100;
+      return `<div class="holding-row">
+        <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
+        <span class="hlabel">${ETF_DESCRIPTIONS[h.etf] || ''}</span>
+        <span class="hsignal">breadth ${h.breadth_pct}%</span>
+        <span class="hbar-wrap"><span class="hbar" style="width:${bar}%;"></span></span>
+        <span class="hweight">${(h.weight*100).toFixed(1)}%</span>
+      </div>`;
+    }).join('');
+
+  // ===== Strategy B panel =====
+  document.getElementById('live-b-sub').textContent =
+    `Rank 14 broad asset-class ETFs by distance above own 200d MA. Drop negatives. Take top K=${ac.headline.K}. Weight by signal share. Allocates 50% of total NAV.`;
+  const bS = bStats || {};
+  document.getElementById('live-b-stats').innerHTML = `
+    <div class="panel-stat"><div class="v">${fmtNum(bS.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
+    <div class="panel-stat"><div class="v">${fmtPct(bS.cagr, true)}</div><div class="l">CAGR (18 yrs)</div></div>
+    <div class="panel-stat"><div class="v">${fmtPct(bS.max_dd)}</div><div class="l">Max DD</div></div>
+  `;
+  const maxBW = Math.max(...bLatest.holdings.map(h => h.weight));
+  document.getElementById('live-b-holdings').innerHTML = bLatest.holdings
+    .slice().sort((x, y) => y.weight - x.weight)
+    .map(h => {
+      const universe = ac.universe || [];
+      const u = universe.find(x => x.etf === h.etf) || {};
+      const bar = (h.weight / maxBW) * 100;
+      const sgn = h.signal_pct >= 0 ? '+' : '';
+      return `<div class="holding-row b">
+        <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
+        <span class="hlabel">${u.label || ''}</span>
+        <span class="hsignal">${sgn}${h.signal_pct}% vs MA</span>
+        <span class="hbar-wrap"><span class="hbar" style="width:${bar}%;"></span></span>
+        <span class="hweight">${(h.weight*100).toFixed(1)}%</span>
+      </div>`;
+    }).join('');
 }
 
 // ----------- Strategy tab ----------------------------------------------
@@ -2942,7 +3310,7 @@ function populateEtfDropdown() {
 (function init() {
   const data = DASHBOARD_DATA_INLINE;
   if (!data) {
-    document.getElementById('monitor-grid').innerHTML =
+    document.getElementById('live-asof').innerHTML =
       '<p>Build artefact missing. Run <code>python scripts/pipeline.py</code>.</p>';
     return;
   }

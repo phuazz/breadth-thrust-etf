@@ -103,7 +103,15 @@ def build_panels() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
         breadths[etf] = ma200_b
         used.append(etf)
     closes_df = pd.DataFrame(closes).sort_index()
-    breadths_df = pd.DataFrame(breadths).reindex(closes_df.index, method="ffill")
+    # IMPORTANT: pd.DataFrame(dict_of_series) creates explicit NaN where one
+    # series has data on a date that another doesn't (e.g. when per-ETF
+    # breadth series end on different dates). reindex(method="ffill") does
+    # NOT fill across explicit NaN — it only fills positions missing from
+    # the source index. So we must reindex first, then .ffill() explicitly.
+    # Without this, top-K rotation silently dropped ETFs whose breadth
+    # ended earlier than the closes panel's last date (e.g. when newly
+    # fetched ETFs were more current than older ones).
+    breadths_df = pd.DataFrame(breadths).reindex(closes_df.index).ffill()
     return closes_df, breadths_df, used
 
 
