@@ -1134,6 +1134,28 @@
       <table class="heat" id="topk-cadence-table"><thead></thead><tbody></tbody></table>
       <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="topk-cadence-note"></p>
     </section>
+
+    <section>
+      <h2>Test 12 — Universe correlation diagnostic (is the universe saturated?)</h2>
+      <p class="section-sub">Pairwise Pearson correlations of the underlying signal time series across each strategy's universe. <strong>Diagnostic for the question "would adding more ETFs help?"</strong> — if existing ETFs already cluster at correlations &gt; 0.85, the universe is saturated and the marginal added ETF just adds turnover without new signal. If correlations are mostly &lt; 0.5, there is room to diversify the universe.</p>
+
+      <div class="two-col" style="margin-top:14px;">
+        <div>
+          <h3 style="margin-top:0;">Strategy A — breadth signal correlations</h3>
+          <p class="section-sub" style="font-size:12px;">15 US sector/broad ETFs. Each cell = Pearson correlation of weekly breadth series. Red = highly correlated (redundant). Blue = uncorrelated (diversifying).</p>
+          <div id="corr-a-chart" class="chart tall"></div>
+          <div id="corr-a-stats" style="margin-top:12px;"></div>
+        </div>
+        <div>
+          <h3 style="margin-top:0;">Strategy B + C — momentum signal correlations</h3>
+          <p class="section-sub" style="font-size:12px;">14 asset-class + 16 thematic ETFs (deduped + IEF). Same metric — Pearson on weekly distance-above-200d-MA series.</p>
+          <div id="corr-bc-chart" class="chart tall"></div>
+          <div id="corr-bc-stats" style="margin-top:12px;"></div>
+        </div>
+      </div>
+
+      <div class="methodbox" style="margin-top:18px;" id="corr-verdict"></div>
+    </section>
   </div>
 
   <!-- ====================== METHOD ====================== -->
@@ -2758,6 +2780,199 @@ function renderTopKCadence() {
     `<strong>Month-end</strong> works for K = 3 but loses edge at K ≥ 5 because breadth ranks turn over faster than the rebalance can track them.`;
 }
 
+// ----------- Universe correlation diagnostic (Robustness Test 12) ---------
+// Computes pairwise Pearson correlations on the existing per-ETF signal time
+// series. Answers "is the universe saturated?" — high inter-correlations
+// mean adding more ETFs of the same flavour will hurt (more turnover, no
+// new signal). Low correlations mean room to diversify.
+
+// Pearson correlation on two equal-length arrays, ignoring null/NaN pairs
+function _pearson(xs, ys) {
+  const n = Math.min(xs.length, ys.length);
+  let sumX = 0, sumY = 0, n_ = 0;
+  const xv = [], yv = [];
+  for (let i = 0; i < n; i++) {
+    const x = xs[i], y = ys[i];
+    if (x == null || y == null || !Number.isFinite(x) || !Number.isFinite(y)) continue;
+    xv.push(x); yv.push(y); sumX += x; sumY += y; n_++;
+  }
+  if (n_ < 30) return null;
+  const mx = sumX / n_, my = sumY / n_;
+  let num = 0, sx2 = 0, sy2 = 0;
+  for (let i = 0; i < n_; i++) {
+    const dx = xv[i] - mx, dy = yv[i] - my;
+    num += dx * dy; sx2 += dx * dx; sy2 += dy * dy;
+  }
+  if (sx2 === 0 || sy2 === 0) return null;
+  return num / Math.sqrt(sx2 * sy2);
+}
+
+// Align two date-indexed series to a common date set and return aligned arrays
+function _alignSeries(datesA, valsA, datesB, valsB) {
+  const mapB = new Map(datesB.map((d, i) => [d, valsB[i]]));
+  const xs = [], ys = [];
+  for (let i = 0; i < datesA.length; i++) {
+    const d = datesA[i];
+    if (mapB.has(d)) {
+      xs.push(valsA[i]);
+      ys.push(mapB.get(d));
+    }
+  }
+  return [xs, ys];
+}
+
+// Compute correlation matrix for a set of ETFs, given a series-source function
+// that returns {dates, values} for each ETF symbol.
+function _correlationMatrix(etfs, seriesFor) {
+  const series = {};
+  for (const etf of etfs) {
+    const s = seriesFor(etf);
+    if (s) series[etf] = s;
+  }
+  const validEtfs = Object.keys(series);
+  const mat = {};
+  for (const a of validEtfs) {
+    mat[a] = {};
+    for (const b of validEtfs) {
+      if (a === b) { mat[a][b] = 1.0; continue; }
+      const [xs, ys] = _alignSeries(series[a].dates, series[a].values,
+                                      series[b].dates, series[b].values);
+      mat[a][b] = _pearson(xs, ys);
+    }
+  }
+  // Mean off-diagonal correlation per ETF — for sorting (most correlated first)
+  const meanCorr = {};
+  for (const a of validEtfs) {
+    let sum = 0, n = 0;
+    for (const b of validEtfs) {
+      if (a !== b && mat[a][b] != null) { sum += mat[a][b]; n++; }
+    }
+    meanCorr[a] = n > 0 ? sum / n : 0;
+  }
+  return { etfs: validEtfs, matrix: mat, meanCorr };
+}
+
+function _pairStats(corrData) {
+  const { etfs, matrix } = corrData;
+  const pairs = [];
+  for (let i = 0; i < etfs.length; i++) {
+    for (let j = i + 1; j < etfs.length; j++) {
+      const v = matrix[etfs[i]][etfs[j]];
+      if (v != null) pairs.push({ a: etfs[i], b: etfs[j], r: v });
+    }
+  }
+  pairs.sort((x, y) => y.r - x.r);
+  const top = pairs.slice(0, 5);
+  const bot = pairs.slice(-5).reverse();
+  const mean = pairs.reduce((s, p) => s + p.r, 0) / Math.max(1, pairs.length);
+  // Identify "redundant" pairs at >= 0.85 and "orthogonal" pairs at <= 0.3
+  const redundant = pairs.filter(p => p.r >= 0.85);
+  const orthogonal = pairs.filter(p => p.r <= 0.30);
+  return { top, bot, mean, redundant, orthogonal, total: pairs.length };
+}
+
+function _renderCorrHeatmap(divId, corrData) {
+  const { etfs, matrix, meanCorr } = corrData;
+  // Sort by mean correlation so visually similar ETFs cluster together
+  const sorted = [...etfs].sort((a, b) => meanCorr[b] - meanCorr[a]);
+  const z = sorted.map(a => sorted.map(b => matrix[a][b]));
+  const text = sorted.map(a => sorted.map(b => {
+    const v = matrix[a][b];
+    return v == null ? '—' : v.toFixed(2);
+  }));
+  Plotly.newPlot(divId, [{
+    z, x: sorted, y: sorted,
+    type: 'heatmap',
+    text, texttemplate: '%{text}',
+    textfont: { size: 9, family: 'JetBrains Mono, monospace' },
+    colorscale: [
+      [0,    '#1351b4'],  // strong negative — blue
+      [0.5,  '#ffffff'],  // zero — white
+      [0.75, '#fdba74'],  // 0.5 — orange
+      [0.92, '#dc2626'],  // ~0.85 — red
+      [1.0,  '#7f1d1d'],  // very high — dark red
+    ],
+    zmid: 0, zmin: -1, zmax: 1,
+    hovertemplate: '%{y} × %{x}: %{z:.2f}<extra></extra>',
+    colorbar: { thickness: 12, tickformat: '.1f', x: 1.02 },
+  }], {
+    margin: { l: 60, r: 80, t: 14, b: 60 },
+    paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+    font: { family: 'Inter', size: 11, color: '#111418' },
+    xaxis: { tickangle: -45, side: 'bottom' },
+    yaxis: { autorange: 'reversed' },
+  }, { displayModeBar: false, responsive: true });
+}
+
+function _renderCorrStats(divId, stats, label) {
+  const fmtPair = (p) => `<code style="font-size:11px;">${p.a}↔${p.b}</code> <strong>${p.r.toFixed(2)}</strong>`;
+  const html = `
+    <div style="font-size:13px; line-height:1.7;">
+      <div><strong>Mean off-diagonal correlation:</strong> ${stats.mean.toFixed(2)}</div>
+      <div><strong style="color:var(--bad);">Most correlated pairs</strong> (top 5 — candidates for pruning):</div>
+      <div style="margin-left:12px; color:var(--ink-soft);">${stats.top.map(fmtPair).join(' · ')}</div>
+      <div style="margin-top:6px;"><strong style="color:var(--good);">Least correlated pairs</strong> (top 5 — true diversifiers):</div>
+      <div style="margin-left:12px; color:var(--ink-soft);">${stats.bot.map(fmtPair).join(' · ')}</div>
+      <div style="margin-top:8px; font-size:12px; color:var(--ink-faint);">
+        ${stats.redundant.length} pair${stats.redundant.length === 1 ? '' : 's'} above ρ = 0.85 (redundant).
+        ${stats.orthogonal.length} pair${stats.orthogonal.length === 1 ? '' : 's'} below ρ = 0.30 (genuinely diversifying).
+        Total pairs: ${stats.total}.
+      </div>
+    </div>
+  `;
+  document.getElementById(divId).innerHTML = html;
+}
+
+function renderCorrelationMatrix() {
+  // Section 1: Strategy A breadth signal correlations
+  const detailMap = window.DATA?.ma200?.per_etf_detail || {};
+  const aEtfs = Object.keys(detailMap);
+  const aData = _correlationMatrix(aEtfs, (etf) => {
+    const d = detailMap[etf];
+    return d ? { dates: d.breadth_dates, values: d.breadth_pct } : null;
+  });
+  if (aData.etfs.length > 0) {
+    _renderCorrHeatmap('corr-a-chart', aData);
+    _renderCorrStats('corr-a-stats', _pairStats(aData), 'A');
+  }
+
+  // Section 2: Strategy B + C momentum correlations (deduped union)
+  const bSignals = window.DATA?.asset_class?.per_etf_signal || {};
+  const cSignals = window.DATA?.thematic?.per_etf_signal || {};
+  const bcEtfs = [...new Set([...Object.keys(bSignals), ...Object.keys(cSignals)])];
+  const bcData = _correlationMatrix(bcEtfs, (etf) => {
+    // Prefer B's series (longer history) when both available
+    const s = bSignals[etf] || cSignals[etf];
+    return s ? { dates: s.dates, values: s.signal_pct } : null;
+  });
+  if (bcData.etfs.length > 0) {
+    _renderCorrHeatmap('corr-bc-chart', bcData);
+    _renderCorrStats('corr-bc-stats', _pairStats(bcData), 'B+C');
+  }
+
+  // Composite verdict
+  const aStats = _pairStats(aData);
+  const bcStats = _pairStats(bcData);
+  const verdict = document.getElementById('corr-verdict');
+  if (verdict) {
+    const interpretation = (stats, name, ceiling) => {
+      if (stats.mean > 0.65) {
+        return `<strong style="color:var(--bad);">${name} universe is saturated</strong> — mean correlation ${stats.mean.toFixed(2)} with ${stats.redundant.length} pairs above 0.85. Adding more ETFs of the same flavour will increase turnover without adding signal. <strong>Consider pruning</strong> the most-correlated pairs.`;
+      } else if (stats.mean > 0.4) {
+        return `<strong style="color:var(--warn);">${name} universe has moderate diversification</strong> — mean correlation ${stats.mean.toFixed(2)} with ${stats.redundant.length} highly-correlated pairs and ${stats.orthogonal.length} genuinely diversifying pairs.`;
+      } else {
+        return `<strong style="color:var(--good);">${name} universe is well-diversified</strong> — mean correlation ${stats.mean.toFixed(2)} with ${stats.orthogonal.length} pairs below 0.30. Room to add more if compelling candidates exist.`;
+      }
+    };
+    verdict.innerHTML = `
+      <p><strong>Verdict</strong></p>
+      <p>${interpretation(aStats, 'Strategy A')}</p>
+      <p>${interpretation(bcStats, 'Strategy B + C')}</p>
+      <p style="margin-top:14px; font-size:13px; color:var(--ink-soft);"><strong>Practical implication for "should I extend Strategy A?"</strong>: if A's mean correlation is &gt; 0.65 (saturated) AND no clear orthogonal-pair candidates exist, expanding the universe further with more US sector/style ETFs will not help. The next marginal ETF will land in a highly-correlated cluster and just increase turnover. Genuine expansion requires going <em>outside</em> the US large-cap equity universe — Europe sector breadth (Stoxx 600 sectors via iShares UK) is the most accessible orthogonal candidate; that would be Phase 4. For now, the existing 15-ETF A is likely at or near optimal size.</p>
+    `;
+  }
+}
+
 // ----------- Trade Explorer tab ----------------------------------------
 let _tradeStateRecentOnly = true;
 let _tradeStateFilter = '';
@@ -3950,6 +4165,7 @@ function activateTab(name) {
       renderRobustnessFixed();
       renderRobustnessParadigm();
       renderTopKCadence();
+      renderCorrelationMatrix();
       renderExtendedHistory();
     }
     TAB_RENDERED.add(name);
