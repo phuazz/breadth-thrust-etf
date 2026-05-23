@@ -99,23 +99,31 @@ def build_trade_history(weight_panel: pd.DataFrame,
     """One row per rebalance date with non-zero weight changes.
 
     Each row: { date, holdings: [(etf, weight, breadth_pct)] }
+    The breadth value recorded for each ETF is the value the engine
+    actually USED to decide the weight — i.e. the PRIOR trading day's
+    breadth — not the breadth at the rebalance date itself. This way the
+    displayed share-math (breadth / sum) exactly reproduces the weight
+    with no day-shift discrepancy.
+
     Only emits rows where weights actually changed vs the previous row
     (collapses the daily ffill into actual rebalance events).
     """
     wp = weight_panel.loc[weight_panel.index >= eligible].copy()
     bp = breadth_panel.reindex(wp.index, method="ffill")
+    full_idx = list(wp.index)
     out: list[dict] = []
     prev: pd.Series | None = None
-    for dt, row in wp.iterrows():
+    for i, (dt, row) in enumerate(wp.iterrows()):
         if prev is None or not np.allclose(row.values, prev.values, atol=1e-6):
             non_zero = row[row > 1e-6].sort_values(ascending=False)
             # Skip rows with no holdings (pre-signal warm-up period)
             if len(non_zero) == 0:
                 prev = row
                 continue
+            decision_date = full_idx[i - 1] if i > 0 else full_idx[i]
             holdings = []
             for etf, w in non_zero.items():
-                b_val = bp.loc[dt, etf] if etf in bp.columns else None
+                b_val = bp.loc[decision_date, etf] if etf in bp.columns else None
                 holdings.append({
                     "etf": etf,
                     "weight": round(float(w), 4),

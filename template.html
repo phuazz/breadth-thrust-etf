@@ -1514,7 +1514,7 @@ function renderMonitor() {
       </div>
       ${cashNote} Each ETF's effective NAV weight in the 50/50 A+B blend is half its within-strategy weight (green badge on the right of each row).
       <div style="margin-top:8px;font-size:11px;color:var(--ink-faint);">
-        <em>Footnote:</em> the engine uses <em>last Thursday's</em> signal to decide weights (no look-ahead). The "signal" column under each ETF shows <em>this Friday's</em> value, so the share-math may differ from the actual weight by ~1pp. When that happens, both numbers are shown with a "≈" marker.
+        <em>No-look-ahead note:</em> the engine uses the <em>prior trading day's</em> signal to decide weights. The signal shown under each ETF below is that decision-time value, so the share-math reproduces the weight exactly.
       </div>
     </div>
   `;
@@ -1529,13 +1529,8 @@ function renderMonitor() {
       const universe = ac.universe || [];
       const u = universe.find(x => x.etf === h.etf) || {};
       const sgn = h.signal_pct >= 0 ? '+' : '';
-      const expectedShare = bSumSig > 0 ? (h.signal_pct / bSumSig) * investedFrac * 100 : 0;
       const actualPct = h.weight * 100;
       const navEff = (h.weight * 50).toFixed(2);
-      const diff = Math.abs(expectedShare - actualPct);
-      const approxNote = diff > 0.3
-        ? `<span class="approx" title="Share-math from today's signal yields ${expectedShare.toFixed(1)}%; actual weight used prior-day signal.">≈ ${actualPct.toFixed(1)}% actual</span>`
-        : '';
       return `<div class="holding-row b">
         <div class="hrow-top">
           <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
@@ -1547,8 +1542,7 @@ function renderMonitor() {
           <span class="arrow">→</span>
           <span class="lhs">${h.signal_pct}% ÷ ${bSumSig.toFixed(1)}% × ${bPositive.length}/${bK}</span>
           <span class="arrow">=</span>
-          <span class="rhs">${expectedShare.toFixed(1)}%</span>
-          ${approxNote}
+          <span class="rhs">${actualPct.toFixed(1)}%</span>
           <span class="nav-eff">${navEff}% of total NAV</span>
         </div>
       </div>`;

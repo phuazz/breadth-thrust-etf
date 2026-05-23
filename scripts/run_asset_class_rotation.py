@@ -338,19 +338,28 @@ def turnover_stats(weight_panel: pd.DataFrame,
 
 def build_trade_history(weight_panel: pd.DataFrame, signal: pd.DataFrame,
                           eligible_start: pd.Timestamp) -> list[dict]:
+    """Per-rebalance holdings list. The signal value recorded for each ETF
+    is the value the engine actually USED to decide the weight — i.e. the
+    PRIOR trading day's signal — not the signal at the rebalance date
+    itself. This way the displayed share-math (signal / sum × n/K) exactly
+    reproduces the weight, with no day-shift discrepancy."""
     wp = weight_panel.loc[weight_panel.index >= eligible_start]
     sp = signal.reindex(wp.index, method="ffill")
+    full_idx = list(wp.index)
     out: list[dict] = []
     prev: pd.Series | None = None
-    for dt, row in wp.iterrows():
+    for i, (dt, row) in enumerate(wp.iterrows()):
         if prev is None or not np.allclose(row.values, prev.values, atol=1e-6):
             non_zero = row[row > 1e-6].sort_values(ascending=False)
             if len(non_zero) == 0:
                 prev = row
                 continue
+            # Signal that was actually used for the decision = signal one
+            # trading day BEFORE this rebalance date (no look-ahead).
+            decision_date = full_idx[i - 1] if i > 0 else full_idx[i]
             holdings = []
             for etf, w in non_zero.items():
-                s_val = sp.loc[dt, etf] if etf in sp.columns else None
+                s_val = sp.loc[decision_date, etf] if etf in sp.columns else None
                 holdings.append({
                     "etf": etf,
                     "weight": round(float(w), 4),
