@@ -110,6 +110,16 @@ def load_thematic() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_europe() -> dict | None:
+    """Load data/europe_rotation.json: Strategy D (Phase 4) — Europe sector
+    breadth top-K rotation across 5 Stoxx Europe 600 sector UCITS ETFs
+    (EXV1 banks / EXH1 energy / EXV3 tech / EXH3 healthcare / EXH9 utilities)."""
+    path = DATA_DIR / "europe_rotation.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_multi_strategy() -> dict | None:
     """Load data/multi_strategy.json: combinations of Strategy A + Strategy B
     — fixed-weight blends (70/30, 50/50, 30/70) and meta-rotation."""
@@ -207,7 +217,15 @@ def main() -> int:
               f"{h.get('n_rebalances')} rebalances, "
               f"Sharpe {h.get('headline_stats', {}).get('sharpe', 0):+.2f}")
 
-    print("Loading multi-strategy combinations (A+B[+C]) ...", flush=True)
+    print("Loading Europe sector rotation (Strategy D) ...", flush=True)
+    europe = load_europe()
+    if europe:
+        h = europe.get("headline", {})
+        print(f"  europe: K={h.get('K')} {h.get('rebal_freq')}, "
+              f"{h.get('n_rebalances')} rebalances, "
+              f"Sharpe {h.get('headline_stats', {}).get('sharpe', 0):+.2f}")
+
+    print("Loading multi-strategy combinations (A+B[+C][+D]) ...", flush=True)
     multi = load_multi_strategy()
     if multi:
         strats = multi.get("strategies", {})
@@ -223,6 +241,7 @@ def main() -> int:
         "topk": topk,
         "asset_class": asset_class,
         "thematic": thematic,
+        "europe": europe,
         "multi": multi,
     }
 

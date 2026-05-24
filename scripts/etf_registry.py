@@ -323,6 +323,180 @@ ETF_REGISTRY: dict[str, dict] = {
         "csv_date_format": "uk",
         "yfinance_trading_proxy": "XLRE",  # SPDR Real Estate Select Sector
     },
+    # =====================================================================
+    # PHASE 4 (2026-05-23): non-US universes for constituent-breadth signal
+    # =====================================================================
+    # 5 Stoxx Europe 600 sector UCITS + 4 country UCITS. All iShares UK,
+    # CSV format same as US sector funds, BUT constituents trade on European
+    # / Asian exchanges so apply_exchange_suffix=True triggers the per-row
+    # Exchange-to-yfinance-suffix resolver in fetch_constituents.
+    # Trading proxies for deployment: the ETF itself on Xetra/LSE (EUR-priced)
+    # or a US-listed equivalent where one exists.
+    # ---------------------------------------------------------------------
+    "EXV1": {  # Stoxx Europe 600 Banks (EUR, Xetra-listed)
+        "symbol": "EXV1",
+        "ishares_region": "uk",
+        "product_id": "251934",
+        "url_slug": "ishares-stoxx-europe-600-banks-ucits-etf-de-fund",
+        "ajax_id": "1506575576011",
+        "filename": "EXV1_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/251934/"
+            "ishares-stoxx-europe-600-banks-ucits-etf-de-fund/1506575576011.ajax"
+            "?fileType=csv&fileName=EXV1_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "apply_exchange_suffix": True,
+        "yfinance_trading_proxy": "EXV1.DE",  # trade the ETF on Xetra in EUR
+    },
+    "EXH1": {  # Stoxx Europe 600 Oil & Gas
+        "symbol": "EXH1",
+        "ishares_region": "uk",
+        "product_id": "251954",
+        "url_slug": "ishares-stoxx-europe-600-oil-gas-ucits-etf-de-fund",
+        "ajax_id": "1506575576011",
+        "filename": "EXH1_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/251954/"
+            "ishares-stoxx-europe-600-oil-gas-ucits-etf-de-fund/1506575576011.ajax"
+            "?fileType=csv&fileName=EXH1_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "apply_exchange_suffix": True,
+        "yfinance_trading_proxy": "EXH1.DE",
+    },
+    "EXV3": {  # Stoxx Europe 600 Technology
+        "symbol": "EXV3",
+        "ishares_region": "uk",
+        "product_id": "251961",
+        "url_slug": "ishares-stoxx-europe-600-technology-ucits-etf-de-fund",
+        "ajax_id": "1506575576011",
+        "filename": "EXV3_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/251961/"
+            "ishares-stoxx-europe-600-technology-ucits-etf-de-fund/1506575576011.ajax"
+            "?fileType=csv&fileName=EXV3_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "apply_exchange_suffix": True,
+        "yfinance_trading_proxy": "EXV3.DE",
+    },
+    "EXH3": {  # Stoxx Europe 600 Industrial Goods & Services
+        "symbol": "EXH3",
+        "ishares_region": "uk",
+        "product_id": "251948",
+        "url_slug": "ishares-stoxx-europe-600-industrial-goods-services-ucits-etf-de-fund",
+        "ajax_id": "1506575576011",
+        "filename": "EXH3_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/251948/"
+            "ishares-stoxx-europe-600-industrial-goods-services-ucits-etf-de-fund/"
+            "1506575576011.ajax"
+            "?fileType=csv&fileName=EXH3_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "apply_exchange_suffix": True,
+        "yfinance_trading_proxy": "EXH3.DE",
+    },
+    "EXH9": {  # Stoxx Europe 600 Utilities (verified product_id 251967)
+        "symbol": "EXH9",
+        "ishares_region": "uk",
+        "product_id": "251967",
+        "url_slug": "ishares-stoxx-europe-600-utilities-ucits-etf-de-fund",
+        "ajax_id": "1506575576011",
+        "filename": "EXH9_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/251967/"
+            "ishares-stoxx-europe-600-utilities-ucits-etf-de-fund/1506575576011.ajax"
+            "?fileType=csv&fileName=EXH9_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "apply_exchange_suffix": True,
+        "yfinance_trading_proxy": "EXH9.DE",
+    },
+    # --- Single-country UCITS ETFs ---
+    "IJPN": {  # MSCI Japan (USD distributing, listed London/Xetra)
+        "symbol": "IJPN",
+        "ishares_region": "uk",
+        "product_id": "251866",
+        "url_slug": "ishares-msci-japan-ucits-etf-inc-fund",
+        "ajax_id": "1506575576011",
+        "filename": "IJPN_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/251866/"
+            "ishares-msci-japan-ucits-etf-inc-fund/1506575576011.ajax"
+            "?fileType=csv&fileName=IJPN_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "apply_exchange_suffix": True,
+        "yfinance_trading_proxy": "EWJ",  # US-listed iShares MSCI Japan
+    },
+    "NDIA": {  # MSCI India (USD)
+        "symbol": "NDIA",
+        "ishares_region": "uk",
+        "product_id": "297617",
+        "url_slug": "ishares-msci-india-ucits-etf-usd-acc-fund",
+        "ajax_id": "1506575576011",
+        "filename": "NDIA_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/297617/"
+            "ishares-msci-india-ucits-etf-usd-acc-fund/1506575576011.ajax"
+            "?fileType=csv&fileName=NDIA_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "apply_exchange_suffix": True,
+        "yfinance_trading_proxy": "INDA",  # US-listed iShares MSCI India
+    },
+    "ICHN": {  # MSCI China (USD)
+        "symbol": "ICHN",
+        "ishares_region": "uk",
+        "product_id": "308751",
+        "url_slug": "ishares-msci-china-ucits-etf-fund",
+        "ajax_id": "1506575576011",
+        "filename": "ICHN_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/308751/"
+            "ishares-msci-china-ucits-etf-fund/1506575576011.ajax"
+            "?fileType=csv&fileName=ICHN_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "apply_exchange_suffix": True,
+        "yfinance_trading_proxy": "MCHI",  # US-listed iShares MSCI China
+    },
+    "ITWN": {  # MSCI Taiwan
+        "symbol": "ITWN",
+        "ishares_region": "uk",
+        "product_id": "251878",
+        "url_slug": "ishares-msci-taiwan-ucits-etf",
+        "ajax_id": "1506575576011",
+        "filename": "ITWN_holdings",
+        "csv_url_template": (
+            "https://www.ishares.com/uk/individual/en/products/251878/"
+            "ishares-msci-taiwan-ucits-etf/1506575576011.ajax"
+            "?fileType=csv&fileName=ITWN_holdings&dataType=fund"
+        ),
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "csv_date_format": "uk",
+        "apply_exchange_suffix": True,
+        "yfinance_trading_proxy": "EWT",  # US-listed iShares MSCI Taiwan
+    },
     "IDP6": {  # S&P SmallCap 600 (US small-cap, categorically a market-cap
               # slice rather than a sector — but useful breadth dimension)
         "symbol": "IDP6",
@@ -386,3 +560,29 @@ UNIVERSE_ETFS: list[str] = [
     # Market-cap dimension (not a sector — different universe slice)
     "IDP6",   # S&P SmallCap 600  → IJR         (added 2026-05-22)
 ]
+
+
+# =========================================================================
+# Phase 4 (2026-05-23) — non-US universes for testing merge-vs-separate
+# Both options will be benchmarked before deciding the deployed architecture.
+# =========================================================================
+
+# Europe sector breadth — 5 Stoxx Europe 600 sector UCITS
+UNIVERSE_EUROPE_SECTORS: list[str] = [
+    "EXV1",   # Banks
+    "EXH1",   # Oil & Gas
+    "EXV3",   # Technology
+    "EXH3",   # Industrial Goods & Services
+    "EXH9",   # Utilities
+]
+
+# Single-country breadth — 4 country UCITS
+UNIVERSE_COUNTRIES: list[str] = [
+    "IJPN",   # Japan
+    "NDIA",   # India
+    "ICHN",   # China
+    "ITWN",   # Taiwan
+]
+
+# Merged variant: UNIVERSE_ETFS + Europe sectors + Countries = 23 ETFs
+UNIVERSE_GLOBAL: list[str] = UNIVERSE_ETFS + UNIVERSE_EUROPE_SECTORS + UNIVERSE_COUNTRIES

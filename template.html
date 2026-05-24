@@ -187,6 +187,9 @@
     table.holdings .strategy-tag.c {
       background: rgba(220,38,38,0.10); color: #dc2626;
     }
+    table.holdings .strategy-tag.d {
+      background: rgba(14,116,144,0.10); color: #0e7490;
+    }
     table.holdings .why {
       font-size: 12px; color: var(--ink-faint);
     }
@@ -201,8 +204,10 @@
       margin-top: 18px;
     }
     .strat-panels-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .strat-panels-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    @media (max-width: 1400px) { .strat-panels-4 { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 1200px) { .strat-panels-3 { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 980px) { .strat-panels, .strat-panels-3 { grid-template-columns: 1fr; } }
+    @media (max-width: 980px) { .strat-panels, .strat-panels-3, .strat-panels-4 { grid-template-columns: 1fr; } }
     .strat-panel {
       padding: 18px 20px;
       background: var(--bg-card);
@@ -212,6 +217,7 @@
     }
     .strat-panel.b { border-top-color: var(--good); }
     .strat-panel.c { border-top-color: #dc2626; }
+    .strat-panel.d { border-top-color: #0e7490; }
     .strat-panel .panel-title {
       font-size: 15px; font-weight: 600;
       margin: 0 0 2px 0;
@@ -653,7 +659,7 @@
       <span id="ts-built"></span>
     </div>
     <h1>Breadth-thrust ETF research</h1>
-    <div class="sub">Three-strategy stack. <strong>Strategy A</strong>: rank 14 US sector ETFs by constituent breadth, own top K weekly — Sharpe +0.95 (walk-forward +0.99 after pruning IUIT for redundancy with CNDX). <strong>Strategy B</strong>: rank 14 broad asset-class ETFs by distance above 200d MA — Sharpe +0.78, max DD only -14%. <strong>Strategy C</strong>: rank 16 thematic ETFs (AI / cyber / clean energy / etc) with +5% signal floor and 35% per-ETF cap — Sharpe +0.71, deeper DD; sized at 10% as optionality on the next thematic bull. Deployed <strong>45/45/10 A:B:C blend hits Sharpe +1.09 with max DD -22%</strong>. The 50/50 A+B blend without C is marginally better on Sharpe (+1.10) — see Multi-Strategy tab for the trade-off.</div>
+    <div class="sub">Four-strategy stack (Phase 4 release). <strong>Strategy A</strong>: rank 14 US sector ETFs by constituent breadth, own top K weekly — Sharpe +0.96 (walk-forward +0.99 after pruning IUIT for redundancy with CNDX). <strong>Strategy B</strong>: rank 14 broad asset-class ETFs by distance above 200d MA — Sharpe +0.95, max DD only -14%. <strong>Strategy C</strong>: rank 16 thematic ETFs (AI / cyber / clean energy / etc) with +5% signal floor and 35% per-ETF cap — Sharpe +0.71, deeper DD; sized at 10% as optionality on the next thematic bull. <strong>Strategy D</strong> (Phase 4): rank 5 Stoxx Europe 600 sector UCITS by constituent breadth — Sharpe +0.93, sized at 20% for non-US macro orthogonality. Deployed <strong>35/35/10/20 A:B:C:D blend hits Sharpe +1.15 with max DD -23.8%</strong> — best Sharpe of any variant tested; cost vs the prior 3-way baseline is ~+2.3pp wider DD in exchange for the +0.06 Sharpe. The 45/45/10 A:B:C blend is the lower-DD alternative — see Multi-Strategy tab for the trade-off.</div>
   </div>
 </header>
 
@@ -664,6 +670,7 @@
     <button class="tab" data-tab="trades">A: Trade Explorer</button>
     <button class="tab" data-tab="asset">Strategy B (Asset Class)</button>
     <button class="tab" data-tab="thematic">Strategy C (Thematic)</button>
+    <button class="tab" data-tab="europe">Strategy D (Europe)</button>
     <button class="tab" data-tab="multi">Multi-Strategy</button>
     <button class="tab" data-tab="detail">ETF Detail</button>
     <button class="tab" data-tab="robustness">Robustness</button>
@@ -677,7 +684,7 @@
   <div class="tab-content active" id="tab-monitor">
     <div class="live-hero">
       <h2>Live Portfolio — what to own today</h2>
-      <div class="title" id="live-title">Multi-Strategy A+B (50/50 blend, no leverage)</div>
+      <div class="title" id="live-title">Multi-Strategy A+B+C+D (35/35/10/20 blend, no leverage)</div>
       <div class="asof" id="live-asof"></div>
       <div class="hero-stats" id="live-hero-stats"></div>
       <div id="live-stale-warning"></div>
@@ -685,9 +692,9 @@
 
     <section>
       <h2>Combined holdings</h2>
-      <p class="section-sub">Every position in the deployed portfolio, sorted by total weight. Each row shows the ETF, which strategy holds it (A = US sector breadth rotation, B = asset-class momentum), why it's in the portfolio (the signal that put it there), the within-strategy weight, and the effective weight after the 50/50 blend. <strong>If you have $100,000 to deploy, the "Total weight" column tells you how much capital each ETF gets.</strong></p>
+      <p class="section-sub">Every position in the deployed portfolio, sorted by total weight. Each row shows the ETF, which strategy holds it (A = US sector breadth, B = asset-class momentum, C = thematic momentum, D = Europe sector breadth), why it's in the portfolio (the signal that put it there), the within-strategy weight, and the effective weight after the 35/35/10/20 blend. <strong>If you have $100,000 to deploy, the "Total weight" column tells you how much capital each ETF gets.</strong></p>
       <p class="section-sub" style="margin-top:-12px;font-size:13px;background:var(--bg-soft);padding:10px 14px;border-radius:4px;border-left:3px solid var(--accent);">
-        <strong>How "Total weight" is built</strong>, with one row as a worked example. Say IUES sits in Strategy A only with a within-strategy weight of 19.3%. Strategy A allocates 50% of total NAV, so IUES gets <code>0.50 × 19.3% = 9.65%</code> of the combined portfolio. On $100k, that is $9,650 in XLE (the trade proxy for IUES). The two-strategy panels below show how each within-strategy weight is computed from the underlying breadth or momentum signal — hover any row for the exact arithmetic.
+        <strong>How "Total weight" is built</strong>, with one row as a worked example. Say IUES sits in Strategy A only with a within-strategy weight of 19.3%. Strategy A allocates 35% of total NAV, so IUES gets <code>0.35 × 19.3% = 6.76%</code> of the combined portfolio. On $100k, that is $6,755 in XLE (the trade proxy for IUES). The four-strategy panels below show how each within-strategy weight is computed from the underlying breadth or momentum signal — hover any row for the exact arithmetic.
       </p>
       <table class="holdings" id="live-holdings-table"><thead></thead><tbody></tbody></table>
     </section>
@@ -700,41 +707,47 @@
     </section>
 
     <section>
-      <h2>Strategy A, B and C — side by side</h2>
-      <p class="section-sub">The three engines that produced today's holdings. Strategy A picks the strongest US sectors by constituent breadth. Strategy B picks the strongest asset classes by ETF-level momentum. Strategy C is a small thematic sleeve for catching secular trends (AI, clean energy, biotech, etc). Combined portfolio: <strong>45% A + 45% B + 10% C</strong>.</p>
-      <div class="strat-panels strat-panels-3">
+      <h2>Strategy A, B, C and D — side by side</h2>
+      <p class="section-sub" id="live-panels-sub">The four engines that produced today's holdings. Strategy A picks the strongest US sectors by constituent breadth. Strategy B picks the strongest asset classes by ETF-level momentum. Strategy C is a small thematic sleeve for catching secular trends (AI, clean energy, biotech). Strategy D (Phase 4) is a Europe sector breadth sleeve for non-US macro orthogonality. Combined portfolio: <strong>35% A + 35% B + 10% C + 20% D</strong>.</p>
+      <div class="strat-panels strat-panels-4">
         <div class="strat-panel a">
-          <div class="panel-title">Strategy A — US sector breadth (45%)</div>
+          <div class="panel-title" id="live-a-title">Strategy A — US sector breadth (35%)</div>
           <div class="panel-sub" id="live-a-sub">Loading…</div>
           <div class="panel-stats" id="live-a-stats"></div>
           <div id="live-a-holdings"></div>
         </div>
         <div class="strat-panel b">
-          <div class="panel-title">Strategy B — Asset-class momentum (45%)</div>
+          <div class="panel-title" id="live-b-title">Strategy B — Asset-class momentum (35%)</div>
           <div class="panel-sub" id="live-b-sub">Loading…</div>
           <div class="panel-stats" id="live-b-stats"></div>
           <div id="live-b-holdings"></div>
         </div>
         <div class="strat-panel c">
-          <div class="panel-title">Strategy C — Thematic sleeve (10%)</div>
+          <div class="panel-title" id="live-c-title">Strategy C — Thematic sleeve (10%)</div>
           <div class="panel-sub" id="live-c-sub">Loading…</div>
           <div class="panel-stats" id="live-c-stats"></div>
           <div id="live-c-holdings"></div>
+        </div>
+        <div class="strat-panel d">
+          <div class="panel-title" id="live-d-title">Strategy D — Europe sector breadth (20%)</div>
+          <div class="panel-sub" id="live-d-sub">Loading…</div>
+          <div class="panel-stats" id="live-d-stats"></div>
+          <div id="live-d-holdings"></div>
         </div>
       </div>
     </section>
 
     <section>
-      <h2>How the deployment works in 5 steps</h2>
+      <h2>How the deployment works in 6 steps</h2>
       <div class="plain-box">
-        <h3>Recipe — combined 45/45/10 A+B+C, no leverage</h3>
+        <h3>Recipe — combined 35/35/10/20 A+B+C+D, no leverage (Phase 4 deployed)</h3>
         <div class="step">
           <div class="step-n">1</div>
-          <div class="step-body"><strong>Split your capital 45% Strategy A, 45% Strategy B, 10% Strategy C.</strong> A rotates within US sectors. B rotates across asset classes. C captures secular thematic trends (AI, clean energy, biotech). The 10% cap on C limits damage if it blows up in a fad-chasing trade.</div>
+          <div class="step-body"><strong>Split your capital 35% Strategy A, 35% Strategy B, 10% Strategy C, 20% Strategy D.</strong> A rotates within US sectors. B rotates across asset classes. C captures secular thematic trends (AI, clean energy, biotech). D rotates within Europe sectors for non-US macro orthogonality. The 10% cap on C limits damage if it blows up in a fad-chasing trade.</div>
         </div>
         <div class="step">
           <div class="step-n">2</div>
-          <div class="step-body"><strong>Every Friday close</strong>, refresh all three strategies' rankings (the dashboard does this when the pipeline runs).</div>
+          <div class="step-body"><strong>Every Friday close</strong>, refresh all four strategies' rankings (the dashboard does this when the pipeline runs).</div>
         </div>
         <div class="step">
           <div class="step-n">3</div>
@@ -742,13 +755,17 @@
         </div>
         <div class="step">
           <div class="step-n">4</div>
-          <div class="step-body"><strong>Strategy B — which asset classes are in an uptrend?</strong> Compute distance above 200d MA for each of the 14 asset-class ETFs. Drop any with negative signal. Take the top 7. Weight by signal share. If fewer than 7 are positive, the deficit sits in IEF (Treasury) as cash floor. <strong>Strategy C — same idea on 16 thematic ETFs</strong> but with a +5% signal floor (must be at least 5% above 200d MA, not just positive), top K = 4, and a 35% per-ETF cap.</div>
+          <div class="step-body"><strong>Strategy B — which asset classes are in an uptrend?</strong> Compute distance above 200d MA for each of the 14 asset-class ETFs. Drop any with negative signal. Take the top 7. Weight by signal share. If fewer than 7 are positive, the deficit sits in IEF (Treasury) as cash floor. <strong>Strategy C — same idea on 16 thematic ETFs</strong> but with a +5% signal floor, top K = 4, and a 35% per-ETF cap.</div>
         </div>
         <div class="step">
           <div class="step-n">5</div>
-          <div class="step-body"><strong>Combine.</strong> Multiply each within-strategy weight by 0.45 (A and B) or 0.10 (C) to get the effective weight in the deployed portfolio. Rebalance to match. Transaction cost runs ~5 bps per unit of weight change.</div>
+          <div class="step-body"><strong>Strategy D — within Europe sectors, which lead?</strong> Same constituent-breadth mechanism as Strategy A, but applied to 5 Stoxx Europe 600 sector UCITS funds (Banks, Oil &amp; Gas, Technology, Industrials, Utilities). Top K = 3 weighted by breadth share. Trade as the underlying Xetra-listed UCITS (EXV1.DE etc.) in EUR.</div>
         </div>
-        <p style="margin-top:18px;font-size:13px;color:var(--ink-faint);"><strong>Expected statistics (in-sample, common 2018-2026 window):</strong> Sharpe +1.07, CAGR +15%, max drawdown -21%. If you prefer pure risk-adjusted return without thematic optionality, use 50/50 A+B (Sharpe +1.09, max DD -20%) — see Multi-Strategy tab.</p>
+        <div class="step">
+          <div class="step-n">6</div>
+          <div class="step-body"><strong>Combine.</strong> Multiply each within-strategy weight by 0.35 (A and B), 0.10 (C), or 0.20 (D) to get the effective weight in the deployed portfolio. Rebalance to match. Transaction cost runs ~5 bps per unit of weight change.</div>
+        </div>
+        <p style="margin-top:18px;font-size:13px;color:var(--ink-faint);"><strong>Expected statistics (in-sample, common 2018-2026 window):</strong> Sharpe +1.15, CAGR +15.1%, max drawdown -23.8%. If you prefer lower drawdown without the Europe sleeve, use the prior 45/45/10 A+B+C blend (Sharpe +1.09, max DD -21.5%) — see Multi-Strategy tab.</p>
       </div>
     </section>
   </div>
@@ -995,18 +1012,81 @@
     </section>
   </div>
 
+  <!-- ====================== STRATEGY D: EUROPE SECTOR ROTATION ====================== -->
+  <div class="tab-content" id="tab-europe">
+    <div class="recipe">
+      <h3>Strategy D — Phase 4 (Europe sleeve)</h3>
+      <div class="recipe-title">Europe sector top-K-by-breadth rotation</div>
+      <p style="margin:0;color:var(--ink-soft);">A fourth sleeve applying the same constituent-breadth mechanism as Strategy A, but to 5 Stoxx Europe 600 sector UCITS funds (Banks, Oil &amp; Gas, Technology, Industrials, Utilities). The motivation is structural orthogonality: Europe runs on its own macro cycle (ECB rates, EUR/USD, China trade exposure) that is genuinely different from the US sector universe. Sized at <strong>20% of the combined portfolio</strong> in the recommended 4-way blend, which empirically lifts Sharpe by ~+0.07 vs the prior 3-way 45/45/10 baseline.</p>
+      <div class="recipe-stats" id="europe-recipe-stats"></div>
+      <ol class="recipe-steps">
+        <li><strong>Each Friday close</strong>, compute % of constituents above 200d MA for each of the 5 Europe sector ETFs.</li>
+        <li><strong>Rank by breadth</strong>. Take the top K = 3.</li>
+        <li><strong>Weight by breadth-share excess</strong> (each holding's weight ∝ its breadth − the K+1-ranked ETF's breadth). Same weighting rule as Strategy A.</li>
+        <li><strong>Rebalance to the new mix</strong>. Costs 5 bps × turnover.</li>
+        <li><strong>Trade as</strong>: the underlying Xetra-listed UCITS (EXV1.DE etc.) in EUR. Settlement T+2, full liquidity through any EU broker.</li>
+      </ol>
+    </div>
+
+    <div class="verdict" style="border-left-color:var(--warn);background:rgba(183,110,0,0.04);">
+      <h2>Honest assessment — Strategy D is a Sharpe lifter but raises drawdown</h2>
+      <p>Standalone Sharpe over the common 2018-11 → 2026-05 window is <strong>+0.93</strong> — better than SPY's +0.77 and similar to Strategy B's +0.95. CAGR is +14.9% with max DD <strong>-32.0%</strong>. The DD is fully participatory in the 2020 and 2022 sell-offs; Europe sectors did not provide downside protection.</p>
+      <p>When blended at 20% with the existing 45/45/10 A:B:C baseline (35/35/10/20 A:B:C:D), Sharpe rises from +1.08 to <strong>+1.15</strong> and CAGR from +14.9% to +15.1%, but max DD widens from -21.5% to <strong>-23.8%</strong>. This is not a free lunch — it is a real diversification trade: marginally better risk-adjusted returns at the cost of ~2.3pp deeper drawdowns. If drawdown floor is your priority, stay with the 3-way 45/45/10. If Sharpe is your priority, switch to 35/35/10/20.</p>
+      <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Pipeline fix note</strong>: discovery during Phase 4 — the `compute_ma200_breadth` function used `rolling(200, min_periods=200)` which dropped the MA for any constituent with even 1-2% missing days. US constituents (S&amp;P 500 via yfinance) have ~100% coverage so this was a no-op for Strategy A. Non-US constituents (.L / .DE / .PA / .AS / .MI) have sparse missing days from local holidays / dividend events, which caused breadth to silently freeze on a stale value (last good was 2023-04-06 in the broken version). Fix: relaxed `min_periods` to 90% of the window, allowing the typical sparse missingness. Strategy A Sharpe changed by &lt;0.01 (US is the universe where the fix is a no-op). All Phase 4 numbers above are on corrected data.</p>
+    </div>
+
+    <section>
+      <h2>Equity vs SPY (8-year backtest, 2018-01 → today)</h2>
+      <p class="section-sub">Strategy D versus SPY buy-and-hold over the full Europe sector backtest window. Note the early flat period before 2018-Q2 reflects the 200d MA warmup; from there forward Europe rotation tracks above SPY on a Sharpe basis with similar max drawdown.</p>
+      <div id="europe-equity-chart" class="chart tall"></div>
+      <table class="small-table" id="europe-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Europe sector allocation over time</h2>
+      <p class="section-sub">Weekly stacked-to-100% allocation across the 5 Stoxx Europe 600 sector ETFs. The rotation visibly shifts between defensives (Utilities) and cyclicals (Banks, Industrials) as the European macro regime changes.</p>
+      <div id="europe-allocation-chart" class="chart tall"></div>
+    </section>
+
+    <section>
+      <h2>K × cadence sensitivity</h2>
+      <p class="section-sub">Same heat-grid format as Strategies A / B / C. K = number of Europe sectors held; cadence = how often we rebalance. Best Sharpe cell highlighted green, worst red.</p>
+      <table class="heat" id="europe-cadence-table"><thead></thead><tbody></tbody></table>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="europe-cadence-note"></p>
+    </section>
+
+    <section>
+      <h2>Trade history</h2>
+      <p class="section-sub" id="europe-trade-history-sub">Newest first. Filter to find specific sectors or dates.</p>
+      <div class="trade-controls">
+        <label class="toggle"><input type="checkbox" id="europe-trade-recent-only" checked> Show last 50 only</label>
+        <input type="text" id="europe-trade-filter" placeholder="Filter by ticker or date">
+        <span class="pill" id="europe-trade-count">—</span>
+      </div>
+      <div class="trade-table-wrap">
+        <table class="trade-table" id="europe-trade-table"><thead></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Performance attribution</h2>
+      <p class="section-sub">Per-ETF contribution to Strategy D's total NAV. The <em>sector</em> column shows which Stoxx 600 sectors drove returns.</p>
+      <table class="small-table" id="europe-attribution-table"><thead></thead><tbody></tbody></table>
+    </section>
+  </div>
+
   <!-- ====================== MULTI-STRATEGY A+B ====================== -->
   <div class="tab-content" id="tab-multi">
     <div class="recipe">
-      <h3>Multi-strategy combination — A, B, and (optionally) C</h3>
-      <div class="recipe-title">Three sleeves, blended fixed-weight</div>
-      <p style="margin:0;color:var(--ink-soft);">Strategy A (US sector top-K-by-breadth, Sharpe ~0.95) handles within-equity rotation. Strategy B (asset-class top-K-by-momentum, Sharpe ~0.78 but max DD only -14%) controls drawdown via flight-to-bonds in crises. Strategy C (thematic top-K-by-momentum) adds optional exposure to secular trends (AI, clean energy, etc). Blended fixed-weight, rebalanced weekly. The deployed default is <strong>45/45/10</strong> A:B:C — a small thematic sleeve for optionality. See the honest assessment below before choosing.</p>
+      <h3>Multi-strategy combination — A, B, C, and (Phase 4) D</h3>
+      <div class="recipe-title">Four sleeves, blended fixed-weight</div>
+      <p style="margin:0;color:var(--ink-soft);">Strategy A (US sector top-K-by-breadth, Sharpe ~0.98) handles within-US-equity rotation. Strategy B (asset-class top-K-by-momentum, Sharpe ~0.95 with max DD only -14%) controls drawdown via flight-to-bonds in crises. Strategy C (thematic top-K-by-momentum) adds optional exposure to secular trends (AI, clean energy, etc). Strategy D (Phase 4 — Europe sector top-K-by-breadth, Sharpe ~0.93) adds structural orthogonality from a non-US macro cycle. Blended fixed-weight, rebalanced weekly. The deployed default is <strong>35/35/10/20</strong> A:B:C:D — the Phase 4 winner. See the honest assessment below before choosing.</p>
       <div class="recipe-stats" id="multi-recipe-stats"></div>
     </div>
 
     <section>
       <h2>All variants side-by-side</h2>
-      <p class="section-sub">The three standalone strategies plus six combinations: three two-way A:B blends (no thematic exposure) and three three-way A:B:C blends with the 10-20% thematic sleeve. All renormalised to 1.0 at the common start date.</p>
+      <p class="section-sub">The four standalone strategies plus the blend variants: three 4-way A:B:C:D blends (Phase 4), three 3-way A:B:C blends (pre-Europe baseline), three 2-way A:B blends, and the meta-rotation. All renormalised to 1.0 at the common start date.</p>
       <div id="multi-equity-chart" class="chart tall"></div>
       <table class="small-table" id="multi-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
       <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="multi-note"></p>
@@ -1015,12 +1095,13 @@
     <section>
       <h2>How to choose your blend — and what the data actually says</h2>
       <div class="methodbox">
-        <p><strong>If you want best risk-adjusted return:</strong> 50/50 A:B (no C). It posts the highest Sharpe of any variant tested (~+1.09 on the common 2018-2026 window). Diversification benefit is real — A and B are negatively correlated on drawdowns: when A drops on a cyclical sector unwind, B rotates into bonds and cuts losses; when B is sideways, A's relative-strength tilt still earns a return.</p>
-        <p><strong>If you want optionality on the next thematic bull run</strong> (AI, clean energy, biotech, etc): 45/45/10 A:B:C. Sharpe drops a touch (~+1.07) and max DD widens by ~1pp, but you capture ~+0.4pp of CAGR from the thematic sleeve. The 10% size cap means even if C blows up 50% in a year, the combined portfolio bleeds only ~5% from that sleeve — a tolerable insurance premium.</p>
-        <p><strong>If you want maximum CAGR and tolerate big drawdowns:</strong> Strategy A alone (~+17.5% CAGR but -30.7% max DD). The blends trade ~3pp of CAGR for ~10pp of drawdown reduction — usually a good trade for most investors.</p>
-        <p><strong>If drawdown control is paramount:</strong> 30/70 A:B. Sharpe still strong (~+1.08), CAGR ~+13%, max DD only ~-17%.</p>
+        <p><strong>If you want best risk-adjusted return (Phase 4 default):</strong> <strong>35/35/10/20 A:B:C:D</strong>. Highest Sharpe of any variant tested (~+1.15 on the common 2018-2026 window). The Europe sleeve adds genuine diversification from a non-US macro cycle (ECB, EUR/USD, China trade). Cost: max DD widens by ~2.3pp vs the 3-way baseline because Europe is real equity exposure with real volatility — not a downside hedge.</p>
+        <p><strong>If you want lowest drawdown with thematic optionality:</strong> 45/45/10 A:B:C (the prior 3-way baseline). Sharpe ~+1.09 (slightly worse than 4-way) but max DD ~-21.5% (~2.3pp shallower than 4-way). The right choice if drawdown floor matters more than incremental Sharpe.</p>
+        <p><strong>If you want lowest drawdown overall:</strong> 30/70 A:B (no C, no D). Sharpe still strong (~+1.10), CAGR ~+13%, max DD only ~-17.7%. Cleanest two-sleeve construction.</p>
+        <p><strong>If you want maximum CAGR and tolerate big drawdowns:</strong> Strategy A alone (~+17.5% CAGR but -31% max DD). The blends trade ~2-3pp of CAGR for ~7-10pp of drawdown reduction — usually a good trade.</p>
         <p>The <strong>meta-rotation</strong> variant (own only A or only B each week, picking by trailing 6-month Sharpe) performs <em>worse</em> than either strategy alone. The lookback lags too much; by the time it identifies that B is winning, A has often started winning again. <em>Static blends beat dynamic blends in this dataset.</em></p>
-        <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Caveat on Strategy C:</strong> the thematic sleeve has <strong>walk-forward Sharpe +0.36 (vs in-sample +0.71)</strong> — significant degradation, the classic fad-chasing pattern. The 5% signal floor and 35% per-ETF cap are guardrails, but C is genuinely riskier than A or B. Use it as 10% optionality, not as a core sleeve.</p>
+        <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Caveat on Strategy C:</strong> the thematic sleeve has <strong>walk-forward Sharpe +0.36 (vs in-sample +0.71)</strong> — significant degradation, the classic fad-chasing pattern. The 5% signal floor and 35% per-ETF cap are guardrails, but C is genuinely riskier than A, B, or D. Use it as 10% optionality, not as a core sleeve.</p>
+        <p style="margin-top:10px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Caveat on Strategy D:</strong> the Europe sleeve is a Sharpe lifter but it raises max drawdown — Europe sectors are participatory in global equity sell-offs (2020, 2022), not defensive. The Phase 4 trade is "marginally better risk-adjusted return for ~2pp deeper drawdowns". If you primarily care about downside protection, stay with 45/45/10. If you care about Sharpe and CAGR, switch to 35/35/10/20.</p>
       </div>
     </section>
   </div>
@@ -1192,17 +1273,38 @@
       <div class="methodbox">
         <p><strong>Breadth indicator (Strategy A)</strong>: % of an ETF's point-in-time constituents whose closing price is above their own 200-day simple moving average. Computed daily; constituents reset weekly from the iShares UK holdings endpoint.</p>
         <p><strong>Momentum signal (Strategy B)</strong>: distance above own 200-day MA per ETF, <code>(close − MA200) / MA200</code>. Positive = uptrend, negative = downtrend. Computed daily from yfinance adjusted close.</p>
-        <p><strong>Headline strategy — Multi-Strategy 45/45/10 A:B:C blend (no leverage)</strong>:</p>
+        <p><strong>Breadth indicator (Strategy D)</strong>: same as Strategy A but on Stoxx Europe 600 sector UCITS constituents. Pipeline fix 2026-05-24 — relaxed `min_periods` in the rolling MA200 from 100% to 90% of window so that non-US constituents with sparse missing days (local holidays, dividend events) do not silently lose their MA. See the Phase 4 retrospective section below.</p>
+        <p><strong>Headline strategy — Multi-Strategy 35/35/10/20 A:B:C:D blend (no leverage, Phase 4 deployed)</strong>:</p>
         <ul>
           <li><strong>Strategy A</strong>: rank 14 US sector/broad ETFs by breadth, take top K = 7, weight by breadth share. Universe: SOXX, CSP1, CNDX, IUES, IUFS, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, IUSP, IDP6. <em>IUIT (S&amp;P 500 Info Tech) was pruned May 2026 because of 0.97 correlation with CNDX — see Robustness Test 12.</em></li>
           <li><strong>Strategy B</strong>: rank 14 broad asset-class ETFs by distance above 200d MA, drop negatives, take top K = 7, weight by signal share, cash floor in IEF for unfilled slots. Universe: SPY, IJR, QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, TIP, HYG.</li>
           <li><strong>Strategy C</strong> (10% sleeve): rank 16 thematic ETFs by distance above 200d MA, drop any below +5% (signal floor), take top K = 4, weight by signal share with 35% per-ETF cap, cash floor in IEF for unfilled slots. Universe: ARKK, CIBR, SKYY, BOTZ, BLOK, ICLN, TAN, LIT, URA, XBI, ARKG, JETS, GDX, COPX, MOO, PAVE.</li>
-          <li><strong>Combination</strong>: 45% A + 45% B + 10% C, rebalanced weekly Friday.</li>
+          <li><strong>Strategy D</strong> (Phase 4, 20% sleeve): rank 5 Stoxx Europe 600 sector UCITS by constituent breadth, take top K = 3, weight by breadth share. Universe: EXV1 (Banks), EXH1 (Oil &amp; Gas), EXV3 (Technology), EXH3 (Industrial Goods &amp; Services), EXH9 (Utilities). Trade as the Xetra-listed UCITS (EXV1.DE etc.) in EUR.</li>
+          <li><strong>Combination</strong>: 35% A + 35% B + 10% C + 20% D, rebalanced weekly Friday.</li>
           <li>Transaction cost: 5 bps per unit of weight change (10 bps round-trip).</li>
           <li>No look-ahead: every weight is decided using the prior trading day's signal.</li>
-          <li>K is refit only annually on expanding-window Sharpe; choices have been stable at K = 7 (A), K = 7 (B), K = 4 (C).</li>
+          <li>K is refit only annually on expanding-window Sharpe; choices have been stable at K = 7 (A), K = 7 (B), K = 4 (C), K = 3 (D).</li>
         </ul>
-        <p style="font-size:13px;color:var(--ink-faint);"><em>Why 45/45/10 and not 50/50?</em> The pure 50/50 A:B blend has slightly better Sharpe (+1.09 vs +1.07 for 45/45/10) but no exposure to secular thematic trends. The 10% C sleeve costs ~0.02 Sharpe and adds ~1pp to max drawdown in exchange for ~0.4pp CAGR pickup — small insurance premium against missing the next AI / clean-energy / biotech bull. If you do not want this optionality, use 50/50.</p>
+        <p style="font-size:13px;color:var(--ink-faint);"><em>Why 35/35/10/20 and not 45/45/10?</em> The 4-way blend with the Europe sleeve posts the highest Sharpe of any variant tested (+1.15 vs +1.09 for the 3-way 45/45/10), at the cost of ~2.3pp wider max drawdown (-23.8% vs -21.5%). The Europe sleeve is real equity beta — it participates in 2020/2022 sell-offs and does not provide downside protection — but its idiosyncratic European macro cycle adds genuine diversification at the blend level. If drawdown floor is more important than Sharpe, stay with 45/45/10. If you want best risk-adjusted return, switch to 35/35/10/20.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Phase 4 retrospective (2026-05-24)</h2>
+      <div class="methodbox">
+        <p>Phase 4 added Strategy D (Europe sector breadth) as a 4th sleeve. The build also forced a fix to the constituent breadth pipeline that quietly affected non-US ETFs.</p>
+        <p><strong>What was tested</strong>: 9 new ETFs added to the registry — 5 Stoxx Europe 600 sector UCITS (EXV1, EXH1, EXV3, EXH3, EXH9) plus 4 single-country UCITS (IJPN, NDIA, ICHN, ITWN). The Phase 4 experiment ran 8 architecture variants: baseline 45/45/10 A:B:C, +Europe (heavy and light), +Countries (heavy and light), +both, MERGE (all into Strategy A's universe).</p>
+        <p><strong>Result</strong>: <strong>Europe sleeve wins as a separate 20% sleeve</strong> (35/35/10/20 A:B:C:D, Sharpe +1.152 vs baseline +1.082 — delta +0.07). Countries lose on every variant (max Sharpe +0.99 vs baseline +1.08). MERGE loses (Sharpe +1.05). Countries deferred to a future phase pending universe expansion (only Japan + Taiwan had usable data after the pipeline issue was fixed; India + China constituent coverage remains thin in yfinance for non-US tickers).</p>
+        <p><strong>Pipeline fix — the surprise discovery</strong>: while validating Strategy D output, noticed the equity curve was flat at 1.0 from 2018-01-26 to 2021-02-12 (3 years of "cash") then broke into trading, with breadth values frozen at the same number from 2023-04-06 onwards (3 years of "stale signal"). Investigation revealed:</p>
+        <ul>
+          <li><code>compute_ma200_breadth</code> in <code>run_ma200_sweep.py</code> used <code>rolling(200, min_periods=200).mean()</code> — strict, requires ALL 200 observations in the window to be non-NaN.</li>
+          <li>US S&amp;P 500 constituents have ~100% daily coverage via yfinance, so the strict requirement is a no-op for Strategy A.</li>
+          <li>Non-US constituents (<code>.L</code>, <code>.DE</code>, <code>.PA</code>, <code>.AS</code>, <code>.MI</code> tickers) have 1-2% sparse missing days from local holidays and dividend events. Even constituents with 99% coverage failed the strict requirement because every 200-day window contained at least one missing day. Result: <code>n_valid</code> (count of constituents with computable MA200) collapsed to 0 → breadth went NaN → <code>_build_panels_for</code> ffill'd the last valid value indefinitely.</li>
+          <li><strong>Fix</strong>: relaxed <code>min_periods</code> to <code>int(period * 0.9)</code> (=180 for MA200) and tightened the denominator to require both today's price AND the MA to be valid. Now a constituent with at least 180 of the last 200 days valid contributes to the breadth signal — matching what a human trader would consider "enough history to call the trend".</li>
+          <li><strong>Impact on US strategies</strong>: Strategy A Sharpe changed from +0.949 to +0.96 — well within rounding (US is the universe where the fix is a no-op). Strategy B and C use ETF-level momentum (not constituent breadth) so they were unaffected.</li>
+          <li><strong>Impact on Strategy D</strong>: was previously a broken +0.59 Sharpe with frozen post-2023 signal; now correctly +0.93 Sharpe across the honest 2018-2026 backtest with realistic -32% DD (was a fake -19% under the frozen-signal version).</li>
+        </ul>
+        <p><strong>Lesson</strong>: when extending a strategy mechanism to a new universe, the data plumbing assumptions may not hold. The bug had been latent the entire time we added IJPN / NDIA / ICHN / ITWN constituents — none of them produced usable breadth until the fix. Worth re-running the universe-level diagnostics on any future non-US additions to confirm continuous breadth.</p>
       </div>
     </section>
 
@@ -1370,12 +1472,21 @@ function renderMonitor() {
     return;
   }
 
-  // Deployment ratios: 45/45/10 if Strategy C available, else 50/50 A+B
+  // Deployment ratios:
+  //   has D : 35/35/10/20 A:B:C:D (Phase 4 deployed)
+  //   has C : 45/45/10    A:B:C   (pre-Phase 4 baseline)
+  //   else  : 50/50       A:B
+  const eu = data.europe;
   const hasC = !!tc?.headline?.trade_history;
-  const W_A = hasC ? 0.45 : 0.50;
-  const W_B = hasC ? 0.45 : 0.50;
-  const W_C = hasC ? 0.10 : 0.00;
-  const blendLabel = hasC ? '45/45/10' : '50/50';
+  const hasD = !!eu?.headline?.trade_history;
+  let W_A, W_B, W_C, W_D, blendLabel;
+  if (hasD) {
+    W_A = 0.35; W_B = 0.35; W_C = 0.10; W_D = 0.20; blendLabel = '35/35/10/20';
+  } else if (hasC) {
+    W_A = 0.45; W_B = 0.45; W_C = 0.10; W_D = 0.00; blendLabel = '45/45/10';
+  } else {
+    W_A = 0.50; W_B = 0.50; W_C = 0.00; W_D = 0.00; blendLabel = '50/50';
+  }
 
   // ===== Latest rebalances =====
   const aHist = topk.headline.trade_history;
@@ -1386,19 +1497,25 @@ function renderMonitor() {
   const bDate = bLatest.date;
   const cLatest = hasC ? tc.headline.trade_history[tc.headline.trade_history.length - 1] : null;
   const cDate = cLatest?.date;
+  const dLatest = hasD ? eu.headline.trade_history[eu.headline.trade_history.length - 1] : null;
+  const dDate = dLatest?.date;
 
   // Use the blend stats that match the actual deployment
-  const deployedKey = hasC ? 'blend_45_45_10' : 'blend_50_50';
+  const deployedKey = hasD ? 'blend_35_35_10_20'
+                            : (hasC ? 'blend_45_45_10' : 'blend_50_50');
   const blendStats = multi?.strategies?.[deployedKey];
   const aStats = multi?.strategies?.strategy_a || topk.headline.headline_stats_full;
   const bStats = multi?.strategies?.strategy_b || ac.headline.headline_stats;
   const cStats = hasC ? (multi?.strategies?.strategy_c || tc.headline.headline_stats) : null;
+  const dStats = hasD ? (multi?.strategies?.strategy_d || eu.headline.headline_stats) : null;
 
   // ===== Header =====
   let asofHtml = `Last rebalance: <strong>${aDate}</strong> (A) · <strong>${bDate}</strong> (B)`;
   if (hasC) asofHtml += ` · <strong>${cDate}</strong> (C)`;
+  if (hasD) asofHtml += ` · <strong>${dDate}</strong> (D)`;
   asofHtml += `. ${aLatest.holdings.length} A + ${bLatest.holdings.length} B`;
   if (hasC) asofHtml += ` + ${cLatest.holdings.length} C`;
+  if (hasD) asofHtml += ` + ${dLatest.holdings.length} D`;
   asofHtml += ` positions. <em>Refresh by re-running the pipeline.</em>`;
   document.getElementById('live-asof').innerHTML = asofHtml;
 
@@ -1407,12 +1524,15 @@ function renderMonitor() {
   const aAge = Math.round((today - new Date(aDate)) / (24*3600*1000));
   const bAge = Math.round((today - new Date(bDate)) / (24*3600*1000));
   const cAge = cDate ? Math.round((today - new Date(cDate)) / (24*3600*1000)) : 0;
-  if (aAge > 14 || bAge > 14 || cAge > 14) {
+  const dAge = dDate ? Math.round((today - new Date(dDate)) / (24*3600*1000)) : 0;
+  if (aAge > 14 || bAge > 14 || cAge > 14 || dAge > 14) {
     document.getElementById('live-stale-warning').innerHTML =
-      `<div class="stale">⚠ Some data is more than 14 days old (A: ${aAge}d, B: ${bAge}d${hasC ? ', C: ' + cAge + 'd' : ''}). Re-run the pipeline before deploying.</div>`;
+      `<div class="stale">⚠ Some data is more than 14 days old (A: ${aAge}d, B: ${bAge}d${hasC ? ', C: ' + cAge + 'd' : ''}${hasD ? ', D: ' + dAge + 'd' : ''}). Re-run the pipeline before deploying.</div>`;
   }
 
-  const totalPos = aLatest.holdings.length + bLatest.holdings.length + (hasC ? cLatest.holdings.length : 0);
+  const totalPos = aLatest.holdings.length + bLatest.holdings.length
+                    + (hasC ? cLatest.holdings.length : 0)
+                    + (hasD ? dLatest.holdings.length : 0);
   let heroHtml = `
     <div class="hero-stat"><div class="v good">${fmtNum(blendStats?.sharpe, 2, true)}</div><div class="l">${blendLabel} blend Sharpe</div></div>
     <div class="hero-stat"><div class="v good">${fmtPct(blendStats?.max_dd)}</div><div class="l">${blendLabel} max drawdown</div></div>
@@ -1422,6 +1542,8 @@ function renderMonitor() {
     <div class="hero-stat"><div class="v">${bLatest.holdings.length}</div><div class="l">B (asset class)</div></div>`;
   if (hasC) heroHtml +=
     `<div class="hero-stat"><div class="v">${cLatest.holdings.length}</div><div class="l">C (thematic)</div></div>`;
+  if (hasD) heroHtml +=
+    `<div class="hero-stat"><div class="v">${dLatest.holdings.length}</div><div class="l">D (Europe)</div></div>`;
   document.getElementById('live-hero-stats').innerHTML = heroHtml;
 
   // ===== Build combined holdings =====
@@ -1431,10 +1553,10 @@ function renderMonitor() {
     if (!combined.has(etf)) {
       combined.set(etf, {
         etf, label: ETF_DESCRIPTIONS[etf] || '',
-        a_weight: 0, b_weight: 0, c_weight: 0,
-        a_signal: null, b_signal: null, c_signal: null,
-        eff_a: 0, eff_b: 0, eff_c: 0,
-        a_proxy: _proxy(etf), in_a: false, in_b: false, in_c: false,
+        a_weight: 0, b_weight: 0, c_weight: 0, d_weight: 0,
+        a_signal: null, b_signal: null, c_signal: null, d_signal: null,
+        eff_a: 0, eff_b: 0, eff_c: 0, eff_d: 0,
+        a_proxy: _proxy(etf), in_a: false, in_b: false, in_c: false, in_d: false,
       });
     }
     return combined.get(etf);
@@ -1464,15 +1586,27 @@ function renderMonitor() {
       }
     }
   }
+  if (hasD) {
+    for (const h of dLatest.holdings) {
+      const e = _ensure(h.etf);
+      e.d_weight = h.weight; e.d_signal = h.breadth_pct;
+      e.in_d = true; e.eff_d = W_D * h.weight;
+      if (!e.label) {
+        const u = (eu.universe || []).find(x => x.etf === h.etf);
+        e.label = u?.label ? `${u.label}` : '';
+      }
+    }
+  }
   const rows = [...combined.values()].map(e => {
-    e.total = (e.eff_a || 0) + (e.eff_b || 0) + (e.eff_c || 0);
+    e.total = (e.eff_a || 0) + (e.eff_b || 0) + (e.eff_c || 0) + (e.eff_d || 0);
     return e;
   }).sort((x, y) => y.total - x.total);
 
   // ===== Combined holdings table =====
   const acAColours = window.DATA.asset_class?.asset_class_colours || {};
   const tcColours = window.DATA.thematic?.thematic_colours || {};
-  const colourFor = (etf) => ETF_COLOURS[etf] || acAColours[etf] || tcColours[etf] || '#999';
+  const euColours = window.DATA.europe?.europe_colours || {};
+  const colourFor = (etf) => ETF_COLOURS[etf] || acAColours[etf] || tcColours[etf] || euColours[etf] || '#999';
   const el = document.getElementById('live-holdings-table');
   el.querySelector('thead').innerHTML = `<tr>
     <th>ETF</th><th>Description</th><th>Strategy</th><th>Trade as</th>
@@ -1495,15 +1629,20 @@ function renderMonitor() {
       const sgn = e.c_signal >= 0 ? '+' : '';
       why.push(`<span style="color:#dc2626;">C: ${sgn}${e.c_signal}% above 200d MA</span>`);
     }
+    if (e.in_d && e.d_signal != null) {
+      why.push(`<span style="color:#0e7490;">D: breadth ${e.d_signal}%</span>`);
+    }
     const stratTags = [];
     if (e.in_a) stratTags.push('<span class="strategy-tag a">A</span>');
     if (e.in_b) stratTags.push('<span class="strategy-tag b">B</span>');
     if (e.in_c) stratTags.push('<span class="strategy-tag c">C</span>');
+    if (e.in_d) stratTags.push('<span class="strategy-tag d">D</span>');
     // Calculation breakdown
     const parts = [];
     if (e.in_a) parts.push(`<span style="color:var(--accent);">A: ${W_A.toFixed(2)}×${(e.a_weight*100).toFixed(1)}%=${((e.eff_a||0)*100).toFixed(2)}%</span>`);
     if (e.in_b) parts.push(`<span style="color:var(--good);">B: ${W_B.toFixed(2)}×${(e.b_weight*100).toFixed(1)}%=${((e.eff_b||0)*100).toFixed(2)}%</span>`);
     if (e.in_c) parts.push(`<span style="color:#dc2626;">C: ${W_C.toFixed(2)}×${(e.c_weight*100).toFixed(1)}%=${((e.eff_c||0)*100).toFixed(2)}%</span>`);
+    if (e.in_d) parts.push(`<span style="color:#0e7490;">D: ${W_D.toFixed(2)}×${(e.d_weight*100).toFixed(1)}%=${((e.eff_d||0)*100).toFixed(2)}%</span>`);
     const calcBreakdown = parts.join(' + ');
     totW += e.total;
     return `<tr>
@@ -1542,16 +1681,22 @@ function renderMonitor() {
       const c = e.etf === 'IEF' ? 'Bonds' : 'Thematic';
       rollup.set(c, (rollup.get(c) || 0) + e.eff_c);
     }
+    if (e.in_d && (e.eff_d || 0) > 0) {
+      // Europe sector breadth — bucket as "Europe Equity" so it's visible
+      // as a distinct exposure from US Equity (sectors) in the rollup.
+      rollup.set('Europe Equity', (rollup.get('Europe Equity') || 0) + e.eff_d);
+    }
   }
   // Order categories: equity then RE then commodities then bonds then thematic
   const classOrder = ['US Equity (sectors)', 'US Equity (small-cap)', 'US Equity',
-                      'Intl Developed', 'Emerging Mkts', 'Real Estate',
-                      'Commodities', 'Bonds', 'Thematic', 'Other'];
+                      'Europe Equity', 'Intl Developed', 'Emerging Mkts',
+                      'Real Estate', 'Commodities', 'Bonds', 'Thematic', 'Other'];
   const classColours = {
     'US Equity (sectors)': '#1351b4',
     'US Equity (small-cap)': '#1e3a8a',
     'US Equity': '#374151',
-    'Intl Developed': '#0e7490',
+    'Europe Equity': '#0e7490',
+    'Intl Developed': '#0891b2',
     'Emerging Mkts': '#dc2626',
     'Real Estate': '#0d9488',
     'Commodities': '#ca8a04',
@@ -1573,6 +1718,24 @@ function renderMonitor() {
     const pct = w / totalRollup * 100;
     return `<span class="leg"><span class="swatch" style="background:${classColours[cls]||'#999'};"></span>${cls} <strong>${pct.toFixed(1)}%</strong></span>`;
   }).join('');
+
+  // ===== Strategy panel titles (dynamic weight labels) =====
+  const aTitle = document.getElementById('live-a-title');
+  const bTitle = document.getElementById('live-b-title');
+  const cTitle = document.getElementById('live-c-title');
+  const dTitle = document.getElementById('live-d-title');
+  if (aTitle) aTitle.textContent = `Strategy A — US sector breadth (${(W_A*100).toFixed(0)}%)`;
+  if (bTitle) bTitle.textContent = `Strategy B — Asset-class momentum (${(W_B*100).toFixed(0)}%)`;
+  if (cTitle) cTitle.textContent = `Strategy C — Thematic sleeve (${(W_C*100).toFixed(0)}%)`;
+  if (dTitle) dTitle.textContent = `Strategy D — Europe sector breadth (${(W_D*100).toFixed(0)}%)`;
+  const panelsSubEl = document.getElementById('live-panels-sub');
+  if (panelsSubEl) {
+    panelsSubEl.innerHTML = hasD
+      ? `The four engines that produced today's holdings. Strategy A picks the strongest US sectors by constituent breadth. Strategy B picks the strongest asset classes by ETF-level momentum. Strategy C is a small thematic sleeve for catching secular trends (AI, clean energy, biotech). Strategy D (Phase 4) is a Europe sector breadth sleeve for non-US macro orthogonality. Combined portfolio: <strong>${blendLabel} A + B + C + D</strong>.`
+      : (hasC
+        ? `The three engines that produced today's holdings. Combined portfolio: <strong>${blendLabel} A + B + C</strong>.`
+        : `The two engines that produced today's holdings. Combined portfolio: <strong>${blendLabel} A + B</strong>.`);
+  }
 
   // ===== Strategy A panel =====
   document.getElementById('live-a-sub').textContent =
@@ -1744,6 +1907,64 @@ function renderMonitor() {
   } else {
     // Hide the Strategy C panel if data missing
     document.querySelector('.strat-panel.c')?.style.setProperty('display', 'none');
+  }
+
+  // ===== Strategy D panel (Phase 4 — Europe sector breadth) =====
+  if (hasD) {
+    document.getElementById('live-d-sub').textContent =
+      `Rank ${eu.universe?.length || 5} Stoxx Europe 600 sector ETFs by % of constituents above 200d MA. Take top K=${eu.headline.K}. Weight by breadth excess. Allocates ${(W_D*100).toFixed(0)}% of total NAV.`;
+    const dS = dStats || {};
+    document.getElementById('live-d-stats').innerHTML = `
+      <div class="panel-stat"><div class="v">${fmtNum(dS.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
+      <div class="panel-stat"><div class="v">${fmtPct(dS.cagr, true)}</div><div class="l">CAGR</div></div>
+      <div class="panel-stat"><div class="v">${fmtPct(dS.max_dd)}</div><div class="l">Max DD</div></div>
+    `;
+    // Same weighting math as Strategy A: weight_i = breadth_excess_i / Σ breadth_excess
+    // Trade history records breadth_pct (not signal_pct).
+    const dSumBreadth = dLatest.holdings.reduce((s, h) => s + (h.breadth_pct || 0), 0);
+    const dFormula = `
+      <div class="formula-box" style="border-left-color:#0e7490;">
+        <strong>How each weight is computed</strong> · same constituent-breadth mechanism as Strategy A, applied to 5 Stoxx Europe 600 sector UCITS. Weight by breadth share among the top-K holdings.
+        <div style="margin:6px 0;">
+          <span class="eq">weight<sub>i</sub> = breadth<sub>i</sub> ÷ Σ(top-K breadths)</span>
+          <span style="margin-left:8px;color:var(--ink-faint);">where Σ = <strong>${dSumBreadth.toFixed(1)}%</strong> today</span>
+        </div>
+        In the ${blendLabel} deployed blend, each ETF's effective NAV weight is ${W_D.toFixed(2)} × its within-strategy weight.
+        <div style="margin-top:8px;font-size:11px;color:var(--ink-faint);">
+          <em>Trade as:</em> the underlying Xetra-listed UCITS (e.g. EXV1.DE) in EUR. Any EU broker; T+2 settlement.
+        </div>
+      </div>
+    `;
+    const dSorted = dLatest.holdings.slice().sort((x, y) => y.weight - x.weight);
+    const dStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy D (100% = ${(W_D*100).toFixed(0)}% of NAV)</div>`;
+    const dStrip = dStripLabel + `<div class="strat-alloc-strip">${dSorted.map(h => {
+      const pct = h.weight * 100;
+      return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${h.etf}: ${pct.toFixed(1)}%">${pct >= 7 ? h.etf : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
+    }).join('')}</div>`;
+    document.getElementById('live-d-holdings').innerHTML = dFormula + dStrip + dSorted
+      .map((h, idx) => {
+        const universe = eu.universe || [];
+        const u = universe.find(x => x.etf === h.etf) || {};
+        const wPct = (h.weight*100).toFixed(1);
+        const navEff = (h.weight*W_D*100).toFixed(2);
+        return `<div class="holding-row">
+          <div class="hrow-top">
+            <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
+            <span class="hlabel">${u.sector || u.label || ''} <span style="color:var(--ink-faint);font-weight:400;margin-left:6px;">breadth ${h.breadth_pct}%</span></span>
+            <span class="hweight">${wPct}%</span>
+          </div>
+          <div class="hcalc">
+            <span class="lhs">rank ${idx+1}</span>
+            <span class="arrow">·</span>
+            <span class="lhs">${h.breadth_pct}% ÷ ${dSumBreadth.toFixed(1)}%</span>
+            <span class="arrow">=</span>
+            <span class="rhs">${wPct}%</span>
+            <span class="nav-eff">→ ${navEff}% NAV</span>
+          </div>
+        </div>`;
+      }).join('');
+  } else {
+    document.querySelector('.strat-panel.d')?.style.setProperty('display', 'none');
   }
 }
 
@@ -3824,14 +4045,276 @@ function renderThematicAttribution() {
 }
 
 // ============= Multi-Strategy A+B[+C] =====================================
+// ============= Strategy D: Europe sector breadth rotation ================
+let _europeTradeRecentOnly = true;
+let _europeTradeFilter = '';
+
+function renderEuropeRecipeStats() {
+  const eu = window.DATA.europe;
+  if (!eu) return;
+  const h = eu.headline?.headline_stats;
+  const el = document.getElementById('europe-recipe-stats');
+  if (!el || !h) return;
+  el.innerHTML = `
+    <div class="recipe-stat"><div class="v good">${fmtNum(h.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
+    <div class="recipe-stat"><div class="v">${fmtPct(h.cagr, true)}</div><div class="l">CAGR</div></div>
+    <div class="recipe-stat"><div class="v good">${fmtPct(h.max_dd)}</div><div class="l">Max drawdown</div></div>
+    <div class="recipe-stat"><div class="v">${fmtPct(h.total_return, true)}</div><div class="l">Total return</div></div>
+    <div class="recipe-stat"><div class="v">${fmtNum(h.annual_turnover, 1)}×</div><div class="l">Turnover / yr</div></div>
+    <div class="recipe-stat"><div class="v">${eu.headline?.n_rebalances || '—'}</div><div class="l">Rebalances</div></div>
+  `;
+}
+
+function renderEuropeCharts() {
+  const eu = window.DATA.europe;
+  if (!eu?.headline) return;
+  const h = eu.headline;
+  const bm = eu.benchmarks || {};
+  const colours = eu.europe_colours || {};
+
+  // Equity vs SPY benchmark
+  const traces = [
+    {
+      x: h.headline_equity_dates, y: h.headline_equity,
+      mode: 'lines', name: `Europe Sector Rotation (K=${h.K} ${h.rebal_freq})`,
+      line: { color: '#1351b4', width: 2.4 },
+      hovertemplate: '%{x|%Y-%m-%d}<br>Strategy D: %{y:.2f}<extra></extra>',
+    },
+  ];
+  if (bm.spy_buy_hold) traces.push({
+    x: bm.spy_buy_hold.dates, y: bm.spy_buy_hold.equity,
+    mode: 'lines', name: 'SPY buy-and-hold',
+    line: { color: '#6b727a', width: 1.4, dash: 'dot' },
+    hovertemplate: '%{x|%Y-%m-%d}<br>SPY: %{y:.2f}<extra></extra>',
+  });
+  Plotly.newPlot('europe-equity-chart', traces, {
+    margin: { t: 8, r: 16, b: 60, l: 56 },
+    xaxis: { showgrid: false, color: '#4a5159' },
+    yaxis: { type: 'log', gridcolor: '#eef0f3', color: '#4a5159',
+              title: { text: 'Equity, normalised to 1.0 (log)', font: { size: 11 } } },
+    paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+    legend: { orientation: 'h', y: -0.16, x: 0, font: { size: 12 } },
+    hovermode: 'x unified',
+    font: { family: 'Inter', size: 12, color: '#4a5159' },
+  }, { displayModeBar: false, responsive: true });
+
+  renderEuropeStatsTable();
+
+  // Stacked allocation
+  const wkDates = h.weekly_allocation_dates || [];
+  const alloc = h.weekly_allocation || {};
+  const attr = h.attribution || {};
+  const ordered = Object.keys(alloc).sort((a, b) => {
+    const ca = attr[a]?.contribution_to_total_return ?? 0;
+    const cb = attr[b]?.contribution_to_total_return ?? 0;
+    return ca - cb;
+  });
+  const stackedTraces = ordered.map(etf => {
+    const meta = (eu.universe || []).find(u => u.etf === etf) || {};
+    const label = meta.label ? `${etf} — ${meta.sector || meta.label}` : etf;
+    return {
+      x: wkDates,
+      y: (alloc[etf] || []).map(v => (v == null ? 0 : v * 100)),
+      name: label,
+      stackgroup: 'one',
+      mode: 'none',
+      fillcolor: colours[etf] || '#999',
+      hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:.1f}%<extra></extra>',
+    };
+  });
+  Plotly.newPlot('europe-allocation-chart', stackedTraces, {
+    margin: { t: 8, r: 16, b: 100, l: 50 },
+    xaxis: { showgrid: false, color: '#4a5159' },
+    yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
+              title: { text: 'Allocation %', font: { size: 11 } },
+              range: [0, 100], ticksuffix: '%' },
+    paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+    legend: { orientation: 'h', y: -0.26, x: 0, font: { size: 10 } },
+    hovermode: 'x unified',
+    font: { family: 'Inter', size: 12, color: '#4a5159' },
+  }, { displayModeBar: false, responsive: true });
+}
+
+function renderEuropeStatsTable() {
+  const eu = window.DATA.europe;
+  if (!eu) return;
+  const h = eu.headline?.headline_stats || {};
+  const bm = eu.benchmarks || {};
+  const spy = bm.spy_buy_hold || {};
+  const el = document.getElementById('europe-stats-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Strategy</th><th>Sharpe</th><th>CAGR</th><th>Total return</th>
+    <th>Max DD</th><th>Δ Sharpe vs SPY</th><th>Δ DD vs SPY</th>
+  </tr>`;
+  const spySh = spy.sharpe ?? 0;
+  const spyDd = spy.max_dd ?? 0;
+  const rows = [
+    { label: `Strategy D: K=${eu.headline?.K} ${eu.headline?.rebal_freq} (in-sample)`, data: h, highlight: true },
+    { label: 'SPY buy-and-hold (broad-market benchmark)', data: spy },
+  ];
+  el.querySelector('tbody').innerHTML = rows.map(r => {
+    const dSh = (r.data.sharpe ?? 0) - spySh;
+    const dDd = (r.data.max_dd ?? 0) - spyDd;
+    const isStrat = r.highlight;
+    return `<tr class="${isStrat ? 'highlight' : ''}">
+      <td class="row-label">${isStrat ? '<strong>' + r.label + '</strong>' : r.label}</td>
+      <td class="num"><strong>${fmtNum(r.data.sharpe, 2, true)}</strong></td>
+      <td class="num">${fmtPct(r.data.cagr, true)}</td>
+      <td class="num">${fmtPct(r.data.total_return, true)}</td>
+      <td class="num">${fmtPct(r.data.max_dd)}</td>
+      <td class="num ${dSh > 0 ? 'good' : 'bad'}">${fmtNum(dSh, 2, true)}</td>
+      <td class="num ${dDd > 0 ? 'good' : 'bad'}">${fmtPct(dDd, true)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderEuropeCadenceGrid() {
+  const eu = window.DATA.europe;
+  if (!eu) return;
+  const grid = eu.rebalance_freq_grid || {};
+  const Ks = Object.keys(grid);
+  if (!Ks.length) return;
+  const freqs = Object.keys(grid[Ks[0]] || {});
+  let best = -Infinity, worst = Infinity;
+  Ks.forEach(K => freqs.forEach(f => {
+    const s = grid[K][f]?.sharpe;
+    if (s != null && Number.isFinite(s)) {
+      if (s > best) best = s;
+      if (s < worst) worst = s;
+    }
+  }));
+  const el = document.getElementById('europe-cadence-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th class="label">Cadence \\ K</th>
+    ${Ks.map(K => `<th>${K}</th>`).join('')}
+  </tr>`;
+  el.querySelector('tbody').innerHTML = freqs.map(f => {
+    const cells = Ks.map(K => {
+      const c = grid[K][f] || {};
+      const s = c.sharpe;
+      const cls = s === best ? 'best' : (s === worst ? 'worst' : '');
+      return `<td class="${cls}">
+        <span class="v">${fmtNum(s, 2, true)}
+          <span class="sub">DD ${fmtPct(c.max_dd)} · CAGR ${fmtPct(c.cagr, true)} · tov ${fmtNum(c.annual_turnover, 1)}×/yr</span>
+        </span>
+      </td>`;
+    }).join('');
+    return `<tr><td class="label">${f}</td>${cells}</tr>`;
+  }).join('');
+  document.getElementById('europe-cadence-note').innerHTML =
+    `Headline: K=${eu.headline?.K} ${eu.headline?.rebal_freq} (Sharpe ${fmtNum(eu.headline?.headline_stats?.sharpe, 2, true)}). ` +
+    `The K=3 Bi-weekly cell is the global best at Sharpe ${fmtNum(grid['K=3']?.['Bi-weekly Fri']?.sharpe, 2, true)} (slightly above Weekly), but Weekly Friday is kept as the headline for cadence consistency with Strategies A / B / C. ` +
+    `K=4 (holding 4 of 5 ETFs) collapses to near-beta — keep K=3 as the rotation discipline.`;
+}
+
+function renderEuropeTradeTable() {
+  const eu = window.DATA.europe;
+  if (!eu?.headline?.trade_history) return;
+  const history = eu.headline.trade_history;
+  let asc = history.slice();
+  const q = (_europeTradeFilter || '').trim().toUpperCase();
+  if (q) {
+    asc = asc.filter(r => r.date.includes(q) ||
+      r.holdings.some(h => h.etf.toUpperCase().includes(q)));
+  }
+  if (_europeTradeRecentOnly && asc.length > 50) asc = asc.slice(-50);
+  const rows = asc.slice().reverse();
+  document.getElementById('europe-trade-count').textContent =
+    `${rows.length} of ${history.length} rebalances`;
+  document.getElementById('europe-trade-history-sub').textContent =
+    `${history.length} rebalances from ${history[0]?.date} to ${history[history.length-1]?.date}. Newest first. Filter to find specific sectors or dates.`;
+  const indexByDate = new Map(history.map((r, i) => [r.date, i]));
+  const colours = eu.europe_colours || {};
+  const el = document.getElementById('europe-trade-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th class="date-col">Date ↓</th>
+    <th>Holdings (weight · breadth % above 200d MA)</th>
+  </tr>`;
+  el.querySelector('tbody').innerHTML = rows.map(r => {
+    const idx = indexByDate.get(r.date);
+    const prev = idx > 0 ? history[idx - 1] : null;
+    const prevSet = new Set(prev ? prev.holdings.map(h => h.etf) : []);
+    const exited = prev ? prev.holdings.filter(h => !new Set(r.holdings.map(x => x.etf)).has(h.etf)) : [];
+    const chips = r.holdings.map(h => {
+      const isEntered = prev && !prevSet.has(h.etf);
+      const cls = isEntered ? 'holding-chip entered' : 'holding-chip';
+      const bStr = h.breadth_pct != null ? `${h.breadth_pct}%` : '';
+      return `<span class="${cls}" style="border-left:3px solid ${colours[h.etf]||'#999'};">${h.etf} <span class="w">${(h.weight*100).toFixed(1)}%</span><span class="b">${bStr}</span></span>`;
+    }).join('');
+    const exitChips = exited.map(h =>
+      `<span class="holding-chip exited">${h.etf}</span>`).join('');
+    return `<tr>
+      <td class="date-col">${r.date}</td>
+      <td class="holdings-cell">${chips} ${exitChips ? '<span style="color:var(--ink-faint);font-size:11px;margin-left:6px;">— exited:</span> ' + exitChips : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderEuropeAttribution() {
+  const eu = window.DATA.europe;
+  if (!eu) return;
+  const attr = eu.headline?.attribution || {};
+  const universeMeta = Object.fromEntries(
+    (eu.universe || []).map(u => [u.etf, u]));
+  const colours = eu.europe_colours || {};
+  const el = document.getElementById('europe-attribution-table');
+  if (!el) return;
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th><th>Sector</th>
+    <th>% time held</th><th>Avg weight when held</th>
+    <th>Ann. return when held</th>
+    <th>Contribution to NAV</th><th>% of total</th>
+  </tr>`;
+  const maxPct = Math.max(0.01,
+    ...Object.values(attr).map(a => Math.abs(a.pct_of_total_contribution ?? 0)));
+  const sorted = Object.entries(attr).sort((a, b) =>
+    (b[1].contribution_to_total_return ?? 0) - (a[1].contribution_to_total_return ?? 0));
+  el.querySelector('tbody').innerHTML = sorted.map(([etf, info]) => {
+    const pctT = info.pct_of_days ?? 0;
+    const contrib = info.contribution_to_total_return ?? 0;
+    const pctContrib = info.pct_of_total_contribution ?? 0;
+    const annRet = info.ann_return_when_held;
+    const barW = Math.abs(pctContrib) / maxPct * 100;
+    const barColor = contrib >= 0 ? 'var(--good)' : 'var(--bad)';
+    const bar = `<div style="position:relative;height:10px;background:var(--bg-soft);border-radius:5px;border:1px solid var(--border);width:140px;display:inline-block;vertical-align:middle;margin-left:8px;">
+      <div style="position:absolute;top:0;left:0;height:100%;width:${barW}%;background:${barColor};border-radius:5px;opacity:0.85;"></div>
+    </div>`;
+    const swatch = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colours[etf]||'#999'};vertical-align:middle;margin-right:6px;"></span>`;
+    const meta = universeMeta[etf] || {};
+    return `<tr>
+      <td class="row-label">${swatch}${etf}</td>
+      <td style="color:var(--ink-faint);font-size:13px;">${meta.sector || ''} <span style="color:var(--ink-faint);">·</span> ${meta.label || ''}</td>
+      <td class="num">${pctT.toFixed(1)}%</td>
+      <td class="num">${((info.avg_weight_when_held ?? 0)*100).toFixed(1)}%</td>
+      <td class="num ${annRet != null && annRet > 0.10 ? 'good' : ''}">${annRet != null ? fmtPct(annRet, true) : '—'}</td>
+      <td class="num ${contrib >= 0 ? 'good' : 'bad'}"><strong>${(contrib*100).toFixed(1)} pp</strong></td>
+      <td class="num"><strong>${pctContrib > 0 ? '+' : ''}${pctContrib.toFixed(1)}%</strong>${bar}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============= Strategy multi: A + B + C + D blends =====================
 function renderMultiRecipeStats() {
   const m = window.DATA.multi;
   if (!m?.strategies) return;
-  // Headline is the 45/45/10 deployed blend if Strategy C exists,
-  // otherwise the 50/50 A:B blend.
-  const headlineKey = m.has_strategy_c ? 'blend_45_45_10' : 'blend_50_50';
+  // Headline depends on which sleeves are available:
+  //   has D : 35/35/10/20 (Phase 4 deployed)
+  //   has C : 45/45/10    (pre-Phase 4 baseline)
+  //   else  : 50/50 A:B
+  let headlineKey, label;
+  if (m.has_strategy_d) {
+    headlineKey = 'blend_35_35_10_20';
+    label = '35/35/10/20 deployed';
+  } else if (m.has_strategy_c) {
+    headlineKey = 'blend_45_45_10';
+    label = '45/45/10 deployed';
+  } else {
+    headlineKey = 'blend_50_50';
+    label = '50/50 deployed';
+  }
   const s = m.strategies[headlineKey] || m.strategies.blend_50_50 || {};
-  const label = m.has_strategy_c ? '45/45/10 deployed' : '50/50 deployed';
   const el = document.getElementById('multi-recipe-stats');
   if (!el) return;
   el.innerHTML = `
@@ -3847,28 +4330,36 @@ function renderMultiCharts() {
   if (!m?.strategies) return;
   const s = m.strategies;
   const colours = {
-    strategy_a:      '#1d7a3a',  // green
-    strategy_b:      '#1351b4',  // blue
-    strategy_c:      '#7c3aed',  // purple — thematic
-    blend_70_30:     '#52525b',
-    blend_50_50:     '#0e7490',  // teal
-    blend_30_70:     '#a16207',
-    blend_45_45_10:  '#dc2626',  // red — highlight deployed
-    blend_50_40_10:  '#b76e00',
-    blend_40_40_20:  '#be185d',
-    meta_rotation:   '#9ca3af',
+    strategy_a:         '#1d7a3a',  // green
+    strategy_b:         '#1351b4',  // blue
+    strategy_c:         '#7c3aed',  // purple — thematic
+    strategy_d:         '#0e7490',  // teal — Europe
+    blend_70_30:        '#52525b',
+    blend_50_50:        '#94a3b8',
+    blend_30_70:        '#a16207',
+    blend_45_45_10:     '#b76e00',  // amber — prior 3-way baseline
+    blend_50_40_10:     '#92400e',
+    blend_40_40_20:     '#be185d',
+    blend_35_35_10_20:  '#dc2626',  // red — Phase 4 deployed (highlight)
+    blend_40_40_10_10:  '#7c3aed',
+    blend_30_30_10_30:  '#0891b2',
+    meta_rotation:      '#9ca3af',
   };
   const widths = {
-    blend_45_45_10: 2.6, blend_50_50: 2.0,
-    strategy_a: 1.4, strategy_b: 1.4, strategy_c: 1.4,
+    blend_35_35_10_20: 2.6, blend_45_45_10: 2.0, blend_50_50: 1.6,
+    strategy_a: 1.4, strategy_b: 1.4, strategy_c: 1.4, strategy_d: 1.4,
   };
-  // Order: deployed first, then alternative blends, then standalone strategies, then meta
+  // Order: 4-way deployed first, then 4-way alternatives, then 3-way blends, then 2-way, then standalone, then meta
+  const orderWithD = ['blend_35_35_10_20', 'blend_40_40_10_10', 'blend_30_30_10_30',
+                       'blend_45_45_10', 'blend_50_40_10', 'blend_40_40_20',
+                       'blend_50_50', 'blend_70_30', 'blend_30_70',
+                       'strategy_a', 'strategy_b', 'strategy_c', 'strategy_d', 'meta_rotation'];
   const orderWithC = ['blend_45_45_10', 'blend_50_50', 'blend_50_40_10', 'blend_40_40_20',
                        'blend_70_30', 'blend_30_70',
                        'strategy_a', 'strategy_b', 'strategy_c', 'meta_rotation'];
   const orderNoC = ['blend_50_50', 'blend_70_30', 'blend_30_70',
                      'strategy_a', 'strategy_b', 'meta_rotation'];
-  const order = m.has_strategy_c ? orderWithC : orderNoC;
+  const order = m.has_strategy_d ? orderWithD : (m.has_strategy_c ? orderWithC : orderNoC);
   const traces = order.filter(k => s[k]).map(k => {
     const v = s[k];
     return {
@@ -3902,7 +4393,23 @@ function renderMultiStatsTable() {
     <th>Variant</th><th>Sharpe</th><th>CAGR</th>
     <th>Total return</th><th>Max drawdown</th>
   </tr>`;
-  // Build row list — order changes whether C is present
+  // Build row list — order changes whether C / D are present
+  const rowsWithD = [
+    { key: 'blend_35_35_10_20', label: '35% A + 35% B + 10% C + 20% D (DEPLOYED — Phase 4 4-way blend with Europe sleeve)', highlight: true },
+    { key: 'blend_40_40_10_10', label: '40% A + 40% B + 10% C + 10% D (light Europe — closer to 3-way baseline DD)' },
+    { key: 'blend_30_30_10_30', label: '30% A + 30% B + 10% C + 30% D (heavy Europe — sharper but deeper DD)' },
+    { key: 'blend_45_45_10',    label: '45% A + 45% B + 10% C (PRE-PHASE-4 BASELINE — lower DD than 4-way)' },
+    { key: 'blend_50_40_10',    label: '50% A + 40% B + 10% C (A-tilted, 3-way)' },
+    { key: 'blend_40_40_20',    label: '40% A + 40% B + 20% C (higher thematic, 3-way)' },
+    { key: 'blend_50_50',       label: '50% A + 50% B (2-way, no thematic, no Europe)' },
+    { key: 'blend_70_30',       label: '70% A + 30% B (more A — higher CAGR)' },
+    { key: 'blend_30_70',       label: '30% A + 70% B (more B — lowest DD)' },
+    { key: 'strategy_a',        label: 'Strategy A alone (US sector breadth rotation)' },
+    { key: 'strategy_b',        label: 'Strategy B alone (asset-class momentum)' },
+    { key: 'strategy_c',        label: 'Strategy C alone (thematic momentum — high vol)' },
+    { key: 'strategy_d',        label: 'Strategy D alone (Europe sector breadth rotation)' },
+    { key: 'meta_rotation',     label: 'Meta-rotation (pick A or B by 126d Sharpe — fails)' },
+  ];
   const rowsWithC = [
     { key: 'blend_45_45_10', label: '45% A + 45% B + 10% C (DEPLOYED — recommended with thematic sleeve)', highlight: true },
     { key: 'blend_50_50',    label: '50% A + 50% B (best Sharpe — recommended without thematic)' },
@@ -3923,7 +4430,7 @@ function renderMultiStatsTable() {
     { key: 'strategy_b',     label: 'Strategy B alone' },
     { key: 'meta_rotation',  label: 'Meta-rotation (fails)' },
   ];
-  const rows = m.has_strategy_c ? rowsWithC : rowsNoC;
+  const rows = m.has_strategy_d ? rowsWithD : (m.has_strategy_c ? rowsWithC : rowsNoC);
   el.querySelector('tbody').innerHTML = rows.map(r => {
     const v = s[r.key];
     if (!v) return '';
@@ -4150,6 +4657,13 @@ function activateTab(name) {
       renderThematicTradeTable();
       renderThematicAttribution();
     }
+    if (name === 'europe') {
+      renderEuropeRecipeStats();
+      renderEuropeCharts();
+      renderEuropeCadenceGrid();
+      renderEuropeTradeTable();
+      renderEuropeAttribution();
+    }
     if (name === 'multi') {
       renderMultiRecipeStats();
       renderMultiCharts();
@@ -4184,6 +4698,9 @@ function activateTab(name) {
     }
     if (name === 'thematic') {
       try { Plotly.Plots.resize('thematic-equity-chart'); Plotly.Plots.resize('thematic-allocation-chart'); } catch(e){}
+    }
+    if (name === 'europe') {
+      try { Plotly.Plots.resize('europe-equity-chart'); Plotly.Plots.resize('europe-allocation-chart'); } catch(e){}
     }
     if (name === 'multi') {
       try { Plotly.Plots.resize('multi-equity-chart'); } catch(e){}
@@ -4233,6 +4750,14 @@ function activateTab(name) {
   document.getElementById('thematic-trade-filter')?.addEventListener('input', (e) => {
     _thematicTradeFilter = e.target.value;
     renderThematicTradeTable();
+  });
+  document.getElementById('europe-trade-recent-only')?.addEventListener('change', (e) => {
+    _europeTradeRecentOnly = e.target.checked;
+    renderEuropeTradeTable();
+  });
+  document.getElementById('europe-trade-filter')?.addEventListener('input', (e) => {
+    _europeTradeFilter = e.target.value;
+    renderEuropeTradeTable();
   });
 })();
 </script>

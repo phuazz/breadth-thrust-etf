@@ -84,10 +84,17 @@ def build_panels() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
     ma200_b_panel   : DataFrame indexed by date, columns = ETFs, values = ma200
                       breadth fraction (0-1).
     """
+    return _build_panels_for(ETFS)
+
+
+def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
+    """Build (closes, breadths, etfs_used) panels for an arbitrary ETF list.
+    Used by Phase 4 to construct Europe-sector-only or Country-only panels
+    without modifying the global UNIVERSE_ETFS."""
     closes = {}
     breadths = {}
     used = []
-    for etf in ETFS:
+    for etf in universe:
         cfg = get_etf(etf)
         proxy = cfg.get("yfinance_trading_proxy") or etf
         try:

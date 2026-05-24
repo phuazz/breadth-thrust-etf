@@ -121,10 +121,33 @@ PRICE_WARMUP_CALENDAR_DAYS = 180
 # ---------------------------------------------------------------------------
 
 
+# yfinance exchange suffixes that should be PRESERVED, not converted to dash.
+# These are populated upstream by fetch_constituents._resolve_yf_symbol for
+# non-US ETFs (e.g. Tokyo 6592 -> 6592.T, London HSBA -> HSBA.L, Paris BNP
+# -> BNP.PA). Converting these dots to dashes would break the symbol.
+_YF_EXCHANGE_SUFFIXES = {
+    "L", "DE", "F", "PA", "MI", "AS", "MC", "SW", "BR", "ST", "HE", "CO",
+    "OL", "LS", "VI", "WA", "AT", "IR", "T", "HK", "NS", "BO", "KS", "TW",
+    "SS", "SZ", "SI", "AX", "JO", "SA", "MX",
+}
+
+
 def normalise_for_yfinance(ticker: str) -> str:
     """Convert iShares dot-separated share classes (e.g. BRK.B) to yfinance's
-    dash convention (BRK-B). Most SOXX tickers are unaffected."""
-    return ticker.replace(".", "-")
+    dash convention (BRK-B). Preserves dots that introduce a recognised
+    exchange suffix (e.g. 6592.T, HSBA.L, BNP.PA) used by non-US ETFs.
+
+    Logic: if the substring after the LAST dot matches one of the known
+    yfinance exchange suffixes (Tokyo .T, London .L, Paris .PA, etc.), leave
+    the ticker untouched. Otherwise (e.g. BRK.B share class) convert dot to
+    dash. Tickers without dots are returned as-is.
+    """
+    if "." not in ticker:
+        return ticker
+    base, _, suffix = ticker.rpartition(".")
+    if suffix in _YF_EXCHANGE_SUFFIXES:
+        return ticker  # exchange suffix — keep as-is
+    return ticker.replace(".", "-")  # share class — convert
 
 
 def compute_rsi(prices: pd.DataFrame, period: int = 14) -> pd.DataFrame:

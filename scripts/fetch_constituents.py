@@ -124,8 +124,126 @@ def fetch_with_retry(target: date, etf_cfg: dict) -> str:
     )
 
 
-def parse_holdings(body: str, ticker_overrides: dict | None = None) -> list[str]:
-    """Parse iShares CSV body and return Equity-only ticker list, or [] if empty.
+# =============================================================================
+# Non-US yfinance ticker resolution
+# =============================================================================
+# iShares constituent CSVs include an "Exchange" column identifying the listing
+# venue for each holding. For non-US ETFs (Europe sectors, Asian / EM country
+# funds), we map the Exchange name to the corresponding yfinance suffix so the
+# downstream price fetch resolves correctly.
+#
+# yfinance ticker conventions:
+#   - US stocks: no suffix (AAPL, MSFT, ...)
+#   - Share-class dots: convert to dash (BRK.B -> BRK-B)
+#   - European stocks: <local_ticker>.<exchange_suffix>
+#     .L  London,  .DE Xetra,  .PA Paris,  .MI Milan,  .AS Amsterdam,
+#     .MC Madrid,  .SW Switzerland,  .BR Brussels,  .ST Stockholm,
+#     .CO Copenhagen, .HE Helsinki, .OL Oslo, .LS Lisbon, .IR Dublin,
+#     .VI Vienna, .WA Warsaw, .PR Prague, .AT Athens
+#   - Asian: .T Tokyo, .HK Hong Kong, .TW Taiwan, .KS Kospi, .NS NSE India
+#   - Other: .AX Sydney, .SA São Paulo, .JO Johannesburg
+
+_EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
+    # United Kingdom
+    "London Stock Exchange":          ".L",
+    "London Stock Exchange-Sets":     ".L",
+    # Continental Europe
+    "Xetra":                          ".DE",
+    "Deutsche Boerse Ag":             ".DE",
+    "Frankfurt Stock Exchange":       ".F",
+    "Nyse Euronext - Euronext Paris": ".PA",
+    "Euronext Paris":                 ".PA",
+    "Borsa Italiana":                 ".MI",
+    "Euronext Amsterdam":             ".AS",
+    "Nyse Euronext - Euronext Amsterdam": ".AS",
+    "Bolsa De Madrid":                ".MC",
+    "Bolsa Madrid":                   ".MC",
+    "Bolsas Y Mercados Espanoles":    ".MC",
+    "Six Swiss Exchange":             ".SW",
+    "Swiss Exchange":                 ".SW",
+    "Nyse Euronext - Euronext Brussels": ".BR",
+    "Euronext Brussels":              ".BR",
+    "Stockholm Stock Exchange":       ".ST",
+    "Nasdaq Stockholm":               ".ST",
+    "Nasdaq Helsinki":                ".HE",
+    "Helsinki Stock Exchange":        ".HE",
+    "Copenhagen Stock Exchange":      ".CO",
+    "Nasdaq Copenhagen":              ".CO",
+    "Oslo Stock Exchange":            ".OL",
+    "Oslo Bors":                      ".OL",
+    "Nyse Euronext - Euronext Lisbon": ".LS",
+    "Vienna Stock Exchange":          ".VI",
+    "Warsaw Stock Exchange":          ".WA",
+    "Athens Stock Exchange":          ".AT",
+    "Irish Stock Exchange":           ".IR",
+    # Asia
+    "Tokyo Stock Exchange":           ".T",
+    "Hong Kong Exchanges And Clearing Ltd": ".HK",
+    "Hong Kong Exchanges":            ".HK",
+    "Hong Kong Stock Exchange":       ".HK",
+    "National Stock Exchange Of India": ".NS",
+    "Bombay Stock Exchange":          ".BO",
+    "Korea Exchange":                 ".KS",
+    "Korea Stock Exchange":           ".KS",
+    "Taiwan Stock Exchange":          ".TW",
+    "Shanghai Stock Exchange":        ".SS",
+    "Shenzhen Stock Exchange":        ".SZ",
+    "Singapore Exchange":             ".SI",
+    # Oceania / Africa / LatAm
+    "Asx - All Markets":              ".AX",
+    "Australian Securities Exchange": ".AX",
+    "Johannesburg Stock Exchange":    ".JO",
+    "Bm&Fbovespa":                    ".SA",
+    "B3 - Brasil Bolsa Balcao":       ".SA",
+    "Bolsa Mexicana De Valores":      ".MX",
+    # US (no suffix)
+    "Nasdaq":                         "",
+    "Nasdaq Stock Market":            "",
+    "Nasdaq/Ngs (Global Select Market)": "",
+    "New York Stock Exchange Inc.":   "",
+    "Nyse":                           "",
+    "Nyse Arca":                      "",
+    "Cboe Bzx Exchange":              "",
+}
+
+
+def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
+                         overrides: dict | None = None) -> str | None:
+    """Map (CSV ticker, Exchange name) to a yfinance-ready symbol.
+
+    Order of resolution:
+      1. Explicit ticker_overrides (highest priority) — used for share-class
+         quirks like BRK.B / BRKB → BRK-B.
+      2. Exchange-based suffix mapping.
+      3. If exchange unknown or empty → return raw ticker as-is (assume US).
+
+    Returns None when the ticker is empty / unparseable.
+    """
+    if not raw_ticker:
+        return None
+    overrides = overrides or {}
+    if raw_ticker in overrides:
+        return overrides[raw_ticker]
+    # Standard dot → dash conversion for share-class US tickers
+    base = raw_ticker.replace(".", "-") if exchange and "United States" not in (exchange or "") and exchange.lower().startswith(("nasdaq", "nyse", "cboe")) else raw_ticker
+    # Note: only convert dots-to-dashes for US tickers; for non-US tickers,
+    # dots may have meaning we don't want to touch.
+    if exchange:
+        ex_key = exchange.strip()
+        if ex_key in _EXCHANGE_TO_YF_SUFFIX:
+            suffix = _EXCHANGE_TO_YF_SUFFIX[ex_key]
+            # If the suffix is empty (US listing), apply dot→dash share-class fix
+            if suffix == "":
+                return base.replace(".", "-")
+            return f"{raw_ticker}{suffix}"
+    # Fallback: assume US (no suffix). Apply share-class fix.
+    return raw_ticker.replace(".", "-")
+
+
+def parse_holdings(body: str, ticker_overrides: dict | None = None,
+                     apply_exchange_suffix: bool = False) -> list[str]:
+    """Parse iShares CSV body and return Equity-only yfinance-ready ticker list,
+    or [] if the file is empty.
 
     CSV layout: preamble of fund-level metadata (Fund name, "Fund Holdings as
     of <date>", inception date, totals), then a header row beginning
@@ -136,9 +254,19 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None) -> list[str]
     An "empty template" file (no holdings) is detected by 'Fund Holdings as
     of,"-"' or 'Fund Holdings as of,-'.
 
-    ticker_overrides: optional dict mapping the raw ticker as it appears in
-    the CSV (e.g. 'BRKB') to the form expected downstream by yfinance
-    (e.g. 'BRK-B'). UK iShares strips share-class dots; US iShares does not.
+    Parameters
+    ----------
+    body : str
+        Raw CSV text.
+    ticker_overrides : dict, optional
+        Maps the raw ticker as it appears in the CSV (e.g. 'BRKB') to the form
+        expected downstream by yfinance (e.g. 'BRK-B').
+    apply_exchange_suffix : bool
+        When True, the Exchange column is used to map each ticker to its
+        yfinance symbol with the appropriate suffix (e.g. HSBA → HSBA.L for
+        London-listed). Set this True for non-US iShares UCITS funds whose
+        constituents trade outside the US. When False (default, US ETFs),
+        only the dot→dash share-class conversion is applied.
     """
     if 'Fund Holdings as of,"-"' in body or 'Fund Holdings as of,-' in body:
         return []
@@ -146,11 +274,19 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None) -> list[str]
     tickers: list[str] = []
     header: list[str] | None = None
     asset_class_idx: int | None = None
+    exchange_idx: int | None = None
     for ln in body.splitlines():
         if header is None:
             if "Ticker" in ln[:20] and "Asset Class" in ln:
                 header = next(csv.reader(io.StringIO(ln)))
                 asset_class_idx = header.index("Asset Class")
+                # Exchange column may or may not be present (US iShares CSVs
+                # sometimes omit it). If missing, exchange_idx stays None and
+                # we fall back to the raw ticker.
+                try:
+                    exchange_idx = header.index("Exchange")
+                except ValueError:
+                    exchange_idx = None
             continue
         if not ln.strip():
             break  # blank line terminates the holdings block
@@ -161,7 +297,16 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None) -> list[str]
             if row[asset_class_idx].strip() != "Equity":
                 continue
         raw = row[0].strip()
-        tickers.append(overrides.get(raw, raw))
+        exchange = (row[exchange_idx].strip() if exchange_idx is not None
+                                              and len(row) > exchange_idx
+                                              else None)
+        if apply_exchange_suffix:
+            sym = _resolve_yf_symbol(raw, exchange, overrides)
+            if sym is None:
+                continue
+            tickers.append(sym)
+        else:
+            tickers.append(overrides.get(raw, raw))
     return tickers
 
 
@@ -199,10 +344,12 @@ def get_snapshot(
       - "not_found" : no data within MAX_WALKBACK_DAYS days
     """
     overrides = etf_cfg.get("ticker_overrides", {})
+    apply_suffix = etf_cfg.get("apply_exchange_suffix", False)
     for days_back in range(MAX_WALKBACK_DAYS + 1):
         try_date = target_friday - timedelta(days=days_back)
         body = fetch_with_retry(try_date, etf_cfg)
-        tickers = parse_holdings(body, ticker_overrides=overrides)
+        tickers = parse_holdings(body, ticker_overrides=overrides,
+                                  apply_exchange_suffix=apply_suffix)
         if tickers:
             status = "exact" if days_back == 0 else "walkback"
             return tickers, try_date, status

@@ -1,17 +1,19 @@
-"""Multi-strategy combination — Strategy A (US sector breadth rotation) +
-Strategy B (asset-class momentum rotation).
+"""Multi-strategy combination — Strategy A (US sector breadth rotation),
+Strategy B (asset-class momentum rotation), Strategy C (thematic momentum
+rotation), and Strategy D (Europe sector breadth rotation, Phase 4).
 
-Loads the headline equity curves from both strategies and constructs three
-combination variants:
+Loads the headline equity curves from each available strategy and constructs
+two-way, three-way, and four-way fixed-weight blends, plus a meta-rotation
+between A and B.
 
-  1. Fixed 70/30 blend  — 70% Strategy A + 30% Strategy B, rebalanced weekly
-  2. Fixed 50/50 blend  — equal weight, rebalanced weekly
-  3. Meta-rotation      — at each Friday close, allocate 100% to whichever
-                          of {A, B} has the higher trailing 6-month Sharpe.
-                          Switches no more than once per refit date.
+  - Two-way A:B blends (70/30, 50/50, 30/70) — legacy comparison
+  - Three-way A:B:C blends (45/45/10, 50/40/10, 40/40/20) — pre-Europe baseline
+  - Four-way A:B:C:D blends (35/35/10/20, 40/40/10/10, 30/30/10/30)
+    — Phase 4 release; RECOMMENDED is 35/35/10/20 (separate Europe sleeve)
+  - Meta-rotation A vs B by trailing 126d Sharpe
 
-All blends are computed on the common date window (intersection of the
-two strategies' equity curves).
+All blends are computed on the common date window (intersection of all
+loaded strategies' equity curves).
 
 Output: data/multi_strategy.json
 """
@@ -32,6 +34,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 TOPK_PATH = DATA_DIR / "topk_robustness.json"          # Strategy A
 ASSET_PATH = DATA_DIR / "asset_class_rotation.json"    # Strategy B
 THEMATIC_PATH = DATA_DIR / "thematic_rotation.json"    # Strategy C
+EUROPE_PATH = DATA_DIR / "europe_rotation.json"        # Strategy D (Phase 4)
 OUT_PATH = DATA_DIR / "multi_strategy.json"
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -164,6 +167,54 @@ def fixed_blend_3way(eq_a: pd.Series, eq_b: pd.Series, eq_c: pd.Series,
     return (1.0 + blend_ret).cumprod()
 
 
+def fixed_blend_4way(eq_a: pd.Series, eq_b: pd.Series, eq_c: pd.Series,
+                       eq_d: pd.Series,
+                       w_a: float, w_b: float, w_c: float,
+                       rebal_freq: str = "W-FRI",
+                       cost: float = 5 / 10_000) -> pd.Series:
+    """Four-way fixed-weight blend. w_d = 1 - w_a - w_b - w_c.
+
+    Mechanics identical to the two/three-way variants: target weights snap
+    back at each rebal date; between rebalances each sleeve drifts with its
+    own return; cost = 5 bps on absolute weight change per rebal.
+    """
+    common = (eq_a.index.intersection(eq_b.index)
+              .intersection(eq_c.index)
+              .intersection(eq_d.index))
+    eq_a = eq_a.loc[common]
+    eq_b = eq_b.loc[common]
+    eq_c = eq_c.loc[common]
+    eq_d = eq_d.loc[common]
+    ret_a = eq_a.pct_change().fillna(0)
+    ret_b = eq_b.pct_change().fillna(0)
+    ret_c = eq_c.pct_change().fillna(0)
+    ret_d = eq_d.pct_change().fillna(0)
+    w_d = 1.0 - w_a - w_b - w_c
+    rebal_dates_target = pd.date_range(common[0], common[-1], freq=rebal_freq)
+    rebal_dates = common[common.isin(rebal_dates_target)]
+    blend_ret = pd.Series(0.0, index=common)
+    wa, wb, wc, wd = w_a, w_b, w_c, w_d
+    for i, dt in enumerate(common):
+        if i == 0:
+            blend_ret.iloc[0] = 0.0
+            continue
+        blend_ret.iloc[i] = (wa * ret_a.iloc[i] + wb * ret_b.iloc[i]
+                              + wc * ret_c.iloc[i] + wd * ret_d.iloc[i])
+        wa = wa * (1.0 + ret_a.iloc[i])
+        wb = wb * (1.0 + ret_b.iloc[i])
+        wc = wc * (1.0 + ret_c.iloc[i])
+        wd = wd * (1.0 + ret_d.iloc[i])
+        tot = wa + wb + wc + wd
+        if tot > 0:
+            wa, wb, wc, wd = wa / tot, wb / tot, wc / tot, wd / tot
+        if dt in rebal_dates:
+            turnover = (abs(wa - w_a) + abs(wb - w_b)
+                        + abs(wc - w_c) + abs(wd - w_d))
+            blend_ret.iloc[i] -= turnover * cost
+            wa, wb, wc, wd = w_a, w_b, w_c, w_d
+    return (1.0 + blend_ret).cumprod()
+
+
 def meta_rotation(eq_a: pd.Series, eq_b: pd.Series,
                     lookback_days: int = 126,
                     refit_freq: str = "W-FRI",
@@ -259,10 +310,31 @@ def main() -> int:
     else:
         print("No Strategy C data found — skipping 3-way blends.")
 
+    # Optionally load Strategy D (Europe sector breadth rotation, Phase 4)
+    eq_d = None
+    d_blob = None
+    if EUROPE_PATH.exists():
+        print("Loading Strategy D (Europe sector breadth rotation) ...")
+        d_blob = json.loads(EUROPE_PATH.read_text(encoding="utf-8"))
+        eq_d = equity_from_blob(d_blob["headline"], "headline_equity_dates",
+                                 "headline_equity")
+        sd = compute_stats(eq_d)
+        print(f"  K={d_blob['headline']['K']}, {d_blob['headline']['rebal_freq']} -> "
+              f"Sharpe {sd['sharpe']:+.2f}, CAGR {sd['cagr']*100:+.1f}%, "
+              f"DD {sd['max_dd']*100:.1f}%, "
+              f"{eq_d.index[0].date()} -> {eq_d.index[-1].date()}")
+        common = common.intersection(eq_d.index)
+        print(f"\nCommon window (with D): {common[0].date()} -> {common[-1].date()} "
+              f"({len(common)} trading days, "
+              f"{(common[-1] - common[0]).days/365.25:.1f} years)")
+    else:
+        print("No Strategy D data found — skipping 4-way blends.")
+
     # Renormalise to start = 1.0 in the common window
     eq_a_norm = (eq_a.loc[common] / eq_a.loc[common].iloc[0])
     eq_b_norm = (eq_b.loc[common] / eq_b.loc[common].iloc[0])
     eq_c_norm = (eq_c.loc[common] / eq_c.loc[common].iloc[0]) if eq_c is not None else None
+    eq_d_norm = (eq_d.loc[common] / eq_d.loc[common].iloc[0]) if eq_d is not None else None
 
     print("\n=== Combinations ===")
     print("  --- Two-way A:B blends ---")
@@ -302,6 +374,30 @@ def main() -> int:
               f"CAGR {s404020['cagr']*100:+.1f}%  DD {s404020['max_dd']*100:.1f}%  "
               f"(higher thematic exposure)")
 
+    # Four-way A:B:C:D blends (Phase 4 — only if Strategy D is available)
+    blend_3535_10_20 = blend_4040_10_10 = blend_3030_10_30 = None
+    s35351020 = s40401010 = s30301030 = {}
+    if eq_c_norm is not None and eq_d_norm is not None:
+        print("  --- Four-way A:B:C:D blends (Phase 4: Europe sleeve) ---")
+        blend_3535_10_20 = fixed_blend_4way(eq_a_norm, eq_b_norm, eq_c_norm,
+                                              eq_d_norm, 0.35, 0.35, 0.10)
+        s35351020 = compute_stats(blend_3535_10_20)
+        print(f"  35/35/10/20 A:B:C:D blend  Sharpe {s35351020['sharpe']:+.2f}  "
+              f"CAGR {s35351020['cagr']*100:+.1f}%  DD {s35351020['max_dd']*100:.1f}%  "
+              f"(RECOMMENDED — separate Europe sleeve at 20%)")
+        blend_4040_10_10 = fixed_blend_4way(eq_a_norm, eq_b_norm, eq_c_norm,
+                                              eq_d_norm, 0.40, 0.40, 0.10)
+        s40401010 = compute_stats(blend_4040_10_10)
+        print(f"  40/40/10/10 A:B:C:D blend  Sharpe {s40401010['sharpe']:+.2f}  "
+              f"CAGR {s40401010['cagr']*100:+.1f}%  DD {s40401010['max_dd']*100:.1f}%  "
+              f"(light Europe — closer to 3-way baseline)")
+        blend_3030_10_30 = fixed_blend_4way(eq_a_norm, eq_b_norm, eq_c_norm,
+                                              eq_d_norm, 0.30, 0.30, 0.10)
+        s30301030 = compute_stats(blend_3030_10_30)
+        print(f"  30/30/10/30 A:B:C:D blend  Sharpe {s30301030['sharpe']:+.2f}  "
+              f"CAGR {s30301030['cagr']*100:+.1f}%  DD {s30301030['max_dd']*100:.1f}%  "
+              f"(heavier Europe sleeve)")
+
     meta_eq, alloc = meta_rotation(eq_a_norm, eq_b_norm, lookback_days=126)
     smeta = compute_stats(meta_eq)
     a_pct = float((alloc == "A").mean()) * 100
@@ -309,10 +405,11 @@ def main() -> int:
           f"CAGR {smeta['cagr']*100:+.1f}%  DD {smeta['max_dd']*100:.1f}%  "
           f"(A: {a_pct:.0f}% of days)")
 
-    # Re-stat A, B (and C if present) on the common window for fair comparison
+    # Re-stat A, B (and C, D if present) on the common window for fair comparison
     sa_cw = compute_stats(eq_a_norm)
     sb_cw = compute_stats(eq_b_norm)
     sc_cw = compute_stats(eq_c_norm) if eq_c_norm is not None else None
+    sd_cw = compute_stats(eq_d_norm) if eq_d_norm is not None else None
 
     print(f"\n  (Re-stat on common window {common[0].date()} -> {common[-1].date()}:)")
     print(f"  Strategy A   Sharpe {sa_cw['sharpe']:+.2f}  "
@@ -322,6 +419,9 @@ def main() -> int:
     if sc_cw:
         print(f"  Strategy C   Sharpe {sc_cw['sharpe']:+.2f}  "
               f"CAGR {sc_cw['cagr']*100:+.1f}%  DD {sc_cw['max_dd']*100:.1f}%")
+    if sd_cw:
+        print(f"  Strategy D   Sharpe {sd_cw['sharpe']:+.2f}  "
+              f"CAGR {sd_cw['cagr']*100:+.1f}%  DD {sd_cw['max_dd']*100:.1f}%")
 
     strategies = {
         "strategy_a": {
@@ -376,7 +476,7 @@ def main() -> int:
             **sc_cw,
         }
         strategies["blend_45_45_10"] = {
-            "label": "45% A + 45% B + 10% C (RECOMMENDED — 3-way blend)",
+            "label": "45% A + 45% B + 10% C (3-way baseline — pre-Europe)",
             "dates": [d.strftime("%Y-%m-%d") for d in blend_454510.index],
             "equity": round_series(blend_454510.values),
             **s454510,
@@ -393,12 +493,42 @@ def main() -> int:
             "equity": round_series(blend_404020.values),
             **s404020,
         }
+    if eq_d_norm is not None:
+        strategies["strategy_d"] = {
+            "label": ("Strategy D: Europe sector top-K breadth rotation "
+                      f"(K={d_blob['headline']['K']}, "
+                      f"{d_blob['headline']['rebal_freq']})"),
+            "dates": [d.strftime("%Y-%m-%d") for d in eq_d_norm.index],
+            "equity": round_series(eq_d_norm.values),
+            **sd_cw,
+        }
+        if blend_3535_10_20 is not None:
+            strategies["blend_35_35_10_20"] = {
+                "label": ("35% A + 35% B + 10% C + 20% D "
+                          "(RECOMMENDED — 4-way blend with separate Europe sleeve)"),
+                "dates": [d.strftime("%Y-%m-%d") for d in blend_3535_10_20.index],
+                "equity": round_series(blend_3535_10_20.values),
+                **s35351020,
+            }
+            strategies["blend_40_40_10_10"] = {
+                "label": "40% A + 40% B + 10% C + 10% D (light Europe)",
+                "dates": [d.strftime("%Y-%m-%d") for d in blend_4040_10_10.index],
+                "equity": round_series(blend_4040_10_10.values),
+                **s40401010,
+            }
+            strategies["blend_30_30_10_30"] = {
+                "label": "30% A + 30% B + 10% C + 30% D (heavier Europe)",
+                "dates": [d.strftime("%Y-%m-%d") for d in blend_3030_10_30.index],
+                "equity": round_series(blend_3030_10_30.values),
+                **s30301030,
+            }
 
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
         "common_start": common[0].strftime("%Y-%m-%d"),
         "common_end": common[-1].strftime("%Y-%m-%d"),
         "has_strategy_c": eq_c is not None,
+        "has_strategy_d": eq_d is not None,
         "strategies": strategies,
     }
     OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")

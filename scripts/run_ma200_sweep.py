@@ -84,14 +84,32 @@ def load_constituent_prices(etf: str) -> pd.DataFrame:
 def compute_ma200_breadth(prices: pd.DataFrame, period: int = MA_PERIOD) -> pd.Series:
     """Per-day fraction of constituents above their `period`-day MA.
 
-    Denominator is the count of constituents whose MA is computable on the
-    day (so a ticker without enough history yet doesn't artificially deflate
-    the percentage).
+    Denominator is the count of constituents where BOTH the day's price and
+    the day's MA are computable. A ticker without enough history yet, or
+    one whose price is missing today, does not contribute to either the
+    numerator or the denominator.
+
+    `min_periods` is set to 90% of `period` (e.g. 180 for MA200) rather
+    than the full window length. This tolerates the 1-2% sparse missingness
+    typical of non-US constituents (UCITS sector funds with .L / .DE / .PA
+    / .AS / .MI tickers — local holidays, ex-dividend gaps, intermittent
+    prints). Under the strict full-window requirement, constituents with
+    even 1% missingness silently lose their MA for every window touching
+    a missing day; over a 200-day window that means *every* window, which
+    for the Europe sector ETFs caused n_valid → 0 and froze breadth at
+    a ffill'd stale value. With min_periods=180 a constituent only needs
+    ~180 of the last 200 days to be valid — which matches what a human
+    trader would consider "enough history to call the trend".
+
+    For US constituents (S&P 500 via yfinance) with ~100% coverage, this
+    change is a no-op: every window already has 200 valid observations.
     """
-    ma = prices.rolling(period, min_periods=period).mean()
-    above = (prices > ma) & ma.notna()
+    min_p = max(1, int(period * 0.9))
+    ma = prices.rolling(period, min_periods=min_p).mean()
+    both_valid = prices.notna() & ma.notna()
+    above = (prices > ma) & both_valid
     n_above = above.sum(axis=1)
-    n_valid = ma.notna().sum(axis=1)
+    n_valid = both_valid.sum(axis=1)
     return (n_above / n_valid.replace(0, np.nan)).ffill().fillna(0)
 
 
