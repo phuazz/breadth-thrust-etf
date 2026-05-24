@@ -132,6 +132,13 @@ HEADLINE_K = 4
 HEADLINE_FREQ_NAME = "Weekly Fri"
 HEADLINE_FREQ = "W-FRI"
 
+# Phase 6 (2026-05-24): the within-strategy weight function. Equal-weight
+# was empirically dominant for Strategy C across IS Sharpe, WF Sharpe,
+# CAGR, max DD, and turnover. Revert to top_k_by_signal_capped here if
+# the experiment needs to be re-run. See run_phase6_weighting_experiment.py
+# for the full A/B comparison.
+_WEIGHTER_NAME = "top_k_equal_weight"  # see top_k_equal_weight() docstring
+
 
 # Stable per-ETF colour palette for the dashboard's stacked allocation chart
 THEMATIC_COLOURS = {
@@ -208,8 +215,51 @@ def compute_signal(closes: pd.DataFrame) -> pd.DataFrame:
     return (closes - ma) / ma
 
 
+def top_k_equal_weight(K: int):
+    """Strategy C weight function — Phase 6 deployed (equal-weight).
+
+    - Drop NaN signal (insufficient history)
+    - Drop signal < SIGNAL_FLOOR (require >= 5% above 200d MA)
+    - Top K by signal value
+    - Weight equally: 1/K per holding (so the most-overbought is not
+      overweighted relative to peers that also cleared the floor)
+    - If fewer than K candidates clear the floor, the deficit goes to
+      the IEF cash proxy
+
+    Phase 6 retrospective (2026-05-24): replaced top_k_by_signal_capped
+    after the weighting-scheme experiment showed equal-weight dominates
+    on every metric for Strategy C (IS Sharpe +0.708 -> +0.781, WF Sharpe
+    +0.364 -> +0.388, CAGR +16.5% -> +18.3%, DD -43.7% -> -42.8%,
+    turnover 16.9x -> 15.7x). The mechanistic reason: C's +5% signal
+    floor already filters out modest trends, so signal magnitude beyond
+    eligibility carries little extra information — every eligible
+    candidate is "well into an uptrend". Weighting heavily toward the
+    strongest just overweights the candidate most likely to mean-revert.
+    """
+    def f(s_row: pd.Series) -> pd.Series:
+        valid = s_row.dropna()
+        eligible = valid[valid > SIGNAL_FLOOR]
+        w = pd.Series(0.0, index=s_row.index)
+        if len(eligible) == 0:
+            if CASH_PROXY in w.index:
+                w[CASH_PROXY] = 1.0
+            return w
+        top = eligible.nlargest(min(K, len(eligible)))
+        invested_frac = len(top) / K
+        per_etf = invested_frac / len(top)  # = 1/K when K slots filled
+        w.loc[top.index] = per_etf
+        cash = 1.0 - invested_frac
+        if cash > 0 and CASH_PROXY in w.index:
+            w[CASH_PROXY] = w.get(CASH_PROXY, 0.0) + cash
+        return w
+    return f
+
+
 def top_k_by_signal_capped(K: int):
-    """Strategy C weight function with the fad-resistance guardrails.
+    """Strategy C original weight function (PRE-PHASE-6 baseline).
+
+    Retained for reference / reversibility. The deployed weighter is
+    top_k_equal_weight; see WEIGHTER_FACTORY below.
 
     - Drop NaN signal (insufficient history)
     - Drop signal < SIGNAL_FLOOR (require >= 5% above 200d MA)
@@ -263,6 +313,12 @@ def top_k_by_signal_capped(K: int):
             w[CASH_PROXY] = w.get(CASH_PROXY, 0.0) + cash
         return w
     return f
+
+
+# Phase 6 binding: bound here after both weighters are defined. Change
+# the right-hand side to `top_k_by_signal_capped` to revert to the
+# pre-Phase-6 baseline weighting scheme.
+WEIGHTER_FACTORY = top_k_equal_weight
 
 
 def run_rotation(closes: pd.DataFrame, signal: pd.DataFrame, weight_fn,
@@ -370,7 +426,7 @@ def walk_forward_K(closes: pd.DataFrame, signal: pd.DataFrame,
         return {}
 
     def _portfolio_equity(K, win_start):
-        r = run_rotation(closes, signal, top_k_by_signal_capped(K), win_start,
+        r = run_rotation(closes, signal, WEIGHTER_FACTORY(K), win_start,
                          rebalance_freq=rebal_freq)
         return r["equity"]
 
@@ -460,9 +516,9 @@ def main() -> int:
     for K in K_GRID:
         grid[f"K={K}"] = {}
         print(f"\n  --- K = {K} (signal floor +{int(SIGNAL_FLOOR*100)}%, "
-              f"per-ETF cap {int(PER_ETF_CAP*100)}%) ---")
+              f"weighter {_WEIGHTER_NAME}) ---")
         for freq_name, freq_code in REBAL_FREQS:
-            r = run_rotation(closes, signal, top_k_by_signal_capped(K),
+            r = run_rotation(closes, signal, WEIGHTER_FACTORY(K),
                               eligible, rebalance_freq=freq_code)
             st = compute_stats(r["equity"], eligible)
             to = turnover_stats(r["weights"], eligible)
