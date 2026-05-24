@@ -139,6 +139,16 @@ def load_bootstrap() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_right_tail() -> dict | None:
+    """Load data/phase8_right_tail.json: Sortino, skewness, rolling 12m
+    extremes, regime decomposition, % months as top sleeve. Surfaces the
+    optionality-side metrics that Sharpe ratios alone underrate."""
+    path = DATA_DIR / "phase8_right_tail.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_robustness() -> dict | None:
     """Load data/robustness.json. Trims wf_dates/wf_equity (heavy series
     not currently rendered) to keep the inlined payload compact."""
@@ -251,6 +261,15 @@ def main() -> int:
               f"({bootstrap.get('n_bootstrap_samples', 0)} samples, "
               f"block size {bootstrap.get('block_size_days', 0)}d)")
 
+    print("Loading right-tail / regime metrics (Phase 8) ...", flush=True)
+    right_tail = load_right_tail()
+    if right_tail:
+        ps = right_tail.get("per_strategy", {})
+        rd = right_tail.get("regime_decomposition", {})
+        ts = right_tail.get("top_sleeve_by_month", {})
+        print(f"  right-tail: {len(ps)} per-strategy, {len(rd)} regimes, "
+              f"{len(ts)} top-sleeve buckets")
+
     data = {
         "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "ma200": ma200,
@@ -263,6 +282,7 @@ def main() -> int:
         "europe": europe,
         "multi": multi,
         "bootstrap": bootstrap,
+        "right_tail": right_tail,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")

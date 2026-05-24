@@ -1,0 +1,415 @@
+{
+  "computed_at_utc": "2026-05-24T14:22:29.807129+00:00",
+  "common_monthly_window": [
+    "2018-12-31",
+    "2026-05-31"
+  ],
+  "per_strategy": {
+    "strategy_a": {
+      "label": "Strategy A \u2014 US sector breadth (standalone)",
+      "date_range": [
+        "2018-01-26",
+        "2026-05-22"
+      ],
+      "n_days": 2092,
+      "n_months": 100,
+      "sharpe": 0.9607455575179257,
+      "sortino": 0.8857866688176709,
+      "calmar": 0.5310155807097497,
+      "skew_daily": -0.5942635295934104,
+      "skew_monthly": -0.23647663967308938,
+      "cagr": 0.16620193225404067,
+      "max_dd": -0.3129888053979451,
+      "rolling_12m_best": 0.8513392857142856,
+      "rolling_12m_worst": -0.17948717948717952,
+      "rolling_12m_best_window": [
+        "2020-03-23",
+        "2021-03-23"
+      ],
+      "rolling_12m_worst_window": [
+        "2019-03-22",
+        "2020-03-23"
+      ]
+    },
+    "strategy_b": {
+      "label": "Strategy B \u2014 asset-class momentum (standalone)",
+      "date_range": [
+        "2008-01-25",
+        "2026-05-21"
+      ],
+      "n_days": 4610,
+      "n_months": 220,
+      "sharpe": 0.7469472035729962,
+      "sortino": 0.6918577924069443,
+      "calmar": 0.5929205369192668,
+      "skew_daily": -0.44997207774709164,
+      "skew_monthly": -0.12647094812895232,
+      "cagr": 0.08679167016053624,
+      "max_dd": -0.14637993585362005,
+      "rolling_12m_best": 0.42948467058056106,
+      "rolling_12m_worst": -0.13707936173574176,
+      "rolling_12m_best_window": [
+        "2020-10-30",
+        "2021-11-01"
+      ],
+      "rolling_12m_worst_window": [
+        "2015-01-26",
+        "2016-01-26"
+      ]
+    },
+    "strategy_c": {
+      "label": "Strategy C \u2014 thematic momentum (standalone, equal-weight)",
+      "date_range": [
+        "2018-11-08",
+        "2026-05-22"
+      ],
+      "n_days": 1893,
+      "n_months": 90,
+      "sharpe": 0.7817138479153893,
+      "sortino": 0.7243858624054734,
+      "calmar": 0.4268908568477287,
+      "skew_daily": -0.7505946034621722,
+      "skew_monthly": -0.08941211307221701,
+      "cagr": 0.1827083070616211,
+      "max_dd": -0.4279977051061388,
+      "rolling_12m_best": 1.6162997553924838,
+      "rolling_12m_worst": -0.3616370242876267,
+      "rolling_12m_best_window": [
+        "2020-03-12",
+        "2021-03-12"
+      ],
+      "rolling_12m_worst_window": [
+        "2021-11-08",
+        "2022-11-08"
+      ]
+    },
+    "strategy_d": {
+      "label": "Strategy D \u2014 Europe sector breadth (standalone)",
+      "date_range": [
+        "2018-01-26",
+        "2026-05-22"
+      ],
+      "n_days": 2110,
+      "n_months": 100,
+      "sharpe": 0.8898327269014759,
+      "sortino": 0.7773076528679003,
+      "calmar": 0.44067127870799344,
+      "skew_daily": -1.3415783776457266,
+      "skew_monthly": -0.42747789188209173,
+      "cagr": 0.14114813825999706,
+      "max_dd": -0.3203025590272869,
+      "rolling_12m_best": 0.6551477072310405,
+      "rolling_12m_worst": -0.16839647119875445,
+      "rolling_12m_best_window": [
+        "2025-04-09",
+        "2026-04-13"
+      ],
+      "rolling_12m_worst_window": [
+        "2019-03-18",
+        "2020-03-18"
+      ]
+    },
+    "blend_35_35_10_20": {
+      "label": "35% A + 35% B + 10% C + 20% D (RECOMMENDED \u2014 4-way blend with separate Europe sleeve)",
+      "date_range": [
+        "2018-11-08",
+        "2026-05-21"
+      ],
+      "n_days": 1857,
+      "n_months": 90,
+      "sharpe": 1.1618686204858026,
+      "sortino": 1.0414852032973323,
+      "calmar": 0.6436698727135943,
+      "skew_daily": -1.0953258154036891,
+      "skew_monthly": -0.191470865255689,
+      "cagr": 0.1527352240337343,
+      "max_dd": -0.2372881355932204,
+      "rolling_12m_best": 0.652746785676336,
+      "rolling_12m_worst": -0.102143455873548,
+      "rolling_12m_best_window": [
+        "2020-03-23",
+        "2021-03-30"
+      ],
+      "rolling_12m_worst_window": [
+        "2021-09-23",
+        "2022-09-27"
+      ]
+    },
+    "blend_45_45_10": {
+      "label": "45% A + 45% B + 10% C (3-way baseline \u2014 pre-Europe)",
+      "date_range": [
+        "2018-11-08",
+        "2026-05-21"
+      ],
+      "n_days": 1857,
+      "n_months": 90,
+      "sharpe": 1.1039070377761524,
+      "sortino": 1.007002167796795,
+      "calmar": 0.7016532898604368,
+      "skew_daily": -0.7446067352855034,
+      "skew_monthly": -0.1919702568699197,
+      "cagr": 0.15047518353383293,
+      "max_dd": -0.21445803177772227,
+      "rolling_12m_best": 0.674108559940747,
+      "rolling_12m_worst": -0.09753837242977115,
+      "rolling_12m_best_window": [
+        "2020-03-19",
+        "2021-03-26"
+      ],
+      "rolling_12m_worst_window": [
+        "2021-10-18",
+        "2022-10-20"
+      ]
+    },
+    "blend_50_50": {
+      "label": "50% A + 50% B (no thematic)",
+      "date_range": [
+        "2018-11-08",
+        "2026-05-21"
+      ],
+      "n_days": 1857,
+      "n_months": 90,
+      "sharpe": 1.1077771767735862,
+      "sortino": 1.0143110041261925,
+      "calmar": 0.7038985910209928,
+      "skew_daily": -0.656562515822693,
+      "skew_monthly": -0.2645615664368793,
+      "cagr": 0.14489233070830632,
+      "max_dd": -0.20584262073623769,
+      "rolling_12m_best": 0.601522842639594,
+      "rolling_12m_worst": -0.07955768666210006,
+      "rolling_12m_best_window": [
+        "2020-03-19",
+        "2021-03-26"
+      ],
+      "rolling_12m_worst_window": [
+        "2019-03-13",
+        "2020-03-23"
+      ]
+    }
+  },
+  "regime_decomposition": {
+    "q4_2018_pivot": {
+      "label": "Q4 2018 Powell pivot sell-off",
+      "start": "2018-10-01",
+      "end": "2018-12-31",
+      "narrative": "Hawkish Powell + global growth scare. SPY fell ~14% in Q4. Tested whether the strategies handled the first real risk-off since launch.",
+      "per_strategy": {
+        "strategy_a": {
+          "total_return": -0.0999726102437688,
+          "max_dd": -0.140995260663507,
+          "sharpe": -2.206826848124145,
+          "n_days": 63
+        },
+        "strategy_b": {
+          "total_return": -0.04793426158411318,
+          "max_dd": -0.06783839306094497,
+          "sharpe": -2.208207698037848,
+          "n_days": 63
+        },
+        "strategy_c": {
+          "total_return": 0.04400000000000004,
+          "max_dd": -0.005249343832020852,
+          "sharpe": 9.41974095085633,
+          "n_days": 35
+        },
+        "strategy_d": {
+          "total_return": -0.09121016827783734,
+          "max_dd": -0.10800178810907471,
+          "sharpe": -2.325765162758984,
+          "n_days": 61
+        },
+        "blend_35_35_10_20": {
+          "total_return": -0.03210000000000002,
+          "max_dd": -0.0445106805762543,
+          "sharpe": -3.5414619170595305,
+          "n_days": 32
+        },
+        "blend_45_45_10": {
+          "total_return": -0.03300000000000003,
+          "max_dd": -0.04793028322440087,
+          "sharpe": -3.1683094583489475,
+          "n_days": 32
+        },
+        "blend_50_50": {
+          "total_return": -0.04090000000000005,
+          "max_dd": -0.054911289523243034,
+          "sharpe": -3.540724721884942,
+          "n_days": 32
+        }
+      }
+    },
+    "covid_thematic_boom": {
+      "label": "COVID + thematic boom (Mar 2020 -> Feb 2021 ARKK peak)",
+      "start": "2020-03-23",
+      "end": "2021-02-15",
+      "narrative": "Maximum stimulus + ZIRP environment. ARKK +152%, clean energy doubled, biotech surged. The single best window for Strategy C-style thematic exposure in living memory.",
+      "per_strategy": {
+        "strategy_a": {
+          "total_return": 0.8207589285714285,
+          "max_dd": -0.08078448031719065,
+          "sharpe": 2.9367748317240054,
+          "n_days": 227
+        },
+        "strategy_b": {
+          "total_return": 0.3529140325780997,
+          "max_dd": -0.08034714445688676,
+          "sharpe": 2.636912783650871,
+          "n_days": 227
+        },
+        "strategy_c": {
+          "total_return": 1.7029495119135087,
+          "max_dd": -0.11054501575383796,
+          "sharpe": 3.528050063940251,
+          "n_days": 227
+        },
+        "strategy_d": {
+          "total_return": 0.5103055411703779,
+          "max_dd": -0.11329795075925107,
+          "sharpe": 2.220343979431804,
+          "n_days": 228
+        },
+        "blend_35_35_10_20": {
+          "total_return": 0.6508341302730847,
+          "max_dd": -0.0737611326786938,
+          "sharpe": 3.538874258749404,
+          "n_days": 222
+        },
+        "blend_45_45_10": {
+          "total_return": 0.6697024250767765,
+          "max_dd": -0.07854007854007851,
+          "sharpe": 3.550111704606475,
+          "n_days": 222
+        },
+        "blend_50_50": {
+          "total_return": 0.5763342547310226,
+          "max_dd": -0.08061857288641183,
+          "sharpe": 3.2674490549595743,
+          "n_days": 222
+        }
+      }
+    },
+    "inflation_2022": {
+      "label": "2022 inflation crash (Jan -> Oct)",
+      "start": "2022-01-03",
+      "end": "2022-10-12",
+      "narrative": "Fed pivot to aggressive hiking. SPY -25%, NASDAQ -35%, thematic ETFs (ARKK, ICLN) -50%+. Test of downside protection.",
+      "per_strategy": {
+        "strategy_a": {
+          "total_return": -0.11415220293724959,
+          "max_dd": -0.18467892614809714,
+          "sharpe": -0.6854016268703378,
+          "n_days": 196
+        },
+        "strategy_b": {
+          "total_return": -0.10730677437121361,
+          "max_dd": -0.11513137840638916,
+          "sharpe": -1.198971762849149,
+          "n_days": 196
+        },
+        "strategy_c": {
+          "total_return": -0.24557492531989844,
+          "max_dd": -0.24994426858085528,
+          "sharpe": -1.815464368956145,
+          "n_days": 196
+        },
+        "strategy_d": {
+          "total_return": -0.16167481662591687,
+          "max_dd": -0.19742590624631018,
+          "sharpe": -0.9233164692385375,
+          "n_days": 201
+        },
+        "blend_35_35_10_20": {
+          "total_return": -0.13086363115036126,
+          "max_dd": -0.1428408116604745,
+          "sharpe": -1.3617411665138361,
+          "n_days": 195
+        },
+        "blend_45_45_10": {
+          "total_return": -0.12169252468265168,
+          "max_dd": -0.14034792368125704,
+          "sharpe": -1.2380215735389997,
+          "n_days": 195
+        },
+        "blend_50_50": {
+          "total_return": -0.10759789596727065,
+          "max_dd": -0.13138686131386848,
+          "sharpe": -1.0674564462604839,
+          "n_days": 195
+        }
+      }
+    },
+    "ai_surge_2024": {
+      "label": "2024 AI surge",
+      "start": "2024-01-02",
+      "end": "2024-12-31",
+      "narrative": "Nvidia +170%, large-cap AI plays drove the index. Test of whether the rotation engines caught the move or chased it.",
+      "per_strategy": {
+        "strategy_a": {
+          "total_return": 0.18622218201556007,
+          "max_dd": -0.055225179490898536,
+          "sharpe": 1.5584550951934577,
+          "n_days": 252
+        },
+        "strategy_b": {
+          "total_return": 0.0612999660985607,
+          "max_dd": -0.07353758896797152,
+          "sharpe": 0.5832702082820344,
+          "n_days": 252
+        },
+        "strategy_c": {
+          "total_return": 0.17517798082852187,
+          "max_dd": -0.14034829531518278,
+          "sharpe": 0.8080521701458434,
+          "n_days": 252
+        },
+        "strategy_d": {
+          "total_return": 0.07208264850903978,
+          "max_dd": -0.10100081699346415,
+          "sharpe": 0.6521975267577427,
+          "n_days": 254
+        },
+        "blend_35_35_10_20": {
+          "total_return": 0.12176753973088195,
+          "max_dd": -0.06643200634574395,
+          "sharpe": 1.1560404039279693,
+          "n_days": 247
+        },
+        "blend_45_45_10": {
+          "total_return": 0.13119121404882295,
+          "max_dd": -0.06713232440822654,
+          "sharpe": 1.1293078460767567,
+          "n_days": 247
+        },
+        "blend_50_50": {
+          "total_return": 0.12402761038676458,
+          "max_dd": -0.05983450031826877,
+          "sharpe": 1.1441166205123914,
+          "n_days": 247
+        }
+      }
+    }
+  },
+  "top_sleeve_by_month": {
+    "strategy_a": {
+      "n_months_top": 19,
+      "n_months_total": 90,
+      "pct_top": 21.11111111111111
+    },
+    "strategy_b": {
+      "n_months_top": 9,
+      "n_months_total": 90,
+      "pct_top": 10.0
+    },
+    "strategy_c": {
+      "n_months_top": 37,
+      "n_months_total": 90,
+      "pct_top": 41.11111111111111
+    },
+    "strategy_d": {
+      "n_months_top": 25,
+      "n_months_total": 90,
+      "pct_top": 27.77777777777778
+    }
+  }
+}
