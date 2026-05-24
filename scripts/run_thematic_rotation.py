@@ -90,6 +90,20 @@ UNIVERSE: dict[str, dict] = {
     "COPX": {"label": "Global X Copper Miners",             "theme": "Commodity equity"},
     "MOO":  {"label": "VanEck Agribusiness",                "theme": "Commodity equity"},
     "PAVE": {"label": "Global X US Infrastructure",         "theme": "Infrastructure"},
+    # ---------------------------------------------------------------------
+    # Phase 5 candidates (tested 2026-05-24, NOT deployed). The following
+    # 4 ETFs passed the within-Strategy-C correlation gate (<0.85 vs any
+    # existing C member) and were experimentally added to the universe.
+    # Empirical result: Strategy C standalone Sharpe lifted +0.71 -> +0.74,
+    # but walk-forward Sharpe DROPPED +0.36 -> +0.26 (more fad-chasing
+    # OOS), and at the 10% sleeve weight the deployed 4-way blend Sharpe
+    # changed by +0.0003 (within noise). Reverted; see Method tab for the
+    # full retrospective. Retained as commented references for any future
+    # re-test:
+    #   "ITB":  {"label": "iShares US Home Construction",       "theme": "Rate-sensitive cyclical"},
+    #   "AMLP": {"label": "Alerian MLP (energy infrastructure)", "theme": "Yield / infrastructure"},
+    #   "PHO":  {"label": "Invesco Water Resources",            "theme": "Infrastructure"},
+    #   "KRE":  {"label": "SPDR S&P Regional Banking",          "theme": "Rate-sensitive cyclical"},
 }
 TICKERS = list(UNIVERSE.keys())
 
@@ -128,6 +142,11 @@ THEMATIC_COLOURS = {
     "JETS": "#0e7490",
     "GDX":  "#a16207", "COPX": "#b45309", "MOO":  "#65a30d",
     "PAVE": "#52525b",
+    # Phase 5 additions
+    "ITB":  "#9d174d",  # magenta — homebuilders
+    "AMLP": "#854d0e",  # ochre — MLPs / energy infra
+    "PHO":  "#155e75",  # deep teal — water
+    "KRE":  "#1e40af",  # deep blue — regional banks
     "IEF":  "#6b727a",  # cash proxy
 }
 

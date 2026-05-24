@@ -1309,6 +1309,35 @@
     </section>
 
     <section>
+      <h2>Phase 5 retrospective — negative result (2026-05-24)</h2>
+      <div class="methodbox">
+        <p>Phase 5 tested 11 US sub-sector / industry ETFs (XME, AMLP, ITB, OIH, KRE, XRT, FDN, IBB, SMH, XOP, PBW, KIE, PHO, IGV) as candidates for expanding Strategy C's universe beyond the existing 16 thematic ETFs. Most were SPDR / VanEck / First Trust / Invesco / Global X funds — none are iShares, so they would not fit Strategy A (which requires iShares holdings CSV), but the ETF-level momentum mechanism in Strategy C accommodates them with a one-line registry change per ticker.</p>
+
+        <p><strong>Diagnostic gate (Test 12-style correlation analysis on weekly signal series)</strong>:</p>
+        <ul>
+          <li><strong>Within-Strategy-C gate</strong> (would the candidate just duplicate an existing C member?): 4 candidates failed — XME (cousin of COPX +0.87), IGV (cousin of SKYY +0.94), XRT (cousin of PAVE +0.86), FDN (cousin of SKYY +0.96). The user's initial screenshot intuition was wrong on these.</li>
+          <li><strong>Cross-strategy gate</strong> (would the candidate just amplify a sector Strategy A already holds?): 3 more candidates were blatant cousins of A's sector slate — XOP (XLE +0.95), OIH (XLE +0.91), KIE (XLF +0.91). Adding them would mostly just double-weight Energy / Financials when A is already there.</li>
+          <li><strong>Survivors</strong>: 4 candidates passed within-C but were marginal on cross-strategy — ITB (clean on both, max cross-A +0.75 with SPY), AMLP (XLE +0.85), PHO (SPY +0.85), KRE (XLF +0.87).</li>
+        </ul>
+
+        <p><strong>Empirical test</strong>: added the 4 survivors to Strategy C's UNIVERSE, re-ran Strategy C and the multi-strategy combinator. Results:</p>
+        <ul>
+          <li>Strategy C standalone Sharpe: <strong>+0.71 → +0.74</strong> (+0.03 lift)</li>
+          <li>Strategy C walk-forward Sharpe: <strong>+0.36 → +0.26</strong> (-0.10 degradation — the deployment-quality metric got worse)</li>
+          <li>Strategy C max drawdown: -43.7% → -41.6% (+2.1pp shallower)</li>
+          <li>Deployed 4-way blend 35/35/10/20 Sharpe: <strong>+1.1503 → +1.1506</strong> (+0.0003 — within noise)</li>
+          <li>Deployed 4-way blend max DD: -23.8% → -23.8% (no change)</li>
+        </ul>
+
+        <p><strong>Verdict</strong>: <strong>reverted</strong>. The standalone Strategy C in-sample improvement is real but small; at the 10% sleeve weight in the deployed blend it is undetectable (+0.0003 Sharpe). The walk-forward degradation is the actual signal — the marginal cross-strategy cousins (AMLP / PHO / KRE riding XLE / SPY / XLF momentum cycles) chase fads that mean-revert out-of-sample. Combined with the operational cost of 4 extra holdings (AMLP issues K-1 tax forms which are annoying for SG/EU investors), no net benefit.</p>
+
+        <p><strong>Lesson</strong>: the within-strategy correlation gate is necessary but not sufficient. The cross-strategy correlation gate matters too — at +0.85+ it kills the marginal additivity even when the within-strategy correlation is low. Future universe-expansion candidates should pass BOTH gates at threshold &lt; 0.85 before being deployed. Sub-sector ETFs that are cousins of any sector already in Strategy A's slate (XLE, XLF, XLI, XLY, etc.) are particularly unproductive — Strategy A already captures that exposure efficiently.</p>
+
+        <p><strong>What's queued for future research</strong>: (1) single-country breadth — needs universe expansion beyond the original 4 (consider adding EWZ Brazil, EWA Australia, EZA South Africa, EWS Singapore) and a more careful Strategy E architecture rather than treating countries as a sleeve of Strategy A. (2) MSCI ACWI ex-US sector breadth — if iShares offers UK UCITS that track non-US developed-market sectors at a finer granularity than the current Europe-only Strategy D, the same constituent-breadth mechanism could extend further.</p>
+      </div>
+    </section>
+
+    <section>
       <h2>Universe and data sources</h2>
       <div class="methodbox">
         <p><strong>14 ETFs in the universe</strong>: SOXX (semis), CSP1 (S&amp;P 500), CNDX (NASDAQ-100), and the S&amp;P 500 sector slate — IUES (Energy), IUFS (Financials), IUHC (Health Care), IUIS (Industrials), IUCS (Consumer Staples), IUCD (Consumer Discretionary), IUUS (Utilities), IUMS (Materials), IUCM (Communication Services). Plus IUSP (US REITs as Real Estate proxy — see caveat) and IDP6 (S&amp;P SmallCap 600).</p>

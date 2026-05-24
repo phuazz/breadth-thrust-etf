@@ -1,0 +1,356 @@
+{
+  "computed_at": "2026-05-24T08:37:29.762018+00:00",
+  "ma_period": 200,
+  "corr_threshold": 0.85,
+  "weekly_panel_window": "2019-04-05 -> 2026-05-22",
+  "n_weeks": 373,
+  "candidates_tested": 11,
+  "passes": [
+    "ITB"
+  ],
+  "fails": [
+    "AMLP",
+    "PHO",
+    "KRE",
+    "XOP",
+    "OIH",
+    "XME",
+    "IGV",
+    "KIE",
+    "XRT",
+    "FDN"
+  ],
+  "no_data": [],
+  "detail": [
+    {
+      "candidate": "AMLP",
+      "label": "MLPs (energy infrastructure)",
+      "max_corr": 0.8532540691255346,
+      "max_corr_with": "XLE",
+      "max_corr_with_label": "Energy (Strategy A: IUES)",
+      "top5": [
+        [
+          "XLE",
+          0.8532540691255346
+        ],
+        [
+          "JETS",
+          0.6777393404560543
+        ],
+        [
+          "XLF",
+          0.6589490814674317
+        ],
+        [
+          "IJR",
+          0.6128632745840676
+        ],
+        [
+          "PAVE",
+          0.5956075275014768
+        ]
+      ],
+      "verdict": "FAIL \u2014 too correlated with XLE"
+    },
+    {
+      "candidate": "PHO",
+      "label": "Water Resources",
+      "max_corr": 0.8513423022633254,
+      "max_corr_with": "SPY",
+      "max_corr_with_label": "S&P 500 (Strategy A: CSP1)",
+      "top5": [
+        [
+          "SPY",
+          0.8513423022633254
+        ],
+        [
+          "XLI",
+          0.8236175600343345
+        ],
+        [
+          "PAVE",
+          0.8125453633722532
+        ],
+        [
+          "XLB",
+          0.7854307103995778
+        ],
+        [
+          "XLF",
+          0.7760498333315089
+        ]
+      ],
+      "verdict": "FAIL \u2014 too correlated with SPY"
+    },
+    {
+      "candidate": "KRE",
+      "label": "Regional Banks",
+      "max_corr": 0.8671029726252228,
+      "max_corr_with": "XLF",
+      "max_corr_with_label": "Financials (Strategy A: IUFS)",
+      "top5": [
+        [
+          "XLF",
+          0.8671029726252228
+        ],
+        [
+          "IJR",
+          0.8670338295218314
+        ],
+        [
+          "PAVE",
+          0.7659682684714272
+        ],
+        [
+          "JETS",
+          0.7521809398307371
+        ],
+        [
+          "XLI",
+          0.7422266059604071
+        ]
+      ],
+      "verdict": "FAIL \u2014 too correlated with XLF"
+    },
+    {
+      "candidate": "ITB",
+      "label": "Homebuilders",
+      "max_corr": 0.7517436592339486,
+      "max_corr_with": "SPY",
+      "max_corr_with_label": "S&P 500 (Strategy A: CSP1)",
+      "top5": [
+        [
+          "SPY",
+          0.7517436592339486
+        ],
+        [
+          "BOTZ",
+          0.7466701967742748
+        ],
+        [
+          "XLB",
+          0.713842256896841
+        ],
+        [
+          "QQQ",
+          0.7005755656211746
+        ],
+        [
+          "PAVE",
+          0.6959878501266662
+        ]
+      ],
+      "verdict": "PASS \u2014 orthogonal"
+    },
+    {
+      "candidate": "XOP",
+      "label": "Oil & Gas E&P",
+      "max_corr": 0.947168600634637,
+      "max_corr_with": "XLE",
+      "max_corr_with_label": "Energy (Strategy A: IUES)",
+      "top5": [
+        [
+          "XLE",
+          0.947168600634637
+        ],
+        [
+          "IJR",
+          0.566778509241926
+        ],
+        [
+          "MOO",
+          0.5422873073931018
+        ],
+        [
+          "PAVE",
+          0.5278996257511728
+        ],
+        [
+          "URA",
+          0.524753668149344
+        ]
+      ],
+      "verdict": "FAIL \u2014 too correlated with XLE"
+    },
+    {
+      "candidate": "OIH",
+      "label": "Oil Services",
+      "max_corr": 0.9069688140277995,
+      "max_corr_with": "XLE",
+      "max_corr_with_label": "Energy (Strategy A: IUES)",
+      "top5": [
+        [
+          "XLE",
+          0.9069688140277995
+        ],
+        [
+          "COPX",
+          0.6456569098288575
+        ],
+        [
+          "IJR",
+          0.6369659793253125
+        ],
+        [
+          "JETS",
+          0.6104565554387305
+        ],
+        [
+          "PAVE",
+          0.6088206598300919
+        ]
+      ],
+      "verdict": "FAIL \u2014 too correlated with XLE"
+    },
+    {
+      "candidate": "XME",
+      "label": "Metals & Mining",
+      "max_corr": 0.8719628082628477,
+      "max_corr_with": "COPX",
+      "max_corr_with_label": "Strategy C: COPX",
+      "top5": [
+        [
+          "COPX",
+          0.8719628082628477
+        ],
+        [
+          "URA",
+          0.7867570635652041
+        ],
+        [
+          "PAVE",
+          0.7718288049128627
+        ],
+        [
+          "IJR",
+          0.7660223891509678
+        ],
+        [
+          "MOO",
+          0.7424647170565797
+        ]
+      ],
+      "verdict": "FAIL \u2014 too correlated with COPX"
+    },
+    {
+      "candidate": "IGV",
+      "label": "Software",
+      "max_corr": 0.9353813483184226,
+      "max_corr_with": "SKYY",
+      "max_corr_with_label": "Strategy C: SKYY",
+      "top5": [
+        [
+          "SKYY",
+          0.9353813483184226
+        ],
+        [
+          "CIBR",
+          0.8778069211638524
+        ],
+        [
+          "QQQ",
+          0.8549762025474745
+        ],
+        [
+          "XLC",
+          0.8267139081132966
+        ],
+        [
+          "XLY",
+          0.8202172516213565
+        ]
+      ],
+      "verdict": "FAIL \u2014 too correlated with SKYY"
+    },
+    {
+      "candidate": "KIE",
+      "label": "Insurance",
+      "max_corr": 0.910844136160803,
+      "max_corr_with": "XLF",
+      "max_corr_with_label": "Financials (Strategy A: IUFS)",
+      "top5": [
+        [
+          "XLF",
+          0.910844136160803
+        ],
+        [
+          "XLI",
+          0.8045763046175688
+        ],
+        [
+          "JETS",
+          0.7808999358813012
+        ],
+        [
+          "IJR",
+          0.7655389333417486
+        ],
+        [
+          "PAVE",
+          0.7626994988406179
+        ]
+      ],
+      "verdict": "FAIL \u2014 too correlated with XLF"
+    },
+    {
+      "candidate": "XRT",
+      "label": "Retail",
+      "max_corr": 0.8883537046384311,
+      "max_corr_with": "IJR",
+      "max_corr_with_label": "Small Cap (Strategy A: IDP6)",
+      "top5": [
+        [
+          "IJR",
+          0.8883537046384311
+        ],
+        [
+          "PAVE",
+          0.8639394898889363
+        ],
+        [
+          "BLOK",
+          0.8290671864824333
+        ],
+        [
+          "XLB",
+          0.8067051953610148
+        ],
+        [
+          "XLI",
+          0.8057263381839377
+        ]
+      ],
+      "verdict": "FAIL \u2014 too correlated with IJR"
+    },
+    {
+      "candidate": "FDN",
+      "label": "Internet",
+      "max_corr": 0.9616645513324044,
+      "max_corr_with": "SKYY",
+      "max_corr_with_label": "Strategy C: SKYY",
+      "top5": [
+        [
+          "SKYY",
+          0.9616645513324044
+        ],
+        [
+          "XLC",
+          0.9116640374981566
+        ],
+        [
+          "QQQ",
+          0.899869411777437
+        ],
+        [
+          "ARKK",
+          0.8863658319557767
+        ],
+        [
+          "BOTZ",
+          0.8622963069825803
+        ]
+      ],
+      "verdict": "FAIL \u2014 too correlated with SKYY"
+    }
+  ]
+}
