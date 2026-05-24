@@ -129,6 +129,16 @@ def load_multi_strategy() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_bootstrap() -> dict | None:
+    """Load data/phase7_bootstrap.json: block-bootstrap CIs on per-strategy
+    Sharpe and on key paired differentials (deployed vs baseline, etc).
+    Block size 60 trading days, 2000 samples."""
+    path = DATA_DIR / "phase7_bootstrap.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_robustness() -> dict | None:
     """Load data/robustness.json. Trims wf_dates/wf_equity (heavy series
     not currently rendered) to keep the inlined payload compact."""
@@ -232,6 +242,15 @@ def main() -> int:
         print(f"  multi-strategy: {len(strats)} variants on common window "
               f"{multi.get('common_start')} -> {multi.get('common_end')}")
 
+    print("Loading bootstrap CIs (Phase 7) ...", flush=True)
+    bootstrap = load_bootstrap()
+    if bootstrap:
+        ps = bootstrap.get("per_strategy", {})
+        ds = bootstrap.get("differentials", {})
+        print(f"  bootstrap: {len(ps)} per-strategy + {len(ds)} paired diffs "
+              f"({bootstrap.get('n_bootstrap_samples', 0)} samples, "
+              f"block size {bootstrap.get('block_size_days', 0)}d)")
+
     data = {
         "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "ma200": ma200,
@@ -243,6 +262,7 @@ def main() -> int:
         "thematic": thematic,
         "europe": europe,
         "multi": multi,
+        "bootstrap": bootstrap,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")

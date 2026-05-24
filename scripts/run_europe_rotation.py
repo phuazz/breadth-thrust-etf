@@ -225,6 +225,91 @@ def main() -> int:
                     },
                 }
 
+    # ---------- Walk-forward K refit (Phase 7) ----------
+    # Annual refit picking K from K_GRID on expanding-window train Sharpe,
+    # applying that K to the next 12 months of test data. Concatenate the
+    # test segments to get the realistic OOS Sharpe.
+    print("\n=== Walk-forward K refit (annual, K in {2, 3, 4}) ===")
+    wf_K_grid = K_GRID  # [2, 3, 4]
+    initial_train_end = closes.index[closes.index >= eligible + pd.Timedelta(days=730)][0]
+    last_date = closes.index[-1]
+    refit_ends = pd.date_range(initial_train_end, last_date, freq="YE")
+    refit_ends = [closes.index[closes.index.searchsorted(r, side="right") - 1]
+                   for r in refit_ends]
+    refit_ends = [r for r in refit_ends if r >= eligible]
+
+    def _wf_sharpe(eq_series, start, end):
+        eq = eq_series.loc[(eq_series.index >= start) & (eq_series.index <= end)]
+        if len(eq) < 5:
+            return float("nan")
+        eq = eq / float(eq.iloc[0])
+        daily = eq.pct_change().fillna(0)
+        if daily.std() == 0:
+            return 0.0
+        return float(daily.mean() / daily.std() * math.sqrt(252))
+
+    def _portfolio_equity(K):
+        r = run_portfolio(closes, breadths, top_k_breadth_weight(K),
+                          eligible, rebalance_freq=HEADLINE_FREQ)
+        return r["equity"]
+
+    wf_segments = []
+    wf_test_pieces = []
+    K_sequence = []
+    for i, train_end in enumerate(refit_ends):
+        train_end_idx = closes.index.get_loc(train_end)
+        test_end = refit_ends[i + 1] if i + 1 < len(refit_ends) else last_date
+        test_start_idx = train_end_idx + 1
+        if test_start_idx >= len(closes):
+            break
+        test_start = closes.index[test_start_idx]
+        if test_start > test_end:
+            continue
+        best_K, best_sh = None, -1e9
+        for K in wf_K_grid:
+            full_eq = _portfolio_equity(K)
+            sh = _wf_sharpe(full_eq, eligible, train_end)
+            if not np.isnan(sh) and sh > best_sh:
+                best_sh, best_K = sh, K
+        if best_K is None:
+            continue
+        K_sequence.append(best_K)
+        full_eq = _portfolio_equity(best_K)
+        test_eq = full_eq.loc[test_start:test_end]
+        base_val = float(full_eq.iloc[test_start_idx - 1]) if test_start_idx > 0 else 1.0
+        test_eq = test_eq / base_val
+        test_sh = _wf_sharpe(test_eq, test_start, test_end)
+        wf_segments.append({
+            "train_end": train_end.strftime("%Y-%m-%d"),
+            "test_start": test_start.strftime("%Y-%m-%d"),
+            "test_end": test_end.strftime("%Y-%m-%d"),
+            "best_K": best_K,
+            "train_sharpe": _safe(best_sh),
+            "test_sharpe": _safe(test_sh),
+            "n_test_days": int(len(test_eq)),
+        })
+        last_val = wf_test_pieces[-1].iloc[-1] if wf_test_pieces else 1.0
+        wf_test_pieces.append(test_eq * last_val / test_eq.iloc[0])
+
+    if wf_test_pieces:
+        wf_equity = pd.concat(wf_test_pieces)
+        wf_daily = wf_equity.pct_change().fillna(0)
+        wf_sh = (wf_daily.mean() / wf_daily.std() * math.sqrt(252)
+                  if wf_daily.std() > 0 else 0.0)
+        print(f"  Walk-forward Sharpe: {wf_sh:+.3f}  "
+              f"(in-sample K={HEADLINE_K}: {headline_payload['headline_stats']['sharpe']:+.3f})")
+        print(f"  K sequence:          {K_sequence}")
+        print(f"  Segments:            {len(wf_segments)} ({wf_segments[0]['test_start']} -> {wf_segments[-1]['test_end']})")
+        walk_forward = {
+            "walk_forward_sharpe": _safe(wf_sh),
+            "K_grid": wf_K_grid,
+            "initial_train_end": initial_train_end.strftime("%Y-%m-%d"),
+            "segments": wf_segments,
+        }
+    else:
+        print("  Walk-forward: insufficient data, skipped")
+        walk_forward = None
+
     print("\n=== Benchmarks (Europe sleeve vs SPY) ===")
     spy_close = download_spy_close(closes.index.min().strftime("%Y-%m-%d"),
                                     (closes.index.max() + pd.Timedelta(days=5)).strftime("%Y-%m-%d"))
@@ -265,6 +350,7 @@ def main() -> int:
         "ma_period": MA_PERIOD,
         "rebalance_freq_grid": grid,
         "headline": headline_payload,
+        "walk_forward": walk_forward,
         "benchmarks": benchmarks,
         "europe_colours": europe_colours,
     }

@@ -1,0 +1,239 @@
+{
+  "computed_at_utc": "2026-05-24T14:07:00.420033+00:00",
+  "block_size_days": 60,
+  "n_bootstrap_samples": 2000,
+  "rng_seed": 42,
+  "per_strategy": {
+    "strategy_a": {
+      "label": "Strategy A \u2014 US sector breadth (K=7 Weekly Fri)",
+      "n_days": 2091,
+      "date_range": [
+        "2018-01-29",
+        "2026-05-22"
+      ],
+      "point": 0.9609761052480896,
+      "p5": 0.4493071323660429,
+      "p50": 0.9520874445368379,
+      "p95": 1.5265709249399144,
+      "mean": 0.9653672839743452,
+      "std": 0.328343369571203,
+      "n_valid": 2000
+    },
+    "strategy_b": {
+      "label": "Strategy B \u2014 asset-class momentum (K=7 Weekly Fri)",
+      "n_days": 4609,
+      "date_range": [
+        "2008-01-28",
+        "2026-05-21"
+      ],
+      "point": 0.7470284099756517,
+      "p5": 0.4292048228306895,
+      "p50": 0.7298960725270295,
+      "p95": 1.0323568352879273,
+      "mean": 0.7311630703899569,
+      "std": 0.1890145094342076,
+      "n_valid": 2000
+    },
+    "strategy_c": {
+      "label": "Strategy C \u2014 thematic momentum (K=4 Weekly Fri, equal-wt)",
+      "n_days": 1892,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-22"
+      ],
+      "point": 0.7819209057032369,
+      "p5": 0.1432765841927502,
+      "p50": 0.7718339619690013,
+      "p95": 1.3478933264175568,
+      "mean": 0.7589269339793558,
+      "std": 0.36795097154342377,
+      "n_valid": 2000
+    },
+    "strategy_d": {
+      "label": "Strategy D \u2014 Europe sector breadth (K=3 Weekly Fri)",
+      "n_days": 2109,
+      "date_range": [
+        "2018-01-29",
+        "2026-05-22"
+      ],
+      "point": 0.8900443257294454,
+      "p5": 0.3698290325616747,
+      "p50": 0.8967255936525855,
+      "p95": 1.4655186937262987,
+      "mean": 0.9033797178167733,
+      "std": 0.32879394134754064,
+      "n_valid": 2000
+    },
+    "multi_blend_35_35_10_20": {
+      "label": "35% A + 35% B + 10% C + 20% D (RECOMMENDED \u2014 4-way blend with separate Europe sleeve)",
+      "n_days": 1856,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-21"
+      ],
+      "point": 1.1621832589191066,
+      "p5": 0.6018899976746598,
+      "p50": 1.1632780709435386,
+      "p95": 1.7621947004113927,
+      "mean": 1.1691407783108176,
+      "std": 0.34941418229362553,
+      "n_valid": 2000
+    },
+    "multi_blend_45_45_10": {
+      "label": "45% A + 45% B + 10% C (3-way baseline \u2014 pre-Europe)",
+      "n_days": 1856,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-21"
+      ],
+      "point": 1.1042058249684752,
+      "p5": 0.5645640173622258,
+      "p50": 1.1188451995848707,
+      "p95": 1.6603104836783327,
+      "mean": 1.1167019335803952,
+      "std": 0.33900292180978897,
+      "n_valid": 2000
+    },
+    "multi_blend_50_50": {
+      "label": "50% A + 50% B (no thematic)",
+      "n_days": 1856,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-21"
+      ],
+      "point": 1.1080770216101488,
+      "p5": 0.5542057023607161,
+      "p50": 1.1067583329882753,
+      "p95": 1.6609666905970661,
+      "mean": 1.1096237893436152,
+      "std": 0.3333359305085382,
+      "n_valid": 2000
+    },
+    "multi_strategy_a": {
+      "label": "Strategy A: US sector top-K breadth rotation (K=7, Weekly Fri)",
+      "n_days": 1856,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-21"
+      ],
+      "point": 0.9840041469956055,
+      "p5": 0.4826278107247456,
+      "p50": 1.028895302527829,
+      "p95": 1.6283511641164763,
+      "mean": 1.0375539285556523,
+      "std": 0.34832830903804335,
+      "n_valid": 2000
+    },
+    "multi_strategy_b": {
+      "label": "Strategy B: Asset-class top-K momentum rotation (K=7, Weekly Fri)",
+      "n_days": 1856,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-21"
+      ],
+      "point": 0.9550807206922327,
+      "p5": 0.444232367907134,
+      "p50": 0.9331596626824287,
+      "p95": 1.4323861791184842,
+      "mean": 0.9315030162600257,
+      "std": 0.29925853001181035,
+      "n_valid": 2000
+    },
+    "multi_strategy_c": {
+      "label": "Strategy C: Thematic top-K momentum rotation (K=4, Weekly Fri)",
+      "n_days": 1856,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-21"
+      ],
+      "point": 0.7856780025580288,
+      "p5": 0.17818160368041253,
+      "p50": 0.7895368674209502,
+      "p95": 1.380090313775619,
+      "mean": 0.780375427152849,
+      "std": 0.3735388405120463,
+      "n_valid": 2000
+    },
+    "multi_strategy_d": {
+      "label": "Strategy D: Europe sector top-K breadth rotation (K=3, Weekly Fri)",
+      "n_days": 1856,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-21"
+      ],
+      "point": 0.9290105578711755,
+      "p5": 0.4061410227014618,
+      "p50": 0.9516111064877131,
+      "p95": 1.5340373312358335,
+      "mean": 0.9553885751732113,
+      "std": 0.34959631309829825,
+      "n_valid": 2000
+    }
+  },
+  "differentials": {
+    "blend_35_35_10_20_vs_blend_45_45_10": {
+      "label": "4-way deployed vs 3-way baseline (Phase 4+6 cumulative)",
+      "vs_a": "multi_blend_35_35_10_20",
+      "vs_b": "multi_blend_45_45_10",
+      "n_aligned_days": 1856,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-21"
+      ],
+      "delta_point": 0.057977433950631374,
+      "delta_p5": -0.035655227226370385,
+      "delta_p50": 0.06246043234400239,
+      "delta_p95": 0.17301524032351237,
+      "p_better": 0.827,
+      "n_valid": 2000
+    },
+    "blend_35_35_10_20_vs_strategy_a": {
+      "label": "4-way deployed vs Strategy A alone",
+      "vs_a": "multi_blend_35_35_10_20",
+      "vs_b": "multi_strategy_a",
+      "n_aligned_days": 1856,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-21"
+      ],
+      "delta_point": 0.1781791119235011,
+      "delta_p5": -0.09754502221630296,
+      "delta_p50": 0.13980641731007326,
+      "delta_p95": 0.35485673297914594,
+      "p_better": 0.832,
+      "n_valid": 2000
+    },
+    "blend_35_35_10_20_vs_blend_50_50": {
+      "label": "4-way deployed vs 50/50 A:B (simplest blend)",
+      "vs_a": "multi_blend_35_35_10_20",
+      "vs_b": "multi_blend_50_50",
+      "n_aligned_days": 1856,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-21"
+      ],
+      "delta_point": 0.054106237308957805,
+      "delta_p5": -0.07478464953340572,
+      "delta_p50": 0.05044046634823063,
+      "delta_p95": 0.180545126222125,
+      "p_better": 0.7415,
+      "n_valid": 2000
+    },
+    "blend_45_45_10_vs_blend_50_50": {
+      "label": "3-way baseline vs 50/50 A:B (does adding C help?)",
+      "vs_a": "multi_blend_45_45_10",
+      "vs_b": "multi_blend_50_50",
+      "n_aligned_days": 1856,
+      "date_range": [
+        "2018-11-09",
+        "2026-05-21"
+      ],
+      "delta_point": -0.003871196641673569,
+      "delta_p5": -0.08747972308923913,
+      "delta_p50": -0.00962762320240873,
+      "delta_p95": 0.06398395685453591,
+      "p_better": 0.4185,
+      "n_valid": 2000
+    }
+  }
+}
