@@ -341,6 +341,24 @@ def main() -> int:
         "EXH9": "#0e7490",  # teal (Utilities)
     }
 
+    # Per-ETF breadth time series — surfaced for the ETF Detail tab so
+    # the dashboard can render each Europe sector ETF's % above 200d MA
+    # over time (Section 3 of ETF Detail). Same metric as Strategy A's
+    # per_etf_detail, just for the Europe universe.
+    # Trim to eligible window onwards (signal is 0 before MA200 warm-up).
+    per_etf_breadth = {}
+    for etf in etfs_used:
+        series = breadths[etf].loc[breadths[etf].index >= eligible].dropna()
+        if len(series) == 0:
+            continue
+        per_etf_breadth[etf] = {
+            "label": _etf_label(etf),
+            "sector": _etf_sector(etf),
+            "dates": [d.strftime("%Y-%m-%d") for d in series.index],
+            # Convert to percentage (0-100) for display, round to 1 dp
+            "breadth_pct": [round(float(v) * 100, 1) for v in series.values],
+        }
+
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
         "universe": [
@@ -353,6 +371,7 @@ def main() -> int:
         "walk_forward": walk_forward,
         "benchmarks": benchmarks,
         "europe_colours": europe_colours,
+        "per_etf_breadth": per_etf_breadth,
     }
     OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"\nWrote {OUT_PATH.relative_to(PROJECT_ROOT)}")

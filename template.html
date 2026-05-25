@@ -771,7 +771,7 @@
 
   <!-- ====================== ETF DETAIL ====================== -->
   <div class="tab-content" id="tab-detail">
-    <p class="section-sub" style="margin-top:8px;">Inspect the underlying signal for any ETF in the deployed universe. <strong>Two sections</strong> because the two signal types differ: Strategy A uses <em>constituent breadth</em> (% of an ETF's holdings above their own 200d MA, range 0-100%); Strategies B and C use <em>ETF-level momentum</em> (distance of the ETF price above its own 200d MA, can be negative). Each section has its own chip group and chart.</p>
+    <p class="section-sub" style="margin-top:8px;">Inspect the underlying signal for any ETF in the deployed universe. <strong>Three sections</strong> because the two signal types differ: Strategies A and D use <em>constituent breadth</em> (% of an ETF's holdings above their own 200d MA, range 0-100%) — but for different universes (US vs Europe). Strategies B and C use <em>ETF-level momentum</em> (distance of the ETF price above its own 200d MA, can be negative). Each section has its own chip group and chart.</p>
 
     <section>
       <h2>Section 1 · US Sector Breadth (Strategy A universe)</h2>
@@ -793,6 +793,17 @@
       <h3 style="margin-top:24px;">Trend snapshot</h3>
       <p class="section-sub">Current momentum signal + change over recent past. Sorted by current signal value.</p>
       <table class="small-table" id="detail-bc-snapshot-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Section 3 · Europe Sector Breadth (Strategy D universe)</h2>
+      <p class="section-sub">Default: today's Strategy D leader + the universe-wide mean as reference. Same metric as Section 1 (% of an ETF's constituents above their own 200d MA, 0-100%) but for the 5 Stoxx Europe 600 sector UCITS. Click any chip to add or remove.</p>
+      <div class="etf-chip-actions" id="detail-d-actions"></div>
+      <div class="etf-chip-group" id="detail-d-chips"></div>
+      <div id="detail-d-breadth-chart" class="chart tall"></div>
+      <h3 style="margin-top:24px;">Trend snapshot</h3>
+      <p class="section-sub">Current Europe sector breadth + change over recent past. Positive Δ = strengthening; negative = weakening. Sorted by current breadth.</p>
+      <table class="small-table" id="detail-d-snapshot-table"><thead></thead><tbody></tbody></table>
     </section>
   </div>
 
@@ -2232,8 +2243,187 @@ function renderDetail() {
       <td>${r.inTop ? '<span class="strategy-tag a">YES</span>' : '<span style="color:var(--ink-faint);font-size:12px;">no</span>'}</td>
     </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--ink-faint);">No ETFs selected — click chips above to add some.</td></tr>`;
   }
-  // Also render Section 2 (B + C momentum)
+  // Also render Section 2 (B + C momentum) and Section 3 (Strategy D Europe breadth)
   renderDetailMomentumSection();
+  renderDetailEuropeSection();
+}
+
+// ============= ETF Detail — Section 3 (Strategy D Europe breadth) ========
+// Same signal type as Section 1 (constituent breadth, 0-100%) but for the
+// 5 Stoxx Europe 600 sector UCITS that make up Strategy D's universe.
+// Separate chip group + chart so the Y-axis stays comparable within section.
+let _detailDSelected = null;
+
+function _initDetailDSelection() {
+  if (_detailDSelected !== null) return;
+  _detailDSelected = new Set();
+  _selectDLeader();
+}
+
+function _selectDLeader() {
+  _detailDSelected.clear();
+  // Default: today's top-breadth ETF + the universe mean as reference.
+  // Actual mean is computed by the renderer; here we just pre-select the
+  // top-breadth ETF and let the chart add a "mean" trace.
+  const last = window.DATA?.europe?.headline?.trade_history?.slice(-1)[0];
+  const leader = last?.holdings?.[0]?.etf;
+  if (leader) _detailDSelected.add(leader);
+  // Always include EXV1 (Banks) as a second comparator if the leader isn't
+  // EXV1 — gives a 2-line default.
+  if (_detailDSelected.size < 2) {
+    if (leader !== 'EXV1' && window.DATA?.europe?.per_etf_breadth?.EXV1) {
+      _detailDSelected.add('EXV1');
+    } else if (window.DATA?.europe?.per_etf_breadth?.EXV3) {
+      _detailDSelected.add('EXV3');
+    }
+  }
+}
+
+function _selectDTop3() {
+  _detailDSelected.clear();
+  const last = window.DATA?.europe?.headline?.trade_history?.slice(-1)[0];
+  last?.holdings?.forEach(h => _detailDSelected.add(h.etf));
+}
+
+function _selectDAll() {
+  _detailDSelected.clear();
+  const eu = window.DATA?.europe;
+  const allEtfs = Object.keys(eu?.per_etf_breadth || {});
+  allEtfs.forEach(e => _detailDSelected.add(e));
+}
+
+function _selectDClear() {
+  _detailDSelected.clear();
+}
+
+function _renderDetailDChips() {
+  const eu = window.DATA?.europe;
+  if (!eu?.per_etf_breadth) return;
+  const allEtfs = Object.keys(eu.per_etf_breadth);
+  const colours = eu.europe_colours || {};
+  const chipsEl = document.getElementById('detail-d-chips');
+  if (!chipsEl) return;
+  chipsEl.innerHTML = allEtfs.map(etf => {
+    const isSel = _detailDSelected.has(etf);
+    const colour = colours[etf] || '#999';
+    const blob = eu.per_etf_breadth[etf];
+    const latest = blob.breadth_pct[blob.breadth_pct.length - 1];
+    return `<div class="etf-chip ${isSel ? 'selected' : ''}" data-etf="${etf}">
+      <span class="swatch" style="background:${isSel ? colour : 'var(--border-strong)'};"></span>
+      <span>${etf}</span>
+      <span class="chip-meta">${latest != null ? latest.toFixed(0) + '%' : ''}</span>
+    </div>`;
+  }).join('');
+  chipsEl.querySelectorAll('.etf-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const etf = chip.dataset.etf;
+      if (_detailDSelected.has(etf)) _detailDSelected.delete(etf);
+      else _detailDSelected.add(etf);
+      renderDetailEuropeSection();
+    });
+  });
+
+  const actionsEl = document.getElementById('detail-d-actions');
+  if (actionsEl) {
+    actionsEl.innerHTML = `
+      <button data-action="leader" title="Top-breadth Europe sector + a comparator">Leader vs peer</button>
+      <button data-action="top3" title="Strategy D's 3 currently deployed positions">Strategy D top-3</button>
+      <button data-action="all" title="Overlay all 5 Europe sector ETFs">All 5</button>
+      <button data-action="none">Clear</button>
+    `;
+    const handlers = {
+      'leader': _selectDLeader,
+      'top3':   _selectDTop3,
+      'all':    _selectDAll,
+      'none':   _selectDClear,
+    };
+    actionsEl.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        handlers[b.dataset.action]?.();
+        renderDetailEuropeSection();
+      });
+    });
+  }
+}
+
+function renderDetailEuropeSection() {
+  const eu = window.DATA?.europe;
+  if (!eu?.per_etf_breadth) return;
+  _initDetailDSelection();
+  _renderDetailDChips();
+
+  const peb = eu.per_etf_breadth;
+  const colours = eu.europe_colours || {};
+  const selected = [..._detailDSelected].sort();
+  const traces = selected.map(etf => {
+    const d = peb[etf];
+    if (!d) return null;
+    return {
+      x: d.dates, y: d.breadth_pct,
+      mode: 'lines',
+      name: `${etf} — ${d.sector || d.label || ''}`,
+      line: { color: colours[etf] || '#999', width: 1.6 },
+      hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:.1f}%<extra></extra>',
+    };
+  }).filter(Boolean);
+
+  const layout = {
+    margin: { l: 56, r: 14, t: 14, b: 80 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
+    yaxis: { title: '% of constituents above own 200d MA',
+             gridcolor: '#eef0f3', zeroline: false, range: [0, 100], ticksuffix: '%' },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 11 } },
+  };
+  if (traces.length === 0) {
+    document.getElementById('detail-d-breadth-chart').innerHTML =
+      '<p style="padding:40px;color:var(--ink-faint);text-align:center;">Select one or more Europe sector ETFs above to compare breadth signals.</p>';
+  } else {
+    Plotly.newPlot('detail-d-breadth-chart', traces, layout,
+                    { displayModeBar: false, responsive: true });
+  }
+
+  // Trend snapshot table for Strategy D ETFs
+  const snap = document.getElementById('detail-d-snapshot-table');
+  if (snap) {
+    snap.querySelector('thead').innerHTML = `<tr>
+      <th>ETF</th><th>Sector</th>
+      <th class="num">Current breadth</th>
+      <th class="num">Δ 4 weeks</th>
+      <th class="num">Δ 13 weeks</th>
+      <th class="num">Δ 52 weeks</th>
+      <th>In Strategy D top-3?</th>
+    </tr>`;
+    const last = eu.headline?.trade_history?.slice(-1)[0];
+    const topDSet = new Set((last?.holdings || []).map(h => h.etf));
+    const rows = selected.map(etf => {
+      const d = peb[etf];
+      if (!d) return null;
+      const b = d.breadth_pct;
+      const cur = b[b.length - 1];
+      // Trading days per week ≈ 5; use day index offsets for the deltas
+      const d4 = b.length > 20 ? cur - b[b.length - 21]  : null;
+      const d13 = b.length > 65 ? cur - b[b.length - 66] : null;
+      const d52 = b.length > 252 ? cur - b[b.length - 253] : null;
+      return { etf, cur, d4, d13, d52, inTop: topDSet.has(etf),
+                 sector: d.sector || '' };
+    }).filter(Boolean).sort((a, b) => b.cur - a.cur);
+    const arrow = (v) => v == null ? '—' :
+      (v > 0 ? `<span class="good">▲ ${v.toFixed(1)}pp</span>`
+             : v < 0 ? `<span class="bad">▼ ${Math.abs(v).toFixed(1)}pp</span>`
+                     : '0.0pp');
+    snap.querySelector('tbody').innerHTML = rows.map(r => `<tr>
+      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colours[r.etf]||'#999'};margin-right:8px;vertical-align:middle;"></span><strong>${r.etf}</strong></td>
+      <td style="color:var(--ink-faint);font-size:12px;">${r.sector}</td>
+      <td class="num"><strong>${r.cur.toFixed(1)}%</strong></td>
+      <td class="num">${arrow(r.d4)}</td>
+      <td class="num">${arrow(r.d13)}</td>
+      <td class="num">${arrow(r.d52)}</td>
+      <td>${r.inTop ? '<span class="strategy-tag d">YES</span>' : '<span style="color:var(--ink-faint);font-size:12px;">no</span>'}</td>
+    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--ink-faint);">No ETFs selected — click chips above to add some.</td></tr>`;
+  }
 }
 
 // ============= ETF Detail — Section 2 (B + C momentum) ===================
@@ -4571,6 +4761,8 @@ function activateTab(name) {
   } else {
     if (name === 'detail') {
       try { Plotly.Plots.resize('detail-breadth-chart'); } catch(e){}
+      try { Plotly.Plots.resize('detail-momentum-chart'); } catch(e){}
+      try { Plotly.Plots.resize('detail-d-breadth-chart'); } catch(e){}
     }
     if (name === 'portfolio') {
       try { Plotly.Plots.resize('portfolio-chart'); } catch(e){}
