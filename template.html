@@ -416,6 +416,11 @@
       background: var(--bg-soft); font-weight: 600; color: var(--ink-soft);
       border-bottom: 1px solid var(--border-strong);
       font-size: 13px; letter-spacing: 0.01em;
+      /* Sticky header: freezes when the table is inside a scrollable
+         parent (e.g. .trade-table-wrap on the Trade History ledger).
+         Harmless for non-scrollable parents — sticky only activates
+         when the nearest ancestor has overflow:auto/scroll. */
+      position: sticky; top: 0; z-index: 2;
     }
     table.matrix tbody td, table.small-table tbody td {
       padding: 9px 12px; border-bottom: 1px solid var(--border);
@@ -592,7 +597,7 @@
       background: var(--bg-soft); font-weight: 600; color: var(--ink-soft);
       border-bottom: 1px solid var(--border-strong);
       font-size: 12px; letter-spacing: 0.02em;
-      position: sticky; top: 0;
+      position: sticky; top: 0; z-index: 2;
     }
     table.trade-table tbody td {
       padding: 7px 12px; border-bottom: 1px solid var(--border);
