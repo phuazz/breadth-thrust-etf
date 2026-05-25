@@ -92,7 +92,11 @@ START_DATE = "2007-01-01"  # earliest common start across the universe
 END_DATE   = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 MA_PERIOD = 200
-COST_BPS = 5
+# Phase 12 cost calibration: Strategy B trades 14 broad-asset ETFs
+# (SPY, IJR, QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, TIP, HYG).
+# These are among the most liquid ETFs in the world — bid-ask typically
+# 0.5-2 bps. Realistic blended one-way cost: ~2 bps (was uniform 5).
+COST_BPS = 2
 COST_FRAC = COST_BPS / 10_000
 
 K_GRID = [3, 4, 5, 6, 7]

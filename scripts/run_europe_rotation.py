@@ -45,6 +45,16 @@ from run_improvements import compute_stats  # noqa: E402
 from run_ma200_sweep import MA_PERIOD  # noqa: E402
 from backtest import download_spy_close  # noqa: E402
 
+# Phase 12 cost calibration: Strategy D trades 5 Stoxx Europe 600 sector
+# UCITS on Xetra in EUR (EXV1.DE banks, EXH1.DE oil & gas, EXV3.DE tech,
+# EXH3.DE industrials, EXH9.DE utilities). European UCITS bid-ask is
+# typically 5-10 bps, plus an extra 2-4 bps FX cost when the investor's
+# base currency is USD (which is the most common Navigo client base).
+# Realistic blended one-way cost: ~9 bps (was uniform 5 — too tight for
+# European sector UCITS including FX).
+COST_BPS = 9
+COST_FRAC = COST_BPS / 10_000
+
 K_GRID = [2, 3, 4]
 REBAL_FREQS = [
     ("Daily",         "D"),
@@ -145,7 +155,8 @@ def main() -> int:
         print(f"\n  --- K = {K} ---")
         for freq_name, freq_code in REBAL_FREQS:
             r = run_portfolio(closes, breadths, top_k_breadth_weight(K),
-                              eligible, rebalance_freq=freq_code)
+                              eligible, rebalance_freq=freq_code,
+                              cost=COST_FRAC)
             eq_window = r["equity"].loc[r["equity"].index >= eligible]
             if len(eq_window) > 0:
                 eq_window = eq_window / eq_window.iloc[0]
@@ -250,7 +261,8 @@ def main() -> int:
 
     def _portfolio_equity(K):
         r = run_portfolio(closes, breadths, top_k_breadth_weight(K),
-                          eligible, rebalance_freq=HEADLINE_FREQ)
+                          eligible, rebalance_freq=HEADLINE_FREQ,
+                          cost=COST_FRAC)
         return r["equity"]
 
     wf_segments = []
@@ -366,6 +378,7 @@ def main() -> int:
             for t in etfs_used
         ],
         "ma_period": MA_PERIOD,
+        "cost_bps": COST_BPS,  # Phase 12 per-strategy cost calibration
         "rebalance_freq_grid": grid,
         "headline": headline_payload,
         "walk_forward": walk_forward,

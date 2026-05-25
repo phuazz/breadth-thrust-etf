@@ -118,6 +118,10 @@ END_DATE = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 MA_PERIOD = 200
 SIGNAL_FLOOR = 0.05       # require >= 5% above 200d MA (not just positive)
 PER_ETF_CAP = 0.35        # no single thematic > 35% of Strategy C
+# Phase 12 cost calibration: Strategy C trades 16 thematic ETFs with mixed
+# liquidity — ARKK/XBI/GDX are 1-3 bps, but BLOK/MOO/PAVE/BOTZ are 5-10 bps.
+# Blended one-way cost ~5 bps, kept at the prior uniform default since this
+# is genuinely where the 5 bps anchor comes from in the first place.
 COST_BPS = 5
 COST_FRAC = COST_BPS / 10_000
 

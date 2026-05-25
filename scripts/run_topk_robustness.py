@@ -42,8 +42,16 @@ from run_portfolio import (  # noqa: E402
     build_panels, run_portfolio, top_k_breadth_weight, equal_weight_all_fn,
 )
 from run_improvements import compute_stats  # noqa: E402
-from run_ma200_sweep import MA_PERIOD, COST_BPS  # noqa: E402
+from run_ma200_sweep import MA_PERIOD  # noqa: E402
 from backtest import download_spy_close  # noqa: E402
+
+# Phase 12 cost calibration: Strategy A trades 14 US sector / broad ETFs
+# via SPDR Select Sector proxies (XLE, XLF, XLV, XLI, XLP, XLY, XLU, XLB,
+# XLC, XLRE) plus SPY, QQQ, IJR, SOXX. These are extremely liquid —
+# typical bid-ask 0.5-3 bps. Realistic blended one-way cost: ~2 bps
+# (was uniform 5 — over-conservative for US-sector-grade liquidity).
+COST_BPS = 2
+COST_FRAC = COST_BPS / 10_000
 
 
 REBAL_FREQS = [
@@ -168,7 +176,8 @@ def main() -> int:
         print(f"\n  --- K = {K} (top-{K}, weighted by breadth excess) ---")
         for freq_name, freq_code in REBAL_FREQS:
             r = run_portfolio(closes, breadths, top_k_breadth_weight(K),
-                              eligible, rebalance_freq=freq_code)
+                              eligible, rebalance_freq=freq_code,
+                              cost=COST_FRAC)
             eq_window = r["equity"].loc[r["equity"].index >= eligible]
             eq_window = eq_window / eq_window.iloc[0]
             st = compute_stats(r["equity"], eligible)
@@ -209,13 +218,13 @@ def main() -> int:
     # 2. Side panel: K=5 weekly Friday equity (for chart overlay)
     # =====================================================================
     r5 = run_portfolio(closes, breadths, top_k_breadth_weight(5),
-                       eligible, rebalance_freq="W-FRI")
+                       eligible, rebalance_freq="W-FRI", cost=COST_FRAC)
     eq5 = r5["equity"].loc[r5["equity"].index >= eligible]
     eq5 = eq5 / eq5.iloc[0]
 
     # K=3 for visual comparison
     r3 = run_portfolio(closes, breadths, top_k_breadth_weight(3),
-                       eligible, rebalance_freq="W-FRI")
+                       eligible, rebalance_freq="W-FRI", cost=COST_FRAC)
     eq3 = r3["equity"].loc[r3["equity"].index >= eligible]
     eq3 = eq3 / eq3.iloc[0]
 
@@ -224,7 +233,8 @@ def main() -> int:
     # =====================================================================
     headline_run = run_portfolio(closes, breadths,
                                   top_k_breadth_weight(HEADLINE_K),
-                                  eligible, rebalance_freq=HEADLINE_FREQ)
+                                  eligible, rebalance_freq=HEADLINE_FREQ,
+                                  cost=COST_FRAC)
     headline_weights = headline_run["weights"].loc[headline_run["weights"].index >= eligible]
 
     # Per-ETF performance attribution
@@ -294,7 +304,8 @@ def main() -> int:
           f"totRet {spy_stats['total_return']*100:+.0f}%   DD {spy_stats['max_dd']*100:.1f}%")
 
     ew_run = run_portfolio(closes, breadths, equal_weight_all_fn,
-                            eligible, rebalance_freq=HEADLINE_FREQ)
+                            eligible, rebalance_freq=HEADLINE_FREQ,
+                            cost=COST_FRAC)
     ew_eq = ew_run["equity"].loc[ew_run["equity"].index >= eligible]
     ew_eq = ew_eq / ew_eq.iloc[0]
     ew_stats = compute_stats(ew_run["equity"], eligible)
@@ -355,6 +366,7 @@ def main() -> int:
     headline_payload["attribution"] = attribution
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
+        "cost_bps": COST_BPS,  # Phase 12 per-strategy cost calibration
         "rebalance_freq_grid": grid,
         "headline": headline_payload,
         "k5_weekly_dates": [d.strftime("%Y-%m-%d") for d in eq5.index],

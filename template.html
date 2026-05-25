@@ -1621,7 +1621,7 @@
 
         <p><strong>Implication for fund deployment</strong>: the deployed blend is the right point estimate, and the engineering process (correlation diagnostics, A/B tests, this bootstrap audit) is the right discipline. But the dashboard should not oversell the +0.06 Sharpe improvement as a definitive win — it is a directional improvement with strong mechanistic support, awaiting more OOS data for statistical confirmation. Anyone evaluating this as Navigo IP should understand both numbers: the point estimate and the CI.</p>
 
-        <p><strong>What's still missing (Tier 2 for future phases)</strong>: regime decomposition (per-strategy Sharpe in 2018-Q4, COVID 2020, 2022 inflation, 2023 banking crisis), realised cross-strategy return correlation matrix on Monitor (the diversification claim should be visible), per-strategy cost calibration (5 bps is right for B's SPY/IEF but probably 8-12 bps for D's European UCITS including FX), hit rate (rolling 12-month % positive), longest drawdown duration, and live tracking infrastructure (paper-trade weekly, log actual-vs-backtest divergence).</p>
+        <p><strong>What's still missing (Tier 2 backlog)</strong>: live tracking infrastructure (paper-trade weekly, log actual-vs-backtest divergence — the regulatory-grade addition for Navigo's CMS application), Bayesian / probabilistic Sharpe (richer than the existing bootstrap CI), regime-aware risk overlay (could reduce DD if it doesn't overfit), and tax-aware accounting documentation (K-1 forms for AMLP, European UCITS withholding, etc. — relevant for the SG investor base). <em>Items already completed in Phase 11-12</em>: realised cross-strategy return correlation matrix on Monitor (Phase 11A), hit rate + longest drawdown duration on each strategy tab (Phase 11B), per-strategy cost calibration (Phase 12 — see Caveats below).</p>
       </div>
     </section>
 
@@ -1708,7 +1708,7 @@
         <p>Honest limitations of the deployed strategy as documented:</p>
         <ul>
           <li><strong>Slippage on rebalances</strong>: rebalances assume mid-spread fills. Worst-case slippage may add another 5-10 bps per rebalance on top of the 5 bps transaction cost already modelled.</li>
-          <li><strong>Per-strategy cost calibration not yet applied</strong>: a uniform 5 bps applies across all four sleeves. Realistic costs vary — likely 1-2 bps for Strategy B's SPY/IEF, 3-5 bps for Strategy A's SPDR sector ETFs, 5-15 bps for Strategy C's thematics, 8-12 bps for Strategy D's European UCITS (including FX). Net deployed Sharpe likely lifts 0.05-0.10 vs the current uniform-cost number when this is recalibrated.</li>
+          <li><strong>Per-strategy cost calibration (Phase 12, 2026-05-25)</strong>: replaced the uniform 5 bps with sleeve-specific costs that reflect the actual liquidity of each universe. Strategy A = <strong>2 bps</strong> (very liquid SPDR Select Sector + SPY/QQQ). Strategy B = <strong>2 bps</strong> (SPY/IEF/GLD/TLT — among the most liquid ETFs in the world). Strategy C = <strong>5 bps</strong> (mid-liquidity thematics, mixed: ARKK/XBI are 1-3 bps but BLOK/PAVE/BOTZ are 5-10 bps). Strategy D = <strong>9 bps</strong> (European UCITS on Xetra at 5-10 bps bid-ask plus 2-4 bps FX cost for USD-base investors). Net effect: deployed blend Sharpe lifted from +1.16 to <strong>+1.18</strong> (~+0.015), with A and B benefiting from tighter realistic costs more than D loses from wider European spreads.</li>
           <li><strong>Survivorship in some price series</strong>: a few historically-acquired constituents (~5-15% of the early-window roster for some ETFs) are missing from yfinance, biasing early-window breadth measurements toward survivors. Less of an issue post-2020. Phase 4 fix to <code>compute_ma200_breadth</code> resolved the worse latent issue for non-US constituents.</li>
           <li><strong>Common window for the deployed blend is 2018-11 → 2026-05</strong> (~7.5 years), constrained by Strategy C's data start date. Strategy B's 18-year history (2008-2026, covering GFC + COVID + 2022) cushions the blend through real crises in the per-strategy comparison, but the blend-level statistics only see 2020/2022.</li>
           <li><strong>Concentration risk in Strategy A</strong>: even at K = 7 the top breadth tilts toward 1-2 dominant sectors, so a semis or energy reversal can move 10-20% of NAV within the sleeve in a week. The 35% sleeve weight in the 4-way blend caps blend-level exposure but does not eliminate this.</li>
@@ -3591,19 +3591,38 @@ function _avgHoldDays(annual_turnover) {
   if (annual_turnover == null || annual_turnover <= 0) return null;
   return Math.round(252 / annual_turnover);
 }
-function _costDragBps(annual_turnover) {
+function _costDragBps(annual_turnover, cost_bps_per_unit) {
   if (annual_turnover == null) return null;
-  return Math.round(annual_turnover * 5);  // 5 bps per unit turnover
+  // Phase 12: cost_bps_per_unit is now per-strategy (was uniform 5).
+  // Defaults to 5 only when the calling code doesn't supply it.
+  const bps = cost_bps_per_unit != null ? cost_bps_per_unit : 5;
+  return Math.round(annual_turnover * bps);
+}
+// Phase 12 per-strategy cost calibration — read from each engine's JSON
+// (each engine emits its own cost_bps field). Fallback to 5 for legacy
+// payloads that don't have the field.
+function _strategyCostBps(strategyKey) {
+  const d = window.DATA || {};
+  const lookup = {
+    strategy_a: d.topk?.cost_bps,
+    strategy_b: d.asset_class?.cost_bps,
+    strategy_c: d.thematic?.cost_bps,
+    strategy_d: d.europe?.cost_bps,
+  };
+  return lookup[strategyKey] != null ? lookup[strategyKey] : 5;
 }
 function _bootstrapSubline(bootKey, annual_turnover) {
   const boot = window.DATA?.bootstrap?.per_strategy?.[bootKey];
-  const cost = _costDragBps(annual_turnover);
+  // bootKey is one of 'strategy_a' / 'strategy_b' / 'strategy_c' / 'strategy_d'
+  // — same key works for cost lookup
+  const cost_bps_per_unit = _strategyCostBps(bootKey);
+  const cost = _costDragBps(annual_turnover, cost_bps_per_unit);
   const parts = [];
   if (boot && boot.p5 != null && boot.p95 != null) {
     parts.push(`<strong>Sharpe confidence range</strong> [${boot.p5.toFixed(2)}, ${boot.p95.toFixed(2)}] at 95% level (statistical resampling of historical returns)`);
   }
   if (cost != null) {
-    parts.push(`<strong>Cost drag</strong> ~${cost} bps/yr (${(annual_turnover).toFixed(1)}× portfolio turnover × 5 bps execution cost)`);
+    parts.push(`<strong>Cost drag</strong> ~${cost} bps/yr (${(annual_turnover).toFixed(1)}× portfolio turnover × ${cost_bps_per_unit} bps per-trade execution cost)`);
   }
   if (parts.length === 0) return '';
   return `<div style="grid-column:1/-1;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--ink-faint);">${parts.join(' · ')}</div>`;
