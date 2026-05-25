@@ -277,14 +277,35 @@
 
     /* ----- Strategy panel layout (side-by-side cards) ----- */
     .strat-panels {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px;
       margin-top: 18px;
     }
-    .strat-panels-3 { grid-template-columns: 1fr 1fr 1fr; }
-    .strat-panels-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-    @media (max-width: 1400px) { .strat-panels-4 { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 1200px) { .strat-panels-3 { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 980px) { .strat-panels, .strat-panels-3, .strat-panels-4 { grid-template-columns: 1fr; } }
+    /* `minmax(0, 1fr)` not just `1fr` — the default `1fr` lets a grid
+       column grow beyond its proportional share if any child contains a
+       long unbreakable word (e.g. a code block, an ETF ticker chip, a
+       long URL). minmax(0, 1fr) caps each column at its proportional
+       share, forcing visually-equal widths regardless of content. */
+    .strat-panels-3 {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .strat-panels-4 {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    }
+    @media (max-width: 1400px) {
+      .strat-panels-4 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    }
+    @media (max-width: 1200px) {
+      .strat-panels-3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    }
+    @media (max-width: 980px) {
+      .strat-panels, .strat-panels-3, .strat-panels-4 {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    /* Allow long words / monospace formulas / chips inside the panels
+       to wrap or scroll horizontally rather than push the column wider. */
+    .strat-panel { min-width: 0; }
+    .strat-panel pre, .strat-panel code { white-space: pre-wrap; word-break: break-word; }
     .strat-panel {
       padding: 18px 20px;
       background: var(--bg-card);
