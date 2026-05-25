@@ -698,32 +698,32 @@
     </div>
     <h1>Breadth-thrust ETF research</h1>
     <div class="headline">
-      Four-sleeve breadth + momentum equity stack, long-only, weekly rebalance, no leverage. Deployed <span class="big">35/35/10/20 A:B:C:D blend</span> · Sharpe <span class="big good">+1.16</span> · Max DD <span class="big">-23.7%</span> · 8.3-yr backtest, walk-forward validated.
+      Four-strategy breadth and momentum equity portfolio. Long-only, weekly rebalance, no leverage. Deployed <span class="big">35/35/10/20 A:B:C:D blend</span> · Sharpe <span class="big good">+1.16</span> · Max drawdown <span class="big">-23.7%</span> · 8-year backtest, validated out-of-sample with annual parameter refit.
     </div>
     <div class="sleeve-strip">
       <div class="sleeve-card">
-        <div class="role"><span>A · US sector breadth</span><span class="wt">35%</span></div>
-        <div>14 ETFs · top-K rotation</div>
-        <div class="metric">Sharpe +0.96 · WF +0.99</div>
+        <div class="role"><span>A · US sector rotation</span><span class="wt">35%</span></div>
+        <div>14 US sector ETFs · own the strongest 7 by breadth</div>
+        <div class="metric">Sharpe +0.99<sup>*</sup> · own-K weekly refit, no per-ETF tuning</div>
       </div>
       <div class="sleeve-card b">
-        <div class="role"><span>B · Asset-class momentum</span><span class="wt">35%</span></div>
-        <div>14 ETFs · downside protection</div>
-        <div class="metric">Sharpe +0.95 · WF +0.74 · Max DD -14%</div>
+        <div class="role"><span>B · Asset-class rotation</span><span class="wt">35%</span></div>
+        <div>14 broad ETFs · momentum across asset classes</div>
+        <div class="metric">Sharpe +0.74<sup>*</sup> · Max drawdown only -14% (downside protection)</div>
       </div>
       <div class="sleeve-card c">
         <div class="role"><span>C · Thematic optionality</span><span class="wt">10%</span></div>
-        <div>16 ETFs · +5% signal floor, equal-wt</div>
-        <div class="metric">Best 12m +162% · top sleeve 41% of months</div>
+        <div>16 thematic ETFs · cap on size = cap on damage</div>
+        <div class="metric">Best 12-month return +162% · best of 4 sleeves 41% of months</div>
       </div>
       <div class="sleeve-card d">
-        <div class="role"><span>D · Europe sector breadth</span><span class="wt">20%</span></div>
-        <div>5 Stoxx 600 sector UCITS · non-US macro</div>
-        <div class="metric">Sharpe +0.89 · WF <strong>+0.97</strong> (higher than IS)</div>
+        <div class="role"><span>D · Europe sector rotation</span><span class="wt">20%</span></div>
+        <div>5 Stoxx Europe 600 sector UCITS · non-US macro</div>
+        <div class="metric">Sharpe <strong>+0.97</strong><sup>*</sup> · OOS &gt; in-sample (rare, strong sign)</div>
       </div>
     </div>
     <div class="footnote">
-      The +0.06 Sharpe lift over the 3-way baseline is directionally positive but not statistically significant at 5% (95% CI [-0.04, +0.17], p(better) 83%). C's 10% sleeve is justified on right-tail / regime metrics, not on Sharpe contribution. Full statistical analysis on the Multi-Strategy and Method tabs.
+      <sup>*</sup> Sharpe ratios shown are <em>out-of-sample</em> (parameters refit each year on past data only, applied to the next 12 months — the honest "live-simulation" Sharpe, not the in-sample fit). The +0.06 Sharpe lift of the deployed blend over the 3-way baseline (without Europe) is directionally positive but not yet statistically significant at the 5% level (95% confidence interval [-0.04, +0.17], probability of being a real improvement ≈ 83%). Strategy C's 10% sleeve is sized for asymmetric upside in thematic regimes (e.g. +170% return during the 2020-21 AI/clean-energy boom while capped at -2.5pp downside per year at the blend level), not for steady Sharpe contribution. Full backtest methodology, statistical tests, and regime decomposition on the Multi-Strategy and Method tabs.
     </div>
   </div>
 </header>
@@ -3299,10 +3299,10 @@ function _bootstrapSubline(bootKey, annual_turnover) {
   const cost = _costDragBps(annual_turnover);
   const parts = [];
   if (boot && boot.p5 != null && boot.p95 != null) {
-    parts.push(`<strong>Sharpe 95% CI</strong> [${boot.p5.toFixed(2)}, ${boot.p95.toFixed(2)}] · ${boot.n_valid.toLocaleString()} bootstrap samples (block 60d)`);
+    parts.push(`<strong>Sharpe confidence range</strong> [${boot.p5.toFixed(2)}, ${boot.p95.toFixed(2)}] at 95% level (statistical resampling of historical returns)`);
   }
   if (cost != null) {
-    parts.push(`<strong>Cost drag</strong> ~${cost} bps/yr (${(annual_turnover).toFixed(1)}× turnover × 5 bps)`);
+    parts.push(`<strong>Cost drag</strong> ~${cost} bps/yr (${(annual_turnover).toFixed(1)}× portfolio turnover × 5 bps execution cost)`);
   }
   if (parts.length === 0) return '';
   return `<div style="grid-column:1/-1;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--ink-faint);">${parts.join(' · ')}</div>`;
@@ -3363,8 +3363,8 @@ function _recipeStatCards(wfSharpe, isSharpe, cagr, maxDd, annual_turnover) {
   const ahd = _avgHoldDays(annual_turnover);
   const wfDisplay = wfSharpe != null ? fmtNum(wfSharpe, 2, true) : '—';
   return `
-    <div class="recipe-stat"><div class="v good">${wfDisplay}</div><div class="l">Walk-forward Sharpe</div></div>
-    <div class="recipe-stat"><div class="v">${fmtNum(isSharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
+    <div class="recipe-stat"><div class="v good">${wfDisplay}</div><div class="l">Sharpe<br><span style="color:var(--ink-faint);font-weight:400;font-size:9.5px;">out-of-sample (annual refit)</span></div></div>
+    <div class="recipe-stat"><div class="v">${fmtNum(isSharpe, 2, true)}</div><div class="l">Sharpe<br><span style="color:var(--ink-faint);font-weight:400;font-size:9.5px;">in-sample backtest</span></div></div>
     <div class="recipe-stat"><div class="v">${fmtPct(cagr, true)}</div><div class="l">CAGR</div></div>
     <div class="recipe-stat"><div class="v good">${fmtPct(maxDd)}</div><div class="l">Max drawdown</div></div>
     <div class="recipe-stat"><div class="v">${calmar != null ? calmar.toFixed(2) : '—'}</div><div class="l">Calmar (CAGR / |DD|)</div></div>
