@@ -2331,7 +2331,7 @@ function renderDetail() {
       mode: 'lines',
       name: `${etf}${ETF_DESCRIPTIONS[etf] ? ' — ' + ETF_DESCRIPTIONS[etf] : ''}`,
       line: { color: ETF_COLOURS[etf] || '#999', width: 1.6 },
-      hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:.1f}%<extra></extra>',
+      hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
     };
   }).filter(Boolean);
   const layout = {
@@ -2509,7 +2509,7 @@ function renderDetailEuropeSection() {
       mode: 'lines',
       name: `${etf} — ${d.sector || d.label || ''}`,
       line: { color: colours[etf] || '#999', width: 1.6 },
-      hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:.1f}%<extra></extra>',
+      hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
     };
   }).filter(Boolean);
 
@@ -2723,7 +2723,7 @@ function renderDetailMomentumSection() {
       mode: 'lines',
       name: `${etf} — ${_bcLabel(etf)}`,
       line: { color: _bcColour(etf), width: 1.5 },
-      hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:+.1f}%<extra></extra>',
+      hovertemplate: etf + ': %{y:+.1f}%<extra></extra>',
     };
   }).filter(Boolean);
 
@@ -3503,7 +3503,7 @@ function renderTradeCharts() {
       x: h.headline_equity_dates, y: h.headline_equity,
       mode: 'lines', name: 'Top-K Rotation (K=7 Weekly Fri)',
       line: { color: '#1d7a3a', width: 2.4 },
-      hovertemplate: '%{x|%Y-%m-%d}<br>Strategy: %{y:.2f}<extra></extra>',
+      hovertemplate: 'Strategy: %{y:.2f}<extra></extra>',
     },
   ];
   if (bm.equal_weight_11) {
@@ -3511,7 +3511,7 @@ function renderTradeCharts() {
       x: bm.equal_weight_11.dates, y: bm.equal_weight_11.equity,
       mode: 'lines', name: 'Equal-weight 11 ETFs',
       line: { color: '#b76e00', width: 1.5, dash: 'dash' },
-      hovertemplate: '%{x|%Y-%m-%d}<br>EW-11: %{y:.2f}<extra></extra>',
+      hovertemplate: 'EW-11: %{y:.2f}<extra></extra>',
     });
   }
   if (bm.spy_buy_hold) {
@@ -3519,7 +3519,7 @@ function renderTradeCharts() {
       x: bm.spy_buy_hold.dates, y: bm.spy_buy_hold.equity,
       mode: 'lines', name: 'SPY buy-and-hold',
       line: { color: '#6b727a', width: 1.4, dash: 'dot' },
-      hovertemplate: '%{x|%Y-%m-%d}<br>SPY: %{y:.2f}<extra></extra>',
+      hovertemplate: 'SPY: %{y:.2f}<extra></extra>',
     });
   }
   Plotly.newPlot('trade-equity-chart', traces, {
@@ -3558,7 +3558,7 @@ function renderTradeCharts() {
     stackgroup: 'one',
     mode: 'none',
     fillcolor: ETF_COLOURS[etf] || '#999',
-    hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:.1f}%<extra></extra>',
+    hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
   }));
   Plotly.newPlot('trade-allocation-chart', stackedTraces, {
     margin: { t: 8, r: 16, b: 80, l: 50 },
@@ -3748,26 +3748,26 @@ function renderAssetCharts() {
       x: h.headline_equity_dates, y: h.headline_equity,
       mode: 'lines', name: 'Asset-Class Rotation (K=7 Weekly Fri)',
       line: { color: '#1d7a3a', width: 2.4 },
-      hovertemplate: '%{x|%Y-%m-%d}<br>Strategy B: %{y:.2f}<extra></extra>',
+      hovertemplate: 'Strategy B: %{y:.2f}<extra></extra>',
     },
   ];
   if (bm.sixty_forty) traces.push({
     x: bm.sixty_forty.dates, y: bm.sixty_forty.equity,
     mode: 'lines', name: '60/40 SPY/IEF',
     line: { color: '#b76e00', width: 1.5, dash: 'dash' },
-    hovertemplate: '%{x|%Y-%m-%d}<br>60/40: %{y:.2f}<extra></extra>',
+    hovertemplate: '60/40: %{y:.2f}<extra></extra>',
   });
   if (bm.equal_weight_14) traces.push({
     x: bm.equal_weight_14.dates, y: bm.equal_weight_14.equity,
     mode: 'lines', name: 'Equal-weight 14 ETFs',
     line: { color: '#52525b', width: 1.4, dash: 'dashdot' },
-    hovertemplate: '%{x|%Y-%m-%d}<br>EW14: %{y:.2f}<extra></extra>',
+    hovertemplate: 'EW14: %{y:.2f}<extra></extra>',
   });
   if (bm.spy_buy_hold) traces.push({
     x: bm.spy_buy_hold.dates, y: bm.spy_buy_hold.equity,
     mode: 'lines', name: 'SPY buy-and-hold',
     line: { color: '#6b727a', width: 1.4, dash: 'dot' },
-    hovertemplate: '%{x|%Y-%m-%d}<br>SPY: %{y:.2f}<extra></extra>',
+    hovertemplate: 'SPY: %{y:.2f}<extra></extra>',
   });
   Plotly.newPlot('asset-equity-chart', traces, {
     margin: { t: 8, r: 16, b: 60, l: 56 },
@@ -3802,7 +3802,7 @@ function renderAssetCharts() {
       stackgroup: 'one',
       mode: 'none',
       fillcolor: colours[etf] || '#999',
-      hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:.1f}%<extra></extra>',
+      hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
     };
   });
   Plotly.newPlot('asset-allocation-chart', stackedTraces, {
@@ -4047,14 +4047,14 @@ function renderThematicCharts() {
       x: h.headline_equity_dates, y: h.headline_equity,
       mode: 'lines', name: `Strategy C (K=${h.K} ${h.rebal_freq})`,
       line: { color: '#dc2626', width: 2.4 },
-      hovertemplate: '%{x|%Y-%m-%d}<br>Strategy C: %{y:.2f}<extra></extra>',
+      hovertemplate: 'Strategy C: %{y:.2f}<extra></extra>',
     },
   ];
   if (bm.spy_buy_hold?.dates?.length) traces.push({
     x: bm.spy_buy_hold.dates, y: bm.spy_buy_hold.equity,
     mode: 'lines', name: 'SPY buy-and-hold',
     line: { color: '#6b727a', width: 1.4, dash: 'dot' },
-    hovertemplate: '%{x|%Y-%m-%d}<br>SPY: %{y:.2f}<extra></extra>',
+    hovertemplate: 'SPY: %{y:.2f}<extra></extra>',
   });
   Plotly.newPlot('thematic-equity-chart', traces, {
     margin: { t: 8, r: 16, b: 60, l: 56 },
@@ -4088,7 +4088,7 @@ function renderThematicCharts() {
       stackgroup: 'one',
       mode: 'none',
       fillcolor: colours[etf] || '#999',
-      hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:.1f}%<extra></extra>',
+      hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
     };
   });
   Plotly.newPlot('thematic-allocation-chart', stackedTraces, {
@@ -4326,14 +4326,14 @@ function renderEuropeCharts() {
       x: h.headline_equity_dates, y: h.headline_equity,
       mode: 'lines', name: `Europe Sector Rotation (K=${h.K} ${h.rebal_freq})`,
       line: { color: '#1351b4', width: 2.4 },
-      hovertemplate: '%{x|%Y-%m-%d}<br>Strategy D: %{y:.2f}<extra></extra>',
+      hovertemplate: 'Strategy D: %{y:.2f}<extra></extra>',
     },
   ];
   if (bm.spy_buy_hold) traces.push({
     x: bm.spy_buy_hold.dates, y: bm.spy_buy_hold.equity,
     mode: 'lines', name: 'SPY buy-and-hold',
     line: { color: '#6b727a', width: 1.4, dash: 'dot' },
-    hovertemplate: '%{x|%Y-%m-%d}<br>SPY: %{y:.2f}<extra></extra>',
+    hovertemplate: 'SPY: %{y:.2f}<extra></extra>',
   });
   Plotly.newPlot('europe-equity-chart', traces, {
     margin: { t: 8, r: 16, b: 60, l: 56 },
@@ -4367,7 +4367,7 @@ function renderEuropeCharts() {
       stackgroup: 'one',
       mode: 'none',
       fillcolor: colours[etf] || '#999',
-      hovertemplate: '%{x|%Y-%m-%d}<br>' + etf + ': %{y:.1f}%<extra></extra>',
+      hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
     };
   });
   Plotly.newPlot('europe-allocation-chart', stackedTraces, {
@@ -4636,7 +4636,7 @@ function renderMultiCharts() {
       x: v.dates, y: v.equity, mode: 'lines',
       name: v.label,
       line: { color: colours[k] || '#999', width: widths[k] || 1.2 },
-      hovertemplate: '%{x|%Y-%m-%d}<br>' + k + ': %{y:.2f}<extra></extra>',
+      hovertemplate: k + ': %{y:.2f}<extra></extra>',
       // Plotly: 'legendonly' = legend chip shown but line hidden; click to enable
       visible: isVisible ? true : 'legendonly',
     };
@@ -5045,7 +5045,7 @@ function renderBlendAllocationTimeline() {
       x: masterDates, y: exposureByClass[cls],
       name: cls, stackgroup: 'one', mode: 'none',
       fillcolor: _historyAssetClassColours[cls] || '#999',
-      hovertemplate: '%{x|%Y-%m-%d}<br>' + cls + ': %{y:.1f}%<extra></extra>',
+      hovertemplate: cls + ': %{y:.1f}%<extra></extra>',
     }));
 
   Plotly.newPlot('blend-allocation-chart', traces, {
