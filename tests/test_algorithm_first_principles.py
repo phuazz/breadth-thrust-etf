@@ -38,6 +38,16 @@ def test_active_roster_uses_latest_snapshot_not_future_snapshot():
     assert active_roster_at(snapshot_dates, snapshot_map, "2024-01-12") == ["C", "D"]
 
 
+def test_active_roster_dedupes_snapshot_tickers():
+    """Duplicate raw holdings rows should not double-count a constituent.
+    parse_holdings dedupes upstream (Phase 13), but malformed legacy or
+    third-party snapshots could still contain dupes."""
+    snapshot_dates = ["2024-01-05"]
+    snapshot_map = {"2024-01-05": {"tickers": ["A", "A", "B"]}}
+
+    assert active_roster_at(snapshot_dates, snapshot_map, "2024-01-08") == ["A", "B"]
+
+
 def test_yfinance_normalisation_distinguishes_share_classes_from_exchanges():
     """The dot in 'BRK.B' is a share class (→ BRK-B for yfinance), but the
     dot in '7203.T' is an exchange suffix (→ keep as-is). The normaliser

@@ -221,17 +221,32 @@ def expanding_percentile(
     return s.shift(1).expanding(min_periods=min_periods).quantile(q)
 
 
+def _display_path(path: Path) -> str:
+    """Return ``path`` relative to PROJECT_ROOT for display, falling back
+    to the absolute path when ``path`` is outside the project tree (e.g.,
+    a tmp_path under test, or a CI workdir on a different mount)."""
+    try:
+        return str(path.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def active_roster_at(snapshot_dates: list[str], snapshot_map: dict, d: str) -> list[str]:
     """Return the constituent roster active on date `d` (ISO YYYY-MM-DD).
 
     Uses bisect on the sorted snapshot_dates list so this is O(log N) per
     call rather than O(N). The active roster on day d is the snapshot whose
     target Friday is the rightmost one <= d.
+
+    Defensive dedup: parse_holdings dedupes upstream (Phase 13), but a
+    malformed legacy snapshot or third-party constituent file could still
+    contain duplicates. dict.fromkeys preserves order, is O(n), and is a
+    no-op for already-clean snapshots.
     """
     idx = bisect_right(snapshot_dates, d) - 1
     if idx < 0:
         return []
-    return snapshot_map[snapshot_dates[idx]]["tickers"]
+    return list(dict.fromkeys(snapshot_map[snapshot_dates[idx]]["tickers"]))
 
 
 # ---------------------------------------------------------------------------
@@ -437,7 +452,11 @@ def main() -> int:
     df["composite_p10"] = expanding_percentile(df["composite_z"], COMPOSITE_LOW_PCT)
     above_p90 = (df["composite_z"] >= df["composite_p90"]) & df["composite_p90"].notna()
     df["composite_above_p90"] = above_p90
-    df["composite_crosses_p90"] = above_p90 & ~above_p90.shift(1).fillna(False)
+    # shift(1) on a bool series introduces NaN at row 0; fillna(False)
+    # then yields object dtype, and ~ on object dtype is brittle across
+    # pandas versions. Use the explicit fill_value + astype(bool) form.
+    prev_above_p90 = above_p90.shift(1, fill_value=False).astype(bool)
+    df["composite_crosses_p90"] = above_p90 & ~prev_above_p90
 
     df["trigger_count"] = (
         df["rsi_trigger"].astype(int)
@@ -492,7 +511,7 @@ def main() -> int:
     payload = {
         "etf": consts["etf"],
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
-        "constituents_source": str(constituents_path.relative_to(PROJECT_ROOT)),
+        "constituents_source": _display_path(constituents_path),
         "start_date": df.index[0].strftime("%Y-%m-%d"),
         "end_date": df.index[-1].strftime("%Y-%m-%d"),
         "n_trading_days": int(len(df)),
@@ -564,7 +583,7 @@ def main() -> int:
 
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print()
-    print(f"Wrote {out_path.relative_to(PROJECT_ROOT)}")
+    print(f"Wrote {_display_path(out_path)}")
     print(f"  Trading days   : {len(df)}")
     print(f"  Signals fired  : {int(df['signal_fires'].sum())}")
     print(f"  Max missing %  : {missing_pct.max() * 100:.1f}%")
