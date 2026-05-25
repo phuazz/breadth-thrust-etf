@@ -1118,7 +1118,7 @@
 
     <section>
       <h2>All variants side-by-side</h2>
-      <p class="section-sub">The four standalone strategies plus the blend variants: three 4-way A:B:C:D blends (Phase 4), three 3-way A:B:C blends (pre-Europe baseline), three 2-way A:B blends, and the meta-rotation. All renormalised to 1.0 at the common start date.</p>
+      <p class="section-sub">The four standalone strategies plus the blend variants: three 4-way A:B:C:D blends (Phase 4), three 3-way A:B:C blends (pre-Europe baseline), three 2-way A:B blends, and the meta-rotation. <strong>Default view shows only four lines</strong> — the deployed 4-way blend, the prior 3-way baseline, the 2-way 50/50 A:B (for "does adding C help?"), and Strategy A standalone. <strong>Click any legend chip below to add or remove a line</strong>; the chart below the chart-area will redraw immediately. All series renormalised to 1.0 at the common start date.</p>
       <div id="multi-equity-chart" class="chart tall"></div>
       <table class="small-table" id="multi-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
       <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="multi-note"></p>
@@ -4270,13 +4270,30 @@ function renderMultiCharts() {
   const orderNoC = ['blend_50_50', 'blend_70_30', 'blend_30_70',
                      'strategy_a', 'strategy_b', 'meta_rotation'];
   const order = m.has_strategy_d ? orderWithD : (m.has_strategy_c ? orderWithC : orderNoC);
+  // Show by default ONLY the four lines that tell the story to a CPM:
+  //   - the deployed blend (4-way 35/35/10/20 or 3-way 45/45/10 fallback)
+  //   - the prior 3-way baseline (for "what did Phase 4 buy us?" comparison)
+  //   - the 2-way 50/50 A:B (the simplest blend, for "does adding C help?")
+  //   - Strategy A standalone (the strongest single-sleeve baseline)
+  // Everything else is left in the legend as `legendonly` — clickable to add.
+  // This keeps the default view to 4 lines instead of 14.
+  const defaultVisibleKeys = new Set(
+    m.has_strategy_d
+      ? ['blend_35_35_10_20', 'blend_45_45_10', 'blend_50_50', 'strategy_a']
+      : (m.has_strategy_c
+          ? ['blend_45_45_10', 'blend_50_50', 'strategy_a']
+          : ['blend_50_50', 'strategy_a'])
+  );
   const traces = order.filter(k => s[k]).map(k => {
     const v = s[k];
+    const isVisible = defaultVisibleKeys.has(k);
     return {
       x: v.dates, y: v.equity, mode: 'lines',
       name: v.label,
       line: { color: colours[k] || '#999', width: widths[k] || 1.2 },
       hovertemplate: '%{x|%Y-%m-%d}<br>' + k + ': %{y:.2f}<extra></extra>',
+      // Plotly: 'legendonly' = legend chip shown but line hidden; click to enable
+      visible: isVisible ? true : 'legendonly',
     };
   });
   Plotly.newPlot('multi-equity-chart', traces, {
