@@ -150,16 +150,48 @@ def load_right_tail() -> dict | None:
 
 
 def load_robustness() -> dict | None:
-    """Load data/robustness.json. Trims wf_dates/wf_equity (heavy series
-    not currently rendered) to keep the inlined payload compact."""
+    """Load data/robustness.json into a slim payload for the Risk & Validation
+    tab.
+
+    Phase 9 cleanup (2026-05-24): keeps only the fields actually rendered by
+    the dashboard:
+      - test_10_wf_topk_portfolio  (paradigm comparison + WF K refit segments)
+      - test_11 lives in topk_robustness.json, not here
+      - test_12 lives in ma200_sweep.json's per-ETF breadth, not here
+
+    Legacy fields kept ONLY because renderRobustnessParadigm reads them to
+    compute paradigm-1 and paradigm-2 comparison rows (the strategic case
+    for top-K rotation over per-ETF L tuning):
+      - test_1_walk_forward_l    (paradigm 1: per-ETF tuned L)
+      - test_8_fixed_L            (paradigm 2: fixed L = 60)
+      - The wf_dates / wf_equity per-ETF sub-arrays inside test_1 are
+        stripped — they were never rendered.
+
+    All other test_N_* legacy fields are dropped from the inlined payload
+    (still in the source robustness.json on disk for archival
+    reproducibility, but not shipped to the browser).
+    """
     path = DATA_DIR / "robustness.json"
     if not path.exists():
         return None
     blob = json.loads(path.read_text(encoding="utf-8"))
+    # Strip heavy sub-arrays from test_1 (the only legacy field we keep)
     wf = blob.get("test_1_walk_forward_l", {})
     for etf in wf:
         wf[etf].pop("wf_dates", None)
         wf[etf].pop("wf_equity", None)
+    # Drop the non-rendered legacy fields entirely
+    legacy_drop = [
+        "test_2_borrow_cost",
+        "test_3_sub_periods",
+        "test_4_bootstrap",
+        "test_5_ma_period_csp1",
+        "test_5b_ma_period_soxx",
+        "test_6_rebalance_freq",
+        "test_7_wf_x_cadence",
+    ]
+    for k in legacy_drop:
+        blob.pop(k, None)
     return blob
 
 
@@ -208,10 +240,11 @@ def main() -> int:
         wf = robustness.get("test_1_walk_forward_l", {})
         print(f"  walk-forward L for {len(wf)} ETFs")
 
-    print("Loading extended history ...", flush=True)
-    extended = load_extended_history()
-    if extended:
-        print(f"  extended history {extended.get('start_date')} → {extended.get('end_date')}")
+    # Phase 9 cleanup: extended_history.json was the input to Robustness
+    # Test 9 (per-ETF L-threshold 2000-2026 backtest), which is legacy.
+    # The renderer was removed in Phase 9 so we no longer inline the data.
+    # The file remains on disk for archival reproducibility.
+    extended = None
 
     print("Loading top-K rotation robustness ...", flush=True)
     topk = load_topk_robustness()
