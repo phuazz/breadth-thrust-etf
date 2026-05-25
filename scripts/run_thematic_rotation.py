@@ -91,6 +91,11 @@ UNIVERSE: dict[str, dict] = {
     "MOO":  {"label": "VanEck Agribusiness",                "theme": "Commodity equity"},
     "PAVE": {"label": "Global X US Infrastructure",         "theme": "Infrastructure"},
     # ---------------------------------------------------------------------
+    # Phase 15 additions (2026-05-26). Passes the within-Strategy-C
+    # correlation gate (<0.85 vs every existing member) with sufficient
+    # history (>= 5 years) for walk-forward.
+    "ITA":  {"label": "iShares US Aerospace & Defense",     "theme": "Defence / Aerospace"},
+    # ---------------------------------------------------------------------
     # Phase 5 candidates (tested 2026-05-24, NOT deployed). The following
     # 4 ETFs passed the within-Strategy-C correlation gate (<0.85 vs any
     # existing C member) and were experimentally added to the universe.
@@ -104,8 +109,35 @@ UNIVERSE: dict[str, dict] = {
     #   "AMLP": {"label": "Alerian MLP (energy infrastructure)", "theme": "Yield / infrastructure"},
     #   "PHO":  {"label": "Invesco Water Resources",            "theme": "Infrastructure"},
     #   "KRE":  {"label": "SPDR S&P Regional Banking",          "theme": "Rate-sensitive cyclical"},
+    # ---------------------------------------------------------------------
+    # Phase 15 rejected on the correlation gate (2026-05-26):
+    #   "AIQ":  Global X AI & Tech — max-corr 0.891 vs SKYY, also 0.881 vs
+    #           BOTZ, 0.848 vs CIBR, 0.848 vs ARKK. Structural overlap with
+    #           the Tech / Innovation bucket because the underlying holdings
+    #           (NVDA, MSFT, GOOGL, META) are the top holdings of the cloud /
+    #           cybersecurity / innovation ETFs already in the universe.
+    #           Same problem applies to ROBT and IRBO.
 }
 TICKERS = list(UNIVERSE.keys())
+
+
+# Deferred universe — registered for visibility but NOT in TICKERS,
+# so they are excluded from downloads / signals / backtests. Move into
+# UNIVERSE once each candidate clears both gates (correlation < 0.85
+# AND history >= 5 years).
+DEFERRED_UNIVERSE: dict[str, dict] = {
+    "IBIT": {
+        "label": "iShares Bitcoin Trust",
+        "theme": "Crypto / Digital Assets",
+        "deferred_reason": (
+            "Live 2024-01-11; only 2.3 years of history as of 2026-05-26. "
+            "Need >=5 years for the walk-forward methodology (5y IS + 1y "
+            "refit). Eligible for promotion ~2029-01. Correlation gate "
+            "already passes: max-corr 0.712 vs BLOK (the equity-flavoured "
+            "blockchain ETF)."
+        ),
+    },
+}
 
 # Cash proxy when fewer than K candidates clear the signal floor.
 # IEF is the same 7-10y Treasury used in Strategy B, so cash exposure is
