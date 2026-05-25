@@ -87,6 +87,40 @@
       font-size: 11px; color: var(--ink-faint); max-width: 920px;
       margin-top: 6px; line-height: 1.5;
     }
+    /* ----- Hero stat strip: big headline numbers above the sleeve cards ----- */
+    header.top .hero-strip {
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 24px;
+      max-width: 920px; margin: 12px 0 12px 0;
+      padding: 16px 22px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    @media (max-width: 720px) {
+      header.top .hero-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px; padding: 12px 14px;
+      }
+    }
+    header.top .hero-strip .item { text-align: left; }
+    header.top .hero-strip .number {
+      font-size: 30px; font-weight: 700;
+      color: var(--ink); letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums; line-height: 1.05;
+    }
+    @media (max-width: 720px) {
+      header.top .hero-strip .number { font-size: 22px; }
+    }
+    header.top .hero-strip .number.good { color: var(--good); }
+    header.top .hero-strip .label {
+      font-size: 10.5px; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--ink-soft);
+      margin-top: 5px; font-weight: 600;
+    }
+    header.top .hero-strip .desc {
+      font-size: 11px; color: var(--ink-faint);
+      margin-top: 2px; line-height: 1.4;
+    }
     header.top .meta a:hover { text-decoration: underline; }
 
     nav.tabs {
@@ -739,32 +773,50 @@
     </div>
     <h1>Breadth-thrust ETF research</h1>
     <div class="headline">
-      Four-strategy breadth and momentum equity portfolio. Long-only, weekly rebalance, no leverage. Deployed <span class="big">35/35/10/20 A:B:C:D blend</span> · Sharpe <span class="big good">+1.16</span> · Max drawdown <span class="big">-23.7%</span> · 8-year backtest, validated out-of-sample with annual parameter refit.
+      A rules-based ETF rotation portfolio that holds whatever is trending up across <strong>four complementary universes</strong>: US sectors, asset classes, thematic ideas, and Europe sectors. Long-only, weekly rebalance, no leverage.
+    </div>
+    <div class="hero-strip">
+      <div class="item">
+        <div class="number good" id="hero-sharpe">—</div>
+        <div class="label">Sharpe</div>
+        <div class="desc">Risk-adjusted return, out-of-sample</div>
+      </div>
+      <div class="item">
+        <div class="number" id="hero-cagr">—</div>
+        <div class="label">Annual return (CAGR)</div>
+        <div class="desc">Compound annual growth, 2018–today</div>
+      </div>
+      <div class="item">
+        <div class="number" id="hero-dd">—</div>
+        <div class="label">Max drawdown</div>
+        <div class="desc">Worst peak-to-trough loss</div>
+      </div>
+      <div class="item">
+        <div class="number" id="hero-window">—</div>
+        <div class="label">Backtest length</div>
+        <div class="desc">Walk-forward validated</div>
+      </div>
     </div>
     <div class="sleeve-strip">
       <div class="sleeve-card">
         <div class="role"><span>A · US sector rotation</span><span class="wt">35%</span></div>
-        <div>14 US sector ETFs · own the strongest 7 by breadth</div>
-        <div class="metric">Sharpe +0.99<sup>*</sup> · own-K weekly refit, no per-ETF tuning</div>
+        <div>Rotates among 14 US sector ETFs each week. Holds whichever 7 have the highest breadth (% of constituents in uptrend).</div>
       </div>
       <div class="sleeve-card b">
         <div class="role"><span>B · Asset-class rotation</span><span class="wt">35%</span></div>
-        <div>14 broad ETFs · momentum across asset classes</div>
-        <div class="metric">Sharpe +0.74<sup>*</sup> · Max drawdown only -14% (downside protection)</div>
+        <div>Rotates across 14 broad asset-class ETFs for downside protection — rotates into bonds, gold, or cash when equities weaken.</div>
       </div>
       <div class="sleeve-card c">
         <div class="role"><span>C · Thematic optionality</span><span class="wt">10%</span></div>
-        <div>16 thematic ETFs · cap on size = cap on damage</div>
-        <div class="metric">Best 12-month return +162% · best of 4 sleeves 41% of months</div>
+        <div>Catches secular thematic bulls (AI, clean energy, biotech). Sized to cap downside while keeping the upside (+162% best 12-month).</div>
       </div>
       <div class="sleeve-card d">
         <div class="role"><span>D · Europe sector rotation</span><span class="wt">20%</span></div>
-        <div>5 Stoxx Europe 600 sector UCITS · non-US macro</div>
-        <div class="metric">Sharpe <strong>+0.97</strong><sup>*</sup> · OOS &gt; in-sample (rare, strong sign)</div>
+        <div>Same mechanism as A but on 5 Stoxx Europe 600 sector UCITS — adds non-US macro exposure (ECB cycle, EUR/USD, China trade).</div>
       </div>
     </div>
     <div class="footnote">
-      <sup>*</sup> Sharpe ratios shown are <em>out-of-sample</em> (parameters refit each year on past data only, applied to the next 12 months — the honest "live-simulation" Sharpe, not the in-sample fit). The +0.06 Sharpe lift of the deployed blend over the 3-way baseline (without Europe) is directionally positive but not yet statistically significant at the 5% level (95% confidence interval [-0.04, +0.17], probability of being a real improvement ≈ 83%). Strategy C's 10% sleeve is sized for asymmetric upside in thematic regimes (e.g. +170% return during the 2020-21 AI/clean-energy boom while capped at -2.5pp downside per year at the blend level), not for steady Sharpe contribution. Full backtest methodology, statistical tests, and regime decomposition on the Multi-Strategy and Method tabs.
+      <em>Out-of-sample</em> = strategy parameters are refit each year using only past data, then applied to the next 12 months — the realistic "live-simulation" Sharpe, not the in-sample backtest fit. Full statistical tests, regime decomposition, per-sleeve performance, and trade history live on the <strong>Multi-Strategy</strong>, <strong>Trade History</strong>, and <strong>Method</strong> tabs.
     </div>
   </div>
 </header>
@@ -1686,6 +1738,42 @@ function fmtPct(x, signed = false) {
 function fmtNum(x, digits = 2, signed = false) {
   if (x == null || Number.isNaN(x)) return '—';
   return (signed && x > 0 ? '+' : '') + Number(x).toFixed(digits);
+}
+
+// ----------- Hero stat strip in header --------------------------------
+// Populate the four big numbers in the header from the deployed blend.
+// Reads from window.DATA so the headline stays in sync with each
+// pipeline run — no hardcoded values that would drift over time.
+function renderHeroStrip() {
+  const m = window.DATA?.multi;
+  if (!m?.strategies) return;
+  // Headline blend follows the same precedence used elsewhere:
+  // 4-way deployed if available, else 3-way, else 2-way fallback.
+  const hasD = !!m.has_strategy_d;
+  const hasC = !!m.has_strategy_c;
+  const headlineKey = hasD ? 'blend_35_35_10_20'
+                            : (hasC ? 'blend_45_45_10' : 'blend_50_50');
+  const blend = m.strategies[headlineKey] || m.strategies.blend_50_50 || {};
+  const sharpe = blend.sharpe;
+  const cagr = blend.cagr;
+  const maxDd = blend.max_dd;
+
+  // Backtest window length in years (common across the 4 sleeves)
+  let yearStr = '—';
+  if (m.common_start && m.common_end) {
+    const ms = new Date(m.common_end) - new Date(m.common_start);
+    const years = ms / (365.25 * 24 * 3600 * 1000);
+    yearStr = years.toFixed(1) + ' yrs';
+  }
+
+  const set = (id, txt) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
+  };
+  set('hero-sharpe', sharpe != null ? fmtNum(sharpe, 2, true) : '—');
+  set('hero-cagr',   cagr != null ? fmtPct(cagr, true) : '—');
+  set('hero-dd',     maxDd != null ? fmtPct(maxDd) : '—');
+  set('hero-window', yearStr);
 }
 
 // ----------- Monitor tab -----------------------------------------------
@@ -5372,6 +5460,9 @@ function activateTab(name) {
   }
   window.DATA = data;
   if (data.built_at) document.getElementById('ts-built').textContent = 'Built ' + data.built_at;
+  // Hero stat strip in the header — populate from the deployed blend's
+  // numbers so the header headline stays in sync with each pipeline run.
+  renderHeroStrip();
   // Render the default tab immediately
   renderMonitor();
   TAB_RENDERED.add('monitor');
