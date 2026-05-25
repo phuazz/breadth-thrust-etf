@@ -732,6 +732,7 @@
   <div class="container">
     <button class="tab active" data-tab="monitor">Monitor</button>
     <button class="tab" data-tab="multi">Multi-Strategy</button>
+    <button class="tab" data-tab="history">Trade History</button>
     <button class="tab" data-tab="portfolio">Strategy A (Sectors)</button>
     <button class="tab" data-tab="asset">Strategy B (Asset Class)</button>
     <button class="tab" data-tab="thematic">Strategy C (Thematic)</button>
@@ -834,6 +835,54 @@
     </section>
   </div>
 
+  <!-- ====================== TRADE HISTORY (Phase 10) ====================== -->
+  <div class="tab-content" id="tab-history">
+    <p class="section-sub" style="margin-top:8px;">
+      <strong>The deployed 4-way blend's complete history — every position, every rebalance, every contribution.</strong>
+      This tab consolidates the per-sleeve trade detail that lives on the four individual strategy tabs into one blend-level view. Useful for: walking a client through "how does this actually work over time", validating the performance attribution numbers, and answering "what did the portfolio hold during regime X" questions.
+    </p>
+
+    <section>
+      <h2>1 · Asset-class exposure over time</h2>
+      <p class="section-sub">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly snapshots since 2018-Q4 (common window across all four sleeves). Shows how the rotation engines collectively shifted between US equity, international, real estate, commodities, bonds, and thematic exposure across regimes. <strong>This is the single best chart for "tell me how the strategy actually behaves"</strong> — notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic spike in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, the rotation back into equity in 2023-24.</p>
+      <div id="blend-allocation-chart" class="chart tall"></div>
+      <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every week. Asset-class taxonomy follows the same buckets used in the Monitor "Exposure by asset class" rollup. Cash floor (IEF in Strategy B and C when fewer than K candidates clear their signal floors) is rolled into "Bonds".</p>
+    </section>
+
+    <section>
+      <h2>2 · Combined trade ledger — every rebalance across all four sleeves</h2>
+      <p class="section-sub">Flat list of every position change across A, B, C, and D. <strong>One row per (sleeve × rebalance × ETF)</strong>. Action = entry (first appearance) / exit (last appearance) / resize (weight change within an existing position). Filter by sleeve, ETF, or date to drill into a specific moment.</p>
+      <div class="trade-controls">
+        <label class="toggle" style="font-size:12px;"><input type="checkbox" id="ledger-recent-only" checked> Show last 200 only</label>
+        <select id="ledger-sleeve-filter" style="padding:4px 8px;border:1px solid var(--border);border-radius:3px;font-size:12px;">
+          <option value="">All sleeves</option>
+          <option value="A">A · US sectors</option>
+          <option value="B">B · Asset class</option>
+          <option value="C">C · Thematic</option>
+          <option value="D">D · Europe</option>
+        </select>
+        <select id="ledger-action-filter" style="padding:4px 8px;border:1px solid var(--border);border-radius:3px;font-size:12px;">
+          <option value="">All actions</option>
+          <option value="entry">Entry only</option>
+          <option value="exit">Exit only</option>
+          <option value="resize">Resize only</option>
+        </select>
+        <input type="text" id="ledger-text-filter" placeholder="Filter by ETF (e.g. GLD) or date (e.g. 2022-03)" style="padding:4px 8px;border:1px solid var(--border);border-radius:3px;font-size:12px;flex:1;min-width:240px;">
+        <span class="pill" id="ledger-count">—</span>
+      </div>
+      <div class="trade-table-wrap">
+        <table class="small-table" id="ledger-table" style="margin-top:10px;"><thead></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <section>
+      <h2>3 · Blend-level attribution — total NAV contribution per ETF</h2>
+      <p class="section-sub">Each ETF's total contribution to the deployed 35/35/10/20 blend's return, aggregated across the sleeves that held it. <strong>If an ETF appears in multiple sleeves</strong> (e.g., GLD in Strategy B AND Strategy C, IEF as cash floor in both B and C, JETS as thematic in C), its blend contribution is the sum of (sleeve_weight × sleeve_contribution) across each sleeve. This is the auditable per-ETF P&amp;L attribution that proves the headline blend return is built from these specific position-level decisions. Sorted by absolute contribution.</p>
+      <table class="small-table" id="blend-attribution-table"><thead></thead><tbody></tbody></table>
+      <p style="margin-top:12px;font-size:12px;color:var(--ink-faint);" id="blend-attribution-note"></p>
+    </section>
+  </div>
+
   <!-- ====================== ETF DETAIL ====================== -->
   <div class="tab-content" id="tab-detail">
     <p class="section-sub" style="margin-top:8px;">Inspect the underlying signal for any ETF in the deployed universe. <strong>Three sections</strong> because the two signal types differ: Strategies A and D use <em>constituent breadth</em> (% of an ETF's holdings above their own 200d MA, range 0-100%) — but for different universes (US vs Europe). Strategies B and C use <em>ETF-level momentum</em> (distance of the ETF price above its own 200d MA, can be negative). Each section has its own chip group and chart.</p>
@@ -911,47 +960,43 @@
       <div id="portfolio-right-tail"></div>
     </section>
 
-    <details style="margin-top:24px;border-top:1px solid var(--border);padding-top:16px;">
-      <summary style="cursor:pointer;font-size:17px;font-weight:600;color:var(--ink);padding:6px 0;">
-        Trade Explorer — full deep-dive (click to expand)
-      </summary>
-      <p style="font-size:13px;color:var(--ink-faint);margin:6px 0 14px 0;">
-        Every rebalance of Strategy A from <strong id="trade-first-date">—</strong> to <strong id="trade-last-date">—</strong>. <span id="trade-summary"></span> Each row = a Friday close; holdings shown are what the strategy should be in for the following week. Green chips entered this week; red chips exited; blue chips persisted. Weight = portfolio share; breadth = % of that ETF's constituents above 200d MA at the rebalance date.
-      </p>
+    <section style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px;">
+      <h2>Trade Explorer — Strategy A deep-dive</h2>
+      <p class="section-sub">Every rebalance of Strategy A from <strong id="trade-first-date">—</strong> to <strong id="trade-last-date">—</strong>. <span id="trade-summary"></span> Each row = a Friday close; holdings shown are what the strategy should be in for the following week. Green chips entered this week; red chips exited; blue chips persisted. Weight = portfolio share; breadth = % of that ETF's constituents above 200d MA at the rebalance date. <em>For the BLEND-LEVEL combined ledger across all four sleeves, see the <a href="#" onclick="document.querySelector('[data-tab=history]').click();return false;">Trade History tab</a>.</em></p>
+    </section>
 
-      <section>
-        <h2>Equity vs benchmarks</h2>
-        <p class="section-sub">Strategy A (K = 7, weekly Friday) versus the two relevant passive benchmarks: <strong>SPY buy-and-hold</strong> (broad-market passive) and <strong>naive equal-weight across all 14 ETFs</strong> (diversification only, no signal). All series renormalised to 1.0 at the eligible start date. Log scale.</p>
-        <div id="trade-equity-chart" class="chart"></div>
-        <table class="small-table" id="trade-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
-        <p style="margin-top:10px;color:var(--ink-faint);font-size:13px;">CAGR = compound annual growth rate. Δ = strategy minus benchmark.</p>
-      </section>
+    <section>
+      <h3>Strategy A · Equity vs benchmarks</h3>
+      <p class="section-sub">Strategy A (K = 7, weekly Friday) versus <strong>SPY buy-and-hold</strong> and <strong>naive equal-weight across all 14 ETFs</strong>. All series renormalised to 1.0 at the eligible start date. Log scale.</p>
+      <div id="trade-equity-chart" class="chart"></div>
+      <table class="small-table" id="trade-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
+      <p style="margin-top:10px;color:var(--ink-faint);font-size:13px;">CAGR = compound annual growth rate. Δ = strategy minus benchmark.</p>
+    </section>
 
-      <section>
-        <h2>Sector allocation over time</h2>
-        <p class="section-sub">Weekly snapshot of the portfolio composition — stacked to 100%. Colours by ETF. Wide bands = persistent leadership; thin slivers = brief appearances. Tells you what the rotation was actually <em>betting on</em> in each market regime.</p>
-        <div id="trade-allocation-chart" class="chart tall"></div>
-      </section>
+    <section>
+      <h3>Strategy A · Sector allocation over time</h3>
+      <p class="section-sub">Weekly snapshot of the portfolio composition — stacked to 100%. Colours by ETF. Wide bands = persistent leadership; thin slivers = brief appearances. Tells you what the rotation was actually <em>betting on</em> in each market regime.</p>
+      <div id="trade-allocation-chart" class="chart tall"></div>
+    </section>
 
-      <section>
-        <h2>Trade history</h2>
-        <p class="section-sub" id="trade-history-sub">All rebalances, newest first. Use the filter to find rebalances containing a specific ETF or close to a specific date.</p>
-        <div class="trade-controls">
-          <label class="toggle"><input type="checkbox" id="trade-recent-only" checked> Show last 50 only</label>
-          <input type="text" id="trade-filter" placeholder="Filter by ETF (e.g. IUES) or date (e.g. 2024-03)">
-          <span class="pill" id="trade-count">—</span>
-        </div>
-        <div class="trade-table-wrap">
-          <table class="trade-table" id="trade-table"><thead></thead><tbody></tbody></table>
-        </div>
-      </section>
+    <section>
+      <h3>Strategy A · Trade history</h3>
+      <p class="section-sub" id="trade-history-sub">All rebalances, newest first. Use the filter to find rebalances containing a specific ETF or close to a specific date.</p>
+      <div class="trade-controls">
+        <label class="toggle"><input type="checkbox" id="trade-recent-only" checked> Show last 50 only</label>
+        <input type="text" id="trade-filter" placeholder="Filter by ETF (e.g. IUES) or date (e.g. 2024-03)">
+        <span class="pill" id="trade-count">—</span>
+      </div>
+      <div class="trade-table-wrap">
+        <table class="trade-table" id="trade-table"><thead></thead><tbody></tbody></table>
+      </div>
+    </section>
 
-      <section>
-        <h2>Performance attribution — where did the returns come from?</h2>
-        <p class="section-sub">For each ETF, the contribution to the strategy's total return. <em>Contribution</em> = sum of (yesterday's weight × today's ETF return) over all days in the backtest, in absolute strategy-NAV terms. <em>% of total</em> normalises across ETFs (positives net of negatives). <em>Annualised return when held</em> is the geometric daily return of just the ETF on days the strategy held it — answers "did the strategy time this sector well, or just own it through good periods?". Sorted by contribution.</p>
-        <table class="small-table" id="tip-table"><thead></thead><tbody></tbody></table>
-      </section>
-    </details>
+    <section>
+      <h3>Strategy A · Performance attribution</h3>
+      <p class="section-sub">For each ETF, the contribution to Strategy A's total return. <em>Contribution</em> = sum of (yesterday's weight × today's ETF return) over all days in the backtest. <em>% of total</em> normalises across ETFs (positives net of negatives). <em>Annualised return when held</em> = the geometric daily return of just the ETF on days the strategy held it — answers "did the strategy time this sector well, or just own it through good periods?". Sorted by contribution.</p>
+      <table class="small-table" id="tip-table"><thead></thead><tbody></tbody></table>
+    </section>
 
     <section>
       <details style="margin-top:20px;">
@@ -4763,6 +4808,353 @@ function renderRegimeDecomposition() {
   }
 }
 
+// ============= TRADE HISTORY tab (Phase 10) ==============================
+// Three blend-level consolidation views that aggregate from the per-sleeve
+// JSONs (topk_robustness, asset_class_rotation, thematic_rotation,
+// europe_rotation). All aggregation is done JS-side at render time; no
+// new pipeline outputs needed.
+// ---------------------------------------------------------------------------
+
+// Asset-class taxonomy for the blend-level view. Reuses the buckets
+// established on the Monitor tab so the user sees the same labels in
+// both places (avoid taxonomy churn).
+function _historyAssetClass(etf, sleeveKey) {
+  // Strategy D — always Europe Equity
+  if (sleeveKey === 'D') return 'Europe Equity';
+  // Strategy C — Thematic (except IEF cash floor)
+  if (sleeveKey === 'C') return etf === 'IEF' ? 'Bonds' : 'Thematic';
+  // Strategy B — use universe metadata
+  if (sleeveKey === 'B') {
+    const u = (window.DATA?.asset_class?.universe || []).find(x => x.etf === etf);
+    return u?.asset_class || 'Other';
+  }
+  // Strategy A — bucket by registry tag (mirrors Monitor _aAssetClass)
+  if (sleeveKey === 'A') {
+    if (etf === 'IDP6') return 'US Equity (small-cap)';
+    return 'US Equity (sectors)';
+  }
+  return 'Other';
+}
+
+// Stable colour palette for the asset-class bands. Same hues as Monitor.
+const _historyAssetClassColours = {
+  'US Equity (sectors)':  '#1351b4',
+  'US Equity (small-cap)':'#1e3a8a',
+  'US Equity':            '#374151',
+  'Europe Equity':        '#0e7490',
+  'Intl Developed':       '#0891b2',
+  'Emerging Mkts':        '#dc2626',
+  'Real Estate':          '#0d9488',
+  'Commodities':          '#ca8a04',
+  'Bonds':                '#1d7a3a',
+  'Thematic':             '#7c3aed',
+  'Other':                '#52525b',
+};
+const _historyAssetClassOrder = [
+  'US Equity (sectors)', 'US Equity (small-cap)', 'US Equity',
+  'Europe Equity', 'Intl Developed', 'Emerging Mkts',
+  'Real Estate', 'Commodities', 'Bonds', 'Thematic', 'Other',
+];
+
+// Resolve current sleeve weights from the deployed blend (matches Monitor's
+// hasD / hasC logic). Returns a {A, B, C, D} weight object.
+function _historySleeveWeights() {
+  const data = window.DATA;
+  const hasC = !!data?.thematic?.headline?.trade_history;
+  const hasD = !!data?.europe?.headline?.trade_history;
+  if (hasD) return { A: 0.35, B: 0.35, C: 0.10, D: 0.20 };
+  if (hasC) return { A: 0.45, B: 0.45, C: 0.10, D: 0.00 };
+  return { A: 0.50, B: 0.50, C: 0.00, D: 0.00 };
+}
+
+
+// --- Section 1 — Asset-class exposure stacked over time --------------
+function renderBlendAllocationTimeline() {
+  const data = window.DATA;
+  if (!data?.topk?.headline) return;
+  const W = _historySleeveWeights();
+
+  // For each sleeve, get its weekly_allocation (dict by ETF -> array of weights
+  // aligned to weekly_allocation_dates). For Strategy A/D we also have these.
+  const sleeves = [
+    {key: 'A', src: data.topk?.headline,    weight: W.A},
+    {key: 'B', src: data.asset_class?.headline, weight: W.B},
+    {key: 'C', src: data.thematic?.headline, weight: W.C},
+    {key: 'D', src: data.europe?.headline,  weight: W.D},
+  ].filter(s => s.src && s.weight > 0
+                && s.src.weekly_allocation
+                && s.src.weekly_allocation_dates);
+
+  // Build a master date axis = intersection of all sleeves' weekly dates
+  // so the stacked area sums cleanly to 100%.
+  let commonDates = null;
+  for (const s of sleeves) {
+    const ds = new Set(s.src.weekly_allocation_dates);
+    if (commonDates === null) commonDates = ds;
+    else commonDates = new Set([...commonDates].filter(d => ds.has(d)));
+  }
+  const masterDates = [...commonDates].sort();
+  if (masterDates.length === 0) {
+    document.getElementById('blend-allocation-chart').innerHTML =
+      '<p style="padding:40px;color:var(--ink-faint);text-align:center;">No overlapping window across sleeves to render the blend allocation.</p>';
+    return;
+  }
+
+  // Aggregate per-week exposure by asset class
+  // result[assetClass] = array(length=masterDates) of % of total NAV
+  const exposureByClass = {};
+  for (const cls of _historyAssetClassOrder) {
+    exposureByClass[cls] = new Array(masterDates.length).fill(0);
+  }
+  for (const s of sleeves) {
+    const sleeveDates = s.src.weekly_allocation_dates;
+    const alloc = s.src.weekly_allocation;
+    // Map sleeve date -> index in master
+    const dateIdx = {};
+    masterDates.forEach((d, i) => { dateIdx[d] = i; });
+    // For each ETF in the sleeve's allocation
+    for (const [etf, weights] of Object.entries(alloc)) {
+      const cls = _historyAssetClass(etf, s.key);
+      if (!(cls in exposureByClass)) exposureByClass[cls] = new Array(masterDates.length).fill(0);
+      // Iterate sleeve's weekly weights, map to master index, accumulate
+      for (let i = 0; i < sleeveDates.length; i++) {
+        const masterI = dateIdx[sleeveDates[i]];
+        if (masterI === undefined) continue;
+        const w = weights[i];
+        if (w == null) continue;
+        // Effective NAV weight contribution = sleeve weight × within-strategy weight
+        exposureByClass[cls][masterI] += w * s.weight * 100;
+      }
+    }
+  }
+
+  // Build traces in the canonical order (drop classes with zero exposure)
+  const traces = _historyAssetClassOrder
+    .filter(cls => exposureByClass[cls].some(v => v > 0.5))  // hide noise
+    .map(cls => ({
+      x: masterDates, y: exposureByClass[cls],
+      name: cls, stackgroup: 'one', mode: 'none',
+      fillcolor: _historyAssetClassColours[cls] || '#999',
+      hovertemplate: '%{x|%Y-%m-%d}<br>' + cls + ': %{y:.1f}%<extra></extra>',
+    }));
+
+  Plotly.newPlot('blend-allocation-chart', traces, {
+    margin: { t: 8, r: 16, b: 90, l: 50 },
+    xaxis: { showgrid: false, color: '#4a5159' },
+    yaxis: {
+      gridcolor: '#eef0f3', color: '#4a5159',
+      title: { text: '% of NAV (stacked)', font: { size: 11 } },
+      range: [0, 100], ticksuffix: '%',
+    },
+    paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+    legend: { orientation: 'h', y: -0.22, x: 0, font: { size: 11 } },
+    hovermode: 'x unified',
+    font: { family: 'Inter', size: 12, color: '#4a5159' },
+  }, { displayModeBar: false, responsive: true });
+}
+
+
+// --- Section 2 — Combined trade ledger -----------------------------------
+let _ledgerRecentOnly = true;
+let _ledgerSleeveFilter = '';
+let _ledgerActionFilter = '';
+let _ledgerTextFilter = '';
+
+// Build the unified ledger: one row per (sleeve × rebalance × ETF), with
+// an inferred action (entry/exit/resize) relative to the prior rebalance
+// for that sleeve.
+function _buildCombinedLedger() {
+  const data = window.DATA;
+  const W = _historySleeveWeights();
+  const sleeves = [
+    {key: 'A', src: data.topk?.headline,         weight: W.A, sigKey: 'breadth_pct', sigLabel: 'breadth'},
+    {key: 'B', src: data.asset_class?.headline,  weight: W.B, sigKey: 'signal_pct',  sigLabel: 'signal'},
+    {key: 'C', src: data.thematic?.headline,     weight: W.C, sigKey: 'signal_pct',  sigLabel: 'signal'},
+    {key: 'D', src: data.europe?.headline,       weight: W.D, sigKey: 'breadth_pct', sigLabel: 'breadth'},
+  ].filter(s => s.src?.trade_history && s.weight > 0);
+
+  const rows = [];
+  for (const s of sleeves) {
+    const history = s.src.trade_history;
+    for (let i = 0; i < history.length; i++) {
+      const cur = history[i];
+      const prev = i > 0 ? history[i - 1] : null;
+      const prevMap = new Map((prev?.holdings || []).map(h => [h.etf, h.weight]));
+      const curMap = new Map(cur.holdings.map(h => [h.etf, h.weight]));
+      // Emit row for each entry/resize in current rebalance
+      for (const h of cur.holdings) {
+        const prevW = prevMap.get(h.etf);
+        let action;
+        if (prevW === undefined) action = 'entry';
+        else if (Math.abs(h.weight - prevW) < 0.005) continue; // unchanged, skip noise
+        else action = 'resize';
+        rows.push({
+          date: cur.date,
+          sleeve: s.key,
+          etf: h.etf,
+          action,
+          withinWeight: h.weight,
+          effWeight: h.weight * s.weight,
+          prevWithinWeight: prevW ?? 0,
+          signal: h[s.sigKey],
+          signalLabel: s.sigLabel,
+        });
+      }
+      // Emit row for exits (positions that were in prev but not cur)
+      if (prev) {
+        for (const h of prev.holdings) {
+          if (!curMap.has(h.etf)) {
+            rows.push({
+              date: cur.date,
+              sleeve: s.key,
+              etf: h.etf,
+              action: 'exit',
+              withinWeight: 0,
+              effWeight: 0,
+              prevWithinWeight: h.weight,
+              signal: null,
+              signalLabel: s.sigLabel,
+            });
+          }
+        }
+      }
+    }
+  }
+  // Sort by date descending, then sleeve, then action priority (entry < resize < exit)
+  rows.sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    if (a.sleeve !== b.sleeve) return a.sleeve.localeCompare(b.sleeve);
+    const order = { entry: 0, resize: 1, exit: 2 };
+    return order[a.action] - order[b.action];
+  });
+  return rows;
+}
+
+function renderCombinedTradeLedger() {
+  const allRows = _buildCombinedLedger();
+  let rows = allRows.slice();
+  const q = (_ledgerTextFilter || '').trim().toUpperCase();
+  if (q) rows = rows.filter(r => r.etf.toUpperCase().includes(q) || r.date.includes(q));
+  if (_ledgerSleeveFilter) rows = rows.filter(r => r.sleeve === _ledgerSleeveFilter);
+  if (_ledgerActionFilter) rows = rows.filter(r => r.action === _ledgerActionFilter);
+  if (_ledgerRecentOnly && rows.length > 200) rows = rows.slice(0, 200);
+
+  document.getElementById('ledger-count').textContent =
+    `${rows.length.toLocaleString()} of ${allRows.length.toLocaleString()} events`;
+
+  const sleeveColour = {
+    A: 'var(--accent)', B: 'var(--good)', C: '#dc2626', D: '#0e7490',
+  };
+  const sleeveTag = (s) => `<span class="strategy-tag ${s.toLowerCase()}" style="background:rgba(0,0,0,0.06);color:${sleeveColour[s]};">${s}</span>`;
+  const actionTag = (a) => {
+    if (a === 'entry') return '<span class="good" style="font-weight:600;">▲ entry</span>';
+    if (a === 'exit') return '<span class="bad" style="font-weight:600;">▼ exit</span>';
+    return '<span style="color:var(--ink-faint);">~ resize</span>';
+  };
+  const fmtW = (w) => (w * 100).toFixed(1) + '%';
+
+  const el = document.getElementById('ledger-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>Date</th>
+    <th>Sleeve</th>
+    <th>ETF</th>
+    <th>Action</th>
+    <th class="num">Within-sleeve weight</th>
+    <th class="num">NAV weight (after × sleeve)</th>
+    <th class="num">Signal at trade</th>
+  </tr>`;
+  el.querySelector('tbody').innerHTML = rows.map(r => {
+    const signalDisplay = r.signal != null
+      ? `${r.signal > 0 ? '+' : ''}${r.signal}% ${r.signalLabel}`
+      : '—';
+    const wChange = r.action === 'resize'
+      ? `<span style="color:var(--ink-faint);font-size:11px;">(was ${fmtW(r.prevWithinWeight)})</span>`
+      : '';
+    return `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;">${r.date}</td>
+      <td>${sleeveTag(r.sleeve)}</td>
+      <td><strong>${r.etf}</strong></td>
+      <td>${actionTag(r.action)}</td>
+      <td class="num">${fmtW(r.withinWeight)} ${wChange}</td>
+      <td class="num">${fmtW(r.effWeight)}</td>
+      <td class="num" style="color:var(--ink-faint);font-size:12px;">${signalDisplay}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--ink-faint);">No rebalance events match the current filters.</td></tr>';
+}
+
+
+// --- Section 3 — Blend-level attribution rollup ---------------------------
+function renderBlendAttribution() {
+  const data = window.DATA;
+  const W = _historySleeveWeights();
+  const sleeves = [
+    {key: 'A', src: data.topk?.headline,         weight: W.A},
+    {key: 'B', src: data.asset_class?.headline,  weight: W.B},
+    {key: 'C', src: data.thematic?.headline,     weight: W.C},
+    {key: 'D', src: data.europe?.headline,       weight: W.D},
+  ].filter(s => s.src?.attribution && s.weight > 0);
+
+  // Aggregate per-ETF contribution at the blend level
+  // blendAttr[etf] = {totalContrib, contribBySleeve: {A:..,B:..,..}, days:{}}
+  const blendAttr = {};
+  for (const s of sleeves) {
+    const attr = s.src.attribution || {};
+    for (const [etf, info] of Object.entries(attr)) {
+      if (!blendAttr[etf]) {
+        blendAttr[etf] = { etf, totalContrib: 0, contribBySleeve: {}, daysHeldBySleeve: {} };
+      }
+      const sleeveContrib = (info.contribution_to_total_return ?? 0) * s.weight;
+      blendAttr[etf].totalContrib += sleeveContrib;
+      blendAttr[etf].contribBySleeve[s.key] = sleeveContrib;
+      blendAttr[etf].daysHeldBySleeve[s.key] = info.days_held ?? 0;
+    }
+  }
+  const list = Object.values(blendAttr).sort((a, b) => Math.abs(b.totalContrib) - Math.abs(a.totalContrib));
+  const grandTotal = list.reduce((s, x) => s + x.totalContrib, 0);
+  const maxAbs = Math.max(0.0001, ...list.map(x => Math.abs(x.totalContrib)));
+
+  const el = document.getElementById('blend-attribution-table');
+  el.querySelector('thead').innerHTML = `<tr>
+    <th>ETF</th>
+    <th>Held by</th>
+    <th class="num">Blend NAV contribution (pp)</th>
+    <th class="num">% of total</th>
+    <th></th>
+  </tr>`;
+  const sleeveColour = { A: 'var(--accent)', B: 'var(--good)', C: '#dc2626', D: '#0e7490' };
+  el.querySelector('tbody').innerHTML = list.slice(0, 60).map(x => {
+    const sleeves_held = Object.entries(x.contribBySleeve)
+      .filter(([_, v]) => Math.abs(v) > 0.0001)
+      .map(([s, v]) => {
+        const sign = v >= 0 ? '+' : '';
+        return `<span style="display:inline-block;padding:1px 6px;margin:0 3px 2px 0;border-radius:3px;background:rgba(0,0,0,0.04);color:${sleeveColour[s]};font-size:11px;font-weight:600;">${s} ${sign}${(v*100).toFixed(2)}pp</span>`;
+      }).join('');
+    const pp = x.totalContrib * 100;
+    const pctOfTotal = grandTotal !== 0 ? (x.totalContrib / grandTotal) * 100 : 0;
+    const barW = Math.abs(x.totalContrib) / maxAbs * 100;
+    const barColour = x.totalContrib >= 0 ? 'var(--good)' : 'var(--bad)';
+    return `<tr>
+      <td class="row-label"><strong>${x.etf}</strong></td>
+      <td>${sleeves_held}</td>
+      <td class="num ${pp >= 0 ? 'good' : 'bad'}"><strong>${pp > 0 ? '+' : ''}${pp.toFixed(2)}pp</strong></td>
+      <td class="num">${pctOfTotal > 0 ? '+' : ''}${pctOfTotal.toFixed(1)}%</td>
+      <td><div style="position:relative;height:8px;background:var(--bg-soft);border-radius:4px;border:1px solid var(--border);width:140px;">
+        <div style="position:absolute;top:0;left:0;height:100%;width:${barW}%;background:${barColour};border-radius:4px;opacity:0.85;"></div>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  const noteEl = document.getElementById('blend-attribution-note');
+  if (noteEl) {
+    noteEl.innerHTML =
+      `Total of all per-ETF contributions: <strong>${(grandTotal * 100).toFixed(1)}pp</strong> ` +
+      `(equals the deployed blend's total return over its common window). ` +
+      `Showing the top 60 ETFs by absolute contribution. ` +
+      `If an ETF is held by multiple sleeves, the chips show each sleeve's contribution; the bar reflects the SUM.`;
+  }
+}
+
+
 // ----------- Tab navigation --------------------------------------------
 const TAB_RENDERED = new Set();
 function activateTab(name) {
@@ -4813,6 +5205,11 @@ function activateTab(name) {
       renderMultiCharts();
       renderRegimeDecomposition();
     }
+    if (name === 'history') {
+      renderBlendAllocationTimeline();
+      renderCombinedTradeLedger();
+      renderBlendAttribution();
+    }
     if (name === 'robustness') {
       // Risk & Validation tab — only the 3 deployed-strategy tests remain
       // after Phase 9 cleanup. Tests 1-9 covered a legacy per-ETF L-threshold
@@ -4844,6 +5241,9 @@ function activateTab(name) {
     }
     if (name === 'multi') {
       try { Plotly.Plots.resize('multi-equity-chart'); } catch(e){}
+    }
+    if (name === 'history') {
+      try { Plotly.Plots.resize('blend-allocation-chart'); } catch(e){}
     }
   }
 }
@@ -4895,6 +5295,23 @@ function activateTab(name) {
   document.getElementById('europe-trade-filter')?.addEventListener('input', (e) => {
     _europeTradeFilter = e.target.value;
     renderEuropeTradeTable();
+  });
+  // Phase 10 — Trade History tab ledger filters
+  document.getElementById('ledger-recent-only')?.addEventListener('change', (e) => {
+    _ledgerRecentOnly = e.target.checked;
+    renderCombinedTradeLedger();
+  });
+  document.getElementById('ledger-sleeve-filter')?.addEventListener('change', (e) => {
+    _ledgerSleeveFilter = e.target.value;
+    renderCombinedTradeLedger();
+  });
+  document.getElementById('ledger-action-filter')?.addEventListener('change', (e) => {
+    _ledgerActionFilter = e.target.value;
+    renderCombinedTradeLedger();
+  });
+  document.getElementById('ledger-text-filter')?.addEventListener('input', (e) => {
+    _ledgerTextFilter = e.target.value;
+    renderCombinedTradeLedger();
   });
 })();
 </script>
