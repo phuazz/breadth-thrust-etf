@@ -530,6 +530,53 @@ def base_rate_returns(closes: pd.Series, horizons: list[int]) -> dict:
     return out
 
 
+def _sample_non_overlapping_random_trades(
+    rng: np.random.Generator,
+    holdings: np.ndarray,
+    eligible_indices: np.ndarray,
+    end_idx: int,
+    n_trades: int,
+) -> list[tuple[int, int]]:
+    """Sample a sequential random-entry path with no overlapping trades.
+
+    Phase 10.2 fix. The previous monte_carlo_null sampled entries with
+    replace=False but did not enforce sequential non-overlap, meaning
+    the 'null' was effectively allowed multiple concurrent positions
+    while the actual strategy is one-position-at-a-time. That was an
+    unfair comparison — the null had more 'shots on goal' than the
+    strategy, biasing the percentile ranking.
+
+    This sampler enforces: trade k+1 entry index > trade k exit index.
+    Tries up to 100 random restarts to fit n_trades into the eligible
+    window; returns the best partial path if no full fit is found.
+    """
+    min_holding = int(holdings.min())
+    best: list[tuple[int, int]] = []
+    for _attempt in range(100):
+        sampled: list[tuple[int, int]] = []
+        last_exit_i = int(eligible_indices[0]) - 1
+        for trade_num in range(n_trades):
+            h = int(rng.choice(holdings))
+            remaining_after = n_trades - trade_num - 1
+            max_entry_i = end_idx - h - remaining_after * (min_holding + 1)
+            possible_entries = eligible_indices[
+                (eligible_indices > last_exit_i)
+                & (eligible_indices + h <= end_idx)
+                & (eligible_indices <= max_entry_i)
+            ]
+            if len(possible_entries) == 0:
+                break
+            entry_i = int(rng.choice(possible_entries))
+            exit_i = entry_i + h
+            sampled.append((entry_i, exit_i))
+            last_exit_i = exit_i
+        if len(sampled) == n_trades:
+            return sampled
+        if len(sampled) > len(best):
+            best = sampled
+    return best
+
+
 def monte_carlo_null(
     trades: list[Trade],
     soxx: pd.DataFrame,
@@ -540,8 +587,10 @@ def monte_carlo_null(
     eligible_end: pd.Timestamp | None = None,
 ) -> dict:
     """Random-entry null with bootstrapped holding periods, costs applied
-    identically to the strategy. Returns percentile rank of strategy
-    aggregate return and Sharpe vs the null distribution.
+    identically to the strategy. Random trades are sequential and non-
+    overlapping, matching the strategy's one-position-at-a-time
+    constraint. Returns percentile rank of strategy aggregate return
+    and Sharpe vs the null distribution.
     """
     rng = np.random.default_rng(seed)
     n_trades = len(trades)
@@ -572,20 +621,22 @@ def monte_carlo_null(
     opens = soxx["Open"].astype(float).values
     closes = soxx["Close"].astype(float).values
 
-    null_totals = np.zeros(n_paths)
-    null_means = np.zeros(n_paths)
-    null_sharpes = np.zeros(n_paths)
-    null_win_rates = np.zeros(n_paths)
+    # Phase 10.2: NaN-init instead of zero-init so unsuccessful paths
+    # (where the non-overlap sampler couldn't fit n_trades) don't
+    # pollute the average with synthetic zeros. NaN aggregators below
+    # exclude them properly.
+    null_totals = np.full(n_paths, np.nan)
+    null_means = np.full(n_paths, np.nan)
+    null_sharpes = np.full(n_paths, np.nan)
+    null_win_rates = np.full(n_paths, np.nan)
 
     for p in range(n_paths):
-        entry_pool = rng.choice(eligible_indices, size=n_trades, replace=False)
-        boot_holdings = rng.choice(holdings, size=n_trades, replace=True)
         trade_rets = []
         daily = np.zeros(len(soxx))
-        for ei, h in zip(entry_pool, boot_holdings):
-            exit_i = ei + int(h)
-            if exit_i >= len(soxx):
-                continue
+        random_path = _sample_non_overlapping_random_trades(
+            rng, holdings, eligible_indices, end_idx, n_trades
+        )
+        for ei, exit_i in random_path:
             entry_eff = opens[ei] * (1.0 + cost)
             exit_eff = closes[exit_i] * (1.0 - cost)
             r = exit_eff / entry_eff - 1.0
@@ -596,7 +647,11 @@ def monte_carlo_null(
                 daily[j] = closes[j] / closes[j - 1] - 1.0
             if exit_i > ei:
                 daily[exit_i] = exit_eff / closes[exit_i - 1] - 1.0
-        if not trade_rets:
+        # Phase 10.2: require ALL n_trades to have been placed, otherwise
+        # the path is invalid (sampler couldn't fit them all). Previously
+        # any non-empty list contributed to the null distribution which
+        # biased it toward fewer-trade paths.
+        if len(trade_rets) != n_trades:
             continue
         arr = np.array(trade_rets)
         # Geometric total return as if compounded across all trades (matches
@@ -621,24 +676,33 @@ def monte_carlo_null(
             return None
         return float((valid <= value).mean() * 100.0)
 
+    def nan_mean(array):
+        valid = array[~np.isnan(array)]
+        return float(valid.mean()) if len(valid) else None
+
+    def nan_percentile(array, q):
+        valid = array[~np.isnan(array)]
+        return float(np.percentile(valid, q)) if len(valid) else None
+
     return {
         "n_paths": n_paths,
+        "n_valid_paths": int((~np.isnan(null_totals)).sum()),
         "n_trades": n_trades,
         "strategy_total_return": strat_total,
         "strategy_mean_trade_return": strat_mean,
         "strategy_win_rate": strat_win_rate,
-        "null_total_return_mean": float(np.nanmean(null_totals)),
-        "null_total_return_p5": float(np.nanpercentile(null_totals, 5)),
-        "null_total_return_p50": float(np.nanpercentile(null_totals, 50)),
-        "null_total_return_p95": float(np.nanpercentile(null_totals, 95)),
+        "null_total_return_mean": nan_mean(null_totals),
+        "null_total_return_p5": nan_percentile(null_totals, 5),
+        "null_total_return_p50": nan_percentile(null_totals, 50),
+        "null_total_return_p95": nan_percentile(null_totals, 95),
         "strategy_total_return_percentile": percentile_rank(strat_total, null_totals),
-        "null_mean_trade_return_mean": float(np.nanmean(null_means)),
+        "null_mean_trade_return_mean": nan_mean(null_means),
         "strategy_mean_trade_return_percentile": percentile_rank(strat_mean, null_means),
-        "null_win_rate_mean": float(np.nanmean(null_win_rates)),
+        "null_win_rate_mean": nan_mean(null_win_rates),
         "strategy_win_rate_percentile": percentile_rank(strat_win_rate, null_win_rates),
-        "null_sharpe_p50": float(np.nanmedian(null_sharpes)),
-        "null_sharpe_p5": float(np.nanpercentile(null_sharpes, 5)),
-        "null_sharpe_p95": float(np.nanpercentile(null_sharpes, 95)),
+        "null_sharpe_p50": nan_percentile(null_sharpes, 50),
+        "null_sharpe_p5": nan_percentile(null_sharpes, 5),
+        "null_sharpe_p95": nan_percentile(null_sharpes, 95),
     }
 
 

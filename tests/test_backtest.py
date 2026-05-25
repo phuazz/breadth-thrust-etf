@@ -15,6 +15,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from backtest import (  # noqa: E402
+    _sample_non_overlapping_random_trades,
     compute_atr_wilder,
     run_strategy,
 )
@@ -257,3 +258,22 @@ def test_atr_wilder_matches_manual():
     ], axis=1).max(axis=1)
     manual = tr.ewm(alpha=1/14, adjust=False, min_periods=14).mean()
     pd.testing.assert_series_equal(atr, manual)
+
+
+def test_monte_carlo_sampler_enforces_non_overlapping_trades():
+    """Phase 10.2 fix: random null trades must be sequential and non-
+    overlapping, matching the strategy's one-position-at-a-time
+    constraint. The previous sampler allowed overlapping trades which
+    biased the null distribution unfairly."""
+    rng = np.random.default_rng(123)
+    eligible = np.arange(0, 100)
+    holdings = np.array([10, 15, 20])
+
+    path = _sample_non_overlapping_random_trades(
+        rng, holdings, eligible, end_idx=99, n_trades=5
+    )
+
+    assert len(path) == 5
+    # Each next trade's entry must be strictly after the previous exit
+    for (_, prev_exit), (next_entry, _) in zip(path, path[1:]):
+        assert next_entry > prev_exit

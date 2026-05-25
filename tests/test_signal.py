@@ -15,6 +15,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from compute_breadth import (  # noqa: E402
+    compute_rsi,
     expanding_percentile,
     expanding_zscore,
     zweig_trigger,
@@ -107,3 +108,24 @@ def test_expanding_percentile_uses_only_prior_data():
     p90 = expanding_percentile(s, q=0.90, min_periods=20)
     # The spike on day 99 should NOT influence p90 at day 99 (it uses days 0..98).
     assert p90.iloc[-1] == 0.5
+
+
+def test_rsi_monotonic_gain_series_is_overbought_not_nan():
+    """Phase 10.2 fix: a ticker with all gains and no losses should get
+    RSI=100 (perfectly overbought), not NaN. The previous code did
+    `avg_gain / avg_loss.replace(0, np.nan)` which silently set such
+    tickers' RSI to NaN → they were dropped from the breadth count,
+    biasing the breadth signal away from genuine momentum leaders."""
+    idx = pd.date_range("2020-01-02", periods=30, freq="B")
+    prices = pd.DataFrame({"UP": np.arange(100.0, 130.0)}, index=idx)
+    rsi = compute_rsi(prices, period=14)
+    assert rsi["UP"].iloc[-1] == 100.0
+
+
+def test_rsi_flat_series_is_neutral_not_nan():
+    """A perfectly flat series (no gains, no losses) should get RSI=50
+    (neither overbought nor oversold), not NaN."""
+    idx = pd.date_range("2020-01-02", periods=30, freq="B")
+    prices = pd.DataFrame({"FLAT": [100.0] * 30}, index=idx)
+    rsi = compute_rsi(prices, period=14)
+    assert rsi["FLAT"].iloc[-1] == 50.0

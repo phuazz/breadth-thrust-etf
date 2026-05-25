@@ -164,6 +164,14 @@ def compute_rsi(prices: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     avg_loss = loss.ewm(alpha=1.0 / period, adjust=False, min_periods=period).mean()
     rs = avg_gain / avg_loss.replace(0, np.nan)
     rsi = 100.0 - 100.0 / (1.0 + rs)
+    # Phase 10.2: when avg_loss = 0 the rs becomes NaN above, so rsi
+    # would silently become NaN. Mathematically, a stock with no losses
+    # has RSI = 100 (perfectly overbought), and a fully flat series has
+    # RSI = 50 (neither overbought nor oversold). Previously these
+    # tickers were dropped from the breadth count entirely, biasing the
+    # breadth signal away from genuine momentum leaders.
+    rsi = rsi.mask((avg_loss == 0) & (avg_gain > 0), 100.0)
+    rsi = rsi.mask((avg_loss == 0) & (avg_gain == 0), 50.0)
     return rsi
 
 
