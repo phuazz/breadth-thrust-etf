@@ -55,6 +55,22 @@ def _safe(v):
     return None if (math.isnan(f) or math.isinf(f)) else f
 
 
+def _current_trade_at(trades: list[dict], latest_date: pd.Timestamp) -> dict | None:
+    """Return the trade that is open as of the latest close, if any.
+
+    Exits execute AT the close of exit_date — a notification generated
+    after that close should report the next-session allocation as
+    OUT/base. So we test `entry <= latest_date < exit_` (strict <),
+    not the previous `<=` which double-counted the exit day.
+    """
+    for t in trades:
+        entry = pd.Timestamp(t["entry_date"])
+        exit_ = pd.Timestamp(t["exit_date"])
+        if entry <= latest_date < exit_:
+            return t
+    return None
+
+
 def main() -> int:
     bt_path = DATA_DIR / f"backtest_{ETF.lower()}_oos.json"
     br_path = DATA_DIR / f"breadth_{ETF.lower()}.json"
@@ -76,14 +92,7 @@ def main() -> int:
 
     latest_date = pd.Timestamp(eq["dates"][-1])
 
-    # Find currently-open trade: entry on/before latest_date AND exit on/after.
-    current_trade = None
-    for t in trades:
-        entry = pd.Timestamp(t["entry_date"])
-        exit_ = pd.Timestamp(t["exit_date"])
-        if entry <= latest_date <= exit_:
-            current_trade = t
-            break
+    current_trade = _current_trade_at(trades, latest_date)
     in_trade = current_trade is not None
     current_alloc = THRUST_ALLOC if in_trade else BASE_ALLOC
     state = ("IN-TRADE — allocation 150% (50% base + 100% leveraged signal layer)"
