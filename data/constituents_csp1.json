@@ -1,7 +1,7 @@
 {
   "etf": "CSP1",
   "source": "https://www.ishares.com/uk/individual/en/products/253743/ishares-vii-plc-ishares-core-sp-500-ucits-etf-acc-fund/1506575576011.ajax?fileType=csv&fileName=CSP1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-05-17T05:58:00.250717+00:00",
+  "fetched_at_utc": "2026-05-25T14:20:07+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-05-15",
   "n_target_fridays": 437,
@@ -30248,7 +30248,7 @@
     },
     "2019-02-22": {
       "actual_date": "2019-02-22",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "MSFT",
         "AAPL",
@@ -30754,13 +30754,12 @@
         "GT",
         "UAA",
         "UA",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2019-03-01": {
       "actual_date": "2019-03-01",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "MSFT",
         "AAPL",
@@ -31266,13 +31265,12 @@
         "MAC",
         "UAA",
         "UA",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2019-03-08": {
       "actual_date": "2019-03-08",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "MSFT",
         "AAPL",
@@ -31778,13 +31776,12 @@
         "BHF",
         "UAA",
         "UA",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2019-03-15": {
       "actual_date": "2019-03-15",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "MSFT",
         "AAPL",
@@ -32290,13 +32287,12 @@
         "DISCA",
         "UAA",
         "UA",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2019-03-22": {
       "actual_date": "2019-03-22",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "MSFT",
         "AAPL",
@@ -32802,8 +32798,7 @@
         "DISCA",
         "UAA",
         "UA",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2019-03-29": {
@@ -50185,7 +50180,7 @@
     },
     "2019-11-22": {
       "actual_date": "2019-11-22",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "MSFT",
         "AAPL",
@@ -50691,8 +50686,7 @@
         "UA",
         "TRIP",
         "MAC",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2019-11-29": {
@@ -66544,7 +66538,7 @@
     },
     "2020-07-03": {
       "actual_date": "2020-07-03",
-      "n_tickers": 507,
+      "n_tickers": 506,
       "tickers": [
         "MSFT",
         "AAPL",
@@ -67051,13 +67045,12 @@
         "UA",
         "NWS",
         "COTY",
-        "TMUSR",
-        "-"
+        "TMUSR"
       ]
     },
     "2020-07-10": {
       "actual_date": "2020-07-10",
-      "n_tickers": 507,
+      "n_tickers": 506,
       "tickers": [
         "MSFT",
         "AAPL",
@@ -67564,13 +67557,12 @@
         "UA",
         "NWS",
         "COTY",
-        "TMUSR",
-        "-"
+        "TMUSR"
       ]
     },
     "2020-07-17": {
       "actual_date": "2020-07-17",
-      "n_tickers": 507,
+      "n_tickers": 506,
       "tickers": [
         "AAPL",
         "MSFT",
@@ -68077,8 +68069,7 @@
         "UA",
         "NWS",
         "COTY",
-        "TMUSR",
-        "-"
+        "TMUSR"
       ]
     },
     "2020-07-24": {
@@ -75752,7 +75743,7 @@
     },
     "2020-11-06": {
       "actual_date": "2020-11-06",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "AAPL",
         "MSFT",
@@ -76258,13 +76249,12 @@
         "HFC",
         "UA",
         "FTI",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2020-11-13": {
       "actual_date": "2020-11-13",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "AAPL",
         "MSFT",
@@ -76770,13 +76760,12 @@
         "FTI",
         "UAA",
         "UA",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2020-11-20": {
       "actual_date": "2020-11-20",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "AAPL",
         "MSFT",
@@ -77282,8 +77271,7 @@
         "HFC",
         "UAA",
         "UA",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2020-11-27": {
@@ -78821,7 +78809,7 @@
     },
     "2020-12-18": {
       "actual_date": "2020-12-18",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "AAPL",
         "MSFT",
@@ -79327,14 +79315,13 @@
         "HFC",
         "UAA",
         "UA",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2020-12-25": {
       "actual_date": "2020-12-18",
       "carried_forward_from": "2020-12-18",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "AAPL",
         "MSFT",
@@ -79840,14 +79827,13 @@
         "HFC",
         "UAA",
         "UA",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2021-01-01": {
       "actual_date": "2020-12-18",
       "carried_forward_from": "2020-12-18",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "AAPL",
         "MSFT",
@@ -80353,13 +80339,12 @@
         "HFC",
         "UAA",
         "UA",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2021-01-08": {
       "actual_date": "2021-01-08",
-      "n_tickers": 506,
+      "n_tickers": 505,
       "tickers": [
         "AAPL",
         "MSFT",
@@ -80865,8 +80850,7 @@
         "HFC",
         "UAA",
         "UA",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2021-01-15": {
@@ -162979,7 +162963,7 @@
     },
     "2024-02-16": {
       "actual_date": "2024-02-16",
-      "n_tickers": 503,
+      "n_tickers": 502,
       "tickers": [
         "MSFT",
         "AAPL",
@@ -163335,7 +163319,6 @@
         "J",
         "TYL",
         "LH",
-        "-",
         "AEE",
         "HOLX",
         "EXPD",
@@ -220024,7 +220007,7 @@
     },
     "2026-04-10": {
       "actual_date": "2026-04-10",
-      "n_tickers": 504,
+      "n_tickers": 503,
       "tickers": [
         "NVDA",
         "AAPL",
@@ -220528,14 +220511,13 @@
         "BF-B",
         "CPB",
         "NWS",
-        "PSKY",
-        "-"
+        "PSKY"
       ]
     },
     "2026-04-17": {
       "actual_date": "2026-04-10",
       "carried_forward_from": "2026-04-10",
-      "n_tickers": 504,
+      "n_tickers": 503,
       "tickers": [
         "NVDA",
         "AAPL",
@@ -221039,14 +221021,13 @@
         "BF-B",
         "CPB",
         "NWS",
-        "PSKY",
-        "-"
+        "PSKY"
       ]
     },
     "2026-04-24": {
       "actual_date": "2026-04-10",
       "carried_forward_from": "2026-04-10",
-      "n_tickers": 504,
+      "n_tickers": 503,
       "tickers": [
         "NVDA",
         "AAPL",
@@ -221550,14 +221531,13 @@
         "BF-B",
         "CPB",
         "NWS",
-        "PSKY",
-        "-"
+        "PSKY"
       ]
     },
     "2026-05-01": {
       "actual_date": "2026-04-10",
       "carried_forward_from": "2026-04-10",
-      "n_tickers": 504,
+      "n_tickers": 503,
       "tickers": [
         "NVDA",
         "AAPL",
@@ -222061,14 +222041,13 @@
         "BF-B",
         "CPB",
         "NWS",
-        "PSKY",
-        "-"
+        "PSKY"
       ]
     },
     "2026-05-08": {
       "actual_date": "2026-04-10",
       "carried_forward_from": "2026-04-10",
-      "n_tickers": 504,
+      "n_tickers": 503,
       "tickers": [
         "NVDA",
         "AAPL",
@@ -222572,14 +222551,13 @@
         "BF-B",
         "CPB",
         "NWS",
-        "PSKY",
-        "-"
+        "PSKY"
       ]
     },
     "2026-05-15": {
       "actual_date": "2026-04-10",
       "carried_forward_from": "2026-04-10",
-      "n_tickers": 504,
+      "n_tickers": 503,
       "tickers": [
         "NVDA",
         "AAPL",
@@ -223083,8 +223061,7 @@
         "BF-B",
         "CPB",
         "NWS",
-        "PSKY",
-        "-"
+        "PSKY"
       ]
     }
   }

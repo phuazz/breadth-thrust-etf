@@ -1,7 +1,7 @@
 {
   "etf": "EXH1",
   "source": "https://www.ishares.com/uk/individual/en/products/251954/ishares-stoxx-europe-600-oil-gas-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXH1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-05-23T16:22:42.842953+00:00",
+  "fetched_at_utc": "2026-05-25T14:20:18+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-05-22",
   "n_target_fridays": 438,
@@ -46,7 +46,7 @@
       "n_tickers": 19,
       "tickers": [
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "FP.PA",
         "ENI.MI",
         "STL",
@@ -56,7 +56,7 @@
         "OMV",
         "GALP.LS",
         "NESTE",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "SUBC",
         "TLW.L",
@@ -71,7 +71,7 @@
       "n_tickers": 19,
       "tickers": [
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "FP.PA",
         "ENI.MI",
         "STL",
@@ -81,7 +81,7 @@
         "GALP.LS",
         "OMV",
         "NESTE",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "SUBC",
@@ -96,7 +96,7 @@
       "n_tickers": 19,
       "tickers": [
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "FP.PA",
         "ENI.MI",
         "STL",
@@ -106,7 +106,7 @@
         "GALP.LS",
         "OMV",
         "NESTE",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "SUBC",
         "TLW.L",
@@ -121,7 +121,7 @@
       "n_tickers": 19,
       "tickers": [
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "FP.PA",
         "ENI.MI",
         "STL",
@@ -131,7 +131,7 @@
         "GALP.LS",
         "OMV",
         "NESTE",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "SUBC",
         "TLW.L",
@@ -146,7 +146,7 @@
       "n_tickers": 19,
       "tickers": [
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "FP.PA",
         "ENI.MI",
         "STL",
@@ -156,7 +156,7 @@
         "GALP.LS",
         "OMV",
         "NESTE",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "SUBC",
         "TLW.L",
@@ -171,7 +171,7 @@
       "n_tickers": 19,
       "tickers": [
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "FP.PA",
         "ENI.MI",
         "STL",
@@ -181,7 +181,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "SUBC",
         "TLW.L",
@@ -197,7 +197,7 @@
       "tickers": [
         "RDSA.AS",
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "STL",
         "REP.MC",
@@ -206,7 +206,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "SUBC",
         "SGRE.MC",
@@ -222,7 +222,7 @@
       "tickers": [
         "RDSA.AS",
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "STL",
         "REP.MC",
@@ -231,7 +231,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "SUBC",
         "TLW.L",
@@ -247,7 +247,7 @@
       "tickers": [
         "RDSA.AS",
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "STL",
         "REP.MC",
@@ -256,7 +256,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "SUBC",
         "SGRE.MC",
@@ -272,7 +272,7 @@
       "tickers": [
         "RDSA.AS",
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "STL",
         "REP.MC",
@@ -281,7 +281,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "SUBC",
         "TLW.L",
@@ -293,10 +293,10 @@
     },
     "2018-03-16": {
       "actual_date": "2018-03-16",
-      "n_tickers": 21,
+      "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "STL",
@@ -306,7 +306,7 @@
         "GALP.LS",
         "NESTE",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "SUBC",
         "TLW.L",
@@ -314,8 +314,7 @@
         "SBMO.AS",
         "AKERBP",
         "TGS",
-        "SPM.MI",
-        "-"
+        "SPM.MI"
       ]
     },
     "2018-03-23": {
@@ -324,7 +323,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "STL",
         "REP.MC",
@@ -333,7 +332,7 @@
         "GALP.LS",
         "NESTE",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "SGRE.MC",
@@ -350,7 +349,7 @@
       "n_tickers": 21,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "STL",
@@ -360,7 +359,7 @@
         "GALP.LS",
         "NESTE",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "SGRE.MC",
@@ -377,7 +376,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "STL",
@@ -387,7 +386,7 @@
         "GALP.LS",
         "OMV",
         "NESTE",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "SGRE.MC",
@@ -403,7 +402,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "STL",
@@ -413,7 +412,7 @@
         "GALP.LS",
         "NESTE",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "SUBC",
@@ -430,7 +429,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "STL",
         "REP.MC",
@@ -439,7 +438,7 @@
         "GALP.LS",
         "OMV",
         "NESTE",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "SUBC",
@@ -455,7 +454,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "STL",
@@ -465,7 +464,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "SGRE.MC",
@@ -481,7 +480,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "STL",
@@ -492,7 +491,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "SGRE.MC",
         "SUBC",
@@ -507,7 +506,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "STL",
@@ -517,7 +516,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -533,7 +532,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -543,7 +542,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -559,7 +558,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -569,7 +568,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "SUBC",
@@ -585,7 +584,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -595,7 +594,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -611,7 +610,7 @@
       "n_tickers": 21,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -622,7 +621,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "SUBC",
         "AKERBP",
@@ -635,11 +634,11 @@
     },
     "2018-06-15": {
       "actual_date": "2018-06-15",
-      "n_tickers": 22,
+      "n_tickers": 21,
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -649,7 +648,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "SUBC",
         "AKERBP",
@@ -657,8 +656,7 @@
         "TGS",
         "SBMO.AS",
         "SPM.MI",
-        "1625306D.PA",
-        "REP.D.MC"
+        "1625306D.PA"
       ]
     },
     "2018-06-22": {
@@ -667,7 +665,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -676,7 +674,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -693,7 +691,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -703,7 +701,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "SUBC",
         "AKERBP",
@@ -719,7 +717,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -729,7 +727,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SUBC",
@@ -745,7 +743,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -755,7 +753,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "TGS",
         "AKERBP",
@@ -771,7 +769,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -781,7 +779,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "TGS",
         "SUBC",
@@ -797,7 +795,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -807,7 +805,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "TGS",
         "AKERBP",
@@ -823,7 +821,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -833,7 +831,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "TGS",
         "AKERBP",
@@ -849,7 +847,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -859,7 +857,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TGS",
         "TLW.L",
         "AKERBP",
@@ -875,7 +873,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -885,7 +883,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TGS",
         "TLW.L",
         "AKERBP",
@@ -901,7 +899,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -910,7 +908,7 @@
         "NESTE",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "TGS",
@@ -927,7 +925,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -937,7 +935,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "TGS",
         "AKERBP",
@@ -953,7 +951,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -963,7 +961,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "TGS",
         "AKERBP",
@@ -979,7 +977,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -989,7 +987,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "TGS",
@@ -1005,7 +1003,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1017,7 +1015,7 @@
         "PKN",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "TGS",
@@ -1032,7 +1030,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -1045,7 +1043,7 @@
         "PKN",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "TGS",
@@ -1061,7 +1059,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -1073,7 +1071,7 @@
         "SRG.MI",
         "OMV",
         "PKN",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -1090,7 +1088,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -1102,7 +1100,7 @@
         "GALP.LS",
         "PKN",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -1119,7 +1117,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1130,7 +1128,7 @@
         "GALP.LS",
         "OMV",
         "PKN",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -1147,7 +1145,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1158,7 +1156,7 @@
         "GALP.LS",
         "OMV",
         "PKN",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -1175,7 +1173,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1186,7 +1184,7 @@
         "GALP.LS",
         "OMV",
         "PKN",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -1203,7 +1201,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1214,7 +1212,7 @@
         "GALP.LS",
         "PKN",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -1231,7 +1229,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1242,7 +1240,7 @@
         "GALP.LS",
         "PKN",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -1259,7 +1257,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1270,7 +1268,7 @@
         "PKN",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "SGRE.MC",
@@ -1287,7 +1285,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1298,7 +1296,7 @@
         "PKN",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "SGRE.MC",
@@ -1315,7 +1313,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1326,7 +1324,7 @@
         "PKN",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "SGRE.MC",
@@ -1343,7 +1341,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1355,7 +1353,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "TLW.L",
         "AKERBP",
@@ -1367,11 +1365,11 @@
     },
     "2018-12-21": {
       "actual_date": "2018-12-21",
-      "n_tickers": 25,
+      "n_tickers": 23,
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -1382,7 +1380,7 @@
         "PKN",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "PGN",
@@ -1391,18 +1389,16 @@
         "SBMO.AS",
         "TGS",
         "SUBC",
-        "SPM.MI",
-        "FP.PA",
-        "REP.D.MC"
+        "SPM.MI"
       ]
     },
     "2018-12-28": {
       "actual_date": "2018-12-28",
-      "n_tickers": 25,
+      "n_tickers": 23,
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -1413,7 +1409,7 @@
         "PKN",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "PGN",
@@ -1422,9 +1418,7 @@
         "SBMO.AS",
         "SUBC",
         "TGS",
-        "SPM.MI",
-        "REP.D.MC",
-        "FP.PA"
+        "SPM.MI"
       ]
     },
     "2019-01-04": {
@@ -1432,7 +1426,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -1445,7 +1439,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "PGN",
@@ -1461,7 +1455,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -1473,7 +1467,7 @@
         "PKN",
         "GALP.LS",
         "OMV",
-        "WG..L",
+        "WG.L",
         "LUPE",
         "TLW.L",
         "AKERBP",
@@ -1490,7 +1484,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -1503,7 +1497,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "PGN",
@@ -1519,7 +1513,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -1532,7 +1526,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "PGN",
@@ -1549,7 +1543,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -1561,7 +1555,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1577,7 +1571,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -1590,7 +1584,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1606,7 +1600,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -1619,7 +1613,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1635,7 +1629,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -1648,7 +1642,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1664,7 +1658,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -1677,7 +1671,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1693,7 +1687,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -1706,7 +1700,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1723,7 +1717,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1735,7 +1729,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1748,10 +1742,10 @@
     },
     "2019-03-22": {
       "actual_date": "2019-03-22",
-      "n_tickers": 24,
+      "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -1764,7 +1758,7 @@
         "OMV",
         "GALP.LS",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1772,8 +1766,7 @@
         "SUBC",
         "SPM.MI",
         "TGS",
-        "PGN",
-        "-.PA"
+        "PGN"
       ]
     },
     "2019-03-29": {
@@ -1781,7 +1774,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -1794,7 +1787,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1811,7 +1804,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -1823,7 +1816,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1839,7 +1832,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -1852,7 +1845,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1868,7 +1861,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -1881,7 +1874,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "AKERBP",
         "SGRE.MC",
@@ -1898,7 +1891,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1910,7 +1903,7 @@
         "PKN",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "SGRE.MC",
         "AKERBP",
@@ -1927,7 +1920,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -1939,7 +1932,7 @@
         "PKN",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "SGRE.MC",
         "AKERBP",
@@ -1956,7 +1949,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -1968,7 +1961,7 @@
         "PKN",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "SGRE.MC",
         "SBMO.AS",
@@ -1985,7 +1978,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -1998,7 +1991,7 @@
         "OMV",
         "LUPE",
         "TLW.L",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "AKERBP",
         "SBMO.AS",
@@ -2014,7 +2007,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2028,7 +2021,7 @@
         "LUPE",
         "TLW.L",
         "SGRE.MC",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "AKERBP",
         "SUBC",
@@ -2043,7 +2036,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2057,7 +2050,7 @@
         "LUPE",
         "TLW.L",
         "SGRE.MC",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "AKERBP",
         "SUBC",
@@ -2072,7 +2065,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2086,7 +2079,7 @@
         "LUPE",
         "SGRE.MC",
         "TLW.L",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "SUBC",
         "AKERBP",
@@ -2097,11 +2090,11 @@
     },
     "2019-06-14": {
       "actual_date": "2019-06-14",
-      "n_tickers": 24,
+      "n_tickers": 23,
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2115,14 +2108,13 @@
         "LUPE",
         "SGRE.MC",
         "TLW.L",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "SUBC",
         "AKERBP",
         "TGS",
         "SPM.MI",
-        "PGN",
-        "-.MC"
+        "PGN"
       ]
     },
     "2019-06-21": {
@@ -2130,7 +2122,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2145,7 +2137,7 @@
         "LUPE",
         "SGRE.MC",
         "TLW.L",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "AKERBP",
         "SUBC",
@@ -2160,7 +2152,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2172,7 +2164,7 @@
         "PKN",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "SGRE.MC",
         "SBMO.AS",
@@ -2189,7 +2181,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2201,7 +2193,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "TLW.L",
         "SBMO.AS",
@@ -2218,7 +2210,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2230,7 +2222,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "TLW.L",
         "SBMO.AS",
@@ -2247,7 +2239,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2259,7 +2251,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "SBMO.AS",
         "TLW.L",
@@ -2276,7 +2268,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2288,7 +2280,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "SBMO.AS",
         "TLW.L",
@@ -2304,7 +2296,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2317,7 +2309,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "SGRE.MC",
         "TLW.L",
@@ -2334,7 +2326,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2346,7 +2338,7 @@
         "GALP.LS",
         "OMV",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "SBMO.AS",
         "TLW.L",
@@ -2362,7 +2354,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2375,7 +2367,7 @@
         "OMV",
         "GALP.LS",
         "LUPE",
-        "WG..L",
+        "WG.L",
         "TLW.L",
         "SGRE.MC",
         "SBMO.AS",
@@ -2391,7 +2383,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2405,7 +2397,7 @@
         "GALP.LS",
         "LUPE",
         "TLW.L",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "SBMO.AS",
         "AKERBP",
@@ -2420,7 +2412,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2434,7 +2426,7 @@
         "GALP.LS",
         "LUPE",
         "TLW.L",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "SBMO.AS",
         "AKERBP",
@@ -2449,7 +2441,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2463,7 +2455,7 @@
         "PKN",
         "LUPE",
         "TLW.L",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "SBMO.AS",
         "TGS",
@@ -2478,7 +2470,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2492,7 +2484,7 @@
         "GALP.LS",
         "LUPE",
         "TLW.L",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "TGS",
         "SBMO.AS",
@@ -2507,7 +2499,7 @@
       "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2521,7 +2513,7 @@
         "GALP.LS",
         "LUPE",
         "TLW.L",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "TGS",
         "AKERBP",
@@ -2537,7 +2529,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2550,7 +2542,7 @@
         "GALP.LS",
         "LUPE",
         "TLW.L",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "TGS",
         "AKERBP",
@@ -2566,7 +2558,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2580,7 +2572,7 @@
         "LUPE",
         "TLW.L",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "AKERBP",
         "SBMO.AS",
@@ -2595,7 +2587,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2609,7 +2601,7 @@
         "LUPE",
         "TLW.L",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "AKERBP",
         "SBMO.AS",
@@ -2624,7 +2616,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2638,7 +2630,7 @@
         "LUPE",
         "TLW.L",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "AKERBP",
         "SBMO.AS",
@@ -2653,7 +2645,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2669,7 +2661,7 @@
         "TGS",
         "SGRE.MC",
         "AKERBP",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "SPM.MI",
         "SUBC",
@@ -2682,7 +2674,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2698,7 +2690,7 @@
         "SGRE.MC",
         "TGS",
         "AKERBP",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "SPM.MI",
         "SUBC",
@@ -2711,7 +2703,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2725,7 +2717,7 @@
         "LUPE",
         "TLW.L",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SGRE.MC",
         "AKERBP",
         "SBMO.AS",
@@ -2740,7 +2732,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2754,7 +2746,7 @@
         "LUPE",
         "SGRE.MC",
         "TGS",
-        "WG..L",
+        "WG.L",
         "AKERBP",
         "SBMO.AS",
         "SPM.MI",
@@ -2769,7 +2761,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2783,7 +2775,7 @@
         "LUPE",
         "TGS",
         "SGRE.MC",
-        "WG..L",
+        "WG.L",
         "AKERBP",
         "SBMO.AS",
         "SPM.MI",
@@ -2798,7 +2790,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2813,7 +2805,7 @@
         "SGRE.MC",
         "TGS",
         "AKERBP",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "SPM.MI",
         "SUBC",
@@ -2827,7 +2819,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2842,7 +2834,7 @@
         "SGRE.MC",
         "TGS",
         "AKERBP",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "SPM.MI",
         "TLW.L",
@@ -2856,7 +2848,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -2870,7 +2862,7 @@
         "LUPE",
         "SGRE.MC",
         "TGS",
-        "WG..L",
+        "WG.L",
         "AKERBP",
         "SBMO.AS",
         "SPM.MI",
@@ -2881,10 +2873,10 @@
     },
     "2019-12-20": {
       "actual_date": "2019-12-20",
-      "n_tickers": 24,
+      "n_tickers": 23,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2900,13 +2892,12 @@
         "SGRE.MC",
         "TGS",
         "AKERBP",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "SPM.MI",
         "SUBC",
         "TLW.L",
-        "PGN",
-        "REP.D.MC"
+        "PGN"
       ]
     },
     "2019-12-27": {
@@ -2914,7 +2905,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2929,7 +2920,7 @@
         "LUPE",
         "SGRE.MC",
         "TGS",
-        "WG..L",
+        "WG.L",
         "AKERBP",
         "SBMO.AS",
         "SPM.MI",
@@ -2942,7 +2933,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2958,7 +2949,7 @@
         "SGRE.MC",
         "TGS",
         "AKERBP",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "SPM.MI",
         "SUBC",
@@ -2970,7 +2961,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -2986,7 +2977,7 @@
         "SGRE.MC",
         "AKERBP",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "SPM.MI",
         "SUBC",
@@ -2998,7 +2989,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -3014,7 +3005,7 @@
         "SGRE.MC",
         "AKERBP",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "SPM.MI",
         "SUBC",
@@ -3026,7 +3017,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -3040,7 +3031,7 @@
         "PKN",
         "LUPE",
         "SGRE.MC",
-        "WG..L",
+        "WG.L",
         "AKERBP",
         "TGS",
         "SBMO.AS",
@@ -3054,7 +3045,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -3068,7 +3059,7 @@
         "PKN",
         "LUPE",
         "SGRE.MC",
-        "WG..L",
+        "WG.L",
         "AKERBP",
         "TGS",
         "SBMO.AS",
@@ -3082,7 +3073,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "VWS",
@@ -3096,7 +3087,7 @@
         "PKN",
         "LUPE",
         "SGRE.MC",
-        "WG..L",
+        "WG.L",
         "AKERBP",
         "TGS",
         "SBMO.AS",
@@ -3110,7 +3101,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "REP.MC",
@@ -3124,7 +3115,7 @@
         "PKN",
         "LUPE",
         "SGRE.MC",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "TGS",
         "AKERBP",
@@ -3138,7 +3129,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "VWS",
@@ -3152,7 +3143,7 @@
         "LUPE",
         "PKN",
         "SGRE.MC",
-        "WG..L",
+        "WG.L",
         "TGS",
         "SBMO.AS",
         "AKERBP",
@@ -3166,7 +3157,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "VWS",
@@ -3180,7 +3171,7 @@
         "LUPE",
         "PKN",
         "SGRE.MC",
-        "WG..L",
+        "WG.L",
         "TGS",
         "SBMO.AS",
         "AKERBP",
@@ -3194,7 +3185,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "VWS",
@@ -3208,7 +3199,7 @@
         "LUPE",
         "PKN",
         "SGRE.MC",
-        "WG..L",
+        "WG.L",
         "SBMO.AS",
         "TGS",
         "AKERBP",
@@ -3222,7 +3213,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "VWS",
@@ -3237,7 +3228,7 @@
         "SGRE.MC",
         "FTI.PA",
         "SBMO.AS",
-        "WG..L",
+        "WG.L",
         "TGS",
         "SPM.MI",
         "SUBC",
@@ -3251,7 +3242,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "NESTE",
@@ -3267,7 +3258,7 @@
         "ENG.MC",
         "SBMO.AS",
         "SPM.MI",
-        "WG..L",
+        "WG.L",
         "TGS",
         "SUBC",
         "AKERBP",
@@ -3280,7 +3271,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "NESTE",
@@ -3296,7 +3287,7 @@
         "ENG.MC",
         "SBMO.AS",
         "SPM.MI",
-        "WG..L",
+        "WG.L",
         "TGS",
         "AKERBP",
         "SUBC"
@@ -3308,7 +3299,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -3326,7 +3317,7 @@
         "AKERBP",
         "TGS",
         "SPM.MI",
-        "WG..L",
+        "WG.L",
         "SUBC"
       ]
     },
@@ -3337,7 +3328,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -3355,7 +3346,7 @@
         "AKERBP",
         "TGS",
         "SPM.MI",
-        "WG..L",
+        "WG.L",
         "SUBC"
       ]
     },
@@ -3365,7 +3356,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -3380,7 +3371,7 @@
         "SGRE.MC",
         "ENG.MC",
         "SBMO.AS",
-        "WG..L",
+        "WG.L",
         "TGS",
         "AKERBP",
         "SPM.MI",
@@ -3393,7 +3384,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -3410,7 +3401,7 @@
         "SBMO.AS",
         "AKERBP",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SPM.MI",
         "SUBC"
       ]
@@ -3421,7 +3412,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -3438,7 +3429,7 @@
         "SBMO.AS",
         "TGS",
         "AKERBP",
-        "WG..L",
+        "WG.L",
         "SPM.MI",
         "SUBC"
       ]
@@ -3449,7 +3440,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -3466,7 +3457,7 @@
         "SBMO.AS",
         "AKERBP",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SPM.MI",
         "SUBC"
       ]
@@ -3477,7 +3468,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -3494,7 +3485,7 @@
         "SBMO.AS",
         "AKERBP",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SPM.MI",
         "SUBC"
       ]
@@ -3505,7 +3496,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "NESTE",
@@ -3522,7 +3513,7 @@
         "SBMO.AS",
         "AKERBP",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SPM.MI",
         "SUBC"
       ]
@@ -3533,7 +3524,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "NESTE",
@@ -3550,7 +3541,7 @@
         "SBMO.AS",
         "AKERBP",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SPM.MI",
         "SUBC"
       ]
@@ -3560,7 +3551,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "VWS",
@@ -3577,7 +3568,7 @@
         "ENG.MC",
         "SBMO.AS",
         "AKERBP",
-        "WG..L",
+        "WG.L",
         "TGS",
         "SUBC",
         "SPM.MI"
@@ -3589,7 +3580,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "NESTE",
@@ -3606,18 +3597,18 @@
         "SBMO.AS",
         "AKERBP",
         "TGS",
-        "WG..L",
+        "WG.L",
         "SUBC",
         "SPM.MI"
       ]
     },
     "2020-06-19": {
       "actual_date": "2020-06-19",
-      "n_tickers": 24,
+      "n_tickers": 23,
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "NESTE",
@@ -3636,18 +3627,17 @@
         "AKERBP",
         "TGS",
         "SPM.MI",
-        "REP.D.MC",
         "SUBC",
-        "WG..L"
+        "WG.L"
       ]
     },
     "2020-06-26": {
       "actual_date": "2020-06-26",
-      "n_tickers": 21,
+      "n_tickers": 20,
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "NESTE",
@@ -3664,17 +3654,16 @@
         "FTI.PA",
         "SBMO.AS",
         "AKERBP",
-        "TGS",
-        "-"
+        "TGS"
       ]
     },
     "2020-07-03": {
       "actual_date": "2020-07-03",
-      "n_tickers": 21,
+      "n_tickers": 20,
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "NESTE",
@@ -3691,17 +3680,16 @@
         "FTI.PA",
         "SBMO.AS",
         "AKERBP",
-        "TGS",
-        "-"
+        "TGS"
       ]
     },
     "2020-07-10": {
       "actual_date": "2020-07-10",
-      "n_tickers": 21,
+      "n_tickers": 20,
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "NESTE",
@@ -3718,8 +3706,7 @@
         "FTI.PA",
         "SBMO.AS",
         "AKERBP",
-        "TGS",
-        "-"
+        "TGS"
       ]
     },
     "2020-07-17": {
@@ -3728,7 +3715,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "NESTE",
@@ -3754,7 +3741,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -3779,7 +3766,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -3805,7 +3792,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -3831,7 +3818,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -3857,7 +3844,7 @@
       "n_tickers": 20,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -3884,7 +3871,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -3910,7 +3897,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -3936,7 +3923,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -3962,7 +3949,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -3989,7 +3976,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4015,7 +4002,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4042,7 +4029,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4069,7 +4056,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4096,7 +4083,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4123,7 +4110,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4150,7 +4137,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4177,7 +4164,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4204,7 +4191,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4231,7 +4218,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4258,7 +4245,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4285,7 +4272,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4308,11 +4295,11 @@
     },
     "2020-12-18": {
       "actual_date": "2020-12-18",
-      "n_tickers": 24,
+      "n_tickers": 23,
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4332,18 +4319,17 @@
         "TEN.MI",
         "SBMO.AS",
         "AKRBP",
-        "REPSM.RI.MC",
         "RUI.PA"
       ]
     },
     "2020-12-25": {
       "actual_date": "2020-12-18",
       "carried_forward_from": "2020-12-18",
-      "n_tickers": 24,
+      "n_tickers": 23,
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4363,18 +4349,17 @@
         "TEN.MI",
         "SBMO.AS",
         "AKRBP",
-        "REPSM.RI.MC",
         "RUI.PA"
       ]
     },
     "2021-01-01": {
       "actual_date": "2020-12-18",
       "carried_forward_from": "2020-12-18",
-      "n_tickers": 24,
+      "n_tickers": 23,
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4394,7 +4379,6 @@
         "TEN.MI",
         "SBMO.AS",
         "AKRBP",
-        "REPSM.RI.MC",
         "RUI.PA"
       ]
     },
@@ -4403,7 +4387,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "NESTE",
@@ -4431,7 +4415,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "NESTE",
@@ -4459,7 +4443,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "NESTE",
@@ -4487,7 +4471,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "NESTE",
@@ -4516,7 +4500,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4544,7 +4528,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4572,7 +4556,7 @@
       "tickers": [
         "FP.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "NESTE",
         "ENI.MI",
@@ -4600,7 +4584,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4628,7 +4612,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4653,10 +4637,10 @@
     },
     "2021-03-12": {
       "actual_date": "2021-03-12",
-      "n_tickers": 23,
+      "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4676,16 +4660,15 @@
         "SCATC",
         "AKRBP",
         "SBMO.AS",
-        "ENG.MC",
-        "-.MI"
+        "ENG.MC"
       ]
     },
     "2021-03-19": {
       "actual_date": "2021-03-19",
-      "n_tickers": 23,
+      "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4705,16 +4688,15 @@
         "SCATC",
         "AKRBP",
         "SBMO.AS",
-        "ENG.MC",
-        "-.MI"
+        "ENG.MC"
       ]
     },
     "2021-03-26": {
       "actual_date": "2021-03-26",
-      "n_tickers": 23,
+      "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4734,16 +4716,15 @@
         "SCATC",
         "AKRBP",
         "SBMO.AS",
-        "ENG.MC",
-        "-.MI"
+        "ENG.MC"
       ]
     },
     "2021-04-02": {
       "actual_date": "2021-04-02",
-      "n_tickers": 23,
+      "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4763,8 +4744,7 @@
         "FTI.PA",
         "AKRBP",
         "SBMO.AS",
-        "ENG.MC",
-        "-.MI"
+        "ENG.MC"
       ]
     },
     "2021-04-09": {
@@ -4772,7 +4752,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4800,7 +4780,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4828,7 +4808,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4856,7 +4836,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4884,7 +4864,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4912,7 +4892,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4940,7 +4920,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4968,7 +4948,7 @@
       "n_tickers": 22,
       "tickers": [
         "FP.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -4996,7 +4976,7 @@
       "n_tickers": 22,
       "tickers": [
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -5024,7 +5004,7 @@
       "n_tickers": 22,
       "tickers": [
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -5053,7 +5033,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5081,7 +5061,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5108,7 +5088,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5135,7 +5115,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5162,7 +5142,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5189,7 +5169,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5216,7 +5196,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5243,7 +5223,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5270,7 +5250,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5297,7 +5277,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5324,7 +5304,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5351,7 +5331,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5378,7 +5358,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "NESTE",
@@ -5404,7 +5384,7 @@
       "n_tickers": 21,
       "tickers": [
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -5431,7 +5411,7 @@
       "n_tickers": 19,
       "tickers": [
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -5457,7 +5437,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "EQNR",
@@ -5482,7 +5462,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "EQNR",
@@ -5507,7 +5487,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "EQNR",
@@ -5532,7 +5512,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "EQNR",
@@ -5556,7 +5536,7 @@
       "n_tickers": 19,
       "tickers": [
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "VWS",
         "ENI.MI",
@@ -5582,7 +5562,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -5607,7 +5587,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "EQNR",
@@ -5632,7 +5612,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -5657,7 +5637,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "VWS",
         "ENI.MI",
         "EQNR",
@@ -5682,7 +5662,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -5707,7 +5687,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -5731,7 +5711,7 @@
       "n_tickers": 19,
       "tickers": [
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "VWS",
@@ -5757,7 +5737,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -5782,7 +5762,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -5806,7 +5786,7 @@
       "n_tickers": 19,
       "tickers": [
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -5831,7 +5811,7 @@
       "n_tickers": 19,
       "tickers": [
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -5856,7 +5836,7 @@
       "n_tickers": 19,
       "tickers": [
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "RDSA.AS",
         "ENI.MI",
         "EQNR",
@@ -5882,7 +5862,7 @@
       "tickers": [
         "TTE.PA",
         "RDSA.AS",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -5907,7 +5887,7 @@
       "n_tickers": 19,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -5932,7 +5912,7 @@
       "n_tickers": 19,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -5957,7 +5937,7 @@
       "n_tickers": 19,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -5982,7 +5962,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -6006,7 +5986,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6030,7 +6010,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -6055,7 +6035,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6078,7 +6058,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6102,7 +6082,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6126,7 +6106,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6150,7 +6130,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6174,7 +6154,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6198,7 +6178,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6222,7 +6202,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6246,7 +6226,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6270,7 +6250,7 @@
       "n_tickers": 18,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6295,7 +6275,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "REP.MC",
@@ -6319,7 +6299,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6343,7 +6323,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6367,7 +6347,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6393,7 +6373,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6419,7 +6399,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6444,7 +6424,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6469,7 +6449,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6494,7 +6474,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6518,7 +6498,7 @@
       "n_tickers": 19,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6543,7 +6523,7 @@
       "n_tickers": 19,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6568,7 +6548,7 @@
       "n_tickers": 19,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6593,7 +6573,7 @@
       "n_tickers": 19,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6618,7 +6598,7 @@
       "n_tickers": 19,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6643,7 +6623,7 @@
       "n_tickers": 19,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6668,7 +6648,7 @@
       "n_tickers": 20,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6695,7 +6675,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6720,7 +6700,7 @@
       "n_tickers": 20,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "EQNR",
         "ENI.MI",
@@ -6747,7 +6727,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6773,7 +6753,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "NESTE",
@@ -6799,7 +6779,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6825,7 +6805,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "NESTE",
@@ -6851,7 +6831,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6877,7 +6857,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6903,7 +6883,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6929,7 +6909,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -6955,7 +6935,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -6981,7 +6961,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -7007,7 +6987,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -7033,7 +7013,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -7061,7 +7041,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -7089,7 +7069,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "EQNR",
         "ENI.MI",
         "VWS",
@@ -7116,7 +7096,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7143,7 +7123,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7170,7 +7150,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7196,7 +7176,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7223,7 +7203,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7250,7 +7230,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7277,7 +7257,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7304,7 +7284,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7331,7 +7311,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7358,7 +7338,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7386,7 +7366,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7414,7 +7394,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7442,7 +7422,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7470,7 +7450,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7498,7 +7478,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7526,7 +7506,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7554,7 +7534,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7582,7 +7562,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7610,7 +7590,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -7638,7 +7618,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -7666,7 +7646,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -7694,7 +7674,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -7722,7 +7702,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -7749,7 +7729,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7777,7 +7757,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7805,7 +7785,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7833,7 +7813,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7861,7 +7841,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7889,7 +7869,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7917,7 +7897,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7945,7 +7925,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -7974,7 +7954,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8002,7 +7982,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8030,7 +8010,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8058,7 +8038,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8086,7 +8066,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -8114,7 +8094,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8142,7 +8122,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8170,7 +8150,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8198,7 +8178,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8226,7 +8206,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8254,7 +8234,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8282,7 +8262,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8310,7 +8290,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8338,7 +8318,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8366,7 +8346,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8394,7 +8374,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8422,7 +8402,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8450,7 +8430,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8478,7 +8458,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8507,7 +8487,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8534,7 +8514,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -8561,7 +8541,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8588,7 +8568,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8614,7 +8594,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -8641,7 +8621,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "VWS",
@@ -8668,7 +8648,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "VWS",
@@ -8695,7 +8675,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "VWS",
@@ -8722,7 +8702,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "VWS",
@@ -8749,7 +8729,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "VWS",
@@ -8776,7 +8756,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "VWS",
@@ -8803,7 +8783,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "VWS",
@@ -8831,7 +8811,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -8858,7 +8838,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -8884,7 +8864,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -8910,7 +8890,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8936,7 +8916,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8962,7 +8942,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -8988,7 +8968,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9014,7 +8994,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9040,7 +9020,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9066,7 +9046,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -9092,7 +9072,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9118,7 +9098,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9144,7 +9124,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9170,7 +9150,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9195,7 +9175,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -9222,7 +9202,7 @@
       "n_tickers": 21,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "EQNR",
@@ -9250,7 +9230,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9278,7 +9258,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9306,7 +9286,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9334,7 +9314,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9362,7 +9342,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9390,7 +9370,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9418,7 +9398,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9446,7 +9426,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9474,7 +9454,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9502,7 +9482,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9530,7 +9510,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -9557,7 +9537,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "VWS",
@@ -9585,7 +9565,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "ENR.DE",
@@ -9613,7 +9593,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "ENR.DE",
@@ -9641,7 +9621,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "ENR.DE",
@@ -9669,7 +9649,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "ENR.DE",
@@ -9697,7 +9677,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "ENR.DE",
@@ -9726,7 +9706,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "ENR.DE",
         "EQNR",
@@ -9753,7 +9733,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "ENR.DE",
@@ -9781,7 +9761,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENI.MI",
         "ENR.DE",
@@ -9809,7 +9789,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -9837,7 +9817,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -9865,7 +9845,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -9893,7 +9873,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -9922,7 +9902,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -9950,7 +9930,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -9977,7 +9957,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10005,7 +9985,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10034,7 +10014,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10062,7 +10042,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10090,7 +10070,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10118,7 +10098,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10145,7 +10125,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10173,7 +10153,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10201,7 +10181,7 @@
       "n_tickers": 22,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10230,7 +10210,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10258,7 +10238,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10285,7 +10265,7 @@
       "n_tickers": 23,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10314,7 +10294,7 @@
       "n_tickers": 23,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10344,7 +10324,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10373,7 +10353,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10402,7 +10382,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10431,7 +10411,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10460,7 +10440,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10489,7 +10469,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10518,7 +10498,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10547,7 +10527,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10576,7 +10556,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10605,7 +10585,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10634,7 +10614,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10663,7 +10643,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10692,7 +10672,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10721,7 +10701,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10750,7 +10730,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10779,7 +10759,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "EQNR",
@@ -10807,7 +10787,7 @@
       "n_tickers": 23,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10836,7 +10816,7 @@
       "n_tickers": 23,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10865,7 +10845,7 @@
       "n_tickers": 23,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10894,7 +10874,7 @@
       "n_tickers": 23,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10923,7 +10903,7 @@
       "n_tickers": 23,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10952,7 +10932,7 @@
       "n_tickers": 23,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -10981,7 +10961,7 @@
       "n_tickers": 23,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -11010,7 +10990,7 @@
       "n_tickers": 23,
       "tickers": [
         "SHELL.AS",
-        "BP..L",
+        "BP.L",
         "TTE.PA",
         "ENR.DE",
         "ENI.MI",
@@ -11040,7 +11020,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "REP.MC",
@@ -11071,7 +11051,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "REP.MC",
@@ -11102,7 +11082,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "REP.MC",
@@ -11133,7 +11113,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "VWS",
@@ -11164,7 +11144,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "VWS",
@@ -11195,7 +11175,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "REP.MC",
@@ -11226,7 +11206,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "REP.MC",
@@ -11257,7 +11237,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "VWS",
@@ -11288,7 +11268,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "VWS",
@@ -11319,7 +11299,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "VWS",
@@ -11350,7 +11330,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "VWS",
@@ -11381,7 +11361,7 @@
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENR.DE",
         "ENI.MI",
         "VWS",
@@ -11413,7 +11393,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "REP.MC",
@@ -11444,7 +11424,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "REP.MC",
@@ -11475,7 +11455,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "REP.MC",
@@ -11506,7 +11486,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "REP.MC",
@@ -11537,7 +11517,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "REP.MC",
@@ -11568,7 +11548,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -11599,7 +11579,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -11630,7 +11610,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -11661,7 +11641,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -11692,7 +11672,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -11723,7 +11703,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "REP.MC",
@@ -11754,7 +11734,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "REP.MC",
@@ -11785,7 +11765,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -11816,7 +11796,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "REP.MC",
         "EQNR",
@@ -11847,7 +11827,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -11878,7 +11858,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -11909,7 +11889,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "REP.MC",
@@ -11940,7 +11920,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -11971,7 +11951,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -12002,7 +11982,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -12033,7 +12013,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -12064,7 +12044,7 @@
         "SHELL.AS",
         "ENR.DE",
         "TTE.PA",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "VWS",
         "EQNR",
@@ -12095,7 +12075,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",
@@ -12127,7 +12107,7 @@
         "SHELL.AS",
         "TTE.PA",
         "ENR.DE",
-        "BP..L",
+        "BP.L",
         "ENI.MI",
         "EQNR",
         "VWS",

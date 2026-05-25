@@ -1,7 +1,7 @@
 {
   "etf": "IUSP",
   "source": "https://www.ishares.com/uk/individual/en/products/251803/ishares-us-property-yield-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUSP_holdings&dataType=fund",
-  "fetched_at_utc": "2026-05-22T15:01:06.524494+00:00",
+  "fetched_at_utc": "2026-05-25T14:22:56+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-05-15",
   "n_target_fridays": 437,
@@ -7582,7 +7582,7 @@
     },
     "2019-02-22": {
       "actual_date": "2019-02-22",
-      "n_tickers": 122,
+      "n_tickers": 121,
       "tickers": [
         "SPG",
         "PLD",
@@ -7704,13 +7704,12 @@
         "UBA",
         "AHT",
         "PEI",
-        "CBL",
-        "-"
+        "CBL"
       ]
     },
     "2019-03-01": {
       "actual_date": "2019-03-01",
-      "n_tickers": 122,
+      "n_tickers": 121,
       "tickers": [
         "SPG",
         "PLD",
@@ -7832,13 +7831,12 @@
         "UBA",
         "AHT",
         "PEI",
-        "CBL",
-        "-"
+        "CBL"
       ]
     },
     "2019-03-08": {
       "actual_date": "2019-03-08",
-      "n_tickers": 122,
+      "n_tickers": 121,
       "tickers": [
         "SPG",
         "PLD",
@@ -7960,13 +7958,12 @@
         "UBA",
         "AHT",
         "PEI",
-        "CBL",
-        "-"
+        "CBL"
       ]
     },
     "2019-03-15": {
       "actual_date": "2019-03-15",
-      "n_tickers": 121,
+      "n_tickers": 120,
       "tickers": [
         "SPG",
         "PLD",
@@ -8087,13 +8084,12 @@
         "UBA",
         "BFS",
         "PEI",
-        "AHT",
-        "-"
+        "AHT"
       ]
     },
     "2019-03-22": {
       "actual_date": "2019-03-22",
-      "n_tickers": 121,
+      "n_tickers": 120,
       "tickers": [
         "SPG",
         "PLD",
@@ -8214,8 +8210,7 @@
         "UBA",
         "BFS",
         "PEI",
-        "AHT",
-        "-"
+        "AHT"
       ]
     },
     "2019-03-29": {
@@ -18538,7 +18533,7 @@
     },
     "2020-11-06": {
       "actual_date": "2020-11-06",
-      "n_tickers": 117,
+      "n_tickers": 116,
       "tickers": [
         "PLD",
         "DLR",
@@ -18631,7 +18626,6 @@
         "ROIC",
         "PGRE",
         "RPAI",
-        "-",
         "AAT",
         "MAC",
         "UE",
@@ -18661,7 +18655,7 @@
     },
     "2020-11-13": {
       "actual_date": "2020-11-13",
-      "n_tickers": 118,
+      "n_tickers": 116,
       "tickers": [
         "PLD",
         "DLR",
@@ -18764,7 +18758,6 @@
         "CLI",
         "KRG",
         "ESRT",
-        "-",
         "OPI",
         "CHCT",
         "GTY",
@@ -18779,13 +18772,12 @@
         "AHH",
         "ALX",
         "RPT",
-        "FSP",
-        "-"
+        "FSP"
       ]
     },
     "2020-11-20": {
       "actual_date": "2020-11-20",
-      "n_tickers": 118,
+      "n_tickers": 116,
       "tickers": [
         "PLD",
         "DLR",
@@ -18890,7 +18882,6 @@
         "CLI",
         "DHC",
         "OPI",
-        "-",
         "GTY",
         "CHCT",
         "IRET",
@@ -18903,13 +18894,12 @@
         "ALX",
         "AHH",
         "RPT",
-        "FSP",
-        "-"
+        "FSP"
       ]
     },
     "2020-11-27": {
       "actual_date": "2020-11-27",
-      "n_tickers": 117,
+      "n_tickers": 116,
       "tickers": [
         "PLD",
         "DLR",
@@ -19026,13 +19016,12 @@
         "AHH",
         "ALX",
         "RPT",
-        "FSP",
-        "-"
+        "FSP"
       ]
     },
     "2020-12-04": {
       "actual_date": "2020-12-04",
-      "n_tickers": 117,
+      "n_tickers": 116,
       "tickers": [
         "PLD",
         "DLR",
@@ -19149,13 +19138,12 @@
         "AHH",
         "RPT",
         "ALX",
-        "FSP",
-        "-"
+        "FSP"
       ]
     },
     "2020-12-11": {
       "actual_date": "2020-12-11",
-      "n_tickers": 117,
+      "n_tickers": 116,
       "tickers": [
         "PLD",
         "DLR",
@@ -19272,13 +19260,12 @@
         "RPT",
         "AHH",
         "ALX",
-        "FSP",
-        "-"
+        "FSP"
       ]
     },
     "2020-12-18": {
       "actual_date": "2020-12-18",
-      "n_tickers": 120,
+      "n_tickers": 117,
       "tickers": [
         "PLD",
         "DLR",
@@ -19396,16 +19383,13 @@
         "AHH",
         "ALX",
         "BPYU",
-        "FSP",
-        "-",
-        "-",
-        "VER"
+        "FSP"
       ]
     },
     "2020-12-25": {
       "actual_date": "2020-12-18",
       "carried_forward_from": "2020-12-18",
-      "n_tickers": 120,
+      "n_tickers": 117,
       "tickers": [
         "PLD",
         "DLR",
@@ -19523,16 +19507,13 @@
         "AHH",
         "ALX",
         "BPYU",
-        "FSP",
-        "-",
-        "-",
-        "VER"
+        "FSP"
       ]
     },
     "2021-01-01": {
       "actual_date": "2020-12-18",
       "carried_forward_from": "2020-12-18",
-      "n_tickers": 120,
+      "n_tickers": 117,
       "tickers": [
         "PLD",
         "DLR",
@@ -19650,15 +19631,12 @@
         "AHH",
         "ALX",
         "BPYU",
-        "FSP",
-        "-",
-        "-",
-        "VER"
+        "FSP"
       ]
     },
     "2021-01-08": {
       "actual_date": "2021-01-08",
-      "n_tickers": 117,
+      "n_tickers": 116,
       "tickers": [
         "PLD",
         "DLR",
@@ -19775,8 +19753,7 @@
         "BPYU",
         "AHH",
         "ALX",
-        "FSP",
-        "-"
+        "FSP"
       ]
     },
     "2021-01-15": {
@@ -28327,7 +28304,7 @@
     },
     "2022-07-22": {
       "actual_date": "2022-07-22",
-      "n_tickers": 88,
+      "n_tickers": 87,
       "tickers": [
         "PSA",
         "O",
@@ -28354,7 +28331,6 @@
         "LSI",
         "MPW",
         "CUBE",
-        "-",
         "ACC",
         "COLD",
         "FRT",
@@ -36037,7 +36013,7 @@
     },
     "2023-12-15": {
       "actual_date": "2023-12-15",
-      "n_tickers": 101,
+      "n_tickers": 100,
       "tickers": [
         "PLD",
         "WELL",
@@ -36138,13 +36114,12 @@
         "CHCT",
         "INN",
         "UHT",
-        "NLOP",
-        "-"
+        "NLOP"
       ]
     },
     "2023-12-22": {
       "actual_date": "2023-12-22",
-      "n_tickers": 101,
+      "n_tickers": 100,
       "tickers": [
         "PLD",
         "WELL",
@@ -36245,13 +36220,12 @@
         "CHCT",
         "INN",
         "UHT",
-        "NLOP",
-        "-"
+        "NLOP"
       ]
     },
     "2023-12-29": {
       "actual_date": "2023-12-29",
-      "n_tickers": 101,
+      "n_tickers": 100,
       "tickers": [
         "PLD",
         "WELL",
@@ -36352,13 +36326,12 @@
         "CHCT",
         "INN",
         "UHT",
-        "NLOP",
-        "-"
+        "NLOP"
       ]
     },
     "2024-01-05": {
       "actual_date": "2024-01-05",
-      "n_tickers": 100,
+      "n_tickers": 99,
       "tickers": [
         "PLD",
         "WELL",
@@ -36458,13 +36431,12 @@
         "CHCT",
         "INN",
         "UHT",
-        "NLOP",
-        "-"
+        "NLOP"
       ]
     },
     "2024-01-12": {
       "actual_date": "2024-01-12",
-      "n_tickers": 100,
+      "n_tickers": 99,
       "tickers": [
         "PLD",
         "WELL",
@@ -36564,13 +36536,12 @@
         "CHCT",
         "INN",
         "UHT",
-        "NLOP",
-        "-"
+        "NLOP"
       ]
     },
     "2024-01-19": {
       "actual_date": "2024-01-19",
-      "n_tickers": 100,
+      "n_tickers": 99,
       "tickers": [
         "PLD",
         "WELL",
@@ -36670,8 +36641,7 @@
         "CHCT",
         "INN",
         "UHT",
-        "NLOP",
-        "-"
+        "NLOP"
       ]
     },
     "2024-01-26": {

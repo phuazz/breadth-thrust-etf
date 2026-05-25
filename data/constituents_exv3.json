@@ -1,7 +1,7 @@
 {
   "etf": "EXV3",
   "source": "https://www.ishares.com/uk/individual/en/products/251961/ishares-stoxx-europe-600-technology-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV3_holdings&dataType=fund",
-  "fetched_at_utc": "2026-05-23T16:22:48.728637+00:00",
+  "fetched_at_utc": "2026-05-25T14:21:12+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-05-22",
   "n_target_fridays": 438,
@@ -2452,81 +2452,6 @@
     },
     "2019-05-03": {
       "actual_date": "2019-05-03",
-      "n_tickers": 32,
-      "tickers": [
-        "SAP.DE",
-        "ASML.AS",
-        "AMS.MC",
-        "ERIC B",
-        "NOKIA",
-        "IFX.DE",
-        "DSY.PA",
-        "CAP.PA",
-        "HEXA B",
-        "STM.MI",
-        "SGE.L",
-        "TEMN",
-        "MCRO.L",
-        "LOGN",
-        "ATO.PA",
-        "G24.DE",
-        "ING.PA",
-        "UTDI.DE",
-        "SIM",
-        "AMS",
-        "ATE.PA",
-        "NEM.DE",
-        "ALT.PA",
-        "ILD.PA",
-        "ASM.AS",
-        "BC8.DE",
-        "AVV.L",
-        "WAF.DE",
-        "SOP.PA",
-        "WLN.PA",
-        "MCRO.L",
-        "-.PA"
-      ]
-    },
-    "2019-05-10": {
-      "actual_date": "2019-05-10",
-      "n_tickers": 31,
-      "tickers": [
-        "SAP.DE",
-        "ASML.AS",
-        "AMS.MC",
-        "ERIC B",
-        "NOKIA",
-        "IFX.DE",
-        "DSY.PA",
-        "CAP.PA",
-        "HEXA B",
-        "STM.MI",
-        "SGE.L",
-        "TEMN",
-        "MCRO.L",
-        "ATO.PA",
-        "LOGN",
-        "G24.DE",
-        "UTDI.DE",
-        "ING.PA",
-        "SIM",
-        "AMS",
-        "ILD.PA",
-        "BC8.DE",
-        "ATE.PA",
-        "NEM.DE",
-        "ALT.PA",
-        "AVV.L",
-        "ASM.AS",
-        "SOP.PA",
-        "WAF.DE",
-        "MCRO.L",
-        "-.PA"
-      ]
-    },
-    "2019-05-17": {
-      "actual_date": "2019-05-17",
       "n_tickers": 30,
       "tickers": [
         "SAP.DE",
@@ -2539,6 +2464,77 @@
         "CAP.PA",
         "HEXA B",
         "STM.MI",
+        "SGE.L",
+        "TEMN",
+        "MCRO.L",
+        "LOGN",
+        "ATO.PA",
+        "G24.DE",
+        "ING.PA",
+        "UTDI.DE",
+        "SIM",
+        "AMS",
+        "ATE.PA",
+        "NEM.DE",
+        "ALT.PA",
+        "ILD.PA",
+        "ASM.AS",
+        "BC8.DE",
+        "AVV.L",
+        "WAF.DE",
+        "SOP.PA",
+        "WLN.PA"
+      ]
+    },
+    "2019-05-10": {
+      "actual_date": "2019-05-10",
+      "n_tickers": 29,
+      "tickers": [
+        "SAP.DE",
+        "ASML.AS",
+        "AMS.MC",
+        "ERIC B",
+        "NOKIA",
+        "IFX.DE",
+        "DSY.PA",
+        "CAP.PA",
+        "HEXA B",
+        "STM.MI",
+        "SGE.L",
+        "TEMN",
+        "MCRO.L",
+        "ATO.PA",
+        "LOGN",
+        "G24.DE",
+        "UTDI.DE",
+        "ING.PA",
+        "SIM",
+        "AMS",
+        "ILD.PA",
+        "BC8.DE",
+        "ATE.PA",
+        "NEM.DE",
+        "ALT.PA",
+        "AVV.L",
+        "ASM.AS",
+        "SOP.PA",
+        "WAF.DE"
+      ]
+    },
+    "2019-05-17": {
+      "actual_date": "2019-05-17",
+      "n_tickers": 29,
+      "tickers": [
+        "SAP.DE",
+        "ASML.AS",
+        "AMS.MC",
+        "ERIC B",
+        "NOKIA",
+        "IFX.DE",
+        "DSY.PA",
+        "CAP.PA",
+        "HEXA B",
+        "STM.MI",
         "TEMN",
         "SGE.L",
         "MCRO.L",
@@ -2557,8 +2553,7 @@
         "AVV.L",
         "ASM.AS",
         "SOP.PA",
-        "WAF.DE",
-        "-.PA"
+        "WAF.DE"
       ]
     },
     "2019-05-24": {
@@ -2668,7 +2663,7 @@
     },
     "2019-06-14": {
       "actual_date": "2019-06-14",
-      "n_tickers": 30,
+      "n_tickers": 29,
       "tickers": [
         "SAP.DE",
         "ASML.AS",
@@ -2698,13 +2693,12 @@
         "ASM.AS",
         "AMS",
         "SOP.PA",
-        "WAF.DE",
-        "-"
+        "WAF.DE"
       ]
     },
     "2019-06-21": {
       "actual_date": "2019-06-21",
-      "n_tickers": 30,
+      "n_tickers": 29,
       "tickers": [
         "SAP.DE",
         "ASML.AS",
@@ -2734,13 +2728,12 @@
         "ASM.AS",
         "AMS",
         "SOP.PA",
-        "WAF.DE",
-        "-"
+        "WAF.DE"
       ]
     },
     "2019-06-28": {
       "actual_date": "2019-06-28",
-      "n_tickers": 29,
+      "n_tickers": 28,
       "tickers": [
         "SAP.DE",
         "ASML.AS",
@@ -2769,13 +2762,12 @@
         "BC8.DE",
         "AMS",
         "ASM.AS",
-        "SOP.PA",
-        "-"
+        "SOP.PA"
       ]
     },
     "2019-07-05": {
       "actual_date": "2019-07-05",
-      "n_tickers": 29,
+      "n_tickers": 28,
       "tickers": [
         "SAP.DE",
         "ASML.AS",
@@ -2804,8 +2796,7 @@
         "BC8.DE",
         "AMS",
         "ASM.AS",
-        "SOP.PA",
-        "-"
+        "SOP.PA"
       ]
     },
     "2019-07-12": {
@@ -6760,7 +6751,7 @@
     },
     "2021-06-18": {
       "actual_date": "2021-06-18",
-      "n_tickers": 40,
+      "n_tickers": 39,
       "tickers": [
         "ASML.AS",
         "SAP.DE",
@@ -6800,8 +6791,7 @@
         "SCT.L",
         "SOP.PA",
         "SWON",
-        "FUTR.L",
-        "SINCH"
+        "FUTR.L"
       ]
     },
     "2021-06-25": {

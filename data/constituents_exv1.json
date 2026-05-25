@@ -1,7 +1,7 @@
 {
   "etf": "EXV1",
   "source": "https://www.ishares.com/uk/individual/en/products/251934/ishares-stoxx-europe-600-banks-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-05-23T16:22:38.506793+00:00",
+  "fetched_at_utc": "2026-05-25T14:20:59+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-05-22",
   "n_target_fridays": 438,
@@ -1335,7 +1335,7 @@
     },
     "2018-06-22": {
       "actual_date": "2018-06-22",
-      "n_tickers": 49,
+      "n_tickers": 48,
       "tickers": [
         "HSBA.L",
         "SAN.MC",
@@ -1384,13 +1384,12 @@
         "BCP.LS",
         "BPE.MI",
         "CMBN",
-        "SYDB",
-        "-.MI"
+        "SYDB"
       ]
     },
     "2018-06-29": {
       "actual_date": "2018-06-29",
-      "n_tickers": 49,
+      "n_tickers": 48,
       "tickers": [
         "HSBA.L",
         "SAN.MC",
@@ -1439,13 +1438,12 @@
         "BCP.LS",
         "BPE.MI",
         "CMBN",
-        "SYDB",
-        "-.MI"
+        "SYDB"
       ]
     },
     "2018-07-06": {
       "actual_date": "2018-07-06",
-      "n_tickers": 49,
+      "n_tickers": 48,
       "tickers": [
         "HSBA.L",
         "SAN.MC",
@@ -1494,13 +1492,12 @@
         "BCP.LS",
         "BPE.MI",
         "SYDB",
-        "CMBN",
-        "-.MI"
+        "CMBN"
       ]
     },
     "2018-07-13": {
       "actual_date": "2018-07-13",
-      "n_tickers": 49,
+      "n_tickers": 48,
       "tickers": [
         "HSBA.L",
         "SAN.MC",
@@ -1549,8 +1546,7 @@
         "BCP.LS",
         "BPE.MI",
         "CMBN",
-        "SYDB",
-        "-.MI"
+        "SYDB"
       ]
     },
     "2018-07-20": {
@@ -2261,7 +2257,7 @@
     },
     "2018-10-19": {
       "actual_date": "2018-10-19",
-      "n_tickers": 49,
+      "n_tickers": 48,
       "tickers": [
         "HSBA.L",
         "SAN.MC",
@@ -2310,8 +2306,7 @@
         "UBI.MI",
         "MTRO.L",
         "CMBN",
-        "BCP.LS",
-        "SAN.D.MC"
+        "BCP.LS"
       ]
     },
     "2018-10-26": {
@@ -3927,7 +3922,7 @@
     },
     "2019-05-24": {
       "actual_date": "2019-05-24",
-      "n_tickers": 48,
+      "n_tickers": 47,
       "tickers": [
         "HSBA.L",
         "SAN.MC",
@@ -3975,13 +3970,12 @@
         "JYSK",
         "CMBN",
         "UBI.MI",
-        "BCP.LS",
-        "-"
+        "BCP.LS"
       ]
     },
     "2019-05-31": {
       "actual_date": "2019-05-31",
-      "n_tickers": 48,
+      "n_tickers": 47,
       "tickers": [
         "HSBA.L",
         "SAN.MC",
@@ -4029,13 +4023,12 @@
         "JYSK",
         "CMBN",
         "UBI.MI",
-        "BCP.LS",
-        "-.PA"
+        "BCP.LS"
       ]
     },
     "2019-06-07": {
       "actual_date": "2019-06-07",
-      "n_tickers": 48,
+      "n_tickers": 47,
       "tickers": [
         "HSBA.L",
         "SAN.MC",
@@ -4083,8 +4076,7 @@
         "CMBN",
         "JYSK",
         "UBI.MI",
-        "BCP.LS",
-        "-.PA"
+        "BCP.LS"
       ]
     },
     "2019-06-14": {
@@ -7763,7 +7755,7 @@
     },
     "2020-11-13": {
       "actual_date": "2020-11-13",
-      "n_tickers": 39,
+      "n_tickers": 38,
       "tickers": [
         "HSBA.L",
         "BNP.PA",
@@ -7802,13 +7794,12 @@
         "CBG.L",
         "PEO",
         "RBI",
-        "SAB.MC",
-        "SAN.D.MC"
+        "SAB.MC"
       ]
     },
     "2020-11-20": {
       "actual_date": "2020-11-20",
-      "n_tickers": 39,
+      "n_tickers": 38,
       "tickers": [
         "HSBA.L",
         "BNP.PA",
@@ -7847,13 +7838,12 @@
         "SAB.MC",
         "PEO",
         "RBI",
-        "BIRG",
-        "SAN.D.MC"
+        "BIRG"
       ]
     },
     "2020-11-27": {
       "actual_date": "2020-11-27",
-      "n_tickers": 39,
+      "n_tickers": 38,
       "tickers": [
         "HSBA.L",
         "BNP.PA",
@@ -7892,13 +7882,12 @@
         "RBI",
         "CBG.L",
         "SAB.MC",
-        "BIRG",
-        "SAN.D.MC"
+        "BIRG"
       ]
     },
     "2020-12-04": {
       "actual_date": "2020-12-04",
-      "n_tickers": 40,
+      "n_tickers": 38,
       "tickers": [
         "HSBA.L",
         "BNP.PA",
@@ -7937,14 +7926,12 @@
         "PEO",
         "RBI",
         "SAB.MC",
-        "BIRG",
-        "-.MC",
-        "SAN.D.MC"
+        "BIRG"
       ]
     },
     "2020-12-11": {
       "actual_date": "2020-12-11",
-      "n_tickers": 39,
+      "n_tickers": 38,
       "tickers": [
         "HSBA.L",
         "BNP.PA",
@@ -7983,8 +7970,7 @@
         "KN.PA",
         "RBI",
         "CBG.L",
-        "SAB.MC",
-        "SAN.D.MC"
+        "SAB.MC"
       ]
     },
     "2020-12-18": {
@@ -8978,7 +8964,7 @@
     },
     "2021-05-21": {
       "actual_date": "2021-05-21",
-      "n_tickers": 41,
+      "n_tickers": 40,
       "tickers": [
         "HSBA.L",
         "BNP.PA",
@@ -9019,13 +9005,12 @@
         "CMBN",
         "CBG.L",
         "RBI",
-        "BCVN",
-        "ACA.PA"
+        "BCVN"
       ]
     },
     "2021-05-28": {
       "actual_date": "2021-05-28",
-      "n_tickers": 41,
+      "n_tickers": 40,
       "tickers": [
         "HSBA.L",
         "BNP.PA",
@@ -9066,13 +9051,12 @@
         "CBG.L",
         "CMBN",
         "RBI",
-        "BCVN",
-        "ACA.PA"
+        "BCVN"
       ]
     },
     "2021-06-04": {
       "actual_date": "2021-06-04",
-      "n_tickers": 41,
+      "n_tickers": 40,
       "tickers": [
         "HSBA.L",
         "BNP.PA",
@@ -9113,8 +9097,7 @@
         "CMBN",
         "CBG.L",
         "RBI",
-        "BCVN",
-        "ACA.PA"
+        "BCVN"
       ]
     },
     "2021-06-11": {

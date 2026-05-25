@@ -1,7 +1,7 @@
 {
   "etf": "IUHC",
   "source": "https://www.ishares.com/uk/individual/en/products/280507/ishares-sp-500-health-care-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUHC_holdings&dataType=fund",
-  "fetched_at_utc": "2026-05-18T14:34:18.321532+00:00",
+  "fetched_at_utc": "2026-05-25T14:22:41+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-05-15",
   "n_target_fridays": 437,
@@ -22044,7 +22044,7 @@
     },
     "2024-02-16": {
       "actual_date": "2024-02-16",
-      "n_tickers": 65,
+      "n_tickers": 64,
       "tickers": [
         "LLY",
         "UNH",
@@ -22093,7 +22093,6 @@
         "ALGN",
         "BAX",
         "WAT",
-        "-",
         "LH",
         "HOLX",
         "VTRS",
@@ -29584,7 +29583,7 @@
     },
     "2026-04-10": {
       "actual_date": "2026-04-10",
-      "n_tickers": 59,
+      "n_tickers": 58,
       "tickers": [
         "LLY",
         "JNJ",
@@ -29643,13 +29642,12 @@
         "TECH",
         "CRL",
         "HSIC",
-        "DVA",
-        "-"
+        "DVA"
       ]
     },
     "2026-04-17": {
       "actual_date": "2026-04-17",
-      "n_tickers": 59,
+      "n_tickers": 58,
       "tickers": [
         "LLY",
         "JNJ",
@@ -29708,13 +29706,12 @@
         "TECH",
         "CRL",
         "HSIC",
-        "DVA",
-        "-"
+        "DVA"
       ]
     },
     "2026-04-24": {
       "actual_date": "2026-04-24",
-      "n_tickers": 59,
+      "n_tickers": 58,
       "tickers": [
         "LLY",
         "JNJ",
@@ -29773,12 +29770,75 @@
         "TECH",
         "CRL",
         "HSIC",
-        "DVA",
-        "-"
+        "DVA"
       ]
     },
     "2026-05-01": {
       "actual_date": "2026-05-01",
+      "n_tickers": 58,
+      "tickers": [
+        "LLY",
+        "JNJ",
+        "ABBV",
+        "UNH",
+        "MRK",
+        "AMGN",
+        "TMO",
+        "GILD",
+        "ISRG",
+        "ABT",
+        "PFE",
+        "BMY",
+        "DHR",
+        "VRTX",
+        "CVS",
+        "MDT",
+        "SYK",
+        "MCK",
+        "BSX",
+        "ELV",
+        "CI",
+        "REGN",
+        "HCA",
+        "COR",
+        "EW",
+        "ZTS",
+        "CAH",
+        "IDXX",
+        "BDX",
+        "A",
+        "WAT",
+        "RMD",
+        "HUM",
+        "GEHC",
+        "BIIB",
+        "IQV",
+        "MTD",
+        "CNC",
+        "DXCM",
+        "WST",
+        "DGX",
+        "LH",
+        "STE",
+        "VTRS",
+        "ZBH",
+        "INCY",
+        "MRNA",
+        "PODD",
+        "COO",
+        "ALGN",
+        "RVTY",
+        "SOLV",
+        "UHS",
+        "BAX",
+        "TECH",
+        "CRL",
+        "HSIC",
+        "DVA"
+      ]
+    },
+    "2026-05-08": {
+      "actual_date": "2026-05-08",
       "n_tickers": 59,
       "tickers": [
         "LLY",
@@ -29792,71 +29852,6 @@
         "ISRG",
         "ABT",
         "PFE",
-        "BMY",
-        "DHR",
-        "VRTX",
-        "CVS",
-        "MDT",
-        "SYK",
-        "MCK",
-        "BSX",
-        "ELV",
-        "CI",
-        "REGN",
-        "HCA",
-        "COR",
-        "EW",
-        "ZTS",
-        "CAH",
-        "IDXX",
-        "BDX",
-        "A",
-        "WAT",
-        "RMD",
-        "HUM",
-        "GEHC",
-        "BIIB",
-        "IQV",
-        "MTD",
-        "CNC",
-        "DXCM",
-        "WST",
-        "DGX",
-        "LH",
-        "STE",
-        "VTRS",
-        "ZBH",
-        "INCY",
-        "MRNA",
-        "PODD",
-        "COO",
-        "ALGN",
-        "RVTY",
-        "SOLV",
-        "UHS",
-        "BAX",
-        "TECH",
-        "CRL",
-        "HSIC",
-        "DVA",
-        "-"
-      ]
-    },
-    "2026-05-08": {
-      "actual_date": "2026-05-08",
-      "n_tickers": 60,
-      "tickers": [
-        "LLY",
-        "JNJ",
-        "ABBV",
-        "UNH",
-        "MRK",
-        "AMGN",
-        "TMO",
-        "GILD",
-        "ISRG",
-        "ABT",
-        "PFE",
         "CVS",
         "BMY",
         "VRTX",
@@ -29904,13 +29899,12 @@
         "CRL",
         "TECH",
         "HSIC",
-        "DVA",
-        "-"
+        "DVA"
       ]
     },
     "2026-05-15": {
       "actual_date": "2026-05-15",
-      "n_tickers": 60,
+      "n_tickers": 59,
       "tickers": [
         "LLY",
         "JNJ",
@@ -29970,8 +29964,7 @@
         "HSIC",
         "CRL",
         "TECH",
-        "DVA",
-        "-"
+        "DVA"
       ]
     }
   }

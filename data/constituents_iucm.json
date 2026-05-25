@@ -1,7 +1,7 @@
 {
   "etf": "IUCM",
   "source": "https://www.ishares.com/uk/individual/en/products/304659/ishares-s-p-500-communication-sector-ucits-etf-usd-acc-fund/1506575576011.ajax?fileType=csv&fileName=IUCM_holdings&dataType=fund",
-  "fetched_at_utc": "2026-05-22T15:28:30.379200+00:00",
+  "fetched_at_utc": "2026-05-25T14:22:13+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-05-15",
   "n_target_fridays": 437,
@@ -2192,7 +2192,7 @@
     },
     "2019-11-22": {
       "actual_date": "2019-11-22",
-      "n_tickers": 28,
+      "n_tickers": 27,
       "tickers": [
         "FB",
         "GOOG",
@@ -2220,8 +2220,7 @@
         "DISCA",
         "NWSA",
         "TRIP",
-        "NWS",
-        "-"
+        "NWS"
       ]
     },
     "2019-11-29": {
