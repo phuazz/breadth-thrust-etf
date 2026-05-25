@@ -44,6 +44,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from alignment import align_frame_to_index  # noqa: E402
 from backtest import download_soxx_ohlc, download_spy_close  # noqa: E402
 from etf_registry import get_etf  # noqa: E402
 from run_improvements import (  # noqa: E402
@@ -121,7 +122,7 @@ def continuous_signal(
     1 when at or above expanding p90, linear in between. Allocations are
     bounded in [base, 1.0] — no leverage in this variant.
     """
-    aligned = breadth_df.reindex(prices_close.index).ffill()
+    aligned = align_frame_to_index(breadth_df, prices_close.index)
     span = (aligned["composite_p90"] - aligned["composite_p10"]).replace(0, np.nan)
     score = ((aligned["composite_z"] - aligned["composite_p10"]) / span).clip(0, 1).fillna(0)
     alloc = base + (1.0 - base) * score
@@ -143,7 +144,7 @@ def continuous_signal(
 def master_regime_mask(csp1_breadth: pd.DataFrame, index: pd.DatetimeIndex) -> pd.Series:
     """True when SPY breadth regime is healthy (composite_z >= p10 AND ma_breadth >= 0.40).
     Forward-fills onto the requested index; missing -> False."""
-    aligned = csp1_breadth.reindex(index).ffill()
+    aligned = align_frame_to_index(csp1_breadth, index)
     ok = (
         (aligned["composite_z"].fillna(-1e9) >= aligned["composite_p10"].fillna(1e9))
         & (aligned["ma_breadth"] >= 0.40)

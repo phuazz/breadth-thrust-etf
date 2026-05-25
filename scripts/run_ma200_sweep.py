@@ -40,6 +40,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from alignment import align_series_to_index, MAX_STALE_DAYS  # noqa: E402
 from backtest import download_soxx_ohlc  # noqa: E402
 from etf_registry import get_etf, UNIVERSE_ETFS as ETFS  # noqa: E402
 from run_improvements import COST_BPS, compute_stats  # noqa: E402
@@ -52,14 +53,10 @@ OUT_PATH = DATA_DIR / "ma200_sweep.json"
 LONG_THRESHOLDS = [50, 55, 60, 65, 70, 75, 80]
 SHORT_THRESHOLDS = [10, 15, 20, 25, 30, 35, 40]
 MA_PERIOD = 200
-# Phase 10.2: maximum days a breadth observation can be carried forward
-# onto the trading calendar before it is considered stale and dropped to
-# NaN. Without this limit, a frozen source data feed would silently let
-# the strategy keep trading on the last fresh reading forever (the bug
-# that bit us in Phase 4, manifested differently). 7 calendar days =
-# ~5 trading days, generous enough to bridge weekends + a holiday but
-# tight enough to surface real data freshness problems.
-MAX_BREADTH_STALE_DAYS = 7
+# Phase 10.2 freshness cap, now centralised in scripts/alignment.py and
+# re-exported here for back-compat with callers that imported the
+# module-level constant by name (run_robustness, run_topk_robustness).
+MAX_BREADTH_STALE_DAYS = MAX_STALE_DAYS
 
 
 def _safe(v):
@@ -114,16 +111,7 @@ def align_breadth_to_index(
     value is NaN (and downstream consumers can decide how to handle it,
     typically by treating it as 'no signal → no allocation').
     """
-    aligned = breadth.reindex(index, method="ffill")
-    observed = breadth.dropna()
-    if observed.empty:
-        return aligned * np.nan
-    # For each target date, find when the most recent real observation was
-    last_observed = pd.Series(observed.index, index=observed.index).reindex(
-        index, method="ffill"
-    )
-    age = index.to_series(index=index) - last_observed
-    return aligned.mask(age > pd.Timedelta(days=max_stale_days))
+    return align_series_to_index(breadth, index, max_stale_days)
 
 
 def compute_ma200_breadth(prices: pd.DataFrame, period: int = MA_PERIOD) -> pd.Series:

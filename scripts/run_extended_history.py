@@ -53,6 +53,7 @@ import yfinance as yf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from alignment import align_series_to_index  # noqa: E402
 from run_improvements import COST_BPS, compute_stats  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -154,17 +155,24 @@ def download_prices(tickers: list[str], start: str, end: str,
 
 
 def compute_ma_breadth(prices: pd.DataFrame, period: int = 200) -> pd.Series:
+    """Return raw breadth (% of constituents above their N-day MA).
+
+    NaN where ``n_valid == 0``. Do NOT forward-fill or fill with zero
+    here — that manufactures a confidently bearish signal out of missing
+    data. The caller is responsible for freshness-capped alignment via
+    ``align_series_to_index``.
+    """
     ma = prices.rolling(period, min_periods=period).mean()
     above = (prices > ma) & ma.notna()
     n_above = above.sum(axis=1)
     n_valid = ma.notna().sum(axis=1)
-    return (n_above / n_valid.replace(0, np.nan)).ffill().fillna(0)
+    return n_above / n_valid.replace(0, np.nan)
 
 
 def run_strategy(close: pd.Series, breadth: pd.Series, L_pct: float,
                   base: float, on: float, cost: float = COST_BPS / 10_000,
                   window_start: pd.Timestamp | None = None) -> dict:
-    aligned = breadth.reindex(close.index, method="ffill").shift(1).fillna(0)
+    aligned = align_series_to_index(breadth, close.index).shift(1).fillna(0)
     alloc = pd.Series(base, index=close.index, dtype=float)
     alloc.loc[aligned >= L_pct / 100.0] = on
     if window_start is not None:
@@ -276,7 +284,7 @@ def main() -> int:
         # BH curve
         bh_norm = bh_close / bh_close.iloc[0]
         # Breadth curve (sample weekly for size)
-        breadth_w = breadth.reindex(close.index, method="ffill").loc[eligible:].resample("W-FRI").last()
+        breadth_w = align_series_to_index(breadth, close.index).loc[eligible:].resample("W-FRI").last()
         # Sub-period stats for the two headline variants and BH
         sp_5050 = sub_period_stats(r["equity"], SUB_PERIODS)
         sp_0100 = sub_period_stats(r2["equity"], SUB_PERIODS)

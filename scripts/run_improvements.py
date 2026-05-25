@@ -48,6 +48,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from alignment import align_frame_to_index  # noqa: E402
 from backtest import (  # noqa: E402
     download_soxx_ohlc,
     download_spy_close,
@@ -130,7 +131,7 @@ def regime_overlay(breadth_df: pd.DataFrame, prices_close: pd.Series,
     signal (yesterday's regime determines today's allocation) so no
     look-ahead. Costs paid on every allocation transition.
     """
-    aligned = breadth_df.reindex(prices_close.index).ffill()
+    aligned = align_frame_to_index(breadth_df, prices_close.index)
     regime_ok = (
         (aligned["composite_z"].fillna(-1e9) >= aligned["composite_p10"].fillna(1e9))
         & (aligned["ma_breadth"] >= 0.40)

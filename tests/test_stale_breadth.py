@@ -20,7 +20,10 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
+from alignment import align_frame_to_index  # noqa: E402
+from run_extended_history import compute_ma_breadth as compute_extended_ma_breadth  # noqa: E402
 from run_ma200_sweep import align_breadth_to_index, compute_ma200_breadth  # noqa: E402
+from run_robustness import family_d_alloc_series  # noqa: E402
 
 
 def test_align_breadth_drops_stale_forward_fill():
@@ -47,6 +50,28 @@ def test_align_breadth_handles_fully_empty_source():
     target_idx = pd.date_range("2024-01-02", "2024-01-10", freq="B")
     aligned = align_breadth_to_index(breadth, target_idx)
     assert aligned.isna().all()
+
+
+def test_align_frame_to_index_caps_each_column_independently():
+    """The frame helper applies the freshness cap per-column. A column
+    that goes silent should drop to NaN past the window even when its
+    siblings still have fresh observations."""
+    source_idx = pd.to_datetime(["2024-01-02", "2024-01-03"])
+    frame = pd.DataFrame({
+        "composite_z": [0.2, 0.4],
+        "ma_breadth": [0.6, np.nan],
+    }, index=source_idx)
+    target_idx = pd.date_range("2024-01-02", "2024-01-10", freq="B")
+
+    aligned = align_frame_to_index(frame, target_idx, max_stale_days=3)
+
+    # Within the freshness window: forward-filled.
+    assert aligned.loc["2024-01-05", "composite_z"] == 0.4
+    # Past the freshness window: NaN.
+    assert np.isnan(aligned.loc["2024-01-08", "composite_z"])
+    # ma_breadth never observed on 2024-01-03 (NaN), so the last good
+    # observation is 2024-01-02 — 2024-01-05 is within 3 days of that.
+    assert aligned.loc["2024-01-05", "ma_breadth"] == 0.6
 
 
 def test_compute_ma200_breadth_emits_nan_when_no_constituent_is_valid():
@@ -88,3 +113,38 @@ def test_stale_guard_uses_true_observation_date_not_synthetic_fill():
     # be within the 3-day stale window. Day 11 (gap=7 calendar days)
     # is past the window → NaN.
     assert np.isnan(aligned.iloc[-1])
+
+
+def test_extended_history_ma_breadth_does_not_forward_fill_missing_prices():
+    """compute_ma_breadth should return NaN once n_valid drops to zero,
+    NOT carry the last good reading forward (the silent staleness bug
+    that Phase 10.2 fixed for the SOXX path and Phase 14 generalises
+    here)."""
+    idx = pd.date_range("2024-01-02", periods=8, freq="B")
+    prices = pd.DataFrame({
+        "A": [10, 11, 12, 13, np.nan, np.nan, np.nan, np.nan],
+    }, index=idx)
+
+    breadth = compute_extended_ma_breadth(prices, period=3)
+
+    # Once the 3-day MA is built (day 2), breadth is defined.
+    assert pd.notna(breadth.iloc[2])
+    # Once prices drop out, n_valid = 0 → breadth NaN. Must not be 0.
+    assert np.isnan(breadth.iloc[-1])
+
+
+def test_robustness_alloc_series_drops_stale_breadth():
+    """family_d_alloc_series uses the freshness-capped alignment. A
+    single breadth observation more than MAX_STALE_DAYS old should
+    yield base allocation (0.0 here), not the on-allocation (1.0)."""
+    dates = pd.date_range("2024-01-02", "2024-01-15", freq="B")
+    breadth = pd.Series(1.0, index=pd.to_datetime(["2024-01-02"]))
+
+    alloc = family_d_alloc_series(
+        breadth, dates, L_pct=50, base=0.0, on=1.0, window_start=dates[0]
+    )
+
+    # Day after the observation → still within freshness window, alloc on.
+    assert alloc.loc["2024-01-03"] == 1.0
+    # 10 calendar days later → past the freshness window, alloc base.
+    assert alloc.loc["2024-01-12"] == 0.0

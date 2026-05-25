@@ -92,7 +92,7 @@ def family_d_alloc_series(breadth: pd.Series, dates: pd.DatetimeIndex,
                             L_pct: float, base: float = 0.5, on: float = 1.5,
                             window_start: pd.Timestamp | None = None) -> pd.Series:
     """Return daily allocation for the Family D (50/150) strategy."""
-    aligned = breadth.reindex(dates).ffill().shift(1).fillna(0)
+    aligned = align_breadth_to_index(breadth, dates).shift(1).fillna(0)
     alloc = pd.Series(base, index=dates, dtype=float)
     alloc.loc[aligned >= L_pct / 100.0] = on
     if window_start is not None:
