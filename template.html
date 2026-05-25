@@ -541,19 +541,29 @@
       font-size: 20px; font-weight: 600; letter-spacing: -0.01em;
       margin: 0 0 14px 0; color: var(--ink);
     }
-    .recipe .recipe-stats {
+    /* .recipe-stats grid layout applies wherever a .recipe-stats container
+       appears — not just inside .recipe. Used by both the strategy-tab
+       recipe headers AND by the Right-tail behaviour sections rendered by
+       renderRightTail() into <div id="...-right-tail"> containers. */
+    .recipe-stats {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 14px 28px;
       margin: 14px 0;
     }
-    .recipe .recipe-stat .v {
+    .recipe-stat .v {
       font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
       letter-spacing: -0.01em; color: var(--ink);
     }
-    .recipe .recipe-stat .v.good { color: var(--good); }
-    .recipe .recipe-stat .l {
+    .recipe-stat .v.good { color: var(--good); }
+    .recipe-stat .v.bad { color: var(--bad); }
+    .recipe-stat .l {
       font-size: 11px; color: var(--ink-faint);
       text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px;
+    }
+    /* Mobile: shrink grid minimum to fit narrow viewports without overflow */
+    @media (max-width: 720px) {
+      .recipe-stats { gap: 10px 14px; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+      .recipe-stat .v { font-size: 18px; }
     }
     .recipe ol.recipe-steps {
       margin: 14px 0 0 22px; padding: 0; font-size: 14px;
@@ -686,6 +696,31 @@
       nav.tabs button { padding: 10px 12px; font-size: 13px; }
       .chart { height: 340px; }
       .monitor-grid { grid-template-columns: 1fr; }
+      /* Wide tables: allow horizontal scroll on narrow viewports so columns
+         do not break the layout. Affects Risk & Validation heat grids,
+         Multi-Strategy regime/bootstrap tables, Trade History ledger,
+         Strategy A trade history, etc. */
+      section { overflow-x: auto; }
+      table.heat, table.small-table, table.trade-table {
+        font-size: 12px; min-width: 480px;
+      }
+      table.heat thead th, table.heat tbody td,
+      table.small-table thead th, table.small-table tbody td,
+      table.trade-table thead th, table.trade-table tbody td {
+        padding: 6px 8px;
+      }
+      /* Trade controls (filter rows): tighter spacing + full-width inputs */
+      .trade-controls { gap: 8px; }
+      .trade-controls input[type="text"] { flex: 1 1 100%; min-width: 0; }
+      .trade-controls select { flex: 0 1 auto; }
+      /* Header sleeve strip already responsive (2x2 at 720px) — also
+         shrink font slightly for tighter packing */
+      header.top .sleeve-card { font-size: 11px; padding: 7px 10px; }
+      header.top .sleeve-card .role { font-size: 12px; }
+      header.top .headline { font-size: 13px; }
+      header.top .headline .big { font-size: 13px; }
+      /* Live hero stats / panel stats: shrink for mobile */
+      .hero-stat .v, .panel-stat .v { font-size: 16px; }
     }
   </style>
 </head>
