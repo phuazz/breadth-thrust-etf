@@ -407,6 +407,12 @@ def build_daily_returns(trades: list[Trade], soxx: pd.DataFrame) -> pd.Series:
     for t in trades:
         entry_idx = soxx.index.get_loc(pd.Timestamp(t.entry_date))
         exit_idx = soxx.index.get_loc(pd.Timestamp(t.exit_date))
+        # Same-day entry+exit: write the full cost-adjusted round trip into
+        # the single bar. Otherwise the daily series only honours the entry
+        # cost and silently disagrees with t.trade_return by one round trip.
+        if exit_idx == entry_idx:
+            out.iloc[entry_idx] = t.exit_price / t.entry_price - 1.0
+            continue
         out.iloc[entry_idx] = closes.iloc[entry_idx] / t.entry_price - 1.0
         for j in range(entry_idx + 1, exit_idx):
             out.iloc[j] = closes.iloc[j] / closes.iloc[j - 1] - 1.0

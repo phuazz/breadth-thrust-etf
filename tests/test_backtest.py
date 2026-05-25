@@ -277,3 +277,36 @@ def test_monte_carlo_sampler_enforces_non_overlapping_trades():
     # Each next trade's entry must be strictly after the previous exit
     for (_, prev_exit), (next_entry, _) in zip(path, path[1:]):
         assert next_entry > prev_exit
+
+
+def test_build_daily_returns_same_day_trade_matches_trade_return():
+    """A trade that exits on its entry date must include both entry and exit
+    costs. Previously the daily series only honoured the entry-side cost
+    adjustment, leaving daily-Sharpe disagreeing with trade-Sharpe by one
+    round trip on every same-day exit."""
+    from backtest import Trade, build_daily_returns
+
+    idx = pd.date_range("2024-01-02", periods=1, freq="B")
+    soxx = pd.DataFrame({
+        "Open": [100.0],
+        "High": [100.0],
+        "Low": [100.0],
+        "Close": [100.0],
+    }, index=idx)
+    trade = Trade(
+        signal_date="2024-01-01",
+        entry_date="2024-01-02",
+        entry_open=100.0,
+        entry_price=100.05,
+        exit_date="2024-01-02",
+        exit_close=100.0,
+        exit_price=99.95,
+        exit_reason="data_end",
+        holding_days=0,
+        trade_return=99.95 / 100.05 - 1.0,
+        max_drawdown=0.0,
+    )
+
+    daily = build_daily_returns([trade], soxx)
+
+    assert daily.iloc[0] == trade.trade_return
