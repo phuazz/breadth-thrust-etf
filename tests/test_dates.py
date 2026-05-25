@@ -163,3 +163,58 @@ def test_fetch_discards_and_re_fetches_poisoned_html_cache(tmp_path, monkeypatch
 
     assert body == valid_body
     assert cache_path.read_text(encoding="utf-8") == valid_body
+
+
+def test_parse_holdings_normalises_us_share_class_without_exchange_suffix():
+    """Default US parsing should still emit yfinance-ready share classes."""
+    body = (
+        'iShares Test ETF\n'
+        'Fund Holdings as of,"Jun 28, 2024"\n'
+        '\n'
+        'Ticker,Name,Sector,Asset Class,Market Value,Weight (%),Notional Value,'
+        'Quantity,Price,Location,Exchange,Currency,FX Rate,Market Currency,Accrual Date\n'
+        '"BRK.B","BERKSHIRE HATHAWAY","Financials","Equity","1","1","1","1","1","US","NYSE","USD","1.00","USD","-"\n'
+        '\n'
+    )
+    assert parse_holdings(body) == ["BRK-B"]
+
+
+def test_parse_holdings_normalises_non_us_ticker_roots_before_suffix():
+    """Non-US symbols must not get double dots or dot-separated roots."""
+    body = (
+        'iShares Test ETF\n'
+        'Fund Holdings as of,"Jun 28, 2024"\n'
+        '\n'
+        'Ticker,Name,Sector,Asset Class,Market Value,Weight (%),Notional Value,'
+        'Quantity,Price,Location,Exchange,Currency,FX Rate,Market Currency,Accrual Date\n'
+        '"BP.","BP PLC","Energy","Equity","1","1","1","1","1","GB","London Stock Exchange","GBP","1.00","GBP","-"\n'
+        '"REP.D","REPSOL","Energy","Equity","1","1","1","1","1","ES","Bolsa De Madrid","EUR","1.00","EUR","-"\n'
+        '"BAJAJ.AUTO","BAJAJ AUTO","Consumer Discretionary","Equity","1","1","1","1","1","IN","National Stock Exchange Of India","INR","1.00","INR","-"\n'
+        '"GRASIM.RE","GRASIM RIGHTS","Materials","Equity","1","1","1","1","1","IN","National Stock Exchange Of India","INR","1.00","INR","-"\n'
+        '"REPSM.RI","REPSOL RIGHTS","Energy","Equity","1","1","1","1","1","ES","Bolsa De Madrid","EUR","1.00","EUR","-"\n'
+        '"HSBA.L","HSBC","Financials","Equity","1","1","1","1","1","GB","London Stock Exchange","GBP","1.00","GBP","-"\n'
+        '\n'
+    )
+    assert parse_holdings(body, apply_exchange_suffix=True) == [
+        "BP.L",
+        "REP.MC",
+        "BAJAJ-AUTO.NS",
+        "GRASIM.NS",
+        "HSBA.L",
+    ]
+
+
+def test_parse_holdings_skips_placeholders_and_dedupes():
+    """Parser output should be a clean constituent set, not raw CSV rows."""
+    body = (
+        'iShares Test ETF\n'
+        'Fund Holdings as of,"Jun 28, 2024"\n'
+        '\n'
+        'Ticker,Name,Sector,Asset Class,Market Value,Weight (%),Notional Value,'
+        'Quantity,Price,Location,Exchange,Currency,FX Rate,Market Currency,Accrual Date\n'
+        '"AAPL","APPLE","Information Technology","Equity","1","1","1","1","1","US","NASDAQ","USD","1.00","USD","-"\n'
+        '"AAPL","APPLE DUP","Information Technology","Equity","1","1","1","1","1","US","NASDAQ","USD","1.00","USD","-"\n'
+        '"-","PLACEHOLDER","Industrials","Equity","1","1","1","1","1","US","NASDAQ","USD","1.00","USD","-"\n'
+        '\n'
+    )
+    assert parse_holdings(body) == ["AAPL"]

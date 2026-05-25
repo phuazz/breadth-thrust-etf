@@ -146,7 +146,17 @@ def normalise_for_yfinance(ticker: str) -> str:
         return ticker
     base, _, suffix = ticker.rpartition(".")
     if suffix in _YF_EXCHANGE_SUFFIXES:
-        return ticker  # exchange suffix — keep as-is
+        clean_base = base.rstrip(".")
+        # Spanish .D entitlement marker on the local root (e.g. REP.D.MC → REP.MC)
+        if suffix == "MC" and clean_base.endswith(".D"):
+            clean_base = clean_base[:-2]
+        # NSE: .RE rights row maps to the ordinary listing root; dots in
+        # compound roots like BAJAJ.AUTO must become dashes (BAJAJ-AUTO.NS)
+        if suffix == "NS":
+            if clean_base.endswith(".RE"):
+                clean_base = clean_base[:-3]
+            clean_base = clean_base.replace(".", "-")
+        return f"{clean_base}.{suffix}" if clean_base else ticker
     return ticker.replace(".", "-")  # share class — convert
 
 

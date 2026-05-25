@@ -272,21 +272,51 @@ def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
     """
     if not raw_ticker:
         return None
+    raw_ticker = raw_ticker.strip()
     overrides = overrides or {}
     if raw_ticker in overrides:
         return overrides[raw_ticker]
-    # Standard dot → dash conversion for share-class US tickers
-    base = raw_ticker.replace(".", "-") if exchange and "United States" not in (exchange or "") and exchange.lower().startswith(("nasdaq", "nyse", "cboe")) else raw_ticker
-    # Note: only convert dots-to-dashes for US tickers; for non-US tickers,
-    # dots may have meaning we don't want to touch.
+
+    def yf_base(symbol_root: str, suffix: str) -> str | None:
+        """Normalise the local-listing root for a given yfinance suffix.
+
+        Returns None when the row is a non-tradable entitlement (e.g. .RI
+        rights) that has no stable yfinance history.
+        """
+        root = symbol_root.rstrip(".")
+        # Rights / entitlement rows do not have stable yfinance histories.
+        if root.endswith(".RI"):
+            return None
+        # Spain: iShares Europe files occasionally append .D entitlement
+        # markers to the ordinary local ticker. yfinance uses the ordinary
+        # listing (e.g. REP.D.MC → REP.MC).
+        if suffix == ".MC" and root.endswith(".D"):
+            root = root[:-2]
+        # NSE: dashes for dot-separated local roots such as BAJAJ.AUTO →
+        # BAJAJ-AUTO; ".RE" rows are rights entitlements that route to the
+        # ordinary listing root (e.g. GRASIM.RE.NS → GRASIM.NS).
+        if suffix == ".NS":
+            if root.endswith(".RE"):
+                root = root[:-3]
+            return root.replace(".", "-")
+        return root
+
     if exchange:
         ex_key = exchange.strip()
         if ex_key in _EXCHANGE_TO_YF_SUFFIX:
             suffix = _EXCHANGE_TO_YF_SUFFIX[ex_key]
-            # If the suffix is empty (US listing), apply dot→dash share-class fix
+            # If the suffix is empty (US listing), apply dot→dash share-class fix.
             if suffix == "":
-                return base.replace(".", "-")
-            return f"{raw_ticker}{suffix}"
+                return raw_ticker.rstrip(".").replace(".", "-")
+            # If the raw ticker already carries this exchange suffix (e.g.
+            # iShares CSV ships "BP.L" with exchange "London Stock Exchange"),
+            # do not double-glue — split and re-normalise the root only.
+            existing_base, _, existing_suffix = raw_ticker.rpartition(".")
+            if f".{existing_suffix}" == suffix and existing_base:
+                base = yf_base(existing_base, suffix)
+            else:
+                base = yf_base(raw_ticker, suffix)
+            return f"{base}{suffix}" if base else None
     # Fallback: assume US (no suffix). Apply share-class fix.
     return raw_ticker.replace(".", "-")
 
@@ -323,6 +353,7 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
         return []
     overrides = ticker_overrides or {}
     tickers: list[str] = []
+    seen: set[str] = set()
     header: list[str] | None = None
     asset_class_idx: int | None = None
     exchange_idx: int | None = None
@@ -348,16 +379,28 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
             if row[asset_class_idx].strip() != "Equity":
                 continue
         raw = row[0].strip()
+        # iShares CSVs occasionally include a row-level placeholder "-" that
+        # corresponds to no real holding. Skip before the resolver, so it
+        # cannot glue a dash to an exchange suffix (e.g. "-.PA").
+        if raw in {"", "-"}:
+            continue
         exchange = (row[exchange_idx].strip() if exchange_idx is not None
                                               and len(row) > exchange_idx
                                               else None)
         if apply_exchange_suffix:
             sym = _resolve_yf_symbol(raw, exchange, overrides)
-            if sym is None:
-                continue
-            tickers.append(sym)
         else:
-            tickers.append(overrides.get(raw, raw))
+            # Default US path: still apply dot → dash share-class normalisation
+            # so the parser output is yfinance-ready (BRK.B → BRK-B).
+            sym = overrides.get(raw, raw.replace(".", "-"))
+        # Belt-and-braces: catch any "-." / "-" / empty that the resolver
+        # could have produced from edge-case inputs.
+        if sym is None or sym in {"", "-"} or sym.startswith("-."):
+            continue
+        if sym in seen:
+            continue
+        seen.add(sym)
+        tickers.append(sym)
     return tickers
 
 

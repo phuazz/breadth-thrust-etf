@@ -45,6 +45,14 @@ def test_yfinance_normalisation_distinguishes_share_classes_from_exchanges():
     assert normalise_for_yfinance("BRK.B") == "BRK-B"
     assert normalise_for_yfinance("7203.T") == "7203.T"
     assert normalise_for_yfinance("HSBA.L") == "HSBA.L"
+    # NSE compound roots use dashes in yfinance: BAJAJ.AUTO → BAJAJ-AUTO.NS
+    assert normalise_for_yfinance("BAJAJ.AUTO.NS") == "BAJAJ-AUTO.NS"
+    # NSE rights rows route to the ordinary listing
+    assert normalise_for_yfinance("GRASIM.RE.NS") == "GRASIM.NS"
+    # Spanish .D entitlement marker is dropped
+    assert normalise_for_yfinance("REP.D.MC") == "REP.MC"
+    # Trailing dot on the local root must be stripped
+    assert normalise_for_yfinance("BP..L") == "BP.L"
 
 
 def test_ma_breadth_excludes_invalid_constituents_from_denominator():
