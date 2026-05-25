@@ -142,6 +142,94 @@ def monthly_returns(equity: pd.Series) -> pd.Series:
     return me.pct_change().dropna()
 
 
+def rolling_12m_hit_rate(equity: pd.Series) -> dict:
+    """% of rolling 12-month windows (252 trading days) with positive return.
+
+    Phase 11 (item B): answers the very-first-question-after-Sharpe an
+    AI asks — 'how often does this strategy make money?'. A high Sharpe
+    with 60% hit rate looks very different from the same Sharpe with
+    85% hit rate even though average performance is identical: the
+    high-hit-rate version compounds with fewer 'painful waiting'
+    periods, which matters for client patience.
+    """
+    if len(equity) < 252:
+        return {"hit_rate_pct": None, "n_windows": 0, "n_positive": 0}
+    rolling = equity / equity.shift(252) - 1.0
+    rolling = rolling.dropna()
+    if len(rolling) == 0:
+        return {"hit_rate_pct": None, "n_windows": 0, "n_positive": 0}
+    n_positive = int((rolling > 0).sum())
+    return {
+        "hit_rate_pct": float(n_positive / len(rolling) * 100),
+        "n_windows": int(len(rolling)),
+        "n_positive": n_positive,
+    }
+
+
+def longest_drawdown(equity: pd.Series) -> dict:
+    """Find the LONGEST drawdown by recovery duration (peak-to-recovery
+    in days/months), not by depth.
+
+    Phase 11 (item B): max DD tells you the worst loss; longest DD tells
+    you how long you waited through it. Both matter for client
+    expectations: 'we can lose -23%' is the loss tolerance question;
+    'and it took 18 months to recover' is the patience question. Most
+    clients underestimate the patience required and bail at month 9.
+    """
+    if len(equity) < 5:
+        return {"depth": None, "duration_days": None, "duration_months": None,
+                "peak_date": None, "trough_date": None, "recovery_date": None,
+                "is_recovered": None}
+    rmax = equity.cummax()
+    dd = (equity - rmax) / rmax
+    # Find every drawdown episode (peak → trough → recovery)
+    in_dd = dd < 0
+    episodes = []
+    i = 0
+    while i < len(equity):
+        if in_dd.iloc[i]:
+            # Start of a drawdown — peak was at i-1 (or earlier consecutive max)
+            peak_idx = i - 1 if i > 0 else 0
+            # Walk forward until equity recovers above the peak value
+            peak_val = equity.iloc[peak_idx]
+            trough_idx = i
+            trough_val = equity.iloc[i]
+            j = i
+            while j < len(equity) and equity.iloc[j] < peak_val:
+                if equity.iloc[j] < trough_val:
+                    trough_idx = j
+                    trough_val = equity.iloc[j]
+                j += 1
+            recovered = j < len(equity)
+            recovery_idx = j if recovered else len(equity) - 1
+            duration_days = (equity.index[recovery_idx] - equity.index[peak_idx]).days
+            depth = (trough_val / peak_val) - 1.0
+            episodes.append({
+                "peak_idx": peak_idx, "trough_idx": trough_idx,
+                "recovery_idx": recovery_idx, "duration_days": duration_days,
+                "depth": depth, "recovered": recovered,
+            })
+            i = j + 1
+        else:
+            i += 1
+    if not episodes:
+        return {"depth": 0.0, "duration_days": 0, "duration_months": 0,
+                "peak_date": None, "trough_date": None, "recovery_date": None,
+                "is_recovered": True}
+    # The "longest" drawdown — by duration. Ties broken by depth.
+    longest = max(episodes, key=lambda e: (e["duration_days"], -e["depth"]))
+    return {
+        "depth": float(longest["depth"]),
+        "duration_days": int(longest["duration_days"]),
+        "duration_months": round(longest["duration_days"] / 30.44, 1),
+        "peak_date": equity.index[longest["peak_idx"]].strftime("%Y-%m-%d"),
+        "trough_date": equity.index[longest["trough_idx"]].strftime("%Y-%m-%d"),
+        "recovery_date": (equity.index[longest["recovery_idx"]].strftime("%Y-%m-%d")
+                            if longest["recovered"] else None),
+        "is_recovered": bool(longest["recovered"]),
+    }
+
+
 def per_strategy_metrics(label: str, dates: pd.DatetimeIndex,
                            equity: pd.Series) -> dict:
     """Compute all right-tail metrics for one strategy."""
@@ -159,6 +247,9 @@ def per_strategy_metrics(label: str, dates: pd.DatetimeIndex,
     skew_daily = float(stats.skew(daily)) if len(daily) > 2 else None
     # Rolling 12m extremes
     extremes = rolling_12m_extremes(equity)
+    # Phase 11: rolling 12m hit rate + longest drawdown duration
+    hit = rolling_12m_hit_rate(equity)
+    long_dd = longest_drawdown(equity)
     # CAGR
     n_years = (equity.index[-1] - equity.index[0]).days / 365.25
     cagr = (float(equity.iloc[-1] / equity.iloc[0]) ** (1 / n_years) - 1
@@ -184,6 +275,17 @@ def per_strategy_metrics(label: str, dates: pd.DatetimeIndex,
         "rolling_12m_worst": _safe(extremes["worst"]),
         "rolling_12m_best_window": [extremes["best_start"], extremes["best_end"]],
         "rolling_12m_worst_window": [extremes["worst_start"], extremes["worst_end"]],
+        # Phase 11 additions
+        "hit_rate_12m_pct": hit["hit_rate_pct"],
+        "hit_rate_12m_n_windows": hit["n_windows"],
+        "hit_rate_12m_n_positive": hit["n_positive"],
+        "longest_dd_depth": _safe(long_dd["depth"]),
+        "longest_dd_duration_days": long_dd["duration_days"],
+        "longest_dd_duration_months": long_dd["duration_months"],
+        "longest_dd_peak_date": long_dd["peak_date"],
+        "longest_dd_trough_date": long_dd["trough_date"],
+        "longest_dd_recovery_date": long_dd["recovery_date"],
+        "longest_dd_is_recovered": long_dd["is_recovered"],
     }
 
 
@@ -315,6 +417,46 @@ def main() -> int:
         print(f"    {k:<22}  top in {n_wins}/{len(winners)} months "
               f"({n_wins/len(winners)*100:.1f}%)")
 
+    # ---------- Cross-strategy return correlation matrix (Phase 11 item A) ----
+    # 4x4 Pearson correlation matrix on the DAILY RETURN series of the four
+    # sleeves over their common date window. Validates the diversification
+    # thesis of the 4-sleeve blend — if correlations are low, the
+    # blend's risk is genuinely diversified vs naive concatenation.
+    print("\nComputing cross-strategy daily return correlation matrix ...")
+    daily_panel = {}
+    for k in ["strategy_a", "strategy_b", "strategy_c", "strategy_d"]:
+        if k in series:
+            daily_panel[k] = series[k]["equity"].pct_change().dropna()
+    dret_df = pd.DataFrame(daily_panel).dropna(how="any")
+    corr = dret_df.corr(method="pearson")
+    # Format for JSON: dict-of-dicts so JS can render as a 4x4 heatmap
+    cross_corr = {
+        a: {b: round(float(corr.loc[a, b]), 3) for b in corr.columns}
+        for a in corr.index
+    }
+    # Find lowest off-diagonal pair (the most-diversifying pair)
+    pairs = []
+    for i, a in enumerate(corr.index):
+        for b in corr.index[i+1:]:
+            pairs.append((a, b, float(corr.loc[a, b])))
+    pairs.sort(key=lambda x: x[2])
+    print(f"  Common daily panel: {dret_df.shape[0]} days, "
+          f"{dret_df.index[0].date()} -> {dret_df.index[-1].date()}")
+    print(f"  Correlation matrix:")
+    print(corr.round(2).to_string())
+    print(f"  Most-diversifying pair:  {pairs[0][0]} vs {pairs[0][1]} = {pairs[0][2]:+.2f}")
+    print(f"  Least-diversifying pair: {pairs[-1][0]} vs {pairs[-1][1]} = {pairs[-1][2]:+.2f}")
+    cross_correlation = {
+        "matrix": cross_corr,
+        "common_window": [dret_df.index[0].strftime("%Y-%m-%d"),
+                          dret_df.index[-1].strftime("%Y-%m-%d")],
+        "n_days": int(len(dret_df)),
+        "most_diversifying_pair": {"a": pairs[0][0], "b": pairs[0][1],
+                                     "corr": round(pairs[0][2], 3)},
+        "least_diversifying_pair": {"a": pairs[-1][0], "b": pairs[-1][1],
+                                      "corr": round(pairs[-1][2], 3)},
+    }
+
     payload = {
         "computed_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
         "common_monthly_window": [mret_df.index[0].strftime("%Y-%m-%d"),
@@ -322,6 +464,7 @@ def main() -> int:
         "per_strategy": per_strategy,
         "regime_decomposition": regime_decomposition,
         "top_sleeve_by_month": top_sleeve,
+        "cross_correlation": cross_correlation,
     }
     OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"\nWrote {OUT_PATH.relative_to(PROJECT_ROOT)}")
