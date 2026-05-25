@@ -52,6 +52,14 @@ OUT_PATH = DATA_DIR / "ma200_sweep.json"
 LONG_THRESHOLDS = [50, 55, 60, 65, 70, 75, 80]
 SHORT_THRESHOLDS = [10, 15, 20, 25, 30, 35, 40]
 MA_PERIOD = 200
+# Phase 10.2: maximum days a breadth observation can be carried forward
+# onto the trading calendar before it is considered stale and dropped to
+# NaN. Without this limit, a frozen source data feed would silently let
+# the strategy keep trading on the last fresh reading forever (the bug
+# that bit us in Phase 4, manifested differently). 7 calendar days =
+# ~5 trading days, generous enough to bridge weekends + a holiday but
+# tight enough to surface real data freshness problems.
+MAX_BREADTH_STALE_DAYS = 7
 
 
 def _safe(v):
@@ -81,6 +89,43 @@ def load_constituent_prices(etf: str) -> pd.DataFrame:
     return pd.read_parquet(cache)
 
 
+def align_breadth_to_index(
+    breadth: pd.Series,
+    index: pd.DatetimeIndex,
+    max_stale_days: int = MAX_BREADTH_STALE_DAYS,
+) -> pd.Series:
+    """Forward-fill a breadth series onto a target trading calendar — but
+    ONLY while the most recent real observation is within `max_stale_days`.
+
+    Phase 10.2 (Codex-flagged). Previously, every consumer of breadth did
+    `breadth.reindex(close.index, method='ffill').fillna(0)`, which would
+    silently carry the last observed reading forward forever if the
+    source data went stale (e.g., constituent updates stop, the iShares
+    feed lags, a parquet cache doesn't refresh). The Phase 4 retrospective
+    documented one variant of this where European constituent breadth
+    froze at a 2023-04-06 value. The structural fix is to separate
+    'compute breadth' (which can legitimately have NaN gaps) from
+    'align breadth to trading calendar' (which decides the freshness
+    policy explicitly).
+
+    Returns a series indexed by `index`, where each value is the most
+    recent breadth observation as of that date — UNLESS the gap to the
+    most recent observation exceeds `max_stale_days`, in which case the
+    value is NaN (and downstream consumers can decide how to handle it,
+    typically by treating it as 'no signal → no allocation').
+    """
+    aligned = breadth.reindex(index, method="ffill")
+    observed = breadth.dropna()
+    if observed.empty:
+        return aligned * np.nan
+    # For each target date, find when the most recent real observation was
+    last_observed = pd.Series(observed.index, index=observed.index).reindex(
+        index, method="ffill"
+    )
+    age = index.to_series(index=index) - last_observed
+    return aligned.mask(age > pd.Timedelta(days=max_stale_days))
+
+
 def compute_ma200_breadth(prices: pd.DataFrame, period: int = MA_PERIOD) -> pd.Series:
     """Per-day fraction of constituents above their `period`-day MA.
 
@@ -103,6 +148,13 @@ def compute_ma200_breadth(prices: pd.DataFrame, period: int = MA_PERIOD) -> pd.S
 
     For US constituents (S&P 500 via yfinance) with ~100% coverage, this
     change is a no-op: every window already has 200 valid observations.
+
+    Phase 10.2: this function NO LONGER ffills NaN gaps to zero. NaN gaps
+    are returned as-is and consumers must explicitly route through
+    align_breadth_to_index() if they want to project breadth onto a
+    trading calendar. The old `.ffill().fillna(0)` silently masked stale-
+    data issues; the new design surfaces them so they can be handled
+    with an explicit freshness policy.
     """
     min_p = max(1, int(period * 0.9))
     ma = prices.rolling(period, min_periods=min_p).mean()
@@ -110,7 +162,7 @@ def compute_ma200_breadth(prices: pd.DataFrame, period: int = MA_PERIOD) -> pd.S
     above = (prices > ma) & both_valid
     n_above = above.sum(axis=1)
     n_valid = both_valid.sum(axis=1)
-    return (n_above / n_valid.replace(0, np.nan)).ffill().fillna(0)
+    return n_above / n_valid.replace(0, np.nan)
 
 
 def run_strategy(
@@ -128,7 +180,8 @@ def run_strategy(
     family in {"long_flat", "long_base50", "long_short"}.
     Allocations use yesterday's breadth reading (no look-ahead).
     """
-    aligned = breadth.reindex(close.index, method="ffill").shift(1).fillna(0)
+    # Phase 10.2: align via the freshness-aware helper, not unbounded ffill
+    aligned = align_breadth_to_index(breadth, close.index).shift(1).fillna(0)
     alloc = pd.Series(base_alloc, index=close.index, dtype=float)
     long_mask = aligned >= long_threshold / 100.0
     alloc.loc[long_mask] = 1.0
@@ -243,8 +296,9 @@ def main() -> int:
         rows = []
         for L in LONG_THRESHOLDS:
             # Reuse run_strategy but bump the long alloc to 1.5 by post-processing
-            aligned = per_etf[etf]["ma200_b"].reindex(
-                per_etf[etf]["close"].index, method="ffill").shift(1).fillna(0)
+            aligned = align_breadth_to_index(
+                per_etf[etf]["ma200_b"], per_etf[etf]["close"].index
+            ).shift(1).fillna(0)
             alloc = pd.Series(0.5, index=per_etf[etf]["close"].index, dtype=float)
             alloc.loc[aligned >= L / 100.0] = 1.5
             alloc.loc[alloc.index < eligible_starts[etf]] = 0.0
@@ -314,7 +368,9 @@ def main() -> int:
         }
         # Family D winner (long-leveraged)
         d_best = max(family_d[etf], key=lambda r: r["sharpe"] or -1e9)
-        aligned = per_etf[etf]["ma200_b"].reindex(per_etf[etf]["close"].index, method="ffill").shift(1).fillna(0)
+        aligned = align_breadth_to_index(
+            per_etf[etf]["ma200_b"], per_etf[etf]["close"].index
+        ).shift(1).fillna(0)
         alloc_d = pd.Series(0.5, index=per_etf[etf]["close"].index, dtype=float)
         alloc_d.loc[aligned >= d_best["long_threshold"] / 100.0] = 1.5
         alloc_d.loc[alloc_d.index < eligible_starts[etf]] = 0.0
@@ -367,7 +423,7 @@ def main() -> int:
         d_best = max(family_d[etf], key=lambda r: r["sharpe"] or -1e9)
         L = d_best["long_threshold"]
         # Align ma200_b to close trading days, restrict to eligible window
-        aligned_b = ma200_b.reindex(close.index, method="ffill")
+        aligned_b = align_breadth_to_index(ma200_b, close.index)
         win_mask = aligned_b.index >= eligible
         b_window = aligned_b.loc[win_mask]
         # Downsample to weekly for the chart (Friday close) to keep payload small
@@ -434,7 +490,8 @@ def main() -> int:
             "winner_sharpe": d_best["sharpe"],
             "winner_total_return": d_best["total_return"],
         }
-        print(f"  {etf:5}  L={L:>3}  ma200_b now {latest_b*100:>5.1f}%  "
+        latest_b_label = f"{latest_b*100:>5.1f}%" if latest_b is not None else " stale"
+        print(f"  {etf:5}  L={L:>3}  ma200_b now {latest_b_label:>6}  "
               f"-> {'LONG (150%)' if in_long else 'BASE (50%)'}  "
               f"{days_in_state}d in state  {len(episodes)} episodes total")
 

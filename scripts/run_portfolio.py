@@ -43,7 +43,8 @@ from backtest import download_soxx_ohlc, download_spy_close  # noqa: E402
 from etf_registry import get_etf, UNIVERSE_ETFS as ETFS  # noqa: E402
 from run_improvements import compute_stats  # noqa: E402
 from run_ma200_sweep import (  # noqa: E402
-    compute_ma200_breadth, load_constituent_prices, MA_PERIOD, COST_BPS,
+    align_breadth_to_index, compute_ma200_breadth, load_constituent_prices,
+    MA_PERIOD, COST_BPS,
 )
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -110,15 +111,17 @@ def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, 
         breadths[etf] = ma200_b
         used.append(etf)
     closes_df = pd.DataFrame(closes).sort_index()
-    # IMPORTANT: pd.DataFrame(dict_of_series) creates explicit NaN where one
-    # series has data on a date that another doesn't (e.g. when per-ETF
-    # breadth series end on different dates). reindex(method="ffill") does
-    # NOT fill across explicit NaN — it only fills positions missing from
-    # the source index. So we must reindex first, then .ffill() explicitly.
-    # Without this, top-K rotation silently dropped ETFs whose breadth
-    # ended earlier than the closes panel's last date (e.g. when newly
-    # fetched ETFs were more current than older ones).
-    breadths_df = pd.DataFrame(breadths).reindex(closes_df.index).ffill()
+    # Phase 10.2: route each ETF's breadth through align_breadth_to_index,
+    # which forward-fills only up to MAX_BREADTH_STALE_DAYS (=7) of staleness
+    # then returns NaN. Previously the unbounded .ffill() would carry stale
+    # breadth forward forever, silently masking source-data freshness bugs.
+    # The strategy engines treat NaN breadth as "no signal → no allocation"
+    # (the eligibility check inside top_k_breadth_weight already handles
+    # this), so a sleeve goes flat rather than trading on stale signal.
+    breadths_df = pd.DataFrame({
+        etf: align_breadth_to_index(b, closes_df.index)
+        for etf, b in breadths.items()
+    })
     return closes_df, breadths_df, used
 
 

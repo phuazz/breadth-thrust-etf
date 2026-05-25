@@ -51,7 +51,8 @@ from backtest import download_soxx_ohlc  # noqa: E402
 from etf_registry import get_etf, UNIVERSE_ETFS as ETFS  # noqa: E402
 from run_improvements import compute_stats  # noqa: E402
 from run_ma200_sweep import (  # noqa: E402
-    compute_ma200_breadth, load_constituent_prices, COST_BPS, LONG_THRESHOLDS,
+    align_breadth_to_index, compute_ma200_breadth, load_constituent_prices,
+    COST_BPS, LONG_THRESHOLDS,
 )
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -352,7 +353,8 @@ def run_with_rebalance_freq(close: pd.Series, breadth: pd.Series, L_pct: float,
     freq in {"D", "W-FRI", "W-MON", "2W-FRI", "BME"}.
     On non-rebalance days the allocation is held constant.
     """
-    aligned = breadth.reindex(close.index, method="ffill").shift(1).fillna(0)
+    # Phase 10.2: freshness-aware alignment (drops to NaN past stale limit)
+    aligned = align_breadth_to_index(breadth, close.index).shift(1).fillna(0)
     raw_alloc = pd.Series(base, index=close.index, dtype=float)
     raw_alloc.loc[aligned >= L_pct / 100.0] = on
 
