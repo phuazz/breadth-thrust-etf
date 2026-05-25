@@ -49,6 +49,44 @@
       float: right; font-size: 13px; color: var(--ink-faint); text-align: right;
     }
     header.top .meta a { color: var(--accent); text-decoration: none; }
+    /* ----- Header — tight factsheet-style strip ----- */
+    header.top .headline {
+      font-size: 14px; color: var(--ink-soft); margin: 0 0 12px 0;
+      max-width: 920px;
+    }
+    header.top .headline .big {
+      font-size: 15px; color: var(--ink); font-weight: 600;
+    }
+    header.top .headline .good { color: var(--good); }
+    header.top .sleeve-strip {
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px; max-width: 920px; margin: 0 0 10px 0;
+    }
+    @media (max-width: 720px) {
+      header.top .sleeve-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    header.top .sleeve-card {
+      padding: 9px 12px; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 5px;
+      border-left: 3px solid var(--accent);
+      font-size: 12px; color: var(--ink-soft);
+    }
+    header.top .sleeve-card.b { border-left-color: var(--good); }
+    header.top .sleeve-card.c { border-left-color: #dc2626; }
+    header.top .sleeve-card.d { border-left-color: #0e7490; }
+    header.top .sleeve-card .role {
+      font-weight: 600; color: var(--ink); font-size: 13px;
+      display: flex; justify-content: space-between; margin-bottom: 2px;
+    }
+    header.top .sleeve-card .role .wt { color: var(--ink-faint); font-weight: 500; }
+    header.top .sleeve-card .metric {
+      font-size: 11px; color: var(--ink-faint); margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    header.top .footnote {
+      font-size: 11px; color: var(--ink-faint); max-width: 920px;
+      margin-top: 6px; line-height: 1.5;
+    }
     header.top .meta a:hover { text-decoration: underline; }
 
     nav.tabs {
@@ -659,7 +697,34 @@
       <span id="ts-built"></span>
     </div>
     <h1>Breadth-thrust ETF research</h1>
-    <div class="sub">Four-strategy stack (Phase 4 + Phase 6 release, Phase 7-8 audit). <strong>Strategy A</strong>: rank 14 US sector ETFs by constituent breadth, own top K weekly — Sharpe +0.96 (walk-forward +0.99). <strong>Strategy B</strong>: rank 14 broad asset-class ETFs by distance above 200d MA, weighted by signal share — Sharpe +0.95 (WF +0.74), max DD only -14% (the downside-protection sleeve). <strong>Strategy C</strong>: rank 16 thematic ETFs with +5% signal floor, equal-weighted across top K — sized at 10% as <strong>asymmetric optionality</strong> (best rolling 12m +162%, top sleeve 41% of months, contributed +7pp to blend in the 2020-21 thematic boom while capped at ~-2.5pp downside per year). <strong>Strategy D</strong> (Phase 4): rank 5 Stoxx Europe 600 sector UCITS by constituent breadth — walk-forward Sharpe <strong>+0.97</strong> (higher than IS — robust), sized at 20% for non-US macro orthogonality. Deployed <strong>35/35/10/20 A:B:C:D blend hits Sharpe +1.16 with max DD -23.7%</strong>. Honest framing: the +0.06 Sharpe lift over the 3-way baseline is directional not statistically significant (95% CI [-0.04, +0.17], p(better) 83%); C's 10% sleeve is justified on right-tail / regime metrics, not on bootstrap Sharpe. See Multi-Strategy tab for regime decomposition + bootstrap CIs.</div>
+    <div class="headline">
+      Four-sleeve breadth + momentum equity stack, long-only, weekly rebalance, no leverage. Deployed <span class="big">35/35/10/20 A:B:C:D blend</span> · Sharpe <span class="big good">+1.16</span> · Max DD <span class="big">-23.7%</span> · 8.3-yr backtest, walk-forward validated.
+    </div>
+    <div class="sleeve-strip">
+      <div class="sleeve-card">
+        <div class="role"><span>A · US sector breadth</span><span class="wt">35%</span></div>
+        <div>14 ETFs · top-K rotation</div>
+        <div class="metric">Sharpe +0.96 · WF +0.99</div>
+      </div>
+      <div class="sleeve-card b">
+        <div class="role"><span>B · Asset-class momentum</span><span class="wt">35%</span></div>
+        <div>14 ETFs · downside protection</div>
+        <div class="metric">Sharpe +0.95 · WF +0.74 · Max DD -14%</div>
+      </div>
+      <div class="sleeve-card c">
+        <div class="role"><span>C · Thematic optionality</span><span class="wt">10%</span></div>
+        <div>16 ETFs · +5% signal floor, equal-wt</div>
+        <div class="metric">Best 12m +162% · top sleeve 41% of months</div>
+      </div>
+      <div class="sleeve-card d">
+        <div class="role"><span>D · Europe sector breadth</span><span class="wt">20%</span></div>
+        <div>5 Stoxx 600 sector UCITS · non-US macro</div>
+        <div class="metric">Sharpe +0.89 · WF <strong>+0.97</strong> (higher than IS)</div>
+      </div>
+    </div>
+    <div class="footnote">
+      The +0.06 Sharpe lift over the 3-way baseline is directionally positive but not statistically significant at 5% (95% CI [-0.04, +0.17], p(better) 83%). C's 10% sleeve is justified on right-tail / regime metrics, not on Sharpe contribution. Full statistical analysis on the Multi-Strategy and Method tabs.
+    </div>
   </div>
 </header>
 
