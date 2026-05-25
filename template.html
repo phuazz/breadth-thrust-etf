@@ -3502,10 +3502,15 @@ function renderTradeCharts() {
   renderTradeStatsTable();
 
   // ============ Stacked allocation area ============
-  const wkDates = topk.headline_weekly_allocation_dates || [];
-  const alloc = topk.headline_weekly_allocation || {};
+  // Phase 10.1 harmonisation: these fields moved from top-level to .headline
+  // (matching B/C/D structure). Fall back to top-level for any cached pre-
+  // harmonisation payload that might still be around.
+  const wkDates = topk.headline?.weekly_allocation_dates
+                    || topk.headline_weekly_allocation_dates || [];
+  const alloc = topk.headline?.weekly_allocation
+                  || topk.headline_weekly_allocation || {};
   // Order ETFs by total contribution (biggest at the BOTTOM of the stack)
-  const attr = topk.headline_attribution || {};
+  const attr = topk.headline?.attribution || topk.headline_attribution || {};
   const ordered = Object.keys(alloc).sort((a, b) => {
     const ca = attr[a]?.contribution_to_total_return ?? 0;
     const cb = attr[b]?.contribution_to_total_return ?? 0;
@@ -3576,8 +3581,12 @@ function renderTradeStatsTable() {
 function renderTimeInPortfolio() {
   const topk = window.DATA.topk;
   if (!topk) return;
-  // New shape: headline_attribution. Fallback to headline_time_in_portfolio for older payloads.
-  const attr = topk.headline_attribution || topk.headline_time_in_portfolio || {};
+  // Phase 10.1 harmonisation: headline.attribution. Fallbacks kept for
+  // any legacy payload that might still be around (pre-harmonisation:
+  // top-level headline_attribution; even older: headline_time_in_portfolio).
+  const attr = topk.headline?.attribution
+                 || topk.headline_attribution
+                 || topk.headline_time_in_portfolio || {};
   const el = document.getElementById('tip-table');
   if (!el) return;
   el.querySelector('thead').innerHTML = `<tr>
@@ -4875,17 +4884,18 @@ function renderBlendAllocationTimeline() {
   if (!data?.topk) return;
   const W = _historySleeveWeights();
 
-  // For each sleeve, get its weekly_allocation (dict by ETF -> array of weights
-  // aligned to weekly_allocation_dates). NOTE Strategy A is the odd one out:
-  // its weekly allocation lives at TOP level with the 'headline_' prefix
-  // (data.topk.headline_weekly_allocation_*), while B/C/D nest theirs under
-  // .headline.weekly_allocation_*. Forgot this when wiring Phase 10 → A was
-  // missing from the stack and total NAV only reached 65%.
+  // For each sleeve, get its weekly_allocation (dict by ETF -> array of
+  // weights aligned to weekly_allocation_dates). Post Phase 10.1
+  // harmonisation, all four sleeves expose these at the same nested path
+  // (.headline.weekly_allocation_*). The .topk fallbacks below cover any
+  // legacy payload still in browser cache.
   const sleeves = [
     {
       key: 'A', weight: W.A,
-      dates: data.topk?.headline_weekly_allocation_dates,
-      alloc: data.topk?.headline_weekly_allocation,
+      dates: data.topk?.headline?.weekly_allocation_dates
+               || data.topk?.headline_weekly_allocation_dates,
+      alloc: data.topk?.headline?.weekly_allocation
+               || data.topk?.headline_weekly_allocation,
     },
     {
       key: 'B', weight: W.B,

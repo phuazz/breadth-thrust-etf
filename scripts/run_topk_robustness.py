@@ -336,6 +336,23 @@ def main() -> int:
     # =====================================================================
     # Output payload
     # =====================================================================
+    # Phase 10.1 harmonisation (2026-05-25): weekly_allocation,
+    # weekly_allocation_dates, and attribution previously lived at the TOP
+    # level of this JSON with a 'headline_' prefix (legacy from Phase 1)
+    # — but Strategy B/C/D nest the equivalent fields under .headline. The
+    # inconsistency caused a Phase 10 bug where the Trade History blend
+    # chart couldn't find A's allocation. They are now nested under
+    # .headline to match B/C/D. The k3/k5 weekly equity curves stay at
+    # top level — they are A-specific K-sensitivity reference series, not
+    # "the headline" data, so the asymmetry is intentional there.
+    headline_payload["weekly_allocation_dates"] = [
+        d.strftime("%Y-%m-%d") for d in weekly_w.index
+    ]
+    headline_payload["weekly_allocation"] = {
+        etf: round_series(weekly_w[etf].values, ndigits=4)
+        for etf in weekly_w.columns
+    }
+    headline_payload["attribution"] = attribution
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
         "rebalance_freq_grid": grid,
@@ -344,13 +361,6 @@ def main() -> int:
         "k5_weekly_equity": round_series(eq5.values),
         "k3_weekly_dates": [d.strftime("%Y-%m-%d") for d in eq3.index],
         "k3_weekly_equity": round_series(eq3.values),
-        "headline_weekly_allocation_dates": [d.strftime("%Y-%m-%d")
-                                               for d in weekly_w.index],
-        "headline_weekly_allocation": {
-            etf: round_series(weekly_w[etf].values, ndigits=4)
-            for etf in weekly_w.columns
-        },
-        "headline_attribution": attribution,
         "benchmarks": benchmarks,
     }
 
