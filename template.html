@@ -880,9 +880,9 @@
 
     <section>
       <h2>1 · Asset-class exposure over time</h2>
-      <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly snapshots since 2018-Q4 (common window across all four sleeves). Shows how the rotation engines collectively shifted between US equity, international, real estate, commodities, bonds, and thematic exposure across regimes. <strong>This is the single best chart for "tell me how the strategy actually behaves"</strong> — notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic spike in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, the rotation back into equity in 2023-24.</p>
+      <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly snapshots since 2018-Q4 (common window across all four sleeves). <strong>Strategy A's 14 US sector ETFs are decomposed into 5 macro buckets</strong> (US Tech &amp; Comms, US Cyclicals, US Energy, US Financials, US Defensives) so A's actual sector rotation is visible — previously they were lumped into one frozen "US Equity (sectors)" block. Notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic spike in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, the rotation between US Tech / Cyclicals / Defensives within Strategy A over the full window.</p>
       <div id="blend-allocation-chart" class="chart tall"></div>
-      <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every week. Asset-class taxonomy follows the same buckets used in the Monitor "Exposure by asset class" rollup. Cash floor (IEF in Strategy B and C when fewer than K candidates clear their signal floors) is rolled into "Bonds".</p>
+      <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every week. <strong>Bucketing</strong>: Strategy A's sectors split into Tech / Comms (CNDX, SOXX, IUCM), Cyclicals (IUIS, IUCD, IUMS), Energy (IUES), Financials (IUFS), and Defensives (IUHC, IUCS, IUUS). A's REIT (IUSP) aggregates with B's VNQ into Real Estate. B's VGK (FTSE Europe) aggregates with Strategy D's Stoxx 600 sectors into Europe Equity. Strategy C's IEF cash floor rolls into Bonds.</p>
     </section>
 
     <section>
@@ -4860,45 +4860,91 @@ function renderRegimeDecomposition() {
 // new pipeline outputs needed.
 // ---------------------------------------------------------------------------
 
-// Asset-class taxonomy for the blend-level view. Reuses the buckets
-// established on the Monitor tab so the user sees the same labels in
-// both places (avoid taxonomy churn).
+// Asset-class taxonomy for the blend-level view.
+//
+// Phase 10.2 (2026-05-25): refactored to per-ETF explicit mapping rather
+// than lumping all of A's 14 sector ETFs into one "US Equity (sectors)"
+// band. The old version made A's 35% sleeve look like a frozen 35% block
+// at the bottom of the chart, hiding the actual sector rotation that is
+// Strategy A's whole point. Now A's sectors split into 5 macro buckets
+// (Tech/Comms, Energy, Financials, Cyclicals, Defensives) so the band
+// thickness actually shifts as A rotates between sectors. Also fixed
+// a few cross-sleeve consistency issues: IUSP (A's REIT) now buckets
+// as Real Estate not US Equity; VGK (B's "Intl Developed" Europe ETF)
+// buckets as Europe Equity so it aggregates with D's Stoxx sectors.
 function _historyAssetClass(etf, sleeveKey) {
-  // Strategy D — always Europe Equity
+  // Strategy D — always Europe Equity (5 Stoxx 600 sector UCITS)
   if (sleeveKey === 'D') return 'Europe Equity';
-  // Strategy C — Thematic (except IEF cash floor)
+  // Strategy C — Thematic (except IEF cash floor which rolls to Bonds)
   if (sleeveKey === 'C') return etf === 'IEF' ? 'Bonds' : 'Thematic';
-  // Strategy B — use universe metadata
-  if (sleeveKey === 'B') {
-    const u = (window.DATA?.asset_class?.universe || []).find(x => x.etf === etf);
-    return u?.asset_class || 'Other';
-  }
-  // Strategy A — bucket by registry tag (mirrors Monitor _aAssetClass)
-  if (sleeveKey === 'A') {
-    if (etf === 'IDP6') return 'US Equity (small-cap)';
-    return 'US Equity (sectors)';
-  }
-  return 'Other';
+  // Strategy A and B — explicit per-ETF mapping
+  const buckets = {
+    // ----- Strategy A's 14 US sector / broad ETFs (split by macro theme) -----
+    // US Tech / Comms
+    CNDX: 'US Tech / Comms', SOXX: 'US Tech / Comms', IUCM: 'US Tech / Comms',
+    // US Cyclicals (industrials, consumer disc, materials)
+    IUIS: 'US Cyclicals',    IUCD: 'US Cyclicals',    IUMS: 'US Cyclicals',
+    // US Energy
+    IUES: 'US Energy',
+    // US Financials
+    IUFS: 'US Financials',
+    // US Defensives (healthcare, staples, utilities)
+    IUHC: 'US Defensives',   IUCS: 'US Defensives',   IUUS: 'US Defensives',
+    // US Broad-market / Small-cap
+    CSP1: 'US Broad',        IDP6: 'US Broad',
+    // Real Estate (A's REIT proxy)
+    IUSP: 'Real Estate',
+    // ----- Strategy B's 14 asset-class ETFs -----
+    SPY: 'US Broad',     IJR: 'US Broad',     QQQ: 'US Broad',
+    EFA: 'Intl Developed (ex-Europe)',
+    VGK: 'Europe Equity',  // labelled "Intl Developed" in B's universe
+                            // but it IS Europe — aggregate with D
+    EWJ: 'Intl Developed (ex-Europe)',
+    EEM: 'Emerging Mkts',
+    VNQ: 'Real Estate',
+    GLD: 'Commodities',   DBC: 'Commodities',
+    TLT: 'Bonds',  IEF: 'Bonds',  TIP: 'Bonds',  HYG: 'Bonds',
+  };
+  return buckets[etf] || 'Other';
 }
 
-// Stable colour palette for the asset-class bands. Same hues as Monitor.
+// Stable colour palette for the asset-class bands. 13 visually-
+// distinguishable hues; ordering chosen so similar groups are adjacent
+// in the legend.
 const _historyAssetClassColours = {
-  'US Equity (sectors)':  '#1351b4',
-  'US Equity (small-cap)':'#1e3a8a',
-  'US Equity':            '#374151',
-  'Europe Equity':        '#0e7490',
-  'Intl Developed':       '#0891b2',
-  'Emerging Mkts':        '#dc2626',
-  'Real Estate':          '#0d9488',
-  'Commodities':          '#ca8a04',
-  'Bonds':                '#1d7a3a',
-  'Thematic':             '#7c3aed',
-  'Other':                '#52525b',
+  // US sub-sectors (warm-leaning palette)
+  'US Tech / Comms':           '#7c3aed',  // purple — tech convention
+  'US Cyclicals':              '#f59e0b',  // orange — cyclical risk-on
+  'US Energy':                 '#b76e00',  // dark amber — energy
+  'US Financials':             '#1351b4',  // blue — financials
+  'US Defensives':             '#15803d',  // forest green — defensive
+  'US Broad':                  '#374151',  // slate — broad market
+  // International equities
+  'Europe Equity':             '#0e7490',  // dark teal — Europe (D + VGK)
+  'Intl Developed (ex-Europe)':'#06b6d4',  // light cyan — EAFE/Japan
+  'Emerging Mkts':             '#dc2626',  // red — EM
+  // Non-equity
+  'Real Estate':               '#16a34a',  // emerald — RE
+  'Commodities':               '#ca8a04',  // yellow-gold — commodities
+  'Bonds':                     '#1d7a3a',  // dark green — bonds
+  // Optionality
+  'Thematic':                  '#be185d',  // magenta — thematic
+  'Other':                     '#52525b',  // grey — fallback
 };
+// Stack order: bottom to top. Largest / most stable at the bottom (US
+// Broad), satellite / most variable at the top (Thematic). Mirrors how
+// CPMs typically describe risk hierarchy: core US → US sectors → intl →
+// non-equity → optionality.
 const _historyAssetClassOrder = [
-  'US Equity (sectors)', 'US Equity (small-cap)', 'US Equity',
-  'Europe Equity', 'Intl Developed', 'Emerging Mkts',
-  'Real Estate', 'Commodities', 'Bonds', 'Thematic', 'Other',
+  'US Broad',
+  'US Tech / Comms', 'US Cyclicals', 'US Energy', 'US Financials',
+  'US Defensives',
+  'Real Estate',
+  'Europe Equity', 'Intl Developed (ex-Europe)', 'Emerging Mkts',
+  'Commodities',
+  'Bonds',
+  'Thematic',
+  'Other',
 ];
 
 // Resolve current sleeve weights from the deployed blend (matches Monitor's
