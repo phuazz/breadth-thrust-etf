@@ -124,6 +124,7 @@
       letter-spacing: 0.01em;
     }
     section .section-sub { color: var(--ink-faint); font-size: 14px; margin: 0 0 18px 0; max-width: 800px; }
+    section .section-sub.full { max-width: none; }
 
     .verdict {
       margin: 28px 0 24px 0; padding: 22px 26px;
@@ -837,21 +838,21 @@
 
   <!-- ====================== TRADE HISTORY (Phase 10) ====================== -->
   <div class="tab-content" id="tab-history">
-    <p class="section-sub" style="margin-top:8px;">
+    <p class="section-sub full" style="margin-top:8px;">
       <strong>The deployed 4-way blend's complete history — every position, every rebalance, every contribution.</strong>
       This tab consolidates the per-sleeve trade detail that lives on the four individual strategy tabs into one blend-level view. Useful for: walking a client through "how does this actually work over time", validating the performance attribution numbers, and answering "what did the portfolio hold during regime X" questions.
     </p>
 
     <section>
       <h2>1 · Asset-class exposure over time</h2>
-      <p class="section-sub">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly snapshots since 2018-Q4 (common window across all four sleeves). Shows how the rotation engines collectively shifted between US equity, international, real estate, commodities, bonds, and thematic exposure across regimes. <strong>This is the single best chart for "tell me how the strategy actually behaves"</strong> — notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic spike in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, the rotation back into equity in 2023-24.</p>
+      <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly snapshots since 2018-Q4 (common window across all four sleeves). Shows how the rotation engines collectively shifted between US equity, international, real estate, commodities, bonds, and thematic exposure across regimes. <strong>This is the single best chart for "tell me how the strategy actually behaves"</strong> — notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic spike in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, the rotation back into equity in 2023-24.</p>
       <div id="blend-allocation-chart" class="chart tall"></div>
       <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every week. Asset-class taxonomy follows the same buckets used in the Monitor "Exposure by asset class" rollup. Cash floor (IEF in Strategy B and C when fewer than K candidates clear their signal floors) is rolled into "Bonds".</p>
     </section>
 
     <section>
       <h2>2 · Combined trade ledger — every rebalance across all four sleeves</h2>
-      <p class="section-sub">Flat list of every position change across A, B, C, and D. <strong>One row per (sleeve × rebalance × ETF)</strong>. Action = entry (first appearance) / exit (last appearance) / resize (weight change within an existing position). Filter by sleeve, ETF, or date to drill into a specific moment.</p>
+      <p class="section-sub full">Flat list of every position change across A, B, C, and D. <strong>One row per (sleeve × rebalance × ETF)</strong>. Action = entry (first appearance) / exit (last appearance) / resize (weight change within an existing position). Filter by sleeve, ETF, or date to drill into a specific moment.</p>
       <div class="trade-controls">
         <label class="toggle" style="font-size:12px;"><input type="checkbox" id="ledger-recent-only" checked> Show last 200 only</label>
         <select id="ledger-sleeve-filter" style="padding:4px 8px;border:1px solid var(--border);border-radius:3px;font-size:12px;">
@@ -877,7 +878,7 @@
 
     <section>
       <h2>3 · Blend-level attribution — total NAV contribution per ETF</h2>
-      <p class="section-sub">Each ETF's total contribution to the deployed 35/35/10/20 blend's return, aggregated across the sleeves that held it. <strong>If an ETF appears in multiple sleeves</strong> (e.g., GLD in Strategy B AND Strategy C, IEF as cash floor in both B and C, JETS as thematic in C), its blend contribution is the sum of (sleeve_weight × sleeve_contribution) across each sleeve. This is the auditable per-ETF P&amp;L attribution that proves the headline blend return is built from these specific position-level decisions. Sorted by absolute contribution.</p>
+      <p class="section-sub full">Each ETF's total contribution to the deployed 35/35/10/20 blend's return, aggregated across the sleeves that held it. <strong>If an ETF appears in multiple sleeves</strong> (e.g., GLD in Strategy B AND Strategy C, IEF as cash floor in both B and C, JETS as thematic in C), its blend contribution is the sum of (sleeve_weight × sleeve_contribution) across each sleeve. This is the auditable per-ETF P&amp;L attribution that proves the headline blend return is built from these specific position-level decisions. Sorted by absolute contribution.</p>
       <table class="small-table" id="blend-attribution-table"><thead></thead><tbody></tbody></table>
       <p style="margin-top:12px;font-size:12px;color:var(--ink-faint);" id="blend-attribution-note"></p>
     </section>
@@ -4871,25 +4872,43 @@ function _historySleeveWeights() {
 // --- Section 1 — Asset-class exposure stacked over time --------------
 function renderBlendAllocationTimeline() {
   const data = window.DATA;
-  if (!data?.topk?.headline) return;
+  if (!data?.topk) return;
   const W = _historySleeveWeights();
 
   // For each sleeve, get its weekly_allocation (dict by ETF -> array of weights
-  // aligned to weekly_allocation_dates). For Strategy A/D we also have these.
+  // aligned to weekly_allocation_dates). NOTE Strategy A is the odd one out:
+  // its weekly allocation lives at TOP level with the 'headline_' prefix
+  // (data.topk.headline_weekly_allocation_*), while B/C/D nest theirs under
+  // .headline.weekly_allocation_*. Forgot this when wiring Phase 10 → A was
+  // missing from the stack and total NAV only reached 65%.
   const sleeves = [
-    {key: 'A', src: data.topk?.headline,    weight: W.A},
-    {key: 'B', src: data.asset_class?.headline, weight: W.B},
-    {key: 'C', src: data.thematic?.headline, weight: W.C},
-    {key: 'D', src: data.europe?.headline,  weight: W.D},
-  ].filter(s => s.src && s.weight > 0
-                && s.src.weekly_allocation
-                && s.src.weekly_allocation_dates);
+    {
+      key: 'A', weight: W.A,
+      dates: data.topk?.headline_weekly_allocation_dates,
+      alloc: data.topk?.headline_weekly_allocation,
+    },
+    {
+      key: 'B', weight: W.B,
+      dates: data.asset_class?.headline?.weekly_allocation_dates,
+      alloc: data.asset_class?.headline?.weekly_allocation,
+    },
+    {
+      key: 'C', weight: W.C,
+      dates: data.thematic?.headline?.weekly_allocation_dates,
+      alloc: data.thematic?.headline?.weekly_allocation,
+    },
+    {
+      key: 'D', weight: W.D,
+      dates: data.europe?.headline?.weekly_allocation_dates,
+      alloc: data.europe?.headline?.weekly_allocation,
+    },
+  ].filter(s => s.dates && s.alloc && s.weight > 0);
 
   // Build a master date axis = intersection of all sleeves' weekly dates
   // so the stacked area sums cleanly to 100%.
   let commonDates = null;
   for (const s of sleeves) {
-    const ds = new Set(s.src.weekly_allocation_dates);
+    const ds = new Set(s.dates);
     if (commonDates === null) commonDates = ds;
     else commonDates = new Set([...commonDates].filter(d => ds.has(d)));
   }
@@ -4907,8 +4926,8 @@ function renderBlendAllocationTimeline() {
     exposureByClass[cls] = new Array(masterDates.length).fill(0);
   }
   for (const s of sleeves) {
-    const sleeveDates = s.src.weekly_allocation_dates;
-    const alloc = s.src.weekly_allocation;
+    const sleeveDates = s.dates;
+    const alloc = s.alloc;
     // Map sleeve date -> index in master
     const dateIdx = {};
     masterDates.forEach((d, i) => { dateIdx[d] = i; });
