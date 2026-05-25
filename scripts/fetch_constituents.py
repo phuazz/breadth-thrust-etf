@@ -91,6 +91,39 @@ RETRY_BACKOFFS = [5, 10, 30]  # seconds; 3 retries on transport failure or 5xx
 # JavaScript's Date which is 0-indexed (Jan=0). We always use Python here.
 
 
+def looks_like_ishares_holdings_csv(body: str) -> bool:
+    """Return True only for real iShares holdings CSV bodies.
+
+    iShares bot protection occasionally returns a large HTML product page
+    with HTTP 200. That must NOT be cached as a CSV — downstream parsing
+    would treat it as "no holdings" and silently carry forward stale
+    constituents for that date. The fix is a structural validator that
+    discriminates real CSV bodies from anti-bot HTML stand-ins.
+
+    Accepts:
+      - Empty-template holdings (Fund Holdings as of "-") — these are
+        legitimately empty for old dates / US holidays / data gaps.
+      - Populated holdings CSVs that have both the "Fund Holdings as of"
+        preamble and a Ticker / Asset Class column header row.
+    Rejects:
+      - HTML responses (anti-bot product pages)
+      - Anything else lacking the iShares CSV markers
+    """
+    head = body.lstrip()[:500].lower()
+    if head.startswith(("<!doctype html", "<html")) or "<html" in head:
+        return False
+    # Empty-template responses for old / no-data dates — legitimately empty
+    if 'Fund Holdings as of,"-"' in body or 'Fund Holdings as of,-' in body:
+        return True
+    if "Fund Holdings as of" not in body:
+        return False
+    # Populated CSV — must have the column header row
+    for ln in body.splitlines():
+        if "Ticker" in ln[:20] and "Asset Class" in ln:
+            return True
+    return False
+
+
 def fetch_with_retry(target: date, etf_cfg: dict) -> str:
     """Fetch the raw iShares CSV for `target` and return the body.
 
@@ -98,11 +131,19 @@ def fetch_with_retry(target: date, etf_cfg: dict) -> str:
     Empty-template responses (Fund Holdings as of "-") are also cached because
     they are stable over time for old dates (US holidays, data gaps)
     — re-fetching them would waste requests.
+
+    Cached bodies are re-validated against `looks_like_ishares_holdings_csv`
+    on read. If a poisoned HTML body got cached by an earlier run, it is
+    discarded and the network fetch retried.
     """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = RAW_DIR / f"{etf_cfg['symbol']}_{target.strftime('%Y%m%d')}.csv"
     if cache_path.exists():
-        return cache_path.read_text(encoding="utf-8")
+        cached = cache_path.read_text(encoding="utf-8")
+        if looks_like_ishares_holdings_csv(cached):
+            return cached
+        # Cached body is poisoned (HTML from anti-bot) — discard and re-fetch
+        cache_path.unlink()
 
     url = f"{etf_cfg['csv_url_template']}&asOfDate={target.strftime('%Y%m%d')}"
     last_err: Exception | None = None
@@ -114,11 +155,21 @@ def fetch_with_retry(target: date, etf_cfg: dict) -> str:
         except Exception as e:
             last_err = e
             continue
-        if r.status_code == 200 and len(r.text) > 1000:
+        if (
+            r.status_code == 200
+            and len(r.text) > 1000
+            and looks_like_ishares_holdings_csv(r.text)
+        ):
             cache_path.write_text(r.text, encoding="utf-8")
             time.sleep(THROTTLE_BASE_SECONDS + random.uniform(0, THROTTLE_JITTER_SECONDS))
             return r.text
-        last_err = RuntimeError(f"HTTP {r.status_code}, body {len(r.text)} bytes")
+        if r.status_code == 200:
+            last_err = RuntimeError(
+                f"HTTP 200 but response is not an iShares holdings CSV "
+                f"({len(r.text)} bytes) — likely anti-bot HTML"
+            )
+        else:
+            last_err = RuntimeError(f"HTTP {r.status_code}, body {len(r.text)} bytes")
     raise RuntimeError(
         f"Failed to fetch {etf_cfg['symbol']} holdings for {target}: {last_err}"
     )

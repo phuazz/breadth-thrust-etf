@@ -17,9 +17,12 @@ from pathlib import Path
 # Add the scripts/ folder to sys.path so the test can import the module.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
+import fetch_constituents as fc  # noqa: E402
 from fetch_constituents import (  # noqa: E402
+    fetch_with_retry,
     fridays_between,
     latest_completed_friday,
+    looks_like_ishares_holdings_csv,
     parse_holdings,
 )
 
@@ -93,3 +96,70 @@ def test_parse_holdings_filters_non_equity():
         '\n'
     )
     assert parse_holdings(body) == ["AVGO", "NVDA"]
+
+
+def test_html_product_page_is_not_cacheable_holdings_csv():
+    """iShares anti-bot HTML 200 responses must not be cacheable as a CSV.
+
+    Caching an HTML body would cause downstream parsing to treat the date
+    as 'no holdings' → silent stale-constituent carry-forward (the same
+    class of silent-data-corruption bug we hit in Phase 4)."""
+    body = "<!doctype html><html><body>" + ("x" * 5000) + "</body></html>"
+    assert not looks_like_ishares_holdings_csv(body)
+
+
+def test_empty_template_holdings_csv_is_cacheable():
+    """Empty-template responses (Fund Holdings as of '-') are legitimately
+    empty for old / no-data dates and should be cached."""
+    body = (
+        'iShares Test ETF\n'
+        'Fund Holdings as of,"-"\n'
+        '\n'
+    )
+    assert looks_like_ishares_holdings_csv(body)
+
+
+def test_real_holdings_csv_is_cacheable():
+    """Populated iShares holdings CSVs (with the Ticker / Asset Class
+    column header row) are the canonical valid response."""
+    body = (
+        'iShares Semiconductor ETF\n'
+        'Fund Holdings as of,"Jun 28, 2024"\n'
+        '\n'
+        'Ticker,Name,Sector,Asset Class,Market Value,Weight (%),Notional Value,'
+        'Quantity,Price,Location,Exchange,Currency,FX Rate,Market Currency,Accrual Date\n'
+        '"NVDA","NVIDIA CORP","Information Technology","Equity","1","1","1","1","1","US","NASDAQ","USD","1.00","USD","-"\n'
+    )
+    assert looks_like_ishares_holdings_csv(body)
+
+
+def test_fetch_discards_and_re_fetches_poisoned_html_cache(tmp_path, monkeypatch):
+    """If a prior run cached an HTML 200 body (anti-bot stand-in) as a
+    CSV, the next read should detect it and re-fetch from the network."""
+    cfg = {"symbol": "TEST", "csv_url_template": "https://example.test/holdings"}
+    cache_path = tmp_path / "TEST_20240628.csv"
+    cache_path.write_text("<html>" + ("x" * 5000) + "</html>", encoding="utf-8")
+
+    valid_body = (
+        'iShares Test ETF\n'
+        'Fund Holdings as of,"Jun 28, 2024"\n'
+        '\n'
+        'Ticker,Name,Sector,Asset Class,Market Value,Weight (%),Notional Value,'
+        'Quantity,Price,Location,Exchange,Currency,FX Rate,Market Currency,Accrual Date\n'
+        '"NVDA","NVIDIA CORP","Information Technology","Equity","1","1","1","1","1","US","NASDAQ","USD","1.00","USD","-"\n'
+        + ("#" * 1200)
+    )
+
+    class FakeResponse:
+        status_code = 200
+        text = valid_body
+
+    monkeypatch.setattr(fc, "RAW_DIR", tmp_path)
+    monkeypatch.setattr(fc.requests, "get", lambda *args, **kwargs: FakeResponse())
+    monkeypatch.setattr(fc.time, "sleep", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(fc.random, "uniform", lambda *_args, **_kwargs: 0)
+
+    body = fetch_with_retry(date(2024, 6, 28), cfg)
+
+    assert body == valid_body
+    assert cache_path.read_text(encoding="utf-8") == valid_body
