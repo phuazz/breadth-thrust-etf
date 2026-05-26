@@ -1778,6 +1778,7 @@ const DASHBOARD_DATA_INLINE = null;
 // __DASHBOARD_DATA_END__
 
 const ETF_DESCRIPTIONS = {
+  // === Strategy A (US sectors + broad) ===
   SOXX: 'iShares Semiconductor (semis)',
   CSP1: 'S&P 500 (full)',
   CNDX: 'NASDAQ-100',
@@ -1793,6 +1794,54 @@ const ETF_DESCRIPTIONS = {
   IUCM: 'S&P 500 Comm Services',
   IUSP: 'US REITs (FTSE EPRA NAREIT)',
   IDP6: 'S&P SmallCap 600 (small-cap)',
+
+  // === Strategy B (asset-class momentum) ===
+  SPY: 'S&P 500 (US large)',
+  IJR: 'S&P 600 (US small)',
+  QQQ: 'NASDAQ-100 (US tech-heavy)',
+  EFA: 'MSCI EAFE (intl developed)',
+  VGK: 'FTSE Europe',
+  EWJ: 'MSCI Japan',
+  EEM: 'MSCI Emerging Markets',
+  VNQ: 'US Real Estate (REITs)',
+  GLD: 'Gold spot',
+  DBC: 'Broad commodities basket',
+  TLT: '20+y US Treasury (long duration)',
+  IEF: '7-10y US Treasury (intermediate; cash floor for Strategies B & C)',
+  TIP: 'TIPS (inflation-linked Treasuries)',
+  HYG: 'US High-Yield Credit',
+
+  // === Strategy C (thematic momentum) ===
+  ARKK: 'ARK Disruptive Innovation',
+  CIBR: 'First Trust Cybersecurity',
+  SKYY: 'First Trust Cloud Computing',
+  BOTZ: 'Global X Robotics & AI',
+  BLOK: 'Amplify Blockchain (equity-flavoured crypto)',
+  ICLN: 'iShares Global Clean Energy',
+  TAN: 'Invesco Solar',
+  LIT: 'Global X Lithium & Battery Tech',
+  URA: 'Global X Uranium',
+  XBI: 'SPDR S&P Biotech (equal-weight)',
+  ARKG: 'ARK Genomic Revolution',
+  JETS: 'Global X Airlines',
+  GDX: 'VanEck Gold Miners',
+  COPX: 'Global X Copper Miners',
+  MOO: 'VanEck Agribusiness',
+  PAVE: 'Global X US Infrastructure',
+  ITA: 'iShares US Aerospace & Defense',
+  'BTC-USD': 'Bitcoin (CoinDesk spot; deployed via IBIT, 25bps ER)',
+  XME: 'SPDR S&P Metals & Mining (steel/Al/Fe + miners)',
+  WOOD: 'iShares Global Timber & Forestry',
+  REMX: 'VanEck Rare Earth / Strategic Metals',
+  CQQQ: 'Invesco China Technology (Tencent, Alibaba, SMIC, BYD)',
+  '159801.SZ': 'Bosera CSI Chip (China A-share semis, CNY → USD-adj; pure SMIC/Cambricon/AMEC/NAURA hardware basket)',
+
+  // === Strategy D (Europe sector breadth) ===
+  EXV1: 'iShares Stoxx Europe 600 Banks',
+  EXH1: 'iShares Stoxx Europe 600 Oil & Gas',
+  EXV3: 'iShares Stoxx Europe 600 Technology',
+  EXH3: 'iShares Stoxx Europe 600 Industrial Goods & Services',
+  EXH9: 'iShares Stoxx Europe 600 Utilities',
 };
 
 function fmtPct(x, signed = false) {

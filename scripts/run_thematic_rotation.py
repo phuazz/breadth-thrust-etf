@@ -914,6 +914,13 @@ def main() -> int:
         "universe": [
             {"etf": t, "label": UNIVERSE[t]["label"], "theme": UNIVERSE[t]["theme"]}
             for t in TICKERS
+        ] + [
+            # CASH_PROXY (IEF) is not in TICKERS but appears in the attribution
+            # table whenever fewer than K candidates clear the signal floor.
+            # Without a theme entry, the dashboard renders an empty Theme cell.
+            {"etf": CASH_PROXY,
+             "label": "iShares 7-10y US Treasury (Strategy C cash floor)",
+             "theme": "Cash / Treasury"}
         ],
         "ma_period": MA_PERIOD,
         "signal_floor_pct": SIGNAL_FLOOR * 100,
