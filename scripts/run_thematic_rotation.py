@@ -98,6 +98,25 @@ UNIVERSE: dict[str, dict] = {
     "XME":  {"label": "SPDR S&P Metals & Mining",           "theme": "Commodity equity"},
     "WOOD": {"label": "iShares Global Timber & Forestry",   "theme": "Commodity equity"},
     "REMX": {"label": "VanEck Rare Earth / Strategic Metals", "theme": "Commodity equity"},
+    # ---------------------------------------------------------------------
+    # Phase 17 (2026-05-26) — China-tech proxy. The Phase 4 retrospective
+    # rejected a separate EM/countries sleeve, so China-tech exposure was
+    # missing from the deployed architecture. CQQQ captures the broad
+    # China-technology basket (Tencent, Alibaba, SMIC, BYD, Xiaomi) — the
+    # closest USD-listed proxy for Shanghai-listed China-semi ETFs like
+    # 588200.SS that are operationally hard to access for a Singapore CMS
+    # fund. Passes the gate with a comfortable margin (max-corr 0.65 vs
+    # LIT), far below the 0.85 cap.
+    #
+    # KWEB (KraneShares China Internet) was tested alongside CQQQ but
+    # REVERTED before commit. KWEB passed the corr gate (0.57 max vs LIT)
+    # but the 2021-2023 China internet crackdown (-70% over two years)
+    # created a unique drawdown profile that the K=4 momentum signal
+    # repeatedly bounce-traded and got chopped on. With both CQQQ and
+    # KWEB, Strategy C WF Sharpe dropped +0.50 -> +0.37. With CQQQ alone,
+    # the drag is smaller because semi-China was less crackdown-exposed
+    # than internet-platform-China.
+    "CQQQ": {"label": "Invesco China Technology",           "theme": "China / EM Tech"},
     "PAVE": {"label": "Global X US Infrastructure",         "theme": "Infrastructure"},
     # ---------------------------------------------------------------------
     # Phase 15 additions (2026-05-26). Passes the within-Strategy-C
