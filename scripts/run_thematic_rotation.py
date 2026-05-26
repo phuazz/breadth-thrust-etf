@@ -96,6 +96,28 @@ UNIVERSE: dict[str, dict] = {
     # history (>= 5 years) for walk-forward.
     "ITA":  {"label": "iShares US Aerospace & Defense",     "theme": "Defence / Aerospace"},
     # ---------------------------------------------------------------------
+    # Phase 15.2 (2026-05-26) — Bitcoin via spot proxy + ETF execution.
+    # IBIT (iShares Bitcoin Trust) only launched 2024-01-11, so it cannot
+    # support the 5-year walk-forward methodology directly. But IBIT
+    # tracks the CoinDesk Bitcoin Reference Price (BTC-USD) with very
+    # tight error post-launch — it is a pure spot ETF. We therefore
+    # backtest using BTC-USD (8.4y history, gate-passed max-corr 0.610
+    # vs BLOK, 5y-history-clear) and apply IBIT's 25bps expense ratio
+    # as a per-calendar-day compounded price drag so the historical
+    # return path matches what an IBIT holder would have experienced.
+    #
+    # Live execution remains in IBIT. GBTC was considered as an alternative
+    # but rejected: its market price traded at large premium / discount to
+    # NAV from 2015-2024, so GBTC-price momentum would have captured
+    # GBTC-discount narrative rather than BTC momentum. BTC-USD has none
+    # of that fund-structure noise.
+    "BTC-USD": {
+        "label": "Bitcoin (CoinDesk spot — deployed via IBIT, 25bps ER)",
+        "theme": "Crypto / Digital Assets",
+        "expense_ratio_bps": 25,
+        "trading_calendar": "crypto_24x7",  # reindex to equity calendar at load time
+    },
+    # ---------------------------------------------------------------------
     # Phase 5 candidates (tested 2026-05-24, NOT deployed). The following
     # 4 ETFs passed the within-Strategy-C correlation gate (<0.85 vs any
     # existing C member) and were experimentally added to the universe.
@@ -125,19 +147,12 @@ TICKERS = list(UNIVERSE.keys())
 # so they are excluded from downloads / signals / backtests. Move into
 # UNIVERSE once each candidate clears both gates (correlation < 0.85
 # AND history >= 5 years).
-DEFERRED_UNIVERSE: dict[str, dict] = {
-    "IBIT": {
-        "label": "iShares Bitcoin Trust",
-        "theme": "Crypto / Digital Assets",
-        "deferred_reason": (
-            "Live 2024-01-11; only 2.3 years of history as of 2026-05-26. "
-            "Need >=5 years for the walk-forward methodology (5y IS + 1y "
-            "refit). Eligible for promotion ~2029-01. Correlation gate "
-            "already passes: max-corr 0.712 vs BLOK (the equity-flavoured "
-            "blockchain ETF)."
-        ),
-    },
-}
+#
+# IBIT was previously listed here pending 5y history. Phase 15.2
+# supersedes that approach: BTC-USD (spot) is now the backtest source
+# with IBIT-equivalent 25bps expense-ratio drag, and IBIT itself is the
+# live execution vehicle. See the UNIVERSE entry for BTC-USD above.
+DEFERRED_UNIVERSE: dict[str, dict] = {}
 
 # Cash proxy when fewer than K candidates clear the signal floor.
 # IEF is the same 7-10y Treasury used in Strategy B, so cash exposure is
@@ -213,6 +228,52 @@ def round_series(values, ndigits=4):
     return out
 
 
+def _apply_expense_ratio_drag(df: pd.DataFrame) -> pd.DataFrame:
+    """For any UNIVERSE entry with an ``expense_ratio_bps`` field, compound
+    a per-calendar-day drag onto its price series so the backtest reflects
+    the cost an actual ETF holder would have paid. Used for synthetic /
+    index proxies like BTC-USD that yfinance returns gross of any ETF
+    wrapper fee. Existing fund tickers (SOXX, IUSP, etc) already have
+    their expense ratio embedded in the auto-adjusted close, so they do
+    not carry this metadata."""
+    for ticker, meta in UNIVERSE.items():
+        er_bps = meta.get("expense_ratio_bps")
+        if not er_bps or ticker not in df.columns:
+            continue
+        col = df[ticker].dropna()
+        if not len(col):
+            continue
+        first_date = col.index[0]
+        elapsed_days = (df.index - first_date).days.to_numpy()
+        # Daily drag: (1 - ER)^(1/365). Over 365 calendar days, cumulative
+        # drag == 1 - ER. Pre-inception days get exponent 0 → multiplier 1.
+        daily_drag = (1 - er_bps / 10_000) ** (1 / 365)
+        df[ticker] = df[ticker] * (daily_drag ** np.maximum(elapsed_days, 0))
+    return df
+
+
+def _reindex_crypto_to_equity_calendar(df: pd.DataFrame) -> pd.DataFrame:
+    """BTC-USD trades 7 days/week; the rest of the universe trades on the
+    NYSE calendar. Reindex any ``trading_calendar=='crypto_24x7'`` column
+    to the equity trading calendar (Mon-Fri) using the CASH_PROXY series
+    as the reference index. Without this, the weekend BTC prints would
+    confuse downstream alignment and rebalance scheduling.
+
+    For Friday rebalance decisions: the BTC price on the Friday close
+    is the relevant value; we drop Saturday-Sunday prints entirely.
+    """
+    equity_cal = df[CASH_PROXY].dropna().index
+    for ticker, meta in UNIVERSE.items():
+        if meta.get("trading_calendar") != "crypto_24x7":
+            continue
+        if ticker not in df.columns:
+            continue
+        df[ticker] = df[ticker].reindex(equity_cal)
+    # Drop any remaining non-equity-calendar rows (would have only
+    # crypto-tagged tickers populated otherwise).
+    return df.loc[df.index.isin(equity_cal) | df.index.isin(df[CASH_PROXY].dropna().index)]
+
+
 def download_prices() -> pd.DataFrame:
     """Download adjusted-close prices for the thematic universe + IEF.
 
@@ -241,6 +302,11 @@ def download_prices() -> pd.DataFrame:
     df = pd.DataFrame(closes)
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.sort_index()
+    # Phase 15.2: reindex crypto to equity calendar BEFORE applying
+    # expense-ratio drag, so the drag's elapsed-days arithmetic uses the
+    # right base index.
+    df = _reindex_crypto_to_equity_calendar(df)
+    df = _apply_expense_ratio_drag(df)
     df.to_parquet(PRICE_CACHE)
     print(f"  Downloaded {df.shape[0]} rows x {df.shape[1]} tickers")
     return df
