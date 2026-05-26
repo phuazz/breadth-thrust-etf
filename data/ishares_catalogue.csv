@@ -1,0 +1,123 @@
+ticker,name,asset_class,sub_class,domicile,exchange,currency,aum_tier,ter_bps_approx,deployed_in_strategy
+EEM,iShares MSCI Emerging Markets,Equity,EM Broad,US,NYSE,USD,XXL,70.0,B
+EXV1.DE,iShares Stoxx Europe 600 Banks (UCITS),Equity,Europe Sector,DE,Xetra,EUR,L,46.0,D
+EXH1.DE,iShares Stoxx Europe 600 Oil & Gas (UCITS),Equity,Europe Sector,DE,Xetra,EUR,M,46.0,D
+EXH3.DE,iShares Stoxx Europe 600 Industrials (UCITS),Equity,Europe Sector,DE,Xetra,EUR,M,46.0,D
+EXH9.DE,iShares Stoxx Europe 600 Utilities (UCITS),Equity,Europe Sector,DE,Xetra,EUR,M,46.0,D
+EXV3.DE,iShares Stoxx Europe 600 Technology (UCITS),Equity,Europe Sector,DE,Xetra,EUR,M,46.0,D
+EFA,iShares MSCI EAFE,Equity,Intl Developed,US,NYSE,USD,XXL,32.0,B
+EWJ,iShares MSCI Japan,Equity,Single Country,US,NYSE,USD,L,50.0,B
+ITA,iShares US Aerospace & Defense,Equity,Thematic,US,CBOE,USD,XL,40.0,C
+ICLN,iShares Global Clean Energy,Equity,Thematic,US,NASDAQ,USD,L,41.0,C
+CSP1.L,"iShares Core S&P 500 (UCITS, USD-acc)",Equity,US Broad,UK,LSE,USD,XXL,7.0,A
+CNDX.L,"iShares NASDAQ 100 (UCITS, USD-acc)",Equity,US Broad,UK,LSE,USD,L,33.0,A
+IUSP.L,iShares FTSE EPRA NAREIT US Property,Equity,US REITs,UK,LSE,USD,S,40.0,A
+IUFS.L,iShares S&P 500 Financials Sector (UCITS),Equity,US Sector,UK,LSE,USD,L,15.0,A
+IUHC.L,iShares S&P 500 Health Care Sector (UCITS),Equity,US Sector,UK,LSE,USD,L,15.0,A
+SOXX,iShares Semiconductor,Equity,US Sector,US,NASDAQ,USD,L,35.0,A
+IUCD.L,iShares S&P 500 Consumer Discretionary,Equity,US Sector,UK,LSE,USD,M,15.0,A
+IUCS.L,iShares S&P 500 Consumer Staples (UCITS),Equity,US Sector,UK,LSE,USD,M,15.0,A
+IUES.L,iShares S&P 500 Energy Sector (UCITS),Equity,US Sector,UK,LSE,USD,M,15.0,A
+IUIS.L,iShares S&P 500 Industrials Sector (UCITS),Equity,US Sector,UK,LSE,USD,M,15.0,A
+IUUS.L,iShares S&P 500 Utilities Sector (UCITS),Equity,US Sector,UK,LSE,USD,M,15.0,A
+IUCM.L,iShares S&P 500 Comm Services (UCITS),Equity,US Sector,UK,LSE,USD,S,15.0,A
+IUMS.L,iShares S&P 500 Materials Sector (UCITS),Equity,US Sector,UK,LSE,USD,S,15.0,A
+IJR,iShares Core S&P Small-Cap,Equity,US Small-Cap,US,NYSE,USD,XXL,6.0,B
+IDP6.L,iShares S&P SmallCap 600 (UCITS),Equity,US Small-Cap,UK,LSE,USD,M,30.0,A
+IEF,iShares 7-10y US Treasury,Fixed Income,US Govt,US,NASDAQ,USD,XL,15.0,B
+TLT,iShares 20+y US Treasury,Fixed Income,US Govt,US,NASDAQ,USD,XL,15.0,B
+HYG,iShares iBoxx US High Yield Corp Bond,Fixed Income,US HY,US,NYSE,USD,L,49.0,B
+TIP,iShares TIPS Bond,Fixed Income,US TIPS,US,NYSE,USD,L,19.0,B
+IAU,iShares Gold Trust,Commodity,Gold Spot,US,NYSE,USD,XXL,25.0,
+SGOL,(Not iShares — Aberdeen),Commodity,Gold Spot,—,—,—,L,17.0,
+SLV,iShares Silver Trust,Commodity,Silver Spot,US,NYSE,USD,L,50.0,
+IBIT,iShares Bitcoin Trust,Crypto,BTC,US,NASDAQ,USD,XXL,25.0,
+IB1B.L,"iShares Bitcoin (UCITS, UK)",Crypto,BTC,UK,LSE,USD,S,15.0,
+ETHA,iShares Ethereum Trust,Crypto,ETH,US,NASDAQ,USD,L,25.0,
+IETH.L,"iShares Ethereum (UCITS, UK)",Crypto,ETH,UK,LSE,USD,S,15.0,
+HMEM.L,iShares Core MSCI EM (UCITS),Equity,EM Broad,UK,LSE,USD,XXL,18.0,
+IEMG,iShares Core MSCI EM,Equity,EM Broad,US,NYSE,USD,XXL,9.0,
+EMXC,iShares MSCI EM ex-China,Equity,EM ex-China,US,NASDAQ,USD,L,18.0,
+EXSA.DE,iShares Stoxx Europe 600 (broad),Equity,Europe Broad,DE,Xetra,EUR,L,20.0,
+EXH4.DE,iShares Stoxx Europe 600 Health Care,Equity,Europe Sector,DE,Xetra,EUR,M,46.0,
+EXH5.DE,iShares Stoxx Europe 600 Cons Staples,Equity,Europe Sector,DE,Xetra,EUR,S,46.0,
+EXI3.DE,iShares Stoxx Europe 600 Automobiles,Equity,Europe Sector,DE,Xetra,EUR,S,46.0,
+EXI4.DE,iShares Stoxx Europe 600 Basic Resources,Equity,Europe Sector,DE,Xetra,EUR,S,46.0,
+EXI5.DE,iShares Stoxx Europe 600 Chemicals,Equity,Europe Sector,DE,Xetra,EUR,S,46.0,
+EXI6.DE,iShares Stoxx Europe 600 Construction,Equity,Europe Sector,DE,Xetra,EUR,S,46.0,
+EXI7.DE,iShares Stoxx Europe 600 Food & Beverage,Equity,Europe Sector,DE,Xetra,EUR,S,46.0,
+EXV4.DE,iShares Stoxx Europe 600 Financial Svcs,Equity,Europe Sector,DE,Xetra,EUR,S,46.0,
+EXV6.DE,iShares Stoxx Europe 600 Insurance,Equity,Europe Sector,DE,Xetra,EUR,S,46.0,
+EXV7.DE,iShares Stoxx Europe 600 Telecoms,Equity,Europe Sector,DE,Xetra,EUR,S,46.0,
+EXV8.DE,iShares Stoxx Europe 600 Personal Goods,Equity,Europe Sector,DE,Xetra,EUR,S,46.0,
+EXV9.DE,iShares Stoxx Europe 600 Travel & Leisure,Equity,Europe Sector,DE,Xetra,EUR,S,46.0,
+EXH6.DE,iShares Stoxx Europe 600 Media,Equity,Europe Sector,DE,Xetra,EUR,XS,46.0,
+EXH7.DE,iShares Stoxx Europe 600 Retail,Equity,Europe Sector,DE,Xetra,EUR,XS,46.0,
+USMV,iShares MSCI USA Min Vol Factor,Equity,Factor,US,NYSE,USD,XL,15.0,
+MTUM,iShares MSCI USA Momentum Factor,Equity,Factor,US,NYSE,USD,L,15.0,
+QUAL,iShares MSCI USA Quality Factor,Equity,Factor,US,NYSE,USD,L,15.0,
+VLUE,iShares MSCI USA Value Factor,Equity,Factor,US,NYSE,USD,L,15.0,
+IWMO.L,iShares Edge MSCI World Momentum (UCITS),Equity,Factor,UK,LSE,USD,M,30.0,
+IWQU.L,iShares Edge MSCI World Quality (UCITS),Equity,Factor,UK,LSE,USD,M,30.0,
+IWVL.L,iShares Edge MSCI World Value (UCITS),Equity,Factor,UK,LSE,USD,M,30.0,
+MVOL.L,iShares Edge MSCI World Min Vol (UCITS),Equity,Factor,UK,LSE,USD,M,30.0,
+IFSW.L,iShares Edge MSCI World Multifactor,Equity,Factor,UK,LSE,USD,S,50.0,
+SIZE,iShares MSCI USA Size Factor,Equity,Factor,US,NYSE,USD,S,15.0,
+FM,iShares MSCI Frontier 100,Equity,Frontier,US,NYSE,USD,S,80.0,
+IDEV,iShares Core MSCI International Dev,Equity,Intl Developed,US,NYSE,USD,XL,4.0,
+IXUS,iShares Core MSCI Total Intl Stock,Equity,Intl ex-US,US,NYSE,USD,XL,7.0,
+INDA,iShares MSCI India,Equity,Single Country,US,NYSE,USD,XL,64.0,
+EWT,iShares MSCI Taiwan,Equity,Single Country,US,NYSE,USD,L,59.0,
+EWY,iShares MSCI South Korea,Equity,Single Country,US,NYSE,USD,L,59.0,
+EWZ,iShares MSCI Brazil,Equity,Single Country,US,NYSE,USD,L,59.0,
+IJPN.L,iShares MSCI Japan (UCITS),Equity,Single Country,UK,LSE,USD,L,59.0,
+ISF.L,iShares Core FTSE 100 (UCITS),Equity,Single Country,UK,LSE,GBP,L,7.0,
+MCHI,iShares MSCI China,Equity,Single Country,US,NASDAQ,USD,L,59.0,
+EWA,iShares MSCI Australia,Equity,Single Country,US,NYSE,USD,M,50.0,
+EWC,iShares MSCI Canada,Equity,Single Country,US,NYSE,USD,M,50.0,
+EWG,iShares MSCI Germany,Equity,Single Country,US,NYSE,USD,M,50.0,
+EWU,iShares MSCI United Kingdom,Equity,Single Country,US,NYSE,USD,M,50.0,
+ICHN.L,iShares MSCI China A (UCITS),Equity,Single Country,UK,LSE,USD,M,40.0,
+IUKD.L,iShares UK Dividend (UCITS),Equity,Single Country,UK,LSE,GBP,M,40.0,
+NDIA.L,iShares MSCI India (UCITS),Equity,Single Country,UK,LSE,USD,M,65.0,
+EDEN,iShares MSCI Denmark,Equity,Single Country,US,NYSE,USD,S,50.0,
+EIDO,iShares MSCI Indonesia,Equity,Single Country,US,NYSE,USD,S,59.0,
+EPOL,iShares MSCI Poland,Equity,Single Country,US,NYSE,USD,S,59.0,
+EWH,iShares MSCI Hong Kong,Equity,Single Country,US,NYSE,USD,S,50.0,
+EWQ,iShares MSCI France,Equity,Single Country,US,NYSE,USD,S,50.0,
+EZA,iShares MSCI South Africa,Equity,Single Country,US,NYSE,USD,S,59.0,
+ITWN.L,iShares MSCI Taiwan (UCITS),Equity,Single Country,UK,LSE,USD,S,59.0,
+KSA,iShares MSCI Saudi Arabia,Equity,Single Country,US,NYSE,USD,S,74.0,
+THD,iShares MSCI Thailand,Equity,Single Country,US,NASDAQ,USD,S,59.0,
+VNM,VanEck Vietnam (REF only — not iShares),Equity,Single Country,—,—,—,S,60.0,
+EWM,iShares MSCI Malaysia,Equity,Single Country,US,NYSE,USD,XS,50.0,
+INRG.L,iShares Global Clean Energy (UCITS),Equity,Thematic,UK,LSE,USD,L,65.0,
+WAT.L,iShares Global Water (UCITS),Equity,Thematic,UK,LSE,USD,L,65.0,
+XBI,(Not iShares — SPDR. Reference only),Equity,Thematic,—,—,—,L,35.0,
+DGTL.L,iShares Digitalisation (UCITS),Equity,Thematic,UK,LSE,USD,M,40.0,
+RBOT.L,iShares Automation & Robotics (UCITS),Equity,Thematic,UK,LSE,USD,M,40.0,
+AGED.L,iShares Ageing Population (UCITS),Equity,Thematic,UK,LSE,USD,S,40.0,
+DRIV.L,iShares Global Auto & Self Drive (UCITS),Equity,Thematic,UK,LSE,USD,S,40.0,
+HEAL.L,iShares Global Healthcare Innovation,Equity,Thematic,UK,LSE,USD,S,50.0,
+WCBR.L,iShares Global Cybersecurity (UCITS),Equity,Thematic,UK,LSE,USD,S,50.0,
+AIAI.L,iShares AI Infrastructure (UCITS),Equity,Thematic,UK,LSE,USD,XS,50.0,
+IVV,iShares Core S&P 500,Equity,US Broad,US,NYSE,USD,XXL,3.0,
+IWB,iShares Russell 1000,Equity,US Large-Cap,US,NYSE,USD,XXL,15.0,
+IJH,iShares Core S&P Mid-Cap,Equity,US Mid-Cap,US,NYSE,USD,XXL,5.0,
+IUIT.L,iShares S&P 500 Info Tech Sector (UCITS),Equity,US Sector,UK,LSE,USD,L,15.0,
+IWM,iShares Russell 2000,Equity,US Small-Cap,US,NYSE,USD,XXL,19.0,
+ITOT,iShares Core S&P Total US Stock Market,Equity,US Total,US,NYSE,USD,XXL,3.0,
+HMWO.L,iShares Core MSCI World,Equity,World Broad,UK,LSE,USD,XXL,20.0,
+ACWI,iShares MSCI ACWI,Equity,World Broad,US,NASDAQ,USD,XL,32.0,
+EMHY.L,iShares EM USD High Yield Bond (UCITS),Fixed Income,EM HY,UK,LSE,USD,S,50.0,
+SEMB.L,iShares JPM USD EM Bond (UCITS),Fixed Income,EM USD Govt,UK,LSE,USD,L,45.0,
+IEAC.L,iShares Core EUR Corp Bond (UCITS),Fixed Income,Euro IG,UK,LSE,EUR,L,20.0,
+IEAA.L,iShares EUR Corp 1-5y (UCITS),Fixed Income,Euro IG Short,UK,LSE,EUR,M,20.0,
+IGLO.L,iShares Global Govt Bond (UCITS),Fixed Income,Global Govt,UK,LSE,USD,M,20.0,
+AGG,iShares Core US Aggregate Bond,Fixed Income,US Agg,US,NYSE,USD,XXL,3.0,
+LQD,iShares iBoxx $ Investment Grade Corp,Fixed Income,US IG,US,NYSE,USD,XXL,14.0,
+LQDE.L,iShares USD Corp Bond IG (UCITS),Fixed Income,US IG,UK,LSE,USD,L,20.0,
+IGSB,iShares 1-5y Investment Grade Corp,Fixed Income,US IG Short,US,NYSE,USD,XL,6.0,
+MUB,iShares National Muni Bond,Fixed Income,US Muni,US,NYSE,USD,XL,5.0,
+PFF,iShares Preferred & Income Securities,Fixed Income,US Preferreds,US,NASDAQ,USD,L,46.0,
+SHV,iShares Short Treasury Bond,Fixed Income,US T-Bill,US,NYSE,USD,XXL,15.0,
