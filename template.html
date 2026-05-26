@@ -237,6 +237,49 @@
     }
     table.holdings tbody tr:hover { background: var(--bg-soft); }
     table.holdings tbody tr:last-child td { border-bottom: none; }
+    /* Click-to-expand: rows with mini-chart data are clickable.
+       Caret indicator before the ETF symbol shows the state. */
+    table.holdings tbody tr.holdings-row.expandable {
+      cursor: pointer;
+    }
+    table.holdings tbody tr.holdings-row .caret {
+      display: inline-block; width: 12px; color: var(--ink-faint);
+      font-size: 10px; margin-right: 2px; user-select: none;
+      transition: transform 0.15s;
+    }
+    table.holdings tbody tr.holdings-row.is-expanded .caret {
+      transform: rotate(90deg); color: var(--accent);
+    }
+    table.holdings tbody tr.holdings-row.is-expanded {
+      background: var(--bg-soft);
+    }
+    table.holdings tr.holdings-expand-row td {
+      padding: 14px 18px; background: var(--bg-soft);
+      border-bottom: 1px solid var(--border);
+    }
+    .holdings-mini-chart {
+      width: 100%; height: 220px;
+    }
+    .holdings-mini-header {
+      display: flex; gap: 18px; align-items: baseline;
+      margin-bottom: 6px; font-size: 13px;
+    }
+    .holdings-mini-header .ticker {
+      font-family: 'JetBrains Mono', monospace; font-weight: 700;
+      font-size: 16px;
+    }
+    .holdings-mini-header .change.up { color: var(--good); }
+    .holdings-mini-header .change.down { color: var(--bad); }
+    .holdings-mini-header .change {
+      font-weight: 700; font-variant-numeric: tabular-nums;
+    }
+    .holdings-mini-header .meta {
+      color: var(--ink-faint); font-size: 12px; margin-left: auto;
+    }
+    .holdings-mini-empty {
+      padding: 18px; text-align: center;
+      color: var(--ink-faint); font-size: 13px; font-style: italic;
+    }
     table.holdings .sym {
       font-weight: 700; font-size: 14px;
       font-family: 'JetBrains Mono', monospace;
@@ -1008,7 +1051,7 @@
 
     <section>
       <h2>Combined holdings</h2>
-      <p class="section-sub">Every position in the deployed portfolio, sorted by total weight. Each row shows the ETF, which strategy holds it (A = US sector breadth, B = asset-class momentum, C = thematic momentum, D = Europe sector breadth), why it's in the portfolio (the signal that put it there), the within-strategy weight, and the effective weight after the 35/35/10/20 blend. <strong>If you have $100,000 to deploy, the "Total weight" column tells you how much capital each ETF gets.</strong></p>
+      <p class="section-sub">Every position in the deployed portfolio, sorted by total weight. Each row shows the ETF, which strategy holds it (A = US sector breadth, B = asset-class momentum, C = thematic momentum, D = Europe sector breadth), why it's in the portfolio (the signal that put it there), the within-strategy weight, and the effective weight after the 35/35/10/20 blend. <strong>If you have $100,000 to deploy, the "Total weight" column tells you how much capital each ETF gets.</strong> <em>Click any row to see the underlying ticker's 1Y price chart.</em></p>
       <p class="section-sub" style="margin-top:-12px;font-size:13px;background:var(--bg-soft);padding:10px 14px;border-radius:4px;border-left:3px solid var(--accent);">
         <strong>How "Total weight" is built</strong>, with one row as a worked example. Say IUES sits in Strategy A only with a within-strategy weight of 19.3%. Strategy A allocates 35% of total NAV, so IUES gets <code>0.35 × 19.3% = 6.76%</code> of the combined portfolio. On $100k, that is $6,755 in XLE (the trade proxy for IUES). The four-strategy panels below show how each within-strategy weight is computed from the underlying breadth or momentum signal — hover any row for the exact arithmetic.
       </p>
@@ -2182,6 +2225,9 @@ function renderMonitor() {
     <th class="num">Total weight</th>
   </tr>`;
   let totW = 0;
+  // Cache the holdings_prices lookup so we know which rows are clickable
+  // (some tickers may not have a 1Y price series available).
+  const holdingsPrices = window.DATA?.holdings_prices?.prices || {};
   const tbodyHtml = rows.map(e => {
     const why = [];
     if (e.in_a && e.a_signal != null) {
@@ -2212,11 +2258,16 @@ function renderMonitor() {
     if (e.in_d) parts.push(`<span style="color:#0e7490;">D: ${W_D.toFixed(2)}×${(e.d_weight*100).toFixed(1)}%=${((e.eff_d||0)*100).toFixed(2)}%</span>`);
     const calcBreakdown = parts.join(' + ');
     totW += e.total;
-    return `<tr>
-      <td><span class="swatch" style="background:${colourFor(e.etf)};"></span><span class="sym">${e.etf}</span></td>
+    // Trade-as ticker is the price series we want to chart on expand.
+    const tradeAs = e.in_a ? e.a_proxy : e.etf;
+    const hasChart = !!holdingsPrices[tradeAs];
+    const rowClass = hasChart ? 'holdings-row expandable' : 'holdings-row';
+    const caret = hasChart ? '<span class="caret">▸</span>' : '<span class="caret"></span>';
+    return `<tr class="${rowClass}" data-etf="${e.etf}" data-trade-as="${tradeAs}">
+      <td>${caret}<span class="swatch" style="background:${colourFor(e.etf)};"></span><span class="sym">${e.etf}</span></td>
       <td style="font-size:13px;">${e.label || ''}</td>
       <td>${stratTags.join(' ')}</td>
-      <td><span class="sym" style="font-size:13px;color:var(--ink-soft);">${e.in_a ? e.a_proxy : e.etf}</span></td>
+      <td><span class="sym" style="font-size:13px;color:var(--ink-soft);">${tradeAs}</span></td>
       <td class="why">${why.join(' · ')}</td>
       <td class="num" style="font-size:11.5px;font-family:'JetBrains Mono',monospace;text-align:left;">${calcBreakdown}</td>
       <td class="num"><strong>${(e.total*100).toFixed(1)}%</strong></td>
@@ -2227,6 +2278,10 @@ function renderMonitor() {
     <td class="num"><strong>${(totW*100).toFixed(1)}%</strong></td>
   </tr>`;
   el.querySelector('tbody').innerHTML = tbodyHtml + totalRow;
+  // Wire up click-to-expand mini-chart on holdings rows (Phase 18.3).
+  // Idempotent — bound once per render, replacing the previous handler
+  // via dataset flag.
+  _initHoldingsClickExpand(el);
 
   // ===== Asset-class roll-up =====
   // Each strategy contribution gets bucketed by its own asset-class taxonomy.
@@ -2817,6 +2872,113 @@ function _perfRender(period) {
         </div>` : ''}
       </div>
     `;
+  }
+}
+
+// ----------- Monitor: Holdings click-to-expand mini-chart ------------
+// Each holdings-table row tagged "expandable" can be clicked to show a
+// 1Y price mini-chart for the underlying trade-as ticker. Data source:
+// window.DATA.holdings_prices.prices (built by
+// scripts/export_holdings_prices.py, ~265KB JSON across ~56 tickers).
+
+function _initHoldingsClickExpand(tableEl) {
+  const tbody = tableEl.querySelector('tbody');
+  if (!tbody) return;
+  // Rebind cleanly — listener attached to tbody once per re-render.
+  tbody.onclick = null;
+  tbody.onclick = (ev) => {
+    const row = ev.target.closest('tr.holdings-row.expandable');
+    if (!row) return;
+    const tradeAs = row.dataset.tradeAs;
+    const etf = row.dataset.etf;
+    if (!tradeAs) return;
+    const expandClass = 'holdings-expand-row';
+    const nextRow = row.nextElementSibling;
+    // Toggle: if the expand row already exists right below, collapse.
+    if (nextRow && nextRow.classList.contains(expandClass)
+        && nextRow.dataset.parentEtf === etf) {
+      nextRow.remove();
+      row.classList.remove('is-expanded');
+      return;
+    }
+    // Collapse any other open expand row first (one-at-a-time keeps
+    // the table compact and predictable).
+    tbody.querySelectorAll('tr.' + expandClass).forEach(r => r.remove());
+    tbody.querySelectorAll('tr.holdings-row.is-expanded')
+      .forEach(r => r.classList.remove('is-expanded'));
+    // Build + insert expand row
+    const expand = document.createElement('tr');
+    expand.className = expandClass;
+    expand.dataset.parentEtf = etf;
+    const td = document.createElement('td');
+    td.colSpan = 7;
+    const chartDivId = `holdings-chart-${tradeAs.replace(/[^A-Za-z0-9]/g, '_')}`;
+    td.innerHTML = `<div class="holdings-mini-chart" id="${chartDivId}"></div>`;
+    expand.appendChild(td);
+    row.classList.add('is-expanded');
+    row.insertAdjacentElement('afterend', expand);
+    _renderHoldingsMiniChart(chartDivId, tradeAs, etf);
+  };
+}
+
+function _renderHoldingsMiniChart(chartDivId, tradeAs, etfLabel) {
+  const data = window.DATA?.holdings_prices?.prices?.[tradeAs];
+  const host = document.getElementById(chartDivId);
+  if (!host) return;
+  if (!data || !data.dates?.length) {
+    host.outerHTML = `<div class="holdings-mini-empty">
+      No 1Y price series available for ${tradeAs}. Run
+      <code>scripts/export_holdings_prices.py</code> after the next
+      pipeline build.
+    </div>`;
+    return;
+  }
+  // Render as percent return from period start, matching the dashboard
+  // convention used everywhere else.
+  const prices = data.prices;
+  const base = prices[0];
+  const pctReturn = prices.map(p => (p / base) - 1);
+  const changePct = data.change_pct;
+  const isUp = (changePct || 0) >= 0;
+  const headerHtml = `
+    <div class="holdings-mini-header">
+      <span class="ticker">${tradeAs}</span>
+      <span class="change ${isUp ? 'up' : 'down'}">
+        ${isUp ? '+' : ''}${(changePct * 100).toFixed(2)}%
+      </span>
+      <span style="color:var(--ink-faint);font-size:12px;">
+        1Y · ${data.n_days} trading days
+      </span>
+      <span class="meta">
+        ${etfLabel}${tradeAs !== etfLabel ? ` (trade as ${tradeAs})` : ''}
+      </span>
+    </div>
+  `;
+  // Inject header above the chart div
+  host.insertAdjacentHTML('beforebegin', headerHtml);
+  const line = {
+    x: data.dates, y: pctReturn,
+    mode: 'lines', name: tradeAs,
+    line: { color: isUp ? '#1d7a3a' : '#dc2626', width: 2 },
+    hovertemplate: '%{y:+.2%}<extra>' + tradeAs + '</extra>',
+    fill: 'tozeroy',
+    fillcolor: isUp ? 'rgba(29,122,58,0.08)' : 'rgba(220,38,38,0.08)',
+  };
+  const layout = {
+    margin: { t: 6, r: 12, b: 32, l: 56 },
+    xaxis: { showgrid: false, color: '#4a5159', tickfont: { size: 10 } },
+    yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
+              tickformat: '.1%', zeroline: true,
+              zerolinecolor: '#9ca3af', zerolinewidth: 1,
+              tickfont: { size: 10 } },
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    hovermode: 'x unified',
+    showlegend: false,
+    font: { family: 'Inter', size: 11 },
+  };
+  if (typeof Plotly !== 'undefined') {
+    Plotly.newPlot(host.id, [line], layout,
+                    { displayModeBar: false, responsive: true });
   }
 }
 

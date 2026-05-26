@@ -149,6 +149,17 @@ def load_right_tail() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_holdings_prices() -> dict | None:
+    """Load data/holdings_prices_1y.json — per-ETF 1Y daily close prices
+    used by the Monitor tab's holdings click-to-expand mini-chart.
+    Built by scripts/export_holdings_prices.py from existing price caches.
+    """
+    path = DATA_DIR / "holdings_prices_1y.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_robustness() -> dict | None:
     """Load data/robustness.json into a slim payload for the Risk & Validation
     tab.
@@ -303,6 +314,17 @@ def main() -> int:
         print(f"  right-tail: {len(ps)} per-strategy, {len(rd)} regimes, "
               f"{len(ts)} top-sleeve buckets")
 
+    print("Loading holdings 1Y prices ...", flush=True)
+    holdings_prices = load_holdings_prices()
+    if holdings_prices:
+        n = len(holdings_prices.get("prices", {}))
+        print(f"  holdings_prices: {n} tickers (built by "
+              f"scripts/export_holdings_prices.py)")
+    else:
+        print("  WARNING: data/holdings_prices_1y.json missing — "
+              "run scripts/export_holdings_prices.py to enable the "
+              "holdings click-to-expand mini-chart")
+
     data = {
         "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "ma200": ma200,
@@ -316,6 +338,7 @@ def main() -> int:
         "multi": multi,
         "bootstrap": bootstrap,
         "right_tail": right_tail,
+        "holdings_prices": holdings_prices,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")
