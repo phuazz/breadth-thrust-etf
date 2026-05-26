@@ -597,6 +597,82 @@
     .chart.tall { height: 540px; }
     .chart.short { height: 320px; }
 
+    /* ----- Monitor-tab Performance section ----- */
+    .perf-header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 10px; margin-bottom: 6px;
+    }
+    .period-selector {
+      display: inline-flex; gap: 0; border: 1px solid var(--border);
+      border-radius: 4px; overflow: hidden; background: var(--bg-card);
+    }
+    .period-selector button {
+      padding: 7px 13px; background: var(--bg-card); border: none;
+      border-right: 1px solid var(--border); cursor: pointer;
+      font-size: 13px; font-weight: 600; color: var(--ink-soft);
+      font-family: inherit;
+    }
+    .period-selector button:last-child { border-right: none; }
+    .period-selector button:hover { background: var(--bg-soft); }
+    .period-selector button.active {
+      background: var(--accent); color: white;
+    }
+    .perf-stat-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px; margin: 14px 0;
+    }
+    .perf-stat {
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 10px 14px;
+    }
+    .perf-stat .v {
+      font-size: 20px; font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .perf-stat .v.good { color: var(--good); }
+    .perf-stat .v.bad  { color: var(--bad); }
+    .perf-stat .l {
+      font-size: 10.5px; color: var(--ink-faint);
+      text-transform: uppercase; letter-spacing: 0.04em;
+      margin-top: 2px;
+    }
+    .attrib-grid {
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 10px 14px;
+    }
+    .attrib-row {
+      display: grid;
+      grid-template-columns: 170px 1fr 70px 80px;
+      gap: 12px; align-items: center;
+      padding: 7px 0; font-size: 13px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .attrib-row:last-child { border-bottom: none; }
+    .attrib-label { font-weight: 600; color: var(--ink); }
+    .attrib-bar-wrap {
+      background: var(--bg-soft); border-radius: 2px;
+      height: 14px; overflow: hidden; position: relative;
+    }
+    .attrib-bar {
+      position: absolute; top: 0; bottom: 0;
+      transition: width 0.25s ease;
+    }
+    .attrib-ret {
+      color: var(--ink-faint); text-align: right;
+      font-variant-numeric: tabular-nums; font-size: 12px;
+    }
+    .attrib-contrib {
+      font-weight: 700; text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .attrib-contrib.good { color: var(--good); }
+    .attrib-contrib.bad  { color: var(--bad); }
+    @media (max-width: 700px) {
+      .attrib-row { grid-template-columns: 1fr; gap: 4px; }
+      .attrib-bar-wrap { display: none; }
+    }
+
     .two-col {
       display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
     }
@@ -904,6 +980,26 @@
       <div class="hero-stats" id="live-hero-stats"></div>
       <div id="live-stale-warning"></div>
     </div>
+
+    <section>
+      <div class="perf-header">
+        <h2 style="margin:0;">Performance</h2>
+        <div class="period-selector" id="perf-period-selector">
+          <button data-period="1d">1D</button>
+          <button data-period="1w">1W</button>
+          <button data-period="1m">1M</button>
+          <button data-period="ytd" class="active">YTD</button>
+          <button data-period="1y">1Y</button>
+          <button data-period="3y">3Y</button>
+          <button data-period="5y">5Y</button>
+          <button data-period="max">MAX</button>
+        </div>
+      </div>
+      <p class="section-sub">Cumulative equity for the deployed blend and each of the four contributing sleeves, renormalised to 1.0 at the start of the selected period. The stat strip and the attribution bars below the chart recompute live with the timeframe — switching to 1Y will show this year's return, switching to MAX will show full backtest history. Default YTD.</p>
+      <div id="perf-stat-strip" class="perf-stat-strip"></div>
+      <div id="perf-chart" class="chart"></div>
+      <div id="perf-attribution"></div>
+    </section>
 
     <section>
       <h2>Combined holdings</h2>
@@ -2435,6 +2531,244 @@ function renderMonitor() {
   } else {
     document.querySelector('.strat-panel.d')?.style.setProperty('display', 'none');
   }
+
+  // Performance section (timeframe selector + chart + per-strategy
+  // attribution). Initialised once; the button handlers re-render on
+  // period change without touching the rest of the Monitor tab.
+  renderPerformance();
+}
+
+// ----------- Monitor: Performance section -----------------------------
+// New (Phase 18). Equity-curve chart + period selector + per-strategy
+// attribution. All client-side compute against the equity curves already
+// loaded into window.DATA.multi.strategies — no new pipeline data needed.
+// Selector buttons: 1D, 1W, 1M, YTD (default), 1Y, 3Y, 5Y, MAX.
+
+const _PERF_SERIES = [
+  { key: 'blend_35_35_10_20', name: 'Blend 35/35/10/20', color: '#1351b4', width: 2.5 },
+  { key: 'strategy_a', name: 'A · US sector',   color: '#3b82f6', width: 1.4 },
+  { key: 'strategy_b', name: 'B · Asset class', color: '#10b981', width: 1.4 },
+  { key: 'strategy_c', name: 'C · Thematic',    color: '#f59e0b', width: 1.4 },
+  { key: 'strategy_d', name: 'D · Europe',      color: '#a855f7', width: 1.4 },
+];
+// Approximate trading-day count for each period. YTD/MAX use date-based
+// slicing instead. 1D shows a 1-day return but the chart needs at least
+// a handful of points to read, so we still pull the last 5 days for it.
+const _PERIOD_DAYS = {
+  '1d': 5,    // chart shows ~1 week so the line is visible; stat is 1-day
+  '1w': 5,
+  '1m': 21,
+  '1y': 252,
+  '3y': 756,
+  '5y': 1260,
+};
+const _WEIGHTS_4WAY = {
+  strategy_a: 0.35, strategy_b: 0.35,
+  strategy_c: 0.10, strategy_d: 0.20,
+};
+let _perfCurrentPeriod = 'ytd';
+
+function _perfSlice(dates, equity, period) {
+  if (!dates || dates.length === 0) return { dates: [], equity: [] };
+  if (period === 'max') return { dates, equity };
+  let startIdx = 0;
+  if (period === 'ytd') {
+    const lastYear = dates[dates.length - 1].slice(0, 4);
+    const jan1 = `${lastYear}-01-01`;
+    startIdx = dates.findIndex(d => d >= jan1);
+    if (startIdx < 0) startIdx = 0;
+  } else {
+    const back = _PERIOD_DAYS[period] || 252;
+    startIdx = Math.max(0, dates.length - 1 - back);
+  }
+  return { dates: dates.slice(startIdx), equity: equity.slice(startIdx) };
+}
+
+function _perfNormalise(values) {
+  if (!values.length) return values;
+  const base = values[0];
+  if (base === 0) return values;
+  return values.map(v => v / base);
+}
+
+function _perfComputeStats(dates, equity, period) {
+  if (!equity || equity.length < 2) {
+    return { totalReturn: 0, ann: 0, sharpe: 0, maxDd: 0, oneDay: 0 };
+  }
+  // For 1D, the displayed stat is the most recent one-day return, not
+  // the full window's. Charts still show the small window for context.
+  const oneDay = equity.length >= 2
+    ? equity[equity.length - 1] / equity[equity.length - 2] - 1
+    : 0;
+  const periodRet = equity[equity.length - 1] / equity[0] - 1;
+  // Annualised
+  const dailyReturns = [];
+  for (let i = 1; i < equity.length; i++) {
+    dailyReturns.push(equity[i] / equity[i - 1] - 1);
+  }
+  const mean = dailyReturns.reduce((s, x) => s + x, 0) / dailyReturns.length;
+  const variance = dailyReturns.reduce(
+    (s, x) => s + (x - mean) * (x - mean), 0
+  ) / dailyReturns.length;
+  const std = Math.sqrt(variance);
+  const ann = Math.pow(1 + mean, 252) - 1;
+  const annVol = std * Math.sqrt(252);
+  const sharpe = annVol > 0 ? ann / annVol : 0;
+  // Max DD inside the window
+  let peak = equity[0];
+  let maxDd = 0;
+  for (const v of equity) {
+    if (v > peak) peak = v;
+    const dd = v / peak - 1;
+    if (dd < maxDd) maxDd = dd;
+  }
+  const totalReturn = period === '1d' ? oneDay : periodRet;
+  return { totalReturn, periodRet, ann, sharpe, maxDd, oneDay };
+}
+
+function _perfRender(period) {
+  const m = window.DATA?.multi;
+  if (!m?.strategies?.blend_35_35_10_20) return;
+  _perfCurrentPeriod = period;
+
+  const traces = [];
+  const statsByKey = {};
+  for (const s of _PERF_SERIES) {
+    const strat = m.strategies[s.key];
+    if (!strat?.dates?.length) continue;
+    const sliced = _perfSlice(strat.dates, strat.equity, period);
+    if (sliced.dates.length < 2) continue;
+    const norm = _perfNormalise(sliced.equity);
+    traces.push({
+      x: sliced.dates,
+      y: norm,
+      mode: 'lines',
+      name: s.name,
+      line: { color: s.color, width: s.width },
+      hovertemplate: '%{y:.4f}<extra>' + s.name + '</extra>',
+    });
+    statsByKey[s.key] = _perfComputeStats(sliced.dates, sliced.equity, period);
+  }
+
+  if (typeof Plotly !== 'undefined') {
+    Plotly.react('perf-chart', traces, {
+      margin: { l: 56, r: 16, t: 16, b: 70 },
+      xaxis: { tickfont: { size: 11 } },
+      yaxis: { tickfont: { size: 11 }, tickformat: '.3f',
+                title: { text: 'Cumulative equity (1.0 at start)',
+                         font: { size: 11 } } },
+      hovermode: 'x unified',
+      legend: { orientation: 'h', y: -0.22, font: { size: 11 } },
+      showlegend: true,
+    }, { displayModeBar: false, responsive: true });
+  }
+
+  // Stat strip — blend-level summary for the period
+  const blend = statsByKey.blend_35_35_10_20 || {};
+  const fmtRet = x => (x == null ? '—' : (x > 0 ? '+' : '') + (x * 100).toFixed(2) + '%');
+  const cls = x => x >= 0 ? 'good' : 'bad';
+  const periodLabels = { '1d': '1-day', '1w': '1-week', '1m': '1-month',
+                          'ytd': 'YTD', '1y': '1-year', '3y': '3-year',
+                          '5y': '5-year', 'max': 'Lifetime' };
+  const label = periodLabels[period] || period.toUpperCase();
+  const strip = document.getElementById('perf-stat-strip');
+  if (strip) {
+    strip.innerHTML = `
+      <div class="perf-stat">
+        <div class="v ${cls(blend.totalReturn || 0)}">${fmtRet(blend.totalReturn)}</div>
+        <div class="l">${label} return — blend</div>
+      </div>
+      <div class="perf-stat">
+        <div class="v">${fmtRet(blend.ann)}</div>
+        <div class="l">Annualised</div>
+      </div>
+      <div class="perf-stat">
+        <div class="v">${(blend.sharpe || 0).toFixed(2)}</div>
+        <div class="l">Sharpe (in window)</div>
+      </div>
+      <div class="perf-stat">
+        <div class="v ${cls(blend.maxDd || 0)}">${fmtRet(blend.maxDd)}</div>
+        <div class="l">Max DD in window</div>
+      </div>
+    `;
+  }
+
+  // Attribution: per-strategy contribution = target weight × strategy
+  // period return. Sums to ~blend return (small error from intra-period
+  // weight drift before weekly rebalance, treated as residual).
+  const sleeves = ['strategy_a', 'strategy_b', 'strategy_c', 'strategy_d'];
+  const contribs = sleeves.map(k => {
+    const w = _WEIGHTS_4WAY[k] || 0;
+    const r = (statsByKey[k] || {}).totalReturn || 0;
+    return { key: k, weight: w, ret: r, contrib: w * r };
+  });
+  const sumContrib = contribs.reduce((s, c) => s + c.contrib, 0);
+  // Scale bars by max absolute contribution for visibility
+  const maxAbs = Math.max(0.0001, ...contribs.map(c => Math.abs(c.contrib)));
+
+  const attribHtml = contribs.map(c => {
+    const name = _PERF_SERIES.find(s => s.key === c.key)?.name || c.key;
+    const color = _PERF_SERIES.find(s => s.key === c.key)?.color || '#999';
+    const widthPct = Math.min(100, (Math.abs(c.contrib) / maxAbs) * 100);
+    const barColor = c.contrib >= 0 ? color : '#dc2626';
+    // Bar grows from centre — left side for negative, right for positive
+    const fromLeft = c.contrib >= 0 ? 50 : 50 - widthPct / 2;
+    const barWidth = widthPct / 2;
+    return `
+      <div class="attrib-row">
+        <div class="attrib-label">${name} (${(c.weight*100).toFixed(0)}%)</div>
+        <div class="attrib-bar-wrap">
+          <div class="attrib-bar"
+               style="left:${fromLeft}%; width:${barWidth}%; background:${barColor};"></div>
+        </div>
+        <div class="attrib-ret">${fmtRet(c.ret)}</div>
+        <div class="attrib-contrib ${c.contrib >= 0 ? 'good' : 'bad'}">${(c.contrib >= 0 ? '+' : '') + (c.contrib * 100).toFixed(2)}pp</div>
+      </div>
+    `;
+  }).join('');
+
+  const attribEl = document.getElementById('perf-attribution');
+  if (attribEl) {
+    const residual = (blend.totalReturn || 0) - sumContrib;
+    attribEl.innerHTML = `
+      <p style="margin:14px 0 6px;font-size:13px;color:var(--ink-soft);">
+        <strong>Attribution to blend ${label.toLowerCase()} return</strong>
+        — sleeve return × target weight (vertical line = 0pp; bars left of line are detractors).
+      </p>
+      <div class="attrib-grid">
+        ${attribHtml}
+        <div class="attrib-row" style="border-top:1px solid var(--border); margin-top:6px; padding-top:8px;">
+          <div class="attrib-label" style="font-weight:700;">Sum of attributions</div>
+          <div></div>
+          <div></div>
+          <div class="attrib-contrib ${sumContrib >= 0 ? 'good' : 'bad'}">${(sumContrib >= 0 ? '+' : '') + (sumContrib * 100).toFixed(2)}pp</div>
+        </div>
+        ${Math.abs(residual) > 0.0005 ? `
+        <div class="attrib-row" style="font-size:11px; color:var(--ink-faint);">
+          <div class="attrib-label" style="font-weight:400;">Residual (rebalance interaction)</div>
+          <div></div>
+          <div></div>
+          <div class="attrib-contrib">${(residual >= 0 ? '+' : '') + (residual * 100).toFixed(2)}pp</div>
+        </div>` : ''}
+      </div>
+    `;
+  }
+}
+
+function renderPerformance() {
+  // Wire button handlers ONCE; subsequent calls just re-render.
+  const selector = document.getElementById('perf-period-selector');
+  if (selector && !selector.dataset.bound) {
+    selector.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selector.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _perfRender(btn.dataset.period);
+      });
+    });
+    selector.dataset.bound = '1';
+  }
+  _perfRender(_perfCurrentPeriod);
 }
 
 // ----------- ETF Detail tab --------------------------------------------
