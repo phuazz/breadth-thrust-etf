@@ -89,6 +89,15 @@ UNIVERSE: dict[str, dict] = {
     "GDX":  {"label": "VanEck Gold Miners",                 "theme": "Commodity equity"},
     "COPX": {"label": "Global X Copper Miners",             "theme": "Commodity equity"},
     "MOO":  {"label": "VanEck Agribusiness",                "theme": "Commodity equity"},
+    # Phase 16 (2026-05-26) commodity-equity additions. All three pass the
+    # <0.85 correlation gate against incumbents and have 8.4y history.
+    # XME is the broad metals-and-mining basket (steel, aluminum, iron-ore
+    # plus precious + base metal miners) — broader than GDX/COPX. WOOD is
+    # the timber + forestry theme (real-asset adjacent). REMX captures the
+    # rare-earth + strategic-metals supply-chain decoupling theme.
+    "XME":  {"label": "SPDR S&P Metals & Mining",           "theme": "Commodity equity"},
+    "WOOD": {"label": "iShares Global Timber & Forestry",   "theme": "Commodity equity"},
+    "REMX": {"label": "VanEck Rare Earth / Strategic Metals", "theme": "Commodity equity"},
     "PAVE": {"label": "Global X US Infrastructure",         "theme": "Infrastructure"},
     # ---------------------------------------------------------------------
     # Phase 15 additions (2026-05-26). Passes the within-Strategy-C

@@ -80,6 +80,14 @@ UNIVERSE: dict[str, dict] = {
     # Commodities
     "GLD":  {"label": "Gold",                       "asset_class": "Commodities"},
     "DBC":  {"label": "Broad Commodities",          "asset_class": "Commodities"},
+    # Phase 16 (2026-05-26) — SLV was tested as an addition but REVERTED
+    # before commit. Empirical result: dragged Strategy B common-window
+    # Sharpe from +0.99 to +0.81 (-0.18) AND widened max DD from -14% to
+    # -27% (+13pp worse). The correlation gate passed (0.78 vs GLD) but
+    # silver's chop-then-reverse momentum profile poisons a top-K signal
+    # the way gold's smoother trend behaviour does not. Documented as a
+    # lesson: corr gate is necessary but not sufficient for a momentum
+    # universe — the asset's signal-to-noise character matters too.
     # Bonds
     "TLT":  {"label": "20+y Treasury (long dur)",   "asset_class": "Bonds"},
     "IEF":  {"label": "7-10y Treasury (interm)",    "asset_class": "Bonds"},
