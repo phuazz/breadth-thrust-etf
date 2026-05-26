@@ -117,6 +117,46 @@ UNIVERSE: dict[str, dict] = {
     # the drag is smaller because semi-China was less crackdown-exposed
     # than internet-platform-China.
     "CQQQ": {"label": "Invesco China Technology",           "theme": "China / EM Tech"},
+    # ---------------------------------------------------------------------
+    # Phase 17.1 (2026-05-26) — China A-share semiconductor exposure.
+    # CQQQ captures broad China-tech with platform tilt (Tencent, Alibaba)
+    # plus some semis (SMIC). 159801.SZ captures the pure A-share semi
+    # hardware basket (Cambricon, AMEC, NAURA, Will Semiconductor, SMIC)
+    # — a meaningfully different exposure profile from CQQQ.
+    #
+    # IBKR access to Chinese A-share ETFs via Stock Connect is operationally
+    # smooth (confirmed with Eileen, Navigo CEO, 2026-05-26) — the earlier
+    # rejection of 588200.SS on operational grounds was incorrect. 159801.SZ
+    # is chosen as the deployed ticker because:
+    #   (a) 7.0 years of history (launched 2019-08-26) — clears the 5y
+    #       walk-forward minimum, unlike 588200.SS which only has 3.65y.
+    #   (b) 0.958 weekly-return correlation with 588200.SS in their
+    #       overlap window — they track essentially the same A-share
+    #       semiconductor universe (Bosera tracks CSI Chip, Harvest tracks
+    #       SSE STAR Chip; both are dominated by the same names).
+    #   (c) Gate vs C incumbents: max-corr 0.49 vs CQQQ — far below 0.85
+    #       cap. Adds materially different exposure to CQQQ (pure semi
+    #       hardware vs broader tech platforms).
+    #
+    # Implementation: CNY-denominated, so download pipeline applies a
+    # daily FX conversion (CNY -> USD via USDCNY=X) and aligns to the
+    # NYSE trading calendar with a 10-day stale-fill cap (handles Chinese
+    # New Year + Oct Golden Week SSE closures). 50bps annual expense ratio
+    # applied as per-calendar-day compounded drag, same pattern as IBIT's
+    # 25bps on BTC-USD.
+    "159801.SZ": {
+        "label": "Bosera CSI Chip (China A-share semis — USD-adj from CNY)",
+        "theme": "China / EM Tech",
+        "currency": "CNY",
+        "expense_ratio_bps": 50,
+        "trading_calendar": "sse_szse",  # Shanghai / Shenzhen — needs alignment
+        # Inception 2019-08-26 is after BLOK's 2018-01 binding date, so
+        # this ticker must NOT constrain the core eligibility window or
+        # the backtest collapses ~1.5y. The K=4 picker excludes NaN
+        # signals automatically (signal is NaN for any date pre-200d-MA),
+        # so this is safe and lossless.
+        "late_inception": True,
+    },
     "PAVE": {"label": "Global X US Infrastructure",         "theme": "Infrastructure"},
     # ---------------------------------------------------------------------
     # Phase 15 additions (2026-05-26). Passes the within-Strategy-C
@@ -302,6 +342,58 @@ def _reindex_crypto_to_equity_calendar(df: pd.DataFrame) -> pd.DataFrame:
     return df.loc[df.index.isin(equity_cal) | df.index.isin(df[CASH_PROXY].dropna().index)]
 
 
+def _fx_convert_to_usd(df: pd.DataFrame) -> pd.DataFrame:
+    """For any UNIVERSE entry with currency != 'USD', FX-convert the
+    native-currency price series to USD and reindex onto the equity
+    (NYSE) trading calendar with a 10-day stale-fill cap. Handles
+    Chinese exchange holidays (e.g., Chinese New Year, Oct Golden Week)
+    which can leave SSE/SZSE closed for up to 7 calendar days.
+
+    Currently supports CNY (via USDCNY=X). Extend to other currencies
+    by adding the FX-pair mapping below.
+    """
+    sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+    from alignment import align_series_to_index  # noqa: E402
+
+    fx_pair_for_currency = {
+        "CNY": "CNY=X",  # yfinance returns CNY per 1 USD
+    }
+    fx_cache: dict[str, pd.Series] = {}
+    equity_cal = df[CASH_PROXY].dropna().index
+
+    for ticker, meta in UNIVERSE.items():
+        currency = meta.get("currency", "USD")
+        if currency == "USD" or ticker not in df.columns:
+            continue
+        fx_pair = fx_pair_for_currency.get(currency)
+        if fx_pair is None:
+            print(f"  WARN: no FX mapping for currency={currency} ({ticker})")
+            continue
+        if fx_pair not in fx_cache:
+            print(f"  Downloading FX series {fx_pair} for {currency} -> USD ...",
+                  flush=True)
+            fx_raw = yf.download(fx_pair, start=START_DATE, end=END_DATE,
+                                  auto_adjust=True, progress=False)
+            fx_close = fx_raw["Close"]
+            if isinstance(fx_close, pd.DataFrame):
+                fx_close = fx_close.iloc[:, 0]
+            fx_cache[fx_pair] = fx_close
+        fx = fx_cache[fx_pair]
+        # Compute USD-denominated price on the intersection of native-
+        # currency dates + FX dates: USD_price = native_price / FX_rate
+        # (FX_rate is "native per 1 USD", so divide to convert to USD).
+        native_prices = df[ticker].dropna()
+        merged = pd.concat([native_prices, fx], axis=1, sort=True).dropna()
+        merged.columns = ["native", "fx"]
+        usd_native = merged["native"] / merged["fx"]
+        # Reindex to NYSE equity calendar with a 10-day stale-fill cap.
+        # 10 days covers the Chinese National Day week (Oct 1-7) plus a
+        # buffer; Chinese New Year (typically 7 trading days off) also fits.
+        df[ticker] = align_series_to_index(usd_native, equity_cal,
+                                            max_stale_days=10)
+    return df
+
+
 def download_prices() -> pd.DataFrame:
     """Download adjusted-close prices for the thematic universe + IEF.
 
@@ -334,6 +426,10 @@ def download_prices() -> pd.DataFrame:
     # expense-ratio drag, so the drag's elapsed-days arithmetic uses the
     # right base index.
     df = _reindex_crypto_to_equity_calendar(df)
+    # Phase 17.1: FX-convert any non-USD-denominated tickers (currently
+    # CNY-denominated A-share ETFs) onto the NYSE equity calendar before
+    # the expense-ratio drag, so the drag compounds on USD prices.
+    df = _fx_convert_to_usd(df)
     df = _apply_expense_ratio_drag(df)
     df.to_parquet(PRICE_CACHE)
     print(f"  Downloaded {df.shape[0]} rows x {df.shape[1]} tickers")
@@ -627,15 +723,40 @@ def main() -> int:
     print(f"  {len(closes.columns)} tickers, {closes.shape[0]} trading days")
 
     # Each ticker may start on a different date. Eligible start =
-    # 200 trading days after the latest first-valid date in the universe.
-    first_valid_per_etf = {c: closes[c].first_valid_index() for c in closes.columns}
-    latest_start = max(d for d in first_valid_per_etf.values() if d is not None)
+    # 200 trading days after the latest first-valid date in the CORE
+    # universe (i.e. excluding late_inception tickers).
+    #
+    # Late-inception tickers (UNIVERSE metadata flag) do NOT constrain
+    # the backtest window — they join the candidate pool only on days
+    # when their signal exists (NaN signals are excluded by the K-pick
+    # filter, so this is safe and lossless for the core universe).
+    # Phase 17.1 introduced this for 159801.SZ (China A-share semi,
+    # inception 2019-08, post-BLOK 2018-01 binding date). Without this
+    # decoupling, adding 159801.SZ would have collapsed the backtest
+    # window by ~1.5 years.
+    late_inception_tickers = {
+        t for t, m in UNIVERSE.items()
+        if m.get("late_inception") and t in closes.columns
+    }
+    core_first_valid = {
+        c: closes[c].first_valid_index()
+        for c in closes.columns
+        if c not in late_inception_tickers
+    }
+    latest_start = max(d for d in core_first_valid.values() if d is not None)
     eligible_idx = closes.index.searchsorted(latest_start) + MA_PERIOD
     if eligible_idx >= len(closes):
         print("ERROR: not enough data for warm-up", file=sys.stderr)
         return 1
     eligible = closes.index[eligible_idx]
-    print(f"  Latest ticker start: {latest_start.date()} -> eligible from {eligible.date()}")
+    print(f"  Latest CORE ticker start: {latest_start.date()} -> "
+          f"eligible from {eligible.date()}")
+    if late_inception_tickers:
+        late_starts = {
+            t: closes[t].first_valid_index() for t in late_inception_tickers
+        }
+        print(f"  Late-inception tickers (not constraining window): "
+              f"{ {t: d.date() for t, d in late_starts.items() if d} }")
 
     print("\nComputing signal (distance above 200d MA) ...")
     signal = compute_signal(closes)
