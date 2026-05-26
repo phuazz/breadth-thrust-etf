@@ -2545,11 +2545,13 @@ function renderMonitor() {
 // Selector buttons: 1D, 1W, 1M, YTD (default), 1Y, 3Y, 5Y, MAX.
 
 const _PERF_SERIES = [
-  { key: 'blend_35_35_10_20', name: 'Blend 35/35/10/20', color: '#1351b4', width: 2.5 },
-  { key: 'strategy_a', name: 'A · US sector',   color: '#3b82f6', width: 1.4 },
-  { key: 'strategy_b', name: 'B · Asset class', color: '#10b981', width: 1.4 },
-  { key: 'strategy_c', name: 'C · Thematic',    color: '#f59e0b', width: 1.4 },
-  { key: 'strategy_d', name: 'D · Europe',      color: '#a855f7', width: 1.4 },
+  // Blend = primary line, deliberately thicker than the sleeves so the
+  // "what does the deployed portfolio do" answer is the visible one.
+  { key: 'blend_35_35_10_20', name: 'Blend 35/35/10/20', color: '#1351b4', width: 4.0 },
+  { key: 'strategy_a', name: 'A · US sector',   color: '#3b82f6', width: 1.3 },
+  { key: 'strategy_b', name: 'B · Asset class', color: '#10b981', width: 1.3 },
+  { key: 'strategy_c', name: 'C · Thematic',    color: '#f59e0b', width: 1.3 },
+  { key: 'strategy_d', name: 'D · Europe',      color: '#a855f7', width: 1.3 },
 ];
 // Approximate trading-day count for each period. YTD/MAX use date-based
 // slicing instead. 1D shows a 1-day return but the chart needs at least
@@ -2654,7 +2656,7 @@ function _perfRender(period) {
     Plotly.react('perf-chart', traces, {
       margin: { l: 56, r: 16, t: 16, b: 70 },
       xaxis: { tickfont: { size: 11 } },
-      yaxis: { tickfont: { size: 11 }, tickformat: '.3f',
+      yaxis: { tickfont: { size: 11 }, tickformat: '.2f',
                 title: { text: 'Cumulative equity (1.0 at start)',
                          font: { size: 11 } } },
       hovermode: 'x unified',
