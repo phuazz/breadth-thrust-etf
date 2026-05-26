@@ -617,6 +617,11 @@
     .period-selector button.active {
       background: var(--accent); color: white;
     }
+    /* Wrapper for auto-injected selectors on charts — right-align */
+    .chart-period-selector-wrap {
+      display: flex; justify-content: flex-end;
+      margin: -4px 0 8px 0;
+    }
     .perf-stat-strip {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -2570,7 +2575,8 @@ const _WEIGHTS_4WAY = {
 };
 let _perfCurrentPeriod = 'ytd';
 
-function _perfSlice(dates, equity, period) {
+// Shared by perf-chart AND every equity chart with a timeframe selector.
+function _sliceByPeriod(dates, equity, period) {
   if (!dates || dates.length === 0) return { dates: [], equity: [] };
   if (period === 'max') return { dates, equity };
   let startIdx = 0;
@@ -2586,11 +2592,52 @@ function _perfSlice(dates, equity, period) {
   return { dates: dates.slice(startIdx), equity: equity.slice(startIdx) };
 }
 
-function _perfNormalise(values) {
+function _renormaliseFromStart(values) {
   if (!values.length) return values;
   const base = values[0];
   if (base === 0) return values;
   return values.map(v => v / base);
+}
+
+// Back-compat aliases for the original perf-chart implementation.
+const _perfSlice = _sliceByPeriod;
+const _perfNormalise = _renormaliseFromStart;
+
+// Auto-injects a period selector immediately before the given chart div
+// and wires its buttons to call renderFn(period). Idempotent — calling
+// it again on the same chartId reuses the existing selector and just
+// re-renders with the currently-selected period. The selected period is
+// stored on the selector element's dataset, so tab navigation away and
+// back preserves the user's chosen window.
+function _initPeriodSelectorForChart(chartId, defaultPeriod, renderFn) {
+  const chartEl = document.getElementById(chartId);
+  if (!chartEl) return;
+  const selectorId = chartId + '-period';
+  let selector = document.getElementById(selectorId);
+  if (!selector) {
+    selector = document.createElement('div');
+    selector.id = selectorId;
+    selector.className = 'period-selector chart-period-selector';
+    selector.innerHTML = ['1d', '1w', '1m', 'ytd', '1y', '3y', '5y', 'max']
+      .map(p => `<button data-period="${p}"${p === defaultPeriod ? ' class="active"' : ''}>${p.toUpperCase()}</button>`)
+      .join('');
+    // Wrap in a right-aligned container so the selector floats above
+    // the chart without affecting the rest of the section's layout.
+    const wrap = document.createElement('div');
+    wrap.className = 'chart-period-selector-wrap';
+    wrap.appendChild(selector);
+    chartEl.parentNode.insertBefore(wrap, chartEl);
+    selector.dataset.currentPeriod = defaultPeriod;
+    selector.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-period]');
+      if (!btn) return;
+      selector.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selector.dataset.currentPeriod = btn.dataset.period;
+      renderFn(btn.dataset.period);
+    });
+  }
+  renderFn(selector.dataset.currentPeriod || defaultPeriod);
 }
 
 function _perfComputeStats(dates, equity, period) {
@@ -4171,40 +4218,50 @@ function renderTradeCharts() {
   const bm = topk.benchmarks || {};
 
   // ============ Equity vs benchmarks ============
-  const traces = [
+  const seriesDefs = [
     {
-      x: h.headline_equity_dates, y: h.headline_equity,
-      mode: 'lines', name: 'Top-K Rotation (K=7 Weekly Fri)',
+      name: 'Top-K Rotation (K=7 Weekly Fri)',
+      dates: h.headline_equity_dates, equity: h.headline_equity,
       line: { color: '#1d7a3a', width: 2.4 },
-      hovertemplate: 'Strategy: %{y:.2f}<extra></extra>',
     },
   ];
   if (bm.equal_weight_11) {
-    traces.push({
-      x: bm.equal_weight_11.dates, y: bm.equal_weight_11.equity,
-      mode: 'lines', name: 'Equal-weight 11 ETFs',
+    seriesDefs.push({
+      name: 'Equal-weight 11 ETFs',
+      dates: bm.equal_weight_11.dates, equity: bm.equal_weight_11.equity,
       line: { color: '#b76e00', width: 1.5, dash: 'dash' },
-      hovertemplate: 'EW-11: %{y:.2f}<extra></extra>',
     });
   }
   if (bm.spy_buy_hold) {
-    traces.push({
-      x: bm.spy_buy_hold.dates, y: bm.spy_buy_hold.equity,
-      mode: 'lines', name: 'SPY buy-and-hold',
+    seriesDefs.push({
+      name: 'SPY buy-and-hold',
+      dates: bm.spy_buy_hold.dates, equity: bm.spy_buy_hold.equity,
       line: { color: '#6b727a', width: 1.4, dash: 'dot' },
-      hovertemplate: 'SPY: %{y:.2f}<extra></extra>',
     });
   }
-  Plotly.newPlot('trade-equity-chart', traces, {
+  const tradeLayout = {
     margin: { t: 8, r: 16, b: 40, l: 56 },
     xaxis: { showgrid: false, color: '#4a5159' },
     yaxis: { type: 'log', gridcolor: '#eef0f3', color: '#4a5159',
-              title: { text: 'Equity, normalised to 1.0 (log)', font: { size: 11 } } },
+              tickformat: '.2f',
+              title: { text: 'Equity, normalised to 1.0 at period start (log)', font: { size: 11 } } },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
     legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 12 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
-  }, { displayModeBar: false, responsive: true });
+  };
+  _initPeriodSelectorForChart('trade-equity-chart', 'max', (period) => {
+    const traces = seriesDefs.map(d => {
+      const sliced = _sliceByPeriod(d.dates, d.equity, period);
+      return {
+        x: sliced.dates, y: _renormaliseFromStart(sliced.equity),
+        mode: 'lines', name: d.name, line: d.line,
+        hovertemplate: d.name + ': %{y:.2f}<extra></extra>',
+      };
+    });
+    Plotly.react('trade-equity-chart', traces, tradeLayout,
+                  { displayModeBar: false, responsive: true });
+  });
 
   // Stats panel under equity chart
   renderTradeStatsTable();
@@ -4415,43 +4472,50 @@ function renderAssetCharts() {
   const bm = ac.benchmarks || {};
   const colours = ac.asset_class_colours || {};
 
-  // Equity vs benchmarks
-  const traces = [
-    {
-      x: h.headline_equity_dates, y: h.headline_equity,
-      mode: 'lines', name: 'Asset-Class Rotation (K=7 Weekly Fri)',
-      line: { color: '#1d7a3a', width: 2.4 },
-      hovertemplate: 'Strategy B: %{y:.2f}<extra></extra>',
-    },
+  // Equity vs benchmarks — wrapped for timeframe selector
+  const seriesDefs = [
+    { name: 'Asset-Class Rotation (K=7 Weekly Fri)',
+      dates: h.headline_equity_dates, equity: h.headline_equity,
+      line: { color: '#1d7a3a', width: 2.4 } },
   ];
-  if (bm.sixty_forty) traces.push({
-    x: bm.sixty_forty.dates, y: bm.sixty_forty.equity,
-    mode: 'lines', name: '60/40 SPY/IEF',
+  if (bm.sixty_forty) seriesDefs.push({
+    name: '60/40 SPY/IEF',
+    dates: bm.sixty_forty.dates, equity: bm.sixty_forty.equity,
     line: { color: '#b76e00', width: 1.5, dash: 'dash' },
-    hovertemplate: '60/40: %{y:.2f}<extra></extra>',
   });
-  if (bm.equal_weight_14) traces.push({
-    x: bm.equal_weight_14.dates, y: bm.equal_weight_14.equity,
-    mode: 'lines', name: 'Equal-weight 14 ETFs',
+  if (bm.equal_weight_14) seriesDefs.push({
+    name: 'Equal-weight 14 ETFs',
+    dates: bm.equal_weight_14.dates, equity: bm.equal_weight_14.equity,
     line: { color: '#52525b', width: 1.4, dash: 'dashdot' },
-    hovertemplate: 'EW14: %{y:.2f}<extra></extra>',
   });
-  if (bm.spy_buy_hold) traces.push({
-    x: bm.spy_buy_hold.dates, y: bm.spy_buy_hold.equity,
-    mode: 'lines', name: 'SPY buy-and-hold',
+  if (bm.spy_buy_hold) seriesDefs.push({
+    name: 'SPY buy-and-hold',
+    dates: bm.spy_buy_hold.dates, equity: bm.spy_buy_hold.equity,
     line: { color: '#6b727a', width: 1.4, dash: 'dot' },
-    hovertemplate: 'SPY: %{y:.2f}<extra></extra>',
   });
-  Plotly.newPlot('asset-equity-chart', traces, {
+  const assetLayout = {
     margin: { t: 8, r: 16, b: 60, l: 56 },
     xaxis: { showgrid: false, color: '#4a5159' },
     yaxis: { type: 'log', gridcolor: '#eef0f3', color: '#4a5159',
-              title: { text: 'Equity, normalised to 1.0 (log)', font: { size: 11 } } },
+              tickformat: '.2f',
+              title: { text: 'Equity, normalised to 1.0 at period start (log)', font: { size: 11 } } },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
     legend: { orientation: 'h', y: -0.16, x: 0, font: { size: 12 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
-  }, { displayModeBar: false, responsive: true });
+  };
+  _initPeriodSelectorForChart('asset-equity-chart', 'max', (period) => {
+    const traces = seriesDefs.map(d => {
+      const sliced = _sliceByPeriod(d.dates, d.equity, period);
+      return {
+        x: sliced.dates, y: _renormaliseFromStart(sliced.equity),
+        mode: 'lines', name: d.name, line: d.line,
+        hovertemplate: d.name + ': %{y:.2f}<extra></extra>',
+      };
+    });
+    Plotly.react('asset-equity-chart', traces, assetLayout,
+                  { displayModeBar: false, responsive: true });
+  });
 
   // Stats panel
   renderAssetStatsTable();
@@ -4714,31 +4778,40 @@ function renderThematicCharts() {
   const bm = tc.benchmarks || {};
   const colours = tc.thematic_colours || {};
 
-  // Equity vs SPY (only benchmark for thematic)
-  const traces = [
-    {
-      x: h.headline_equity_dates, y: h.headline_equity,
-      mode: 'lines', name: `Strategy C (K=${h.K} ${h.rebal_freq})`,
-      line: { color: '#dc2626', width: 2.4 },
-      hovertemplate: 'Strategy C: %{y:.2f}<extra></extra>',
-    },
+  // Equity vs SPY (only benchmark for thematic) — wrapped for timeframe
+  const seriesDefs = [
+    { name: `Strategy C (K=${h.K} ${h.rebal_freq})`,
+      dates: h.headline_equity_dates, equity: h.headline_equity,
+      line: { color: '#dc2626', width: 2.4 } },
   ];
-  if (bm.spy_buy_hold?.dates?.length) traces.push({
-    x: bm.spy_buy_hold.dates, y: bm.spy_buy_hold.equity,
-    mode: 'lines', name: 'SPY buy-and-hold',
+  if (bm.spy_buy_hold?.dates?.length) seriesDefs.push({
+    name: 'SPY buy-and-hold',
+    dates: bm.spy_buy_hold.dates, equity: bm.spy_buy_hold.equity,
     line: { color: '#6b727a', width: 1.4, dash: 'dot' },
-    hovertemplate: 'SPY: %{y:.2f}<extra></extra>',
   });
-  Plotly.newPlot('thematic-equity-chart', traces, {
+  const thematicLayout = {
     margin: { t: 8, r: 16, b: 60, l: 56 },
     xaxis: { showgrid: false, color: '#4a5159' },
     yaxis: { type: 'log', gridcolor: '#eef0f3', color: '#4a5159',
-              title: { text: 'Equity, normalised to 1.0 (log)', font: { size: 11 } } },
+              tickformat: '.2f',
+              title: { text: 'Equity, normalised to 1.0 at period start (log)', font: { size: 11 } } },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
     legend: { orientation: 'h', y: -0.16, x: 0, font: { size: 12 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
-  }, { displayModeBar: false, responsive: true });
+  };
+  _initPeriodSelectorForChart('thematic-equity-chart', 'max', (period) => {
+    const traces = seriesDefs.map(d => {
+      const sliced = _sliceByPeriod(d.dates, d.equity, period);
+      return {
+        x: sliced.dates, y: _renormaliseFromStart(sliced.equity),
+        mode: 'lines', name: d.name, line: d.line,
+        hovertemplate: d.name + ': %{y:.2f}<extra></extra>',
+      };
+    });
+    Plotly.react('thematic-equity-chart', traces, thematicLayout,
+                  { displayModeBar: false, responsive: true });
+  });
 
   renderThematicStatsTable();
 
@@ -4993,31 +5066,40 @@ function renderEuropeCharts() {
   const bm = eu.benchmarks || {};
   const colours = eu.europe_colours || {};
 
-  // Equity vs SPY benchmark
-  const traces = [
-    {
-      x: h.headline_equity_dates, y: h.headline_equity,
-      mode: 'lines', name: `Europe Sector Rotation (K=${h.K} ${h.rebal_freq})`,
-      line: { color: '#1351b4', width: 2.4 },
-      hovertemplate: 'Strategy D: %{y:.2f}<extra></extra>',
-    },
+  // Equity vs SPY benchmark — wrapped for timeframe selector
+  const seriesDefs = [
+    { name: `Europe Sector Rotation (K=${h.K} ${h.rebal_freq})`,
+      dates: h.headline_equity_dates, equity: h.headline_equity,
+      line: { color: '#1351b4', width: 2.4 } },
   ];
-  if (bm.spy_buy_hold) traces.push({
-    x: bm.spy_buy_hold.dates, y: bm.spy_buy_hold.equity,
-    mode: 'lines', name: 'SPY buy-and-hold',
+  if (bm.spy_buy_hold) seriesDefs.push({
+    name: 'SPY buy-and-hold',
+    dates: bm.spy_buy_hold.dates, equity: bm.spy_buy_hold.equity,
     line: { color: '#6b727a', width: 1.4, dash: 'dot' },
-    hovertemplate: 'SPY: %{y:.2f}<extra></extra>',
   });
-  Plotly.newPlot('europe-equity-chart', traces, {
+  const europeLayout = {
     margin: { t: 8, r: 16, b: 60, l: 56 },
     xaxis: { showgrid: false, color: '#4a5159' },
     yaxis: { type: 'log', gridcolor: '#eef0f3', color: '#4a5159',
-              title: { text: 'Equity, normalised to 1.0 (log)', font: { size: 11 } } },
+              tickformat: '.2f',
+              title: { text: 'Equity, normalised to 1.0 at period start (log)', font: { size: 11 } } },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
     legend: { orientation: 'h', y: -0.16, x: 0, font: { size: 12 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
-  }, { displayModeBar: false, responsive: true });
+  };
+  _initPeriodSelectorForChart('europe-equity-chart', 'max', (period) => {
+    const traces = seriesDefs.map(d => {
+      const sliced = _sliceByPeriod(d.dates, d.equity, period);
+      return {
+        x: sliced.dates, y: _renormaliseFromStart(sliced.equity),
+        mode: 'lines', name: d.name, line: d.line,
+        hovertemplate: d.name + ': %{y:.2f}<extra></extra>',
+      };
+    });
+    Plotly.react('europe-equity-chart', traces, europeLayout,
+                  { displayModeBar: false, responsive: true });
+  });
 
   renderEuropeStatsTable();
 
@@ -5302,11 +5384,16 @@ function renderMultiCharts() {
           ? ['blend_45_45_10', 'blend_50_50', 'strategy_a']
           : ['blend_50_50', 'strategy_a'])
   );
-  const traces = order.filter(k => s[k]).map(k => {
+  // Wrapped trace builder: takes a period, slices + renormalises each
+  // line so the chart can re-render on timeframe change without losing
+  // the existing colour / width / default-visibility logic.
+  const buildTraces = (period) => order.filter(k => s[k]).map(k => {
     const v = s[k];
     const isVisible = defaultVisibleKeys.has(k);
+    const sliced = _sliceByPeriod(v.dates, v.equity, period);
+    const yNorm = _renormaliseFromStart(sliced.equity);
     return {
-      x: v.dates, y: v.equity, mode: 'lines',
+      x: sliced.dates, y: yNorm, mode: 'lines',
       name: v.label,
       line: { color: colours[k] || '#999', width: widths[k] || 1.2 },
       hovertemplate: k + ': %{y:.2f}<extra></extra>',
@@ -5314,16 +5401,22 @@ function renderMultiCharts() {
       visible: isVisible ? true : 'legendonly',
     };
   });
-  Plotly.newPlot('multi-equity-chart', traces, {
+  const layout = {
     margin: { t: 8, r: 16, b: 120, l: 56 },
     xaxis: { showgrid: false, color: '#4a5159' },
     yaxis: { type: 'log', gridcolor: '#eef0f3', color: '#4a5159',
-              title: { text: 'Equity, normalised to 1.0 (log)', font: { size: 11 } } },
+              tickformat: '.2f',
+              title: { text: 'Equity, normalised to 1.0 at period start (log)',
+                       font: { size: 11 } } },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
     legend: { orientation: 'h', y: -0.22, x: 0, font: { size: 10 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
-  }, { displayModeBar: false, responsive: true });
+  };
+  _initPeriodSelectorForChart('multi-equity-chart', 'max', (period) => {
+    Plotly.react('multi-equity-chart', buildTraces(period), layout,
+                  { displayModeBar: false, responsive: true });
+  });
 
   renderMultiStatsTable();
   renderMultiBootstrapTable();
