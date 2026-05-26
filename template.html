@@ -1208,7 +1208,7 @@
 
     <section>
       <h2>Equity curves — apples-to-apples</h2>
-      <p class="section-sub">All five lines renormalised to 1.0 at the common start date (the latest "data available" date across all series) so visual comparison is fair. Log scale.</p>
+      <p class="section-sub">All five lines anchored at <strong>0% at the common start date</strong> (the latest "data available" date across all series) so visual comparison is fair. Use the timeframe selector to view shorter windows.</p>
       <div id="portfolio-chart" class="chart tall"></div>
     </section>
 
@@ -2550,9 +2550,14 @@ function renderMonitor() {
 // Selector buttons: 1D, 1W, 1M, YTD (default), 1Y, 3Y, 5Y, MAX.
 
 const _PERF_SERIES = [
-  // Blend = primary line, deliberately thicker than the sleeves so the
-  // "what does the deployed portfolio do" answer is the visible one.
-  { key: 'blend_35_35_10_20', name: 'Blend 35/35/10/20', color: '#1351b4', width: 4.0 },
+  // Blend = primary line, deliberately RED + thicker than the sleeves
+  // so the "what does the deployed portfolio do" answer is the visible
+  // one. Red is unconventional in finance (typically = loss) but is the
+  // most attention-grabbing colour and the deployed line should pop;
+  // applied consistently to every chart's "key strategy" line for the
+  // same reason (Strategy A top-7 line on portfolio chart, Strategy A
+  // on its tab equity chart, etc).
+  { key: 'blend_35_35_10_20', name: 'Blend 35/35/10/20', color: '#dc2626', width: 4.0 },
   { key: 'strategy_a', name: 'A · US sector',   color: '#3b82f6', width: 1.3 },
   { key: 'strategy_b', name: 'B · Asset class', color: '#10b981', width: 1.3 },
   { key: 'strategy_c', name: 'C · Thematic',    color: '#f59e0b', width: 1.3 },
@@ -2718,7 +2723,7 @@ function _perfRender(period) {
                 title: { text: 'Cumulative return (0% at period start)',
                          font: { size: 11 } } },
       hovermode: 'x unified',
-      legend: { orientation: 'h', y: -0.22, font: { size: 11 } },
+      legend: { orientation: 'h', y: -0.22, font: { size: 13 } },
       showlegend: true,
     }, { displayModeBar: false, responsive: true });
   }
@@ -3531,7 +3536,7 @@ function _curatedSeries(data) {
       category: 'Strategy A',
       isStrategyA: true,
       ...r.top7_breadth_weight,
-      color: '#1d7a3a', width: 2.6,
+      color: '#dc2626', width: 4.0,
     });
   }
   // 2. Top-5 unleveraged — K-sensitivity reference (is K=7 unique or robust?)
@@ -3611,44 +3616,56 @@ function renderPortfolio() {
     </tr>`;
   }
 
-  // Equity chart — renormalise all series to a common start date for fair visual
+  // Equity chart — first compute the natural common start (latest first-
+  // date across the curated series) so MAX view stays apples-to-apples.
   let commonStart = null;
   for (const c of curated) {
     if (!c.dates?.length) continue;
     if (commonStart === null || c.dates[0] > commonStart) commonStart = c.dates[0];
   }
-  const traces = [];
-  for (const c of curated) {
-    if (!c.dates?.length || !c.equity?.length) continue;
-    let startIdx = c.dates.findIndex(d => d >= commonStart);
-    if (startIdx < 0) startIdx = 0;
-    const datesSlice = c.dates.slice(startIdx);
-    const eqSlice = c.equity.slice(startIdx);
-    const startVal = eqSlice[0] || 1.0;
-    const normalised = eqSlice.map(e => e / startVal);
-    // Strategy A gets a punchier short legend name; everything else uses its full label
-    const legendName = c.isStrategyA
-      ? `★ STRATEGY A (Top-7 K=7 Weekly Fri, no leverage) — Shp ${fmtNum(c.sharpe, 2, true)}`
-      : `${c.label} — Shp ${fmtNum(c.sharpe, 2, true)}`;
-    traces.push({
-      x: datesSlice, y: normalised, mode: 'lines',
-      name: legendName,
-      line: { color: c.color, width: c.width, dash: c.dash || 'solid' },
+  // Pre-slice each series to commonStart once — then the period-selector
+  // sub-slices from there for shorter windows.
+  const seriesAtCommon = curated.filter(c => c.dates?.length && c.equity?.length)
+    .map(c => {
+      let startIdx = c.dates.findIndex(d => d >= commonStart);
+      if (startIdx < 0) startIdx = 0;
+      const datesSlice = c.dates.slice(startIdx);
+      const eqSlice = c.equity.slice(startIdx);
+      const legendName = c.isStrategyA
+        ? `★ STRATEGY A (Top-7 K=7 Weekly Fri, no leverage) — Shp ${fmtNum(c.sharpe, 2, true)}`
+        : `${c.label} — Shp ${fmtNum(c.sharpe, 2, true)}`;
+      return {
+        name: legendName,
+        dates: datesSlice, equity: eqSlice,
+        line: { color: c.color, width: c.width, dash: c.dash || 'solid' },
+      };
     });
-  }
   const layout = {
     margin: { l: 60, r: 14, t: 14, b: 38 },
     paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
     font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
     xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date' },
     yaxis: {
-      title: `Equity (renormalised to 1.0 at ${commonStart})`,
-      gridcolor: '#eef0f3', zeroline: false, type: 'log', tickformat: '.2f',
+      title: { text: 'Cumulative return (0% at period start)',
+                font: { size: 11 } },
+      gridcolor: '#eef0f3', tickformat: '.1%',
+      zeroline: true, zerolinecolor: '#9ca3af', zerolinewidth: 1,
     },
     hovermode: 'x unified',
-    legend: { orientation: 'h', x: 0, y: 1.14, font: { size: 11 } },
+    legend: { orientation: 'h', x: 0, y: 1.14, font: { size: 13 } },
   };
-  Plotly.newPlot('portfolio-chart', traces, layout, { displayModeBar: false, responsive: true });
+  _initPeriodSelectorForChart('portfolio-chart', 'max', (period) => {
+    const traces = seriesAtCommon.map(d => {
+      const sliced = _sliceByPeriod(d.dates, d.equity, period);
+      return {
+        x: sliced.dates, y: _renormaliseAsReturn(sliced.equity),
+        mode: 'lines', name: d.name, line: d.line,
+        hovertemplate: '%{y:+.2%}<extra>' + d.name + '</extra>',
+      };
+    });
+    Plotly.react('portfolio-chart', traces, layout,
+                  { displayModeBar: false, responsive: true });
+  });
 
   // Full variant table (collapsed by default)
   const elFull = document.getElementById('portfolio-table-full');
@@ -4231,9 +4248,9 @@ function renderTradeCharts() {
   // ============ Equity vs benchmarks ============
   const seriesDefs = [
     {
-      name: 'Top-K Rotation (K=7 Weekly Fri)',
+      name: 'Top-K Rotation (K=7 Weekly Fri) — DEPLOYED',
       dates: h.headline_equity_dates, equity: h.headline_equity,
-      line: { color: '#1d7a3a', width: 2.4 },
+      line: { color: '#dc2626', width: 3.5 },
     },
   ];
   if (bm.equal_weight_11) {
@@ -4258,7 +4275,7 @@ function renderTradeCharts() {
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
               title: { text: 'Cumulative return (0% at period start)', font: { size: 11 } } },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
-    legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 12 } },
+    legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 13 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
   };
@@ -4486,9 +4503,9 @@ function renderAssetCharts() {
 
   // Equity vs benchmarks — wrapped for timeframe selector
   const seriesDefs = [
-    { name: 'Asset-Class Rotation (K=7 Weekly Fri)',
+    { name: 'Asset-Class Rotation (K=7 Weekly Fri) — DEPLOYED',
       dates: h.headline_equity_dates, equity: h.headline_equity,
-      line: { color: '#1d7a3a', width: 2.4 } },
+      line: { color: '#dc2626', width: 3.5 } },
   ];
   if (bm.sixty_forty) seriesDefs.push({
     name: '60/40 SPY/IEF',
@@ -4513,7 +4530,7 @@ function renderAssetCharts() {
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
               title: { text: 'Cumulative return (0% at period start)', font: { size: 11 } } },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
-    legend: { orientation: 'h', y: -0.16, x: 0, font: { size: 12 } },
+    legend: { orientation: 'h', y: -0.16, x: 0, font: { size: 13 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
   };
@@ -4793,9 +4810,9 @@ function renderThematicCharts() {
 
   // Equity vs SPY (only benchmark for thematic) — wrapped for timeframe
   const seriesDefs = [
-    { name: `Strategy C (K=${h.K} ${h.rebal_freq})`,
+    { name: `Strategy C (K=${h.K} ${h.rebal_freq}) — DEPLOYED`,
       dates: h.headline_equity_dates, equity: h.headline_equity,
-      line: { color: '#dc2626', width: 2.4 } },
+      line: { color: '#dc2626', width: 3.5 } },
   ];
   if (bm.spy_buy_hold?.dates?.length) seriesDefs.push({
     name: 'SPY buy-and-hold',
@@ -4810,7 +4827,7 @@ function renderThematicCharts() {
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
               title: { text: 'Cumulative return (0% at period start)', font: { size: 11 } } },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
-    legend: { orientation: 'h', y: -0.16, x: 0, font: { size: 12 } },
+    legend: { orientation: 'h', y: -0.16, x: 0, font: { size: 13 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
   };
@@ -5082,9 +5099,9 @@ function renderEuropeCharts() {
 
   // Equity vs SPY benchmark — wrapped for timeframe selector
   const seriesDefs = [
-    { name: `Europe Sector Rotation (K=${h.K} ${h.rebal_freq})`,
+    { name: `Europe Sector Rotation (K=${h.K} ${h.rebal_freq}) — DEPLOYED`,
       dates: h.headline_equity_dates, equity: h.headline_equity,
-      line: { color: '#1351b4', width: 2.4 } },
+      line: { color: '#dc2626', width: 3.5 } },
   ];
   if (bm.spy_buy_hold) seriesDefs.push({
     name: 'SPY buy-and-hold',
@@ -5099,7 +5116,7 @@ function renderEuropeCharts() {
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
               title: { text: 'Cumulative return (0% at period start)', font: { size: 11 } } },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
-    legend: { orientation: 'h', y: -0.16, x: 0, font: { size: 12 } },
+    legend: { orientation: 'h', y: -0.16, x: 0, font: { size: 13 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
   };
@@ -5371,7 +5388,7 @@ function renderMultiCharts() {
     meta_rotation:      '#9ca3af',
   };
   const widths = {
-    blend_35_35_10_20: 2.6, blend_45_45_10: 2.0, blend_50_50: 1.6,
+    blend_35_35_10_20: 4.0, blend_45_45_10: 2.0, blend_50_50: 1.6,
     strategy_a: 1.4, strategy_b: 1.4, strategy_c: 1.4, strategy_d: 1.4,
   };
   // Order: 4-way deployed first, then 4-way alternatives, then 3-way blends, then 2-way, then standalone, then meta
