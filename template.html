@@ -740,6 +740,28 @@
       font-size: 10.5px; color: var(--ink-faint);
       margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em;
     }
+    .overlay-impact-strip {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px; margin-bottom: 14px;
+    }
+    .overlay-impact-stat {
+      padding: 10px 14px; background: var(--bg-soft);
+      border-radius: 4px;
+    }
+    .overlay-impact-stat .v {
+      font-size: 22px; font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .overlay-impact-stat .v.good { color: var(--good); }
+    .overlay-impact-stat .v.neutral { color: var(--ink-soft); }
+    .overlay-impact-stat .l {
+      font-size: 10.5px; color: var(--ink-faint);
+      text-transform: uppercase; letter-spacing: 0.04em;
+      margin-top: 2px;
+    }
+    .overlay-dd-chart {
+      width: 100%; height: 320px;
+    }
     .overlay-impact-table {
       width: 100%; border-collapse: collapse; font-size: 13px;
     }
@@ -1170,10 +1192,8 @@
         <div class="overlay-card overlay-card-status" id="overlay-status-card"></div>
         <div class="overlay-card overlay-card-gauge" id="overlay-gauge-card"></div>
       </div>
-      <div class="overlay-grid">
-        <div class="overlay-card overlay-card-explainer" id="overlay-explainer-card"></div>
-        <div class="overlay-card overlay-card-impact" id="overlay-impact-card"></div>
-      </div>
+      <div class="overlay-card overlay-card-explainer" id="overlay-explainer-card" style="margin-top:14px;"></div>
+      <div class="overlay-card overlay-card-impact" id="overlay-impact-card" style="margin-top:14px;"></div>
       <div class="overlay-card" id="overlay-events-card" style="margin-top:14px;"></div>
     </section>
 
@@ -3359,56 +3379,108 @@ function renderRiskOverlay() {
     `;
   }
 
-  // ---- Card 4: IMPACT vs UNGATED ----
+  // ---- Card 4: IMPACT — drawdown overlay chart ----
+  // Replaces the previous 4×3 table. Underwater drawdown curves for the
+  // ungated blend (dark, behind) vs the gated blend (light, in front)
+  // make the "what does the overlay protect against" question
+  // answerable in 2 seconds. Stat-strip at top keeps the key headline
+  // numbers (max DD gated vs ungated + delta) immediately visible.
   const impactCard = document.getElementById('overlay-impact-card');
   const ungated = m?.strategies?.blend_35_35_10_20;
   const gated = m?.strategies?.blend_35_35_10_20_gated;
-  if (impactCard && ungated && gated) {
+  if (impactCard && ungated && gated && ungated.dates && gated.dates) {
     const fmtSh = x => x == null ? '—' : (x >= 0 ? '+' : '') + x.toFixed(2);
     const fmtPctV = x => x == null ? '—' : (x >= 0 ? '+' : '') + (x * 100).toFixed(1) + '%';
-    const dSh = (gated.sharpe - ungated.sharpe);
     const dDd = (gated.max_dd - ungated.max_dd);
-    const dCagr = (gated.cagr - ungated.cagr);
+    const dSh = (gated.sharpe - ungated.sharpe);
+
     impactCard.innerHTML = `
       <h3>What the overlay buys you — 7.5y backtest</h3>
-      <table class="overlay-impact-table">
-        <thead>
-          <tr><th></th><th>Deployed (gated)</th><th>Without overlay</th><th>Δ</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <th>Sharpe</th>
-            <td class="good">${fmtSh(gated.sharpe)}</td>
-            <td class="neutral">${fmtSh(ungated.sharpe)}</td>
-            <td class="delta">${dSh >= 0 ? '+' : ''}${dSh.toFixed(2)}</td>
-          </tr>
-          <tr>
-            <th>Max drawdown</th>
-            <td class="good">${fmtPctV(gated.max_dd)}</td>
-            <td class="neutral">${fmtPctV(ungated.max_dd)}</td>
-            <td class="delta">${dDd >= 0 ? '+' : ''}${(dDd * 100).toFixed(1)}pp better</td>
-          </tr>
-          <tr>
-            <th>CAGR</th>
-            <td>${fmtPctV(gated.cagr)}</td>
-            <td class="neutral">${fmtPctV(ungated.cagr)}</td>
-            <td class="${dCagr >= 0 ? 'delta' : 'neutral'}">${dCagr >= 0 ? '+' : ''}${(dCagr * 100).toFixed(1)}pp</td>
-          </tr>
-          <tr>
-            <th>Days defensive</th>
-            <td>${(gate.pct_days_risk_off || 0).toFixed(1)}%</td>
-            <td class="neutral">0%</td>
-            <td class="neutral">—</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="overlay-impact-strip">
+        <div class="overlay-impact-stat">
+          <div class="v good">${fmtPctV(gated.max_dd)}</div>
+          <div class="l">Max DD with overlay</div>
+        </div>
+        <div class="overlay-impact-stat">
+          <div class="v neutral">${fmtPctV(ungated.max_dd)}</div>
+          <div class="l">Max DD without overlay</div>
+        </div>
+        <div class="overlay-impact-stat">
+          <div class="v good">+${Math.abs(dDd * 100).toFixed(1)}pp</div>
+          <div class="l">Drawdown protected</div>
+        </div>
+        <div class="overlay-impact-stat">
+          <div class="v good">${dSh >= 0 ? '+' : ''}${dSh.toFixed(2)}</div>
+          <div class="l">Sharpe lift</div>
+        </div>
+      </div>
+      <div id="overlay-dd-chart" class="overlay-dd-chart"></div>
       <div class="overlay-meta" style="margin-top:10px; font-size:12px;">
-        Pareto-improving on the un-gated blend: better Sharpe AND lower drawdown.
-        The small CAGR cost (${(dCagr * 100).toFixed(1)}pp) is the price of the
-        ${(gate.pct_days_risk_off || 0).toFixed(0)}% of days the strategy held
-        Treasuries instead of full blend during real stress events.
+        <strong>Reading the chart:</strong> both lines show the cumulative drawdown
+        from each version's running peak (always ≤ 0%). The two lines move
+        together during normal markets — they are the same underlying blend.
+        They <strong>diverge during stress events</strong>: the gated line stays
+        clearly shallower because the overlay moves half the portfolio to
+        Treasuries when S&amp;P 500 breadth collapses. The visible gaps in
+        early 2020, late 2022, and other smaller events are the protection
+        the overlay has delivered in practice.
       </div>
     `;
+
+    // Compute drawdowns client-side from each equity curve
+    const computeDD = (equity) => {
+      const out = [];
+      let peak = -Infinity;
+      for (const v of equity) {
+        if (v > peak) peak = v;
+        out.push(peak > 0 ? v / peak - 1 : 0);
+      }
+      return out;
+    };
+    const ungatedDD = computeDD(ungated.equity);
+    const gatedDD = computeDD(gated.equity);
+
+    // Common date axis (both series share the same backtest window)
+    const dates = ungated.dates;
+
+    if (typeof Plotly !== 'undefined') {
+      const traces = [
+        {
+          x: dates, y: ungatedDD,
+          mode: 'lines',
+          name: 'Without overlay (un-gated 4-way blend)',
+          line: { color: '#9ca3af', width: 1.2 },
+          fill: 'tozeroy',
+          fillcolor: 'rgba(156, 163, 175, 0.18)',
+          hovertemplate: 'Un-gated: %{y:.2%}<extra></extra>',
+        },
+        {
+          x: dates, y: gatedDD,
+          mode: 'lines',
+          name: 'Deployed (gated, Phase 19)',
+          line: { color: '#1351b4', width: 2.2 },
+          fill: 'tozeroy',
+          fillcolor: 'rgba(19, 81, 180, 0.12)',
+          hovertemplate: 'Gated:    %{y:.2%}<extra></extra>',
+        },
+      ];
+      Plotly.newPlot('overlay-dd-chart', traces, {
+        margin: { t: 8, r: 12, b: 38, l: 56 },
+        xaxis: { showgrid: false, color: '#4a5159',
+                 tickfont: { size: 11 } },
+        yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
+                  tickformat: '.0%', zeroline: true,
+                  zerolinecolor: '#9ca3af', zerolinewidth: 1,
+                  tickfont: { size: 11 },
+                  title: { text: 'Cumulative drawdown from peak',
+                           font: { size: 11 } } },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        hovermode: 'x unified',
+        showlegend: true,
+        legend: { orientation: 'h', y: -0.18, font: { size: 12 } },
+        font: { family: 'Inter', size: 12, color: '#4a5159' },
+      }, { displayModeBar: false, responsive: true });
+    }
   }
 
   // ---- Card 5: HISTORICAL EVENT LOG ----
