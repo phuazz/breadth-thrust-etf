@@ -1209,7 +1209,7 @@
 
     <section id="overlay-section" style="display:none;">
       <h2>Risk Overlay — defensive layer on top of the 4-way blend</h2>
-      <p class="section-sub">A breadth-based regime gate that scales the portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated <strong>+1.20 Sharpe / -23.4% max DD</strong> blend and the deployed <strong>+1.27 Sharpe / -16.9% max DD</strong> portfolio you actually hold. Below is what it is doing today and what it has done historically.</p>
+      <p class="section-sub">A breadth-based regime gate that scales the portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated <strong>+1.20 Sharpe / -23.4% max DD</strong> blend and the deployed <strong>+1.29 Sharpe / -16.5% max DD</strong> portfolio you actually hold. Below is what it is doing today and what it has done historically.</p>
       <div class="overlay-grid">
         <div class="overlay-card overlay-card-status" id="overlay-status-card"></div>
         <div class="overlay-card overlay-card-gauge" id="overlay-gauge-card"></div>
@@ -1233,7 +1233,7 @@
           <button data-period="max">MAX</button>
         </div>
       </div>
-      <p class="section-sub">Cumulative return for the deployed blend and each of the four contributing sleeves, anchored at <strong>0% at the start of the selected period</strong>. The stat strip and the attribution bars below the chart recompute live with the timeframe — switching to 1Y will show this year's return, switching to MAX will show full backtest history. Default YTD. <strong style="color:#b45309;">Amber-shaded bands</strong> mark periods when the breadth regime overlay was active (RISK_OFF — half of NAV moved to IEF). Look at the Mar-Apr 2026 band on the YTD view: that is the overlay protecting the strategy through a real drawdown.</p>
+      <p class="section-sub">Cumulative return for the deployed blend and each of the four contributing sleeves, anchored at <strong>0% at the start of the selected period</strong>. The stat strip and the attribution bars below the chart recompute live with the timeframe — switching to 1Y will show this year's return, switching to MAX will show full backtest history. Default YTD. <strong style="color:#b45309;">Amber-shaded bands</strong> mark periods when the breadth regime overlay was active (RISK_OFF — half of NAV moved to SHY, 1-3y US Treasury). Look at the Mar-Apr 2026 band on the YTD view: that is the overlay protecting the strategy through a real drawdown.</p>
       <div id="perf-stat-strip" class="perf-stat-strip"></div>
       <div id="perf-chart" class="chart"></div>
       <div id="perf-attribution"></div>
@@ -3435,7 +3435,7 @@ function renderRiskOverlay() {
   const offPct = ((gate.off_threshold || 0.20) * 100).toFixed(0);
   const onPct  = ((gate.on_threshold  || 0.50) * 100).toFixed(0);
   const derisk = ((gate.derisk_fraction || 0.50) * 100).toFixed(0);
-  const fallback = gate.fallback_ticker || 'IEF';
+  const fallback = gate.fallback_ticker || 'SHY';
 
   const sinceDate = gate.current_state_since || '—';
   const daysSince = sinceDate !== '—'
@@ -3523,7 +3523,7 @@ function renderRiskOverlay() {
         <p style="margin:0 0 8px 0;">
           <strong>When breadth falls below ${offPct}%</strong> (rare — happens in real
           stress events like Mar 2020 COVID and late-2022 inflation), we move
-          ${derisk}% of NAV to <code>${fallback}</code> (7-10y US Treasury).
+          ${derisk}% of NAV to <code>${fallback}</code> (1-3y US Treasury — duration-neutral cash equivalent).
           The other ${100 - parseInt(derisk)}% stays in the blend at proportional
           weights. <strong>When breadth recovers above ${onPct}%</strong>, we restore
           full blend deployment.
