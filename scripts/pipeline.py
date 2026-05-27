@@ -394,6 +394,17 @@ def main() -> int:
     OUT.write_text(built, encoding="utf-8")
     size_kb = len(built) / 1024
     print(f"Wrote {OUT.relative_to(PROJECT_ROOT)}  ({len(built):,} bytes, {size_kb:.1f} KB)")
+
+    # B28 — Auto-generate the monthly factsheet PDF from the same data
+    # the dashboard uses. Soft-fail if matplotlib is unavailable so a
+    # broken factsheet build does not break the dashboard pipeline.
+    print(f"\nBuilding factsheet PDF ...")
+    try:
+        import build_factsheet
+        build_factsheet.build(DOCS / "factsheet_latest.pdf")
+    except Exception as exc:
+        print(f"  WARN: factsheet build failed (non-fatal): {exc}",
+              file=sys.stderr)
     return 0
 
 
