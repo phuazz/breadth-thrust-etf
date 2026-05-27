@@ -28,8 +28,12 @@ Trading rules:
     their 200d MA) are EXCLUDED — unlike Strategy A which is always 100%
     invested, this strategy has a built-in cash floor when broadly weak.
   - Weight each held ETF by its signal share among the survivors.
-  - Idle (non-held) capital sits in IEF (7-10y Treasury) as cash proxy —
-    earns a small carry instead of zero.
+  - Idle (non-held) capital sits in SHY (1-3y Treasury) as cash proxy —
+    earns t-bill carry without the duration risk of IEF. SHY is OUT of
+    the rotation candidate set (cash-only) so its low signal magnitude
+    cannot accidentally crowd out a momentum pick.
+    (Phase 19.1, 2026-05-27: switched from IEF to SHY after attribution
+    showed B held IEF 92% of 2022 days as cash floor with IEF at -15%.)
   - 5 bps per unit weight change (matches Strategy A cost assumption).
 
 Benchmarks:
@@ -119,8 +123,17 @@ HEADLINE_FREQ_NAME = "Weekly Fri"
 HEADLINE_FREQ = "W-FRI"
 
 # ETF used as a cash proxy when fewer than K ETFs have positive signal.
-# IEF earns ~3-4% Treasury carry vs 0% for cash — small carry on idle capital.
-CASH_PROXY = "IEF"
+# Phase 19.1 (2026-05-27): switched from IEF (7-10y, ~7y duration) to SHY
+# (1-3y, ~1.8y duration). IEF stays in TICKERS as a rotation candidate
+# (legitimate duration play); SHY is added separately as a cash-only
+# vehicle (downloaded but excluded from the candidate set). The 2022
+# inflation crash showed IEF's duration risk turns the cash floor into a
+# correlated drawdown — SHY is duration-neutral cash.
+CASH_PROXY = "SHY"
+# Tickers downloaded purely for use as cash floor; NOT eligible to be
+# picked by the rotation. Excluded from the candidate set in the weight
+# function and from per-ETF iteration where appropriate.
+CASH_ONLY_TICKERS = ["SHY"]
 
 
 # =========================================================================
@@ -133,6 +146,7 @@ ASSET_CLASS_COLOURS = {
     "VNQ":  "#0d9488",
     "GLD":  "#ca8a04",  "DBC":  "#92400e",
     "TLT":  "#1d7a3a",  "IEF":  "#65a30d",  "TIP":  "#a16207",  "HYG":  "#52525b",
+    "SHY":  "#6b727a",  # cash proxy (Phase 19.1 — 1-3y Treasury)
 }
 
 
@@ -165,23 +179,24 @@ def download_prices() -> pd.DataFrame:
     cache is more than 7 days stale relative to today (so weekly Friday
     rebalances stay current without re-downloading every run).
     """
+    needed = TICKERS + CASH_ONLY_TICKERS
     if PRICE_CACHE.exists():
         cached = pd.read_parquet(PRICE_CACHE)
         stale_days = (pd.Timestamp.utcnow().tz_localize(None) - cached.index.max()).days
         cached_universe = set(cached.columns)
-        if stale_days <= 7 and set(TICKERS).issubset(cached_universe):
+        if stale_days <= 7 and set(needed).issubset(cached_universe):
             print(f"  Using cached prices ({cached.index.min().date()} -> "
                   f"{cached.index.max().date()}, {stale_days}d stale)")
-            return cached[TICKERS]
+            return cached[needed]
         print(f"  Cache stale ({stale_days}d) or universe expanded — refreshing")
 
-    print(f"  Downloading {len(TICKERS)} tickers from yfinance "
+    print(f"  Downloading {len(needed)} tickers from yfinance "
           f"({START_DATE} -> {END_DATE}) ...", flush=True)
-    raw = yf.download(TICKERS, start=START_DATE, end=END_DATE, auto_adjust=True,
+    raw = yf.download(needed, start=START_DATE, end=END_DATE, auto_adjust=True,
                       progress=False, threads=True, group_by="ticker")
     # Result has MultiIndex columns (ticker, field). Extract Close per ticker.
     closes = {}
-    for t in TICKERS:
+    for t in needed:
         if (t, "Close") in raw.columns:
             closes[t] = raw[(t, "Close")]
         elif "Close" in raw.columns:
@@ -226,6 +241,10 @@ def top_k_by_signal(K: int, exclude_negative: bool = True):
                 w[CASH_PROXY] = 1.0
             return w
         candidates = valid[valid > 0] if exclude_negative else valid
+        # Cash proxy is downloaded for the floor only — never let it appear
+        # as a momentum pick. (Phase 19.1: SHY is cash, not a rotation ETF.)
+        if CASH_PROXY in candidates.index:
+            candidates = candidates.drop(CASH_PROXY)
         if len(candidates) == 0:
             # Everything in downtrend — sit in cash proxy
             w = pd.Series(0.0, index=s_row.index)
@@ -621,11 +640,13 @@ def main() -> int:
 
     # ===== Per-ETF signal time series (weekly samples) for ETF Detail tab =====
     # Sample on Fridays only to keep JSON size down; that matches the chart
-    # cadence elsewhere and ETF Detail's weekly granularity.
+    # cadence elsewhere and ETF Detail's weekly granularity. Include the
+    # CASH_PROXY (SHY) so users who see SHY in their attribution can
+    # inspect its signal too.
     signal_window = signal.loc[signal.index >= eligible]
     weekly_signal = signal_window.loc[signal_window.index.dayofweek == 4]
     per_etf_signals = {}
-    for etf in TICKERS:
+    for etf in TICKERS + CASH_ONLY_TICKERS:
         if etf in weekly_signal.columns:
             ser = weekly_signal[etf].dropna()
             per_etf_signals[etf] = {
@@ -640,6 +661,14 @@ def main() -> int:
             {"etf": t, "label": UNIVERSE[t]["label"],
              "asset_class": UNIVERSE[t]["asset_class"]}
             for t in TICKERS
+        ] + [
+            # CASH_ONLY_TICKERS (SHY, Phase 19.1) are not rotation candidates
+            # but appear in attribution / weights whenever the cash floor is
+            # active. Without an asset_class entry the dashboard renders an
+            # empty Asset Class cell — same bug Phase 21 fixed for IEF in C.
+            {"etf": "SHY",
+             "label": "iShares 1-3y US Treasury (Strategy B cash floor)",
+             "asset_class": "Cash / Treasury"},
         ],
         "ma_period": MA_PERIOD,
         "cost_bps": COST_BPS,

@@ -20,7 +20,11 @@ Strategy B's mechanics:
   1. Hard signal floor: signal must be >= 5% above 200d MA to be eligible
      (not just positive). Filters marginal "in an uptrend" cases.
   2. Per-ETF cap: max 35% of Strategy C in any single thematic.
-  3. Cash floor in IEF when fewer than K candidates clear the floor.
+  3. Cash floor in SHY when fewer than K candidates clear the floor.
+     (Phase 19.1, 2026-05-27: switched from IEF after the 2022 inflation
+     episode showed IEF's 7y duration co-moves with equities in rate-hike
+     regimes. SHY's 1-3y duration is duration-neutral cash. The same logic
+     drove the overlay-fallback switch.)
   4. Smaller K (3-4) because the universe is more internally correlated.
   5. The combined portfolio sleeve cap is 10% (managed in run_multi_strategy).
 
@@ -223,9 +227,13 @@ TICKERS = list(UNIVERSE.keys())
 DEFERRED_UNIVERSE: dict[str, dict] = {}
 
 # Cash proxy when fewer than K candidates clear the signal floor.
-# IEF is the same 7-10y Treasury used in Strategy B, so cash exposure is
-# consistent across B and C.
-CASH_PROXY = "IEF"
+# Phase 19.1 (2026-05-27): switched from IEF (7-10y, ~7y duration) to
+# SHY (1-3y, ~1.8y duration). The 2022 inflation episode showed IEF can
+# sell off alongside equities in rate-hike regimes — Strategy C held IEF
+# 74% of the 2022 trading days as cash floor, and IEF was -15% that year,
+# turning the cash floor into a second drawdown. SHY is duration-neutral
+# cash and tracks the t-bill carry without the rate-hike risk.
+CASH_PROXY = "SHY"
 
 START_DATE = "2018-01-01"  # BLOK inception (Jan 2018) is the binding date
 END_DATE = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -273,7 +281,8 @@ THEMATIC_COLOURS = {
     "AMLP": "#854d0e",  # ochre — MLPs / energy infra
     "PHO":  "#155e75",  # deep teal — water
     "KRE":  "#1e40af",  # deep blue — regional banks
-    "IEF":  "#6b727a",  # cash proxy
+    "SHY":  "#6b727a",  # cash proxy (1-3y Treasury — Phase 19.1)
+    "IEF":  "#9ca3af",  # retained for backward compatibility (old payloads)
 }
 
 
@@ -395,10 +404,10 @@ def _fx_convert_to_usd(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def download_prices() -> pd.DataFrame:
-    """Download adjusted-close prices for the thematic universe + IEF.
+    """Download adjusted-close prices for the thematic universe + cash proxy.
 
-    Reuses the asset_class cache when available for IEF (avoid double-
-    downloading). Refreshes if more than 7 days stale.
+    Reuses the asset_class cache when available for the cash proxy (avoid
+    double-downloading). Refreshes if more than 7 days stale.
     """
     needed = TICKERS + [CASH_PROXY]
     if PRICE_CACHE.exists():
@@ -465,6 +474,12 @@ def top_k_equal_weight(K: int):
     def f(s_row: pd.Series) -> pd.Series:
         valid = s_row.dropna()
         eligible = valid[valid > SIGNAL_FLOOR]
+        # Phase 19.1: CASH_PROXY (SHY) is downloaded for the cash floor
+        # only — never a momentum pick. Exclude it from the eligible set so
+        # it cannot be promoted to a rotation candidate even if its tiny
+        # signal somehow clears the +5% floor in a rate-shock regime.
+        if CASH_PROXY in eligible.index:
+            eligible = eligible.drop(CASH_PROXY)
         w = pd.Series(0.0, index=s_row.index)
         if len(eligible) == 0:
             if CASH_PROXY in w.index:
@@ -919,7 +934,7 @@ def main() -> int:
             # table whenever fewer than K candidates clear the signal floor.
             # Without a theme entry, the dashboard renders an empty Theme cell.
             {"etf": CASH_PROXY,
-             "label": "iShares 7-10y US Treasury (Strategy C cash floor)",
+             "label": "iShares 1-3y US Treasury (Strategy C cash floor)",
              "theme": "Cash / Treasury"}
         ],
         "ma_period": MA_PERIOD,
