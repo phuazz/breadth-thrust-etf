@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-05-27T06:31:57.515523+00:00",
+  "computed_at_utc": "2026-05-27T10:12:25.554034+00:00",
   "common_start": "2018-11-08",
   "common_end": "2026-05-22",
   "has_strategy_c": true,
@@ -41004,7 +41004,7 @@
       "max_dd": -0.32068579947819603
     },
     "blend_35_35_10_20": {
-      "label": "35% A + 35% B + 10% C + 20% D (RECOMMENDED \u2014 4-way blend with separate Europe sleeve)",
+      "label": "35% A + 35% B + 10% C + 20% D (Phase 4 ungated reference \u2014 overlay disabled)",
       "dates": [
         "2018-11-08",
         "2018-11-09",

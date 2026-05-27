@@ -6388,7 +6388,8 @@ function renderMultiStatsTable() {
   </tr>`;
   // Build row list — order changes whether C / D are present
   const rowsWithD = [
-    { key: 'blend_35_35_10_20', label: '35% A + 35% B + 10% C + 20% D (DEPLOYED — Phase 4 4-way blend with Europe sleeve)', highlight: true },
+    { key: 'blend_35_35_10_20_gated', label: '35% A + 35% B + 10% C + 20% D + CSP1 breadth gate (DEPLOYED — Phase 19 4-way blend with risk overlay)', highlight: true },
+    { key: 'blend_35_35_10_20',       label: '35% A + 35% B + 10% C + 20% D (Phase 4 ungated reference — overlay disabled)' },
     { key: 'blend_40_40_10_10', label: '40% A + 40% B + 10% C + 10% D (light Europe — closer to 3-way baseline DD)' },
     { key: 'blend_30_30_10_30', label: '30% A + 30% B + 10% C + 30% D (heavy Europe — sharper but deeper DD)' },
     { key: 'blend_45_45_10',    label: '45% A + 45% B + 10% C (PRE-PHASE-4 BASELINE — lower DD than 4-way)' },

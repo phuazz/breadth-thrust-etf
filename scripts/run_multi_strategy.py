@@ -511,7 +511,7 @@ def main() -> int:
         if blend_3535_10_20 is not None:
             strategies["blend_35_35_10_20"] = {
                 "label": ("35% A + 35% B + 10% C + 20% D "
-                          "(RECOMMENDED — 4-way blend with separate Europe sleeve)"),
+                          "(Phase 4 ungated reference — overlay disabled)"),
                 "dates": [d.strftime("%Y-%m-%d") for d in blend_3535_10_20.index],
                 "equity": round_series(blend_3535_10_20.values),
                 **s35351020,
