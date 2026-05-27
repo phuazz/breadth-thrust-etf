@@ -384,6 +384,7 @@ def main() -> int:
         "bootstrap": bootstrap,
         "right_tail": right_tail,
         "holdings_prices": holdings_prices,
+        "risk_overlay": risk_overlay,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")

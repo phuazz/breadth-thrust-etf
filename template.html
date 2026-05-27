@@ -661,6 +661,118 @@
     .chart.tall { height: 540px; }
     .chart.short { height: 320px; }
 
+    /* ----- Monitor-tab Risk Overlay section (Phase 19 messaging) ----- */
+    .overlay-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 14px; margin-top: 14px;
+    }
+    @media (max-width: 900px) { .overlay-grid { grid-template-columns: 1fr; } }
+    .overlay-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 4px; padding: 16px 18px;
+    }
+    .overlay-card h3 {
+      margin: 0 0 10px 0; font-size: 13px;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--ink-faint); font-weight: 700;
+    }
+    .overlay-card-status.risk-on { border-left: 4px solid var(--good); }
+    .overlay-card-status.risk-off { border-left: 4px solid #d97706; }
+    .overlay-state-row {
+      display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px;
+    }
+    .overlay-state-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 5px 12px; border-radius: 999px;
+      font-weight: 700; font-size: 14px;
+    }
+    .overlay-state-pill.on { background: rgba(29,122,58,0.12); color: var(--good); }
+    .overlay-state-pill.off { background: rgba(217,119,6,0.12); color: #b45309; }
+    .overlay-state-pill .dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: currentColor;
+    }
+    .overlay-meta {
+      font-size: 13px; color: var(--ink-soft);
+    }
+    .overlay-meta strong { color: var(--ink); }
+    .overlay-action {
+      margin-top: 10px; font-size: 13px; line-height: 1.5;
+      padding: 8px 12px; background: var(--bg-soft);
+      border-radius: 4px; border-left: 3px solid var(--accent);
+    }
+    /* Breadth gauge — horizontal bar with RISK_OFF zone (red),
+       neutral zone, RISK_ON zone (green), and a current-value marker. */
+    .gauge-wrap {
+      position: relative; width: 100%; height: 56px;
+      margin-top: 8px;
+    }
+    .gauge-track {
+      position: absolute; top: 18px; left: 0; right: 0; height: 20px;
+      display: flex; border-radius: 4px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .gauge-seg-off  { background: rgba(220, 38, 38, 0.18); }
+    .gauge-seg-mid  { background: var(--bg-soft); }
+    .gauge-seg-on   { background: rgba(29, 122, 58, 0.18); }
+    .gauge-marker {
+      position: absolute; top: 12px; width: 2px; height: 32px;
+      background: var(--ink); transform: translateX(-1px);
+    }
+    .gauge-marker::after {
+      content: ''; display: block; position: absolute; top: -6px;
+      left: -5px; width: 12px; height: 12px;
+      background: var(--ink); transform: rotate(45deg);
+    }
+    .gauge-label-current {
+      position: absolute; top: 0; padding: 1px 6px;
+      background: var(--ink); color: white;
+      border-radius: 3px; font-size: 11px; font-weight: 700;
+      transform: translateX(-50%); white-space: nowrap;
+    }
+    .gauge-tick {
+      position: absolute; top: 44px; font-size: 10.5px;
+      color: var(--ink-faint); transform: translateX(-50%);
+      font-variant-numeric: tabular-nums;
+    }
+    .gauge-zone-labels {
+      display: flex; justify-content: space-between;
+      font-size: 10.5px; color: var(--ink-faint);
+      margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .overlay-impact-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+    }
+    .overlay-impact-table td, .overlay-impact-table th {
+      padding: 7px 10px; text-align: right;
+      border-bottom: 1px solid var(--border);
+      font-variant-numeric: tabular-nums;
+    }
+    .overlay-impact-table th { text-align: left; font-weight: 600; }
+    .overlay-impact-table th:first-child { text-align: left; }
+    .overlay-impact-table tr:last-child td,
+    .overlay-impact-table tr:last-child th { border-bottom: none; }
+    .overlay-impact-table .good { color: var(--good); font-weight: 700; }
+    .overlay-impact-table .neutral { color: var(--ink-faint); }
+    .overlay-impact-table .delta {
+      font-weight: 700; color: var(--good);
+    }
+    .overlay-events-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+    }
+    .overlay-events-table th, .overlay-events-table td {
+      padding: 6px 10px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .overlay-events-table th {
+      font-weight: 600; color: var(--ink-faint);
+      text-transform: uppercase; letter-spacing: 0.04em;
+      font-size: 11px;
+    }
+    .overlay-events-table .dir-off { color: #b45309; font-weight: 700; }
+    .overlay-events-table .dir-on  { color: var(--good); font-weight: 700; }
+    .overlay-events-table tr:last-child td { border-bottom: none; }
+
     /* ----- Monitor-tab Performance section ----- */
     .perf-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -1050,6 +1162,20 @@
       <div class="hero-stats" id="live-hero-stats"></div>
       <div id="live-stale-warning"></div>
     </div>
+
+    <section id="overlay-section" style="display:none;">
+      <h2>Risk Overlay — defensive layer on top of the 4-way blend</h2>
+      <p class="section-sub">A breadth-based regime gate that scales the portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated <strong>+1.20 Sharpe / -23.4% max DD</strong> blend and the deployed <strong>+1.27 Sharpe / -16.9% max DD</strong> portfolio you actually hold. Below is what it is doing today and what it has done historically.</p>
+      <div class="overlay-grid">
+        <div class="overlay-card overlay-card-status" id="overlay-status-card"></div>
+        <div class="overlay-card overlay-card-gauge" id="overlay-gauge-card"></div>
+      </div>
+      <div class="overlay-grid">
+        <div class="overlay-card overlay-card-explainer" id="overlay-explainer-card"></div>
+        <div class="overlay-card overlay-card-impact" id="overlay-impact-card"></div>
+      </div>
+      <div class="overlay-card" id="overlay-events-card" style="margin-top:14px;"></div>
+    </section>
 
     <section>
       <div class="perf-header">
@@ -2077,8 +2203,9 @@ function renderHeroStrip() {
   set('hero-dd',     maxDd != null ? fmtPct(maxDd) : '—');
   set('hero-window', yearStr);
 
-  // Phase 19: render the live regime-state badge if the gate is in
-  // effect on the deployed-default key.
+  // Phase 19: live regime badge — short version. Full CPM-grade detail
+  // (gauge, explainer, impact table, event log) is rendered in the
+  // dedicated overlay section below the hero by renderRiskOverlay().
   const gate = m.regime_gate;
   const badgeEl = document.getElementById('live-regime-badge');
   if (badgeEl && gate && headlineKey === 'blend_35_35_10_20_gated') {
@@ -2086,17 +2213,11 @@ function renderHeroStrip() {
     const isOn = state === 'RISK_ON';
     const breadthPct = (gate.current_breadth * 100).toFixed(1);
     const since = gate.current_state_since;
-    const explainer = isOn
-      ? `Full deployment of the 4-way blend.`
-      : `Half of NAV moved to IEF (50% partial de-risk). Re-engages when CSP1 breadth crosses back above ${(gate.on_threshold * 100).toFixed(0)}%.`;
     badgeEl.innerHTML = `
       <div class="regime-badge ${isOn ? 'on' : 'off'}">
         <span class="dot"></span>
         REGIME: ${state}
-        <span class="meta">since ${since} · S&amp;P 500 breadth ${breadthPct}%</span>
-      </div>
-      <div style="font-size:11.5px; color:var(--ink-soft); margin: -2px 0 6px 4px;">
-        ${explainer}
+        <span class="meta">since ${since} · S&amp;P 500 breadth ${breadthPct}% · see Risk Overlay section below</span>
       </div>`;
   } else if (badgeEl) {
     badgeEl.innerHTML = '';
@@ -2172,9 +2293,10 @@ function renderMonitor() {
   const dLatest = hasD ? eu.headline.trade_history[eu.headline.trade_history.length - 1] : null;
   const dDate = dLatest?.date;
 
-  // Use the blend stats that match the actual deployment
-  const deployedKey = hasD ? 'blend_35_35_10_20'
-                            : (hasC ? 'blend_45_45_10' : 'blend_50_50');
+  // Use the blend stats that match the actual deployment. Phase 19:
+  // getDeployedBlendKey() returns the gated variant when available so
+  // the displayed Sharpe / DD / CAGR match the top hero strip.
+  const deployedKey = getDeployedBlendKey(multi);
   const blendStats = multi?.strategies?.[deployedKey];
   const aStats = multi?.strategies?.strategy_a || topk.headline.headline_stats_full;
   const bStats = multi?.strategies?.strategy_b || ac.headline.headline_stats;
@@ -2654,6 +2776,10 @@ function renderMonitor() {
     document.querySelector('.strat-panel.d')?.style.setProperty('display', 'none');
   }
 
+  // Risk Overlay CPM-messaging section (Phase 19). Hidden when
+  // window.DATA.multi.regime_gate is absent — graceful fallback.
+  renderRiskOverlay();
+
   // Performance section (timeframe selector + chart + per-strategy
   // attribution). Initialised once; the button handlers re-render on
   // period change without touching the rest of the Monitor tab.
@@ -3100,6 +3226,227 @@ function _renderHoldingsMiniChart(chartDivId, tradeAs, etfLabel) {
   if (typeof Plotly !== 'undefined') {
     Plotly.newPlot(host.id, traces, layout,
                     { displayModeBar: false, responsive: true });
+  }
+}
+
+// ----------- Monitor: Risk Overlay section (Phase 19 CPM messaging) -----
+// Renders the full CPM-grade explanation of the breadth regime overlay:
+// status card with current regime + last switch date, breadth gauge
+// showing where current value sits relative to trigger zones, a
+// plain-English explainer of what the overlay does, an impact table
+// comparing gated vs ungated stats, and the historical event log.
+//
+// Hidden when no risk_overlay data is present (graceful fallback to
+// the original Monitor tab layout). Source: window.DATA.multi.regime_gate
+// + window.DATA.multi.strategies.{blend_35_35_10_20, blend_35_35_10_20_gated}.
+
+function renderRiskOverlay() {
+  const m = window.DATA?.multi;
+  const gate = m?.regime_gate;
+  const section = document.getElementById('overlay-section');
+  if (!section) return;
+  if (!gate || gate.current_state == null) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+
+  const isOn = gate.current_state === 'RISK_ON';
+  const breadth = gate.current_breadth || 0;
+  const breadthPct = (breadth * 100).toFixed(1);
+  const offPct = ((gate.off_threshold || 0.20) * 100).toFixed(0);
+  const onPct  = ((gate.on_threshold  || 0.50) * 100).toFixed(0);
+  const derisk = ((gate.derisk_fraction || 0.50) * 100).toFixed(0);
+  const fallback = gate.fallback_ticker || 'IEF';
+
+  const sinceDate = gate.current_state_since || '—';
+  const daysSince = sinceDate !== '—'
+    ? Math.round((new Date() - new Date(sinceDate)) / (24 * 3600 * 1000))
+    : 0;
+
+  // ---- Card 1: STATUS ----
+  const statusCard = document.getElementById('overlay-status-card');
+  if (statusCard) {
+    statusCard.className = 'overlay-card overlay-card-status '
+      + (isOn ? 'risk-on' : 'risk-off');
+    const actionText = isOn
+      ? `Full deployment of the 4-way blend (35% A + 35% B + 10% C + 20% D).
+         The overlay sits passively in the background; will trigger if S&P 500
+         breadth falls below ${offPct}%.`
+      : `Half of NAV currently in ${fallback} (7-10y Treasury), the other half
+         in the 4-way blend at proportional weights (17.5% A + 17.5% B + 5% C
+         + 10% D). Re-engages full blend exposure when S&P 500 breadth
+         crosses back above ${onPct}%.`;
+    statusCard.innerHTML = `
+      <h3>Current state</h3>
+      <div class="overlay-state-row">
+        <span class="overlay-state-pill ${isOn ? 'on' : 'off'}">
+          <span class="dot"></span>${gate.current_state}
+        </span>
+        <span class="overlay-meta">
+          since <strong>${sinceDate}</strong>
+          ${daysSince > 0 ? `(${daysSince} day${daysSince === 1 ? '' : 's'})` : ''}
+        </span>
+      </div>
+      <div class="overlay-action">${actionText}</div>
+    `;
+  }
+
+  // ---- Card 2: BREADTH GAUGE ----
+  const gaugeCard = document.getElementById('overlay-gauge-card');
+  if (gaugeCard) {
+    const offFrac = gate.off_threshold || 0.20;
+    const onFrac = gate.on_threshold || 0.50;
+    const markerPct = Math.min(100, Math.max(0, breadth * 100));
+    const offSegPct = offFrac * 100;
+    const onSegPct = (onFrac - offFrac) * 100;
+    const greenSegPct = (1 - onFrac) * 100;
+    gaugeCard.innerHTML = `
+      <h3>S&amp;P 500 breadth — % of constituents above 200d MA</h3>
+      <div class="gauge-wrap">
+        <div class="gauge-track">
+          <div class="gauge-seg-off" style="width:${offSegPct}%;"></div>
+          <div class="gauge-seg-mid" style="width:${onSegPct}%;"></div>
+          <div class="gauge-seg-on"  style="width:${greenSegPct}%;"></div>
+        </div>
+        <div class="gauge-marker" style="left:${markerPct}%;"></div>
+        <div class="gauge-label-current" style="left:${markerPct}%;">
+          ${breadthPct}%
+        </div>
+        <div class="gauge-tick" style="left:${offSegPct}%;">${offPct}%</div>
+        <div class="gauge-tick" style="left:${offSegPct + onSegPct}%;">${onPct}%</div>
+      </div>
+      <div class="gauge-zone-labels">
+        <span style="color:var(--bad);">de-risk zone</span>
+        <span>hold state</span>
+        <span style="color:var(--good);">full-blend zone</span>
+      </div>
+      <div class="overlay-meta" style="margin-top:12px;">
+        Today: <strong>${breadthPct}% of S&amp;P 500 constituents</strong> are above their own 200d MA.
+        ${isOn
+          ? `Comfortably in the full-deployment zone; breadth would need to crash below ${offPct}% to trigger the overlay.`
+          : `Below ${offPct}% triggered de-risk on ${sinceDate}; needs to recover above ${onPct}% before re-engaging full blend.`}
+      </div>
+    `;
+  }
+
+  // ---- Card 3: EXPLAINER ----
+  const explainerCard = document.getElementById('overlay-explainer-card');
+  if (explainerCard) {
+    explainerCard.innerHTML = `
+      <h3>How the overlay works</h3>
+      <div style="font-size:13px; line-height:1.55; color:var(--ink-soft);">
+        <p style="margin:0 0 8px 0;">
+          Each trading day we measure the <strong>breadth</strong> of the S&amp;P 500 —
+          the percentage of constituent stocks trading above their own 200-day moving
+          average. This is a clean read on whether the market is broad-based healthy
+          or narrowly held up by a few names.
+        </p>
+        <p style="margin:0 0 8px 0;">
+          <strong>When breadth falls below ${offPct}%</strong> (rare — happens in real
+          stress events like Mar 2020 COVID and late-2022 inflation), we move
+          ${derisk}% of NAV to <code>${fallback}</code> (7-10y US Treasury).
+          The other ${100 - parseInt(derisk)}% stays in the blend at proportional
+          weights. <strong>When breadth recovers above ${onPct}%</strong>, we restore
+          full blend deployment.
+        </p>
+        <p style="margin:0; color:var(--ink-faint); font-size:12px;">
+          Hysteresis between the off-trigger (${offPct}%) and on-trigger (${onPct}%)
+          prevents whipsaw around the boundary — once de-risked, breadth must
+          meaningfully recover before re-engaging.
+        </p>
+      </div>
+    `;
+  }
+
+  // ---- Card 4: IMPACT vs UNGATED ----
+  const impactCard = document.getElementById('overlay-impact-card');
+  const ungated = m?.strategies?.blend_35_35_10_20;
+  const gated = m?.strategies?.blend_35_35_10_20_gated;
+  if (impactCard && ungated && gated) {
+    const fmtSh = x => x == null ? '—' : (x >= 0 ? '+' : '') + x.toFixed(2);
+    const fmtPctV = x => x == null ? '—' : (x >= 0 ? '+' : '') + (x * 100).toFixed(1) + '%';
+    const dSh = (gated.sharpe - ungated.sharpe);
+    const dDd = (gated.max_dd - ungated.max_dd);
+    const dCagr = (gated.cagr - ungated.cagr);
+    impactCard.innerHTML = `
+      <h3>What the overlay buys you — 7.5y backtest</h3>
+      <table class="overlay-impact-table">
+        <thead>
+          <tr><th></th><th>Deployed (gated)</th><th>Without overlay</th><th>Δ</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>Sharpe</th>
+            <td class="good">${fmtSh(gated.sharpe)}</td>
+            <td class="neutral">${fmtSh(ungated.sharpe)}</td>
+            <td class="delta">${dSh >= 0 ? '+' : ''}${dSh.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <th>Max drawdown</th>
+            <td class="good">${fmtPctV(gated.max_dd)}</td>
+            <td class="neutral">${fmtPctV(ungated.max_dd)}</td>
+            <td class="delta">${dDd >= 0 ? '+' : ''}${(dDd * 100).toFixed(1)}pp better</td>
+          </tr>
+          <tr>
+            <th>CAGR</th>
+            <td>${fmtPctV(gated.cagr)}</td>
+            <td class="neutral">${fmtPctV(ungated.cagr)}</td>
+            <td class="${dCagr >= 0 ? 'delta' : 'neutral'}">${dCagr >= 0 ? '+' : ''}${(dCagr * 100).toFixed(1)}pp</td>
+          </tr>
+          <tr>
+            <th>Days defensive</th>
+            <td>${(gate.pct_days_risk_off || 0).toFixed(1)}%</td>
+            <td class="neutral">0%</td>
+            <td class="neutral">—</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="overlay-meta" style="margin-top:10px; font-size:12px;">
+        Pareto-improving on the un-gated blend: better Sharpe AND lower drawdown.
+        The small CAGR cost (${(dCagr * 100).toFixed(1)}pp) is the price of the
+        ${(gate.pct_days_risk_off || 0).toFixed(0)}% of days the strategy held
+        Treasuries instead of full blend during real stress events.
+      </div>
+    `;
+  }
+
+  // ---- Card 5: HISTORICAL EVENT LOG ----
+  const eventsCard = document.getElementById('overlay-events-card');
+  const overlayData = window.DATA?.risk_overlay;
+  const events = overlayData?.events || [];
+  if (eventsCard && events.length) {
+    // Show most recent 8 events, newest first
+    const recent = events.slice(-8).reverse();
+    const rows = recent.map(ev => {
+      const dirCls = ev.direction === 'RISK_OFF' ? 'dir-off' : 'dir-on';
+      const action = ev.direction === 'RISK_OFF'
+        ? `De-risked: 50% to ${fallback}`
+        : `Re-engaged: full blend`;
+      return `<tr>
+        <td>${ev.date}</td>
+        <td class="${dirCls}">${ev.direction}</td>
+        <td>${(ev.breadth * 100).toFixed(1)}%</td>
+        <td style="color:var(--ink-soft);">${action}</td>
+      </tr>`;
+    }).join('');
+    eventsCard.innerHTML = `
+      <h3>Trigger history — recent ${recent.length} of ${events.length} events</h3>
+      <table class="overlay-events-table">
+        <thead>
+          <tr><th>Date</th><th>Direction</th><th>S&amp;P 500 breadth</th><th>Action</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="overlay-meta" style="margin-top:10px; font-size:12px;">
+        ${events.length} regime switches over 7.5 years
+        (~${(events.length / 7.5).toFixed(1)} per year on average,
+        ${(gate.pct_days_risk_off || 0).toFixed(1)}% of days defensive).
+        The overlay correctly de-risked into the March 2020 COVID crash
+        and the late-2022 inflation crash — the two largest market events
+        of the backtest window.
+      </div>
+    `;
   }
 }
 
