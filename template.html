@@ -1162,7 +1162,7 @@
       </div>
       <div class="sleeve-card b">
         <div class="role"><span>B · Asset-class rotation</span><span class="wt">35%</span></div>
-        <div>Rotates across 14 broad asset-class ETFs for downside protection — rotates into bonds, gold, or cash when equities weaken.</div>
+        <div>Rotates across 13 broad asset-class ETFs for downside protection — rotates into Treasuries, gold, or cash when equities weaken.</div>
       </div>
       <div class="sleeve-card c">
         <div class="role"><span>C · Thematic optionality</span><span class="wt">10%</span></div>
@@ -1209,7 +1209,7 @@
 
     <section id="overlay-section" style="display:none;">
       <h2>Risk Overlay — defensive layer on top of the 4-way blend</h2>
-      <p class="section-sub">A breadth-based regime gate that scales the portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated <strong>+1.20 Sharpe / -23.4% max DD</strong> blend and the deployed <strong>+1.29 Sharpe / -16.5% max DD</strong> portfolio you actually hold. Below is what it is doing today and what it has done historically.</p>
+      <p class="section-sub" id="overlay-intro-text">A breadth-based regime gate that scales the portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated 4-way blend and the deployed gated + EEM-tilted portfolio you actually hold. Below is what it is doing today and what it has done historically.</p>
       <div class="overlay-grid">
         <div class="overlay-card overlay-card-status" id="overlay-status-card"></div>
         <div class="overlay-card overlay-card-gauge" id="overlay-gauge-card"></div>
@@ -1217,6 +1217,15 @@
       <div class="overlay-card overlay-card-explainer" id="overlay-explainer-card" style="margin-top:14px;"></div>
       <div class="overlay-card overlay-card-impact" id="overlay-impact-card" style="margin-top:14px;"></div>
       <div class="overlay-card" id="overlay-events-card" style="margin-top:14px;"></div>
+
+      <h2 id="phase22-heading" style="margin-top:28px; display:none;">Phase 22 EEM Tilt — emerging-markets cycle-turn overlay</h2>
+      <p class="section-sub" id="phase22-intro" style="display:none;">A second mechanical overlay that operates independently of the breadth gate above. Tilts 10% of the blend into EEM (emerging markets) when EEM/SPY relative strength turns up. Funded from Strategy B (35% → 25% during tilt-ON). Positions the strategy for the EM-cycle turn without sacrificing US-equity exposure when EM is in underperformance.</p>
+      <div class="overlay-grid" id="phase22-grid" style="display:none;">
+        <div class="overlay-card overlay-card-status" id="phase22-status-card"></div>
+        <div class="overlay-card overlay-card-gauge" id="phase22-gauge-card"></div>
+      </div>
+      <div class="overlay-card overlay-card-explainer" id="phase22-explainer-card" style="margin-top:14px; display:none;"></div>
+      <div class="overlay-card" id="phase22-events-card" style="margin-top:14px; display:none;"></div>
     </section>
 
     <section>
@@ -1265,7 +1274,7 @@
 
     <section>
       <h2>Strategy A, B, C and D — side by side</h2>
-      <p class="section-sub" id="live-panels-sub">The four engines that produced today's holdings. Strategy A picks the strongest US sectors by constituent breadth. Strategy B picks the strongest asset classes by ETF-level momentum. Strategy C is a small thematic sleeve for catching secular trends (AI, clean energy, biotech). Strategy D (Phase 4) is a Europe sector breadth sleeve for non-US macro orthogonality. Combined portfolio: <strong>35% A + 35% B + 10% C + 20% D</strong>.</p>
+      <p class="section-sub" id="live-panels-sub">The four engines that produced today's holdings. Strategy A picks the strongest US sectors by sector-relative breadth (Phase 20). Strategy B picks the strongest asset classes by ETF-level momentum across 13 broad ETFs. Strategy C is a small thematic sleeve for catching secular trends (AI, clean energy, biotech) across 23 themes. Strategy D (Phase 4) is a Europe sector breadth sleeve for non-US macro orthogonality. Combined portfolio: <strong>35% A + 35% B + 10% C + 20% D</strong> in normal markets; the <strong>Phase 22 EEM tilt</strong> reallocates 10pp from B to EEM when EEM/SPY relative-strength turns up.</p>
       <div class="strat-panels strat-panels-4">
         <div class="strat-panel a">
           <div class="panel-title" id="live-a-title">Strategy A — US sector breadth (35%)</div>
@@ -1312,7 +1321,7 @@
         </div>
         <div class="step">
           <div class="step-n">4</div>
-          <div class="step-body"><strong>Strategy B — which asset classes are in an uptrend?</strong> Compute distance above 200d MA for each of the 14 asset-class ETFs. Drop any with negative signal. Take the top 7. Weight by signal share. If fewer than 7 are positive, the deficit sits in IEF (Treasury) as cash floor. <strong>Strategy C — same idea on 16 thematic ETFs</strong> but with a +5% signal floor, top K = 4, equal-weighted (1/K) across the top K (Phase 6 update — replaced the original signal-share+cap weighting).</div>
+          <div class="step-body"><strong>Strategy B — which asset classes are in an uptrend?</strong> Compute distance above 200d MA for each of the 13 asset-class ETFs (after Phase 24 HYG removal). Drop any with negative signal. Take the top 7. Weight by signal share. If fewer than 7 are positive, the deficit sits in SHY (1-3y Treasury — duration-neutral cash) as cash floor. <strong>Strategy C — same idea on 23 thematic ETFs</strong> but with a +5% signal floor, top K = 4, equal-weighted (1/K) across the top K (Phase 6 update — replaced the original signal-share+cap weighting). Same SHY cash floor.</div>
         </div>
         <div class="step">
           <div class="step-n">5</div>
@@ -1346,7 +1355,7 @@
       <h2>1 · Asset-class exposure over time</h2>
       <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly snapshots since 2018-Q4 (common window across all four sleeves). <strong>Strategy A's 14 US sector ETFs are decomposed into 5 macro buckets</strong> (US Tech &amp; Comms, US Cyclicals, US Energy, US Financials, US Defensives) so A's actual sector rotation is visible — previously they were lumped into one frozen "US Equity (sectors)" block. Notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic spike in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, the rotation between US Tech / Cyclicals / Defensives within Strategy A over the full window.</p>
       <div id="blend-allocation-chart" class="chart tall"></div>
-      <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every week. <strong>Bucketing</strong>: Strategy A's sectors split into Tech / Comms (CNDX, SOXX, IUCM), Cyclicals (IUIS, IUCD, IUMS), Energy (IUES), Financials (IUFS), and Defensives (IUHC, IUCS, IUUS). A's REIT (IUSP) aggregates with B's VNQ into Real Estate. B's VGK (FTSE Europe) aggregates with Strategy D's Stoxx 600 sectors into Europe Equity. Strategy C's IEF cash floor rolls into Bonds.</p>
+      <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every week. <strong>Bucketing</strong>: Strategy A's sectors split into Tech / Comms (CNDX, SOXX, IUCM), Cyclicals (IUIS, IUCD, IUMS), Energy (IUES), Financials (IUFS), and Defensives (IUHC, IUCS, IUUS). A's REIT (IUSP) aggregates with B's VNQ into Real Estate. B's VGK (FTSE Europe) aggregates with Strategy D's Stoxx 600 sectors into Europe Equity. Strategy C's SHY cash floor (1-3y Treasury) rolls into Bonds.</p>
     </section>
 
     <section>
@@ -1400,7 +1409,7 @@
 
     <section>
       <h2>Section 2 · Asset Class &amp; Thematic Momentum (Strategy B + C universes)</h2>
-      <p class="section-sub">Default: today's Strategy B leader + SPY as reference. The Y-axis is distance above the 200d MA (can be negative). IEF is included even though it is the cash proxy — useful for seeing when Treasury duration is rallying or selling off. Strategy C's +5% signal floor is shown as a horizontal guide.</p>
+      <p class="section-sub">Default: today's Strategy B leader + SPY as reference. The Y-axis is distance above the 200d MA (can be negative). IEF is included as a rotation candidate (duration play); SHY is the cash floor when fewer than 7 B candidates show positive momentum. Strategy C's +5% signal floor is shown as a horizontal guide.</p>
       <div class="etf-chip-actions" id="detail-bc-actions"></div>
       <div class="etf-chip-group" id="detail-bc-chips"></div>
       <div id="detail-momentum-chart" class="chart tall"></div>
@@ -1517,10 +1526,10 @@
       <p style="margin:0;color:var(--ink-soft);">A separate strategy that operates at the asset-class level instead of within US sectors. 14 broad ETFs across US equity, international developed, emerging markets, real estate, commodities, and bonds. Each Friday close, rank by distance above own 200d MA. Hold the top K with positive signal, weight by signal strength; idle capital sits in IEF (intermediate Treasury) as a cash proxy. This is "<em>which asset classes should I be in at all?</em>" — orthogonal to Strategy A's "<em>within US equities, which sector?</em>".</p>
       <div class="recipe-stats" id="asset-recipe-stats"></div>
       <ol class="recipe-steps">
-        <li><strong>Each Friday close</strong>, compute (price − MA200) / MA200 for each of the 14 asset-class ETFs.</li>
+        <li><strong>Each Friday close</strong>, compute (price − MA200) / MA200 for each of the 13 asset-class ETFs.</li>
         <li><strong>Drop any ETF with negative signal</strong> (price below its 200d MA — in a downtrend).</li>
         <li><strong>Rank survivors</strong>. Take the top K = 7.</li>
-        <li><strong>Weight by signal share</strong>. If only N &lt; K ETFs have positive signal, allocate (N/K) of capital to them and the remaining (K − N)/K to IEF as cash proxy. Built-in cash floor when the world is broadly weak — unlike Strategy A which stays 100% invested.</li>
+        <li><strong>Weight by signal share</strong>. If only N &lt; K ETFs have positive signal, allocate (N/K) of capital to them and the remaining (K − N)/K to SHY (1-3y Treasury, duration-neutral) as cash floor. Built-in cash floor when the world is broadly weak — unlike Strategy A which stays 100% invested.</li>
         <li><strong>Rebalance to the new mix</strong>. Costs 5 bps × turnover.</li>
       </ol>
     </div>
@@ -1589,7 +1598,7 @@
         <li><strong>Hard signal floor:</strong> only consider ETFs with signal ≥ <strong>+5%</strong> above their 200d MA (not just positive). This filters out marginal "in an uptrend" cases that often reverse.</li>
         <li><strong>Rank the survivors. Take the top K = 4.</strong></li>
         <li><strong>Equal-weight (1/K) across the top K</strong> (Phase 6 — 2026-05-24). The +5% signal floor already filters out modest trends, so signal magnitude beyond eligibility carries little extra information — every eligible candidate is well into an uptrend. Equal-weighting prevents the most-overbought ETF (statistically the one most likely to mean-revert) from being overweighted.</li>
-        <li><strong>Cash floor:</strong> when fewer than K candidates clear the +5% threshold, the deficit sits in IEF (intermediate Treasury) as cash proxy.</li>
+        <li><strong>Cash floor:</strong> when fewer than K candidates clear the +5% threshold, the deficit sits in SHY (1-3y Treasury, duration-neutral cash equivalent) as cash proxy.</li>
       </ol>
     </div>
 
@@ -1812,7 +1821,7 @@
         </div>
         <div>
           <h3 style="margin-top:0;">Strategy B + C — momentum signal correlations</h3>
-          <p class="section-sub" style="font-size:12px;">14 asset-class + 16 thematic ETFs (deduped + IEF). Same metric — Pearson on weekly distance-above-200d-MA series.</p>
+          <p class="section-sub" style="font-size:12px;">13 asset-class + 23 thematic ETFs (deduped + SHY cash floor). Same metric — Pearson on weekly distance-above-200d-MA series.</p>
           <div id="corr-bc-chart" class="chart tall"></div>
           <div id="corr-bc-stats" style="margin-top:12px;"></div>
         </div>
@@ -1860,8 +1869,8 @@
         <p><strong>Headline strategy — Multi-Strategy 35/35/10/20 A:B:C:D blend (no leverage, Phase 4 deployed)</strong>:</p>
         <ul>
           <li><strong>Strategy A</strong>: rank 14 US sector/broad ETFs by breadth, take top K = 7, weight by breadth share. Universe: SOXX, CSP1, CNDX, IUES, IUFS, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, IUSP, IDP6. <em>IUIT (S&amp;P 500 Info Tech) was pruned May 2026 because of 0.97 correlation with CNDX — see Robustness Test 12.</em></li>
-          <li><strong>Strategy B</strong>: rank 14 broad asset-class ETFs by distance above 200d MA, drop negatives, take top K = 7, weight by signal share, cash floor in IEF for unfilled slots. Universe: SPY, IJR, QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, TIP, HYG.</li>
-          <li><strong>Strategy C</strong> (10% sleeve): rank 23 thematic ETFs by distance above 200d MA, drop any below +5% (signal floor), take top K = 4, equal-weight (1/K) across the holdings, cash floor in IEF for unfilled slots. Universe: ARKK, CIBR, SKYY, BOTZ, BLOK, ICLN, TAN, LIT, URA, XBI, ARKG, JETS, GDX, COPX, MOO, PAVE, <strong>ITA</strong> (defence/aerospace, added Phase 15), <strong>BTC-USD</strong> (Bitcoin spot — see caveat below; live execution in IBIT, added Phase 15.2), <strong>XME</strong> (broad metals &amp; mining), <strong>WOOD</strong> (timber &amp; forestry), <strong>REMX</strong> (rare earth / strategic metals) <em>(those three added Phase 16 for commodity-equity breadth)</em>, <strong>CQQQ</strong> (Invesco China Technology — broad China-tech, added Phase 17), <strong>159801.SZ</strong> (Bosera CSI Chip ETF, CNY-denominated, USD-adjusted via spot FX — pure China A-share semiconductor hardware basket: Cambricon, AMEC, NAURA, SMIC. Deployed via IBKR Stock Connect; 588200.SS is an interchangeable Shanghai-listed alternative. Added Phase 17.1). <em>Phase 6 (2026-05-24) replaced the original signal-share+35%-cap weighting with equal-weight after an A/B test showed equal-weight dominates on every metric for this high-floor (5%) regime — see Phase 6 retrospective below.</em></li>
+          <li><strong>Strategy B</strong>: rank 13 broad asset-class ETFs by distance above 200d MA, drop negatives, take top K = 7, weight by signal share, cash floor in SHY (1-3y Treasury) for unfilled slots. IEF remains in the rotation universe as a duration play. Universe (Phase 24, post HYG removal): SPY, IJR, QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, TIP.</li>
+          <li><strong>Strategy C</strong> (10% sleeve): rank 23 thematic ETFs by distance above 200d MA, drop any below +5% (signal floor), take top K = 4, equal-weight (1/K) across the holdings, cash floor in SHY (1-3y Treasury) for unfilled slots. Universe: ARKK, CIBR, SKYY, BOTZ, BLOK, ICLN, TAN, LIT, URA, XBI, ARKG, JETS, GDX, COPX, MOO, PAVE, <strong>ITA</strong> (defence/aerospace, added Phase 15), <strong>BTC-USD</strong> (Bitcoin spot — see caveat below; live execution in IBIT, added Phase 15.2), <strong>XME</strong> (broad metals &amp; mining), <strong>WOOD</strong> (timber &amp; forestry), <strong>REMX</strong> (rare earth / strategic metals) <em>(those three added Phase 16 for commodity-equity breadth)</em>, <strong>CQQQ</strong> (Invesco China Technology — broad China-tech, added Phase 17), <strong>159801.SZ</strong> (Bosera CSI Chip ETF, CNY-denominated, USD-adjusted via spot FX — pure China A-share semiconductor hardware basket: Cambricon, AMEC, NAURA, SMIC. Deployed via IBKR Stock Connect; 588200.SS is an interchangeable Shanghai-listed alternative. Added Phase 17.1). <em>Phase 6 (2026-05-24) replaced the original signal-share+35%-cap weighting with equal-weight after an A/B test showed equal-weight dominates on every metric for this high-floor (5%) regime — see Phase 6 retrospective below.</em></li>
           <li><strong>Strategy D</strong> (Phase 4, 20% sleeve): rank 5 Stoxx Europe 600 sector UCITS by constituent breadth, take top K = 3, weight by breadth share. Universe: EXV1 (Banks), EXH1 (Oil &amp; Gas), EXV3 (Technology), EXH3 (Industrial Goods &amp; Services), EXH9 (Utilities). Trade as the Xetra-listed UCITS (EXV1.DE etc.) in EUR.</li>
           <li><strong>Combination</strong>: 35% A + 35% B + 10% C + 20% D, rebalanced weekly Friday.</li>
           <li>Transaction cost: 5 bps per unit of weight change (10 bps round-trip).</li>
@@ -2090,7 +2099,7 @@
         <p><strong>Strategy engines (per-deployment refresh)</strong>:</p>
         <ul>
           <li><code>python scripts/run_topk_robustness.py</code> — Strategy A: top-K rotation, K × cadence grid, walk-forward, trade history</li>
-          <li><code>python scripts/run_asset_class_rotation.py</code> — Strategy B: asset-class momentum rotation (14 broad ETFs)</li>
+          <li><code>python scripts/run_asset_class_rotation.py</code> — Strategy B: asset-class momentum rotation (13 broad ETFs after Phase 24 HYG removal)</li>
           <li><code>python scripts/run_thematic_rotation.py</code> — Strategy C: thematic momentum rotation (16 ETFs, equal-weight after Phase 6)</li>
           <li><code>python scripts/run_europe_rotation.py</code> — Strategy D: Europe sector breadth rotation (5 Stoxx Europe 600 sector UCITS), with walk-forward (added Phase 7)</li>
           <li><code>python scripts/run_multi_strategy.py</code> — combines A+B+C+D into 14 blend variants (3 4-way + 3 3-way + 3 2-way + 4 standalones + meta-rotation)</li>
@@ -2258,25 +2267,55 @@ function renderHeroStrip() {
   set('hero-dd',     maxDd != null ? fmtPct(maxDd) : '—');
   set('hero-window', yearStr);
 
-  // Phase 19: live regime badge — short version. Full CPM-grade detail
+  // Phase 19 + 22: live regime badges — short version. Full CPM-grade detail
   // (gauge, explainer, impact table, event log) is rendered in the
   // dedicated overlay section below the hero by renderRiskOverlay().
   const gate = m.regime_gate;
   const badgeEl = document.getElementById('live-regime-badge');
-  if (badgeEl && gate && headlineKey === 'blend_35_35_10_20_gated') {
+  const isGatedKey = headlineKey && headlineKey.startsWith('blend_35_35_10_20_gated');
+  let badgeHtml = '';
+  if (gate && isGatedKey) {
     const state = gate.current_state;
     const isOn = state === 'RISK_ON';
     const breadthPct = (gate.current_breadth * 100).toFixed(1);
     const since = gate.current_state_since;
-    badgeEl.innerHTML = `
+    badgeHtml += `
       <div class="regime-badge ${isOn ? 'on' : 'off'}">
         <span class="dot"></span>
         REGIME: ${state}
         <span class="meta">since ${since} · S&amp;P 500 breadth ${breadthPct}% · see Risk Overlay section below</span>
       </div>`;
-  } else if (badgeEl) {
-    badgeEl.innerHTML = '';
   }
+  // Phase 22: EEM tilt badge — appears whenever the EEM overlay is active.
+  const phase22 = window.DATA?.risk_overlay?.phase22_eem_tilt;
+  if (phase22 && phase22.enabled && isGatedKey) {
+    const tiltOn = phase22.current_state === 'EM_TILT_ON';
+    const since = phase22.current_state_since;
+    const tiltPct = Math.round((phase22.parameters?.tilt_weight || 0.10) * 100);
+    badgeHtml += `
+      <div class="regime-badge ${tiltOn ? 'off' : 'on'}" style="margin-top:8px;">
+        <span class="dot"></span>
+        EEM TILT: ${phase22.current_state}
+        <span class="meta">since ${since} · ${tiltOn
+          ? `live blend = 35% A + ${35 - tiltPct}% B + 10% C + 20% D + ${tiltPct}% EEM`
+          : `EEM/SPY 50d below 200d MA — overlay armed, waiting for golden cross`} · see Risk Overlay section below</span>
+      </div>`;
+  }
+  // Update the live-title to reflect the tilt state
+  const titleEl = document.getElementById('live-title');
+  if (titleEl) {
+    if (phase22 && phase22.enabled && phase22.current_state === 'EM_TILT_ON') {
+      const tiltPct = Math.round((phase22.parameters?.tilt_weight || 0.10) * 100);
+      titleEl.textContent = `Multi-Strategy A+B+C+D + EEM tilt active `
+        + `(35/${35 - tiltPct}/10/20/${tiltPct} blend, no leverage)`;
+    } else if (isGatedKey) {
+      titleEl.textContent = 'Multi-Strategy A+B+C+D (35/35/10/20 blend, '
+        + 'no leverage, breadth-regime gate active)';
+    } else {
+      titleEl.textContent = 'Multi-Strategy A+B+C+D (35/35/10/20 blend, no leverage)';
+    }
+  }
+  if (badgeEl) badgeEl.innerHTML = badgeHtml;
 }
 
 // ----------- Monitor tab -----------------------------------------------
@@ -2727,7 +2766,7 @@ function renderMonitor() {
 
   // ===== Strategy B panel =====
   document.getElementById('live-b-sub').textContent =
-    `Rank 14 broad asset-class ETFs by distance above own 200d MA. Drop negatives. Take top K=${ac.headline.K}. Weight by signal share. Allocates ${(W_B*100).toFixed(0)}% of total NAV.`;
+    `Rank 13 broad asset-class ETFs by distance above own 200d MA. Drop negatives. Take top K=${ac.headline.K}. Weight by signal share. Allocates ${(W_B*100).toFixed(0)}% of total NAV. (HYG removed Phase 24 — equity-correlated, never defensive.)`;
   const bS = bStats || {};
   document.getElementById('live-b-stats').innerHTML = `
     <div class="panel-stat"><div class="v">${fmtNum(bS.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
@@ -2744,7 +2783,7 @@ function renderMonitor() {
   const bK = ac.headline.K;
   const investedFrac = bPositive.length / bK;
   const cashNote = investedFrac < 1
-    ? ` Only ${bPositive.length} of ${bK} candidates have positive signal today, so ${((1-investedFrac)*100).toFixed(0)}% of Strategy B's capital sits in <code>IEF</code> as cash floor.`
+    ? ` Only ${bPositive.length} of ${bK} candidates have positive signal today, so ${((1-investedFrac)*100).toFixed(0)}% of Strategy B's capital sits in <code>SHY</code> (1-3y Treasury) as cash floor.`
     : ` All ${bK} slots filled (cash floor not active today).`;
   const bFormula = `
     <div class="formula-box b">
@@ -2760,7 +2799,7 @@ function renderMonitor() {
     </div>
   `;
   const bSorted = bLatest.holdings.slice().sort((x, y) => y.weight - x.weight);
-  const bStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy B (100% = ${(W_B*100).toFixed(0)}% of NAV${investedFrac < 1 ? `, includes IEF cash floor` : ''})</div>`;
+  const bStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy B (100% = ${(W_B*100).toFixed(0)}% of NAV${investedFrac < 1 ? `, includes SHY cash floor` : ''})</div>`;
   const bStrip = bStripLabel + `<div class="strat-alloc-strip">${bSorted.map(h => {
     const pct = h.weight * 100;
     return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${h.etf}: ${pct.toFixed(1)}%">${pct >= 7 ? h.etf : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
@@ -2792,7 +2831,7 @@ function renderMonitor() {
   // ===== Strategy C panel =====
   if (hasC) {
     document.getElementById('live-c-sub').textContent =
-      `Rank 16 thematic ETFs by distance above own 200d MA. Filter to those >+5% above MA (hard signal floor). Take top K=${tc.headline.K}, equal-weight (1/K) across the holdings. Allocates ${(W_C*100).toFixed(0)}% of total NAV.`;
+      `Rank 23 thematic ETFs by distance above own 200d MA. Filter to those >+5% above MA (hard signal floor). Take top K=${tc.headline.K}, equal-weight (1/K) across the holdings. Allocates ${(W_C*100).toFixed(0)}% of total NAV.`;
     const cS = cStats || {};
     document.getElementById('live-c-stats').innerHTML = `
       <div class="panel-stat"><div class="v">${fmtNum(cS.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
@@ -2816,7 +2855,7 @@ function renderMonitor() {
       </div>
     `;
     const cSorted = cLatest.holdings.slice().sort((x, y) => y.weight - x.weight);
-    const cStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy C (100% = ${(W_C*100).toFixed(0)}% of NAV${cInvested < 1 ? `, includes IEF cash floor` : ''})</div>`;
+    const cStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy C (100% = ${(W_C*100).toFixed(0)}% of NAV${cInvested < 1 ? `, includes SHY cash floor` : ''})</div>`;
     const cStrip = cStripLabel + `<div class="strat-alloc-strip">${cSorted.map(h => {
       const pct = h.weight * 100;
       return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${h.etf}: ${pct.toFixed(1)}%">${pct >= 7 ? h.etf : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
@@ -3682,6 +3721,169 @@ function renderRiskOverlay() {
       </div>
     `;
   }
+
+  // ====================================================================
+  // PHASE 22 — EEM/SPY relative-strength tilt
+  // Independent overlay from Phase 19. Reveals when EEM/SPY ratio's
+  // 50d MA crosses above its 200d MA (golden cross) — tilts 10% from
+  // Strategy B to EEM.
+  // ====================================================================
+  const phase22 = overlayData?.phase22_eem_tilt;
+  if (phase22 && phase22.enabled) {
+    const tiltOn = phase22.current_state === 'EM_TILT_ON';
+    const ratio = phase22.current_ratio;
+    const fast = phase22.current_fast_ma;
+    const slow = phase22.current_slow_ma;
+    const tilt = (phase22.parameters?.tilt_weight || 0.10) * 100;
+    const fundFrom = (phase22.parameters?.fund_from_sleeve || 'strategy_b')
+      .replace('strategy_', 'Strategy ').toUpperCase();
+    const sinceDate = phase22.current_state_since || '—';
+    const daysSinceTilt = sinceDate !== '—'
+      ? Math.round((new Date() - new Date(sinceDate)) / (24 * 3600 * 1000))
+      : 0;
+
+    // Reveal Phase 22 panels
+    ['phase22-heading', 'phase22-intro', 'phase22-grid',
+     'phase22-explainer-card', 'phase22-events-card'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
+
+    // ---- Status card ----
+    const p22Status = document.getElementById('phase22-status-card');
+    if (p22Status) {
+      p22Status.className = 'overlay-card overlay-card-status '
+        + (tiltOn ? 'risk-off' : 'risk-on');  // Use risk-off styling for "active tilt" (amber)
+      const actionText = tiltOn
+        ? `${tilt.toFixed(0)}% of NAV tilted into EEM, funded by reducing
+           Strategy B from 35% to ${(35 - tilt).toFixed(0)}%. Active blend:
+           35% A + ${(35 - tilt).toFixed(0)}% B + 10% C + 20% D + ${tilt.toFixed(0)}% EEM.
+           Will revert when EEM/SPY 50d MA crosses back below 200d MA.`
+        : `Tilt inactive. EEM/SPY 50d MA (${fast?.toFixed(4) || '—'})
+           is below 200d MA (${slow?.toFixed(4) || '—'}) — EM is in
+           relative underperformance vs US. Tilt activates automatically
+           on the next golden cross.`;
+      p22Status.innerHTML = `
+        <h3>Phase 22 — EEM tilt status</h3>
+        <div class="overlay-state-row">
+          <span class="overlay-state-pill ${tiltOn ? 'off' : 'on'}">
+            <span class="dot"></span>${phase22.current_state}
+          </span>
+          <span class="overlay-meta">
+            since <strong>${sinceDate}</strong>
+            ${daysSinceTilt > 0 ? `(${daysSinceTilt} day${daysSinceTilt === 1 ? '' : 's'})` : ''}
+          </span>
+        </div>
+        <div class="overlay-action">${actionText}</div>
+      `;
+    }
+
+    // ---- Ratio gauge: shows EEM/SPY ratio vs 50d MA + 200d MA ----
+    const p22Gauge = document.getElementById('phase22-gauge-card');
+    if (p22Gauge && ratio != null && fast != null && slow != null) {
+      const spread = fast - slow;  // > 0 means tilt ON
+      const spreadPct = (spread / slow * 100);  // as %
+      p22Gauge.innerHTML = `
+        <h3>EEM/SPY ratio — relative strength of EM vs US</h3>
+        <div class="phase22-stats" style="display:flex; gap:20px;
+             padding:8px 0; flex-wrap:wrap;">
+          <div><div style="color:var(--ink-faint); font-size:11px;">Current ratio</div>
+            <div style="font-size:18px; font-weight:600;">${ratio.toFixed(4)}</div></div>
+          <div><div style="color:var(--ink-faint); font-size:11px;">50d MA (fast)</div>
+            <div style="font-size:18px; font-weight:600;">${fast.toFixed(4)}</div></div>
+          <div><div style="color:var(--ink-faint); font-size:11px;">200d MA (slow)</div>
+            <div style="font-size:18px; font-weight:600;">${slow.toFixed(4)}</div></div>
+          <div><div style="color:var(--ink-faint); font-size:11px;">Fast vs slow</div>
+            <div style="font-size:18px; font-weight:600;
+                 color:${spread > 0 ? 'var(--good)' : 'var(--bad)'};">
+              ${spread > 0 ? '+' : ''}${spreadPct.toFixed(1)}%
+            </div></div>
+        </div>
+        <div class="overlay-meta" style="margin-top:8px;">
+          ${tiltOn
+            ? `Fast MA is ${spreadPct.toFixed(1)}% above slow MA —
+               <strong>EEM in sustained relative-strength uptrend vs SPY.</strong>
+               Tilt holds while spread stays positive.`
+            : `Fast MA is ${spreadPct.toFixed(1)}% below slow MA —
+               EM still underperforming. Needs ~${Math.abs(spreadPct).toFixed(1)}%
+               relative-strength improvement to trigger the golden cross.`}
+        </div>
+      `;
+    }
+
+    // ---- Explainer ----
+    const p22Explainer = document.getElementById('phase22-explainer-card');
+    if (p22Explainer) {
+      p22Explainer.innerHTML = `
+        <h3>How the EEM tilt works</h3>
+        <div style="font-size:13px; line-height:1.55; color:var(--ink-soft);">
+          <p style="margin:0 0 8px 0;">
+            Each trading day we compute the <strong>EEM ÷ SPY price ratio</strong>
+            (a clean read on whether EM is outperforming US on a relative basis).
+            We track the 50d MA and 200d MA of that ratio.
+          </p>
+          <p style="margin:0 0 8px 0;">
+            <strong>Golden cross (50d MA crosses above 200d MA)</strong> = EM is in
+            a sustained relative-strength uptrend. When this happens, we tilt
+            ${tilt.toFixed(0)}% of NAV into EEM, funded by shrinking ${fundFrom}
+            from 35% to ${(35 - tilt).toFixed(0)}%. The other sleeves (A, C, D)
+            keep their full allocations.
+          </p>
+          <p style="margin:0 0 8px 0;">
+            <strong>Death cross (50d below 200d)</strong> = EM in relative downtrend
+            — tilt deactivates, ${fundFrom} returns to 35%, EEM allocation
+            goes to zero.
+          </p>
+          <p style="margin:0; color:var(--ink-faint); font-size:12px;">
+            Why fund from B specifically: empirical test showed from_B gave
+            +0.005 Full Sharpe + 3.7pp 22-on Total vs proportional funding
+            (-0.014 / +1.6pp) or from_A (-0.018 / +0.8pp). B already includes
+            EEM in its rotation universe but its 200d momentum signal lags
+            the relative-strength signal by ~4 months — the overlay is a
+            fast-EEM supplement to B's slow-EEM rotation.
+          </p>
+        </div>
+      `;
+    }
+
+    // ---- Event log ----
+    const p22Events = document.getElementById('phase22-events-card');
+    const tiltEvents = phase22.events || [];
+    if (p22Events && tiltEvents.length) {
+      const recent = tiltEvents.slice(-8).reverse();
+      const rows = recent.map(ev => {
+        const dirCls = ev.direction === 'EM_TILT_ON' ? 'dir-off' : 'dir-on';
+        const action = ev.direction === 'EM_TILT_ON'
+          ? `Tilt ${tilt.toFixed(0)}% B → EEM`
+          : `Restore full B allocation`;
+        return `<tr>
+          <td>${ev.date}</td>
+          <td class="${dirCls}">${ev.direction}</td>
+          <td>${ev.ratio != null ? ev.ratio.toFixed(4) : '—'}</td>
+          <td>${ev.fast_ma != null ? ev.fast_ma.toFixed(4) : '—'}</td>
+          <td>${ev.slow_ma != null ? ev.slow_ma.toFixed(4) : '—'}</td>
+          <td style="color:var(--ink-soft);">${action}</td>
+        </tr>`;
+      }).join('');
+      p22Events.innerHTML = `
+        <h3>EEM-tilt history — recent ${recent.length} of ${tiltEvents.length} events</h3>
+        <table class="overlay-events-table">
+          <thead>
+            <tr><th>Date</th><th>Direction</th><th>Ratio</th>
+                <th>Fast MA</th><th>Slow MA</th><th>Action</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="overlay-meta" style="margin-top:10px; font-size:12px;">
+          ${tiltEvents.length} tilt switches over 7.5 years
+          (~${(tiltEvents.length / 7.5).toFixed(1)} per year on average,
+          ${(phase22.pct_days_tilt_on || 0).toFixed(1)}% of days tilt-ON).
+          Low switch frequency is by design — the 50d/200d golden cross
+          requires a sustained relative-strength move, not a daily blip.
+        </div>
+      `;
+    }
+  }
 }
 
 function renderPerformance() {
@@ -4148,7 +4350,8 @@ function _bcLabel(etf) {
   if (fromB) return `${fromB.label} (B: ${fromB.asset_class})`;
   const fromC = tc.find(u => u.etf === etf);
   if (fromC) return `${fromC.label} (C: ${fromC.theme})`;
-  if (etf === 'IEF') return '7-10y Treasury (B + C cash proxy)';
+  if (etf === 'IEF') return '7-10y Treasury (B rotation candidate; duration play)';
+  if (etf === 'SHY') return '1-3y Treasury (B + C cash floor; overlay fallback)';
   return etf;
 }
 
@@ -5710,7 +5913,7 @@ function renderThematicCharts() {
 
   renderThematicStatsTable();
 
-  // Stacked allocation (includes IEF cash floor)
+  // Stacked allocation (includes SHY cash floor)
   const wkDates = h.weekly_allocation_dates || [];
   const alloc = h.weekly_allocation || {};
   const attr = h.attribution || {};
