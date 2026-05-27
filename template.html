@@ -2443,17 +2443,15 @@ function renderMonitor() {
   const totalPos = aLatest.holdings.length + bLatest.holdings.length
                     + (hasC ? cLatest.holdings.length : 0)
                     + (hasD ? dLatest.holdings.length : 0);
-  let heroHtml = `
+  // Four-stat hero strip. Per-sleeve position counts are intentionally
+  // omitted here — they are already shown inline in the asof header
+  // ("3 A + 7 B + 4 C + 3 D positions") and the strategy panels below.
+  // Keeping the hero strip at four stats keeps it readable on mobile.
+  const heroHtml = `
     <div class="hero-stat"><div class="v good">${fmtNum(blendStats?.sharpe, 2, true)}</div><div class="l">${blendLabel} blend Sharpe</div></div>
     <div class="hero-stat"><div class="v good">${fmtPct(blendStats?.max_dd)}</div><div class="l">${blendLabel} max drawdown</div></div>
     <div class="hero-stat"><div class="v">${fmtPct(blendStats?.cagr, true)}</div><div class="l">${blendLabel} CAGR</div></div>
-    <div class="hero-stat"><div class="v">${totalPos}</div><div class="l">Total positions today</div></div>
-    <div class="hero-stat"><div class="v">${aLatest.holdings.length}</div><div class="l">A (US sectors)</div></div>
-    <div class="hero-stat"><div class="v">${bLatest.holdings.length}</div><div class="l">B (asset class)</div></div>`;
-  if (hasC) heroHtml +=
-    `<div class="hero-stat"><div class="v">${cLatest.holdings.length}</div><div class="l">C (thematic)</div></div>`;
-  if (hasD) heroHtml +=
-    `<div class="hero-stat"><div class="v">${dLatest.holdings.length}</div><div class="l">D (Europe)</div></div>`;
+    <div class="hero-stat"><div class="v">${totalPos}</div><div class="l">Total positions today</div></div>`;
   document.getElementById('live-hero-stats').innerHTML = heroHtml;
 
   // ===== Build combined holdings =====
