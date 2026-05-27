@@ -214,6 +214,27 @@
       font-size: 11px; color: var(--ink-faint);
       text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px;
     }
+    .live-hero .regime-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin: 8px 0; padding: 6px 12px; border-radius: 4px;
+      font-size: 12.5px; font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .live-hero .regime-badge.on {
+      background: rgba(29, 122, 58, 0.08);
+      color: var(--good); border-color: rgba(29, 122, 58, 0.25);
+    }
+    .live-hero .regime-badge.off {
+      background: rgba(220, 38, 38, 0.08);
+      color: var(--bad); border-color: rgba(220, 38, 38, 0.25);
+    }
+    .live-hero .regime-badge .dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: currentColor;
+    }
+    .live-hero .regime-badge .meta {
+      font-weight: 400; color: var(--ink-soft); margin-left: 4px;
+    }
     .live-hero .stale {
       margin-top: 12px; padding: 8px 12px;
       background: rgba(183,110,0,0.08); border: 1px solid rgba(183,110,0,0.3);
@@ -1025,6 +1046,7 @@
       <h2>Live Portfolio — what to own today</h2>
       <div class="title" id="live-title">Multi-Strategy A+B+C+D (35/35/10/20 blend, no leverage)</div>
       <div class="asof" id="live-asof"></div>
+      <div id="live-regime-badge"></div>
       <div class="hero-stats" id="live-hero-stats"></div>
       <div id="live-stale-warning"></div>
     </div>
@@ -2005,6 +2027,20 @@ function fmtNum(x, digits = 2, signed = false) {
   return (signed && x > 0 ? '+' : '') + Number(x).toFixed(digits);
 }
 
+// ----------- Deployed blend selector ----------------------------------
+// Single source of truth for "which blend key is the deployed default".
+// Phase 19 introduced the breadth-gated variant as the new default; this
+// helper falls back gracefully if it's not present (e.g., the gate
+// requires data/breadth_csp1.json which might not exist on a stale
+// pipeline build).
+function getDeployedBlendKey(m) {
+  if (!m?.strategies) return null;
+  if (m.strategies.blend_35_35_10_20_gated) return 'blend_35_35_10_20_gated';
+  if (m.strategies.blend_35_35_10_20)        return 'blend_35_35_10_20';
+  if (m.strategies.blend_45_45_10)           return 'blend_45_45_10';
+  return 'blend_50_50';
+}
+
 // ----------- Hero stat strip in header --------------------------------
 // Populate the four big numbers in the header from the deployed blend.
 // Reads from window.DATA so the headline stays in sync with each
@@ -2013,11 +2049,12 @@ function renderHeroStrip() {
   const m = window.DATA?.multi;
   if (!m?.strategies) return;
   // Headline blend follows the same precedence used elsewhere:
-  // 4-way deployed if available, else 3-way, else 2-way fallback.
+  // gated 4-way > 4-way > 3-way > 2-way. The gated variant is the
+  // Phase 19 deployed default — Pareto-improves the ungated 4-way blend
+  // on both Sharpe and DD (per scripts/run_regime_gate.py sweep).
   const hasD = !!m.has_strategy_d;
   const hasC = !!m.has_strategy_c;
-  const headlineKey = hasD ? 'blend_35_35_10_20'
-                            : (hasC ? 'blend_45_45_10' : 'blend_50_50');
+  const headlineKey = getDeployedBlendKey(m);
   const blend = m.strategies[headlineKey] || m.strategies.blend_50_50 || {};
   const sharpe = blend.sharpe;
   const cagr = blend.cagr;
@@ -2039,6 +2076,31 @@ function renderHeroStrip() {
   set('hero-cagr',   cagr != null ? fmtPct(cagr, true) : '—');
   set('hero-dd',     maxDd != null ? fmtPct(maxDd) : '—');
   set('hero-window', yearStr);
+
+  // Phase 19: render the live regime-state badge if the gate is in
+  // effect on the deployed-default key.
+  const gate = m.regime_gate;
+  const badgeEl = document.getElementById('live-regime-badge');
+  if (badgeEl && gate && headlineKey === 'blend_35_35_10_20_gated') {
+    const state = gate.current_state;
+    const isOn = state === 'RISK_ON';
+    const breadthPct = (gate.current_breadth * 100).toFixed(1);
+    const since = gate.current_state_since;
+    const explainer = isOn
+      ? `Full deployment of the 4-way blend.`
+      : `Half of NAV moved to IEF (50% partial de-risk). Re-engages when CSP1 breadth crosses back above ${(gate.on_threshold * 100).toFixed(0)}%.`;
+    badgeEl.innerHTML = `
+      <div class="regime-badge ${isOn ? 'on' : 'off'}">
+        <span class="dot"></span>
+        REGIME: ${state}
+        <span class="meta">since ${since} · S&amp;P 500 breadth ${breadthPct}%</span>
+      </div>
+      <div style="font-size:11.5px; color:var(--ink-soft); margin: -2px 0 6px 4px;">
+        ${explainer}
+      </div>`;
+  } else if (badgeEl) {
+    badgeEl.innerHTML = '';
+  }
 }
 
 // ----------- Monitor tab -----------------------------------------------
@@ -2612,7 +2674,11 @@ const _PERF_SERIES = [
   // applied consistently to every chart's "key strategy" line for the
   // same reason (Strategy A top-7 line on portfolio chart, Strategy A
   // on its tab equity chart, etc).
-  { key: 'blend_35_35_10_20', name: 'Blend 35/35/10/20', color: '#dc2626', width: 4.0 },
+  // Phase 19: deployed-blend key resolves at render time via
+  // getDeployedBlendKey() so the chart automatically picks up the
+  // gated variant when available. Special sentinel '__DEPLOYED__' is
+  // swapped out inside _perfRender.
+  { key: '__DEPLOYED__', name: 'Deployed blend', color: '#dc2626', width: 4.0 },
   { key: 'strategy_a', name: 'A · US sector',   color: '#3b82f6', width: 1.3 },
   { key: 'strategy_b', name: 'B · Asset class', color: '#10b981', width: 1.3 },
   { key: 'strategy_c', name: 'C · Thematic',    color: '#f59e0b', width: 1.3 },
@@ -2746,13 +2812,18 @@ function _perfComputeStats(dates, equity, period) {
 
 function _perfRender(period) {
   const m = window.DATA?.multi;
-  if (!m?.strategies?.blend_35_35_10_20) return;
+  if (!m?.strategies) return;
   _perfCurrentPeriod = period;
 
+  // Resolve the deployed-blend sentinel against the loaded JSON so the
+  // chart auto-picks the gated variant when available.
+  const deployedKey = getDeployedBlendKey(m);
   const traces = [];
   const statsByKey = {};
   for (const s of _PERF_SERIES) {
-    const strat = m.strategies[s.key];
+    const key = s.key === '__DEPLOYED__' ? deployedKey : s.key;
+    if (!key) continue;
+    const strat = m.strategies[key];
     if (!strat?.dates?.length) continue;
     const sliced = _sliceByPeriod(strat.dates, strat.equity, period);
     if (sliced.dates.length < 2) continue;
@@ -2767,6 +2838,10 @@ function _perfRender(period) {
       hovertemplate: '%{y:+.2%}<extra>' + s.name + '</extra>',
     });
     statsByKey[s.key] = _perfComputeStats(sliced.dates, sliced.equity, period);
+    if (s.key === '__DEPLOYED__') {
+      // Mirror under the resolved key too so downstream lookups work.
+      statsByKey[key] = statsByKey[s.key];
+    }
   }
 
   if (typeof Plotly !== 'undefined') {
@@ -2783,8 +2858,8 @@ function _perfRender(period) {
     }, { displayModeBar: false, responsive: true });
   }
 
-  // Stat strip — blend-level summary for the period
-  const blend = statsByKey.blend_35_35_10_20 || {};
+  // Stat strip — blend-level summary for the period (resolved key)
+  const blend = statsByKey.__DEPLOYED__ || statsByKey[deployedKey] || {};
   const fmtRet = x => (x == null ? '—' : (x > 0 ? '+' : '') + (x * 100).toFixed(2) + '%');
   const cls = x => x >= 0 ? 'good' : 'bad';
   const periodLabels = { '1d': '1-day', '1w': '1-week', '1m': '1-month',
@@ -5547,14 +5622,14 @@ function renderMultiRecipeStats() {
   //   has C : 45/45/10    (pre-Phase 4 baseline)
   //   else  : 50/50 A:B
   let headlineKey, label;
-  if (m.has_strategy_d) {
-    headlineKey = 'blend_35_35_10_20';
+  headlineKey = getDeployedBlendKey(m);
+  if (headlineKey === 'blend_35_35_10_20_gated') {
+    label = '35/35/10/20 + breadth gate (Phase 19 deployed)';
+  } else if (headlineKey === 'blend_35_35_10_20') {
     label = '35/35/10/20 deployed';
-  } else if (m.has_strategy_c) {
-    headlineKey = 'blend_45_45_10';
+  } else if (headlineKey === 'blend_45_45_10') {
     label = '45/45/10 deployed';
   } else {
-    headlineKey = 'blend_50_50';
     label = '50/50 deployed';
   }
   const s = m.strategies[headlineKey] || m.strategies.blend_50_50 || {};
@@ -5590,17 +5665,22 @@ function renderMultiCharts() {
     blend_45_45_10:     '#b76e00',  // amber — prior 3-way baseline
     blend_50_40_10:     '#92400e',
     blend_40_40_20:     '#be185d',
-    blend_35_35_10_20:  '#dc2626',  // red — Phase 4 deployed (highlight)
-    blend_40_40_10_10:  '#7c3aed',
-    blend_30_30_10_30:  '#0891b2',
-    meta_rotation:      '#9ca3af',
+    blend_35_35_10_20:        '#dc2626',  // red — Phase 4 ungated reference
+    blend_35_35_10_20_gated:  '#1351b4',  // navy/accent — Phase 19 deployed
+    blend_40_40_10_10:        '#7c3aed',
+    blend_30_30_10_30:        '#0891b2',
+    meta_rotation:            '#9ca3af',
   };
   const widths = {
-    blend_35_35_10_20: 4.0, blend_45_45_10: 2.0, blend_50_50: 1.6,
+    blend_35_35_10_20_gated: 4.0,    // primary deployed line
+    blend_35_35_10_20: 2.4,            // ungated reference (visible by default)
+    blend_45_45_10: 1.8, blend_50_50: 1.6,
     strategy_a: 1.4, strategy_b: 1.4, strategy_c: 1.4, strategy_d: 1.4,
   };
-  // Order: 4-way deployed first, then 4-way alternatives, then 3-way blends, then 2-way, then standalone, then meta
-  const orderWithD = ['blend_35_35_10_20', 'blend_40_40_10_10', 'blend_30_30_10_30',
+  // Order: gated deployed first, then ungated reference, then 4-way alternatives,
+  // 3-way blends, 2-way, standalones, meta.
+  const orderWithD = ['blend_35_35_10_20_gated', 'blend_35_35_10_20',
+                       'blend_40_40_10_10', 'blend_30_30_10_30',
                        'blend_45_45_10', 'blend_50_40_10', 'blend_40_40_20',
                        'blend_50_50', 'blend_70_30', 'blend_30_70',
                        'strategy_a', 'strategy_b', 'strategy_c', 'strategy_d', 'meta_rotation'];
@@ -5619,7 +5699,8 @@ function renderMultiCharts() {
   // This keeps the default view to 4 lines instead of 14.
   const defaultVisibleKeys = new Set(
     m.has_strategy_d
-      ? ['blend_35_35_10_20', 'blend_45_45_10', 'blend_50_50', 'strategy_a']
+      ? ['blend_35_35_10_20_gated', 'blend_35_35_10_20',
+          'blend_45_45_10', 'blend_50_50', 'strategy_a']
       : (m.has_strategy_c
           ? ['blend_45_45_10', 'blend_50_50', 'strategy_a']
           : ['blend_50_50', 'strategy_a'])
