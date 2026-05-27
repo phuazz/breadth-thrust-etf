@@ -53,6 +53,34 @@ from backtest import download_spy_close  # noqa: E402
 COST_BPS = 2
 COST_FRAC = COST_BPS / 10_000
 
+# Phase 20 (Idea 2, 2026-05-27): sector-RELATIVE breadth for the signal.
+# Strategy A previously ranked sectors by ABSOLUTE breadth; in a market-wide
+# rally where everything is bullish, that effectively becomes a market-beta
+# strategy. The relative signal subtracts the cross-sectional mean at each
+# date, so we pick sectors that are GENUINELY leading on a breadth basis,
+# not just sectors riding a market-wide tide.
+#
+# Empirical result vs absolute (deployed gated 4-way blend):
+#   Full backtest : Sharpe +0.009, Total +6.6pp, DD +0.1pp (flat)
+#   2022 only     : Sharpe +0.24,  Total +2.1pp
+#   2022-onwards  : Sharpe +0.05,  Total +5.9pp, DD +0.3pp shallower
+#   SPY corr (A)  : 0.926 -> 0.832 (clean diversification gain)
+#
+# Trade-history display still uses ABSOLUTE breadth so users see
+# real "SOXX held at 75% breadth" not "+12% relative". Signal vs display
+# are decoupled.
+USE_RELATIVE_BREADTH_SIGNAL = True
+
+
+def _to_signal_panel(breadths_abs: pd.DataFrame) -> pd.DataFrame:
+    """Convert the absolute breadth panel into the SIGNAL panel that the
+    weight function actually ranks on. With USE_RELATIVE_BREADTH_SIGNAL
+    we subtract the cross-sectional mean per date; otherwise return the
+    absolute panel unchanged."""
+    if not USE_RELATIVE_BREADTH_SIGNAL:
+        return breadths_abs
+    return breadths_abs.sub(breadths_abs.mean(axis=1, skipna=True), axis=0)
+
 
 REBAL_FREQS = [
     ("Daily",         "D"),
@@ -150,6 +178,13 @@ def build_trade_history(weight_panel: pd.DataFrame,
 def main() -> int:
     print("Building panels (closes + ma200 breadth) for all ETFs ...", flush=True)
     closes, breadths, etfs_used = build_panels()
+    # Phase 20 (Idea 2): build the SIGNAL panel (relative breadth = sector -
+    # cross-sectional mean). The absolute panel is kept for trade-history
+    # display. Toggle via USE_RELATIVE_BREADTH_SIGNAL at top of file.
+    signal_panel = _to_signal_panel(breadths)
+    signal_label = ("relative breadth (cross-sectional)"
+                     if USE_RELATIVE_BREADTH_SIGNAL else "absolute breadth")
+    print(f"  Signal: {signal_label}")
     print(f"  {len(etfs_used)} ETFs used: {etfs_used}")
 
     # Eligible start: same logic as run_portfolio
@@ -175,7 +210,7 @@ def main() -> int:
         grid[f"K={K}"] = {}
         print(f"\n  --- K = {K} (top-{K}, weighted by breadth excess) ---")
         for freq_name, freq_code in REBAL_FREQS:
-            r = run_portfolio(closes, breadths, top_k_breadth_weight(K),
+            r = run_portfolio(closes, signal_panel, top_k_breadth_weight(K),
                               eligible, rebalance_freq=freq_code,
                               cost=COST_FRAC)
             eq_window = r["equity"].loc[r["equity"].index >= eligible]
@@ -217,13 +252,13 @@ def main() -> int:
     # =====================================================================
     # 2. Side panel: K=5 weekly Friday equity (for chart overlay)
     # =====================================================================
-    r5 = run_portfolio(closes, breadths, top_k_breadth_weight(5),
+    r5 = run_portfolio(closes, signal_panel, top_k_breadth_weight(5),
                        eligible, rebalance_freq="W-FRI", cost=COST_FRAC)
     eq5 = r5["equity"].loc[r5["equity"].index >= eligible]
     eq5 = eq5 / eq5.iloc[0]
 
     # K=3 for visual comparison
-    r3 = run_portfolio(closes, breadths, top_k_breadth_weight(3),
+    r3 = run_portfolio(closes, signal_panel, top_k_breadth_weight(3),
                        eligible, rebalance_freq="W-FRI", cost=COST_FRAC)
     eq3 = r3["equity"].loc[r3["equity"].index >= eligible]
     eq3 = eq3 / eq3.iloc[0]
@@ -231,7 +266,7 @@ def main() -> int:
     # =====================================================================
     # 3. Headline portfolio: weight panel, attribution, weekly allocation
     # =====================================================================
-    headline_run = run_portfolio(closes, breadths,
+    headline_run = run_portfolio(closes, signal_panel,
                                   top_k_breadth_weight(HEADLINE_K),
                                   eligible, rebalance_freq=HEADLINE_FREQ,
                                   cost=COST_FRAC)
