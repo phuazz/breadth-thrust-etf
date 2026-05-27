@@ -47,6 +47,7 @@ DATA_DIR = ROOT / "data"
 OUT_PATH = DATA_DIR / "holdings_prices_1y.json"
 
 LOOKBACK_DAYS = 252  # ~1 calendar year of trading days
+MA_PERIODS = [50, 100, 200]  # standard trend-context moving averages
 
 # Strategy A trade-as proxies (the deployed-execution tickers) +
 # Strategy D Xetra UCITS that have their own OHLC caches.
@@ -145,6 +146,15 @@ def main() -> int:
         if close is None or len(close) < 2:
             n_skipped.append(ticker)
             continue
+        # Compute MAs on the FULL available history, then slice last
+        # LOOKBACK_DAYS — that way the 200d MA is populated for every
+        # date in the 1Y window when at least 200 prior days exist.
+        # For young tickers (BTC-USD, 159801.SZ, IBIT proxies) the
+        # leading MA values will be NaN; those serialise to None and
+        # Plotly skips connecting points.
+        ma_series: dict[int, pd.Series] = {
+            p: close.rolling(p, min_periods=p).mean() for p in MA_PERIODS
+        }
         # Take last LOOKBACK_DAYS trading days. If less history available,
         # take whatever exists (chart will just show a shorter window).
         tail = close.iloc[-LOOKBACK_DAYS:]
@@ -154,10 +164,32 @@ def main() -> int:
         first = float(tail.iloc[0])
         last = float(tail.iloc[-1])
         change_pct = (last / first - 1.0) if first else None
+        # Distance of last close above the 200d MA, expressed as a
+        # decimal (0.05 = 5% above MA). Useful as a "trend context"
+        # stat in the mini-chart header.
+        ma200_last = ma_series[200].iloc[-1] if not ma_series[200].empty else None
+        vs_ma200 = None
+        if (ma200_last is not None and not pd.isna(ma200_last)
+                and ma200_last != 0):
+            vs_ma200 = float(last / ma200_last - 1.0)
+
+        def _ma_tail_arr(p: int) -> list:
+            series_tail = ma_series[p].iloc[-LOOKBACK_DAYS:]
+            return [
+                round(float(v), max(0, 4 - int(__import__("math").floor(
+                    __import__("math").log10(abs(v)) if v != 0 else 0
+                )) - 1)) if not pd.isna(v) else None
+                for v in series_tail.values
+            ]
+
         out[ticker] = {
             "dates": [d.strftime("%Y-%m-%d") for d in tail.index],
             "prices": _round_sig([float(v) for v in tail.values]),
+            "ma50": _ma_tail_arr(50),
+            "ma100": _ma_tail_arr(100),
+            "ma200": _ma_tail_arr(200),
             "change_pct": round(change_pct, 4) if change_pct is not None else None,
+            "vs_ma200": round(vs_ma200, 4) if vs_ma200 is not None else None,
             "n_days": int(len(tail)),
         }
 

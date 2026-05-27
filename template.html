@@ -258,7 +258,7 @@
       border-bottom: 1px solid var(--border);
     }
     .holdings-mini-chart {
-      width: 100%; height: 220px;
+      width: 100%; height: 260px;
     }
     .holdings-mini-header {
       display: flex; gap: 18px; align-items: baseline;
@@ -2934,20 +2934,33 @@ function _renderHoldingsMiniChart(chartDivId, tradeAs, etfLabel) {
     return;
   }
   // Render as percent return from period start, matching the dashboard
-  // convention used everywhere else.
+  // convention used everywhere else. Moving averages are normalised to
+  // the SAME baseline as the price line — (MA[t] / price[0]) - 1 — so
+  // they sit on the same y-axis. The strategy-relevant 200d MA signal
+  // is also surfaced as a header stat ("X% vs 200d MA").
   const prices = data.prices;
   const base = prices[0];
   const pctReturn = prices.map(p => (p / base) - 1);
   const changePct = data.change_pct;
+  const vsMa200 = data.vs_ma200;
   const isUp = (changePct || 0) >= 0;
+  const vsMa200Cls = (vsMa200 || 0) >= 0 ? 'up' : 'down';
+  const vsMa200Str = vsMa200 == null
+    ? ''
+    : `<span style="color:var(--ink-faint);font-size:12px;">vs 200d MA:</span>
+       <span class="change ${vsMa200Cls}" style="font-size:13px;">
+         ${(vsMa200 >= 0 ? '+' : '') + (vsMa200 * 100).toFixed(2)}%
+       </span>`;
   const headerHtml = `
     <div class="holdings-mini-header">
       <span class="ticker">${tradeAs}</span>
+      <span style="color:var(--ink-faint);font-size:12px;">1Y:</span>
       <span class="change ${isUp ? 'up' : 'down'}">
         ${isUp ? '+' : ''}${(changePct * 100).toFixed(2)}%
       </span>
+      ${vsMa200Str}
       <span style="color:var(--ink-faint);font-size:12px;">
-        1Y · ${data.n_days} trading days
+        · ${data.n_days} trading days
       </span>
       <span class="meta">
         ${etfLabel}${tradeAs !== etfLabel ? ` (trade as ${tradeAs})` : ''}
@@ -2956,16 +2969,48 @@ function _renderHoldingsMiniChart(chartDivId, tradeAs, etfLabel) {
   `;
   // Inject header above the chart div
   host.insertAdjacentHTML('beforebegin', headerHtml);
-  const line = {
+
+  // Helper: convert a series of absolute price levels (MA values) onto
+  // the same %-return-from-start baseline as the price line. NaN/null
+  // entries are preserved so Plotly correctly skips connecting gaps.
+  const normaliseMaToBaseline = (arr) => arr.map(
+    v => (v == null) ? null : (v / base) - 1
+  );
+
+  const priceLine = {
     x: data.dates, y: pctReturn,
     mode: 'lines', name: tradeAs,
-    line: { color: isUp ? '#1d7a3a' : '#dc2626', width: 2 },
-    hovertemplate: '%{y:+.2%}<extra>' + tradeAs + '</extra>',
+    line: { color: isUp ? '#1d7a3a' : '#dc2626', width: 2.2 },
+    hovertemplate: tradeAs + ': %{y:+.2%}<extra></extra>',
     fill: 'tozeroy',
-    fillcolor: isUp ? 'rgba(29,122,58,0.08)' : 'rgba(220,38,38,0.08)',
+    fillcolor: isUp ? 'rgba(29,122,58,0.06)' : 'rgba(220,38,38,0.06)',
   };
+  const traces = [priceLine];
+  // MA overlays (semi-transparent so the price line stays dominant)
+  if (data.ma50) traces.push({
+    x: data.dates, y: normaliseMaToBaseline(data.ma50),
+    mode: 'lines', name: '50d MA',
+    line: { color: '#0891b2', width: 1.2, dash: 'dot' },
+    hovertemplate: '50d MA: %{y:+.2%}<extra></extra>',
+    connectgaps: false,
+  });
+  if (data.ma100) traces.push({
+    x: data.dates, y: normaliseMaToBaseline(data.ma100),
+    mode: 'lines', name: '100d MA',
+    line: { color: '#7c3aed', width: 1.2, dash: 'dash' },
+    hovertemplate: '100d MA: %{y:+.2%}<extra></extra>',
+    connectgaps: false,
+  });
+  if (data.ma200) traces.push({
+    x: data.dates, y: normaliseMaToBaseline(data.ma200),
+    mode: 'lines', name: '200d MA',
+    line: { color: '#ea580c', width: 1.6 },
+    hovertemplate: '200d MA: %{y:+.2%}<extra></extra>',
+    connectgaps: false,
+  });
+
   const layout = {
-    margin: { t: 6, r: 12, b: 32, l: 56 },
+    margin: { t: 6, r: 12, b: 40, l: 56 },
     xaxis: { showgrid: false, color: '#4a5159', tickfont: { size: 10 } },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
@@ -2973,11 +3018,12 @@ function _renderHoldingsMiniChart(chartDivId, tradeAs, etfLabel) {
               tickfont: { size: 10 } },
     paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
     hovermode: 'x unified',
-    showlegend: false,
+    showlegend: true,
+    legend: { orientation: 'h', y: -0.18, font: { size: 10 } },
     font: { family: 'Inter', size: 11 },
   };
   if (typeof Plotly !== 'undefined') {
-    Plotly.newPlot(host.id, [line], layout,
+    Plotly.newPlot(host.id, traces, layout,
                     { displayModeBar: false, responsive: true });
   }
 }
