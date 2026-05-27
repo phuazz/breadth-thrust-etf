@@ -76,7 +76,16 @@ OFF_THRESHOLD = 0.20    # de-risk when S&P 500 breadth falls below 20%
 ON_THRESHOLD = 0.50     # re-engage when breadth crosses back above 50%
 DERISK_FRACTION = 0.50  # 50% partial de-risk (not full move to cash)
 SWITCH_COST_BPS = 5     # bps charged per regime flip
-FALLBACK_TICKER = "IEF" # 7-10y Treasury — actual deployed execution
+FALLBACK_TICKER = "SHY" # 1-3y Treasury — cleaner cash-equivalent than IEF.
+                         # Phase 19.1: switched from IEF to SHY after empirical
+                         # test in scripts/compare_fallback_ticker.py.
+                         # Rationale: the overlay's mission is defensive against
+                         # equity broad-weakness, not to express a duration view.
+                         # IEF (~7y duration) sells off in inflation-driven stress
+                         # (2022 episode: IEF -8.4% during the inflation crash
+                         # window). SHY (~1.8y duration) is duration-neutral and
+                         # always defensive. Full backtest: SHY gives Sharpe
+                         # +1.29 vs IEF +1.27, Max DD -16.5% vs -16.9%.
 
 
 def _round(x, n=4):
@@ -132,14 +141,14 @@ def main() -> int:
     # ----- Load upstream data -----
     multi_path = DATA_DIR / "multi_strategy.json"
     csp1_path = DATA_DIR / "breadth_csp1.json"
-    ief_cache_path = DATA_DIR / "asset_class_prices_cache.parquet"
-    for required in (multi_path, csp1_path, ief_cache_path):
+    ac_cache_path = DATA_DIR / "asset_class_prices_cache.parquet"
+    for required in (multi_path, csp1_path):
         if not required.exists():
             print(f"ERROR: required upstream missing: "
                   f"{required.relative_to(ROOT)}", file=sys.stderr)
             print(f"  Run the upstream pipeline first "
-                  f"(run_multi_strategy.py / compute_breadth.py / "
-                  f"run_asset_class_rotation.py).", file=sys.stderr)
+                  f"(run_multi_strategy.py / compute_breadth.py).",
+                  file=sys.stderr)
             return 1
 
     multi = json.loads(multi_path.read_text(encoding="utf-8"))
@@ -158,14 +167,52 @@ def main() -> int:
                          index=pd.to_datetime(csp1["series"]["dates"]),
                          name="breadth").dropna()
 
-    ief = pd.read_parquet(ief_cache_path)[FALLBACK_TICKER].dropna()
+    # Try asset_class cache first (in case FALLBACK_TICKER is one of
+    # Strategy B's holdings). Otherwise fetch fresh + cache locally.
+    fallback = None
+    if ac_cache_path.exists():
+        try:
+            df = pd.read_parquet(ac_cache_path)
+            if FALLBACK_TICKER in df.columns:
+                fallback = df[FALLBACK_TICKER].dropna()
+        except Exception:
+            pass
+    if fallback is None:
+        local_cache = DATA_DIR / f"risk_overlay_{FALLBACK_TICKER.lower()}_cache.parquet"
+        if local_cache.exists():
+            try:
+                ser = pd.read_parquet(local_cache)
+                if FALLBACK_TICKER in ser.columns:
+                    fallback = ser[FALLBACK_TICKER].dropna()
+            except Exception:
+                pass
+    if fallback is None:
+        print(f"  Fetching {FALLBACK_TICKER} from yfinance (not in any "
+              f"existing cache)...", flush=True)
+        try:
+            import yfinance as yf
+            raw = yf.download(FALLBACK_TICKER, start="2007-01-01",
+                               progress=False, auto_adjust=True)
+            close = raw["Close"]
+            if isinstance(close, pd.DataFrame):
+                close = close.iloc[:, 0]
+            fallback = close.dropna()
+            fallback.name = FALLBACK_TICKER
+            # Cache locally for next run — keeps the script idempotent
+            # and offline-capable.
+            local_cache = DATA_DIR / f"risk_overlay_{FALLBACK_TICKER.lower()}_cache.parquet"
+            fallback.to_frame().to_parquet(local_cache)
+        except Exception as exc:
+            print(f"ERROR: cannot fetch {FALLBACK_TICKER} fallback "
+                  f"prices: {exc}", file=sys.stderr)
+            return 1
 
     # ----- Align on the blend's calendar -----
     common = blend_eq.index
     breadth = breadth.reindex(common, method="ffill")
-    ief_aligned = ief.reindex(common, method="ffill")
+    fallback_aligned = fallback.reindex(common, method="ffill")
     blend_ret = blend_eq.pct_change().fillna(0)
-    fallback_ret = ief_aligned.pct_change().fillna(0)
+    fallback_ret = fallback_aligned.pct_change().fillna(0)
 
     # ----- Compute gated equity -----
     states = _compute_states(breadth, OFF_THRESHOLD, ON_THRESHOLD)

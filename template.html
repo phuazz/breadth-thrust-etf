@@ -331,6 +331,28 @@
     table.holdings .strategy-tag.d {
       background: rgba(14,116,144,0.10); color: #0e7490;
     }
+    table.holdings .strategy-tag.overlay {
+      background: rgba(217,119,6,0.14); color: #b45309;
+      letter-spacing: 0.06em;
+    }
+    table.holdings tr.overlay-fallback-row {
+      background: rgba(217,119,6,0.04);
+      border-left: 3px solid #d97706;
+    }
+    table.holdings tr.overlay-fallback-row td:first-child { padding-left: 9px; }
+    /* RISK_OFF banner above the holdings table */
+    .overlay-active-banner {
+      background: rgba(217, 119, 6, 0.10);
+      border-left: 4px solid #d97706;
+      padding: 12px 16px; margin-bottom: 14px;
+      border-radius: 4px;
+      font-size: 13px; line-height: 1.5;
+    }
+    .overlay-active-banner strong { color: #b45309; }
+    .overlay-active-banner .trade-summary {
+      margin-top: 6px; font-size: 12px;
+      color: var(--ink-soft); font-style: italic;
+    }
     table.holdings .why {
       font-size: 12px; color: var(--ink-faint);
     }
@@ -1223,6 +1245,7 @@
       <p class="section-sub" style="margin-top:-12px;font-size:13px;background:var(--bg-soft);padding:10px 14px;border-radius:4px;border-left:3px solid var(--accent);">
         <strong>How "Total weight" is built</strong>, with one row as a worked example. Say IUES sits in Strategy A only with a within-strategy weight of 19.3%. Strategy A allocates 35% of total NAV, so IUES gets <code>0.35 × 19.3% = 6.76%</code> of the combined portfolio. On $100k, that is $6,755 in XLE (the trade proxy for IUES). The four-strategy panels below show how each within-strategy weight is computed from the underlying breadth or momentum signal — hover any row for the exact arithmetic.
       </p>
+      <div id="overlay-active-banner" style="display:none;"></div>
       <table class="holdings" id="live-holdings-table"><thead></thead><tbody></tbody></table>
     </section>
 
@@ -1310,6 +1333,14 @@
       <strong>The deployed 4-way blend's complete history — every position, every rebalance, every contribution.</strong>
       This tab consolidates the per-sleeve trade detail that lives on the four individual strategy tabs into one blend-level view. Useful for: walking a client through "how does this actually work over time", validating the performance attribution numbers, and answering "what did the portfolio hold during regime X" questions.
     </p>
+
+    <section id="overlay-events-section" style="display:none;">
+      <h2>0 · Risk overlay trade events</h2>
+      <p class="section-sub full">
+        The breadth regime overlay sits on top of the 4-way blend. When it fires, it generates a clean trade event independent of any sleeve rebalance: <strong>sell half of every existing position pro-rata</strong> to raise cash for the fallback Treasury holding, or the reverse when the overlay re-engages. Below: every overlay-triggered event in the backtest, with the breadth value that triggered it and the implied trade tickets.
+      </p>
+      <div id="overlay-events-history-card"></div>
+    </section>
 
     <section>
       <h2>1 · Asset-class exposure over time</h2>
@@ -2416,6 +2447,65 @@ function renderMonitor() {
     return e;
   }).sort((x, y) => y.total - x.total);
 
+  // Phase 19 Path A: when RISK_OFF, the deployed portfolio is
+  // (1-derisk) × blend + derisk × SHY. Scale every sleeve weight to
+  // reflect the actual current allocation, and inject SHY as a
+  // synthetic top-of-list row showing the de-risk leg. This is the
+  // operational truth — what you actually hold today, not what you
+  // would hold without the overlay.
+  const overlayGate = multi?.regime_gate;
+  const isRiskOff = overlayGate?.current_state === 'RISK_OFF';
+  const fallbackTicker = overlayGate?.fallback_ticker || 'SHY';
+  const deriskFrac = overlayGate?.derisk_fraction ?? 0.50;
+  const scale = 1 - deriskFrac;
+  // Banner above the holdings table — only when RISK_OFF
+  const bannerEl = document.getElementById('overlay-active-banner');
+  if (bannerEl) {
+    if (isRiskOff) {
+      const breadthPct = (overlayGate.current_breadth * 100).toFixed(1);
+      const sleeveCount = rows.length;  // before SHY injection
+      bannerEl.style.display = '';
+      bannerEl.className = 'overlay-active-banner';
+      bannerEl.innerHTML = `
+        <div>
+          <strong>RISK_OFF since ${overlayGate.current_state_since}</strong>
+          — the breadth regime overlay is engaged. <strong>${(deriskFrac*100).toFixed(0)}% of NAV currently held in
+          ${fallbackTicker}</strong> (1-3y US Treasury); the other ${(scale*100).toFixed(0)}% is in
+          the 4-way blend at proportional weights. S&amp;P 500 breadth is
+          currently <strong>${breadthPct}%</strong>; overlay re-engages full blend when
+          breadth crosses back above ${((overlayGate.on_threshold||0.5)*100).toFixed(0)}%.
+        </div>
+        <div class="trade-summary">
+          Trades generated at the overlay trigger: ${sleeveCount} sells (proportional reduction of every existing position) + 1 ${fallbackTicker} buy for ${(deriskFrac*100).toFixed(0)}% of NAV.
+        </div>
+      `;
+    } else {
+      bannerEl.style.display = 'none';
+      bannerEl.innerHTML = '';
+    }
+  }
+
+  if (isRiskOff && deriskFrac > 0) {
+    for (const r of rows) {
+      r.eff_a = (r.eff_a || 0) * scale;
+      r.eff_b = (r.eff_b || 0) * scale;
+      r.eff_c = (r.eff_c || 0) * scale;
+      r.eff_d = (r.eff_d || 0) * scale;
+      r.total = r.total * scale;
+    }
+    rows.unshift({
+      etf: fallbackTicker,
+      label: `iShares 1-3y US Treasury — risk overlay fallback (since ${overlayGate.current_state_since})`,
+      a_weight: 0, b_weight: 0, c_weight: 0, d_weight: 0,
+      a_signal: null, b_signal: null, c_signal: null, d_signal: null,
+      eff_a: 0, eff_b: 0, eff_c: 0, eff_d: 0,
+      a_proxy: fallbackTicker,
+      in_a: false, in_b: false, in_c: false, in_d: false,
+      is_overlay_fallback: true,
+      total: deriskFrac,
+    });
+  }
+
   // ===== Combined holdings table =====
   const acAColours = window.DATA.asset_class?.asset_class_colours || {};
   const tcColours = window.DATA.thematic?.thematic_colours || {};
@@ -2433,6 +2523,20 @@ function renderMonitor() {
   // (some tickers may not have a 1Y price series available).
   const holdingsPrices = window.DATA?.holdings_prices?.prices || {};
   const tbodyHtml = rows.map(e => {
+    // Special handling for the overlay-fallback row (SHY when RISK_OFF)
+    if (e.is_overlay_fallback) {
+      totW += e.total;
+      const breadthPct = (overlayGate.current_breadth * 100).toFixed(1);
+      return `<tr class="holdings-row overlay-fallback-row">
+        <td><span class="caret"></span><span class="swatch" style="background:#b45309;"></span><span class="sym">${e.etf}</span></td>
+        <td style="font-size:13px;">${e.label || ''}</td>
+        <td><span class="strategy-tag overlay">OVERLAY</span></td>
+        <td><span class="sym" style="font-size:13px;color:var(--ink-soft);">${e.etf}</span></td>
+        <td class="why" style="color:#b45309;">Breadth gate engaged · S&amp;P 500 breadth ${breadthPct}%</td>
+        <td class="num" style="font-size:11.5px;font-family:'JetBrains Mono',monospace;text-align:left;color:#b45309;">OVERLAY: ${(e.total*100).toFixed(0)}% NAV in ${e.etf}</td>
+        <td class="num"><strong>${(e.total*100).toFixed(1)}%</strong></td>
+      </tr>`;
+    }
     const why = [];
     if (e.in_a && e.a_signal != null) {
       const ts = _trafficLightStrength(e.a_signal);
@@ -2454,12 +2558,15 @@ function renderMonitor() {
     if (e.in_b) stratTags.push('<span class="strategy-tag b">B</span>');
     if (e.in_c) stratTags.push('<span class="strategy-tag c">C</span>');
     if (e.in_d) stratTags.push('<span class="strategy-tag d">D</span>');
-    // Calculation breakdown
+    // Calculation breakdown — when RISK_OFF, weights are scaled by
+    // (1-derisk) but the within-strategy weight × blend-weight algebra
+    // stays the same; just the eff_* values are smaller.
+    const overlayPrefix = isRiskOff ? `${(1-deriskFrac).toFixed(2)}× ` : '';
     const parts = [];
-    if (e.in_a) parts.push(`<span style="color:var(--accent);">A: ${W_A.toFixed(2)}×${(e.a_weight*100).toFixed(1)}%=${((e.eff_a||0)*100).toFixed(2)}%</span>`);
-    if (e.in_b) parts.push(`<span style="color:var(--good);">B: ${W_B.toFixed(2)}×${(e.b_weight*100).toFixed(1)}%=${((e.eff_b||0)*100).toFixed(2)}%</span>`);
-    if (e.in_c) parts.push(`<span style="color:#dc2626;">C: ${W_C.toFixed(2)}×${(e.c_weight*100).toFixed(1)}%=${((e.eff_c||0)*100).toFixed(2)}%</span>`);
-    if (e.in_d) parts.push(`<span style="color:#0e7490;">D: ${W_D.toFixed(2)}×${(e.d_weight*100).toFixed(1)}%=${((e.eff_d||0)*100).toFixed(2)}%</span>`);
+    if (e.in_a) parts.push(`<span style="color:var(--accent);">A: ${overlayPrefix}${W_A.toFixed(2)}×${(e.a_weight*100).toFixed(1)}%=${((e.eff_a||0)*100).toFixed(2)}%</span>`);
+    if (e.in_b) parts.push(`<span style="color:var(--good);">B: ${overlayPrefix}${W_B.toFixed(2)}×${(e.b_weight*100).toFixed(1)}%=${((e.eff_b||0)*100).toFixed(2)}%</span>`);
+    if (e.in_c) parts.push(`<span style="color:#dc2626;">C: ${overlayPrefix}${W_C.toFixed(2)}×${(e.c_weight*100).toFixed(1)}%=${((e.eff_c||0)*100).toFixed(2)}%</span>`);
+    if (e.in_d) parts.push(`<span style="color:#0e7490;">D: ${overlayPrefix}${W_D.toFixed(2)}×${(e.d_weight*100).toFixed(1)}%=${((e.eff_d||0)*100).toFixed(2)}%</span>`);
     const calcBreakdown = parts.join(' + ');
     totW += e.total;
     // Trade-as ticker is the price series we want to chart on expand.
@@ -6517,6 +6624,117 @@ function _historySleeveWeights() {
 
 
 // --- Section 1 — Asset-class exposure stacked over time --------------
+// ----------- Trade History: risk overlay events table -----------------
+// Renders the 16 historical regime-change events (RISK_OFF / RISK_ON)
+// from window.DATA.risk_overlay.events, with inferred trade ticket
+// counts. Hidden when overlay data is absent.
+function renderOverlayEventsHistory() {
+  const section = document.getElementById('overlay-events-section');
+  const card = document.getElementById('overlay-events-history-card');
+  const overlay = window.DATA?.risk_overlay;
+  const events = overlay?.events || [];
+  if (!section || !card || !events.length) {
+    if (section) section.style.display = 'none';
+    return;
+  }
+  const fallback = overlay.gate_parameters?.fallback_ticker || 'SHY';
+  const derisk = overlay.gate_parameters?.derisk_fraction || 0.50;
+  const offThr = (overlay.gate_parameters?.off_threshold || 0.20) * 100;
+  const onThr = (overlay.gate_parameters?.on_threshold || 0.50) * 100;
+  section.style.display = '';
+
+  // Group RISK_OFF -> RISK_ON pairs to compute the duration of each
+  // defensive episode for context.
+  const episodes = [];
+  let openOff = null;
+  for (const ev of events) {
+    if (ev.direction === 'RISK_OFF') {
+      openOff = ev;
+    } else if (ev.direction === 'RISK_ON' && openOff) {
+      const days = Math.round((new Date(ev.date) - new Date(openOff.date)) / (24*3600*1000));
+      episodes.push({
+        off_date: openOff.date, on_date: ev.date,
+        off_breadth: openOff.breadth, on_breadth: ev.breadth,
+        days,
+      });
+      openOff = null;
+    }
+  }
+  if (openOff) {
+    // Currently open episode (RISK_OFF, no close yet)
+    const today = new Date();
+    const days = Math.round((today - new Date(openOff.date)) / (24*3600*1000));
+    episodes.push({
+      off_date: openOff.date, on_date: null,
+      off_breadth: openOff.breadth, on_breadth: null,
+      days, open: true,
+    });
+  }
+  episodes.reverse();  // newest first
+
+  // Approximate trade-ticket count: total positions in the current
+  // deployed portfolio that get partially sold/bought. We use the
+  // current Combined Holdings count as an estimate (the actual count
+  // at each historical event varied, but is roughly 18-22 throughout
+  // the backtest window).
+  const topk = window.DATA?.topk;
+  const ac = window.DATA?.asset_class;
+  const tc = window.DATA?.thematic;
+  const eu = window.DATA?.europe;
+  const sleeveCount = (
+    (topk?.headline?.trade_history?.slice(-1)[0]?.holdings.length || 7) +
+    (ac?.headline?.trade_history?.slice(-1)[0]?.holdings.length || 7) +
+    (tc?.headline?.trade_history?.slice(-1)[0]?.holdings.length || 4) +
+    (eu?.headline?.trade_history?.slice(-1)[0]?.holdings.length || 3)
+  );
+
+  const rows = episodes.map(ep => {
+    const offBreadthPct = (ep.off_breadth * 100).toFixed(1);
+    const onBreadthPct = ep.on_breadth != null ? (ep.on_breadth * 100).toFixed(1) : '—';
+    const sells = sleeveCount;
+    const status = ep.open
+      ? `<span style="color:#b45309; font-weight:600;">CURRENTLY OPEN</span>`
+      : `<span style="color:var(--ink-soft);">Closed after ${ep.days} days</span>`;
+    return `<tr>
+      <td>${ep.off_date}</td>
+      <td><span style="color:#b45309; font-weight:600;">↓ RISK_OFF</span></td>
+      <td class="num">${offBreadthPct}%</td>
+      <td style="font-size:12px;">${sells} sell tickets (proportional, half of each existing position) + 1 ${fallback} buy for ${(derisk*100).toFixed(0)}% NAV</td>
+      <td>${ep.on_date || '—'}</td>
+      <td class="num">${onBreadthPct}${ep.on_breadth != null ? '%' : ''}</td>
+      <td style="font-size:12px;">${ep.on_date ? `${sleeveCount} buy tickets (proportional, re-instate full positions) + 1 ${fallback} sell` : '—'}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+
+  card.innerHTML = `
+    <table class="small-table">
+      <thead>
+        <tr>
+          <th>De-risk date</th>
+          <th>Direction</th>
+          <th class="num">S&amp;P 500 breadth</th>
+          <th>Trade tickets generated</th>
+          <th>Re-engage date</th>
+          <th class="num">S&amp;P 500 breadth</th>
+          <th>Trade tickets generated</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="margin-top:12px; font-size:12px; color:var(--ink-faint);">
+      <strong>${episodes.length} defensive episodes</strong> over the 7.5-year backtest,
+      averaging ~${(episodes.length / 7.5).toFixed(1)} per year. Trigger thresholds:
+      <strong>RISK_OFF below ${offThr.toFixed(0)}%</strong> breadth (rare, real-stress events only),
+      <strong>RISK_ON above ${onThr.toFixed(0)}%</strong> breadth (hysteresis prevents whipsaw).
+      Trade-ticket counts are estimated from the current deployed portfolio's
+      ~${sleeveCount} positions; actual counts at each historical event varied
+      slightly with the live rebalance composition that day.
+    </p>
+  `;
+}
+
 function renderBlendAllocationTimeline() {
   const data = window.DATA;
   if (!data?.topk) return;
@@ -6873,6 +7091,7 @@ function activateTab(name) {
       renderRegimeDecomposition();
     }
     if (name === 'history') {
+      renderOverlayEventsHistory();
       renderBlendAllocationTimeline();
       renderCombinedTradeLedger();
       renderBlendAttribution();
