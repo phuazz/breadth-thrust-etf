@@ -2212,6 +2212,10 @@ function fmtNum(x, digits = 2, signed = false) {
 // pipeline build).
 function getDeployedBlendKey(m) {
   if (!m?.strategies) return null;
+  // Phase 22 deployed: gated + EEM-tilted (Phase 19 + EEM/SPY golden cross).
+  // Precedence: gated+EEM > gated-only > ungated 4-way > 3-way > 2-way.
+  if (m.strategies.blend_35_35_10_20_gated_eem_tilted)
+    return 'blend_35_35_10_20_gated_eem_tilted';
   if (m.strategies.blend_35_35_10_20_gated) return 'blend_35_35_10_20_gated';
   if (m.strategies.blend_35_35_10_20)        return 'blend_35_35_10_20';
   if (m.strategies.blend_45_45_10)           return 'blend_45_45_10';

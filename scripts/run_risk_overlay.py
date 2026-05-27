@@ -1,10 +1,28 @@
-"""Phase 19 — Aggregate market-breadth regime overlay on the deployed blend.
+"""Phase 19 + 22 — Overlay layer on top of the deployed blend.
 
 This is the dedicated home for "overlays that modulate the deployed blend
-based on a market signal". Currently houses Idea 1 from the breadth-
-application survey (the CSP1 breadth gate). Future overlays (e.g., Idea
-5 — breadth-divergence) would live alongside it here without bloating
-``run_multi_strategy.py`` which is about blend construction not overlays.
+based on a market signal".
+
+Phase 19 (Idea 1): aggregate market-breadth regime gate. When CSP1
+breadth collapses below the off-threshold, de-risk 50% of the blend
+into SHY. Re-engage when breadth recovers above the on-threshold.
+
+Phase 22 (2026-05-28): EEM/SPY relative-strength tilt. When the
+EEM/SPY ratio's 50d MA crosses above its 200d MA (golden cross —
+EM is in a sustained relative-strength uptrend vs US), tilt 10% of
+the blend into EEM. Funded from Strategy B (asset-class momentum
+sleeve, 35% baseline → 25% during tilt-ON) because:
+  (a) Empirically: from_B gave +0.005 Full Sharpe + 3.7pp 22-on Total
+      vs proportional (-0.014 / +1.6pp) or from_A (-0.018 / +0.8pp).
+  (b) Mechanistically: B already includes EEM in its rotation
+      universe but momentum lags relative-strength by ~4mo. The
+      overlay is a fast-EEM supplement to B's slow-EEM momentum.
+  (c) B has been the weakest sleeve in 2022-onwards (CAGR ~9% vs
+      A 17% / C 21% / D 14%), so shrinking it has the lowest
+      opportunity cost.
+
+Both overlays apply independently and compose: the EEM-tilted
+ungated blend is gated by the same Phase 19 breadth signal.
 
 Architecture:
   * Reads ``data/multi_strategy.json`` to get the underlying blend's
@@ -67,9 +85,9 @@ DATA_DIR = ROOT / "data"
 OUT_PATH = DATA_DIR / "risk_overlay.json"
 
 # ----------------------------------------------------------------------
-# Gate parameters — chosen via the 12-variant sweep in
-# scripts/run_regime_gate.py (Phase 19, variant #4). Pareto-improving on
-# the ungated 4-way blend on both Sharpe AND max drawdown.
+# Phase 19 — breadth regime gate parameters
+# Chosen via the 12-variant sweep in scripts/run_regime_gate.py
+# (Phase 19, variant #4). Pareto-improving on the ungated 4-way blend.
 # ----------------------------------------------------------------------
 UNDERLYING_BLEND_KEY = "blend_35_35_10_20"
 OFF_THRESHOLD = 0.20    # de-risk when S&P 500 breadth falls below 20%
@@ -86,6 +104,20 @@ FALLBACK_TICKER = "SHY" # 1-3y Treasury — cleaner cash-equivalent than IEF.
                          # window). SHY (~1.8y duration) is duration-neutral and
                          # always defensive. Full backtest: SHY gives Sharpe
                          # +1.29 vs IEF +1.27, Max DD -16.5% vs -16.9%.
+
+# ----------------------------------------------------------------------
+# Phase 22 — EEM/SPY relative-strength tilt parameters
+# Test sweep in scripts/test_phase22_eem_overlay.py + funding-source
+# comparison in scripts/test_phase22_funding_source.py.
+# ----------------------------------------------------------------------
+EEM_TILT_ENABLED = True
+EEM_TICKER = "EEM"
+EEM_REFERENCE_TICKER = "SPY"      # ratio baseline (EEM / SPY)
+EEM_TILT_FAST_MA = 50             # short MA of EEM/SPY ratio
+EEM_TILT_SLOW_MA = 200            # long MA — golden cross when fast > slow
+EEM_TILT_WEIGHT = 0.10            # tilt 10% of blend into EEM on signal-ON
+EEM_FUND_FROM_SLEEVE = "strategy_b"  # take the 10pp out of Strategy B
+EEM_RATIO_CACHE = "em_regime_context.parquet"
 
 
 def _round(x, n=4):
@@ -135,6 +167,110 @@ def _compute_states(breadth: pd.Series, off: float, on: float) -> pd.Series:
             state = 1.0
         states.append(state)
     return pd.Series(states, index=breadth.index, dtype=float)
+
+
+def _load_eem_data() -> tuple[pd.Series, pd.Series] | tuple[None, None]:
+    """Load (EEM_close, EEM_SPY_ratio). Tries em_regime_context.parquet
+    first, then falls back to yfinance. Returns (None, None) on failure
+    so Phase 22 is gracefully skipped without breaking Phase 19."""
+    cache = DATA_DIR / EEM_RATIO_CACHE
+    df = None
+    if cache.exists():
+        try:
+            df = pd.read_parquet(cache)
+        except Exception:
+            df = None
+    if df is None or EEM_TICKER not in df.columns or EEM_REFERENCE_TICKER not in df.columns:
+        print(f"  Fetching {EEM_TICKER} + {EEM_REFERENCE_TICKER} from "
+              f"yfinance (not in cache)...", flush=True)
+        try:
+            import yfinance as yf
+            raw = yf.download([EEM_TICKER, EEM_REFERENCE_TICKER],
+                               start="2003-01-01", auto_adjust=True,
+                               progress=False, threads=True,
+                               group_by="ticker")
+            closes = {t: raw[(t, "Close")] for t in (EEM_TICKER, EEM_REFERENCE_TICKER)
+                      if (t, "Close") in raw.columns}
+            df = pd.DataFrame(closes)
+            df.index = pd.to_datetime(df.index).tz_localize(None)
+            df.to_parquet(cache)
+        except Exception as exc:
+            print(f"  WARN: Phase 22 disabled (cannot fetch EEM/SPY): {exc}",
+                  file=sys.stderr)
+            return None, None
+    eem = df[EEM_TICKER].dropna()
+    ratio = (df[EEM_TICKER] / df[EEM_REFERENCE_TICKER]).dropna()
+    return eem, ratio
+
+
+def _compute_eem_tilt_signal(ratio: pd.Series) -> pd.Series:
+    """V2 golden-cross: 1 when EEM/SPY 50d MA > 200d MA, else 0.
+
+    Selected over V1 (price-above-MA) because golden cross requires the
+    short-term trend to itself be above the long-term trend — both have
+    to be improving together, not just a daily blip. Only 11 switches in
+    7 years (~1.6/year) vs V1's 65 — much cleaner regime indicator with
+    similar empirical lift.
+    """
+    fast = ratio.rolling(EEM_TILT_FAST_MA, min_periods=EEM_TILT_FAST_MA).mean()
+    slow = ratio.rolling(EEM_TILT_SLOW_MA, min_periods=EEM_TILT_SLOW_MA).mean()
+    return (fast > slow).astype(float)
+
+
+def _build_eem_tilted_blend(
+    multi: dict,
+    eem_prices: pd.Series,
+    eem_signal: pd.Series,
+    common: pd.DatetimeIndex,
+    fund_from_sleeve: str = EEM_FUND_FROM_SLEEVE,
+    tilt_weight: float = EEM_TILT_WEIGHT,
+    switch_cost_bps: float = SWITCH_COST_BPS,
+) -> pd.Series | None:
+    """Compute the EEM-tilted UNGATED 4-way blend equity curve.
+
+    During tilt-OFF days: normal 35/35/10/20 A:B:C:D blend.
+    During tilt-ON days:  the EEM_FUND_FROM_SLEEVE allocation is reduced
+                            by tilt_weight, and EEM is added at tilt_weight.
+                            (e.g. funding from B: A=35, B=25, C=10, D=20,
+                            EEM=10 sums to 100%.)
+    """
+    sleeves = {}
+    for key in ("strategy_a", "strategy_b", "strategy_c", "strategy_d"):
+        s = multi.get("strategies", {}).get(key)
+        if not s or "dates" not in s or "equity" not in s:
+            print(f"  WARN: Phase 22 skipped — sleeve {key} missing",
+                  file=sys.stderr)
+            return None
+        sleeves[key] = pd.Series(s["equity"], index=pd.to_datetime(s["dates"]))
+
+    sleeve_weights = {
+        "strategy_a": 0.35, "strategy_b": 0.35,
+        "strategy_c": 0.10, "strategy_d": 0.20,
+    }
+    if fund_from_sleeve not in sleeve_weights:
+        print(f"  ERROR: invalid fund_from_sleeve={fund_from_sleeve}",
+              file=sys.stderr)
+        return None
+    base_w = sleeve_weights[fund_from_sleeve]
+    if base_w < tilt_weight:
+        print(f"  ERROR: tilt_weight {tilt_weight} > base weight of "
+              f"{fund_from_sleeve} ({base_w})", file=sys.stderr)
+        return None
+
+    rets = {k: s.reindex(common).pct_change().fillna(0)
+            for k, s in sleeves.items()}
+    eem_ret = eem_prices.reindex(common, method="ffill").pct_change().fillna(0)
+    sig = eem_signal.reindex(common, method="ffill").fillna(0).shift(1).fillna(0)
+    # Tilt-OFF daily return: baseline 35/35/10/20
+    tilt_off_ret = sum(sleeve_weights[k] * rets[k] for k in sleeve_weights)
+    # Tilt-ON daily return: fund_from_sleeve reduced by tilt_weight; EEM added
+    tilt_on_w = {k: sleeve_weights[k] for k in sleeve_weights}
+    tilt_on_w[fund_from_sleeve] = base_w - tilt_weight
+    tilt_on_ret = sum(tilt_on_w[k] * rets[k] for k in tilt_on_w) + tilt_weight * eem_ret
+    # Switch cost on tilt-state transitions
+    sw = sig.diff().fillna(0).abs() * (switch_cost_bps / 10_000.0)
+    blended_ret = sig * tilt_on_ret + (1.0 - sig) * tilt_off_ret - sw
+    return (1.0 + blended_ret).cumprod()
 
 
 def main() -> int:
@@ -242,6 +378,77 @@ def main() -> int:
     ungated_stats = _stats(blend_ret, blend_eq)
     gated_stats = _stats(gated_ret, gated_eq)
 
+    # ----- Phase 22: EEM/SPY relative-strength tilt -----
+    # Build a second gated variant where the EEM-tilted ungated blend is
+    # subject to the SAME Phase 19 breadth gate. Both overlays compose.
+    phase22_payload = None
+    tilted_gated_stats = None
+    tilted_gated_eq = None
+    tilted_gated_key = f"{UNDERLYING_BLEND_KEY}_gated_eem_tilted"
+    if EEM_TILT_ENABLED:
+        eem_prices, eem_ratio = _load_eem_data()
+        if eem_prices is not None and eem_ratio is not None:
+            eem_signal = _compute_eem_tilt_signal(eem_ratio)
+            tilted_ungated_eq = _build_eem_tilted_blend(
+                multi, eem_prices, eem_signal, common,
+                fund_from_sleeve=EEM_FUND_FROM_SLEEVE,
+                tilt_weight=EEM_TILT_WEIGHT,
+                switch_cost_bps=SWITCH_COST_BPS,
+            )
+            if tilted_ungated_eq is not None:
+                # Apply the Phase 19 breadth gate to the tilted ungated.
+                tilted_ungated_ret = tilted_ungated_eq.pct_change().fillna(0)
+                tilted_gated_ret = (blend_w * tilted_ungated_ret
+                                     + fallback_w * fallback_ret
+                                     - switch_cost)
+                tilted_gated_eq = (1.0 + tilted_gated_ret).cumprod()
+                tilted_gated_stats = _stats(tilted_gated_ret, tilted_gated_eq)
+                # Phase 22 diagnostics
+                sig_aligned = eem_signal.reindex(common, method="ffill").fillna(0)
+                tilt_state = "EM_TILT_ON" if sig_aligned.iloc[-1] == 1.0 else "EM_TILT_OFF"
+                tilt_transitions = sig_aligned.diff().fillna(0)
+                last_tilt_change = (sig_aligned.index[tilt_transitions != 0][-1]
+                                     if (tilt_transitions != 0).any()
+                                     else sig_aligned.index[0])
+                tilt_n_switches = int(tilt_transitions.abs().sum())
+                tilt_days_on = int((sig_aligned == 1.0).sum())
+                tilt_events = [
+                    {"date": d.strftime("%Y-%m-%d"),
+                     "direction": ("EM_TILT_ON" if sig_aligned.loc[d] == 1.0
+                                    else "EM_TILT_OFF"),
+                     "ratio": _round(eem_ratio.reindex([d], method="ffill").iloc[0]),
+                     "fast_ma": _round(eem_ratio.rolling(EEM_TILT_FAST_MA)
+                                       .mean().reindex([d], method="ffill").iloc[0]),
+                     "slow_ma": _round(eem_ratio.rolling(EEM_TILT_SLOW_MA)
+                                       .mean().reindex([d], method="ffill").iloc[0])}
+                    for d in sig_aligned.index[tilt_transitions != 0]
+                ]
+                phase22_payload = {
+                    "enabled": True,
+                    "parameters": {
+                        "eem_ticker": EEM_TICKER,
+                        "reference_ticker": EEM_REFERENCE_TICKER,
+                        "fast_ma": EEM_TILT_FAST_MA,
+                        "slow_ma": EEM_TILT_SLOW_MA,
+                        "tilt_weight": EEM_TILT_WEIGHT,
+                        "fund_from_sleeve": EEM_FUND_FROM_SLEEVE,
+                    },
+                    "current_state": tilt_state,
+                    "current_state_since": last_tilt_change.strftime("%Y-%m-%d"),
+                    "current_ratio": _round(eem_ratio.iloc[-1]),
+                    "current_fast_ma": _round(
+                        eem_ratio.rolling(EEM_TILT_FAST_MA).mean().iloc[-1]),
+                    "current_slow_ma": _round(
+                        eem_ratio.rolling(EEM_TILT_SLOW_MA).mean().iloc[-1]),
+                    "n_switches": tilt_n_switches,
+                    "days_tilt_on": tilt_days_on,
+                    "pct_days_tilt_on": _round(
+                        tilt_days_on / len(sig_aligned) * 100, 2),
+                    "events": tilt_events,
+                }
+        else:
+            print(f"  Phase 22 skipped (EEM/SPY data unavailable)")
+
     label = (f"DEPLOYED · {UNDERLYING_BLEND_KEY} with CSP1 breadth gate "
               f"(Phase 19: off={int(OFF_THRESHOLD*100)}%, "
               f"on={int(ON_THRESHOLD*100)}%, "
@@ -277,6 +484,29 @@ def main() -> int:
             },
         },
     }
+    # Append Phase 22 (EEM-tilted gated variant) when available
+    if tilted_gated_eq is not None and tilted_gated_stats is not None:
+        tilted_label = (
+            f"DEPLOYED · {UNDERLYING_BLEND_KEY} with breadth gate + EEM tilt "
+            f"(Phase 19 + 22: golden cross V2, {int(EEM_TILT_WEIGHT*100)}% "
+            f"funded from {EEM_FUND_FROM_SLEEVE})"
+        )
+        # Promote the EEM-tilted variant to DEPLOYED by tagging the original
+        # as REFERENCE. The dashboard's getDeployedBlendKey() will resolve to
+        # the eem_tilted key when present.
+        payload["gated_variants"][gated_key]["label"] = (
+            f"REFERENCE · {UNDERLYING_BLEND_KEY} with breadth gate only "
+            f"(Phase 19, no EEM tilt)"
+        )
+        payload["gated_variants"][tilted_gated_key] = {
+            "label": tilted_label,
+            "dates": [d.strftime("%Y-%m-%d") for d in tilted_gated_eq.index],
+            "equity": _round_series(tilted_gated_eq.values),
+            **tilted_gated_stats,
+        }
+        payload["phase22_eem_tilt"] = phase22_payload
+    else:
+        payload["phase22_eem_tilt"] = {"enabled": False}
     OUT_PATH.write_text(json.dumps(payload, separators=(",", ":")),
                          encoding="utf-8")
 
@@ -299,6 +529,25 @@ def main() -> int:
           f"(S&P 500 breadth {breadth.iloc[-1]*100:.1f}%)")
     print(f"  History: {n_switches} switches, "
           f"{pct_off:.1f}% of days RISK_OFF")
+    if tilted_gated_eq is not None and tilted_gated_stats is not None:
+        delta_tilt_sh = ((tilted_gated_stats["sharpe"] or 0)
+                          - (gated_stats["sharpe"] or 0))
+        delta_tilt_dd = ((tilted_gated_stats["max_dd"] or 0)
+                          - (gated_stats["max_dd"] or 0))
+        print(f"  Phase 22 EEM-tilted gated variant ({tilted_gated_key}):")
+        print(f"    Sharpe {tilted_gated_stats['sharpe']:+.4f}  "
+              f"CAGR {tilted_gated_stats['cagr']*100:+.1f}%  "
+              f"DD {tilted_gated_stats['max_dd']*100:+.2f}%")
+        print(f"    Delta vs gated (no tilt): Sharpe {delta_tilt_sh:+.4f}  "
+              f"DD {delta_tilt_dd*100:+.2f}pp")
+        if phase22_payload:
+            print(f"  Phase 22 tilt: {phase22_payload['current_state']} since "
+                  f"{phase22_payload['current_state_since']}  "
+                  f"(EEM/SPY ratio {phase22_payload['current_ratio']:.4f}, "
+                  f"fast {phase22_payload['current_fast_ma']:.4f}, "
+                  f"slow {phase22_payload['current_slow_ma']:.4f})")
+            print(f"  Phase 22 history: {phase22_payload['n_switches']} switches, "
+                  f"{phase22_payload['pct_days_tilt_on']:.1f}% of days tilt-ON")
     return 0
 
 
