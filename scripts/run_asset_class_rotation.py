@@ -5,7 +5,7 @@ within US equities by ranking the SECTOR ETFs on constituent-level breadth,
 Strategy B operates ACROSS asset classes by ranking BROAD asset-class ETFs
 on their own price-level momentum.
 
-Universe (14 US-listed broad-asset ETFs — clean yfinance pricing, all with
+Universe (13 US-listed broad-asset ETFs — clean yfinance pricing, all with
 long histories back to at least 2007-2010):
 
   US equity      :  SPY (large), IJR (small), QQQ (NASDAQ-100 tech)
@@ -13,8 +13,11 @@ long histories back to at least 2007-2010):
   Emerging Mkts  :  EEM (MSCI EM)
   Real estate    :  VNQ (US REITs broad)
   Commodities    :  GLD (gold), DBC (broad commodities)
-  Bonds          :  TLT (20+y Treasury), IEF (7-10y Treasury), TIP (TIPS),
-                    HYG (high-yield credit)
+  Bonds (Tsy)    :  TLT (20+y Treasury), IEF (7-10y Treasury), TIP (TIPS)
+
+  (Phase 24 2026-05-28: HYG removed — behaviourally an equity-correlated
+  credit instrument, never a real defensive diversifier. Pareto-clean
+  improvement on Sharpe + Total + DD at blend level.)
 
 Signal: distance above own 200-day moving average per ETF
         signal_i = (close_i - MA200_i) / MA200_i
@@ -92,11 +95,22 @@ UNIVERSE: dict[str, dict] = {
     # the way gold's smoother trend behaviour does not. Documented as a
     # lesson: corr gate is necessary but not sufficient for a momentum
     # universe — the asset's signal-to-noise character matters too.
-    # Bonds
+    # Bonds — Treasuries only after Phase 24 (2026-05-28).
+    # HYG (high-yield credit) was REMOVED on 2026-05-28 because it is a
+    # nominally-classified bond but behaviourally an equity-correlated
+    # credit instrument: it crashed -25% in 2008 alongside equities and
+    # -22% in 2020. It was a "fake" diversifier — never provided
+    # defensive value when it was actually needed.
+    # Empirical (HYG-only drop, blend-level, Phase 19-gated):
+    #   Full Sharpe +0.003, Total +0.7pp, DD +0.1pp BETTER
+    #   2022 single year: Sharpe +0.013, Total +0.2pp
+    #   2022-onwards: Sharpe +0.004, Total +0.4pp, DD flat
+    # Pareto-clean — every metric improves or stays flat. Full
+    # Treasury defensive coverage (TLT 20+y, IEF 7-10y, TIP) retained
+    # for deflationary regime insurance.
     "TLT":  {"label": "20+y Treasury (long dur)",   "asset_class": "Bonds"},
     "IEF":  {"label": "7-10y Treasury (interm)",    "asset_class": "Bonds"},
     "TIP":  {"label": "TIPS (inflation-linked)",    "asset_class": "Bonds"},
-    "HYG":  {"label": "High-Yield Credit",          "asset_class": "Bonds"},
 }
 TICKERS = list(UNIVERSE.keys())
 
@@ -104,10 +118,11 @@ START_DATE = "2007-01-01"  # earliest common start across the universe
 END_DATE   = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 MA_PERIOD = 200
-# Phase 12 cost calibration: Strategy B trades 14 broad-asset ETFs
-# (SPY, IJR, QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, TIP, HYG).
-# These are among the most liquid ETFs in the world — bid-ask typically
-# 0.5-2 bps. Realistic blended one-way cost: ~2 bps (was uniform 5).
+# Phase 12 cost calibration: Strategy B trades 13 broad-asset ETFs
+# (SPY, IJR, QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, TIP)
+# after Phase 24 HYG removal. These are among the most liquid ETFs in
+# the world — bid-ask typically 0.5-2 bps. Realistic blended one-way
+# cost: ~2 bps (was uniform 5).
 COST_BPS = 2
 COST_FRAC = COST_BPS / 10_000
 
@@ -145,8 +160,10 @@ ASSET_CLASS_COLOURS = {
     "EEM":  "#dc2626",
     "VNQ":  "#0d9488",
     "GLD":  "#ca8a04",  "DBC":  "#92400e",
-    "TLT":  "#1d7a3a",  "IEF":  "#65a30d",  "TIP":  "#a16207",  "HYG":  "#52525b",
+    "TLT":  "#1d7a3a",  "IEF":  "#65a30d",  "TIP":  "#a16207",
     "SHY":  "#6b727a",  # cash proxy (Phase 19.1 — 1-3y Treasury)
+    "HYG":  "#52525b",  # retained for backward compatibility (old payloads;
+                        # Phase 24 removed HYG from active universe)
 }
 
 
