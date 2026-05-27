@@ -215,105 +215,6 @@ def fixed_blend_4way(eq_a: pd.Series, eq_b: pd.Series, eq_c: pd.Series,
     return (1.0 + blend_ret).cumprod()
 
 
-def apply_market_breadth_gate(blend_eq: pd.Series,
-                                _unused_fallback: pd.Series | None,
-                                off_threshold: float = 0.20,
-                                on_threshold: float = 0.50,
-                                derisk_fraction: float = 0.50,
-                                switch_cost_bps: int = 5
-                                ) -> tuple[pd.Series | None, dict | None]:
-    """Phase 19: apply a CSP1-breadth regime gate on top of a blend.
-
-    When market breadth (% of S&P 500 constituents above their 200d MA)
-    crosses below ``off_threshold``, scale the blend's exposure down by
-    ``derisk_fraction`` and put the rest in IEF (7-10y US Treasury,
-    pulled directly from the asset_class price cache so the fallback
-    matches what the live strategy would actually execute). When breadth
-    crosses back above ``on_threshold``, restore full blend exposure.
-    Hysteresis between thresholds prevents whipsaw.
-
-    Parameters derived from the Phase 19 sensitivity sweep — variant #4
-    (20% off, 50% on, 50% partial de-risk) is Pareto-improving on the
-    ungated blend (Sharpe +0.07, max DD -6.6pp better). See
-    scripts/run_regime_gate.py for the full sweep.
-
-    Returns (gated_equity, diagnostics_dict) or (None, None) if the
-    required CSP1 breadth file or IEF price cache is missing.
-    """
-    from pathlib import Path
-    import json as _json
-    data_dir = Path(__file__).resolve().parent.parent / "data"
-    csp1_path = data_dir / "breadth_csp1.json"
-    ief_cache_path = data_dir / "asset_class_prices_cache.parquet"
-    if not csp1_path.exists() or not ief_cache_path.exists():
-        return None, None
-    csp1 = _json.loads(csp1_path.read_text(encoding="utf-8"))
-    if "series" not in csp1 or "ma_breadth" not in csp1["series"]:
-        return None, None
-    breadth = pd.Series(csp1["series"]["ma_breadth"],
-                         index=pd.to_datetime(csp1["series"]["dates"])
-                         ).dropna()
-    try:
-        ief = pd.read_parquet(ief_cache_path)["IEF"].dropna()
-    except (KeyError, Exception):
-        return None, None
-
-    common = blend_eq.index
-    if len(common) < 30:
-        return None, None
-    breadth = breadth.reindex(common, method="ffill")
-    ief_aligned = ief.reindex(common, method="ffill")
-    blend_ret = blend_eq.pct_change().fillna(0)
-    fallback_ret = ief_aligned.pct_change().fillna(0)
-
-    # Walk-forward regime detection with hysteresis (no look-ahead — the
-    # signal is shifted by 1 day before being applied to returns).
-    states = []
-    state = 1.0  # start risk-on
-    for v in breadth.values:
-        if pd.isna(v):
-            states.append(state); continue
-        if state == 1.0 and v < off_threshold:
-            state = 0.0
-        elif state == 0.0 and v > on_threshold:
-            state = 1.0
-        states.append(state)
-    state_series = pd.Series(states, index=common, dtype=float)
-    states_lagged = state_series.shift(1).fillna(1.0)
-
-    # Position: on RISK_ON → 100% blend. On RISK_OFF → (1-derisk) blend
-    # + derisk fallback. Switch cost charged on the day the state flips.
-    state_changes = states_lagged.diff().fillna(0).abs()
-    switch_cost = state_changes * (switch_cost_bps / 10000.0)
-    blend_w = states_lagged + (1.0 - states_lagged) * (1.0 - derisk_fraction)
-    fallback_w = (1.0 - states_lagged) * derisk_fraction
-    gated_ret = blend_w * blend_ret + fallback_w * fallback_ret - switch_cost
-    gated_eq = (1.0 + gated_ret).cumprod()
-
-    n_switches = int(state_changes.sum())
-    days_off = int((states_lagged == 0).sum())
-    pct_off = days_off / len(states_lagged) * 100
-    current_state = "RISK_ON" if state_series.iloc[-1] == 1.0 else "RISK_OFF"
-    # Date of the most recent state change
-    transitions = state_series.diff().fillna(0)
-    last_change_date = (state_series.index[transitions != 0][-1]
-                         if (transitions != 0).any() else state_series.index[0])
-
-    diagnostics = {
-        "off_threshold": off_threshold,
-        "on_threshold": on_threshold,
-        "derisk_fraction": derisk_fraction,
-        "switch_cost_bps": switch_cost_bps,
-        "n_switches": n_switches,
-        "days_risk_off": days_off,
-        "pct_days_risk_off": round(pct_off, 2),
-        "current_state": current_state,
-        "current_state_since": last_change_date.strftime("%Y-%m-%d"),
-        "current_breadth": round(float(breadth.iloc[-1]), 4),
-    }
-    return gated_eq, diagnostics
-
-
 def meta_rotation(eq_a: pd.Series, eq_b: pd.Series,
                     lookback_days: int = 126,
                     refit_freq: str = "W-FRI",
@@ -497,27 +398,11 @@ def main() -> int:
               f"CAGR {s30301030['cagr']*100:+.1f}%  DD {s30301030['max_dd']*100:.1f}%  "
               f"(heavier Europe sleeve)")
 
-    # Phase 19: Aggregate market-breadth regime gate on the deployed
-    # blend. Variant #4 from the parameter sweep (off=20%, on=50%,
-    # derisk=50%) — Pareto-improving on the ungated blend (Sharpe
-    # +0.07, max DD -6.6pp better). See scripts/run_regime_gate.py for
-    # the full sensitivity sweep.
-    blend_3535_10_20_gated = None
-    s35351020_gated = {}
-    gate_diagnostics = None
-    if blend_3535_10_20 is not None:
-        gated_eq, gate_diagnostics = apply_market_breadth_gate(
-            blend_3535_10_20, eq_b_norm,
-            off_threshold=0.20, on_threshold=0.50,
-            derisk_fraction=0.50, switch_cost_bps=5,
-        )
-        if gated_eq is not None:
-            blend_3535_10_20_gated = gated_eq
-            s35351020_gated = compute_stats(blend_3535_10_20_gated)
-            print(f"  35/35/10/20 + breadth gate  Sharpe {s35351020_gated['sharpe']:+.2f}  "
-                  f"CAGR {s35351020_gated['cagr']*100:+.1f}%  DD "
-                  f"{s35351020_gated['max_dd']*100:.1f}%  "
-                  f"(Phase 19 — deployed default, 20%/50%/50% partial de-risk)")
+    # Phase 19 regime overlay lives in a separate module
+    # (scripts/run_risk_overlay.py) which reads multi_strategy.json
+    # after we write it and adds the gated variant to its own JSON
+    # output. The dashboard pipeline merges that back into window.DATA
+    # so the user-facing shape is unchanged.
 
     meta_eq, alloc = meta_rotation(eq_a_norm, eq_b_norm, lookback_days=126)
     smeta = compute_stats(meta_eq)
@@ -643,19 +528,6 @@ def main() -> int:
                 "equity": round_series(blend_3030_10_30.values),
                 **s30301030,
             }
-            # Phase 19: deployed-default = gated variant. Pareto-improving
-            # on the ungated 35/35/10/20 blend (Sharpe +0.07, max DD
-            # -6.6pp better) per the run_regime_gate.py sweep.
-            if blend_3535_10_20_gated is not None:
-                strategies["blend_35_35_10_20_gated"] = {
-                    "label": ("DEPLOYED · 35% A + 35% B + 10% C + 20% D "
-                              "with CSP1 breadth gate (Phase 19)"),
-                    "dates": [d.strftime("%Y-%m-%d")
-                               for d in blend_3535_10_20_gated.index],
-                    "equity": round_series(blend_3535_10_20_gated.values),
-                    **s35351020_gated,
-                }
-
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
         "common_start": common[0].strftime("%Y-%m-%d"),
@@ -663,7 +535,6 @@ def main() -> int:
         "has_strategy_c": eq_c is not None,
         "has_strategy_d": eq_d is not None,
         "strategies": strategies,
-        "regime_gate": gate_diagnostics,
     }
     OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"\nWrote {OUT_PATH.relative_to(PROJECT_ROOT)}")

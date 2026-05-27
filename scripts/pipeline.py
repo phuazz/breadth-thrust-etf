@@ -149,6 +149,24 @@ def load_right_tail() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_risk_overlay() -> dict | None:
+    """Load data/risk_overlay.json — Phase 19 breadth regime gate
+    diagnostics + gated equity variants. Built by
+    scripts/run_risk_overlay.py after multi_strategy.json is built.
+
+    The pipeline merges its ``gated_variants`` into
+    window.DATA.multi.strategies (so the existing chart code finds the
+    gated key) and its top-level diagnostics into
+    window.DATA.multi.regime_gate (for the live regime badge). This
+    preserves the user-facing dashboard shape while the architecture
+    keeps the overlay as a separate concern from blend construction.
+    """
+    path = DATA_DIR / "risk_overlay.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_holdings_prices() -> dict | None:
     """Load data/holdings_prices_1y.json — per-ETF 1Y daily close prices
     used by the Monitor tab's holdings click-to-expand mini-chart.
@@ -313,6 +331,33 @@ def main() -> int:
         ts = right_tail.get("top_sleeve_by_month", {})
         print(f"  right-tail: {len(ps)} per-strategy, {len(rd)} regimes, "
               f"{len(ts)} top-sleeve buckets")
+
+    print("Loading risk overlay (Phase 19 regime gate) ...", flush=True)
+    risk_overlay = load_risk_overlay()
+    if risk_overlay:
+        # Merge the gated variant(s) into the multi-strategy strategies
+        # dict so the existing chart-rendering code finds them. Merge
+        # the top-level diagnostics into multi.regime_gate for the
+        # live regime badge in the hero strip.
+        if multi and "strategies" in multi:
+            for k, v in (risk_overlay.get("gated_variants") or {}).items():
+                multi["strategies"][k] = v
+            multi["regime_gate"] = {
+                **(risk_overlay.get("gate_parameters") or {}),
+                "current_state": risk_overlay.get("current_state"),
+                "current_state_since": risk_overlay.get("current_state_since"),
+                "current_breadth": risk_overlay.get("current_breadth"),
+                "n_switches": risk_overlay.get("n_switches"),
+                "days_risk_off": risk_overlay.get("days_risk_off"),
+                "pct_days_risk_off": risk_overlay.get("pct_days_risk_off"),
+            }
+        print(f"  risk_overlay: {len(risk_overlay.get('gated_variants', {}))} "
+              f"gated variant(s), current={risk_overlay.get('current_state')} "
+              f"since {risk_overlay.get('current_state_since')}")
+    else:
+        print("  WARNING: data/risk_overlay.json missing — run "
+              "scripts/run_risk_overlay.py after run_multi_strategy.py to "
+              "enable the Phase 19 breadth regime gate")
 
     print("Loading holdings 1Y prices ...", flush=True)
     holdings_prices = load_holdings_prices()
