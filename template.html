@@ -6274,10 +6274,15 @@ function renderMultiCharts() {
   //   - Strategy A standalone (the strongest single-sleeve baseline)
   // Everything else is left in the legend as `legendonly` — clickable to add.
   // This keeps the default view to 4 lines instead of 14.
+  // Default-visible set is blend-only: deployed (gated) + ungated
+  // reference + the prior 3-way and 2-way baselines so the reader sees
+  // "does the overlay help" and "does the Europe sleeve help" in one
+  // view. Standalone sleeves and meta-rotation stay legendonly — they
+  // are reference lines you click to surface, not primary comparisons.
   const defaultVisibleKeys = new Set(
     m.has_strategy_d
       ? ['blend_35_35_10_20_gated', 'blend_35_35_10_20',
-          'blend_45_45_10', 'blend_50_50', 'strategy_a']
+          'blend_45_45_10', 'blend_50_50']
       : (m.has_strategy_c
           ? ['blend_45_45_10', 'blend_50_50', 'strategy_a']
           : ['blend_50_50', 'strategy_a'])
@@ -6387,6 +6392,11 @@ function renderMultiStatsTable() {
     <th>Total return</th><th>Max drawdown</th>
   </tr>`;
   // Build row list — order changes whether C / D are present
+  // Blend-vs-blend comparison. Standalone sleeves (Strategy A/B/C/D
+  // alone) intentionally excluded — they live on their own tabs and
+  // have very different Sharpe / DD scale, which muddies a blend
+  // comparison. Meta-rotation also excluded for the same reason (it's
+  // a counterfactual, not a blend variant).
   const rowsWithD = [
     { key: 'blend_35_35_10_20_gated', label: '35% A + 35% B + 10% C + 20% D + CSP1 breadth gate (DEPLOYED — Phase 19 4-way blend with risk overlay)', highlight: true },
     { key: 'blend_35_35_10_20',       label: '35% A + 35% B + 10% C + 20% D (Phase 4 ungated reference — overlay disabled)' },
@@ -6398,11 +6408,6 @@ function renderMultiStatsTable() {
     { key: 'blend_50_50',       label: '50% A + 50% B (2-way, no thematic, no Europe)' },
     { key: 'blend_70_30',       label: '70% A + 30% B (more A — higher CAGR)' },
     { key: 'blend_30_70',       label: '30% A + 70% B (more B — lowest DD)' },
-    { key: 'strategy_a',        label: 'Strategy A alone (US sector breadth rotation)' },
-    { key: 'strategy_b',        label: 'Strategy B alone (asset-class momentum)' },
-    { key: 'strategy_c',        label: 'Strategy C alone (thematic momentum — high vol)' },
-    { key: 'strategy_d',        label: 'Strategy D alone (Europe sector breadth rotation)' },
-    { key: 'meta_rotation',     label: 'Meta-rotation (pick A or B by 126d Sharpe — fails)' },
   ];
   const rowsWithC = [
     { key: 'blend_45_45_10', label: '45% A + 45% B + 10% C (DEPLOYED — recommended with thematic sleeve)', highlight: true },
@@ -6411,18 +6416,11 @@ function renderMultiStatsTable() {
     { key: 'blend_40_40_20', label: '40% A + 40% B + 20% C (higher thematic exposure)' },
     { key: 'blend_70_30',    label: '70% A + 30% B (no thematic, more A)' },
     { key: 'blend_30_70',    label: '30% A + 70% B (no thematic, lowest DD)' },
-    { key: 'strategy_a',     label: 'Strategy A alone (US sector breadth rotation)' },
-    { key: 'strategy_b',     label: 'Strategy B alone (asset-class momentum)' },
-    { key: 'strategy_c',     label: 'Strategy C alone (thematic momentum — high vol)' },
-    { key: 'meta_rotation',  label: 'Meta-rotation (pick A or B by 126d Sharpe — fails)' },
   ];
   const rowsNoC = [
     { key: 'blend_50_50',    label: '50% A + 50% B (best Sharpe — recommended)', highlight: true },
     { key: 'blend_70_30',    label: '70% A + 30% B (more A — higher CAGR)' },
     { key: 'blend_30_70',    label: '30% A + 70% B (more B — lowest DD)' },
-    { key: 'strategy_a',     label: 'Strategy A alone' },
-    { key: 'strategy_b',     label: 'Strategy B alone' },
-    { key: 'meta_rotation',  label: 'Meta-rotation (fails)' },
   ];
   const rows = m.has_strategy_d ? rowsWithD : (m.has_strategy_c ? rowsWithC : rowsNoC);
   el.querySelector('tbody').innerHTML = rows.map(r => {
