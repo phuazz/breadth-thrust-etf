@@ -55,11 +55,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # ----- Strategy engines (use committed breadth JSONs; no
-      #       constituent re-fetch) -----
-
-      - name: Run Strategy A (uses committed breadth data)
-        run: python scripts/run_topk_robustness.py
+      # ----- Strategy engines -----
+      # Strategy A and D depend on per-ETF constituent price parquets
+      # (data/prices_cache_*.parquet) which are gitignored — each is
+      # 1-10 MB so they would bloat the repo. On a fresh CI checkout
+      # these are missing, so we SKIP re-running A and D in CI and
+      # rely on the committed topk_robustness.json + europe_rotation.
+      # json from the user's last local pipeline run.
+      #
+      # Strategy B and C use ETF-level momentum (yfinance fetches each
+      # run — fast for ~14 and ~23 tickers respectively), so they can
+      # re-run cleanly in CI without local caches.
 
       - name: Run Strategy B (asset-class rotation; ~14 ETF download)
         run: python scripts/run_asset_class_rotation.py
@@ -67,10 +73,7 @@ jobs:
       - name: Run Strategy C (thematic rotation; ~23 ETF download)
         run: python scripts/run_thematic_rotation.py
 
-      - name: Run Strategy D (Europe rotation; uses committed breadth)
-        run: python scripts/run_europe_rotation.py
-
-      - name: Run multi-strategy blend
+      - name: Run multi-strategy blend (uses A + D from committed JSONs)
         run: python scripts/run_multi_strategy.py
 
       - name: Run Phase 19 + 22 risk overlay
