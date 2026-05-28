@@ -285,22 +285,28 @@
        click on a row expands the mini-chart panel which shows the
        full detail. Keeps the table scannable on phone screens. */
     @media (max-width: 720px) {
+      /* Hide cols 2-6 on holdings-row body rows + header. The total row
+         uses a colspan=6 footer cell so its cells must NOT be hidden by
+         this rule — otherwise the percentage cell (nth-child(2) on the
+         total row, because cell 1 has colspan=6) would get hidden too,
+         which is exactly what we don't want. Targeting tr.holdings-row
+         explicitly excludes tr.total-row from the hide. */
       table.holdings thead th:nth-child(2),
       table.holdings thead th:nth-child(3),
       table.holdings thead th:nth-child(4),
       table.holdings thead th:nth-child(5),
       table.holdings thead th:nth-child(6),
-      table.holdings tbody td:nth-child(2),
-      table.holdings tbody td:nth-child(3),
-      table.holdings tbody td:nth-child(4),
-      table.holdings tbody td:nth-child(5),
-      table.holdings tbody td:nth-child(6) {
+      table.holdings tbody tr.holdings-row td:nth-child(2),
+      table.holdings tbody tr.holdings-row td:nth-child(3),
+      table.holdings tbody tr.holdings-row td:nth-child(4),
+      table.holdings tbody tr.holdings-row td:nth-child(5),
+      table.holdings tbody tr.holdings-row td:nth-child(6) {
         display: none;
       }
-      table.holdings tbody td:nth-child(1) {
+      table.holdings tbody tr.holdings-row td:nth-child(1) {
         padding-right: 0;
       }
-      table.holdings tbody td:nth-child(7) {
+      table.holdings tbody tr.holdings-row td:nth-child(7) {
         text-align: right;
       }
       /* Show the strategy badge inline with the ETF symbol on mobile
