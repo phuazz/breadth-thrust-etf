@@ -15,6 +15,15 @@ data/spy_close_cache.parquet
 data/asset_class_prices_cache.parquet
 data/thematic_prices_cache.parquet
 
+# Weekly factsheet dated archives — only factsheet_latest.pdf is committed
+# for the stable Pages link. Dated copies (factsheet_YYYY-MM-DD.pdf) are
+# built per-run for the email attachment but kept out of git to avoid
+# repo bloat (~13MB/year accumulation).
+docs/factsheet_20*.pdf
+
+# Email body HTML — rebuilt per workflow run, not for the repo
+docs/email_body.html
+
 # OS / editor noise
 .DS_Store
 Thumbs.db

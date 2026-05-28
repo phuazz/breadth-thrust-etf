@@ -23,7 +23,9 @@ name: Weekly factsheet — pipeline + email
 #   GMAIL_USER          - Gmail address used to send
 #   GMAIL_APP_PASSWORD  - 16-char Gmail app password
 #                          (myaccount.google.com/apppasswords)
-#   RECIPIENT_EMAIL     - Where the factsheet goes
+#   RECIPIENT_EMAIL     - Comma-separated recipient list, e.g.
+#                          "phuazz@gmail.com,chengmalse@gmail.com"
+#                          (dawidd6/action-send-mail handles splitting)
 
 on:
   schedule:
@@ -96,11 +98,23 @@ jobs:
           git diff --cached --quiet || git commit -m "Weekly refresh $(date -u +%Y-%m-%d)"
           git push origin main || echo "Nothing to push"
 
-      - name: Compute as-of date for email subject
+      - name: Compute as-of date for email subject and attachment name
         id: meta
         run: |
           ASOF=$(python -c "import json; d=json.loads(open('data/multi_strategy.json').read()); s=d['strategies'].get('blend_35_35_10_20_gated_eem_tilted') or d['strategies'].get('blend_35_35_10_20_gated') or d['strategies']['blend_35_35_10_20']; print(s['dates'][-1])")
           echo "asof=${ASOF}" >> $GITHUB_OUTPUT
+
+      - name: Build rich email body
+        run: python scripts/build_email_body.py
+
+      - name: Load email body into step output
+        id: emailbody
+        run: |
+          {
+            echo 'html<<EMAILBODY_EOF'
+            cat docs/email_body.html
+            echo EMAILBODY_EOF
+          } >> $GITHUB_OUTPUT
 
       - name: Email factsheet PDF
         uses: dawidd6/action-send-mail@v3
@@ -113,22 +127,8 @@ jobs:
           subject: 'Weekly factsheet · USD Multi-Strategy ETF Portfolio · ${{ steps.meta.outputs.asof }}'
           to: ${{ secrets.RECIPIENT_EMAIL }}
           from: 'USD Multi-Strategy ETF Factsheet <${{ secrets.GMAIL_USER }}>'
-          html_body: |
-            <h2>Weekly factsheet — USD Multi-Strategy ETF Portfolio</h2>
-            <p>As of <strong>${{ steps.meta.outputs.asof }}</strong>.</p>
-            <p>The attached one-page PDF covers:</p>
-            <ul>
-              <li>Current breadth regime + EEM tilt state</li>
-              <li>Multi-period returns vs SPY benchmark</li>
-              <li>Cumulative return chart with RISK_OFF bands</li>
-              <li>Sleeve YTD return contribution</li>
-              <li>Current top holdings with effective weights</li>
-              <li>This week's rebalance activity</li>
-              <li>Forward-looking signal-threshold watch list</li>
-            </ul>
-            <p>Live dashboard: <a href="https://phuazz.github.io/breadth-thrust-etf/">phuazz.github.io/breadth-thrust-etf</a></p>
-            <p style="color:#6b727a;font-size:11px;">
-              Personal research artefact. Not investment advice. Backtest
-              performance is not indicative of future returns.
-            </p>
-          attachments: docs/factsheet_latest.pdf
+          html_body: ${{ steps.emailbody.outputs.html }}
+          # Attach the dated copy so the recipient sees a properly-named
+          # archive in their inbox. The build script writes both
+          # factsheet_<asof>.pdf and factsheet_latest.pdf to docs/.
+          attachments: docs/factsheet_${{ steps.meta.outputs.asof }}.pdf

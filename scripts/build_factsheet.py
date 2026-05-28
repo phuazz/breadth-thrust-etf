@@ -1008,6 +1008,19 @@ def build(out_path: Path):
     print(f"  Deployed key: {deployed_key}")
     print(f"  As of:        {asof_str}")
     print(f"  PDF size:     {out_path.stat().st_size:,} bytes")
+
+    # ----- Dated archive copy ---------------------------------------------
+    # The stable file (default factsheet_latest.pdf) is what is committed
+    # for the public Pages URL. We ALSO emit a date-stamped sibling using
+    # the signals as-of date (not today's date — what matters is which
+    # trading day the positions reflect). This dated copy is what the
+    # weekly email attaches so recipients get a properly-named archive
+    # in their inbox.
+    asof_iso = asof_date.strftime("%Y-%m-%d")
+    dated_path = out_path.with_name(f"factsheet_{asof_iso}.pdf")
+    if dated_path != out_path:
+        dated_path.write_bytes(out_path.read_bytes())
+        print(f"  Dated copy:   {dated_path.relative_to(ROOT)}")
     return 0
 
 
