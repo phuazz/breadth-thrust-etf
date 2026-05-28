@@ -316,14 +316,9 @@
         font-size: 9px; color: var(--ink-faint);
         margin-left: 6px; font-weight: 500;
       }
-      /* Total deployed row: the colspan="6" label cell visually
-         collapses to col 1 width when cols 2-6 are hidden. Keep the
-         "Total deployed" label right-aligned next to the % cell so the
-         row reads cleanly as a two-column footer. */
-      table.holdings tr.total-row td:first-child {
-        text-align: right; padding-right: 12px;
-        white-space: nowrap;
-      }
+      /* Total-deployed row is now a single full-width cell with flex
+         layout (defined outside this @media block) — works identically
+         on desktop and mobile, no extra rules needed here. */
       /* Expand row (mini-chart panel) — reduce chart height on mobile
          and tighten padding so the chart + stats fit comfortably. */
       table.holdings tr.holdings-expand-row td {
@@ -432,28 +427,36 @@
     table.holdings .why {
       font-size: 12px; color: var(--ink-faint);
     }
-    /* Total-deployed footer row — distinct enough to read as a summary
-       footer, not "just another row". Top border separates it from the
-       holdings list; the label is small-caps + letter-spaced like a
-       table footer convention; the percentage uses the accent colour
-       to draw the eye. */
+    /* Total-deployed footer row — single full-width cell with flex
+       layout so the label and value share a baseline regardless of
+       font size, and the layout doesn't depend on table-column widths
+       (which would otherwise put the label at a different visual
+       distance from the % on desktop vs mobile). */
     table.holdings .total-row {
       background: var(--bg-soft);
       border-top: 2px solid var(--border-strong);
     }
-    table.holdings .total-row td { padding: 14px 12px; }
-    table.holdings .total-row td:first-child {
-      text-align: right;
+    table.holdings .total-row td { padding: 0; border-bottom: none; }
+    table.holdings .total-row .total-inner {
+      display: flex;
+      justify-content: flex-end;
+      align-items: baseline;
+      gap: 16px;
+      padding: 14px 18px;
+    }
+    table.holdings .total-row .total-label {
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--ink-faint);
     }
-    table.holdings .total-row td.num strong {
-      font-size: 16px;
+    table.holdings .total-row .total-value {
+      font-size: 17px;
+      font-weight: 700;
       color: var(--accent);
       font-variant-numeric: tabular-nums;
+      font-family: 'JetBrains Mono', monospace;
     }
 
     /* ----- Strategy panel layout (side-by-side cards) ----- */
@@ -2810,9 +2813,16 @@ function renderMonitor() {
       <td class="num"><strong>${(e.total*100).toFixed(1)}%</strong></td>
     </tr>`;
   }).join('');
+  // Single-cell flex layout so label + percentage share a baseline
+  // regardless of font size (sidesteps colspan/column-width alignment
+  // issues that come from the two-cell version).
   const totalRow = `<tr class="total-row">
-    <td colspan="6">Total deployed</td>
-    <td class="num"><strong>${(totW*100).toFixed(1)}%</strong></td>
+    <td colspan="7">
+      <div class="total-inner">
+        <span class="total-label">Total deployed</span>
+        <span class="total-value">${(totW*100).toFixed(1)}%</span>
+      </div>
+    </td>
   </tr>`;
   el.querySelector('tbody').innerHTML = tbodyHtml + totalRow;
   // Wire up click-to-expand mini-chart on holdings rows (Phase 18.3).
