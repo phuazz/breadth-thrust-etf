@@ -1,6 +1,68 @@
 # breadth-thrust-etf
 
-Single-indicator breadth regime signal across 11 US sector and broad-market ETFs, with relative-strength portfolio construction. **Live dashboard**: [phuazz.github.io/breadth-thrust-etf](https://phuazz.github.io/breadth-thrust-etf/)
+USD-denominated 4-sleeve breadth + momentum ETF rotation strategy with a CSP1 breadth regime overlay and an EEM/SPY relative-strength tilt. **Personal research artefact** — not investment advice, not affiliated with any regulated fund. **Live dashboard**: [phuazz.github.io/breadth-thrust-etf](https://phuazz.github.io/breadth-thrust-etf/)
+
+## Current state (Phase 24 — May 2026)
+
+The deployed strategy is the **35/35/10/20 A:B:C:D blend** with two overlays:
+
+| Sleeve | Mechanism | Universe | Weight |
+|---|---|---|---|
+| **A** US sectors | Sector-RELATIVE breadth (Phase 20.1) — sector breadth minus cross-sectional mean, rank top K=7 by relative value, weight by positive-relative share | 14 US sector ETFs | 35% |
+| **B** Asset-class | ETF-level momentum (% above own 200d MA), top K=7 by signal, weight by signal share, SHY cash floor when fewer than K positive | 13 broad asset-class ETFs (HYG removed in Phase 24 — equity-correlated, not defensive) | 35% |
+| **C** Thematic | Same as B but on thematic ETFs with +5% signal floor, top K=4 equal-weight (Phase 6) | 23 thematic ETFs | 10% |
+| **D** Europe sectors | Same as A but on Stoxx Europe 600 sector UCITS, top K=3. **EUR prices FX-converted to USD** (Phase 20.2) | 5 Stoxx Europe 600 sector UCITS | 20% |
+
+**Phase 19 risk overlay**: when S&P 500 constituent breadth falls below 20%, shift 50% of NAV to SHY (1-3y Treasury). Re-engage full blend when breadth crosses back above 50%.
+
+**Phase 22 EEM tilt**: when EEM/SPY ratio's 50d MA crosses above its 200d MA (golden cross), tilt 10% of NAV to EEM. Funded from Strategy B (35% → 25% during tilt-ON).
+
+**Backtest stats (gated + EEM-tilted, 2018-Q4 to 2026-Q2)**: Sharpe +1.29, CAGR +15.9%, max DD -16.4%. All return figures USD-denominated. Walk-forward Sharpe (annual K refit) for A is +1.00, B is +0.79, C is +0.51 (largest IS-vs-OOS gap), D is ~+0.85.
+
+### Known caveats (acknowledged upfront)
+
+- **Survivorship bias in Strategy C** — 23 thematics all survived to 2026; failed thematics (cannabis, leveraged-thematic, volatility) never in universe.
+- **Phase 19 overlay parameters tuned in-sample** — chosen from 12-variant sweep on same data the gated-vs-ungated comparison reports on.
+- **Phase 22 EEM tilt deployed on weak sample** — golden cross has produced few distinct ON-events in 7.5y. Deployed as a low-cost positional bet, not robustly-evidenced alpha.
+- **Sharpe sample noise** — 7.5y × weekly gives Sharpe SE ≈ ±0.4; +1.29 sits in ~95% CI [+0.55, +2.03]. Treat as range, not point estimate.
+- **Walk-forward scope narrow** — covers within-sleeve K refit only. Weighting scheme, universe additions, cost calibration, overlay parameters all applied across entire backtest as in-sample.
+- **No live track record** — every return shown is simulated.
+- **Backtest costs conservative-not-pessimistic** — 2-9 bps per unit weight change; no slippage / market-impact model.
+
+### Test coverage
+
+84 pytest tests across 11 files. Key suites:
+- `test_backtest_math.py` (17 tests) — structural invariants: long-only, sum-to-100%, no NaN, monotonic dates.
+- `test_weight_function_edge_cases.py` (12 tests) — direct unit tests on `top_k_breadth_weight` with synthetic stress inputs (all-positives, all-negatives, mixed, NaN, ties, single-element). Includes regression test that would have caught the Phase 20 long-only bug.
+- `test_data_integrity.py`, `test_stale_breadth.py` — freshness guards on iShares constituent caches.
+- `test_no_lookahead.py` — verifies signals use `.shift(1)` before weight assignment.
+
+### CI / weekly publish
+
+`.github/workflows/weekly_factsheet.yml` runs every Saturday 02:00 UTC: refresh strategy engines + blend + overlay, rebuild dashboard + factsheet PDF, commit refreshed data + docs to main, email factsheet via Gmail SMTP.
+
+The heavy constituent-roster refresh runs LOCALLY (per-ETF parquet caches are gitignored due to size). CI relies on committed breadth JSONs being current; if they go stale beyond 14 days, sleeves degrade gracefully (signal NaN → sleeve goes flat) with a visible stale-data banner.
+
+---
+
+## Phase history
+
+The current architecture evolved over ~30 phases of empirical iteration. Major milestones:
+- **Phases 1-3** (original README below): composite breadth signal on SOXX → generalised to MA200-only across 11 US ETFs
+- **Phase 4**: introduced Europe sector sleeve (D); moved from 3-way 45/45/10 to 4-way 35/35/10/20
+- **Phases 5-17.1**: thematic universe expansion (ITA, BTC-USD, XME, WOOD, REMX, CQQQ, 159801.SZ); Phase 6 equal-weight for C
+- **Phase 19**: CSP1 breadth regime overlay deployed
+- **Phase 19.1**: IEF→SHY cash floor swap (IEF correlated with equities in 2022 inflation crash)
+- **Phase 20 / 20.1**: sector-RELATIVE breadth in A; Phase 20.1 fixed long-only bug under relative signal
+- **Phase 20.2**: Strategy D EUR→USD FX conversion (previously contaminated the USD blend)
+- **Phase 22**: EEM/SPY relative-strength tilt overlay
+- **Phase 24**: removed HYG from B's universe
+
+Numbers and ETFs in the historical Phase 3 README below refer to the obsolete single-strategy architecture — see the dashboard for current deployed state.
+
+---
+
+## Historical README — Phase 3 era (obsolete, kept for context)
 
 ## Current state (Phase 3 — May 2026)
 
