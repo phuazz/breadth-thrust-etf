@@ -1,31 +1,43 @@
 name: Weekly factsheet — pipeline + email
 
-# Runs every Saturday at 02:00 UTC (Friday US market close has settled).
-# Refreshes all pipeline outputs (sleeves, blend, overlay, dashboard,
-# factsheet PDF), commits the updated docs/ + data/ back to main, and
-# emails the factsheet PDF to the configured recipient.
+# Runs every Saturday at 02:00 UTC.
 #
-# Manual trigger also enabled via workflow_dispatch.
+# DESIGN NOTE:
+# The heavy constituent-roster + price-cache refresh runs LOCALLY (the
+# per-ETF parquet caches are gitignored because they are 1-10 MB each).
+# This CI workflow assumes those committed breadth JSONs (data/breadth_*)
+# are reasonably current — produced by the local pipeline runs whenever
+# you commit. CI just:
+#   1. Refreshes the asset_class + thematic ETF-level price caches
+#      (lightweight — ~25 tickers each, ~30s)
+#   2. Re-runs the strategy engines + blend + overlay (~1-2 min)
+#   3. Rebuilds the dashboard + factsheet PDF (~30s)
+#   4. Commits the refreshed outputs back to main
+#   5. Emails the factsheet
+#
+# Total runtime: ~5-8 minutes. Heavy constituent-level refresh is
+# explicitly NOT in CI — runs only when the user triggers it locally
+# (typically weekly).
 #
 # Required GitHub Secrets (Settings -> Secrets and variables -> Actions):
-#   GMAIL_USER          - Gmail address used to send (e.g. phuazz@gmail.com)
-#   GMAIL_APP_PASSWORD  - 16-char Gmail app password (not the account
-#                          password — generate at https://myaccount.google.com/apppasswords)
-#   RECIPIENT_EMAIL     - Where the factsheet goes (e.g. phuazz@gmail.com)
+#   GMAIL_USER          - Gmail address used to send
+#   GMAIL_APP_PASSWORD  - 16-char Gmail app password
+#                          (myaccount.google.com/apppasswords)
+#   RECIPIENT_EMAIL     - Where the factsheet goes
 
 on:
   schedule:
-    # Saturday 02:00 UTC = Saturday 10:00 SGT (after Friday US close has settled)
+    # Saturday 02:00 UTC = Saturday 10:00 SGT (after Friday US close)
     - cron: '0 2 * * 6'
   workflow_dispatch:  # manual trigger button in Actions tab
 
 permissions:
-  contents: write  # needed to commit refreshed data + docs back to main
+  contents: write
 
 jobs:
   build-and-email:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -41,41 +53,21 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          else
-            # Fallback install — matches the local dev environment
-            pip install pandas numpy matplotlib yfinance pyarrow \
-                        pandas-market-calendars requests pytest
-          fi
+          pip install -r requirements.txt
 
-      - name: Refresh constituent rosters (Strategy A + D)
-        # Touch the iShares CSVs so the rolling Friday snapshots are
-        # current. Soft-fail if iShares is rate-limiting — the rest of
-        # the pipeline can run on cached data.
-        run: |
-          set -e
-          for etf in SOXX CSP1 CNDX IUES IUFS IUHC IUIS IUCS IUCD IUUS IUMS IUCM IUSP IDP6 EXV1 EXH1 EXV3 EXH3 EXH9; do
-            python scripts/fetch_constituents.py --etf "$etf" || echo "WARN: $etf fetch failed; continuing on cached snapshot"
-          done
+      # ----- Strategy engines (use committed breadth JSONs; no
+      #       constituent re-fetch) -----
 
-      - name: Run breadth pipelines (Strategy A + D, per ETF)
-        run: |
-          set -e
-          for etf in SOXX CSP1 CNDX IUES IUFS IUHC IUIS IUCS IUCD IUUS IUMS IUCM IUSP IDP6 EXV1 EXH1 EXV3 EXH3 EXH9; do
-            python scripts/compute_breadth.py --etf "$etf"
-          done
-
-      - name: Run robustness + Strategy A engine
+      - name: Run Strategy A (uses committed breadth data)
         run: python scripts/run_topk_robustness.py
 
-      - name: Run Strategy B (asset-class rotation)
+      - name: Run Strategy B (asset-class rotation; ~14 ETF download)
         run: python scripts/run_asset_class_rotation.py
 
-      - name: Run Strategy C (thematic rotation)
+      - name: Run Strategy C (thematic rotation; ~23 ETF download)
         run: python scripts/run_thematic_rotation.py
 
-      - name: Run Strategy D (Europe rotation)
+      - name: Run Strategy D (Europe rotation; uses committed breadth)
         run: python scripts/run_europe_rotation.py
 
       - name: Run multi-strategy blend
@@ -84,10 +76,10 @@ jobs:
       - name: Run Phase 19 + 22 risk overlay
         run: python scripts/run_risk_overlay.py
 
-      - name: Run holdings price export (for dashboard mini-charts)
+      - name: Run holdings price export (soft-fail)
         run: python scripts/export_holdings_prices.py || true
 
-      - name: Build dashboard + factsheet
+      - name: Build dashboard + factsheet PDF
         run: python scripts/pipeline.py
 
       - name: Run regression tests
@@ -98,19 +90,16 @@ jobs:
           git config --local user.email "actions@github.com"
           git config --local user.name "Weekly Factsheet Bot"
           git add data/ docs/ || true
-          # Soft-fail if nothing changed (rare — usually data files refresh)
           git diff --cached --quiet || git commit -m "Weekly refresh $(date -u +%Y-%m-%d)"
           git push origin main || echo "Nothing to push"
 
       - name: Compute as-of date for email subject
         id: meta
         run: |
-          ASOF=$(python -c "import json; d=json.loads(open('data/multi_strategy.json').read()); s=d['strategies'].get('blend_35_35_10_20_gated_eem_tilted') or d['strategies']['blend_35_35_10_20']; print(s['dates'][-1])")
+          ASOF=$(python -c "import json; d=json.loads(open('data/multi_strategy.json').read()); s=d['strategies'].get('blend_35_35_10_20_gated_eem_tilted') or d['strategies'].get('blend_35_35_10_20_gated') or d['strategies']['blend_35_35_10_20']; print(s['dates'][-1])")
           echo "asof=${ASOF}" >> $GITHUB_OUTPUT
 
       - name: Email factsheet PDF
-        # Uses dawidd6/action-send-mail (well-maintained, SMTP-based,
-        # supports attachments).
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
