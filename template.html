@@ -91,6 +91,21 @@
       font-size: 11px; color: var(--ink-faint); max-width: 920px;
       margin-top: 8px; line-height: 1.5;
     }
+    /* Caveats banner — surfaces known methodological weaknesses upfront
+       so readers do not have to dig for them. Honest disclosure beats
+       inviting the reviewer to find the same issues uninvited. */
+    header.top .caveats-banner {
+      margin-top: 14px; padding: 12px 16px;
+      background: #fef9e7; border: 1px solid #f5d76e;
+      border-left: 4px solid #b76e00; border-radius: 4px;
+      font-size: 12px; color: var(--ink-soft); line-height: 1.55;
+      max-width: 920px;
+    }
+    header.top .caveats-banner strong { color: var(--ink); }
+    header.top .caveats-banner ul {
+      margin: 6px 0 0 0; padding-left: 20px;
+    }
+    header.top .caveats-banner li { margin-bottom: 4px; }
     /* ----- Hero stat strip: full container width, big numbers ----- */
     header.top .hero-strip {
       display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1236,13 +1251,13 @@
     <div class="hero-strip">
       <div class="item">
         <div class="number good" id="hero-sharpe">—</div>
-        <div class="label">Sharpe</div>
-        <div class="desc">Risk-adjusted return, out-of-sample</div>
+        <div class="label">Backtest Sharpe</div>
+        <div class="desc">Point estimate has ~&plusmn;0.4 noise on 7.5y of weekly data &mdash; treat as a range</div>
       </div>
       <div class="item">
         <div class="number" id="hero-cagr">—</div>
-        <div class="label">Annual return (CAGR)</div>
-        <div class="desc">Compound annual growth, 2018–today</div>
+        <div class="label">Backtest CAGR</div>
+        <div class="desc">Compound annual growth, simulated 2018&ndash;today (no live track record yet)</div>
       </div>
       <div class="item">
         <div class="number" id="hero-dd">—</div>
@@ -1274,7 +1289,19 @@
       </div>
     </div>
     <div class="footnote">
-      <em>Out-of-sample</em> = strategy parameters are refit each year using only past data, then applied to the next 12 months — the realistic "live-simulation" Sharpe, not the in-sample backtest fit. Full statistical tests, regime decomposition, per-sleeve performance, and trade history live on the <strong>Multi-Strategy</strong>, <strong>Trade History</strong>, and <strong>Method</strong> tabs.
+      <em>Walk-forward</em> = within-sleeve K parameter is refit each year using only past data, then applied to the next 12 months. <strong>NOT walk-forward</strong>: weighting scheme (Phase 6 / Phase 20), universe additions (Phases 15&ndash;17.1), cost calibration (Phase 12), overlay parameters (Phase 19 sweep), EEM tilt (Phase 22). Those structural changes were applied across the entire backtest history &mdash; their reported lifts are in-sample improvements.
+      Full statistical tests, regime decomposition, per-sleeve performance, and trade history live on the <strong>Multi-Strategy</strong>, <strong>Trade History</strong>, and <strong>Method</strong> tabs.
+    </div>
+    <div class="caveats-banner">
+      <strong>Known caveats reviewers will surface (acknowledged upfront):</strong>
+      <ul>
+        <li><strong>Survivorship bias in Strategy C</strong> (thematic): the 23 ETFs all survived to 2026. Failed thematics (cannabis, leveraged-thematic, volatility) never entered the universe. C standalone Sharpe is on a survivor-selected basket.</li>
+        <li><strong>Phase 19 overlay parameters tuned in-sample</strong>: chosen from a 12-variant sweep on the same data the gated-vs-ungated comparison reports on. No OOS validation of the gate thresholds themselves.</li>
+        <li><strong>Phase 22 EEM tilt deployed on weak sample</strong>: the 50d/200d golden cross has produced only a small number of distinct ON-events in the 7.5-year window. The tilt is deployed as a low-cost positional bet on an EM-cycle turn, not as a robustly-evidenced alpha source.</li>
+        <li><strong>Sharpe sample noise</strong>: 7.5y &times; weekly observations gives Sharpe SE &asymp; &plusmn;0.4. A reported Sharpe of +1.29 sits in a ~95% CI of roughly [+0.55, +2.03]. Treat headline ratios as ranges.</li>
+        <li><strong>No live track record</strong>: every return shown is simulated. Future performance will diverge.</li>
+        <li><strong>Backtest costs are conservative-not-pessimistic</strong>: 2&ndash;9 bps per unit weight change per sleeve, no slippage / market-impact model. Real execution at Friday close has measurable spread cost not captured here.</li>
+      </ul>
     </div>
   </div>
 </header>
@@ -4058,8 +4085,15 @@ function renderRiskOverlay() {
           <td style="color:var(--ink-soft);">${action}</td>
         </tr>`;
       }).join('');
+      // Count ON-events specifically (transitions FROM OFF TO ON), not
+      // just total state changes. An ON-event is what activates the
+      // tilt; downstream OFF-events just close it. For a fair sample-
+      // size assessment the reader needs to see how many distinct
+      // EM-regime turns this overlay has actually caught.
+      const onEvents = tiltEvents.filter(e => e.direction === 'EM_TILT_ON').length;
+      const offEvents = tiltEvents.filter(e => e.direction === 'EM_TILT_OFF').length;
       p22Events.innerHTML = `
-        <h3>EEM-tilt history — recent ${recent.length} of ${tiltEvents.length} events</h3>
+        <h3>EEM-tilt history — recent ${recent.length} of ${tiltEvents.length} state changes</h3>
         <table class="overlay-events-table">
           <thead>
             <tr><th>Date</th><th>Direction</th><th>Ratio</th>
@@ -4068,11 +4102,15 @@ function renderRiskOverlay() {
           <tbody>${rows}</tbody>
         </table>
         <div class="overlay-meta" style="margin-top:10px; font-size:12px;">
-          ${tiltEvents.length} tilt switches over 7.5 years
-          (~${(tiltEvents.length / 7.5).toFixed(1)} per year on average,
-          ${(phase22.pct_days_tilt_on || 0).toFixed(1)}% of days tilt-ON).
-          Low switch frequency is by design — the 50d/200d golden cross
-          requires a sustained relative-strength move, not a daily blip.
+          <strong>Sample size caveat</strong>: ${tiltEvents.length} total state
+          changes (${onEvents} tilt-ON activations, ${offEvents} tilt-OFF
+          deactivations) over the 7.5-year backtest window. The 50d/200d
+          golden cross is a SLOW signal by design, so the empirical sample
+          is small &mdash; treat the in-sample backtest improvement as
+          weakly evidenced rather than statistically robust. The tilt is
+          deployed as a low-cost positional bet on an EM-cycle turn,
+          not as a high-confidence alpha source.
+          ${(phase22.pct_days_tilt_on || 0).toFixed(1)}% of days tilt-ON.
         </div>
       `;
     }

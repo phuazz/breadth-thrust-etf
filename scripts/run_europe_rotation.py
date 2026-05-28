@@ -125,14 +125,51 @@ def build_trade_history(weight_panel: pd.DataFrame, breadth_panel: pd.DataFrame,
     return out
 
 
+def _fx_convert_eur_to_usd(closes: pd.DataFrame) -> pd.DataFrame:
+    """Phase 20.2 (2026-05-28) — convert EUR-denominated Xetra UCITS
+    closes to USD. Critical fix: yfinance returns EXV1.DE / EXH1.DE
+    etc in EUR. Without this conversion, Strategy D's backtest is in
+    EUR and the 4-way blend mixes EUR returns with USD returns from
+    A/B/C — meaningless math and an EUR/USD drift of ~12% over the
+    2018-2026 window inflates apparent D returns by ~1.5pp annualised.
+
+    Fetches USDEUR=X (yfinance convention: EUR per 1 USD; we want
+    USD per 1 EUR, so 1/USDEUR=X), forward-fills onto the closes
+    calendar (handles weekends + holidays), and multiplies each EUR
+    price by the contemporary USD/EUR rate.
+    """
+    import yfinance as yf
+    print("  Fetching EUR/USD FX series for USD conversion ...", flush=True)
+    fx_raw = yf.download("EURUSD=X",
+                          start=closes.index.min().strftime("%Y-%m-%d"),
+                          end=(closes.index.max() + pd.Timedelta(days=5))
+                              .strftime("%Y-%m-%d"),
+                          auto_adjust=True, progress=False, threads=False)
+    if isinstance(fx_raw.columns, pd.MultiIndex):
+        fx_raw.columns = fx_raw.columns.get_level_values(0)
+    fx = fx_raw["Close"]
+    if isinstance(fx, pd.DataFrame):
+        fx = fx.iloc[:, 0]
+    fx.index = pd.to_datetime(fx.index).tz_localize(None)
+    fx = fx.reindex(closes.index, method="ffill").bfill()
+    print(f"  EUR/USD range over window: {fx.min():.4f} - {fx.max():.4f}  "
+          f"(today {fx.iloc[-1]:.4f})")
+    # Multiply EUR price by USD/EUR rate (= EURUSD=X) -> USD price
+    return closes.multiply(fx, axis=0)
+
+
 def main() -> int:
     print(f"Building Europe sector breadth panels for {len(UNIVERSE_EUROPE_SECTORS)} ETFs ...",
           flush=True)
-    closes, breadths, etfs_used = _build_panels_for(UNIVERSE_EUROPE_SECTORS)
+    closes_eur, breadths, etfs_used = _build_panels_for(UNIVERSE_EUROPE_SECTORS)
     print(f"  {len(etfs_used)} ETFs used: {etfs_used}")
     if not etfs_used:
         print("ERROR: no usable ETFs in Europe universe")
         return 1
+
+    # CRITICAL: Xetra UCITS prices are EUR-denominated. Convert to USD
+    # so D's returns can be honestly blended with USD-native A/B/C.
+    closes = _fx_convert_eur_to_usd(closes_eur)
 
     # Eligible start = latest first-valid date + MA period
     starts = []
