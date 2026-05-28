@@ -197,15 +197,58 @@ def top_k_rank_weight(K: int):
 
 
 def top_k_breadth_weight(K: int):
+    """Pick top K by signal value, weight by positive signal share only.
+
+    Phase 20.1 (2026-05-28) — bug fix for sector-relative-breadth signal.
+
+    Pre Phase 20: absolute breadth was always in [0,1] so every top-K
+    pick was positive, and the original `normed = top / top.sum()` line
+    produced clean weights that summed to 1.0.
+
+    Phase 20 introduced sector-RELATIVE breadth (sector - cross-sectional
+    mean). After mean-subtraction the top-K can contain NEGATIVE values
+    (below-mean sectors). The original normaliser used
+    `top.sum() = positives + negatives` which is SMALLER than
+    `positives.sum()`, so each positive weight was amplified above its
+    true share, and the negative weights implicitly shorted those
+    below-mean sectors.
+
+    The dashboard filter only displays positive weights, so post-Phase 20
+    Strategy A's within-sleeve weights summed to >100% (114% in one
+    observed snapshot), and the deployed-blend total ran ~105% even
+    with the EEM tilt math fixed elsewhere.
+
+    Beyond the display issue, the implicit shorting also meant the
+    Phase 20 backtest was effectively LONG-SHORT, not long-only as
+    advertised. Some of the Phase 20 lift (+5.3pp Full Total, +0.27
+    Sharpe in 2022) came from those implicit shorts which are not
+    actually implementable in a long-only portfolio.
+
+    The fix: drop below-zero values from the top-K and weight only the
+    positives. For absolute-breadth callers this is a no-op (all top-K
+    were already positive). For relative-breadth callers it makes the
+    strategy genuinely long-only — the picker holds only sectors
+    above the cross-sectional mean, weighted by their excess.
+
+    Net effect:
+      - Strategy A under relative breadth: now holds N <= K positions
+        (the positive-relative sectors), weights renormalised to 1.0.
+      - Strategy D under absolute breadth: identical to pre-fix.
+    """
     def f(b_row):
         valid = b_row.dropna()
         if len(valid) == 0:
             return pd.Series(0.0, index=b_row.index)
         top = valid.nlargest(min(K, len(valid)))
-        # Weight by max(0, breadth) so a sector with 30% breadth gets less than 80%
-        normed = top / top.sum() if top.sum() > 0 else pd.Series(0.0, index=top.index)
+        # Drop below-zero values so the relative-breadth case stays
+        # long-only. For absolute breadth (values in [0,1]) this is a
+        # no-op.
+        positives = top[top > 0]
+        if len(positives) == 0:
+            return pd.Series(0.0, index=b_row.index)
+        normed = positives / positives.sum()
         w = pd.Series(0.0, index=b_row.index)
-        w.loc[top.index] = normed
+        w.loc[positives.index] = normed
         return w
     return f
 
