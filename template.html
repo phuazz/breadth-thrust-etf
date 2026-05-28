@@ -278,6 +278,39 @@
       padding: 14px 18px; background: var(--bg-soft);
       border-bottom: 1px solid var(--border);
     }
+    /* Mobile / narrow viewport: collapse the holdings table to the
+       two columns an investor primarily needs (ETF + Total weight).
+       The hidden columns (description, strategy badge, trade-as ticker,
+       why-it's-in, calc breakdown) are still in the DOM and a quick
+       click on a row expands the mini-chart panel which shows the
+       full detail. Keeps the table scannable on phone screens. */
+    @media (max-width: 720px) {
+      table.holdings thead th:nth-child(2),
+      table.holdings thead th:nth-child(3),
+      table.holdings thead th:nth-child(4),
+      table.holdings thead th:nth-child(5),
+      table.holdings thead th:nth-child(6),
+      table.holdings tbody td:nth-child(2),
+      table.holdings tbody td:nth-child(3),
+      table.holdings tbody td:nth-child(4),
+      table.holdings tbody td:nth-child(5),
+      table.holdings tbody td:nth-child(6) {
+        display: none;
+      }
+      table.holdings tbody td:nth-child(1) {
+        padding-right: 0;
+      }
+      table.holdings tbody td:nth-child(7) {
+        text-align: right;
+      }
+      /* Show the strategy badge inline with the ETF symbol on mobile
+         so users still see which sleeve a position came from. */
+      table.holdings tbody tr.holdings-row td:nth-child(1) .sym::after {
+        content: attr(data-mobile-tag);
+        font-size: 9px; color: var(--ink-faint);
+        margin-left: 6px; font-weight: 500;
+      }
+    }
     .holdings-mini-chart {
       width: 100%; height: 260px;
     }
@@ -2397,6 +2430,26 @@ function renderMonitor() {
     W_A = 0.50; W_B = 0.50; W_C = 0.00; W_D = 0.00; blendLabel = '50/50';
   }
 
+  // Phase 22 EEM tilt — when active, the deployed B-sleeve weight is
+  // reduced by tilt_weight (10pp by default) and that 10pp is allocated
+  // to a dedicated EEM tilt position. This is the operational truth —
+  // the holdings table needs to reflect the LIVE composition, not the
+  // pre-tilt baseline. Without this adjustment B-positions get
+  // weighted at 35% and the synthetic EEM position adds 10% on top,
+  // making the total sum to ~110% instead of 100%.
+  const phase22 = window.DATA?.risk_overlay?.phase22_eem_tilt;
+  const eemTiltActive = phase22?.enabled && phase22.current_state === 'EM_TILT_ON';
+  const eemTiltWeight = eemTiltActive
+    ? (phase22.parameters?.tilt_weight ?? 0.10) : 0;
+  const eemFundsFrom = phase22?.parameters?.fund_from_sleeve || 'strategy_b';
+  if (eemTiltActive) {
+    if (eemFundsFrom === 'strategy_a') W_A = Math.max(0, W_A - eemTiltWeight);
+    else if (eemFundsFrom === 'strategy_b') W_B = Math.max(0, W_B - eemTiltWeight);
+    else if (eemFundsFrom === 'strategy_c') W_C = Math.max(0, W_C - eemTiltWeight);
+    else if (eemFundsFrom === 'strategy_d') W_D = Math.max(0, W_D - eemTiltWeight);
+    blendLabel = blendLabel + ` + ${Math.round(eemTiltWeight*100)}% EEM`;
+  }
+
   // ===== Latest rebalances =====
   const aHist = topk.headline.trade_history;
   const bHist = ac.headline.trade_history;
@@ -2569,6 +2622,40 @@ function renderMonitor() {
     });
   }
 
+  // Phase 22 EEM tilt — inject a synthetic EEM row at top showing the
+  // tilt allocation. The B-sleeve weights have already been scaled down
+  // (W_B reduced by tilt_weight in the block above) so adding this row
+  // makes the total weights sum back to 100%. If RISK_OFF is also
+  // active, scale the tilt position by the same scale factor.
+  if (eemTiltActive && eemTiltWeight > 0) {
+    const tiltWtEffective = isRiskOff ? eemTiltWeight * scale : eemTiltWeight;
+    const existingEem = rows.find(r => r.etf === 'EEM');
+    if (existingEem) {
+      // EEM already a holding (via B's rotation). Add the tilt on top
+      // of the rotation position so the row shows combined exposure.
+      existingEem.eff_tilt = (existingEem.eff_tilt || 0) + tiltWtEffective;
+      existingEem.total += tiltWtEffective;
+      existingEem.is_eem_tilt = true;
+      existingEem.label = existingEem.label
+        || 'MSCI Emerging Markets (Phase 22 EEM tilt active)';
+    } else {
+      rows.unshift({
+        etf: 'EEM',
+        label: `MSCI Emerging Markets — Phase 22 EEM tilt (since ${phase22.current_state_since})`,
+        a_weight: 0, b_weight: 0, c_weight: 0, d_weight: 0,
+        a_signal: null, b_signal: null, c_signal: null, d_signal: null,
+        eff_a: 0, eff_b: 0, eff_c: 0, eff_d: 0,
+        eff_tilt: tiltWtEffective,
+        a_proxy: 'EEM',
+        in_a: false, in_b: false, in_c: false, in_d: false,
+        is_eem_tilt: true,
+        total: tiltWtEffective,
+      });
+    }
+    // Re-sort by total
+    rows.sort((x, y) => y.total - x.total);
+  }
+
   // ===== Combined holdings table =====
   const acAColours = window.DATA.asset_class?.asset_class_colours || {};
   const tcColours = window.DATA.thematic?.thematic_colours || {};
@@ -2616,11 +2703,15 @@ function renderMonitor() {
     if (e.in_d && e.d_signal != null) {
       why.push(`<span style="color:#0e7490;">D: breadth ${e.d_signal}%</span>`);
     }
+    if (e.is_eem_tilt) {
+      why.push(`<span style="color:#b76e00;">Phase 22 EEM tilt active</span>`);
+    }
     const stratTags = [];
     if (e.in_a) stratTags.push('<span class="strategy-tag a">A</span>');
     if (e.in_b) stratTags.push('<span class="strategy-tag b">B</span>');
     if (e.in_c) stratTags.push('<span class="strategy-tag c">C</span>');
     if (e.in_d) stratTags.push('<span class="strategy-tag d">D</span>');
+    if (e.is_eem_tilt) stratTags.push('<span class="strategy-tag overlay" style="background:#b76e00;">TILT</span>');
     // Calculation breakdown — when RISK_OFF, weights are scaled by
     // (1-derisk) but the within-strategy weight × blend-weight algebra
     // stays the same; just the eff_* values are smaller.
@@ -2630,6 +2721,7 @@ function renderMonitor() {
     if (e.in_b) parts.push(`<span style="color:var(--good);">B: ${overlayPrefix}${W_B.toFixed(2)}×${(e.b_weight*100).toFixed(1)}%=${((e.eff_b||0)*100).toFixed(2)}%</span>`);
     if (e.in_c) parts.push(`<span style="color:#dc2626;">C: ${overlayPrefix}${W_C.toFixed(2)}×${(e.c_weight*100).toFixed(1)}%=${((e.eff_c||0)*100).toFixed(2)}%</span>`);
     if (e.in_d) parts.push(`<span style="color:#0e7490;">D: ${overlayPrefix}${W_D.toFixed(2)}×${(e.d_weight*100).toFixed(1)}%=${((e.eff_d||0)*100).toFixed(2)}%</span>`);
+    if (e.is_eem_tilt && e.eff_tilt) parts.push(`<span style="color:#b76e00;">Tilt: ${(e.eff_tilt*100).toFixed(2)}% NAV</span>`);
     const calcBreakdown = parts.join(' + ');
     totW += e.total;
     // Trade-as ticker is the price series we want to chart on expand.
@@ -2637,8 +2729,17 @@ function renderMonitor() {
     const hasChart = !!holdingsPrices[tradeAs];
     const rowClass = hasChart ? 'holdings-row expandable' : 'holdings-row';
     const caret = hasChart ? '<span class="caret">▸</span>' : '<span class="caret"></span>';
+    // Mobile-only inline tag — shows sleeve letters next to ticker
+    // when the secondary columns are hidden on small screens.
+    const sleeveLetters = [];
+    if (e.in_a) sleeveLetters.push('A');
+    if (e.in_b) sleeveLetters.push('B');
+    if (e.in_c) sleeveLetters.push('C');
+    if (e.in_d) sleeveLetters.push('D');
+    if (e.is_eem_tilt) sleeveLetters.push('TILT');
+    const mobileTag = sleeveLetters.length ? `(${sleeveLetters.join('·')})` : '';
     return `<tr class="${rowClass}" data-etf="${e.etf}" data-trade-as="${tradeAs}">
-      <td>${caret}<span class="swatch" style="background:${colourFor(e.etf)};"></span><span class="sym">${e.etf}</span></td>
+      <td>${caret}<span class="swatch" style="background:${colourFor(e.etf)};"></span><span class="sym" data-mobile-tag="${mobileTag}">${e.etf}</span></td>
       <td style="font-size:13px;">${e.label || ''}</td>
       <td>${stratTags.join(' ')}</td>
       <td><span class="sym" style="font-size:13px;color:var(--ink-soft);">${tradeAs}</span></td>
