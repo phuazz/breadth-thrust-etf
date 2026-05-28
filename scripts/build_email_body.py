@@ -422,7 +422,14 @@ def build_html(out_path: Path):
     out.append('</div>')
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text("\n".join(out), encoding="utf-8")
+    # Trailing newline is REQUIRED — the GitHub Actions workflow loads
+    # this file into a $GITHUB_OUTPUT heredoc; without a trailing \n the
+    # closing delimiter ends up appended to the last HTML line and the
+    # heredoc never closes ("Matching delimiter not found").
+    # Write in binary mode with explicit LF endings so the file is
+    # deterministic on both Windows and Linux runners.
+    body = ("\n".join(out) + "\n").encode("utf-8")
+    out_path.write_bytes(body)
     print(f"Wrote {out_path.relative_to(ROOT)}")
     print(f"  As of:        {asof_str}")
     print(f"  Deployed key: {deployed_key}")
