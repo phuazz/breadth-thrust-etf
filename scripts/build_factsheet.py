@@ -419,10 +419,10 @@ def render_holdings_table(ax, sleeves, p22_active):
                          "signal": None})
     holdings = sorted(holdings, key=lambda x: -x["effective"])
 
-    # Layout
-    col_x = [0.02, 0.18, 0.30, 0.50, 0.80]
+    # Layout — wider tail columns for $ on $1M
+    col_x = [0.02, 0.18, 0.30, 0.50, 0.78]
     col_headers = ["TICKER", "SLEEVE", "SIGNAL", "TARGET WT",
-                   "% of $100k"]
+                   "$ ON $1.0M"]
     y_header = 0.86
     ax.plot([0.0, 1.0], [y_header - 0.020, y_header - 0.020],
              color=BORDER_STRONG, linewidth=0.8, transform=ax.transAxes)
@@ -457,7 +457,7 @@ def render_holdings_table(ax, sleeves, p22_active):
                 fontsize=9, color=ACCENT, fontweight="700",
                 va="center", ha="right", family="monospace",
                 transform=ax.transAxes)
-        cash = h["effective"] * 100_000
+        cash = h["effective"] * 1_000_000  # $1M portfolio sizing
         ax.text(col_x[4] + 0.16, y, f"${cash:,.0f}",
                 fontsize=8.5, color=INK, va="center", ha="right",
                 family="monospace", transform=ax.transAxes)
@@ -501,26 +501,30 @@ def render_trades_panel(ax, sleeves):
                 fontstyle="italic", va="top", transform=ax.transAxes)
         return
 
-    col_x = [0.02, 0.12, 0.25, 0.45, 0.62, 0.80]
-    headers = ["SLEEVE", "ACTION", "TICKER", "PRIOR WT", "NEW WT", "Δ"]
+    # Wider columns with explicit padding so SLEEVE | ACTION | TICKER
+    # don't crowd each other.
+    col_x = [0.02, 0.18, 0.40, 0.62, 0.80, 0.95]
+    headers = ["SLEEVE", "ACTION", "TICKER", "PRIOR", "NEW", "Δ"]
     ax.plot([0.0, 1.0], [y_header - 0.020, y_header - 0.020],
              color=BORDER_STRONG, linewidth=0.8, transform=ax.transAxes)
-    for i, (x, h) in enumerate(zip(col_x, headers)):
-        align = "right" if h in ("PRIOR WT", "NEW WT", "Δ") else "left"
-        x_pos = x + (0.13 if align == "right" else 0)
-        ax.text(x_pos, y_header, h,
-                fontsize=7, color=INK_FAINT, fontweight="600", va="center", ha=align,
-                transform=ax.transAxes)
+    # Number columns are right-aligned at their column position; text
+    # columns are left-aligned. New col_x positions are right-edge for
+    # number cols.
+    for x, h in zip(col_x, headers):
+        align = "right" if h in ("PRIOR", "NEW", "Δ") else "left"
+        ax.text(x, y_header, h,
+                fontsize=7, color=INK_FAINT, fontweight="600",
+                va="center", ha=align, transform=ax.transAxes)
 
-    row_h = 0.058
-    y = y_header - 0.045
-    for i, (sleeve, action, etf, prev_w, new_w) in enumerate(rows[:10]):
+    row_h = 0.065
+    y = y_header - 0.052
+    for i, (sleeve, action, etf, prev_w, new_w) in enumerate(rows[:8]):
         if i % 2 == 1:
-            ax.add_patch(Rectangle((0.0, y - 0.022), 1.0, row_h * 0.92,
+            ax.add_patch(Rectangle((0.0, y - 0.025), 1.0, row_h * 0.92,
                                      facecolor=ZEBRA, edgecolor="none",
                                      transform=ax.transAxes, zorder=0))
         ax.text(col_x[0], y, sleeve, fontsize=8.5, color=INK_SOFT,
-                va="center", transform=ax.transAxes)
+                fontweight="600", va="center", transform=ax.transAxes)
         action_col = (GOOD if action == "ENTER" else BAD if action == "EXIT"
                        else WARN)
         ax.text(col_x[1], y, action, fontsize=7.5, color=action_col,
@@ -528,16 +532,16 @@ def render_trades_panel(ax, sleeves):
                 va="center", transform=ax.transAxes)
         ax.text(col_x[2], y, etf, fontsize=9, color=INK, fontweight="700",
                 family="monospace", va="center", transform=ax.transAxes)
-        ax.text(col_x[3] + 0.13, y,
+        ax.text(col_x[3], y,
                 fmt_pct(prev_w, signed=False) if prev_w is not None else "—",
                 fontsize=8.5, color=INK_SOFT, va="center", ha="right",
                 family="monospace", transform=ax.transAxes)
-        ax.text(col_x[4] + 0.13, y,
+        ax.text(col_x[4], y,
                 fmt_pct(new_w, signed=False) if new_w is not None else "—",
                 fontsize=8.5, color=INK_SOFT, va="center", ha="right",
                 family="monospace", transform=ax.transAxes)
         d = (new_w or 0) - (prev_w or 0)
-        ax.text(col_x[5] + 0.13, y, fmt_pct(d, dp=1),
+        ax.text(col_x[5], y, fmt_pct(d, dp=1),
                 fontsize=8.5, color=colour_pn(d), fontweight="600",
                 va="center", ha="right", family="monospace",
                 transform=ax.transAxes)
@@ -585,10 +589,10 @@ def render_sleeve_attribution(ax, sleeves, deployed_series, p22_active):
                      edgecolor="white", linewidth=1, height=0.55)
     for i, (r, w_, c) in enumerate(zip(returns, weights, contribs)):
         x = c * 100
-        offset = 0.4 if x >= 0 else -0.4
+        offset = 0.5 if x >= 0 else -0.5
         ha = "left" if x >= 0 else "right"
         ax.text(x + offset, i,
-                f"  {fmt_pct(r)} sleeve × {w_*100:.0f}% wt = {c*100:+.1f}pp",
+                f"{fmt_pct(r)} sleeve × {w_*100:.0f}% wt = {c*100:+.1f}pp",
                 fontsize=7.5, color=INK_SOFT,
                 va="center", ha=ha)
     ax.set_yticks(y_pos)
@@ -596,11 +600,206 @@ def render_sleeve_attribution(ax, sleeves, deployed_series, p22_active):
     ax.invert_yaxis()
     ax.axvline(0, color=INK_FAINT, linewidth=0.6)
     ax.tick_params(axis="x", labelsize=7.5, colors=INK_FAINT)
+    # Tick padding ensures y-tick labels (sleeve names) get full width.
+    ax.tick_params(axis="y", pad=4)
     ax.grid(True, color=BORDER, linewidth=0.4, axis="x", alpha=0.7)
     ax.set_axisbelow(True)
     for sp in ("top", "right"): ax.spines[sp].set_visible(False)
     for sp in ("left", "bottom"): ax.spines[sp].set_color(BORDER)
     ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:+.0f}pp"))
+    # Add headroom on the right for the inline data labels (longest is
+    # "+25.7pp" annotation following the bar). And on the left for
+    # negative bars + their labels. Without this, the labels get
+    # clipped by the axes box.
+    xmin, xmax = ax.get_xlim()
+    pad = max(abs(xmin), abs(xmax)) * 0.45
+    ax.set_xlim(xmin - pad if xmin < 0 else -pad * 0.3,
+                  xmax + pad if xmax > 0 else pad * 0.3)
+
+
+def render_sleeve_stats_table(ax, sleeves, multi):
+    """Per-sleeve standalone backtest statistics: Sharpe / CAGR / Max DD /
+    YTD return. Lets the reader see WHICH sleeve carries the blend's
+    risk-adjusted return and which carries the worst drawdown."""
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+    ax.text(0.0, 0.95, "PER-SLEEVE STANDALONE STATISTICS",
+            fontsize=9, color=INK, fontweight="700",
+            va="top", transform=ax.transAxes)
+    ax.text(0.0, 0.85, "Backtest stats for each sleeve in isolation, before blend weighting",
+            fontsize=7.5, color=INK_FAINT, va="top",
+            transform=ax.transAxes, fontstyle="italic")
+
+    sleeve_rows = [
+        ("a", "Strategy A — US Sectors", "strategy_a"),
+        ("b", "Strategy B — Asset Class", "strategy_b"),
+        ("c", "Strategy C — Thematic",    "strategy_c"),
+        ("d", "Strategy D — Europe",      "strategy_d"),
+    ]
+    col_x = [0.02, 0.42, 0.58, 0.74, 0.90]
+    headers = ["SLEEVE", "SHARPE", "CAGR", "MAX DD", "YTD"]
+    y_header = 0.72
+    ax.plot([0.0, 1.0], [y_header - 0.025, y_header - 0.025],
+             color=BORDER_STRONG, linewidth=0.8, transform=ax.transAxes)
+    for x, h in zip(col_x, headers):
+        align = "right" if h != "SLEEVE" else "left"
+        ax.text(x, y_header, h,
+                fontsize=7, color=INK_FAINT, fontweight="600",
+                va="center", ha=align, transform=ax.transAxes)
+
+    row_h = 0.135
+    y = y_header - 0.080
+    for i, (key, label, multi_key) in enumerate(sleeve_rows):
+        if i % 2 == 1:
+            ax.add_patch(Rectangle((0.0, y - 0.045), 1.0, row_h * 0.85,
+                                     facecolor=ZEBRA, edgecolor="none",
+                                     transform=ax.transAxes, zorder=0))
+        # Sharpe / CAGR / DD from multi.strategies (common window)
+        st = multi.get("strategies", {}).get(multi_key, {})
+        sharpe = st.get("sharpe")
+        cagr = st.get("cagr")
+        dd = st.get("max_dd")
+        # YTD computed from sleeve headline equity
+        blob = sleeves.get(key, {}).get("headline", {})
+        dates = blob.get("headline_equity_dates")
+        equity = blob.get("headline_equity")
+        ytd = None
+        if dates and equity:
+            ser = pd.Series(equity, index=pd.to_datetime(dates))
+            last_date = ser.index[-1]
+            ytd_start = pd.Timestamp(last_date.year, 1, 1)
+            ytd = window_ret(ser, ytd_start)
+        ax.text(col_x[0], y, label, fontsize=8.5, color=INK,
+                fontweight="500", va="center", transform=ax.transAxes)
+        ax.text(col_x[1], y, fmt_num(sharpe) if sharpe else "—",
+                fontsize=9, color=colour_pn(sharpe), fontweight="600",
+                va="center", ha="right", family="monospace",
+                transform=ax.transAxes)
+        ax.text(col_x[2], y, fmt_pct(cagr) if cagr else "—",
+                fontsize=9, color=colour_pn(cagr),
+                va="center", ha="right", family="monospace",
+                transform=ax.transAxes)
+        ax.text(col_x[3], y, fmt_pct(dd) if dd else "—",
+                fontsize=9, color=BAD,
+                va="center", ha="right", family="monospace",
+                transform=ax.transAxes)
+        ax.text(col_x[4], y, fmt_pct(ytd) if ytd is not None else "—",
+                fontsize=9, color=colour_pn(ytd), fontweight="600",
+                va="center", ha="right", family="monospace",
+                transform=ax.transAxes)
+        y -= row_h
+
+
+def render_asset_class_rollup(ax, sleeves, p22_active):
+    """Asset-class exposure of the current target portfolio.
+    Aggregates holdings across sleeves into broad buckets."""
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+    ax.text(0.0, 0.95, "ASSET CLASS EXPOSURE",
+            fontsize=9, color=INK, fontweight="700",
+            va="top", transform=ax.transAxes)
+    ax.text(0.0, 0.85, "Today's deployed positions rolled up by broad asset class",
+            fontsize=7.5, color=INK_FAINT, va="top",
+            transform=ax.transAxes, fontstyle="italic")
+
+    # ETF → asset class mapping (hand-curated for the deployed universe)
+    AC_MAP = {
+        # US Equity (sectors + broad + small)
+        **{e: "US Equity" for e in [
+            "SOXX", "CSP1", "CNDX", "IUES", "IUFS", "IUHC", "IUIS",
+            "IUCS", "IUCD", "IUUS", "IUMS", "IUCM", "IUSP", "IDP6",
+            "SPY", "IJR", "QQQ"]},
+        # Intl Developed
+        **{e: "Intl Developed Equity" for e in ["EFA", "VGK", "EWJ"]},
+        # Emerging Markets
+        **{e: "Emerging Mkts Equity" for e in [
+            "EEM", "CQQQ", "159801.SZ"]},
+        # Real Estate
+        "VNQ": "Real Estate",
+        # Commodities (spot + miners)
+        **{e: "Commodities / Miners" for e in [
+            "GLD", "DBC", "GDX", "COPX", "MOO", "XME", "WOOD", "REMX"]},
+        # Bonds
+        **{e: "Bonds" for e in ["TLT", "IEF", "TIP", "SHY"]},
+        # Europe sectors -> Intl Developed
+        **{e: "Intl Developed Equity" for e in [
+            "EXV1", "EXH1", "EXV3", "EXH3", "EXH9"]},
+        # Thematic catch-all
+        **{e: "Thematic" for e in [
+            "ARKK", "CIBR", "SKYY", "BOTZ", "BLOK", "ICLN", "TAN",
+            "LIT", "URA", "XBI", "ARKG", "JETS", "PAVE", "ITA"]},
+        # Crypto
+        "BTC-USD": "Crypto",
+    }
+
+    sleeve_weights = {"a": 0.35, "b": 0.25 if p22_active else 0.35,
+                      "c": 0.10, "d": 0.20}
+    rollup = {}
+    for key, sleeve_wt in sleeve_weights.items():
+        s = sleeves.get(key, {})
+        trades = s.get("headline", {}).get("trade_history", [])
+        if not trades: continue
+        for h in trades[-1].get("holdings", []):
+            ac = AC_MAP.get(h["etf"], "Other")
+            rollup[ac] = rollup.get(ac, 0) + h["weight"] * sleeve_wt
+    if p22_active:
+        rollup["Emerging Mkts Equity"] = (
+            rollup.get("Emerging Mkts Equity", 0) + 0.10)
+
+    # Sort descending by weight
+    items = sorted(rollup.items(), key=lambda x: -x[1])
+    total = sum(w for _, w in items)
+    # Colour mapping
+    colour_map = {
+        "US Equity":              ACCENT,
+        "Intl Developed Equity":  "#0e7490",
+        "Emerging Mkts Equity":   "#dc2626",
+        "Real Estate":            "#0d9488",
+        "Commodities / Miners":   "#ca8a04",
+        "Bonds":                  GOOD,
+        "Thematic":               "#7c3aed",
+        "Crypto":                 "#f59e0b",
+        "Other":                  INK_FAINT,
+    }
+
+    # Horizontal stacked bar at the top + breakdown table below
+    bar_y = 0.62
+    bar_h = 0.10
+    ax.add_patch(Rectangle((0.0, bar_y - bar_h), 1.0, bar_h,
+                            facecolor="white", edgecolor=BORDER_STRONG,
+                            linewidth=0.6, transform=ax.transAxes))
+    x_cursor = 0.0
+    for name, w in items:
+        frac = w / total if total > 0 else 0
+        if frac <= 0: continue
+        col = colour_map.get(name, INK_FAINT)
+        ax.add_patch(Rectangle((x_cursor, bar_y - bar_h),
+                                 frac, bar_h,
+                                 facecolor=col, edgecolor="white",
+                                 linewidth=0.4, transform=ax.transAxes))
+        # Inline label if segment wide enough
+        if frac > 0.06:
+            ax.text(x_cursor + frac / 2, bar_y - bar_h / 2,
+                    f"{frac*100:.0f}%",
+                    fontsize=8, color="white", fontweight="700",
+                    ha="center", va="center", transform=ax.transAxes)
+        x_cursor += frac
+
+    # Breakdown table (2 cols if needed)
+    y = bar_y - bar_h - 0.06
+    row_h = 0.060
+    for i, (name, w) in enumerate(items):
+        if i >= 7: break  # limit rows to what fits
+        col = colour_map.get(name, INK_FAINT)
+        # Swatch + label + weight
+        ax.add_patch(Rectangle((0.0, y - 0.020), 0.012, 0.020,
+                                facecolor=col, edgecolor="none",
+                                transform=ax.transAxes))
+        ax.text(0.03, y - 0.012, name, fontsize=8.5, color=INK,
+                va="center", transform=ax.transAxes)
+        ax.text(0.96, y - 0.012, fmt_pct(w, signed=False, dp=1),
+                fontsize=9, color=ACCENT, fontweight="700",
+                family="monospace", ha="right", va="center",
+                transform=ax.transAxes)
+        y -= row_h
 
 
 def render_watchlist(ax, overlay):
@@ -787,24 +986,37 @@ def build(out_path: Path):
         fig = plt.figure(figsize=(8.27, 11.69), facecolor="white")
         render_page_header(fig, title, asof_str, 2, 2)
 
+        # Page 2 layout — 6 rows fill the entire page with useful
+        # weekly analytics. No empty space.
         gs = gridspec.GridSpec(
-            nrows=4, ncols=1,
-            height_ratios=[1.0, 3.2, 2.2, 1.7],
-            hspace=0.50,
+            nrows=6, ncols=1,
+            height_ratios=[1.0, 3.0, 1.8, 1.5, 2.4, 2.2],
+            hspace=0.55,
             left=0.06, right=0.94, top=0.93, bottom=0.045,
         )
-        # Row 1: Live state cards
+        # Row 1: Live state cards (3-up)
         render_regime_panel(fig.add_subplot(gs[0]), overlay)
-        # Row 2: Holdings table
+        # Row 2: Holdings table — current target portfolio
         render_holdings_table(fig.add_subplot(gs[1]), sleeves, p22_active)
-        # Row 3: trades + watchlist split horizontally
-        bottom_split = gridspec.GridSpecFromSubplotSpec(
-            1, 2, subplot_spec=gs[2], wspace=0.10)
-        render_trades_panel(fig.add_subplot(bottom_split[0]), sleeves)
-        render_watchlist(fig.add_subplot(bottom_split[1]), overlay)
-        # Row 4: sleeve attribution
+        # Row 3: trades (left) + watchlist (right)
+        row3 = gridspec.GridSpecFromSubplotSpec(
+            1, 2, subplot_spec=gs[2], wspace=0.12)
+        render_trades_panel(fig.add_subplot(row3[0]), sleeves)
+        render_watchlist(fig.add_subplot(row3[1]), overlay)
+        # Row 4: Sleeve attribution bars (full width, larger left margin
+        # for sleeve name labels — pad handled in renderer)
         render_sleeve_attribution(fig.add_subplot(gs[3]),
                                      sleeves, deployed_series, p22_active)
+        # Row 5: per-sleeve standalone stats (left) + asset-class
+        # exposure (right)
+        row5 = gridspec.GridSpecFromSubplotSpec(
+            1, 2, subplot_spec=gs[4], wspace=0.12)
+        render_sleeve_stats_table(fig.add_subplot(row5[0]), sleeves, multi)
+        render_asset_class_rollup(fig.add_subplot(row5[1]),
+                                     sleeves, p22_active)
+        # Row 6: empty slot — leaves whitespace before footer to keep
+        # the page from feeling crowded
+        empty = fig.add_subplot(gs[5]); empty.axis("off")
 
         render_page_footer(fig, computed_at)
         pdf.savefig(fig, bbox_inches=None, pad_inches=0)
