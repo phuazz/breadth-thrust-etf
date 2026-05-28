@@ -310,6 +310,43 @@
         font-size: 9px; color: var(--ink-faint);
         margin-left: 6px; font-weight: 500;
       }
+      /* Total deployed row: the colspan="6" label cell visually
+         collapses to col 1 width when cols 2-6 are hidden. Keep the
+         "Total deployed" label right-aligned next to the % cell so the
+         row reads cleanly as a two-column footer. */
+      table.holdings tr.total-row td:first-child {
+        text-align: right; padding-right: 12px;
+        white-space: nowrap;
+      }
+      /* Expand row (mini-chart panel) — reduce chart height on mobile
+         and tighten padding so the chart + stats fit comfortably. */
+      table.holdings tr.holdings-expand-row td {
+        padding: 10px 8px;
+      }
+      .holdings-mini-chart {
+        height: 200px;
+      }
+      .holdings-mini-header {
+        flex-wrap: wrap; gap: 8px 14px;
+      }
+      .holdings-mini-header .meta {
+        margin-left: 0; flex-basis: 100%;
+      }
+      /* Holdings table: tighten cell padding on mobile so the two
+         visible columns sit closer to the edges and the row height
+         doesn't waste vertical space. */
+      table.holdings thead th,
+      table.holdings tbody td {
+        padding: 7px 6px;
+      }
+      table.holdings thead th:first-child,
+      table.holdings tbody td:first-child {
+        padding-left: 12px;
+      }
+      table.holdings thead th:last-child,
+      table.holdings tbody td:last-child {
+        padding-right: 12px;
+      }
     }
     .holdings-mini-chart {
       width: 100%; height: 260px;
