@@ -1033,6 +1033,181 @@
                        background: var(--bg-card); padding: 1px 5px; border-radius: 2px;
                        border: 1px solid var(--border); }
 
+    /* ----- Position preview cards (above-the-fold positions + activity) ----- */
+    /* First-time readers want to see what is currently held and what changed
+       this week BEFORE they read methodology. These two cards sit right
+       under the hero KPI strip so positions are the second thing on the
+       page, not buried in the Monitor tab. */
+    #positions-preview {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 14px 0 12px 0;
+    }
+    @media (max-width: 720px) {
+      #positions-preview { grid-template-columns: 1fr; }
+    }
+    .prev-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 10px 14px 12px 14px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .prev-card-h {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+    .prev-card-h-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--ink-soft, #3a4148);
+    }
+    .prev-card-h-asof {
+      font-size: 10.5px;
+      color: var(--ink-faint);
+    }
+    table.prev-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    table.prev-table td {
+      padding: 4px 4px 4px 0;
+      vertical-align: middle;
+      border: none;
+    }
+    table.prev-table td.tk {
+      font-family: 'JetBrains Mono', Courier, monospace;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    table.prev-table td.sl {
+      font-size: 10.5px;
+      color: var(--ink-faint);
+      letter-spacing: 0.3px;
+    }
+    table.prev-table td.wt {
+      text-align: right;
+      color: var(--accent);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    table.prev-table td.cash {
+      text-align: right;
+      font-family: 'JetBrains Mono', Courier, monospace;
+      font-size: 11.5px;
+      color: var(--ink-soft, #3a4148);
+      white-space: nowrap;
+    }
+    table.prev-table td.act {
+      font-weight: 700;
+      font-size: 10.5px;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+    table.prev-table td.act.enter { color: var(--good, #1d7a3a); }
+    table.prev-table td.act.exit  { color: var(--bad,  #b3261e); }
+    table.prev-table td.act.resize { color: var(--warn, #b76e00); }
+    table.prev-table td.delta {
+      text-align: right;
+      font-family: 'JetBrains Mono', Courier, monospace;
+      font-size: 11px;
+      color: var(--ink-faint);
+      white-space: nowrap;
+    }
+    .prev-card-foot {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--ink-faint);
+    }
+    .prev-card-foot a { color: var(--accent); text-decoration: none; }
+    .prev-card-foot a:hover { text-decoration: underline; }
+    .prev-card-empty {
+      font-style: italic;
+      color: var(--ink-faint);
+      font-size: 12.5px;
+      padding: 4px 0;
+    }
+
+    /* Compact 1-line config ribbon (replaces the 3-column canonical box) */
+    #config-ribbon {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0 14px;
+      align-items: baseline;
+      padding: 8px 14px;
+      margin: 0 0 10px 0;
+      background: var(--bg-soft);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--ink-soft, #3a4148);
+      line-height: 1.7;
+    }
+    #config-ribbon .rib-lbl {
+      font-size: 10.5px;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+    #config-ribbon code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      background: var(--bg-card);
+      padding: 1px 5px;
+      border-radius: 2px;
+      border: 1px solid var(--border);
+    }
+    #config-ribbon strong { color: var(--ink); }
+    #config-ribbon .rib-sep { color: var(--ink-faint); }
+
+    /* Caveats banner: collapsible by default so it doesn't dominate the hero */
+    details.caveats-collapsible > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 8px 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink-soft, #3a4148);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    details.caveats-collapsible > summary::-webkit-details-marker { display: none; }
+    details.caveats-collapsible > summary::after {
+      content: 'Show \25BC';
+      font-size: 10.5px;
+      color: var(--ink-faint);
+      font-weight: 500;
+      letter-spacing: 0.4px;
+    }
+    details.caveats-collapsible[open] > summary::after { content: 'Hide \25B2'; }
+    details.caveats-collapsible[open] > summary { border-radius: 4px 4px 0 0; border-bottom: none; }
+    details.caveats-collapsible > .caveats-body {
+      padding: 10px 18px 12px 18px;
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      background: var(--bg-card);
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+    details.caveats-collapsible > .caveats-body ul { margin: 4px 0 0 18px; padding: 0; }
+    details.caveats-collapsible > .caveats-body li { margin: 5px 0; }
+
     /* ----- Phase X retrospective accordions (Phase 3 reader experience) ----- */
     /* Collapsed by default — surface verdict + caveats first, build log second. */
     details.phase-retro {
@@ -1321,77 +1496,69 @@
         <div class="desc">Walk-forward validated</div>
       </div>
     </div>
-    <div class="sleeve-strip">
-      <div class="sleeve-card">
-        <div class="role"><span>A · US sector rotation</span><span class="wt">35%</span></div>
-        <div>Rotates among 14 US sector ETFs each week. Holds whichever 7 have the highest breadth (% of constituents in uptrend).</div>
-      </div>
-      <div class="sleeve-card b">
-        <div class="role"><span>B · Asset-class rotation</span><span class="wt">35%</span></div>
-        <div>Rotates across 13 broad asset-class ETFs for downside protection — rotates into Treasuries, gold, or cash when equities weaken.</div>
-      </div>
-      <div class="sleeve-card c">
-        <div class="role"><span>C · Thematic optionality</span><span class="wt">10%</span></div>
-        <div>Catches secular thematic bulls (AI, clean energy, biotech). Sized to cap downside while keeping the upside (+162% best 12-month).</div>
-      </div>
-      <div class="sleeve-card d">
-        <div class="role"><span>D · Europe sector rotation</span><span class="wt">20%</span></div>
-        <div>Same mechanism as A but on 5 Stoxx Europe 600 sector UCITS — adds non-US macro exposure (ECB cycle, EUR/USD, China trade).</div>
-      </div>
-    </div>
-    <div class="footnote">
-      <em>Walk-forward</em> = within-sleeve K parameter is refit each year using only past data, then applied to the next 12 months. <strong>NOT walk-forward</strong>: weighting scheme (Phase 6 / Phase 20), universe additions (Phases 15&ndash;17.1), cost calibration (Phase 12), overlay parameters (Phase 19 sweep), EEM tilt (Phase 22). Those structural changes were applied across the entire backtest history &mdash; their reported lifts are in-sample improvements.
-      Full statistical tests, regime decomposition, per-sleeve performance, and trade history live on the <strong>Multi-Strategy</strong>, <strong>Trade History</strong>, and <strong>Method</strong> tabs.
-    </div>
-
-    <!-- ==================== CANONICAL CONFIG BOX ==================== -->
-    <!-- Single source of truth for the live deployed state. Numbers
-         here are populated by scripts/pipeline.py from the canonical
-         JSONs. Any narrative number that disagrees with this box is
-         stale. -->
-    <div id="canonical-config-box" style="margin:18px 0 14px 0;padding:14px 18px;background:var(--bg-card,#f7f8fa);border:1px solid var(--border,#e1e4e8);border-radius:6px;font-size:12.5px;line-height:1.55;">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;border-bottom:1px solid var(--border,#e1e4e8);padding-bottom:8px;">
-        <strong style="font-size:13.5px;text-transform:uppercase;letter-spacing:0.6px;color:var(--ink,#0f1217);">Current deployed configuration</strong>
-        <span style="color:var(--ink-faint,#7c8590);font-size:11px;">Single source of truth &middot; <span id="canonical-asof">—</span></span>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px 22px;">
-        <div>
-          <div style="color:var(--ink-faint,#7c8590);font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Universe (signal-generating ETFs)</div>
-          <div><strong>A</strong> &middot; US sectors &middot; <strong>14</strong></div>
-          <div><strong>B</strong> &middot; Asset class &middot; <strong>13</strong> + SHY cash floor</div>
-          <div><strong>C</strong> &middot; Thematic &middot; <strong>23</strong> + SHY cash floor</div>
-          <div><strong>D</strong> &middot; Europe sectors &middot; <strong>5</strong></div>
+    <!-- ==================== POSITIONS PREVIEW (Phase 4 UX) ==================== -->
+    <!-- Above-the-fold: current top 5 holdings + this week's rebalance.
+         First-time reader sees WHAT THE PORTFOLIO OWNS before scrolling
+         past methodology / sleeve descriptions / caveats. JS-bound to
+         the same trade_history data the Monitor tab uses. -->
+    <div id="positions-preview">
+      <div class="prev-card">
+        <div class="prev-card-h">
+          <span class="prev-card-h-title">Current top holdings</span>
+          <span class="prev-card-h-asof" id="preview-holdings-asof">—</span>
         </div>
-        <div>
-          <div style="color:var(--ink-faint,#7c8590);font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Sleeve weights &amp; costs</div>
-          <div>A 35% &middot; B 25% &middot; C 10% &middot; D 20%</div>
-          <div style="font-size:11.5px;color:var(--ink-soft,#3a4148);">+ Phase 22 EEM tilt 10% (funded from B when 50/200d MA crosses up)</div>
-          <div style="margin-top:4px;font-size:11.5px;color:var(--ink-soft,#3a4148);">Per-sleeve cost: 5 bps per unit weight change (Phase 12 calibration)</div>
-        </div>
-        <div>
-          <div style="color:var(--ink-faint,#7c8590);font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Deployed blend backtest (canonical)</div>
-          <div>Sharpe &middot; <strong id="canonical-sharpe">+1.29</strong></div>
-          <div>CAGR &middot; <strong id="canonical-cagr">+15.9%</strong></div>
-          <div>Max DD &middot; <strong id="canonical-mdd">&minus;16.4%</strong></div>
-          <div style="margin-top:4px;font-size:11px;color:var(--ink-faint,#7c8590);">Key: <code style="font-size:10px;background:var(--bg-panel,#fff);padding:1px 4px;border-radius:2px;">blend_35_35_10_20_gated_eem_tilted</code></div>
+        <table class="prev-table" id="preview-holdings-table"><tbody></tbody></table>
+        <div class="prev-card-foot">
+          Sized on a $1.0M portfolio &middot;
+          <a href="#" onclick="activateTab('monitor');return false;">Full target portfolio &rarr;</a>
         </div>
       </div>
-      <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border,#e1e4e8);font-size:11px;color:var(--ink-faint,#7c8590);">
-        Older Phase narratives (Phase 4 pre-overlay baseline, Phase 17 universe snapshots, etc.) cite different numbers &mdash; those are <em>historical snapshots</em>, not current. When in doubt, this box is the ground truth.
+      <div class="prev-card">
+        <div class="prev-card-h">
+          <span class="prev-card-h-title">This week's changes</span>
+          <span class="prev-card-h-asof" id="preview-activity-asof">—</span>
+        </div>
+        <table class="prev-table" id="preview-activity-table"><tbody></tbody></table>
+        <div class="prev-card-foot">
+          <a href="#" onclick="activateTab('trade-history');return false;">Full rebalance ledger &rarr;</a>
+        </div>
       </div>
     </div>
 
-    <div class="caveats-banner">
-      <strong>Known caveats reviewers will surface (acknowledged upfront):</strong>
-      <ul>
-        <li><strong>Survivorship bias in Strategy C</strong> (thematic): the 23 ETFs all survived to 2026. Failed thematics (cannabis, leveraged-thematic, volatility) never entered the universe. C standalone Sharpe is on a survivor-selected basket.</li>
-        <li><strong>Phase 19 overlay parameters tuned in-sample</strong>: chosen from a 12-variant sweep on the same data the gated-vs-ungated comparison reports on. No OOS validation of the gate thresholds themselves.</li>
-        <li><strong>Phase 22 EEM tilt deployed on weak sample</strong>: the 50d/200d golden cross has produced only a small number of distinct ON-events in the 7.5-year window. The tilt is deployed as a low-cost positional bet on an EM-cycle turn, not as a robustly-evidenced alpha source.</li>
-        <li><strong>Sharpe sample noise</strong>: 7.5y &times; weekly observations gives Sharpe SE &asymp; &plusmn;0.4. A reported Sharpe of +1.29 sits in a ~95% CI of roughly [+0.55, +2.03]. Treat headline ratios as ranges.</li>
-        <li><strong>No live track record</strong>: every return shown is simulated. Future performance will diverge.</li>
-        <li><strong>Backtest costs are conservative-not-pessimistic</strong>: 2&ndash;9 bps per unit weight change per sleeve, no slippage / market-impact model. Real execution at Friday close has measurable spread cost not captured here.</li>
-      </ul>
+    <!-- Compact 1-line config ribbon — replaces the sleeve strip + footnote
+         + canonical config box that used to live here. Single source of
+         truth for the deployed configuration on one line. -->
+    <div id="config-ribbon">
+      <span class="rib-lbl">Deployed:</span>
+      <code id="ribbon-key">blend_35_35_10_20_gated_eem_tilted</code>
+      <span class="rib-sep">&middot;</span>
+      <span>Universe <strong>A14 / B13 / C23 / D5</strong></span>
+      <span class="rib-sep">&middot;</span>
+      <span>Weights <strong>35 / 25 / 10 / 20</strong> + EEM tilt 10%</span>
+      <span class="rib-sep">&middot;</span>
+      <span>Sharpe <strong id="ribbon-sharpe">+1.29</strong></span>
+      <span class="rib-sep">&middot;</span>
+      <span>CAGR <strong id="ribbon-cagr">+15.9%</strong></span>
+      <span class="rib-sep">&middot;</span>
+      <span>Max DD <strong id="ribbon-mdd">&minus;16.4%</strong></span>
     </div>
+
+    <!-- Collapsible caveats — keeps epistemic-honesty signalling but
+         doesn't push positions below the fold. Default-closed. -->
+    <details class="caveats-collapsible">
+      <summary>Known caveats &amp; methodology footnotes (acknowledged upfront)</summary>
+      <div class="caveats-body">
+        <ul>
+          <li><strong>Survivorship bias in Strategy C</strong> (thematic): the 23 ETFs all survived to 2026. Failed thematics (cannabis, leveraged-thematic, volatility) never entered the universe. C standalone Sharpe is on a survivor-selected basket.</li>
+          <li><strong>Phase 19 overlay parameters tuned in-sample</strong>: chosen from a 12-variant sweep on the same data the gated-vs-ungated comparison reports on. No OOS validation of the gate thresholds themselves.</li>
+          <li><strong>Phase 22 EEM tilt deployed on weak sample</strong>: the 50d/200d golden cross has produced only a small number of distinct ON-events in the 7.5-year window. The tilt is deployed as a low-cost positional bet on an EM-cycle turn, not as a robustly-evidenced alpha source.</li>
+          <li><strong>Sharpe sample noise</strong>: 7.5y &times; weekly observations gives Sharpe SE &asymp; &plusmn;0.4. A reported Sharpe of +1.29 sits in a ~95% CI of roughly [+0.55, +2.03]. Treat headline ratios as ranges.</li>
+          <li><strong>No live track record</strong>: every return shown is simulated. Future performance will diverge.</li>
+          <li><strong>Backtest costs are conservative-not-pessimistic</strong>: 2&ndash;9 bps per unit weight change per sleeve, no slippage / market-impact model. Real execution at Friday close has measurable spread cost not captured here.</li>
+          <li><strong>Walk-forward definition</strong>: within-sleeve K parameter is refit each year using only past data, then applied to the next 12 months. <strong>Not walk-forward</strong>: weighting scheme (Phase 6 / Phase 20), universe additions (Phases 15&ndash;17.1), cost calibration (Phase 12), overlay parameters (Phase 19 sweep), EEM tilt (Phase 22). Those structural changes were applied across the entire backtest history &mdash; their reported lifts are in-sample improvements.</li>
+        </ul>
+      </div>
+    </details>
   </div>
 </header>
 
@@ -2517,15 +2684,12 @@ function renderHeroStrip() {
   set('hero-dd',     maxDd != null ? fmtPct(maxDd) : '—');
   set('hero-window', yearStr);
 
-  // Canonical configuration box — bind to the same deployed-blend numbers
-  // so the box is the single source of truth and stays in sync with each
-  // pipeline run (no hardcoded Sharpe drift).
-  set('canonical-sharpe', sharpe != null ? fmtNum(sharpe, 2, true) : '—');
-  set('canonical-cagr',   cagr != null ? fmtPct(cagr, true) : '—');
-  set('canonical-mdd',    maxDd != null ? fmtPct(maxDd) : '—');
-  if (m.common_end) {
-    set('canonical-asof', 'signals as of ' + m.common_end);
-  }
+  // Compact 1-line config ribbon — bind to the same deployed-blend
+  // numbers so the ribbon stays in sync with each pipeline run.
+  set('ribbon-sharpe', sharpe != null ? fmtNum(sharpe, 2, true) : '—');
+  set('ribbon-cagr',   cagr != null ? fmtPct(cagr, true) : '—');
+  set('ribbon-mdd',    maxDd != null ? fmtPct(maxDd) : '—');
+  if (headlineKey) set('ribbon-key', headlineKey);
 
   // Phase 19 + 22: live regime badges — short version. Full CPM-grade detail
   // (gauge, explainer, impact table, event log) is rendered in the
@@ -2614,6 +2778,121 @@ function _trafficLightStrength(breadthPct) {
 function _asofPrefix(sleeveKey) {
   const dt = window.DATA?.signals_asof?.[sleeveKey];
   return dt ? ('Signals as of ' + dt + ' · ') : '';
+}
+
+// =====================================================================
+// Phase 4 UX — above-the-fold positions + this-week activity preview.
+// Pulls from the same trade_history data the Monitor tab uses, so the
+// preview is always in sync with the full target portfolio without
+// any extra pipeline plumbing. Mirrors the logic in
+// scripts/build_email_body.py so the dashboard preview and the weekly
+// email tell the same story.
+// =====================================================================
+function renderPositionsPreview() {
+  const data = window.DATA;
+  if (!data) return;
+  const sleeves = {
+    a: data.topk, b: data.asset_class, c: data.thematic, d: data.europe,
+  };
+  // Phase 22 EEM tilt active? — funds 10pp from B into EEM
+  const p22Active = data.risk_overlay?.phase22_eem_tilt?.current_state === 'EM_TILT_ON';
+  const wts = {
+    a: 0.35, b: p22Active ? 0.25 : 0.35, c: 0.10, d: 0.20,
+  };
+  // ---- holdings ----
+  const holdings = [];
+  let mostRecentDate = '';
+  for (const [k, sleeve] of Object.entries(sleeves)) {
+    const trades = sleeve?.headline?.trade_history || [];
+    if (!trades.length) continue;
+    const latest = trades[trades.length - 1];
+    if (latest.date && latest.date > mostRecentDate) mostRecentDate = latest.date;
+    for (const h of latest.holdings || []) {
+      holdings.push({
+        etf: h.etf, sleeve: k.toUpperCase(),
+        within: h.weight, eff: (h.weight || 0) * wts[k],
+      });
+    }
+  }
+  if (p22Active) {
+    holdings.push({ etf: 'EEM', sleeve: 'TILT', within: 1.0, eff: 0.10 });
+  }
+  holdings.sort((x, y) => y.eff - x.eff);
+  const top = holdings.slice(0, 5);
+  const hTable = document.querySelector('#preview-holdings-table tbody');
+  if (hTable) {
+    if (!top.length) {
+      hTable.innerHTML = '<tr><td colspan="4" class="prev-card-empty">No holdings data</td></tr>';
+    } else {
+      hTable.innerHTML = top.map(h => {
+        const cash = (h.eff * 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 0 });
+        const wtStr = (h.eff * 100).toFixed(1) + '%';
+        return `<tr>
+          <td class="tk">${h.etf}</td>
+          <td class="sl">${h.sleeve}</td>
+          <td class="wt">${wtStr}</td>
+          <td class="cash">$${cash}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+  const asofH = document.getElementById('preview-holdings-asof');
+  if (asofH && mostRecentDate) asofH.textContent = 'as of ' + mostRecentDate;
+
+  // ---- activity (this week's rebalance) ----
+  const activity = [];
+  for (const [k, sleeve] of Object.entries(sleeves)) {
+    const trades = sleeve?.headline?.trade_history || [];
+    if (trades.length < 2) continue;
+    const prev = Object.fromEntries((trades[trades.length - 2].holdings || []).map(h => [h.etf, h.weight]));
+    const curr = Object.fromEntries((trades[trades.length - 1].holdings || []).map(h => [h.etf, h.weight]));
+    const sl = k.toUpperCase();
+    for (const etf in curr) {
+      if (!(etf in prev)) activity.push({ sl, action: 'ENTER', etf, prev: null, neu: curr[etf] });
+    }
+    for (const etf in prev) {
+      if (!(etf in curr)) activity.push({ sl, action: 'EXIT', etf, prev: prev[etf], neu: null });
+    }
+    for (const etf in curr) {
+      if (etf in prev && Math.abs(curr[etf] - prev[etf]) > 0.01) {
+        activity.push({ sl, action: 'RESIZE', etf, prev: prev[etf], neu: curr[etf] });
+      }
+    }
+  }
+  // Action priority: ENTER > EXIT > RESIZE; within each, largest weight first.
+  const actOrder = { ENTER: 0, EXIT: 1, RESIZE: 2 };
+  activity.sort((x, y) => {
+    if (actOrder[x.action] !== actOrder[y.action]) return actOrder[x.action] - actOrder[y.action];
+    return (y.neu || y.prev || 0) - (x.neu || x.prev || 0);
+  });
+  const aTable = document.querySelector('#preview-activity-table tbody');
+  if (aTable) {
+    if (!activity.length) {
+      aTable.innerHTML = '<tr><td colspan="5" class="prev-card-empty">No position changes &mdash; strategy stable.</td></tr>';
+    } else {
+      aTable.innerHTML = activity.slice(0, 6).map(a => {
+        const prevStr = a.prev != null ? (a.prev * 100).toFixed(0) + '%' : '—';
+        const newStr  = a.neu != null ? (a.neu * 100).toFixed(0) + '%' : '—';
+        return `<tr>
+          <td class="sl">${a.sl}</td>
+          <td class="act ${a.action.toLowerCase()}">${a.action}</td>
+          <td class="tk">${a.etf}</td>
+          <td class="delta">${prevStr} &rarr; ${newStr}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+  // Activity 'as of' is the most recent rebalance date among the sleeves.
+  let activityDate = '';
+  for (const sleeve of Object.values(sleeves)) {
+    const trades = sleeve?.headline?.trade_history || [];
+    if (trades.length) {
+      const d = trades[trades.length - 1].date;
+      if (d && d > activityDate) activityDate = d;
+    }
+  }
+  const asofA = document.getElementById('preview-activity-asof');
+  if (asofA && activityDate) asofA.textContent = activityDate;
 }
 
 function renderMonitor() {
@@ -7790,6 +8069,8 @@ function _runLoadingWatchdog() {
   // Hero stat strip in the header — populate from the deployed blend's
   // numbers so the header headline stays in sync with each pipeline run.
   safeRender('hero-strip', renderHeroStrip);
+  // Above-the-fold positions + this-week activity preview (Phase 4 UX).
+  safeRender('positions-preview', renderPositionsPreview);
   // Render the default tab immediately
   safeRender('monitor', renderMonitor);
   TAB_RENDERED.add('monitor');
