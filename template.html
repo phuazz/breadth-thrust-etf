@@ -2543,6 +2543,15 @@ function _trafficLightStrength(breadthPct) {
   return { word: 'borderline', cls: 'warn' };
 }
 
+// Phase 2.3 — per-sleeve 'data as of' prefix sourced from
+// data.signals_asof (populated by scripts/pipeline.py from each sleeve
+// JSON's last headline_equity_date). Empty fallback so the prefix
+// silently disappears on older builds that did not emit signals_asof.
+function _asofPrefix(sleeveKey) {
+  const dt = window.DATA?.signals_asof?.[sleeveKey];
+  return dt ? ('Signals as of ' + dt + ' · ') : '';
+}
+
 function renderMonitor() {
   const data = window.DATA;
   const topk = data.topk;
@@ -2987,6 +2996,7 @@ function renderMonitor() {
 
   // ===== Strategy A panel =====
   document.getElementById('live-a-sub').textContent =
+    _asofPrefix('a') +
     `Rank 14 US sector/broad-market ETFs by % of constituents above 200d MA. Take top K=${topk.headline.K}. Weight by breadth share. Allocates ${(W_A*100).toFixed(0)}% of total NAV.`;
   const aS = aStats || {};
   document.getElementById('live-a-stats').innerHTML = `
@@ -3035,6 +3045,7 @@ function renderMonitor() {
 
   // ===== Strategy B panel =====
   document.getElementById('live-b-sub').textContent =
+    _asofPrefix('b') +
     `Rank 13 broad asset-class ETFs by distance above own 200d MA. Drop negatives. Take top K=${ac.headline.K}. Weight by signal share. Allocates ${(W_B*100).toFixed(0)}% of total NAV. (HYG removed Phase 24 — equity-correlated, never defensive.)`;
   const bS = bStats || {};
   document.getElementById('live-b-stats').innerHTML = `
@@ -3100,6 +3111,7 @@ function renderMonitor() {
   // ===== Strategy C panel =====
   if (hasC) {
     document.getElementById('live-c-sub').textContent =
+      _asofPrefix('c') +
       `Rank 23 thematic ETFs by distance above own 200d MA. Filter to those >+5% above MA (hard signal floor). Take top K=${tc.headline.K}, equal-weight (1/K) across the holdings. Allocates ${(W_C*100).toFixed(0)}% of total NAV.`;
     const cS = cStats || {};
     document.getElementById('live-c-stats').innerHTML = `
@@ -3160,6 +3172,7 @@ function renderMonitor() {
   // ===== Strategy D panel (Phase 4 — Europe sector breadth) =====
   if (hasD) {
     document.getElementById('live-d-sub').textContent =
+      _asofPrefix('d') +
       `Rank ${eu.universe?.length || 5} Stoxx Europe 600 sector ETFs by % of constituents above 200d MA. Take top K=${eu.headline.K}. Weight by breadth excess. Allocates ${(W_D*100).toFixed(0)}% of total NAV.`;
     const dS = dStats || {};
     document.getElementById('live-d-stats').innerHTML = `
@@ -7625,11 +7638,83 @@ function activateTab(name) {
   }
 }
 
+// ====================================================================
+// Phase 2.2 — graceful failure: error/timeout state for Loading panels
+// ====================================================================
+// Without these guards a JS error in any render function would leave
+// the corresponding 'Loading…' placeholder visible forever, with no
+// signal to the user that something broke. Three layers:
+//
+//   1. Global error handler surfaces uncaught exceptions as a visible
+//      top-of-page banner instead of silent console-only failures.
+//   2. safeRender() wraps every render call so a failure in one
+//      panel does not block subsequent panels from rendering.
+//   3. A 2.5s watchdog converts any remaining 'Loading…' text into
+//      a visible 'data unavailable' state, so a stuck spinner is
+//      never the final UI.
+const LOADING_PANEL_IDS = [
+  'live-a-sub', 'live-b-sub', 'live-c-sub', 'live-d-sub',
+  'portfolio-verdict', 'robustness-verdict',
+];
+
+function _showGlobalErrorBanner(msg) {
+  let banner = document.getElementById('global-error-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'global-error-banner';
+    banner.style.cssText = (
+      'position:fixed;top:0;left:0;right:0;z-index:9999;' +
+      'background:#b3261e;color:#fff;padding:10px 16px;' +
+      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
+      'font-size:13px;line-height:1.4;box-shadow:0 2px 8px rgba(0,0,0,0.2);'
+    );
+    document.body.prepend(banner);
+  }
+  banner.textContent = 'Dashboard error — ' + msg +
+    '. Open the browser console for the full stack trace, or refresh.';
+}
+
+window.addEventListener('error', function (ev) {
+  const where = ev.filename ? ` (${ev.filename}:${ev.lineno})` : '';
+  _showGlobalErrorBanner((ev.message || 'unknown error') + where);
+});
+
+function safeRender(name, fn) {
+  try {
+    fn();
+  } catch (err) {
+    console.error('[render] ' + name + ' failed:', err);
+    _showGlobalErrorBanner(name + ': ' + (err.message || err));
+  }
+}
+
+function _runLoadingWatchdog() {
+  let stuck = 0;
+  LOADING_PANEL_IDS.forEach(function (id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const txt = (el.textContent || '').trim();
+    // Loading… and Loading... both appear; also handle the empty case
+    // where a render cleared the text but never filled it.
+    if (txt === 'Loading…' || txt === 'Loading...' || txt === '') {
+      el.textContent = 'Data unavailable — see browser console';
+      el.style.color = '#b3261e';
+      el.style.fontStyle = 'italic';
+      stuck++;
+    }
+  });
+  if (stuck > 0) {
+    console.warn('[watchdog] ' + stuck +
+                 ' panel(s) stuck on Loading… converted to error state');
+  }
+}
+
 (function init() {
   const data = DASHBOARD_DATA_INLINE;
   if (!data) {
     document.getElementById('live-asof').innerHTML =
       '<p>Build artefact missing. Run <code>python scripts/pipeline.py</code>.</p>';
+    _runLoadingWatchdog();
     return;
   }
   window.DATA = data;
@@ -7640,10 +7725,13 @@ function activateTab(name) {
   }
   // Hero stat strip in the header — populate from the deployed blend's
   // numbers so the header headline stays in sync with each pipeline run.
-  renderHeroStrip();
+  safeRender('hero-strip', renderHeroStrip);
   // Render the default tab immediately
-  renderMonitor();
+  safeRender('monitor', renderMonitor);
   TAB_RENDERED.add('monitor');
+  // 2.5s after init: any panel still saying 'Loading…' is converted
+  // to a visible 'data unavailable' state.
+  setTimeout(_runLoadingWatchdog, 2500);
   // Tab clicks
   document.querySelectorAll('nav.tabs button').forEach((btn) => {
     btn.addEventListener('click', () => activateTab(btn.dataset.tab));

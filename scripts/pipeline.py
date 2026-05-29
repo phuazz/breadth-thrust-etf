@@ -224,6 +224,103 @@ def load_robustness() -> dict | None:
     return blob
 
 
+def assert_series_not_frozen(name: str, dates: list, values: list,
+                              trailing_n: int = 20) -> None:
+    """Hard-fail the pipeline if the trailing N values of a signal series
+    are all identical — the canonical 'frozen breadth' bug condition.
+
+    This is the check that would have caught the Phase 4 silent-freeze
+    incident, where ``compute_ma200_breadth`` quietly held the last good
+    value for non-US ETFs whose constituents had sparse missing days. A
+    perfectly-flat trailing window on what should be a daily-updated
+    signal is overwhelmingly evidence of a stuck data path, not a real
+    market state — flag and abort.
+
+    Args:
+        name: human-readable label for error messages.
+        dates: parallel date list (used only in the error string).
+        values: numeric series. Non-numeric / None entries are ignored.
+        trailing_n: window length. 20 trading days is roughly 4 weeks —
+            short enough to catch a fresh freeze, long enough that a
+            real low-volatility regime does not falsely trigger.
+
+    Raises:
+        RuntimeError: when the last ``trailing_n`` non-NaN values are all
+            equal to the same number.
+    """
+    import math
+    if not values or len(values) < trailing_n:
+        return
+    tail = values[-trailing_n:]
+    tail_dates = dates[-trailing_n:] if dates and len(dates) >= trailing_n else []
+    # Drop None and NaN — they are legitimately missing, not "frozen".
+    clean = [v for v in tail if v is not None
+              and not (isinstance(v, float) and math.isnan(v))]
+    if len(clean) < trailing_n:
+        # Some missing values in the window is fine — only check the
+        # remaining ones for repetition. But require at least N/2 real
+        # points to make the check meaningful.
+        if len(clean) < trailing_n // 2:
+            return
+    if len(set(clean)) == 1:
+        first_dt = tail_dates[0] if tail_dates else "?"
+        last_dt = tail_dates[-1] if tail_dates else "?"
+        raise RuntimeError(
+            f"Pipeline aborted: {name} appears FROZEN — "
+            f"all {len(clean)} trailing values equal "
+            f"{clean[0]!r} from {first_dt} to {last_dt}. This is the "
+            f"Phase 4 stuck-breadth bug condition. Re-run the upstream "
+            f"data generator and verify constituent prices are being "
+            f"refreshed."
+        )
+
+
+def assert_built_at_valid(ts: str | None) -> None:
+    """Hard-fail the pipeline if the 'Last updated:' timestamp is empty
+    or malformed.
+
+    This guards against the silent-empty-timestamp bug surfaced in the
+    review: prior to this assertion an upstream change that wiped the
+    ``built_at`` field would have published a dashboard with a blank
+    'Last updated:' footer and no build-time error. The check uses the
+    ``datetime`` library (not string parsing) per the date-handling rule
+    in CLAUDE.md, and is exercised by ``tests/test_built_at_assertion.py``
+    including month- and year-boundary cases.
+
+    Format invariant: 'YYYY-MM-DD HH:MM UTC' (matches the formatter at
+    line ~374). If you change one, change the other and update the test.
+    """
+    fmt = "%Y-%m-%d %H:%M UTC"
+    if ts is None or not ts.strip():
+        raise RuntimeError(
+            "Pipeline aborted: built_at timestamp is empty. "
+            "The 'Last updated:' span in docs/index.html would render "
+            "blank — fix the upstream timestamp generation before "
+            "publishing."
+        )
+    try:
+        parsed = datetime.strptime(ts, fmt)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"Pipeline aborted: built_at value {ts!r} does not match "
+            f"required format {fmt!r}. This will break the dashboard "
+            "footer date display."
+        ) from exc
+    # Sanity-check the timestamp is within +/- 24h of now. Anything
+    # outside that window suggests a date-library bug (timezone confusion
+    # or month-indexing error) rather than a legitimate value.
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    drift_seconds = abs((now - parsed).total_seconds())
+    if drift_seconds > 24 * 3600:
+        raise RuntimeError(
+            f"Pipeline aborted: built_at {ts!r} is "
+            f"{drift_seconds/3600:.1f}h off current UTC "
+            f"({now.strftime(fmt)}). Likely a date-library bug — "
+            "verify month indexing (JS 0-indexed vs Python 1-indexed) "
+            "and timezone handling at the call site."
+        )
+
+
 def inject(template_text: str, data: dict) -> str:
     payload_json = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     replacement = (
@@ -370,8 +467,67 @@ def main() -> int:
               "run scripts/export_holdings_prices.py to enable the "
               "holdings click-to-expand mini-chart")
 
+    # Use the date library for the build timestamp — never string-concat.
+    # CLAUDE.md date-handling rule: "Always use a date library."
+    built_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    assert_built_at_valid(built_at)
+
+    # ------------------------------------------------------------------
+    # Phase 2.3 — staleness guard on every deployed signal series.
+    # If any sleeve's equity curve (the most-aggregated daily signal we
+    # publish) is flat for the trailing 20 trading days, abort the
+    # publish. This catches the Phase 4 frozen-breadth regression mode
+    # and any future stuck-pipeline incident before the dashboard goes
+    # out with a silently dead signal.
+    # ------------------------------------------------------------------
+    def _check_sleeve_equity(label: str, blob: dict | None) -> None:
+        if not blob:
+            return
+        hl = blob.get("headline", {}) or {}
+        dates = hl.get("headline_equity_dates") or []
+        equity = hl.get("headline_equity") or []
+        if dates and equity:
+            assert_series_not_frozen(f"{label} headline equity",
+                                       dates, equity)
+
+    _check_sleeve_equity("Strategy A (topk_robustness)", topk)
+    _check_sleeve_equity("Strategy B (asset_class_rotation)", asset_class)
+    _check_sleeve_equity("Strategy C (thematic_rotation)", thematic)
+    _check_sleeve_equity("Strategy D (europe_rotation)", europe)
+
+    # The deployed blend itself — last-line check before publish.
+    if multi and multi.get("strategies"):
+        for key in ("blend_35_35_10_20_gated_eem_tilted",
+                     "blend_35_35_10_20_gated", "blend_35_35_10_20"):
+            s = multi["strategies"].get(key)
+            if s and s.get("dates") and s.get("equity"):
+                assert_series_not_frozen(f"deployed blend ({key})",
+                                           s["dates"], s["equity"])
+                break
+
+    # Per-panel 'data as of' dates extracted from the sleeve JSONs.
+    # The dashboard JS reads window.DATA.signals_asof to render a
+    # 'Signals as of YYYY-MM-DD' badge under each strategy panel.
+    def _last_date(blob: dict | None) -> str | None:
+        if not blob:
+            return None
+        hl = blob.get("headline", {}) or {}
+        dates = hl.get("headline_equity_dates") or []
+        return dates[-1] if dates else None
+
+    signals_asof = {
+        "a": _last_date(topk),
+        "b": _last_date(asset_class),
+        "c": _last_date(thematic),
+        "d": _last_date(europe),
+        "blend": multi.get("common_end") if multi else None,
+        "overlay": (risk_overlay or {}).get("current_state_since"),
+    }
+    print(f"\nSignals as-of: {signals_asof}")
+
     data = {
-        "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "built_at": built_at,
+        "signals_asof": signals_asof,
         "ma200": ma200,
         "portfolio": portfolio,
         "robustness": robustness,
