@@ -1033,6 +1033,57 @@
                        background: var(--bg-card); padding: 1px 5px; border-radius: 2px;
                        border: 1px solid var(--border); }
 
+    /* ----- Phase X retrospective accordions (Phase 3 reader experience) ----- */
+    /* Collapsed by default — surface verdict + caveats first, build log second. */
+    details.phase-retro {
+      margin: 8px 0;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg-card);
+      overflow: hidden;
+    }
+    details.phase-retro > summary {
+      list-style: none; /* hide default disclosure triangle */
+      cursor: pointer;
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--bg-card);
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    details.phase-retro > summary::-webkit-details-marker { display: none; }
+    details.phase-retro > summary::after {
+      content: '+';
+      font-size: 18px;
+      color: var(--ink-faint);
+      font-weight: 400;
+      transition: transform 0.15s ease;
+    }
+    details.phase-retro[open] > summary::after { content: '\2212'; }
+    details.phase-retro > summary:hover { background: var(--bg-soft); }
+    details.phase-retro > summary .phase-tag {
+      font-size: 11px;
+      color: var(--ink-faint);
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+    details.phase-retro > .methodbox {
+      border: none;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+    }
+    .phase-retro-group-intro {
+      margin: 24px 0 12px 0;
+      font-size: 13px;
+      color: var(--ink-faint);
+      line-height: 1.6;
+    }
+
     /* ----- Hero recipe callout (deployment summary) ----- */
     .recipe {
       margin: 24px 0;
@@ -2048,7 +2099,19 @@
     </section>
 
     <section>
-      <h2>Phase 4 retrospective (2026-05-24)</h2>
+      <h2>Phase 4–8 research log</h2>
+      <p class="phase-retro-group-intro">
+        Build-log entries that explain how the deployed configuration was
+        chosen — architecture variants tested (Phase 4), universe-expansion
+        attempts that failed the gate (Phase 5), weighting-scheme A/B test
+        (Phase 6), the metric overhaul that surfaced statistical-significance
+        limits (Phase 7), and the right-tail-metrics reframing of Strategy C
+        as optionality (Phase 8). All are collapsed by default — the verdict
+        and the current caveats are above, the reasoning is here.
+      </p>
+
+      <details class="phase-retro">
+        <summary>Phase 4 — Strategy D + the constituent-breadth pipeline fix <span class="phase-tag">2026-05-24</span></summary>
       <div class="methodbox">
         <p>Phase 4 added Strategy D (Europe sector breadth) as a 4th sleeve. The build also forced a fix to the constituent breadth pipeline that quietly affected non-US ETFs.</p>
         <p><strong>What was tested</strong>: 9 new ETFs added to the registry — 5 Stoxx Europe 600 sector UCITS (EXV1, EXH1, EXV3, EXH3, EXH9) plus 4 single-country UCITS (IJPN, NDIA, ICHN, ITWN). The Phase 4 experiment ran 8 architecture variants: baseline 45/45/10 A:B:C, +Europe (heavy and light), +Countries (heavy and light), +both, MERGE (all into Strategy A's universe).</p>
@@ -2064,10 +2127,10 @@
         </ul>
         <p><strong>Lesson</strong>: when extending a strategy mechanism to a new universe, the data plumbing assumptions may not hold. The bug had been latent the entire time we added IJPN / NDIA / ICHN / ITWN constituents — none of them produced usable breadth until the fix. Worth re-running the universe-level diagnostics on any future non-US additions to confirm continuous breadth.</p>
       </div>
-    </section>
+      </details>
 
-    <section>
-      <h2>Phase 5 retrospective — negative result (2026-05-24)</h2>
+      <details class="phase-retro">
+        <summary>Phase 5 — sub-sector universe expansion (negative result, reverted) <span class="phase-tag">2026-05-24</span></summary>
       <div class="methodbox">
         <p>Phase 5 tested 11 US sub-sector / industry ETFs (XME, AMLP, ITB, OIH, KRE, XRT, FDN, IBB, SMH, XOP, PBW, KIE, PHO, IGV) as candidates for expanding Strategy C's universe beyond the then-deployed 16 thematic ETFs (the live universe is now 23 — XME, WOOD, REMX, CQQQ, ITA, AIQ, IBIT, 159801.SZ were subsequently added in Phases 5–9). Most were SPDR / VanEck / First Trust / Invesco / Global X funds — none are iShares, so they would not fit Strategy A (which requires iShares holdings CSV), but the ETF-level momentum mechanism in Strategy C accommodates them with a one-line registry change per ticker.</p>
 
@@ -2093,10 +2156,10 @@
 
         <p><strong>What's queued for future research</strong>: (1) single-country breadth — needs universe expansion beyond the original 4 (consider adding EWZ Brazil, EWA Australia, EZA South Africa, EWS Singapore) and a more careful Strategy E architecture rather than treating countries as a sleeve of Strategy A. (2) MSCI ACWI ex-US sector breadth — if iShares offers UK UCITS that track non-US developed-market sectors at a finer granularity than the current Europe-only Strategy D, the same constituent-breadth mechanism could extend further.</p>
       </div>
-    </section>
+      </details>
 
-    <section>
-      <h2>Phase 6 retrospective — weighting-scheme A/B test (2026-05-24)</h2>
+      <details class="phase-retro">
+        <summary>Phase 6 — weighting-scheme A/B test (equal-weight shipped for C) <span class="phase-tag">2026-05-24</span></summary>
       <div class="methodbox">
         <p>Phase 6 tested the hypothesis that Strategy B and C's modest walk-forward Sharpe was partly caused by the signal-share weighting scheme, which heavily overweights the most-overbought ETF — statistically the one most likely to mean-revert.</p>
 
@@ -2122,10 +2185,10 @@
 
         <p style="font-size:13px;color:var(--ink-faint);"><em>Operational note</em>: the original 35% per-ETF cap on Strategy C is now moot under equal-weight (K=4 → 25% per holding, well below the 35% cap). The cap code is retained in run_thematic_rotation.py as a no-op safeguard if K is ever reduced to 3 (where 33.3% per holding would still be under cap).</p>
       </div>
-    </section>
+      </details>
 
-    <section>
-      <h2>Phase 7 retrospective — metric overhaul + statistical significance (2026-05-24)</h2>
+      <details class="phase-retro">
+        <summary>Phase 7 — metric overhaul + statistical-significance audit <span class="phase-tag">2026-05-24</span></summary>
       <div class="methodbox">
         <p>Phase 7 was prompted by a critique that the dashboard headline stats included three useless metrics (Total Return, Annual Turnover ×, Number of Rebalances) and missed the metrics an institutional AI would actually ask about. Three deliverables:</p>
 
@@ -2146,12 +2209,12 @@
 
         <p><strong>Implication for fund deployment</strong>: the deployed blend is the right point estimate, and the engineering process (correlation diagnostics, A/B tests, this bootstrap audit) is the right discipline. But the dashboard should not oversell the +0.06 Sharpe improvement as a definitive win — it is a directional improvement with strong mechanistic support, awaiting more OOS data for statistical confirmation. Anyone evaluating this as Navigo IP should understand both numbers: the point estimate and the CI.</p>
 
-        <p><strong>What's still missing (Tier 2 backlog)</strong>: live tracking infrastructure (paper-trade weekly, log actual-vs-backtest divergence — the regulatory-grade addition for Navigo's CMS application), Bayesian / probabilistic Sharpe (richer than the existing bootstrap CI), regime-aware risk overlay (could reduce DD if it doesn't overfit), and tax-aware accounting documentation (K-1 forms for AMLP, European UCITS withholding, etc. — relevant for the SG investor base). <em>Items already completed in Phase 11-12</em>: realised cross-strategy return correlation matrix on Monitor (Phase 11A), hit rate + longest drawdown duration on each strategy tab (Phase 11B), per-strategy cost calibration (Phase 12 — see Caveats below).</p>
+        <p><strong>What's still missing (Tier 2 backlog)</strong>: live tracking infrastructure (paper-trade weekly, log actual-vs-backtest divergence), Bayesian / probabilistic Sharpe (richer than the existing bootstrap CI), regime-aware risk overlay (could reduce DD if it doesn't overfit), and tax-aware accounting documentation (K-1 forms for AMLP, European UCITS withholding, etc. — relevant for the SG investor base). <em>Items already completed in Phase 11-12</em>: realised cross-strategy return correlation matrix on Monitor (Phase 11A), hit rate + longest drawdown duration on each strategy tab (Phase 11B), per-strategy cost calibration (Phase 12 — see Caveats below).</p>
       </div>
-    </section>
+      </details>
 
-    <section>
-      <h2>Phase 8 retrospective — right-tail metrics and the optionality framing (2026-05-24)</h2>
+      <details class="phase-retro">
+        <summary>Phase 8 — right-tail metrics and the optionality reframing for C <span class="phase-tag">2026-05-24</span></summary>
       <div class="methodbox">
         <p>Phase 8 was prompted by a substantive critique that the Phase 7 conclusion "Strategy C contributes essentially nothing at the blend level" was mean-variance-accurate but option-theoretically wrong. The point is generalisable: Sharpe ratio and bootstrap-on-Sharpe are the right metrics for symmetric alpha sleeves but the wrong metrics for asymmetric / optionality sleeves. Phase 8 builds the right metrics and reframes C correctly.</p>
 
@@ -2186,8 +2249,9 @@
 
         <p><strong>Generalisable lesson</strong>: when evaluating a strategy or sleeve, ask "is this symmetric alpha or asymmetric optionality?" first. Symmetric alpha → Sharpe + bootstrap CI is the right gate. Asymmetric optionality → right-tail metrics + regime decomposition + sleeve-cap structure is the right gate. Using the wrong gate leads to wrong conclusions; Phase 7 nearly did so for C.</p>
 
-        <p style="font-size:13px;color:var(--ink-faint);"><em>Implication for fund deployment</em>: the 4-way 35/35/10/20 blend remains the deployed default. Phase 8 strengthens the case for keeping the 10% C sleeve rather than dropping it to deploy 50/50 A:B. For Navigo marketing materials to AIs, the right framing is: "core risk-adjusted return from A+B+D (~+1.13 Sharpe), with a 10% optionality sleeve via C that delivered +170% during the 2020-21 thematic boom and is positioned to capture the next regime that emerges". The Sharpe-only framing undersells the strategy.</p>
+        <p style="font-size:13px;color:var(--ink-faint);"><em>Implication for deployment</em>: the 4-way 35/35/10/20 blend remains the deployed default. Phase 8 strengthens the case for keeping the 10% C sleeve rather than dropping it to deploy 50/50 A:B. The honest framing is: "core risk-adjusted return from A+B+D (~+1.13 Sharpe pre-overlay; +1.29 deployed), with a 10% optionality sleeve via C that delivered +170% during the 2020-21 thematic boom and is positioned to capture the next regime that emerges". The Sharpe-only framing undersells the structure.</p>
       </div>
+      </details>
     </section>
 
     <section>
