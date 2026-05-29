@@ -1292,6 +1292,44 @@
       <em>Walk-forward</em> = within-sleeve K parameter is refit each year using only past data, then applied to the next 12 months. <strong>NOT walk-forward</strong>: weighting scheme (Phase 6 / Phase 20), universe additions (Phases 15&ndash;17.1), cost calibration (Phase 12), overlay parameters (Phase 19 sweep), EEM tilt (Phase 22). Those structural changes were applied across the entire backtest history &mdash; their reported lifts are in-sample improvements.
       Full statistical tests, regime decomposition, per-sleeve performance, and trade history live on the <strong>Multi-Strategy</strong>, <strong>Trade History</strong>, and <strong>Method</strong> tabs.
     </div>
+
+    <!-- ==================== CANONICAL CONFIG BOX ==================== -->
+    <!-- Single source of truth for the live deployed state. Numbers
+         here are populated by scripts/pipeline.py from the canonical
+         JSONs. Any narrative number that disagrees with this box is
+         stale. -->
+    <div id="canonical-config-box" style="margin:18px 0 14px 0;padding:14px 18px;background:var(--bg-card,#f7f8fa);border:1px solid var(--border,#e1e4e8);border-radius:6px;font-size:12.5px;line-height:1.55;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;border-bottom:1px solid var(--border,#e1e4e8);padding-bottom:8px;">
+        <strong style="font-size:13.5px;text-transform:uppercase;letter-spacing:0.6px;color:var(--ink,#0f1217);">Current deployed configuration</strong>
+        <span style="color:var(--ink-faint,#7c8590);font-size:11px;">Single source of truth &middot; <span id="canonical-asof">—</span></span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px 22px;">
+        <div>
+          <div style="color:var(--ink-faint,#7c8590);font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Universe (signal-generating ETFs)</div>
+          <div><strong>A</strong> &middot; US sectors &middot; <strong>14</strong></div>
+          <div><strong>B</strong> &middot; Asset class &middot; <strong>13</strong> + SHY cash floor</div>
+          <div><strong>C</strong> &middot; Thematic &middot; <strong>23</strong> + SHY cash floor</div>
+          <div><strong>D</strong> &middot; Europe sectors &middot; <strong>5</strong></div>
+        </div>
+        <div>
+          <div style="color:var(--ink-faint,#7c8590);font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Sleeve weights &amp; costs</div>
+          <div>A 35% &middot; B 25% &middot; C 10% &middot; D 20%</div>
+          <div style="font-size:11.5px;color:var(--ink-soft,#3a4148);">+ Phase 22 EEM tilt 10% (funded from B when 50/200d MA crosses up)</div>
+          <div style="margin-top:4px;font-size:11.5px;color:var(--ink-soft,#3a4148);">Per-sleeve cost: 5 bps per unit weight change (Phase 12 calibration)</div>
+        </div>
+        <div>
+          <div style="color:var(--ink-faint,#7c8590);font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Deployed blend backtest (canonical)</div>
+          <div>Sharpe &middot; <strong id="canonical-sharpe">+1.29</strong></div>
+          <div>CAGR &middot; <strong id="canonical-cagr">+15.9%</strong></div>
+          <div>Max DD &middot; <strong id="canonical-mdd">&minus;16.4%</strong></div>
+          <div style="margin-top:4px;font-size:11px;color:var(--ink-faint,#7c8590);">Key: <code style="font-size:10px;background:var(--bg-panel,#fff);padding:1px 4px;border-radius:2px;">blend_35_35_10_20_gated_eem_tilted</code></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border,#e1e4e8);font-size:11px;color:var(--ink-faint,#7c8590);">
+        Older Phase narratives (Phase 4 pre-overlay baseline, Phase 17 universe snapshots, etc.) cite different numbers &mdash; those are <em>historical snapshots</em>, not current. When in doubt, this box is the ground truth.
+      </div>
+    </div>
+
     <div class="caveats-banner">
       <strong>Known caveats reviewers will surface (acknowledged upfront):</strong>
       <ul>
@@ -1458,7 +1496,7 @@
           <div class="step-n">6</div>
           <div class="step-body"><strong>Combine.</strong> Multiply each within-strategy weight by 0.35 (A and B), 0.10 (C), or 0.20 (D) to get the effective weight in the deployed portfolio. Rebalance to match. Transaction cost runs ~5 bps per unit of weight change.</div>
         </div>
-        <p style="margin-top:18px;font-size:13px;color:var(--ink-faint);"><strong>Expected statistics (in-sample, common 2018-2026 window):</strong> Sharpe +1.15, CAGR +15.1%, max drawdown -23.8%. If you prefer lower drawdown without the Europe sleeve, use the prior 45/45/10 A+B+C blend (Sharpe +1.09, max DD -21.5%) — see Multi-Strategy tab.</p>
+        <p style="margin-top:18px;font-size:13px;color:var(--ink-faint);"><strong>Expected statistics (in-sample, common 2018-2026 window):</strong> Sharpe +1.15 <em style="color:var(--ink-faint);">(pre-overlay baseline — Phase 4)</em>, CAGR +15.1%, max drawdown -23.8%. Deployed Sharpe after Phase 19 breadth gate and Phase 22 EEM tilt is <strong>+1.29</strong>. If you prefer lower drawdown without the Europe sleeve, use the prior 45/45/10 A+B+C blend (Sharpe +1.09 pre-overlay, max DD -21.5%) — see Multi-Strategy tab.</p>
       </div>
     </section>
   </div>
@@ -1740,7 +1778,7 @@
         <li><strong>2022 inflation crash</strong>: C was the worst sleeve (-25%), but the 10% cap limited blend damage to -13% (vs SPY -25%). The cap works.</li>
       </ul>
       <p><strong>The asymmetry is the point.</strong> At a 10% sleeve weight, C contributes ~+17pp to blend return in its best year and ~-2.5pp in its worst year — a 7:1 upside/downside ratio. That is textbook optionality. Backtests of the last 7.5 years include the 2020-21 boom but cannot price the OPTIONS embedded in C — its real value compounds whenever a new thematic regime emerges that we cannot predict today.</p>
-      <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Caveat:</strong> walk-forward Sharpe is +0.49 vs in-sample +0.84 (Phase 17.1, 23-ETF universe with CQQQ + 159801.SZ for the China-tech and China-A-share-semi gaps) — modest degradation, which is structural to thematic momentum. The 10% sleeve cap is the risk-management response to this. <em>Do not deploy C as a primary alpha source; do deploy it as a small optionality sleeve.</em></p>
+      <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Caveat:</strong> walk-forward Sharpe is <strong>+0.51</strong> vs in-sample <strong>+0.82</strong> (canonical as of the latest pipeline run; 23-ETF universe — CQQQ + 159801.SZ for the China-tech and China-A-share-semi gaps) — modest degradation, which is structural to thematic momentum. The 10% sleeve cap is the risk-management response to this. <em>Do not deploy C as a primary alpha source; do deploy it as a small optionality sleeve.</em></p>
     </div>
 
     <section>
@@ -1814,7 +1852,7 @@
     <div class="verdict" style="border-left-color:var(--warn);background:rgba(183,110,0,0.04);">
       <h2>Honest assessment — Strategy D is a Sharpe lifter but raises drawdown</h2>
       <p>Standalone Sharpe over the common 2018-11 → 2026-05 window is <strong>+0.93</strong> — better than SPY's +0.77 and similar to Strategy B's +0.95. CAGR is +14.9% with max DD <strong>-32.0%</strong>. The DD is fully participatory in the 2020 and 2022 sell-offs; Europe sectors did not provide downside protection.</p>
-      <p>When blended at 20% with the existing 45/45/10 A:B:C baseline (35/35/10/20 A:B:C:D), Sharpe rises from +1.08 to <strong>+1.15</strong> and CAGR from +14.9% to +15.1%, but max DD widens from -21.5% to <strong>-23.8%</strong>. This is not a free lunch — it is a real diversification trade: marginally better risk-adjusted returns at the cost of ~2.3pp deeper drawdowns. If drawdown floor is your priority, stay with the 3-way 45/45/10. If Sharpe is your priority, switch to 35/35/10/20.</p>
+      <p>When blended at 20% with the existing 45/45/10 A:B:C baseline (35/35/10/20 A:B:C:D), Sharpe rises from +1.08 to <strong>+1.15</strong> and CAGR from +14.9% to +15.1%, but max DD widens from -21.5% to <strong>-23.8%</strong>. This is not a free lunch — it is a real diversification trade: marginally better risk-adjusted returns at the cost of ~2.3pp deeper drawdowns. If drawdown floor is your priority, stay with the 3-way 45/45/10. If Sharpe is your priority, switch to 35/35/10/20. <em style="color:var(--ink-faint);">(Sharpe figures here are Phase 4 pre-overlay baselines on the common 2018-2026 window. The currently deployed blend with the Phase 19 breadth gate and Phase 22 EEM tilt has Sharpe <strong>+1.29</strong>.)</em></p>
       <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Pipeline fix note</strong>: discovery during Phase 4 — the `compute_ma200_breadth` function used `rolling(200, min_periods=200)` which dropped the MA for any constituent with even 1-2% missing days. US constituents (S&amp;P 500 via yfinance) have ~100% coverage so this was a no-op for Strategy A. Non-US constituents (.L / .DE / .PA / .AS / .MI) have sparse missing days from local holidays / dividend events, which caused breadth to silently freeze on a stale value (last good was 2023-04-06 in the broken version). Fix: relaxed `min_periods` to 90% of the window, allowing the typical sparse missingness. Strategy A Sharpe changed by &lt;0.01 (US is the universe where the fix is a no-op). All Phase 4 numbers above are on corrected data.</p>
     </div>
 
@@ -1899,9 +1937,10 @@
     <section>
       <h2>How to choose your blend — and what the data actually says</h2>
       <div class="methodbox">
-        <p><strong>If you want best risk-adjusted return (Phase 4 default):</strong> <strong>35/35/10/20 A:B:C:D</strong>. Highest Sharpe of any variant tested (~+1.15 on the common 2018-2026 window). The Europe sleeve adds genuine diversification from a non-US macro cycle (ECB, EUR/USD, China trade). Cost: max DD widens by ~2.3pp vs the 3-way baseline because Europe is real equity exposure with real volatility — not a downside hedge.</p>
-        <p><strong>If you want lowest drawdown with thematic optionality:</strong> 45/45/10 A:B:C (the prior 3-way baseline). Sharpe ~+1.09 (slightly worse than 4-way) but max DD ~-21.5% (~2.3pp shallower than 4-way). The right choice if drawdown floor matters more than incremental Sharpe.</p>
-        <p><strong>If you want lowest drawdown overall:</strong> 30/70 A:B (no C, no D). Sharpe still strong (~+1.10), CAGR ~+13%, max DD only ~-17.7%. Cleanest two-sleeve construction.</p>
+        <p style="font-size:12px;color:var(--ink-faint);margin-bottom:10px;"><em>Sharpe figures below are pre-overlay baselines from the Phase 4 blend selection, evaluated on the common 2018-2026 window. The currently deployed blend (post Phase 19 breadth gate + Phase 22 EEM tilt) has Sharpe <strong>+1.29</strong> — see the canonical config box at the top of this page.</em></p>
+        <p><strong>If you want best risk-adjusted return (Phase 4 default):</strong> <strong>35/35/10/20 A:B:C:D</strong>. Highest Sharpe of any variant tested (~+1.15 pre-overlay on the common 2018-2026 window). The Europe sleeve adds genuine diversification from a non-US macro cycle (ECB, EUR/USD, China trade). Cost: max DD widens by ~2.3pp vs the 3-way baseline because Europe is real equity exposure with real volatility — not a downside hedge.</p>
+        <p><strong>If you want lowest drawdown with thematic optionality:</strong> 45/45/10 A:B:C (the prior 3-way baseline). Sharpe ~+1.09 pre-overlay (slightly worse than 4-way) but max DD ~-21.5% (~2.3pp shallower than 4-way). The right choice if drawdown floor matters more than incremental Sharpe.</p>
+        <p><strong>If you want lowest drawdown overall:</strong> 30/70 A:B (no C, no D). Sharpe still strong (~+1.10 pre-overlay), CAGR ~+13%, max DD only ~-17.7%. Cleanest two-sleeve construction.</p>
         <p><strong>If you want maximum CAGR and tolerate big drawdowns:</strong> Strategy A alone (~+17.5% CAGR but -31% max DD). The blends trade ~2-3pp of CAGR for ~7-10pp of drawdown reduction — usually a good trade.</p>
         <p>The <strong>meta-rotation</strong> variant (own only A or only B each week, picking by trailing 6-month Sharpe) performs <em>worse</em> than either strategy alone. The lookback lags too much; by the time it identifies that B is winning, A has often started winning again. <em>Static blends beat dynamic blends in this dataset.</em></p>
         <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>How to think about Strategy C (Phase 8 reframing):</strong> C is an <strong>optionality sleeve</strong>, not a Sharpe-alpha sleeve. Bootstrap-on-Sharpe gave C ~42% p(better) vs no-C blends — true on AVERAGE outcome, but misses the asymmetric option payoff. C's right-tail metrics tell the real story: <strong>best rolling 12m +162%</strong> (vs A +85% / B +43% / D +66%), <strong>top performer 41% of months</strong> (most of any sleeve), and in the COVID + thematic boom regime delivered +170% standalone (capturing ~70% of which got into the 10% blend sleeve). The 10% sleeve cap structures it as a long-dated out-of-the-money call basket — small premium (the -25% it lost in 2022 was -2.5pp at the blend level), unbounded upside (next AI/clean-energy/space/quantum boom). See the Regime decomposition section above for the empirical evidence and the Strategy C tab for the full optionality scorecard.</p>
@@ -1968,11 +2007,11 @@
       <p><strong>How do we judge which sector is "strong"?</strong> Every sector contains 30 to 500 individual companies. We count what percentage of those companies are currently trading above their own 200-day moving average. A stock above its 200-day average is in an uptrend; below it, a downtrend. So if 85% of the companies in a sector are in uptrends, that sector is strong — broadly strong, not just lifted by a few mega-caps. We call this number the <em>breadth</em> of the sector. It ranges from 0% (everything broken) to 100% (everything in an uptrend).</p>
       <div class="step">
         <div class="step-n">1</div>
-        <div class="step-body"><strong>Every Friday after market close</strong>, look up the constituents of each of the 11 ETFs and compute the breadth (% above 200d MA) for each one.</div>
+        <div class="step-body"><strong>Every Friday after market close</strong>, look up the constituents of each of the 14 ETFs and compute the breadth (% above 200d MA) for each one.</div>
       </div>
       <div class="step">
         <div class="step-n">2</div>
-        <div class="step-body"><strong>Rank the 11 ETFs by breadth</strong>. Whichever seven are highest, those are your portfolio next week.</div>
+        <div class="step-body"><strong>Rank the 14 ETFs by breadth</strong>. Whichever seven are highest, those are your portfolio next week.</div>
       </div>
       <div class="step">
         <div class="step-n">3</div>
@@ -1984,7 +2023,7 @@
       </div>
       <p style="margin-top:18px;"><strong>What this strategy is NOT doing.</strong> It is not trying to time the market — there is no "stay in cash if everything looks bad" rule. It is always 100% invested. It is also not trying to predict which individual sector will go up next. It is doing something simpler: <em>own whatever is leading, trim whatever is lagging</em>. Markets reward this pattern more often than they punish it, because trends in market breadth tend to persist for weeks-to-months at a time.</p>
       <p><strong>Why we trust it.</strong> The "Robustness" tab shows the strategy holds up when we apply the standard quant-research stress tests: walk-forward validation (refitting the only free parameter, K = the number of sectors to own, each year on out-of-sample data), bootstrap confidence intervals, sub-period decomposition through bear markets, sensitivity to the moving-average lookback and the rebalance frequency. The walk-forward Sharpe ratio is approximately 1.05 with no degradation from the in-sample number — that is unusual and is the main reason we picked this paradigm over per-ETF threshold tuning or fixed-threshold timing.</p>
-      <p style="font-size:13px;color:var(--ink-faint);margin-top:14px;"><em>Caveats and what would kill it:</em> a regime where all 11 sectors fall together (2008-style systemic crisis) hurts the strategy because owning the "strongest" of a falling universe is still owning falling stuff. We do not currently hedge or shift to cash. A modest improvement on the to-do list is to add a "if median breadth across all sectors is below 40%, reduce gross exposure to 50%" overlay — but we have not yet validated it OOS so it is not in the headline numbers.</p>
+      <p style="font-size:13px;color:var(--ink-faint);margin-top:14px;"><em>Caveats and what would kill it:</em> a regime where all 14 sectors fall together (2008-style systemic crisis) hurts the strategy because owning the "strongest" of a falling universe is still owning falling stuff. We do not currently hedge or shift to cash. A modest improvement on the to-do list is to add a "if median breadth across all sectors is below 40%, reduce gross exposure to 50%" overlay — but we have not yet validated it OOS so it is not in the headline numbers.</p>
     </div>
 
     <section>
@@ -2030,7 +2069,7 @@
     <section>
       <h2>Phase 5 retrospective — negative result (2026-05-24)</h2>
       <div class="methodbox">
-        <p>Phase 5 tested 11 US sub-sector / industry ETFs (XME, AMLP, ITB, OIH, KRE, XRT, FDN, IBB, SMH, XOP, PBW, KIE, PHO, IGV) as candidates for expanding Strategy C's universe beyond the existing 16 thematic ETFs. Most were SPDR / VanEck / First Trust / Invesco / Global X funds — none are iShares, so they would not fit Strategy A (which requires iShares holdings CSV), but the ETF-level momentum mechanism in Strategy C accommodates them with a one-line registry change per ticker.</p>
+        <p>Phase 5 tested 11 US sub-sector / industry ETFs (XME, AMLP, ITB, OIH, KRE, XRT, FDN, IBB, SMH, XOP, PBW, KIE, PHO, IGV) as candidates for expanding Strategy C's universe beyond the then-deployed 16 thematic ETFs (the live universe is now 23 — XME, WOOD, REMX, CQQQ, ITA, AIQ, IBIT, 159801.SZ were subsequently added in Phases 5–9). Most were SPDR / VanEck / First Trust / Invesco / Global X funds — none are iShares, so they would not fit Strategy A (which requires iShares holdings CSV), but the ETF-level momentum mechanism in Strategy C accommodates them with a one-line registry change per ticker.</p>
 
         <p><strong>Diagnostic gate (Test 12-style correlation analysis on weekly signal series)</strong>:</p>
         <ul>
@@ -2176,7 +2215,7 @@
         <ul>
           <li><strong>Always report walk-forward (or train/test) Sharpe alongside in-sample.</strong> The in-sample number is biased upward by ~0.3 Sharpe in our case. If you only have IS, halve your conviction.</li>
           <li><strong>Robust over optimal.</strong> A parameter that's "second-best" but stable across sub-windows is more deployable than a parameter that's "best" but jumps each refit. Our walk-forward L sequence for CSP1 was [55, 80, 75, 75, 75] — wildly unstable; deploying any single one of those would have given different results.</li>
-          <li><strong>Reduce degrees of freedom.</strong> Per-ETF tuning adds N free parameters. A single global parameter (e.g., L=60 for all 11 ETFs) had ZERO tuning cost, and beat walk-forward L on 8 of 11 ETFs. Less is more.</li>
+          <li><strong>Reduce degrees of freedom.</strong> Per-ETF tuning adds N free parameters. A single global parameter (e.g., L=60 for all 11 ETFs at the time of the Test 10 robustness study; the live universe is now 14) had ZERO tuning cost, and beat walk-forward L on 8 of 11 ETFs. Less is more.</li>
           <li><strong>Use external priors.</strong> If literature gives you a number (Zweig's L=60 breadth threshold), USE IT. A prior-based value has no overfit cost; a data-driven value does.</li>
           <li><strong>Lower the rebalance frequency to lower in-sample noise transmission.</strong> Daily rebalancing transmits each fitted-L noise into more daily decisions. Bi-weekly rebalancing reduces the effective number of "actions" per unit time, smoothing the noise.</li>
           <li><strong>Stress-test by regime, not just full-window Sharpe.</strong> The sub-period decomposition showed our strategy underperformed BH in 2019 pre-COVID, 2022 inflation shock, and 2023 AI rally. Full-window Sharpe hid this. Decompose by regime — if performance is concentrated in one period, you're sampling-lucky.</li>
@@ -2199,7 +2238,7 @@
           <li><strong>Common window for the deployed blend is 2018-11 → 2026-05</strong> (~7.5 years), constrained by Strategy C's data start date. Strategy B's 18-year history (2008-2026, covering GFC + COVID + 2022) cushions the blend through real crises in the per-strategy comparison, but the blend-level statistics only see 2020/2022.</li>
           <li><strong>Concentration risk in Strategy A</strong>: even at K = 7 the top breadth tilts toward 1-2 dominant sectors, so a semis or energy reversal can move 10-20% of NAV within the sleeve in a week. The 35% sleeve weight in the 4-way blend caps blend-level exposure but does not eliminate this.</li>
           <li><strong>Strategy B cash-floor mechanic</strong>: when fewer than K asset classes are positive-trend, the deficit sits in IEF (intermediate Treasury). Earns ~3-4% Treasury carry but introduces small duration risk in a rising-rate shock.</li>
-          <li><strong>Strategy C walk-forward Sharpe is +0.46 vs in-sample +0.83</strong> (Phase 17 numbers, 22-ETF universe with CQQQ added to the prior 21). The Phase 16 commodity-equity additions plus Phase 17's CQQQ are net-neutral on in-sample (−0.01) and add a small drag on walk-forward (−0.04 vs Phase 16) — but the blend-level cost is essentially zero (−0.002 Sharpe) while max DD <em>improves</em> by 0.27pp. The 10% sleeve cap is the risk-management response to expected thematic-momentum degradation. C earns its place on right-tail / regime metrics (Phase 8) and on cumulative blend-level improvements through Phase 15.2 + 16 + 17.</li>
+          <li><strong>Strategy C walk-forward Sharpe is +0.51 vs in-sample +0.82</strong> <em style="color:var(--ink-faint);">(latest canonical; the +0.46 / in-sample +0.83 figure quoted in Phase 17 narrative was the snapshot at the 22-ETF universe pre-Phase-17.1)</em>. The Phase 16 commodity-equity additions plus Phase 17's CQQQ are net-neutral on in-sample (−0.01) and add a small drag on walk-forward (−0.04 vs Phase 16) — but the blend-level cost is essentially zero (−0.002 Sharpe) while max DD <em>improves</em> by 0.27pp. The 10% sleeve cap is the risk-management response to expected thematic-momentum degradation. C earns its place on right-tail / regime metrics (Phase 8) and on cumulative blend-level improvements through Phase 15.2 + 16 + 17.</li>
           <li><strong>Phase 17.1 — China A-share semiconductor exposure (159801.SZ) added via FX-aware download pipeline.</strong> 159801.SZ is the Bosera CSI Chip ETF, CNY-denominated and Shenzhen-listed. The backtest pipeline now downloads CNY prices, applies a daily FX conversion using yfinance's USDCNY=X spot, and reindexes onto the NYSE trading calendar with a 10-day stale-fill cap (covers Chinese New Year + October Golden Week SSE/SZSE closures). A 50bps annual expense ratio is applied as per-calendar-day compounded drag, same pattern as IBIT's 25bps on BTC-USD. Live execution is via IBKR Stock Connect (operationally smooth, confirmed by Eileen); 588200.SS (Harvest SSE STAR Chip) is an interchangeable Shanghai-listed alternative with 0.96 correlation to 159801.SZ but insufficient history (3.65y vs the 5y walk-forward minimum). Also: because 159801.SZ inception (2019-08) is after BLOK's 2018-01 binding date, the script's eligibility logic was refactored to treat it as a <em>late-inception</em> ticker that does not constrain the backtest window start — without this fix, naively adding 159801.SZ would have collapsed the backtest from 7.5y to ~6y. The K=4 momentum picker excludes NaN signals automatically, so the late-inception decoupling is safe and lossless.</li>
           <li><strong>Phase 16 / 17 (2026-05-26) — SLV (B) and KWEB (C) were tested and REVERTED.</strong> Two illustrative cases of corr-gate-passing candidates that empirically failed the deployment test:
             <ul>
@@ -2413,6 +2452,16 @@ function renderHeroStrip() {
   set('hero-cagr',   cagr != null ? fmtPct(cagr, true) : '—');
   set('hero-dd',     maxDd != null ? fmtPct(maxDd) : '—');
   set('hero-window', yearStr);
+
+  // Canonical configuration box — bind to the same deployed-blend numbers
+  // so the box is the single source of truth and stays in sync with each
+  // pipeline run (no hardcoded Sharpe drift).
+  set('canonical-sharpe', sharpe != null ? fmtNum(sharpe, 2, true) : '—');
+  set('canonical-cagr',   cagr != null ? fmtPct(cagr, true) : '—');
+  set('canonical-mdd',    maxDd != null ? fmtPct(maxDd) : '—');
+  if (m.common_end) {
+    set('canonical-asof', 'signals as of ' + m.common_end);
+  }
 
   // Phase 19 + 22: live regime badges — short version. Full CPM-grade detail
   // (gauge, explainer, impact table, event log) is rendered in the
@@ -5017,7 +5066,7 @@ function renderRobustnessVerdict() {
     + `<strong>1. Paradigm choice (Strategy A foundation).</strong> The "Why top-K rotation, not per-ETF threshold tuning" table below shows why cross-sectional top-K rotation was chosen over per-ETF L tuning (overfit) or fixed-L baselines (no peer awareness). Top-K rotation walk-forward Sharpe is <strong>${fmtNum(wfTopK, 2, true)}</strong>, essentially identical to in-sample — no overfit decay. The refit K sequence is stable: [${kSeq}]. The strategy uses breadth as a relative-strength selector, not as 14 independent timing models.<br><br>`
     + `<strong>2. K × cadence sensitivity (Strategy A robustness).</strong> The deployed K = 7 × Weekly Fri cell sits in a broad plateau of high Sharpe values across K ∈ {5, 6, 7} and cadences {Weekly, Bi-weekly}. Not a sharp peak — robust to small choices.<br><br>`
     + `<strong>3. Universe correlation diagnostic (saturation check).</strong> Phase 5's correlation gate; surviving ETFs are mostly &lt; 0.85 pairwise on the weekly signal series, confirming the universe carries diversifying signal rather than redundancy. Used both for justifying current universe size and for filtering future candidates.<br><br>`
-    + `<strong>Additional OOS validation lives on other tabs</strong>: per-strategy walk-forward Sharpe on each Strategy A/B/C/D tab (recipe-stats card), Phase 7 block-bootstrap CIs (Multi-Strategy tab Statistical Significance section), and Phase 8 regime decomposition + right-tail metrics (Strategy tabs + Multi-Strategy regime table). Together these mean the deployed blend Sharpe of <strong>+1.16</strong> ${ciStr ? `(${ciStr}) ` : ''}is supported by multiple independent robustness arguments, not a single backtest number.`;
+    + `<strong>Additional OOS validation lives on other tabs</strong>: per-strategy walk-forward Sharpe on each Strategy A/B/C/D tab (recipe-stats card), Phase 7 block-bootstrap CIs (Multi-Strategy tab Statistical Significance section), and Phase 8 regime decomposition + right-tail metrics (Strategy tabs + Multi-Strategy regime table). Together these mean the pre-overlay 35/35/10/20 baseline Sharpe of <strong>+1.16</strong> (Phase 4 in-sample) ${ciStr ? `(${ciStr}) ` : ''}is supported by multiple independent robustness arguments, not a single backtest number. The currently deployed blend after the Phase 19 breadth gate and Phase 22 EEM tilt is <strong>+1.29</strong>.`;
 }
 
 function renderRobustnessParadigm() {
@@ -5551,10 +5600,15 @@ function renderTradeCharts() {
       line: { color: '#dc2626', width: 3.5 },
     },
   ];
-  if (bm.equal_weight_11) {
+  // Strategy A equal-weight benchmark. JSON key `equal_weight_14` is the
+  // current canonical name (Phase 24+, universe is 14 sectors).
+  // `equal_weight_11` is the legacy key from when the sector universe was
+  // 11 — kept as a fallback so older committed JSONs still render.
+  const ewBenchA = bm.equal_weight_14 || bm.equal_weight_11;
+  if (ewBenchA) {
     seriesDefs.push({
-      name: 'Equal-weight 11 ETFs',
-      dates: bm.equal_weight_11.dates, equity: bm.equal_weight_11.equity,
+      name: 'Equal-weight 14 ETFs (no signal)',
+      dates: ewBenchA.dates, equity: ewBenchA.equity,
       line: { color: '#b76e00', width: 1.5, dash: 'dash' },
     });
   }
@@ -5635,7 +5689,7 @@ function renderTradeStatsTable() {
   if (!topk) return;
   const st = topk.headline?.headline_stats_full || topk.headline?.headline_stats || {};
   const spy = topk.benchmarks?.spy_buy_hold || {};
-  const ew = topk.benchmarks?.equal_weight_11 || {};
+  const ew = topk.benchmarks?.equal_weight_14 || topk.benchmarks?.equal_weight_11 || {};
   const el = document.getElementById('trade-stats-table');
   if (!el) return;
   el.querySelector('thead').innerHTML = `<tr>
@@ -5649,7 +5703,7 @@ function renderTradeStatsTable() {
   </tr>`;
   const rows = [
     { label: 'Top-K Rotation (K=7 Weekly Fri)', data: st, highlight: true },
-    { label: 'Equal-weight 11 ETFs (no signal)', data: ew, highlight: false },
+    { label: 'Equal-weight 14 ETFs (no signal)', data: ew, highlight: false },
     { label: 'SPY buy-and-hold (broad-market passive)', data: spy, highlight: false },
   ];
   const spySh = spy.sharpe ?? 0;

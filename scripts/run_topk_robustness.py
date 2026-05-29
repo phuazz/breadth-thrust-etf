@@ -357,8 +357,14 @@ def main() -> int:
             "max_dd": _safe(spy_stats["max_dd"]),
             "cagr": _safe(spy_stats.get("cagr")),
         },
-        "equal_weight_11": {
-            "label": "Equal-weight all ETFs (no signal)",
+        # Key name was `equal_weight_11` while the Strategy A universe was
+        # 11 sectors (pre-Phase-24). The series itself is computed over
+        # whatever `closes` columns exist at the time of the run, so the
+        # data is always correct for the current universe. Renamed to
+        # `equal_weight_14` to match the current universe; template.html
+        # accepts either key for back-compat with older committed JSONs.
+        "equal_weight_14": {
+            "label": "Equal-weight 14 sector ETFs (no signal)",
             "dates": [d.strftime("%Y-%m-%d") for d in ew_eq.index],
             "equity": round_series(ew_eq.values),
             "sharpe": _safe(ew_stats["sharpe"]),
