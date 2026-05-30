@@ -1,0 +1,1063 @@
+{
+  "computed_at_utc": "2026-05-30 17:51 UTC",
+  "existing_universe": [
+    "ARKK",
+    "CIBR",
+    "SKYY",
+    "BOTZ",
+    "BLOK",
+    "ICLN",
+    "TAN",
+    "LIT",
+    "URA",
+    "XBI",
+    "ARKG",
+    "JETS",
+    "GDX",
+    "COPX",
+    "MOO",
+    "XME",
+    "WOOD",
+    "REMX",
+    "CQQQ",
+    "159801.SZ",
+    "PAVE",
+    "ITA",
+    "BTC-USD"
+  ],
+  "candidate_pool": [
+    "ROBO",
+    "KOMP",
+    "WCLD",
+    "FINX",
+    "HACK",
+    "ARKW",
+    "ARKF",
+    "ARKQ",
+    "ARKX",
+    "IBB",
+    "IHI",
+    "IDNA",
+    "KARS",
+    "DRIV",
+    "PRNT",
+    "QCLN",
+    "HYDR",
+    "GRID",
+    "KRBN",
+    "PPA",
+    "ESPO",
+    "AWAY",
+    "BETZ",
+    "ETHA",
+    "BITQ",
+    "PHO",
+    "PBW"
+  ],
+  "missing_from_yfinance": [],
+  "thresholds": {
+    "correlation": 0.85,
+    "wf_sharpe_degrade_tolerance": 0.03
+  },
+  "baseline_wf_sharpe": 0.031,
+  "stage_1_correlation": [
+    {
+      "candidate": "ROBO",
+      "passed": false,
+      "reason": "too correlated with BOTZ (+0.93)",
+      "max_corr": 0.9329407939064394,
+      "max_corr_with": "BOTZ",
+      "top_5": [
+        {
+          "ticker": "BOTZ",
+          "corr": 0.9329407939064394,
+          "n_obs": 466
+        },
+        {
+          "ticker": "PAVE",
+          "corr": 0.7957461662684134,
+          "n_obs": 441
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.7787674954741086,
+          "n_obs": 555
+        },
+        {
+          "ticker": "XBI",
+          "corr": 0.7602361007520928,
+          "n_obs": 555
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.755656873769168,
+          "n_obs": 395
+        }
+      ],
+      "history_weekly_obs": 555
+    },
+    {
+      "candidate": "KOMP",
+      "passed": false,
+      "reason": "too correlated with BLOK (+0.87)",
+      "max_corr": 0.8747172437193023,
+      "max_corr_with": "BLOK",
+      "top_5": [
+        {
+          "ticker": "BLOK",
+          "corr": 0.8747172437193023,
+          "n_obs": 356
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.8552069270238278,
+          "n_obs": 356
+        },
+        {
+          "ticker": "ARKG",
+          "corr": 0.8391160341141486,
+          "n_obs": 356
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.8274031649903613,
+          "n_obs": 356
+        },
+        {
+          "ticker": "PAVE",
+          "corr": 0.7878050156134309,
+          "n_obs": 356
+        }
+      ],
+      "history_weekly_obs": 356
+    },
+    {
+      "candidate": "WCLD",
+      "passed": false,
+      "reason": "too correlated with SKYY (+0.92)",
+      "max_corr": 0.9230191118016338,
+      "max_corr_with": "SKYY",
+      "top_5": [
+        {
+          "ticker": "SKYY",
+          "corr": 0.9230191118016338,
+          "n_obs": 310
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.8873826873240233,
+          "n_obs": 310
+        },
+        {
+          "ticker": "CIBR",
+          "corr": 0.8588031061205583,
+          "n_obs": 310
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.8316238583305766,
+          "n_obs": 310
+        },
+        {
+          "ticker": "ARKG",
+          "corr": 0.7982086042826017,
+          "n_obs": 310
+        }
+      ],
+      "history_weekly_obs": 310
+    },
+    {
+      "candidate": "FINX",
+      "passed": false,
+      "reason": "too correlated with SKYY (+0.91)",
+      "max_corr": 0.9144084245959105,
+      "max_corr_with": "SKYY",
+      "top_5": [
+        {
+          "ticker": "SKYY",
+          "corr": 0.9144084245959105,
+          "n_obs": 466
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.8720042993657845,
+          "n_obs": 466
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.8425124137368354,
+          "n_obs": 395
+        },
+        {
+          "ticker": "CIBR",
+          "corr": 0.8098490452563173,
+          "n_obs": 466
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.754377802172681,
+          "n_obs": 466
+        }
+      ],
+      "history_weekly_obs": 466
+    },
+    {
+      "candidate": "HACK",
+      "passed": false,
+      "reason": "too correlated with CIBR (+0.96)",
+      "max_corr": 0.9637269993421737,
+      "max_corr_with": "CIBR",
+      "top_5": [
+        {
+          "ticker": "CIBR",
+          "corr": 0.9637269993421737,
+          "n_obs": 528
+        },
+        {
+          "ticker": "SKYY",
+          "corr": 0.8947352668283088,
+          "n_obs": 555
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.8264074256523336,
+          "n_obs": 395
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.7640724892240272,
+          "n_obs": 555
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.6773289167351285,
+          "n_obs": 466
+        }
+      ],
+      "history_weekly_obs": 555
+    },
+    {
+      "candidate": "ARKW",
+      "passed": false,
+      "reason": "too correlated with ARKK (+0.97)",
+      "max_corr": 0.9740531718309656,
+      "max_corr_with": "ARKK",
+      "top_5": [
+        {
+          "ticker": "ARKK",
+          "corr": 0.9740531718309656,
+          "n_obs": 555
+        },
+        {
+          "ticker": "SKYY",
+          "corr": 0.9076612637162024,
+          "n_obs": 555
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.848621353569553,
+          "n_obs": 395
+        },
+        {
+          "ticker": "ARKG",
+          "corr": 0.8121224736798106,
+          "n_obs": 555
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.7948585406062642,
+          "n_obs": 466
+        }
+      ],
+      "history_weekly_obs": 555
+    },
+    {
+      "candidate": "ARKF",
+      "passed": false,
+      "reason": "too correlated with ARKK (+0.95)",
+      "max_corr": 0.9455212364774943,
+      "max_corr_with": "ARKK",
+      "top_5": [
+        {
+          "ticker": "ARKK",
+          "corr": 0.9455212364774943,
+          "n_obs": 342
+        },
+        {
+          "ticker": "SKYY",
+          "corr": 0.915845802145224,
+          "n_obs": 342
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.8534943622018291,
+          "n_obs": 342
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.8316660110274764,
+          "n_obs": 342
+        },
+        {
+          "ticker": "CIBR",
+          "corr": 0.8073858838098167,
+          "n_obs": 342
+        }
+      ],
+      "history_weekly_obs": 342
+    },
+    {
+      "candidate": "ARKQ",
+      "passed": false,
+      "reason": "too correlated with ARKK (+0.92)",
+      "max_corr": 0.9152600356817693,
+      "max_corr_with": "ARKK",
+      "top_5": [
+        {
+          "ticker": "ARKK",
+          "corr": 0.9152600356817693,
+          "n_obs": 555
+        },
+        {
+          "ticker": "ARKG",
+          "corr": 0.8259503023949767,
+          "n_obs": 555
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.8035796359638959,
+          "n_obs": 395
+        },
+        {
+          "ticker": "SKYY",
+          "corr": 0.7935604574431112,
+          "n_obs": 555
+        },
+        {
+          "ticker": "CQQQ",
+          "corr": 0.786717038397615,
+          "n_obs": 555
+        }
+      ],
+      "history_weekly_obs": 555
+    },
+    {
+      "candidate": "ARKX",
+      "passed": false,
+      "reason": "too correlated with ARKK (+0.89)",
+      "max_corr": 0.8943755832067708,
+      "max_corr_with": "ARKK",
+      "top_5": [
+        {
+          "ticker": "ARKK",
+          "corr": 0.8943755832067708,
+          "n_obs": 229
+        },
+        {
+          "ticker": "ARKG",
+          "corr": 0.8305932284914318,
+          "n_obs": 229
+        },
+        {
+          "ticker": "ITA",
+          "corr": 0.7764469022501226,
+          "n_obs": 229
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.7740884956718665,
+          "n_obs": 229
+        },
+        {
+          "ticker": "159801.SZ",
+          "corr": 0.7638124326904312,
+          "n_obs": 223
+        }
+      ],
+      "history_weekly_obs": 229
+    },
+    {
+      "candidate": "IBB",
+      "passed": false,
+      "reason": "too correlated with XBI (+0.92)",
+      "max_corr": 0.9203681411738083,
+      "max_corr_with": "XBI",
+      "top_5": [
+        {
+          "ticker": "XBI",
+          "corr": 0.9203681411738083,
+          "n_obs": 555
+        },
+        {
+          "ticker": "ARKG",
+          "corr": 0.7166665575430997,
+          "n_obs": 555
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.6553174056923395,
+          "n_obs": 466
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.6101250436678136,
+          "n_obs": 555
+        },
+        {
+          "ticker": "TAN",
+          "corr": 0.5670614609432607,
+          "n_obs": 555
+        }
+      ],
+      "history_weekly_obs": 555
+    },
+    {
+      "candidate": "IHI",
+      "passed": true,
+      "reason": "passes corr gate",
+      "max_corr": 0.69059597339831,
+      "max_corr_with": "SKYY",
+      "top_5": [
+        {
+          "ticker": "SKYY",
+          "corr": 0.69059597339831,
+          "n_obs": 555
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.6479203763693079,
+          "n_obs": 555
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.6414256038085199,
+          "n_obs": 466
+        },
+        {
+          "ticker": "CIBR",
+          "corr": 0.6363688592789155,
+          "n_obs": 528
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.6135713137872341,
+          "n_obs": 395
+        }
+      ],
+      "history_weekly_obs": 555
+    },
+    {
+      "candidate": "IDNA",
+      "passed": false,
+      "reason": "too correlated with XBI (+0.90)",
+      "max_corr": 0.8988986221457665,
+      "max_corr_with": "XBI",
+      "top_5": [
+        {
+          "ticker": "XBI",
+          "corr": 0.8988986221457665,
+          "n_obs": 322
+        },
+        {
+          "ticker": "ARKG",
+          "corr": 0.8360384981931491,
+          "n_obs": 322
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.7345082862787823,
+          "n_obs": 322
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.7187301781390544,
+          "n_obs": 322
+        },
+        {
+          "ticker": "LIT",
+          "corr": 0.7151293274570225,
+          "n_obs": 322
+        }
+      ],
+      "history_weekly_obs": 322
+    },
+    {
+      "candidate": "KARS",
+      "passed": false,
+      "reason": "too correlated with LIT (+0.93)",
+      "max_corr": 0.9293370714140946,
+      "max_corr_with": "LIT",
+      "top_5": [
+        {
+          "ticker": "LIT",
+          "corr": 0.9293370714140946,
+          "n_obs": 395
+        },
+        {
+          "ticker": "REMX",
+          "corr": 0.8517846732263409,
+          "n_obs": 395
+        },
+        {
+          "ticker": "TAN",
+          "corr": 0.7830512231013742,
+          "n_obs": 395
+        },
+        {
+          "ticker": "ICLN",
+          "corr": 0.7779142202564224,
+          "n_obs": 395
+        },
+        {
+          "ticker": "ARKG",
+          "corr": 0.7517547217556602,
+          "n_obs": 395
+        }
+      ],
+      "history_weekly_obs": 395
+    },
+    {
+      "candidate": "DRIV",
+      "passed": false,
+      "reason": "too correlated with LIT (+0.86)",
+      "max_corr": 0.8579808138805095,
+      "max_corr_with": "LIT",
+      "top_5": [
+        {
+          "ticker": "LIT",
+          "corr": 0.8579808138805095,
+          "n_obs": 383
+        },
+        {
+          "ticker": "REMX",
+          "corr": 0.8165307393903247,
+          "n_obs": 383
+        },
+        {
+          "ticker": "COPX",
+          "corr": 0.8022857270292231,
+          "n_obs": 383
+        },
+        {
+          "ticker": "PAVE",
+          "corr": 0.7996676938676583,
+          "n_obs": 383
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.786406761991956,
+          "n_obs": 383
+        }
+      ],
+      "history_weekly_obs": 383
+    },
+    {
+      "candidate": "PRNT",
+      "passed": true,
+      "reason": "passes corr gate",
+      "max_corr": 0.849934374016511,
+      "max_corr_with": "BLOK",
+      "top_5": [
+        {
+          "ticker": "BLOK",
+          "corr": 0.849934374016511,
+          "n_obs": 395
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.7959539619343384,
+          "n_obs": 474
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.778573210610373,
+          "n_obs": 466
+        },
+        {
+          "ticker": "ARKG",
+          "corr": 0.7761769997540057,
+          "n_obs": 474
+        },
+        {
+          "ticker": "PAVE",
+          "corr": 0.775584405252932,
+          "n_obs": 441
+        }
+      ],
+      "history_weekly_obs": 474
+    },
+    {
+      "candidate": "QCLN",
+      "passed": false,
+      "reason": "too correlated with ICLN (+0.94)",
+      "max_corr": 0.9361007339542393,
+      "max_corr_with": "ICLN",
+      "top_5": [
+        {
+          "ticker": "ICLN",
+          "corr": 0.9361007339542393,
+          "n_obs": 555
+        },
+        {
+          "ticker": "TAN",
+          "corr": 0.9246446786213416,
+          "n_obs": 555
+        },
+        {
+          "ticker": "LIT",
+          "corr": 0.8399004554070428,
+          "n_obs": 555
+        },
+        {
+          "ticker": "ARKG",
+          "corr": 0.819459533748433,
+          "n_obs": 555
+        },
+        {
+          "ticker": "REMX",
+          "corr": 0.6849412246437292,
+          "n_obs": 555
+        }
+      ],
+      "history_weekly_obs": 555
+    },
+    {
+      "candidate": "HYDR",
+      "passed": false,
+      "reason": "too correlated with LIT (+0.88)",
+      "max_corr": 0.8755910881169746,
+      "max_corr_with": "LIT",
+      "top_5": [
+        {
+          "ticker": "LIT",
+          "corr": 0.8755910881169746,
+          "n_obs": 214
+        },
+        {
+          "ticker": "ICLN",
+          "corr": 0.8735689872949528,
+          "n_obs": 214
+        },
+        {
+          "ticker": "REMX",
+          "corr": 0.865850768515344,
+          "n_obs": 214
+        },
+        {
+          "ticker": "TAN",
+          "corr": 0.8317657975113153,
+          "n_obs": 214
+        },
+        {
+          "ticker": "XME",
+          "corr": 0.766104971440261,
+          "n_obs": 214
+        }
+      ],
+      "history_weekly_obs": 214
+    },
+    {
+      "candidate": "GRID",
+      "passed": false,
+      "reason": "too correlated with PAVE (+0.87)",
+      "max_corr": 0.8702747767878098,
+      "max_corr_with": "PAVE",
+      "top_5": [
+        {
+          "ticker": "PAVE",
+          "corr": 0.8702747767878098,
+          "n_obs": 441
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.8433358517198356,
+          "n_obs": 466
+        },
+        {
+          "ticker": "COPX",
+          "corr": 0.7681180113322889,
+          "n_obs": 555
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.7224635089409807,
+          "n_obs": 395
+        },
+        {
+          "ticker": "LIT",
+          "corr": 0.7180850945540422,
+          "n_obs": 555
+        }
+      ],
+      "history_weekly_obs": 555
+    },
+    {
+      "candidate": "KRBN",
+      "passed": true,
+      "reason": "passes corr gate",
+      "max_corr": 0.554470167234405,
+      "max_corr_with": "REMX",
+      "top_5": [
+        {
+          "ticker": "REMX",
+          "corr": 0.554470167234405,
+          "n_obs": 263
+        },
+        {
+          "ticker": "MOO",
+          "corr": 0.5113003402159124,
+          "n_obs": 263
+        },
+        {
+          "ticker": "LIT",
+          "corr": 0.48324861057394686,
+          "n_obs": 263
+        },
+        {
+          "ticker": "WOOD",
+          "corr": 0.3384651848715279,
+          "n_obs": 263
+        },
+        {
+          "ticker": "XME",
+          "corr": 0.33161127270651153,
+          "n_obs": 263
+        }
+      ],
+      "history_weekly_obs": 263
+    },
+    {
+      "candidate": "PPA",
+      "passed": false,
+      "reason": "too correlated with ITA (+0.97)",
+      "max_corr": 0.9722349872962929,
+      "max_corr_with": "ITA",
+      "top_5": [
+        {
+          "ticker": "ITA",
+          "corr": 0.9722349872962929,
+          "n_obs": 555
+        },
+        {
+          "ticker": "JETS",
+          "corr": 0.7925981063686169,
+          "n_obs": 538
+        },
+        {
+          "ticker": "PAVE",
+          "corr": 0.7611240106246965,
+          "n_obs": 441
+        },
+        {
+          "ticker": "XME",
+          "corr": 0.646086471245006,
+          "n_obs": 555
+        },
+        {
+          "ticker": "MOO",
+          "corr": 0.6112542792547846,
+          "n_obs": 555
+        }
+      ],
+      "history_weekly_obs": 555
+    },
+    {
+      "candidate": "ESPO",
+      "passed": false,
+      "reason": "too correlated with ARKK (+0.86)",
+      "max_corr": 0.8596088597957154,
+      "max_corr_with": "ARKK",
+      "top_5": [
+        {
+          "ticker": "ARKK",
+          "corr": 0.8596088597957154,
+          "n_obs": 356
+        },
+        {
+          "ticker": "SKYY",
+          "corr": 0.8051171269584834,
+          "n_obs": 356
+        },
+        {
+          "ticker": "CQQQ",
+          "corr": 0.7600714371884114,
+          "n_obs": 356
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.7195706282894275,
+          "n_obs": 356
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.7162690381651974,
+          "n_obs": 356
+        }
+      ],
+      "history_weekly_obs": 356
+    },
+    {
+      "candidate": "AWAY",
+      "passed": false,
+      "reason": "too correlated with BLOK (+0.89)",
+      "max_corr": 0.8866389258776519,
+      "max_corr_with": "BLOK",
+      "top_5": [
+        {
+          "ticker": "BLOK",
+          "corr": 0.8866389258776519,
+          "n_obs": 288
+        },
+        {
+          "ticker": "BTC-USD",
+          "corr": 0.8310291254930272,
+          "n_obs": 288
+        },
+        {
+          "ticker": "JETS",
+          "corr": 0.811473089654353,
+          "n_obs": 288
+        },
+        {
+          "ticker": "WOOD",
+          "corr": 0.7875284266831765,
+          "n_obs": 288
+        },
+        {
+          "ticker": "PAVE",
+          "corr": 0.7821537213863128,
+          "n_obs": 288
+        }
+      ],
+      "history_weekly_obs": 288
+    },
+    {
+      "candidate": "BETZ",
+      "passed": true,
+      "reason": "passes corr gate",
+      "max_corr": 0.8298111588122308,
+      "max_corr_with": "BLOK",
+      "top_5": [
+        {
+          "ticker": "BLOK",
+          "corr": 0.8298111588122308,
+          "n_obs": 272
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.8015396312552022,
+          "n_obs": 272
+        },
+        {
+          "ticker": "SKYY",
+          "corr": 0.7567777902921933,
+          "n_obs": 272
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.7406403654492405,
+          "n_obs": 272
+        },
+        {
+          "ticker": "BTC-USD",
+          "corr": 0.687921849877643,
+          "n_obs": 272
+        }
+      ],
+      "history_weekly_obs": 272
+    },
+    {
+      "candidate": "ETHA",
+      "passed": false,
+      "reason": "too correlated with ARKK (+0.88)",
+      "max_corr": 0.8766277169822012,
+      "max_corr_with": "ARKK",
+      "top_5": [
+        {
+          "ticker": "ARKK",
+          "corr": 0.8766277169822012,
+          "n_obs": 56
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.8296724966028319,
+          "n_obs": 56
+        },
+        {
+          "ticker": "CQQQ",
+          "corr": 0.7793103622205529,
+          "n_obs": 56
+        },
+        {
+          "ticker": "BTC-USD",
+          "corr": 0.737054430613379,
+          "n_obs": 56
+        },
+        {
+          "ticker": "SKYY",
+          "corr": 0.6875695940139149,
+          "n_obs": 56
+        }
+      ],
+      "history_weekly_obs": 56
+    },
+    {
+      "candidate": "BITQ",
+      "passed": false,
+      "reason": "too correlated with BLOK (+0.96)",
+      "max_corr": 0.9635386677858474,
+      "max_corr_with": "BLOK",
+      "top_5": [
+        {
+          "ticker": "BLOK",
+          "corr": 0.9635386677858474,
+          "n_obs": 223
+        },
+        {
+          "ticker": "SKYY",
+          "corr": 0.9097796580495472,
+          "n_obs": 223
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.8663038649504743,
+          "n_obs": 223
+        },
+        {
+          "ticker": "CIBR",
+          "corr": 0.8012212251651879,
+          "n_obs": 223
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.7919126289842507,
+          "n_obs": 223
+        }
+      ],
+      "history_weekly_obs": 223
+    },
+    {
+      "candidate": "PHO",
+      "passed": true,
+      "reason": "passes corr gate",
+      "max_corr": 0.8032880395928035,
+      "max_corr_with": "PAVE",
+      "top_5": [
+        {
+          "ticker": "PAVE",
+          "corr": 0.8032880395928035,
+          "n_obs": 441
+        },
+        {
+          "ticker": "BOTZ",
+          "corr": 0.7341640325004406,
+          "n_obs": 466
+        },
+        {
+          "ticker": "WOOD",
+          "corr": 0.6934858520602186,
+          "n_obs": 555
+        },
+        {
+          "ticker": "BLOK",
+          "corr": 0.688235293859672,
+          "n_obs": 395
+        },
+        {
+          "ticker": "SKYY",
+          "corr": 0.6670601680880688,
+          "n_obs": 555
+        }
+      ],
+      "history_weekly_obs": 555
+    },
+    {
+      "candidate": "PBW",
+      "passed": false,
+      "reason": "too correlated with ICLN (+0.93)",
+      "max_corr": 0.9312773838507095,
+      "max_corr_with": "ICLN",
+      "top_5": [
+        {
+          "ticker": "ICLN",
+          "corr": 0.9312773838507095,
+          "n_obs": 555
+        },
+        {
+          "ticker": "TAN",
+          "corr": 0.9163001433414866,
+          "n_obs": 555
+        },
+        {
+          "ticker": "ARKG",
+          "corr": 0.8496449501478155,
+          "n_obs": 555
+        },
+        {
+          "ticker": "LIT",
+          "corr": 0.7900731015661894,
+          "n_obs": 555
+        },
+        {
+          "ticker": "ARKK",
+          "corr": 0.7417334509753443,
+          "n_obs": 555
+        }
+      ],
+      "history_weekly_obs": 555
+    }
+  ],
+  "stage_2_empirical": [
+    {
+      "candidate": "IHI",
+      "passed": true,
+      "wf_baseline": 0.031,
+      "wf_with_candidate": 0.008,
+      "wf_delta": -0.023,
+      "eligible_start": "2015-10-16",
+      "reason": "WF Sharpe -0.023 vs baseline (+0.01 vs +0.03)"
+    },
+    {
+      "candidate": "PRNT",
+      "passed": true,
+      "wf_baseline": 0.031,
+      "wf_with_candidate": 0.034,
+      "wf_delta": 0.0030000000000000027,
+      "eligible_start": "2015-10-16",
+      "reason": "WF Sharpe +0.003 vs baseline (+0.03 vs +0.03)"
+    },
+    {
+      "candidate": "KRBN",
+      "passed": false,
+      "wf_baseline": 0.031,
+      "wf_with_candidate": -0.033,
+      "wf_delta": -0.064,
+      "eligible_start": "2015-10-16",
+      "reason": "WF Sharpe -0.064 vs baseline (-0.03 vs +0.03)"
+    },
+    {
+      "candidate": "BETZ",
+      "passed": true,
+      "wf_baseline": 0.031,
+      "wf_with_candidate": 0.032,
+      "wf_delta": 0.0010000000000000009,
+      "eligible_start": "2015-10-16",
+      "reason": "WF Sharpe +0.001 vs baseline (+0.03 vs +0.03)"
+    },
+    {
+      "candidate": "PHO",
+      "passed": true,
+      "wf_baseline": 0.031,
+      "wf_with_candidate": 0.032,
+      "wf_delta": 0.0010000000000000009,
+      "eligible_start": "2015-10-16",
+      "reason": "WF Sharpe +0.001 vs baseline (+0.03 vs +0.03)"
+    }
+  ],
+  "final_shortlist": [
+    "IHI",
+    "PRNT",
+    "BETZ",
+    "PHO"
+  ]
+}
