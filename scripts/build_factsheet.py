@@ -1070,6 +1070,24 @@ def build(out_path: Path):
     if dated_path != out_path:
         dated_path.write_bytes(out_path.read_bytes())
         print(f"  Dated copy:   {dated_path.relative_to(ROOT)}")
+
+    # ----- Single-source-of-truth meta file ------------------------------
+    # The GitHub Actions email step needs to know WHICH dated PDF to
+    # attach. Computing the asof date in the workflow (by re-reading the
+    # JSONs) is fragile — the live-track splice changes the answer in a
+    # way the YAML cannot easily replicate. So write the truth here.
+    meta_path = out_path.with_name("factsheet_meta.json")
+    meta = {
+        "asof_iso": asof_iso,
+        "asof_pretty": asof_str,
+        "deployed_key": deployed_key,
+        "computed_at_utc": computed_at,
+        "latest_pdf": out_path.name,
+        "dated_pdf": dated_path.name,
+        "dated_pdf_path": str(dated_path.relative_to(ROOT)).replace("\\", "/"),
+    }
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    print(f"  Meta:         {meta_path.relative_to(ROOT)}")
     return 0
 
 

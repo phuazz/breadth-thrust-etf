@@ -108,11 +108,21 @@ jobs:
           git diff --cached --quiet || git commit -m "Weekly refresh $(date -u +%Y-%m-%d)"
           git push origin main || echo "Nothing to push"
 
-      - name: Compute as-of date for email subject and attachment name
+      - name: Read factsheet meta for email subject and attachment path
         id: meta
+        # build_factsheet.py writes docs/factsheet_meta.json with the
+        # actual as-of date and dated-pdf path it built for (single
+        # source of truth — works correctly with the live mark-to-
+        # market splice, where the deployed series may extend past
+        # multi_strategy.json's common_end).
         run: |
-          ASOF=$(python -c "import json; d=json.loads(open('data/multi_strategy.json').read()); s=d['strategies'].get('blend_35_35_10_20_gated_eem_tilted') or d['strategies'].get('blend_35_35_10_20_gated') or d['strategies']['blend_35_35_10_20']; print(s['dates'][-1])")
+          ASOF=$(python -c "import json; print(json.load(open('docs/factsheet_meta.json'))['asof_iso'])")
+          DATED=$(python -c "import json; print(json.load(open('docs/factsheet_meta.json'))['dated_pdf_path'])")
           echo "asof=${ASOF}" >> $GITHUB_OUTPUT
+          echo "dated_path=${DATED}" >> $GITHUB_OUTPUT
+          echo "Factsheet asof: ${ASOF}"
+          echo "Dated PDF:      ${DATED}"
+          test -f "${DATED}" || { echo "ERROR: ${DATED} not found"; ls -la docs/; exit 1; }
 
       - name: Build rich email body
         run: python scripts/build_email_body.py
@@ -139,6 +149,7 @@ jobs:
           from: 'USD Multi-Strategy ETF Factsheet <${{ secrets.GMAIL_USER }}>'
           html_body: ${{ steps.emailbody.outputs.html }}
           # Attach the dated copy so the recipient sees a properly-named
-          # archive in their inbox. The build script writes both
-          # factsheet_<asof>.pdf and factsheet_latest.pdf to docs/.
-          attachments: docs/factsheet_${{ steps.meta.outputs.asof }}.pdf
+          # archive in their inbox. Path comes from factsheet_meta.json
+          # (written by build_factsheet.py) so the workflow never has to
+          # re-derive the date independently.
+          attachments: ${{ steps.meta.outputs.dated_path }}
