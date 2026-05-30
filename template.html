@@ -108,12 +108,15 @@
     header.top .caveats-banner li { margin-bottom: 4px; }
     /* ----- Hero stat strip: full container width, big numbers ----- */
     header.top .hero-strip {
-      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 32px;
+      display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 24px;
       margin: 14px 0 14px 0;
       padding: 20px 28px;
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 6px;
+    }
+    @media (max-width: 1100px) {
+      header.top .hero-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
     }
     @media (max-width: 720px) {
       header.top .hero-strip {
@@ -131,6 +134,7 @@
       header.top .hero-strip .number { font-size: 24px; }
     }
     header.top .hero-strip .number.good { color: var(--good); }
+    header.top .hero-strip .number.bad  { color: var(--bad); }
     header.top .hero-strip .label {
       font-size: 10.5px; text-transform: uppercase;
       letter-spacing: 0.08em; color: var(--ink-soft);
@@ -1517,7 +1521,12 @@
       <div class="item">
         <div class="number" id="hero-window">—</div>
         <div class="label">Backtest length</div>
-        <div class="desc">Walk-forward validated &mdash; key parameter refit yearly on past data only, then applied forward</div>
+        <div class="desc">Walk-forward validated &mdash; key parameter refit yearly on past data only</div>
+      </div>
+      <div class="item">
+        <div class="number" id="hero-wtd">—</div>
+        <div class="label">Week-to-date return</div>
+        <div class="desc" id="hero-wtd-desc">Latest daily close vs prior week-end (live deployment tracking)</div>
       </div>
     </div>
     <!-- ==================== POSITIONS PREVIEW (Phase 4 UX) ==================== -->
@@ -1567,6 +1576,30 @@
         </div>
       </div>
     </div>
+
+    <!-- ==================== PERFORMANCE (live deployment tracking) =========
+         Moved out of the Monitor tab and into the header so the deployed
+         blend's performance chart is always visible regardless of which
+         tab the reader is on. -->
+    <section style="margin:18px 0 14px 0;">
+      <div class="perf-header">
+        <h2 style="margin:0;">Performance</h2>
+        <div class="period-selector" id="perf-period-selector">
+          <button data-period="1d">1D</button>
+          <button data-period="1w">1W</button>
+          <button data-period="1m">1M</button>
+          <button data-period="ytd" class="active">YTD</button>
+          <button data-period="1y">1Y</button>
+          <button data-period="3y">3Y</button>
+          <button data-period="5y">5Y</button>
+          <button data-period="max">MAX</button>
+        </div>
+      </div>
+      <p class="section-sub">Cumulative return for the deployed blend and each of the four contributing sleeves, anchored at <strong>0% at the start of the selected period</strong>. The stat strip and the attribution bars below the chart recompute live with the timeframe — switching to 1Y will show this year's return, switching to MAX will show full backtest history. Default YTD. <strong style="color:#b45309;">Amber-shaded bands</strong> mark periods when the breadth regime overlay was active (RISK_OFF — half of NAV moved to SHY, 1-3y US Treasury).</p>
+      <div id="perf-stat-strip" class="perf-stat-strip"></div>
+      <div id="perf-chart" class="chart"></div>
+      <div id="perf-attribution"></div>
+    </section>
 
     <!-- Compact 1-line config ribbon — replaces the sleeve strip + footnote
          + canonical config box that used to live here. Single source of
@@ -1652,26 +1685,6 @@
       </div>
       <div class="overlay-card overlay-card-explainer" id="phase22-explainer-card" style="margin-top:14px; display:none;"></div>
       <div class="overlay-card" id="phase22-events-card" style="margin-top:14px; display:none;"></div>
-    </section>
-
-    <section>
-      <div class="perf-header">
-        <h2 style="margin:0;">Performance</h2>
-        <div class="period-selector" id="perf-period-selector">
-          <button data-period="1d">1D</button>
-          <button data-period="1w">1W</button>
-          <button data-period="1m">1M</button>
-          <button data-period="ytd" class="active">YTD</button>
-          <button data-period="1y">1Y</button>
-          <button data-period="3y">3Y</button>
-          <button data-period="5y">5Y</button>
-          <button data-period="max">MAX</button>
-        </div>
-      </div>
-      <p class="section-sub">Cumulative return for the deployed blend and each of the four contributing sleeves, anchored at <strong>0% at the start of the selected period</strong>. The stat strip and the attribution bars below the chart recompute live with the timeframe — switching to 1Y will show this year's return, switching to MAX will show full backtest history. Default YTD. <strong style="color:#b45309;">Amber-shaded bands</strong> mark periods when the breadth regime overlay was active (RISK_OFF — half of NAV moved to SHY, 1-3y US Treasury). Look at the Mar-Apr 2026 band on the YTD view: that is the overlay protecting the strategy through a real drawdown.</p>
-      <div id="perf-stat-strip" class="perf-stat-strip"></div>
-      <div id="perf-chart" class="chart"></div>
-      <div id="perf-attribution"></div>
     </section>
 
     <section>
@@ -2692,9 +2705,52 @@ function getDeployedBlendKey(m) {
 }
 
 // ----------- Hero stat strip in header --------------------------------
-// Populate the four big numbers in the header from the deployed blend.
+// Populate the big numbers in the header from the deployed blend.
 // Reads from window.DATA so the headline stays in sync with each
 // pipeline run — no hardcoded values that would drift over time.
+
+// Week-to-date return — daily equity vs the trading day strictly
+// before this calendar week's Monday (typically prior Friday close).
+//
+// Edge-case handling (CLAUDE.md date rules):
+//   - JavaScript months are 0-indexed in Date(...) and 1-indexed in
+//     the input YYYY-MM-DD string. We subtract 1 on parse to convert.
+//   - Date.UTC() avoids any local-timezone interference.
+//   - setUTCDate() rolls month/year boundaries correctly (e.g. Mon
+//     1 Jun -> back 7 = Mon 25 May rolls the month back automatically).
+//   - ISO YYYY-MM-DD strings sort lexicographically, so we compare
+//     them as strings rather than re-parsing.
+function _computeWeekToDate(dates, equity) {
+  if (!Array.isArray(dates) || !Array.isArray(equity) || dates.length < 2) {
+    return null;
+  }
+  const lastIdx = dates.length - 1;
+  const parts = String(dates[lastIdx]).split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return null;
+  const [y, mo, d] = parts;
+  const lastDate = new Date(Date.UTC(y, mo - 1, d));  // mo is 1-indexed
+  if (isNaN(lastDate.getTime())) return null;
+  // Days back to MONDAY of the current calendar week.
+  //   getUTCDay(): 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat.
+  //   Mon -> 0 days back; Tue -> 1; ...; Fri -> 4; Sun -> 6 (treat as
+  //   end of week, so Monday is 6 days back).
+  const dow = lastDate.getUTCDay();
+  const daysToMon = dow === 0 ? 6 : dow - 1;
+  const monday = new Date(lastDate);
+  monday.setUTCDate(monday.getUTCDate() - daysToMon);
+  const mondayStr = monday.toISOString().slice(0, 10);
+  // Walk back to the most recent trading day STRICTLY before this
+  // Monday (the prior weekly close).
+  let baseIdx = lastIdx;
+  while (baseIdx > 0 && dates[baseIdx] >= mondayStr) baseIdx--;
+  if (dates[baseIdx] >= mondayStr) return null;
+  return {
+    pct: equity[lastIdx] / equity[baseIdx] - 1,
+    fromDate: dates[baseIdx],
+    toDate: dates[lastIdx],
+  };
+}
+
 function renderHeroStrip() {
   const m = window.DATA?.multi;
   if (!m?.strategies) return;
@@ -2726,6 +2782,29 @@ function renderHeroStrip() {
   set('hero-cagr',   cagr != null ? fmtPct(cagr, true) : '—');
   set('hero-dd',     maxDd != null ? fmtPct(maxDd) : '—');
   set('hero-window', yearStr);
+
+  // Week-to-date — daily-frequency return since the last weekly close
+  // of the prior week (typically prior Friday for a Mon-Fri series).
+  // Live deployment tracking: shows how the actual deployed weights
+  // are performing this week. The Python port of this algorithm plus
+  // month/year-boundary edge-case tests live in
+  // tests/test_wtd_logic.py. Reference value on the 2026-05-22 close
+  // is +1.82% (latest 3.0342 vs baseline 2026-05-15 = 2.9798).
+  const wtd = _computeWeekToDate(blend.dates, blend.equity);
+  if (wtd) {
+    const el = document.getElementById('hero-wtd');
+    if (el) {
+      el.textContent = fmtPct(wtd.pct, true);
+      // Colour-cue green/red based on sign — week-to-date is the live
+      // tracking number, sign tells the reader at a glance.
+      el.classList.remove('good', 'bad');
+      el.classList.add(wtd.pct >= 0 ? 'good' : 'bad');
+    }
+    const descEl = document.getElementById('hero-wtd-desc');
+    if (descEl) {
+      descEl.textContent = `Since ${wtd.fromDate} close → ${wtd.toDate} close (live deployment)`;
+    }
+  }
 
   // Compact 1-line config ribbon — bind to the same deployed-blend
   // numbers so the ribbon stays in sync with each pipeline run.
@@ -3683,11 +3762,8 @@ function renderMonitor() {
   // Risk Overlay CPM-messaging section (Phase 19). Hidden when
   // window.DATA.multi.regime_gate is absent — graceful fallback.
   renderRiskOverlay();
-
-  // Performance section (timeframe selector + chart + per-strategy
-  // attribution). Initialised once; the button handlers re-render on
-  // period change without touching the rest of the Monitor tab.
-  renderPerformance();
+  // (Performance section is now rendered from init(), not here, because
+  // it lives in the always-visible header rather than the Monitor tab.)
 }
 
 // ----------- Monitor: Performance section -----------------------------
@@ -8178,8 +8254,11 @@ function _runLoadingWatchdog() {
   // Hero stat strip in the header — populate from the deployed blend's
   // numbers so the header headline stays in sync with each pipeline run.
   safeRender('hero-strip', renderHeroStrip);
-  // Above-the-fold positions + this-week activity preview (Phase 4 UX).
+  // Above-the-fold positions + this-week activity preview.
   safeRender('positions-preview', renderPositionsPreview);
+  // Performance section — moved out of the Monitor tab into the
+  // always-visible header (live deployment tracking).
+  safeRender('performance', renderPerformance);
   // Render the default tab immediately
   safeRender('monitor', renderMonitor);
   TAB_RENDERED.add('monitor');
