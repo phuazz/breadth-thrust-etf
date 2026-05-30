@@ -4023,9 +4023,25 @@ function _perfRender(period) {
                           'ytd': 'YTD', '1y': '1-year', '3y': '3-year',
                           '5y': '5-year', 'max': 'Lifetime' };
   const label = periodLabels[period] || period.toUpperCase();
+  // Week-to-date — computed against the deployed-blend series the
+  // same way the top hero WTD card does, so this stat stays in sync
+  // regardless of the period selector above (WTD is a fixed-window
+  // concept, not a period-dependent stat).
+  const deployedSeries = m.strategies[deployedKey];
+  const wtdObj = (typeof _computeWeekToDate === 'function')
+    ? _computeWeekToDate(deployedSeries?.dates, deployedSeries?.equity)
+    : null;
+  const wtdHtml = wtdObj
+    ? `<div class="v ${cls(wtdObj.pct)}">${fmtRet(wtdObj.pct)}</div>
+       <div class="l">Week-to-date<br><span style="font-size:9.5px;color:var(--ink-faint);">${wtdObj.fromDate} &rarr; ${wtdObj.toDate}</span></div>`
+    : `<div class="v">—</div><div class="l">Week-to-date</div>`;
+
   const strip = document.getElementById('perf-stat-strip');
   if (strip) {
     strip.innerHTML = `
+      <div class="perf-stat" style="border-left:3px solid var(--accent);background:var(--bg-soft);">
+        ${wtdHtml}
+      </div>
       <div class="perf-stat">
         <div class="v ${cls(blend.totalReturn || 0)}">${fmtRet(blend.totalReturn)}</div>
         <div class="l">${label} return — blend</div>

@@ -543,6 +543,7 @@ def main() -> int:
     # warning rather than blend mismatched series.
     # ------------------------------------------------------------------
     if live_track and multi and multi.get("strategies"):
+        # --- Splice the deployed-blend extension --------------------
         live_dates = live_track.get("live_dates") or []
         live_equity = live_track.get("live_equity") or []
         anchor_date = live_track.get("anchor_date")
@@ -558,12 +559,29 @@ def main() -> int:
                 else:
                     target["dates"] = list(target["dates"]) + list(live_dates)
                     target["equity"] = list(target["equity"]) + list(live_equity)
-                    # Bump common_end so the hero / WTD also reflect the
-                    # extension's reach.
                     if multi.get("common_end") and live_dates[-1] > multi["common_end"]:
                         multi["common_end"] = live_dates[-1]
                     print(f"  spliced {len(live_dates)} live-track point(s) "
                           f"into {key}; series now ends {live_dates[-1]}")
+
+        # --- Splice the per-sleeve extensions so the Performance chart
+        # sleeve lines (A/B/C/D) reach the same end-date as the
+        # deployed-blend line. Mismatched anchors are skipped per-sleeve
+        # rather than failing the whole splice.
+        sleeve_ext = live_track.get("sleeve_extensions") or {}
+        for ms_key, ext in sleeve_ext.items():
+            target = multi["strategies"].get(ms_key)
+            if not (target and target.get("dates") and ext.get("dates")):
+                continue
+            if target["dates"][-1] != ext.get("anchor_date"):
+                print(f"  WARN: live sleeve anchor mismatch for {ms_key} "
+                      f"(target {target['dates'][-1]} vs live "
+                      f"{ext.get('anchor_date')}) — skipping")
+                continue
+            target["dates"] = list(target["dates"]) + list(ext["dates"])
+            target["equity"] = list(target["equity"]) + list(ext["equity"])
+            print(f"  spliced {len(ext['dates'])} live point(s) into "
+                  f"{ms_key}; series now ends {ext['dates'][-1]}")
 
     # Per-panel 'data as of' dates extracted from the sleeve JSONs.
     # The dashboard JS reads window.DATA.signals_asof to render a

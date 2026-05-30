@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-05-30 00:54 UTC",
+  "computed_at_utc": "2026-05-30 01:08 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-05-22",
   "anchor_equity": 3.034158,
@@ -38,5 +38,104 @@
     3.028958,
     3.019647
   ],
-  "notes": "Daily mark-to-market overlay of the deployed blend. Holdings = latest weekly rebalance from each sleeve's trade_history, scaled by sleeve NAV weights (with EEM tilt and breadth-gate adjustments). Daily NAV computed as weighted buy-and-hold from anchor_date forward."
+  "sleeve_extensions": {
+    "strategy_a": {
+      "anchor_date": "2026-05-22",
+      "anchor_equity": 3.4611,
+      "weights": {
+        "IUES": 0.6018,
+        "IUSP": 0.3029,
+        "IUUS": 0.0953
+      },
+      "dates": [
+        "2026-05-25",
+        "2026-05-26",
+        "2026-05-27",
+        "2026-05-28",
+        "2026-05-29"
+      ],
+      "equity": [
+        3.4611,
+        3.407063,
+        3.373688,
+        3.363403,
+        3.328886
+      ]
+    },
+    "strategy_b": {
+      "anchor_date": "2026-05-22",
+      "anchor_equity": 2.2929,
+      "weights": {
+        "DBC": 0.2632,
+        "EEM": 0.175,
+        "QQQ": 0.1692,
+        "IJR": 0.1055,
+        "EWJ": 0.1039,
+        "SPY": 0.1012,
+        "EFA": 0.082
+      },
+      "dates": [
+        "2026-05-25",
+        "2026-05-26",
+        "2026-05-27",
+        "2026-05-28",
+        "2026-05-29"
+      ],
+      "equity": [
+        2.2929,
+        2.315889,
+        2.302484,
+        2.31408,
+        2.310335
+      ]
+    },
+    "strategy_c": {
+      "anchor_date": "2026-05-22",
+      "anchor_equity": 4.1963,
+      "weights": {
+        "ICLN": 0.25,
+        "TAN": 0.25,
+        "LIT": 0.25,
+        "159801.SZ": 0.25
+      },
+      "dates": [
+        "2026-05-25",
+        "2026-05-26",
+        "2026-05-27",
+        "2026-05-28",
+        "2026-05-29"
+      ],
+      "equity": [
+        4.274408,
+        4.353944,
+        4.347589,
+        4.409784,
+        4.445251
+      ]
+    },
+    "strategy_d": {
+      "anchor_date": "2026-05-22",
+      "anchor_equity": 2.8051,
+      "weights": {
+        "EXH1": 0.3545,
+        "EXH9": 0.3278,
+        "EXV1": 0.3177
+      },
+      "dates": [
+        "2026-05-25",
+        "2026-05-26",
+        "2026-05-27",
+        "2026-05-28",
+        "2026-05-29"
+      ],
+      "equity": [
+        2.837072,
+        2.831911,
+        2.782392,
+        2.757767,
+        2.757767
+      ]
+    }
+  },
+  "notes": "Daily mark-to-market overlay. Deployed-blend section uses the same effective NAV weights as renderPositionsPreview (EEM tilt + breadth-gate aware). Per-sleeve extensions (strategy_a/b/c/d) use within-sleeve weights anchored at each sleeve's multi.strategies last-date, so the Performance chart lines all advance through the live week."
 }

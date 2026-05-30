@@ -170,6 +170,69 @@ def _build_effective_weights(
     return weights
 
 
+def _sleeve_holdings_as_weights(sleeve: dict) -> dict[str, float]:
+    """Extract within-sleeve weights from the latest trade_history entry.
+
+    Returned weights sum to <= 1.0 (cash-floor residual is implicit).
+    Zero-weight holdings are filtered out.
+    """
+    trades = (sleeve.get("headline", {}) or {}).get("trade_history", [])
+    if not trades:
+        return {}
+    out: dict[str, float] = {}
+    for h in trades[-1].get("holdings", []):
+        etf = h.get("etf")
+        w = h.get("weight", 0)
+        if etf and w > 0:
+            out[etf] = out.get(etf, 0) + w
+    return out
+
+
+def _project_daily_equity(
+    weights: dict[str, float],
+    anchor_equity: float,
+    prices: pd.DataFrame,
+    anchor_ts: pd.Timestamp,
+) -> tuple[list[str], list[float]]:
+    """Compute weighted buy-and-hold NAV from anchor_ts forward.
+
+    Returns parallel (dates, equity) lists for dates strictly AFTER
+    anchor_ts. Holdings without prices are treated as flat (0% return)
+    — their weight contributes 1.0x to the factor unchanged. Cash
+    residual (1 - sum(weights)) is also treated as flat.
+    """
+    baselines: dict[str, float] = {}
+    for etf in weights:
+        if etf not in prices.columns:
+            continue
+        s = prices[etf].loc[:anchor_ts].dropna()
+        if not s.empty:
+            baselines[etf] = s.iloc[-1]
+
+    held_without = [e for e in weights if e not in baselines]
+    missing_wt = sum(weights[e] for e in held_without)
+    cash_wt = max(0.0, 1.0 - sum(weights.values()))
+
+    post_dates = prices.index[prices.index > anchor_ts]
+    dates_out: list[str] = []
+    equity_out: list[float] = []
+    for d in post_dates:
+        factor = missing_wt + cash_wt  # flat contributions
+        for etf, w in weights.items():
+            if etf not in baselines:
+                continue
+            p_d = prices[etf].get(d)
+            if p_d is None or pd.isna(p_d):
+                s = prices[etf].loc[:d].dropna()
+                if s.empty:
+                    continue
+                p_d = s.iloc[-1]
+            factor += w * (p_d / baselines[etf])
+        dates_out.append(d.strftime("%Y-%m-%d"))
+        equity_out.append(anchor_equity * factor)
+    return dates_out, equity_out
+
+
 def _fetch_usd_prices(
     weights: dict[str, float], anchor_date: str, registry: dict
 ) -> pd.DataFrame:
@@ -257,89 +320,99 @@ def main() -> int:
     print(f"Regime: {regime_state} | EEM tilt: {'ON' if p22_active else 'OFF'}")
 
     registry = _load_registry()
-    weights = _build_effective_weights(sleeves, p22_active, regime_state)
-    wt_sum = sum(weights.values())
-    print(f"\nEffective NAV weights ({len(weights)} positions, sum={wt_sum:.4f}):")
-    for etf, w in sorted(weights.items(), key=lambda x: -x[1]):
+
+    # --- Deployed-blend effective weights (with EEM tilt + regime gate)
+    deployed_weights = _build_effective_weights(sleeves, p22_active, regime_state)
+    wt_sum = sum(deployed_weights.values())
+    print(f"\nDeployed-blend effective NAV weights "
+          f"({len(deployed_weights)} positions, sum={wt_sum:.4f}):")
+    for etf, w in sorted(deployed_weights.items(), key=lambda x: -x[1]):
         print(f"  {etf:<12} {w * 100:6.2f}%")
     if abs(wt_sum - 1.0) > 0.01:
         print(f"  WARNING: weights do not sum to 1.0 (sum={wt_sum:.4f})")
 
-    prices = _fetch_usd_prices(weights, anchor_date, registry)
+    # --- Per-sleeve within-sleeve weights (no NAV scaling)
+    # We extend each sleeve's own equity curve as a separate mark-to-
+    # market so the Performance chart's per-sleeve lines (A/B/C/D)
+    # extend through the live week alongside the deployed-blend line.
+    multi = json.loads((DATA_DIR / "multi_strategy.json").read_text(encoding="utf-8"))
+    sleeve_anchors: dict[str, dict] = {}
+    for k, sleeve in sleeves.items():
+        ms_key = f"strategy_{k}"
+        ms_entry = multi.get("strategies", {}).get(ms_key)
+        if not ms_entry or not ms_entry.get("dates") or not ms_entry.get("equity"):
+            print(f"  WARN: multi.strategies.{ms_key} missing — sleeve "
+                  f"{k.upper()} will not extend on the chart")
+            continue
+        sleeve_anchors[k] = {
+            "ms_key": ms_key,
+            "anchor_date": ms_entry["dates"][-1],
+            "anchor_equity": ms_entry["equity"][-1],
+            "weights": _sleeve_holdings_as_weights(sleeve),
+        }
+        print(f"  {k.upper()} anchor: {sleeve_anchors[k]['anchor_date']}  "
+              f"equity={sleeve_anchors[k]['anchor_equity']:.4f}  "
+              f"holdings={list(sleeve_anchors[k]['weights'].keys())}")
+
+    # --- Single yfinance fetch covering the union of all tickers we need
+    # (deployed + every sleeve). Saves us five round-trips.
+    union_weights: dict[str, float] = dict(deployed_weights)
+    for sa in sleeve_anchors.values():
+        for etf in sa["weights"]:
+            union_weights.setdefault(etf, 0.0)
+    prices = _fetch_usd_prices(union_weights, anchor_date, registry)
     if prices.empty:
         print("\nERROR: no price data downloaded. Cannot compute mark-to-market.",
               file=sys.stderr)
         return 1
 
-    # Filter to dates strictly AFTER anchor_date and only where we have
-    # an anchor-date price for the holdings (so the return calculation
-    # has a valid baseline). Anchor date itself MUST be present in the
-    # series for every held ticker — otherwise we cannot compute a
-    # baseline return.
+    # --- Deployed-blend projection
     anchor_ts = pd.Timestamp(anchor_date)
     if anchor_ts not in prices.index:
-        # Find the most recent date at-or-before anchor (handles cases
-        # where the anchor was a holiday or yfinance lag).
         valid = prices.index[prices.index <= anchor_ts]
         if len(valid) == 0:
             print(f"\nERROR: no prices at-or-before anchor date {anchor_date}",
                   file=sys.stderr)
             return 1
         actual_anchor = valid.max()
-        print(f"\nNote: shifted anchor from {anchor_date} to "
-              f"{actual_anchor.strftime('%Y-%m-%d')} (closest prior trading day)")
+        print(f"\nNote: shifted deployed anchor from {anchor_date} to "
+              f"{actual_anchor.strftime('%Y-%m-%d')}")
         anchor_ts = actual_anchor
 
-    # For each ETF that has an anchor-date price, record the baseline.
-    baselines = {etf: prices[etf].loc[:anchor_ts].dropna().iloc[-1]
-                  for etf in prices.columns
-                  if not prices[etf].loc[:anchor_ts].dropna().empty}
-    held_with_baseline = [e for e in weights if e in baselines]
-    held_without = [e for e in weights if e not in baselines]
-    if held_without:
-        print(f"\nWARNING: no anchor-date price for {held_without} — "
-              "these holdings will be assumed flat (0% return) for the overlay.")
-
-    # Walk forward day by day from anchor + 1 onwards
-    post_dates = prices.index[prices.index > anchor_ts]
-    daily_dates: list[str] = []
-    daily_equity: list[float] = []
-    for d in post_dates:
-        # nav_factor = sum_i (weight_i * P_i(d) / P_i(anchor))
-        factor = 0.0
-        used_wt = 0.0
-        for etf, w in weights.items():
-            if etf not in baselines:
-                continue
-            p_d = prices[etf].get(d)
-            if p_d is None or pd.isna(p_d):
-                # Use most recent prior price for this ETF
-                series = prices[etf].loc[:d].dropna()
-                if series.empty:
-                    continue
-                p_d = series.iloc[-1]
-            factor += w * (p_d / baselines[etf])
-            used_wt += w
-        # Holdings without prices contribute 0% return (i.e., they stay
-        # at their baseline weight, equivalent to adding w to factor).
-        missing_wt = sum(weights[e] for e in held_without)
-        factor += missing_wt
-        if used_wt + missing_wt < 0.99:
-            # Should never happen since weights sum to 1, but log if so
-            print(f"  WARN {d.strftime('%Y-%m-%d')}: only {used_wt+missing_wt:.3f} "
-                  "weight covered — skipping day")
-            continue
-        daily_dates.append(d.strftime("%Y-%m-%d"))
-        daily_equity.append(anchor_equity * factor)
-
-    if not daily_dates:
-        print("\nNo new daily data beyond anchor — nothing to write.")
-        # Still write a header file so the dashboard can detect zero-extension
-    else:
-        print(f"\nGenerated {len(daily_dates)} intra-week NAV point(s):")
+    daily_dates, daily_equity = _project_daily_equity(
+        deployed_weights, anchor_equity, prices, anchor_ts)
+    if daily_dates:
+        print(f"\nDeployed-blend extension ({len(daily_dates)} point(s)):")
         for d, e in zip(daily_dates, daily_equity):
-            pct_from_anchor = (e / anchor_equity - 1) * 100
-            print(f"  {d}: equity {e:.6f} ({pct_from_anchor:+.3f}% vs anchor)")
+            pct = (e / anchor_equity - 1) * 100
+            print(f"  {d}: equity {e:.6f} ({pct:+.3f}% vs anchor)")
+    else:
+        print("\nNo new deployed-blend points beyond anchor.")
+
+    # --- Per-sleeve projections (each anchored at its own multi.strategies
+    # last-date, so the Performance chart lines line up)
+    sleeve_extensions: dict[str, dict] = {}
+    for k, sa in sleeve_anchors.items():
+        s_anchor_ts = pd.Timestamp(sa["anchor_date"])
+        if s_anchor_ts not in prices.index:
+            valid = prices.index[prices.index <= s_anchor_ts]
+            if len(valid) == 0:
+                continue
+            s_anchor_ts = valid.max()
+        s_dates, s_equity = _project_daily_equity(
+            sa["weights"], sa["anchor_equity"], prices, s_anchor_ts)
+        sleeve_extensions[sa["ms_key"]] = {
+            "anchor_date": sa["anchor_date"],
+            "anchor_equity": round(sa["anchor_equity"], 6),
+            "weights": {e: round(w, 6) for e, w in sa["weights"].items()},
+            "dates": s_dates,
+            "equity": [round(v, 6) for v in s_equity],
+        }
+        if s_dates:
+            last_e = s_equity[-1]
+            pct = (last_e / sa["anchor_equity"] - 1) * 100
+            print(f"  {k.upper()}: +{len(s_dates)} pts, "
+                  f"last {s_dates[-1]} = {last_e:.4f} ({pct:+.3f}% vs anchor)")
 
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
@@ -349,15 +422,20 @@ def main() -> int:
         "regime_state": regime_state,
         "eem_tilt_active": p22_active,
         "effective_weights": {k: round(v, 6) for k, v in
-                                sorted(weights.items(), key=lambda x: -x[1])},
+                                sorted(deployed_weights.items(),
+                                        key=lambda x: -x[1])},
+        # Backwards-compatible flat fields used by older pipeline.py:
         "live_dates": daily_dates,
         "live_equity": [round(v, 6) for v in daily_equity],
+        # New per-sleeve block for the Performance chart's sleeve lines:
+        "sleeve_extensions": sleeve_extensions,
         "notes": (
-            "Daily mark-to-market overlay of the deployed blend. "
-            "Holdings = latest weekly rebalance from each sleeve's "
-            "trade_history, scaled by sleeve NAV weights (with EEM "
-            "tilt and breadth-gate adjustments). Daily NAV computed "
-            "as weighted buy-and-hold from anchor_date forward."
+            "Daily mark-to-market overlay. Deployed-blend section uses "
+            "the same effective NAV weights as renderPositionsPreview "
+            "(EEM tilt + breadth-gate aware). Per-sleeve extensions "
+            "(strategy_a/b/c/d) use within-sleeve weights anchored at "
+            "each sleeve's multi.strategies last-date, so the "
+            "Performance chart lines all advance through the live week."
         ),
     }
 
