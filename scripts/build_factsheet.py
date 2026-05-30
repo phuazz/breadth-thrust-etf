@@ -78,20 +78,69 @@ def load_all():
                        ("d", DATA_DIR / "europe_rotation.json")]:
         if path.exists():
             sleeves[key] = json.loads(path.read_text(encoding="utf-8"))
-    return multi, overlay, sleeves
+    # Live mark-to-market overlay (optional; absent on a fresh checkout
+    # before any daily run). When present, get_deployed() splices the
+    # extension into the returned deployed-blend series so the factsheet
+    # stats and "as of" date advance through the intra-week NAV.
+    lt_path = DATA_DIR / "live_track.json"
+    live_track = json.loads(lt_path.read_text(encoding="utf-8")) if lt_path.exists() else None
+    return multi, overlay, sleeves, live_track
 
 
-def get_deployed(multi, overlay):
+def _extend_with_live(series_dates: list, series_equity: list,
+                       live_dates: list, live_equity: list,
+                       anchor_date: str, label: str) -> tuple[list, list]:
+    """Append intra-week live-track points onto a Friday-anchored series.
+
+    Skips with a printed warning if the anchor does not match the
+    series' last date — never blends mismatched series."""
+    if not live_dates or not live_equity or len(live_dates) != len(live_equity):
+        return series_dates, series_equity
+    if not series_dates or series_dates[-1] != anchor_date:
+        print(f"  WARN: live anchor {anchor_date} does not match "
+              f"{label} last date {series_dates[-1] if series_dates else 'EMPTY'} — "
+              "skipping live splice")
+        return series_dates, series_equity
+    return list(series_dates) + list(live_dates), list(series_equity) + list(live_equity)
+
+
+def get_deployed(multi, overlay, live_track=None):
     overlay_variants = (overlay or {}).get("gated_variants", {})
     strategies = multi.get("strategies", {})
+    deployed_key = None
+    deployed_blend = None
     for key in ("blend_35_35_10_20_gated_eem_tilted",
                  "blend_35_35_10_20_gated"):
         if key in overlay_variants:
-            return key, overlay_variants[key]
-    for key in ("blend_35_35_10_20", "blend_45_45_10"):
-        if key in strategies:
-            return key, strategies[key]
-    raise RuntimeError("No deployed blend found")
+            deployed_key, deployed_blend = key, overlay_variants[key]
+            break
+    if deployed_blend is None:
+        for key in ("blend_35_35_10_20", "blend_45_45_10"):
+            if key in strategies:
+                deployed_key, deployed_blend = key, strategies[key]
+                break
+    if deployed_blend is None:
+        raise RuntimeError("No deployed blend found")
+
+    # Splice live-track extension if present and anchor matches.
+    if live_track and live_track.get("deployed_key") == deployed_key:
+        ext_dates, ext_equity = _extend_with_live(
+            deployed_blend.get("dates", []),
+            deployed_blend.get("equity", []),
+            live_track.get("live_dates") or [],
+            live_track.get("live_equity") or [],
+            live_track.get("anchor_date") or "",
+            f"deployed blend ({deployed_key})",
+        )
+        if len(ext_dates) > len(deployed_blend.get("dates", [])):
+            # Shallow-copy so we don't mutate the loaded JSON
+            deployed_blend = dict(deployed_blend)
+            deployed_blend["dates"] = ext_dates
+            deployed_blend["equity"] = ext_equity
+            n_new = len(ext_dates) - len(overlay_variants.get(deployed_key, {}).get("dates", deployed_blend["dates"]))
+            print(f"  factsheet: spliced {len(live_track.get('live_dates') or [])} "
+                  f"live point(s); deployed series now ends {ext_dates[-1]}")
+    return deployed_key, deployed_blend
 
 
 # ----- Math helpers --------------------------------------------------------
@@ -895,8 +944,8 @@ def build_section_pair(left_flows, right_flows, page_w, gap=12):
 # ----- Main build ----------------------------------------------------------
 
 def build(out_path: Path):
-    multi, overlay, sleeves = load_all()
-    deployed_key, blend = get_deployed(multi, overlay)
+    multi, overlay, sleeves, live_track = load_all()
+    deployed_key, blend = get_deployed(multi, overlay, live_track)
     deployed_series = pd.Series(blend["equity"],
                                   index=pd.to_datetime(blend["dates"]))
 

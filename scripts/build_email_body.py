@@ -40,23 +40,40 @@ def _load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _get_deployed_series(multi, overlay):
-    """Return (deployed_key, dates, equity) for the live blend."""
-    # Try overlay's gated_variants first (where the live deployed series lives)
+def _get_deployed_series(multi, overlay, live_track=None):
+    """Return (deployed_key, dates, equity) for the live blend.
+
+    When ``live_track`` is provided and its anchor matches the
+    resolved series' last date, intra-week NAV points are spliced on
+    so the email reflects the latest daily close (not just Friday)."""
+    key = None
+    dates = equity = None
     if overlay and "gated_variants" in overlay:
-        for key in DEPLOYED_KEY_PREFERENCE:
-            if key in overlay["gated_variants"]:
-                s = overlay["gated_variants"][key]
-                return key, s["dates"], s["equity"]
-    # Fall back to multi_strategy
-    for key in DEPLOYED_KEY_PREFERENCE:
-        if key in multi["strategies"]:
-            s = multi["strategies"][key]
-            return key, s["dates"], s["equity"]
-    # Last resort — any blend key
-    key = next(iter(multi["strategies"]))
-    s = multi["strategies"][key]
-    return key, s["dates"], s["equity"]
+        for k in DEPLOYED_KEY_PREFERENCE:
+            if k in overlay["gated_variants"]:
+                key = k
+                s = overlay["gated_variants"][k]
+                dates, equity = list(s["dates"]), list(s["equity"])
+                break
+    if key is None:
+        for k in DEPLOYED_KEY_PREFERENCE:
+            if k in multi["strategies"]:
+                key = k
+                s = multi["strategies"][k]
+                dates, equity = list(s["dates"]), list(s["equity"])
+                break
+    if key is None:
+        key = next(iter(multi["strategies"]))
+        s = multi["strategies"][key]
+        dates, equity = list(s["dates"]), list(s["equity"])
+
+    # Splice live-track extension when anchor matches deployed key.
+    if (live_track and live_track.get("deployed_key") == key
+            and live_track.get("live_dates")
+            and dates and dates[-1] == live_track.get("anchor_date")):
+        dates = dates + list(live_track["live_dates"])
+        equity = equity + list(live_track["live_equity"])
+    return key, dates, equity
 
 
 def _period_return(series: pd.Series, days: int):
@@ -180,9 +197,33 @@ def _regime_colour(state):
     }.get(state, "#3a4148")
 
 
+def _compute_wtd(series: pd.Series):
+    """Week-to-date return using the same algorithm as the dashboard.
+
+    Latest equity vs equity at the trading day strictly before this
+    calendar week's Monday (typically prior Friday). Returns
+    (pct, from_date_iso, to_date_iso) or None if the series is too
+    short or no prior-week point exists."""
+    if len(series) < 2:
+        return None
+    last_dt = series.index[-1]
+    # weekday(): Mon=0, Sun=6. Days back to Monday of this week.
+    days_to_mon = last_dt.weekday()
+    monday = last_dt - pd.Timedelta(days=days_to_mon)
+    prior = series[series.index < monday]
+    if len(prior) == 0:
+        return None
+    base_eq = prior.iloc[-1]
+    base_dt = prior.index[-1]
+    return (series.iloc[-1] / base_eq - 1.0,
+            base_dt.strftime("%Y-%m-%d"),
+            last_dt.strftime("%Y-%m-%d"))
+
+
 def build_html(out_path: Path):
     multi = _load_json(DATA_DIR / "multi_strategy.json")
     overlay = _load_json(DATA_DIR / "risk_overlay.json")
+    live_track = _load_json(DATA_DIR / "live_track.json")  # optional
     sleeves = {}
     for key, fname in [("a", "topk_robustness.json"),
                         ("b", "asset_class_rotation.json"),
@@ -192,7 +233,7 @@ def build_html(out_path: Path):
         if d:
             sleeves[key] = d
 
-    deployed_key, dates, equity = _get_deployed_series(multi, overlay)
+    deployed_key, dates, equity = _get_deployed_series(multi, overlay, live_track)
     series = pd.Series(equity, index=pd.to_datetime(dates))
     asof = series.index[-1]
     asof_str = asof.strftime("%d %B %Y")
@@ -203,6 +244,7 @@ def build_html(out_path: Path):
     r1y = _period_return(series, 252)
     sharpe = _sharpe_full(series)
     mdd = _max_drawdown(series)
+    wtd = _compute_wtd(series)
 
     # Regime + tilt state
     regime_state, regime_since = _regime_state(overlay)
@@ -247,7 +289,7 @@ def build_html(out_path: Path):
                'margin-bottom:18px;font-size:13px;">')
     out.append(
         f'<tr><td style="padding:6px 10px;background:#f7f8fa;'
-        f'border:1px solid #e1e4e8;width:42%;">Breadth regime (Phase 19)</td>'
+        f'border:1px solid #e1e4e8;width:42%;">Breadth regime gate</td>'
         f'<td style="padding:6px 10px;background:#f7f8fa;'
         f'border:1px solid #e1e4e8;">'
         f'<strong style="color:{_regime_colour(regime_state)};">'
@@ -257,7 +299,7 @@ def build_html(out_path: Path):
     tilt_ratio_str = f" (ratio {tilt_ratio:.3f})" if tilt_ratio else ""
     out.append(
         f'<tr><td style="padding:6px 10px;border:1px solid #e1e4e8;">'
-        f'EEM/SPY tilt (Phase 22)</td>'
+        f'EEM/SPY tilt</td>'
         f'<td style="padding:6px 10px;border:1px solid #e1e4e8;">'
         f'<strong style="color:{_regime_colour(tilt_state)};">'
         f'{tilt_state}</strong> '
@@ -273,41 +315,57 @@ def build_html(out_path: Path):
     )
     out.append('</table>')
 
-    # Headline stats
+    # Headline stats — adds Week-to-date as the leading card (live
+    # deployment tracking) alongside the longer-window backtest stats.
     out.append('<h3 style="margin:0 0 10px 0;font-size:14px;'
                'color:#3a4148;text-transform:uppercase;letter-spacing:1px;">'
-               'Headline backtest stats</h3>')
+               'Headline performance</h3>')
     out.append('<table style="width:100%;border-collapse:collapse;'
-               'margin-bottom:18px;font-size:13px;">')
+               'margin-bottom:6px;font-size:13px;">')
     sharpe_str = f"{sharpe:.2f}" if sharpe is not None else "n/a"
+    wtd_pct = wtd[0] if wtd else None
+    wtd_colour = "#1d7a3a" if (wtd_pct is not None and wtd_pct >= 0) else "#b3261e"
+    wtd_str = _fmt_pct(wtd_pct, signed=True, dp=2) if wtd_pct is not None else "n/a"
     out.append(
         f'<tr>'
+        f'<td style="padding:8px 10px;background:#eef3fb;'
+        f'border:1px solid #c5d6ee;width:20%;text-align:center;">'
+        f'<div style="color:#3a4148;font-size:10px;text-transform:uppercase;'
+        f'letter-spacing:0.5px;">Week-to-date</div>'
+        f'<div style="font-weight:700;font-size:16px;color:{wtd_colour};">'
+        f'{wtd_str}</div></td>'
         f'<td style="padding:8px 10px;background:#f7f8fa;'
-        f'border:1px solid #e1e4e8;width:25%;text-align:center;">'
+        f'border:1px solid #e1e4e8;width:20%;text-align:center;">'
         f'<div style="color:#7c8590;font-size:10px;text-transform:uppercase;'
         f'letter-spacing:0.5px;">YTD</div>'
         f'<div style="font-weight:600;font-size:15px;color:#0f1217;">'
         f'{_fmt_pct(ytd, signed=True, dp=1)}</div></td>'
         f'<td style="padding:8px 10px;background:#f7f8fa;'
-        f'border:1px solid #e1e4e8;width:25%;text-align:center;">'
+        f'border:1px solid #e1e4e8;width:20%;text-align:center;">'
         f'<div style="color:#7c8590;font-size:10px;text-transform:uppercase;'
         f'letter-spacing:0.5px;">1Y</div>'
         f'<div style="font-weight:600;font-size:15px;color:#0f1217;">'
         f'{_fmt_pct(r1y, signed=True, dp=1)}</div></td>'
         f'<td style="padding:8px 10px;background:#f7f8fa;'
-        f'border:1px solid #e1e4e8;width:25%;text-align:center;">'
+        f'border:1px solid #e1e4e8;width:20%;text-align:center;">'
         f'<div style="color:#7c8590;font-size:10px;text-transform:uppercase;'
         f'letter-spacing:0.5px;">Sharpe</div>'
         f'<div style="font-weight:600;font-size:15px;color:#0f1217;">'
         f'{sharpe_str}</div></td>'
         f'<td style="padding:8px 10px;background:#f7f8fa;'
-        f'border:1px solid #e1e4e8;width:25%;text-align:center;">'
+        f'border:1px solid #e1e4e8;width:20%;text-align:center;">'
         f'<div style="color:#7c8590;font-size:10px;text-transform:uppercase;'
         f'letter-spacing:0.5px;">Max DD</div>'
         f'<div style="font-weight:600;font-size:15px;color:#b3261e;">'
         f'{_fmt_pct(mdd, signed=True, dp=1)}</div></td>'
         f'</tr></table>'
     )
+    if wtd:
+        out.append(
+            f'<p style="margin:0 0 16px 0;font-size:11px;color:#7c8590;">'
+            f'WTD window: {wtd[1]} close &rarr; {wtd[2]} close. '
+            f'Other stats span the full deployed-blend backtest history.</p>'
+        )
 
     # Top holdings
     out.append('<h3 style="margin:0 0 10px 0;font-size:14px;'

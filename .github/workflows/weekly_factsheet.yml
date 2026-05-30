@@ -78,8 +78,18 @@ jobs:
       - name: Run multi-strategy blend (uses A + D from committed JSONs)
         run: python scripts/run_multi_strategy.py
 
-      - name: Run Phase 19 + 22 risk overlay
+      - name: Run breadth-gate + EEM-tilt risk overlay
         run: python scripts/run_risk_overlay.py
+
+      - name: Run daily mark-to-market overlay
+        # CRITICAL: A and D are skipped in CI (constituent caches are
+        # gitignored), so multi.strategies.common_end is constrained by
+        # whatever Friday the user last refreshed those sleeves locally.
+        # The live mark-to-market overlay extends the deployed-blend AND
+        # all four sleeve series through the latest available daily
+        # close, so the factsheet ships fresh-as-of-yesterday rather
+        # than stuck-on-last-locally-refreshed-Friday.
+        run: python scripts/mark_to_market_live.py
 
       - name: Run holdings price export (soft-fail)
         run: python scripts/export_holdings_prices.py || true
