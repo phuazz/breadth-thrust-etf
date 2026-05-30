@@ -1037,6 +1037,121 @@
                        background: var(--bg-card); padding: 1px 5px; border-radius: 2px;
                        border: 1px solid var(--border); }
 
+    /* ----- Universe & Selection funnel cards ----- */
+    /* Visual summary of each strategy's flow: Universe -> Filter ->
+       Selection. Four cards stacked vertically; each is a 3-column
+       grid with a header strip and ticker chips. Replaces the
+       wall-of-prose explanation of what each strategy does. */
+    .uni-card {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1.2fr;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-card);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    @media (max-width: 720px) {
+      .uni-card { grid-template-columns: 1fr; }
+    }
+    .uni-card-head {
+      grid-column: 1 / -1;
+      padding: 10px 16px;
+      background: var(--bg-soft);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      font-size: 14px;
+    }
+    .uni-card-head .uni-title { font-weight: 600; color: var(--ink); }
+    .uni-card-head .uni-weight {
+      font-size: 12px;
+      color: var(--ink-faint);
+      font-variant-numeric: tabular-nums;
+    }
+    .uni-stage {
+      padding: 12px 16px;
+      border-right: 1px solid var(--border);
+    }
+    .uni-stage:last-child { border-right: none; }
+    @media (max-width: 720px) {
+      .uni-stage { border-right: none; border-bottom: 1px solid var(--border); }
+      .uni-stage:last-child { border-bottom: none; }
+    }
+    .uni-stage-h {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--ink-faint);
+      margin-bottom: 6px;
+    }
+    .uni-stage-h .uni-count {
+      color: var(--accent);
+      font-size: 13px;
+      margin-left: 4px;
+      letter-spacing: 0;
+    }
+    .uni-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .uni-chip {
+      font-family: 'JetBrains Mono', Courier, monospace;
+      font-size: 11px;
+      padding: 2px 6px;
+      background: var(--bg-soft);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--ink-soft);
+    }
+    .uni-chip.cash { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    .uni-stage ul {
+      margin: 4px 0 0 16px; padding: 0;
+      font-size: 12.5px; color: var(--ink-soft); line-height: 1.5;
+    }
+    .uni-stage ul li { margin: 3px 0; }
+    .uni-result-row { font-size: 13px; color: var(--ink); margin-top: 3px; }
+    .uni-result-row strong { color: var(--accent); font-variant-numeric: tabular-nums; }
+    .uni-overlay-strip {
+      margin: 8px 0 18px 0;
+      padding: 10px 16px;
+      background: var(--bg-soft);
+      border: 1px solid var(--border);
+      border-left: 3px solid #b76e00;
+      border-radius: 4px;
+      font-size: 12.5px;
+      color: var(--ink-soft);
+      line-height: 1.55;
+    }
+    .uni-overlay-strip strong { color: var(--ink); }
+    .uni-totalizer {
+      margin-top: 12px;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-strong);
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .uni-totalizer .uni-tot-label {
+      font-weight: 600; color: var(--ink);
+      text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px;
+    }
+    .uni-totalizer .uni-tot-value {
+      font-size: 14px; color: var(--accent); font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
     /* ----- Position preview cards (above-the-fold positions + activity) ----- */
     /* First-time readers want to see what is currently held and what changed
        this week BEFORE they read methodology. These two cards sit right
@@ -2301,6 +2416,14 @@
     </div>
 
     <section>
+      <h2>Investment universe &amp; selection — visual summary</h2>
+      <p class="section-sub">For each sleeve: what could be held (universe), what filter decides which subset, what is actually held (selection). Universe counts and current-selection counts auto-populate from the live JSONs. Two overlays sit on top of the 4-sleeve blend — the breadth-regime gate and the EEM tilt — described in the strip at the bottom.</p>
+      <div id="universe-cards"></div>
+      <div class="uni-overlay-strip" id="universe-overlay-strip"></div>
+      <div class="uni-totalizer" id="universe-totalizer"></div>
+    </section>
+
+    <section>
       <h2>Signal definition (formal)</h2>
       <div class="methodbox">
         <p><strong>Breadth indicator (Strategy A)</strong>: % of an ETF's point-in-time constituents whose closing price is above their own 200-day simple moving average. Computed daily; constituents reset weekly from the iShares UK holdings endpoint.</p>
@@ -3081,6 +3204,183 @@ function renderPositionsPreview() {
   }
   const asofA = document.getElementById('preview-activity-asof');
   if (asofA && activityDate) asofA.textContent = activityDate;
+}
+
+// =====================================================================
+// Investment Universe & Selection — visual summary in the Method tab.
+// Four cards (one per sleeve) showing Universe -> Filter -> Selection
+// flow. Counts populate from the live JSONs so the chart cannot drift
+// from the deployed reality.
+// =====================================================================
+
+// Strategy A's universe is the etfs_used list (constituent-breadth
+// signal, no per-ETF universe entry). B/C/D have universe[] arrays
+// with full labels — we trust those as the source of truth.
+function _universeTickers(data) {
+  const a = (data.topk?.headline?.etfs_used) || [];
+  const b = (data.asset_class?.universe || []).map(u => u.etf);
+  const c = (data.thematic?.universe || []).map(u => u.etf);
+  const d = (data.europe?.universe || []).map(u => u.etf);
+  return { a, b, c, d };
+}
+
+function _currentHoldingTickers(sleeve) {
+  const trades = sleeve?.headline?.trade_history || [];
+  if (!trades.length) return [];
+  return (trades[trades.length - 1].holdings || []).map(h => h.etf);
+}
+
+function _renderUniCard(opts) {
+  // opts: { sleeve, name, weight, universe, filter[], k, weighting,
+  //         currentHoldings, cashFloor }
+  const chips = opts.universe.map(t => {
+    const cashCls = (t === opts.cashFloor) ? ' cash' : '';
+    return `<span class="uni-chip${cashCls}">${t}</span>`;
+  }).join('');
+  const filterHtml = opts.filter.map(s => `<li>${s}</li>`).join('');
+  const ksuffix = opts.kSuffix || '';
+  return `
+    <div class="uni-card">
+      <div class="uni-card-head">
+        <span class="uni-title">${opts.sleeve} &middot; ${opts.name}</span>
+        <span class="uni-weight">${opts.weight}% sleeve weight</span>
+      </div>
+      <div class="uni-stage">
+        <div class="uni-stage-h">Universe<span class="uni-count">${opts.universe.length}</span></div>
+        <div class="uni-chips">${chips}</div>
+        ${opts.universeNote ? `<div style="font-size:11px;color:var(--ink-faint);margin-top:6px;">${opts.universeNote}</div>` : ''}
+      </div>
+      <div class="uni-stage">
+        <div class="uni-stage-h">Filter &amp; rank</div>
+        <ul>${filterHtml}</ul>
+      </div>
+      <div class="uni-stage">
+        <div class="uni-stage-h">Selection</div>
+        <div class="uni-result-row">Top <strong>K = ${opts.k}${ksuffix}</strong></div>
+        <div class="uni-result-row" style="font-size:12.5px;color:var(--ink-soft);">Weighting: ${opts.weighting}</div>
+        <div class="uni-result-row" style="margin-top:6px;">Currently held: <strong>${opts.currentHoldings.length}</strong> position${opts.currentHoldings.length === 1 ? '' : 's'}</div>
+        <div class="uni-chips" style="margin-top:6px;">
+          ${opts.currentHoldings.slice(0, 8).map(t => `<span class="uni-chip">${t}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderUniverseSelection() {
+  const container = document.getElementById('universe-cards');
+  if (!container) return;
+  const data = window.DATA;
+  if (!data) return;
+  const tk = _universeTickers(data);
+  const p22Active = data.risk_overlay?.phase22_eem_tilt?.current_state === 'EM_TILT_ON';
+
+  const cards = [];
+
+  cards.push(_renderUniCard({
+    sleeve: 'A', name: 'US Sectors',
+    weight: 35,
+    universe: tk.a,
+    universeNote: 'iShares S&P 500 sector UCITS + SOXX + CSP1 + CNDX + IDP6 + IUSP',
+    filter: [
+      'Compute % of constituents above own 200d MA (per ETF, daily)',
+      'Subtract cross-sectional mean (sector-relative breadth)',
+      'Drop sectors below the mean (negative relative breadth)',
+    ],
+    k: data.topk?.headline?.K || 7,
+    weighting: 'Breadth share',
+    currentHoldings: _currentHoldingTickers(data.topk),
+  }));
+
+  cards.push(_renderUniCard({
+    sleeve: 'B', name: 'Asset-class momentum',
+    weight: p22Active ? 25 : 35,
+    universe: tk.b.filter(t => t !== 'SHY'),
+    universeNote: 'US equity / intl developed / EM / REIT / commodities / Treasuries' +
+      (p22Active ? '<br><em>EEM tilt active &mdash; B drops 35% &rarr; 25%, 10% goes to EEM</em>' : ''),
+    cashFloor: 'SHY',
+    filter: [
+      'Distance above own 200d MA',
+      'Drop ETFs with negative signal',
+      'Unfilled slots park in SHY (1-3y Treasury) cash floor',
+    ],
+    k: data.asset_class?.headline?.K || 7,
+    weighting: 'Signal share (proportional to MA distance)',
+    currentHoldings: _currentHoldingTickers(data.asset_class),
+  }));
+
+  cards.push(_renderUniCard({
+    sleeve: 'C', name: 'Thematic optionality',
+    weight: 10,
+    universe: tk.c.filter(t => t !== 'SHY'),
+    universeNote: 'AI / clean energy / biotech / commodity-equity / China-tech / crypto proxy',
+    cashFloor: 'SHY',
+    filter: [
+      'Distance above own 200d MA',
+      'Hard floor: drop anything <code>&lt;</code>+5% above MA (must already be trending)',
+      'Unfilled slots park in SHY cash floor',
+    ],
+    k: data.thematic?.headline?.K || 4,
+    weighting: 'Equal-weight (1/K)',
+    currentHoldings: _currentHoldingTickers(data.thematic),
+  }));
+
+  cards.push(_renderUniCard({
+    sleeve: 'D', name: 'Europe sectors',
+    weight: 20,
+    universe: tk.d,
+    universeNote: 'Stoxx Europe 600 sector UCITS, Xetra-listed (EUR-denominated; USD-converted in backtest)',
+    filter: [
+      'Constituent breadth (% above own 200d MA, same as A)',
+      'Top K by absolute breadth',
+    ],
+    k: data.europe?.headline?.K || 3,
+    weighting: 'Breadth share',
+    currentHoldings: _currentHoldingTickers(data.europe),
+  }));
+
+  container.innerHTML = cards.join('');
+
+  // Overlay strip — explains the two overlays that sit ON TOP of the
+  // 4-sleeve blend before final deployed weights.
+  const ov = document.getElementById('universe-overlay-strip');
+  if (ov) {
+    const p19 = data.risk_overlay?.current_state || 'UNKNOWN';
+    const p19Since = data.risk_overlay?.current_state_since || '—';
+    const p22 = data.risk_overlay?.phase22_eem_tilt?.current_state || 'UNKNOWN';
+    const p22Since = data.risk_overlay?.phase22_eem_tilt?.current_state_since || '—';
+    ov.innerHTML = `
+      <strong>Two overlays sit on top of the 4-sleeve blend before final deployed weights:</strong><br>
+      <strong>(1) Breadth regime gate</strong> — if SPY constituent breadth drops below 20%, scale equity-side weights to 50% and park the other 50% in SHY (defensive). Re-engages when breadth recovers above 50%.
+      &nbsp; Currently: <strong style="color:${p19 === 'RISK_ON' ? '#1d7a3a' : '#b3261e'};">${p19}</strong> since ${p19Since}.<br>
+      <strong>(2) EEM tilt</strong> — when EEM/SPY 50d MA crosses above its 200d MA (golden cross), reallocate 10% from Strategy B into EEM.
+      &nbsp; Currently: <strong style="color:${p22 === 'EM_TILT_ON' ? '#1351b4' : '#7c8590'};">${p22}</strong> since ${p22Since}.
+    `;
+  }
+
+  // Totalizer — how many unique ETFs across all 4 universes + currently
+  // how many positions are actually held.
+  const tot = document.getElementById('universe-totalizer');
+  if (tot) {
+    const unionUniverse = new Set([...tk.a, ...tk.b, ...tk.c, ...tk.d]);
+    const heldUnion = new Set([
+      ..._currentHoldingTickers(data.topk),
+      ..._currentHoldingTickers(data.asset_class),
+      ..._currentHoldingTickers(data.thematic),
+      ..._currentHoldingTickers(data.europe),
+    ]);
+    if (p22Active) heldUnion.add('EEM');
+    tot.innerHTML = `
+      <span>
+        <span class="uni-tot-label">Total deployable universe:</span>
+        <span class="uni-tot-value">${unionUniverse.size}</span> unique ETFs across all 4 sleeves
+      </span>
+      <span>
+        <span class="uni-tot-label">Currently held:</span>
+        <span class="uni-tot-value">${heldUnion.size}</span> positions this week
+      </span>
+    `;
+  }
 }
 
 function renderMonitor() {
@@ -8342,6 +8642,9 @@ function _runLoadingWatchdog() {
   safeRender('hero-strip', renderHeroStrip);
   // Above-the-fold positions + this-week activity preview.
   safeRender('positions-preview', renderPositionsPreview);
+  // Universe & Selection visual (Method tab) — render eagerly so it
+  // is ready when the user clicks through.
+  safeRender('universe-selection', renderUniverseSelection);
   // Performance section — moved out of the Monitor tab into the
   // always-visible header (live deployment tracking).
   safeRender('performance', renderPerformance);
