@@ -1,0 +1,152 @@
+{
+  "computed_at_utc": "2026-05-30 10:50 UTC",
+  "candidate": "SOXX",
+  "mode": "retroactive",
+  "baseline_universe": [
+    "CSP1",
+    "CNDX",
+    "IUES",
+    "IUFS",
+    "IUHC",
+    "IUIS",
+    "IUCS",
+    "IUCD",
+    "IUUS",
+    "IUMS",
+    "IUCM",
+    "IUSP",
+    "IDP6"
+  ],
+  "proposed_universe": [
+    "SOXX",
+    "CSP1",
+    "CNDX",
+    "IUES",
+    "IUFS",
+    "IUHC",
+    "IUIS",
+    "IUCS",
+    "IUCD",
+    "IUUS",
+    "IUMS",
+    "IUCM",
+    "IUSP",
+    "IDP6"
+  ],
+  "eligible_start": "2018-11-02",
+  "correlation": {
+    "max_corr": 0.8261077896544238,
+    "max_corr_with": "CNDX",
+    "threshold": 0.85,
+    "top_5_pairs": [
+      {
+        "ticker": "CNDX",
+        "corr": 0.8261077896544238
+      },
+      {
+        "ticker": "IUCD",
+        "corr": 0.7237133136925186
+      },
+      {
+        "ticker": "CSP1",
+        "corr": 0.7212758490475594
+      },
+      {
+        "ticker": "IUIS",
+        "corr": 0.7020593110040795
+      },
+      {
+        "ticker": "IDP6",
+        "corr": 0.6983672573700119
+      }
+    ],
+    "passed": true
+  },
+  "in_sample": {
+    "K": 7,
+    "baseline_stats": {
+      "sharpe": 0.6602507957039006,
+      "cagr": 0.10708189043923921,
+      "max_dd": -0.31871536742832957,
+      "n_years": 7.542778918548939
+    },
+    "proposed_stats": {
+      "sharpe": 0.7158342170086537,
+      "cagr": 0.12308091125972731,
+      "max_dd": -0.3220182124228296,
+      "n_years": 7.542778918548939
+    },
+    "delta_sharpe": 0.05558342130475313,
+    "delta_max_dd_pp": -0.33028449945000093,
+    "sharpe_passed": true,
+    "max_dd_passed": true
+  },
+  "walk_forward": {
+    "baseline": {
+      "walk_forward_sharpe": 0.829,
+      "segments": [
+        {
+          "train_end": "2023-12-29",
+          "test_start": "2024-01-02",
+          "test_end": "2024-12-31",
+          "best_K": 3,
+          "train_sharpe": 0.667,
+          "test_sharpe": 1.495,
+          "n_test_days": 252
+        },
+        {
+          "train_end": "2024-12-31",
+          "test_start": "2025-01-02",
+          "test_end": "2025-12-31",
+          "best_K": 3,
+          "train_sharpe": 0.739,
+          "test_sharpe": 0.282,
+          "n_test_days": 250
+        },
+        {
+          "train_end": "2025-12-31",
+          "test_start": "2026-01-02",
+          "test_end": "2026-05-19",
+          "best_K": 3,
+          "train_sharpe": 0.686,
+          "test_sharpe": 0.721,
+          "n_test_days": 95
+        }
+      ]
+    },
+    "proposed": {
+      "walk_forward_sharpe": 1.02,
+      "segments": [
+        {
+          "train_end": "2023-12-29",
+          "test_start": "2024-01-02",
+          "test_end": "2024-12-31",
+          "best_K": 7,
+          "train_sharpe": 0.641,
+          "test_sharpe": 1.205,
+          "n_test_days": 252
+        },
+        {
+          "train_end": "2024-12-31",
+          "test_start": "2025-01-02",
+          "test_end": "2025-12-31",
+          "best_K": 7,
+          "train_sharpe": 0.68,
+          "test_sharpe": 0.453,
+          "n_test_days": 250
+        },
+        {
+          "train_end": "2025-12-31",
+          "test_start": "2026-01-02",
+          "test_end": "2026-05-19",
+          "best_K": 7,
+          "train_sharpe": 0.651,
+          "test_sharpe": 2.157,
+          "n_test_days": 95
+        }
+      ]
+    },
+    "passed": true
+  },
+  "overall_pass": true
+}
