@@ -1152,6 +1152,43 @@
       font-variant-numeric: tabular-nums;
     }
 
+    /* "Why this universe?" methodology box — collapsible accordion
+       per sleeve so readers can drill into the granularity-choice and
+       correlation-gate rationale without it dominating the visual. */
+    details.uni-why {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg-card);
+      overflow: hidden;
+    }
+    details.uni-why > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--bg-soft);
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    details.uni-why > summary::-webkit-details-marker { display: none; }
+    details.uni-why > summary::after {
+      content: '+'; font-size: 16px; color: var(--ink-faint); font-weight: 400;
+    }
+    details.uni-why[open] > summary::after { content: '\2212'; }
+    .uni-why-body { padding: 12px 18px 16px 18px; font-size: 13px; line-height: 1.6; }
+    .uni-why-body h4 {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--ink-soft); margin: 14px 0 4px 0; font-weight: 600;
+    }
+    .uni-why-body h4:first-child { margin-top: 0; }
+    .uni-why-body p { margin: 4px 0 8px 0; color: var(--ink-soft); }
+    .uni-why-body em { color: var(--ink); font-style: normal; font-weight: 600; }
+
     /* ----- Position preview cards (above-the-fold positions + activity) ----- */
     /* First-time readers want to see what is currently held and what changed
        this week BEFORE they read methodology. These two cards sit right
@@ -2421,6 +2458,23 @@
       <div id="universe-cards"></div>
       <div class="uni-overlay-strip" id="universe-overlay-strip"></div>
       <div class="uni-totalizer" id="universe-totalizer"></div>
+
+      <details class="uni-why">
+        <summary>Why this universe? — design rationale per sleeve</summary>
+        <div class="uni-why-body">
+          <h4>Strategy A · US sectors</h4>
+          <p>The 14-ETF mix decomposes into <strong>9 GICS sectors</strong> (the iShares UK S&amp;P 500 sector UCITS slate), <strong>1 REIT proxy</strong> (IUSP — no iShares UK Real Estate sector UCITS exists, so substituted), <strong>3 broad indices</strong> (CSP1, CNDX, IDP6) which act as the &ldquo;no specific sector is leading&rdquo; fallback in undifferentiated breadth regimes, and <strong>1 sub-industry</strong> (SOXX — semiconductors). SOXX is the only non-sector inclusion: a discretionary prior-belief pick based on the long-standing practitioner observation that semis lead the tech cycle by 1&ndash;3 months (Philadelphia SOX has been followed as a cyclical bellwether since the 1990s). IUIT (S&amp;P 500 Info Tech) was pruned in May 2026 because of 0.97 correlation with CNDX &mdash; no incremental information, just turnover noise. The Phase 5 retrospective tested adding 11 other sub-industry ETFs (KIE, KRE, XBI, ITA, ITB, OIH, XME, XRT, FDN, IGV, AMLP, PHO, PBW) and walk-forward Sharpe degraded by 0.10 &mdash; reverted. <em>Honest limitation:</em> SOXX was an early-included pick, not the winner of a symmetric &ldquo;all eligible sub-industries&rdquo; gate. <strong>IBB (biotech) is the most plausible analogue</strong> (biotech leads healthcare like semis leads tech) and is queued for a proper correlation-gate test before potential addition.</p>
+
+          <h4>Strategy B · Asset-class momentum</h4>
+          <p>The 13 ETFs are deliberately <strong>cap-weighted broad asset-class slates</strong> &mdash; US equity (SPY / IJR / QQQ), international developed (EFA / VGK / EWJ), emerging markets (EEM), real estate (VNQ), commodities (GLD / DBC), Treasuries (TLT / IEF / TIP). Within-equity rotation is Strategy A's job; B's role is the cross-asset switch. <strong>HYG was removed in Phase 24</strong> &mdash; high-yield credit is equity-correlated when stress arrives and was never providing the &ldquo;flight to safety&rdquo; role its bond designation implied. <strong>SHY (1&ndash;3y Treasury) is the cash floor</strong> for unfilled signal slots; was IEF pre-Phase 19.1 but IEF carries 7&ndash;10y duration risk in a rising-rate shock and is better held only when its own momentum signal earns the slot on its own merit. IEF remains in the rotation universe as a long-duration trade candidate.</p>
+
+          <h4>Strategy C · Thematic optionality</h4>
+          <p>The 23 themes were assembled through <strong>phased additions with explicit within-strategy and cross-strategy correlation gates</strong>: Tech &amp; Innovation (ARKK, CIBR, SKYY, BOTZ, BLOK), Energy &amp; Climate (ICLN, TAN, LIT, URA), Health &amp; Bio (XBI, ARKG), Cyclical thematic (JETS), Commodity-equity (GDX, COPX, MOO + XME, WOOD, REMX added Phase 16), China &amp; EM Tech (CQQQ added Phase 17, 159801.SZ added Phase 17.1 with FX-conversion pipeline), Infrastructure (PAVE), Defence (ITA), Crypto (BTC-USD as the long-history proxy with IBIT-equivalent expense ratio applied; live execution in IBIT). Two candidates were <strong>tested and reverted</strong> despite passing the correlation gate: SLV (silver, dragged B's Sharpe by 0.18) and KWEB (China internet, dragged C's walk-forward Sharpe by 0.13). Lesson: correlation gates are necessary but not sufficient; empirical Sharpe / drawdown test is required before deployment. <em>Honest caveat:</em> severe survivorship bias &mdash; failed thematics (cannabis, leveraged-thematic, volatility ETFs) never entered the universe at all.</p>
+
+          <h4>Strategy D · Europe sectors</h4>
+          <p>The 5-ETF universe is structurally small because <strong>iShares Europe publishes a limited Stoxx Europe 600 sector UCITS slate</strong>. The five available with reliable constituent-CSV endpoints are Banks (EXV1), Oil &amp; Gas (EXH1), Technology (EXV3), Industrial Goods &amp; Services (EXH3), and Utilities (EXH9). Constituent breadth (the same signal mechanism as Strategy A) requires per-ETF holdings, which constrains the universe to issuers with reliable holdings-CSV endpoints. <strong>Single-country UCITS</strong> (IJPN Japan, NDIA India, ICHN China, ITWN Taiwan) were tested in Phase 4 as a &ldquo;Countries&rdquo; variant and <strong>deferred</strong> &mdash; insufficient single-country breadth data after the constituent-breadth pipeline fix exposed thin yfinance coverage for non-US tickers. Future expansion (eg adding a 10-sector Europe set) would require iShares Europe to publish more sector UCITS or a switch to a different issuer with comparable holdings access.</p>
+        </div>
+      </details>
     </section>
 
     <section>
