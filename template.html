@@ -6178,7 +6178,7 @@ function renderTradeCharts() {
   }
   const tradeLayout = {
     margin: { t: 8, r: 16, b: 40, l: 56 },
-    xaxis: { showgrid: false, color: '#4a5159' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
@@ -6230,7 +6230,7 @@ function renderTradeCharts() {
   }));
   Plotly.newPlot('trade-allocation-chart', stackedTraces, {
     margin: { t: 8, r: 16, b: 80, l: 50 },
-    xaxis: { showgrid: false, color: '#4a5159' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
@@ -6433,7 +6433,7 @@ function renderAssetCharts() {
   });
   const assetLayout = {
     margin: { t: 8, r: 16, b: 60, l: 56 },
-    xaxis: { showgrid: false, color: '#4a5159' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
@@ -6483,7 +6483,7 @@ function renderAssetCharts() {
   });
   Plotly.newPlot('asset-allocation-chart', stackedTraces, {
     margin: { t: 8, r: 16, b: 100, l: 50 },
-    xaxis: { showgrid: false, color: '#4a5159' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
@@ -6730,7 +6730,7 @@ function renderThematicCharts() {
   });
   const thematicLayout = {
     margin: { t: 8, r: 16, b: 60, l: 56 },
-    xaxis: { showgrid: false, color: '#4a5159' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
@@ -6779,7 +6779,7 @@ function renderThematicCharts() {
   });
   Plotly.newPlot('thematic-allocation-chart', stackedTraces, {
     margin: { t: 8, r: 16, b: 100, l: 50 },
-    xaxis: { showgrid: false, color: '#4a5159' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
@@ -7019,7 +7019,7 @@ function renderEuropeCharts() {
   });
   const europeLayout = {
     margin: { t: 8, r: 16, b: 60, l: 56 },
-    xaxis: { showgrid: false, color: '#4a5159' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
@@ -7068,7 +7068,7 @@ function renderEuropeCharts() {
   });
   Plotly.newPlot('europe-allocation-chart', stackedTraces, {
     margin: { t: 8, r: 16, b: 100, l: 50 },
-    xaxis: { showgrid: false, color: '#4a5159' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
@@ -7354,7 +7354,7 @@ function renderMultiCharts() {
   });
   const layout = {
     margin: { t: 8, r: 16, b: 120, l: 56 },
-    xaxis: { showgrid: false, color: '#4a5159' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
@@ -7873,7 +7873,13 @@ function renderBlendAllocationTimeline() {
 
   Plotly.newPlot('blend-allocation-chart', traces, {
     margin: { t: 8, r: 16, b: 90, l: 50 },
-    xaxis: { showgrid: false, color: '#4a5159' },
+    xaxis: {
+      showgrid: false, color: '#4a5159',
+      // Snapshots are weekly Friday closes — surface the day-of-month
+      // and weekday in the tooltip so the reader sees that explicitly,
+      // rather than Plotly collapsing to month-year at zoomed-out views.
+      hoverformat: '%a %d %b %Y',
+    },
     yaxis: {
       gridcolor: '#eef0f3', color: '#4a5159',
       title: { text: '% of NAV (stacked)', font: { size: 11 } },
