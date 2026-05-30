@@ -1079,15 +1079,39 @@
       border-collapse: collapse;
       font-size: 12.5px;
     }
+    table.prev-table thead th {
+      font-size: 9.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--ink-faint);
+      text-align: left;
+      padding: 4px 6px 6px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    table.prev-table thead th.th-wt,
+    table.prev-table thead th.th-cash,
+    table.prev-table thead th.th-delta { text-align: right; padding-right: 0; }
     table.prev-table td {
-      padding: 4px 4px 4px 0;
-      vertical-align: middle;
+      padding: 5px 4px 5px 0;
+      vertical-align: top;
       border: none;
     }
+    table.prev-table tbody tr + tr td { border-top: 1px solid #f0f2f4; }
     table.prev-table td.tk {
       font-family: 'JetBrains Mono', Courier, monospace;
       font-weight: 600;
       white-space: nowrap;
+    }
+    table.prev-table td.tk .tk-label {
+      display: block;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 400;
+      font-size: 10.5px;
+      color: var(--ink-faint);
+      margin-top: 1px;
+      white-space: normal;
+      line-height: 1.3;
     }
     table.prev-table td.sl {
       font-size: 10.5px;
@@ -1507,9 +1531,18 @@
           <span class="prev-card-h-title">Current top holdings</span>
           <span class="prev-card-h-asof" id="preview-holdings-asof">—</span>
         </div>
-        <table class="prev-table" id="preview-holdings-table"><tbody></tbody></table>
+        <table class="prev-table" id="preview-holdings-table">
+          <thead>
+            <tr>
+              <th class="th-tk">Ticker &amp; name</th>
+              <th class="th-sl">Sleeve</th>
+              <th class="th-wt">% NAV</th>
+              <th class="th-cash">$ on $1.0M</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
         <div class="prev-card-foot">
-          Sized on a $1.0M portfolio &middot;
           <a href="#" onclick="activateTab('monitor');return false;">Full target portfolio &rarr;</a>
         </div>
       </div>
@@ -1518,7 +1551,17 @@
           <span class="prev-card-h-title">This week's changes</span>
           <span class="prev-card-h-asof" id="preview-activity-asof">—</span>
         </div>
-        <table class="prev-table" id="preview-activity-table"><tbody></tbody></table>
+        <table class="prev-table" id="preview-activity-table">
+          <thead>
+            <tr>
+              <th class="th-sl">Sleeve</th>
+              <th class="th-act">Action</th>
+              <th class="th-tk">Ticker &amp; name</th>
+              <th class="th-delta">Prior &rarr; New (% NAV)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
         <div class="prev-card-foot">
           <a href="#" onclick="activateTab('trade-history');return false;">Full rebalance ledger &rarr;</a>
         </div>
@@ -2781,24 +2824,70 @@ function _asofPrefix(sleeveKey) {
 }
 
 // =====================================================================
-// Phase 4 UX — above-the-fold positions + this-week activity preview.
+// Above-the-fold positions + this-week activity preview.
 // Pulls from the same trade_history data the Monitor tab uses, so the
 // preview is always in sync with the full target portfolio without
 // any extra pipeline plumbing. Mirrors the logic in
 // scripts/build_email_body.py so the dashboard preview and the weekly
 // email tell the same story.
+//
+// Tables show % NAV (not within-sleeve %) so the reader sees the
+// portfolio-level impact directly without doing the sleeve-weight
+// arithmetic in their head.
 // =====================================================================
+
+// Strategy A's universe is exposed as a flat ticker list in
+// topk_robustness.json (no inline label field per ETF), so we keep a
+// small hand-maintained label map here. Strategy B/C/D pull labels
+// from their respective JSON universe arrays — those are auto-generated
+// by the upstream scripts so do not need to live in JS.
+const STRATEGY_A_LABELS = {
+  SOXX: 'iShares Semiconductors',
+  CSP1: 'iShares Core S&P 500',
+  CNDX: 'iShares NASDAQ-100',
+  IUES: 'iShares S&P 500 Energy',
+  IUFS: 'iShares S&P 500 Financials',
+  IUHC: 'iShares S&P 500 Health Care',
+  IUIS: 'iShares S&P 500 Industrials',
+  IUCS: 'iShares S&P 500 Consumer Staples',
+  IUCD: 'iShares S&P 500 Consumer Discretionary',
+  IUUS: 'iShares S&P 500 Utilities',
+  IUMS: 'iShares S&P 500 Materials',
+  IUCM: 'iShares S&P 500 Communication Services',
+  IUSP: 'iShares US Property Yield (REITs)',
+  IDP6: 'iShares S&P SmallCap 600',
+};
+const TILT_LABELS = { EEM: 'iShares MSCI Emerging Markets' };
+
+function _buildEtfLabelMap(data) {
+  const map = { ...STRATEGY_A_LABELS, ...TILT_LABELS };
+  // Pull B/C/D labels from each sleeve's universe array.
+  for (const sleeve of [data.asset_class, data.thematic, data.europe]) {
+    for (const u of (sleeve?.universe || [])) {
+      if (u.etf && u.label && !map[u.etf]) map[u.etf] = u.label;
+    }
+  }
+  return map;
+}
+
+function _escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function renderPositionsPreview() {
   const data = window.DATA;
   if (!data) return;
   const sleeves = {
     a: data.topk, b: data.asset_class, c: data.thematic, d: data.europe,
   };
-  // Phase 22 EEM tilt active? — funds 10pp from B into EEM
+  // EEM tilt active? — funds 10pp from B into EEM
   const p22Active = data.risk_overlay?.phase22_eem_tilt?.current_state === 'EM_TILT_ON';
   const wts = {
     a: 0.35, b: p22Active ? 0.25 : 0.35, c: 0.10, d: 0.20,
   };
+  const labelMap = _buildEtfLabelMap(data);
+  const lbl = (etf) => labelMap[etf] || '';
+
   // ---- holdings ----
   const holdings = [];
   let mostRecentDate = '';
@@ -2827,8 +2916,11 @@ function renderPositionsPreview() {
       hTable.innerHTML = top.map(h => {
         const cash = (h.eff * 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 0 });
         const wtStr = (h.eff * 100).toFixed(1) + '%';
+        const labelHtml = lbl(h.etf)
+          ? `<span class="tk-label">${_escapeHtml(lbl(h.etf))}</span>`
+          : '';
         return `<tr>
-          <td class="tk">${h.etf}</td>
+          <td class="tk">${h.etf}${labelHtml}</td>
           <td class="sl">${h.sleeve}</td>
           <td class="wt">${wtStr}</td>
           <td class="cash">$${cash}</td>
@@ -2840,43 +2932,60 @@ function renderPositionsPreview() {
   if (asofH && mostRecentDate) asofH.textContent = 'as of ' + mostRecentDate;
 
   // ---- activity (this week's rebalance) ----
+  // Weight deltas are converted to PORTFOLIO-LEVEL % NAV using the
+  // sleeve weights above. E.g. ENTER TAN at 25% within Strategy C
+  // (sleeve weight 10%) shows as "— → 2.5%" — that is, 2.5% of total
+  // NAV, which is the figure that matters for execution sizing.
   const activity = [];
   for (const [k, sleeve] of Object.entries(sleeves)) {
     const trades = sleeve?.headline?.trade_history || [];
     if (trades.length < 2) continue;
+    const sleeveWt = wts[k];
     const prev = Object.fromEntries((trades[trades.length - 2].holdings || []).map(h => [h.etf, h.weight]));
     const curr = Object.fromEntries((trades[trades.length - 1].holdings || []).map(h => [h.etf, h.weight]));
     const sl = k.toUpperCase();
     for (const etf in curr) {
-      if (!(etf in prev)) activity.push({ sl, action: 'ENTER', etf, prev: null, neu: curr[etf] });
+      if (!(etf in prev)) activity.push({
+        sl, action: 'ENTER', etf,
+        prevNav: null, newNav: curr[etf] * sleeveWt,
+      });
     }
     for (const etf in prev) {
-      if (!(etf in curr)) activity.push({ sl, action: 'EXIT', etf, prev: prev[etf], neu: null });
+      if (!(etf in curr)) activity.push({
+        sl, action: 'EXIT', etf,
+        prevNav: prev[etf] * sleeveWt, newNav: null,
+      });
     }
     for (const etf in curr) {
       if (etf in prev && Math.abs(curr[etf] - prev[etf]) > 0.01) {
-        activity.push({ sl, action: 'RESIZE', etf, prev: prev[etf], neu: curr[etf] });
+        activity.push({
+          sl, action: 'RESIZE', etf,
+          prevNav: prev[etf] * sleeveWt, newNav: curr[etf] * sleeveWt,
+        });
       }
     }
   }
-  // Action priority: ENTER > EXIT > RESIZE; within each, largest weight first.
+  // Action priority: ENTER > EXIT > RESIZE; within each, largest NAV first.
   const actOrder = { ENTER: 0, EXIT: 1, RESIZE: 2 };
   activity.sort((x, y) => {
     if (actOrder[x.action] !== actOrder[y.action]) return actOrder[x.action] - actOrder[y.action];
-    return (y.neu || y.prev || 0) - (x.neu || x.prev || 0);
+    return (y.newNav || y.prevNav || 0) - (x.newNav || x.prevNav || 0);
   });
   const aTable = document.querySelector('#preview-activity-table tbody');
   if (aTable) {
     if (!activity.length) {
-      aTable.innerHTML = '<tr><td colspan="5" class="prev-card-empty">No position changes &mdash; strategy stable.</td></tr>';
+      aTable.innerHTML = '<tr><td colspan="4" class="prev-card-empty">No position changes &mdash; strategy stable.</td></tr>';
     } else {
       aTable.innerHTML = activity.slice(0, 6).map(a => {
-        const prevStr = a.prev != null ? (a.prev * 100).toFixed(0) + '%' : '—';
-        const newStr  = a.neu != null ? (a.neu * 100).toFixed(0) + '%' : '—';
+        const prevStr = a.prevNav != null ? (a.prevNav * 100).toFixed(1) + '%' : '—';
+        const newStr  = a.newNav  != null ? (a.newNav  * 100).toFixed(1) + '%' : '—';
+        const labelHtml = lbl(a.etf)
+          ? `<span class="tk-label">${_escapeHtml(lbl(a.etf))}</span>`
+          : '';
         return `<tr>
           <td class="sl">${a.sl}</td>
           <td class="act ${a.action.toLowerCase()}">${a.action}</td>
-          <td class="tk">${a.etf}</td>
+          <td class="tk">${a.etf}${labelHtml}</td>
           <td class="delta">${prevStr} &rarr; ${newStr}</td>
         </tr>`;
       }).join('');
