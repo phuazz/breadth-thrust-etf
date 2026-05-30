@@ -1792,9 +1792,9 @@
 
     <section>
       <h2>1 · Asset-class exposure over time</h2>
-      <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly snapshots since 2018-Q4 (common window across all four sleeves). <strong>Strategy A's 14 US sector ETFs are decomposed into 5 macro buckets</strong> (US Tech &amp; Comms, US Cyclicals, US Energy, US Financials, US Defensives) so A's actual sector rotation is visible — previously they were lumped into one frozen "US Equity (sectors)" block. Notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic spike in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, the rotation between US Tech / Cyclicals / Defensives within Strategy A over the full window.</p>
+      <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly Friday snapshots since 2018-Q4 (common window across all four sleeves). <strong>Strategy A's 14 US sector ETFs are decomposed into 5 macro buckets</strong> (US Tech / Comms, US Cyclicals, US Energy, US Financials, US Defensives) so A's actual sector rotation is visible. <strong>Amber-shaded vertical bands</strong> mark periods when the breadth-regime overlay was RISK_OFF — look for the corresponding swell in the pale-green <strong>Cash (SHY)</strong> band at the bottom. Notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic burst in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, and the rotation between US Tech / Cyclicals / Defensives within Strategy A over the full window.</p>
       <div id="blend-allocation-chart" class="chart tall"></div>
-      <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every week. <strong>Bucketing</strong>: Strategy A's sectors split into Tech / Comms (CNDX, SOXX, IUCM), Cyclicals (IUIS, IUCD, IUMS), Energy (IUES), Financials (IUFS), and Defensives (IUHC, IUCS, IUUS). A's REIT (IUSP) aggregates with B's VNQ into Real Estate. B's VGK (FTSE Europe) aggregates with Strategy D's Stoxx 600 sectors into Europe Equity. Strategy C's SHY cash floor (1-3y Treasury) rolls into Bonds.</p>
+      <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every Friday. <strong>Colours grouped by exposure family</strong>: greens for cash + fixed income + real estate, blues / purples for US equities (defensives → cyclicals → tech), teals for international equities, amber for commodities, magenta for thematic optionality. <strong>Stack order bottom-up</strong>: defensive base first (cash, bonds, real estate), then US equities, then intl / commodities / thematic optionality — the "satellite" risk that moves most. <strong>Bucketing</strong>: Strategy A's sectors split into Tech / Comms (CNDX, SOXX, IUCM), Cyclicals (IUIS, IUCD, IUMS), Energy (IUES), Financials (IUFS), Defensives (IUHC, IUCS, IUUS); IUSP rolls into Real Estate; VGK aggregates with Strategy D's Stoxx 600 sectors into Europe Equity; Strategy C's commodity-equity themes (XME, GDX, COPX, WOOD, REMX, MOO) aggregate into Commodities; SHY (both sleeves' cash floor and the breadth gate's defensive parking) is its own band so the overlay engagement is visible.</p>
     </section>
 
     <section>
@@ -6178,7 +6178,7 @@ function renderTradeCharts() {
   }
   const tradeLayout = {
     margin: { t: 8, r: 16, b: 40, l: 56 },
-    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
@@ -6230,7 +6230,7 @@ function renderTradeCharts() {
   }));
   Plotly.newPlot('trade-allocation-chart', stackedTraces, {
     margin: { t: 8, r: 16, b: 80, l: 50 },
-    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
@@ -6433,7 +6433,7 @@ function renderAssetCharts() {
   });
   const assetLayout = {
     margin: { t: 8, r: 16, b: 60, l: 56 },
-    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
@@ -6483,7 +6483,7 @@ function renderAssetCharts() {
   });
   Plotly.newPlot('asset-allocation-chart', stackedTraces, {
     margin: { t: 8, r: 16, b: 100, l: 50 },
-    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
@@ -6730,7 +6730,7 @@ function renderThematicCharts() {
   });
   const thematicLayout = {
     margin: { t: 8, r: 16, b: 60, l: 56 },
-    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
@@ -6779,7 +6779,7 @@ function renderThematicCharts() {
   });
   Plotly.newPlot('thematic-allocation-chart', stackedTraces, {
     margin: { t: 8, r: 16, b: 100, l: 50 },
-    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
@@ -7019,7 +7019,7 @@ function renderEuropeCharts() {
   });
   const europeLayout = {
     margin: { t: 8, r: 16, b: 60, l: 56 },
-    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
@@ -7068,7 +7068,7 @@ function renderEuropeCharts() {
   });
   Plotly.newPlot('europe-allocation-chart', stackedTraces, {
     margin: { t: 8, r: 16, b: 100, l: 50 },
-    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
@@ -7354,7 +7354,7 @@ function renderMultiCharts() {
   });
   const layout = {
     margin: { t: 8, r: 16, b: 120, l: 56 },
-    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%a %d %b %Y' },
+    xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
@@ -7585,10 +7585,23 @@ function renderRegimeDecomposition() {
 // as Real Estate not US Equity; VGK (B's "Intl Developed" Europe ETF)
 // buckets as Europe Equity so it aggregates with D's Stoxx sectors.
 function _historyAssetClass(etf, sleeveKey) {
+  // SHY is the cash floor for BOTH Strategy B (post-Phase-19.1) and
+  // Strategy C. It also receives 50% NAV when the breadth-regime gate
+  // is RISK_OFF. Bucket explicitly so it does NOT fall into "Other"
+  // and so the reader can see exactly when the overlay engaged.
+  if (etf === 'SHY') return 'Cash (SHY)';
   // Strategy D — always Europe Equity (5 Stoxx 600 sector UCITS)
   if (sleeveKey === 'D') return 'Europe Equity';
-  // Strategy C — Thematic (except IEF cash floor which rolls to Bonds)
-  if (sleeveKey === 'C') return etf === 'IEF' ? 'Bonds' : 'Thematic';
+  // Strategy C — Thematic, plus a few specific carve-outs for
+  // multi-sleeve ETFs.
+  if (sleeveKey === 'C') {
+    if (etf === 'GDX' || etf === 'COPX' || etf === 'XME' ||
+        etf === 'WOOD' || etf === 'REMX' || etf === 'MOO') {
+      return 'Commodities';   // commodity-EQUITY themes -> Commodities bucket
+    }
+    if (etf === 'BTC-USD') return 'Thematic';  // crypto stays thematic
+    return 'Thematic';
+  }
   // Strategy A and B — explicit per-ETF mapping
   const buckets = {
     // ----- Strategy A's 14 US sector / broad ETFs (split by macro theme) -----
@@ -7606,7 +7619,7 @@ function _historyAssetClass(etf, sleeveKey) {
     CSP1: 'US Broad',        IDP6: 'US Broad',
     // Real Estate (A's REIT proxy)
     IUSP: 'Real Estate',
-    // ----- Strategy B's 14 asset-class ETFs -----
+    // ----- Strategy B's 13 asset-class ETFs (HYG removed Phase 24) -----
     SPY: 'US Broad',     IJR: 'US Broad',     QQQ: 'US Broad',
     EFA: 'Intl Developed (ex-Europe)',
     VGK: 'Europe Equity',  // labelled "Intl Developed" in B's universe
@@ -7617,44 +7630,67 @@ function _historyAssetClass(etf, sleeveKey) {
     GLD: 'Commodities',   DBC: 'Commodities',
     TLT: 'Bonds',  IEF: 'Bonds',  TIP: 'Bonds',  HYG: 'Bonds',
   };
-  return buckets[etf] || 'Other';
+  const cls = buckets[etf];
+  if (!cls && etf) {
+    // Surface missing-bucket bugs to the console so we catch them
+    // before they end up silently lumped into a generic "Other" band.
+    console.warn('[asset-class chart] no bucket for ' + sleeveKey + '/'
+                  + etf + ' — falling into Other');
+  }
+  return cls || 'Other';
 }
 
-// Stable colour palette for the asset-class bands. 13 visually-
-// distinguishable hues; ordering chosen so similar groups are adjacent
-// in the legend.
+// Stable colour palette for the asset-class bands. Hues are GROUPED
+// BY EXPOSURE FAMILY so the eye can parse "how much equity vs fixed
+// income vs commodity" at a glance, without having to read every
+// band's label:
+//
+//   Cash + Bonds  -> greens         (defensive base)
+//   Real Estate   -> emerald        (yield-bearing, sits with bonds)
+//   US equities   -> blues/purples  (the rotating equity block)
+//   Intl equities -> teals/cyans    (intl is "blue family with chill")
+//   Commodities   -> ambers         (hard-asset family)
+//   Thematic      -> magenta/pink   (optionality, set apart)
+//
 const _historyAssetClassColours = {
-  // US sub-sectors (warm-leaning palette)
-  'US Tech / Comms':           '#7c3aed',  // purple — tech convention
-  'US Cyclicals':              '#f59e0b',  // orange — cyclical risk-on
-  'US Energy':                 '#b76e00',  // dark amber — energy
-  'US Financials':             '#1351b4',  // blue — financials
-  'US Defensives':             '#15803d',  // forest green — defensive
-  'US Broad':                  '#374151',  // slate — broad market
-  // International equities
+  // Cash + Fixed income (greens, light->dark)
+  'Cash (SHY)':                '#86efac',  // pale green — cash floor
+  'Bonds':                     '#15803d',  // dark green — duration
+  'Real Estate':               '#4ade80',  // mid green — yield-bearing
+  // US equities (blue/purple family — the rotating equity block)
+  'US Broad':                  '#1e3a8a',  // dark navy — broad-market core
+  'US Defensives':             '#3b82f6',  // bright blue — defensive tilt
+  'US Financials':             '#6366f1',  // indigo — financials
+  'US Cyclicals':              '#8b5cf6',  // purple — cyclicals
+  'US Energy':                 '#a78bfa',  // light purple — energy
+  'US Tech / Comms':           '#7c3aed',  // saturated purple — tech
+  // International equities (teal/cyan family)
   'Europe Equity':             '#0e7490',  // dark teal — Europe (D + VGK)
-  'Intl Developed (ex-Europe)':'#06b6d4',  // light cyan — EAFE/Japan
-  'Emerging Mkts':             '#dc2626',  // red — EM
-  // Non-equity
-  'Real Estate':               '#16a34a',  // emerald — RE
-  'Commodities':               '#ca8a04',  // yellow-gold — commodities
-  'Bonds':                     '#1d7a3a',  // dark green — bonds
-  // Optionality
+  'Intl Developed (ex-Europe)':'#22d3ee',  // light cyan — EAFE/Japan
+  'Emerging Mkts':             '#0891b2',  // mid teal — EM
+  // Real assets (amber family)
+  'Commodities':               '#d97706',  // amber — commodities
+  // Optionality (set apart)
   'Thematic':                  '#be185d',  // magenta — thematic
-  'Other':                     '#52525b',  // grey — fallback
+  // Diagnostic — should be zero with the new bucket map; if it
+  // appears, see the console.warn from _historyAssetClass()
+  'Other':                     '#52525b',
 };
-// Stack order: bottom to top. Largest / most stable at the bottom (US
-// Broad), satellite / most variable at the top (Thematic). Mirrors how
-// CPMs typically describe risk hierarchy: core US → US sectors → intl →
-// non-equity → optionality.
+// Stack order: bottom to top. Defensive base (cash, bonds, real
+// estate) at the bottom — provides the visible "floor" that stays
+// thick during RISK_OFF episodes. Equity block in the middle, sorted
+// loosely by defensiveness (defensives -> cyclicals -> tech).
+// International / commodities / thematic optionality on top — the
+// "satellite" risk that moves most.
 const _historyAssetClassOrder = [
-  'US Broad',
-  'US Tech / Comms', 'US Cyclicals', 'US Energy', 'US Financials',
-  'US Defensives',
+  'Cash (SHY)',
+  'Bonds',
   'Real Estate',
+  'US Broad',
+  'US Defensives', 'US Financials', 'US Cyclicals', 'US Energy',
+  'US Tech / Comms',
   'Europe Equity', 'Intl Developed (ex-Europe)', 'Emerging Mkts',
   'Commodities',
-  'Bonds',
   'Thematic',
   'Other',
 ];
@@ -7871,14 +7907,41 @@ function renderBlendAllocationTimeline() {
       hovertemplate: cls + ': %{y:.1f}%<extra></extra>',
     }));
 
+  // Amber RISK_OFF bands — mirror the Performance chart's overlay
+  // shading so the reader can see WHEN the breadth gate engaged and
+  // pushed 50% NAV into the Cash (SHY) band visible at the bottom.
+  const ovEvents = window.DATA?.risk_overlay?.events || [];
+  const offPeriods = [];
+  let openOff = null;
+  for (const ev of ovEvents) {
+    if (ev.direction === 'RISK_OFF') openOff = ev.date;
+    else if (ev.direction === 'RISK_ON' && openOff) {
+      offPeriods.push({ start: openOff, end: ev.date });
+      openOff = null;
+    }
+  }
+  if (openOff && masterDates.length) {
+    offPeriods.push({ start: openOff, end: masterDates[masterDates.length - 1] });
+  }
+  const visStart = masterDates[0] || '';
+  const visEnd = masterDates[masterDates.length - 1] || '';
+  const shapes = offPeriods
+    .filter(p => p.end >= visStart && p.start <= visEnd)
+    .map(p => ({
+      type: 'rect', xref: 'x', yref: 'paper',
+      x0: p.start > visStart ? p.start : visStart,
+      x1: p.end   < visEnd   ? p.end   : visEnd,
+      y0: 0, y1: 1,
+      fillcolor: 'rgba(217, 119, 6, 0.10)',
+      line: { width: 0 },
+      layer: 'below',
+    }));
+
   Plotly.newPlot('blend-allocation-chart', traces, {
     margin: { t: 8, r: 16, b: 90, l: 50 },
     xaxis: {
       showgrid: false, color: '#4a5159',
-      // Snapshots are weekly Friday closes — surface the day-of-month
-      // and weekday in the tooltip so the reader sees that explicitly,
-      // rather than Plotly collapsing to month-year at zoomed-out views.
-      hoverformat: '%a %d %b %Y',
+      hoverformat: '%d %b %Y',
     },
     yaxis: {
       gridcolor: '#eef0f3', color: '#4a5159',
@@ -7889,6 +7952,7 @@ function renderBlendAllocationTimeline() {
     legend: { orientation: 'h', y: -0.22, x: 0, font: { size: 11 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
+    shapes: shapes,
   }, { displayModeBar: false, responsive: true });
 }
 
