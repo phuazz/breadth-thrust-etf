@@ -1825,7 +1825,7 @@
 
     <section>
       <h2>3 · Blend-level attribution — total NAV contribution per ETF</h2>
-      <p class="section-sub full">Each ETF's total contribution to the deployed 35/35/10/20 blend's return, aggregated across the sleeves that held it. <strong>If an ETF appears in multiple sleeves</strong> (e.g., GLD in Strategy B AND Strategy C, IEF as cash floor in both B and C, JETS as thematic in C), its blend contribution is the sum of (sleeve_weight × sleeve_contribution) across each sleeve. This is the auditable per-ETF P&amp;L attribution that proves the headline blend return is built from these specific position-level decisions. Sorted by absolute contribution.</p>
+      <p class="section-sub full">Each ETF's total contribution to the deployed 35/35/10/20 blend's return, aggregated across the sleeves that held it. <strong>If an ETF appears in multiple sleeves</strong> (e.g., GLD in Strategy B AND Strategy C, SHY as cash floor in both B and C, JETS as thematic in C), its blend contribution is the sum of (sleeve_weight × sleeve_contribution) across each sleeve. This is the auditable per-ETF P&amp;L attribution that proves the headline blend return is built from these specific position-level decisions. Sorted by absolute contribution.</p>
       <table class="small-table" id="blend-attribution-table"><thead></thead><tbody></tbody></table>
       <p style="margin-top:12px;font-size:12px;color:var(--ink-faint);" id="blend-attribution-note"></p>
     </section>
@@ -1962,7 +1962,7 @@
     <div class="recipe">
       <h3>Strategy B — Asset-class momentum</h3>
       <div class="recipe-title">Asset-class momentum rotation</div>
-      <p style="margin:0;color:var(--ink-soft);">A separate strategy that operates at the asset-class level instead of within US sectors. 14 broad ETFs across US equity, international developed, emerging markets, real estate, commodities, and bonds. Each Friday close, rank by distance above own 200d MA. Hold the top K with positive signal, weight by signal strength; idle capital sits in IEF (intermediate Treasury) as a cash proxy. This is "<em>which asset classes should I be in at all?</em>" — orthogonal to Strategy A's "<em>within US equities, which sector?</em>".</p>
+      <p style="margin:0;color:var(--ink-soft);">A separate strategy that operates at the asset-class level instead of within US sectors. 13 broad ETFs across US equity, international developed, emerging markets, real estate, commodities, and bonds. Each Friday close, rank by distance above own 200d MA. Hold the top K with positive signal, weight by signal strength; idle capital sits in <strong>SHY (1-3y Treasury)</strong> as a duration-neutral cash floor. IEF remains in the rotation universe as a long-duration play, not as the cash proxy. This is "<em>which asset classes should I be in at all?</em>" — orthogonal to Strategy A's "<em>within US equities, which sector?</em>".</p>
       <div class="recipe-stats" id="asset-recipe-stats"></div>
       <ol class="recipe-steps">
         <li><strong>Each Friday close</strong>, compute (price − MA200) / MA200 for each of the 13 asset-class ETFs.</li>
@@ -2070,7 +2070,7 @@
 
     <section>
       <h2>Thematic allocation over time</h2>
-      <p class="section-sub">Weekly stacked-to-100% allocation. When the cash floor activates (fewer than K = 4 themes clear the +5% threshold), the deficit sits in IEF (Treasury). Big IEF bands = "the world is broadly weak in thematic-land". Notice the rotation through commodity-equity (gold miners, uranium, copper, lithium) when tech was weak in 2022.</p>
+      <p class="section-sub">Weekly stacked-to-100% allocation. When the cash floor activates (fewer than K = 4 themes clear the +5% threshold), the deficit sits in SHY (1-3y Treasury, duration-neutral). Big SHY bands = "the world is broadly weak in thematic-land". Notice the rotation through commodity-equity (gold miners, uranium, copper, lithium) when tech was weak in 2022.</p>
       <div id="thematic-allocation-chart" class="chart tall"></div>
     </section>
 
@@ -2465,7 +2465,7 @@
           <li><strong>C is the top-performing sleeve 41% of months</strong>. A is top 21% / B is top 10% / D is top 28%. When C wins it wins more often than any other sleeve.</li>
           <li><strong>COVID + thematic boom (Mar 2020 → Feb 2021)</strong>: Strategy C standalone +170%. The 50/50 A:B blend (no C) got +58%. The 4-way blend (10% C) got +65%. The small C sleeve added ~+7pp to blend return in an 11-month window — capturing roughly 70% of C's idiosyncratic alpha at just 10% sleeve weight.</li>
           <li><strong>2022 inflation crash</strong>: C was worst (-25%), but the 10% cap limited blend damage to -13% (the 4-way blend was actually 2pp worse than the 50/50 A:B — a -2pp option premium for the +7pp option payoff). The asymmetric structure works.</li>
-          <li><strong>Q4 2018 Powell pivot</strong>: C +4.4% (defensive!) while A/B/D all -5 to -10%. The cash-floor mechanism (when fewer than K candidates clear the +5% floor, the deficit sits in IEF) kicked in during the sell-off.</li>
+          <li><strong>Q4 2018 Powell pivot</strong>: C +4.4% (defensive!) while A/B/D all -5 to -10%. The cash-floor mechanism (when fewer than K candidates clear the +5% floor, the deficit sat in IEF at the time; switched to SHY in Phase 19.1) kicked in during the sell-off.</li>
         </ul>
 
         <p><strong>The reframing</strong>: Strategy C earns its 10% sleeve weight through asymmetric convexity. Best 12m return is 2-4× any other strategy. Top sleeve 41% of months. The 10% sleeve cap structures it as a long-dated out-of-the-money call basket — small premium (the modest drawdown contribution), unbounded upside (any future thematic boom). Bootstrap-on-Sharpe gives p(better)=42% because Sharpe penalises upside vol; that finding is technically true but misses the optionality value entirely.</p>
@@ -2524,7 +2524,7 @@
           <li><strong>Survivorship in some price series</strong>: a few historically-acquired constituents (~5-15% of the early-window roster for some ETFs) are missing from yfinance, biasing early-window breadth measurements toward survivors. Less of an issue post-2020. A pipeline fix to <code>compute_ma200_breadth</code> resolved the worse latent issue for non-US constituents (see research log below).</li>
           <li><strong>Common window for the deployed blend is 2018-11 → 2026-05</strong> (~7.5 years), constrained by Strategy C's data start date. Strategy B's 18-year history (2008-2026, covering GFC + COVID + 2022) cushions the blend through real crises in the per-strategy comparison, but the blend-level statistics only see 2020/2022.</li>
           <li><strong>Concentration risk in Strategy A</strong>: even at K = 7 the top breadth tilts toward 1-2 dominant sectors, so a semis or energy reversal can move 10-20% of NAV within the sleeve in a week. The 35% sleeve weight in the 4-way blend caps blend-level exposure but does not eliminate this.</li>
-          <li><strong>Strategy B cash-floor mechanic</strong>: when fewer than K asset classes are positive-trend, the deficit sits in IEF (intermediate Treasury). Earns ~3-4% Treasury carry but introduces small duration risk in a rising-rate shock.</li>
+          <li><strong>Strategy B cash-floor mechanic</strong>: when fewer than K asset classes are positive-trend, the deficit sits in SHY (1-3y Treasury, duration-neutral). Earns short-end Treasury carry with minimal duration risk; IEF (7-10y) stays in the rotation universe as a long-duration play but is no longer the cash proxy.</li>
           <li><strong>Strategy C walk-forward Sharpe is +0.51 vs in-sample +0.82</strong>. The recent commodity-equity additions (XME, WOOD, REMX) plus CQQQ are net-neutral on in-sample (−0.01) and add a small drag on walk-forward (−0.04 versus the prior universe) — but the blend-level cost is essentially zero (−0.002 Sharpe) while max DD <em>improves</em> by 0.27pp. The 10% sleeve cap is the risk-management response to expected thematic-momentum degradation. C earns its place on right-tail / regime metrics and on cumulative blend-level improvements as the universe expanded.</li>
           <li><strong>China A-share semiconductor exposure (159801.SZ) added via FX-aware download pipeline.</strong> 159801.SZ is the Bosera CSI Chip ETF, CNY-denominated and Shenzhen-listed. The backtest pipeline now downloads CNY prices, applies a daily FX conversion using yfinance's USDCNY=X spot, and reindexes onto the NYSE trading calendar with a 10-day stale-fill cap (covers Chinese New Year + October Golden Week SSE/SZSE closures). A 50bps annual expense ratio is applied as per-calendar-day compounded drag, same pattern as IBIT's 25bps on BTC-USD. Live execution is via IBKR Stock Connect; 588200.SS (Harvest SSE STAR Chip) is an interchangeable Shanghai-listed alternative with 0.96 correlation to 159801.SZ but insufficient history (3.65y vs the 5y walk-forward minimum). Also: because 159801.SZ inception (2019-08) is after BLOK's 2018-01 binding date, the script's eligibility logic was refactored to treat it as a <em>late-inception</em> ticker that does not constrain the backtest window start — without this fix, naively adding 159801.SZ would have collapsed the backtest from 7.5y to ~6y. The K=4 momentum picker excludes NaN signals automatically, so the late-inception decoupling is safe and lossless.</li>
           <li><strong>SLV (B) and KWEB (C) were tested and reverted</strong>. Two illustrative cases of correlation-gate-passing candidates that empirically failed the deployment test:
@@ -2639,7 +2639,7 @@ const ETF_DESCRIPTIONS = {
   GLD: 'Gold spot',
   DBC: 'Broad commodities basket',
   TLT: '20+y US Treasury (long duration)',
-  IEF: '7-10y US Treasury (intermediate; cash floor for Strategies B & C)',
+  IEF: '7-10y US Treasury (intermediate duration; rotation candidate in Strategy B)',
   TIP: 'TIPS (inflation-linked Treasuries)',
   HYG: 'US High-Yield Credit',
 
