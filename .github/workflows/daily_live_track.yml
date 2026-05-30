@@ -1,0 +1,69 @@
+name: Daily live mark-to-market
+
+# Runs Mon-Fri at 21:30 UTC (after US market close, before Tokyo open).
+#
+# What this does (and does NOT do):
+#   - DOES: refresh data/live_track.json with mark-to-market NAV points
+#     for the current week's holdings against today's closing prices.
+#   - DOES: rebuild docs/index.html so the WTD hero card and Performance
+#     chart show up-to-date intra-week NAV.
+#   - DOES NOT: re-run signal generation, walk-forward K refit,
+#     bootstrap CIs, or right-tail metrics. Those are weekly concerns;
+#     re-running them daily would burn workflow minutes for no
+#     informational gain (the answer barely changes day-to-day).
+#
+# The weekly_factsheet.yml workflow remains the source of truth for
+# the full backtest + signals + factsheet. This workflow only extends
+# the deployed blend equity through the current week — the Friday
+# anchor itself is re-established by Saturday's weekly run.
+#
+# Typical run time: 1-2 minutes (yfinance fetch for ~17 tickers + 2 FX
+# pairs + a pipeline rebuild). The factsheet PDF is rebuilt too so the
+# Pages-published PDF is also current.
+
+on:
+  schedule:
+    # Mon-Fri 21:30 UTC = early morning SGT next day (after US close)
+    - cron: '30 21 * * 1-5'
+  workflow_dispatch:  # manual trigger button
+
+permissions:
+  contents: write
+
+jobs:
+  mark-to-market:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run daily mark-to-market overlay
+        run: python scripts/mark_to_market_live.py
+
+      - name: Rebuild dashboard + factsheet with live extension
+        run: python scripts/pipeline.py
+
+      - name: Run regression tests
+        run: python -m pytest tests/ -q
+
+      - name: Commit refreshed outputs
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "Daily Live Track Bot"
+          git add data/live_track.json data/ docs/ || true
+          git diff --cached --quiet || git commit -m "Daily live track refresh $(date -u +%Y-%m-%d)"
+          git push origin main || echo "Nothing to push"

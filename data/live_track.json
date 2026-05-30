@@ -1,0 +1,42 @@
+{
+  "computed_at_utc": "2026-05-30 00:54 UTC",
+  "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
+  "anchor_date": "2026-05-22",
+  "anchor_equity": 3.034158,
+  "regime_state": "RISK_ON",
+  "eem_tilt_active": true,
+  "effective_weights": {
+    "IUES": 0.21063,
+    "EEM": 0.14375,
+    "IUSP": 0.106015,
+    "EXH1": 0.0709,
+    "DBC": 0.0658,
+    "EXH9": 0.06556,
+    "EXV1": 0.06354,
+    "QQQ": 0.0423,
+    "IUUS": 0.033355,
+    "IJR": 0.026375,
+    "EWJ": 0.025975,
+    "SPY": 0.0253,
+    "ICLN": 0.025,
+    "TAN": 0.025,
+    "LIT": 0.025,
+    "159801.SZ": 0.025,
+    "EFA": 0.0205
+  },
+  "live_dates": [
+    "2026-05-25",
+    "2026-05-26",
+    "2026-05-27",
+    "2026-05-28",
+    "2026-05-29"
+  ],
+  "live_equity": [
+    3.046722,
+    3.053988,
+    3.028095,
+    3.028958,
+    3.019647
+  ],
+  "notes": "Daily mark-to-market overlay of the deployed blend. Holdings = latest weekly rebalance from each sleeve's trade_history, scaled by sleeve NAV weights (with EEM tilt and breadth-gate adjustments). Daily NAV computed as weighted buy-and-hold from anchor_date forward."
+}

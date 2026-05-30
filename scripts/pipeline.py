@@ -178,6 +178,23 @@ def load_holdings_prices() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_live_track() -> dict | None:
+    """Load data/live_track.json — daily mark-to-market overlay on the
+    deployed blend (built by scripts/mark_to_market_live.py).
+
+    Optional: when present, pipeline.py extends the deployed blend
+    equity series in-memory so the dashboard's WTD card and Performance
+    chart automatically include intra-week NAV points without any
+    extra JS. The Friday-anchor full-backtest series in
+    risk_overlay.json is unchanged on disk — the extension is a
+    dashboard-render concern only.
+    """
+    path = DATA_DIR / "live_track.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_robustness() -> dict | None:
     """Load data/robustness.json into a slim payload for the Risk & Validation
     tab.
@@ -456,6 +473,15 @@ def main() -> int:
               "scripts/run_risk_overlay.py after run_multi_strategy.py to "
               "enable the Phase 19 breadth regime gate")
 
+    print("Loading live mark-to-market overlay ...", flush=True)
+    live_track = load_live_track()
+    if live_track:
+        n = len(live_track.get("live_dates") or [])
+        print(f"  live_track: anchor {live_track.get('anchor_date')} + "
+              f"{n} intra-week point(s)")
+    else:
+        print("  live_track absent — dashboard will show Friday-anchor series only")
+
     print("Loading holdings 1Y prices ...", flush=True)
     holdings_prices = load_holdings_prices()
     if holdings_prices:
@@ -505,6 +531,40 @@ def main() -> int:
                                            s["dates"], s["equity"])
                 break
 
+    # ------------------------------------------------------------------
+    # Live mark-to-market extension — splice the daily intra-week NAV
+    # points into the deployed blend equity series so the dashboard's
+    # WTD card, hero stats, and Performance chart show data through the
+    # latest weekday close rather than stopping on Friday.
+    #
+    # This is a strictly forward-only extension from the live_track
+    # anchor (which must match the Friday-anchored series' last date).
+    # If the anchor disagrees, we skip the extension and surface a
+    # warning rather than blend mismatched series.
+    # ------------------------------------------------------------------
+    if live_track and multi and multi.get("strategies"):
+        live_dates = live_track.get("live_dates") or []
+        live_equity = live_track.get("live_equity") or []
+        anchor_date = live_track.get("anchor_date")
+        if live_dates and len(live_dates) == len(live_equity):
+            key = live_track.get("deployed_key",
+                                   "blend_35_35_10_20_gated_eem_tilted")
+            target = multi["strategies"].get(key)
+            if target and target.get("dates"):
+                if target["dates"][-1] != anchor_date:
+                    print(f"  WARN: live_track anchor {anchor_date} does not "
+                          f"match deployed blend last date "
+                          f"{target['dates'][-1]} — skipping extension")
+                else:
+                    target["dates"] = list(target["dates"]) + list(live_dates)
+                    target["equity"] = list(target["equity"]) + list(live_equity)
+                    # Bump common_end so the hero / WTD also reflect the
+                    # extension's reach.
+                    if multi.get("common_end") and live_dates[-1] > multi["common_end"]:
+                        multi["common_end"] = live_dates[-1]
+                    print(f"  spliced {len(live_dates)} live-track point(s) "
+                          f"into {key}; series now ends {live_dates[-1]}")
+
     # Per-panel 'data as of' dates extracted from the sleeve JSONs.
     # The dashboard JS reads window.DATA.signals_asof to render a
     # 'Signals as of YYYY-MM-DD' badge under each strategy panel.
@@ -528,6 +588,7 @@ def main() -> int:
     data = {
         "built_at": built_at,
         "signals_asof": signals_asof,
+        "live_track": live_track,
         "ma200": ma200,
         "portfolio": portfolio,
         "robustness": robustness,
