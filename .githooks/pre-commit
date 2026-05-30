@@ -1,0 +1,19 @@
+#!/bin/sh
+# Pre-commit hook — fails the commit if any tracked file contains
+# unresolved git merge conflict markers.
+#
+# Install via:
+#   bash scripts/install_git_hooks.sh
+# (this copies the file to .git/hooks/pre-commit; git does not track
+# .git/hooks itself).
+#
+# Mirrors the .github/workflows/conflict_check.yml CI job so corruption
+# is caught BEFORE push, not after.
+
+set -e
+
+# Resolve repo root regardless of where git invoked us from
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+python scripts/check_conflict_markers.py

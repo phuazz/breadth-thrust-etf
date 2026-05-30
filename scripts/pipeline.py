@@ -292,6 +292,43 @@ def assert_series_not_frozen(name: str, dates: list, values: list,
         )
 
 
+def assert_no_conflict_markers(path: Path) -> None:
+    """Hard-fail if a built artefact contains unresolved git merge
+    conflict markers.
+
+    Guards against the dashboard-corruption regression seen on
+    2026-05-30 where a ``git stash pop`` after the bot's auto-rebuild
+    left ``<<<<<<<`` / ``>>>>>>>`` lines inside docs/index.html. The
+    JS payload became a syntax error, init() never ran, the watchdog
+    never fired, and the whole dashboard hung on 'Loading…'.
+
+    Checked once per write: docs/index.html, docs/factsheet_meta.json,
+    docs/factsheet_latest.pdf header (PDFs do not normally contain
+    these strings but we check anyway — costs nothing).
+
+    Only flags markers at the START of a line, which is the true
+    conflict-marker convention. A literal ``<<<<<<<`` string inside
+    a quoted JS literal would be flagged too only if it began a line —
+    in practice that does not happen.
+    """
+    MARKERS = ("<<<<<<<", ">>>>>>>")
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return  # binary file or unreadable — skip
+    for lineno, line in enumerate(text.splitlines(), 1):
+        for m in MARKERS:
+            if line.startswith(m):
+                raise RuntimeError(
+                    f"Pipeline aborted: {path.name} contains an "
+                    f"unresolved git merge conflict marker at line "
+                    f"{lineno}: {line[:80]!r}. The output would be a "
+                    "parse error in the browser. Resolve the conflict "
+                    "in source (template.html or the upstream JSON) "
+                    "and rebuild."
+                )
+
+
 def assert_built_at_valid(ts: str | None) -> None:
     """Hard-fail the pipeline if the 'Last updated:' timestamp is empty
     or malformed.
@@ -624,11 +661,17 @@ def main() -> int:
 
     template_text = TEMPLATE.read_text(encoding="utf-8")
     print(f"\nTemplate size: {len(template_text):,} bytes")
+    # Guard against publishing a corrupted template that already has
+    # conflict markers — caught at READ time, before injection.
+    assert_no_conflict_markers(TEMPLATE)
     built = inject(template_text, data)
     DOCS.mkdir(parents=True, exist_ok=True)
     OUT.write_text(built, encoding="utf-8")
     size_kb = len(built) / 1024
     print(f"Wrote {OUT.relative_to(PROJECT_ROOT)}  ({len(built):,} bytes, {size_kb:.1f} KB)")
+    # Guard against publishing the actual built output with markers.
+    # This is the post-2026-05-30 hotfix backstop.
+    assert_no_conflict_markers(OUT)
 
     # B28 — Auto-generate the monthly factsheet PDF from the same data
     # the dashboard uses. Soft-fail if matplotlib is unavailable so a
