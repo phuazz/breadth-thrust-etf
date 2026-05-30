@@ -1,0 +1,305 @@
+{
+  "computed_at_utc": "2026-05-30 09:13 UTC",
+  "engine": {
+    "signal": "(close - 200d MA) / MA200",
+    "rebalance": "W-FRI",
+    "cost_bps_per_unit_weight": 5.0,
+    "cash_proxy": "SHY",
+    "K_grid": [
+      3,
+      5,
+      7,
+      10,
+      15,
+      20
+    ],
+    "start_date": "2011-01-01",
+    "end_date": "2026-05-30"
+  },
+  "universes": {
+    "sectors": {
+      "universe_name": "sectors",
+      "n_tickers": 14,
+      "n_loaded": 14,
+      "effective_breadth": 1.4481086074059513,
+      "eligible_start": "2019-04-05",
+      "data_end": "2026-05-29",
+      "sweep": [
+        {
+          "sharpe": 0.8457046384337403,
+          "cagr": 0.16418689619590476,
+          "max_dd": -0.2607660090921466,
+          "total_return": 1.9645937860710836,
+          "K": 3,
+          "annual_turnover": 18.275006867725804
+        },
+        {
+          "sharpe": 0.8296353488905401,
+          "cagr": 0.1408881584404138,
+          "max_dd": -0.2570011763256246,
+          "total_return": 1.5656873315515938,
+          "K": 5,
+          "annual_turnover": 16.67663145759352
+        },
+        {
+          "sharpe": 0.8886761075319453,
+          "cagr": 0.1396936076442601,
+          "max_dd": -0.23777019522452522,
+          "total_return": 1.5465454663326894,
+          "K": 7,
+          "annual_turnover": 14.525989268358428
+        },
+        {
+          "sharpe": 0.9155497759772503,
+          "cagr": 0.12760455376010582,
+          "max_dd": -0.2029294204992513,
+          "total_return": 1.3596333027796503,
+          "K": 10,
+          "annual_turnover": 12.79262275377652
+        }
+      ],
+      "best_K_in_sample": {
+        "sharpe": 0.9155497759772503,
+        "cagr": 0.12760455376010582,
+        "max_dd": -0.2029294204992513,
+        "total_return": 1.3596333027796503,
+        "K": 10,
+        "annual_turnover": 12.79262275377652
+      },
+      "walk_forward": {
+        "segments": [
+          {
+            "train_end": "2024-12-31",
+            "test_start": "2025-01-02",
+            "test_end": "2025-12-31",
+            "best_K": 10,
+            "train_sharpe": 0.8242675584401934,
+            "test_sharpe": 0.32379690826267066,
+            "n_test_days": 250
+          },
+          {
+            "train_end": "2025-12-31",
+            "test_start": "2026-01-02",
+            "test_end": "2026-05-29",
+            "best_K": 10,
+            "train_sharpe": 0.7477408202990365,
+            "test_sharpe": 3.267334949338584,
+            "n_test_days": 102
+          }
+        ],
+        "walk_forward_sharpe": 1.2434929734620723,
+        "wf_first_date": "2025-01-02",
+        "wf_last_date": "2026-05-29"
+      }
+    },
+    "subindustries": {
+      "universe_name": "subindustries",
+      "n_tickers": 30,
+      "n_loaded": 30,
+      "effective_breadth": 1.788844699298306,
+      "eligible_start": "2017-12-20",
+      "data_end": "2026-05-29",
+      "sweep": [
+        {
+          "sharpe": 0.44598294056764987,
+          "cagr": 0.08856709915907213,
+          "max_dd": -0.4437164927036103,
+          "total_return": 1.0463799896951,
+          "K": 3,
+          "annual_turnover": 23.88549944431958
+        },
+        {
+          "sharpe": 0.5377140754114068,
+          "cagr": 0.10736314105013167,
+          "max_dd": -0.3752143849790877,
+          "total_return": 1.3644059523175098,
+          "K": 5,
+          "annual_turnover": 20.720196539653507
+        },
+        {
+          "sharpe": 0.6383136134455989,
+          "cagr": 0.12678522435055717,
+          "max_dd": -0.33772911957525636,
+          "total_return": 1.7380317361187156,
+          "K": 7,
+          "annual_turnover": 18.386899669800293
+        },
+        {
+          "sharpe": 0.6532543194857312,
+          "cagr": 0.12156856145234562,
+          "max_dd": -0.3146463896205483,
+          "total_return": 1.6328924910964155,
+          "K": 10,
+          "annual_turnover": 16.43868028119515
+        },
+        {
+          "sharpe": 0.7295754776003222,
+          "cagr": 0.1258058802125901,
+          "max_dd": -0.2770486996105708,
+          "total_return": 1.7180159978493958,
+          "K": 15,
+          "annual_turnover": 14.466513808131106
+        },
+        {
+          "sharpe": 0.714951960925828,
+          "cagr": 0.11185521179461899,
+          "max_dd": -0.2528523661727707,
+          "total_return": 1.4465697470415653,
+          "K": 20,
+          "annual_turnover": 13.474081972557121
+        }
+      ],
+      "best_K_in_sample": {
+        "sharpe": 0.7295754776003222,
+        "cagr": 0.1258058802125901,
+        "max_dd": -0.2770486996105708,
+        "total_return": 1.7180159978493958,
+        "K": 15,
+        "annual_turnover": 14.466513808131106
+      },
+      "walk_forward": {
+        "segments": [
+          {
+            "train_end": "2022-12-30",
+            "test_start": "2023-01-03",
+            "test_end": "2023-12-29",
+            "best_K": 20,
+            "train_sharpe": 0.48428231241944314,
+            "test_sharpe": 0.7295302998210401,
+            "n_test_days": 250
+          },
+          {
+            "train_end": "2023-12-29",
+            "test_start": "2024-01-02",
+            "test_end": "2024-12-31",
+            "best_K": 15,
+            "train_sharpe": 0.5282985762478563,
+            "test_sharpe": 0.5264873609864666,
+            "n_test_days": 252
+          },
+          {
+            "train_end": "2024-12-31",
+            "test_start": "2025-01-02",
+            "test_end": "2025-12-31",
+            "best_K": 15,
+            "train_sharpe": 0.518468327022999,
+            "test_sharpe": 1.6279981581070093,
+            "n_test_days": 250
+          },
+          {
+            "train_end": "2025-12-31",
+            "test_start": "2026-01-02",
+            "test_end": "2026-05-29",
+            "best_K": 15,
+            "train_sharpe": 0.6528969423020851,
+            "test_sharpe": 1.6389682442564726,
+            "n_test_days": 102
+          }
+        ],
+        "walk_forward_sharpe": 1.0889861548277824,
+        "wf_first_date": "2023-01-03",
+        "wf_last_date": "2026-05-29"
+      }
+    },
+    "themes": {
+      "universe_name": "themes",
+      "n_tickers": 22,
+      "n_loaded": 22,
+      "effective_breadth": 1.8138039667747612,
+      "eligible_start": "2018-08-13",
+      "data_end": "2026-05-29",
+      "sweep": [
+        {
+          "sharpe": 0.7259367452168288,
+          "cagr": 0.13238257332032544,
+          "max_dd": -0.2888717469855497,
+          "total_return": 1.6345757968760348,
+          "K": 3,
+          "annual_turnover": 2.523981026001405
+        },
+        {
+          "sharpe": 0.8029662057072218,
+          "cagr": 0.09074406430114923,
+          "max_dd": -0.17275707255981515,
+          "total_return": 0.9675855296706128,
+          "K": 5,
+          "annual_turnover": 1.5657238229093464
+        },
+        {
+          "sharpe": 0.8753587630671064,
+          "cagr": 0.072080782947201,
+          "max_dd": -0.1333143189518363,
+          "total_return": 0.7200079379713316,
+          "K": 7,
+          "annual_turnover": 1.155042164441321
+        },
+        {
+          "sharpe": 0.9740549571710643,
+          "cagr": 0.05779437434514967,
+          "max_dd": -0.10418535529844915,
+          "total_return": 0.5492899107077698,
+          "K": 10,
+          "annual_turnover": 0.8470309205903022
+        },
+        {
+          "sharpe": 1.1102496672213582,
+          "cagr": 0.04652270983378237,
+          "max_dd": -0.08117693444192957,
+          "total_return": 0.4252138106107506,
+          "K": 15,
+          "annual_turnover": 0.6074666198172873
+        },
+        {
+          "sharpe": 1.2123773369613213,
+          "cagr": 0.040836928323372934,
+          "max_dd": -0.0695943762429515,
+          "total_return": 0.3659808354595535,
+          "K": 20,
+          "annual_turnover": 0.4876844694307802
+        }
+      ],
+      "best_K_in_sample": {
+        "sharpe": 1.2123773369613213,
+        "cagr": 0.040836928323372934,
+        "max_dd": -0.0695943762429515,
+        "total_return": 0.3659808354595535,
+        "K": 20,
+        "annual_turnover": 0.4876844694307802
+      },
+      "walk_forward": {
+        "segments": [
+          {
+            "train_end": "2023-12-31",
+            "test_start": "2024-01-01",
+            "test_end": "2024-12-31",
+            "best_K": 20,
+            "train_sharpe": 1.033019214588768,
+            "test_sharpe": 2.0064874245303677,
+            "n_test_days": 366
+          },
+          {
+            "train_end": "2024-12-31",
+            "test_start": "2025-01-01",
+            "test_end": "2025-12-31",
+            "best_K": 20,
+            "train_sharpe": 1.1919338196569536,
+            "test_sharpe": 1.7476034501967919,
+            "n_test_days": 365
+          },
+          {
+            "train_end": "2025-12-31",
+            "test_start": "2026-01-01",
+            "test_end": "2026-05-29",
+            "best_K": 20,
+            "train_sharpe": 1.2413147036872458,
+            "test_sharpe": 0.44395109419502315,
+            "n_test_days": 149
+          }
+        ],
+        "walk_forward_sharpe": 1.7048838967597055,
+        "wf_first_date": "2024-01-01",
+        "wf_last_date": "2026-05-29"
+      }
+    }
+  }
+}
