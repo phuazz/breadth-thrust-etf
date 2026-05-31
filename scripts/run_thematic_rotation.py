@@ -190,6 +190,50 @@ UNIVERSE: dict[str, dict] = {
         "trading_calendar": "crypto_24x7",  # reindex to equity calendar at load time
     },
     # ---------------------------------------------------------------------
+    # Phase 25 additions (2026-05-31). Bulk universe screen of 27 liquid
+    # US thematic ETFs (run_thematic_universe_screen.py) against the then-
+    # current 23-theme universe. Two-stage gate (per-pair correlation <
+    # 0.85 then walk-forward Sharpe degradation < 0.03).
+    #
+    # 5 candidates passed Stage 1; 4 passed Stage 2. PHO and IHI selected
+    # for deployment as the two structurally meaningful adds — BETZ and
+    # PRNT are too small / niche to consistently make the K=4 cut.
+    #
+    # PHO note — this is a RE-DEPLOYMENT. PHO was originally tested in
+    # Phase 5 (2026-05-24) as part of a 4-ETF cohort (ITB, AMLP, PHO,
+    # KRE) added simultaneously to the then-16-theme universe. That
+    # cohort dropped the standalone walk-forward Sharpe ~0.10 and the
+    # blended Sharpe moved within noise, so all 4 were reverted. The
+    # current screen re-tested PHO ALONE against the 23-theme universe
+    # (which now includes XME / WOOD / REMX / CQQQ / 159801.SZ / PAVE /
+    # ITA / BTC-USD — none of which existed in Phase 5's baseline) and
+    # got a marginal +0.001 WF lift. The Phase 5 negative was driven by
+    # the cohort effect (4 correlated cyclicals fighting each other for
+    # K=4 slots), not by PHO's standalone contribution. Honest framing
+    # for Eileen: PHO is now structurally additive (water infra fills a
+    # gap next to PAVE), but the WF Sharpe impact is essentially zero;
+    # we are not expecting a return uplift, only better diversification.
+    "PHO": {"label": "Invesco Water Resources",          "theme": "Infrastructure"},
+    "IHI": {"label": "iShares US Medical Devices",       "theme": "Healthcare"},
+    # ---------------------------------------------------------------------
+    # Phase 25 rejected on Stage 1 (correlation gate, 2026-05-31):
+    #   ROBO ~ BOTZ +0.93, KOMP ~ BLOK +0.87, WCLD ~ SKYY +0.92,
+    #   FINX ~ SKYY +0.91, HACK ~ CIBR +0.96, ARKW ~ ARKK +0.97,
+    #   ARKF ~ ARKK +0.95, ARKQ ~ ARKK +0.92, ARKX ~ ARKK +0.89,
+    #   IBB ~ XBI +0.92, IDNA ~ XBI +0.90, KARS ~ LIT +0.93,
+    #   DRIV ~ LIT +0.86, QCLN ~ ICLN +0.94, HYDR ~ LIT +0.88,
+    #   GRID ~ PAVE +0.87, PPA ~ ITA +0.97, ESPO ~ ARKK +0.86,
+    #   AWAY ~ BLOK +0.89, ETHA ~ ARKK +0.88, BITQ ~ BLOK +0.96,
+    #   PBW ~ ICLN +0.93.
+    # Phase 25 rejected on Stage 2 (walk-forward gate):
+    #   KRBN — WF Sharpe -0.064 vs baseline.
+    # PRNT (+0.003) and BETZ (+0.001) passed both gates but were not
+    # deployed: AUM < 200M, niche exposure, unlikely to consistently
+    # make K=4 cut in a 25-theme universe. Retained here for any future
+    # re-test:
+    #   "PRNT": {"label": "ARK 3D Printing & Tech",       "theme": "Manufacturing tech"},
+    #   "BETZ": {"label": "Roundhill Sports Betting",     "theme": "Gaming / digital leisure"},
+    # ---------------------------------------------------------------------
     # Phase 5 candidates (tested 2026-05-24, NOT deployed). The following
     # 4 ETFs passed the within-Strategy-C correlation gate (<0.85 vs any
     # existing C member) and were experimentally added to the universe.
@@ -201,8 +245,11 @@ UNIVERSE: dict[str, dict] = {
     # re-test:
     #   "ITB":  {"label": "iShares US Home Construction",       "theme": "Rate-sensitive cyclical"},
     #   "AMLP": {"label": "Alerian MLP (energy infrastructure)", "theme": "Yield / infrastructure"},
-    #   "PHO":  {"label": "Invesco Water Resources",            "theme": "Infrastructure"},
     #   "KRE":  {"label": "SPDR S&P Regional Banking",          "theme": "Rate-sensitive cyclical"},
+    # NOTE: PHO from this cohort was successfully re-deployed in Phase 25
+    # (2026-05-31) — see the Phase 25 block above. The Phase 5 negative
+    # was a cohort effect (4 correlated cyclicals added together), not
+    # PHO-specific.
     # ---------------------------------------------------------------------
     # Phase 15 rejected on the correlation gate (2026-05-26):
     #   "AIQ":  Global X AI & Tech — max-corr 0.891 vs SKYY, also 0.881 vs
@@ -279,8 +326,10 @@ THEMATIC_COLOURS = {
     # Phase 5 additions
     "ITB":  "#9d174d",  # magenta — homebuilders
     "AMLP": "#854d0e",  # ochre — MLPs / energy infra
-    "PHO":  "#155e75",  # deep teal — water
+    "PHO":  "#155e75",  # deep teal — water (deployed in Phase 25)
     "KRE":  "#1e40af",  # deep blue — regional banks
+    # Phase 25 addition
+    "IHI":  "#a21caf",  # purple — medical devices
     "SHY":  "#6b727a",  # cash proxy (1-3y Treasury — Phase 19.1)
     "IEF":  "#9ca3af",  # retained for backward compatibility (old payloads)
 }
