@@ -57,16 +57,57 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # ----- SOXX-specific refresh (Phase 26, 2026-05-31) -----
+      # SOXX is the only Strategy A ETF that uses the iShares US
+      # holdings endpoint (all others use iShares UK). The US endpoint
+      # is Akamai-blocked from CI runners (returns 10MB HTML warmup
+      # page instead of the CSV). fetch_constituents.py detects this
+      # and falls back to carrying the last-known good roster forward,
+      # so weekly invocation keeps SOXX's Friday snapshot index
+      # extending even when fresh constituents are unavailable.
+      #
+      # compute_breadth.py is then re-run for SOXX so the breadth
+      # series extends past the last-real-fetch date — without this,
+      # the alignment.MAX_STALE_DAYS=7 guard masks SOXX out of the
+      # eligible Strategy A universe within 7 calendar days of the
+      # last real roster fetch, and the live picks silently drop SOXX
+      # (this is exactly what happened between 2026-05-15 and 2026-05-
+      # 31 — the user spotted it in the Strategy A holdings).
+      #
+      # Note: this does NOT fix the underlying iShares US block. It
+      # keeps the operational pipeline running on a stale-but-still-
+      # representative roster (SOXX components change ~2 times/year).
+      # The user should periodically run fetch_constituents.py --etf
+      # SOXX locally (from a residential IP that occasionally clears
+      # the block) to refresh the real roster.
+
+      - name: Refresh SOXX constituents (carry-forward if iShares US blocked)
+        run: python scripts/fetch_constituents.py --etf SOXX
+
+      - name: Recompute SOXX breadth so staleness guard does not mask it
+        run: python scripts/compute_breadth.py --etf SOXX
+
+      - name: Re-run Strategy A top-K rotation with refreshed SOXX
+        # Re-running topk_robustness in CI is feasible only because we
+        # just refreshed the SOXX price cache via compute_breadth — the
+        # other 13 sectors' constituent prices are gitignored and not
+        # available in CI, so topk_robustness will fall back to the
+        # last-committed breadth_*.json snapshots for them. Strategy A
+        # picks therefore reflect: SOXX = fresh, others = last local
+        # refresh. This is the intended trade-off.
+        run: python scripts/run_topk_robustness.py
+
       # ----- Strategy engines -----
-      # Strategy A and D depend on per-ETF constituent price parquets
+      # Strategy D depends on per-ETF constituent price parquets
       # (data/prices_cache_*.parquet) which are gitignored — each is
       # 1-10 MB so they would bloat the repo. On a fresh CI checkout
-      # these are missing, so we SKIP re-running A and D in CI and
-      # rely on the committed topk_robustness.json + europe_rotation.
-      # json from the user's last local pipeline run.
+      # these are missing, so we SKIP re-running D in CI and rely on
+      # the committed europe_rotation.json from the user's last local
+      # pipeline run. Strategy A's SOXX leg is refreshed above; the
+      # other 13 sectors of A inherit from committed breadth_*.json.
       #
       # Strategy B and C use ETF-level momentum (yfinance fetches each
-      # run — fast for ~14 and ~23 tickers respectively), so they can
+      # run — fast for ~14 and ~25 tickers respectively), so they can
       # re-run cleanly in CI without local caches.
 
       - name: Run Strategy B (asset-class rotation; ~14 ETF download)
