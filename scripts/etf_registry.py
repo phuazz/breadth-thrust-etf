@@ -48,6 +48,21 @@ ETF_REGISTRY: dict[str, dict] = {
         "ticker_overrides": {},
         # Date format in the CSV preamble: "Jun 28, 2024"
         "csv_date_format": "us",
+        # Phase 26.2 (2026-05-31) — SEC EDGAR N-PORT-P fallback.
+        # iShares US endpoint (above) is Akamai-blocked from automated
+        # requests. When the fetcher detects an empty / blocked-HTML
+        # response, it falls back to EDGAR: SOXX is series S000004354
+        # of iShares Trust (CIK 1100663). N-PORT-P filings are quarterly
+        # but the SEC mandates publication within 60 days of quarter-end,
+        # so worst-case staleness from EDGAR alone is ~150 days. With
+        # SOXX's annual ~2-3 holdings turnover, that is ~1.2 stocks of
+        # drift in 33 constituents (3.6%) — within signal tolerance.
+        # See scripts/edgar_nport.py for the full integration logic and
+        # DATA_INTEGRITY_POLICY.md section 2.1 for the policy framing.
+        "edgar_nport": {
+            "cik": "1100663",
+            "series_id": "S000004354",
+        },
     },
     "CSP1": {
         # iShares Core S&P 500 UCITS ETF (Acc) — Irish-domiciled UCITS that

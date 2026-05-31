@@ -30,7 +30,9 @@ This policy covers data-source identification, refresh cadence, staleness limits
 | Source | Used for | Endpoint pattern | Known issues |
 |--------|---------|------------------|--------------|
 | iShares UK | 13 Strategy A sectors + 5 Strategy D UCITS + country UCITS for the (deferred) Country sleeve | `https://www.ishares.com/uk/individual/en/products/<id>/<slug>/<ajax>.ajax?fileType=csv&fileName=<ETF>_holdings&dataType=fund` | Generally reliable; occasional rate-limiting handled by the 1.5s + jitter throttle in `fetch_constituents.py` |
-| iShares US | SOXX (Strategy A) | `https://www.ishares.com/us/products/239705/<slug>/<ajax>.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund` | **Akamai-blocked from automated requests since at least 2026-05-15.** Returns a 10MB warmup HTML page instead of the CSV. Carry-forward fallback active. |
+| iShares US | SOXX (Strategy A) — **primary** | `https://www.ishares.com/us/products/239705/<slug>/<ajax>.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund` | **Akamai-blocked from automated requests since at least 2026-05-15.** Returns a 10MB warmup HTML page instead of the CSV. Carry-forward + EDGAR fallback active. |
+| SEC EDGAR (N-PORT-P) | SOXX (Strategy A) — **secondary, since Phase 26.2** | `https://data.sec.gov/submissions/CIK0001100663.json` (filings index) + `https://www.sec.gov/Archives/edgar/data/1100663/<acc>/primary_doc.xml` (per-filing holdings) | Quarterly cadence (filed within 60 days of quarter-end). 28 of 33 holdings resolve to US-listed tickers via OpenFIGI; 5 are foreign primaries without ADRs + cash sweep — denominator hit ~6%, signal-direction-preserving. |
+| OpenFIGI (no-auth tier) | SOXX (Strategy A) — CUSIP → US-listed ticker mapping | `https://api.openfigi.com/v3/mapping` | Free tier: 10 mappings per request, 25 req per 6 sec. On-disk cache at `data/cusip_to_ticker_cache.json` so we only call once per new constituent. |
 
 ### 2.2 Daily prices
 
@@ -58,20 +60,27 @@ The weekly workflow runs `fetch_constituents.py --etf SOXX` to invoke the carry-
 
 ---
 
-## 4. Carry-forward policy
+## 4. Fallback chain — primary → secondary → carry-forward
 
-When an upstream constituent source returns an empty / invalid / blocked response, `fetch_constituents.py` carries the most recent known-good roster forward into the new Friday snapshot. This protects the pipeline from silently dropping an ETF from the eligible universe (which the staleness guard in `scripts/alignment.py` would otherwise trigger after 7 days).
+When an upstream constituent source returns an empty / invalid / blocked response, `fetch_constituents.py` traverses a fallback chain to keep the breadth pipeline running:
 
-**Carry-forward is recorded in two places:**
+1. **Primary** (iShares UK or iShares US, per Section 2.1). Tried first for each target Friday with the existing walkback up to 5 days.
+2. **Secondary** (SEC EDGAR N-PORT-P, where registered in `etf_registry.py`). Tried when primary fails. The EDGAR roster IS used only if its `repPdEnd` date is fresher than the carry-forward alternative — otherwise carry-forward wins. Currently only SOXX has an EDGAR secondary registered.
+3. **Carry-forward** (most recent known-good snapshot). Final fallback if primary and secondary both fail or are older than what carry-forward already has.
 
-1. `data/constituents_<etf>.json` — the `carry_forwards` array lists every target Friday that was filled by carry-forward, including the source snapshot it was carried from.
-2. `data/constituents_<etf>.json` — the `staleness` block tracks `days_since_last_real_fetch` so freshness can be monitored.
+**All three are recorded in the per-ETF audit trail:**
 
-**Why carry-forward is acceptable for short windows:**
+1. `data/constituents_<etf>.json` — the `carry_forwards` array lists every target Friday filled by carry-forward, with the source snapshot it came from.
+2. `data/constituents_<etf>.json` — the `edgar_used` array (new in Phase 26.2) lists every Friday filled from SEC EDGAR, with accession number, filing date, snapshot date, and the carry-forward date it overrode.
+3. `data/constituents_<etf>.json` — the `staleness` block tracks `days_since_last_real_fetch` (real = anything that is not a carry-forward — EDGAR snapshots count as real).
+4. Each individual snapshot in `data/constituents_<etf>.json` carries a `source` field when filled from a non-primary source (e.g. `"source": "edgar_nport"`).
+
+**Why this chain is acceptable:**
 
 - Strategy A / D trade the ETF wrapper, not the underlying constituents. A stale roster only affects the SIGNAL (how strong is breadth?), not the POSITION (what we hold).
-- Index turnover for SOXX is ~2-3 holdings per year. A 2-4 week stale roster represents <0.5 stocks of drift in a 30-stock universe.
+- Index turnover for SOXX is ~2-3 holdings per year. A 2-4 week stale roster represents <0.5 stocks of drift in a 30-stock universe. Even a worst-case 150-day stale EDGAR roster is only ~1.2 stocks of drift.
 - Breadth is computed daily against fresh yfinance prices; only the roster snapshot is stale.
+- EDGAR is the authoritative SEC filing — the same data the fund itself filed under regulatory mandate. Substantively equivalent to (in fact, more legally authoritative than) the iShares-published CSV.
 
 ---
 
@@ -166,7 +175,7 @@ For a regulatory audit, the combination of git commit history (immutable, signed
 
 | Date | ETF | Severity | Root cause | Remediation |
 |------|-----|----------|-----------|-------------|
-| 2026-05-31 | SOXX | Warning (21 days stale) | iShares US holdings endpoint Akamai-blocked since ~2026-05-15. No CI workflow was invoking `fetch_constituents.py --etf SOXX`, so the staleness guard in `scripts/alignment.py` masked SOXX out of the eligible Strategy A universe for the 2026-05-22 rebal — SOXX picks were dropped silently. | Phase 26: added SOXX-specific refresh steps to `.github/workflows/weekly_factsheet.yml`. Phase 26.1: built the staleness-alarm framework (this document, plus exit-code-2 in fetcher, plus publish-abort in `pipeline.py`) so the next occurrence fails loudly within 30 days. SOXX roster carried forward from 2026-05-08; will re-fetch from a residential IP if staleness crosses 30 days before iShares US block resolves. |
+| 2026-05-31 | SOXX | Warning (21 days stale) | iShares US holdings endpoint Akamai-blocked since ~2026-05-15. No CI workflow was invoking `fetch_constituents.py --etf SOXX`, so the staleness guard in `scripts/alignment.py` masked SOXX out of the eligible Strategy A universe for the 2026-05-22 rebal — SOXX picks were dropped silently. | Phase 26: added SOXX-specific refresh steps to `.github/workflows/weekly_factsheet.yml`. Phase 26.1: built the staleness-alarm framework (this document, plus exit-code-2 in fetcher, plus publish-abort in `pipeline.py`) so the next occurrence fails loudly within 30 days. Phase 26.2: built SEC EDGAR N-PORT-P fallback (`scripts/edgar_nport.py`, registered as SOXX's `edgar_nport` secondary source). EDGAR is loaded once per fetch run and only used when its `repPdEnd` date is fresher than the carry-forward source — currently iShares carry-forward (2026-05-08) is fresher than the latest EDGAR filing (`repPdEnd 2026-03-31`) so EDGAR is loaded as a standby but not currently injecting snapshots. When the next quarterly N-PORT-P lands (~2026-08-29, `repPdEnd 2026-06-30`), EDGAR will automatically resume freshness if iShares US stays blocked. The dependence on a single operator's residential IP is now removed. |
 
 ---
 

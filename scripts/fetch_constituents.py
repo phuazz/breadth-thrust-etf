@@ -502,9 +502,64 @@ def main() -> int:
     snapshots: dict[str, dict] = {}
     walkbacks: list[dict] = []
     carry_forwards: list[dict] = []
+    edgar_used: list[dict] = []  # Phase 26.2 — audit trail
     prev_tickers: list[str] | None = None
     prev_actual: date | None = None
     prev_target: date | None = None
+
+    # Phase 26.2 (2026-05-31) — lazy-loaded SEC EDGAR fallback. When the
+    # primary iShares endpoint returns blocked HTML or empty CSV AND the
+    # ETF has an edgar_nport entry in its registry, we drop down to the
+    # most recent N-PORT-P filing for the series. Loaded once per run
+    # to amortise the SEC scan cost. See scripts/edgar_nport.py and
+    # DATA_INTEGRITY_POLICY.md section 2.1 for the full story.
+    edgar_cfg = etf_cfg.get("edgar_nport")
+    edgar_roster_cache: dict | None = None  # sentinel: None = not loaded yet
+    edgar_roster_date: date | None = None
+
+    def _try_edgar(target: date) -> tuple[list[str] | None, date | None]:
+        """Return (tickers, snapshot_date) from EDGAR if a roster is
+        available with repPdEnd <= target, else (None, None). Loads the
+        EDGAR roster on first call. Always prefer the freshest source
+        — caller decides whether EDGAR beats the carry-forward source."""
+        nonlocal edgar_roster_cache, edgar_roster_date
+        if not edgar_cfg:
+            return None, None
+        if edgar_roster_cache is None:
+            # Sentinel: cache the entire (roster, date) tuple including
+            # the "EDGAR returned nothing" outcome so we do not retry.
+            try:
+                from edgar_nport import fetch_roster_via_edgar
+                roster = fetch_roster_via_edgar(
+                    edgar_cfg["cik"], edgar_cfg["series_id"],
+                )
+            except Exception as e:
+                print(f"  EDGAR lookup failed for {symbol}: {e}", flush=True)
+                roster = None
+            if roster is not None:
+                edgar_roster_cache = {
+                    "tickers": roster.tickers,
+                    "rep_pd_end": roster.filing.report_period_end,
+                    "filing_date": roster.filing.filing_date,
+                    "accession": roster.filing.accession_number,
+                }
+                edgar_roster_date = date.fromisoformat(
+                    roster.filing.report_period_end
+                )
+                print(
+                    f"  EDGAR roster loaded for {symbol}: "
+                    f"{len(roster.tickers)} tickers from "
+                    f"N-PORT-P filed {roster.filing.filing_date} "
+                    f"(repPdEnd {roster.filing.report_period_end})",
+                    flush=True,
+                )
+            else:
+                edgar_roster_cache = {}  # marker — "loaded, returned nothing"
+        if not edgar_roster_cache:
+            return None, None
+        if edgar_roster_date and edgar_roster_date <= target:
+            return list(edgar_roster_cache["tickers"]), edgar_roster_date
+        return None, None
 
     for i, friday in enumerate(fridays, start=1):
         if i == 1 or i % 25 == 0 or i == len(fridays):
@@ -514,6 +569,32 @@ def main() -> int:
         except Exception as e:
             print(f"  ERROR on {friday}: {e}", flush=True)
             tickers, actual, status = None, None, "not_found"
+
+        # Phase 26.2 — when primary fails for this Friday and an EDGAR
+        # source is registered, try EDGAR. Only USE EDGAR if its
+        # roster is fresher than what carry-forward would produce —
+        # else carry-forward is still the right choice.
+        if tickers is None and edgar_cfg:
+            edgar_tickers, edgar_date = _try_edgar(friday)
+            if edgar_tickers and edgar_date:
+                carry_date = prev_actual if prev_actual else None
+                edgar_is_fresher = (
+                    carry_date is None or edgar_date > carry_date
+                )
+                if edgar_is_fresher:
+                    tickers = edgar_tickers
+                    actual = edgar_date
+                    status = "edgar_nport"
+                    edgar_used.append({
+                        "target_friday": friday.isoformat(),
+                        "edgar_actual_date": edgar_date.isoformat(),
+                        "accession": edgar_roster_cache["accession"],
+                        "filing_date": edgar_roster_cache["filing_date"],
+                        "n_tickers": len(tickers),
+                        "carry_forward_alternative_date": (
+                            carry_date.isoformat() if carry_date else None
+                        ),
+                    })
 
         if tickers is None or actual is None:
             if prev_tickers is None or prev_actual is None or prev_target is None:
@@ -543,11 +624,17 @@ def main() -> int:
                 "tickers": prev_tickers,
             }
         else:
-            snapshots[friday.isoformat()] = {
+            snap_entry: dict = {
                 "actual_date": actual.isoformat(),
                 "n_tickers": len(tickers),
                 "tickers": tickers,
             }
+            # Phase 26.2 — record the fallback source so the audit
+            # trail distinguishes iShares-derived vs EDGAR-derived
+            # snapshots. Absent field means primary (iShares) was used.
+            if status == "edgar_nport":
+                snap_entry["source"] = "edgar_nport"
+            snapshots[friday.isoformat()] = snap_entry
             if status == "walkback":
                 walkbacks.append({
                     "target_friday": friday.isoformat(),
@@ -603,6 +690,7 @@ def main() -> int:
         "ticker_overrides_applied": etf_cfg.get("ticker_overrides", {}),
         "walkbacks": walkbacks,
         "carry_forwards": carry_forwards,
+        "edgar_used": edgar_used,
         "staleness": {
             "last_real_fetch_date": (
                 last_real_fetch_date.isoformat()
@@ -624,8 +712,16 @@ def main() -> int:
         f"Wrote {out_path.relative_to(PROJECT_ROOT)} -- "
         f"{len(snapshots)} snapshots, "
         f"{len(walkbacks)} walkbacks, "
-        f"{len(carry_forwards)} carry-forwards"
+        f"{len(carry_forwards)} carry-forwards, "
+        f"{len(edgar_used)} EDGAR fallbacks"
     )
+    if edgar_used:
+        print(
+            f"  EDGAR (N-PORT-P) used for {len(edgar_used)} Friday "
+            f"snapshot(s) — source snapshot date "
+            f"{edgar_used[0]['edgar_actual_date']}, accession "
+            f"{edgar_used[0]['accession']}"
+        )
     if walkbacks:
         print(f"  First walkback: {walkbacks[0]}")
     if carry_forwards:
