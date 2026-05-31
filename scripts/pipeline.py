@@ -640,9 +640,50 @@ def main() -> int:
     }
     print(f"\nSignals as-of: {signals_asof}")
 
+    # Phase 26.1 — data-integrity scan. Walk every constituents_*.json,
+    # collect any non-fresh staleness records, and (a) surface them in
+    # the dashboard via window.DATA.data_integrity, (b) print a warning
+    # banner, (c) ABORT publication if any ETF is "critical" so a stale
+    # dashboard never ships. See DATA_INTEGRITY_POLICY.md for the policy.
+    data_integrity = []
+    for path in sorted(DATA_DIR.glob("constituents_*.json")):
+        try:
+            blob = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        s = blob.get("staleness")
+        if not s or s.get("status") in (None, "fresh"):
+            continue
+        data_integrity.append({
+            "etf": blob.get("etf", path.stem.replace("constituents_", "").upper()),
+            "status": s.get("status"),
+            "days_since_last_real_fetch": s.get("days_since_last_real_fetch"),
+            "last_real_fetch_date": s.get("last_real_fetch_date"),
+            "warn_threshold_days": s.get("warn_threshold_days"),
+            "critical_threshold_days": s.get("critical_threshold_days"),
+        })
+    if data_integrity:
+        bar = "-" * 60
+        print(f"\n{bar}\nData integrity — non-fresh constituent rosters:")
+        for d in data_integrity:
+            print(f"  [{d['status'].upper()}] {d['etf']}: "
+                  f"{d['days_since_last_real_fetch']} days since last "
+                  f"real fetch (last good {d['last_real_fetch_date']})")
+        print(bar)
+        critical = [d for d in data_integrity if d["status"] == "critical"]
+        if critical:
+            etfs = ", ".join(c["etf"] for c in critical)
+            raise SystemExit(
+                f"PUBLISH ABORTED: {len(critical)} roster(s) exceed the "
+                f"{critical[0]['critical_threshold_days']}-day critical "
+                f"staleness threshold ({etfs}). See "
+                f"DATA_INTEGRITY_POLICY.md for remediation."
+            )
+
     data = {
         "built_at": built_at,
         "signals_asof": signals_asof,
+        "data_integrity": data_integrity,
         "live_track": live_track,
         "ma200": ma200,
         "portfolio": portfolio,

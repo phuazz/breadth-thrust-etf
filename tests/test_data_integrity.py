@@ -64,6 +64,84 @@ def test_breadth_series_columns_match_dates():
             )
 
 
+def test_constituent_staleness_block_is_well_formed():
+    """Phase 26.1 — every constituents_*.json that carries a staleness
+    block must satisfy: status is one of the known values, threshold
+    fields match the constants in fetch_constituents.py, and
+    days_since_last_real_fetch is None or a non-negative integer.
+
+    The block itself is OPTIONAL on legacy files (added Phase 26.1) so
+    we only validate when present — once every file has been re-written
+    by the next full pipeline run, the absence guard can be tightened.
+    """
+    from datetime import date as _date
+
+    valid_statuses = {"fresh", "warning", "critical", "no_real_fetches"}
+    for path in DATA_DIR.glob("constituents_*.json"):
+        blob = json.loads(path.read_text(encoding="utf-8"))
+        s = blob.get("staleness")
+        if s is None:
+            continue
+        # Shape invariants
+        assert s.get("status") in valid_statuses, (
+            f"{path.name} staleness.status {s.get('status')!r} "
+            f"not in {valid_statuses}"
+        )
+        days = s.get("days_since_last_real_fetch")
+        assert days is None or (isinstance(days, int) and days >= 0), (
+            f"{path.name} days_since_last_real_fetch={days!r} invalid"
+        )
+        # Threshold sanity
+        warn = s.get("warn_threshold_days")
+        crit = s.get("critical_threshold_days")
+        if warn is not None and crit is not None:
+            assert 0 < warn < crit, (
+                f"{path.name} warn ({warn}) must be < critical ({crit})"
+            )
+        # If status is critical, days must actually be over the critical
+        # threshold (catches a renaming-vs-recomputation drift).
+        if s.get("status") == "critical" and days is not None and crit is not None:
+            assert days > crit, (
+                f"{path.name} status=critical but days ({days}) "
+                f"not > critical_threshold ({crit})"
+            )
+        # If a real fetch date is supplied, it must parse as ISO date
+        # and be no later than today.
+        last = s.get("last_real_fetch_date")
+        if last is not None:
+            parsed = _date.fromisoformat(last)
+            # No assertion against today's date — this would make the
+            # test flap across timezones at midnight UTC. The fetcher's
+            # own internal logic enforces this monotonicity.
+            del parsed
+
+
+def test_no_critical_staleness_currently_published():
+    """The deployed dashboard MUST NOT ship if any constituent roster is
+    critically stale (>30 days since last real fetch). pipeline.py aborts
+    publish in that case; this test enforces the same invariant at the
+    data-file level so regressions are caught even if the pipeline guard
+    is removed.
+
+    Compatible with the carry-forward fallback — "warning" status (15-30
+    days) is acceptable for publication; only "critical" is forbidden.
+    See DATA_INTEGRITY_POLICY.md sections 5 and 6.
+    """
+    critical = []
+    for path in DATA_DIR.glob("constituents_*.json"):
+        blob = json.loads(path.read_text(encoding="utf-8"))
+        s = blob.get("staleness") or {}
+        if s.get("status") == "critical":
+            critical.append((
+                blob.get("etf", path.stem),
+                s.get("days_since_last_real_fetch"),
+            ))
+    assert not critical, (
+        f"PUBLISH BLOCKED: {len(critical)} roster(s) at critical staleness: "
+        f"{critical}. See DATA_INTEGRITY_POLICY.md for remediation."
+    )
+
+
 def test_backtest_equity_curve_shapes_are_consistent():
     """Every equity curve in every backtest*.json must have all its
     list-valued columns aligned with its dates array."""

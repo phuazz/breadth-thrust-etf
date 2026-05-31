@@ -85,6 +85,30 @@ MAX_WALKBACK_DAYS = 5  # how far back from a target Friday to search
 
 THROTTLE_BASE_SECONDS = 1.5
 THROTTLE_JITTER_SECONDS = 0.5
+
+# Staleness policy (Phase 26.1, 2026-05-31). See DATA_INTEGRITY_POLICY.md
+# for the rationale and escalation procedure.
+#
+# When the upstream holdings source (iShares US is the known offender) is
+# blocked or returns warmup HTML, fetch_constituents.py carries the most
+# recent known-good roster forward into subsequent Friday snapshots. This
+# keeps the breadth pipeline running but ages the roster. Index turnover
+# is ~2-3 holdings per year, so:
+#
+#   - <= WARN_STALE_DAYS (14)     : OK, business as usual.
+#   - WARN_STALE_DAYS .. MAX (30) : print a warning, exit 0. Carry-forward
+#                                   continues. A human should investigate.
+#   - >  MAX_STALE_DAYS (30)     : print a critical alert, exit code 2.
+#                                   CI must fail noisily. Operator action
+#                                   required: either restore the upstream
+#                                   source or refresh the roster manually
+#                                   from an alternative (PHLX SOX direct,
+#                                   paid index data, or a maintainer-
+#                                   updated static fallback).
+WARN_STALE_DAYS = 14
+MAX_STALE_DAYS = 30
+EXIT_OK = 0
+EXIT_STALENESS_CRITICAL = 2
 RETRY_BACKOFFS = [5, 10, 30]  # seconds; 3 retries on transport failure or 5xx
 
 # Note: Python's datetime constructor is 1-indexed for months (Jan=1), unlike
@@ -536,6 +560,32 @@ def main() -> int:
                 })
             prev_tickers, prev_actual, prev_target = tickers, actual, friday
 
+    # Staleness check (Phase 26.1) — compute days since the most recent
+    # REAL fetch (any snapshot that is not a carry-forward). The "today"
+    # anchor uses calendar days from the latest target Friday so the test
+    # is deterministic across local + CI clocks; using datetime.utcnow()
+    # would make the alert flap across timezone boundaries.
+    real_snapshot_dates: list[date] = []
+    for snap in snapshots.values():
+        if "carried_forward_from" in snap:
+            continue
+        try:
+            real_snapshot_dates.append(date.fromisoformat(snap["actual_date"]))
+        except (KeyError, ValueError):
+            continue
+    last_real_fetch_date = max(real_snapshot_dates) if real_snapshot_dates else None
+    if last_real_fetch_date is not None:
+        days_since_real = (end_friday - last_real_fetch_date).days
+        if days_since_real > MAX_STALE_DAYS:
+            staleness_status = "critical"
+        elif days_since_real > WARN_STALE_DAYS:
+            staleness_status = "warning"
+        else:
+            staleness_status = "fresh"
+    else:
+        days_since_real = None
+        staleness_status = "no_real_fetches"
+
     payload = {
         "etf": symbol,
         "source": etf_cfg["csv_url_template"],
@@ -553,6 +603,17 @@ def main() -> int:
         "ticker_overrides_applied": etf_cfg.get("ticker_overrides", {}),
         "walkbacks": walkbacks,
         "carry_forwards": carry_forwards,
+        "staleness": {
+            "last_real_fetch_date": (
+                last_real_fetch_date.isoformat()
+                if last_real_fetch_date else None
+            ),
+            "days_since_last_real_fetch": days_since_real,
+            "status": staleness_status,
+            "warn_threshold_days": WARN_STALE_DAYS,
+            "critical_threshold_days": MAX_STALE_DAYS,
+            "policy_ref": "DATA_INTEGRITY_POLICY.md",
+        },
         "snapshots": snapshots,
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -568,10 +629,41 @@ def main() -> int:
     if walkbacks:
         print(f"  First walkback: {walkbacks[0]}")
     if carry_forwards:
-        print("  WARNING -- carry-forwards required:")
+        print("  Carry-forwards in use:")
         for cf in carry_forwards:
             print(f"    {cf}")
-    return 0
+
+    # Staleness alert (Phase 26.1). Loud failure on critical so CI fails.
+    if staleness_status == "critical":
+        bar = "!" * 72
+        print(file=sys.stderr)
+        print(bar, file=sys.stderr)
+        print(
+            f"CRITICAL: {symbol} roster is {days_since_real} days stale "
+            f"(last real fetch {last_real_fetch_date}). "
+            f"Threshold {MAX_STALE_DAYS} days exceeded.",
+            file=sys.stderr,
+        )
+        print(
+            f"Operator action required. See DATA_INTEGRITY_POLICY.md "
+            f"section 'Escalation procedure' for remediation.",
+            file=sys.stderr,
+        )
+        print(bar, file=sys.stderr)
+        return EXIT_STALENESS_CRITICAL
+    if staleness_status == "warning":
+        print(
+            f"  WARNING: {symbol} roster is {days_since_real} days stale "
+            f"(last real fetch {last_real_fetch_date}). "
+            f"Threshold for critical alert is {MAX_STALE_DAYS} days."
+        )
+    elif staleness_status == "fresh" and last_real_fetch_date is not None:
+        print(
+            f"  Staleness OK: last real fetch {last_real_fetch_date} "
+            f"({days_since_real} days ago, "
+            f"under {WARN_STALE_DAYS}-day warning threshold)."
+        )
+    return EXIT_OK
 
 
 if __name__ == "__main__":
