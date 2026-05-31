@@ -1,7 +1,7 @@
 {
   "etf": "SOXX",
   "source": "https://www.ishares.com/us/products/239705/ishares-phlx-semiconductor-etf/1467271812596.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund",
-  "fetched_at_utc": "2026-05-31T12:02:26.036729+00:00",
+  "fetched_at_utc": "2026-05-31T12:42:45.357277+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-05-29",
   "n_target_fridays": 439,
@@ -116,9 +116,11 @@
   "staleness": {
     "last_real_fetch_date": "2026-05-08",
     "days_since_last_real_fetch": 21,
-    "status": "warning",
-    "warn_threshold_days": 14,
-    "critical_threshold_days": 30,
+    "status": "fresh",
+    "warn_threshold_days": 60,
+    "critical_threshold_days": 120,
+    "threshold_source": "per_etf_override",
+    "threshold_rationale": "EDGAR N-PORT-P secondary source has quarterly cadence + 60-day filing grace, so the practical max staleness ceiling is ~150d. Thresholds set to match: warn at 60d, critical at 120d.",
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "snapshots": {

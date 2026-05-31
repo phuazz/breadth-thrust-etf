@@ -86,29 +86,51 @@ MAX_WALKBACK_DAYS = 5  # how far back from a target Friday to search
 THROTTLE_BASE_SECONDS = 1.5
 THROTTLE_JITTER_SECONDS = 0.5
 
-# Staleness policy (Phase 26.1, 2026-05-31). See DATA_INTEGRITY_POLICY.md
-# for the rationale and escalation procedure.
+# Staleness policy (Phase 26.1, 2026-05-31, per-ETF override added in
+# Phase 26.3). See DATA_INTEGRITY_POLICY.md for the rationale and
+# escalation procedure.
 #
-# When the upstream holdings source (iShares US is the known offender) is
-# blocked or returns warmup HTML, fetch_constituents.py carries the most
-# recent known-good roster forward into subsequent Friday snapshots. This
-# keeps the breadth pipeline running but ages the roster. Index turnover
-# is ~2-3 holdings per year, so:
+# When the upstream holdings source (iShares US is the known offender)
+# is blocked or returns warmup HTML, fetch_constituents.py carries the
+# most recent known-good roster forward into subsequent Friday
+# snapshots. This keeps the breadth pipeline running but ages the
+# roster. Index turnover is ~2-3 holdings per year, so the default
+# thresholds suit a daily-availability source:
 #
 #   - <= WARN_STALE_DAYS (14)     : OK, business as usual.
-#   - WARN_STALE_DAYS .. MAX (30) : print a warning, exit 0. Carry-forward
-#                                   continues. A human should investigate.
-#   - >  MAX_STALE_DAYS (30)     : print a critical alert, exit code 2.
-#                                   CI must fail noisily. Operator action
-#                                   required: either restore the upstream
-#                                   source or refresh the roster manually
-#                                   from an alternative (PHLX SOX direct,
-#                                   paid index data, or a maintainer-
-#                                   updated static fallback).
+#   - WARN_STALE_DAYS .. MAX (30) : print a warning, exit 0. Carry-
+#                                   forward continues. A human should
+#                                   investigate.
+#   - >  MAX_STALE_DAYS (30)      : print a critical alert, exit code 2.
+#                                   CI must fail noisily. Operator
+#                                   action required: either restore
+#                                   the upstream source or refresh the
+#                                   roster manually.
+#
+# Per-ETF overrides (Phase 26.3): when an ETF's registry entry carries
+# a ``staleness`` block (see etf_registry.py for SOXX's), those values
+# replace WARN_STALE_DAYS / MAX_STALE_DAYS for that ETF only. This is
+# how SOXX uses 60/120-day thresholds matched to its EDGAR cadence
+# rather than the global 14/30-day defaults.
 WARN_STALE_DAYS = 14
 MAX_STALE_DAYS = 30
 EXIT_OK = 0
 EXIT_STALENESS_CRITICAL = 2
+
+
+def resolve_staleness_thresholds(etf_cfg: dict) -> tuple[int, int]:
+    """Return (warn_days, critical_days) for this ETF, applying any
+    per-ETF override from the registry. Defaults to the module-level
+    WARN_STALE_DAYS / MAX_STALE_DAYS if no override is registered."""
+    override = etf_cfg.get("staleness") or {}
+    warn = int(override.get("warn_days", WARN_STALE_DAYS))
+    critical = int(override.get("critical_days", MAX_STALE_DAYS))
+    if not (0 < warn < critical):
+        raise ValueError(
+            f"Invalid staleness thresholds for {etf_cfg.get('symbol')}: "
+            f"warn={warn} critical={critical} (must satisfy 0 < warn < critical)"
+        )
+    return warn, critical
 RETRY_BACKOFFS = [5, 10, 30]  # seconds; 3 retries on transport failure or 5xx
 
 # Note: Python's datetime constructor is 1-indexed for months (Jan=1), unlike
@@ -661,17 +683,19 @@ def main() -> int:
         except (KeyError, ValueError):
             continue
     last_real_fetch_date = max(real_snapshot_dates) if real_snapshot_dates else None
+    warn_days, critical_days = resolve_staleness_thresholds(etf_cfg)
     if last_real_fetch_date is not None:
         days_since_real = (end_friday - last_real_fetch_date).days
-        if days_since_real > MAX_STALE_DAYS:
+        if days_since_real > critical_days:
             staleness_status = "critical"
-        elif days_since_real > WARN_STALE_DAYS:
+        elif days_since_real > warn_days:
             staleness_status = "warning"
         else:
             staleness_status = "fresh"
     else:
         days_since_real = None
         staleness_status = "no_real_fetches"
+    staleness_override = etf_cfg.get("staleness") or {}
 
     payload = {
         "etf": symbol,
@@ -698,8 +722,15 @@ def main() -> int:
             ),
             "days_since_last_real_fetch": days_since_real,
             "status": staleness_status,
-            "warn_threshold_days": WARN_STALE_DAYS,
-            "critical_threshold_days": MAX_STALE_DAYS,
+            "warn_threshold_days": warn_days,
+            "critical_threshold_days": critical_days,
+            "threshold_source": (
+                "per_etf_override" if staleness_override else "global_default"
+            ),
+            "threshold_rationale": (
+                staleness_override.get("rationale")
+                if staleness_override else None
+            ),
             "policy_ref": "DATA_INTEGRITY_POLICY.md",
         },
         "snapshots": snapshots,
@@ -729,7 +760,11 @@ def main() -> int:
         for cf in carry_forwards:
             print(f"    {cf}")
 
-    # Staleness alert (Phase 26.1). Loud failure on critical so CI fails.
+    # Staleness alert (Phase 26.1, per-ETF thresholds since 26.3).
+    # Loud failure on critical so CI fails.
+    threshold_label = (
+        " (per-ETF override)" if staleness_override else " (global default)"
+    )
     if staleness_status == "critical":
         bar = "!" * 72
         print(file=sys.stderr)
@@ -737,7 +772,7 @@ def main() -> int:
         print(
             f"CRITICAL: {symbol} roster is {days_since_real} days stale "
             f"(last real fetch {last_real_fetch_date}). "
-            f"Threshold {MAX_STALE_DAYS} days exceeded.",
+            f"Threshold {critical_days} days{threshold_label} exceeded.",
             file=sys.stderr,
         )
         print(
@@ -751,13 +786,14 @@ def main() -> int:
         print(
             f"  WARNING: {symbol} roster is {days_since_real} days stale "
             f"(last real fetch {last_real_fetch_date}). "
-            f"Threshold for critical alert is {MAX_STALE_DAYS} days."
+            f"Threshold for critical alert is {critical_days} days"
+            f"{threshold_label}."
         )
     elif staleness_status == "fresh" and last_real_fetch_date is not None:
         print(
             f"  Staleness OK: last real fetch {last_real_fetch_date} "
             f"({days_since_real} days ago, "
-            f"under {WARN_STALE_DAYS}-day warning threshold)."
+            f"under {warn_days}-day warning threshold{threshold_label})."
         )
     return EXIT_OK
 

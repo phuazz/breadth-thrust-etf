@@ -63,6 +63,34 @@ ETF_REGISTRY: dict[str, dict] = {
             "cik": "1100663",
             "series_id": "S000004354",
         },
+        # Phase 26.3 (2026-05-31) — per-ETF staleness override.
+        # The global default (warn 14d / critical 30d, defined in
+        # fetch_constituents.py) is too tight for SOXX once EDGAR is
+        # the operative secondary source. EDGAR N-PORT-P cadence is
+        # quarterly (≤90 days between filings) + 60 days statutory
+        # filing grace = up to 150 days from a snapshot's repPdEnd
+        # to the next available filing. We set:
+        #   - warn at 60d  (one full quarter — investigate the primary
+        #                   source proactively before EDGAR is the only
+        #                   thing keeping us going)
+        #   - critical at 120d (max-realistic EDGAR refresh latency +
+        #                       a one-month safety margin — beyond this
+        #                       we should treat the data source itself
+        #                       as suspect)
+        # With ~2-3 PHLX SOX holdings turnover per year, 120 days of
+        # roster staleness is ~1 stock of drift in 33 constituents
+        # (3%), within signal tolerance. See DATA_INTEGRITY_POLICY.md
+        # section 5 "Staleness windows" for the full rationale.
+        "staleness": {
+            "warn_days": 60,
+            "critical_days": 120,
+            "rationale": (
+                "EDGAR N-PORT-P secondary source has quarterly cadence "
+                "+ 60-day filing grace, so the practical max staleness "
+                "ceiling is ~150d. Thresholds set to match: warn at 60d, "
+                "critical at 120d."
+            ),
+        },
     },
     "CSP1": {
         # iShares Core S&P 500 UCITS ETF (Acc) — Irish-domiciled UCITS that

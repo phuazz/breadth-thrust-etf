@@ -303,3 +303,70 @@ def test_resolve_tickers_no_fetch_when_all_cached(tmp_path, monkeypatch):
         resolve_tickers(holdings)
         mock_batch.assert_not_called()
     assert [h.ticker for h in holdings] == ["AA", "BB"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 26.3 — per-ETF staleness override
+# ---------------------------------------------------------------------------
+# These tests live here (rather than in test_data_integrity.py) because
+# they import directly from fetch_constituents.py and exercise pure
+# Python logic with no I/O — same character as the other tests in this
+# file. They guard the per-ETF threshold mechanism added in Phase 26.3.
+
+
+def test_resolve_staleness_thresholds_uses_global_default_when_no_override():
+    """An ETF registry entry without a 'staleness' block falls back to
+    the module-level WARN_STALE_DAYS / MAX_STALE_DAYS (14 / 30)."""
+    from fetch_constituents import (
+        WARN_STALE_DAYS, MAX_STALE_DAYS, resolve_staleness_thresholds,
+    )
+    cfg = {"symbol": "IUES"}  # any ETF without per-ETF override
+    warn, critical = resolve_staleness_thresholds(cfg)
+    assert warn == WARN_STALE_DAYS == 14
+    assert critical == MAX_STALE_DAYS == 30
+
+
+def test_resolve_staleness_thresholds_applies_per_etf_override():
+    """SOXX has a per-ETF override of warn=60 / critical=120 to match
+    SEC EDGAR N-PORT-P cadence. resolve_staleness_thresholds must
+    return those values, not the global default."""
+    from fetch_constituents import resolve_staleness_thresholds
+    cfg = {
+        "symbol": "SOXX",
+        "staleness": {"warn_days": 60, "critical_days": 120},
+    }
+    warn, critical = resolve_staleness_thresholds(cfg)
+    assert warn == 60
+    assert critical == 120
+
+
+def test_resolve_staleness_thresholds_rejects_inverted_thresholds():
+    """A registry entry with warn >= critical is a config bug — must
+    raise rather than silently produce nonsensical staleness status."""
+    from fetch_constituents import resolve_staleness_thresholds
+    cfg = {
+        "symbol": "BROKEN",
+        "staleness": {"warn_days": 120, "critical_days": 60},
+    }
+    with pytest.raises(ValueError, match="must satisfy"):
+        resolve_staleness_thresholds(cfg)
+
+
+def test_soxx_registry_carries_phase_26_3_override():
+    """SOXX must keep its per-ETF override in etf_registry.py. If
+    anyone removes it, this test fails and points at the regression
+    (without the override, SOXX would trip critical at 31 days even
+    though EDGAR N-PORT-P is still authoritative)."""
+    from etf_registry import get_etf
+    cfg = get_etf("SOXX")
+    stale = cfg.get("staleness")
+    assert stale is not None, (
+        "SOXX must carry a per-ETF staleness override; default 30-day "
+        "critical threshold is incompatible with quarterly EDGAR cadence."
+    )
+    assert stale.get("warn_days") == 60
+    assert stale.get("critical_days") == 120
+    assert "EDGAR" in (stale.get("rationale") or ""), (
+        "Rationale should reference EDGAR — that is the source of the "
+        "relaxed threshold; future maintainers need that link."
+    )

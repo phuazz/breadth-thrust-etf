@@ -86,7 +86,11 @@ When an upstream constituent source returns an empty / invalid / blocked respons
 
 ## 5. Staleness windows
 
-Defined in `scripts/fetch_constituents.py`:
+Defined as global defaults in `scripts/fetch_constituents.py`, with **per-ETF overrides** in `scripts/etf_registry.py` for ETFs whose source cadence is structurally different (e.g. SOXX, whose secondary source is quarterly).
+
+### 5a. Global default thresholds
+
+Applied to any ETF that does not carry a `staleness` block in its registry entry.
 
 | Threshold | Days since last real fetch | Behaviour | Operator action |
 |-----------|---------------------------|-----------|-----------------|
@@ -94,11 +98,18 @@ Defined in `scripts/fetch_constituents.py`:
 | **Warning** | 15-30 | Prints warning to stdout; surfaces yellow banner on dashboard; exit code 0 | Investigate the upstream source; trigger a manual fetch from an alternative source if possible |
 | **Critical** | > 30 | Prints loud alert to stderr; **`fetch_constituents.py` exits code 2**; **`pipeline.py` aborts the dashboard publish entirely** with `SystemExit` | Mandatory: see Section 6 |
 
-The critical threshold is set at 30 calendar days because:
+The 30-day default is calibrated to a daily-availability source (iShares UK / iShares US when not blocked). The probability of one constituent being delisted or undergoing corporate action becomes non-trivial beyond 30 days; the threshold is short enough that an unattended degradation is caught within ~4 weekly CI cycles.
 
-- SOXX's PHLX Semiconductor Index rebalances annually with ~2-3 swaps. A 30-day stale roster represents ~0.25 stocks of drift in a 30-stock universe — still negligible.
-- Beyond 30 days, the probability of one constituent being delisted or undergoing corporate action becomes non-trivial.
-- 30 days is short enough that an unattended degradation is caught within ~4 weekly CI cycles.
+### 5b. Per-ETF overrides (Phase 26.3)
+
+When an ETF's primary source is unavailable but a secondary source with materially different cadence is registered (currently only SOXX → SEC EDGAR N-PORT-P), the global default would either trip critical even though the secondary is keeping the roster authoritative, OR force operator intervention more often than the source cadence warrants. The registry's `staleness` block lets each ETF declare thresholds matched to its actual data-source cadence.
+
+| ETF | warn_days | critical_days | Rationale |
+|-----|-----------|---------------|-----------|
+| **SOXX** | 60 | 120 | EDGAR N-PORT-P is quarterly (≤ 90 days between filings) + 60-day SEC filing grace → max realistic refresh latency ~150 days. Critical set at 120 (max-realistic minus a one-month safety margin); warn at 60 (one quarter — flag for proactive investigation before EDGAR is the only thing keeping us going). With ~2-3 PHLX SOX holdings turnover per year, 120 days of staleness = ~1 stock of drift in 33 constituents (3%) — within signal tolerance. |
+| All others | 14 | 30 | Daily-availability iShares UK source; tight thresholds appropriate. |
+
+Each `data/constituents_<etf>.json` includes the actually-applied thresholds in its `staleness` block (along with `threshold_source: "per_etf_override"` or `"global_default"` and the rationale text), so reading any single file is sufficient to understand the policy applied at that build.
 
 ---
 
@@ -175,7 +186,7 @@ For a regulatory audit, the combination of git commit history (immutable, signed
 
 | Date | ETF | Severity | Root cause | Remediation |
 |------|-----|----------|-----------|-------------|
-| 2026-05-31 | SOXX | Warning (21 days stale) | iShares US holdings endpoint Akamai-blocked since ~2026-05-15. No CI workflow was invoking `fetch_constituents.py --etf SOXX`, so the staleness guard in `scripts/alignment.py` masked SOXX out of the eligible Strategy A universe for the 2026-05-22 rebal — SOXX picks were dropped silently. | Phase 26: added SOXX-specific refresh steps to `.github/workflows/weekly_factsheet.yml`. Phase 26.1: built the staleness-alarm framework (this document, plus exit-code-2 in fetcher, plus publish-abort in `pipeline.py`) so the next occurrence fails loudly within 30 days. Phase 26.2: built SEC EDGAR N-PORT-P fallback (`scripts/edgar_nport.py`, registered as SOXX's `edgar_nport` secondary source). EDGAR is loaded once per fetch run and only used when its `repPdEnd` date is fresher than the carry-forward source — currently iShares carry-forward (2026-05-08) is fresher than the latest EDGAR filing (`repPdEnd 2026-03-31`) so EDGAR is loaded as a standby but not currently injecting snapshots. When the next quarterly N-PORT-P lands (~2026-08-29, `repPdEnd 2026-06-30`), EDGAR will automatically resume freshness if iShares US stays blocked. The dependence on a single operator's residential IP is now removed. |
+| 2026-05-31 | SOXX | Warning (21 days stale) | iShares US holdings endpoint Akamai-blocked since ~2026-05-15. No CI workflow was invoking `fetch_constituents.py --etf SOXX`, so the staleness guard in `scripts/alignment.py` masked SOXX out of the eligible Strategy A universe for the 2026-05-22 rebal — SOXX picks were dropped silently. | Phase 26: added SOXX-specific refresh steps to `.github/workflows/weekly_factsheet.yml`. Phase 26.1: built the staleness-alarm framework (this document, plus exit-code-2 in fetcher, plus publish-abort in `pipeline.py`) so the next occurrence fails loudly within 30 days. Phase 26.2: built SEC EDGAR N-PORT-P fallback (`scripts/edgar_nport.py`, registered as SOXX's `edgar_nport` secondary source). EDGAR is loaded once per fetch run and only used when its `repPdEnd` date is fresher than the carry-forward source — currently iShares carry-forward (2026-05-08) is fresher than the latest EDGAR filing (`repPdEnd 2026-03-31`) so EDGAR is loaded as a standby but not currently injecting snapshots. When the next quarterly N-PORT-P lands (~2026-08-29, `repPdEnd 2026-06-30`), EDGAR will automatically resume freshness if iShares US stays blocked. Phase 26.3: added per-ETF staleness overrides (Section 5b); SOXX moves to warn=60d / critical=120d so the alarm thresholds match EDGAR's quarterly cadence rather than the global default 14d / 30d (which were calibrated to daily-availability sources). The dependence on a single operator's residential IP is now structurally removed. |
 
 ---
 
