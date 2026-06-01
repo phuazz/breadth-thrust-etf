@@ -1693,8 +1693,8 @@
     <button class="tab" data-tab="asset">Strategy B (Asset Class)</button>
     <button class="tab" data-tab="thematic">Strategy C (Thematic)</button>
     <button class="tab" data-tab="europe">Strategy D (Europe)</button>
-    <button class="tab" data-tab="regime">Regime Gate</button>
-    <button class="tab" data-tab="eemtilt">EEM Tilt</button>
+    <button class="tab" data-tab="regime">Risk Overlay</button>
+    <button class="tab" data-tab="eemtilt">EM Tilt</button>
     <button class="tab" data-tab="robustness">Risk &amp; Validation</button>
     <button class="tab" data-tab="method">Method</button>
   </div>
@@ -2303,10 +2303,10 @@
     </section>
   </div>
 
-  <!-- ====================== REGIME GATE (Phase 19 breadth gate) ====================== -->
+  <!-- ====================== RISK OVERLAY (SPY breadth gate) ====================== -->
   <div class="tab-content" id="tab-regime">
     <div class="recipe">
-      <h3>Regime Gate — defensive layer on top of the 4-way blend</h3>
+      <h3>Risk Overlay — defensive layer on top of the 4-way blend</h3>
       <div class="recipe-title">SPY constituent-breadth regime filter</div>
       <p style="margin:0;color:var(--ink-soft);">A breadth-based regime gate that scales the deployed portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated 4-way blend and the deployed gated portfolio you actually hold. The gate fires on a single observable: the share of S&amp;P 500 constituents above their own 200d moving average. When this breadth falls below the regime threshold the blend de-risks to a 50/50 mix of the unchanged active blend + SHY (1-3y Treasury); when it crosses back above, it returns to fully-invested. The mechanism is deliberately simple and uses no parameters tuned in-sample beyond the threshold itself.</p>
     </div>
@@ -2324,10 +2324,10 @@
     </section>
   </div>
 
-  <!-- ====================== EEM TILT (Phase 22 emerging-markets cycle-turn overlay) ====================== -->
+  <!-- ====================== EM TILT (emerging-markets cycle-turn overlay) ====================== -->
   <div class="tab-content" id="tab-eemtilt">
     <div class="recipe">
-      <h3>EEM Tilt — emerging-markets cycle-turn overlay</h3>
+      <h3>EM Tilt — emerging-markets cycle-turn overlay</h3>
       <div class="recipe-title">EEM/SPY relative-strength tilt</div>
       <p style="margin:0;color:var(--ink-soft);">A second mechanical overlay that operates independently of the breadth regime gate. Tilts 10% of the blend into EEM (emerging markets) when EEM/SPY relative strength turns up — specifically when the 50d/200d ratio crosses up through 1.0 (golden cross of the relative-strength line). Funded from Strategy B (35% → 25% during tilt-ON). The position is structural: the strategy holds EEM continuously while the cross remains positive, and unwinds back to baseline weights when the relative-strength line crosses back down. The motivation is to capture an EM-cycle turn without sacrificing US-equity exposure when EM is in underperformance.</p>
     </div>
@@ -2488,7 +2488,7 @@
 
     <section>
       <h2>Investment universe &amp; selection — visual summary</h2>
-      <p class="section-sub">For each sleeve: what could be held (universe), what filter decides which subset, what is actually held (selection). Universe counts and current-selection counts auto-populate from the live JSONs. Two overlays sit on top of the 4-sleeve blend — the breadth-regime gate and the EEM tilt — each has its own dedicated tab (<a href="#" onclick="document.querySelector('[data-tab=regime]').click();return false;">Regime Gate</a> · <a href="#" onclick="document.querySelector('[data-tab=eemtilt]').click();return false;">EEM Tilt</a>).</p>
+      <p class="section-sub">For each sleeve: what could be held (universe), what filter decides which subset, what is actually held (selection). Universe counts and current-selection counts auto-populate from the live JSONs. Two overlays sit on top of the 4-sleeve blend — the breadth-regime gate and the EM tilt — each has its own dedicated tab (<a href="#" onclick="document.querySelector('[data-tab=regime]').click();return false;">Risk Overlay</a> · <a href="#" onclick="document.querySelector('[data-tab=eemtilt]').click();return false;">EM Tilt</a>).</p>
       <div id="universe-cards"></div>
       <div class="uni-overlay-strip" id="universe-overlay-strip"></div>
       <div class="uni-totalizer" id="universe-totalizer"></div>
@@ -3076,7 +3076,7 @@ function renderHeroStrip() {
       <div class="regime-badge ${isOn ? 'on' : 'off'}">
         <span class="dot"></span>
         REGIME: ${state}
-        <span class="meta">since ${since} · S&amp;P 500 breadth ${breadthPct}% · <a href="#" onclick="document.querySelector('[data-tab=regime]').click();return false;" style="color:inherit;text-decoration:underline;">open Regime Gate tab</a></span>
+        <span class="meta">since ${since} · S&amp;P 500 breadth ${breadthPct}% · <a href="#" onclick="document.querySelector('[data-tab=regime]').click();return false;" style="color:inherit;text-decoration:underline;">open Risk Overlay tab</a></span>
       </div>`;
   }
   // Phase 22: EEM tilt badge — appears whenever the EEM overlay is active.
@@ -3091,7 +3091,7 @@ function renderHeroStrip() {
         EEM TILT: ${phase22.current_state}
         <span class="meta">since ${since} · ${tiltOn
           ? `live blend = 35% A + ${35 - tiltPct}% B + 10% C + 20% D + ${tiltPct}% EEM`
-          : `EEM/SPY 50d below 200d MA — overlay armed, waiting for golden cross`} · <a href="#" onclick="document.querySelector('[data-tab=eemtilt]').click();return false;" style="color:inherit;text-decoration:underline;">open EEM Tilt tab</a></span>
+          : `EEM/SPY 50d below 200d MA — overlay armed, waiting for golden cross`} · <a href="#" onclick="document.querySelector('[data-tab=eemtilt]').click();return false;" style="color:inherit;text-decoration:underline;">open EM Tilt tab</a></span>
       </div>`;
   }
   // Update the live-title to reflect the tilt state
