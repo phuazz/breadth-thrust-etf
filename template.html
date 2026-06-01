@@ -1681,11 +1681,41 @@
         <div class="desc" id="hero-wtd-desc">Latest daily close vs prior week-end (live deployment tracking)</div>
       </div>
     </div>
-    <!-- ==================== POSITIONS PREVIEW (Phase 4 UX) ==================== -->
-    <!-- Above-the-fold: current top 5 holdings + this week's rebalance.
-         First-time reader sees WHAT THE PORTFOLIO OWNS before scrolling
-         past methodology / sleeve descriptions / caveats. JS-bound to
-         the same trade_history data the Monitor tab uses. -->
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="container">
+    <button class="tab active" data-tab="monitor">Monitor</button>
+    <button class="tab" data-tab="multi">Multi-Strategy</button>
+    <button class="tab" data-tab="history">Trade History</button>
+    <button class="tab" data-tab="portfolio">Strategy A (Sectors)</button>
+    <button class="tab" data-tab="asset">Strategy B (Asset Class)</button>
+    <button class="tab" data-tab="thematic">Strategy C (Thematic)</button>
+    <button class="tab" data-tab="europe">Strategy D (Europe)</button>
+    <button class="tab" data-tab="regime">Regime Gate</button>
+    <button class="tab" data-tab="eemtilt">EEM Tilt</button>
+    <button class="tab" data-tab="robustness">Risk &amp; Validation</button>
+    <button class="tab" data-tab="method">Method</button>
+  </div>
+</nav>
+
+<main class="container">
+
+  <!-- ====================== MONITOR ====================== -->
+  <div class="tab-content active" id="tab-monitor">
+    <div class="live-hero">
+      <h2>Live Portfolio — what to own today</h2>
+      <div class="title" id="live-title">Multi-Strategy A+B+C+D (35/35/10/20 blend, no leverage)</div>
+      <div class="asof" id="live-asof"></div>
+      <div id="live-regime-badge"></div>
+      <div class="hero-stats" id="live-hero-stats"></div>
+      <div id="live-stale-warning"></div>
+    </div>
+
+    <!-- ==================== POSITIONS PREVIEW ==================== -->
+    <!-- Current top holdings + this week's rebalance — relocated into
+         Monitor tab so the tab bar can sit higher in the page. -->
     <div id="positions-preview">
       <div class="prev-card">
         <div class="prev-card-h">
@@ -1729,10 +1759,7 @@
       </div>
     </div>
 
-    <!-- ==================== PERFORMANCE (live deployment tracking) =========
-         Moved out of the Monitor tab and into the header so the deployed
-         blend's performance chart is always visible regardless of which
-         tab the reader is on. -->
+    <!-- ==================== PERFORMANCE (live deployment tracking) ==================== -->
     <section style="margin:18px 0 14px 0;">
       <div class="perf-header">
         <h2 style="margin:0;">Performance</h2>
@@ -1753,9 +1780,8 @@
       <div id="perf-attribution"></div>
     </section>
 
-    <!-- Compact 1-line config ribbon — replaces the sleeve strip + footnote
-         + canonical config box that used to live here. Single source of
-         truth for the deployed configuration on one line. -->
+    <!-- Compact 1-line config ribbon — single source of truth for the
+         deployed configuration. -->
     <div id="config-ribbon">
       <span class="rib-lbl">Deployed:</span>
       <code id="ribbon-key">blend_35_35_10_20_gated_eem_tilted</code>
@@ -1771,8 +1797,7 @@
       <span>Max DD <strong id="ribbon-mdd">&minus;16.4%</strong></span>
     </div>
 
-    <!-- Collapsible caveats — keeps epistemic-honesty signalling but
-         doesn't push positions below the fold. Default-closed. -->
+    <!-- Collapsible caveats — keeps epistemic-honesty signalling default-closed. -->
     <details class="caveats-collapsible">
       <summary>Known caveats &amp; methodology footnotes (acknowledged upfront)</summary>
       <div class="caveats-body">
@@ -1787,37 +1812,6 @@
         </ul>
       </div>
     </details>
-  </div>
-</header>
-
-<nav class="tabs">
-  <div class="container">
-    <button class="tab active" data-tab="monitor">Monitor</button>
-    <button class="tab" data-tab="multi">Multi-Strategy</button>
-    <button class="tab" data-tab="history">Trade History</button>
-    <button class="tab" data-tab="portfolio">Strategy A (Sectors)</button>
-    <button class="tab" data-tab="asset">Strategy B (Asset Class)</button>
-    <button class="tab" data-tab="thematic">Strategy C (Thematic)</button>
-    <button class="tab" data-tab="europe">Strategy D (Europe)</button>
-    <button class="tab" data-tab="regime">Regime Gate</button>
-    <button class="tab" data-tab="eemtilt">EEM Tilt</button>
-    <button class="tab" data-tab="robustness">Risk &amp; Validation</button>
-    <button class="tab" data-tab="method">Method</button>
-  </div>
-</nav>
-
-<main class="container">
-
-  <!-- ====================== MONITOR ====================== -->
-  <div class="tab-content active" id="tab-monitor">
-    <div class="live-hero">
-      <h2>Live Portfolio — what to own today</h2>
-      <div class="title" id="live-title">Multi-Strategy A+B+C+D (35/35/10/20 blend, no leverage)</div>
-      <div class="asof" id="live-asof"></div>
-      <div id="live-regime-badge"></div>
-      <div class="hero-stats" id="live-hero-stats"></div>
-      <div id="live-stale-warning"></div>
-    </div>
 
     <section>
       <h2>Combined holdings</h2>
@@ -2174,7 +2168,7 @@
         <li><strong>2022 inflation crash</strong>: C was the worst sleeve (-25%), but the 10% cap limited blend damage to -13% (vs SPY -25%). The cap works.</li>
       </ul>
       <p><strong>The asymmetry is the point.</strong> At a 10% sleeve weight, C contributes ~+17pp to blend return in its best year and ~-2.5pp in its worst year — a 7:1 upside/downside ratio. That is textbook optionality. Backtests of the last 7.5 years include the 2020-21 boom but cannot price the OPTIONS embedded in C — its real value compounds whenever a new thematic regime emerges that we cannot predict today.</p>
-      <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Caveat:</strong> walk-forward Sharpe is <strong>+0.45</strong> vs in-sample <strong>+0.80</strong> (canonical 25-ETF universe as of 2026-05-31 — was +0.51 / +0.82 on the 23-ETF universe; Phase 25 universe expansion added PHO + IHI which degraded standalone WF Sharpe by -0.07 but moved the deployed 35/35/10/20 blend Sharpe by only -0.004, within noise — the 10% sleeve cap absorbs C's standalone degradation) — modest degradation, which is structural to thematic momentum. The 10% sleeve cap is the risk-management response to this. <em>Do not deploy C as a primary alpha source; do deploy it as a small optionality sleeve.</em></p>
+      <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Caveat:</strong> walk-forward Sharpe is <strong>+0.45</strong> vs in-sample <strong>+0.80</strong> (canonical 25-ETF universe as of 2026-05-31 — was +0.51 / +0.82 on the 23-ETF universe; May 2026 universe expansion added PHO + IHI which degraded standalone WF Sharpe by -0.07 but moved the deployed 35/35/10/20 blend Sharpe by only -0.004, within noise — the 10% sleeve cap absorbs C's standalone degradation) — modest degradation, which is structural to thematic momentum. The 10% sleeve cap is the risk-management response to this. <em>Do not deploy C as a primary alpha source; do deploy it as a small optionality sleeve.</em></p>
     </div>
 
     <section>
@@ -2313,7 +2307,7 @@
   <div class="tab-content" id="tab-regime">
     <div class="recipe">
       <h3>Regime Gate — defensive layer on top of the 4-way blend</h3>
-      <div class="recipe-title">Phase 19 — SPY constituent-breadth regime filter</div>
+      <div class="recipe-title">SPY constituent-breadth regime filter</div>
       <p style="margin:0;color:var(--ink-soft);">A breadth-based regime gate that scales the deployed portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated 4-way blend and the deployed gated portfolio you actually hold. The gate fires on a single observable: the share of S&amp;P 500 constituents above their own 200d moving average. When this breadth falls below the regime threshold the blend de-risks to a 50/50 mix of the unchanged active blend + SHY (1-3y Treasury); when it crosses back above, it returns to fully-invested. The mechanism is deliberately simple and uses no parameters tuned in-sample beyond the threshold itself.</p>
     </div>
 
@@ -2334,7 +2328,7 @@
   <div class="tab-content" id="tab-eemtilt">
     <div class="recipe">
       <h3>EEM Tilt — emerging-markets cycle-turn overlay</h3>
-      <div class="recipe-title">Phase 22 — EEM/SPY golden-cross tilt</div>
+      <div class="recipe-title">EEM/SPY relative-strength tilt</div>
       <p style="margin:0;color:var(--ink-soft);">A second mechanical overlay that operates independently of the breadth regime gate. Tilts 10% of the blend into EEM (emerging markets) when EEM/SPY relative strength turns up — specifically when the 50d/200d ratio crosses up through 1.0 (golden cross of the relative-strength line). Funded from Strategy B (35% → 25% during tilt-ON). The position is structural: the strategy holds EEM continuously while the cross remains positive, and unwinds back to baseline weights when the relative-strength line crosses back down. The motivation is to capture an EM-cycle turn without sacrificing US-equity exposure when EM is in underperformance.</p>
     </div>
 
@@ -2486,13 +2480,13 @@
         <summary>Why this universe? — design rationale per sleeve</summary>
         <div class="uni-why-body">
           <h4>Strategy A · US sectors</h4>
-          <p>The 14-ETF mix decomposes into <strong>9 GICS sectors</strong> (the iShares UK S&amp;P 500 sector UCITS slate), <strong>1 REIT proxy</strong> (IUSP — no iShares UK Real Estate sector UCITS exists, so substituted), <strong>3 broad indices</strong> (CSP1, CNDX, IDP6) which act as the &ldquo;no specific sector is leading&rdquo; fallback in undifferentiated breadth regimes, and <strong>1 sub-industry</strong> (SOXX — semiconductors). SOXX is the only non-sector inclusion: a discretionary prior-belief pick based on the long-standing practitioner observation that semis lead the tech cycle by 1&ndash;3 months (Philadelphia SOX has been followed as a cyclical bellwether since the 1990s). IUIT (S&amp;P 500 Info Tech) was pruned in May 2026 because of 0.97 correlation with CNDX &mdash; no incremental information, just turnover noise. The Phase 5 retrospective tested 11 sub-industry ETFs (XME, IGV, XRT, FDN, XOP, OIH, KIE, ITB, AMLP, PHO, KRE) as <em>thematic-sleeve</em> additions, not direct Strategy A candidates &mdash; 4 failed the within-C correlation gate, 3 failed the cross-strategy gate (cousins of A's existing sectors), and 4 survivors added together degraded Strategy C's walk-forward Sharpe by 0.10. Reverted. See the Phase 5 research-log accordion below for the full per-ETF correlation table. <em>Hindsight-bias check on SOXX (2026-05-30):</em> we retroactively ran SOXX through the symmetric &ldquo;all eligible sub-industries&rdquo; gate it never originally got (see <code>scripts/run_strategy_a_universe_gate.py</code>). Result: <strong>SOXX passes all four criteria</strong> &mdash; max correlation with the other 13 ETFs is 0.83 (vs CNDX, just below the 0.85 threshold); in-sample K=7 Sharpe lifts +0.06 with SOXX added; max drawdown is essentially unchanged; and the walk-forward K refit picks K=7 every year with SOXX in the universe vs K=3 every year without it (the cross-section is too correlated to deploy at K=7 without SOXX's orthogonal information). The discretionary prior-belief inclusion turned out empirically defensible. <strong>IBB (biotech) is queued for the same gate test</strong> &mdash; pending availability of constituent breadth data via either iShares Europe biotech UCITS or NASDAQ Biotech Index constituents from a non-blocked source (iShares US holdings endpoint is currently Akamai-blocked). <em>SOXX operational note (Phase 26, 2026-05-31):</em> the same iShares US block affects SOXX itself &mdash; SOXX is the only Strategy A member sourced from the US endpoint (all others use iShares UK). When the block engages, <code>fetch_constituents.py</code> falls back to carrying the most recent known-good roster forward (the PHLX Semiconductor Index changes ~2 holdings per year, so a 2-4 week stale roster has negligible signal impact). Breadth values are still computed daily against fresh prices &mdash; only the roster snapshot is stale. The weekly CI workflow re-runs this fetch + carry-forward + breadth recompute, so SOXX is never silently dropped from the eligible universe again (the issue spotted on 2026-05-31 was that the constituent fetch had not been run for 17 days, so the staleness guard masked SOXX out of three consecutive rebals). <strong>Phase 26.1 (2026-05-31)</strong>: added a hard staleness ceiling &mdash; if any constituent roster crosses 30 calendar days since its last real fetch, <code>fetch_constituents.py</code> exits code 2 and <code>pipeline.py</code> aborts the dashboard publish entirely (the staleness policy, escalation procedure, and incident log live in <a href="https://github.com/phuazz/breadth-thrust-etf/blob/main/DATA_INTEGRITY_POLICY.md" target="_blank" rel="noopener">DATA_INTEGRITY_POLICY.md</a> at the repo root). A non-fresh roster (15-30 days stale) shows as a yellow banner under the Live Portfolio hero card on this page. <strong>Phase 26.2 (2026-05-31)</strong>: added SEC EDGAR N-PORT-P as a registered secondary source for SOXX (<code>scripts/edgar_nport.py</code>, ~400 lines + 10 tests). N-PORT-P is the quarterly regulatory filing that every US-registered ETF (including SOXX) submits to the SEC under Rule 30b1-9 &mdash; same data, more authoritative source. When the iShares US primary fails AND the EDGAR snapshot is fresher than the carry-forward source, the fetcher injects the EDGAR roster automatically. CUSIP-to-ticker resolution via OpenFIGI free tier (10 mappings per request, on-disk cache). Quarterly cadence means worst-case staleness from EDGAR alone is ~150 days; combined with daily breadth recompute against fresh prices, signal-impact drift remains &lt; 4%. The next quarterly filing (Q2 2026, due ~2026-08-29) will automatically refresh SOXX even if iShares US stays blocked the whole quarter &mdash; SOXX dependency on a single operator's residential IP is now removed.</p>
+          <p>The 14-ETF mix decomposes into <strong>9 GICS sectors</strong> (the iShares UK S&amp;P 500 sector UCITS slate), <strong>1 REIT proxy</strong> (IUSP — no iShares UK Real Estate sector UCITS exists, so substituted), <strong>3 broad indices</strong> (CSP1, CNDX, IDP6) which act as the &ldquo;no specific sector is leading&rdquo; fallback in undifferentiated breadth regimes, and <strong>1 sub-industry</strong> (SOXX — semiconductors). SOXX is the only non-sector inclusion: a discretionary prior-belief pick based on the long-standing practitioner observation that semis lead the tech cycle by 1&ndash;3 months (Philadelphia SOX has been followed as a cyclical bellwether since the 1990s). IUIT (S&amp;P 500 Info Tech) was pruned in May 2026 because of 0.97 correlation with CNDX &mdash; no incremental information, just turnover noise. The Phase 5 retrospective tested 11 sub-industry ETFs (XME, IGV, XRT, FDN, XOP, OIH, KIE, ITB, AMLP, PHO, KRE) as <em>thematic-sleeve</em> additions, not direct Strategy A candidates &mdash; 4 failed the within-C correlation gate, 3 failed the cross-strategy gate (cousins of A's existing sectors), and 4 survivors added together degraded Strategy C's walk-forward Sharpe by 0.10. Reverted. See the Phase 5 research-log accordion below for the full per-ETF correlation table. <em>Hindsight-bias check on SOXX (2026-05-30):</em> we retroactively ran SOXX through the symmetric &ldquo;all eligible sub-industries&rdquo; gate it never originally got (see <code>scripts/run_strategy_a_universe_gate.py</code>). Result: <strong>SOXX passes all four criteria</strong> &mdash; max correlation with the other 13 ETFs is 0.83 (vs CNDX, just below the 0.85 threshold); in-sample K=7 Sharpe lifts +0.06 with SOXX added; max drawdown is essentially unchanged; and the walk-forward K refit picks K=7 every year with SOXX in the universe vs K=3 every year without it (the cross-section is too correlated to deploy at K=7 without SOXX's orthogonal information). The discretionary prior-belief inclusion turned out empirically defensible. <strong>IBB (biotech) is queued for the same gate test</strong> &mdash; pending availability of constituent breadth data via either iShares Europe biotech UCITS or NASDAQ Biotech Index constituents from a non-blocked source (iShares US holdings endpoint is currently Akamai-blocked). <em>SOXX operational note (2026-05-31):</em> the same iShares US block affects SOXX itself &mdash; SOXX is the only Strategy A member sourced from the US endpoint (all others use iShares UK). When the block engages, <code>fetch_constituents.py</code> falls back to carrying the most recent known-good roster forward (the PHLX Semiconductor Index changes ~2 holdings per year, so a 2-4 week stale roster has negligible signal impact). Breadth values are still computed daily against fresh prices &mdash; only the roster snapshot is stale. The weekly CI workflow re-runs this fetch + carry-forward + breadth recompute, so SOXX is never silently dropped from the eligible universe again (the issue spotted on 2026-05-31 was that the constituent fetch had not been run for 17 days, so the staleness guard masked SOXX out of three consecutive rebals). <strong>Data integrity policy (2026-05-31)</strong>: a hard staleness ceiling &mdash; if any constituent roster crosses 30 calendar days since its last real fetch, <code>fetch_constituents.py</code> exits code 2 and <code>pipeline.py</code> aborts the dashboard publish entirely (the staleness policy, escalation procedure, and incident log live in <a href="https://github.com/phuazz/breadth-thrust-etf/blob/main/DATA_INTEGRITY_POLICY.md" target="_blank" rel="noopener">DATA_INTEGRITY_POLICY.md</a> at the repo root). A non-fresh roster (15-30 days stale) shows as a yellow banner under the Live Portfolio hero card on this page. <strong>Secondary roster source (2026-05-31)</strong>: SEC EDGAR N-PORT-P as a registered secondary source for SOXX (<code>scripts/edgar_nport.py</code>, ~400 lines + 10 tests). N-PORT-P is the quarterly regulatory filing that every US-registered ETF (including SOXX) submits to the SEC under Rule 30b1-9 &mdash; same data, more authoritative source. When the iShares US primary fails AND the EDGAR snapshot is fresher than the carry-forward source, the fetcher injects the EDGAR roster automatically. CUSIP-to-ticker resolution via OpenFIGI free tier (10 mappings per request, on-disk cache). Quarterly cadence means worst-case staleness from EDGAR alone is ~150 days; combined with daily breadth recompute against fresh prices, signal-impact drift remains &lt; 4%. The next quarterly filing (Q2 2026, due ~2026-08-29) will automatically refresh SOXX even if iShares US stays blocked the whole quarter &mdash; SOXX dependency on a single operator's residential IP is now removed.</p>
 
           <h4>Strategy B · Asset-class momentum</h4>
-          <p>The 13 ETFs are deliberately <strong>cap-weighted broad asset-class slates</strong> &mdash; US equity (SPY / IJR / QQQ), international developed (EFA / VGK / EWJ), emerging markets (EEM), real estate (VNQ), commodities (GLD / DBC), Treasuries (TLT / IEF / TIP). Within-equity rotation is Strategy A's job; B's role is the cross-asset switch. <strong>HYG was removed in Phase 24</strong> &mdash; high-yield credit is equity-correlated when stress arrives and was never providing the &ldquo;flight to safety&rdquo; role its bond designation implied. <strong>SHY (1&ndash;3y Treasury) is the cash floor</strong> for unfilled signal slots; was IEF pre-Phase 19.1 but IEF carries 7&ndash;10y duration risk in a rising-rate shock and is better held only when its own momentum signal earns the slot on its own merit. IEF remains in the rotation universe as a long-duration trade candidate.</p>
+          <p>The 13 ETFs are deliberately <strong>cap-weighted broad asset-class slates</strong> &mdash; US equity (SPY / IJR / QQQ), international developed (EFA / VGK / EWJ), emerging markets (EEM), real estate (VNQ), commodities (GLD / DBC), Treasuries (TLT / IEF / TIP). Within-equity rotation is Strategy A's job; B's role is the cross-asset switch. <strong>HYG was removed in 2026</strong> &mdash; high-yield credit is equity-correlated when stress arrives and was never providing the &ldquo;flight to safety&rdquo; role its bond designation implied. <strong>SHY (1&ndash;3y Treasury) is the cash floor</strong> for unfilled signal slots; was IEF before the May 2026 review, but IEF carries 7&ndash;10y duration risk in a rising-rate shock and is better held only when its own momentum signal earns the slot on its own merit. IEF remains in the rotation universe as a long-duration trade candidate.</p>
 
           <h4>Strategy C · Thematic optionality</h4>
-          <p>The 25 themes were assembled through <strong>phased additions with explicit within-strategy and cross-strategy correlation gates</strong>: Tech &amp; Innovation (ARKK, CIBR, SKYY, BOTZ, BLOK), Energy &amp; Climate (ICLN, TAN, LIT, URA), Health &amp; Bio (XBI, ARKG + IHI added Phase 25 for medical devices), Cyclical thematic (JETS), Commodity-equity (GDX, COPX, MOO + XME, WOOD, REMX added Phase 16), China &amp; EM Tech (CQQQ added Phase 17, 159801.SZ added Phase 17.1 with FX-conversion pipeline), Infrastructure (PAVE + PHO added Phase 25 for water), Defence (ITA), Crypto (BTC-USD as the long-history proxy with IBIT-equivalent expense ratio applied; live execution in IBIT). <strong>Phase 25 (2026-05-31)</strong>: bulk screen of 27 candidates against the 23-theme universe — 5 passed Stage 1 (correlation < 0.85), 4 passed Stage 2 (walk-forward Sharpe degradation < 0.03 per candidate tested individually), 2 deployed (PHO + IHI). PRNT and BETZ passed both gates but were not deployed — too small to consistently make the K=4 cut. KRBN failed Stage 2. <em>Deployment outcome honest disclosure:</em> the screen tested each candidate alone; deploying BOTH together compounded the effect more than the per-candidate tests suggested. Strategy C standalone walk-forward Sharpe moved <strong>+0.52 → +0.45 (-0.07)</strong>, but the deployed 35/35/10/20 blend Sharpe moved only <strong>-0.004 (within noise)</strong> — the 10% sleeve cap insulates the blend from C's standalone degradation. Net rationale for deployment: water-infrastructure (PHO) and medical-devices (IHI) fill structural exposure gaps next to PAVE and XBI; the cost is a small degradation in C's standalone metrics that does not propagate to the deployed portfolio. Two earlier candidates were <strong>tested and reverted</strong> despite passing the correlation gate: SLV (silver, dragged B's Sharpe by 0.18) and KWEB (China internet, dragged C's walk-forward Sharpe by 0.13). Lesson: correlation gates are necessary but not sufficient; empirical Sharpe / drawdown test is required before deployment. <em>Honest caveat:</em> severe survivorship bias &mdash; failed thematics (cannabis, leveraged-thematic, volatility ETFs) never entered the universe at all.</p>
+          <p>The 25 themes were assembled through <strong>phased additions with explicit within-strategy and cross-strategy correlation gates</strong>: Tech &amp; Innovation (ARKK, CIBR, SKYY, BOTZ, BLOK), Energy &amp; Climate (ICLN, TAN, LIT, URA), Health &amp; Bio (XBI, ARKG + IHI added 2026-05-31 for medical devices), Cyclical thematic (JETS), Commodity-equity (GDX, COPX, MOO + XME, WOOD, REMX added 2026-05), China &amp; EM Tech (CQQQ added 2026-05, 159801.SZ added 2026-05.1 with FX-conversion pipeline), Infrastructure (PAVE + PHO added 2026-05-31 for water), Defence (ITA), Crypto (BTC-USD as the long-history proxy with IBIT-equivalent expense ratio applied; live execution in IBIT). <strong>May 2026 universe expansion</strong>: bulk screen of 27 candidates against the 23-theme universe — 5 passed Stage 1 (correlation < 0.85), 4 passed Stage 2 (walk-forward Sharpe degradation < 0.03 per candidate tested individually), 2 deployed (PHO + IHI). PRNT and BETZ passed both gates but were not deployed — too small to consistently make the K=4 cut. KRBN failed Stage 2. <em>Deployment outcome honest disclosure:</em> the screen tested each candidate alone; deploying BOTH together compounded the effect more than the per-candidate tests suggested. Strategy C standalone walk-forward Sharpe moved <strong>+0.52 → +0.45 (-0.07)</strong>, but the deployed 35/35/10/20 blend Sharpe moved only <strong>-0.004 (within noise)</strong> — the 10% sleeve cap insulates the blend from C's standalone degradation. Net rationale for deployment: water-infrastructure (PHO) and medical-devices (IHI) fill structural exposure gaps next to PAVE and XBI; the cost is a small degradation in C's standalone metrics that does not propagate to the deployed portfolio. Two earlier candidates were <strong>tested and reverted</strong> despite passing the correlation gate: SLV (silver, dragged B's Sharpe by 0.18) and KWEB (China internet, dragged C's walk-forward Sharpe by 0.13). Lesson: correlation gates are necessary but not sufficient; empirical Sharpe / drawdown test is required before deployment. <em>Honest caveat:</em> severe survivorship bias &mdash; failed thematics (cannabis, leveraged-thematic, volatility ETFs) never entered the universe at all.</p>
 
           <h4>Strategy D · Europe sectors</h4>
           <p>The 5-ETF universe is structurally small because <strong>iShares Europe publishes a limited Stoxx Europe 600 sector UCITS slate</strong>. The five available with reliable constituent-CSV endpoints are Banks (EXV1), Oil &amp; Gas (EXH1), Technology (EXV3), Industrial Goods &amp; Services (EXH3), and Utilities (EXH9). Constituent breadth (the same signal mechanism as Strategy A) requires per-ETF holdings, which constrains the universe to issuers with reliable holdings-CSV endpoints. <strong>Single-country UCITS</strong> (IJPN Japan, NDIA India, ICHN China, ITWN Taiwan) were tested in Phase 4 as a &ldquo;Countries&rdquo; variant and <strong>deferred</strong> &mdash; insufficient single-country breadth data after the constituent-breadth pipeline fix exposed thin yfinance coverage for non-US tickers. Future expansion (eg adding a 10-sector Europe set) would require iShares Europe to publish more sector UCITS or a switch to a different issuer with comparable holdings access.</p>
@@ -2510,7 +2504,7 @@
         <ul>
           <li><strong>Strategy A</strong>: rank 14 US sector/broad ETFs by breadth, take top K = 7, weight by breadth share. Universe: SOXX, CSP1, CNDX, IUES, IUFS, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, IUSP, IDP6. <em>IUIT (S&amp;P 500 Info Tech) was pruned in May 2026 because of 0.97 correlation with CNDX — see Robustness Test 12.</em></li>
           <li><strong>Strategy B</strong>: rank 13 broad asset-class ETFs by distance above 200d MA, drop negatives, take top K = 7, weight by signal share, cash floor in SHY (1-3y Treasury) for unfilled slots. IEF remains in the rotation universe as a duration play. Universe (HYG removed — equity-correlated, never defensive): SPY, IJR, QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, TIP.</li>
-          <li><strong>Strategy C</strong> (10% sleeve): rank 25 thematic ETFs by distance above 200d MA, drop any below +5% (signal floor), take top K = 4, equal-weight (1/K) across the holdings, cash floor in SHY (1-3y Treasury) for unfilled slots. Universe: ARKK, CIBR, SKYY, BOTZ, BLOK, ICLN, TAN, LIT, URA, XBI, ARKG, JETS, GDX, COPX, MOO, PAVE, <strong>ITA</strong> (defence/aerospace), <strong>BTC-USD</strong> (Bitcoin spot — see caveat below; live execution in IBIT), <strong>XME</strong> (broad metals &amp; mining), <strong>WOOD</strong> (timber &amp; forestry), <strong>REMX</strong> (rare earth / strategic metals), <strong>CQQQ</strong> (Invesco China Technology — broad China-tech), <strong>159801.SZ</strong> (Bosera CSI Chip ETF, CNY-denominated, USD-adjusted via spot FX — pure China A-share semiconductor hardware basket: Cambricon, AMEC, NAURA, SMIC. Deployed via IBKR Stock Connect; 588200.SS is an interchangeable Shanghai-listed alternative), <strong>PHO</strong> (Invesco Water Resources — water infrastructure, added Phase 25), <strong>IHI</strong> (iShares US Medical Devices — Abbott, Thermo Fisher, Medtronic, Stryker, added Phase 25). <em>The C sleeve uses equal-weight (1/K) across the holdings rather than signal-weighting, after an A/B test showed equal-weight dominates on every metric for this high-floor (5%) regime — see the research log below.</em></li>
+          <li><strong>Strategy C</strong> (10% sleeve): rank 25 thematic ETFs by distance above 200d MA, drop any below +5% (signal floor), take top K = 4, equal-weight (1/K) across the holdings, cash floor in SHY (1-3y Treasury) for unfilled slots. Universe: ARKK, CIBR, SKYY, BOTZ, BLOK, ICLN, TAN, LIT, URA, XBI, ARKG, JETS, GDX, COPX, MOO, PAVE, <strong>ITA</strong> (defence/aerospace), <strong>BTC-USD</strong> (Bitcoin spot — see caveat below; live execution in IBIT), <strong>XME</strong> (broad metals &amp; mining), <strong>WOOD</strong> (timber &amp; forestry), <strong>REMX</strong> (rare earth / strategic metals), <strong>CQQQ</strong> (Invesco China Technology — broad China-tech), <strong>159801.SZ</strong> (Bosera CSI Chip ETF, CNY-denominated, USD-adjusted via spot FX — pure China A-share semiconductor hardware basket: Cambricon, AMEC, NAURA, SMIC. Deployed via IBKR Stock Connect; 588200.SS is an interchangeable Shanghai-listed alternative), <strong>PHO</strong> (Invesco Water Resources — water infrastructure, added 2026-05-31), <strong>IHI</strong> (iShares US Medical Devices — Abbott, Thermo Fisher, Medtronic, Stryker, added 2026-05-31). <em>The C sleeve uses equal-weight (1/K) across the holdings rather than signal-weighting, after an A/B test showed equal-weight dominates on every metric for this high-floor (5%) regime — see the research log below.</em></li>
           <li><strong>Strategy D</strong> (20% sleeve): rank 5 Stoxx Europe 600 sector UCITS by constituent breadth, take top K = 3, weight by breadth share. Universe: EXV1 (Banks), EXH1 (Oil &amp; Gas), EXV3 (Technology), EXH3 (Industrial Goods &amp; Services), EXH9 (Utilities). Trade as the Xetra-listed UCITS (EXV1.DE etc.) in EUR.</li>
           <li><strong>Combination</strong>: 35% A + 35% B + 10% C + 20% D, rebalanced weekly Friday.</li>
           <li>Transaction cost: 5 bps per unit of weight change (10 bps round-trip).</li>
@@ -2665,7 +2659,7 @@
           <li><strong>C is the top-performing sleeve 41% of months</strong>. A is top 21% / B is top 10% / D is top 28%. When C wins it wins more often than any other sleeve.</li>
           <li><strong>COVID + thematic boom (Mar 2020 → Feb 2021)</strong>: Strategy C standalone +170%. The 50/50 A:B blend (no C) got +58%. The 4-way blend (10% C) got +65%. The small C sleeve added ~+7pp to blend return in an 11-month window — capturing roughly 70% of C's idiosyncratic alpha at just 10% sleeve weight.</li>
           <li><strong>2022 inflation crash</strong>: C was worst (-25%), but the 10% cap limited blend damage to -13% (the 4-way blend was actually 2pp worse than the 50/50 A:B — a -2pp option premium for the +7pp option payoff). The asymmetric structure works.</li>
-          <li><strong>Q4 2018 Powell pivot</strong>: C +4.4% (defensive!) while A/B/D all -5 to -10%. The cash-floor mechanism (when fewer than K candidates clear the +5% floor, the deficit sat in IEF at the time; switched to SHY in Phase 19.1) kicked in during the sell-off.</li>
+          <li><strong>Q4 2018 Powell pivot</strong>: C +4.4% (defensive!) while A/B/D all -5 to -10%. The cash-floor mechanism (when fewer than K candidates clear the +5% floor, the deficit sat in IEF at the time; switched to SHY in mid-2026) kicked in during the sell-off.</li>
         </ul>
 
         <p><strong>The reframing</strong>: Strategy C earns its 10% sleeve weight through asymmetric convexity. Best 12m return is 2-4× any other strategy. Top sleeve 41% of months. The 10% sleeve cap structures it as a long-dated out-of-the-money call basket — small premium (the modest drawdown contribution), unbounded upside (any future thematic boom). Bootstrap-on-Sharpe gives p(better)=42% because Sharpe penalises upside vol; that finding is technically true but misses the optionality value entirely.</p>
@@ -3361,7 +3355,7 @@ function renderUniverseSelection() {
     sleeve: 'A', name: 'US Sectors',
     weight: 35,
     universe: tk.a,
-    universeNote: 'iShares S&P 500 sector UCITS + SOXX + CSP1 + CNDX + IDP6 + IUSP. <em>SOXX primary endpoint (iShares US) is Akamai-blocked; secondary source via SEC EDGAR N-PORT-P (Phase 26.2) keeps the roster authoritative even in long blocks — see Method tab.</em>',
+    universeNote: 'iShares S&P 500 sector UCITS + SOXX + CSP1 + CNDX + IDP6 + IUSP. <em>SOXX primary endpoint (iShares US) is Akamai-blocked; secondary source via SEC EDGAR N-PORT-P keeps the roster authoritative even in long blocks — see Method tab.</em>',
     filter: [
       'Compute % of constituents above own 200d MA (per ETF, daily)',
       'Subtract cross-sectional mean (sector-relative breadth)',
