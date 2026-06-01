@@ -1,0 +1,124 @@
+{
+  "computed_at_utc": "2026-06-01T08:19:34+00:00",
+  "v6_threshold": 0.3,
+  "K_used": 4,
+  "phase_a_episode_attribution": [
+    {
+      "label": "2018-Q4 Powell pivot",
+      "start": "2018-10-01",
+      "end": "2019-01-31",
+      "baseline_return": -0.005523012121442128,
+      "v6_return": 0.014008824615957538,
+      "delta_return_pp": 1.9531836737399666,
+      "baseline_max_dd": -0.015381489558885238,
+      "v6_max_dd": -0.0034613186817670097,
+      "delta_max_dd_pp": 1.192017087711823
+    },
+    {
+      "label": "2020-Q1 COVID crash",
+      "start": "2020-02-15",
+      "end": "2020-05-31",
+      "baseline_return": -0.14724823107339624,
+      "v6_return": -0.2760198179269153,
+      "delta_return_pp": -12.877158685351908,
+      "baseline_max_dd": -0.3235677486962286,
+      "v6_max_dd": -0.32805394212711975,
+      "delta_max_dd_pp": -0.4486193430891128
+    },
+    {
+      "label": "2021-2022 thematic blow-up",
+      "start": "2021-02-15",
+      "end": "2022-12-31",
+      "baseline_return": -0.41092900770504426,
+      "v6_return": -0.1997972081333964,
+      "delta_return_pp": 21.113179957164785,
+      "baseline_max_dd": -0.4317155644152226,
+      "v6_max_dd": -0.24405822607668487,
+      "delta_max_dd_pp": 18.76573383385377
+    },
+    {
+      "label": "2022 rate-hike rotation",
+      "start": "2022-04-01",
+      "end": "2022-12-31",
+      "baseline_return": -0.2930346764121914,
+      "v6_return": -0.0083988490659348,
+      "delta_return_pp": 28.46358273462566,
+      "baseline_max_dd": -0.3208620007763739,
+      "v6_max_dd": -0.03162022795419084,
+      "delta_max_dd_pp": 28.924177282218306
+    },
+    {
+      "label": "2025 mid-year correction",
+      "start": "2025-08-01",
+      "end": "2025-12-31",
+      "baseline_return": 0.26952938107879687,
+      "v6_return": 0.26952938107879665,
+      "delta_return_pp": -2.220446049250313e-14,
+      "baseline_max_dd": -0.19400789406474012,
+      "v6_max_dd": -0.19400789406474078,
+      "delta_max_dd_pp": -6.661338147750939e-14
+    }
+  ],
+  "phase_b_case_study": {
+    "exit_events": [
+      {
+        "exit_date": "2021-12-17",
+        "reentry_date": "2022-03-25",
+        "days_in_cash": 98,
+        "pre_exit_holdings": [
+          "159801.SZ",
+          "LIT",
+          "REMX",
+          "URA"
+        ],
+        "forwards": [
+          {
+            "etf": "159801.SZ",
+            "fwd_return": -0.17450240190285493
+          },
+          {
+            "etf": "LIT",
+            "fwd_return": -0.1178849790298786
+          },
+          {
+            "etf": "REMX",
+            "fwd_return": 0.08835422839265616
+          },
+          {
+            "etf": "URA",
+            "fwd_return": 0.18307853172681288
+          }
+        ]
+      },
+      {
+        "exit_date": "2022-04-08",
+        "reentry_date": "2022-12-30 (episode end)",
+        "days_in_cash": 266,
+        "pre_exit_holdings": [
+          "COPX",
+          "GDX",
+          "URA",
+          "XME"
+        ],
+        "forwards": [
+          {
+            "etf": "COPX",
+            "fwd_return": -0.19390409827868105
+          },
+          {
+            "etf": "GDX",
+            "fwd_return": -0.26531199424017493
+          },
+          {
+            "etf": "URA",
+            "fwd_return": -0.26410209035602694
+          },
+          {
+            "etf": "XME",
+            "fwd_return": -0.17524853474649793
+          }
+        ]
+      }
+    ]
+  }
+}
