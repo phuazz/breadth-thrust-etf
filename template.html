@@ -2344,6 +2344,16 @@
       <div class="overlay-card" id="phase22-chart-card" style="margin-top:14px; display:none;">
         <h3>EEM/SPY ratio history — when the tilt fires</h3>
         <p class="section-sub" style="margin-top:-2px;">The signal in pictures. Blue line: daily EEM/SPY price ratio (raw relative strength). Orange dashed: 50d moving average (the "fast" line). Grey dashed: 200d moving average (the "slow" line). <strong>Light-green vertical bands</strong> mark periods when the tilt was ON (fast above slow — EEM in sustained relative-strength uptrend vs SPY). The raw ratio itself is a number with no intuitive scale; the picture below makes the cross-up / cross-down decision points immediately visible.</p>
+        <div class="period-selector overlay-period-selector"
+             id="phase22-period" style="margin: 10px 0;">
+          <button data-period="1m">1M</button>
+          <button data-period="3m">3M</button>
+          <button data-period="ytd">YTD</button>
+          <button data-period="1y">1Y</button>
+          <button data-period="3y">3Y</button>
+          <button data-period="5y">5Y</button>
+          <button data-period="max" class="active">MAX</button>
+        </div>
         <div id="phase22-ratio-chart" class="overlay-dd-chart"></div>
       </div>
 
@@ -2883,6 +2893,40 @@ function fmtPct(x, signed = false) {
   if (x == null || Number.isNaN(x)) return '—';
   const v = (x * 100).toFixed(1);
   return (signed && x > 0 ? '+' : '') + v + '%';
+}
+
+// Shared period-selector helper used by every chart's timeframe buttons.
+// Given an ISO-date array and a period code (1m/3m/ytd/1y/3y/5y/max),
+// returns the index of the first date that falls inside that window from
+// the SERIES'S OWN LAST DATE. (Anchoring on series last date rather than
+// "today" keeps the chart stable even when the data lags the calendar by
+// a few days — common for Friday-rebalanced backtests.) Returns 0 for
+// 'max' or when the requested window is older than the series start.
+function _periodToStartIndex(dates, period) {
+  if (!dates || !dates.length) return 0;
+  if (period === 'max') return 0;
+  const last = new Date(dates[dates.length - 1]);
+  let cutoff;
+  if (period === '1m') {
+    cutoff = new Date(last); cutoff.setMonth(cutoff.getMonth() - 1);
+  } else if (period === '3m') {
+    cutoff = new Date(last); cutoff.setMonth(cutoff.getMonth() - 3);
+  } else if (period === 'ytd') {
+    cutoff = new Date(last.getFullYear(), 0, 1);
+  } else if (period === '1y') {
+    cutoff = new Date(last); cutoff.setFullYear(cutoff.getFullYear() - 1);
+  } else if (period === '3y') {
+    cutoff = new Date(last); cutoff.setFullYear(cutoff.getFullYear() - 3);
+  } else if (period === '5y') {
+    cutoff = new Date(last); cutoff.setFullYear(cutoff.getFullYear() - 5);
+  } else {
+    return 0;
+  }
+  // Binary search would be cleaner but linear is fine for ~2000 daily points
+  for (let i = 0; i < dates.length; i++) {
+    if (new Date(dates[i]) >= cutoff) return i;
+  }
+  return Math.max(0, dates.length - 1);
 }
 function fmtNum(x, digits = 2, signed = false) {
   if (x == null || Number.isNaN(x)) return '—';
@@ -4820,7 +4864,7 @@ function renderRiskOverlay() {
     const dSh = (gated.sharpe - ungated.sharpe);
 
     impactCard.innerHTML = `
-      <h3>What the overlay buys you — 7.5y backtest</h3>
+      <h3>What the overlay buys you — drawdown comparison</h3>
       <div class="overlay-impact-strip">
         <div class="overlay-impact-stat">
           <div class="v good">${fmtPctV(gated.max_dd)}</div>
@@ -4838,6 +4882,16 @@ function renderRiskOverlay() {
           <div class="v good">${dSh >= 0 ? '+' : ''}${dSh.toFixed(2)}</div>
           <div class="l">Sharpe lift</div>
         </div>
+      </div>
+      <div class="period-selector overlay-period-selector"
+           id="overlay-dd-period" style="margin: 10px 0;">
+        <button data-period="1m">1M</button>
+        <button data-period="3m">3M</button>
+        <button data-period="ytd">YTD</button>
+        <button data-period="1y">1Y</button>
+        <button data-period="3y">3Y</button>
+        <button data-period="5y">5Y</button>
+        <button data-period="max" class="active">MAX</button>
       </div>
       <div id="overlay-dd-chart" class="overlay-dd-chart"></div>
       <div class="overlay-meta" style="margin-top:10px; font-size:12px;">
@@ -4869,43 +4923,57 @@ function renderRiskOverlay() {
     const dates = ungated.dates;
 
     if (typeof Plotly !== 'undefined') {
-      const traces = [
-        {
-          x: dates, y: ungatedDD,
-          mode: 'lines',
-          name: 'Without overlay (un-gated 4-way blend)',
-          line: { color: '#9ca3af', width: 1.2 },
-          fill: 'tozeroy',
-          fillcolor: 'rgba(156, 163, 175, 0.18)',
-          hovertemplate: 'Un-gated: %{y:.2%}<extra></extra>',
-        },
-        {
-          x: dates, y: gatedDD,
-          mode: 'lines',
-          name: 'Deployed (with breadth gate)',
-          line: { color: '#1351b4', width: 2.2 },
-          fill: 'tozeroy',
-          fillcolor: 'rgba(19, 81, 180, 0.12)',
-          hovertemplate: 'Gated:    %{y:.2%}<extra></extra>',
-        },
-      ];
-      Plotly.newPlot('overlay-dd-chart', traces, {
-        margin: { t: 8, r: 12, b: 70, l: 56 },
-        xaxis: { showgrid: false, color: '#4a5159',
-                 tickfont: { size: 11 } },
-        yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
-                  tickformat: '.0%', zeroline: true,
-                  zerolinecolor: '#9ca3af', zerolinewidth: 1,
-                  tickfont: { size: 11 },
-                  title: { text: 'Cumulative drawdown from peak',
-                           font: { size: 11 } } },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        hovermode: 'x unified',
-        showlegend: true,
-        legend: { orientation: 'h', y: -0.22, x: 0, xanchor: 'left',
-                   font: { size: 12 } },
-        font: { family: 'Inter', size: 12, color: '#4a5159' },
-      }, { displayModeBar: false, responsive: true });
+      // Render the drawdown chart filtered to the selected period.
+      // Stored as a closure so the period-selector buttons can call it
+      // with a different period and re-render without recomputing
+      // the underlying DD series.
+      const renderDD = (period) => {
+        const fromIdx = _periodToStartIndex(dates, period);
+        const slDates = dates.slice(fromIdx);
+        const slUng = ungatedDD.slice(fromIdx);
+        const slGat = gatedDD.slice(fromIdx);
+        const traces = [
+          { x: slDates, y: slUng, mode: 'lines',
+            name: 'Without overlay (un-gated 4-way blend)',
+            line: { color: '#9ca3af', width: 1.2 },
+            fill: 'tozeroy', fillcolor: 'rgba(156, 163, 175, 0.18)',
+            hovertemplate: 'Un-gated: %{y:.2%}<extra></extra>' },
+          { x: slDates, y: slGat, mode: 'lines',
+            name: 'Deployed (with breadth gate)',
+            line: { color: '#1351b4', width: 2.2 },
+            fill: 'tozeroy', fillcolor: 'rgba(19, 81, 180, 0.12)',
+            hovertemplate: 'Gated:    %{y:.2%}<extra></extra>' },
+        ];
+        Plotly.react('overlay-dd-chart', traces, {
+          margin: { t: 8, r: 12, b: 70, l: 56 },
+          xaxis: { showgrid: false, color: '#4a5159',
+                   tickfont: { size: 11 } },
+          yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
+                    tickformat: '.0%', zeroline: true,
+                    zerolinecolor: '#9ca3af', zerolinewidth: 1,
+                    tickfont: { size: 11 },
+                    title: { text: 'Cumulative drawdown from peak',
+                             font: { size: 11 } } },
+          paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+          hovermode: 'x unified',
+          showlegend: true,
+          legend: { orientation: 'h', y: -0.22, x: 0, xanchor: 'left',
+                     font: { size: 12 } },
+          font: { family: 'Inter', size: 12, color: '#4a5159' },
+        }, { displayModeBar: false, responsive: true });
+      };
+      renderDD('max');
+      // Wire up the period-selector buttons
+      const periodEl = document.getElementById('overlay-dd-period');
+      if (periodEl) {
+        periodEl.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            periodEl.querySelectorAll('button').forEach(b =>
+              b.classList.toggle('active', b === btn));
+            renderDD(btn.dataset.period);
+          });
+        });
+      }
     }
   }
 
@@ -4983,59 +5051,77 @@ function renderRiskOverlay() {
     // triggered each tilt change, and the shaded tilt-ON bands.
     const dailySeries = phase22.daily_series;
     if (dailySeries && dailySeries.dates && typeof Plotly !== 'undefined') {
-      const dates = dailySeries.dates;
-      const ratio = dailySeries.ratio;
-      const fastSeries = dailySeries.fast_ma;
-      const slowSeries = dailySeries.slow_ma;
-      const tiltState = dailySeries.tilt_state;
+      const allDates = dailySeries.dates;
+      const allRatio = dailySeries.ratio;
+      const allFast = dailySeries.fast_ma;
+      const allSlow = dailySeries.slow_ma;
+      const allTilt = dailySeries.tilt_state;
 
-      // Build shape-shaded vertical bands for every contiguous tilt-ON span
-      const shapes = [];
-      let bandStart = null;
-      for (let i = 0; i < tiltState.length; i++) {
-        if (tiltState[i] === 1 && bandStart === null) bandStart = dates[i];
-        if ((tiltState[i] === 0 || i === tiltState.length - 1)
-            && bandStart !== null) {
-          const endDate = (tiltState[i] === 1 && i === tiltState.length - 1)
-            ? dates[i] : dates[i];
-          shapes.push({
-            type: 'rect', xref: 'x', yref: 'paper',
-            x0: bandStart, x1: endDate, y0: 0, y1: 1,
-            fillcolor: 'rgba(29, 122, 58, 0.10)',
-            line: { width: 0 }, layer: 'below',
-          });
-          bandStart = null;
+      const renderRatio = (period) => {
+        const fromIdx = _periodToStartIndex(allDates, period);
+        const dates = allDates.slice(fromIdx);
+        const ratio = allRatio.slice(fromIdx);
+        const fastSeries = allFast.slice(fromIdx);
+        const slowSeries = allSlow.slice(fromIdx);
+        const tiltState = allTilt.slice(fromIdx);
+
+        // Build shape-shaded vertical bands for tilt-ON spans
+        const shapes = [];
+        let bandStart = null;
+        for (let i = 0; i < tiltState.length; i++) {
+          if (tiltState[i] === 1 && bandStart === null) bandStart = dates[i];
+          if ((tiltState[i] === 0 || i === tiltState.length - 1)
+              && bandStart !== null) {
+            shapes.push({
+              type: 'rect', xref: 'x', yref: 'paper',
+              x0: bandStart, x1: dates[i], y0: 0, y1: 1,
+              fillcolor: 'rgba(29, 122, 58, 0.10)',
+              line: { width: 0 }, layer: 'below',
+            });
+            bandStart = null;
+          }
         }
+
+        const traces = [
+          { x: dates, y: ratio, mode: 'lines', name: 'EEM/SPY ratio (daily)',
+            line: { color: '#1351b4', width: 1.5 },
+            hovertemplate: 'Ratio: %{y:.4f}<extra></extra>' },
+          { x: dates, y: fastSeries, mode: 'lines',
+            name: '50d MA (fast)',
+            line: { color: '#b45309', width: 1.5, dash: 'dash' },
+            hovertemplate: '50d MA: %{y:.4f}<extra></extra>' },
+          { x: dates, y: slowSeries, mode: 'lines',
+            name: '200d MA (slow)',
+            line: { color: '#6b7280', width: 1.5, dash: 'dash' },
+            hovertemplate: '200d MA: %{y:.4f}<extra></extra>' },
+        ];
+
+        Plotly.react('phase22-ratio-chart', traces, {
+          margin: { t: 8, r: 12, b: 70, l: 56 },
+          xaxis: { showgrid: false, color: '#4a5159', tickfont: { size: 11 } },
+          yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
+                    tickfont: { size: 11 },
+                    title: { text: 'EEM ÷ SPY price ratio', font: { size: 11 } } },
+          shapes: shapes,
+          paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+          hovermode: 'x unified',
+          showlegend: true,
+          legend: { orientation: 'h', y: -0.22, x: 0, xanchor: 'left',
+                     font: { size: 12 } },
+          font: { family: 'Inter', size: 12, color: '#4a5159' },
+        }, { displayModeBar: false, responsive: true });
+      };
+      renderRatio('max');
+      const periodEl = document.getElementById('phase22-period');
+      if (periodEl) {
+        periodEl.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            periodEl.querySelectorAll('button').forEach(b =>
+              b.classList.toggle('active', b === btn));
+            renderRatio(btn.dataset.period);
+          });
+        });
       }
-
-      const traces = [
-        { x: dates, y: ratio, mode: 'lines', name: 'EEM/SPY ratio (daily)',
-          line: { color: '#1351b4', width: 1.5 },
-          hovertemplate: 'Ratio: %{y:.4f}<extra></extra>' },
-        { x: dates, y: fastSeries, mode: 'lines',
-          name: '50d MA (fast)',
-          line: { color: '#b45309', width: 1.5, dash: 'dash' },
-          hovertemplate: '50d MA: %{y:.4f}<extra></extra>' },
-        { x: dates, y: slowSeries, mode: 'lines',
-          name: '200d MA (slow)',
-          line: { color: '#6b7280', width: 1.5, dash: 'dash' },
-          hovertemplate: '200d MA: %{y:.4f}<extra></extra>' },
-      ];
-
-      Plotly.newPlot('phase22-ratio-chart', traces, {
-        margin: { t: 8, r: 12, b: 70, l: 56 },
-        xaxis: { showgrid: false, color: '#4a5159', tickfont: { size: 11 } },
-        yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
-                  tickfont: { size: 11 },
-                  title: { text: 'EEM ÷ SPY price ratio', font: { size: 11 } } },
-        shapes: shapes,
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        hovermode: 'x unified',
-        showlegend: true,
-        legend: { orientation: 'h', y: -0.22, x: 0, xanchor: 'left',
-                   font: { size: 12 } },
-        font: { family: 'Inter', size: 12, color: '#4a5159' },
-      }, { displayModeBar: false, responsive: true });
     }
 
     // ---- Status card ----
@@ -5067,35 +5153,69 @@ function renderRiskOverlay() {
       `;
     }
 
-    // ---- Ratio gauge: shows EEM/SPY ratio vs 50d MA + 200d MA ----
+    // ---- Ratio gauge: meaningful investor-facing presentation ----
+    // The raw ratio value (e.g. 0.0910) is a number with no intuitive
+    // scale. What an investor wants to know: (a) is EM beating US right
+    // now, (b) by how much, (c) over what window, (d) how far is the
+    // signal from a flip. We compute EM-vs-US relative performance
+    // across three windows from the daily ratio series and present
+    // those instead of the bare MA values.
     const p22Gauge = document.getElementById('phase22-gauge-card');
     if (p22Gauge && ratio != null && fast != null && slow != null) {
-      const spread = fast - slow;  // > 0 means tilt ON
-      const spreadPct = (spread / slow * 100);  // as %
+      const ds = phase22.daily_series;
+      const computeRelPerf = (lookbackDays) => {
+        if (!ds || !ds.ratio || ds.ratio.length < lookbackDays + 1) return null;
+        const last = ds.ratio[ds.ratio.length - 1];
+        const past = ds.ratio[ds.ratio.length - 1 - lookbackDays];
+        if (last == null || past == null || past === 0) return null;
+        return (last / past - 1) * 100;
+      };
+      const r1m  = computeRelPerf(21);   // 1 month
+      const r3m  = computeRelPerf(63);   // 3 months
+      const r12m = computeRelPerf(252);  // 12 months
+      const spread = fast - slow;
+      const spreadPct = (spread / slow * 100);
+      const fmtRel = (v) => v == null ? '—' :
+        `<span style="color:${v >= 0 ? 'var(--good)' : 'var(--bad)'};">
+           ${v >= 0 ? '+' : ''}${v.toFixed(1)}%
+         </span>`;
       p22Gauge.innerHTML = `
-        <h3>EEM/SPY ratio — relative strength of EM vs US</h3>
-        <div class="phase22-stats" style="display:flex; gap:20px;
-             padding:8px 0; flex-wrap:wrap;">
-          <div><div style="color:var(--ink-faint); font-size:11px;">Current ratio</div>
-            <div style="font-size:18px; font-weight:600;">${ratio.toFixed(4)}</div></div>
-          <div><div style="color:var(--ink-faint); font-size:11px;">50d MA (fast)</div>
-            <div style="font-size:18px; font-weight:600;">${fast.toFixed(4)}</div></div>
-          <div><div style="color:var(--ink-faint); font-size:11px;">200d MA (slow)</div>
-            <div style="font-size:18px; font-weight:600;">${slow.toFixed(4)}</div></div>
-          <div><div style="color:var(--ink-faint); font-size:11px;">Fast vs slow</div>
-            <div style="font-size:18px; font-weight:600;
-                 color:${spread > 0 ? 'var(--good)' : 'var(--bad)'};">
-              ${spread > 0 ? '+' : ''}${spreadPct.toFixed(1)}%
-            </div></div>
-        </div>
-        <div class="overlay-meta" style="margin-top:8px;">
+        <h3>EM vs US — relative performance</h3>
+        <p style="margin:0 0 10px 0; color:var(--ink-soft); font-size:13px;">
+          Each row reads as "EM beat US by X%" (positive) or "EM lagged US by X%"
+          (negative) over the named window. Computed from the daily EEM÷SPY price
+          ratio: if the ratio is higher today than N days ago, EM has outperformed.
+        </p>
+        <table class="small-table" style="font-size:13.5px;">
+          <tbody>
+            <tr><td>EM vs US, past 1 month</td>
+                <td style="text-align:right;font-weight:600;">${fmtRel(r1m)}</td></tr>
+            <tr><td>EM vs US, past 3 months</td>
+                <td style="text-align:right;font-weight:600;">${fmtRel(r3m)}</td></tr>
+            <tr><td>EM vs US, past 12 months</td>
+                <td style="text-align:right;font-weight:600;">${fmtRel(r12m)}</td></tr>
+            <tr><td><strong>Trigger spread (50d MA above / below 200d MA)</strong></td>
+                <td style="text-align:right;font-weight:700;
+                           color:${spread > 0 ? 'var(--good)' : 'var(--bad)'};">
+                  ${spread > 0 ? '+' : ''}${spreadPct.toFixed(1)}%
+                </td></tr>
+          </tbody>
+        </table>
+        <div class="overlay-meta" style="margin-top:10px;">
           ${tiltOn
-            ? `Fast MA is ${spreadPct.toFixed(1)}% above slow MA —
-               <strong>EEM in sustained relative-strength uptrend vs SPY.</strong>
-               Tilt holds while spread stays positive.`
-            : `Fast MA is ${spreadPct.toFixed(1)}% below slow MA —
-               EM still underperforming. Needs ~${Math.abs(spreadPct).toFixed(1)}%
-               relative-strength improvement to trigger the golden cross.`}
+            ? `The 50-day average of EM relative strength is ${spreadPct.toFixed(1)}%
+               <strong>above</strong> the 200-day average — a sustained uptrend.
+               <strong>Tilt holds</strong> while the spread stays positive; a
+               cross-down below 0% would un-tilt the next trading day.`
+            : `The 50-day average is ${Math.abs(spreadPct).toFixed(1)}%
+               <strong>below</strong> the 200-day average — EM still
+               structurally weaker than US. <strong>Tilt off</strong>; needs
+               ~${Math.abs(spreadPct).toFixed(1)}% of EM outperformance to
+               flip the spread positive and trigger the golden cross.`}
+          <span style="display:block;margin-top:6px;font-size:11.5px;color:var(--ink-faint);">
+            Reference values for record: ratio ${ratio.toFixed(4)} ·
+            50d MA ${fast.toFixed(4)} · 200d MA ${slow.toFixed(4)}.
+          </span>
         </div>
       `;
     }
@@ -8688,29 +8808,40 @@ function activateTab(name) {
     }
     TAB_RENDERED.add(name);
   } else {
-    if (name === 'detail') {
-      try { Plotly.Plots.resize('detail-breadth-chart'); } catch(e){}
-      try { Plotly.Plots.resize('detail-momentum-chart'); } catch(e){}
-      try { Plotly.Plots.resize('detail-d-breadth-chart'); } catch(e){}
-    }
+    // Phase 26.5+ — per-strategy signal charts moved out of the
+    // ETF Detail tab and INTO each strategy tab; resize hooks need
+    // to fire on the NEW host tab so Plotly recomputes its width.
     if (name === 'portfolio') {
       try { Plotly.Plots.resize('portfolio-chart'); } catch(e){}
       try { Plotly.Plots.resize('trade-equity-chart'); Plotly.Plots.resize('trade-allocation-chart'); } catch(e){}
+      try { Plotly.Plots.resize('detail-breadth-chart'); } catch(e){}
     }
     if (name === 'asset') {
       try { Plotly.Plots.resize('asset-equity-chart'); Plotly.Plots.resize('asset-allocation-chart'); } catch(e){}
+      try { Plotly.Plots.resize('detail-momentum-chart'); } catch(e){}
     }
     if (name === 'thematic') {
       try { Plotly.Plots.resize('thematic-equity-chart'); Plotly.Plots.resize('thematic-allocation-chart'); } catch(e){}
     }
     if (name === 'europe') {
       try { Plotly.Plots.resize('europe-equity-chart'); Plotly.Plots.resize('europe-allocation-chart'); } catch(e){}
+      try { Plotly.Plots.resize('detail-d-breadth-chart'); } catch(e){}
     }
     if (name === 'multi') {
       try { Plotly.Plots.resize('multi-equity-chart'); } catch(e){}
     }
     if (name === 'history') {
       try { Plotly.Plots.resize('blend-allocation-chart'); } catch(e){}
+    }
+    // Phase 26.7 — new overlay tabs. Charts rendered during initial
+    // page-load with the tab hidden; without an explicit resize call
+    // they stay at the small initial width and leave a wide blank
+    // band on the right side of the card. The resize fixes that.
+    if (name === 'regime') {
+      try { Plotly.Plots.resize('overlay-dd-chart'); } catch(e){}
+    }
+    if (name === 'eemtilt') {
+      try { Plotly.Plots.resize('phase22-ratio-chart'); } catch(e){}
     }
   }
 }
