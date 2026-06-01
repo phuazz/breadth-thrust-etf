@@ -1799,7 +1799,8 @@
     <button class="tab" data-tab="asset">Strategy B (Asset Class)</button>
     <button class="tab" data-tab="thematic">Strategy C (Thematic)</button>
     <button class="tab" data-tab="europe">Strategy D (Europe)</button>
-    <button class="tab" data-tab="detail">ETF Detail</button>
+    <button class="tab" data-tab="regime">Regime Gate</button>
+    <button class="tab" data-tab="eemtilt">EEM Tilt</button>
     <button class="tab" data-tab="robustness">Risk &amp; Validation</button>
     <button class="tab" data-tab="method">Method</button>
   </div>
@@ -1817,27 +1818,6 @@
       <div class="hero-stats" id="live-hero-stats"></div>
       <div id="live-stale-warning"></div>
     </div>
-
-    <section id="overlay-section" style="display:none;">
-      <h2>Risk Overlay — defensive layer on top of the 4-way blend</h2>
-      <p class="section-sub" id="overlay-intro-text">A breadth-based regime gate that scales the portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated 4-way blend and the deployed gated + EEM-tilted portfolio you actually hold. Below is what it is doing today and what it has done historically.</p>
-      <div class="overlay-grid">
-        <div class="overlay-card overlay-card-status" id="overlay-status-card"></div>
-        <div class="overlay-card overlay-card-gauge" id="overlay-gauge-card"></div>
-      </div>
-      <div class="overlay-card overlay-card-explainer" id="overlay-explainer-card" style="margin-top:14px;"></div>
-      <div class="overlay-card overlay-card-impact" id="overlay-impact-card" style="margin-top:14px;"></div>
-      <div class="overlay-card" id="overlay-events-card" style="margin-top:14px;"></div>
-
-      <h2 id="phase22-heading" style="margin-top:28px; display:none;">EEM tilt — emerging-markets cycle-turn overlay</h2>
-      <p class="section-sub" id="phase22-intro" style="display:none;">A second mechanical overlay that operates independently of the breadth gate above. Tilts 10% of the blend into EEM (emerging markets) when EEM/SPY relative strength turns up. Funded from Strategy B (35% → 25% during tilt-ON). Positions the strategy for the EM-cycle turn without sacrificing US-equity exposure when EM is in underperformance.</p>
-      <div class="overlay-grid" id="phase22-grid" style="display:none;">
-        <div class="overlay-card overlay-card-status" id="phase22-status-card"></div>
-        <div class="overlay-card overlay-card-gauge" id="phase22-gauge-card"></div>
-      </div>
-      <div class="overlay-card overlay-card-explainer" id="phase22-explainer-card" style="margin-top:14px; display:none;"></div>
-      <div class="overlay-card" id="phase22-events-card" style="margin-top:14px; display:none;"></div>
-    </section>
 
     <section>
       <h2>Combined holdings</h2>
@@ -1983,43 +1963,6 @@
     </section>
   </div>
 
-  <!-- ====================== ETF DETAIL ====================== -->
-  <div class="tab-content" id="tab-detail">
-    <p class="section-sub" style="margin-top:8px;">Inspect the underlying signal for any ETF in the deployed universe. <strong>Three sections</strong> because the two signal types differ: Strategies A and D use <em>constituent breadth</em> (% of an ETF's holdings above their own 200d MA, range 0-100%) — but for different universes (US vs Europe). Strategies B and C use <em>ETF-level momentum</em> (distance of the ETF price above its own 200d MA, can be negative). Each section has its own chip group and chart.</p>
-
-    <section>
-      <h2>Section 1 · US Sector Breadth (Strategy A universe)</h2>
-      <p class="section-sub">Default: Leader vs Market — Strategy A's top-breadth holding plus CSP1 (S&amp;P 500) as a broad-market reference. Click any chip to add or remove.</p>
-      <div class="etf-chip-actions" id="detail-actions"></div>
-      <div class="etf-chip-group" id="detail-chips"></div>
-      <div id="detail-breadth-chart" class="chart tall"></div>
-      <h3 style="margin-top:24px;">Trend snapshot</h3>
-      <p class="section-sub">Current breadth + change over recent past. Positive Δ = strengthening; negative = weakening. Sorted by current breadth.</p>
-      <table class="small-table" id="detail-snapshot-table"><thead></thead><tbody></tbody></table>
-    </section>
-
-    <section>
-      <h2>Section 2 · Asset Class &amp; Thematic Momentum (Strategy B + C universes)</h2>
-      <p class="section-sub">Default: today's Strategy B leader + SPY as reference. The Y-axis is distance above the 200d MA (can be negative). IEF is included as a rotation candidate (duration play); SHY is the cash floor when fewer than 7 B candidates show positive momentum. Strategy C's +5% signal floor is shown as a horizontal guide.</p>
-      <div class="etf-chip-actions" id="detail-bc-actions"></div>
-      <div class="etf-chip-group" id="detail-bc-chips"></div>
-      <div id="detail-momentum-chart" class="chart tall"></div>
-      <h3 style="margin-top:24px;">Trend snapshot</h3>
-      <p class="section-sub">Current momentum signal + change over recent past. Sorted by current signal value.</p>
-      <table class="small-table" id="detail-bc-snapshot-table"><thead></thead><tbody></tbody></table>
-    </section>
-
-    <section>
-      <h2>Section 3 · Europe Sector Breadth (Strategy D universe)</h2>
-      <p class="section-sub">Default: today's Strategy D leader + the universe-wide mean as reference. Same metric as Section 1 (% of an ETF's constituents above their own 200d MA, 0-100%) but for the 5 Stoxx Europe 600 sector UCITS. Click any chip to add or remove.</p>
-      <div class="etf-chip-actions" id="detail-d-actions"></div>
-      <div class="etf-chip-group" id="detail-d-chips"></div>
-      <div id="detail-d-breadth-chart" class="chart tall"></div>
-      <h3 style="margin-top:24px;">Trend snapshot</h3>
-      <p class="section-sub">Current Europe sector breadth + change over recent past. Positive Δ = strengthening; negative = weakening. Sorted by current breadth.</p>
-      <table class="small-table" id="detail-d-snapshot-table"><thead></thead><tbody></tbody></table>
-    </section>
-  </div>
 
   <!-- ====================== PORTFOLIO ====================== -->
   <div class="tab-content" id="tab-portfolio">
@@ -2036,6 +1979,17 @@
         <li><strong>Once a year</strong>, re-evaluate K ∈ {3, 5, 7}. So far the answer has been K = 7 every year.</li>
       </ol>
     </div>
+
+    <section>
+      <h2>Live signal — US Sector Breadth (Strategy A universe)</h2>
+      <p class="section-sub">The live signal that drives every rebalance decision. Default: Leader vs Market — Strategy A's top-breadth holding plus CSP1 (S&amp;P 500) as a broad-market reference. Click any chip to add or remove sectors from the chart. Trend snapshot below the chart shows current breadth + change over recent past.</p>
+      <div class="etf-chip-actions" id="detail-actions"></div>
+      <div class="etf-chip-group" id="detail-chips"></div>
+      <div id="detail-breadth-chart" class="chart tall"></div>
+      <h3 style="margin-top:24px;">Trend snapshot</h3>
+      <p class="section-sub">Current breadth + change over recent past. Positive Δ = strengthening; negative = weakening. Sorted by current breadth.</p>
+      <table class="small-table" id="detail-snapshot-table"><thead></thead><tbody></tbody></table>
+    </section>
 
     <div class="verdict">
       <h2>Portfolio construction verdict</h2>
@@ -2126,6 +2080,17 @@
     </div>
 
     <section>
+      <h2>Live signal — Asset class &amp; Thematic momentum (Strategy B + C universes)</h2>
+      <p class="section-sub">The live momentum signal that drives B and C rebalance decisions. This panel shows both the 13 Strategy B asset-class ETFs and the 25 Strategy C thematic ETFs together because they share the same signal definition. Default: today's Strategy B leader + SPY as reference. Y-axis is distance above 200d MA (can be negative). Use the chips to switch between B and C universe views. <em>Strategy C tab has a link back to this chart.</em></p>
+      <div class="etf-chip-actions" id="detail-bc-actions"></div>
+      <div class="etf-chip-group" id="detail-bc-chips"></div>
+      <div id="detail-momentum-chart" class="chart tall"></div>
+      <h3 style="margin-top:24px;">Trend snapshot</h3>
+      <p class="section-sub">Current momentum signal + change over recent past. Sorted by current signal value.</p>
+      <table class="small-table" id="detail-bc-snapshot-table"><thead></thead><tbody></tbody></table>
+    </section>
+
+    <section>
       <h2>Equity vs benchmarks (18-year backtest)</h2>
       <p class="section-sub">Strategy B versus SPY buy-and-hold (broad-market passive — note its catastrophic -51% drawdown in 2008), the 60/40 SPY/IEF balanced portfolio (the conventional benchmark), and naive equal-weight across all 14 ETFs (diversification only, no signal). Strategy B's longer history (back to 2008) catches the GFC, the 2011 mini-crash, 2015-2016 commodity bust, 2018 Q4, COVID 2020, 2022 rates shock, and the recoveries in between. <strong>The headline result is the massive drawdown reduction</strong>.</p>
       <div id="asset-equity-chart" class="chart tall"></div>
@@ -2192,6 +2157,11 @@
         <li><strong>Cash floor:</strong> when fewer than K candidates clear the +5% threshold, the deficit sits in SHY (1-3y Treasury, duration-neutral cash equivalent) as cash proxy.</li>
       </ol>
     </div>
+
+    <section style="background:var(--bg-card);border-radius:6px;padding:14px 18px;border:1px solid var(--border);">
+      <h3 style="margin:0 0 6px 0;">Live signal — Thematic momentum</h3>
+      <p style="margin:0;color:var(--ink-soft);font-size:13px;">Strategy C shares its momentum-signal definition with Strategy B; the combined live signal chart (with both B asset-class and C thematic universes selectable via the chip group) is rendered in the <a href="#" onclick="document.querySelector('[data-tab=asset]').click();return false;"><strong>Strategy B tab → Live signal section</strong></a>. Click "Strategy C today" in that chart's action row to pre-select the current C holdings.</p>
+    </section>
 
     <div class="verdict" style="border-left-color:var(--accent);background:rgba(19,81,180,0.04);">
       <h2>Honest assessment — Strategy C is an optionality sleeve, not a Sharpe-alpha sleeve</h2>
@@ -2275,6 +2245,17 @@
       </ol>
     </div>
 
+    <section>
+      <h2>Live signal — Europe Sector Breadth (Strategy D universe)</h2>
+      <p class="section-sub">The live signal that drives every Europe rebalance decision. Default: today's Strategy D leader + the universe-wide mean as reference. Same metric as Strategy A (% of an ETF's constituents above their own 200d MA, 0-100%) but for the 5 Stoxx Europe 600 sector UCITS. Click any chip to add or remove sectors from the chart.</p>
+      <div class="etf-chip-actions" id="detail-d-actions"></div>
+      <div class="etf-chip-group" id="detail-d-chips"></div>
+      <div id="detail-d-breadth-chart" class="chart tall"></div>
+      <h3 style="margin-top:24px;">Trend snapshot</h3>
+      <p class="section-sub">Current Europe sector breadth + change over recent past. Positive Δ = strengthening; negative = weakening. Sorted by current breadth.</p>
+      <table class="small-table" id="detail-d-snapshot-table"><thead></thead><tbody></tbody></table>
+    </section>
+
     <div class="verdict" style="border-left-color:var(--warn);background:rgba(183,110,0,0.04);">
       <h2>Honest assessment — Strategy D is a Sharpe lifter but raises drawdown</h2>
       <p>Standalone Sharpe over the common 2018-11 → 2026-05 window is <strong>+0.93</strong> — better than SPY's +0.77 and similar to Strategy B's +0.95. CAGR is +14.9% with max DD <strong>-32.0%</strong>. The DD is fully participatory in the 2020 and 2022 sell-offs; Europe sectors did not provide downside protection.</p>
@@ -2326,6 +2307,48 @@
       <p class="section-sub">Per-ETF contribution to Strategy D's total NAV. The <em>sector</em> column shows which Stoxx 600 sectors drove returns.</p>
       <table class="small-table" id="europe-attribution-table"><thead></thead><tbody></tbody></table>
     </section>
+  </div>
+
+  <!-- ====================== REGIME GATE (Phase 19 breadth gate) ====================== -->
+  <div class="tab-content" id="tab-regime">
+    <div class="recipe">
+      <h3>Regime Gate — defensive layer on top of the 4-way blend</h3>
+      <div class="recipe-title">Phase 19 — SPY constituent-breadth regime filter</div>
+      <p style="margin:0;color:var(--ink-soft);">A breadth-based regime gate that scales the deployed portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated 4-way blend and the deployed gated portfolio you actually hold. The gate fires on a single observable: the share of S&amp;P 500 constituents above their own 200d moving average. When this breadth falls below the regime threshold the blend de-risks to a 50/50 mix of the unchanged active blend + SHY (1-3y Treasury); when it crosses back above, it returns to fully-invested. The mechanism is deliberately simple and uses no parameters tuned in-sample beyond the threshold itself.</p>
+    </div>
+
+    <section id="overlay-section" style="display:none;">
+      <h2>Today's regime state</h2>
+      <p class="section-sub" id="overlay-intro-text">A breadth-based regime gate that scales the portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated 4-way blend and the deployed gated + EEM-tilted portfolio you actually hold.</p>
+      <div class="overlay-grid">
+        <div class="overlay-card overlay-card-status" id="overlay-status-card"></div>
+        <div class="overlay-card overlay-card-gauge" id="overlay-gauge-card"></div>
+      </div>
+      <div class="overlay-card overlay-card-explainer" id="overlay-explainer-card" style="margin-top:14px;"></div>
+      <div class="overlay-card overlay-card-impact" id="overlay-impact-card" style="margin-top:14px;"></div>
+      <div class="overlay-card" id="overlay-events-card" style="margin-top:14px;"></div>
+    </section>
+  </div>
+
+  <!-- ====================== EEM TILT (Phase 22 emerging-markets cycle-turn overlay) ====================== -->
+  <div class="tab-content" id="tab-eemtilt">
+    <div class="recipe">
+      <h3>EEM Tilt — emerging-markets cycle-turn overlay</h3>
+      <div class="recipe-title">Phase 22 — EEM/SPY golden-cross tilt</div>
+      <p style="margin:0;color:var(--ink-soft);">A second mechanical overlay that operates independently of the breadth regime gate. Tilts 10% of the blend into EEM (emerging markets) when EEM/SPY relative strength turns up — specifically when the 50d/200d ratio crosses up through 1.0 (golden cross of the relative-strength line). Funded from Strategy B (35% → 25% during tilt-ON). The position is structural: the strategy holds EEM continuously while the cross remains positive, and unwinds back to baseline weights when the relative-strength line crosses back down. The motivation is to capture an EM-cycle turn without sacrificing US-equity exposure when EM is in underperformance.</p>
+    </div>
+
+    <section id="phase22-section" style="display:none;">
+      <h2>Today's tilt state</h2>
+      <p class="section-sub" id="phase22-intro-tab">Live view of the EEM/SPY relative-strength signal and the current tilt state. State changes are infrequent — this overlay activates on cycle-scale shifts.</p>
+      <div class="overlay-grid" id="phase22-grid" style="display:none;">
+        <div class="overlay-card overlay-card-status" id="phase22-status-card"></div>
+        <div class="overlay-card overlay-card-gauge" id="phase22-gauge-card"></div>
+      </div>
+      <div class="overlay-card overlay-card-explainer" id="phase22-explainer-card" style="margin-top:14px; display:none;"></div>
+      <div class="overlay-card" id="phase22-events-card" style="margin-top:14px; display:none;"></div>
+    </section>
+    <p class="section-sub" id="phase22-fallback-msg" style="margin-top:18px; color:var(--ink-faint);">Loading EEM tilt data…</p>
   </div>
 
   <!-- ====================== MULTI-STRATEGY A+B ====================== -->
@@ -2454,7 +2477,7 @@
 
     <section>
       <h2>Investment universe &amp; selection — visual summary</h2>
-      <p class="section-sub">For each sleeve: what could be held (universe), what filter decides which subset, what is actually held (selection). Universe counts and current-selection counts auto-populate from the live JSONs. Two overlays sit on top of the 4-sleeve blend — the breadth-regime gate and the EEM tilt — described in the strip at the bottom.</p>
+      <p class="section-sub">For each sleeve: what could be held (universe), what filter decides which subset, what is actually held (selection). Universe counts and current-selection counts auto-populate from the live JSONs. Two overlays sit on top of the 4-sleeve blend — the breadth-regime gate and the EEM tilt — each has its own dedicated tab (<a href="#" onclick="document.querySelector('[data-tab=regime]').click();return false;">Regime Gate</a> · <a href="#" onclick="document.querySelector('[data-tab=eemtilt]').click();return false;">EEM Tilt</a>).</p>
       <div id="universe-cards"></div>
       <div class="uni-overlay-strip" id="universe-overlay-strip"></div>
       <div class="uni-totalizer" id="universe-totalizer"></div>
@@ -3008,7 +3031,7 @@ function renderHeroStrip() {
       <div class="regime-badge ${isOn ? 'on' : 'off'}">
         <span class="dot"></span>
         REGIME: ${state}
-        <span class="meta">since ${since} · S&amp;P 500 breadth ${breadthPct}% · see Risk Overlay section below</span>
+        <span class="meta">since ${since} · S&amp;P 500 breadth ${breadthPct}% · <a href="#" onclick="document.querySelector('[data-tab=regime]').click();return false;" style="color:inherit;text-decoration:underline;">open Regime Gate tab</a></span>
       </div>`;
   }
   // Phase 22: EEM tilt badge — appears whenever the EEM overlay is active.
@@ -3023,7 +3046,7 @@ function renderHeroStrip() {
         EEM TILT: ${phase22.current_state}
         <span class="meta">since ${since} · ${tiltOn
           ? `live blend = 35% A + ${35 - tiltPct}% B + 10% C + 20% D + ${tiltPct}% EEM`
-          : `EEM/SPY 50d below 200d MA — overlay armed, waiting for golden cross`} · see Risk Overlay section below</span>
+          : `EEM/SPY 50d below 200d MA — overlay armed, waiting for golden cross`} · <a href="#" onclick="document.querySelector('[data-tab=eemtilt]').click();return false;" style="color:inherit;text-decoration:underline;">open EEM Tilt tab</a></span>
       </div>`;
   }
   // Update the live-title to reflect the tilt state
@@ -4942,12 +4965,18 @@ function renderRiskOverlay() {
       ? Math.round((new Date() - new Date(sinceDate)) / (24 * 3600 * 1000))
       : 0;
 
-    // Reveal Phase 22 panels
-    ['phase22-heading', 'phase22-intro', 'phase22-grid',
+    // Reveal Phase 22 panels (Phase 26.5: phase22-section is the new
+    // EEM Tilt tab wrapper; phase22-heading / phase22-intro are no
+    // longer used since the EEM Tilt content now lives in its own
+    // tab with a tab-level recipe box. We also hide the
+    // phase22-fallback-msg loading indicator.)
+    ['phase22-section', 'phase22-grid',
      'phase22-explainer-card', 'phase22-events-card'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = '';
     });
+    const fallbackMsg = document.getElementById('phase22-fallback-msg');
+    if (fallbackMsg) fallbackMsg.style.display = 'none';
 
     // ---- Status card ----
     const p22Status = document.getElementById('phase22-status-card');
