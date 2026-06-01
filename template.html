@@ -2381,6 +2381,15 @@
     <section>
       <h2>Contribution by sleeve over time — and vs benchmarks</h2>
       <p class="section-sub full">Each pastel-shaded layer is a sleeve's weighted contribution to the deployed blend's cumulative return at time t: <code>w<sub>i</sub> × (equity<sub>i</sub>(t) / equity<sub>i</sub>(0) − 1)</code>. The <strong style="color:#dc2626;">thick red line</strong> is the deployed blend (with Risk Overlay + EM Tilt) — the dominant reference. The <strong>dashed near-black line</strong> is the ungated blend (sleeves only, no overlays); the <strong>gap between red and near-black</strong> shows the overlay impact directly. Two passive benchmarks for context: <strong style="color:#78350f;">dotted brown</strong> = SPY buy-and-hold, <strong style="color:#0c4a6e;">dotted dark teal</strong> = 60/40 SPY/IEF.</p>
+      <div class="period-selector" id="multi-contrib-period" style="margin: 6px 0 10px 0;">
+        <button data-period="1m">1M</button>
+        <button data-period="3m">3M</button>
+        <button data-period="ytd">YTD</button>
+        <button data-period="1y">1Y</button>
+        <button data-period="3y">3Y</button>
+        <button data-period="5y">5Y</button>
+        <button data-period="max" class="active">MAX</button>
+      </div>
       <div id="multi-contribution-stack-chart" class="chart tall"></div>
 
       <details style="margin-top:20px;border-top:1px solid var(--border);padding-top:18px;">
@@ -8047,39 +8056,26 @@ function renderMultiContributionStack() {
   }
 
   // Compute weighted contribution for each sleeve at each date.
+  // Pre-round to 2 decimals at the source so the hover tooltip in
+  // Plotly's x-unified mode shows clean values (in x-unified mode
+  // the per-trace hovertemplate format is unreliable for stack-
+  // grouped traces, so we round the underlying data instead).
   const contribs = {};
+  const _round1 = (v) => v == null ? null : Math.round(v * 10) / 10;
   for (const k of sleeveKeys) {
     const w = W[k];
     const startEq = indexed[k].startEq;
     const aligned = indexed[k].aligned;
     contribs[k] = aligned.map(eq => {
       if (eq == null || startEq == null) return null;
-      return w * (eq / startEq - 1) * 100;  // pp
+      return _round1(w * (eq / startEq - 1) * 100);  // pp, 1dp
     });
   }
 
-  const traces = sleeveKeys.map(k => ({
-    x: axisDates,
-    y: contribs[k],
-    name: labels[k],
-    type: 'scatter', mode: 'lines',
-    line: { color: colours[k], width: 0.5 },
-    fillcolor: colours[k],
-    stackgroup: 'one',
-    hovertemplate: labels[k] + ': %{y:+.1f}pp<extra></extra>',
-  }));
-
-  // ---- Overlay & benchmark reference lines ----------------------
-  // Phase 26.13: addresses "how can we add the EEM Tilt and Risk
-  // Overlay performances? Also benchmark comparison vs SPY B&H vs
-  // 60/40 etc". The gap between the ungated reference and the
-  // deployed gated+tilted line IS the overlay impact, plotted as a
-  // single coherent picture. Benchmarks anchored at the same common
-  // start date as the stack and renormalised to percentage points.
+  // ---- Helper: align a source series to axisDates + renormalise
+  // to start at 0 on the first covered date, ROUNDED to 1dp so
+  // tooltips read cleanly.
   const _alignAndRenormalise = (srcDates, srcEquity) => {
-    // Map src dates to the axisDates; ffill semantics for non-matching
-    // dates. Renormalise to start at 0 on the FIRST axisDate that is
-    // covered by srcDates (so the line starts where the stack starts).
     const map = new Map();
     for (let i = 0; i < srcDates.length; i++) {
       map.set(srcDates[i], srcEquity[i]);
@@ -8090,84 +8086,117 @@ function renderMultiContributionStack() {
       if (map.has(d)) lastKnown = map.get(d);
       aligned.push(lastKnown);
     }
-    // Find first non-null and renormalise from there
     const firstReal = aligned.find(v => v != null);
     if (firstReal == null) return aligned.map(_ => null);
-    return aligned.map(v => v == null ? null : (v / firstReal - 1) * 100);
+    return aligned.map(v => v == null ? null : _round1((v / firstReal - 1) * 100));
   };
 
-  // Deployed blend (gated + EM tilted) — the actual deployed result.
-  // Thick, vivid red — the dominant line on the chart.
-  const tilted = window.DATA?.risk_overlay?.gated_variants
-                  ?.blend_35_35_10_20_gated_eem_tilted;
-  if (tilted && tilted.dates && tilted.equity) {
-    traces.push({
-      x: axisDates,
+  // Pre-compute every reference-line series once (full window).
+  // Period selector slices these arrays by index without recomputing.
+  const tilted    = window.DATA?.risk_overlay?.gated_variants
+                     ?.blend_35_35_10_20_gated_eem_tilted;
+  const ungated   = s.blend_35_35_10_20;
+  const benchmarks = window.DATA?.asset_class?.benchmarks || {};
+  const spy        = benchmarks.spy_buy_hold;
+  const sixtyForty = benchmarks.sixty_forty;
+
+  const refSeries = [];
+  if (tilted?.dates && tilted?.equity) {
+    refSeries.push({
       y: _alignAndRenormalise(tilted.dates, tilted.equity),
       name: 'Deployed blend (with overlays)',
-      type: 'scatter', mode: 'lines',
       line: { color: '#dc2626', width: 3.5 },
       hovertemplate: 'Deployed: %{y:+.1f}pp<extra></extra>',
     });
   }
-
-  // Ungated blend baseline — sleeves only, no Risk Overlay, no EM tilt.
-  // Dashed near-black so it reads cleanly against the pastel stack.
-  // The gap between this line and the deployed red line is the
-  // overlay impact directly.
-  const ungated = s.blend_35_35_10_20;
-  if (ungated && ungated.dates && ungated.equity) {
-    traces.push({
-      x: axisDates,
+  if (ungated?.dates && ungated?.equity) {
+    refSeries.push({
       y: _alignAndRenormalise(ungated.dates, ungated.equity),
       name: 'Ungated blend (sleeves only, no overlays)',
-      type: 'scatter', mode: 'lines',
       line: { color: '#1f2937', width: 1.8, dash: 'dash' },
       hovertemplate: 'Ungated: %{y:+.1f}pp<extra></extra>',
     });
   }
-
-  // Passive benchmarks — dark, saturated colours so the dotted style
-  // remains legible against the lighter stack underneath.
-  const benchmarks = window.DATA?.asset_class?.benchmarks || {};
-  const spy = benchmarks.spy_buy_hold;
-  if (spy && spy.dates && spy.equity) {
-    traces.push({
-      x: axisDates,
+  if (spy?.dates && spy?.equity) {
+    refSeries.push({
       y: _alignAndRenormalise(spy.dates, spy.equity),
       name: 'SPY buy-and-hold (passive)',
-      type: 'scatter', mode: 'lines',
       line: { color: '#78350f', width: 1.8, dash: 'dot' },
       hovertemplate: 'SPY B&H: %{y:+.1f}pp<extra></extra>',
     });
   }
-  const sixtyForty = benchmarks.sixty_forty;
-  if (sixtyForty && sixtyForty.dates && sixtyForty.equity) {
-    traces.push({
-      x: axisDates,
+  if (sixtyForty?.dates && sixtyForty?.equity) {
+    refSeries.push({
       y: _alignAndRenormalise(sixtyForty.dates, sixtyForty.equity),
       name: '60/40 SPY/IEF (passive)',
-      type: 'scatter', mode: 'lines',
       line: { color: '#0c4a6e', width: 1.8, dash: 'dot' },
       hovertemplate: '60/40: %{y:+.1f}pp<extra></extra>',
     });
   }
 
-  Plotly.newPlot(target, traces, {
-    margin: { t: 10, r: 16, b: 70, l: 60 },
-    xaxis: { showgrid: false, color: '#4a5159',
-             hoverformat: '%d %b %Y', tickfont: { size: 11 } },
-    yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
-              tickfont: { size: 11 }, zeroline: true,
-              zerolinecolor: '#9ca3af', zerolinewidth: 1,
-              title: { text: 'Cumulative weighted contribution (pp)',
-                       font: { size: 11 } } },
-    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-    hovermode: 'x unified',
-    legend: { orientation: 'h', y: -0.18, x: 0, xanchor: 'left',
-               font: { size: 12 } },
-    font: { family: 'Inter', size: 12, color: '#4a5159' },
-  }, { displayModeBar: false, responsive: true });
+  // ---- Period-aware render closure -----------------------------
+  const renderForPeriod = (period) => {
+    const fromIdx = _periodToStartIndex(axisDates, period);
+    const slicedDates = axisDates.slice(fromIdx);
+    // For period views other than 'max', re-anchor each series so it
+    // starts at 0 on the new window's first date. Without re-anchoring
+    // the 1Y view would show absolute pp from inception (a huge number
+    // that hides what happened in the last year).
+    const reanchor = (full) => {
+      const slice = full.slice(fromIdx);
+      const base = slice.find(v => v != null) || 0;
+      return slice.map(v => v == null ? null : _round1(v - base));
+    };
+    const stackTraces = sleeveKeys.map(k => ({
+      x: slicedDates,
+      y: reanchor(contribs[k]),
+      name: labels[k],
+      type: 'scatter', mode: 'lines',
+      line: { color: colours[k], width: 0.5 },
+      fillcolor: colours[k],
+      stackgroup: 'one',
+      hovertemplate: labels[k] + ': %{y:+.1f}pp<extra></extra>',
+    }));
+    const lineTraces = refSeries.map(r => ({
+      x: slicedDates,
+      y: reanchor(r.y),
+      name: r.name,
+      type: 'scatter', mode: 'lines',
+      line: r.line,
+      hovertemplate: r.hovertemplate,
+    }));
+
+    Plotly.react(target, [...stackTraces, ...lineTraces], {
+      margin: { t: 10, r: 16, b: 70, l: 60 },
+      xaxis: { showgrid: false, color: '#4a5159',
+               hoverformat: '%d %b %Y', tickfont: { size: 11 } },
+      yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
+                tickfont: { size: 11 }, zeroline: true,
+                zerolinecolor: '#9ca3af', zerolinewidth: 1,
+                hoverformat: '+.1f',
+                title: { text: 'Cumulative weighted contribution (pp)',
+                         font: { size: 11 } } },
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+      hovermode: 'x unified',
+      legend: { orientation: 'h', y: -0.18, x: 0, xanchor: 'left',
+                 font: { size: 12 } },
+      font: { family: 'Inter', size: 12, color: '#4a5159' },
+    }, { displayModeBar: false, responsive: true });
+  };
+
+  renderForPeriod('max');
+
+  // Wire up the period-selector buttons
+  const periodEl = document.getElementById('multi-contrib-period');
+  if (periodEl) {
+    periodEl.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        periodEl.querySelectorAll('button').forEach(b =>
+          b.classList.toggle('active', b === btn));
+        renderForPeriod(btn.dataset.period);
+      });
+    });
+  }
 }
 
 // Phase 26.12 — three-dimension component attribution table.
