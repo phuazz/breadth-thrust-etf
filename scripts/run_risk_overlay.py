@@ -423,6 +423,28 @@ def main() -> int:
                                        .mean().reindex([d], method="ffill").iloc[0])}
                     for d in sig_aligned.index[tilt_transitions != 0]
                 ]
+                # Emit the daily time series so the EEM Tilt tab can
+                # render a chart of the underlying signal (the raw
+                # numbers — current ratio 0.09xx — are not meaningful
+                # to a reader without the trend context).
+                fast_ma_series = (eem_ratio
+                                   .rolling(EEM_TILT_FAST_MA).mean())
+                slow_ma_series = (eem_ratio
+                                   .rolling(EEM_TILT_SLOW_MA).mean())
+                # Restrict to the common backtest window for the chart
+                # so it aligns with the blend equity panels.
+                chart_idx = sig_aligned.index
+                ratio_chart = eem_ratio.reindex(chart_idx, method="ffill")
+                fast_chart = fast_ma_series.reindex(chart_idx, method="ffill")
+                slow_chart = slow_ma_series.reindex(chart_idx, method="ffill")
+                daily_series = {
+                    "dates": [d.strftime("%Y-%m-%d") for d in chart_idx],
+                    "ratio": [_round(v, 4) for v in ratio_chart.values],
+                    "fast_ma": [_round(v, 4) for v in fast_chart.values],
+                    "slow_ma": [_round(v, 4) for v in slow_chart.values],
+                    "tilt_state": [int(v) for v in sig_aligned.values],
+                }
+
                 phase22_payload = {
                     "enabled": True,
                     "parameters": {
@@ -445,6 +467,7 @@ def main() -> int:
                     "pct_days_tilt_on": _round(
                         tilt_days_on / len(sig_aligned) * 100, 2),
                     "events": tilt_events,
+                    "daily_series": daily_series,
                 }
         else:
             print(f"  Phase 22 skipped (EEM/SPY data unavailable)")

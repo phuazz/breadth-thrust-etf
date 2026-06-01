@@ -2340,6 +2340,13 @@
         <div class="overlay-card overlay-card-gauge" id="phase22-gauge-card"></div>
       </div>
       <div class="overlay-card overlay-card-explainer" id="phase22-explainer-card" style="margin-top:14px; display:none;"></div>
+
+      <div class="overlay-card" id="phase22-chart-card" style="margin-top:14px; display:none;">
+        <h3>EEM/SPY ratio history — when the tilt fires</h3>
+        <p class="section-sub" style="margin-top:-2px;">The signal in pictures. Blue line: daily EEM/SPY price ratio (raw relative strength). Orange dashed: 50d moving average (the "fast" line). Grey dashed: 200d moving average (the "slow" line). <strong>Light-green vertical bands</strong> mark periods when the tilt was ON (fast above slow — EEM in sustained relative-strength uptrend vs SPY). The raw ratio itself is a number with no intuitive scale; the picture below makes the cross-up / cross-down decision points immediately visible.</p>
+        <div id="phase22-ratio-chart" class="overlay-dd-chart"></div>
+      </div>
+
       <div class="overlay-card" id="phase22-events-card" style="margin-top:14px; display:none;"></div>
     </section>
     <p class="section-sub" id="phase22-fallback-msg" style="margin-top:18px; color:var(--ink-faint);">Loading EEM tilt data…</p>
@@ -4883,7 +4890,7 @@ function renderRiskOverlay() {
         },
       ];
       Plotly.newPlot('overlay-dd-chart', traces, {
-        margin: { t: 8, r: 12, b: 38, l: 56 },
+        margin: { t: 8, r: 12, b: 70, l: 56 },
         xaxis: { showgrid: false, color: '#4a5159',
                  tickfont: { size: 11 } },
         yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
@@ -4895,7 +4902,8 @@ function renderRiskOverlay() {
         paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
         hovermode: 'x unified',
         showlegend: true,
-        legend: { orientation: 'h', y: -0.18, font: { size: 12 } },
+        legend: { orientation: 'h', y: -0.22, x: 0, xanchor: 'left',
+                   font: { size: 12 } },
         font: { family: 'Inter', size: 12, color: '#4a5159' },
       }, { displayModeBar: false, responsive: true });
     }
@@ -4959,18 +4967,76 @@ function renderRiskOverlay() {
       ? Math.round((new Date() - new Date(sinceDate)) / (24 * 3600 * 1000))
       : 0;
 
-    // Reveal Phase 22 panels (Phase 26.5: phase22-section is the new
-    // EEM Tilt tab wrapper; phase22-heading / phase22-intro are no
-    // longer used since the EEM Tilt content now lives in its own
-    // tab with a tab-level recipe box. We also hide the
-    // phase22-fallback-msg loading indicator.)
+    // Reveal Phase 22 panels (EEM Tilt tab wrapper + chart card).
     ['phase22-section', 'phase22-grid',
-     'phase22-explainer-card', 'phase22-events-card'].forEach(id => {
+     'phase22-explainer-card', 'phase22-chart-card',
+     'phase22-events-card'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = '';
     });
     const fallbackMsg = document.getElementById('phase22-fallback-msg');
     if (fallbackMsg) fallbackMsg.style.display = 'none';
+
+    // ---- Ratio history chart (EEM/SPY + 50d MA + 200d MA + tilt-ON bands) ----
+    // The raw current ratio (0.09xx) is uninterpretable without context.
+    // The chart shows the trend, the cross-up/cross-down events that
+    // triggered each tilt change, and the shaded tilt-ON bands.
+    const dailySeries = phase22.daily_series;
+    if (dailySeries && dailySeries.dates && typeof Plotly !== 'undefined') {
+      const dates = dailySeries.dates;
+      const ratio = dailySeries.ratio;
+      const fastSeries = dailySeries.fast_ma;
+      const slowSeries = dailySeries.slow_ma;
+      const tiltState = dailySeries.tilt_state;
+
+      // Build shape-shaded vertical bands for every contiguous tilt-ON span
+      const shapes = [];
+      let bandStart = null;
+      for (let i = 0; i < tiltState.length; i++) {
+        if (tiltState[i] === 1 && bandStart === null) bandStart = dates[i];
+        if ((tiltState[i] === 0 || i === tiltState.length - 1)
+            && bandStart !== null) {
+          const endDate = (tiltState[i] === 1 && i === tiltState.length - 1)
+            ? dates[i] : dates[i];
+          shapes.push({
+            type: 'rect', xref: 'x', yref: 'paper',
+            x0: bandStart, x1: endDate, y0: 0, y1: 1,
+            fillcolor: 'rgba(29, 122, 58, 0.10)',
+            line: { width: 0 }, layer: 'below',
+          });
+          bandStart = null;
+        }
+      }
+
+      const traces = [
+        { x: dates, y: ratio, mode: 'lines', name: 'EEM/SPY ratio (daily)',
+          line: { color: '#1351b4', width: 1.5 },
+          hovertemplate: 'Ratio: %{y:.4f}<extra></extra>' },
+        { x: dates, y: fastSeries, mode: 'lines',
+          name: '50d MA (fast)',
+          line: { color: '#b45309', width: 1.5, dash: 'dash' },
+          hovertemplate: '50d MA: %{y:.4f}<extra></extra>' },
+        { x: dates, y: slowSeries, mode: 'lines',
+          name: '200d MA (slow)',
+          line: { color: '#6b7280', width: 1.5, dash: 'dash' },
+          hovertemplate: '200d MA: %{y:.4f}<extra></extra>' },
+      ];
+
+      Plotly.newPlot('phase22-ratio-chart', traces, {
+        margin: { t: 8, r: 12, b: 70, l: 56 },
+        xaxis: { showgrid: false, color: '#4a5159', tickfont: { size: 11 } },
+        yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
+                  tickfont: { size: 11 },
+                  title: { text: 'EEM ÷ SPY price ratio', font: { size: 11 } } },
+        shapes: shapes,
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        hovermode: 'x unified',
+        showlegend: true,
+        legend: { orientation: 'h', y: -0.22, x: 0, xanchor: 'left',
+                   font: { size: 12 } },
+        font: { family: 'Inter', size: 12, color: '#4a5159' },
+      }, { displayModeBar: false, responsive: true });
+    }
 
     // ---- Status card ----
     const p22Status = document.getElementById('phase22-status-card');
