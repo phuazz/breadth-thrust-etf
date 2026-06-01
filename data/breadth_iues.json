@@ -1,11 +1,11 @@
 {
   "etf": "IUES",
-  "computed_at_utc": "2026-05-17T08:04:52.658983+00:00",
+  "computed_at_utc": "2026-06-01T02:17:17.792035+00:00",
   "constituents_source": "data\\constituents_iues.json",
   "start_date": "2018-01-05",
-  "end_date": "2026-05-15",
-  "n_trading_days": 2101,
-  "n_signals": 196,
+  "end_date": "2026-05-29",
+  "n_trading_days": 2110,
+  "n_signals": 47,
   "first_eligible_signal_date": "2019-01-08",
   "config": {
     "rsi_period": 14,
@@ -23,11 +23,11 @@
     "price_warmup_calendar_days": 180
   },
   "data_quality": {
-    "universe_size": 43,
+    "universe_size": 42,
     "tickers_with_any_yf_data": 28,
-    "tickers_with_no_yf_data": 15,
+    "tickers_with_no_yf_data": 14,
     "max_missing_constituent_pct": 0.3666666666666667,
-    "mean_missing_constituent_pct": 0.1808793679284478,
+    "mean_missing_constituent_pct": 0.17992826286196753,
     "first_date_below_10pct_missing": "2024-05-03",
     "note": "Constituents with no yfinance price history (mostly acquired or delisted semis like XLNX, MXIM, BRCM, ALTR, LLTC, CY, IDTI) are dropped from both numerator and denominator. This biases breadth percentages toward survivors. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -47,40 +47,12 @@
       "n_with_price": 19
     },
     {
-      "date": "2019-03-21",
-      "composite_z": 1.1483696009855995,
-      "composite_p90": 0.6877028812718906,
-      "rsi_breadth": 0.15789473684210525,
-      "ma_breadth": 0.8421052631578947,
-      "highs_breadth": 0.3157894736842105,
-      "triggered_components": [
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 29,
-      "n_with_price": 19
-    },
-    {
       "date": "2019-04-05",
       "composite_z": 0.9791270420281047,
       "composite_p90": 0.6853572378741346,
       "rsi_breadth": 0.0,
       "ma_breadth": 0.8947368421052632,
       "highs_breadth": 0.3684210526315789,
-      "triggered_components": [
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 29,
-      "n_with_price": 19
-    },
-    {
-      "date": "2019-04-08",
-      "composite_z": 0.8830016872093708,
-      "composite_p90": 0.694580472351645,
-      "rsi_breadth": 0.0,
-      "ma_breadth": 0.9473684210526315,
-      "highs_breadth": 0.3157894736842105,
       "triggered_components": [
         "ma_zweig",
         "highs"
@@ -131,240 +103,6 @@
       "n_with_price": 20
     },
     {
-      "date": "2019-12-17",
-      "composite_z": 1.0302700854396603,
-      "composite_p90": 0.5874798895869653,
-      "rsi_breadth": 0.1,
-      "ma_breadth": 0.8,
-      "highs_breadth": 0.25,
-      "triggered_components": [
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 28,
-      "n_with_price": 20
-    },
-    {
-      "date": "2019-12-19",
-      "composite_z": 1.317645253949798,
-      "composite_p90": 0.5972036689974244,
-      "rsi_breadth": 0.15,
-      "ma_breadth": 0.8,
-      "highs_breadth": 0.3,
-      "triggered_components": [
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 28,
-      "n_with_price": 20
-    },
-    {
-      "date": "2019-12-20",
-      "composite_z": 1.8868248158040035,
-      "composite_p90": 0.6059445308058864,
-      "rsi_breadth": 0.3,
-      "ma_breadth": 0.8,
-      "highs_breadth": 0.35,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 28,
-      "n_with_price": 20
-    },
-    {
-      "date": "2019-12-23",
-      "composite_z": 3.0909653814906357,
-      "composite_p90": 0.6128672641164443,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 0.85,
-      "highs_breadth": 0.55,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 28,
-      "n_with_price": 20
-    },
-    {
-      "date": "2019-12-24",
-      "composite_z": 1.8718427275906626,
-      "composite_p90": 0.6150284314289903,
-      "rsi_breadth": 0.45,
-      "ma_breadth": 0.85,
-      "highs_breadth": 0.2,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 28,
-      "n_with_price": 20
-    },
-    {
-      "date": "2019-12-26",
-      "composite_z": 1.8672818077669573,
-      "composite_p90": 0.619397504458769,
-      "rsi_breadth": 0.4,
-      "ma_breadth": 0.85,
-      "highs_breadth": 0.25,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 28,
-      "n_with_price": 20
-    },
-    {
-      "date": "2020-01-02",
-      "composite_z": 1.2963184499095994,
-      "composite_p90": 0.6351864033082282,
-      "rsi_breadth": 0.25,
-      "ma_breadth": 0.85,
-      "highs_breadth": 0.2,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 28,
-      "n_with_price": 20
-    },
-    {
-      "date": "2020-01-03",
-      "composite_z": 2.1660503635597728,
-      "composite_p90": 0.6391506570109423,
-      "rsi_breadth": 0.3,
-      "ma_breadth": 0.85,
-      "highs_breadth": 0.45,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 28,
-      "n_with_price": 20
-    },
-    {
-      "date": "2020-01-06",
-      "composite_z": 2.5665861344284493,
-      "composite_p90": 0.6535163956907385,
-      "rsi_breadth": 0.4,
-      "ma_breadth": 0.85,
-      "highs_breadth": 0.5,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 28,
-      "n_with_price": 20
-    },
-    {
-      "date": "2020-01-07",
-      "composite_z": 1.6925968997558947,
-      "composite_p90": 0.6589176664241674,
-      "rsi_breadth": 0.3,
-      "ma_breadth": 0.85,
-      "highs_breadth": 0.3,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 28,
-      "n_with_price": 20
-    },
-    {
-      "date": "2020-06-05",
-      "composite_z": 4.627441389526335,
-      "composite_p90": 0.61499608328961,
-      "rsi_breadth": 0.47368421052631576,
-      "ma_breadth": 1.0,
-      "highs_breadth": 1.0,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 26,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-06-08",
-      "composite_z": 5.5066488330948475,
-      "composite_p90": 0.6176757537583625,
-      "rsi_breadth": 0.8421052631578947,
-      "ma_breadth": 1.0,
-      "highs_breadth": 1.0,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 26,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-11-10",
-      "composite_z": 0.8323172001190852,
-      "composite_p90": 0.5758646766909943,
-      "rsi_breadth": 0.15789473684210525,
-      "ma_breadth": 0.9473684210526315,
-      "highs_breadth": 0.05263157894736842,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-11-16",
-      "composite_z": 2.116328162465307,
-      "composite_p90": 0.5867145452331425,
-      "rsi_breadth": 0.2631578947368421,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.3684210526315789,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-11-17",
-      "composite_z": 2.416442166430713,
-      "composite_p90": 0.5936026444175462,
-      "rsi_breadth": 0.3157894736842105,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.42105263157894735,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-11-19",
-      "composite_z": 1.4792136546819563,
-      "composite_p90": 0.6023712742543306,
-      "rsi_breadth": 0.15789473684210525,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.2631578947368421,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
       "date": "2020-11-23",
       "composite_z": 4.549487368132922,
       "composite_p90": 0.6062509535963463,
@@ -380,49 +118,6 @@
       "n_with_price": 19
     },
     {
-      "date": "2020-11-24",
-      "composite_z": 5.657271877430889,
-      "composite_p90": 0.6108031412220396,
-      "rsi_breadth": 0.9473684210526315,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.9473684210526315,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-11-25",
-      "composite_z": 2.0127535446955176,
-      "composite_p90": 0.6149799092199197,
-      "rsi_breadth": 0.631578947368421,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.0,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-11-27",
-      "composite_z": 1.2616268148983558,
-      "composite_p90": 0.6168148784081587,
-      "rsi_breadth": 0.3684210526315789,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.0,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
       "date": "2020-12-03",
       "composite_z": 1.1039041225797706,
       "composite_p90": 0.6219801305093801,
@@ -431,147 +126,6 @@
       "highs_breadth": 0.21052631578947367,
       "triggered_components": [
         "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-12-04",
-      "composite_z": 3.540196737557262,
-      "composite_p90": 0.6314327158351517,
-      "rsi_breadth": 0.47368421052631576,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.7368421052631579,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-12-07",
-      "composite_z": 0.9538171225889953,
-      "composite_p90": 0.6373887664764027,
-      "rsi_breadth": 0.21052631578947367,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.05263157894736842,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-12-08",
-      "composite_z": 1.6553458984208165,
-      "composite_p90": 0.6420706404736567,
-      "rsi_breadth": 0.2631578947368421,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.2631578947368421,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-12-09",
-      "composite_z": 1.5112078238423168,
-      "composite_p90": 0.6486141198991859,
-      "rsi_breadth": 0.2631578947368421,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.21052631578947367,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2020-12-10",
-      "composite_z": 2.91558659155203,
-      "composite_p90": 0.6543683313536007,
-      "rsi_breadth": 0.42105263157894735,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.5789473684210527,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2021-01-07",
-      "composite_z": 2.44999586450758,
-      "composite_p90": 0.6632305132514746,
-      "rsi_breadth": 0.2631578947368421,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.5789473684210527,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2021-01-08",
-      "composite_z": 1.3303185394573414,
-      "composite_p90": 0.6698716251233912,
-      "rsi_breadth": 0.21052631578947367,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.21052631578947367,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2021-01-11",
-      "composite_z": 2.0181620173975627,
-      "composite_p90": 0.6793682061401398,
-      "rsi_breadth": 0.2631578947368421,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.42105263157894735,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2021-01-12",
-      "composite_z": 4.098437356952837,
-      "composite_p90": 0.6906076255587413,
-      "rsi_breadth": 0.631578947368421,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.8421052631578947,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 25,
-      "n_with_price": 19
-    },
-    {
-      "date": "2021-01-14",
-      "composite_z": 3.083686313170641,
-      "composite_p90": 0.6965227356439302,
-      "rsi_breadth": 0.5789473684210527,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.5263157894736842,
-      "triggered_components": [
-        "rsi",
         "highs"
       ],
       "n_constituents": 25,
@@ -620,36 +174,6 @@
       "n_with_price": 18
     },
     {
-      "date": "2021-02-16",
-      "composite_z": 2.4680965500585357,
-      "composite_p90": 0.7160824373399057,
-      "rsi_breadth": 0.2222222222222222,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6666666666666666,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-02-17",
-      "composite_z": 3.315474111992051,
-      "composite_p90": 0.7181962370876132,
-      "rsi_breadth": 0.4444444444444444,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.7777777777777778,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
       "date": "2021-02-19",
       "composite_z": 1.0410412950141332,
       "composite_p90": 0.7216718617962276,
@@ -664,127 +188,12 @@
       "n_with_price": 18
     },
     {
-      "date": "2021-02-22",
-      "composite_z": 2.571305288702994,
-      "composite_p90": 0.7248853591664776,
-      "rsi_breadth": 0.3333333333333333,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6111111111111112,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-02-23",
-      "composite_z": 2.5532144597481454,
-      "composite_p90": 0.7315943143113052,
-      "rsi_breadth": 0.3333333333333333,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6111111111111112,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-02-24",
-      "composite_z": 3.777856442029235,
-      "composite_p90": 0.7400202269228258,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.9444444444444444,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-02-25",
-      "composite_z": 0.7678731097537027,
-      "composite_p90": 0.7406474627343661,
-      "rsi_breadth": 0.2222222222222222,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.0,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-03-04",
-      "composite_z": 2.5208450355517145,
-      "composite_p90": 0.7583990906638394,
-      "rsi_breadth": 0.4444444444444444,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.5,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-03-05",
-      "composite_z": 3.561308777974894,
-      "composite_p90": 0.7597129364145644,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.8888888888888888,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-03-08",
-      "composite_z": 2.34803275900237,
-      "composite_p90": 0.7637938527946386,
-      "rsi_breadth": 0.4444444444444444,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.4444444444444444,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
       "date": "2021-03-10",
       "composite_z": 2.1593657539642854,
       "composite_p90": 0.7678035163928745,
       "rsi_breadth": 0.2777777777777778,
       "ma_breadth": 1.0,
       "highs_breadth": 0.5555555555555556,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-03-12",
-      "composite_z": 1.372261652056108,
-      "composite_p90": 0.7768976708744906,
-      "rsi_breadth": 0.2222222222222222,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.2777777777777778,
       "triggered_components": [
         "rsi",
         "highs"
@@ -807,50 +216,6 @@
       "n_with_price": 18
     },
     {
-      "date": "2021-05-06",
-      "composite_z": 1.0280484467583104,
-      "composite_p90": 0.7678035163928745,
-      "rsi_breadth": 0.05555555555555555,
-      "ma_breadth": 0.9444444444444444,
-      "highs_breadth": 0.3333333333333333,
-      "triggered_components": [
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-05-07",
-      "composite_z": 2.2273949554028736,
-      "composite_p90": 0.7695589147350016,
-      "rsi_breadth": 0.4444444444444444,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.3888888888888889,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-05-10",
-      "composite_z": 1.910167001901793,
-      "composite_p90": 0.7768976708744906,
-      "rsi_breadth": 0.4444444444444444,
-      "ma_breadth": 0.9444444444444444,
-      "highs_breadth": 0.2777777777777778,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
       "date": "2021-05-14",
       "composite_z": 1.5801254338695205,
       "composite_p90": 0.7804708881602619,
@@ -863,91 +228,6 @@
         "highs"
       ],
       "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-05-17",
-      "composite_z": 2.5552075431876387,
-      "composite_p90": 0.7845788174974021,
-      "rsi_breadth": 0.3333333333333333,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6666666666666666,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-06-02",
-      "composite_z": 1.9984103230093748,
-      "composite_p90": 0.7930505026777593,
-      "rsi_breadth": 0.2222222222222222,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.5555555555555556,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-06-03",
-      "composite_z": 1.6111356284242293,
-      "composite_p90": 0.8009230783292729,
-      "rsi_breadth": 0.2222222222222222,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.3888888888888889,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-06-04",
-      "composite_z": 1.6073163310726184,
-      "composite_p90": 0.8113371743469112,
-      "rsi_breadth": 0.2222222222222222,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.3888888888888889,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-06-07",
-      "composite_z": 1.371830628264391,
-      "composite_p90": 0.8389650254104702,
-      "rsi_breadth": 0.2777777777777778,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.2222222222222222,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-06-08",
-      "composite_z": 1.4948541729519158,
-      "composite_p90": 0.8655902811516165,
-      "rsi_breadth": 0.2777777777777778,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.2777777777777778,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
       "n_with_price": 18
     },
     {
@@ -965,49 +245,6 @@
       "n_with_price": 17
     },
     {
-      "date": "2021-09-27",
-      "composite_z": 1.4750332175627971,
-      "composite_p90": 0.7838050439326504,
-      "rsi_breadth": 0.23529411764705882,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.29411764705882354,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 17
-    },
-    {
-      "date": "2021-09-28",
-      "composite_z": 1.0621808989745147,
-      "composite_p90": 0.7902808474574187,
-      "rsi_breadth": 0.23529411764705882,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.11764705882352941,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 17
-    },
-    {
-      "date": "2021-09-29",
-      "composite_z": 1.0060863550578805,
-      "composite_p90": 0.8004488595289433,
-      "rsi_breadth": 0.23529411764705882,
-      "ma_breadth": 0.9411764705882353,
-      "highs_breadth": 0.11764705882352941,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 17
-    },
-    {
       "date": "2021-10-01",
       "composite_z": 2.3218684119714292,
       "composite_p90": 0.8023457347302623,
@@ -1017,220 +254,6 @@
       "triggered_components": [
         "rsi",
         "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-04",
-      "composite_z": 2.8649137496622252,
-      "composite_p90": 0.8293200535802022,
-      "rsi_breadth": 0.3888888888888889,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.7222222222222222,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-05",
-      "composite_z": 2.356366965626427,
-      "composite_p90": 0.8589085012846217,
-      "rsi_breadth": 0.4444444444444444,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.4444444444444444,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-06",
-      "composite_z": 1.1417310256936455,
-      "composite_p90": 0.8657940086052974,
-      "rsi_breadth": 0.2777777777777778,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.1111111111111111,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-07",
-      "composite_z": 1.83686574159121,
-      "composite_p90": 0.8761593612584779,
-      "rsi_breadth": 0.4444444444444444,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.2222222222222222,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-08",
-      "composite_z": 3.2455399798946742,
-      "composite_p90": 0.8874994093583888,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.7777777777777778,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-11",
-      "composite_z": 2.6103517505158482,
-      "composite_p90": 0.8921104952097962,
-      "rsi_breadth": 0.5555555555555556,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.4444444444444444,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-12",
-      "composite_z": 2.740345050760799,
-      "composite_p90": 0.8933587983344721,
-      "rsi_breadth": 0.6111111111111112,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.4444444444444444,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-13",
-      "composite_z": 2.0599143231206267,
-      "composite_p90": 0.8990351389728123,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.2777777777777778,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-14",
-      "composite_z": 3.3706906533260574,
-      "composite_p90": 0.9119636219321818,
-      "rsi_breadth": 0.7222222222222222,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6111111111111112,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-15",
-      "composite_z": 3.47836915073622,
-      "composite_p90": 0.9145453415579682,
-      "rsi_breadth": 0.7777777777777778,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6111111111111112,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-18",
-      "composite_z": 2.6696641808824393,
-      "composite_p90": 0.9188352165137244,
-      "rsi_breadth": 0.6666666666666666,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.3888888888888889,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-19",
-      "composite_z": 3.171009549103237,
-      "composite_p90": 0.9205437880807414,
-      "rsi_breadth": 0.7777777777777778,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.5,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-20",
-      "composite_z": 3.7644533194921777,
-      "composite_p90": 0.9281431675191316,
-      "rsi_breadth": 0.8333333333333334,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.7222222222222222,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-25",
-      "composite_z": 2.8007602290358755,
-      "composite_p90": 0.958158971407342,
-      "rsi_breadth": 0.5555555555555556,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6111111111111112,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2021-10-26",
-      "composite_z": 2.4217569367265526,
-      "composite_p90": 0.9690083338528362,
-      "rsi_breadth": 0.5555555555555556,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.4444444444444444,
-      "triggered_components": [
-        "rsi",
         "highs"
       ],
       "n_constituents": 21,
@@ -1252,123 +275,6 @@
       "n_with_price": 18
     },
     {
-      "date": "2022-01-07",
-      "composite_z": 2.0615724221203564,
-      "composite_p90": 0.9403588849510925,
-      "rsi_breadth": 0.4444444444444444,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.3888888888888889,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-01-10",
-      "composite_z": 1.6379474442271675,
-      "composite_p90": 0.9549025847935823,
-      "rsi_breadth": 0.4444444444444444,
-      "ma_breadth": 0.9444444444444444,
-      "highs_breadth": 0.2222222222222222,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-01-11",
-      "composite_z": 3.18288932935983,
-      "composite_p90": 0.9646717446348626,
-      "rsi_breadth": 0.6111111111111112,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.7222222222222222,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-01-12",
-      "composite_z": 3.048513782503207,
-      "composite_p90": 0.9776815122887802,
-      "rsi_breadth": 0.6666666666666666,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6111111111111112,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-01-13",
-      "composite_z": 1.9322165434978888,
-      "composite_p90": 0.9909759664296052,
-      "rsi_breadth": 0.6111111111111112,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.16666666666666666,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-01-14",
-      "composite_z": 3.627344537898098,
-      "composite_p90": 1.0024419077995106,
-      "rsi_breadth": 0.7222222222222222,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.8333333333333334,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-01-18",
-      "composite_z": 2.498316165951325,
-      "composite_p90": 1.0145101667992962,
-      "rsi_breadth": 0.6111111111111112,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.4444444444444444,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-01-19",
-      "composite_z": 1.3466628140958796,
-      "composite_p90": 1.0240872440259414,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 0.9444444444444444,
-      "highs_breadth": 0.05555555555555555,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
       "date": "2022-01-25",
       "composite_z": 1.6116048124508608,
       "composite_p90": 1.0282706106264454,
@@ -1378,93 +284,6 @@
       "triggered_components": [
         "rsi",
         "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-01-26",
-      "composite_z": 1.3704770645996642,
-      "composite_p90": 1.0302700854396603,
-      "rsi_breadth": 0.2777777777777778,
-      "ma_breadth": 0.8888888888888888,
-      "highs_breadth": 0.3333333333333333,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-01-27",
-      "composite_z": 1.5467566606105094,
-      "composite_p90": 1.0319045799787225,
-      "rsi_breadth": 0.3333333333333333,
-      "ma_breadth": 0.9444444444444444,
-      "highs_breadth": 0.3333333333333333,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-01-28",
-      "composite_z": 1.298126023025863,
-      "composite_p90": 1.0392502741079197,
-      "rsi_breadth": 0.2777777777777778,
-      "ma_breadth": 0.9444444444444444,
-      "highs_breadth": 0.2777777777777778,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-01-31",
-      "composite_z": 1.0927209383815981,
-      "composite_p90": 1.0500144750899725,
-      "rsi_breadth": 0.16666666666666666,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.2777777777777778,
-      "triggered_components": [
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-02-01",
-      "composite_z": 2.1931212713993062,
-      "composite_p90": 1.0575485608485538,
-      "rsi_breadth": 0.3888888888888889,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.5555555555555556,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-02-02",
-      "composite_z": 2.4304497759072383,
-      "composite_p90": 1.0610942089630844,
-      "rsi_breadth": 0.4444444444444444,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6111111111111112,
-      "triggered_components": [
-        "rsi",
         "highs"
       ],
       "n_constituents": 21,
@@ -1485,82 +304,12 @@
       "n_with_price": 18
     },
     {
-      "date": "2022-02-07",
-      "composite_z": 2.5396237318474015,
-      "composite_p90": 1.0663293548986787,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6111111111111112,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
       "date": "2022-02-11",
       "composite_z": 2.616367024240697,
       "composite_p90": 1.0737512326854437,
       "rsi_breadth": 0.3333333333333333,
       "ma_breadth": 1.0,
       "highs_breadth": 0.8333333333333334,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-03-03",
-      "composite_z": 1.4256119553664772,
-      "composite_p90": 1.0855889235494576,
-      "rsi_breadth": 0.2777777777777778,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.3333333333333333,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-03-04",
-      "composite_z": 2.8512949111394215,
-      "composite_p90": 1.0971942120608669,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.7777777777777778,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-03-07",
-      "composite_z": 2.3254285439352507,
-      "composite_p90": 1.1090866390524363,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 0.9444444444444444,
-      "highs_breadth": 0.5555555555555556,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-03-08",
-      "composite_z": 1.4206250052840026,
-      "composite_p90": 1.125289547129652,
-      "rsi_breadth": 0.3333333333333333,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.2777777777777778,
       "triggered_components": [
         "rsi",
         "highs"
@@ -1603,34 +352,6 @@
       "rsi_breadth": 0.2777777777777778,
       "ma_breadth": 1.0,
       "highs_breadth": 0.5555555555555556,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-06-06",
-      "composite_z": 1.489197608847095,
-      "composite_p90": 1.157937273819222,
-      "rsi_breadth": 0.2777777777777778,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.3888888888888889,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 18
-    },
-    {
-      "date": "2022-06-07",
-      "composite_z": 2.883403050874185,
-      "composite_p90": 1.1678701450885165,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.8333333333333334,
       "triggered_components": [
         "rsi",
         "highs"
@@ -1683,40 +404,12 @@
       "n_with_price": 20
     },
     {
-      "date": "2022-11-01",
-      "composite_z": 1.8866775096851542,
-      "composite_p90": 1.128052094798578,
-      "rsi_breadth": 0.4,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.45,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
       "date": "2022-11-04",
       "composite_z": 1.7373464461245707,
       "composite_p90": 1.133287081223925,
       "rsi_breadth": 0.4,
       "ma_breadth": 0.9,
       "highs_breadth": 0.4,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2022-11-07",
-      "composite_z": 2.342641742082154,
-      "composite_p90": 1.1382241875219887,
-      "rsi_breadth": 0.45,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6,
       "triggered_components": [
         "rsi",
         "highs"
@@ -1739,36 +432,6 @@
       "n_with_price": 20
     },
     {
-      "date": "2023-07-12",
-      "composite_z": 1.6677941562247638,
-      "composite_p90": 1.0602031118994284,
-      "rsi_breadth": 0.25,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.45,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2023-07-13",
-      "composite_z": 1.6568609554131248,
-      "composite_p90": 1.0611115824981276,
-      "rsi_breadth": 0.35,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.35,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
       "date": "2023-07-21",
       "composite_z": 1.4737965824173054,
       "composite_p90": 1.0618244601490523,
@@ -1783,127 +446,12 @@
       "n_with_price": 20
     },
     {
-      "date": "2023-07-24",
-      "composite_z": 2.465188510793522,
-      "composite_p90": 1.0633530466378507,
-      "rsi_breadth": 0.45,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2023-07-25",
-      "composite_z": 2.6839687671026655,
-      "composite_p90": 1.0710779327484572,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.65,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2023-07-26",
-      "composite_z": 2.13758646145649,
-      "composite_p90": 1.0760590747187542,
-      "rsi_breadth": 0.45,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.45,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2023-07-31",
-      "composite_z": 2.788125405308906,
-      "composite_p90": 1.0789478986337968,
-      "rsi_breadth": 0.55,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.65,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2023-08-08",
-      "composite_z": 1.8359659541610043,
-      "composite_p90": 1.0994308489005031,
-      "rsi_breadth": 0.25,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.55,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2023-08-09",
-      "composite_z": 2.64562544667649,
-      "composite_p90": 1.1102513977933828,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.65,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2023-08-11",
-      "composite_z": 2.4103130377214312,
-      "composite_p90": 1.12412471347862,
-      "rsi_breadth": 0.45,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
       "date": "2023-09-01",
       "composite_z": 1.670964121913795,
       "composite_p90": 1.120263076592321,
       "rsi_breadth": 0.25,
       "ma_breadth": 0.95,
       "highs_breadth": 0.5,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2023-09-05",
-      "composite_z": 1.566100378029314,
-      "composite_p90": 1.128052094798578,
-      "rsi_breadth": 0.25,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.45,
       "triggered_components": [
         "rsi",
         "highs"
@@ -1955,228 +503,12 @@
       "n_with_price": 20
     },
     {
-      "date": "2024-03-12",
-      "composite_z": 1.4270138001174653,
-      "composite_p90": 1.0777873936864313,
-      "rsi_breadth": 0.3,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.3,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-03-13",
-      "composite_z": 2.3418927480941876,
-      "composite_p90": 1.0799298784667564,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.5,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-03-14",
-      "composite_z": 2.6052652517743855,
-      "composite_p90": 1.0868163983406567,
-      "rsi_breadth": 0.65,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.45,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-03-15",
-      "composite_z": 2.2425125156417116,
-      "composite_p90": 1.0971942120608682,
-      "rsi_breadth": 0.55,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.4,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-03-18",
-      "composite_z": 2.709676713330024,
-      "composite_p90": 1.1077124877079374,
-      "rsi_breadth": 0.7,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.45,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-03-19",
-      "composite_z": 3.4401395939268546,
-      "composite_p90": 1.1175147739033267,
-      "rsi_breadth": 0.75,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.75,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-03-20",
-      "composite_z": 2.7998192758576117,
-      "composite_p90": 1.1221610228186432,
-      "rsi_breadth": 0.75,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.45,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-03-21",
-      "composite_z": 3.2136744342284715,
-      "composite_p90": 1.1309976307885454,
-      "rsi_breadth": 0.8,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.6,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-03-25",
-      "composite_z": 2.7542870594988624,
-      "composite_p90": 1.140729071930315,
-      "rsi_breadth": 0.75,
-      "ma_breadth": 0.95,
-      "highs_breadth": 0.45,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
       "date": "2024-03-27",
       "composite_z": 2.3122085931679215,
       "composite_p90": 1.144981778138529,
       "rsi_breadth": 0.55,
       "ma_breadth": 1.0,
       "highs_breadth": 0.45,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-03-28",
-      "composite_z": 3.15496127072689,
-      "composite_p90": 1.1477592737103581,
-      "rsi_breadth": 0.65,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.75,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-04-01",
-      "composite_z": 3.3730592798398233,
-      "composite_p90": 1.1521966701190494,
-      "rsi_breadth": 0.75,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.75,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-04-02",
-      "composite_z": 3.251863589155024,
-      "composite_p90": 1.1612482309089864,
-      "rsi_breadth": 0.75,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.7,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-04-03",
-      "composite_z": 3.551080349425895,
-      "composite_p90": 1.1723700366469407,
-      "rsi_breadth": 0.8,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.8,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-04-04",
-      "composite_z": 2.6101604389374775,
-      "composite_p90": 1.1890466518815848,
-      "rsi_breadth": 0.75,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.4,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 23,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-04-05",
-      "composite_z": 2.9989219285120323,
-      "composite_p90": 1.2168715779672954,
-      "rsi_breadth": 0.75,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6,
       "triggered_components": [
         "rsi",
         "highs"
@@ -2213,20 +545,6 @@
       "n_with_price": 20
     },
     {
-      "date": "2024-11-11",
-      "composite_z": 1.2294129656426598,
-      "composite_p90": 1.1290339401285665,
-      "rsi_breadth": 0.3,
-      "ma_breadth": 0.7,
-      "highs_breadth": 0.35,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 20
-    },
-    {
       "date": "2024-11-18",
       "composite_z": 1.5888517852341113,
       "composite_p90": 1.1327147186150794,
@@ -2242,50 +560,6 @@
       "n_with_price": 20
     },
     {
-      "date": "2024-11-20",
-      "composite_z": 1.4941719102305655,
-      "composite_p90": 1.1422728177677934,
-      "rsi_breadth": 0.4,
-      "ma_breadth": 0.85,
-      "highs_breadth": 0.3,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-11-21",
-      "composite_z": 1.8024179729106784,
-      "composite_p90": 1.1471489464351166,
-      "rsi_breadth": 0.4,
-      "ma_breadth": 0.85,
-      "highs_breadth": 0.45,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 20
-    },
-    {
-      "date": "2024-11-22",
-      "composite_z": 1.3312727606495023,
-      "composite_p90": 1.1482475355305513,
-      "rsi_breadth": 0.4,
-      "ma_breadth": 0.9,
-      "highs_breadth": 0.2,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 21,
-      "n_with_price": 20
-    },
-    {
       "date": "2025-01-15",
       "composite_z": 1.6468315623561747,
       "composite_p90": 1.1392261412853193,
@@ -2296,48 +570,6 @@
         "rsi",
         "ma_zweig",
         "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 21
-    },
-    {
-      "date": "2025-01-16",
-      "composite_z": 1.591293073055476,
-      "composite_p90": 1.1438981939902344,
-      "rsi_breadth": 0.42857142857142855,
-      "ma_breadth": 0.9047619047619048,
-      "highs_breadth": 0.2857142857142857,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 21
-    },
-    {
-      "date": "2025-01-17",
-      "composite_z": 1.292118731551452,
-      "composite_p90": 1.1475151428002615,
-      "rsi_breadth": 0.42857142857142855,
-      "ma_breadth": 0.9047619047619048,
-      "highs_breadth": 0.14285714285714285,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 21
-    },
-    {
-      "date": "2025-01-21",
-      "composite_z": 1.2338828901126704,
-      "composite_p90": 1.1502831355523244,
-      "rsi_breadth": 0.38095238095238093,
-      "ma_breadth": 0.8571428571428571,
-      "highs_breadth": 0.19047619047619047,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig"
       ],
       "n_constituents": 22,
       "n_with_price": 21
@@ -2357,20 +589,6 @@
       "n_with_price": 22
     },
     {
-      "date": "2025-09-02",
-      "composite_z": 1.6982266392086587,
-      "composite_p90": 1.0706787630235526,
-      "rsi_breadth": 0.4090909090909091,
-      "ma_breadth": 0.7272727272727273,
-      "highs_breadth": 0.4090909090909091,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
       "date": "2025-09-24",
       "composite_z": 1.1088625755933048,
       "composite_p90": 1.065561237483206,
@@ -2380,36 +598,6 @@
       "triggered_components": [
         "rsi",
         "ma_zweig"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2025-09-25",
-      "composite_z": 1.2059152730297749,
-      "composite_p90": 1.072676892044113,
-      "rsi_breadth": 0.22727272727272727,
-      "ma_breadth": 0.8636363636363636,
-      "highs_breadth": 0.3181818181818182,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2025-09-26",
-      "composite_z": 1.714361083471049,
-      "composite_p90": 1.0753074766081068,
-      "rsi_breadth": 0.3181818181818182,
-      "ma_breadth": 0.8636363636363636,
-      "highs_breadth": 0.45454545454545453,
-      "triggered_components": [
-        "rsi",
-        "ma_zweig",
-        "highs"
       ],
       "n_constituents": 22,
       "n_with_price": 22
@@ -2443,20 +631,6 @@
       "n_with_price": 22
     },
     {
-      "date": "2026-01-23",
-      "composite_z": 1.1080901030883268,
-      "composite_p90": 1.0593927794258797,
-      "rsi_breadth": 0.18181818181818182,
-      "ma_breadth": 0.8636363636363636,
-      "highs_breadth": 0.3181818181818182,
-      "triggered_components": [
-        "ma_zweig",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
       "date": "2026-01-27",
       "composite_z": 1.6218314270819765,
       "composite_p90": 1.0602813490785383,
@@ -2472,124 +646,12 @@
       "n_with_price": 22
     },
     {
-      "date": "2026-01-28",
-      "composite_z": 1.8617576570524086,
-      "composite_p90": 1.06146802132359,
-      "rsi_breadth": 0.2727272727272727,
-      "ma_breadth": 0.9090909090909091,
-      "highs_breadth": 0.5454545454545454,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-01-29",
-      "composite_z": 1.9685006811482755,
-      "composite_p90": 1.063018147305469,
-      "rsi_breadth": 0.3181818181818182,
-      "ma_breadth": 0.9090909090909091,
-      "highs_breadth": 0.5454545454545454,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-01-30",
-      "composite_z": 1.7049000227076625,
-      "composite_p90": 1.0672670793299888,
-      "rsi_breadth": 0.2727272727272727,
-      "ma_breadth": 0.9545454545454546,
-      "highs_breadth": 0.45454545454545453,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
       "date": "2026-02-03",
       "composite_z": 2.008364440263412,
       "composite_p90": 1.0729691792178897,
       "rsi_breadth": 0.3181818181818182,
       "ma_breadth": 0.9545454545454546,
       "highs_breadth": 0.5454545454545454,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-02-04",
-      "composite_z": 2.6148886983550335,
-      "composite_p90": 1.0753660246962773,
-      "rsi_breadth": 0.4090909090909091,
-      "ma_breadth": 0.9545454545454546,
-      "highs_breadth": 0.7272727272727273,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-02-06",
-      "composite_z": 2.423924386297213,
-      "composite_p90": 1.076191968501909,
-      "rsi_breadth": 0.45454545454545453,
-      "ma_breadth": 0.9545454545454546,
-      "highs_breadth": 0.5909090909090909,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-02-09",
-      "composite_z": 2.2366996409302504,
-      "composite_p90": 1.0780105653633931,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 0.9545454545454546,
-      "highs_breadth": 0.45454545454545453,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-02-11",
-      "composite_z": 3.3081787791014903,
-      "composite_p90": 1.0879973063488466,
-      "rsi_breadth": 0.5454545454545454,
-      "ma_breadth": 0.9545454545454546,
-      "highs_breadth": 0.9090909090909091,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-02-13",
-      "composite_z": 1.809469052635329,
-      "composite_p90": 1.1055785147831934,
-      "rsi_breadth": 0.4090909090909091,
-      "ma_breadth": 0.9545454545454546,
-      "highs_breadth": 0.36363636363636365,
       "triggered_components": [
         "rsi",
         "highs"
@@ -2612,95 +674,11 @@
       "n_with_price": 22
     },
     {
-      "date": "2026-02-19",
-      "composite_z": 2.298649097283511,
-      "composite_p90": 1.1096361853346748,
-      "rsi_breadth": 0.45454545454545453,
-      "ma_breadth": 0.9545454545454546,
-      "highs_breadth": 0.5454545454545454,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-02-20",
-      "composite_z": 1.5346945015081068,
-      "composite_p90": 1.116598673006995,
-      "rsi_breadth": 0.3181818181818182,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.3181818181818182,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-02-23",
-      "composite_z": 1.5962891183272994,
-      "composite_p90": 1.1207211270404873,
-      "rsi_breadth": 0.36363636363636365,
-      "ma_breadth": 0.9545454545454546,
-      "highs_breadth": 0.3181818181818182,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
       "date": "2026-02-27",
       "composite_z": 1.914165879696897,
       "composite_p90": 1.1274070665605171,
       "rsi_breadth": 0.3181818181818182,
       "ma_breadth": 1.0,
-      "highs_breadth": 0.5,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-03-02",
-      "composite_z": 2.438702876600166,
-      "composite_p90": 1.133287081223925,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.5454545454545454,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-03-05",
-      "composite_z": 1.6288335963706715,
-      "composite_p90": 1.147271011890165,
-      "rsi_breadth": 0.36363636363636365,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.3181818181818182,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-03-12",
-      "composite_z": 1.8096638103549303,
-      "composite_p90": 1.1617850403001273,
-      "rsi_breadth": 0.3181818181818182,
-      "ma_breadth": 0.9090909090909091,
       "highs_breadth": 0.5,
       "triggered_components": [
         "rsi",
@@ -2716,118 +694,6 @@
       "rsi_breadth": 0.45454545454545453,
       "ma_breadth": 0.9090909090909091,
       "highs_breadth": 0.45454545454545453,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-03-18",
-      "composite_z": 2.135139753813825,
-      "composite_p90": 1.1760401643807599,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 0.9090909090909091,
-      "highs_breadth": 0.45454545454545453,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-03-19",
-      "composite_z": 2.4622656641965874,
-      "composite_p90": 1.1814751462247977,
-      "rsi_breadth": 0.5,
-      "ma_breadth": 0.9545454545454546,
-      "highs_breadth": 0.5909090909090909,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-03-20",
-      "composite_z": 1.7682644702653942,
-      "composite_p90": 1.1859549934276123,
-      "rsi_breadth": 0.4090909090909091,
-      "ma_breadth": 0.9545454545454546,
-      "highs_breadth": 0.36363636363636365,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-03-23",
-      "composite_z": 1.8225035783041743,
-      "composite_p90": 1.2039192450695604,
-      "rsi_breadth": 0.45454545454545453,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.3181818181818182,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-03-24",
-      "composite_z": 2.7927806364497836,
-      "composite_p90": 1.2071400431263273,
-      "rsi_breadth": 0.5454545454545454,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6818181818181818,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-03-25",
-      "composite_z": 2.4058497989299297,
-      "composite_p90": 1.2140439752722467,
-      "rsi_breadth": 0.5454545454545454,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.5,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-03-26",
-      "composite_z": 2.9795859560168902,
-      "composite_p90": 1.2190872271047914,
-      "rsi_breadth": 0.5909090909090909,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.7272727272727273,
-      "triggered_components": [
-        "rsi",
-        "highs"
-      ],
-      "n_constituents": 22,
-      "n_with_price": 22
-    },
-    {
-      "date": "2026-03-27",
-      "composite_z": 2.991990355283781,
-      "composite_p90": 1.221676888143493,
-      "rsi_breadth": 0.6818181818181818,
-      "ma_breadth": 1.0,
-      "highs_breadth": 0.6363636363636364,
       "triggered_components": [
         "rsi",
         "highs"
@@ -4938,7 +2804,16 @@
       "2026-05-12",
       "2026-05-13",
       "2026-05-14",
-      "2026-05-15"
+      "2026-05-15",
+      "2026-05-18",
+      "2026-05-19",
+      "2026-05-20",
+      "2026-05-21",
+      "2026-05-22",
+      "2026-05-26",
+      "2026-05-27",
+      "2026-05-28",
+      "2026-05-29"
     ],
     "n_constituents": [
       32,
@@ -5568,20 +3443,20 @@
       26,
       26,
       26,
-      27,
-      27,
-      27,
-      27,
-      27,
-      27,
-      27,
-      27,
-      27,
-      27,
-      27,
-      27,
-      27,
-      27,
+      26,
+      26,
+      26,
+      26,
+      26,
+      26,
+      26,
+      26,
+      26,
+      26,
+      26,
+      26,
+      26,
+      26,
       27,
       27,
       27,
@@ -7036,6 +4911,15 @@
       22,
       22,
       22,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
       21,
       21,
       21,
@@ -9144,6 +7028,15 @@
       21,
       21,
       21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
       21
     ],
     "n_with_rsi": [
@@ -11242,6 +9135,15 @@
       22,
       22,
       22,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
       21,
       21,
       21,
@@ -13350,6 +11252,15 @@
       21,
       21,
       21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
       21
     ],
     "n_with_high63": [
@@ -15453,6 +13364,15 @@
       21,
       21,
       21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
+      21,
       21
     ],
     "rsi_breadth": [
@@ -17550,6 +15470,15 @@
       0.045455,
       0.045455,
       0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.047619,
+      0.047619,
       0.0,
       0.0,
       0.0,
@@ -19659,7 +17588,16 @@
       0.47619,
       0.52381,
       0.52381,
-      0.809524
+      0.809524,
+      0.857143,
+      0.857143,
+      0.761905,
+      0.619048,
+      0.619048,
+      0.47619,
+      0.333333,
+      0.285714,
+      0.285714
     ],
     "highs_breadth": [
       0.380952,
@@ -21762,7 +19700,16 @@
       0.0,
       0.047619,
       0.095238,
-      0.095238
+      0.095238,
+      0.285714,
+      0.333333,
+      0.047619,
+      0.0,
+      0.095238,
+      0.047619,
+      0.0,
+      0.0,
+      0.0
     ],
     "rsi_breadth_z": [
       null,
@@ -23865,7 +21812,16 @@
       -0.495947,
       -0.4958,
       -0.495653,
-      -0.495506
+      -0.495506,
+      -0.163954,
+      -0.163914,
+      -0.495433,
+      -0.495286,
+      -0.49514,
+      -0.494993,
+      -0.494847,
+      -0.494701,
+      -0.494555
     ],
     "ma_breadth_z": [
       null,
@@ -25968,7 +23924,16 @@
       -0.219561,
       -0.077652,
       -0.077634,
-      0.773913
+      0.773913,
+      0.915554,
+      0.915154,
+      0.630862,
+      0.204754,
+      0.204703,
+      -0.22144,
+      -0.647574,
+      -0.789439,
+      -0.789135
     ],
     "highs_breadth_z": [
       null,
@@ -28071,7 +26036,16 @@
       -0.56724,
       -0.269844,
       0.027508,
-      0.027501
+      0.027501,
+      1.217194,
+      1.513866,
+      -0.271115,
+      -0.568411,
+      0.026594,
+      -0.270896,
+      -0.568376,
+      -0.568198,
+      -0.56802
     ],
     "composite_z": [
       null,
@@ -30174,7 +28148,16 @@
       -0.427583,
       -0.281099,
       -0.181926,
-      0.101969
+      0.101969,
+      0.656264,
+      0.755035,
+      -0.045229,
+      -0.286314,
+      -0.087948,
+      -0.32911,
+      -0.570266,
+      -0.617446,
+      -0.617237
     ],
     "composite_p90": [
       null,
@@ -32277,7 +30260,16 @@
       1.218349,
       1.217979,
       1.21761,
-      1.217241
+      1.217241,
+      1.216872,
+      1.215929,
+      1.214987,
+      1.214044,
+      1.213101,
+      1.212159,
+      1.211216,
+      1.210274,
+      1.209331
     ],
     "composite_p10": [
       null,
@@ -34380,7 +32372,16 @@
       -0.776338,
       -0.776327,
       -0.776317,
-      -0.776307
+      -0.776307,
+      -0.776297,
+      -0.776262,
+      -0.776228,
+      -0.776194,
+      -0.77616,
+      -0.776125,
+      -0.776091,
+      -0.776057,
+      -0.776022
     ],
     "rsi_p90": [
       null,
@@ -36483,6 +34484,15 @@
       0.25,
       0.25,
       0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
+      0.25,
       0.25
     ],
     "highs_p90": [
@@ -38533,6 +36543,15 @@
       0.298235,
       0.297647,
       0.297059,
+      0.3,
+      0.3,
+      0.3,
+      0.3,
+      0.3,
+      0.3,
+      0.3,
+      0.3,
+      0.3,
       0.3,
       0.3,
       0.3,
@@ -40689,6 +38708,15 @@
       0,
       0,
       0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       0
     ],
     "ma_zweig_trigger": [
@@ -42792,7 +40820,16 @@
       0,
       0,
       0,
-      1
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
     ],
     "highs_trigger": [
       0,
@@ -44889,6 +42926,15 @@
       0,
       0,
       0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
       0,
       0,
       0,
@@ -46998,7 +45044,16 @@
       0,
       0,
       0,
-      1
+      1,
+      1,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
     ],
     "composite_above_p90": [
       0,
@@ -49101,6 +47156,15 @@
       0,
       0,
       0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       0
     ],
     "composite_crosses_p90": [
@@ -49189,14 +47253,14 @@
       0,
       0,
       1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
       0,
+      0,
+      0,
       1,
       0,
       0,
@@ -49371,10 +47435,6 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
       1,
       0,
       0,
@@ -49382,16 +47442,20 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
       0,
       0,
       0,
       0,
       0,
       0,
+      0,
       1,
       0,
       1,
@@ -49406,7 +47470,6 @@
       1,
       0,
       1,
-      1,
       0,
       0,
       0,
@@ -49417,7 +47480,7 @@
       0,
       0,
       0,
-      1,
+      0,
       1,
       0,
       0,
@@ -49427,6 +47490,7 @@
       0,
       0,
       0,
+      0,
       1,
       0,
       0,
@@ -49593,20 +47657,16 @@
       0,
       1,
       0,
-      1,
-      1,
-      1,
-      1,
       1,
-      1,
-      1,
-      1,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -49704,15 +47764,15 @@
       0,
       0,
       0,
-      1,
       0,
       0,
       0,
       0,
-      1,
       1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -49820,29 +47880,27 @@
       0,
       0,
       0,
-      1,
-      1,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
       0,
-      1,
-      1,
-      1,
+      0,
       1,
       0,
       0,
       0,
-      1,
       1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -49858,13 +47916,12 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -49881,29 +47938,34 @@
       0,
       0,
       0,
-      1,
       0,
-      1,
       0,
-      1,
-      1,
-      1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
       0,
-      1,
       0,
+      0,
+      0,
       1,
+      0,
       1,
+      0,
       1,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
       0,
+      0,
+      0,
       1,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -49941,14 +48003,15 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
+      0,
+      0,
       1,
       0,
       0,
       0,
-      1,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -49959,16 +48022,17 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
       1,
+      0,
+      0,
       0,
       0,
       0,
       0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -50041,28 +48105,17 @@
       0,
       0,
       1,
-      1,
-      1,
-      1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       0,
       0,
       0,
@@ -50071,6 +48124,17 @@
       0,
       0,
       0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -50112,31 +48176,31 @@
       0,
       0,
       0,
-      1,
       1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
       0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
       0,
+      0,
       1,
       0,
       0,
@@ -50149,11 +48213,11 @@
       0,
       1,
       0,
-      1,
-      1,
       1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
       0,
       1,
       0,
@@ -50210,13 +48274,10 @@
       0,
       0,
       1,
-      1,
       0,
-      1,
       0,
-      1,
       1,
-      1,
+      0,
       1,
       0,
       0,
@@ -50311,21 +48372,24 @@
       0,
       0,
       0,
-      1,
       0,
       0,
+      0,
       1,
       0,
       0,
       1,
-      1,
       0,
       0,
-      1,
       1,
+      0,
+      0,
+      0,
       1,
       0,
       0,
+      0,
+      0,
       1,
       0,
       0,
@@ -50489,29 +48553,25 @@
       0,
       0,
       0,
-      1,
       1,
-      1,
       0,
       0,
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
       0,
-      1,
-      1,
+      0,
       1,
       0,
       0,
       0,
-      1,
-      1,
-      1,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -50527,9 +48587,13 @@
       0,
       0,
       0,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
       0,
       1,
       0,
@@ -50657,28 +48721,18 @@
       0,
       1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
       1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -50824,18 +48878,24 @@
       0,
       0,
       0,
-      1,
       0,
-      1,
-      1,
       0,
       0,
       0,
       0,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -50870,9 +48930,10 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -51026,7 +49087,9 @@
       0,
       0,
       0,
-      1,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -51043,8 +49106,7 @@
       0,
       0,
       0,
-      1,
-      1,
+      0,
       1,
       0,
       0,
@@ -51077,6 +49139,8 @@
       0,
       0,
       0,
+      0,
+      0,
       1,
       0,
       0,
@@ -51125,53 +49189,62 @@
       0,
       0,
       0,
-      1,
       1,
       0,
-      1,
-      1,
-      1,
-      1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
       1,
-      1,
-      1,
-      1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
       1,
       0,
       0,
-      1,
-      1,
-      1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       0,
       0,
       0,
@@ -51459,6 +49532,15 @@
       0,
       0,
       0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
       1,
       1,
       1,
@@ -53612,7 +51694,6 @@
       0,
       0,
       1,
-      1,
       0,
       0,
       0,
@@ -53623,8 +51704,9 @@
       0,
       0,
       0,
-      1,
+      0,
       1,
+      0,
       0,
       0,
       0,
@@ -53800,20 +51882,10 @@
       1,
       0,
       0,
-      1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
       0,
       0,
       0,
@@ -53917,8 +51989,6 @@
       0,
       0,
       0,
-      1,
-      1,
       0,
       0,
       0,
@@ -54027,27 +52097,34 @@
       0,
       0,
       0,
-      1,
       0,
       0,
       0,
-      1,
-      1,
       0,
-      1,
       0,
-      1,
-      1,
-      1,
-      1,
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -54066,12 +52143,7 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
       0,
-      1,
       0,
       0,
       0,
@@ -54087,29 +52159,37 @@
       0,
       0,
       0,
-      1,
       0,
-      1,
       0,
-      1,
-      1,
-      1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
       0,
       0,
       0,
       0,
+      0,
+      0,
       1,
+      0,
       1,
+      0,
       1,
+      0,
       0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -54147,14 +52227,15 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
+      0,
+      0,
       1,
       0,
       0,
       0,
-      1,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -54166,11 +52247,6 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
       0,
       0,
       0,
@@ -54246,28 +52322,17 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
       0,
       0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -54318,31 +52383,48 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
       0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
       0,
+      0,
       1,
       0,
       0,
@@ -54356,10 +52438,8 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
       0,
       0,
       0,
@@ -54372,6 +52452,8 @@
       0,
       0,
       0,
+      0,
+      0,
       1,
       0,
       0,
@@ -54420,8 +52502,6 @@
       0,
       0,
       0,
-      1,
-      1,
       1,
       0,
       0,
@@ -54517,17 +52597,18 @@
       0,
       0,
       0,
-      1,
       0,
       0,
       1,
       0,
       0,
-      1,
       1,
       0,
       0,
       1,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -54695,18 +52776,13 @@
       0,
       0,
       0,
-      1,
-      1,
+      0,
       1,
       0,
       0,
       0,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
       0,
       0,
       1,
@@ -54715,10 +52791,7 @@
       0,
       0,
       0,
-      1,
-      1,
       0,
-      1,
       0,
       0,
       0,
@@ -54733,8 +52806,17 @@
       0,
       0,
       0,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
       0,
       0,
       0,
@@ -54863,24 +52945,18 @@
       0,
       1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
       1,
       0,
-      1,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -55030,18 +53106,20 @@
       0,
       0,
       0,
-      1,
       0,
-      1,
-      1,
       0,
       0,
       0,
       0,
-      1,
       0,
       1,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -55076,9 +53154,10 @@
       0,
       0,
       0,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -55232,7 +53311,9 @@
       0,
       0,
       0,
-      1,
+      0,
+      0,
+      0,
       1,
       0,
       0,
@@ -55249,9 +53330,9 @@
       0,
       0,
       0,
-      1,
-      1,
+      0,
       1,
+      0,
       0,
       0,
       0,
@@ -55283,6 +53364,7 @@
       0,
       0,
       0,
+      0,
       1,
       0,
       0,
@@ -55331,36 +53413,20 @@
       0,
       0,
       0,
-      1,
       1,
       0,
-      1,
-      1,
-      1,
-      1,
       0,
-      1,
       1,
       0,
-      1,
-      1,
       0,
-      1,
       0,
-      1,
       0,
-      1,
       1,
-      1,
-      1,
       0,
       0,
       0,
-      1,
-      1,
       0,
       0,
-      1,
       0,
       0,
       0,
@@ -55368,15 +53434,40 @@
       1,
       0,
       0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
       0,
       0,
       0,

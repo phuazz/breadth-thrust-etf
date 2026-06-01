@@ -118,23 +118,47 @@ def test_constituent_staleness_block_is_well_formed():
 
 def test_no_critical_staleness_currently_published():
     """The deployed dashboard MUST NOT ship if any constituent roster is
-    critically stale (>30 days since last real fetch). pipeline.py aborts
-    publish in that case; this test enforces the same invariant at the
-    data-file level so regressions are caught even if the pipeline guard
-    is removed.
+    critically stale. pipeline.py aborts publish in that case; this test
+    enforces the same invariant at the data-file level so regressions
+    are caught even if the pipeline guard is removed.
 
-    Compatible with the carry-forward fallback — "warning" status (15-30
-    days) is acceptable for publication; only "critical" is forbidden.
+    Mirrors the Phase 26.4 pipeline scan logic:
+      1. Use the staleness block when present (per-ETF thresholds).
+      2. Fall back to end_friday + global default 30-day critical
+         threshold for legacy files without a staleness block.
+
+    Compatible with the carry-forward fallback — "warning" status is
+    acceptable for publication; only "critical" is forbidden.
     See DATA_INTEGRITY_POLICY.md sections 5 and 6.
     """
+    from datetime import date as _date
+    today = _date.today()
+    GLOBAL_CRITICAL = 30
     critical = []
     for path in DATA_DIR.glob("constituents_*.json"):
         blob = json.loads(path.read_text(encoding="utf-8"))
         s = blob.get("staleness") or {}
-        if s.get("status") == "critical":
+        if s:
+            if s.get("status") == "critical":
+                critical.append((
+                    blob.get("etf", path.stem),
+                    s.get("days_since_last_real_fetch"),
+                    "staleness_block",
+                ))
+            continue
+        # Legacy file — derive from end_friday using global threshold.
+        end_friday = blob.get("end_friday")
+        if not end_friday:
+            continue
+        try:
+            days = (today - _date.fromisoformat(end_friday)).days
+        except ValueError:
+            continue
+        if days > GLOBAL_CRITICAL:
             critical.append((
                 blob.get("etf", path.stem),
-                s.get("days_since_last_real_fetch"),
+                days,
+                "derived_from_end_friday",
             ))
     assert not critical, (
         f"PUBLISH BLOCKED: {len(critical)} roster(s) at critical staleness: "

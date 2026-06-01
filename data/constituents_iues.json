@@ -1,11 +1,11 @@
 {
   "etf": "IUES",
   "source": "https://www.ishares.com/uk/individual/en/products/280503/ishares-sp-500-energy-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUES_holdings&dataType=fund",
-  "fetched_at_utc": "2026-05-25T14:22:27+00:00",
+  "fetched_at_utc": "2026-06-01T02:13:36.573717+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-05-15",
-  "n_target_fridays": 437,
-  "n_snapshots_written": 437,
+  "end_friday": "2026-05-29",
+  "n_target_fridays": 439,
+  "n_snapshots_written": 439,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {
@@ -36,15 +36,19 @@
       "carried_from_target": "2020-12-18",
       "carried_from_actual": "2020-12-18",
       "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
-    },
-    {
-      "target_friday": "2026-05-15",
-      "outcome": "carried_forward",
-      "carried_from_target": "2026-05-08",
-      "carried_from_actual": "2026-05-08",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
     }
   ],
+  "edgar_used": [],
+  "staleness": {
+    "last_real_fetch_date": "2026-05-29",
+    "days_since_last_real_fetch": 0,
+    "status": "fresh",
+    "warn_threshold_days": 14,
+    "critical_threshold_days": 30,
+    "threshold_source": "global_default",
+    "threshold_rationale": null,
+    "policy_ref": "DATA_INTEGRITY_POLICY.md"
+  },
   "snapshots": {
     "2018-01-05": {
       "actual_date": "2018-01-05",
@@ -13370,8 +13374,61 @@
       ]
     },
     "2026-05-15": {
-      "actual_date": "2026-05-08",
-      "carried_forward_from": "2026-05-08",
+      "actual_date": "2026-05-15",
+      "n_tickers": 21,
+      "tickers": [
+        "XOM",
+        "CVX",
+        "COP",
+        "WMB",
+        "SLB",
+        "VLO",
+        "EOG",
+        "MPC",
+        "PSX",
+        "KMI",
+        "BKR",
+        "TRGP",
+        "OKE",
+        "DVN",
+        "OXY",
+        "FANG",
+        "EQT",
+        "HAL",
+        "EXE",
+        "TPL",
+        "APA"
+      ]
+    },
+    "2026-05-22": {
+      "actual_date": "2026-05-22",
+      "n_tickers": 21,
+      "tickers": [
+        "XOM",
+        "CVX",
+        "COP",
+        "WMB",
+        "SLB",
+        "EOG",
+        "VLO",
+        "MPC",
+        "PSX",
+        "KMI",
+        "BKR",
+        "TRGP",
+        "OKE",
+        "DVN",
+        "OXY",
+        "FANG",
+        "EQT",
+        "HAL",
+        "EXE",
+        "TPL",
+        "APA"
+      ]
+    },
+    "2026-05-29": {
+      "actual_date": "2026-05-29",
       "n_tickers": 21,
       "tickers": [
         "XOM",
@@ -13385,15 +13442,15 @@
         "PSX",
         "BKR",
         "KMI",
-        "OKE",
         "TRGP",
+        "OKE",
         "DVN",
         "OXY",
         "FANG",
         "EQT",
         "HAL",
-        "EXE",
         "TPL",
+        "EXE",
         "APA"
       ]
     }
