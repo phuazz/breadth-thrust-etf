@@ -302,9 +302,36 @@ REBAL_FREQS = [
     ("Bi-weekly Fri", "2W-FRI"),
     ("Month-end",     "BME"),
 ]
-HEADLINE_K = 4
+# Phase 27 (2026-06-01): K moves from 4 -> 5 to match the walk-forward
+# pick under the new sleeve-breadth gate. The bake-off + validation
+# (scripts/run_thematic_exit_*.py + data/thematic_exit_*.json) showed
+# WF picks K=5 every refit segment when the sleeve gate is active.
+# Mechanism: the gate handles the regime risk that previously forced
+# K=3-4, so the in-sample concentration choice (K=5) becomes safe to
+# deploy.
+HEADLINE_K = 5
 HEADLINE_FREQ_NAME = "Weekly Fri"
 HEADLINE_FREQ = "W-FRI"
+
+# Phase 27 (2026-06-01) — sleeve-breadth gate ("V6"). If fewer than
+# SLEEVE_GATE_THRESHOLD of the thematic universe is above SIGNAL_FLOOR
+# at any rebal, exit all positions to SHY. Catches sleeve-wide
+# regime changes that the per-ETF +5% signal misses until significant
+# damage is done. See data/thematic_exit_robustness.json for the
+# empirical justification:
+#   - Walk-forward Sharpe +1.12 (vs baseline +1.01, +0.11 lift)
+#   - Max DD -38.5% in-sample (vs baseline -50.9%)
+#   - 2021-22 thematic blow-up DD -24.4% (vs baseline -43.2%)
+#   - Threshold of 30% chosen for robustness — 50% looks better in-
+#     sample but fails OOS (joint refit picks 50% and degrades to
+#     +0.88 WF Sharpe). 30% is the conservative, generalising choice.
+# Known downside (documented in robustness report):
+#   - V-shape risk: gate exits AFTER thematic breadth crashes (locking
+#     in the bottom) and re-enters AFTER recovery; COVID 2020-Q1 cost
+#     -12.9pp vs baseline. Acceptable trade for the larger DD wins on
+#     2021-22 and 2022-rate-hike episodes.
+SLEEVE_GATE_ENABLED = True
+SLEEVE_GATE_THRESHOLD = 0.30
 
 # Phase 6 (2026-05-24): the within-strategy weight function. Equal-weight
 # was empirically dominant for Strategy C across IS Sharpe, WF Sharpe,
@@ -500,15 +527,20 @@ def compute_signal(closes: pd.DataFrame) -> pd.DataFrame:
 
 
 def top_k_equal_weight(K: int):
-    """Strategy C weight function — Phase 6 deployed (equal-weight).
+    """Strategy C weight function — Phase 6 (equal-weight) + Phase 27
+    sleeve-breadth gate.
 
+    - Phase 27 GATE: if fewer than SLEEVE_GATE_THRESHOLD (30%) of the
+      universe is above SIGNAL_FLOOR at this rebal, exit all positions
+      to SHY. Catches sleeve-wide regime changes (e.g. early 2022
+      thematic-complex rollover) before per-ETF +5% breaches trigger.
     - Drop NaN signal (insufficient history)
     - Drop signal < SIGNAL_FLOOR (require >= 5% above 200d MA)
     - Top K by signal value
     - Weight equally: 1/K per holding (so the most-overbought is not
       overweighted relative to peers that also cleared the floor)
     - If fewer than K candidates clear the floor, the deficit goes to
-      the IEF cash proxy
+      the SHY cash proxy
 
     Phase 6 retrospective (2026-05-24): replaced top_k_by_signal_capped
     after the weighting-scheme experiment showed equal-weight dominates
@@ -519,9 +551,32 @@ def top_k_equal_weight(K: int):
     eligibility carries little extra information — every eligible
     candidate is "well into an uptrend". Weighting heavily toward the
     strongest just overweights the candidate most likely to mean-revert.
+
+    Phase 27 binding (2026-06-01): added sleeve-breadth gate after a
+    six-variant exit-rule bake-off (run_thematic_exit_*.py). Walk-
+    forward Sharpe lifts from baseline +1.01 -> +1.12, max DD
+    improves -50.9% -> -38.5% in-sample, with the 2021-22 thematic
+    blow-up specifically halved -43.2% -> -24.4%. Documented downside:
+    V-shape risk on fast recoveries (COVID 2020-Q1 cost -12.9pp).
     """
     def f(s_row: pd.Series) -> pd.Series:
         valid = s_row.dropna()
+        w = pd.Series(0.0, index=s_row.index)
+        # Phase 27 sleeve-breadth gate. Compute universe breadth from
+        # the same signal panel — fraction of non-cash universe above
+        # SIGNAL_FLOOR. Below threshold = sleeve in regime change,
+        # exit all positions to cash.
+        if SLEEVE_GATE_ENABLED:
+            univ = valid.drop(CASH_PROXY, errors="ignore")
+            n_universe = len(univ)
+            if n_universe > 0:
+                n_above = (univ > SIGNAL_FLOOR).sum()
+                sleeve_breadth = n_above / n_universe
+                if sleeve_breadth < SLEEVE_GATE_THRESHOLD:
+                    if CASH_PROXY in w.index:
+                        w[CASH_PROXY] = 1.0
+                    return w
+
         eligible = valid[valid > SIGNAL_FLOOR]
         # Phase 19.1: CASH_PROXY (SHY) is downloaded for the cash floor
         # only — never a momentum pick. Exclude it from the eligible set so
@@ -529,7 +584,6 @@ def top_k_equal_weight(K: int):
         # signal somehow clears the +5% floor in a rate-shock regime.
         if CASH_PROXY in eligible.index:
             eligible = eligible.drop(CASH_PROXY)
-        w = pd.Series(0.0, index=s_row.index)
         if len(eligible) == 0:
             if CASH_PROXY in w.index:
                 w[CASH_PROXY] = 1.0

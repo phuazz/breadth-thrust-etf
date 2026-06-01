@@ -2146,7 +2146,8 @@
       <ol class="recipe-steps">
         <li><strong>Each Friday close</strong>, compute distance above 200d MA for each of the 25 thematic ETFs.</li>
         <li><strong>Hard signal floor:</strong> only consider ETFs with signal ≥ <strong>+5%</strong> above their 200d MA (not just positive). This filters out marginal "in an uptrend" cases that often reverse.</li>
-        <li><strong>Rank the survivors. Take the top K = 4.</strong></li>
+        <li><strong>Sleeve breadth gate (deployed June 2026):</strong> if <strong>fewer than 30% of the 25-theme universe</strong> clears the +5% floor at this rebal, exit ALL positions to SHY for the week. Catches sleeve-wide regime changes (e.g. early 2022 thematic-complex rollover) before per-ETF signals individually breach. Walk-forward Sharpe lift +0.16, max DD reduction 14.8pp vs the un-gated rule.</li>
+        <li><strong>Rank the survivors. Take the top K = 5.</strong> Walk-forward picked K=5 in every refit segment once the sleeve gate was active — the gate handles regime risk so the in-sample concentration choice K=5 becomes safe to deploy. (Prior K=4 was the WF pick before the gate.)</li>
         <li><strong>Equal-weight (1/K) across the top K</strong>. The +5% signal floor already filters out modest trends, so signal magnitude beyond eligibility carries little extra information — every eligible candidate is well into an uptrend. Equal-weighting prevents the most-overbought ETF (statistically the one most likely to mean-revert) from being overweighted.</li>
         <li><strong>Cash floor:</strong> when fewer than K candidates clear the +5% threshold, the deficit sits in SHY (1-3y Treasury, duration-neutral cash equivalent) as cash proxy.</li>
       </ol>
@@ -2168,7 +2169,7 @@
         <li><strong>2022 inflation crash</strong>: C was the worst sleeve (-25%), but the 10% cap limited blend damage to -13% (vs SPY -25%). The cap works.</li>
       </ul>
       <p><strong>The asymmetry is the point.</strong> At a 10% sleeve weight, C contributes ~+17pp to blend return in its best year and ~-2.5pp in its worst year — a 7:1 upside/downside ratio. That is textbook optionality. Backtests of the last 7.5 years include the 2020-21 boom but cannot price the OPTIONS embedded in C — its real value compounds whenever a new thematic regime emerges that we cannot predict today.</p>
-      <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Caveat:</strong> walk-forward Sharpe is <strong>+0.45</strong> vs in-sample <strong>+0.80</strong> (canonical 25-ETF universe as of 2026-05-31 — was +0.51 / +0.82 on the 23-ETF universe; May 2026 universe expansion added PHO + IHI which degraded standalone WF Sharpe by -0.07 but moved the deployed 35/35/10/20 blend Sharpe by only -0.004, within noise — the 10% sleeve cap absorbs C's standalone degradation) — modest degradation, which is structural to thematic momentum. The 10% sleeve cap is the risk-management response to this. <em>Do not deploy C as a primary alpha source; do deploy it as a small optionality sleeve.</em></p>
+      <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Caveat:</strong> walk-forward Sharpe is <strong>+0.61</strong> vs in-sample <strong>+0.79</strong> (canonical 25-ETF universe at K=5 with the sleeve-breadth gate deployed June 2026; was +0.45 / +0.80 without the gate at K=4 — the gate lifts WF Sharpe by +0.16 by exiting the sleeve to SHY during sleeve-wide regime changes like the 2021-22 thematic blow-up. The 14.8pp max-DD reduction comes with a documented V-shape downside: the gate locks in the bottom during fast COVID-style recoveries — see <code>data/thematic_exit_robustness.json</code> for the full episode-by-episode attribution) — modest degradation, which is structural to thematic momentum. The 10% sleeve cap is the risk-management response to this. <em>Do not deploy C as a primary alpha source; do deploy it as a small optionality sleeve.</em></p>
     </div>
 
     <section>
@@ -2186,7 +2187,7 @@
 
     <section>
       <h2>Thematic allocation over time</h2>
-      <p class="section-sub">Weekly stacked-to-100% allocation. When the cash floor activates (fewer than K = 4 themes clear the +5% threshold), the deficit sits in SHY (1-3y Treasury, duration-neutral). Big SHY bands = "the world is broadly weak in thematic-land". Notice the rotation through commodity-equity (gold miners, uranium, copper, lithium) when tech was weak in 2022.</p>
+      <p class="section-sub">Weekly stacked-to-100% allocation. When the cash floor activates (fewer than K = 5 themes clear the +5% threshold) the deficit sits in SHY. When the sleeve-breadth gate fires (fewer than 30% of universe above +5%) ALL allocation goes to SHY for the week — these are the big monolithic SHY bands during regime changes. Notice the rotation through commodity-equity (gold miners, uranium, copper, lithium) when tech was weak in 2022.</p>
       <div id="thematic-allocation-chart" class="chart tall"></div>
     </section>
 
@@ -2550,7 +2551,7 @@
           <li><strong>Combination</strong>: 35% A + 35% B + 10% C + 20% D, rebalanced weekly Friday.</li>
           <li>Transaction cost: 5 bps per unit of weight change (10 bps round-trip).</li>
           <li>No look-ahead: every weight is decided using the prior trading day's signal.</li>
-          <li>K is refit only annually on expanding-window Sharpe; choices have been stable at K = 7 (A), K = 7 (B), K = 4 (C), K = 3 (D).</li>
+          <li>K is refit only annually on expanding-window Sharpe; choices have been stable at K = 7 (A), K = 7 (B), <strong>K = 5 (C, deployed June 2026 with sleeve-breadth gate)</strong>, K = 3 (D).</li>
         </ul>
         <p style="font-size:13px;color:var(--ink-faint);"><em>Why 35/35/10/20 and not 45/45/10?</em> The 4-way blend with the Europe sleeve posts the highest Sharpe of any variant tested (+1.15 vs +1.09 for the 3-way 45/45/10), at the cost of ~2.3pp wider max drawdown (-23.8% vs -21.5%). The Europe sleeve is real equity beta — it participates in 2020/2022 sell-offs and does not provide downside protection — but its idiosyncratic European macro cycle adds genuine diversification at the blend level. If drawdown floor is more important than Sharpe, stay with 45/45/10. If you want best risk-adjusted return, switch to 35/35/10/20.</p>
       </div>
@@ -2641,7 +2642,7 @@
 
         <p><strong>Generalisable lesson</strong>: the right weighting scheme depends on the signal-floor regime. With a high floor (C: +5%), the floor IS the filter — equal-weight after the floor. With a low floor (B: 0%), the magnitude IS the filter — signal-share with no floor. With a bounded signal (A and D: breadth ∈ [0,1]), signal-share is naturally tight and produces near-equal weights anyway, so the question does not arise.</p>
 
-        <p style="font-size:13px;color:var(--ink-faint);"><em>Operational note</em>: the original 35% per-ETF cap on Strategy C is now moot under equal-weight (K=4 → 25% per holding, well below the 35% cap). The cap code is retained in run_thematic_rotation.py as a no-op safeguard if K is ever reduced to 3 (where 33.3% per holding would still be under cap).</p>
+        <p style="font-size:13px;color:var(--ink-faint);"><em>Operational note</em>: the original 35% per-ETF cap on Strategy C is now moot under equal-weight (K=5 → 20% per holding, well below the 35% cap). The cap code is retained in run_thematic_rotation.py as a no-op safeguard if K is ever reduced to 3 (where 33.3% per holding would still be under cap).</p>
       </div>
       </details>
 
@@ -3468,10 +3469,12 @@ function renderUniverseSelection() {
     filter: [
       'Distance above own 200d MA',
       'Hard floor: drop anything <code>&lt;</code>+5% above MA (must already be trending)',
+      '<strong>Sleeve breadth gate</strong>: if &lt; 30% of universe clears the +5% floor, exit ALL to SHY for the week',
       'Unfilled slots park in SHY cash floor',
     ],
-    k: data.thematic?.headline?.K || 4,
+    k: data.thematic?.headline?.K || 5,
     weighting: 'Equal-weight (1/K)',
+    kNote: 'K = 5 since June 2026 sleeve-gate deployment. The gate handles regime risk so the in-sample concentration choice (K=5) is safe to deploy; previously K = 4. Walk-forward Sharpe lifted +0.16 by the gate.',
     currentHoldings: _currentHoldingTickers(data.thematic),
   }));
 
