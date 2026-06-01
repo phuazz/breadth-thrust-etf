@@ -2372,8 +2372,15 @@
     </div>
 
     <section>
+      <h2>Where the deployed return comes from — sleeve contribution</h2>
+      <p class="section-sub full">The deployed 35/35/10/20 blend's annualised return decomposed into the contribution of each sleeve and each overlay. <strong>Linear weighted contribution</strong>: sleeve i contributes its standalone CAGR × its weight in the blend. <strong>Overlay contributions</strong> are differential: Risk Overlay = (gated CAGR − ungated CAGR), EM Tilt = (gated+tilted CAGR − gated CAGR). The sum approximates the deployed blend CAGR; small rebalancing/compounding interactions account for the residual.</p>
+      <div id="multi-contribution-chart" class="chart" style="height:340px;"></div>
+      <p style="margin-top:8px;font-size:12px;color:var(--ink-faint);" id="multi-contribution-note"></p>
+    </section>
+
+    <section>
       <h2>All variants side-by-side</h2>
-      <p class="section-sub">The four standalone strategies plus the blend variants: three 4-way A:B:C:D blends, three 3-way A:B:C blends (pre-Europe baseline), three 2-way A:B blends, and the meta-rotation. <strong>Default view shows only four lines</strong> — the deployed 4-way blend, the prior 3-way baseline, the 2-way 50/50 A:B (for "does adding C help?"), and Strategy A standalone. <strong>Click any legend chip below to add or remove a line</strong>; the chart below the chart-area will redraw immediately. All series renormalised to 1.0 at the common start date.</p>
+      <p class="section-sub full">Comparison view across every blend variant tested: 4-way A:B:C:D, 3-way A:B:C (pre-Europe baseline), 2-way A:B, the meta-rotation, plus each sleeve standalone. <strong>Default view shows only four lines</strong> — the deployed 4-way blend, the prior 3-way baseline, the 2-way 50/50 A:B (for "does adding C help?"), and Strategy A standalone. <strong>Click any legend chip below to add or remove a line</strong>; the chart redraws immediately. All series renormalised to 0% at the common start date.</p>
       <div id="multi-equity-chart" class="chart tall"></div>
       <table class="small-table" id="multi-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
       <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="multi-note"></p>
@@ -7962,6 +7969,126 @@ function renderMultiCharts() {
 
   renderMultiStatsTable();
   renderMultiBootstrapTable();
+  renderMultiContribution();
+}
+
+// Phase 26.11 — sleeve + overlay contribution chart. The "all
+// variants" chart is unavoidably busy because it serves a comparison
+// purpose; this section answers the simpler, more interesting question
+// for a CIO: "where is the deployed return coming from?"
+//
+// Contribution = standalone sleeve CAGR x its weight in the deployed
+// blend. Overlay contributions are differential (gated - ungated and
+// gated+tilted - gated). Sum approximates the deployed blend CAGR;
+// small residual from compounding/rebalancing interactions is noted
+// in the chart subtitle.
+function renderMultiContribution() {
+  const m = window.DATA?.multi;
+  if (!m || !m.strategies) return;
+  const s = m.strategies;
+  const target = document.getElementById('multi-contribution-chart');
+  if (!target) return;
+
+  // Deployed blend weights (35/35/10/20 base; gate + EM tilt overlays).
+  const W = { a: 0.35, b: 0.35, c: 0.10, d: 0.20 };
+  const sleeves = [
+    { key: 'strategy_a', label: 'Strategy A · US Sectors',  weight: W.a,
+      colour: '#1351b4' },
+    { key: 'strategy_b', label: 'Strategy B · Asset Class', weight: W.b,
+      colour: '#0d9488' },
+    { key: 'strategy_c', label: 'Strategy C · Thematic',    weight: W.c,
+      colour: '#dc2626' },
+    { key: 'strategy_d', label: 'Strategy D · Europe',      weight: W.d,
+      colour: '#7c3aed' },
+  ];
+
+  const rows = [];
+  let baseSum = 0;
+  for (const sl of sleeves) {
+    const cagr = s[sl.key]?.cagr;
+    if (cagr == null) continue;
+    const contrib = cagr * sl.weight;  // weighted CAGR contribution
+    baseSum += contrib;
+    rows.push({
+      label: `${sl.label} (${(sl.weight * 100).toFixed(0)}% weight × ${(cagr * 100).toFixed(1)}% CAGR)`,
+      value: contrib * 100,  // pp
+      colour: sl.colour,
+    });
+  }
+
+  // Overlay contributions — differential CAGR vs the prior layer.
+  const ungated  = s.blend_35_35_10_20?.cagr;
+  const gated    = s.blend_35_35_10_20_gated?.cagr;
+  const gatedTilt = s.blend_35_35_10_20_gated_eem_tilted?.cagr;
+  if (ungated != null && gated != null) {
+    rows.push({
+      label: `Risk Overlay (gated CAGR ${(gated * 100).toFixed(1)}% − ungated ${(ungated * 100).toFixed(1)}%)`,
+      value: (gated - ungated) * 100,
+      colour: gated > ungated ? '#1d7a3a' : '#b45309',
+    });
+  }
+  if (gated != null && gatedTilt != null) {
+    rows.push({
+      label: `EM Tilt (gated+tilted ${(gatedTilt * 100).toFixed(1)}% − gated ${(gated * 100).toFixed(1)}%)`,
+      value: (gatedTilt - gated) * 100,
+      colour: gatedTilt > gated ? '#1d7a3a' : '#b45309',
+    });
+  }
+
+  // Total deployed bar as a thicker reference line
+  const deployed = gatedTilt != null ? gatedTilt
+                  : gated != null ? gated
+                  : ungated;
+  if (deployed != null) {
+    rows.push({
+      label: `→ Deployed blend total CAGR`,
+      value: deployed * 100,
+      colour: '#0b0f14',
+      isTotal: true,
+    });
+  }
+
+  // Plot as horizontal bar chart, deployed at top (descending order).
+  rows.reverse();
+  const trace = {
+    type: 'bar', orientation: 'h',
+    x: rows.map(r => r.value),
+    y: rows.map(r => r.label),
+    marker: { color: rows.map(r => r.colour) },
+    text: rows.map(r => (r.value >= 0 ? '+' : '') + r.value.toFixed(2) + 'pp'),
+    textposition: 'outside', cliponaxis: false,
+    hovertemplate: '%{y}<br>%{x:+.2f}pp contribution<extra></extra>',
+  };
+
+  if (typeof Plotly !== 'undefined') {
+    Plotly.newPlot(target, [trace], {
+      margin: { t: 8, r: 100, b: 50, l: 340 },
+      xaxis: { showgrid: true, gridcolor: '#eef0f3', color: '#4a5159',
+               tickfont: { size: 11 }, zeroline: true,
+               zerolinecolor: '#9ca3af', zerolinewidth: 1,
+               title: { text: 'Contribution to deployed blend CAGR (percentage points)',
+                        font: { size: 11 } } },
+      yaxis: { showgrid: false, color: '#4a5159', tickfont: { size: 12 },
+               automargin: true },
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+      font: { family: 'Inter', size: 12, color: '#4a5159' },
+      showlegend: false,
+    }, { displayModeBar: false, responsive: true });
+  }
+
+  // Note: explain the residual between sleeve-sum and deployed total
+  const noteEl = document.getElementById('multi-contribution-note');
+  if (noteEl && deployed != null) {
+    const overlaySum = ((gated - ungated) || 0) + ((gatedTilt - gated) || 0);
+    const residual = deployed - baseSum - overlaySum;
+    noteEl.innerHTML =
+      `Sleeve-contributions sum to ${(baseSum * 100).toFixed(2)}pp ` +
+      `+ overlay contributions ${(overlaySum * 100).toFixed(2)}pp = ` +
+      `${((baseSum + overlaySum) * 100).toFixed(2)}pp. ` +
+      `Deployed blend CAGR is ${(deployed * 100).toFixed(2)}pp; ` +
+      `residual of ${(residual * 100).toFixed(2)}pp reflects ` +
+      `weekly rebalancing + compounding interactions between sleeves.`;
+  }
 }
 
 function renderMultiBootstrapTable() {
@@ -8836,6 +8963,7 @@ function activateTab(name) {
     }
     if (name === 'multi') {
       try { Plotly.Plots.resize('multi-equity-chart'); } catch(e){}
+      try { Plotly.Plots.resize('multi-contribution-chart'); } catch(e){}
     }
     if (name === 'history') {
       try { Plotly.Plots.resize('blend-allocation-chart'); } catch(e){}
