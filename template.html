@@ -2380,7 +2380,7 @@
 
     <section>
       <h2>Contribution by sleeve over time — and vs benchmarks</h2>
-      <p class="section-sub full">Each shaded layer is a sleeve's weighted contribution to the deployed blend's cumulative return at time t: <code>w<sub>i</sub> × (equity<sub>i</sub>(t) / equity<sub>i</sub>(0) − 1)</code>. The <strong>thick navy line</strong> on top is the deployed blend (with Risk Overlay + EM Tilt) — the <strong>gap between the navy line and the top of the stack</strong> is the overlay impact. The <strong>dashed grey line</strong> is the ungated blend (sleeves only, no overlays). Two passive benchmarks for context: <strong>dashed amber</strong> = SPY buy-and-hold, <strong>dashed teal</strong> = 60/40 SPY/IEF balanced portfolio.</p>
+      <p class="section-sub full">Each pastel-shaded layer is a sleeve's weighted contribution to the deployed blend's cumulative return at time t: <code>w<sub>i</sub> × (equity<sub>i</sub>(t) / equity<sub>i</sub>(0) − 1)</code>. The <strong style="color:#dc2626;">thick red line</strong> is the deployed blend (with Risk Overlay + EM Tilt) — the dominant reference. The <strong>dashed near-black line</strong> is the ungated blend (sleeves only, no overlays); the <strong>gap between red and near-black</strong> shows the overlay impact directly. Two passive benchmarks for context: <strong style="color:#78350f;">dotted brown</strong> = SPY buy-and-hold, <strong style="color:#0c4a6e;">dotted dark teal</strong> = 60/40 SPY/IEF.</p>
       <div id="multi-contribution-stack-chart" class="chart tall"></div>
 
       <details style="margin-top:20px;border-top:1px solid var(--border);padding-top:18px;">
@@ -7999,11 +7999,17 @@ function renderMultiContributionStack() {
 
   const W = { strategy_a: 0.35, strategy_b: 0.35,
               strategy_c: 0.10, strategy_d: 0.20 };
+  // Phase 26.14 — visual hierarchy inverted: the THICK RED deployed
+  // line should be the most prominent thing on the chart, with stack
+  // sleeves in pastel shades so they recede; dashed/dotted benchmark
+  // lines get dark colours so they stay readable against the lighter
+  // stack. Previously the saturated stack drowned out the deployed
+  // black line.
   const colours = {
-    strategy_a: '#1351b4',  // navy — US Sectors
-    strategy_b: '#0d9488',  // teal — Asset Class
-    strategy_c: '#dc2626',  // red — Thematic
-    strategy_d: '#7c3aed',  // violet — Europe
+    strategy_a: '#bfdbfe',  // pastel sky-blue — US Sectors
+    strategy_b: '#a7f3d0',  // pastel mint — Asset Class
+    strategy_c: '#fed7aa',  // pastel peach — Thematic (was red; red is now reserved for deployed)
+    strategy_d: '#d8b4fe',  // pastel violet — Europe
   };
   const labels = {
     strategy_a: 'Strategy A · US Sectors (35%)',
@@ -8090,7 +8096,8 @@ function renderMultiContributionStack() {
     return aligned.map(v => v == null ? null : (v / firstReal - 1) * 100);
   };
 
-  // Deployed blend (gated + EM tilted) — the actual deployed result
+  // Deployed blend (gated + EM tilted) — the actual deployed result.
+  // Thick, vivid red — the dominant line on the chart.
   const tilted = window.DATA?.risk_overlay?.gated_variants
                   ?.blend_35_35_10_20_gated_eem_tilted;
   if (tilted && tilted.dates && tilted.equity) {
@@ -8099,15 +8106,15 @@ function renderMultiContributionStack() {
       y: _alignAndRenormalise(tilted.dates, tilted.equity),
       name: 'Deployed blend (with overlays)',
       type: 'scatter', mode: 'lines',
-      line: { color: '#0b0f14', width: 2.6 },
+      line: { color: '#dc2626', width: 3.5 },
       hovertemplate: 'Deployed: %{y:+.1f}pp<extra></extra>',
     });
   }
 
   // Ungated blend baseline — sleeves only, no Risk Overlay, no EM tilt.
-  // The gap between this line and the deployed line shows the overlay
-  // impact directly. Should also closely match the top of the stack
-  // (with a small compounding-interaction residual).
+  // Dashed near-black so it reads cleanly against the pastel stack.
+  // The gap between this line and the deployed red line is the
+  // overlay impact directly.
   const ungated = s.blend_35_35_10_20;
   if (ungated && ungated.dates && ungated.equity) {
     traces.push({
@@ -8115,15 +8122,13 @@ function renderMultiContributionStack() {
       y: _alignAndRenormalise(ungated.dates, ungated.equity),
       name: 'Ungated blend (sleeves only, no overlays)',
       type: 'scatter', mode: 'lines',
-      line: { color: '#6b7280', width: 1.6, dash: 'dash' },
+      line: { color: '#1f2937', width: 1.8, dash: 'dash' },
       hovertemplate: 'Ungated: %{y:+.1f}pp<extra></extra>',
     });
   }
 
-  // Passive benchmarks from asset_class_rotation.benchmarks.
-  // They start 2007-10 (deeper history than the deployed window);
-  // _alignAndRenormalise picks up the first common date and resets to
-  // 0% there so the visual comparison is apples-to-apples.
+  // Passive benchmarks — dark, saturated colours so the dotted style
+  // remains legible against the lighter stack underneath.
   const benchmarks = window.DATA?.asset_class?.benchmarks || {};
   const spy = benchmarks.spy_buy_hold;
   if (spy && spy.dates && spy.equity) {
@@ -8132,7 +8137,7 @@ function renderMultiContributionStack() {
       y: _alignAndRenormalise(spy.dates, spy.equity),
       name: 'SPY buy-and-hold (passive)',
       type: 'scatter', mode: 'lines',
-      line: { color: '#b45309', width: 1.6, dash: 'dot' },
+      line: { color: '#78350f', width: 1.8, dash: 'dot' },
       hovertemplate: 'SPY B&H: %{y:+.1f}pp<extra></extra>',
     });
   }
@@ -8143,7 +8148,7 @@ function renderMultiContributionStack() {
       y: _alignAndRenormalise(sixtyForty.dates, sixtyForty.equity),
       name: '60/40 SPY/IEF (passive)',
       type: 'scatter', mode: 'lines',
-      line: { color: '#0e7490', width: 1.6, dash: 'dot' },
+      line: { color: '#0c4a6e', width: 1.8, dash: 'dot' },
       hovertemplate: '60/40: %{y:+.1f}pp<extra></extra>',
     });
   }
