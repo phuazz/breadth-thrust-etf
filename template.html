@@ -2379,8 +2379,8 @@
     </section>
 
     <section>
-      <h2>Contribution by sleeve over time</h2>
-      <p class="section-sub full">Each shaded layer is a sleeve's weighted contribution to the deployed blend's cumulative return at time t: <code>w<sub>i</sub> × (equity<sub>i</sub>(t) / equity<sub>i</sub>(0) − 1)</code>. The top of the stack at any date is approximately the deployed blend's cumulative return on that date. The width of each layer at any vertical slice shows that sleeve's running contribution; thin slivers mean the sleeve was idling or even subtracting; tall layers mean the sleeve was carrying the blend.</p>
+      <h2>Contribution by sleeve over time — and vs benchmarks</h2>
+      <p class="section-sub full">Each shaded layer is a sleeve's weighted contribution to the deployed blend's cumulative return at time t: <code>w<sub>i</sub> × (equity<sub>i</sub>(t) / equity<sub>i</sub>(0) − 1)</code>. The <strong>thick navy line</strong> on top is the deployed blend (with Risk Overlay + EM Tilt) — the <strong>gap between the navy line and the top of the stack</strong> is the overlay impact. The <strong>dashed grey line</strong> is the ungated blend (sleeves only, no overlays). Two passive benchmarks for context: <strong>dashed amber</strong> = SPY buy-and-hold, <strong>dashed teal</strong> = 60/40 SPY/IEF balanced portfolio.</p>
       <div id="multi-contribution-stack-chart" class="chart tall"></div>
 
       <details style="margin-top:20px;border-top:1px solid var(--border);padding-top:18px;">
@@ -8062,6 +8062,91 @@ function renderMultiContributionStack() {
     stackgroup: 'one',
     hovertemplate: labels[k] + ': %{y:+.1f}pp<extra></extra>',
   }));
+
+  // ---- Overlay & benchmark reference lines ----------------------
+  // Phase 26.13: addresses "how can we add the EEM Tilt and Risk
+  // Overlay performances? Also benchmark comparison vs SPY B&H vs
+  // 60/40 etc". The gap between the ungated reference and the
+  // deployed gated+tilted line IS the overlay impact, plotted as a
+  // single coherent picture. Benchmarks anchored at the same common
+  // start date as the stack and renormalised to percentage points.
+  const _alignAndRenormalise = (srcDates, srcEquity) => {
+    // Map src dates to the axisDates; ffill semantics for non-matching
+    // dates. Renormalise to start at 0 on the FIRST axisDate that is
+    // covered by srcDates (so the line starts where the stack starts).
+    const map = new Map();
+    for (let i = 0; i < srcDates.length; i++) {
+      map.set(srcDates[i], srcEquity[i]);
+    }
+    const aligned = [];
+    let lastKnown = null;
+    for (const d of axisDates) {
+      if (map.has(d)) lastKnown = map.get(d);
+      aligned.push(lastKnown);
+    }
+    // Find first non-null and renormalise from there
+    const firstReal = aligned.find(v => v != null);
+    if (firstReal == null) return aligned.map(_ => null);
+    return aligned.map(v => v == null ? null : (v / firstReal - 1) * 100);
+  };
+
+  // Deployed blend (gated + EM tilted) — the actual deployed result
+  const tilted = window.DATA?.risk_overlay?.gated_variants
+                  ?.blend_35_35_10_20_gated_eem_tilted;
+  if (tilted && tilted.dates && tilted.equity) {
+    traces.push({
+      x: axisDates,
+      y: _alignAndRenormalise(tilted.dates, tilted.equity),
+      name: 'Deployed blend (with overlays)',
+      type: 'scatter', mode: 'lines',
+      line: { color: '#0b0f14', width: 2.6 },
+      hovertemplate: 'Deployed: %{y:+.1f}pp<extra></extra>',
+    });
+  }
+
+  // Ungated blend baseline — sleeves only, no Risk Overlay, no EM tilt.
+  // The gap between this line and the deployed line shows the overlay
+  // impact directly. Should also closely match the top of the stack
+  // (with a small compounding-interaction residual).
+  const ungated = s.blend_35_35_10_20;
+  if (ungated && ungated.dates && ungated.equity) {
+    traces.push({
+      x: axisDates,
+      y: _alignAndRenormalise(ungated.dates, ungated.equity),
+      name: 'Ungated blend (sleeves only, no overlays)',
+      type: 'scatter', mode: 'lines',
+      line: { color: '#6b7280', width: 1.6, dash: 'dash' },
+      hovertemplate: 'Ungated: %{y:+.1f}pp<extra></extra>',
+    });
+  }
+
+  // Passive benchmarks from asset_class_rotation.benchmarks.
+  // They start 2007-10 (deeper history than the deployed window);
+  // _alignAndRenormalise picks up the first common date and resets to
+  // 0% there so the visual comparison is apples-to-apples.
+  const benchmarks = window.DATA?.asset_class?.benchmarks || {};
+  const spy = benchmarks.spy_buy_hold;
+  if (spy && spy.dates && spy.equity) {
+    traces.push({
+      x: axisDates,
+      y: _alignAndRenormalise(spy.dates, spy.equity),
+      name: 'SPY buy-and-hold (passive)',
+      type: 'scatter', mode: 'lines',
+      line: { color: '#b45309', width: 1.6, dash: 'dot' },
+      hovertemplate: 'SPY B&H: %{y:+.1f}pp<extra></extra>',
+    });
+  }
+  const sixtyForty = benchmarks.sixty_forty;
+  if (sixtyForty && sixtyForty.dates && sixtyForty.equity) {
+    traces.push({
+      x: axisDates,
+      y: _alignAndRenormalise(sixtyForty.dates, sixtyForty.equity),
+      name: '60/40 SPY/IEF (passive)',
+      type: 'scatter', mode: 'lines',
+      line: { color: '#0e7490', width: 1.6, dash: 'dot' },
+      hovertemplate: '60/40: %{y:+.1f}pp<extra></extra>',
+    });
+  }
 
   Plotly.newPlot(target, traces, {
     margin: { t: 10, r: 16, b: 70, l: 60 },
