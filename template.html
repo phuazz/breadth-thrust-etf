@@ -2372,18 +2372,26 @@
     </div>
 
     <section>
-      <h2>Where the deployed return comes from — sleeve contribution</h2>
-      <p class="section-sub full">The deployed 35/35/10/20 blend's annualised return decomposed into the contribution of each sleeve and each overlay. <strong>Linear weighted contribution</strong>: sleeve i contributes its standalone CAGR × its weight in the blend. <strong>Overlay contributions</strong> are differential: Risk Overlay = (gated CAGR − ungated CAGR), EM Tilt = (gated+tilted CAGR − gated CAGR). The sum approximates the deployed blend CAGR; small rebalancing/compounding interactions account for the residual.</p>
-      <div id="multi-contribution-chart" class="chart" style="height:340px;"></div>
+      <h2>Where the deployed performance comes from — full attribution</h2>
+      <p class="section-sub full">Each component's contribution to the deployed blend across three dimensions: <strong>CAGR</strong> (how much return it adds), <strong>Max drawdown</strong> (what it brings to the standalone DD profile, or for overlays what it removes), and <strong>Sharpe</strong> (its risk-adjusted footprint). <em>This answers why we have the two overlays:</em> Risk Overlay sacrifices a small slice of CAGR to take material chunks off the worst drawdown; EM Tilt's contribution is intentionally small (it is a low-cost positional bet on a cycle turn, not an alpha source).</p>
+      <div id="multi-contribution-table-wrap"></div>
       <p style="margin-top:8px;font-size:12px;color:var(--ink-faint);" id="multi-contribution-note"></p>
     </section>
 
     <section>
-      <h2>All variants side-by-side</h2>
-      <p class="section-sub full">Comparison view across every blend variant tested: 4-way A:B:C:D, 3-way A:B:C (pre-Europe baseline), 2-way A:B, the meta-rotation, plus each sleeve standalone. <strong>Default view shows only four lines</strong> — the deployed 4-way blend, the prior 3-way baseline, the 2-way 50/50 A:B (for "does adding C help?"), and Strategy A standalone. <strong>Click any legend chip below to add or remove a line</strong>; the chart redraws immediately. All series renormalised to 0% at the common start date.</p>
-      <div id="multi-equity-chart" class="chart tall"></div>
-      <table class="small-table" id="multi-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
-      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="multi-note"></p>
+      <h2>Contribution by sleeve over time</h2>
+      <p class="section-sub full">Each shaded layer is a sleeve's weighted contribution to the deployed blend's cumulative return at time t: <code>w<sub>i</sub> × (equity<sub>i</sub>(t) / equity<sub>i</sub>(0) − 1)</code>. The top of the stack at any date is approximately the deployed blend's cumulative return on that date. The width of each layer at any vertical slice shows that sleeve's running contribution; thin slivers mean the sleeve was idling or even subtracting; tall layers mean the sleeve was carrying the blend.</p>
+      <div id="multi-contribution-stack-chart" class="chart tall"></div>
+
+      <details style="margin-top:20px;border-top:1px solid var(--border);padding-top:18px;">
+        <summary style="cursor:pointer;color:var(--ink-soft);font-weight:600;">
+          Compare other blend variants — full side-by-side equity curves
+        </summary>
+        <p class="section-sub full" style="margin-top:12px;">Comparison view across every blend variant tested: 4-way A:B:C:D, 3-way A:B:C (pre-Europe baseline), 2-way A:B, the meta-rotation, plus each sleeve standalone. <strong>Default view shows only four lines</strong> — the deployed 4-way blend, the prior 3-way baseline, the 2-way 50/50 A:B (for "does adding C help?"), and Strategy A standalone. <strong>Click any legend chip below to add or remove a line</strong>; the chart redraws immediately.</p>
+        <div id="multi-equity-chart" class="chart tall"></div>
+        <table class="small-table" id="multi-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
+        <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="multi-note"></p>
+      </details>
     </section>
 
     <section>
@@ -7970,124 +7978,281 @@ function renderMultiCharts() {
   renderMultiStatsTable();
   renderMultiBootstrapTable();
   renderMultiContribution();
+  renderMultiContributionStack();
 }
 
-// Phase 26.11 — sleeve + overlay contribution chart. The "all
-// variants" chart is unavoidably busy because it serves a comparison
-// purpose; this section answers the simpler, more interesting question
-// for a CIO: "where is the deployed return coming from?"
+// Phase 26.12 — stacked area chart of cumulative weighted contribution
+// by sleeve over time. Replaces the busy 12-line "All variants"
+// equity-comparison chart at the top of the section; the variants
+// comparison chart is preserved in a collapsible accordion below for
+// those who want it.
 //
-// Contribution = standalone sleeve CAGR x its weight in the deployed
-// blend. Overlay contributions are differential (gated - ungated and
-// gated+tilted - gated). Sum approximates the deployed blend CAGR;
-// small residual from compounding/rebalancing interactions is noted
-// in the chart subtitle.
+// For each sleeve at time t: layer height = w_i * (equity_i(t) /
+// equity_i(0) - 1). Stacked. The top of the stack at any t equals
+// the LINEAR sum of weighted sleeve returns (≈ deployed blend's
+// cumulative return; small residual from compounding interactions).
+function renderMultiContributionStack() {
+  const m = window.DATA?.multi;
+  if (!m || !m.strategies) return;
+  const target = document.getElementById('multi-contribution-stack-chart');
+  if (!target || typeof Plotly === 'undefined') return;
+
+  const W = { strategy_a: 0.35, strategy_b: 0.35,
+              strategy_c: 0.10, strategy_d: 0.20 };
+  const colours = {
+    strategy_a: '#1351b4',  // navy — US Sectors
+    strategy_b: '#0d9488',  // teal — Asset Class
+    strategy_c: '#dc2626',  // red — Thematic
+    strategy_d: '#7c3aed',  // violet — Europe
+  };
+  const labels = {
+    strategy_a: 'Strategy A · US Sectors (35%)',
+    strategy_b: 'Strategy B · Asset Class (35%)',
+    strategy_c: 'Strategy C · Thematic (10%)',
+    strategy_d: 'Strategy D · Europe (20%)',
+  };
+
+  // Build the per-sleeve weighted contribution series. Use the union
+  // of dates from all sleeves; ffill each sleeve's equity onto the
+  // union (skipping the first NaN region from each series's start).
+  const s = m.strategies;
+  const sleeveKeys = ['strategy_a', 'strategy_b', 'strategy_c', 'strategy_d']
+    .filter(k => s[k] && s[k].dates && s[k].dates.length);
+  if (!sleeveKeys.length) return;
+
+  // Use Strategy A's date axis as the canonical timeline since A is
+  // typically the longest-running sleeve. Reindex others by date
+  // matching with forward-fill semantics.
+  const axisDates = s[sleeveKeys[0]].dates;
+  const indexed = {};
+  for (const k of sleeveKeys) {
+    const map = new Map();
+    for (let i = 0; i < s[k].dates.length; i++) {
+      map.set(s[k].dates[i], s[k].equity[i]);
+    }
+    const startEq = s[k].equity[0];
+    const aligned = [];
+    let lastKnown = null;
+    for (const d of axisDates) {
+      if (map.has(d)) lastKnown = map.get(d);
+      aligned.push(lastKnown);  // null until first observation, then ffill
+    }
+    indexed[k] = { startEq, aligned };
+  }
+
+  // Compute weighted contribution for each sleeve at each date.
+  const contribs = {};
+  for (const k of sleeveKeys) {
+    const w = W[k];
+    const startEq = indexed[k].startEq;
+    const aligned = indexed[k].aligned;
+    contribs[k] = aligned.map(eq => {
+      if (eq == null || startEq == null) return null;
+      return w * (eq / startEq - 1) * 100;  // pp
+    });
+  }
+
+  const traces = sleeveKeys.map(k => ({
+    x: axisDates,
+    y: contribs[k],
+    name: labels[k],
+    type: 'scatter', mode: 'lines',
+    line: { color: colours[k], width: 0.5 },
+    fillcolor: colours[k],
+    stackgroup: 'one',
+    hovertemplate: labels[k] + ': %{y:+.1f}pp<extra></extra>',
+  }));
+
+  Plotly.newPlot(target, traces, {
+    margin: { t: 10, r: 16, b: 70, l: 60 },
+    xaxis: { showgrid: false, color: '#4a5159',
+             hoverformat: '%d %b %Y', tickfont: { size: 11 } },
+    yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
+              tickfont: { size: 11 }, zeroline: true,
+              zerolinecolor: '#9ca3af', zerolinewidth: 1,
+              title: { text: 'Cumulative weighted contribution (pp)',
+                       font: { size: 11 } } },
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    hovermode: 'x unified',
+    legend: { orientation: 'h', y: -0.18, x: 0, xanchor: 'left',
+               font: { size: 12 } },
+    font: { family: 'Inter', size: 12, color: '#4a5159' },
+  }, { displayModeBar: false, responsive: true });
+}
+
+// Phase 26.12 — three-dimension component attribution table.
+// Previously a bar chart of weighted CAGR contribution; that view
+// made the two overlays look pointless (negative or near-zero CAGR
+// contribution) because their value is RISK reduction, not return.
+// Reframed as a three-column attribution table: CAGR contribution +
+// Max DD impact + Sharpe contribution. The overlay rows now visibly
+// pay their way: Risk Overlay sacrifices ~0.2pp of CAGR for ~7pp of
+// drawdown protection; EM Tilt is intentionally tiny (low-cost
+// positional bet, not an alpha source).
 function renderMultiContribution() {
   const m = window.DATA?.multi;
   if (!m || !m.strategies) return;
   const s = m.strategies;
-  const target = document.getElementById('multi-contribution-chart');
-  if (!target) return;
+  const wrap = document.getElementById('multi-contribution-table-wrap');
+  if (!wrap) return;
 
   // Deployed blend weights (35/35/10/20 base; gate + EM tilt overlays).
   const W = { a: 0.35, b: 0.35, c: 0.10, d: 0.20 };
+
+  const fmtPP = (v) => v == null ? '—'
+    : (v >= 0 ? '+' : '') + v.toFixed(2) + 'pp';
+  const fmtSh = (v) => v == null ? '—'
+    : (v >= 0 ? '+' : '') + v.toFixed(2);
+  const fmtRaw = (v) => v == null ? '—'
+    : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+
+  // Per-sleeve rows
   const sleeves = [
-    { key: 'strategy_a', label: 'Strategy A · US Sectors',  weight: W.a,
-      colour: '#1351b4' },
-    { key: 'strategy_b', label: 'Strategy B · Asset Class', weight: W.b,
-      colour: '#0d9488' },
-    { key: 'strategy_c', label: 'Strategy C · Thematic',    weight: W.c,
-      colour: '#dc2626' },
-    { key: 'strategy_d', label: 'Strategy D · Europe',      weight: W.d,
-      colour: '#7c3aed' },
+    { key: 'strategy_a', label: 'Strategy A · US Sectors',  weight: W.a },
+    { key: 'strategy_b', label: 'Strategy B · Asset Class', weight: W.b },
+    { key: 'strategy_c', label: 'Strategy C · Thematic',    weight: W.c },
+    { key: 'strategy_d', label: 'Strategy D · Europe',      weight: W.d },
   ];
 
-  const rows = [];
-  let baseSum = 0;
-  for (const sl of sleeves) {
-    const cagr = s[sl.key]?.cagr;
-    if (cagr == null) continue;
-    const contrib = cagr * sl.weight;  // weighted CAGR contribution
-    baseSum += contrib;
-    rows.push({
-      label: `${sl.label} (${(sl.weight * 100).toFixed(0)}% weight × ${(cagr * 100).toFixed(1)}% CAGR)`,
-      value: contrib * 100,  // pp
-      colour: sl.colour,
+  const sleeveRows = sleeves.map(sl => {
+    const v = s[sl.key];
+    if (!v) return null;
+    return {
+      label: sl.label,
+      detail: `${(sl.weight * 100).toFixed(0)}% weight × standalone CAGR ${(v.cagr * 100).toFixed(1)}%`,
+      cagrPP:  v.cagr * sl.weight * 100,
+      ddRaw:   v.max_dd,
+      shCont:  v.sharpe * sl.weight,
+      isOverlay: false,
+    };
+  }).filter(Boolean);
+
+  // Overlay rows — differential against the prior layer.
+  const ungated = s.blend_35_35_10_20;
+  const gated   = s.blend_35_35_10_20_gated;
+  const tilted  = s.blend_35_35_10_20_gated_eem_tilted;
+  const overlayRows = [];
+  if (ungated && gated) {
+    overlayRows.push({
+      label: 'Risk Overlay',
+      detail: `Gated CAGR ${(gated.cagr * 100).toFixed(1)}% − ungated CAGR ${(ungated.cagr * 100).toFixed(1)}%`,
+      cagrPP:  (gated.cagr - ungated.cagr) * 100,
+      ddRaw:   gated.max_dd - ungated.max_dd,  // diff in DD (negative DD; +ve diff = shallower)
+      shCont:  gated.sharpe - ungated.sharpe,
+      isOverlay: true,
+    });
+  }
+  if (gated && tilted) {
+    overlayRows.push({
+      label: 'EM Tilt',
+      detail: `Tilted CAGR ${(tilted.cagr * 100).toFixed(1)}% − gated CAGR ${(gated.cagr * 100).toFixed(1)}%`,
+      cagrPP:  (tilted.cagr - gated.cagr) * 100,
+      ddRaw:   tilted.max_dd - gated.max_dd,
+      shCont:  tilted.sharpe - gated.sharpe,
+      isOverlay: true,
     });
   }
 
-  // Overlay contributions — differential CAGR vs the prior layer.
-  const ungated  = s.blend_35_35_10_20?.cagr;
-  const gated    = s.blend_35_35_10_20_gated?.cagr;
-  const gatedTilt = s.blend_35_35_10_20_gated_eem_tilted?.cagr;
-  if (ungated != null && gated != null) {
-    rows.push({
-      label: `Risk Overlay (gated CAGR ${(gated * 100).toFixed(1)}% − ungated ${(ungated * 100).toFixed(1)}%)`,
-      value: (gated - ungated) * 100,
-      colour: gated > ungated ? '#1d7a3a' : '#b45309',
-    });
-  }
-  if (gated != null && gatedTilt != null) {
-    rows.push({
-      label: `EM Tilt (gated+tilted ${(gatedTilt * 100).toFixed(1)}% − gated ${(gated * 100).toFixed(1)}%)`,
-      value: (gatedTilt - gated) * 100,
-      colour: gatedTilt > gated ? '#1d7a3a' : '#b45309',
-    });
-  }
+  const allRows = [...sleeveRows, ...overlayRows];
 
-  // Total deployed bar as a thicker reference line
-  const deployed = gatedTilt != null ? gatedTilt
-                  : gated != null ? gated
-                  : ungated;
-  if (deployed != null) {
-    rows.push({
-      label: `→ Deployed blend total CAGR`,
-      value: deployed * 100,
-      colour: '#0b0f14',
-      isTotal: true,
-    });
-  }
+  // Deployed total = the final-layer blend
+  const deployed = tilted || gated || ungated;
+  const totalRow = deployed ? {
+    label: '→ Deployed blend total',
+    detail: `35% A + 35% B + 10% C + 20% D, with Risk Overlay + EM Tilt`,
+    cagrPP: deployed.cagr * 100,
+    ddRaw:  deployed.max_dd,
+    shCont: deployed.sharpe,
+  } : null;
 
-  // Plot as horizontal bar chart, deployed at top (descending order).
-  rows.reverse();
-  const trace = {
-    type: 'bar', orientation: 'h',
-    x: rows.map(r => r.value),
-    y: rows.map(r => r.label),
-    marker: { color: rows.map(r => r.colour) },
-    text: rows.map(r => (r.value >= 0 ? '+' : '') + r.value.toFixed(2) + 'pp'),
-    textposition: 'outside', cliponaxis: false,
-    hovertemplate: '%{y}<br>%{x:+.2f}pp contribution<extra></extra>',
+  const ddCell = (row) => {
+    // Sleeves: their standalone max DD is informational (what risk
+    // does this sleeve bring to the blend on its own?). Overlays:
+    // the diff (positive = made DD shallower) is what matters.
+    if (row.isOverlay) {
+      const v = row.ddRaw;
+      if (v == null) return '—';
+      const sign = v > 0 ? '+' : '';
+      const colour = v > 0 ? 'var(--good)' : 'var(--bad)';
+      return `<span style="color:${colour};font-weight:600;">${sign}${(v * 100).toFixed(1)}pp ${v > 0 ? 'shallower' : 'deeper'}</span>`;
+    }
+    return `<span style="color:var(--ink-soft);">${fmtRaw(row.ddRaw)} standalone</span>`;
   };
 
-  if (typeof Plotly !== 'undefined') {
-    Plotly.newPlot(target, [trace], {
-      margin: { t: 8, r: 100, b: 50, l: 340 },
-      xaxis: { showgrid: true, gridcolor: '#eef0f3', color: '#4a5159',
-               tickfont: { size: 11 }, zeroline: true,
-               zerolinecolor: '#9ca3af', zerolinewidth: 1,
-               title: { text: 'Contribution to deployed blend CAGR (percentage points)',
-                        font: { size: 11 } } },
-      yaxis: { showgrid: false, color: '#4a5159', tickfont: { size: 12 },
-               automargin: true },
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-      font: { family: 'Inter', size: 12, color: '#4a5159' },
-      showlegend: false,
-    }, { displayModeBar: false, responsive: true });
+  let html = `
+    <table class="small-table" style="font-size:13.5px;">
+      <thead>
+        <tr>
+          <th style="text-align:left;">Component</th>
+          <th style="text-align:right;">CAGR contribution</th>
+          <th style="text-align:right;">Max DD impact</th>
+          <th style="text-align:right;">Sharpe contribution</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+  for (const r of allRows) {
+    const cagrColour = r.cagrPP > 0 ? 'var(--good)' :
+                       r.cagrPP < 0 ? 'var(--bad)' : 'var(--ink-soft)';
+    html += `
+      <tr>
+        <td style="padding:8px 10px;">
+          <div style="font-weight:600;">${r.label}</div>
+          <div style="font-size:11.5px;color:var(--ink-faint);">${r.detail}</div>
+        </td>
+        <td style="text-align:right;padding:8px 10px;font-variant-numeric:tabular-nums;
+                   color:${cagrColour};font-weight:600;">
+          ${fmtPP(r.cagrPP)}
+        </td>
+        <td style="text-align:right;padding:8px 10px;font-variant-numeric:tabular-nums;">
+          ${ddCell(r)}
+        </td>
+        <td style="text-align:right;padding:8px 10px;font-variant-numeric:tabular-nums;
+                   color:${r.shCont >= 0 ? 'var(--good)' : 'var(--bad)'};font-weight:600;">
+          ${fmtSh(r.shCont)}
+        </td>
+      </tr>
+    `;
   }
+  if (totalRow) {
+    html += `
+      <tr style="border-top:2px solid var(--ink);">
+        <td style="padding:10px;font-weight:700;">
+          ${totalRow.label}
+          <div style="font-size:11.5px;color:var(--ink-faint);font-weight:400;">${totalRow.detail}</div>
+        </td>
+        <td style="text-align:right;padding:10px;font-variant-numeric:tabular-nums;
+                   font-weight:700;color:var(--good);">${fmtPP(totalRow.cagrPP)}</td>
+        <td style="text-align:right;padding:10px;font-variant-numeric:tabular-nums;
+                   font-weight:700;color:var(--good);">
+          ${fmtRaw(totalRow.ddRaw)}
+        </td>
+        <td style="text-align:right;padding:10px;font-variant-numeric:tabular-nums;
+                   font-weight:700;color:var(--good);">${fmtSh(totalRow.shCont)}</td>
+      </tr>
+    `;
+  }
+  html += `</tbody></table>`;
+  wrap.innerHTML = html;
 
-  // Note: explain the residual between sleeve-sum and deployed total
+  // Subtitle: the residual narrative still belongs here
   const noteEl = document.getElementById('multi-contribution-note');
-  if (noteEl && deployed != null) {
-    const overlaySum = ((gated - ungated) || 0) + ((gatedTilt - gated) || 0);
-    const residual = deployed - baseSum - overlaySum;
+  if (noteEl && deployed) {
+    const baseSum = sleeveRows.reduce((acc, r) => acc + r.cagrPP, 0);
+    const overlaySum = overlayRows.reduce((acc, r) => acc + r.cagrPP, 0);
+    const total = deployed.cagr * 100;
+    const residual = total - baseSum - overlaySum;
     noteEl.innerHTML =
-      `Sleeve-contributions sum to ${(baseSum * 100).toFixed(2)}pp ` +
-      `+ overlay contributions ${(overlaySum * 100).toFixed(2)}pp = ` +
-      `${((baseSum + overlaySum) * 100).toFixed(2)}pp. ` +
-      `Deployed blend CAGR is ${(deployed * 100).toFixed(2)}pp; ` +
-      `residual of ${(residual * 100).toFixed(2)}pp reflects ` +
-      `weekly rebalancing + compounding interactions between sleeves.`;
+      `<strong>Notes.</strong> CAGR contribution column rows sum to ` +
+      `${(baseSum + overlaySum).toFixed(2)}pp (sleeves ${baseSum.toFixed(2)}pp ` +
+      `+ overlays ${overlaySum.toFixed(2)}pp); deployed CAGR is ` +
+      `${total.toFixed(2)}pp, residual ${residual.toFixed(2)}pp ` +
+      `from compounding/rebalancing interactions. ` +
+      `<strong>Max DD column</strong>: sleeve rows show standalone DD (what risk ` +
+      `the sleeve brings into the blend if isolated); overlay rows show diff ` +
+      `vs the prior layer (positive = shallower, the overlay is doing its job). ` +
+      `<strong>Sharpe contribution</strong>: sleeves weighted by their blend share; ` +
+      `overlays differential vs the prior layer.`;
   }
 }
 
@@ -8963,7 +9128,7 @@ function activateTab(name) {
     }
     if (name === 'multi') {
       try { Plotly.Plots.resize('multi-equity-chart'); } catch(e){}
-      try { Plotly.Plots.resize('multi-contribution-chart'); } catch(e){}
+      try { Plotly.Plots.resize('multi-contribution-stack-chart'); } catch(e){}
     }
     if (name === 'history') {
       try { Plotly.Plots.resize('blend-allocation-chart'); } catch(e){}
