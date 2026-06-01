@@ -2343,7 +2343,7 @@
 
       <div class="overlay-card" id="phase22-chart-card" style="margin-top:14px; display:none;">
         <h3>EEM/SPY ratio history — when the tilt fires</h3>
-        <p class="section-sub" style="margin-top:-2px;">The signal in pictures. Blue line: daily EEM/SPY price ratio (raw relative strength). Orange dashed: 50d moving average (the "fast" line). Grey dashed: 200d moving average (the "slow" line). <strong>Light-green vertical bands</strong> mark periods when the tilt was ON (fast above slow — EEM in sustained relative-strength uptrend vs SPY). The raw ratio itself is a number with no intuitive scale; the picture below makes the cross-up / cross-down decision points immediately visible.</p>
+        <p class="section-sub full" style="margin-top:-2px;">The signal in pictures. Blue line: daily EEM/SPY price ratio (raw relative strength). Orange dashed: 50d moving average (the "fast" line). Grey dashed: 200d moving average (the "slow" line). <strong>Light-green vertical bands</strong> mark periods when the tilt was ON (fast above slow — EEM in sustained relative-strength uptrend vs SPY). The raw ratio itself is a number with no intuitive scale; the picture below makes the cross-up / cross-down decision points immediately visible.</p>
         <div class="period-selector overlay-period-selector"
              id="phase22-period" style="margin: 10px 0;">
           <button data-period="1m">1M</button>
@@ -3086,7 +3086,7 @@ function renderHeroStrip() {
     const since = phase22.current_state_since;
     const tiltPct = Math.round((phase22.parameters?.tilt_weight || 0.10) * 100);
     badgeHtml += `
-      <div class="regime-badge ${tiltOn ? 'off' : 'on'}" style="margin-top:8px;">
+      <div class="regime-badge ${tiltOn ? 'on' : 'off'}" style="margin-top:8px;">
         <span class="dot"></span>
         EEM TILT: ${phase22.current_state}
         <span class="meta">since ${since} · ${tiltOn
@@ -5127,8 +5127,10 @@ function renderRiskOverlay() {
     // ---- Status card ----
     const p22Status = document.getElementById('phase22-status-card');
     if (p22Status) {
+      // EM_TILT_ON = green (tilt actively capturing EM upside);
+      // EM_TILT_OFF = red (tilt has stood down).
       p22Status.className = 'overlay-card overlay-card-status '
-        + (tiltOn ? 'risk-off' : 'risk-on');  // Use risk-off styling for "active tilt" (amber)
+        + (tiltOn ? 'risk-on' : 'risk-off');
       const actionText = tiltOn
         ? `${tilt.toFixed(0)}% of NAV tilted into EEM, funded by reducing
            Strategy B from 35% to ${(35 - tilt).toFixed(0)}%. Active blend:
@@ -5141,7 +5143,7 @@ function renderRiskOverlay() {
       p22Status.innerHTML = `
         <h3>EEM tilt — current status</h3>
         <div class="overlay-state-row">
-          <span class="overlay-state-pill ${tiltOn ? 'off' : 'on'}">
+          <span class="overlay-state-pill ${tiltOn ? 'on' : 'off'}">
             <span class="dot"></span>${phase22.current_state}
           </span>
           <span class="overlay-meta">
@@ -5261,7 +5263,12 @@ function renderRiskOverlay() {
     if (p22Events && tiltEvents.length) {
       const recent = tiltEvents.slice(-8).reverse();
       const rows = recent.map(ev => {
-        const dirCls = ev.direction === 'EM_TILT_ON' ? 'dir-off' : 'dir-on';
+        // EM_TILT_ON = green (tilt is actively capturing EM upside);
+        // EM_TILT_OFF = red (tilt has stood down — passing on EM
+        // exposure). Opposite of the regime gate's RISK_OFF=warning
+        // convention because here ON is the positive-return-seeking
+        // state, not a defensive state.
+        const dirCls = ev.direction === 'EM_TILT_ON' ? 'dir-on' : 'dir-off';
         const action = ev.direction === 'EM_TILT_ON'
           ? `Tilt ${tilt.toFixed(0)}% B → EEM`
           : `Restore full B allocation`;
