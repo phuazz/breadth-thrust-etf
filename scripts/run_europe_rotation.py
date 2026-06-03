@@ -359,7 +359,7 @@ def main() -> int:
         print("  Walk-forward: insufficient data, skipped")
         walk_forward = None
 
-    print("\n=== Benchmarks (Europe sleeve vs SPY) ===")
+    print("\n=== Benchmarks (Europe sleeve vs SPY + VGK) ===")
     spy_close = download_spy_close(closes.index.min().strftime("%Y-%m-%d"),
                                     (closes.index.max() + pd.Timedelta(days=5)).strftime("%Y-%m-%d"))
     spy_close = spy_close.reindex(closes.index).ffill()
@@ -368,6 +368,51 @@ def main() -> int:
     spy_stats = compute_stats(spy_close, eligible)
     print(f"  SPY                Sharpe {spy_stats['sharpe']:+.2f}   "
           f"totRet {spy_stats['total_return']*100:+.0f}%   DD {spy_stats['max_dd']*100:.1f}%")
+
+    # Phase 27.6 — add VGK (Vanguard FTSE Europe ETF, USD-denominated)
+    # as a Europe broad-market benchmark. The Strategy D sleeve trades
+    # Stoxx Europe 600 sector slices; VGK is the canonical liquid USD
+    # proxy for the underlying Europe-broad universe (FTSE Developed
+    # Europe — same ~85% of European market cap as Stoxx 600). Adding
+    # it here so the dashboard can show "rotation alpha vs broad
+    # Europe passive" alongside the existing SPY (US passive) line.
+    import yfinance as yf
+    vgk_cache = DATA_DIR / "europe_vgk_cache.parquet"
+    try:
+        if vgk_cache.exists():
+            cached = pd.read_parquet(vgk_cache)
+            need_refresh = (cached.index.max() < closes.index.max() - pd.Timedelta(days=3))
+        else:
+            need_refresh = True
+        if need_refresh:
+            raw = yf.download("VGK", start=closes.index.min(),
+                                end=(closes.index.max() + pd.Timedelta(days=5)),
+                                auto_adjust=True, progress=False, threads=False)
+            if isinstance(raw.columns, pd.MultiIndex):
+                raw.columns = raw.columns.get_level_values(0)
+            vgk_close = raw["Close"].copy()
+            vgk_close.index = pd.to_datetime(vgk_close.index).tz_localize(None)
+            vgk_close.to_frame("Close").to_parquet(vgk_cache)
+        else:
+            vgk_close = cached["Close"]
+        vgk_close = vgk_close.reindex(closes.index).ffill()
+        vgk_window = vgk_close.loc[vgk_close.index >= eligible]
+        vgk_eq = (vgk_window / vgk_window.iloc[0])
+        vgk_stats = compute_stats(vgk_close, eligible)
+        print(f"  VGK (Europe broad) Sharpe {vgk_stats['sharpe']:+.2f}   "
+              f"totRet {vgk_stats['total_return']*100:+.0f}%   DD {vgk_stats['max_dd']*100:.1f}%")
+        vgk_benchmark = {
+            "label": "VGK buy-and-hold (Europe broad)",
+            "dates": [d.strftime("%Y-%m-%d") for d in vgk_eq.index],
+            "equity": round_series(vgk_eq.values),
+            "sharpe": _safe(vgk_stats["sharpe"]),
+            "total_return": _safe(vgk_stats["total_return"]),
+            "max_dd": _safe(vgk_stats["max_dd"]),
+            "cagr": _safe(vgk_stats.get("cagr")),
+        }
+    except Exception as e:
+        print(f"  WARN: VGK benchmark fetch failed ({e}); dashboard will only show SPY")
+        vgk_benchmark = None
 
     benchmarks = {
         "spy_buy_hold": {
@@ -380,6 +425,8 @@ def main() -> int:
             "cagr": _safe(spy_stats.get("cagr")),
         },
     }
+    if vgk_benchmark is not None:
+        benchmarks["vgk_europe_broad"] = vgk_benchmark
 
     # Per-ETF colour palette (consistent with Strategy A)
     europe_colours = {

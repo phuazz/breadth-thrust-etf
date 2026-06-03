@@ -2259,8 +2259,8 @@
     </div>
 
     <section>
-      <h2>Equity vs SPY (8-year backtest, 2018-01 → today)</h2>
-      <p class="section-sub">Strategy D versus SPY buy-and-hold over the full Europe sector backtest window. Note the early flat period before 2018-Q2 reflects the 200d MA warmup; from there forward Europe rotation tracks above SPY on a Sharpe basis with similar max drawdown.</p>
+      <h2>Equity vs benchmarks (8-year backtest, 2018-01 → today)</h2>
+      <p class="section-sub">Strategy D versus VGK buy-and-hold (Vanguard FTSE Europe ETF — USD-denominated, ~85% of European market cap, the like-for-like Europe-broad comparator) as the primary benchmark, with SPY retained as a cross-region US reference. The early flat period before 2018-Q2 reflects the 200d MA warmup; from there forward Europe rotation tracks above VGK on a Sharpe basis. The delta columns below are versus VGK.</p>
       <div id="europe-equity-chart" class="chart tall"></div>
       <table class="small-table" id="europe-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
     </section>
@@ -7626,16 +7626,23 @@ function renderEuropeCharts() {
   const bm = eu.benchmarks || {};
   const colours = eu.europe_colours || {};
 
-  // Equity vs SPY benchmark — wrapped for timeframe selector
+  // Equity vs benchmarks — VGK (Europe broad) is the primary comparator
+  // for a Europe-rotation sleeve; SPY retained as secondary cross-region
+  // reference so readers can locate Strategy D against the US market too.
   const seriesDefs = [
     { name: `Europe Sector Rotation (K=${h.K} ${h.rebal_freq}) — DEPLOYED`,
       dates: h.headline_equity_dates, equity: h.headline_equity,
       line: { color: '#dc2626', width: 3.5 } },
   ];
+  if (bm.vgk_europe_broad) seriesDefs.push({
+    name: 'VGK buy-and-hold (Europe broad)',
+    dates: bm.vgk_europe_broad.dates, equity: bm.vgk_europe_broad.equity,
+    line: { color: '#0d9488', width: 1.8, dash: 'dash' },
+  });
   if (bm.spy_buy_hold) seriesDefs.push({
-    name: 'SPY buy-and-hold',
+    name: 'SPY buy-and-hold (US reference)',
     dates: bm.spy_buy_hold.dates, equity: bm.spy_buy_hold.equity,
-    line: { color: '#6b727a', width: 1.4, dash: 'dot' },
+    line: { color: '#6b727a', width: 1.2, dash: 'dot' },
   });
   const europeLayout = {
     margin: { t: 8, r: 16, b: 60, l: 56 },
@@ -7705,21 +7712,28 @@ function renderEuropeStatsTable() {
   const h = eu.headline?.headline_stats || {};
   const bm = eu.benchmarks || {};
   const spy = bm.spy_buy_hold || {};
+  const vgk = bm.vgk_europe_broad || null;
   const el = document.getElementById('europe-stats-table');
   if (!el) return;
+  // Phase 27.6 — VGK is the like-for-like comparator (Europe vs Europe).
+  // Use VGK as the delta reference when available; fall back to SPY only
+  // if the VGK fetch failed in the pipeline.
+  const refLabel = vgk ? 'VGK' : 'SPY';
+  const ref = vgk || spy;
   el.querySelector('thead').innerHTML = `<tr>
     <th>Strategy</th><th>Sharpe</th><th>CAGR</th><th>Total return</th>
-    <th>Max DD</th><th>Δ Sharpe vs SPY</th><th>Δ DD vs SPY</th>
+    <th>Max DD</th><th>Δ Sharpe vs ${refLabel}</th><th>Δ DD vs ${refLabel}</th>
   </tr>`;
-  const spySh = spy.sharpe ?? 0;
-  const spyDd = spy.max_dd ?? 0;
+  const refSh = ref.sharpe ?? 0;
+  const refDd = ref.max_dd ?? 0;
   const rows = [
     { label: `Strategy D: K=${eu.headline?.K} ${eu.headline?.rebal_freq} (in-sample)`, data: h, highlight: true },
-    { label: 'SPY buy-and-hold (broad-market benchmark)', data: spy },
   ];
+  if (vgk) rows.push({ label: 'VGK buy-and-hold (Europe broad-market benchmark)', data: vgk });
+  rows.push({ label: 'SPY buy-and-hold (US cross-region reference)', data: spy });
   el.querySelector('tbody').innerHTML = rows.map(r => {
-    const dSh = (r.data.sharpe ?? 0) - spySh;
-    const dDd = (r.data.max_dd ?? 0) - spyDd;
+    const dSh = (r.data.sharpe ?? 0) - refSh;
+    const dDd = (r.data.max_dd ?? 0) - refDd;
     const isStrat = r.highlight;
     return `<tr class="${isStrat ? 'highlight' : ''}">
       <td class="row-label">${isStrat ? '<strong>' + r.label + '</strong>' : r.label}</td>
