@@ -5608,9 +5608,10 @@ function renderDetail() {
       <td>${r.inTop ? '<span class="strategy-tag a">YES</span>' : '<span style="color:var(--ink-faint);font-size:12px;">no</span>'}</td>
     </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--ink-faint);">No ETFs selected — click chips above to add some.</td></tr>`;
   }
-  // Also render Section 2 (B + C momentum) and Section 3 (Strategy D Europe breadth)
-  renderDetailMomentumSection();
-  renderDetailEuropeSection();
+  // Phase 27.5 — Section 2 (B+C momentum) and Section 3 (Europe
+  // breadth) are now triggered by their own host tabs (asset, europe)
+  // on first activation, not chained from renderDetail. Keeps each
+  // tab's first-render scope contained.
 }
 
 // ============= ETF Detail — Section 3 (Strategy D Europe breadth) ========
@@ -9171,11 +9172,17 @@ function activateTab(name) {
   document.querySelectorAll('.tab-content').forEach((c) => c.classList.toggle('active', c.id === 'tab-' + name));
   if (!TAB_RENDERED.has(name)) {
     if (name === 'monitor')   renderMonitor();
-    if (name === 'detail')    renderDetail();
+    // Phase 27.5 — the legacy 'detail' tab was removed in Phase 26.5;
+    // its three signal-chart sections were distributed into Strategy
+    // A / B / D tabs but the JS first-render path was never updated,
+    // so detail-breadth-chart, detail-momentum-chart, and detail-d-
+    // breadth-chart never rendered. Each section now fires on its
+    // new host tab's first activation below.
     if (name === 'portfolio') {
       renderRecipeStats();
       renderPortfolio();
       renderRightTail('portfolio-right-tail', 'strategy_a');
+      renderDetail();  // Section 1 — US Sector Breadth (Strategy A)
       // Trade Explorer deep-dive (collapsed by default) — render lazily on tab open
       // so the Strategy A tab includes the full per-rebalance history without
       // requiring a separate top-level tab.
@@ -9191,6 +9198,7 @@ function activateTab(name) {
       renderAssetTradeTable();
       renderAssetAttribution();
       renderRightTail('asset-right-tail', 'strategy_b');
+      renderDetailMomentumSection();  // Section 2 — B+C momentum
     }
     if (name === 'thematic') {
       renderThematicRecipeStats();
@@ -9200,6 +9208,8 @@ function activateTab(name) {
       renderThematicTradeTable();
       renderThematicAttribution();
       renderRightTail('thematic-right-tail', 'strategy_c');
+      // Strategy C tab cross-links to Strategy B's combined B+C chart;
+      // no per-tab chart is rendered here (see the link card in the C tab).
     }
     if (name === 'europe') {
       renderEuropeRecipeStats();
@@ -9208,6 +9218,7 @@ function activateTab(name) {
       renderEuropeTradeTable();
       renderEuropeAttribution();
       renderRightTail('europe-right-tail', 'strategy_d');
+      renderDetailEuropeSection();  // Section 3 — Europe Sector Breadth
     }
     if (name === 'multi') {
       renderMultiRecipeStats();
