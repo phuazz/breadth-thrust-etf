@@ -1,0 +1,78 @@
+{
+  "computed_at_utc": "2026-06-03T12:02:23+00:00",
+  "blend_key": "blend_35_35_10_20",
+  "blend_label": "35% A + 35% B + 10% C + 20% D (Phase 4 ungated reference \u2014 overlay disabled)",
+  "deployed_fixed_thresholds": {
+    "off": 0.2,
+    "on": 0.5,
+    "derisk_fraction": 0.5
+  },
+  "grid": {
+    "off": [
+      0.15,
+      0.2,
+      0.25,
+      0.3
+    ],
+    "on": [
+      0.45,
+      0.5,
+      0.55
+    ],
+    "derisk_fraction_fixed": 0.5
+  },
+  "initial_train_years": 5,
+  "refit_freq": "YE",
+  "segments": [
+    {
+      "train_end": "2023-12-29",
+      "test_start": "2024-01-02",
+      "test_end": "2024-12-30",
+      "best_off": 0.25,
+      "best_on": 0.5,
+      "train_sharpe": 1.1255,
+      "test_sharpe_wf": 1.0641,
+      "test_sharpe_baseline": 1.054,
+      "test_sharpe_fixed": 1.0641,
+      "n_test_days": 247
+    },
+    {
+      "train_end": "2024-12-30",
+      "test_start": "2025-01-02",
+      "test_end": "2025-12-30",
+      "best_off": 0.25,
+      "best_on": 0.5,
+      "train_sharpe": 1.1065,
+      "test_sharpe_wf": 1.8527,
+      "test_sharpe_baseline": 2.1727,
+      "test_sharpe_fixed": 1.8527,
+      "n_test_days": 244
+    },
+    {
+      "train_end": "2025-12-30",
+      "test_start": "2026-01-02",
+      "test_end": "2026-05-26",
+      "best_off": 0.15,
+      "best_on": 0.5,
+      "train_sharpe": 1.2222,
+      "test_sharpe_wf": 2.992,
+      "test_sharpe_baseline": 2.992,
+      "test_sharpe_fixed": 2.992,
+      "n_test_days": 97
+    }
+  ],
+  "wf_sharpe": 1.7829,
+  "baseline_sharpe": 1.9142,
+  "fixed_sharpe": 1.7829,
+  "wf_max_dd": -0.0971,
+  "baseline_max_dd": -0.1064,
+  "fixed_max_dd": -0.0971,
+  "wf_total_return": 0.6045,
+  "baseline_total_return": 0.6864,
+  "fixed_total_return": 0.6045,
+  "common_start": "2018-11-08",
+  "common_end": "2026-05-26",
+  "delta_fixed_vs_baseline": -0.13129999999999997,
+  "delta_wf_vs_baseline": -0.13129999999999997,
+  "delta_wf_vs_fixed": 0.0
+}
