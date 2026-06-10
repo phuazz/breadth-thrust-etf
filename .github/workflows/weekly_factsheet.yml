@@ -39,7 +39,15 @@ permissions:
 jobs:
   build-and-email:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 2026-06-10: bumped from 20 -> 30. The Saturday 2026-06-06 run hung
+    # at exactly the 20m ceiling because the SOXX fetch step (which is
+    # supposed to fail-and-carry-forward when iShares blocks the CI
+    # runner) instead consumed the entire job budget against ~440
+    # Fridays of fresh network calls (the per-Friday RAW_DIR cache is
+    # gitignored, so CI starts cold every run). With per-step caps
+    # added below, 30m on the job gives the email step real headroom
+    # without ever being the binding constraint again.
+    timeout-minutes: 30
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -81,10 +89,24 @@ jobs:
       # SOXX locally (from a residential IP that occasionally clears
       # the block) to refresh the real roster.
 
+      # 2026-06-10 hardening: each SOXX-specific step is capped at 5
+      # minutes AND marked continue-on-error so a hung/blocked iShares
+      # endpoint can never starve the rest of the workflow. The
+      # committed constituents_soxx.json + breadth_soxx.json (refreshed
+      # by the local pipeline run whenever the user commits) are always
+      # present on a CI checkout, so when these steps fail the
+      # downstream strategy engines simply pick up the last-known-good
+      # local roster. The user's local pipeline becomes the
+      # source-of-truth for SOXX freshness; CI gets a refresh only when
+      # iShares happens to be unblocked from the runner that day.
       - name: Refresh SOXX constituents (carry-forward if iShares US blocked)
+        timeout-minutes: 5
+        continue-on-error: true
         run: python scripts/fetch_constituents.py --etf SOXX
 
       - name: Recompute SOXX breadth so staleness guard does not mask it
+        timeout-minutes: 5
+        continue-on-error: true
         run: python scripts/compute_breadth.py --etf SOXX
 
       - name: Re-run Strategy A top-K rotation with refreshed SOXX
@@ -93,8 +115,10 @@ jobs:
         # other 13 sectors' constituent prices are gitignored and not
         # available in CI, so topk_robustness will fall back to the
         # last-committed breadth_*.json snapshots for them. Strategy A
-        # picks therefore reflect: SOXX = fresh, others = last local
-        # refresh. This is the intended trade-off.
+        # picks therefore reflect: SOXX = fresh-or-carryforward,
+        # others = last local refresh. This is the intended trade-off.
+        timeout-minutes: 5
+        continue-on-error: true
         run: python scripts/run_topk_robustness.py
 
       # ----- Strategy engines -----
