@@ -89,37 +89,44 @@ jobs:
       # SOXX locally (from a residential IP that occasionally clears
       # the block) to refresh the real roster.
 
-      # 2026-06-10 hardening: each SOXX-specific step is capped at 5
-      # minutes AND marked continue-on-error so a hung/blocked iShares
-      # endpoint can never starve the rest of the workflow. The
-      # committed constituents_soxx.json + breadth_soxx.json (refreshed
-      # by the local pipeline run whenever the user commits) are always
-      # present on a CI checkout, so when these steps fail the
-      # downstream strategy engines simply pick up the last-known-good
-      # local roster. The user's local pipeline becomes the
-      # source-of-truth for SOXX freshness; CI gets a refresh only when
-      # iShares happens to be unblocked from the runner that day.
-      - name: Refresh SOXX constituents (carry-forward if iShares US blocked)
-        timeout-minutes: 5
-        continue-on-error: true
-        run: python scripts/fetch_constituents.py --etf SOXX
-
-      - name: Recompute SOXX breadth so staleness guard does not mask it
-        timeout-minutes: 5
-        continue-on-error: true
-        run: python scripts/compute_breadth.py --etf SOXX
-
-      - name: Re-run Strategy A top-K rotation with refreshed SOXX
-        # Re-running topk_robustness in CI is feasible only because we
-        # just refreshed the SOXX price cache via compute_breadth — the
-        # other 13 sectors' constituent prices are gitignored and not
-        # available in CI, so topk_robustness will fall back to the
-        # last-committed breadth_*.json snapshots for them. Strategy A
-        # picks therefore reflect: SOXX = fresh-or-carryforward,
-        # others = last local refresh. This is the intended trade-off.
-        timeout-minutes: 5
-        continue-on-error: true
-        run: python scripts/run_topk_robustness.py
+      # ----- Strategy A SOXX block REMOVED from CI (2026-06-10) -----
+      # Previously this block ran:
+      #   (1) fetch_constituents.py --etf SOXX
+      #   (2) compute_breadth.py --etf SOXX
+      #   (3) run_topk_robustness.py
+      #
+      # The original design intent was: refresh SOXX in CI when iShares
+      # happens to be unblocked from the runner, and let it fail/carry-
+      # forward when blocked. Two problems made it net-harmful:
+      #
+      #   PROBLEM 1 (timeout): When iShares hardened its Akamai block in
+      #   early June 2026, fetch_constituents.py exhausted the 20-minute
+      #   job budget on retries against 440 Fridays. Saturday 2026-06-06
+      #   ran to the ceiling without reaching the strategy engines — the
+      #   deployed dashboard sat at the 2026-05-29 signal anchor for an
+      #   entire week. Adding per-step 5-min caps + continue-on-error
+      #   (kept below) resolves the starvation.
+      #
+      #   PROBLEM 2 (destructive overwrite): compute_breadth.py expects
+      #   per-constituent price parquets in data/prices_cache_*.parquet
+      #   which are gitignored (1-10 MB each). On a fresh CI checkout
+      #   those caches do not exist, so compute_breadth produces an
+      #   empty/truncated breadth_soxx.json that OVERWRITES the committed
+      #   panel. run_topk_robustness then runs against a misaligned
+      #   universe (SOXX has no breadth, other 13 sectors have full
+      #   history) and produces topk_robustness.json with zero
+      #   rebalances and a flat-1.0 equity curve. The pipeline freshness
+      #   guard (Phase 3 stuck-breadth detector) correctly aborts when
+      #   it sees the frozen equity, and the whole workflow fails.
+      #
+      # Resolution: skip the SOXX block in CI entirely. The local
+      # pipeline run on the user's machine — where the constituent price
+      # caches exist — is the canonical source for constituents_soxx.json,
+      # breadth_soxx.json, and topk_robustness.json. The user commits
+      # those whenever they run the pipeline locally (already part of
+      # session discipline). The Strategy A staleness guard in
+      # etf_registry (60-day warning per-ETF override) flags via the
+      # dashboard if a local refresh has been skipped for too long.
 
       # ----- Strategy engines -----
       # Strategy D depends on per-ETF constituent price parquets
