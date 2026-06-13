@@ -29,8 +29,16 @@ name: Weekly factsheet — pipeline + email
 
 on:
   schedule:
-    # Saturday 02:00 UTC = Saturday 10:00 SGT (after Friday US close)
-    - cron: '0 2 * * 6'
+    # Friday 22:00 UTC = Saturday 06:00 SGT. Sent as soon as the weekly
+    # closes are confirmed rather than waiting for the old Saturday 02:00 UTC
+    # (10:00 SGT) slot. The Friday US close finalises by 20:00 UTC (summer,
+    # EDT) / 21:00 UTC (winter, EST); the daily_live_track job already pulls
+    # the confirmed Friday close at 21:30 UTC, so 22:00 UTC inherits the same
+    # proven post-close buffer (2h summer, 1h winter) and lands 30 minutes
+    # after the daily-track commit to avoid a push race. ~4 hours earlier
+    # than before. Cron is fixed-UTC, so the SGT arrival shifts by an hour
+    # across US DST changeovers, never compromising the data buffer.
+    - cron: '0 22 * * 5'
   workflow_dispatch:  # manual trigger button in Actions tab
 
 permissions:
