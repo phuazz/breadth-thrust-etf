@@ -27,6 +27,16 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 DOCS_DIR = ROOT / "docs"
 
+# Monospace stack for tickers and numeric columns. Bare "Courier" (the
+# previous choice) renders in Gmail as a thin, low-contrast serif-y face
+# that reads poorly; this stack lets each client pick a crisp modern
+# monospace — SF Mono / Menlo on Apple Mail and iOS, Consolas on Outlook
+# and Windows Gmail — and only ever falls back to generic monospace, never
+# to Courier. Inline font-family on table cells survives Gmail's CSS
+# sanitiser, so the choice takes effect in the rendered email.
+MONO = ("ui-monospace,SFMono-Regular,'SF Mono',Consolas,"
+        "'Liberation Mono',Menlo,monospace")
+
 DEPLOYED_KEY_PREFERENCE = [
     "blend_35_35_10_20_gated_eem_tilted",
     "blend_35_35_10_20_gated",
@@ -154,18 +164,18 @@ def _fmt_pct(x, signed=True, dp=2):
 
 def _regime_state(overlay):
     if not overlay:
-        return ("UNKNOWN", "—")
+        return ("UNKNOWN", "&mdash;")
     state = overlay.get("current_state", "UNKNOWN")
-    since = overlay.get("current_state_since", "—")
+    since = overlay.get("current_state_since", "&mdash;")
     return (state, since)
 
 
 def _eem_tilt_state(overlay):
     if not overlay or "phase22_eem_tilt" not in overlay:
-        return ("DISABLED", "—", None)
+        return ("DISABLED", "&mdash;", None)
     p22 = overlay["phase22_eem_tilt"]
     state = p22.get("current_state", "UNKNOWN")
-    since = p22.get("current_state_since", "—")
+    since = p22.get("current_state_since", "&mdash;")
     ratio = p22.get("current_ratio")
     return (state, since, ratio)
 
@@ -305,9 +315,9 @@ def build_html(out_path: Path):
 
     # Sleeve weights for allocation summary
     if p22_active:
-        alloc = "A 35% · B 25% · C 10% · D 20% · EEM tilt 10%"
+        alloc = "A 35% &middot; B 25% &middot; C 10% &middot; D 20% &middot; EEM tilt 10%"
     else:
-        alloc = "A 35% · B 35% · C 10% · D 20%"
+        alloc = "A 35% &middot; B 35% &middot; C 10% &middot; D 20%"
 
     # ----- HTML assembly --------------------------------------------------
     css = (
@@ -325,7 +335,7 @@ def build_html(out_path: Path):
         f'<div style="font-size:18px;font-weight:600;letter-spacing:0.3px;">'
         f'USD Multi-Strategy ETF Portfolio</div>'
         f'<div style="font-size:13px;color:#b8c0cc;margin-top:4px;">'
-        f'Weekly factsheet · signals as of <strong style="color:#fff;">'
+        f'Weekly factsheet &middot; signals as of <strong style="color:#fff;">'
         f'{asof_str}</strong></div></div>'
     )
 
@@ -390,8 +400,8 @@ def build_html(out_path: Path):
     def _name_cell(etf: str) -> str:
         nm = labels.get(etf, "")
         if not nm:
-            return f'<strong style="font-family:Courier,monospace;">{etf}</strong>'
-        return (f'<strong style="font-family:Courier,monospace;">{etf}</strong>'
+            return f'<strong style="font-family:{MONO};">{etf}</strong>'
+        return (f'<strong style="font-family:{MONO};">{etf}</strong>'
                 f'<br><span style="font-size:11px;color:#7c8590;">{nm}</span>')
 
     out.append('<h3 style="margin:0 0 10px 0;font-size:14px;'
@@ -425,7 +435,7 @@ def build_html(out_path: Path):
             f'border-bottom:1px solid #f0f2f4;">'
             f'{h["effective"] * 100:.1f}%</td>'
             f'<td style="padding:6px 10px;text-align:right;'
-            f'font-family:Courier,monospace;vertical-align:top;'
+            f'font-family:{MONO};vertical-align:top;'
             f'border-bottom:1px solid #f0f2f4;">'
             f'${cash:,.0f}</td></tr>'
         )
@@ -442,7 +452,7 @@ def build_html(out_path: Path):
     if not activity:
         out.append('<p style="color:#7c8590;font-style:italic;'
                    'margin-bottom:18px;">'
-                   'No position changes — strategy stable since last week.</p>')
+                   'No position changes &mdash; strategy stable since last week.</p>')
     else:
         out.append('<table style="width:100%;border-collapse:collapse;'
                    'margin-bottom:18px;font-size:13px;">')
@@ -461,8 +471,8 @@ def build_html(out_path: Path):
         action_colour = {"ENTER": "#1d7a3a", "EXIT": "#b3261e",
                           "RESIZE": "#b76e00"}
         for sleeve, action, etf, prev_w, new_w in activity[:10]:
-            prev_str = f"{prev_w * 100:.1f}%" if prev_w is not None else "—"
-            new_str = f"{new_w * 100:.1f}%" if new_w is not None else "—"
+            prev_str = f"{prev_w * 100:.1f}%" if prev_w is not None else "&mdash;"
+            new_str = f"{new_w * 100:.1f}%" if new_w is not None else "&mdash;"
             out.append(
                 f'<tr><td style="padding:6px 10px;color:#3a4148;vertical-align:top;'
                 f'border-bottom:1px solid #f0f2f4;">{sleeve}</td>'
@@ -473,7 +483,7 @@ def build_html(out_path: Path):
                 f'<td style="padding:6px 10px;vertical-align:top;'
                 f'border-bottom:1px solid #f0f2f4;">{_name_cell(etf)}</td>'
                 f'<td style="padding:6px 10px;text-align:right;'
-                f'font-family:Courier,monospace;vertical-align:top;'
+                f'font-family:{MONO};vertical-align:top;'
                 f'border-bottom:1px solid #f0f2f4;">'
                 f'{prev_str} &rarr; {new_str}</td></tr>'
             )
@@ -488,12 +498,12 @@ def build_html(out_path: Path):
         f'color:#3a4148;margin-bottom:18px;line-height:1.6;">'
         f'<strong>Regime:</strong> '
         f'<span style="color:{_regime_colour(regime_state)};font-weight:600;">'
-        f'{regime_state}</span> since {regime_since} &nbsp;·&nbsp; '
+        f'{regime_state}</span> since {regime_since} &nbsp;&middot;&nbsp; '
         f'<strong>EEM tilt:</strong> '
         f'<span style="color:{_regime_colour(tilt_state)};font-weight:600;">'
-        f'{tilt_state}</span> since {tilt_since}{tilt_ratio_str} &nbsp;·&nbsp; '
+        f'{tilt_state}</span> since {tilt_since}{tilt_ratio_str} &nbsp;&middot;&nbsp; '
         f'<strong>Allocation:</strong> '
-        f'<span style="font-family:Courier,monospace;font-size:11px;">'
+        f'<span style="font-family:{MONO};font-size:11px;">'
         f'{alloc}</span>'
         f'</div>'
     )
@@ -523,7 +533,7 @@ def build_html(out_path: Path):
         'survivorship bias, look-ahead risk, and ~&pm;0.4 Sharpe sample '
         'noise. Deployed key: '
         f'<code style="background:#f0f2f4;padding:1px 4px;border-radius:2px;'
-        f'font-size:10px;">{deployed_key}</code>.'
+        f'font-family:{MONO};font-size:10px;">{deployed_key}</code>.'
         '</p>'
     )
 
