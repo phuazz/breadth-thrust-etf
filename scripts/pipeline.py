@@ -292,6 +292,64 @@ def assert_series_not_frozen(name: str, dates: list, values: list,
         )
 
 
+def assert_derived_not_stale_vs_source(
+    derived: Path, sources: list[Path], max_lag_days: int = 7,
+) -> None:
+    """Hard-fail when a derived JSON's file mtime trails its sources'
+    mtimes by more than ``max_lag_days``.
+
+    Guards against the silent-staleness class that the Live Signal
+    chart issue (2026-06-17) exposed: ``ma200_sweep.json``,
+    ``phase7_bootstrap.json``, ``phase8_right_tail.json``, and
+    ``portfolio_construction.json`` all aggregate or derive from the
+    strategy outputs (``multi_strategy.json``, ``breadth_*.json``,
+    etc.) but pipeline.py does not regenerate them itself. When the
+    user re-ran the strategy engines without also re-running these
+    derivations, the dashboard rendered the new strategy lines next
+    to old bootstrap CIs / old correlation matrix / old breadth
+    sweep — silently mixing data vintages.
+
+    The mtime check is sufficient because the bug is "I refreshed
+    sources but forgot to regenerate derived" — in that case the
+    derived file's mtime literally predates the source's. We do NOT
+    check JSON ``computed_at_utc`` because not every script writes
+    one and we want a single uniform check.
+
+    Args:
+        derived: path to the aggregated/derived JSON that the
+            dashboard renders.
+        sources: list of source JSON paths the derived file should
+            reflect. Newest source mtime is the reference.
+        max_lag_days: tolerance window. Default 7 days — enough for
+            a normal weekly cycle (Saturday refresh) where the
+            derivation runs hours after sources, but tight enough
+            that a missed weekly catches at the next pipeline build.
+
+    Raises:
+        RuntimeError: when ``derived`` is older than the newest
+            source by more than ``max_lag_days``. Message names the
+            fix command (``python scripts/refresh_all.py``).
+    """
+    if not derived.exists():
+        return  # missing file is a separate problem; not our concern here
+    existing_sources = [s for s in sources if s.exists()]
+    if not existing_sources:
+        return
+    src_mtime = max(s.stat().st_mtime for s in existing_sources)
+    der_mtime = derived.stat().st_mtime
+    lag_seconds = src_mtime - der_mtime
+    lag_days = lag_seconds / 86400.0
+    if lag_days > max_lag_days:
+        newest = max(existing_sources, key=lambda s: s.stat().st_mtime).name
+        raise RuntimeError(
+            f"Pipeline aborted: {derived.name} is {lag_days:.1f} days older "
+            f"than its source {newest}. The dashboard would render new "
+            f"strategy outputs next to a stale aggregation — silent "
+            f"data-vintage mixing. Run `python scripts/refresh_all.py` "
+            f"(or just the matching `scripts/run_*.py`) to regenerate."
+        )
+
+
 def assert_no_conflict_markers(path: Path) -> None:
     """Hard-fail if a built artefact contains unresolved git merge
     conflict markers.
@@ -397,6 +455,27 @@ def inject(template_text: str, data: dict) -> str:
 
 
 def main() -> int:
+    # Freshness guard: every derived JSON the dashboard renders live must
+    # not lag its sources by more than a week. Catches the silent-
+    # staleness class that surfaced on 2026-06-17 (Live Signal chart
+    # frozen at May 15 because ma200_sweep.json had not been regenerated
+    # after the breadth_*.json sources refreshed). See
+    # assert_derived_not_stale_vs_source docstring for the full story.
+    breadth_sources = sorted((DATA_DIR).glob("breadth_*.json"))
+    multi = DATA_DIR / "multi_strategy.json"
+    assert_derived_not_stale_vs_source(
+        DATA_DIR / "ma200_sweep.json", breadth_sources, max_lag_days=7,
+    )
+    assert_derived_not_stale_vs_source(
+        DATA_DIR / "phase7_bootstrap.json", [multi], max_lag_days=7,
+    )
+    assert_derived_not_stale_vs_source(
+        DATA_DIR / "phase8_right_tail.json", [multi], max_lag_days=7,
+    )
+    assert_derived_not_stale_vs_source(
+        DATA_DIR / "portfolio_construction.json", [multi], max_lag_days=7,
+    )
+
     print("Loading MA200 sweep ...", flush=True)
     ma200 = load_ma200()
     if ma200:
