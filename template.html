@@ -2040,6 +2040,13 @@
     </div>
 
     <section>
+      <h2>Strategy A — current selection<span id="a-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
+      <p class="section-sub full">What Strategy A actually holds right now, and why each sector qualified. The rule: rank every US sector ETF by sector-relative breadth (breadth − cross-sectional mean), keep only those above the mean, hold the top K (up to 7) weighted by positive excess share. <strong>The breadth shown here is the value at the last rebalance, not today</strong> — so a sector whose breadth has since crossed the mean is not added until the next rebalance, and a held sector that has since fallen below is not dropped until then either. That is why the Live Signal chart below may show a different ordering than this table.</p>
+      <table class="small-table" id="a-holdings-table"><thead></thead><tbody></tbody></table>
+      <p class="section-sub full" id="a-holdings-note" style="margin-top:8px;font-size:12px;"></p>
+    </section>
+
+    <section>
       <h2>Live signal — US Sector Breadth (Strategy A universe)</h2>
       <p class="section-sub">The live signal that drives every rebalance decision. Default: Leader vs Market — Strategy A's top-breadth holding plus CSP1 (S&amp;P 500) as a broad-market reference. Click any chip to add or remove sectors from the chart. Trend snapshot below the chart shows current breadth + change over recent past.</p>
       <div class="etf-chip-actions" id="detail-actions"></div>
@@ -2140,9 +2147,9 @@
 
     <section>
       <h2>Strategy B — current selection<span id="b-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
-      <p class="section-sub">What Strategy B actually holds right now, and why each name qualified. The rule: rank every asset-class ETF by how far it sits above its own 200-day average (the signal), keep only those above it, hold the top K weighted by signal share, and route any unfilled slots to cash. <strong>The signal shown here is the value at the last rebalance, not today</strong> — so a name whose live signal (see the Trend snapshot below) has since overtaken a held one is not added until the next rebalance. That is why an ETF can show a higher current signal yet still read "no" in that snapshot.</p>
+      <p class="section-sub full">What Strategy B actually holds right now, and why each name qualified. The rule: rank every asset-class ETF by how far it sits above its own 200-day average (the signal), keep only those above it, hold the top K weighted by signal share, and route any unfilled slots to cash. <strong>The signal shown here is the value at the last rebalance, not today</strong> — so a name whose live signal (see the Trend snapshot below) has since overtaken a held one is not added until the next rebalance. That is why an ETF can show a higher current signal yet still read "no" in that snapshot.</p>
       <table class="small-table" id="b-holdings-table"><thead></thead><tbody></tbody></table>
-      <p class="section-sub" id="b-holdings-note" style="margin-top:8px;font-size:12px;"></p>
+      <p class="section-sub full" id="b-holdings-note" style="margin-top:8px;font-size:12px;"></p>
     </section>
 
     <section>
@@ -2224,6 +2231,13 @@
         <li><strong>Cash floor:</strong> when fewer than K candidates clear the +5% threshold, the deficit sits in SHY (1-3y Treasury, duration-neutral cash equivalent) as cash proxy.</li>
       </ol>
     </div>
+
+    <section>
+      <h2>Strategy C — current selection<span id="c-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
+      <p class="section-sub full">What Strategy C actually holds right now, and why each theme qualified. The rule: rank every thematic ETF by distance above its own 200-day MA, keep only those at or above the <strong>+5% hard signal floor</strong>, then equal-weight (1/K) across the top K=5. If fewer than K names clear the floor, the deficit sits in SHY. The <strong>V6 sleeve-breadth gate</strong> trips when fewer than 30% of the 25-theme universe is above +5% — when active, the entire sleeve exits to SHY for the week. <strong>The signal shown here is the value at the last rebalance, not today</strong> — a name whose live signal has since crossed +5% or fallen below it is not acted on until the next rebalance.</p>
+      <table class="small-table" id="c-holdings-table"><thead></thead><tbody></tbody></table>
+      <p class="section-sub full" id="c-holdings-note" style="margin-top:8px;font-size:12px;"></p>
+    </section>
 
     <section style="background:var(--bg-card);border-radius:6px;padding:14px 18px;border:1px solid var(--border);">
       <h3 style="margin:0 0 6px 0;">Live signal — Thematic momentum</h3>
@@ -2311,6 +2325,13 @@
         <li><strong>Trade as</strong>: the underlying Xetra-listed UCITS (EXV1.DE etc.) in EUR. Settlement T+2, full liquidity through any EU broker.</li>
       </ol>
     </div>
+
+    <section>
+      <h2>Strategy D — current selection<span id="d-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
+      <p class="section-sub full">What Strategy D actually holds right now, and why each Europe sector qualified. The rule: rank the 5 Stoxx Europe 600 sector UCITS by absolute breadth (% of constituents above their own 200-day MA), hold the top K=3 weighted by breadth share. The 5-sector universe is small enough that all three slots are always filled — there is no cash floor. Unlike Strategy A, D uses <em>absolute</em> breadth rather than sector-relative excess because the cross-sectional mean over only 5 sectors does not add reliable signal. <strong>The breadth shown here is the value at the last rebalance, not today</strong> — a sector whose breadth has since changed is not re-ranked until the next rebalance.</p>
+      <table class="small-table" id="d-holdings-table"><thead></thead><tbody></tbody></table>
+      <p class="section-sub full" id="d-holdings-note" style="margin-top:8px;font-size:12px;"></p>
+    </section>
 
     <section>
       <h2>Live signal — Europe Sector Breadth (Strategy D universe)</h2>
@@ -6190,6 +6211,175 @@ function renderDetailMomentumSection() {
 // rebalance, with the signal value AS OF that rebalance (not the live signal)
 // so the table truthfully explains why each name qualified. See the Trend
 // snapshot above for the live signal; the two differ by the rebalance lag.
+// ============= Current-selection tables (Phase 28.4) ====================
+// Sister functions to _renderBHoldings — render each strategy's actual
+// deployed holdings from the last rebalance, with the signal value frozen
+// at rebal-date so the user can see exactly why each name qualified
+// without confusing it with today's live signal (which only matters at
+// the NEXT rebalance). Same UX shape across all four:
+//   - asof stamp in the section header
+//   - 5-col table (rank · ETF · description · signal-at-rebal · weight)
+//   - optional cash-floor row when invested < 100%
+//   - cutoff note naming the lowest-ranked holding's signal threshold
+//
+// Differences:
+//   A: signal = absolute breadth (held set already filtered to those above
+//      the cross-sectional mean by the engine); cutoff note explains the
+//      drop-negatives rule.
+//   C: signal = distance above 200d MA; equal-weighted 1/K; cash floor when
+//      fewer than K above +5%; V6 sleeve-breadth gate exits ALL to SHY
+//      when fewer than 30% of universe above +5%.
+//   D: signal = absolute breadth; weight by breadth share; no cash floor
+//      (5-ETF universe always fills the K=3 slots).
+
+function _etfSwatch(etf) {
+  const c = (typeof ETF_COLOURS !== 'undefined' && ETF_COLOURS[etf]) || '#999';
+  return `<span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c};margin-right:8px;vertical-align:middle;"></span>`;
+}
+
+function _renderAHoldings() {
+  const tbl = document.getElementById('a-holdings-table');
+  if (!tbl) return;
+  const h = window.DATA?.topk?.headline;
+  const th = h?.trade_history;
+  const asOfEl = document.getElementById('a-holdings-asof');
+  const noteEl = document.getElementById('a-holdings-note');
+  if (!h || !Array.isArray(th) || !th.length) {
+    tbl.querySelector('tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--ink-faint);">Strategy A holdings unavailable.</td></tr>`;
+    return;
+  }
+  const last = th[th.length - 1];
+  const K = h.K;
+  const universe = h.etfs_used || [];
+  // Holdings already filtered by the engine to those above the cross-sectional
+  // mean at rebal — sort by absolute breadth desc for display.
+  const holds = (last.holdings || []).slice().sort(
+    (a, b) => (b.breadth_pct ?? -1e9) - (a.breadth_pct ?? -1e9),
+  );
+  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (up to K=${K} above the mean)`;
+  tbl.querySelector('thead').innerHTML = `<tr>
+    <th class="num">#</th>
+    <th>ETF</th>
+    <th>Sector</th>
+    <th class="num">Breadth at rebalance</th>
+    <th class="num">Weight</th>
+  </tr>`;
+  tbl.querySelector('tbody').innerHTML = holds.map((r, i) => `<tr>
+    <td class="num">${i + 1}</td>
+    <td class="row-label">${_etfSwatch(r.etf)}<strong>${r.etf}</strong></td>
+    <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
+    <td class="num good"><strong>${r.breadth_pct.toFixed(1)}%</strong></td>
+    <td class="num">${(r.weight * 100).toFixed(1)}%</td>
+  </tr>`).join('');
+  if (noteEl) {
+    const lowest = holds.length ? holds[holds.length - 1] : null;
+    const dropped = (universe.length || 14) - holds.length;
+    noteEl.innerHTML = lowest
+      ? `Cutoff: the lowest-ranked holding is <strong>${lowest.etf}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth, which sat above the cross-sectional mean at the ${last.date} rebalance. ${dropped} of ${universe.length || 14} sectors were below the mean and dropped to keep the sleeve long-only — Strategy A holds <strong>${holds.length} of K=${K} max</strong>${holds.length < K ? ' (narrow leadership regime: most sectors clustered near the average)' : ' (all K slots filled)'}.`
+      : '';
+  }
+}
+
+function _renderCHoldings() {
+  const tbl = document.getElementById('c-holdings-table');
+  if (!tbl) return;
+  const h = window.DATA?.thematic?.headline;
+  const th = h?.trade_history;
+  const asOfEl = document.getElementById('c-holdings-asof');
+  const noteEl = document.getElementById('c-holdings-note');
+  if (!h || !Array.isArray(th) || !th.length) {
+    tbl.querySelector('tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--ink-faint);">Strategy C holdings unavailable.</td></tr>`;
+    return;
+  }
+  const last = th[th.length - 1];
+  const K = h.K;
+  const holds = (last.holdings || []).slice().sort(
+    (a, b) => (b.signal_pct ?? -1e9) - (a.signal_pct ?? -1e9),
+  );
+  const invested = holds.reduce((s, x) => s + (x.weight || 0), 0);
+  const cash = Math.max(0, 1 - invested);
+  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (top K=${K} above the +5% floor, equal-weighted)`;
+  tbl.querySelector('thead').innerHTML = `<tr>
+    <th class="num">#</th>
+    <th>ETF</th>
+    <th>Theme</th>
+    <th class="num">Signal at rebalance</th>
+    <th class="num">Weight</th>
+  </tr>`;
+  const rows = holds.map((r, i) => {
+    const sig = r.signal_pct;
+    const sgn = sig >= 0 ? '+' : '';
+    return `<tr>
+      <td class="num">${i + 1}</td>
+      <td class="row-label">${_etfSwatch(r.etf)}<strong>${r.etf}</strong></td>
+      <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
+      <td class="num ${sig >= 0 ? 'good' : 'bad'}"><strong>${sgn}${sig.toFixed(1)}%</strong></td>
+      <td class="num">${(r.weight * 100).toFixed(1)}%</td>
+    </tr>`;
+  }).join('');
+  // If the entire sleeve is in cash, the holdings array is empty — that is
+  // the V6 sleeve-breadth gate having tripped (or every theme dropped below
+  // +5%); call it out explicitly.
+  const sleeveOff = holds.length === 0;
+  const cashRow = cash > 0.0005 ? `<tr>
+      <td class="num">—</td>
+      <td class="row-label" style="color:var(--ink-faint);">Cash floor (SHY)</td>
+      <td style="color:var(--ink-faint);font-size:12px;">${sleeveOff ? 'V6 sleeve-breadth gate active OR no themes above +5%' : `Fewer than K=${K} themes above the +5% signal floor`}</td>
+      <td class="num" style="color:var(--ink-faint);">—</td>
+      <td class="num">${(cash * 100).toFixed(1)}%</td>
+    </tr>` : '';
+  tbl.querySelector('tbody').innerHTML = rows + cashRow;
+  if (noteEl) {
+    const lowest = holds.length ? holds[holds.length - 1] : null;
+    let txt = '';
+    if (sleeveOff) {
+      txt = `<strong>Entire sleeve in SHY this week</strong> — either the V6 sleeve-breadth gate tripped (fewer than 30% of the 25-theme universe above +5%) or no themes cleared the +5% floor. The whole 10% sleeve sits in 1-3y Treasuries until the next rebal.`;
+    } else if (lowest) {
+      txt = `Cutoff: the lowest-ranked holding is <strong>${lowest.etf}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day MA — well above the +5% hard floor. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in SHY because fewer than K=${K} themes cleared the floor at the ${last.date} rebalance.` : `All K=${K} slots are filled, so no cash is held.`} Any theme whose live signal has since crossed +5% (or a held one that has since fallen below) is not acted on until the next rebal.`;
+    }
+    noteEl.innerHTML = txt;
+  }
+}
+
+function _renderDHoldings() {
+  const tbl = document.getElementById('d-holdings-table');
+  if (!tbl) return;
+  const h = window.DATA?.europe?.headline;
+  const th = h?.trade_history;
+  const asOfEl = document.getElementById('d-holdings-asof');
+  const noteEl = document.getElementById('d-holdings-note');
+  if (!h || !Array.isArray(th) || !th.length) {
+    tbl.querySelector('tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--ink-faint);">Strategy D holdings unavailable.</td></tr>`;
+    return;
+  }
+  const last = th[th.length - 1];
+  const K = h.K;
+  const holds = (last.holdings || []).slice().sort(
+    (a, b) => (b.breadth_pct ?? -1e9) - (a.breadth_pct ?? -1e9),
+  );
+  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (top K=${K} by breadth)`;
+  tbl.querySelector('thead').innerHTML = `<tr>
+    <th class="num">#</th>
+    <th>ETF</th>
+    <th>Sector</th>
+    <th class="num">Breadth at rebalance</th>
+    <th class="num">Weight</th>
+  </tr>`;
+  tbl.querySelector('tbody').innerHTML = holds.map((r, i) => `<tr>
+    <td class="num">${i + 1}</td>
+    <td class="row-label">${_etfSwatch(r.etf)}<strong>${r.etf}</strong></td>
+    <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
+    <td class="num good"><strong>${r.breadth_pct.toFixed(1)}%</strong></td>
+    <td class="num">${(r.weight * 100).toFixed(1)}%</td>
+  </tr>`).join('');
+  if (noteEl) {
+    const lowest = holds.length ? holds[holds.length - 1] : null;
+    noteEl.innerHTML = lowest
+      ? `Cutoff: the lowest-ranked holding is <strong>${lowest.etf}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth at the ${last.date} rebalance. The 2 Europe sectors not in the table sat below this — they are excluded until the next rebal. All K=${K} slots are always filled (the 5-ETF universe is larger than K), so no cash is held.`
+      : '';
+  }
+}
+
 function _renderBHoldings() {
   const tbl = document.getElementById('b-holdings-table');
   if (!tbl) return;
@@ -9511,6 +9701,7 @@ function activateTab(name) {
     // new host tab's first activation below.
     if (name === 'portfolio') {
       renderRecipeStats();
+      _renderAHoldings();  // Phase 28.4 — current selection table
       renderPortfolio();
       renderRightTail('portfolio-right-tail', 'strategy_a');
       renderDetail();  // Section 1 — US Sector Breadth (Strategy A)
@@ -9533,6 +9724,7 @@ function activateTab(name) {
     }
     if (name === 'thematic') {
       renderThematicRecipeStats();
+      _renderCHoldings();  // Phase 28.4 — current selection table
       renderThematicCharts();
       renderThematicCadenceGrid();
       renderThematicWalkForward();
@@ -9544,6 +9736,7 @@ function activateTab(name) {
     }
     if (name === 'europe') {
       renderEuropeRecipeStats();
+      _renderDHoldings();  // Phase 28.4 — current selection table
       renderEuropeCharts();
       renderEuropeCadenceGrid();
       renderEuropeTradeTable();
