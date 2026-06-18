@@ -260,6 +260,62 @@
       border-radius: 4px; font-size: 12px; color: var(--warn);
     }
 
+    /* ----- Data Health badge + table (Phase 28.1) ----- */
+    .health-dot {
+      display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+      margin-right: 6px; vertical-align: middle;
+    }
+    .health-dot--ok    { background: #1d7a3a; box-shadow: 0 0 0 2px rgba(29,122,58,0.18); }
+    .health-dot--warn  { background: #d97706; box-shadow: 0 0 0 2px rgba(217,119,6,0.20); }
+    .health-dot--stale { background: #b91c1c; box-shadow: 0 0 0 2px rgba(185,28,28,0.22);
+                          animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(185,28,28,0.22); }
+      50%      { box-shadow: 0 0 0 5px rgba(185,28,28,0.0);  }
+    }
+    table.health-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    table.health-table th, table.health-table td {
+      padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border);
+    }
+    table.health-table th {
+      background: #f7f8fa; font-weight: 600; color: var(--ink-soft);
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    table.health-table tr:hover { background: #fafbfc; }
+    table.health-table tr.status-stale { background: rgba(185,28,28,0.04); }
+    table.health-table tr.status-warn  { background: rgba(217,119,6,0.05); }
+    .health-pill {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .health-pill--ok    { background: rgba(29,122,58,0.12); color: #155724; }
+    .health-pill--warn  { background: rgba(217,119,6,0.14); color: #92510a; }
+    .health-pill--stale { background: rgba(185,28,28,0.14); color: #7f1010; }
+    .health-pill--broken{ background: #333; color: #fff; }
+    .health-card {
+      padding: 14px 18px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--bg-card); margin-bottom: 14px;
+    }
+    .health-stat-strip {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+      margin-bottom: 18px;
+    }
+    .health-stat {
+      padding: 14px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--bg-card); text-align: left;
+    }
+    .health-stat .n { font-size: 28px; font-weight: 700; line-height: 1; }
+    .health-stat .lbl { font-size: 11px; color: var(--ink-faint);
+                         text-transform: uppercase; letter-spacing: 0.05em;
+                         margin-top: 6px; }
+    .health-stat--ok    .n { color: #1d7a3a; }
+    .health-stat--warn  .n { color: #d97706; }
+    .health-stat--stale .n { color: #b91c1c; }
+
     /* ----- Combined portfolio holdings table ----- */
     table.holdings {
       width: 100%; border-collapse: collapse; font-size: 13px;
@@ -1685,7 +1741,7 @@
 </header>
 
 <nav class="tabs">
-  <div class="container">
+  <div class="container" style="display:flex; align-items:center;">
     <button class="tab active" data-tab="monitor">Monitor</button>
     <button class="tab" data-tab="multi">Multi-Strategy</button>
     <button class="tab" data-tab="history">Trade History</button>
@@ -1697,6 +1753,11 @@
     <button class="tab" data-tab="eemtilt">EM Tilt</button>
     <button class="tab" data-tab="robustness">Risk &amp; Validation</button>
     <button class="tab" data-tab="method">Method</button>
+    <button class="tab" data-tab="health" style="margin-left:auto;" id="health-tab-btn">
+      <span id="health-badge-dot" class="health-dot health-dot--ok" title="Data health"></span>
+      Data Health
+      <span id="health-badge-summary" style="font-size:11px; color:var(--ink-faint); margin-left:6px;"></span>
+    </button>
   </div>
 </nav>
 
@@ -2812,6 +2873,35 @@
         <p style="font-size:13px;color:var(--ink-faint);">An earlier iteration explored a more complex composite breadth signal (RSI breadth + MA breadth + Highs breadth + thrust detection) before the simpler MA200 sweep showed it generalised worse. That work is in the git history. Earlier work also tested per-ETF L-threshold strategies (legacy Robustness Tests 1-9) before top-K rotation was chosen as the deployed paradigm.</p>
       </div>
     </section>
+  </div>
+
+  <!-- ====================== DATA HEALTH ====================== -->
+  <div class="tab-content" id="tab-health">
+    <h1 style="margin-top:8px;">Data Health</h1>
+    <p class="section-sub">Every data feed the dashboard reads, with freshness status as of the last pipeline build. A red row means the signal panels that read from it could be stale — do not deploy off that signal until the row turns green. Click <code>fix command</code> on a red row to see exactly which script to run.</p>
+
+    <div id="health-stat-strip" class="health-stat-strip"></div>
+
+    <div id="health-overall-card" class="health-card" style="display:none;"></div>
+
+    <table class="health-table" id="health-table">
+      <thead>
+        <tr>
+          <th style="width:80px;">Status</th>
+          <th>Feed</th>
+          <th>Group</th>
+          <th style="width:130px;">Last data</th>
+          <th style="width:90px; text-align:right;">Days old</th>
+          <th>Fix command</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <p style="margin-top:14px; font-size:12px; color:var(--ink-faint);">
+      <strong>Thresholds:</strong> live feeds warn at 3d, stale at 7d. Strategy / blend / overlay outputs warn at 8d, stale at 14d (weekly cadence). Per-ETF breadth panels warn at 8d, stale at 14d. Constituent rosters warn at 14d, stale at 60d. SOXX uses wider thresholds (breadth 21d/60d, roster 30d/90d) because the iShares-US holdings endpoint is Akamai-blocked from most IPs and the script automatically carries the most recent good roster forward.<br>
+      <strong>Fix:</strong> Most cases are resolved by <code>python scripts/refresh_all.py</code> from the repo root. Individual scripts shown per row let you target a single feed.
+    </p>
   </div>
 
 </main>
@@ -9187,6 +9277,124 @@ function renderBlendAttribution() {
 
 // ----------- Tab navigation --------------------------------------------
 const TAB_RENDERED = new Set();
+// ============= Data Health (Phase 28.1) ===================================
+function updateHealthBadge() {
+  const h = (window.DATA && window.DATA.data_health) || null;
+  const dot = document.getElementById('health-badge-dot');
+  const sum = document.getElementById('health-badge-summary');
+  if (!h || !dot) return;
+  const status = h.overall_status || 'ok';
+  dot.classList.remove('health-dot--ok', 'health-dot--warn', 'health-dot--stale');
+  dot.classList.add('health-dot--' + status);
+  const c = h.counts || {};
+  if (status === 'ok') {
+    sum.textContent = '(' + (c.ok || 0) + ' OK)';
+    dot.title = 'All data feeds fresh';
+  } else if (status === 'warn') {
+    sum.textContent = '(' + (c.warn || 0) + ' warning' + (c.warn === 1 ? '' : 's') + ')';
+    dot.title = c.warn + ' feed(s) approaching staleness';
+  } else {
+    const broken = c.broken || 0;
+    const stale = c.stale || 0;
+    sum.textContent = '(' + (stale + broken) + ' stale)';
+    dot.title = (stale + broken) + ' feed(s) stale or missing — open Data Health tab';
+  }
+}
+
+function renderDataHealth() {
+  const h = (window.DATA && window.DATA.data_health) || null;
+  const stripEl = document.getElementById('health-stat-strip');
+  const tbody = document.querySelector('#health-table tbody');
+  const overall = document.getElementById('health-overall-card');
+  if (!h || !stripEl || !tbody) return;
+
+  // Stat strip: 5 cards (Overall, OK, Warn, Stale, Broken)
+  const c = h.counts || {};
+  const total = (c.ok || 0) + (c.warn || 0) + (c.stale || 0) + (c.broken || 0);
+  const overallStatus = h.overall_status || 'ok';
+  const overallLabel = overallStatus === 'ok' ? 'ALL CLEAR'
+                      : overallStatus === 'warn' ? 'WARNING'
+                      : 'STALE — DO NOT DEPLOY';
+  stripEl.innerHTML = `
+    <div class="health-stat health-stat--${overallStatus}">
+      <div class="n">${overallLabel.split(' ')[0]}</div>
+      <div class="lbl">Overall — ${total} feeds monitored</div>
+    </div>
+    <div class="health-stat health-stat--ok">
+      <div class="n">${c.ok || 0}</div><div class="lbl">Fresh</div>
+    </div>
+    <div class="health-stat health-stat--warn">
+      <div class="n">${c.warn || 0}</div><div class="lbl">Approaching</div>
+    </div>
+    <div class="health-stat health-stat--stale">
+      <div class="n">${c.stale || 0}</div><div class="lbl">Stale</div>
+    </div>
+    <div class="health-stat health-stat--stale">
+      <div class="n">${c.broken || 0}</div><div class="lbl">Broken / missing</div>
+    </div>
+  `;
+
+  // Overall card: only shown when something is wrong, with a clear "what to do"
+  if (overallStatus !== 'ok') {
+    const stale = (h.rows || []).filter(r => r.status === 'stale' || r.status === 'broken');
+    const warn = (h.rows || []).filter(r => r.status === 'warn');
+    overall.style.display = 'block';
+    overall.style.background = overallStatus === 'stale' ? 'rgba(185,28,28,0.06)'
+                                                          : 'rgba(217,119,6,0.06)';
+    overall.style.borderColor = overallStatus === 'stale' ? 'rgba(185,28,28,0.30)'
+                                                           : 'rgba(217,119,6,0.30)';
+    overall.innerHTML = `
+      <strong style="font-size:14px;">${overallLabel}</strong>
+      <p style="margin:8px 0 0 0;font-size:13px;color:var(--ink-soft);">
+        ${stale.length} feed${stale.length === 1 ? '' : 's'} stale or missing,
+        ${warn.length} approaching.
+        Run <code>python scripts/refresh_all.py</code> from the repo root
+        to refresh all monitored feeds (≈20-30 min on a residential IP).
+        Individual fix commands are shown per-row below.
+      </p>
+    `;
+  } else {
+    overall.style.display = 'none';
+  }
+
+  // Sort: stale + broken first, then warn, then ok by group + label
+  const order = { stale: 0, broken: 1, warn: 2, ok: 3, unknown: 4 };
+  const rows = (h.rows || []).slice().sort((a, b) => {
+    const da = order[a.status] ?? 5;
+    const db = order[b.status] ?? 5;
+    if (da !== db) return da - db;
+    if (a.group !== b.group) return a.group.localeCompare(b.group);
+    return a.label.localeCompare(b.label);
+  });
+  tbody.innerHTML = rows.map(r => {
+    const cls = `status-${r.status}`;
+    const pillCls = `health-pill health-pill--${r.status}`;
+    const pillTxt = r.status === 'ok' ? 'OK'
+                  : r.status === 'warn' ? 'WARN'
+                  : r.status === 'stale' ? 'STALE'
+                  : r.status === 'broken' ? 'BROKEN'
+                  : 'UNKNOWN';
+    const days = r.days_old == null ? '—' : r.days_old + 'd';
+    const last = r.last_data_date || '<em style="color:var(--ink-faint);">unknown</em>';
+    const fix = r.fix || '—';
+    const groupLabels = {
+      live: 'Live', strategy: 'Strategy', derived: 'Derived',
+      breadth: 'Breadth', constituents: 'Roster',
+    };
+    return `<tr class="${cls}">
+      <td><span class="${pillCls}">${pillTxt}</span></td>
+      <td>
+        <div style="font-weight:500;">${r.label}</div>
+        <div style="font-size:11px;color:var(--ink-faint);">${r.file}</div>
+      </td>
+      <td style="font-size:12px;color:var(--ink-soft);">${groupLabels[r.group] || r.group}</td>
+      <td style="font-size:12px;">${last}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${days}</td>
+      <td style="font-size:11px;font-family:var(--mono,monospace);color:var(--ink-soft);">${fix}</td>
+    </tr>`;
+  }).join('');
+}
+
 function activateTab(name) {
   document.querySelectorAll('nav.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.tab-content').forEach((c) => c.classList.toggle('active', c.id === 'tab-' + name));
@@ -9259,6 +9467,9 @@ function activateTab(name) {
       renderRobustnessParadigm();
       renderTopKCadence();
       renderCorrelationMatrix();
+    }
+    if (name === 'health') {
+      renderDataHealth();
     }
     TAB_RENDERED.add(name);
   } else {
@@ -9391,6 +9602,8 @@ function _runLoadingWatchdog() {
   safeRender('hero-strip', renderHeroStrip);
   // Above-the-fold positions + this-week activity preview.
   safeRender('positions-preview', renderPositionsPreview);
+  // Persistent Data Health badge in the nav — always visible across tabs.
+  safeRender('health-badge', updateHealthBadge);
   // Universe & Selection visual (Method tab) — render eagerly so it
   // is ready when the user clicks through.
   safeRender('universe-selection', renderUniverseSelection);

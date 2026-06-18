@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -433,6 +433,227 @@ def assert_built_at_valid(ts: str | None) -> None:
         )
 
 
+# ============================================================================
+# Data Health monitor (Phase 28.1)
+# ============================================================================
+# Surfaces every monitored data feed's freshness in one place — a Data Health
+# tab + persistent header badge — so the user can see at a glance whether the
+# signals on the screen reflect today's market or last month's. The pipeline
+# computes the report at build time and injects it under window.DATA.data_health;
+# the dashboard renders it without further work.
+#
+# The existing per-sleeve "data as of" prefixes (Phase 2.3) and constituent
+# staleness warnings (Phase 26.1) cover sub-cases of this; this report unifies
+# them and ADDS coverage for the derived JSONs (ma200_sweep, phase7_bootstrap,
+# phase8_right_tail, portfolio_construction) that the silent-staleness bug of
+# 2026-06-17 was hiding inside.
+
+DATA_HEALTH_CHECKS: list[dict] = [
+    # Live / daily-update feeds — narrow tolerance
+    {"key": "live_track", "file": "live_track.json", "group": "live",
+     "label": "Live mark-to-market (intra-week NAV splice)",
+     "warn": 3, "stale": 7,
+     "fix": "GitHub Actions daily_live_track or `python scripts/mark_to_market_live.py`"},
+    {"key": "holdings_prices", "file": "holdings_prices_1y.json", "group": "live",
+     "label": "Holdings 1Y price series (for click-expand mini-charts)",
+     "warn": 3, "stale": 7,
+     "fix": "`python scripts/export_holdings_prices.py`"},
+    # Strategy-engine outputs — weekly cadence
+    {"key": "topk", "file": "topk_robustness.json", "group": "strategy",
+     "label": "Strategy A — US Sector Rotation (top-K)",
+     "warn": 8, "stale": 14,
+     "fix": "`python scripts/run_topk_robustness.py`"},
+    {"key": "asset_class", "file": "asset_class_rotation.json", "group": "strategy",
+     "label": "Strategy B — Asset Class Rotation",
+     "warn": 8, "stale": 14,
+     "fix": "`python scripts/run_asset_class_rotation.py`"},
+    {"key": "thematic", "file": "thematic_rotation.json", "group": "strategy",
+     "label": "Strategy C — Thematic Rotation",
+     "warn": 8, "stale": 14,
+     "fix": "`python scripts/run_thematic_rotation.py`"},
+    {"key": "europe", "file": "europe_rotation.json", "group": "strategy",
+     "label": "Strategy D — Europe Sector Rotation",
+     "warn": 8, "stale": 14,
+     "fix": "`python scripts/run_europe_rotation.py`"},
+    {"key": "multi", "file": "multi_strategy.json", "group": "strategy",
+     "label": "Multi-strategy blend (deployed 4-way)",
+     "warn": 8, "stale": 14,
+     "fix": "`python scripts/run_multi_strategy.py`"},
+    {"key": "risk_overlay", "file": "risk_overlay.json", "group": "strategy",
+     "label": "Risk Overlay (regime gate + EM tilt)",
+     "warn": 8, "stale": 14,
+     "fix": "`python scripts/run_risk_overlay.py`"},
+    # Aggregated derivations — the silent-staleness offenders
+    {"key": "ma200_sweep", "file": "ma200_sweep.json", "group": "derived",
+     "label": "MA200 sweep (feeds Live Signal breadth chart)",
+     "warn": 8, "stale": 14,
+     "fix": "`python scripts/run_ma200_sweep.py`"},
+    {"key": "phase7_bootstrap", "file": "phase7_bootstrap.json", "group": "derived",
+     "label": "Bootstrap CIs on Sharpe (Phase 7)",
+     "warn": 8, "stale": 14,
+     "fix": "`python scripts/run_phase7_bootstrap.py`"},
+    {"key": "phase8_right_tail", "file": "phase8_right_tail.json", "group": "derived",
+     "label": "Right-tail / regime metrics + sleeve correlations (Phase 8)",
+     "warn": 8, "stale": 14,
+     "fix": "`python scripts/run_phase8_right_tail.py`"},
+    {"key": "portfolio_construction", "file": "portfolio_construction.json", "group": "derived",
+     "label": "Portfolio variants comparison table",
+     "warn": 8, "stale": 14,
+     "fix": "`python scripts/run_portfolio.py`"},
+]
+# Per-ETF breadth panels and constituent rosters are added dynamically by
+# _compute_data_health below so the registry stays compact.
+
+
+def _last_data_date_from(blob: dict) -> str | None:
+    """Best-effort extract of the LATEST YYYY-MM-DD date anywhere in a
+    result JSON. Deep-walks the tree and returns the maximum date string
+    encountered, or None if the tree contains no recognisable dates.
+
+    Deliberately does NOT short-circuit on explicit keys like
+    ``end_date`` / ``anchor_date`` — live_track.json has both an
+    ``anchor_date`` of the most-recent-Friday close AND a ``live_dates``
+    array that extends through today's intra-week splice. Stopping at
+    ``anchor_date`` would mark a freshly-refreshed file as 14+ days
+    stale. Always scan for the true maximum.
+    """
+    best: list[str] = [""]
+    def walk(o):
+        if isinstance(o, str):
+            # Match strict ISO YYYY-MM-DD prefix
+            if len(o) >= 10 and o[4] == "-" and o[7] == "-" and o[:4].isdigit():
+                if o[:10] > best[0]:
+                    best[0] = o[:10]
+        elif isinstance(o, dict):
+            for vv in o.values(): walk(vv)
+        elif isinstance(o, list):
+            for vv in o: walk(vv)
+    walk(blob)
+    return best[0] or None
+
+
+def _classify(days_old: int | None, warn: int, stale: int) -> str:
+    if days_old is None: return "unknown"
+    if days_old >= stale: return "stale"
+    if days_old >= warn: return "warn"
+    return "ok"
+
+
+def _compute_data_health(today: date) -> dict:
+    """Build the centralised data health report. Walks every monitored
+    file, computes status, returns a dict suitable for
+    window.DATA.data_health. Never raises — a single file read failure
+    becomes a 'broken' row, not a pipeline abort."""
+    import os as _os
+    from datetime import datetime as _dt
+    rows: list[dict] = []
+
+    def _process(check: dict) -> None:
+        fp = DATA_DIR / check["file"]
+        row = {
+            "key": check["key"],
+            "file": check["file"],
+            "label": check["label"],
+            "group": check["group"],
+            "fix": check.get("fix", ""),
+            "thresholds": {"warn": check["warn"], "stale": check["stale"]},
+        }
+        if not fp.exists():
+            row["status"] = "broken"
+            row["last_data_date"] = None
+            row["days_old"] = None
+            row["mtime"] = None
+            row["note"] = "file missing"
+            rows.append(row)
+            return
+        try:
+            blob = json.loads(fp.read_text(encoding="utf-8"))
+        except Exception as e:
+            row["status"] = "broken"
+            row["last_data_date"] = None
+            row["days_old"] = None
+            row["mtime"] = None
+            row["note"] = f"unreadable: {e}"
+            rows.append(row)
+            return
+        last = _last_data_date_from(blob)
+        mtime_ts = _os.path.getmtime(fp)
+        mtime_iso = _dt.utcfromtimestamp(mtime_ts).strftime("%Y-%m-%dT%H:%M:%SZ")
+        if last:
+            try:
+                days = (today - date.fromisoformat(last)).days
+            except ValueError:
+                days = None
+        else:
+            # Fallback to file mtime
+            days = (today - date.fromtimestamp(mtime_ts)).days
+        row["status"] = _classify(days, check["warn"], check["stale"])
+        row["last_data_date"] = last
+        row["days_old"] = days
+        row["mtime"] = mtime_iso
+        rows.append(row)
+
+    # Registered explicit checks
+    for c in DATA_HEALTH_CHECKS:
+        _process(c)
+
+    # Per-ETF threshold overrides for known-blocked endpoints. SOXX is the
+    # only Strategy A member sourced from iShares US (Akamai-blocked from
+    # CI and increasingly from residential IPs as of 2026-06); roster
+    # carry-forward + EDGAR fallback keep it operational for up to ~60
+    # days. Without an override SOXX would chronically register as
+    # warn/stale and dilute the signal value of the badge.
+    THRESHOLD_OVERRIDES = {
+        "breadth_soxx": {"warn": 21, "stale": 60},
+        "constituents_soxx": {"warn": 30, "stale": 90},
+    }
+
+    # Per-ETF breadth panels — single group, weekly cadence
+    for fp in sorted(DATA_DIR.glob("breadth_*.json")):
+        etf = fp.stem.replace("breadth_", "").upper()
+        key = f"breadth_{etf.lower()}"
+        warn = THRESHOLD_OVERRIDES.get(key, {}).get("warn", 8)
+        stale = THRESHOLD_OVERRIDES.get(key, {}).get("stale", 14)
+        _process({
+            "key": key,
+            "file": fp.name, "group": "breadth",
+            "label": f"Breadth panel — {etf}",
+            "warn": warn, "stale": stale,
+            "fix": f"`python scripts/compute_breadth.py --etf {etf}`",
+        })
+
+    # Per-ETF constituent rosters
+    for fp in sorted(DATA_DIR.glob("constituents_*.json")):
+        etf = fp.stem.replace("constituents_", "").upper()
+        key = f"constituents_{etf.lower()}"
+        warn = THRESHOLD_OVERRIDES.get(key, {}).get("warn", 14)
+        stale = THRESHOLD_OVERRIDES.get(key, {}).get("stale", 60)
+        _process({
+            "key": key,
+            "file": fp.name, "group": "constituents",
+            "label": f"Constituent roster — {etf}",
+            "warn": warn, "stale": stale,
+            "fix": f"`python scripts/fetch_constituents.py --etf {etf}`",
+        })
+
+    counts = {"ok": 0, "warn": 0, "stale": 0, "broken": 0, "unknown": 0}
+    for r in rows:
+        counts[r["status"]] = counts.get(r["status"], 0) + 1
+    if counts["broken"] or counts["stale"]:
+        overall = "stale"
+    elif counts["warn"]:
+        overall = "warn"
+    else:
+        overall = "ok"
+    return {
+        "computed_at_iso": _dt.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "today": today.isoformat(),
+        "overall_status": overall,
+        "counts": counts,
+        "rows": rows,
+    }
+
+
 def inject(template_text: str, data: dict) -> str:
     payload_json = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     replacement = (
@@ -801,10 +1022,21 @@ def main() -> int:
                 f"DATA_INTEGRITY_POLICY.md for remediation."
             )
 
+    # Phase 28.1 — centralised data health for the new Data Health tab
+    # + persistent header badge. Computed AFTER every other load so the
+    # report reflects what was actually published.
+    data_health = _compute_data_health(date.today())
+    print(f"\nData health: overall={data_health['overall_status']}  "
+           f"OK={data_health['counts']['ok']}  "
+           f"WARN={data_health['counts']['warn']}  "
+           f"STALE={data_health['counts']['stale']}  "
+           f"BROKEN={data_health['counts']['broken']}")
+
     data = {
         "built_at": built_at,
         "signals_asof": signals_asof,
         "data_integrity": data_integrity,
+        "data_health": data_health,
         "live_track": live_track,
         "ma200": ma200,
         "portfolio": portfolio,
