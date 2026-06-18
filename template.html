@@ -1943,7 +1943,7 @@
         </div>
         <div class="step">
           <div class="step-n">3</div>
-          <div class="step-body"><strong>Strategy A — within US equities, which sectors lead?</strong> Compute % of each ETF's constituents above their 200d MA. Rank the 14 ETFs. Take the top 7. Weight by breadth share.</div>
+          <div class="step-body"><strong>Strategy A — within US equities, which sectors lead?</strong> Compute % of each ETF's constituents above their 200d MA, then subtract the cross-sectional mean to get sector-relative breadth. Rank the 14 ETFs, take the top 7, drop any below mean (long-only). Weight survivors by their share of positive excess. In narrow regimes the sleeve holds fewer than 7 — that is by design.</div>
         </div>
         <div class="step">
           <div class="step-n">4</div>
@@ -2024,15 +2024,19 @@
     <div class="recipe">
       <h3>Strategy A — US sector breadth rotation</h3>
       <div class="recipe-title">Top-K-by-breadth sector rotation (35% sleeve in the deployed 4-way blend)</div>
-      <p style="margin:0;color:var(--ink-soft);"><em style="color:var(--ink-faint);">Top-K rotation = hold the K best-scoring ETFs each rebalance, drop the rest.</em> Each Friday close, compute % above 200d MA for each of the 14 ETFs in the US sector universe. Rank them. Hold the top K = 7 next week, weighted by breadth (highest-breadth sector gets the largest slice). Refit K only annually on expanding-window Sharpe — the choice has been stable at K = 7 throughout the backtest. Strategy A is the largest single sleeve (35%) in the deployed multi-strategy blend; see the Multi-Strategy tab for how it combines with B, C, and D.</p>
+      <p style="margin:0;color:var(--ink-soft);"><em style="color:var(--ink-faint);">Sector-relative breadth rotation, up to K = 7, long-only.</em> Each Friday close, compute % above 200d MA for each of the 14 sector ETFs. Convert to <strong>sector-relative breadth</strong> by subtracting the cross-sectional mean. Rank by relative breadth, take the top K = 7, then drop any with negative relative breadth (those below the mean) to keep the sleeve long-only. Weight survivors by their share of total positive relative breadth. <strong>K is the cap, not a target</strong> — in narrow leadership regimes only a handful of sectors sit above the mean and the sleeve concentrates to those; in broad rallies all top 7 are above mean and the sleeve fans out. Refit K only annually on expanding-window Sharpe — the choice has been stable at K = 7 throughout the backtest. Strategy A is the largest single sleeve (35%) in the deployed multi-strategy blend; see the Multi-Strategy tab for how it combines with B, C, and D.</p>
       <div class="recipe-stats" id="recipe-stats"></div>
       <ol class="recipe-steps">
-        <li><strong>Every Friday close</strong>: pull the 14 ETF rosters, compute % of constituents above their own 200d simple MA.</li>
-        <li><strong>Rank ETFs by breadth</strong>. Take the top 7.</li>
-        <li><strong>Weight each by its breadth share</strong>: weight_i = breadth_i / Σ(top-7 breadths). High-breadth sectors get more capital, weak ones less.</li>
+        <li><strong>Every Friday close</strong>: pull the 14 ETF rosters, compute % of constituents above their own 200d simple MA (absolute breadth, 0-100%).</li>
+        <li><strong>Convert to sector-relative breadth</strong>: for each ETF, subtract the cross-sectional mean breadth across all 14 sectors. The signal is now "how much is this sector leading or lagging the others" (positive = leading, negative = lagging).</li>
+        <li><strong>Rank by relative breadth and take the top K = 7</strong>, then <strong>drop any with negative relative breadth</strong> (sectors below the mean). The sleeve holds <strong>up to K</strong> survivors — often fewer when the cross-section is narrow.</li>
+        <li><strong>Weight by positive relative-breadth share</strong>: weight_i = rel_breadth_i / Σ(positive rel_breadths). Survivors with the largest excess over the mean get the largest slices.</li>
         <li><strong>Rebalance to the new mix</strong>. The Trade Explorer deep-dive (below) shows the exact weights at every rebalance.</li>
         <li><strong>Once a year</strong>, re-evaluate K ∈ {3, 5, 7}. So far the answer has been K = 7 every year.</li>
       </ol>
+      <p style="margin:14px 0 0 0;padding:8px 12px;background:rgba(99,99,99,0.05);border-radius:4px;font-size:12px;color:var(--ink-soft);">
+        <strong>Why fewer than 7?</strong> Phase 20.1 (deployed May 2026) switched the signal from <em>absolute</em> breadth ("% above 200d MA") to <em>sector-relative</em> breadth ("% above 200d MA, minus the cross-sectional mean"). The change empirically lifted Sharpe by +0.05 and cut SPY correlation from 0.93 to 0.83 — sectors moving with the market wash out, sectors actually leading on a breadth basis stand out. The long-only drop-negatives rule is what makes the sleeve self-thin in narrow regimes instead of holding 7 mediocre laggards.
+      </p>
     </div>
 
     <section>
@@ -2053,7 +2057,7 @@
 
     <section>
       <h2>Headline comparison</h2>
-      <p class="section-sub">Top row (highlighted green, tagged DEPLOYED) is the actual Strategy A used in the 4-way Multi-Strategy blend at 35% weight: <strong>Top-7 breadth-weighted rotation, weekly Friday, no leverage</strong>. Below it: the K=5 unleveraged variant as a K-sensitivity reference, and the two passive benchmarks (naive equal-weight across the 14 ETFs, SPY buy-and-hold).</p>
+      <p class="section-sub">Top row (highlighted green, tagged DEPLOYED) is the actual Strategy A used in the 4-way Multi-Strategy blend at 35% weight: <strong>Sector-relative breadth rotation, up to K=7, weekly Friday, no leverage</strong>. Below it: the K=5 unleveraged variant as a K-sensitivity reference, and the two passive benchmarks (naive equal-weight across the 14 ETFs, SPY buy-and-hold).</p>
       <table class="small-table" id="portfolio-table"><thead></thead><tbody></tbody></table>
     </section>
 
@@ -2550,24 +2554,29 @@
 
     <div class="plain-box">
       <h3>The strategy explained, plain English</h3>
-      <p class="lead">Pick the strongest seven sectors of the US stock market each week. Own them. Update weekly. That is the whole strategy.</p>
+      <p class="lead">Own the US sectors that are <em>leading the others</em> on breadth — up to seven of them — each week. Skip the laggards. Update weekly. That is the whole strategy.</p>
       <p><strong>What is a "sector"?</strong> The US stock market is split into industry groups — Financials, Energy, Health Care, Industrials, Consumer Discretionary, Consumer Staples, Utilities, Materials, Communication Services, Real Estate — plus a few broad-market and concentrated picks (S&amp;P 500, NASDAQ-100, Semiconductors, Small-cap 600). We use 14 ETFs that represent these groups. (NASDAQ-100 already gives us the large-cap tech exposure; we pruned the S&amp;P 500 Info Tech ETF in May 2026 because it duplicated the NASDAQ-100 too closely.)</p>
       <p><strong>How do we judge which sector is "strong"?</strong> Every sector contains 30 to 500 individual companies. We count what percentage of those companies are currently trading above their own 200-day moving average. A stock above its 200-day average is in an uptrend; below it, a downtrend. So if 85% of the companies in a sector are in uptrends, that sector is strong — broadly strong, not just lifted by a few mega-caps. We call this number the <em>breadth</em> of the sector. It ranges from 0% (everything broken) to 100% (everything in an uptrend).</p>
+      <p><strong>What is "leading on breadth"?</strong> A sector at 75% breadth sounds strong in absolute terms, but if every other sector is also above 75% then this one is not standing out — it is just riding the broader rally. To distinguish leaders from market beneficiaries, we compute the average breadth across all 14 sectors, then subtract that average from each sector's own breadth. The result is <em>sector-relative breadth</em> — positive when the sector is leading the pack, negative when it is lagging. This is the signal we actually rank on.</p>
       <div class="step">
         <div class="step-n">1</div>
         <div class="step-body"><strong>Every Friday after market close</strong>, look up the constituents of each of the 14 ETFs and compute the breadth (% above 200d MA) for each one.</div>
       </div>
       <div class="step">
         <div class="step-n">2</div>
-        <div class="step-body"><strong>Rank the 14 ETFs by breadth</strong>. Whichever seven are highest, those are your portfolio next week.</div>
+        <div class="step-body"><strong>Convert each absolute breadth into sector-relative breadth</strong> by subtracting the cross-sectional mean. Positive = leading the pack, negative = lagging.</div>
       </div>
       <div class="step">
         <div class="step-n">3</div>
-        <div class="step-body"><strong>Weight them by breadth share</strong>. If the top seven breadths are (85, 80, 70, 65, 55, 50, 45) — sum is 450 — then their portfolio weights are 85/450 = 19%, 80/450 = 18%, and so on. The strongest sector gets more of your money than the weakest of the seven.</div>
+        <div class="step-body"><strong>Rank by relative breadth, take the top seven, drop any that are negative</strong>. The sleeve holds up to seven sectors — only those above the cross-sectional mean. In narrow leadership regimes (a few sectors clearly leading, the rest clustering near average) we may hold three or four; in broad rallies we hold all seven. <em>Today: see the Allocation panel below for the live count.</em></div>
       </div>
       <div class="step">
         <div class="step-n">4</div>
-        <div class="step-body"><strong>Re-check next Friday.</strong> Some sectors will have weakened and dropped out of the top 7; others will have strengthened and entered. Sell what dropped out, buy what came in, adjust the rest. Costs are about 5 basis points (0.05%) per unit of weight change — a typical retail ETF brokerage fee. The Trade Explorer tab shows every single rebalance.</div>
+        <div class="step-body"><strong>Weight survivors by their relative-breadth share</strong>. If the survivors' positive relative breadths are (+30, +25, +12, +8) — sum is 75 — then portfolio weights are 30/75 = 40%, 25/75 = 33%, 12/75 = 16%, 8/75 = 11%. Sectors leading by more get bigger slices.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">5</div>
+        <div class="step-body"><strong>Re-check next Friday.</strong> Some sectors will have weakened and dropped below the mean; others will have strengthened and entered. Sell what dropped out, buy what came in, adjust the rest. Costs are about 5 basis points (0.05%) per unit of weight change — a typical retail ETF brokerage fee. The Trade Explorer tab shows every single rebalance.</div>
       </div>
       <p style="margin-top:18px;"><strong>What this strategy is NOT doing.</strong> It is not trying to time the market — there is no "stay in cash if everything looks bad" rule. It is always 100% invested. It is also not trying to predict which individual sector will go up next. It is doing something simpler: <em>own whatever is leading, trim whatever is lagging</em>. Markets reward this pattern more often than they punish it, because trends in market breadth tend to persist for weeks-to-months at a time.</p>
       <p><strong>Why we trust it.</strong> The "Robustness" tab shows the strategy holds up when we apply the standard quant-research stress tests: walk-forward validation (refitting the only free parameter, K = the number of sectors to own, each year on out-of-sample data), bootstrap confidence intervals, sub-period decomposition through bear markets, sensitivity to the moving-average lookback and the rebalance frequency. The walk-forward Sharpe ratio is approximately 1.05 with no degradation from the in-sample number — that is unusual and is the main reason we picked this paradigm over per-ETF threshold tuning or fixed-threshold timing.</p>
@@ -2607,7 +2616,7 @@
         <p><strong>Breadth indicator (Strategy D)</strong>: same as Strategy A but on Stoxx Europe 600 sector UCITS constituents. (Pipeline note: <code>min_periods</code> in the rolling MA200 is relaxed from 100% to 90% of window so that non-US constituents with sparse missing days from local holidays or dividend events do not silently lose their MA. See the research log below for the bug-discovery story.)</p>
         <p><strong>Headline strategy — Multi-Strategy 35/35/10/20 A:B:C:D blend (no leverage)</strong>:</p>
         <ul>
-          <li><strong>Strategy A</strong>: rank 14 US sector/broad ETFs by breadth, take top K = 7, weight by breadth share. Universe: SOXX, CSP1, CNDX, IUES, IUFS, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, IUSP, IDP6. <em>IUIT (S&amp;P 500 Info Tech) was pruned in May 2026 because of 0.97 correlation with CNDX — see Robustness Test 12.</em></li>
+          <li><strong>Strategy A</strong>: rank 14 US sector/broad ETFs by <strong>sector-relative breadth</strong> (each ETF's breadth minus the cross-sectional mean), take top K = 7, drop any below the mean (long-only), weight survivors by relative-breadth share. Holds up to 7 — fewer in narrow leadership regimes. Universe: SOXX, CSP1, CNDX, IUES, IUFS, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, IUSP, IDP6. <em>IUIT (S&amp;P 500 Info Tech) was pruned in May 2026 because of 0.97 correlation with CNDX — see Robustness Test 12. Sector-relative signal deployed Phase 20.1 (May 2026) — lifted Sharpe +0.05 and cut SPY correlation 0.93 → 0.83 vs the prior absolute-breadth signal.</em></li>
           <li><strong>Strategy B</strong>: rank 13 broad asset-class ETFs by distance above 200d MA, drop negatives, take top K = 7, weight by signal share, cash floor in SHY (1-3y Treasury) for unfilled slots. IEF remains in the rotation universe as a duration play. Universe (HYG removed — equity-correlated, never defensive): SPY, IJR, QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, TIP.</li>
           <li><strong>Strategy C</strong> (10% sleeve): rank 25 thematic ETFs by distance above 200d MA, drop any below +5% (signal floor), take top K = 5, equal-weight (1/K) across the holdings, cash floor in SHY (1-3y Treasury) for unfilled slots. <strong>Sleeve-breadth gate (deployed June 2026)</strong>: if fewer than 30% of the 25-theme universe clears the +5% floor at any rebal, exit ALL positions to SHY for the week. Universe: ARKK, CIBR, SKYY, BOTZ, BLOK, ICLN, TAN, LIT, URA, XBI, ARKG, JETS, GDX, COPX, MOO, PAVE, <strong>ITA</strong> (defence/aerospace), <strong>BTC-USD</strong> (Bitcoin spot — see caveat below; live execution in IBIT), <strong>XME</strong> (broad metals &amp; mining), <strong>WOOD</strong> (timber &amp; forestry), <strong>REMX</strong> (rare earth / strategic metals), <strong>CQQQ</strong> (Invesco China Technology — broad China-tech), <strong>159801.SZ</strong> (Bosera CSI Chip ETF, CNY-denominated, USD-adjusted via spot FX — pure China A-share semiconductor hardware basket: Cambricon, AMEC, NAURA, SMIC. Deployed via IBKR Stock Connect; 588200.SS is an interchangeable Shanghai-listed alternative), <strong>PHO</strong> (Invesco Water Resources — water infrastructure, added 2026-05-31), <strong>IHI</strong> (iShares US Medical Devices — Abbott, Thermo Fisher, Medtronic, Stryker, added 2026-05-31). <em>The C sleeve uses equal-weight (1/K) across the holdings rather than signal-weighting, after an A/B test showed equal-weight dominates on every metric for this high-floor (5%) regime — see the research log below.</em></li>
           <li><strong>Strategy D</strong> (20% sleeve): rank 5 Stoxx Europe 600 sector UCITS by constituent breadth, take top K = 3, weight by breadth share. Universe: EXV1 (Banks), EXH1 (Oil &amp; Gas), EXV3 (Technology), EXH3 (Industrial Goods &amp; Services), EXH9 (Utilities). Trade as the Xetra-listed UCITS (EXV1.DE etc.) in EUR.</li>
@@ -2809,7 +2818,7 @@
           <li><strong>If walk-forward Sharpe ≤ BH Sharpe, abandon the strategy.</strong> No amount of in-sample tweaking saves a strategy whose held-out performance is no better than the passive benchmark. CSP1 fails this test (WF 0.57 vs BH 0.84); SOXX with bi-weekly cadence passes (1.05 vs 0.98).</li>
           <li><strong>Prefer relative signals to absolute thresholds.</strong> "Top K by breadth" is a relative statement that self-normalises across regimes; "breadth ≥ L" is an absolute threshold that has to be re-tuned every regime. Test 10 shows the cross-sectional rotation paradigm has zero walk-forward degradation, while threshold-based timing degrades ~0.3 Sharpe. Whenever a signal can be expressed as a cross-sectional rank instead of a level, prefer the rank version.</li>
         </ul>
-        <p><strong>Practical deployment translation.</strong> The strategy that survives all the tests is paradigm 3 from Test 10: <em>own the top K = 5-7 ETFs by current MA200 breadth, weight by breadth excess over the cross-sectional median, rebalance weekly Friday, no per-ETF threshold tuning, refit K only annually</em>. Walk-forward Sharpe ≈ 1.05 with no degradation from in-sample. The previous "fixed L=60 on IUIT / CNDX / IUES" recommendation was correct given the framing of paradigm 2, but paradigm 3 is strictly better — it owns the same sectors when they lead, drops them when they lag, and never bets on a single ETF being "above the L-line" in isolation. The original headline Sharpe 1.04 for CSP1 single-ETF was an artifact; the headline Sharpe 1.05 for top-K rotation is honest.</p>
+        <p><strong>Practical deployment translation.</strong> The strategy that survives all the tests is paradigm 3 from Test 10: <em>own up to K = 5-7 ETFs by current MA200 breadth, ranked on sector-relative breadth (breadth minus the cross-sectional mean), drop sectors below the mean to keep the sleeve long-only, weight survivors by their positive relative-breadth share, rebalance weekly Friday, no per-ETF threshold tuning, refit K only annually</em>. Walk-forward Sharpe ≈ 1.05 with no degradation from in-sample. The previous "fixed L=60 on IUIT / CNDX / IUES" recommendation was correct given the framing of paradigm 2, but paradigm 3 is strictly better — it owns the same sectors when they lead, drops them when they lag, and never bets on a single ETF being "above the L-line" in isolation. The original headline Sharpe 1.04 for CSP1 single-ETF was an artifact; the headline Sharpe 1.05 for top-K rotation is honest.</p>
       </div>
     </section>
 
@@ -4080,7 +4089,7 @@ function renderMonitor() {
   const panelsSubEl = document.getElementById('live-panels-sub');
   if (panelsSubEl) {
     panelsSubEl.innerHTML = hasD
-      ? `The four engines that produced today's holdings. Strategy A picks the strongest US sectors by constituent breadth. Strategy B picks the strongest asset classes by ETF-level momentum. Strategy C is a small thematic sleeve for catching secular trends (AI, clean energy, biotech). Strategy D is a Europe sector breadth sleeve for non-US macro orthogonality. Combined portfolio: <strong>${blendLabel} A + B + C + D</strong>.`
+      ? `The four engines that produced today's holdings. Strategy A picks US sectors leading on <strong>sector-relative</strong> breadth (each sector's breadth minus the cross-sectional mean) — holds up to K=${data.topk?.headline?.K || 7}, drops any below mean. Strategy B picks the strongest asset classes by ETF-level momentum. Strategy C is a small thematic sleeve for catching secular trends (AI, clean energy, biotech). Strategy D is a Europe sector breadth sleeve for non-US macro orthogonality. Combined portfolio: <strong>${blendLabel} A + B + C + D</strong>.`
       : (hasC
         ? `The three engines that produced today's holdings. Combined portfolio: <strong>${blendLabel} A + B + C</strong>.`
         : `The two engines that produced today's holdings. Combined portfolio: <strong>${blendLabel} A + B</strong>.`);
@@ -4089,26 +4098,57 @@ function renderMonitor() {
   // ===== Strategy A panel =====
   document.getElementById('live-a-sub').textContent =
     _asofPrefix('a') +
-    `Rank 14 US sector/broad-market ETFs by % of constituents above 200d MA. Take top K=${topk.headline.K}. Weight by breadth share. Allocates ${(W_A*100).toFixed(0)}% of total NAV.`;
+    `Rank 14 US sector/broad-market ETFs by <strong>sector-relative breadth</strong> (% above 200d MA minus the cross-sectional mean). Take top K=${topk.headline.K}, drop any with negative relative breadth (long-only), weight survivors by positive-excess share. <strong>Holds up to K</strong> — fewer in narrow leadership regimes. Allocates ${(W_A*100).toFixed(0)}% of total NAV.`;
   const aS = aStats || {};
   document.getElementById('live-a-stats').innerHTML = `
     <div class="panel-stat"><div class="v">${fmtNum(aS.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
     <div class="panel-stat"><div class="v">${fmtPct(aS.cagr, true)}</div><div class="l">CAGR</div></div>
     <div class="panel-stat"><div class="v">${fmtPct(aS.max_dd)}</div><div class="l">Max DD</div></div>
   `;
-  // Weight derivation for Strategy A: weight_i = breadth_i / sum(top-K breadths)
-  const aSumBreadth = aLatest.holdings.reduce((s, h) => s + (h.breadth_pct || 0), 0);
+  // Weight derivation for Strategy A (Phase 20.1 onwards): the strategy
+  // ranks on SECTOR-RELATIVE breadth (each ETF's breadth minus the
+  // cross-sectional mean across the full 14-ETF universe), keeps the
+  // top-K positives, and weights survivors by positive-excess share.
+  //
+  // Compute the cross-sectional mean from the latest per-ETF breadths
+  // in ma200.per_etf_detail so the displayed arithmetic actually
+  // reconciles with the deployed weights (pre-Phase-28.3 the formula
+  // used absolute breadths and the user saw `97.7 / 345.6 = 28.3%` not
+  // matching the 38.8% weight on screen).
+  const aPerEtf = (data.ma200 && data.ma200.per_etf_detail) || {};
+  const aUniverseEtfs = (topk.headline?.etfs_used || topk.universe || [])
+    .map(u => (typeof u === 'string' ? u : u.etf)).filter(Boolean);
+  const aAllBreadths = aUniverseEtfs
+    .map(etf => {
+      const arr = aPerEtf[etf]?.breadth_pct;
+      return Array.isArray(arr) && arr.length ? arr[arr.length - 1] : null;
+    })
+    .filter(v => v != null && isFinite(v));
+  const aMean = aAllBreadths.length
+    ? aAllBreadths.reduce((a, b) => a + b, 0) / aAllBreadths.length
+    : 0;
+  const aSorted = aLatest.holdings.slice().sort((x, y) => y.weight - x.weight);
+  // Per-holding relative breadth and the denominator (sum of positives).
+  const aRelByEtf = {};
+  aSorted.forEach(h => { aRelByEtf[h.etf] = (h.breadth_pct || 0) - aMean; });
+  const aSumPositiveRel = aSorted.reduce(
+    (s, h) => s + Math.max(0, aRelByEtf[h.etf]), 0,
+  );
   const aFormula = `
     <div class="formula-box">
-      <strong>How each weight is computed</strong> · the strategy adds up the breadth of all ${aLatest.holdings.length} held ETFs, then gives each ETF a share proportional to its own breadth. The line under each ETF below shows the exact arithmetic.
+      <strong>How each weight is computed</strong> · the strategy ranks on <em>sector-relative breadth</em>
+      (each sector's breadth minus the cross-sectional mean across all ${aUniverseEtfs.length || 14} sectors),
+      keeps only sectors above the mean (long-only), and weights survivors by their share of total positive excess.
+      The line under each ETF below shows the exact arithmetic.
       <div style="margin:6px 0;">
-        <span class="eq">weight<sub>i</sub> = breadth<sub>i</sub> ÷ Σ(top-K breadths)</span>
-        <span style="margin-left:8px;color:var(--ink-faint);">where Σ = <strong>${aSumBreadth.toFixed(1)}%</strong> today</span>
+        <span class="eq">weight<sub>i</sub> = (breadth<sub>i</sub> − mean) ÷ Σ(positive excess)</span>
+        <span style="margin-left:8px;color:var(--ink-faint);">
+          mean = <strong>${aMean.toFixed(1)}%</strong> · Σ(positive excess) = <strong>${aSumPositiveRel.toFixed(1)}pp</strong> · held <strong>${aSorted.length} of K=${topk.headline?.K || 7} max</strong>${aSorted.length < (topk.headline?.K || 7) ? ` <span style="color:var(--warn);font-weight:600;">· narrow regime</span>` : ''}
+        </span>
       </div>
       In the ${blendLabel} deployed blend, each ETF's effective NAV weight is ${W_A.toFixed(2)} × its within-strategy weight (green badge on the right of each row).
     </div>
   `;
-  const aSorted = aLatest.holdings.slice().sort((x, y) => y.weight - x.weight);
   const aStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy A (100% = ${(W_A*100).toFixed(0)}% of NAV)</div>`;
   const aStrip = aStripLabel + `<div class="strat-alloc-strip">${aSorted.map(h => {
     const pct = h.weight * 100;
@@ -4127,7 +4167,7 @@ function renderMonitor() {
         <div class="hcalc">
           <span class="lhs">rank ${idx+1}</span>
           <span class="arrow">·</span>
-          <span class="lhs">${h.breadth_pct}% ÷ ${aSumBreadth.toFixed(1)}%</span>
+          <span class="lhs">(${h.breadth_pct}% − ${aMean.toFixed(1)}%) ÷ ${aSumPositiveRel.toFixed(1)}pp</span>
           <span class="arrow">=</span>
           <span class="rhs">${wPct}%</span>
           <span class="nav-eff">→ ${navEff}% NAV</span>
@@ -4265,7 +4305,7 @@ function renderMonitor() {
   if (hasD) {
     document.getElementById('live-d-sub').textContent =
       _asofPrefix('d') +
-      `Rank ${eu.universe?.length || 5} Stoxx Europe 600 sector ETFs by % of constituents above 200d MA. Take top K=${eu.headline.K}. Weight by breadth excess. Allocates ${(W_D*100).toFixed(0)}% of total NAV.`;
+      `Rank ${eu.universe?.length || 5} Stoxx Europe 600 sector ETFs by % of constituents above 200d MA (absolute breadth). Take top K=${eu.headline.K}, weight by breadth share (breadth_i / Σ top-K breadths). Allocates ${(W_D*100).toFixed(0)}% of total NAV.`;
     const dS = dStats || {};
     document.getElementById('live-d-stats').innerHTML = `
       <div class="panel-stat"><div class="v">${fmtNum(dS.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
@@ -4277,7 +4317,7 @@ function renderMonitor() {
     const dSumBreadth = dLatest.holdings.reduce((s, h) => s + (h.breadth_pct || 0), 0);
     const dFormula = `
       <div class="formula-box" style="border-left-color:#0e7490;">
-        <strong>How each weight is computed</strong> · same constituent-breadth mechanism as Strategy A, applied to 5 Stoxx Europe 600 sector UCITS. Weight by breadth share among the top-K holdings.
+        <strong>How each weight is computed</strong> · same constituent-breadth mechanism as Strategy A but using <em>absolute</em> breadth (not sector-relative — the 5-sector Europe universe is too small for the cross-sectional mean transform to add signal). Weight by absolute breadth share across the top-K holdings.
         <div style="margin:6px 0;">
           <span class="eq">weight<sub>i</sub> = breadth<sub>i</sub> ÷ Σ(top-K breadths)</span>
           <span style="margin-left:8px;color:var(--ink-faint);">where Σ = <strong>${dSumBreadth.toFixed(1)}%</strong> today</span>
@@ -5524,7 +5564,7 @@ function _renderDetailChips() {
   if (actionsEl) {
     actionsEl.innerHTML = `
       <button data-action="vs-market" title="Top-breadth ETF + CSP1 (S&P 500) — cleanest 2-line comparison">Leader vs market</button>
-      <button data-action="top7" title="All 7 currently deployed positions">Strategy A top-7</button>
+      <button data-action="top7" title="All currently deployed Strategy A positions (up to 7 — the sleeve holds only sectors above the cross-sectional breadth mean)">Strategy A holdings</button>
       <button data-action="all" title="Overlay all 15 ETFs — visually busy but useful for spotting outliers">All 15</button>
       <button data-action="none">Clear</button>
     `;
@@ -5673,7 +5713,7 @@ function renderDetail() {
       <th class="num">Δ 4 weeks</th>
       <th class="num">Δ 13 weeks</th>
       <th class="num">Δ 52 weeks</th>
-      <th>In Strategy A top-7?</th>
+      <th>In Strategy A today?</th>
     </tr>`;
     const last = data.topk?.headline?.trade_history?.slice(-1)[0];
     const topKSet = new Set((last?.holdings || []).map(h => h.etf));
@@ -6146,12 +6186,13 @@ function _curatedSeries(data) {
   const r = p.results || {};
   const meq = m.winner_equity_curves || {};
   const out = [];
-  // 1. STRATEGY A (deployed) — top-7 breadth-weighted rotation, weekly Fri,
-  //    NO LEVERAGE. This row matches run_topk_robustness HEADLINE_K=7 and
+  // 1. STRATEGY A (deployed) — sector-relative-breadth rotation, up to K=7,
+  //    weekly Fri, NO LEVERAGE. This row matches run_topk_robustness
+  //    HEADLINE_K=7 with USE_RELATIVE_BREADTH_SIGNAL=True (Phase 20.1) and
   //    is the row used by the deployed 35/35/10/20 A:B:C:D blend (at 35%).
   if (r.top7_breadth_weight) {
     out.push({
-      label: 'STRATEGY A — Top-7 breadth-weighted rotation (DEPLOYED, no leverage)',
+      label: 'STRATEGY A — Sector-relative breadth rotation, up to K=7 (DEPLOYED, no leverage)',
       category: 'Strategy A',
       isStrategyA: true,
       ...r.top7_breadth_weight,
