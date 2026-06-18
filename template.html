@@ -2139,6 +2139,13 @@
     </div>
 
     <section>
+      <h2>Strategy B — current selection<span id="b-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
+      <p class="section-sub">What Strategy B actually holds right now, and why each name qualified. The rule: rank every asset-class ETF by how far it sits above its own 200-day average (the signal), keep only those above it, hold the top K weighted by signal share, and route any unfilled slots to cash. <strong>The signal shown here is the value at the last rebalance, not today</strong> — so a name whose live signal (see the Trend snapshot below) has since overtaken a held one is not added until the next rebalance. That is why an ETF can show a higher current signal yet still read "no" in that snapshot.</p>
+      <table class="small-table" id="b-holdings-table"><thead></thead><tbody></tbody></table>
+      <p class="section-sub" id="b-holdings-note" style="margin-top:8px;font-size:12px;"></p>
+    </section>
+
+    <section>
       <h2>Live signal — Asset class &amp; Thematic momentum (Strategy B + C universes)</h2>
       <p class="section-sub">The live momentum signal that drives B and C rebalance decisions. This panel shows both the 13 Strategy B asset-class ETFs and the 25 Strategy C thematic ETFs together because they share the same signal definition. Default: today's Strategy B leader + SPY as reference. Y-axis is distance above 200d MA (can be negative). Use the chips to switch between B and C universe views. <em>Strategy C tab has a link back to this chart.</em></p>
       <div class="etf-chip-actions" id="detail-bc-actions"></div>
@@ -6179,6 +6186,61 @@ function renderDetailMomentumSection() {
   }).join('') || `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--ink-faint);">No ETFs selected — click chips above to add some.</td></tr>`;
 }
 
+// Strategy B current selection — the actual deployed holdings from the last
+// rebalance, with the signal value AS OF that rebalance (not the live signal)
+// so the table truthfully explains why each name qualified. See the Trend
+// snapshot above for the live signal; the two differ by the rebalance lag.
+function _renderBHoldings() {
+  const tbl = document.getElementById('b-holdings-table');
+  if (!tbl) return;
+  const h = window.DATA?.asset_class?.headline;
+  const th = h?.trade_history;
+  const asOfEl = document.getElementById('b-holdings-asof');
+  const noteEl = document.getElementById('b-holdings-note');
+  if (!h || !Array.isArray(th) || !th.length) {
+    tbl.querySelector('tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--ink-faint);">Strategy B holdings unavailable.</td></tr>`;
+    return;
+  }
+  const last = th[th.length - 1];
+  const K = h.K;
+  const holds = (last.holdings || []).slice().sort((a, b) => (b.signal_pct ?? -1e9) - (a.signal_pct ?? -1e9));
+  const invested = holds.reduce((s, x) => s + (x.weight || 0), 0);
+  const cash = Math.max(0, 1 - invested);
+  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (top K=${K} by trend)`;
+  tbl.querySelector('thead').innerHTML = `<tr>
+    <th class="num">#</th>
+    <th>ETF</th>
+    <th>Description / family</th>
+    <th class="num">Signal at rebalance</th>
+    <th class="num">Weight</th>
+  </tr>`;
+  const rows = holds.map((r, i) => {
+    const sig = r.signal_pct;
+    const sgn = sig >= 0 ? '+' : '';
+    return `<tr>
+      <td class="num">${i + 1}</td>
+      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${r.etf}</strong></td>
+      <td style="color:var(--ink-faint);font-size:12px;">${_bcLabel(r.etf)}</td>
+      <td class="num ${sig >= 0 ? 'good' : 'bad'}"><strong>${sgn}${sig.toFixed(1)}%</strong></td>
+      <td class="num">${(r.weight * 100).toFixed(1)}%</td>
+    </tr>`;
+  }).join('');
+  const cashRow = cash > 0.0005 ? `<tr>
+      <td class="num">—</td>
+      <td class="row-label" style="color:var(--ink-faint);">Cash floor</td>
+      <td style="color:var(--ink-faint);font-size:12px;">Fewer than K=${K} ETFs above their 200d trend</td>
+      <td class="num" style="color:var(--ink-faint);">—</td>
+      <td class="num">${(cash * 100).toFixed(1)}%</td>
+    </tr>` : '';
+  tbl.querySelector('tbody').innerHTML = rows + cashRow;
+  if (noteEl) {
+    const lowest = holds.length ? holds[holds.length - 1] : null;
+    noteEl.innerHTML = lowest
+      ? `Cutoff: the lowest-ranked holding is <strong>${lowest.etf}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day average. Any positive-trend asset class ranked below it — or above the line only after ${last.date} — is excluded until the next rebalance. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in cash because fewer than K=${K} names were in an uptrend.` : `All K=${K} slots are filled, so no cash is held.`}`
+      : '';
+  }
+}
+
 // ----------- Portfolio tab ---------------------------------------------
 function _curatedSeries(data) {
   const p = data.portfolio || {};
@@ -9651,6 +9713,9 @@ function _runLoadingWatchdog() {
   // Performance section — moved out of the Monitor tab into the
   // always-visible header (live deployment tracking).
   safeRender('performance', renderPerformance);
+  // Strategy B current-selection table (Live signal section) — render eagerly
+  // from the last rebalance so it is ready regardless of chip selection.
+  safeRender('b-holdings', _renderBHoldings);
   // Render the default tab immediately
   safeRender('monitor', renderMonitor);
   TAB_RENDERED.add('monitor');
