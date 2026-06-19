@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-06-18 23:15 UTC",
+  "computed_at_utc": "2026-06-19 22:30 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-06-16",
   "anchor_equity": 2.968484,
@@ -33,7 +33,7 @@
   ],
   "live_equity": [
     2.962556,
-    3.010891
+    3.004823
   ],
   "sleeve_extensions": {
     "strategy_a": {
@@ -51,7 +51,7 @@
       ],
       "equity": [
         3.588045,
-        3.668091
+        3.669795
       ]
     },
     "strategy_b": {
@@ -72,7 +72,7 @@
       ],
       "equity": [
         2.282447,
-        2.32022
+        2.320734
       ]
     },
     "strategy_c": {
@@ -91,7 +91,7 @@
       ],
       "equity": [
         3.181443,
-        3.218139
+        3.255838
       ]
     },
     "strategy_d": {
@@ -108,7 +108,7 @@
       ],
       "equity": [
         2.907166,
-        2.907166
+        2.857419
       ]
     }
   },
