@@ -1,8 +1,8 @@
 {
-  "computed_at_utc": "2026-06-19 22:30 UTC",
+  "computed_at_utc": "2026-06-19 22:50 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
-  "anchor_date": "2026-06-16",
-  "anchor_equity": 2.968484,
+  "anchor_date": "2026-06-17",
+  "anchor_equity": 2.963811,
   "regime_state": "RISK_ON",
   "eem_tilt_active": true,
   "effective_weights": {
@@ -28,17 +28,15 @@
     "SHY": 2.5e-05
   },
   "live_dates": [
-    "2026-06-17",
     "2026-06-18"
   ],
   "live_equity": [
-    2.962556,
-    3.004823
+    3.005219
   ],
   "sleeve_extensions": {
     "strategy_a": {
-      "anchor_date": "2026-06-16",
-      "anchor_equity": 3.6047,
+      "anchor_date": "2026-06-17",
+      "anchor_equity": 3.599,
       "weights": {
         "SOXX": 0.3881,
         "IUES": 0.2696,
@@ -46,17 +44,15 @@
         "IUUS": 0.1485
       },
       "dates": [
-        "2026-06-17",
         "2026-06-18"
       ],
       "equity": [
-        3.588045,
-        3.669795
+        3.679141
       ]
     },
     "strategy_b": {
-      "anchor_date": "2026-06-16",
-      "anchor_equity": 2.2975,
+      "anchor_date": "2026-06-17",
+      "anchor_equity": 2.2824,
       "weights": {
         "EEM": 0.1983,
         "DBC": 0.179,
@@ -67,17 +63,15 @@
         "EFA": 0.087
       },
       "dates": [
-        "2026-06-17",
         "2026-06-18"
       ],
       "equity": [
-        2.282447,
-        2.320734
+        2.320677
       ]
     },
     "strategy_c": {
-      "anchor_date": "2026-06-16",
-      "anchor_equity": 3.1866,
+      "anchor_date": "2026-06-17",
+      "anchor_equity": 3.1726,
       "weights": {
         "CIBR": 0.2,
         "ICLN": 0.2,
@@ -86,29 +80,25 @@
         "159801.SZ": 0.2
       },
       "dates": [
-        "2026-06-17",
         "2026-06-18"
       ],
       "equity": [
-        3.181443,
-        3.255838
+        3.24125
       ]
     },
     "strategy_d": {
-      "anchor_date": "2026-06-16",
-      "anchor_equity": 2.885,
+      "anchor_date": "2026-06-17",
+      "anchor_equity": 2.9003,
       "weights": {
         "EXH1": 0.3607,
         "EXH9": 0.3207,
         "EXV1": 0.3186
       },
       "dates": [
-        "2026-06-17",
         "2026-06-18"
       ],
       "equity": [
-        2.907166,
-        2.857419
+        2.850535
       ]
     }
   },
