@@ -123,6 +123,14 @@ def regime_publish_status(
         proximity = "below_on_close" if current_breadth < on_threshold else "above_on"
 
     if lag > budget_trading_days:
+        # The 'REGIME STALE' headline is the renderers' responsibility — every
+        # call site (factsheet banner, email banner, dashboard badge) already
+        # prepends its own 'REGIME STALE — DO NOT TRADE OFF THIS PANEL'
+        # header before this message. Including the prefix again here
+        # produced a doubled-up "REGIME STALE ... REGIME STALE — breadth
+        # panel as of ..." rendering in the 2026-06-20 factsheet, which the
+        # user flagged. The message is now the SUPPORTING SENTENCE only:
+        # facts + remediation, no redundant header.
         return RegimePublishStatus(
             publishable=False,
             status="stale",
@@ -130,7 +138,7 @@ def regime_publish_status(
             near_threshold=near,
             proximity_band=proximity,
             message=(
-                f"REGIME STALE — breadth panel as of {panel_end_date.isoformat()}, "
+                f"Breadth panel as of {panel_end_date.isoformat()}, "
                 f"{lag} trading days behind today ({today.isoformat()}). "
                 f"Budget is {budget_trading_days} trading days. "
                 "Do not trade on this regime state until the panel is "

@@ -74,7 +74,9 @@ def test_panel_one_day_over_budget_is_stale():
     assert s.status == "stale"
     assert s.publishable is False
     assert s.lag_trading_days == 6
-    assert "STALE" in s.message
+    # The 'STALE' label lives on the renderers' banner header, not in this
+    # supporting message — see regime_publish.py docstring.
+    assert "trading days behind" in s.message
     assert "refresh_all.py" in s.message
 
 
@@ -313,9 +315,20 @@ def test_factsheet_regime_block_uses_freshness_guard():
         panel_end_date=date(2026, 5, 29),
         today=date(2026, 6, 13),
     )
-    txt = rendered if isinstance(rendered, str) else str(rendered)
-    assert "STALE" in txt, f"stale banner missing: {txt[:200]}"
-    assert "ARMED" not in txt, f"confident ARMED copy leaked: {txt[:200]}"
-    # The confident RISK_ON badge must not appear without a stale qualifier.
-    if "RISK_ON" in txt:
-        assert "STALE" in txt
+    # build_regime_block returns a structured verdict dict; the
+    # 'STALE' word lives on the renderers' banner header that this
+    # dict feeds (see build_factsheet.build_regime_panel / template.html).
+    # Check the structural fields directly rather than scraping str(dict).
+    assert isinstance(rendered, dict)
+    assert rendered["status"] == "stale"
+    assert rendered["publishable"] is False
+    assert rendered["lag_trading_days"] == 11
+    assert rendered["panel_end_date"] == "2026-05-29"
+    # The supporting message no longer carries 'STALE' (the header does)
+    # but it must still carry the actionable substance.
+    assert "trading days behind" in rendered["message"]
+    assert "refresh_all.py" in rendered["message"]
+    # Confident copy from build_watchlist's ARMED path must not appear.
+    assert "ARMED" not in str(rendered), (
+        f"confident ARMED copy leaked into verdict: {str(rendered)[:200]}"
+    )
