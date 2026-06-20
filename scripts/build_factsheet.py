@@ -589,8 +589,19 @@ def build_holdings_table(sleeves, p22_active, page_w, styles):
                          "within": 1.0, "effective": 0.10, "signal": None})
     holdings = sorted(holdings, key=lambda x: -x["effective"])
 
+    # Data-integrity guard (vault rule: cross-reference slides against source).
+    # The "current target portfolio" must show EVERY deployed position — a
+    # hard top-N truncation silently drops whole sleeves (the Thematic sleeve
+    # sits at ~2% per name and used to fall below a top-14 cut, so LIT and the
+    # rest of sleeve C never appeared and the printed weights summed to ~88%).
+    # Show all holdings and warn loudly if they do not sum to ~100%.
+    total_eff = sum(h["effective"] for h in holdings)
+    if abs(total_eff - 1.0) > 0.015:
+        print(f"  WARN: factsheet holdings sum to {total_eff*100:.1f}%, not ~100% "
+              f"({len(holdings)} positions) — check sleeve weights / missing positions")
+
     data = [["TICKER", "SLEEVE", "SIGNAL", "TARGET WT", "$ ON $1.0M"]]
-    for h in holdings[:14]:
+    for h in holdings:
         sig = f"{h['signal']:+.1f}%" if h["signal"] is not None else "—"
         cash = h["effective"] * 1_000_000
         data.append([
@@ -650,7 +661,10 @@ def build_trades_table(sleeves, page_w, styles):
             styles["body"])
 
     data = [["SLEEVE", "ACTION", "TICKER", "PRIOR", "NEW", "Δ"]]
-    for sleeve, action, etf, prev_w, new_w in rows[:8]:
+    # Show ALL changes. Rows are appended in sleeve order A->B->C->D, so a
+    # top-8 cut (A and B alone fill it) structurally hid every Thematic (C)
+    # and Europe (D) move — e.g. "C ENTER LIT" never reached the page.
+    for sleeve, action, etf, prev_w, new_w in rows:
         action_col = (GOOD if action == "ENTER" else BAD if action == "EXIT"
                        else WARN)
         d = (new_w or 0) - (prev_w or 0)

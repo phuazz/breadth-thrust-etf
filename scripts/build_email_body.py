@@ -406,7 +406,7 @@ def build_html(out_path: Path):
 
     out.append('<h3 style="margin:0 0 10px 0;font-size:14px;'
                'color:#3a4148;text-transform:uppercase;letter-spacing:1px;">'
-               f'Current top holdings <span style="float:right;font-size:11px;'
+               f'Current holdings <span style="float:right;font-size:11px;'
                f'color:#7c8590;font-weight:400;text-transform:none;'
                f'letter-spacing:0;">as of {asof_iso}</span></h3>')
     out.append('<table style="width:100%;border-collapse:collapse;'
@@ -423,7 +423,7 @@ def build_html(out_path: Path):
         '<th style="text-align:right;padding:4px 10px;'
         'border-bottom:1px solid #c8ccd2;">$ on $1.0M</th></tr>'
     )
-    for h in holdings[:8]:
+    for h in holdings:  # show every deployed position, not just the top 8
         cash = h["effective"] * 1_000_000
         out.append(
             f'<tr><td style="padding:6px 10px;vertical-align:top;'
@@ -470,7 +470,7 @@ def build_html(out_path: Path):
         )
         action_colour = {"ENTER": "#1d7a3a", "EXIT": "#b3261e",
                           "RESIZE": "#b76e00"}
-        for sleeve, action, etf, prev_w, new_w in activity[:10]:
+        for sleeve, action, etf, prev_w, new_w in activity:  # show all changes
             prev_str = f"{prev_w * 100:.1f}%" if prev_w is not None else "&mdash;"
             new_str = f"{new_w * 100:.1f}%" if new_w is not None else "&mdash;"
             out.append(
