@@ -292,6 +292,76 @@ def assert_series_not_frozen(name: str, dates: list, values: list,
         )
 
 
+def assert_source_panel_fresh_vs_today(
+    panel_path: Path,
+    today: date,
+    max_lag_trading_days: int = 5,
+) -> None:
+    """Hard-fail when a source breadth panel's ``end_date`` lags today by
+    more than ``max_lag_trading_days`` trading days.
+
+    Counterpart to ``assert_derived_not_stale_vs_source``: that function
+    only catches the case "I refreshed sources but forgot to regenerate
+    derived". This one catches the case the 2026-03-27 -> 2026-06-18
+    incident actually was: the SOURCE panel itself stopped advancing
+    while the daily-mark-to-market workflow kept extending downstream
+    artefacts. Nothing in the chain anchored to ``today`` until now.
+
+    The Phase 28 ``assert_derived_not_stale_vs_source`` check compares
+    derived vs source mtimes only; both files can drift together if
+    nothing is comparing either to real time. This is what allowed the
+    breadth panel to publish a confident regime headline for 11 weeks
+    while the actual market reading had silently triggered a de-risk.
+
+    Args:
+        panel_path: source JSON whose ``end_date`` is the freshness anchor
+            (typically ``data/breadth_csp1.json`` — the panel feeding the
+            Phase 19 regime gate).
+        today: the build's reference date. Pass ``date.today()`` from
+            ``main()``.
+        max_lag_trading_days: budget. Default 5 = one full trading week,
+            matching ``regime_publish.DEFAULT_BUDGET_TRADING_DAYS``.
+
+    Raises:
+        RuntimeError: when the lag exceeds the budget. Message names
+            ``refresh_all.py`` as the fix. CI fails the build before
+            publish; local dev can override with ``ALLOW_STALE_REGIME=1``
+            (checked at the call site).
+    """
+    if not panel_path.exists():
+        return  # Missing-source warning handled elsewhere.
+    try:
+        blob = json.loads(panel_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise RuntimeError(
+            f"Pipeline aborted: could not read {panel_path.name} for "
+            f"freshness check: {e}"
+        )
+    end_iso = blob.get("end_date")
+    if not end_iso:
+        raise RuntimeError(
+            f"Pipeline aborted: {panel_path.name} has no end_date — the "
+            "regime publish freshness gate cannot verify the panel. "
+            "Re-run scripts/compute_breadth.py for this ETF."
+        )
+    import numpy as _np
+    end_date_obj = date.fromisoformat(end_iso)
+    if today <= end_date_obj:
+        return
+    lag = int(_np.busday_count(end_iso, today.isoformat()))
+    if lag > max_lag_trading_days:
+        raise RuntimeError(
+            f"Pipeline aborted: {panel_path.name} end_date={end_iso} is "
+            f"{lag} trading days behind today ({today.isoformat()}). "
+            f"Budget is {max_lag_trading_days} trading days. The Phase 19 "
+            "regime gate that drives the de-risk decision reads this "
+            "panel — publishing a regime headline off a stale panel is "
+            "the failure mode the 2026-03-27 -> 2026-06-18 incident "
+            "exposed. Run `python scripts/refresh_all.py` (or set "
+            "ALLOW_STALE_REGIME=1 for a one-off local dev rebuild)."
+        )
+
+
 def assert_derived_not_stale_vs_source(
     derived: Path, sources: list[Path], max_lag_days: int = 7,
 ) -> None:
@@ -697,6 +767,21 @@ def main() -> int:
         DATA_DIR / "portfolio_construction.json", [multi], max_lag_days=7,
     )
 
+    # Phase 28.5 P3 — source-panel freshness anchor. The Phase 28 derived-
+    # vs-source mtime check above only catches "derived forgot to refresh
+    # after source moved"; it does NOT catch "source itself stopped
+    # advancing" — exactly the 2026-03-27 -> 2026-06-18 incident. This
+    # check anchors the breadth_csp1 panel (the one feeding the Phase 19
+    # regime gate that decides de-risk) to today's date. ALLOW_STALE_REGIME
+    # is the local-dev escape hatch; CI never sets it.
+    import os as _os
+    if not _os.environ.get("ALLOW_STALE_REGIME"):
+        assert_source_panel_fresh_vs_today(
+            DATA_DIR / "breadth_csp1.json",
+            today=date.today(),
+            max_lag_trading_days=5,
+        )
+
     print("Loading MA200 sweep ...", flush=True)
     ma200 = load_ma200()
     if ma200:
@@ -783,8 +868,16 @@ def main() -> int:
         print(f"  right-tail: {len(ps)} per-strategy, {len(rd)} regimes, "
               f"{len(ts)} top-sleeve buckets")
 
+    # Phase 28.5 — regime publish freshness verdict, computed once and
+    # injected into window.DATA so every dashboard chart that touches the
+    # regime state can branch on it without re-implementing the rule.
+    # Importing here keeps pipeline import-time light when the helper is
+    # absent (older clones); the import is cheap when present.
+    from regime_publish import regime_publish_status  # noqa: E402
+
     print("Loading risk overlay (Phase 19 regime gate) ...", flush=True)
     risk_overlay = load_risk_overlay()
+    regime_publish: dict | None = None
     if risk_overlay:
         # Merge the gated variant(s) into the multi-strategy strategies
         # dict so the existing chart-rendering code finds them. Merge
@@ -805,6 +898,50 @@ def main() -> int:
         print(f"  risk_overlay: {len(risk_overlay.get('gated_variants', {}))} "
               f"gated variant(s), current={risk_overlay.get('current_state')} "
               f"since {risk_overlay.get('current_state_since')}")
+
+        # Phase 28.5 — regime publish status. Prefer the panel_end_date
+        # field that run_risk_overlay.py now emits (the source-of-truth
+        # provenance); fall back to reading breadth_csp1.json directly
+        # for older artefacts that pre-date the emission.
+        panel_end_iso = risk_overlay.get("panel_end_date")
+        if not panel_end_iso:
+            try:
+                bp = json.loads(
+                    (DATA_DIR / "breadth_csp1.json").read_text(encoding="utf-8")
+                )
+                panel_end_iso = bp.get("end_date")
+            except Exception:
+                panel_end_iso = None
+        cur_breadth = risk_overlay.get("current_breadth")
+        gp = risk_overlay.get("gate_parameters") or {}
+        if panel_end_iso and cur_breadth is not None:
+            try:
+                status = regime_publish_status(
+                    panel_end_date=date.fromisoformat(panel_end_iso),
+                    current_breadth=cur_breadth,
+                    off_threshold=gp.get("off_threshold", 0.20),
+                    on_threshold=gp.get("on_threshold", 0.50),
+                    today=date.today(),
+                )
+                regime_publish = {
+                    **status.as_dict(),
+                    "current_state": risk_overlay.get("current_state"),
+                    "current_state_since": risk_overlay.get("current_state_since"),
+                    "current_breadth": cur_breadth,
+                    "historical_revision": risk_overlay.get("historical_revision", []),
+                }
+                if status.status == "stale":
+                    print(f"  REGIME PUBLISH STALE — {status.message}")
+                elif status.status == "near":
+                    print(f"  REGIME PUBLISH NEAR THRESHOLD — {status.message}")
+                else:
+                    print(f"  regime publish OK — panel {panel_end_iso}, "
+                           f"{status.lag_trading_days} trading day(s) lag")
+            except Exception as e:
+                print(f"  WARN: could not compute regime publish status: {e}")
+        else:
+            print("  WARN: regime publish status NOT computed — missing "
+                   "panel_end_date or current_breadth")
     else:
         print("  WARNING: data/risk_overlay.json missing — run "
               "scripts/run_risk_overlay.py after run_multi_strategy.py to "
@@ -1032,11 +1169,29 @@ def main() -> int:
            f"STALE={data_health['counts']['stale']}  "
            f"BROKEN={data_health['counts']['broken']}")
 
+    # Phase 28.5 — fail the build loudly on a stale regime panel (FM-1
+    # primary defense, complementing the renderers' STALE banner). The
+    # 2026-03-27 -> 2026-06-18 incident published a confident regime
+    # headline for 11 weeks because no step in the chain refused to
+    # publish on stale breadth. This abort is overridable via the
+    # ALLOW_STALE_REGIME env var for local dev — never set this in CI.
+    import os as _os
+    if (regime_publish
+            and regime_publish.get("status") == "stale"
+            and not _os.environ.get("ALLOW_STALE_REGIME")):
+        raise RuntimeError(
+            "Pipeline aborted: the regime publish status is STALE. "
+            f"{regime_publish.get('message','')} "
+            "Run `python scripts/refresh_all.py` (or set "
+            "ALLOW_STALE_REGIME=1 for a one-off local dev rebuild)."
+        )
+
     data = {
         "built_at": built_at,
         "signals_asof": signals_asof,
         "data_integrity": data_integrity,
         "data_health": data_health,
+        "regime_publish": regime_publish,
         "live_track": live_track,
         "ma200": ma200,
         "portfolio": portfolio,

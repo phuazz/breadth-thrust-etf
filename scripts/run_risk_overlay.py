@@ -80,6 +80,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+# Allow importing sibling scripts/ modules when run as a script.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from regime_publish import (  # noqa: E402
+    assert_state_since_matches_events,
+    detect_historical_revision,
+)
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 OUT_PATH = DATA_DIR / "risk_overlay.json"
@@ -302,6 +309,14 @@ def main() -> int:
     breadth = pd.Series(csp1["series"]["ma_breadth"],
                          index=pd.to_datetime(csp1["series"]["dates"]),
                          name="breadth").dropna()
+    # Phase 28.5 — capture the panel's TRUE end_date before the downstream
+    # `.reindex(common, method='ffill')` extends the index onto the blend's
+    # calendar (which can run days past the panel's last real value when
+    # the live-track mark-to-market has spliced through). Reporting the
+    # ffilled tail as panel_end_date would lie — that's the exact silent-
+    # staleness shape Phase 28.5 exists to prevent.
+    panel_end_date_str = (csp1.get("end_date")
+                            or breadth.index[-1].strftime("%Y-%m-%d"))
 
     # Try asset_class cache first (in case FALLBACK_TICKER is one of
     # Strategy B's holdings). Otherwise fetch fresh + cache locally.
@@ -530,6 +545,52 @@ def main() -> int:
         payload["phase22_eem_tilt"] = phase22_payload
     else:
         payload["phase22_eem_tilt"] = {"enabled": False}
+    # ----- Phase 28.5 guards (FM-1 panel_end_date, FM-2 reconciliation,
+    # historical-revision detection) ---------------------------------------
+    # FM-1 surfacing: emit the panel's end_date alongside the regime
+    # headline so renderers can compute their own freshness verdict
+    # without having to re-open breadth_csp1.json. This is the explicit
+    # provenance field the 2026-06-13 publish was missing. Use the
+    # CSP1-original end_date (captured pre-ffill), not breadth.index[-1]
+    # which has been extended onto the blend calendar by ffill.
+    payload["panel_end_date"] = panel_end_date_str
+
+    # FM-2 reconciliation: current_state_since must equal the most recent
+    # event date matching current_state. Hard-fail at write time so the
+    # publish path never emits a JSON whose headline date silently disagrees
+    # with its own events list (which would have caught the
+    # 2025-05-02-vs-2026-04-09 mismatch that lingered through the
+    # 2026-06-13 publish if today's events recomputation had been right).
+    series_start = breadth.index[0].strftime("%Y-%m-%d")
+    assert_state_since_matches_events(
+        current_state=current_state,
+        current_state_since=payload["current_state_since"],
+        events=events,
+        series_start_date=series_start,
+    )
+
+    # Historical-revision detection: compare today's events list to the
+    # previously-committed file. If past-date entries have appeared,
+    # disappeared, or flipped direction, surface the change in the payload
+    # so the dashboard / factsheet can call it out rather than silently
+    # publishing the new history.
+    historical_revision: list[dict] = []
+    if OUT_PATH.exists():
+        try:
+            prior = json.loads(OUT_PATH.read_text(encoding="utf-8"))
+            historical_revision = detect_historical_revision(
+                prior.get("events", []) or [], events,
+            )
+        except Exception as e:
+            print(f"  WARN: could not read prior overlay for revision check: {e}")
+    payload["historical_revision"] = historical_revision
+    if historical_revision:
+        print(f"  HISTORICAL REGIME REVISION: {len(historical_revision)} "
+               f"past-date event(s) changed by this run:")
+        for r in historical_revision:
+            print(f"    {r['date']}  {r['change']}  "
+                   f"{r.get('from','-')} -> {r.get('to','-')}")
+
     OUT_PATH.write_text(json.dumps(payload, separators=(",", ":")),
                          encoding="utf-8")
 

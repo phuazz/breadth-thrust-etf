@@ -22,7 +22,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from pipeline import assert_derived_not_stale_vs_source  # noqa: E402
+from datetime import date  # noqa: E402
+
+from pipeline import (  # noqa: E402
+    assert_derived_not_stale_vs_source,
+    assert_source_panel_fresh_vs_today,
+)
 
 
 DAY = 86400  # seconds
@@ -121,4 +126,99 @@ def test_uses_newest_of_multiple_sources(tmp_path: Path) -> None:
         assert_derived_not_stale_vs_source(derived, sources, max_lag_days=7)
     assert "breadth_cndx.json" in str(excinfo.value), (
         "must name the NEWEST source, not the oldest"
+    )
+
+
+# =============================================================================
+# Phase 28.5 P3 — assert_source_panel_fresh_vs_today
+# =============================================================================
+# Regression guard for the 2026-03-27 -> 2026-06-18 silent-staleness incident.
+# The Phase 28 derived-vs-source check above only catches "derived forgot to
+# refresh after source moved"; it cannot catch "source itself stopped
+# advancing while everything downstream kept refreshing against it" — which is
+# what the breadth_csp1 panel did for ~11 weeks.
+
+import json as _json  # noqa: E402
+
+
+def _write_panel(path: Path, end_date_iso: str) -> None:
+    path.write_text(_json.dumps({"end_date": end_date_iso}), encoding="utf-8")
+
+
+def test_source_panel_fresh_today_passes(tmp_path: Path) -> None:
+    panel = tmp_path / "breadth_csp1.json"
+    _write_panel(panel, "2026-06-19")  # Fri
+    assert_source_panel_fresh_vs_today(
+        panel, today=date(2026, 6, 19), max_lag_trading_days=5,
+    )
+
+
+def test_source_panel_at_budget_boundary_passes(tmp_path: Path) -> None:
+    """5 trading days lag (exactly the default budget) must pass."""
+    panel = tmp_path / "breadth_csp1.json"
+    _write_panel(panel, "2026-06-12")  # Fri
+    assert_source_panel_fresh_vs_today(
+        panel, today=date(2026, 6, 19), max_lag_trading_days=5,
+    )
+
+
+def test_source_panel_just_over_budget_aborts(tmp_path: Path) -> None:
+    panel = tmp_path / "breadth_csp1.json"
+    _write_panel(panel, "2026-06-11")  # Thu
+    with pytest.raises(RuntimeError) as exc:
+        assert_source_panel_fresh_vs_today(
+            panel, today=date(2026, 6, 19), max_lag_trading_days=5,
+        )
+    msg = str(exc.value)
+    assert "breadth_csp1.json" in msg
+    assert "6 trading days" in msg
+    assert "refresh_all.py" in msg
+    assert "ALLOW_STALE_REGIME" in msg
+
+
+def test_source_panel_replays_2026_incident(tmp_path: Path) -> None:
+    """The actual 2026-06-13 vintage — panel end_date 2026-05-29, run date
+    2026-06-13 (Sat). Phase 28 derived-vs-source checks all PASSED that
+    day because ma200_sweep mtime was newer than breadth_csp1 mtime. This
+    new gate would have caught the silent failure."""
+    panel = tmp_path / "breadth_csp1.json"
+    _write_panel(panel, "2026-05-29")
+    with pytest.raises(RuntimeError) as exc:
+        assert_source_panel_fresh_vs_today(
+            panel, today=date(2026, 6, 13), max_lag_trading_days=5,
+        )
+    msg = str(exc.value)
+    assert "2026-05-29" in msg
+    assert "11 trading days" in msg
+
+
+def test_source_panel_missing_file_is_silent(tmp_path: Path) -> None:
+    """A fresh clone before any pipeline run will not have the panel.
+    Missing-source warnings are handled elsewhere; this gate is silent."""
+    assert_source_panel_fresh_vs_today(
+        tmp_path / "breadth_csp1.json",
+        today=date(2026, 6, 19),
+        max_lag_trading_days=5,
+    )
+
+
+def test_source_panel_missing_end_date_aborts(tmp_path: Path) -> None:
+    """A panel JSON that exists but lacks an end_date field is a broken
+    write — we want this loud, not silent."""
+    panel = tmp_path / "breadth_csp1.json"
+    panel.write_text(_json.dumps({"foo": "bar"}), encoding="utf-8")
+    with pytest.raises(RuntimeError) as exc:
+        assert_source_panel_fresh_vs_today(
+            panel, today=date(2026, 6, 19), max_lag_trading_days=5,
+        )
+    assert "no end_date" in str(exc.value)
+
+
+def test_source_panel_future_end_date_passes(tmp_path: Path) -> None:
+    """Clock skew defensive — if end_date somehow exceeds today, lag is 0
+    rather than negative."""
+    panel = tmp_path / "breadth_csp1.json"
+    _write_panel(panel, "2026-06-25")
+    assert_source_panel_fresh_vs_today(
+        panel, today=date(2026, 6, 19), max_lag_trading_days=5,
     )

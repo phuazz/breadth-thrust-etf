@@ -17,11 +17,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+# Allow importing sibling scripts/ modules.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from regime_publish import regime_publish_status  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -308,6 +312,22 @@ def build_html(out_path: Path):
     tilt_state, tilt_since, tilt_ratio = _eem_tilt_state(overlay)
     p22_active = tilt_state == "EM_TILT_ON"
 
+    # Phase 28.5 — regime publish freshness guard. The 2026-06-13 email
+    # printed 'RISK_ON since 2025-05-02' while the panel had stopped
+    # advancing 11 trading days earlier; nothing in this path noticed.
+    breadth_panel = _load_json(DATA_DIR / "breadth_csp1.json") or {}
+    panel_end_iso = breadth_panel.get("end_date")
+    regime_publish = None
+    if panel_end_iso and overlay and overlay.get("current_breadth") is not None:
+        gp = (overlay.get("gate_parameters") or {})
+        regime_publish = regime_publish_status(
+            panel_end_date=date.fromisoformat(panel_end_iso),
+            current_breadth=overlay["current_breadth"],
+            off_threshold=gp.get("off_threshold", 0.20),
+            on_threshold=gp.get("on_threshold", 0.50),
+            today=date.today(),
+        )
+
     # Holdings + activity
     holdings = _collect_holdings(sleeves, p22_active)
     activity = _collect_activity(sleeves, p22_active)
@@ -491,22 +511,38 @@ def build_html(out_path: Path):
 
     # Compact regime / tilt / allocation line — single row instead of
     # the 3-row table that used to dominate the top of the email.
+    # Phase 28.5 — when the breadth panel is stale, replace the regime
+    # cell with a STALE banner. The email reader must see this BEFORE
+    # the holdings table, not after.
     tilt_ratio_str = f", ratio {tilt_ratio:.3f}" if tilt_ratio else ""
-    out.append(
-        f'<div style="background:#f7f8fa;border:1px solid #e1e4e8;'
-        f'border-radius:4px;padding:10px 14px;font-size:12px;'
-        f'color:#3a4148;margin-bottom:18px;line-height:1.6;">'
-        f'<strong>Regime:</strong> '
-        f'<span style="color:{_regime_colour(regime_state)};font-weight:600;">'
-        f'{regime_state}</span> since {regime_since} &nbsp;&middot;&nbsp; '
-        f'<strong>EEM tilt:</strong> '
-        f'<span style="color:{_regime_colour(tilt_state)};font-weight:600;">'
-        f'{tilt_state}</span> since {tilt_since}{tilt_ratio_str} &nbsp;&middot;&nbsp; '
-        f'<strong>Allocation:</strong> '
-        f'<span style="font-family:{MONO};font-size:11px;">'
-        f'{alloc}</span>'
-        f'</div>'
-    )
+    if regime_publish and regime_publish.status == "stale":
+        out.append(
+            f'<div style="background:#fff4e6;border:1px solid #b3261e;'
+            f'border-radius:4px;padding:12px 16px;font-size:13px;'
+            f'color:#7f1010;margin-bottom:18px;line-height:1.5;">'
+            f'<strong>REGIME STALE — DO NOT TRADE OFF THIS PANEL.</strong> '
+            f'{regime_publish.message}'
+            f'</div>'
+        )
+    else:
+        regime_label = regime_state
+        if regime_publish and regime_publish.status == "near":
+            regime_label = f"{regime_state} (NEAR THRESHOLD)"
+        out.append(
+            f'<div style="background:#f7f8fa;border:1px solid #e1e4e8;'
+            f'border-radius:4px;padding:10px 14px;font-size:12px;'
+            f'color:#3a4148;margin-bottom:18px;line-height:1.6;">'
+            f'<strong>Regime:</strong> '
+            f'<span style="color:{_regime_colour(regime_state)};font-weight:600;">'
+            f'{regime_label}</span> since {regime_since} &nbsp;&middot;&nbsp; '
+            f'<strong>EEM tilt:</strong> '
+            f'<span style="color:{_regime_colour(tilt_state)};font-weight:600;">'
+            f'{tilt_state}</span> since {tilt_since}{tilt_ratio_str} &nbsp;&middot;&nbsp; '
+            f'<strong>Allocation:</strong> '
+            f'<span style="font-family:{MONO};font-size:11px;">'
+            f'{alloc}</span>'
+            f'</div>'
+        )
 
     # PDF + dashboard link
     out.append(

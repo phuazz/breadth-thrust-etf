@@ -28,6 +28,11 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Allow importing sibling scripts/ modules when build_factsheet is run as a
+# script (PROJECT_ROOT/scripts/build_factsheet.py).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from regime_publish import regime_publish_status  # noqa: E402
+
 import numpy as np
 import pandas as pd
 
@@ -84,7 +89,18 @@ def load_all():
     # stats and "as of" date advance through the intra-week NAV.
     lt_path = DATA_DIR / "live_track.json"
     live_track = json.loads(lt_path.read_text(encoding="utf-8")) if lt_path.exists() else None
-    return multi, overlay, sleeves, live_track
+    # Phase 28.5 — breadth_csp1 end_date drives the regime publish freshness
+    # check. The risk overlay reads breadth from this panel; if the panel
+    # is stale the published regime headline is silently wrong (the actual
+    # 2026-03-27 de-risk was invisible for 11 weeks because nothing checked
+    # this end_date at publish time).
+    breadth_path = DATA_DIR / "breadth_csp1.json"
+    breadth_end_date = None
+    if breadth_path.exists():
+        breadth_end_date = json.loads(
+            breadth_path.read_text(encoding="utf-8")
+        ).get("end_date")
+    return multi, overlay, sleeves, live_track, breadth_end_date
 
 
 def _extend_with_live(series_dates: list, series_equity: list,
@@ -506,8 +522,119 @@ def build_returns_table(deployed_series, spy_series, page_w, styles):
     return t
 
 
-def build_regime_panel(overlay, page_w, styles):
-    today = datetime.now(timezone.utc).date()
+# =============================================================================
+# Phase 28.5 — regime publish guard (FM-1 + FM-3 surfacing)
+# =============================================================================
+# The 2026-06-13 weekly publish printed "RISK_ON since 2025-05-02, breadth 55%,
+# ARMED, +35pp buffer" while the actual market reading on 2026-03-27 had been
+# 19.4% (a true de-risk trigger). The breadth panel feeding the regime gate
+# had stopped advancing on 2026-05-29 and nothing in the publish path checked
+# that. build_regime_block() now consults regime_publish_status — when stale,
+# the entire regime block is replaced with a STALE banner; when near a
+# threshold, the watchlist 'ARMED' label becomes 'NEAR'.
+
+def build_regime_block(overlay, panel_end_date, today):
+    """Return a structured verdict for the regime headline.
+
+    Args:
+        overlay: parsed ``risk_overlay.json``.
+        panel_end_date: date | str | None — the ``end_date`` of the breadth
+            panel that fed the overlay (typically breadth_csp1.json).
+        today: date — the build's reference date.
+
+    Returns a dict with:
+        publishable: bool
+        status: 'ok' | 'stale' | 'near' | 'no_data'
+        message: str — banner text when not 'ok'
+        breadth_state: 'RISK_ON' | 'RISK_OFF' | 'UNKNOWN'
+        breadth_since: ISO date | None
+        breadth_pct: float in [0,1] | None
+        proximity_band: str | None
+        panel_end_date: ISO date | None
+
+    Renderers consume the dict; they do not re-implement the verdict logic.
+    Test rigs inspect ``str(dict)`` to verify that confident copy is suppressed
+    on stale or near-threshold inputs.
+    """
+    if not overlay:
+        return {
+            "publishable": False, "status": "no_data",
+            "message": "REGIME STATE UNAVAILABLE — risk_overlay.json missing.",
+            "breadth_state": "UNKNOWN", "breadth_since": None,
+            "breadth_pct": None, "proximity_band": None,
+            "panel_end_date": None,
+        }
+    if isinstance(panel_end_date, str):
+        panel_end_date_obj = datetime.fromisoformat(panel_end_date).date()
+    elif isinstance(panel_end_date, datetime):
+        panel_end_date_obj = panel_end_date.date()
+    else:
+        panel_end_date_obj = panel_end_date  # already a date or None
+
+    state = overlay.get("current_state", "UNKNOWN")
+    breadth = overlay.get("current_breadth")
+    since = overlay.get("current_state_since")
+    gp = overlay.get("gate_parameters", {}) or {}
+    off_thr = gp.get("off_threshold", 0.20)
+    on_thr = gp.get("on_threshold", 0.50)
+
+    if panel_end_date_obj is None or breadth is None:
+        return {
+            "publishable": False, "status": "no_data",
+            "message": "REGIME STATE UNAVAILABLE — breadth panel end_date "
+                        "or current_breadth missing.",
+            "breadth_state": state, "breadth_since": since,
+            "breadth_pct": breadth, "proximity_band": None,
+            "panel_end_date": (panel_end_date_obj.isoformat()
+                                 if panel_end_date_obj else None),
+        }
+    status_obj = regime_publish_status(
+        panel_end_date=panel_end_date_obj,
+        current_breadth=breadth,
+        off_threshold=off_thr, on_threshold=on_thr,
+        today=today,
+    )
+    return {
+        "publishable": status_obj.publishable,
+        "status": status_obj.status,
+        "message": status_obj.message,
+        "breadth_state": state,
+        "breadth_since": since,
+        "breadth_pct": breadth,
+        "proximity_band": status_obj.proximity_band,
+        "panel_end_date": status_obj.panel_end_date,
+        "lag_trading_days": status_obj.lag_trading_days,
+    }
+
+
+def build_regime_panel(overlay, page_w, styles,
+                         panel_end_date=None, today_override=None):
+    today = today_override or datetime.now(timezone.utc).date()
+    block = build_regime_block(overlay, panel_end_date, today)
+
+    # Stale panel — replace the entire 3-card row with a single STALE banner
+    # spanning the row. Same width budget so layout downstream is unchanged.
+    if block["status"] in ("stale", "no_data"):
+        banner_msg = block.get("message") or "REGIME STATE STALE"
+        banner = Table(
+            [[Paragraph(
+                f"<b>REGIME STALE — DO NOT TRADE OFF THIS PANEL</b><br/>"
+                f"{banner_msg}",
+                styles["body"],
+            )]],
+            colWidths=[page_w],
+            style=TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fff4e6")),
+                ("BOX", (0, 0), (-1, -1), 1.0, BAD),
+                ("TOPPADDING", (0, 0), (-1, -1), 12),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+                ("LEFTPADDING", (0, 0), (-1, -1), 14),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 14),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]),
+        )
+        return banner
+
     state_19 = (overlay or {}).get("current_state", "UNKNOWN")
     since_19 = (overlay or {}).get("current_state_since")
     days_19 = ((today - datetime.fromisoformat(since_19).date()).days
@@ -699,30 +826,52 @@ def build_trades_table(sleeves, page_w, styles):
     return t
 
 
-def build_watchlist(overlay, page_w, styles):
+def build_watchlist(overlay, page_w, styles,
+                      panel_end_date=None, today_override=None):
     items = []
     if overlay:
-        cur_breadth = overlay.get("current_breadth", 0) * 100
-        off_thresh = overlay.get("gate_parameters", {}).get("off_threshold", 0.20) * 100
-        on_thresh = overlay.get("gate_parameters", {}).get("on_threshold", 0.50) * 100
-        state = overlay.get("current_state")
-        if state == "RISK_ON":
-            margin = cur_breadth - off_thresh
+        today = today_override or datetime.now(timezone.utc).date()
+        block = build_regime_block(overlay, panel_end_date, today)
+        # Phase 28.5 — when the panel is stale, the regime card upstream
+        # already shows a STALE banner. Drop the breadth row from the
+        # watchlist entirely rather than printing the wrong margin/status.
+        if block["status"] in ("stale", "no_data"):
+            cur_breadth = (overlay.get("current_breadth", 0) or 0) * 100
             items.append({
-                "label": "S&P 500 breadth", "value": f"{cur_breadth:.0f}%",
-                "trigger": f"De-risk if breadth < {off_thresh:.0f}%",
-                "margin": f"+{margin:.0f}pp buffer",
-                "status": "ARMED" if margin > 10 else "NEAR",
-                "status_col": GOOD if margin > 10 else WARN,
+                "label": "S&P 500 breadth",
+                "value": f"{cur_breadth:.0f}% (stale)",
+                "trigger": "Panel not refreshed — see banner above",
+                "margin": "—",
+                "status": "STALE",
+                "status_col": BAD,
             })
         else:
-            margin = on_thresh - cur_breadth
-            items.append({
-                "label": "S&P 500 breadth", "value": f"{cur_breadth:.0f}%",
-                "trigger": f"Re-engage if breadth > {on_thresh:.0f}%",
-                "margin": f"needs +{margin:.0f}pp",
-                "status": "DE-RISKED", "status_col": BAD,
-            })
+            cur_breadth = overlay.get("current_breadth", 0) * 100
+            off_thresh = overlay.get("gate_parameters", {}).get("off_threshold", 0.20) * 100
+            on_thresh = overlay.get("gate_parameters", {}).get("on_threshold", 0.50) * 100
+            state = overlay.get("current_state")
+            # Near-threshold short-circuit (Phase 28.5 FM-3): if the helper
+            # flagged this reading as near a gate boundary, the watchlist
+            # 'ARMED' badge becomes 'NEAR' regardless of the 10pp heuristic.
+            is_near = block["status"] == "near"
+            if state == "RISK_ON":
+                margin = cur_breadth - off_thresh
+                items.append({
+                    "label": "S&P 500 breadth", "value": f"{cur_breadth:.0f}%",
+                    "trigger": f"De-risk if breadth < {off_thresh:.0f}%",
+                    "margin": f"+{margin:.0f}pp buffer",
+                    "status": ("NEAR" if is_near or margin <= 10 else "ARMED"),
+                    "status_col": WARN if (is_near or margin <= 10) else GOOD,
+                })
+            else:
+                margin = on_thresh - cur_breadth
+                items.append({
+                    "label": "S&P 500 breadth", "value": f"{cur_breadth:.0f}%",
+                    "trigger": f"Re-engage if breadth > {on_thresh:.0f}%",
+                    "margin": f"needs +{margin:.0f}pp",
+                    "status": ("NEAR" if is_near else "DE-RISKED"),
+                    "status_col": WARN if is_near else BAD,
+                })
 
         p22 = overlay.get("phase22_eem_tilt", {})
         if p22.get("enabled"):
@@ -958,7 +1107,7 @@ def build_section_pair(left_flows, right_flows, page_w, gap=12):
 # ----- Main build ----------------------------------------------------------
 
 def build(out_path: Path):
-    multi, overlay, sleeves, live_track = load_all()
+    multi, overlay, sleeves, live_track, breadth_end_date = load_all()
     deployed_key, blend = get_deployed(multi, overlay, live_track)
     deployed_series = pd.Series(blend["equity"],
                                   index=pd.to_datetime(blend["dates"]))
@@ -1007,7 +1156,8 @@ def build(out_path: Path):
     story.append(PageBreak())
 
     # ====================== PAGE 2 ======================
-    story.append(build_regime_panel(overlay, body_w, styles))
+    story.append(build_regime_panel(overlay, body_w, styles,
+                                      panel_end_date=breadth_end_date))
     story.append(Spacer(1, 6 * mm))
 
     story.extend(section_header(
@@ -1024,7 +1174,8 @@ def build(out_path: Path):
     watchlist_right = section_header(
         "WATCHLIST — APPROACHING THRESHOLDS",
         "Signal levels relative to next regime change", styles)
-    watchlist_right.append(build_watchlist(overlay, body_w / 2 - 6, styles))
+    watchlist_right.append(build_watchlist(overlay, body_w / 2 - 6, styles,
+                                              panel_end_date=breadth_end_date))
     story.append(build_section_pair(activity_left, watchlist_right, body_w))
     story.append(Spacer(1, 6 * mm))
 

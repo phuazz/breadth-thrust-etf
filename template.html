@@ -3220,18 +3220,48 @@ function renderHeroStrip() {
   const gate = m.regime_gate;
   const badgeEl = document.getElementById('live-regime-badge');
   const isGatedKey = headlineKey && headlineKey.startsWith('blend_35_35_10_20_gated');
+  // Phase 28.5 — regime publish freshness gate. When the breadth panel
+  // feeding the gate is stale, the confident badge MUST be suppressed
+  // and a STALE banner shown instead. The 2026-03-27 -> 2026-06-18
+  // incident published 'RISK_ON since 2025-05-02 · breadth 55%' with
+  // full confidence for 11 weeks because nothing in this path checked.
+  const rp = window.DATA?.regime_publish;
   let badgeHtml = '';
-  if (gate && isGatedKey) {
+  if (rp && rp.status === 'stale') {
+    badgeHtml += `
+      <div class="regime-badge off" style="background:#fff4e6;border-color:#b91c1c;color:#7f1010;">
+        <span class="dot" style="background:#b91c1c;"></span>
+        REGIME STALE — DO NOT TRADE OFF THIS PANEL
+        <span class="meta" style="color:#7f1010;">${rp.message || ''}</span>
+      </div>`;
+  } else if (gate && isGatedKey) {
     const state = gate.current_state;
     const isOn = state === 'RISK_ON';
     const breadthPct = (gate.current_breadth * 100).toFixed(1);
     const since = gate.current_state_since;
+    const nearLabel = (rp && rp.status === 'near')
+      ? ` <span style="color:#d97706;font-weight:700;">· NEAR THRESHOLD</span>` : '';
     badgeHtml += `
       <div class="regime-badge ${isOn ? 'on' : 'off'}">
         <span class="dot"></span>
-        REGIME: ${state}
+        REGIME: ${state}${nearLabel}
         <span class="meta">since ${since} · S&amp;P 500 breadth ${breadthPct}% · <a href="#" onclick="document.querySelector('[data-tab=regime]').click();return false;" style="color:inherit;text-decoration:underline;">open Risk Overlay tab</a></span>
       </div>`;
+    if (rp && rp.status === 'near') {
+      badgeHtml += `
+        <div style="margin-top:6px;padding:8px 12px;background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.30);border-radius:4px;font-size:12px;color:#92510a;">
+          ${rp.message || ''}
+        </div>`;
+    }
+    if (rp && Array.isArray(rp.historical_revision) && rp.historical_revision.length) {
+      const items = rp.historical_revision.map(r =>
+        `${r.date} (${r.change}${r.from ? ' ' + r.from + '→' : ' →'} ${r.to || '—'})`
+      ).join(', ');
+      badgeHtml += `
+        <div style="margin-top:6px;padding:8px 12px;background:rgba(19,81,180,0.06);border:1px solid rgba(19,81,180,0.25);border-radius:4px;font-size:12px;color:var(--ink-soft);">
+          <strong>Regime history revised on this build:</strong> ${items}. The earlier published headline was computed against a different breadth panel.
+        </div>`;
+    }
   }
   // Phase 22: EEM tilt badge — appears whenever the EEM overlay is active.
   const phase22 = window.DATA?.risk_overlay?.phase22_eem_tilt;
