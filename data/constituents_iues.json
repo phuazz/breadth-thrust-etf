@@ -1,11 +1,11 @@
 {
   "etf": "IUES",
   "source": "https://www.ishares.com/uk/individual/en/products/280503/ishares-sp-500-energy-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUES_holdings&dataType=fund",
-  "fetched_at_utc": "2026-06-16T15:08:50.168638+00:00",
+  "fetched_at_utc": "2026-06-20T06:07:42.121856+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-06-12",
-  "n_target_fridays": 441,
-  "n_snapshots_written": 441,
+  "end_friday": "2026-06-19",
+  "n_target_fridays": 442,
+  "n_snapshots_written": 442,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {
@@ -36,12 +36,19 @@
       "carried_from_target": "2020-12-18",
       "carried_from_actual": "2020-12-18",
       "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+    },
+    {
+      "target_friday": "2026-06-19",
+      "outcome": "carried_forward",
+      "carried_from_target": "2026-06-12",
+      "carried_from_actual": "2026-06-12",
+      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
     }
   ],
   "edgar_used": [],
   "staleness": {
     "last_real_fetch_date": "2026-06-12",
-    "days_since_last_real_fetch": 0,
+    "days_since_last_real_fetch": 7,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -13483,6 +13490,34 @@
     },
     "2026-06-12": {
       "actual_date": "2026-06-12",
+      "n_tickers": 21,
+      "tickers": [
+        "XOM",
+        "CVX",
+        "COP",
+        "WMB",
+        "SLB",
+        "VLO",
+        "MPC",
+        "EOG",
+        "PSX",
+        "KMI",
+        "BKR",
+        "TRGP",
+        "OKE",
+        "DVN",
+        "OXY",
+        "FANG",
+        "HAL",
+        "EQT",
+        "TPL",
+        "EXE",
+        "APA"
+      ]
+    },
+    "2026-06-19": {
+      "actual_date": "2026-06-12",
+      "carried_forward_from": "2026-06-12",
       "n_tickers": 21,
       "tickers": [
         "XOM",
