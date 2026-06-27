@@ -40,6 +40,56 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+# Phase 28.7 — institutional chart styling.
+# Inspired by the navigo-systematic-trend dashboard (Plotly), translated
+# to matplotlib for the factsheet PDF: faint gridlines, hidden top/right
+# spines, tabular-numeral axis ticks via DejaVu Sans Mono (matplotlib-
+# bundled — no external font install needed), tight margins, no chart-
+# internal titles (titles live in section_header() above each chart).
+# Applied once at module load so every figure picks them up.
+plt.rcParams.update({
+    "font.family": "DejaVu Sans",
+    "font.size": 8.5,
+    "axes.facecolor": "white",
+    "axes.edgecolor": "#cfcdc4",
+    "axes.linewidth": 0.6,
+    "axes.labelcolor": "#3a4148",
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "axes.axisbelow": True,
+    "grid.color": "#ededea",
+    "grid.linewidth": 0.5,
+    "xtick.color": "#7c8590",
+    "ytick.color": "#7c8590",
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
+    # DejaVu Sans Mono ships with matplotlib and renders tabular
+    # numerals out of the box. Falling back to DejaVu Sans for any
+    # non-numeric tick text keeps body labels readable.
+    "xtick.major.size": 3,
+    "ytick.major.size": 3,
+    "xtick.major.width": 0.6,
+    "ytick.major.width": 0.6,
+    "legend.frameon": False,
+    "legend.fontsize": 8.5,
+    "savefig.facecolor": "white",
+    "savefig.edgecolor": "white",
+})
+
+# Desaturated print-safe palette (per navigo-systematic-trend audit).
+PALETTE_BLEND   = "#1a8754"  # green — the deployed blend / model line
+PALETTE_SPY     = "#2563eb"  # blue  — SPY / primary benchmark
+PALETTE_BENCH   = "#8a8a82"  # grey  — secondary benchmarks
+PALETTE_DD      = "#b91c1c"  # red   — drawdown
+PALETTE_A       = "#2563eb"  # blue  — Strategy A (US sectors)
+PALETTE_B       = "#7c3aed"  # purple — Strategy B (asset class)
+PALETTE_C       = "#b45309"  # amber — Strategy C (thematic)
+PALETTE_D       = "#0891b2"  # teal  — Strategy D (Europe)
+PALETTE_GRID    = "#ededea"
+PALETTE_ZERO    = "#cfcdc4"
+PALETTE_FILL    = (26/255, 135/255, 84/255, 0.06)  # blend-green @ 6%
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -94,13 +144,20 @@ def load_all():
     # is stale the published regime headline is silently wrong (the actual
     # 2026-03-27 de-risk was invisible for 11 weeks because nothing checked
     # this end_date at publish time).
+    # Phase 28.7d — per-ETF attribution needs 1-week + YTD price returns
+    # for every deployed holding. holdings_prices_1y.json is exported by
+    # scripts/export_holdings_prices.py as part of the pipeline run.
+    hp_path = DATA_DIR / "holdings_prices_1y.json"
+    holdings_prices = (json.loads(hp_path.read_text(encoding="utf-8"))
+                          if hp_path.exists() else None)
     breadth_path = DATA_DIR / "breadth_csp1.json"
     breadth_end_date = None
     if breadth_path.exists():
         breadth_end_date = json.loads(
             breadth_path.read_text(encoding="utf-8")
         ).get("end_date")
-    return multi, overlay, sleeves, live_track, breadth_end_date
+    return (multi, overlay, sleeves, live_track, breadth_end_date,
+             holdings_prices)
 
 
 def _extend_with_live(series_dates: list, series_equity: list,
@@ -204,24 +261,41 @@ def colour_for(x):
 def _styles():
     base = getSampleStyleSheet()["Normal"]
     return {
+        # Phase 28.7f — typography pass for institutional feel.
+        # - Section title bumped 9 -> 10pt and tracking via uppercase
+        #   strings (already used at call sites). Helvetica-Bold is the
+        #   built-in PDF default; using a TTF (e.g. Inter) would need
+        #   font installation, kept out of scope for portability.
+        # - Section sub 7.5 -> 8pt, italic kept for hierarchy.
+        # - Body 8.5 -> 9pt with looser leading for breathing room.
         "section": ParagraphStyle(
             "section", parent=base, fontName="Helvetica-Bold",
-            fontSize=9, leading=11, textColor=INK,
-            spaceBefore=0, spaceAfter=2),
+            fontSize=10, leading=12, textColor=INK,
+            spaceBefore=0, spaceAfter=1),
         "section_sub": ParagraphStyle(
             "section_sub", parent=base, fontName="Helvetica-Oblique",
-            fontSize=7.5, leading=10, textColor=INK_FAINT,
+            fontSize=8, leading=11, textColor=INK_FAINT,
             spaceBefore=0, spaceAfter=4),
         "body": ParagraphStyle("body", parent=base, fontName="Helvetica",
-                                 fontSize=8.5, leading=11, textColor=INK),
+                                 fontSize=9, leading=12, textColor=INK),
+        "body_small": ParagraphStyle(
+            "body_small", parent=base, fontName="Helvetica",
+            fontSize=8, leading=10.5, textColor=INK_SOFT,
+            spaceBefore=0, spaceAfter=0),
+        # Phase 28.7 — switched alignment from TA_CENTER to TA_LEFT and
+        # bumped fontSize from 7 to 8 (label) and 8 (sub) so the SPY
+        # benchmark line in the new hero strip is comfortably legible
+        # alongside the bigger 22pt primary value. Letter-tracking via
+        # ParagraphStyle is not exposed in ReportLab so we get tighter
+        # type just from the explicit alignment + larger size.
         "kpi_label": ParagraphStyle(
             "kpi_label", parent=base, fontName="Helvetica-Bold",
-            fontSize=7, leading=9, textColor=INK_FAINT,
-            alignment=TA_CENTER, spaceBefore=0, spaceAfter=2),
+            fontSize=8, leading=10, textColor=INK_FAINT,
+            alignment=TA_LEFT, spaceBefore=0, spaceAfter=3),
         "kpi_sub": ParagraphStyle(
             "kpi_sub", parent=base, fontName="Helvetica",
-            fontSize=7, leading=9, textColor=INK_FAINT,
-            alignment=TA_CENTER, spaceBefore=2, spaceAfter=0),
+            fontSize=8, leading=10, textColor=INK_SOFT,
+            alignment=TA_LEFT, spaceBefore=3, spaceAfter=0),
         "card_label": ParagraphStyle(
             "card_label", parent=base, fontName="Helvetica-Bold",
             fontSize=7, leading=9, textColor=INK_FAINT,
@@ -256,114 +330,349 @@ def _chart_to_image(fig, width_pts, dpi=200):
     return Image(buf, width=width_pts, height=width_pts * aspect)
 
 
-def chart_cumulative(deployed_series, spy_series, overlay, width_pts):
-    fig, ax = plt.subplots(figsize=(8, 3), facecolor="white")
+def chart_performance_dual(deployed_series, spy_series, overlay, width_pts):
+    """Phase 28.7 — equity-with-drawdown ribbon, single figure.
+
+    Replaces the prior pair of independent ``chart_cumulative`` +
+    ``chart_drawdown`` charts. The two share an x-axis and are stacked
+    in a 3:1 height ratio — the single most "institutional" chart
+    device on the navigo-systematic-trend dashboard. Saves vertical
+    space on page 3 and visually links peak-to-trough to the running
+    equity line directly above it.
+    """
+    fig = plt.figure(figsize=(8, 3.6), facecolor="white")
+    gs = fig.add_gridspec(
+        2, 1, height_ratios=[3, 1], hspace=0.08,
+        left=0.06, right=0.985, top=0.97, bottom=0.10,
+    )
+    ax_eq = fig.add_subplot(gs[0])
+    ax_dd = fig.add_subplot(gs[1], sharex=ax_eq)
+
     s = deployed_series / deployed_series.iloc[0]
-    ax.plot(s.index, (s - 1) * 100, color="#1351b4", linewidth=1.8,
-             label="Strategy", zorder=3)
+    eq_pct = (s - 1) * 100
+
+    # ----- top panel: cumulative return -----
+    ax_eq.fill_between(s.index, eq_pct.values, 0, color=PALETTE_FILL,
+                        linewidth=0, zorder=2)
+    ax_eq.plot(s.index, eq_pct.values, color=PALETTE_BLEND, linewidth=1.6,
+                label="Strategy", zorder=4)
     if spy_series is not None:
         spy = spy_series.reindex(s.index, method="ffill").dropna()
         if len(spy) > 5:
             spy = spy / spy.iloc[0]
-            ax.plot(spy.index, (spy - 1) * 100, color="#7c8590",
-                     linewidth=1.0, linestyle=(0, (4, 3)),
-                     label="SPY benchmark", zorder=2)
+            ax_eq.plot(spy.index, (spy - 1) * 100, color=PALETTE_SPY,
+                        linewidth=1.0, linestyle=(0, (4, 3)),
+                        label="SPY", zorder=3)
+    # Risk-off shading on the equity panel (drawdown panel does not
+    # need it — drawdown itself encodes the same information).
+    # Phase 28.7e — clip spans to the data window. Without clipping, an
+    # axvspan starting in 2019 silently pulls matplotlib's auto x-axis
+    # back to 2019 even when the YTD-sliced data only covers 2026,
+    # leaving a long empty stretch on the left of the chart.
+    chart_start, chart_end = s.index[0], s.index[-1]
     if overlay and overlay.get("events"):
         off_start = None
         for ev in overlay["events"]:
             if ev["direction"] == "RISK_OFF":
                 off_start = pd.to_datetime(ev["date"])
             elif ev["direction"] == "RISK_ON" and off_start is not None:
-                ax.axvspan(off_start, pd.to_datetime(ev["date"]),
-                            color="#b76e00", alpha=0.10, zorder=1)
+                span_end = pd.to_datetime(ev["date"])
+                if span_end >= chart_start and off_start <= chart_end:
+                    ax_eq.axvspan(max(off_start, chart_start),
+                                   min(span_end, chart_end),
+                                   color="#b76e00", alpha=0.08, zorder=1)
                 off_start = None
-        if off_start is not None:
-            ax.axvspan(off_start, s.index[-1], color="#b76e00",
-                        alpha=0.10, zorder=1)
-    ax.set_title("Cumulative return since inception (USD)",
-                  fontsize=10, fontweight="600", color="#0f1217", loc="left", pad=8)
-    ax.tick_params(labelsize=8.5, colors="#3a4148")
-    ax.grid(True, color="#e1e4e8", linewidth=0.5, axis="y", alpha=0.7)
-    ax.set_axisbelow(True)
-    for sp in ("top", "right"): ax.spines[sp].set_visible(False)
-    for sp in ("left", "bottom"): ax.spines[sp].set_color("#c8ccd2")
-    ax.spines["left"].set_linewidth(0.6); ax.spines["bottom"].set_linewidth(0.6)
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.0f}%"))
-    ax.legend(loc="upper left", fontsize=9, frameon=False)
-    return _chart_to_image(fig, width_pts)
+        if off_start is not None and off_start <= chart_end:
+            ax_eq.axvspan(max(off_start, chart_start), chart_end,
+                           color="#b76e00", alpha=0.08, zorder=1)
+    ax_eq.axhline(0, color=PALETTE_ZERO, linewidth=0.6, zorder=1)
+    ax_eq.yaxis.set_major_formatter(
+        plt.FuncFormatter(lambda v, _: f"{v:.0f}%")
+    )
+    ax_eq.legend(loc="upper left", fontsize=8.5)
+    # Hide x-tick labels on top panel — drawdown panel below carries them.
+    plt.setp(ax_eq.get_xticklabels(), visible=False)
+    ax_eq.tick_params(axis="x", length=0)
 
-
-def chart_drawdown(deployed_series, spy_series, width_pts):
-    fig, ax = plt.subplots(figsize=(8, 2.3), facecolor="white")
-    s = deployed_series / deployed_series.iloc[0]
+    # ----- bottom panel: drawdown ribbon -----
     dd = ((s - s.cummax()) / s.cummax()) * 100
-    ax.fill_between(dd.index, dd.values, 0, color="#b3261e", alpha=0.18, linewidth=0)
-    ax.plot(dd.index, dd.values, color="#b3261e", linewidth=1.2, label="Strategy")
-    if spy_series is not None:
-        spy = spy_series.reindex(s.index, method="ffill").dropna()
-        if len(spy) > 5:
-            spy = spy / spy.iloc[0]
-            spy_dd = ((spy - spy.cummax()) / spy.cummax()) * 100
-            ax.plot(spy_dd.index, spy_dd.values, color="#7c8590",
-                     linewidth=0.9, linestyle=(0, (4, 3)), label="SPY")
-    ax.set_title("Drawdown from peak", fontsize=10, fontweight="600",
-                  color="#0f1217", loc="left", pad=8)
-    ax.tick_params(labelsize=8.5, colors="#3a4148")
-    ax.grid(True, color="#e1e4e8", linewidth=0.5, axis="y", alpha=0.7)
-    ax.set_axisbelow(True)
-    for sp in ("top", "right"): ax.spines[sp].set_visible(False)
-    for sp in ("left", "bottom"): ax.spines[sp].set_color("#c8ccd2")
-    ax.spines["left"].set_linewidth(0.6); ax.spines["bottom"].set_linewidth(0.6)
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.0f}%"))
-    ax.legend(loc="lower left", fontsize=9, frameon=False)
+    ax_dd.fill_between(dd.index, dd.values, 0, color=PALETTE_DD,
+                        alpha=0.55, linewidth=0)
+    ax_dd.plot(dd.index, dd.values, color=PALETTE_DD, linewidth=0.9)
+    ax_dd.axhline(0, color=PALETTE_ZERO, linewidth=0.6)
+    ax_dd.yaxis.set_major_formatter(
+        plt.FuncFormatter(lambda v, _: f"{v:.0f}%")
+    )
+    ax_dd.set_ylabel("Drawdown", fontsize=8, color="#3a4148", labelpad=2)
+    # Auto-fit y-range to the visible drawdown — `dd.min()` reflects the
+    # window the chart is actually showing (YTD only on page 2). Old
+    # behaviour clamped to ~-30% which made a -2% YTD drawdown look like
+    # a tiny scratch at the top of a mostly-empty panel.
+    dd_min = float(dd.min()) if len(dd) else 0.0
+    floor = min(-1.0, dd_min * 1.15) if dd_min < 0 else -1.0
+    ax_dd.set_ylim(floor, max(0.5, abs(floor) * 0.05))
+
+    # Phase 28.7e — explicit x-axis clamp. Without this, any artist
+    # (axvspan, etc.) outside the data window can stretch the auto
+    # x-axis, leaving a wide empty stretch where the line is not. Set
+    # the limits AFTER plotting all artists so the clamp is final.
+    ax_eq.set_xlim(chart_start, chart_end)
+    ax_dd.set_xlim(chart_start, chart_end)
+
     return _chart_to_image(fig, width_pts)
 
 
-def chart_sleeve_attribution(sleeves, deployed_series, p22_active, width_pts):
+# Phase 28.7 — backward-compatibility shim so any external caller that
+# imports the old name still works while we migrate. The shim ignores
+# the spy-only drawdown path of the prior chart_drawdown (it was visually
+# redundant against the equity comparison and never landed on a final
+# layout) and returns the new dual-panel chart instead.
+def chart_cumulative(deployed_series, spy_series, overlay, width_pts):
+    return chart_performance_dual(deployed_series, spy_series, overlay, width_pts)
+
+
+def chart_drawdown(*args, **kwargs):
+    # No-op — drawdown is now rendered inside chart_performance_dual.
+    # Return a tiny spacer-sized image so any straggling caller does not
+    # NoneType-crash; the canonical call site has been removed.
+    fig, ax = plt.subplots(figsize=(8, 0.01), facecolor="white")
+    ax.set_visible(False)
+    return _chart_to_image(fig, kwargs.get("width_pts", args[-1] if args else 480))
+
+
+def _collect_deployed_holdings(sleeves, p22_active):
+    """Phase 28.7d — factored out of build_holdings_table so the per-ETF
+    attribution chart and the holdings PDF table share one source of
+    truth for effective NAV weights. Returns a list of
+    ``{etf, sleeve, within, effective}`` dicts sorted by effective desc.
+    """
+    sleeve_weights = {"a": 0.35, "b": 0.25 if p22_active else 0.35,
+                      "c": 0.10, "d": 0.20}
+    sleeve_letter = {"a": "A", "b": "B", "c": "C", "d": "D"}
+    holdings = []
+    for key, sleeve_wt in sleeve_weights.items():
+        s = sleeves.get(key, {})
+        trades = s.get("headline", {}).get("trade_history", [])
+        if not trades:
+            continue
+        latest = trades[-1]
+        for h in latest.get("holdings", []):
+            eff = h.get("weight", 0) * sleeve_wt
+            holdings.append({
+                "etf": h.get("etf"), "sleeve": sleeve_letter[key],
+                "within": h.get("weight", 0), "effective": eff,
+            })
+    if p22_active:
+        holdings.append({"etf": "EEM", "sleeve": "TILT",
+                         "within": 1.0, "effective": 0.10})
+    holdings.sort(key=lambda x: -x["effective"])
+    return holdings
+
+
+def _etf_return_over_window(holdings_prices, etf, days_back):
+    """Compute an ETF's total return over the last ``days_back`` calendar
+    days using the holdings_prices_1y panel. Returns None if the ETF or
+    enough history is not available.
+    """
+    if not holdings_prices:
+        return None
+    prices_block = (holdings_prices.get("prices") or {}).get(etf)
+    if not prices_block:
+        return None
+    arr = prices_block.get("prices") or []
+    dates = prices_block.get("dates") or []
+    if len(arr) < 2 or len(dates) != len(arr):
+        return None
+    end_idx = len(arr) - 1
+    end_date = pd.Timestamp(dates[end_idx])
+    target = end_date - pd.Timedelta(days=days_back)
+    # Walk back to the first date <= target. arr.index requires exact
+    # match, which is not safe for non-trading-day targets.
+    start_idx = 0
+    for i, d in enumerate(dates):
+        if pd.Timestamp(d) <= target:
+            start_idx = i
+    p0 = arr[start_idx]
+    p1 = arr[end_idx]
+    if p0 is None or p1 is None or p0 == 0:
+        return None
+    return (p1 / p0) - 1.0
+
+
+def _etf_return_from_date(holdings_prices, etf, start_date):
+    """Total return from a specific Timestamp to the latest available."""
+    if not holdings_prices:
+        return None
+    prices_block = (holdings_prices.get("prices") or {}).get(etf)
+    if not prices_block:
+        return None
+    arr = prices_block.get("prices") or []
+    dates = prices_block.get("dates") or []
+    if len(arr) < 2 or len(dates) != len(arr):
+        return None
+    target = pd.Timestamp(start_date)
+    start_idx = 0
+    for i, d in enumerate(dates):
+        if pd.Timestamp(d) <= target:
+            start_idx = i
+    p0 = arr[start_idx]
+    p1 = arr[-1]
+    if p0 is None or p1 is None or p0 == 0:
+        return None
+    return (p1 / p0) - 1.0
+
+
+# Map sleeve letter -> palette colour for the per-ETF chart.
+_SLEEVE_PALETTE = {"A": PALETTE_A, "B": PALETTE_B, "C": PALETTE_C,
+                    "D": PALETTE_D, "TILT": "#b45309"}
+
+
+def chart_per_etf_attribution(sleeves, p22_active, holdings_prices,
+                                width_pts, *, days_back=None, ytd_start=None,
+                                top_n=12):
+    """Per-ETF contribution to the deployed blend's return over a window.
+
+    Returns a horizontal-bar chart sorted by absolute contribution; bars
+    coloured by sleeve so the reader can see at a glance which sleeve's
+    positions drove the move. Pass exactly one of ``days_back`` (e.g.
+    7 for this week's attribution) or ``ytd_start`` (a Timestamp).
+
+    Each bar = effective NAV weight × ETF total return over the window.
+    The sum across all positions reconciles to the blend return for the
+    same window when weights are static (true week-over-week between
+    rebalances; YTD is approximate because rebalances change weights).
+    """
+    if days_back is None and ytd_start is None:
+        raise ValueError("pass days_back or ytd_start")
+    holdings = _collect_deployed_holdings(sleeves, p22_active)
+
+    rows = []
+    for h in holdings:
+        etf = h["etf"]
+        wt = h["effective"]
+        ret = (_etf_return_over_window(holdings_prices, etf, days_back)
+                if days_back is not None
+                else _etf_return_from_date(holdings_prices, etf, ytd_start))
+        if ret is None:
+            continue
+        rows.append({"etf": etf, "sleeve": h["sleeve"],
+                      "weight": wt, "ret": ret, "contrib": wt * ret})
+
+    if not rows:
+        fig, ax = plt.subplots(figsize=(8, 1.0), facecolor="white")
+        ax.text(0.5, 0.5, "Per-ETF returns unavailable — "
+                          "run scripts/export_holdings_prices.py",
+                 ha="center", va="center", fontsize=9, color="#7c8590",
+                 transform=ax.transAxes)
+        ax.axis("off")
+        return _chart_to_image(fig, width_pts)
+
+    # Sort by absolute contribution; show the top_n that move the needle.
+    rows.sort(key=lambda r: -abs(r["contrib"]))
+    rows = rows[:top_n]
+    # Within the kept rows, re-sort so largest positive sits at top,
+    # negative at bottom (reading order).
+    rows.sort(key=lambda r: -r["contrib"])
+
+    # Dynamic height — give each row ~0.32 inches; clamp to a sensible
+    # range so the chart is neither cramped nor wastefully tall.
+    rows_height = max(2.0, min(4.5, 0.4 + 0.32 * len(rows)))
+    fig, ax = plt.subplots(figsize=(8, rows_height), facecolor="white")
+    fig.subplots_adjust(left=0.16, right=0.96, top=0.97, bottom=0.18)
+
+    y_pos = np.arange(len(rows))
+    bars_pct = [r["contrib"] * 100 for r in rows]
+    colours = [_SLEEVE_PALETTE.get(r["sleeve"], "#7c8590") for r in rows]
+    ax.barh(y_pos, bars_pct, color=colours, edgecolor="white",
+             linewidth=0.8, height=0.62)
+    for i, r in enumerate(rows):
+        x = r["contrib"] * 100
+        # Each bar's label: "+0.45pp" plus a faint suffix showing the
+        # raw ETF return so the reader can separate "big weight × small
+        # move" from "small weight × big move".
+        offset = 0.5 if x >= 0 else -0.5
+        ha = "left" if x >= 0 else "right"
+        ax.text(x + offset, i,
+                 f"{x:+.2f}pp  ({r['ret']*100:+.1f}%)",
+                 fontsize=8, color="#3a4148", va="center", ha=ha)
+    # Tick labels: "TICKER (sleeve)" e.g. "SOXX (A)" — the sleeve tag
+    # helps the eye associate colour with origin without a legend.
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels([f"{r['etf']} ({r['sleeve']})" for r in rows],
+                        fontsize=9, color="#0f1217")
+    ax.invert_yaxis()
+    ax.axvline(0, color=PALETTE_ZERO, linewidth=0.7)
+    ax.grid(False, axis="y")
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:+.1f}pp"))
+    xmin, xmax = ax.get_xlim()
+    pad = max(abs(xmin), abs(xmax)) * 0.45 + 0.5
+    ax.set_xlim(xmin - pad if xmin < 0 else -pad * 0.4,
+                  xmax + pad if xmax > 0 else pad * 0.4)
+    return _chart_to_image(fig, width_pts)
+
+
+def chart_sleeve_attribution(sleeves, deployed_series, p22_active, width_pts,
+                              period_start=None, period_label="ytd"):
+    """Phase 28.7 — horizontal bars sorted by contribution, palette
+    consolidated against PALETTE_*, chart-internal title removed (the
+    section_header() above the chart carries it instead).
+
+    Phase 28.7c — generalised to any return window. ``period_start``
+    defaults to the start of the calendar year (YTD); pass an earlier
+    Timestamp to widen, or ``last_date - 7d`` for the weekly view on
+    page 1 (what drove this week's blend return).
+    """
     fig, ax = plt.subplots(figsize=(8, 2.5), facecolor="white")
+    fig.subplots_adjust(left=0.18, right=0.96, top=0.96, bottom=0.18)
+
     last_date = deployed_series.index[-1]
-    ytd_start = pd.Timestamp(last_date.year, 1, 1)
+    ytd_start = (period_start
+                  if period_start is not None
+                  else pd.Timestamp(last_date.year, 1, 1))
     sleeve_meta = [
-        ("a", "US Sectors (A)",    "#1351b4", 0.35),
-        ("b", "Asset Class (B)",   "#1d7a3a", 0.25 if p22_active else 0.35),
-        ("c", "Thematic (C)",      "#dc2626", 0.10),
-        ("d", "Europe (D)",        "#0e7490", 0.20),
+        ("a", "US Sectors (A)",    PALETTE_A, 0.35),
+        ("b", "Asset Class (B)",   PALETTE_B, 0.25 if p22_active else 0.35),
+        ("c", "Thematic (C)",      PALETTE_C, 0.10),
+        ("d", "Europe (D)",        PALETTE_D, 0.20),
     ]
-    names, contribs, colours = [], [], []
+    rows = []
     for key, label, col, wt in sleeve_meta:
         s = sleeves.get(key, {})
         blob = s.get("headline", {})
-        dates = blob.get("headline_equity_dates"); equity = blob.get("headline_equity")
-        ret = window_ret(pd.Series(equity, index=pd.to_datetime(dates)),
-                          ytd_start) if (dates and equity) else None
-        names.append(label)
-        contribs.append((ret or 0) * wt)
-        colours.append(col)
+        dates = blob.get("headline_equity_dates")
+        equity = blob.get("headline_equity")
+        ret = (window_ret(pd.Series(equity, index=pd.to_datetime(dates)),
+                          ytd_start) if (dates and equity) else None)
+        rows.append({"name": label, "colour": col,
+                      "contrib": (ret or 0) * wt})
     if p22_active:
-        names.append("EEM Tilt"); contribs.append(0); colours.append("#b76e00")
+        rows.append({"name": "EEM Tilt", "colour": "#b45309",
+                      "contrib": 0.0})
+
+    # Sort by contribution desc — largest positive at top, largest
+    # negative at bottom. Eye reads top-to-bottom and gets the
+    # contribution ordering for free.
+    rows.sort(key=lambda r: -r["contrib"])
+    names    = [r["name"] for r in rows]
+    contribs = [r["contrib"] for r in rows]
+    colours  = [r["colour"] for r in rows]
 
     y_pos = np.arange(len(names))
-    ax.barh(y_pos, [c * 100 for c in contribs], color=colours,
-             edgecolor="white", linewidth=1, height=0.55)
-    for i, c in enumerate(contribs):
-        x = c * 100
+    bars_pct = [c * 100 for c in contribs]
+    ax.barh(y_pos, bars_pct, color=colours, edgecolor="white",
+             linewidth=1, height=0.62)
+    for i, x in enumerate(bars_pct):
         offset = 0.5 if x >= 0 else -0.5
         ha = "left" if x >= 0 else "right"
-        ax.text(x + offset, i, f"{c*100:+.1f}pp",
+        ax.text(x + offset, i, f"{x:+.1f}pp",
                  fontsize=8.5, color="#3a4148", fontweight="600",
                  va="center", ha=ha)
     ax.set_yticks(y_pos)
     ax.set_yticklabels(names, fontsize=9, color="#0f1217")
     ax.invert_yaxis()
-    ax.axvline(0, color="#7c8590", linewidth=0.6)
-    ax.set_title("Sleeve contribution to YTD return",
-                  fontsize=10, fontweight="600", color="#0f1217", loc="left", pad=8)
-    ax.tick_params(axis="x", labelsize=8, colors="#7c8590")
-    ax.tick_params(axis="y", pad=4)
-    ax.grid(True, color="#e1e4e8", linewidth=0.4, axis="x", alpha=0.7)
-    ax.set_axisbelow(True)
-    for sp in ("top", "right"): ax.spines[sp].set_visible(False)
-    for sp in ("left", "bottom"): ax.spines[sp].set_color("#e1e4e8")
+    ax.axvline(0, color=PALETTE_ZERO, linewidth=0.7)
+    # Only x-gridlines for a horizontal-bar chart.
+    ax.grid(False, axis="y")
     ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:+.0f}pp"))
     xmin, xmax = ax.get_xlim()
     pad = max(abs(xmin), abs(xmax)) * 0.35 + 1
@@ -425,40 +734,115 @@ class _PageCanvas(canvas.Canvas):
 # ----- Section builders ----------------------------------------------------
 
 def section_header(title, sub, styles):
+    """Phase 28.7f — section header with a subtle 0.4pt rule under the
+    sub-line for a "publication" feel. The rule is a 1-row Table with
+    only a LINEABOVE style so it draws a single thin line; cheap and
+    keeps the API of section_header() identical for callers.
+    """
+    rule = Table([[""]], colWidths=["100%"], rowHeights=[0.5],
+                  style=TableStyle([
+                      ("LINEABOVE", (0, 0), (-1, 0), 0.4, BORDER_STRONG),
+                      ("TOPPADDING", (0, 0), (-1, -1), 0),
+                      ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                  ]))
     return [Paragraph(title, styles["section"]),
-             Paragraph(sub, styles["section_sub"])]
+             Paragraph(sub, styles["section_sub"]),
+             rule,
+             Spacer(1, 3)]
 
 
-def build_hero_strip(deployed_series, full_stats, page_w, styles):
-    """Four KPI cells in one row."""
+def _kt(items):
+    """Phase 28.7f — wrap a header+content pair so ReportLab never breaks
+    a section header onto a different page from its chart or table.
+    The 'titles apart from charts in different pages' issue was the
+    default flow allowing a PageBreak between a `section_header()` and
+    the next flowable. Wrapping the whole block in KeepTogether forces
+    them to land on the same page or both move to the next one.
+    """
+    if isinstance(items, list):
+        return KeepTogether(items)
+    return KeepTogether([items])
+
+
+def build_hero_strip(deployed_series, full_stats, page_w, styles,
+                       spy_series=None):
+    """Four KPI cells in one row, each card showing strategy P&L against SPY.
+
+    Phase 28.7 — every primary KPI carries its benchmark context in-card.
+    Previously the hero strip showed bare strategy numbers (THIS WEEK / YTD
+    / SINCE INCEPTION / MAX DRAWDOWN) with no benchmark per cell — the
+    investor had to flip to page 3's returns table to find 'vs SPY'. This
+    rewrite mirrors the institutional-factsheet pattern (label · big P&L ·
+    'SPY +X% · vs SPY +Y%') so the answer to 'did we beat the index this
+    week?' is in the first card on the first page.
+
+    Periods chosen for a weekly-cadence read:
+      1-WEEK P&L  — what changed since the prior factsheet (priority)
+      1-MONTH P&L — short-term momentum context
+      YEAR TO DATE — conventional benchmark window
+      SINCE INCEPTION — long-term track record
+
+    Max-drawdown is moved to page 3's per-sleeve stats table where it sits
+    next to Sharpe and CAGR (the other risk-adjusted figures).
+    """
     last_date = deployed_series.index[-1]
-    wk_ret = window_ret(deployed_series, last_date - pd.Timedelta(days=7))
-    ytd_ret = window_ret(deployed_series, pd.Timestamp(last_date.year, 1, 1))
-    cells = [
-        ("THIS WEEK", fmt_pct(wk_ret), colour_for(wk_ret), "Latest 7-day return"),
-        ("YEAR TO DATE", fmt_pct(ytd_ret), colour_for(ytd_ret),
-         f"Since 1 Jan {last_date.year}"),
-        ("SINCE INCEPTION", fmt_pct(full_stats["total"]) if full_stats else "—",
-         GOOD if (full_stats and full_stats["total"] > 0) else BAD,
-         f"From {deployed_series.index[0].strftime('%b %Y')}"),
-        ("MAX DRAWDOWN", fmt_pct(full_stats["dd"]) if full_stats else "—",
-         BAD, "Worst peak-to-trough"),
+    windows = [
+        ("1-WEEK P&L",   last_date - pd.Timedelta(days=7)),
+        ("1-MONTH P&L",  last_date - pd.DateOffset(months=1)),
+        ("YEAR TO DATE", pd.Timestamp(last_date.year, 1, 1)),
+        ("SINCE INCEPTION", deployed_series.index[0]),
     ]
-    # Each cell: 3-row stack (label, value, sub)
+    cells = []
+    for label, start in windows:
+        strat = window_ret(deployed_series, start)
+        spy = window_ret(spy_series, start) if spy_series is not None else None
+        delta = (strat - spy) if (strat is not None and spy is not None) else None
+        cells.append({
+            "label": label,
+            "value": fmt_pct(strat),
+            "colour": colour_for(strat),
+            "spy_str": (f"SPY {fmt_pct(spy)}" if spy is not None else None),
+            "delta_str": (f"vs SPY {fmt_pct(delta)}" if delta is not None else None),
+            "delta_colour": colour_for(delta) if delta is not None else INK_FAINT,
+        })
+
     cell_tables = []
-    for label, value, colour, sub in cells:
+    for c in cells:
+        # Bottom row: 'SPY +X.X%  ·  vs SPY +Y.Y%' assembled as a single
+        # Paragraph with inline colour spans, so the delta gets its own
+        # green/red colour without breaking the layout into separate cells.
+        if c["spy_str"] and c["delta_str"]:
+            delta_hex = c["delta_colour"].hexval() if hasattr(c["delta_colour"], "hexval") else "#5a6068"
+            # ReportLab Color.hexval() returns 0xRRGGBBAA — slice to 6 hex
+            # chars after the '0x' prefix for an HTML colour.
+            try:
+                hx = delta_hex[2:8] if delta_hex.startswith("0x") else delta_hex
+                colour_attr = f"#{hx}"
+            except Exception:
+                colour_attr = "#5a6068"
+            sub_html = (
+                f'<font color="#5a6068">{c["spy_str"]}</font>'
+                f'<font color="#9aa1a8">  &middot;  </font>'
+                f'<font color="{colour_attr}"><b>{c["delta_str"]}</b></font>'
+            )
+        else:
+            sub_html = "—"
         ct = Table([
-            [Paragraph(label, styles["kpi_label"])],
-            [col_p(value, colour, fontname="Helvetica-Bold", fontsize=20,
-                    align=TA_CENTER)],
-            [Paragraph(sub, styles["kpi_sub"])],
+            [Paragraph(c["label"], styles["kpi_label"])],
+            [col_p(c["value"], c["colour"], fontname="Helvetica-Bold",
+                    fontsize=22, align=TA_LEFT)],
+            [Paragraph(sub_html, styles["kpi_sub"])],
         ], colWidths=[page_w / 4 - 8], style=TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 14),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (0, 0), 4),
+            ("BOTTOMPADDING", (0, 0), (0, 0), 2),
+            ("TOPPADDING", (0, 1), (0, 1), 0),
+            ("BOTTOMPADDING", (0, 1), (0, 1), 2),
+            ("TOPPADDING", (0, 2), (0, 2), 0),
+            ("BOTTOMPADDING", (0, 2), (0, 2), 4),
         ]))
         cell_tables.append(ct)
     return Table([cell_tables], colWidths=[page_w / 4] * 4,
@@ -762,12 +1146,34 @@ def build_holdings_table(sleeves, p22_active, page_w, styles):
 
 
 def build_trades_table(sleeves, page_w, styles):
+    """Phase 28.7b — filter to THIS WEEK's rebal activity only.
+
+    Prior version included every sleeve's most recent rebalance regardless
+    of date. In the 2026-06-19 build, A/B/C's last rebal was 06-12 (LAST
+    week) and D's was 06-19 (this week) — showing all together as 'this
+    week' was misleading. Now: only rows from rebalances within the past
+    7 calendar days are included. The DATE column is dropped because all
+    rows are in the same week and the header carries the date stamp.
+    """
+    from datetime import date as _date, timedelta as _td
+    cutoff = (_date.today() - _td(days=7)).isoformat()
+
     sleeve_letter = {"a": "A", "b": "B", "c": "C", "d": "D"}
     rows = []
+    week_rebal_dates: set[str] = set()
+    most_recent_rebal: str | None = None
     for key, sleeve in sleeve_letter.items():
         s = sleeves.get(key, {})
         trades = s.get("headline", {}).get("trade_history", [])
         if len(trades) < 2: continue
+        rebal_date = trades[-1].get("date", "")
+        if not rebal_date:
+            continue
+        if most_recent_rebal is None or rebal_date > most_recent_rebal:
+            most_recent_rebal = rebal_date
+        if rebal_date < cutoff:
+            continue  # this rebal predates the past-7-day window
+        week_rebal_dates.add(rebal_date)
         prev_h = {h["etf"]: h["weight"] for h in trades[-2]["holdings"]}
         curr_h = {h["etf"]: h["weight"] for h in trades[-1]["holdings"]}
         for etf in curr_h:
@@ -783,14 +1189,13 @@ def build_trades_table(sleeves, page_w, styles):
                     rows.append((sleeve, "RESIZE", etf, prev_h[etf], curr_h[etf]))
 
     if not rows:
-        return Paragraph(
-            "<i>No position changes this week — strategy stable.</i>",
-            styles["body"])
+        msg = ("<i>No new rebalance activity this week — strategy stable. "
+                f"Most recent rebal: {most_recent_rebal}.</i>"
+                if most_recent_rebal else
+                "<i>No position changes this week — strategy stable.</i>")
+        return Paragraph(msg, styles["body"])
 
     data = [["SLEEVE", "ACTION", "TICKER", "PRIOR", "NEW", "Δ"]]
-    # Show ALL changes. Rows are appended in sleeve order A->B->C->D, so a
-    # top-8 cut (A and B alone fill it) structurally hid every Thematic (C)
-    # and Europe (D) move — e.g. "C ENTER LIT" never reached the page.
     for sleeve, action, etf, prev_w, new_w in rows:
         action_col = (GOOD if action == "ENTER" else BAD if action == "EXIT"
                        else WARN)
@@ -806,8 +1211,9 @@ def build_trades_table(sleeves, page_w, styles):
             col_p(fmt_pct(d, dp=1), colour_for(d),
                    fontname="Courier-Bold", fontsize=8.5, align=TA_RIGHT),
         ])
-    t = Table(data, colWidths=[page_w * 0.12, page_w * 0.18, page_w * 0.18,
-                                  page_w * 0.16, page_w * 0.16, page_w * 0.20])
+    # Widen PRIOR/NEW/Δ columns so percentages do not wrap to 2 rows.
+    t = Table(data, colWidths=[page_w * 0.10, page_w * 0.17, page_w * 0.17,
+                                  page_w * 0.18, page_w * 0.18, page_w * 0.20])
     t.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, 0), 7),
@@ -938,11 +1344,14 @@ def build_watchlist(overlay, page_w, styles,
 
 
 def build_sleeve_stats_table(sleeves, multi, page_w, styles):
+    # Phase 28.7d — half-width-friendly labels and tighter percentage
+    # formatting. Old labels "Strategy A — US Sectors" + "+18.4%"
+    # wrapped to two rows at half-width; compact form fits cleanly.
     sleeve_rows = [
-        ("a", "Strategy A — US Sectors", "strategy_a"),
-        ("b", "Strategy B — Asset Class", "strategy_b"),
-        ("c", "Strategy C — Thematic",    "strategy_c"),
-        ("d", "Strategy D — Europe",      "strategy_d"),
+        ("a", "A · US Sectors",  "strategy_a"),
+        ("b", "B · Asset Class", "strategy_b"),
+        ("c", "C · Thematic",    "strategy_c"),
+        ("d", "D · Europe",      "strategy_d"),
     ]
     data = [["SLEEVE", "SHARPE", "CAGR", "MAX DD", "YTD"]]
     for key, label, multi_key in sleeve_rows:
@@ -954,20 +1363,24 @@ def build_sleeve_stats_table(sleeves, multi, page_w, styles):
         if dates and equity:
             ser = pd.Series(equity, index=pd.to_datetime(dates))
             ytd = window_ret(ser, pd.Timestamp(ser.index[-1].year, 1, 1))
+        # dp=0 percentages save 3 characters per cell — enough to keep
+        # the half-width table single-line at any realistic value.
         data.append([
-            col_p(label, INK, fontsize=8.5),
+            col_p(label, INK, fontname="Helvetica-Bold", fontsize=9),
             col_p(fmt_num(sharpe) if sharpe else "—", colour_for(sharpe),
                    fontname="Courier-Bold", fontsize=9, align=TA_RIGHT),
-            col_p(fmt_pct(cagr) if cagr else "—", colour_for(cagr),
+            col_p(fmt_pct(cagr, dp=0) if cagr else "—", colour_for(cagr),
                    fontname="Courier", fontsize=9, align=TA_RIGHT),
-            col_p(fmt_pct(dd) if dd else "—", BAD,
+            col_p(fmt_pct(dd, dp=0) if dd else "—", BAD,
                    fontname="Courier", fontsize=9, align=TA_RIGHT),
-            col_p(fmt_pct(ytd) if ytd is not None else "—",
+            col_p(fmt_pct(ytd, dp=0) if ytd is not None else "—",
                    colour_for(ytd), fontname="Courier-Bold",
                    fontsize=9, align=TA_RIGHT),
         ])
-    t = Table(data, colWidths=[page_w * 0.40, page_w * 0.15,
-                                  page_w * 0.15, page_w * 0.15, page_w * 0.15])
+    # Narrower label column (28%) gives the four numeric columns
+    # 18% each — more breathing room for the right-aligned numbers.
+    t = Table(data, colWidths=[page_w * 0.28, page_w * 0.18,
+                                  page_w * 0.18, page_w * 0.18, page_w * 0.18])
     t.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, 0), 7),
@@ -984,6 +1397,105 @@ def build_sleeve_stats_table(sleeves, multi, page_w, styles):
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, ZEBRA]),
     ]))
     return t
+
+
+def build_parameters_footer(overlay, sleeves, p22_active, breadth_end_date,
+                              page_w, styles):
+    """Phase 28.7f — last-page parameters + provenance footer.
+
+    Three small purposes in one block:
+      - PARAMETERS: the rules the strategy actually runs (sleeve weights,
+        rebalance cadence, gate thresholds, EEM tilt rule, cost
+        assumption). Useful for the reader who hasn't memorised them.
+      - UNIVERSE: a one-liner per sleeve listing universe size + key
+        examples — quick reference, not an exhaustive list.
+      - PROVENANCE: data dates (signals as-of, breadth panel end, build
+        time). Direct continuation of Phase 28.5 — every published
+        number's source date is on the page that contains it.
+
+    Replaces the white space that previously fell on the last page when
+    chart heights + page breaks did not align.
+    """
+    gp = (overlay or {}).get("gate_parameters") or {}
+    off_thr = gp.get("off_threshold", 0.20) * 100
+    on_thr = gp.get("on_threshold", 0.50) * 100
+    derisk = gp.get("derisk_fraction", 0.50) * 100
+    p22 = (overlay or {}).get("phase22_eem_tilt") or {}
+    tilt_active = p22.get("enabled") and p22.get("current_state") == "EM_TILT_ON"
+    blend_line = ("35% A · 25% B · 10% C · 20% D · 10% EEM tilt"
+                   if tilt_active
+                   else "35% A · 35% B · 10% C · 20% D")
+
+    def _last_rebal(key):
+        th = (sleeves.get(key, {}).get("headline") or {}).get(
+            "trade_history") or []
+        return th[-1].get("date") if th else "—"
+
+    parameters_data = [
+        ["BLEND",       blend_line],
+        ["REBALANCE",   "Weekly Friday close (per-sleeve cadence noted in dashboard)"],
+        ["RISK OVERLAY", f"De-risk to {derisk:.0f}% NAV when S&P 500 breadth < "
+                          f"{off_thr:.0f}%; re-engage when breadth > {on_thr:.0f}%"],
+        ["EM TILT",     "Activates on EEM/SPY 50d &gt; 200d MA golden cross "
+                         "(funded by reducing Strategy B's 35% &rarr; 25%)"],
+        ["COST MODEL",  "5 bps per unit of weight change (10 bps round-trip)"],
+        ["UNIVERSE",    "A · 14 US sector ETFs (SOXX, CSP1, CNDX, IUES, IUFS, "
+                         "IUIT, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, "
+                         "IUSP, IDP6) · B · 13 asset-class ETFs (SPY, IJR, "
+                         "QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, "
+                         "TIP) · C · 25 thematic ETFs · D · 5 Stoxx Europe "
+                         "600 sector UCITS"],
+    ]
+    pt = Table(
+        [[col_p(k, INK_FAINT, fontname="Helvetica-Bold", fontsize=7.5),
+          Paragraph(v, styles["body_small"])]
+         for k, v in parameters_data],
+        colWidths=[page_w * 0.16, page_w * 0.84],
+        style=TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("LINEBELOW", (0, 0), (-1, -2), 0.3, BORDER),
+        ]),
+    )
+
+    sigs = {k: _last_rebal(k) for k in ("a", "b", "c", "d")}
+    built_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    provenance_data = [
+        ["SIGNALS AS OF",
+         f"A {sigs['a']}  ·  B {sigs['b']}  ·  C {sigs['c']}  ·  D {sigs['d']}"],
+        ["BREADTH PANEL", f"{breadth_end_date or '—'} (drives the Risk Overlay regime gate)"],
+        ["BUILT",         built_iso],
+    ]
+    pv = Table(
+        [[col_p(k, INK_FAINT, fontname="Helvetica-Bold", fontsize=7.5),
+          col_p(v, INK_SOFT, fontname="Courier", fontsize=8)]
+         for k, v in provenance_data],
+        colWidths=[page_w * 0.16, page_w * 0.84],
+        style=TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("LINEBELOW", (0, 0), (-1, -2), 0.3, BORDER),
+        ]),
+    )
+
+    return [
+        Spacer(1, 4 * mm),
+        *section_header("FUND PARAMETERS",
+                         "The rules the strategy actually runs",
+                         styles),
+        pt,
+        Spacer(1, 4 * mm),
+        *section_header("DATA PROVENANCE",
+                         "Every published number's source date",
+                         styles),
+        pv,
+    ]
 
 
 def build_asset_class_rollup(sleeves, p22_active, page_w, styles):
@@ -1107,7 +1619,8 @@ def build_section_pair(left_flows, right_flows, page_w, gap=12):
 # ----- Main build ----------------------------------------------------------
 
 def build(out_path: Path):
-    multi, overlay, sleeves, live_track, breadth_end_date = load_all()
+    (multi, overlay, sleeves, live_track, breadth_end_date,
+      holdings_prices) = load_all()
     deployed_key, blend = get_deployed(multi, overlay, live_track)
     deployed_series = pd.Series(blend["equity"],
                                   index=pd.to_datetime(blend["dates"]))
@@ -1138,64 +1651,132 @@ def build(out_path: Path):
 
     story = []
 
-    # ====================== PAGE 1 ======================
-    story.append(build_hero_strip(deployed_series, full_stats, body_w, styles))
-    story.append(Spacer(1, 6 * mm))
+    # Phase 28.6 — page hierarchy reorder.
+    #
+    # Old order put 8-year backtest charts on page 1 and the only content
+    # that drives weekly action (activity, watchlist) on page 3. That
+    # answers the FOURTH investor question ("is the strategy still
+    # working?") before the FIRST ("do I need to do anything?"). Pure
+    # structural reorder; no content changes in this phase.
+    #
+    # New order (CPM-grade weekly read):
+    #   Page 1 — THE WEEKLY READ
+    #     Hero strip (WTD, YTD, Sharpe, DD)
+    #     ACTION THIS WEEK + WATCHLIST (the reason to open the file)
+    #     REGIME PANEL (anchors the action items)
+    #   Page 2 — POSITIONING
+    #     CURRENT TARGET PORTFOLIO (holdings sized for $1M)
+    #     ASSET CLASS EXPOSURE roll-up
+    #     PER-SLEEVE YTD ATTRIBUTION chart
+    #   Page 3 — BACKTEST CONTEXT (long-window conviction check)
+    #     PERFORMANCE — TOTAL RETURN BY PERIOD table
+    #     Cumulative equity vs SPY chart
+    #     Drawdown chart
+    #     PER-SLEEVE STANDALONE STATISTICS
 
-    story.extend(section_header(
-        "PERFORMANCE — TOTAL RETURN BY PERIOD",
-        "Strategy returns vs SPY (US large-cap) benchmark, USD-denominated",
-        styles))
-    story.append(build_returns_table(deployed_series, spy_series, body_w, styles))
-    story.append(Spacer(1, 6 * mm))
-
-    story.append(chart_cumulative(deployed_series, spy_series, overlay, body_w))
-    story.append(Spacer(1, 3 * mm))
-    story.append(chart_drawdown(deployed_series, spy_series, body_w))
-
-    story.append(PageBreak())
-
-    # ====================== PAGE 2 ======================
-    story.append(build_regime_panel(overlay, body_w, styles,
-                                      panel_end_date=breadth_end_date))
-    story.append(Spacer(1, 6 * mm))
-
-    story.extend(section_header(
-        "CURRENT TARGET PORTFOLIO",
-        "What to own today, sorted by effective weight — sized for a $1.0M portfolio",
-        styles))
-    story.append(build_holdings_table(sleeves, p22_active, body_w, styles))
+    # ====================== PAGE 1 — THE WEEKLY READ ======================
+    story.append(build_hero_strip(deployed_series, full_stats, body_w, styles,
+                                    spy_series=spy_series))
     story.append(Spacer(1, 6 * mm))
 
     activity_left = section_header(
-        "ACTIVITY THIS WEEK",
-        "Position changes from the previous rebalance", styles)
+        "REBALANCE THIS WEEK",
+        "Position changes from rebalances in the past 7 days. Trades from earlier weeks should already have been executed.",
+        styles)
     activity_left.append(build_trades_table(sleeves, body_w / 2 - 6, styles))
     watchlist_right = section_header(
         "WATCHLIST — APPROACHING THRESHOLDS",
-        "Signal levels relative to next regime change", styles)
+        "Signal levels relative to the next regime change",
+        styles)
     watchlist_right.append(build_watchlist(overlay, body_w / 2 - 6, styles,
                                               panel_end_date=breadth_end_date))
     story.append(build_section_pair(activity_left, watchlist_right, body_w))
     story.append(Spacer(1, 6 * mm))
 
-    story.append(chart_sleeve_attribution(sleeves, deployed_series,
-                                              p22_active, body_w))
+    # Phase 28.7f — KeepTogether on every header+chart/table pair so
+    # ReportLab never breaks a section title onto a page where its
+    # content lives. Resolves the "title on one page, chart on the
+    # next" artefact the user flagged.
+    story.append(_kt(section_header(
+        "WHAT DROVE THIS WEEK'S RETURN",
+        "Per-position contribution to the deployed blend's 1-week move "
+        "(effective NAV weight × ETF return; top 12 by absolute "
+        "contribution; bars coloured by sleeve).",
+        styles) + [
+        chart_per_etf_attribution(sleeves, p22_active, holdings_prices,
+                                    body_w, days_back=7),
+    ]))
     story.append(Spacer(1, 6 * mm))
 
-    stats_left = section_header(
+    story.append(_kt([
+        build_regime_panel(overlay, body_w, styles,
+                            panel_end_date=breadth_end_date),
+    ]))
+
+    story.append(PageBreak())
+
+    # ====================== PAGE 2 — POSITIONING + BACKTEST ===============
+    story.append(_kt(section_header(
+        "CURRENT TARGET PORTFOLIO",
+        "What to own today, sorted by effective weight — sized for a $1.0M portfolio",
+        styles) + [
+        build_holdings_table(sleeves, p22_active, body_w, styles),
+    ]))
+    story.append(Spacer(1, 6 * mm))
+
+    rollup_left = section_header(
+        "ASSET CLASS EXPOSURE",
+        "Today's positions rolled up by broad asset class",
+        styles)
+    rollup_left.append(build_asset_class_rollup(sleeves, p22_active,
+                                                    body_w / 2 - 6, styles))
+    stats_right = section_header(
         "PER-SLEEVE STANDALONE STATISTICS",
         "Backtest stats for each sleeve in isolation, before blend weighting",
         styles)
-    stats_left.append(build_sleeve_stats_table(sleeves, multi,
-                                                   body_w / 2 - 6, styles))
-    rollup_right = section_header(
-        "ASSET CLASS EXPOSURE",
-        "Today's deployed positions rolled up by broad asset class",
-        styles)
-    rollup_right.append(build_asset_class_rollup(sleeves, p22_active,
-                                                     body_w / 2 - 6, styles))
-    story.append(build_section_pair(stats_left, rollup_right, body_w))
+    stats_right.append(build_sleeve_stats_table(sleeves, multi,
+                                                    body_w / 2 - 6, styles))
+    story.append(_kt([build_section_pair(rollup_left, stats_right, body_w)]))
+    story.append(Spacer(1, 6 * mm))
+
+    ytd_start = pd.Timestamp(deployed_series.index[-1].year, 1, 1)
+    story.append(_kt(section_header(
+        "WHAT DROVE YTD RETURN",
+        "Per-position contribution to the deployed blend's year-to-date "
+        "move (effective NAV weight × ETF YTD return; top 12). "
+        "Approximation — weights change at weekly rebalances.",
+        styles) + [
+        chart_per_etf_attribution(sleeves, p22_active, holdings_prices,
+                                    body_w, ytd_start=ytd_start),
+    ]))
+    story.append(Spacer(1, 6 * mm))
+
+    story.append(_kt(section_header(
+        "PERFORMANCE — TOTAL RETURN BY PERIOD",
+        "Strategy returns vs SPY (US large-cap) benchmark, USD-denominated",
+        styles) + [
+        build_returns_table(deployed_series, spy_series, body_w, styles),
+    ]))
+    story.append(Spacer(1, 6 * mm))
+
+    # Phase 28.7d — dual-panel sliced to YTD to match the YTD attribution
+    # above. Long-window (since-inception) view remains on the dashboard
+    # for conviction checks; the weekly factsheet now leads with the
+    # "this year" narrative end-to-end on page 2.
+    ytd_series = deployed_series[deployed_series.index >= ytd_start]
+    ytd_spy = (spy_series[spy_series.index >= ytd_start]
+                if spy_series is not None else None)
+    story.append(_kt([
+        chart_performance_dual(ytd_series, ytd_spy, overlay, body_w),
+    ]))
+
+    # Phase 28.7f — fund parameters + data provenance footer fills any
+    # last-page whitespace with useful reference content (rules the
+    # strategy actually runs + the date stamps every published number
+    # traces back to). Pre-fix, the last page was mostly empty.
+    story.extend(build_parameters_footer(
+        overlay, sleeves, p22_active, breadth_end_date, body_w, styles,
+    ))
 
     # Build doc with custom canvas for headers/footers
     doc = BaseDocTemplate(str(out_path), pagesize=A4,
