@@ -191,6 +191,41 @@ Findings:
   should enter WS3's full-system walk-forward as a re-fit parameter and be
   decided there, not here.
 
+### 1b. Drawdown surface — slow lookbacks are also the drawdown-safe direction
+
+Question raised 2026-07-02: does any other calibration work better on
+drawdown? Richer DD metrics added to the surface (`ws1_common.dd_metrics`:
+worst rolling-12m return, longest underwater spell, DD measured within the
+2020 COVID and 2022 crash windows). Blend row:
+
+| Blend | W=50 | 75 | 100 | 125 | 150 | **200** | 250 | 300 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Max DD | −22.5% | −22.1% | −23.0% | −23.9% | −24.3% | **−23.8%** | −23.8% | −24.3% |
+| Worst 12m | −14.8% | −18.2% | −16.6% | −14.4% | −13.0% | **−11.9%** | −10.1% | −10.0% |
+| Underwater (days) | 427 | 578 | 431 | 425 | 425 | **163** | 395 | 298 |
+| DD in 2022 | −17.3% | −19.6% | −20.2% | −17.9% | −17.0% | **−14.2%** | −13.2% | −13.8% |
+
+Findings:
+
+- **Max DD is horizon-invariant** (−22% to −24% across the whole grid)
+  because the binding drawdown is COVID 2020 at every W: a −30%-in-23-days
+  crash is faster than ANY moving average in the grid. Sleeve MA calibration
+  is structurally the wrong tool for that event — the fast (50d) Phase 19
+  gate layer is the right tool, and its audit is WS3.
+- **Every conditionable DD metric prefers slow.** Worst rolling 12m improves
+  monotonically from −14.8% (W=50) to −10.0% (W=300); 2022 drawdown is
+  −17/−20% fast vs −13/−14% slow; the deployed 200d has the shortest
+  underwater spell on the grid (163 trading days vs 395-578) and per-sleeve
+  minima cluster at 200 (B worst-12m −5.8%, C max DD −36.1% — C's Phase 27
+  gate composes best with the 200d horizon).
+- **The one place fast wins is COVID for the momentum sleeves** (B@50 −11.0%
+  vs B@200 −13.3%; C@50 −19.3% vs C@200 −32.5%): fast signals do exit
+  no-warning crashes sooner, but pay for it in every choppy grind. Two crash
+  regimes, opposite verdicts — which is precisely the division of labour the
+  deployed architecture already encodes: slow horizons for selection, a fast
+  50d breadth gate for de-risking. The DD surface therefore confirms the
+  two-horizon design rather than suggesting a recalibration.
+
 ### 2. Vol-normalised / ensemble variants — all fail on contact
 
 Decomposition (each step isolated; fixed window; sleeve-level full Sharpe,
@@ -252,7 +287,11 @@ A/D, raw MA-distance for B/C — survives an 8-point parameter surface, a
 economically meaningful OOS improvement appearing. Both design invariants are
 confirmed rather than revised: the deployed point sits on a flat (one-sided)
 plateau, and every added degree of freedom failed the OOS bar. **Recommended
-change to the MA formulation: none.** The valuable outputs are the surface
+change to the MA formulation: none.** The drawdown surface (1b) reaches the
+same verdict independently: max DD is horizon-invariant (COVID binds at every
+W), every conditionable DD metric prefers slow, and the deployed 200d holds
+the grid's shortest underwater spell. The valuable outputs are the surface
 itself (now on file for WS3's deflated-Sharpe audit), the 2022-regime
-evidence against ever shortening the horizon, and the C-horizon-is-noise
-result. Next session: Workstream 2 (universe) per the ranked plan.
+evidence against ever shortening the horizon, the C-horizon-is-noise result,
+and the confirmed slow-selection / fast-gate division of labour. Next
+session: Workstream 2 (universe) per the ranked plan.

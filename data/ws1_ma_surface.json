@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-07-02T02:04:53+00:00",
+ "computed_at_utc": "2026-07-02T02:38:18+00:00",
  "description": "MA-lookback surface for deployed sleeve formulations + joint 35/35/10/20 blend (ungated). Fixed window, deployed costs, 2x stress.",
  "grid": [
   50,
@@ -156,6 +156,12 @@
      "2024_25_recent": 0.957345,
      "2026_ytd": 2.536753
     },
+    "dd_metrics": {
+     "longest_underwater_days": 349,
+     "worst_rolling_12m_return": -0.26436,
+     "dd_2020_covid": -0.345279,
+     "dd_2022": -0.252898
+    },
     "annual_turnover": 30.244348,
     "sharpe_2x_cost": 0.775162
    },
@@ -189,6 +195,12 @@
      "2023_ai_rally": 0.823466,
      "2024_25_recent": 0.731262,
      "2026_ytd": 2.621973
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 438,
+     "worst_rolling_12m_return": -0.218642,
+     "dd_2020_covid": -0.312773,
+     "dd_2022": -0.257253
     },
     "annual_turnover": 25.450053,
     "sharpe_2x_cost": 0.738805
@@ -224,6 +236,12 @@
      "2024_25_recent": 0.770747,
      "2026_ytd": 3.186692
     },
+    "dd_metrics": {
+     "longest_underwater_days": 488,
+     "worst_rolling_12m_return": -0.196706,
+     "dd_2020_covid": -0.293754,
+     "dd_2022": -0.272792
+    },
     "annual_turnover": 22.842596,
     "sharpe_2x_cost": 0.781014
    },
@@ -257,6 +275,12 @@
      "2023_ai_rally": 0.944937,
      "2024_25_recent": 0.940819,
      "2026_ytd": 3.146652
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 434,
+     "worst_rolling_12m_return": -0.201696,
+     "dd_2020_covid": -0.296518,
+     "dd_2022": -0.262536
     },
     "annual_turnover": 21.045501,
     "sharpe_2x_cost": 0.82378
@@ -292,6 +316,12 @@
      "2024_25_recent": 1.065657,
      "2026_ytd": 3.345604
     },
+    "dd_metrics": {
+     "longest_underwater_days": 428,
+     "worst_rolling_12m_return": -0.193642,
+     "dd_2020_covid": -0.302197,
+     "dd_2022": -0.248038
+    },
     "annual_turnover": 18.990107,
     "sharpe_2x_cost": 0.88472
    },
@@ -325,6 +355,12 @@
      "2023_ai_rally": 0.816261,
      "2024_25_recent": 1.184134,
      "2026_ytd": 3.548771
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 253,
+     "worst_rolling_12m_return": -0.197763,
+     "dd_2020_covid": -0.306123,
+     "dd_2022": -0.207872
     },
     "annual_turnover": 16.634139,
     "sharpe_2x_cost": 0.973661
@@ -360,6 +396,12 @@
      "2024_25_recent": 1.089296,
      "2026_ytd": 3.376294
     },
+    "dd_metrics": {
+     "longest_underwater_days": 136,
+     "worst_rolling_12m_return": -0.175512,
+     "dd_2020_covid": -0.305975,
+     "dd_2022": -0.18722
+    },
     "annual_turnover": 15.196365,
     "sharpe_2x_cost": 0.999319
    },
@@ -393,6 +435,12 @@
      "2023_ai_rally": 0.685511,
      "2024_25_recent": 1.117983,
      "2026_ytd": 3.525612
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 109,
+     "worst_rolling_12m_return": -0.165557,
+     "dd_2020_covid": -0.3059,
+     "dd_2022": -0.187345
     },
     "annual_turnover": 14.324835,
     "sharpe_2x_cost": 1.001313
@@ -430,6 +478,12 @@
      "2024_25_recent": 0.345428,
      "2026_ytd": 2.131487
     },
+    "dd_metrics": {
+     "longest_underwater_days": 581,
+     "worst_rolling_12m_return": -0.127558,
+     "dd_2020_covid": -0.110005,
+     "dd_2022": -0.133645
+    },
     "annual_turnover": 26.283368,
     "sharpe_2x_cost": 0.768868
    },
@@ -463,6 +517,12 @@
      "2023_ai_rally": 1.14698,
      "2024_25_recent": 0.52583,
      "2026_ytd": 1.813117
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 638,
+     "worst_rolling_12m_return": -0.131515,
+     "dd_2020_covid": -0.107416,
+     "dd_2022": -0.12675
     },
     "annual_turnover": 21.319181,
     "sharpe_2x_cost": 0.790066
@@ -498,6 +558,12 @@
      "2024_25_recent": 0.5711,
      "2026_ytd": 1.51609
     },
+    "dd_metrics": {
+     "longest_underwater_days": 576,
+     "worst_rolling_12m_return": -0.128568,
+     "dd_2020_covid": -0.125418,
+     "dd_2022": -0.117326
+    },
     "annual_turnover": 18.479387,
     "sharpe_2x_cost": 0.747513
    },
@@ -531,6 +597,12 @@
      "2023_ai_rally": 0.804576,
      "2024_25_recent": 0.798535,
      "2026_ytd": 1.314368
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 419,
+     "worst_rolling_12m_return": -0.100118,
+     "dd_2020_covid": -0.123981,
+     "dd_2022": -0.095724
     },
     "annual_turnover": 15.848111,
     "sharpe_2x_cost": 0.848559
@@ -566,6 +638,12 @@
      "2024_25_recent": 0.891747,
      "2026_ytd": 1.127715
     },
+    "dd_metrics": {
+     "longest_underwater_days": 422,
+     "worst_rolling_12m_return": -0.109858,
+     "dd_2020_covid": -0.13491,
+     "dd_2022": -0.113518
+    },
     "annual_turnover": 14.747432,
     "sharpe_2x_cost": 0.814506
    },
@@ -599,6 +677,12 @@
      "2023_ai_rally": 0.983969,
      "2024_25_recent": 1.116599,
      "2026_ytd": 1.295158
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 253,
+     "worst_rolling_12m_return": -0.058139,
+     "dd_2020_covid": -0.132765,
+     "dd_2022": -0.071734
     },
     "annual_turnover": 12.543738,
     "sharpe_2x_cost": 0.984616
@@ -634,6 +718,12 @@
      "2024_25_recent": 1.242304,
      "2026_ytd": 1.476421
     },
+    "dd_metrics": {
+     "longest_underwater_days": 319,
+     "worst_rolling_12m_return": -0.080866,
+     "dd_2020_covid": -0.130707,
+     "dd_2022": -0.080145
+    },
     "annual_turnover": 10.935025,
     "sharpe_2x_cost": 1.050405
    },
@@ -667,6 +757,12 @@
      "2023_ai_rally": 0.602464,
      "2024_25_recent": 1.274406,
      "2026_ytd": 1.427432
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 273,
+     "worst_rolling_12m_return": -0.081579,
+     "dd_2020_covid": -0.128851,
+     "dd_2022": -0.065581
     },
     "annual_turnover": 9.966797,
     "sharpe_2x_cost": 1.070239
@@ -704,6 +800,12 @@
      "2024_25_recent": 1.364032,
      "2026_ytd": 0.001883
     },
+    "dd_metrics": {
+     "longest_underwater_days": 1109,
+     "worst_rolling_12m_return": -0.263074,
+     "dd_2020_covid": -0.193449,
+     "dd_2022": -0.218567
+    },
     "annual_turnover": 28.015214,
     "sharpe_2x_cost": 0.563622
    },
@@ -737,6 +839,12 @@
      "2023_ai_rally": 0.455472,
      "2024_25_recent": 0.99546,
      "2026_ytd": 0.073178
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 1153,
+     "worst_rolling_12m_return": -0.347959,
+     "dd_2020_covid": -0.134726,
+     "dd_2022": -0.235949
     },
     "annual_turnover": 27.278664,
     "sharpe_2x_cost": 0.566167
@@ -772,6 +880,12 @@
      "2024_25_recent": 0.954825,
      "2026_ytd": 1.101518
     },
+    "dd_metrics": {
+     "longest_underwater_days": 1174,
+     "worst_rolling_12m_return": -0.317537,
+     "dd_2020_covid": -0.3738,
+     "dd_2022": -0.189234
+    },
     "annual_turnover": 23.858967,
     "sharpe_2x_cost": 0.585439
    },
@@ -805,6 +919,12 @@
      "2023_ai_rally": -0.577132,
      "2024_25_recent": 1.083796,
      "2026_ytd": 0.026182
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 1233,
+     "worst_rolling_12m_return": -0.32343,
+     "dd_2020_covid": -0.351756,
+     "dd_2022": -0.118704
     },
     "annual_turnover": 23.017195,
     "sharpe_2x_cost": 0.469849
@@ -840,6 +960,12 @@
      "2024_25_recent": 1.2187,
      "2026_ytd": 0.471126
     },
+    "dd_metrics": {
+     "longest_underwater_days": 1160,
+     "worst_rolling_12m_return": -0.273897,
+     "dd_2020_covid": -0.337012,
+     "dd_2022": -0.049168
+    },
     "annual_turnover": 20.176215,
     "sharpe_2x_cost": 0.67262
    },
@@ -873,6 +999,12 @@
      "2023_ai_rally": -0.434976,
      "2024_25_recent": 1.12652,
      "2026_ytd": 0.616559
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 954,
+     "worst_rolling_12m_return": -0.226885,
+     "dd_2020_covid": -0.324966,
+     "dd_2022": -0.060136
     },
     "annual_turnover": 19.176611,
     "sharpe_2x_cost": 0.695468
@@ -908,6 +1040,12 @@
      "2024_25_recent": 1.240797,
      "2026_ytd": 0.820449
     },
+    "dd_metrics": {
+     "longest_underwater_days": 969,
+     "worst_rolling_12m_return": -0.361838,
+     "dd_2020_covid": -0.3386,
+     "dd_2022": -0.238761
+    },
     "annual_turnover": 20.070994,
     "sharpe_2x_cost": 0.678425
    },
@@ -941,6 +1079,12 @@
      "2023_ai_rally": 0.673171,
      "2024_25_recent": 1.178737,
      "2026_ytd": 0.668834
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 920,
+     "worst_rolling_12m_return": -0.371152,
+     "dd_2020_covid": -0.362677,
+     "dd_2022": -0.242061
     },
     "annual_turnover": 15.756914,
     "sharpe_2x_cost": 0.737079
@@ -978,6 +1122,12 @@
      "2024_25_recent": 1.303998,
      "2026_ytd": 1.723012
     },
+    "dd_metrics": {
+     "longest_underwater_days": 548,
+     "worst_rolling_12m_return": -0.321828,
+     "dd_2020_covid": -0.375707,
+     "dd_2022": -0.319561
+    },
     "annual_turnover": 21.503113,
     "sharpe_2x_cost": 0.444132
    },
@@ -1011,6 +1161,12 @@
      "2023_ai_rally": 0.875668,
      "2024_25_recent": 1.497829,
      "2026_ytd": 1.383873
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 684,
+     "worst_rolling_12m_return": -0.345603,
+     "dd_2020_covid": -0.365929,
+     "dd_2022": -0.366727
     },
     "annual_turnover": 17.076001,
     "sharpe_2x_cost": 0.436672
@@ -1046,6 +1202,12 @@
      "2024_25_recent": 1.306324,
      "2026_ytd": 1.52064
     },
+    "dd_metrics": {
+     "longest_underwater_days": 543,
+     "worst_rolling_12m_return": -0.30389,
+     "dd_2020_covid": -0.303126,
+     "dd_2022": -0.355296
+    },
     "annual_turnover": 15.468458,
     "sharpe_2x_cost": 0.589872
    },
@@ -1079,6 +1241,12 @@
      "2023_ai_rally": 1.098319,
      "2024_25_recent": 1.532398,
      "2026_ytd": 1.51226
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 548,
+     "worst_rolling_12m_return": -0.303017,
+     "dd_2020_covid": -0.351935,
+     "dd_2022": -0.342518
     },
     "annual_turnover": 13.328184,
     "sharpe_2x_cost": 0.623564
@@ -1114,6 +1282,12 @@
      "2024_25_recent": 1.538701,
      "2026_ytd": 1.463101
     },
+    "dd_metrics": {
+     "longest_underwater_days": 540,
+     "worst_rolling_12m_return": -0.27568,
+     "dd_2020_covid": -0.353507,
+     "dd_2022": -0.32102
+    },
     "annual_turnover": 12.448878,
     "sharpe_2x_cost": 0.67861
    },
@@ -1147,6 +1321,12 @@
      "2023_ai_rally": 0.884515,
      "2024_25_recent": 1.629284,
      "2026_ytd": 1.730937
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 530,
+     "worst_rolling_12m_return": -0.289746,
+     "dd_2020_covid": -0.325351,
+     "dd_2022": -0.317486
     },
     "annual_turnover": 9.837898,
     "sharpe_2x_cost": 0.816923
@@ -1182,6 +1362,12 @@
      "2024_25_recent": 1.656699,
      "2026_ytd": 1.743002
     },
+    "dd_metrics": {
+     "longest_underwater_days": 474,
+     "worst_rolling_12m_return": -0.257443,
+     "dd_2020_covid": -0.326646,
+     "dd_2022": -0.30487
+    },
     "annual_turnover": 9.323757,
     "sharpe_2x_cost": 0.845781
    },
@@ -1215,6 +1401,12 @@
      "2023_ai_rally": 0.608374,
      "2024_25_recent": 1.589354,
      "2026_ytd": 1.765516
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 540,
+     "worst_rolling_12m_return": -0.271187,
+     "dd_2020_covid": -0.330959,
+     "dd_2022": -0.305831
     },
     "annual_turnover": 8.661751,
     "sharpe_2x_cost": 0.777177
@@ -1251,6 +1443,12 @@
      "2023_ai_rally": 1.235731,
      "2024_25_recent": 1.25718,
      "2026_ytd": 2.2384
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 427,
+     "worst_rolling_12m_return": -0.147786,
+     "dd_2020_covid": -0.225042,
+     "dd_2022": -0.173327
     }
    },
    "75": {
@@ -1283,6 +1481,12 @@
      "2023_ai_rally": 1.096744,
      "2024_25_recent": 1.188353,
      "2026_ytd": 2.070031
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 578,
+     "worst_rolling_12m_return": -0.181775,
+     "dd_2020_covid": -0.221401,
+     "dd_2022": -0.19606
     }
    },
    "100": {
@@ -1315,6 +1519,12 @@
      "2023_ai_rally": 1.10791,
      "2024_25_recent": 1.144291,
      "2026_ytd": 2.452912
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 431,
+     "worst_rolling_12m_return": -0.165733,
+     "dd_2020_covid": -0.230085,
+     "dd_2022": -0.202397
     }
    },
    "125": {
@@ -1347,6 +1557,12 @@
      "2023_ai_rally": 0.944259,
      "2024_25_recent": 1.393319,
      "2026_ytd": 2.057096
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 425,
+     "worst_rolling_12m_return": -0.144022,
+     "dd_2020_covid": -0.238748,
+     "dd_2022": -0.179377
     }
    },
    "150": {
@@ -1379,6 +1595,12 @@
      "2023_ai_rally": 0.783993,
      "2024_25_recent": 1.516527,
      "2026_ytd": 2.147661
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 425,
+     "worst_rolling_12m_return": -0.130226,
+     "dd_2020_covid": -0.243327,
+     "dd_2022": -0.169977
     }
    },
    "200": {
@@ -1411,6 +1633,12 @@
      "2023_ai_rally": 0.909262,
      "2024_25_recent": 1.649617,
      "2026_ytd": 2.320849
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 163,
+     "worst_rolling_12m_return": -0.119328,
+     "dd_2020_covid": -0.238113,
+     "dd_2022": -0.142446
     }
    },
    "250": {
@@ -1443,6 +1671,12 @@
      "2023_ai_rally": 0.879206,
      "2024_25_recent": 1.682027,
      "2026_ytd": 2.358247
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 395,
+     "worst_rolling_12m_return": -0.101158,
+     "dd_2020_covid": -0.238249,
+     "dd_2022": -0.131956
     }
    },
    "300": {
@@ -1475,6 +1709,12 @@
      "2023_ai_rally": 0.806376,
      "2024_25_recent": 1.66607,
      "2026_ytd": 2.341678
+    },
+    "dd_metrics": {
+     "longest_underwater_days": 298,
+     "worst_rolling_12m_return": -0.100287,
+     "dd_2020_covid": -0.243082,
+     "dd_2022": -0.13811
     }
    }
   }

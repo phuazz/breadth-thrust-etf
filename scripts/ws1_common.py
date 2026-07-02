@@ -312,6 +312,41 @@ def sub_period_sharpes(equity: pd.Series) -> dict:
     return out
 
 
+def dd_metrics(equity: pd.Series) -> dict:
+    """Drawdown-quality metrics on a window-normalised equity curve.
+
+    - longest_underwater_days: longest run of TRADING days below the prior
+      peak (drawdown depth alone hides recovery speed).
+    - worst_rolling_12m_return: minimum 252-trading-day return anywhere in
+      the window (CLAUDE.md entry-point-discipline metric; WS3 reuses it).
+    - dd_2020_covid / dd_2022: max drawdown measured WITHIN each crash
+      window (peak reset at window start, so the number is the regime's own
+      drawdown, not carry-over from earlier highs).
+    """
+    eq = equity / equity.iloc[0]
+    dd = eq / eq.cummax() - 1.0
+    underwater = (dd < -1e-9).values
+    longest = current = 0
+    for v in underwater:
+        current = current + 1 if v else 0
+        longest = max(longest, current)
+    r12 = eq.pct_change(252)
+
+    def _win_dd(s: str, e: str):
+        w = eq.loc[(eq.index >= pd.Timestamp(s)) & (eq.index <= pd.Timestamp(e))]
+        if len(w) < 20:
+            return None
+        return _safe(float((w / w.cummax() - 1.0).min()))
+
+    return {
+        "longest_underwater_days": int(longest),
+        "worst_rolling_12m_return": _safe(float(r12.min())
+                                          if r12.notna().any() else np.nan),
+        "dd_2020_covid": _win_dd("2020-02-19", "2020-12-31"),
+        "dd_2022": _win_dd("2022-01-01", "2022-12-31"),
+    }
+
+
 def annual_turnover(weights: pd.DataFrame, start: pd.Timestamp) -> float:
     wp = weights.loc[weights.index >= start]
     if len(wp) < 2:
@@ -334,6 +369,7 @@ def full_report(equity: pd.Series, weights: pd.DataFrame | None,
         "train": window_stats(eq, common_start, SPLIT_DATE),
         "test": window_stats(eq, SPLIT_DATE, common_end),
         "sub_period_sharpe": sub_period_sharpes(eq),
+        "dd_metrics": dd_metrics(eq),
     }
     if weights is not None:
         rep["annual_turnover"] = _safe(annual_turnover(weights, common_start))
