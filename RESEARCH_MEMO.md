@@ -591,6 +591,21 @@ indistinguishable — so the decision is ARCHITECTURAL, not performance-led:
 - Deployment note (review-and-propose): the change touches
   `run_asset_class_rotation.py` UNIVERSE/TICKERS and downstream pipeline;
   patch to be proposed for approval, not applied in this session.
+- **Deployment update (2026-07-02, later the same day): APPROVED by
+  Zhenghao and LANDED as Phase 29.** EEM removed from the
+  `run_asset_class_rotation.py` UNIVERSE (12 rotation lines + SHY); full
+  pipeline chain re-run in the `refresh_all.py` order and
+  `docs/index.html` + factsheet rebuilt; README / template / factsheet
+  descriptions updated (B counts, EEM role, stale K=4/23-name C rows
+  corrected to the verified map; equal-weight benchmark label de-numbered,
+  JSON key kept for compatibility). Post-change deployed track
+  (gated + tilted): Sharpe **+1.2956**, CAGR +15.5%, max DD −16.24%
+  (previously +1.29 / +15.5% / −16.3% with EEM in B — inside noise, as
+  the ablation predicted). B walk-forward K refit stays K=7 every year,
+  WF Sharpe +0.77 (was +0.79). Verified: zero EEM entries across B's 926
+  rebalances; tilt intact (EM_TILT_ON since 2025-04-07, 11 switches);
+  180 pytest tests pass. WS3's baseline is therefore the NEW
+  architecture; shortlist item S3 is closed.
 
 ### 6. Trend-opportunity map
 

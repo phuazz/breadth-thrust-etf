@@ -1440,10 +1440,11 @@ def build_parameters_footer(overlay, sleeves, p22_active, breadth_end_date,
                          "(funded by reducing Strategy B's 35% &rarr; 25%)"],
         ["COST MODEL",  "5 bps per unit of weight change (10 bps round-trip)"],
         ["UNIVERSE",    "A · 14 US sector ETFs (SOXX, CSP1, CNDX, IUES, IUFS, "
-                         "IUIT, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, "
-                         "IUSP, IDP6) · B · 13 asset-class ETFs (SPY, IJR, "
-                         "QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, "
-                         "TIP) · C · 25 thematic ETFs · D · 5 Stoxx Europe "
+                         "IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, "
+                         "IUSP, IDP6; IUIT pruned) · B · 12 asset-class ETFs "
+                         "(SPY, IJR, QQQ, EFA, VGK, EWJ, VNQ, GLD, DBC, TLT, "
+                         "IEF, TIP; EEM via the EM tilt only since Phase 29) "
+                         "· C · 25 thematic ETFs · D · 5 Stoxx Europe "
                          "600 sector UCITS"],
     ]
     pt = Table(

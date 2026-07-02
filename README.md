@@ -2,26 +2,26 @@
 
 USD-denominated 4-sleeve breadth + momentum ETF rotation strategy with a CSP1 breadth regime overlay and an EEM/SPY relative-strength tilt. **Personal research artefact** — not investment advice, not affiliated with any regulated fund. **Live dashboard**: [phuazz.github.io/breadth-thrust-etf](https://phuazz.github.io/breadth-thrust-etf/)
 
-## Current state (Phase 24 — May 2026)
+## Current state (Phase 29 — July 2026)
 
 The deployed strategy is the **35/35/10/20 A:B:C:D blend** with two overlays:
 
 | Sleeve | Mechanism | Universe | Weight |
 |---|---|---|---|
 | **A** US sectors | Sector-RELATIVE breadth (Phase 20.1) — sector breadth minus cross-sectional mean, rank top K=7 by relative value, weight by positive-relative share | 14 US sector ETFs | 35% |
-| **B** Asset-class | ETF-level momentum (% above own 200d MA), top K=7 by signal, weight by signal share, SHY cash floor when fewer than K positive | 13 broad asset-class ETFs (HYG removed in Phase 24 — equity-correlated, not defensive) | 35% |
-| **C** Thematic | Same as B but on thematic ETFs with +5% signal floor, top K=4 equal-weight (Phase 6) | 23 thematic ETFs | 10% |
-| **D** Europe sectors | Same as A but on Stoxx Europe 600 sector UCITS, top K=3. **EUR prices FX-converted to USD** (Phase 20.2) | 5 Stoxx Europe 600 sector UCITS | 20% |
+| **B** Asset-class | ETF-level momentum (% above own 200d MA), top K=7 by signal, weight by signal share, SHY cash floor when fewer than K positive | 12 broad asset-class ETFs (HYG removed Phase 24 — equity-correlated, not defensive; EEM moved to overlay-only Phase 29 — held solely via the Phase 22 tilt) | 35% |
+| **C** Thematic | Same as B but on thematic ETFs with +5% signal floor, top K=5 equal-weight (Phase 27); sleeve-breadth gate — all to SHY when <30% of the universe clears the floor (Phase 27) | 25 thematic ETFs (PHO, IHI added Phase 25) | 10% |
+| **D** Europe sectors | Same as A but on Stoxx Europe 600 sector UCITS, top K=3, ABSOLUTE breadth (not sector-relative). **EUR prices FX-converted to USD** (Phase 20.2) | 5 Stoxx Europe 600 sector UCITS | 20% |
 
 **Phase 19 risk overlay**: when S&P 500 constituent breadth falls below 20%, shift 50% of NAV to SHY (1-3y Treasury). Re-engage full blend when breadth crosses back above 50%.
 
 **Phase 22 EEM tilt**: when EEM/SPY ratio's 50d MA crosses above its 200d MA (golden cross), tilt 10% of NAV to EEM. Funded from Strategy B (35% → 25% during tilt-ON).
 
-**Backtest stats (gated + EEM-tilted, 2018-Q4 to 2026-Q2)**: Sharpe +1.29, CAGR +15.9%, max DD -16.4%. All return figures USD-denominated. Walk-forward Sharpe (annual K refit) for A is +1.00, B is +0.79, C is +0.51 (largest IS-vs-OOS gap), D is ~+0.85.
+**Backtest stats (gated + EEM-tilted, 2018-Q4 to 2026-Q2, post-Phase 29)**: Sharpe +1.30, CAGR +15.5%, max DD -16.2%. All return figures USD-denominated. Walk-forward Sharpe (annual K refit) for A is +1.00, B is +0.77, C is +0.51 (largest IS-vs-OOS gap), D is ~+0.85.
 
 ### Known caveats (acknowledged upfront)
 
-- **Survivorship bias in Strategy C** — 23 thematics all survived to 2026; failed thematics (cannabis, leveraged-thematic, volatility) never in universe.
+- **Survivorship bias in Strategy C** — 25 thematics all survived to 2026; failed thematics (cannabis, leveraged-thematic, volatility) never in universe.
 - **Phase 19 overlay parameters tuned in-sample** — chosen from 12-variant sweep on same data the gated-vs-ungated comparison reports on.
 - **Phase 22 EEM tilt deployed on weak sample** — golden cross has produced few distinct ON-events in 7.5y. Deployed as a low-cost positional bet, not robustly-evidenced alpha.
 - **Sharpe sample noise** — 7.5y × weekly gives Sharpe SE ≈ ±0.4; +1.29 sits in ~95% CI [+0.55, +2.03]. Treat as range, not point estimate.
@@ -57,6 +57,10 @@ The current architecture evolved over ~30 phases of empirical iteration. Major m
 - **Phase 20.2**: Strategy D EUR→USD FX conversion (previously contaminated the USD blend)
 - **Phase 22**: EEM/SPY relative-strength tilt overlay
 - **Phase 24**: removed HYG from B's universe
+- **Phase 25**: thematic universe expansion to 25 (PHO water, IHI medical devices)
+- **Phase 26.2/26.3**: SEC EDGAR N-PORT fallback for SOXX constituents + per-ETF staleness policy (DATA_INTEGRITY_POLICY.md)
+- **Phase 27**: Strategy C moved to K=5 equal-weight + 30% sleeve-breadth gate (exit to SHY)
+- **Phase 29** (2026-07-02): EEM moved to **overlay-only** — removed from B's rotation universe after the WS2 universe review found it double-counted against the Phase 22 tilt (see `reviews/2026-07-02_ws2_universe.docx`); EM exposure is expressed solely by the tilt
 
 Numbers and ETFs in the historical Phase 3 README below refer to the obsolete single-strategy architecture — see the dashboard for current deployed state.
 

@@ -5,12 +5,11 @@ within US equities by ranking the SECTOR ETFs on constituent-level breadth,
 Strategy B operates ACROSS asset classes by ranking BROAD asset-class ETFs
 on their own price-level momentum.
 
-Universe (13 US-listed broad-asset ETFs — clean yfinance pricing, all with
+Universe (12 US-listed broad-asset ETFs — clean yfinance pricing, all with
 long histories back to at least 2007-2010):
 
   US equity      :  SPY (large), IJR (small), QQQ (NASDAQ-100 tech)
   Intl developed :  EFA (MSCI EAFE), VGK (Europe), EWJ (Japan)
-  Emerging Mkts  :  EEM (MSCI EM)
   Real estate    :  VNQ (US REITs broad)
   Commodities    :  GLD (gold), DBC (broad commodities)
   Bonds (Tsy)    :  TLT (20+y Treasury), IEF (7-10y Treasury), TIP (TIPS)
@@ -18,6 +17,10 @@ long histories back to at least 2007-2010):
   (Phase 24 2026-05-28: HYG removed — behaviourally an equity-correlated
   credit instrument, never a real defensive diversifier. Pareto-clean
   improvement on Sharpe + Total + DD at blend level.)
+  (Phase 29 2026-07-02: EEM moved to overlay-only — the WS2 review found
+  EEM double-counted between B's rotation and the Phase 22 tilt; EM
+  exposure is now expressed solely by the tilt. See the UNIVERSE comment
+  below and reviews/2026-07-02_ws2_universe.docx.)
 
 Signal: distance above own 200-day moving average per ETF
         signal_i = (close_i - MA200_i) / MA200_i
@@ -26,7 +29,7 @@ and has a clean regime-following interpretation: positive means the asset
 is above its long-term trend, negative means below.
 
 Trading rules:
-  - Rank the 14 ETFs each Friday close by current signal.
+  - Rank the 12 ETFs each Friday close by current signal.
   - Hold the top K with positive signal. ETFs with negative signal (below
     their 200d MA) are EXCLUDED — unlike Strategy A which is always 100%
     invested, this strategy has a built-in cash floor when broadly weak.
@@ -41,7 +44,7 @@ Trading rules:
 
 Benchmarks:
   - SPY buy-and-hold (single passive equity)
-  - Equal-weight across all 14 ETFs (no signal)
+  - Equal-weight across the rotation universe + cash line (no signal)
   - 60/40 (SPY/AGG): rebalance weekly to 60% SPY, 40% AGG — the
     conventional balanced portfolio.
 
@@ -80,8 +83,19 @@ UNIVERSE: dict[str, dict] = {
     "EFA":  {"label": "MSCI EAFE (Intl developed)", "asset_class": "Intl Developed"},
     "VGK":  {"label": "FTSE Europe",                "asset_class": "Intl Developed"},
     "EWJ":  {"label": "MSCI Japan",                 "asset_class": "Intl Developed"},
-    # Emerging markets
-    "EEM":  {"label": "MSCI EM (Emerging Mkts)",    "asset_class": "Emerging Mkts"},
+    # Emerging markets — EEM REMOVED in Phase 29 (2026-07-02, approved).
+    # WS2 review finding: EEM was double-counted — a Strategy B rotation
+    # member AND the Phase 22 overlay instrument. Look-through EEM peaked
+    # at 15.0% of NAV with both roles holding it simultaneously on 26% of
+    # days (11 tilt switches ever). The 2x2 role ablation on the fixed
+    # window put all four cells within 0.009 full-window Sharpe —
+    # statistically indistinguishable — so the decision is architectural:
+    # ONE role, the Phase 22 overlay. Strategy B standalone is no worse
+    # without EEM (+1.02 vs +1.01), because B's slow 200d momentum rarely
+    # selected it anyway. EEM exposure is now expressed ONLY via the
+    # Phase 22 EEM/SPY golden-cross tilt in run_risk_overlay.py.
+    # Evidence: data/ws2_eem_coherence.json; record
+    # reviews/2026-07-02_ws2_universe.docx sections 3.5 and 4.1.
     # Real estate
     "VNQ":  {"label": "US Real Estate (REITs)",     "asset_class": "Real Estate"},
     # Commodities
@@ -118,11 +132,11 @@ START_DATE = "2007-01-01"  # earliest common start across the universe
 END_DATE   = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 MA_PERIOD = 200
-# Phase 12 cost calibration: Strategy B trades 13 broad-asset ETFs
-# (SPY, IJR, QQQ, EFA, VGK, EWJ, EEM, VNQ, GLD, DBC, TLT, IEF, TIP)
-# after Phase 24 HYG removal. These are among the most liquid ETFs in
-# the world — bid-ask typically 0.5-2 bps. Realistic blended one-way
-# cost: ~2 bps (was uniform 5).
+# Phase 12 cost calibration: Strategy B trades 12 broad-asset ETFs
+# (SPY, IJR, QQQ, EFA, VGK, EWJ, VNQ, GLD, DBC, TLT, IEF, TIP) after
+# the Phase 24 HYG removal and the Phase 29 EEM move to overlay-only.
+# These are among the most liquid ETFs in the world — bid-ask typically
+# 0.5-2 bps. Realistic blended one-way cost: ~2 bps (was uniform 5).
 COST_BPS = 2
 COST_FRAC = COST_BPS / 10_000
 
@@ -157,7 +171,9 @@ CASH_ONLY_TICKERS = ["SHY"]
 ASSET_CLASS_COLOURS = {
     "SPY":  "#374151",  "IJR":  "#1e3a8a",  "QQQ":  "#7c3aed",
     "EFA":  "#0e7490",  "VGK":  "#0891b2",  "EWJ":  "#be185d",
-    "EEM":  "#dc2626",
+    "EEM":  "#dc2626",  # retained: old payloads + the Phase 22 tilt row
+                        # on the dashboard still render EEM (Phase 29
+                        # removed it from the rotation universe only)
     "VNQ":  "#0d9488",
     "GLD":  "#ca8a04",  "DBC":  "#92400e",
     "TLT":  "#1d7a3a",  "IEF":  "#65a30d",  "TIP":  "#a16207",
@@ -615,7 +631,7 @@ def main() -> int:
     ew_eq_window = ew_run["equity"].loc[ew_run["equity"].index >= eligible]
     ew_eq = ew_eq_window / ew_eq_window.iloc[0]
     ew_stats = compute_stats(ew_run["equity"], eligible)
-    print(f"  Equal-weight 14    Sharpe {ew_stats['sharpe']:+.2f}   "
+    print(f"  Equal-weight univ  Sharpe {ew_stats['sharpe']:+.2f}   "
           f"CAGR {ew_stats['cagr']*100:+5.1f}%   DD {ew_stats['max_dd']*100:.1f}%")
 
     sf_run = sixty_forty(closes, eligible, HEADLINE_FREQ)
@@ -633,7 +649,9 @@ def main() -> int:
             **spy_stats,
         },
         "equal_weight_14": {
-            "label": "Equal-weight 14 asset-class ETFs (no signal)",
+            "label": "Equal-weight asset-class universe (no signal)",
+            # JSON key `equal_weight_14` kept for dashboard compatibility
+            # (historical name; the count is no longer 14 post-Phase 29).
             "dates": [d.strftime("%Y-%m-%d") for d in ew_eq.index],
             "equity": round_series(ew_eq.values),
             **ew_stats,
