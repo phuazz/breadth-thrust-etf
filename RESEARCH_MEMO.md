@@ -1,18 +1,21 @@
 # Research memo — strategy review (REVIEW_PROMPT.md)
 
 Running memo across review sessions. Session 1 covers Workstream 0 (orient) and
-Workstream 1 (moving-average robustness). Workstreams 2 (universe) and 3 (heavy
-robustness gate) are deferred to later sessions per the staging plan.
+Workstream 1 (moving-average robustness). Session 2 (same day) covers
+Workstream 2 (universe). Workstream 3 (heavy robustness gate) is deferred to
+its own session per the staging plan.
 
 - Started: 2026-07-02
 - Data as of: caches through 2026-06-16 (EU constituents) to 2026-07-01 (US);
-  committed JSONs from the 2026-07-02 weekly refresh.
+  committed JSONs from the 2026-07-02 weekly refresh. Session 2 adds a fresh
+  candidate panel (`data/ws2_prices_cache.parquet`, fetched 2026-07-02).
 - Constraint honoured: no edits to `template.html`, `docs/`, or any deployed
   `scripts/run_*.py`. All experiments in NEW scripts (`scripts/run_ws1_*.py`,
-  `scripts/ws1_common.py`) writing JSON to `data/ws1_*.json`.
-- Filed record: [`reviews/2026-07-02_ws0-ws1_ma-robustness.docx`](reviews/2026-07-02_ws0-ws1_ma-robustness.docx)
-  (signed-off review document; naming convention for the series is
-  `reviews/<yyyy-mm-dd>_<workstreams>_<topic>.docx`).
+  `scripts/ws1_common.py`; session 2: `scripts/run_ws2_*.py`,
+  `scripts/ws2_common.py`) writing JSON to `data/ws1_*.json` / `data/ws2_*.json`.
+- Filed records: [`reviews/2026-07-02_ws0-ws1_ma-robustness.docx`](reviews/2026-07-02_ws0-ws1_ma-robustness.docx),
+  [`reviews/2026-07-02_ws2_universe.docx`](reviews/2026-07-02_ws2_universe.docx)
+  (naming convention `reviews/<yyyy-mm-dd>_<workstreams>_<topic>.docx`).
 
 ---
 
@@ -22,7 +25,7 @@ robustness gate) are deferred to later sessions per the staging plan.
 
 | Sleeve | Signal | Horizon | Selection / weighting | Universe | Cost | File:line |
 |---|---|---|---|---|---|---|
-| **A — US sectors (35%)** | Constituent breadth: share of constituents above their own **200d** MA, made sector-RELATIVE (sector minus cross-sectional mean per date) | 200d (`MA_PERIOD` imported from `run_ma200_sweep.py:55`) | Top K=7 by relative breadth, weight by positive-relative share (`top_k_breadth_weight`), weekly Friday | 13 ETFs: SOXX CSP1 CNDX + 10 iShares UCITS sector slices (IUIT pruned) traded via SPDR proxies (`etf_registry.py:583-605`) | 2 bps (`run_topk_robustness.py:53`) | breadth calc `run_ma200_sweep.py:117-150`; relative transform `run_topk_robustness.py:75-82`; weight fn `run_portfolio.py:199-253`; K=7 `run_topk_robustness.py:92` |
+| **A — US sectors (35%)** | Constituent breadth: share of constituents above their own **200d** MA, made sector-RELATIVE (sector minus cross-sectional mean per date) | 200d (`MA_PERIOD` imported from `run_ma200_sweep.py:55`) | Top K=7 by relative breadth, weight by positive-relative share (`top_k_breadth_weight`), weekly Friday | 14 ETFs: SOXX CSP1 CNDX IDP6 + 10 iShares UCITS sector slices (IUIT pruned) traded via SPDR proxies (`etf_registry.py:583-605`) | 2 bps (`run_topk_robustness.py:53`) | breadth calc `run_ma200_sweep.py:117-150`; relative transform `run_topk_robustness.py:75-82`; weight fn `run_portfolio.py:199-253`; K=7 `run_topk_robustness.py:92` |
 | **B — asset class (35%)** | ETF-level graded momentum: `(close − MA200) / MA200` (distance, not binary above/below) | 200d (`run_asset_class_rotation.py:120`) | Top K=7 among positive-signal names, weight by signal share, deficit slots to SHY cash floor | 13 broad ETFs: SPY IJR QQQ EFA VGK EWJ EEM VNQ GLD DBC TLT IEF TIP (+SHY cash-only) (`run_asset_class_rotation.py:74-115`) | 2 bps (`:126`) | signal `run_asset_class_rotation.py:232-238`; weight fn `:241-280`; K=7 `:136` |
 | **C — thematic (10%)** | Same graded momentum as B | 200d (`run_thematic_rotation.py:288`) | Eligibility floor +5% above MA (`:289`); **top K=5 equal-weight** (`:312`, Phase 27); **sleeve-breadth gate: all to SHY when <30% of universe clears the floor** (`:333-334`, Phase 27 "V6"); SHY deficit floor | **25 thematics** incl. BTC-USD (25 bps IBIT drag) and 159801.SZ (CNY→USD, 50 bps drag) (`run_thematic_rotation.py:80-261`) | 5 bps (`:295`) | weight fn + gate `run_thematic_rotation.py:529-599`; FX/drag loaders `:384-521` |
 | **D — Europe sectors (20%)** | Constituent breadth, share above **200d** MA — **ABSOLUTE, not relative** | 200d (imported `run_europe_rotation.py:45`) | Top K=3 breadth-weighted (`:65`), weekly Friday | 5 Stoxx Europe 600 sector UCITS: EXV1 EXH1 EXV3 EXH3 EXH9 (`etf_registry.py:614-620`) | 9 bps incl. FX (`run_europe_rotation.py:55`) | engine `run_europe_rotation.py:161-200`; EUR→USD conversion `:128-158` |
@@ -70,10 +73,12 @@ EEM tilt: 11 switches ever, 29.3% of days ON — few distinct bets (WS3 item).
 4. **C has a Phase 27 sleeve-breadth gate** (30% threshold, exit to SHY) that
    post-dates the README and is absent from the prompt's ground-truth block.
    It is an extra regime overlay inside the sleeve.
-5. **A's universe is 13 tradeable lines** (14 registered minus IUIT pruned at
-   `etf_registry.py:591` for 0.97 corr with CNDX). README's "14" counts the
-   pruned line. Includes non-sector slices SOXX, CSP1, CNDX, IDP6 — so "US
-   sectors" is really "US sectors + broad-cap + semis + small-cap".
+5. **A's universe is 14 tradeable lines** (15 registered minus IUIT pruned at
+   `etf_registry.py:591` for 0.97 corr with CNDX). *Correction (session 2):
+   the WS0 note said 13 and mis-attributed an error to the README — a recount
+   of `UNIVERSE_ETFS` confirms 14, matching the README.* Includes non-sector
+   slices SOXX, CSP1, CNDX, IDP6 — so "US sectors" is really "US sectors +
+   broad-cap + semis + small-cap".
 6. Existing robustness evidence covers the **legacy single-ETF 50/150
    strategy**, not the deployed sleeves: the MA-period sweep {100..300}
    (`run_robustness.py:576-616`) and walk-forward L are on CSP1/SOXX Family-D.
@@ -122,6 +127,7 @@ Ranked by expected OOS-expectancy impact per unit of added complexity:
    caches already on disk). Add only if top-K country momentum beats EEM+EFA
    net of cost.
 6. **WS2.3 — universe adds/drops with data-integrity gates** (next session).
+   *Status: items 4-6 completed in session 2 — see the Workstream 2 section.*
 7. **WS3 — heavy gate ONCE on the frozen shortlist** (final session):
    deflated/haircut Sharpe over ~28 phases of trials, full-system walk-forward
    (weights, K, gate thresholds, tilt windows), cost stress 1x/2x/3x, EEM-tilt
@@ -399,3 +405,249 @@ concentrated in 2022). The valuable outputs are the surfaces themselves
 against ever shortening the horizon, the C-horizon-is-noise result, and the
 confirmed slow-selection / fast-gate division of labour. Next session:
 Workstream 2 (universe) per the ranked plan.
+
+---
+
+## Workstream 2 — universe (session 2 results)
+
+### Method
+
+- New scripts: `scripts/ws2_common.py` (deployed-baseline cache at W=200,
+  regression-checked — rebuilt ungated blend Sharpe **+1.196**, identical to
+  the WS1 harness), `scripts/run_ws2_fetch_panel.py`,
+  `run_ws2_correlation.py`, `run_ws2_country_sleeve.py`,
+  `run_ws2_commodity_fixed.py`, `run_ws2_prune_tests.py`,
+  `run_ws2_eem_coherence.py`, `run_ws2_trend_map.py`.
+  Artefacts: `data/ws2_*.json`, charts
+  [`data/ws2_correlation.png`](data/ws2_correlation.png) /
+  [`data/ws2_trend_map.png`](data/ws2_trend_map.png), caches
+  `data/ws2_prices_cache.parquet`, `data/ws2_baseline_*.parquet`,
+  `data/ws2_ticker_verification.json`.
+- Same fixed window (2018-11-08 → 2026-06-16), split (2022-09-08), deployed
+  costs + 2x stress and sub-period grid as WS1. Every add/drop was
+  PRE-REGISTERED from correlation or scope evidence before its performance
+  was seen, and judged on the cheap reflex with the BLEND-level delta as the
+  decision number. Kill on contact.
+- Ticker verification against 2+ sources (yfinance metadata,
+  `data/ishares_catalogue.csv`, issuer/aggregator pages): all candidates
+  verified. **FM (iShares Frontier and Select EM) is a dead fund** — last
+  price 2025-01-08, liquidation completed 2025-01 — caught by the
+  verification gate and excluded. Frontier is currently uninvestable via
+  clean US-listed ETFs.
+
+### 1. Overlap control — rule, matrix, look-through
+
+Artefacts: `data/ws2_correlation.json`,
+[`data/ws2_correlation.png`](data/ws2_correlation.png). 72 lines (all sleeve
+members incl. D converted EUR→USD with the deployed FX series, plus all
+candidates), weekly W-FRI returns, 397 obs full window + trailing 52.
+
+**The rule (adopted):** cluster at pairwise weekly correlation ≥0.80 on the
+full window (connected components); keep the most liquid/representative line
+per cluster; **reject any CANDIDATE >0.90 to an incumbent** unless it adds
+exposure the incumbent cannot express (IUIT/CNDX 0.97 prune is the
+precedent). Incumbents are NOT auto-dropped by correlation: a deployed name
+is removed only when OOS evidence positively supports the drop (see the
+prune tests — correlation is necessary but not sufficient, the Phase 16 SLV
+lesson in both directions).
+
+Findings — 18 pairs >0.90 full-window, of which the load-bearing ones:
+
+| Pair | Corr | Reading |
+|---|---:|---|
+| EEM / IEMG | 0.998 | candidate IEMG auto-rejected |
+| XLRE(A) / VNQ(B) | 0.990 | cross-sleeve dual-signal REIT — deliberate, quantified |
+| EFA / VGK (both B) | 0.984 | within-B duplicate → prune tested (P1) |
+| VGK / EWG, EFA / EWG, VGK / EWU | 0.930-0.966 | candidates EWG, EWU auto-rejected |
+| DBC / GSG, DBC / DBE | 0.939-0.958 | commodity adds duplicate incumbent DBC |
+| XLI(A) / PAVE(C) | 0.954 | thematic that is A's industrials beta → prune tested (P2) |
+| SPY(A,B) / QQQ(A,B) | 0.930 | the deployed dual-coverage core |
+| ICLN / TAN, CIBR / SKYY (C) | 0.930 / 0.901 | within-C duplicates → prune tested (P2) |
+| TLT / IEF (B) | 0.918 | deliberate duration ladder — keep |
+
+Trailing-1y additions (context, no decisions): EEM/EWT 0.908 and EEM/EWY
+0.906 — Taiwan and Korea have converged onto broad EM (EM is currently a
+semis trade), further undermining the "distinct exposure" case for a country
+sleeve; IEF/SHY 0.901 (short-end compression).
+
+**Intra-blend look-through** (ungated 35/35/10/20, sleeve weight panels,
+weekly drift ignored): the US-beta cluster (28 blend lines link into one
+component at ≥0.8) averages **46.8% of NAV, peaking at 83.5%**; QQQ alone
+averages 6.8% with a **24.1% peak** (held by A and B simultaneously in 43%
+of weeks); SPY 4.0% mean / 10.4% max; IJR 2.1% / 13.7%. Stance recorded:
+cross-sleeve same-beta duplication (SPY/QQQ/IJR, XLRE-vs-VNQ) is the
+architecture's deliberate signal diversification — two different signals on
+the same beta — and is retained; the look-through concentration number is
+the honest cost of that choice and goes to WS3 as context.
+
+### 2. Pre-registered within-sleeve prunes — both REJECTED
+
+`data/ws2_prune_tests.json`. Exactly two bundles, fixed from correlation
+evidence alone:
+
+- **P1 — B drop VGK** (0.984 to EFA): a wash. Sleeve dFull +0.007 /
+  dTest −0.029 / 3 of 6; blend dFull +0.004 / dTest −0.003 / 3 of 6.
+  Fails the keep bar → **no change**; a deployed-config change on a wash
+  loses to the incumbent (entry-point discipline).
+- **P2 — C drop {TAN, SKYY, PAVE}** (0.930/0.901 within-C; PAVE 0.954 to
+  XLI): actively harmful. Sleeve dFull **−0.111** / dTest +0.006 / 1 of 6,
+  max DD −40.7% vs −36.1%; blend dFull −0.021 / 1 of 6. The dropped names
+  carried C's train half (2020 solar, 2021 infrastructure) → **no change**.
+  Corollary recorded: correlation redundancy alone is not sufficient grounds
+  to REMOVE an incumbent, mirroring the SLV lesson that a passed corr gate
+  is not sufficient grounds to ADD one.
+
+### 3. Country momentum sleeve — KILLED on the pre-registered bar
+
+`data/ws2_country_sleeve.json`. Design (pre-registered): the deployed B
+formulation — graded (close−MA200)/MA200, top-K by signal share among
+positive names, SHY deficit floor (which IS the own-200d risk gate) — on
+U10 = EWZ EWW EWY INDA EWT EWA EWS EWG EWU EWJ; headline K=3 (Idea 3 /
+Phase 23 precedent), 5 bps one-way incl. cash legs (conservative), U11
+(+EEM) and K∈{2,4} reported not selected. Bar: beat 50/50 EEM+EFA
+(weekly-rebalanced, 2 bps) on full AND test AND ≥4/6 sub-periods AND at 2x
+cost.
+
+| Config | Full | 2x | Train | Test | MaxDD | Turn |
+|---|---:|---:|---:|---:|---:|---:|
+| 50/50 EEM+EFA benchmark | +0.60 | — | +0.18 | +1.16 | −33.8% | — |
+| U10 K=2 | +0.74 | +0.70 | +0.03 | +1.30 | −38.6% | 19.8x |
+| **U10 K=3 (headline)** | **+0.70** | **+0.65** | **−0.04** | **+1.27** | **−35.3%** | 17.3x |
+| U10 K=4 | +0.66 | +0.61 | −0.09 | +1.23 | −31.4% | 17.2x |
+| U11+EEM K=3 | +0.66 | +0.61 | −0.10 | +1.25 | −35.3% | 18.3x |
+
+Bar result: full ✓, test ✓, 2x ✓, **sub-periods 3/6 ✗ → KILL** (no blend
+run). The failure shape is the instructive part: the train half is NEGATIVE
+(−0.04) against the benchmark's +0.18 — the ranking flips across the split
+and the entire edge sits in the 2022+ half. Long-window reconciliation with
+the Idea 3 rejection (23y evidence, `test_phase22_eem_overlay.py` origin
+note): the sleeve beats the benchmark 2004-2010 (0.91 vs 0.50) and 2022-now
+(0.74 vs 0.61), loses 2011-2013 and 2014-2021. Country momentum is a
+REGIME BET on EM leadership, not an all-weather edge — and the architecture
+already expresses exactly that bet through the Phase 22 overlay at 10% with
+11 switches. Adding a sleeve would duplicate the overlay with more knobs.
+EEM inside the sleeve universe (U11) is strictly worse everywhere.
+
+### 4. Commodity-spot thread — KILLED on the fixed window
+
+`data/ws2_commodity_fixed.json` (re-run of the untracked 2026-07-01 thread
+`scripts/run_commodity_expansion.py` + `data/commodity_expansion.json`).
+Method review of the original: engine faithful (validated to 1e-9 against
+the deployed engine — re-asserted), costs sensible (10 bps on adds, roll
+inside ETF NAV), but `common_window()` inner-join truncated the C
+comparison to 2020-11, the headline was MAR on its own windows, and there
+was no split / sub-period / blend-level view. Its own numbers were already
+uniformly negative (dMAR negative at EVERY start year 2008-2023, negative
+even at 0 bps add-cost). Fixed-window re-run (end 2026-06-12, commodity
+cache bound, baseline re-sliced identically):
+
+| Variant | dFull | dTest | Consistency | MaxDD |
+|---|---:|---:|---:|---:|
+| B + {DBA,DBB,DBE} (sleeve) | −0.093 | −0.343 | 2/6 | −16.2% vs −13.3% |
+| C + {DBC,DBA,DBB,DBE} (sleeve) | −0.015 | −0.142 | 2/6 | −46.7% vs −36.1% |
+| Blend, B widened | −0.007 | −0.095 | 3/6 | — |
+| Blend, C widened | +0.005 | −0.016 | 3/6 | — |
+| Blend, both widened | −0.008 | −0.124 | 2/6 | — |
+
+**KILL.** The widened B's train half (+1.15) exceeds its test half (+0.66):
+the additions are a backward-looking bet on the 2021-22 commodity bull —
+the in-sample-only improvement pattern the reflex exists to catch. The
+correlation matrix independently shows DBE/GSG at 0.94-0.96 to incumbent
+DBC: the adds are mostly duplicate beta with wider spreads. B's existing
+GLD + DBC remain the commodity expression. Recommend deleting the untracked
+thread artefacts or filing them as-rejected (owner's call at approval).
+
+### 5. EEM coherence — DECISION: overlay-only
+
+`data/ws2_eem_coherence.json`. 2x2 ablation on the fixed window, ungated
+decision numbers (Phase 19 gate applied afterwards as context; gate
+reimplementation validated at +1.286 vs committed +1.287):
+
+| Variant | Full | Train | Test | MaxDD | Gated |
+|---|---:|---:|---:|---:|---:|
+| V0 status quo (EEM in B + tilt) | +1.202 | +0.920 | +1.540 | −23.6% | +1.279 |
+| **V1 overlay-only (B w/o EEM + tilt)** | **+1.210** | +0.933 | **+1.544** | −23.6% | +1.289 |
+| V2 B-member-only (no tilt) | +1.201 | +0.947 | +1.509 | −23.6% | +1.286 |
+| V3 neither | +1.207 | +0.964 | +1.506 | −23.6% | +1.295 |
+
+All four cells sit within 0.009 full-window Sharpe — statistically
+indistinguishable — so the decision is ARCHITECTURAL, not performance-led:
+
+- **Adopt V1 (overlay-only): remove EEM from Sleeve B's rotation universe
+  (B becomes 12 rotation lines + SHY); the Phase 22 golden-cross tilt
+  becomes the system's ONE designated EM expression.**
+- Why: it eliminates a real double-count (look-through EEM peaked at
+  **15.0% of NAV**; both roles held EEM simultaneously on 26% of days;
+  mean look-through 4.5%); it is weakly dominant ungated (best full and
+  test of the four cells, 5/6 consistency vs V0); B does not miss EEM
+  (standalone +1.02 without vs +1.01 with; B's top-K held EEM rarely);
+  and it PRESERVES the EM-turn thesis expression whose walk-forward
+  validation is on file (`em_tilt_validation.json`: fixed 50/200 beats
+  baseline OOS). Choosing V3 on its +0.006 gated edge would be sequential
+  tuning on noise. The tilt's own keep/kill (11 switches ≈ few distinct
+  bets) remains a WS3 audit item, deliberately NOT decided here.
+- Deployment note (review-and-propose): the change touches
+  `run_asset_class_rotation.py` UNIVERSE/TICKERS and downstream pipeline;
+  patch to be proposed for approval, not applied in this session.
+
+### 6. Trend-opportunity map
+
+Chart: [`data/ws2_trend_map.png`](data/ws2_trend_map.png)
+(`run_ws2_trend_map.py`). Bottom line: the exposure space is either
+covered, deliberately not covered, or was evaluated and killed this
+session. Named GAPS with status: **frontier** (uninvestable — FM
+liquidated); **non-US rates** (no clean USD-listed liquid vehicle set;
+low priority); **styles/factors** (marginal by construction: QUAL 0.985
+to SPY auto-rejects, USMV/MTUM/VLUE 0.889-0.896 sit ON the 0.9 flag
+boundary, and a factor sleeve adds a factor-timing knob with weak prior —
+defer with a written distinct-exposure bar); **ex-US DM sectors beyond
+D's five** (widening needs point-in-time EU constituents — the expensive
+data bucket; defer); **credit** (deliberate gap, HYG removal documented).
+REDUNDANCIES are quantified in section 1 and either deliberate
+(dual-signal core, duration ladder) or resolved (EEM double-count → V1;
+candidate auto-rejects; prune bundles tested and rejected).
+
+### Proposed target universe (WS2 deliverable — review-and-propose)
+
+| Sleeve | Proposal | One-line rationale |
+|---|---|---|
+| A — US sectors (35%) | UNCHANGED: 14 lines (SOXX CSP1 CNDX IDP6 + 10 slices) | breadth on concentrated single-sector/cap slices is the signal's home turf; IUIT stays pruned |
+| B — asset class (35%) | **ONE change: remove EEM** → 12 rotation lines + SHY | EEM's role moves to overlay-only; B unchanged otherwise (VGK wash, TLT/IEF deliberate ladder) |
+| C — thematic (10%) | UNCHANGED: 25 names, +5% floor, 30% gate | prune bundle rejected on evidence; survivorship + capacity flags stand (BTC 25 bps, 159801.SZ 50 bps drag) |
+| D — Europe sectors (20%) | UNCHANGED: 5 Stoxx supersectors | absolute breadth works here; widening blocked on point-in-time constituent cost |
+| Overlays | Phase 19 gate unchanged; **Phase 22 tilt = the ONE EM expression** | gate cleared in WS1; tilt bet-count audit reserved for WS3 |
+| Adds | **NONE** | countries killed (3/6), commodities killed (2/6), factors deferred-marginal, IEMG/EWG/EWU/DBE/GSG auto-rejected at >0.9 |
+
+### WS2 trial register (deflated-Sharpe input for WS3)
+
+Counting convention as WS1 (each evaluated configuration counts once; 2x
+cost is a stress report of the same configuration; benchmarks count).
+
+- Country sleeve: 6 sleeve configs (U10/U11 × K∈{2,3,4}) + 1 benchmark = 7
+- Commodity fixed-window re-run: 2 sleeve + 3 blend splices = 5
+- Commodity thread of 2026-07-01, retro-logged: 2 sleeve pairs + 7
+  narrow-subset probes + 2 diversification sub-sleeves = 11
+- Within-sleeve prunes: 2 sleeve + 2 blend splices = 4
+- EEM coherence: 4 blend cells + 1 B-without-EEM sleeve = 5
+- Correlation matrix / look-through / trend map / factor-corr check:
+  descriptive, 0 trials
+
+**Session 2 total: 21 new + 11 retro-logged = 32 trials.** Cumulative
+review trials for WS3's deflated-Sharpe audit: ~139 (WS1) + 32 = **~171**.
+
+### WS2 bottom line
+
+The deployed universe survives a full overlap audit with ZERO forced
+changes: both pre-registered within-sleeve prunes were rejected by the
+cheap reflex, and every proposed widening — country momentum sleeve,
+commodity-spot additions, factor lines — was killed or deferred on OOS
+evidence rather than taste. The one structural change proposed is
+architectural, not performance-led: EEM becomes overlay-only (V1), ending
+the Sleeve-B/Phase-22 double-count that peaked at 15% look-through NAV.
+The overlap rule is now explicit (cluster ≥0.8, reject candidates >0.9 to
+incumbents, incumbents protected by kill-on-contact), the blend's true
+US-beta concentration is quantified (mean 46.8%, max 83.5%) and handed to
+WS3, and the trial register stands at ~171 configurations. Next session:
+Workstream 3 — heavy gate on the frozen shortlist (deflated Sharpe,
+full-system walk-forward, cost stress, EEM-tilt bet-count audit, C-floor
+candidate from WS1).
