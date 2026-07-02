@@ -131,8 +131,14 @@ Ranked by expected OOS-expectancy impact per unit of added complexity:
 ### Method
 
 - New scripts: `scripts/ws1_common.py`, `scripts/run_ws1_ma_surface.py`,
-  `scripts/run_ws1_vol_variants.py`. Artefacts: `data/ws1_ma_surface.json`,
-  `data/ws1_vol_variants.json`, `data/ws1_fx_eurusd_cache.parquet`.
+  `scripts/run_ws1_vol_variants.py`, `scripts/plot_ws1_surface.py`.
+  Artefacts: `data/ws1_ma_surface.json`, `data/ws1_vol_variants.json`,
+  `data/ws1_ma_surface.png`, `data/ws1_ma_dd_surface.png`,
+  `data/ws1_fx_eurusd_cache.parquet`.
+- Lookback grid densified 2026-07-02 from 8 to **13 points (25d steps,
+  25→325)** for surface-shape resolution. Grid size is a trial count for
+  WS3's deflated-Sharpe audit: log 13 lookbacks x 4 sleeves + blend as
+  evaluated (not selected) configurations.
 - Deployed engines imported unchanged (look-ahead protection inherited);
   ONE fixed evaluation window for every variant: **2018-11-08 → 2026-06-16**
   (end bound by the EU constituent caches), split-half at **2022-09-08**
@@ -151,7 +157,14 @@ Ranked by expected OOS-expectancy impact per unit of added complexity:
 
 ### 1. Parameter surface — the 200d point sits on a one-sided plateau
 
-Full-window Sharpe by lookback (fixed window, deployed costs):
+**Charts: [`data/ws1_ma_surface.png`](data/ws1_ma_surface.png)** (small
+multiples per sleeve + blend with full/train/test lines, plateau band and
+deployed marker, plus a sleeve x W heatmap) and
+**[`data/ws1_ma_dd_surface.png`](data/ws1_ma_dd_surface.png)** (blend
+drawdown surface). Regenerate with `python scripts/plot_ws1_surface.py`.
+
+Full-window Sharpe by lookback (fixed window, deployed costs; table shows
+the original 8 columns — the JSON/charts carry the full 13-point grid):
 
 | W | 50 | 75 | 100 | 125 | 150 | **200 (deployed)** | 250 | 300 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -182,14 +195,26 @@ Findings:
 - **C's horizon is statistically noise** (rank corr +0.05, non-monotone
   surface). Do not ever tune C's window separately; it stays on the common
   horizon by parsimony.
-- **Verdict: keep 200d.** The only defensible alternative reading: 250 is the
-  literal flat-middle (200 borders the falling fast shoulder), beats 200 in
-  4/6 regimes and in both halves, at lower turnover — but the gain (+0.03
-  blend Sharpe) is far inside noise, and changing a deployed parameter after
-  peeking at this surface is exactly the sequential-tuning failure mode the
-  review exists to stop. If pursued at all, "common horizon 200 vs 250"
-  should enter WS3's full-system walk-forward as a re-fit parameter and be
-  decided there, not here.
+- **Dense-grid addendum (13 points, 25d steps).** The new points interpolate
+  smoothly (blend: 175d +1.14, 225d +1.18, 275d +1.24, 325d +1.22) — no
+  hidden spikes between the original points, which is itself evidence against
+  a curve-fit artefact. On the finer grid the blend plateau band (within 0.05
+  of the peak) is 250-325 with the peak at 275 (+1.24); deployed 200 sits
+  0.04 below the band's edge, at the top of the rising shoulder. Train/test
+  rank correlations on 13 points: blend +0.88, B +0.88, A +0.67, D +0.67,
+  **C −0.41** — C's horizon preference is confirmed noise, now with the sign
+  flipping on a denser grid. W=25 on C is degenerate (the fixed +5% floor
+  leaves the sleeve mostly in cash), documented as formulation breakdown, not
+  signal.
+- **Verdict: keep 200d.** The only defensible alternative reading: the
+  flat-middle of the dense-grid plateau is ~275 (200 borders the falling
+  fast shoulder); 250-275 beat 200 in 4/6 regimes and in both halves, at
+  lower turnover — but the gain (+0.03-0.04 blend Sharpe) is far inside
+  noise, and changing a deployed parameter after peeking at this surface is
+  exactly the sequential-tuning failure mode the review exists to stop. If
+  pursued at all, "common horizon 200 vs 250-275" should enter WS3's
+  full-system walk-forward as a re-fit parameter and be decided there, not
+  here.
 
 ### 1b. Drawdown surface — slow lookbacks are also the drawdown-safe direction
 
@@ -214,10 +239,13 @@ Findings:
   gate layer is the right tool, and its audit is WS3.
 - **Every conditionable DD metric prefers slow.** Worst rolling 12m improves
   monotonically from −14.8% (W=50) to −10.0% (W=300); 2022 drawdown is
-  −17/−20% fast vs −13/−14% slow; the deployed 200d has the shortest
-  underwater spell on the grid (163 trading days vs 395-578) and per-sleeve
-  minima cluster at 200 (B worst-12m −5.8%, C max DD −36.1% — C's Phase 27
-  gate composes best with the 200d horizon).
+  −17/−20% fast vs −13/−14% slow; per-sleeve minima cluster at 200
+  (B worst-12m −5.8%, C max DD −36.1% — C's Phase 27 gate composes best with
+  the 200d horizon). The deployed 200d has the shortest underwater spell on
+  the grid (163 trading days), though the dense grid shows neighbours 175/225
+  at ~270 days — the robust statement is "the slow half recovers materially
+  faster than the fast half (270-300d vs 400-580d)", not that 200 is a
+  special point.
 - **The one place fast wins is COVID for the momentum sleeves** (B@50 −11.0%
   vs B@200 −13.3%; C@50 −19.3% vs C@200 −32.5%): fast signals do exit
   no-warning crashes sooner, but pay for it in every choppy grind. Two crash

@@ -32,7 +32,9 @@ from run_portfolio import run_portfolio, top_k_breadth_weight  # noqa: E402
 import run_asset_class_rotation as B_engine  # noqa: E402
 import run_thematic_rotation as C_engine  # noqa: E402
 
-GRID = [50, 75, 100, 125, 150, 200, 250, 300]
+# 25d-step grid, strict superset of the original 8-point grid. Grid SIZE is
+# a trial count for WS3's deflated-Sharpe audit — log any change here.
+GRID = [25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325]
 DEPLOYED_W = 200
 OUT = W.DATA / "ws1_ma_surface.json"
 
