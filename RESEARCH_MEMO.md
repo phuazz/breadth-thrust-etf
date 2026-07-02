@@ -10,6 +10,9 @@ robustness gate) are deferred to later sessions per the staging plan.
 - Constraint honoured: no edits to `template.html`, `docs/`, or any deployed
   `scripts/run_*.py`. All experiments in NEW scripts (`scripts/run_ws1_*.py`,
   `scripts/ws1_common.py`) writing JSON to `data/ws1_*.json`.
+- Filed record: [`reviews/2026-07-02_ws0-ws1_ma-robustness.docx`](reviews/2026-07-02_ws0-ws1_ma-robustness.docx)
+  (signed-off review document; naming convention for the series is
+  `reviews/<yyyy-mm-dd>_<workstreams>_<topic>.docx`).
 
 ---
 
