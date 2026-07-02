@@ -14,7 +14,9 @@ its own session per the staging plan.
   `scripts/ws1_common.py`; session 2: `scripts/run_ws2_*.py`,
   `scripts/ws2_common.py`) writing JSON to `data/ws1_*.json` / `data/ws2_*.json`.
 - Filed records: [`reviews/2026-07-02_ws0-ws1_ma-robustness.docx`](reviews/2026-07-02_ws0-ws1_ma-robustness.docx),
-  [`reviews/2026-07-02_ws2_universe.docx`](reviews/2026-07-02_ws2_universe.docx)
+  [`reviews/2026-07-02_ws2_universe.docx`](reviews/2026-07-02_ws2_universe.docx),
+  detailed test appendix
+  [`reviews/2026-07-02_ws2_test-appendix.docx`](reviews/2026-07-02_ws2_test-appendix.docx)
   (naming convention `reviews/<yyyy-mm-dd>_<workstreams>_<topic>.docx`).
 
 ---
