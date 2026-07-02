@@ -1,0 +1,122 @@
+{
+ "computed_at_utc": "2026-07-02T04:46:49+00:00",
+ "note": "Two-source ticker verification: yfinance metadata vs data/ishares_catalogue.csv. EWW/EWS absent from the catalogue -> verified against issuer page in the session record. SPY (SPDR) and SHY are deployed incumbents, not new additions. Survivorship: all candidates are live funds today (live-fund bias inherited by any backtest on this panel). FM verified via web and EXCLUDED (liquidated 2025-01); EWW/EWS verified via BlackRock product pages.",
+ "tickers": {
+  "EWZ": {
+   "role": "country",
+   "first_data": "2003-01-02",
+   "yfinance_name": "iShares MSCI Brazil ETF",
+   "ishares_catalogue_name": "iShares MSCI Brazil",
+   "needs_web_source": false
+  },
+  "EWW": {
+   "role": "country",
+   "first_data": "2003-01-02",
+   "yfinance_name": "iShares MSCI Mexico ETF",
+   "ishares_catalogue_name": null,
+   "needs_web_source": false,
+   "web_source": "BlackRock/iShares product page 239670 'iShares MSCI Mexico ETF' (ER 0.50%) \u2014 matches yfinance name. Verified 2026-07-02."
+  },
+  "EWY": {
+   "role": "country",
+   "first_data": "2003-01-02",
+   "yfinance_name": "iShares MSCI South Korea ETF",
+   "ishares_catalogue_name": "iShares MSCI South Korea",
+   "needs_web_source": false
+  },
+  "INDA": {
+   "role": "country",
+   "first_data": "2012-02-03",
+   "yfinance_name": "iShares MSCI India ETF",
+   "ishares_catalogue_name": "iShares MSCI India",
+   "needs_web_source": false
+  },
+  "EWT": {
+   "role": "country",
+   "first_data": "2003-01-02",
+   "yfinance_name": "iShares MSCI Taiwan ETF",
+   "ishares_catalogue_name": "iShares MSCI Taiwan",
+   "needs_web_source": false
+  },
+  "EWA": {
+   "role": "country",
+   "first_data": "2003-01-02",
+   "yfinance_name": "iShares MSCI Australia ETF",
+   "ishares_catalogue_name": "iShares MSCI Australia",
+   "needs_web_source": false
+  },
+  "EWS": {
+   "role": "country",
+   "first_data": "2003-01-02",
+   "yfinance_name": "iShares MSCI Singapore ETF",
+   "ishares_catalogue_name": null,
+   "needs_web_source": false,
+   "web_source": "BlackRock/iShares product page 239678 'iShares MSCI Singapore ETF' (ER 0.50%) \u2014 matches yfinance name. Verified 2026-07-02."
+  },
+  "EWG": {
+   "role": "country",
+   "first_data": "2003-01-02",
+   "yfinance_name": "iShares MSCI Germany ETF",
+   "ishares_catalogue_name": "iShares MSCI Germany",
+   "needs_web_source": false
+  },
+  "EWU": {
+   "role": "country",
+   "first_data": "2003-01-02",
+   "yfinance_name": "iShares MSCI United Kingdom ETF",
+   "ishares_catalogue_name": "iShares MSCI United Kingdom",
+   "needs_web_source": false
+  },
+  "EWJ": {
+   "role": "country",
+   "first_data": "2003-01-02",
+   "yfinance_name": "iShares MSCI Japan ETF",
+   "ishares_catalogue_name": "iShares MSCI Japan",
+   "needs_web_source": false
+  },
+  "FM": {
+   "role": "frontier",
+   "first_data": "2012-09-12",
+   "yfinance_name": "iShares Inc.",
+   "ishares_catalogue_name": "iShares MSCI Frontier 100",
+   "needs_web_source": false,
+   "web_source": "Multiple sources (etf.com, Yahoo profile, investing.com): 'iShares Frontier and Select EM ETF' \u2014 fund LIQUIDATED; last price in panel 2025-01-08, matching reported wind-down completion 2025-01-09. EXCLUDED from candidate universe: a dead fund cannot be held through the evaluation window and its 2023-24 tail reflects liquidation mechanics (Nigeria FX repatriation delays), not index tracking. Frontier bucket has no clean US-listed replacement -> logged as an uninvestable GAP in the trend map.",
+   "excluded": true
+  },
+  "EEM": {
+   "role": "em_broad",
+   "first_data": "2003-04-14",
+   "yfinance_name": "iShares MSCI Emerging Markets ETF",
+   "ishares_catalogue_name": "iShares MSCI Emerging Markets",
+   "needs_web_source": false
+  },
+  "IEMG": {
+   "role": "em_broad",
+   "first_data": "2012-10-24",
+   "yfinance_name": "iShares Core MSCI Emerging Markets ETF",
+   "ishares_catalogue_name": "iShares Core MSCI EM",
+   "needs_web_source": false
+  },
+  "EFA": {
+   "role": "benchmark",
+   "first_data": "2003-01-02",
+   "yfinance_name": "iShares MSCI EAFE ETF",
+   "ishares_catalogue_name": "iShares MSCI EAFE",
+   "needs_web_source": false
+  },
+  "SPY": {
+   "role": "context",
+   "first_data": "2003-01-02",
+   "yfinance_name": "State Street SPDR S&P 500 ETF Trust",
+   "ishares_catalogue_name": null,
+   "needs_web_source": false
+  },
+  "SHY": {
+   "role": "cash",
+   "first_data": "2003-01-02",
+   "yfinance_name": "iShares 1-3 Year Treasury Bond ETF",
+   "ishares_catalogue_name": null,
+   "needs_web_source": false
+  }
+ }
+}
