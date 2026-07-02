@@ -1,0 +1,354 @@
+{
+ "computed_at_utc": "2026-07-02T14:12:16+00:00",
+ "look_ahead_audit": [
+  {
+   "file": "scripts/run_portfolio.py",
+   "lines": [
+    154
+   ],
+   "role": "A/D engine: rebalance uses the PRIOR trading day's breadth row"
+  },
+  {
+   "file": "scripts/run_portfolio.py",
+   "lines": [
+    165
+   ],
+   "role": "A/D engine: yesterday's weights x today's returns"
+  },
+  {
+   "file": "scripts/run_asset_class_rotation.py",
+   "lines": [
+    311
+   ],
+   "role": "B engine: prior-day signal row"
+  },
+  {
+   "file": "scripts/run_asset_class_rotation.py",
+   "lines": [
+    320,
+    342,
+    362
+   ],
+   "role": "B engine: lagged weights"
+  },
+  {
+   "file": "scripts/run_thematic_rotation.py",
+   "lines": [
+    678
+   ],
+   "role": "C engine: prior-day signal row"
+  },
+  {
+   "file": "scripts/run_thematic_rotation.py",
+   "lines": [
+    687
+   ],
+   "role": "C engine: lagged weights"
+  },
+  {
+   "file": "scripts/run_europe_rotation.py",
+   "lines": [
+    194,
+    300
+   ],
+   "role": "D engine IS run_portfolio (inherits both defences above)"
+  },
+  {
+   "file": "scripts/run_risk_overlay.py",
+   "lines": [
+    270
+   ],
+   "role": "Phase 22 tilt: state lagged one day before application"
+  },
+  {
+   "file": "scripts/run_risk_overlay.py",
+   "lines": [
+    370
+   ],
+   "role": "Phase 19 gate: hysteresis state lagged one day"
+  },
+  {
+   "file": "scripts/run_multi_strategy.py",
+   "lines": [
+    201
+   ],
+   "role": "blend: day-i return computed from weights set BEFORE day i (drift update follows the return line)"
+  }
+ ],
+ "nan_probes": {
+  "A_D_all_nan_breadth": {
+   "result": "all weights zero \u2014 sleeve goes FULLY UNINVESTED (0% return days, not cash yield)",
+   "sum_weights": 0.0
+  },
+  "B_all_nan_signal": {
+   "result": "100% SHY cash proxy",
+   "shy_weight": 1.0
+  },
+  "C_all_nan_signal": {
+   "result": "100% SHY cash proxy",
+   "shy_weight": 1.0
+  },
+  "gate_nan_breadth": {
+   "result": "hysteresis HOLDS state on NaN (risk-off persists until a real print re-crosses the on-threshold)",
+   "states": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  }
+ },
+ "stale_degradation_map": [
+  {
+   "path": "A/D constituent breadth",
+   "cap": "7 calendar days (alignment.py:30 MAX_STALE_DAYS, applied via run_ma200_sweep.align_breadth_to_index:89-114)",
+   "behaviour": "breadth -> NaN past cap -> weighter returns zeros -> sleeve sits fully uninvested until data resumes"
+  },
+  {
+   "path": "C non-USD lines (159801.SZ CNY->USD)",
+   "cap": "10 trading days (run_thematic_rotation.py:474-478)",
+   "behaviour": "price -> NaN past cap -> name drops out of the eligible set; its slot goes to SHY via the deficit floor"
+  },
+  {
+   "path": "Phase 19 gate breadth (breadth_csp1.json ma_breadth)",
+   "cap": "no hard cap on the ffill onto the blend calendar, but Phase 28.5 records the panel's true end_date (run_risk_overlay.py:312-319) and the state machine holds state on NaN",
+   "behaviour": "a stale breadth feed FREEZES the gate state; risk-on freeze during a crash is the failure mode \u2014 mitigated operationally by the weekly refresh and the Phase 28.5 end-date surfacing"
+  },
+  {
+   "path": "Phase 22 tilt ratio (EEM/SPY, em_regime_context.parquet)",
+   "cap": "NONE \u2014 run_risk_overlay.py:269-270 reindex(ffill) has no staleness cap",
+   "behaviour": "FLAG: a stopped EEM/SPY cache freezes the tilt state indefinitely (and a frozen EEM price would mark the 10pp tilt at 0% daily return while ON). Recommend a staleness guard at the next maintenance window \u2014 patch proposed in the WS3 record, not applied in-session"
+  }
+ ],
+ "c_survivorship": {
+  "note": "Universe is 25 hand-picked names, all alive today; no point-in-time membership exists, so the selection bias cannot be corrected retroactively \u2014 only quantified and bounded. Mitigants: momentum eligibility (a dead-weight name is simply never selected), the sleeve's 10%% blend cap, and the Phase 27 gate.",
+  "gross_arithmetic_contribution_pp": 146.9,
+  "per_name": [
+   {
+    "name": "BTC-USD",
+    "contribution_pp": 33.2,
+    "share_of_total": 22.6,
+    "first_price": "2018-01-02",
+    "added_phase": "15 (2026-05)",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "BLOK",
+    "contribution_pp": 17.5,
+    "share_of_total": 11.9,
+    "first_price": "2018-01-25",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "REMX",
+    "contribution_pp": 16.4,
+    "share_of_total": 11.1,
+    "first_price": "2018-01-02",
+    "added_phase": "5-17.1",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "TAN",
+    "contribution_pp": 12.4,
+    "share_of_total": 8.5,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "ARKK",
+    "contribution_pp": 11.1,
+    "share_of_total": 7.6,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "ARKG",
+    "contribution_pp": 10.4,
+    "share_of_total": 7.1,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "GDX",
+    "contribution_pp": 9.8,
+    "share_of_total": 6.7,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "ICLN",
+    "contribution_pp": 9.6,
+    "share_of_total": 6.6,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "159801.SZ",
+    "contribution_pp": 9.5,
+    "share_of_total": 6.5,
+    "first_price": "2020-01-23",
+    "added_phase": "17.1 (2026-05)",
+    "live_share_of_window": 0.84
+   },
+   {
+    "name": "URA",
+    "contribution_pp": 9.2,
+    "share_of_total": 6.3,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "LIT",
+    "contribution_pp": 4.6,
+    "share_of_total": 3.1,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "SHY",
+    "contribution_pp": 4.0,
+    "share_of_total": 2.7,
+    "first_price": "2018-01-02",
+    "added_phase": "cash proxy",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "XBI",
+    "contribution_pp": 3.7,
+    "share_of_total": 2.5,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "SKYY",
+    "contribution_pp": 3.5,
+    "share_of_total": 2.4,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "JETS",
+    "contribution_pp": 3.0,
+    "share_of_total": 2.0,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "COPX",
+    "contribution_pp": 2.0,
+    "share_of_total": 1.3,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "IHI",
+    "contribution_pp": 0.7,
+    "share_of_total": 0.5,
+    "first_price": "2018-01-02",
+    "added_phase": "25 (2026-05-29)",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "WOOD",
+    "contribution_pp": 0.3,
+    "share_of_total": 0.2,
+    "first_price": "2018-01-02",
+    "added_phase": "5-17.1",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "PHO",
+    "contribution_pp": 0.3,
+    "share_of_total": 0.2,
+    "first_price": "2018-01-02",
+    "added_phase": "25 (2026-05-29)",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "CIBR",
+    "contribution_pp": 0.2,
+    "share_of_total": 0.1,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "MOO",
+    "contribution_pp": -0.2,
+    "share_of_total": -0.2,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "ITA",
+    "contribution_pp": -0.9,
+    "share_of_total": -0.6,
+    "first_price": "2018-01-02",
+    "added_phase": "5-17.1",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "PAVE",
+    "contribution_pp": -1.0,
+    "share_of_total": -0.7,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "CQQQ",
+    "contribution_pp": -3.3,
+    "share_of_total": -2.2,
+    "first_price": "2018-01-02",
+    "added_phase": "17 (2026-05)",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "BOTZ",
+    "contribution_pp": -4.1,
+    "share_of_total": -2.8,
+    "first_price": "2018-01-02",
+    "added_phase": "5",
+    "live_share_of_window": 1.0
+   },
+   {
+    "name": "XME",
+    "contribution_pp": -5.1,
+    "share_of_total": -3.5,
+    "first_price": "2018-01-02",
+    "added_phase": "5-17.1",
+    "live_share_of_window": 1.0
+   }
+  ]
+ },
+ "fx_consistency": {
+  "sleeve_D": {
+   "cite": "run_europe_rotation.py:128-158 (_fx_convert_eur_to_usd; EURUSD=X ffilled onto the Xetra calendar)",
+   "implied_eurusd_anchors": {
+    "2020-03-20 covid": 1.0657,
+    "2022-09-26 parity trough": 0.969,
+    "latest cached": 1.1459
+   },
+   "note": "anchor levels read from the committed cache; offline session \u2014 not re-verified against a second source today (the series itself was two-source verified when built, Phase 20.2)"
+  },
+  "sleeve_C": {
+   "cite": "run_thematic_rotation.py:430-479 (_fx_convert_to_usd; CNY=X, USD = native/FX, 10-day stale cap onto NYSE calendar)",
+   "note": "159801.SZ also carries its expense drag in the loader (:384-405); BTC-USD carries the 25 bps p.a. wrapper drag the same way"
+  }
+ },
+ "live_signal_paths_note": "live_signal.py / mark_to_market_live.py (the live email/track paths) are outside this backtest audit's scope"
+}

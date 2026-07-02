@@ -1,0 +1,177 @@
+{
+ "computed_at_utc": "2026-07-02T14:08:00+00:00",
+ "description": "Per-line spread-vector cost stress at 1x/2x/3x, break-even cost multiples vs equal-weight same-universe baskets (benchmark cost fixed at 1x), and the shortlist 2x-cost decision leg.",
+ "window": {
+  "start": "2018-11-08",
+  "end": "2026-06-16"
+ },
+ "assumption_note": "per-line bps are stated estimates (quoted spread + slippage, one-way); holding drags (BTC wrapper 25 bps p.a., 159801.SZ FX/expense) remain embedded in loader prices and are not re-charged",
+ "benchmark_sharpe": {
+  "A": 0.812106,
+  "B": 0.88734,
+  "C": 0.759121,
+  "D": 0.695981,
+  "blend": 0.885376
+ },
+ "benchmark_max_dd": {
+  "A": -0.359718,
+  "B": -0.224279,
+  "C": -0.371346,
+  "D": -0.373213,
+  "blend": -0.313449
+ },
+ "per_line_vectors_bps": {
+  "A": {
+   "SOXX": 2.0,
+   "CSP1": 2.0,
+   "CNDX": 2.0,
+   "IUES": 2.0,
+   "IUFS": 2.0,
+   "IUHC": 2.0,
+   "IUIS": 2.0,
+   "IUCS": 2.0,
+   "IUCD": 2.0,
+   "IUUS": 2.0,
+   "IUMS": 2.0,
+   "IUCM": 2.0,
+   "IUSP": 2.0,
+   "IDP6": 2.0
+  },
+  "B": {
+   "SPY": 2.0,
+   "IJR": 2.0,
+   "QQQ": 2.0,
+   "EFA": 2.0,
+   "VGK": 2.0,
+   "EWJ": 2.0,
+   "VNQ": 2.0,
+   "GLD": 2.0,
+   "DBC": 5.0,
+   "TLT": 2.0,
+   "IEF": 2.0,
+   "TIP": 3.0,
+   "SHY": 1.0
+  },
+  "C": {
+   "ARKK": 8.0,
+   "CIBR": 8.0,
+   "SKYY": 8.0,
+   "BOTZ": 12.0,
+   "BLOK": 12.0,
+   "ICLN": 8.0,
+   "TAN": 8.0,
+   "LIT": 8.0,
+   "URA": 12.0,
+   "XBI": 8.0,
+   "ARKG": 12.0,
+   "JETS": 8.0,
+   "GDX": 8.0,
+   "COPX": 12.0,
+   "MOO": 12.0,
+   "XME": 12.0,
+   "WOOD": 12.0,
+   "REMX": 12.0,
+   "CQQQ": 12.0,
+   "159801.SZ": 25.0,
+   "PAVE": 12.0,
+   "ITA": 12.0,
+   "BTC-USD": 25.0,
+   "PHO": 12.0,
+   "IHI": 12.0,
+   "SHY": 1.0
+  },
+  "D": {
+   "EXV1": 15.0,
+   "EXH1": 15.0,
+   "EXV3": 15.0,
+   "EXH3": 15.0,
+   "EXH9": 15.0
+  }
+ },
+ "sleeves": {
+  "A": {
+   "annual_turnover_x": 16.8,
+   "sharpe_at_multiple": {
+    "1x": 1.0127,
+    "2x": 0.9949,
+    "3x": 0.9771
+   },
+   "max_dd_1x": -0.3061,
+   "breakeven_multiple_vs_ew": 12.25
+  },
+  "B": {
+   "annual_turnover_x": 12.3,
+   "sharpe_at_multiple": {
+    "1x": 0.9959,
+    "2x": 0.9729,
+    "3x": 0.95
+   },
+   "max_dd_1x": -0.1319,
+   "breakeven_multiple_vs_ew": 5.75
+  },
+  "C": {
+   "annual_turnover_x": 19.3,
+   "sharpe_at_multiple": {
+    "1x": 0.684,
+    "2x": 0.616,
+    "3x": 0.548
+   },
+   "max_dd_1x": -0.3781,
+   "breakeven_multiple_vs_ew": 1.0
+  },
+  "D": {
+   "annual_turnover_x": 10.0,
+   "sharpe_at_multiple": {
+    "1x": 0.7545,
+    "2x": 0.6702,
+    "3x": 0.5859
+   },
+   "max_dd_1x": -0.3293,
+   "breakeven_multiple_vs_ew": 1.75
+  },
+  "C_S1": {
+   "annual_turnover_x": 18.6,
+   "sharpe_at_multiple": {
+    "1x": 0.7242,
+    "2x": 0.6563,
+    "3x": 0.5884
+   },
+   "max_dd_1x": -0.491,
+   "breakeven_multiple_vs_ew": 1.0
+  },
+  "B_S2": {
+   "annual_turnover_x": 11.4,
+   "sharpe_at_multiple": {
+    "1x": 0.9999,
+    "2x": 0.978,
+    "3x": 0.9561
+   },
+   "max_dd_1x": -0.1319,
+   "breakeven_multiple_vs_ew": 6.25
+  }
+ },
+ "blend": {
+  "1x": 1.1535,
+  "2x": 1.1014,
+  "3x": 1.0493,
+  "breakeven_multiple_vs_ew_blend": 6.25
+ },
+ "final_track": {
+  "1x": 1.2337,
+  "2x": 1.1637,
+  "3x": 1.0937,
+  "breakeven_multiple_vs_ew_blend": 6.0
+ },
+ "shortlist_2x_leg": {
+  "S1": {
+   "final_track_sharpe_2x": 1.1549,
+   "deployed_final_2x": 1.1637,
+   "passes": false
+  },
+  "S2": {
+   "final_track_sharpe_2x": 1.1748,
+   "deployed_final_2x": 1.1637,
+   "passes": true
+  }
+ }
+}

@@ -1,0 +1,73 @@
+{
+ "computed_at_utc": "2026-07-02T14:10:05+00:00",
+ "data_as_of": "2026-06-16",
+ "worst_rolling_12m_return": -0.054485,
+ "worst_rolling_12m_end_date": "2022-10-24",
+ "longest_underwater_days": 302,
+ "dd_2020_covid": -0.162363,
+ "dd_2022": -0.093258,
+ "trailing": {
+  "3m": {
+   "return": 0.079031,
+   "percentile_of_history": 77.912755
+  },
+  "6m": {
+   "return": 0.194733,
+   "percentile_of_history": 85.011442
+  },
+  "12m": {
+   "return": 0.394766,
+   "percentile_of_history": 90.998767
+  }
+ },
+ "drawdown_now": -0.012787,
+ "days_since_ath": 13,
+ "sub_period_sharpe_final_track": {
+  "2019_pre_covid": 2.072237,
+  "2020_covid_recovery": 1.482422,
+  "2021_rally": 1.380018,
+  "2022_inflation_shock": -0.112757,
+  "2023_ai_rally": 0.95052,
+  "2024_25_recent": 1.537427,
+  "2026_ytd": 2.196619
+ },
+ "strong_run_rule": "6m AND 12m trailing above p75 of own history",
+ "strong_run": true,
+ "verdict": "AFTER A STRONG RUN \u2014 entry-point discipline says do not add capital now; schedule adds after a flat/negative stretch",
+ "s2_consistency_vs_deployed": 4,
+ "s2_sub_period_sharpe": {
+  "2019_pre_covid": 2.099606,
+  "2020_covid_recovery": 1.471152,
+  "2021_rally": 1.388759,
+  "2022_inflation_shock": -0.052581,
+  "2023_ai_rally": 0.86334,
+  "2024_25_recent": 1.568892,
+  "2026_ytd": 2.196619
+ },
+ "blend_without_C_diagnostic": {
+  "note": "diagnostic only \u2014 C universe membership CLOSED (WS2); informs the C-sleeve blend-seat verdict",
+  "weights": [
+   0.388889,
+   0.388889,
+   0.0,
+   0.222222
+  ],
+  "stats": {
+   "sharpe": 1.296384,
+   "cagr": 0.150051,
+   "total_return": 1.894904,
+   "max_dd": -0.159414,
+   "n_days": 1874
+  },
+  "consistency_vs_deployed": 4,
+  "sub_period_sharpe": {
+   "2019_pre_covid": 2.208159,
+   "2020_covid_recovery": 1.224098,
+   "2021_rally": 1.532331,
+   "2022_inflation_shock": -0.063742,
+   "2023_ai_rally": 1.125391,
+   "2024_25_recent": 1.478881,
+   "2026_ytd": 2.658829
+  }
+ }
+}

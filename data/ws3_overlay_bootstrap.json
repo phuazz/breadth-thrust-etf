@@ -1,0 +1,202 @@
+{
+ "computed_at_utc": "2026-07-02T13:59:47+00:00",
+ "description": "Block-bootstrap + rotation-placebo audit of the Phase 22 tilt and Phase 19 gate contributions on the post-Phase-29 fixed-window track.",
+ "window": {
+  "start": "2018-11-08",
+  "end": "2026-06-16"
+ },
+ "pre_registered_rules": {
+  "tilt": "KEEP_AS_EDGE if point>0 AND P(mean>0)>=0.90 AND placebo pct>=90; KEEP_AS_POSITIONAL if point>=0 otherwise; DROP if point<0",
+  "gate": "KEEP_STRUCTURAL if dDD>5pp AND dSharpe>=0; DROP if costs Sharpe and fails DD; else REVIEW"
+ },
+ "phase22_tilt": {
+  "n_switches": 11,
+  "share_days_active": 0.291889,
+  "n_episodes": 6,
+  "point_ann_contribution_pct": 0.132892,
+  "sharpe_with": 1.211642,
+  "sharpe_without": 1.206992,
+  "sharpe_delta": 0.00465,
+  "max_dd_with": -0.235896,
+  "max_dd_without": -0.235896,
+  "dd_improvement_pp": -0.0,
+  "bootstrap": {
+   "block_20": {
+    "block": 20,
+    "ann_contribution_p5": -0.003097,
+    "ann_contribution_p50": 0.001442,
+    "ann_contribution_p95": 0.00586,
+    "p_mean_positive": 0.702
+   },
+   "block_60": {
+    "block": 60,
+    "ann_contribution_p5": -0.003651,
+    "ann_contribution_p50": 0.000373,
+    "ann_contribution_p95": 0.004902,
+    "p_mean_positive": 0.559
+   },
+   "block_120": {
+    "block": 120,
+    "ann_contribution_p5": -0.004134,
+    "ann_contribution_p50": -5.2e-05,
+    "ann_contribution_p95": 0.004695,
+    "p_mean_positive": 0.492
+   }
+  },
+  "placebo": {
+   "n": 1000,
+   "actual_percentile": 82.4,
+   "actual_percentile_sharpe": 87.1,
+   "actual_percentile_dd_improvement": 35.7,
+   "placebo_p50_ann_pct": -0.081228,
+   "placebo_p90_ann_pct": 0.245718,
+   "placebo_sharpe_p50": 1.182202,
+   "placebo_dd_improvement_p50_pp": -0.0,
+   "note": "sharpe/dd percentiles are supplementary diagnostics added alongside the pre-registered contribution rule, not a replacement for it"
+  },
+  "episodes": [
+   {
+    "start": "2019-02-07",
+    "end": "2019-05-20",
+    "days": 69,
+    "contribution_pp": -0.853347
+   },
+   {
+    "start": "2020-08-28",
+    "end": "2020-09-09",
+    "days": 8,
+    "contribution_pp": -0.055646
+   },
+   {
+    "start": "2020-09-11",
+    "end": "2020-09-17",
+    "days": 5,
+    "contribution_pp": 0.157026
+   },
+   {
+    "start": "2020-10-29",
+    "end": "2021-04-30",
+    "days": 123,
+    "contribution_pp": -0.746831
+   },
+   {
+    "start": "2023-01-23",
+    "end": "2023-04-13",
+    "days": 56,
+    "contribution_pp": -0.564522
+   },
+   {
+    "start": "2025-04-08",
+    "end": "open",
+    "days": 291,
+    "contribution_pp": 3.051575
+   }
+  ]
+ },
+ "phase19_gate": {
+  "n_switches": 18,
+  "share_days_active": 0.116862,
+  "n_episodes": 9,
+  "point_ann_contribution_pct": -0.622412,
+  "sharpe_with": 1.292139,
+  "sharpe_without": 1.211642,
+  "sharpe_delta": 0.080497,
+  "max_dd_with": -0.162363,
+  "max_dd_without": -0.235896,
+  "dd_improvement_pp": 7.353283,
+  "bootstrap": {
+   "block_20": {
+    "block": 20,
+    "ann_contribution_p5": -0.02748,
+    "ann_contribution_p50": -0.007712,
+    "ann_contribution_p95": 0.016368,
+    "p_mean_positive": 0.275
+   },
+   "block_60": {
+    "block": 60,
+    "ann_contribution_p5": -0.021837,
+    "ann_contribution_p50": -0.005791,
+    "ann_contribution_p95": 0.012403,
+    "p_mean_positive": 0.284
+   },
+   "block_120": {
+    "block": 120,
+    "ann_contribution_p5": -0.022009,
+    "ann_contribution_p50": -0.00566,
+    "ann_contribution_p95": 0.010694,
+    "p_mean_positive": 0.282
+   }
+  },
+  "placebo": {
+   "n": 1000,
+   "actual_percentile": 71.1,
+   "actual_percentile_sharpe": 89.9,
+   "actual_percentile_dd_improvement": 92.0,
+   "placebo_p50_ann_pct": -1.051837,
+   "placebo_p90_ann_pct": 0.104,
+   "placebo_sharpe_p50": 1.178293,
+   "placebo_dd_improvement_p50_pp": 0.0,
+   "note": "sharpe/dd percentiles are supplementary diagnostics added alongside the pre-registered contribution rule, not a replacement for it"
+  },
+  "episodes": [
+   {
+    "start": "2018-12-18",
+    "end": "2019-01-18",
+    "days": 19,
+    "contribution_pp": 0.188968
+   },
+   {
+    "start": "2020-02-28",
+    "end": "2020-04-28",
+    "days": 41,
+    "contribution_pp": 2.576493
+   },
+   {
+    "start": "2022-05-11",
+    "end": "2022-07-21",
+    "days": 49,
+    "contribution_pp": 1.845961
+   },
+   {
+    "start": "2022-09-22",
+    "end": "2022-10-28",
+    "days": 27,
+    "contribution_pp": -1.772258
+   },
+   {
+    "start": "2023-03-13",
+    "end": "2023-04-03",
+    "days": 16,
+    "contribution_pp": -1.469774
+   },
+   {
+    "start": "2023-09-22",
+    "end": "2023-11-06",
+    "days": 32,
+    "contribution_pp": 1.326431
+   },
+   {
+    "start": "2024-12-19",
+    "end": "2025-01-22",
+    "days": 18,
+    "contribution_pp": -1.873006
+   },
+   {
+    "start": "2025-04-07",
+    "end": "2025-05-05",
+    "days": 18,
+    "contribution_pp": -3.603787
+   },
+   {
+    "start": "2026-03-30",
+    "end": "2026-04-10",
+    "days": 8,
+    "contribution_pp": -1.847602
+   }
+  ]
+ },
+ "verdicts": {
+  "phase22_tilt": "KEEP_AS_POSITIONAL",
+  "phase19_gate": "KEEP_STRUCTURAL"
+ }
+}

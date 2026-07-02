@@ -2,8 +2,8 @@
 
 Running memo across review sessions. Session 1 covers Workstream 0 (orient) and
 Workstream 1 (moving-average robustness). Session 2 (same day) covers
-Workstream 2 (universe). Workstream 3 (heavy robustness gate) is deferred to
-its own session per the staging plan.
+Workstream 2 (universe). Session 3 (same day) covers Workstream 3 (heavy
+robustness gate on the frozen shortlist) — see the Workstream 3 section.
 
 - Started: 2026-07-02
 - Data as of: caches through 2026-06-16 (EU constituents) to 2026-07-01 (US);
@@ -668,3 +668,268 @@ WS3, and the trial register stands at ~171 configurations. Next session:
 Workstream 3 — heavy gate on the frozen shortlist (deflated Sharpe,
 full-system walk-forward, cost stress, EEM-tilt bet-count audit, C-floor
 candidate from WS1).
+
+---
+
+## Workstream 3 — heavy robustness gate (session 3 results)
+
+### Pre-session state check and baseline
+
+Phase 29 (EEM overlay-only) LANDED before this session (commit 9bdfb8c) —
+verified in `run_asset_class_rotation.py` UNIVERSE. The gate baseline is
+therefore the NEW architecture; the frozen shortlist is **S1** (drop
+Sleeve C's +5% floor, keep the 30% gate) and **S2** (slope gate on B);
+**S3 is closed**. Decision bar for S1/S2 (frozen before any number was
+computed): survives the deflated haircut AND not worse in the full-system
+walk-forward OOS AND survives 2x cost — at BLEND level.
+
+### Method
+
+- New scripts: `scripts/ws3_common.py` (baselines; reuses the WS2 cached
+  A/C/D, rebuilds B on the 12-line universe, replicates the validated
+  WS2 tilt/gate composition), `run_ws3_precompute.py` (45-curve sleeve
+  grid for the walk-forward), `run_ws3_deflated.py`,
+  `run_ws3_overlay_bootstrap.py`, `run_ws3_full_wf.py`,
+  `run_ws3_cost_stress.py`, `run_ws3_entrypoint.py`,
+  `run_ws3_structural.py`. Artefacts: `data/ws3_*.json`,
+  `data/ws3_grid_*.parquet`, `data/ws3_baseline_*.parquet`, chart
+  [`data/ws3_full_wf.png`](data/ws3_full_wf.png).
+- Regression checks all passed: rebuilt B +1.0217 (= WS2 reference);
+  composed ungated blend +1.2070 (= WS2 V3 cell); composed gated+tilted
+  final track +1.2921 (WS2 V1 gated reference +1.2891, within tolerance —
+  the tilt ratio here comes from the deployed `em_regime_context.parquet`
+  rather than the WS2 panel); grid deployed cells reproduce A/B/C/D
+  baselines exactly. Committed live track +1.2956 (own window, diagnostic).
+- Every script states its three silent-failure modes and defends each in
+  code (docstrings); every verdict rule below was pre-registered in the
+  script before results were seen.
+
+### 1. Deflated Sharpe (`data/ws3_deflated.json`)
+
+Trial accounting: register lower bound **171** (WS1 ~139 + WS2 32);
+pre-review phases estimated at 192-405 configurations (per-phase table in
+the JSON; estimates, not logs) → nominal totals 363-576, ceiling 1000.
+Cross-trial dispersion measured from the 65 blend-level trials on file:
+**sd(Sharpe) = 0.108** (0.101 ex the degenerate W=25 point; 0.136 when the
+14 committed construction tracks — single sleeves, 2/3/4-way blends,
+meta-rotation, Sharpe +0.59 to +1.21 — are included as a diverse-family
+stress). Measured mean pairwise correlation of representative variant
+tracks: **0.986** (Satterthwaite N_eff ≈ 3-9; the trials are near-copies
+of one strategy, which is why the register N overstates the search).
+
+| Track | Sharpe | DSR @171 | DSR @576 | DSR @576 diverse-V | E[maxSR] @171 |
+|---|---:|---:|---:|---:|---:|
+| Deployed final (gated+tilted) | +1.292 | 0.996 | 0.994 | 0.989 | +0.29 |
+| Ungated blend | +1.207 | 0.991 | 0.989 | 0.980 | +0.29 |
+| S1 final | +1.282 | 0.995 | 0.994 | 0.988 | +0.29 |
+| S2 final | +1.304 | 0.996 | 0.995 | 0.990 | +0.29 |
+
+**All four tracks SURVIVE the deflated haircut** on the pre-registered
+bar. The expected maximum Sharpe a pure selection process would have
+produced from this search is +0.29 (register) to +0.42 (diverse-V,
+liberal N) — the observed +1.29 is 3-4x that. Even counting every
+WF-internal candidate evaluation (~233k), DSR ≈ 0.98. The honest
+boundary: modelling the history as ≥576 INDEPENDENT trials drawn from a
+family with Sharpe sd ≥0.30 pushes DSR to 0.77-0.84 — but the measured
+dispersion (0.108-0.136) and correlation (0.986) say that model does not
+describe this project. Worst-case bound: HLZ-style Bonferroni (full
+independence fiction) would haircut the deployed Sharpe 49% at N=171
+(p_adj 0.073); reported for transparency, not used for the verdict.
+
+### 6. Overlay reality check (`data/ws3_overlay_bootstrap.json`)
+
+Block bootstrap (20/60/120d, run_robustness precedent) of each overlay's
+daily contribution, plus 1000 circular-rotation placebos (rotation
+preserves switch count, ON share and block structure exactly — "the same
+overlay shape with no information content"), measured on the new
+architecture. Pre-registered rules in the script docstring.
+
+| Overlay | Point contribution | dSharpe | dDD | P(mean>0) 60d | Placebo pct (contrib / Sharpe / DD) | Episodes |
+|---|---:|---:|---:|---:|---|---:|
+| Phase 22 tilt | +0.13%/yr | +0.005 | −0.0pp | 0.56 | 82 / 87 / 36 | 6 |
+| Phase 19 gate | −0.62%/yr | +0.081 | **+7.4pp** | 0.28 | 71 / **90** / **92** | 9 |
+
+- **Tilt: KEEP AS POSITIONAL.** Six distinct bets ever; the contribution
+  is statistically indistinguishable from a random 29%-ON overlay
+  (bootstrap a coin flip, placebo percentiles below the 90 bar). This
+  confirms the README's own label ("low-cost positional bet, not
+  robustly-evidenced alpha") with numbers. It stays only because it is
+  the architecture's ONE designated EM expression (WS2/Phase 29); it
+  should never be counted as edge in any capacity claim.
+- **Gate: KEEP — STRUCTURAL, and the timing is real.** The gate costs
+  −0.62%/yr in premium and buys +7.4pp max DD and +0.08 Sharpe; against
+  1000 randomly-timed de-risk overlays of identical shape its Sharpe
+  lands at the 90th percentile and its DD improvement at the 92nd — the
+  50d-breadth timing adds value beyond mechanical vol reduction. Return
+  contribution alone is noise-to-negative, which is the correct shape
+  for insurance.
+
+### 2. Full-system walk-forward (`data/ws3_full_wf.json`, chart ws3_full_wf.png)
+
+Annual expanding re-fit of EVERY knob — common horizon {200,250,275},
+six weight sets, per-sleeve K, C floor, gate pair (incl. OFF), tilt
+windows (incl. OFF) — 46,656 candidates per refit, chosen by full-system
+train Sharpe; identical OOS calendar 2022-01-03 → 2026-06-16; ws1_wf
+switch-cost protocol.
+
+| Protocol | OOS Sharpe | Max DD |
+|---|---:|---:|
+| **frozen_deployed** | **+1.173** | −9.6% |
+| frozen_S1 (drop C floor) | +1.101 | −11.6% |
+| frozen_S2 (B slope gate) | +1.185 | −9.3% |
+| wf_full (re-fit everything) | +0.968 | −11.6% |
+| wf_weights_only | +1.121 | −9.2% |
+| oracle_full (hindsight) | +1.333 | −10.6% |
+
+**Re-fitting the whole configuration LOSES −0.205 Sharpe OOS to never
+touching it** — the WS1 single-parameter result generalises, with more
+damage per knob (WS1's horizon-only re-fit lost −0.013). The mechanism is
+visible in the picks: the end-2021 refit chose 25/25/25/25 weights, C
+floor 0 and K_C=7 — the in-sample peak of the 2020-21 thematic bull — and
+paid test Sharpe −0.43 through 2022. Every refit dropped the C floor and
+the tilt in-sample; both choices lost OOS. Weights-only re-fitting also
+loses (+1.121): the deployed 35/35/10/20 was never picked by train Sharpe
+and still beat every re-fit. The oracle shows +0.16 of hindsight Sharpe
+existed; no honest process captures it.
+
+### 4. Cost/execution stress (`data/ws3_cost_stress.json`)
+
+Per-line one-way spread vectors replace the per-sleeve scalars (A 2 bps;
+B 2 with DBC 5/TIP 3/SHY 1; C liquid 8 / thin 12 / BTC-USD 25 /
+159801.SZ 25; D UCITS 15 — stated estimates), scaled 1x/2x/3x; holding
+drags stay embedded in loader prices (not double-charged). Break-even =
+multiple at which Sharpe falls to the same-universe equal-weight basket
+(benchmark cost FIXED at 1x — conservative). Reconstruction validated:
+weights x closes at deployed scalars reproduces every cached sleeve curve
+to 1e-6.
+
+| Level | 1x | 2x | 3x | Break-even | EW benchmark |
+|---|---:|---:|---:|---:|---:|
+| A | +1.013 | +0.995 | +0.977 | 12.25x | +0.812 (DD −36%) |
+| B | +0.996 | +0.973 | +0.950 | 5.75x | +0.887 (DD −22%) |
+| C | +0.684 | +0.616 | +0.548 | **1.0x** | +0.759 (DD −37%) |
+| D | +0.754 | +0.670 | +0.586 | 1.75x | +0.696 (DD −37%) |
+| Blend ungated | +1.153 | +1.101 | +1.049 | 6.25x | +0.885 (DD −31%) |
+| **Final track** | **+1.234** | **+1.164** | **+1.094** | **6.0x** | +0.885 |
+
+The BLEND is not a cost artefact (break-even 6x a deliberately-wide
+vector). Two sleeve-level flags: **C already fails to beat its own EW
+basket at the 1x per-line vector** (+0.684 vs +0.759, with matching max
+DD −36% vs −37%) — its rotation edge does not survive realistic thematic
+spreads standalone; and **D is the cost-fragile sleeve** (break-even
+1.75x of a 15 bps assumption ≈ 26 bps one-way — execution quality on the
+UCITS lines matters more than anywhere else in the system).
+Shortlist 2x leg (final-track level): S1 +1.1549 vs deployed +1.1637 —
+**FAIL**; S2 +1.1748 vs +1.1637 — PASS.
+
+### 3. Entry-point discipline (`data/ws3_entrypoint.json`)
+
+Final track, data as of 2026-06-16: worst rolling 12m **−5.4%** (ending
+2022-10-24); longest underwater 302 trading days; DD within the 2020
+COVID window −16.2%, within 2022 −9.3%; currently −1.28% from the high
+set 13 days ago; trailing 3m/6m/12m = +7.9%/+19.5%/+39.5% = p78/p85/**p91**
+of the track's own history. Pre-registered rule (6m AND 12m above p75):
+**deployment today follows a STRONG RUN** — entry-point discipline says
+do not add capital now; stage any adds after a flat/negative stretch.
+(The review's outcome is parameter-neutral, so nothing new deploys; the
+statement is on record for capital decisions.)
+
+### 5. Structural re-checks (`data/ws3_structural.json`)
+
+- **Look-ahead: CLEAN.** All ten prior-day-signal / shift(1) cites
+  verified programmatically against live source: `run_portfolio.py:154,
+  165` (A and, via `run_europe_rotation.py:194`, D), 
+  `run_asset_class_rotation.py:311,320`, `run_thematic_rotation.py:678,
+  687`, `run_risk_overlay.py:270` (tilt lag), `:370` (gate lag),
+  `run_multi_strategy.py:201` (blend ordering).
+- **NaN degradation, demonstrated by probe:** stale A/D breadth (7-day
+  cap, `alignment.py:30`) → sleeve goes FULLY UNINVESTED (zeros, not
+  cash); stale B/C signal → 100% SHY; gate holds state on NaN.
+- **FLAG: the Phase 22 ratio ffill has NO staleness cap**
+  (`run_risk_overlay.py:269-270`) — a stopped EEM/SPY cache would freeze
+  the tilt state indefinitely and mark the 10pp tilt at 0% daily return
+  while ON. Patch proposed (below), not applied in-session.
+- **C survivorship, quantified:** gross arithmetic contribution
+  +146.9pp over the window; **BTC-USD alone +33.2pp (23%)**, added Phase
+  15 (2026-05) with history backfilled to 2018; top five names (BTC-USD,
+  BLOK +17.5, REMX +16.4, TAN +12.4, ARKK +11.1) ≈ 62% of sleeve
+  contribution; PHO/IHI (Phase 25) and CQQQ/159801.SZ (Phase 17) are
+  also post-hoc adds. No PIT membership exists; the bias cannot be
+  corrected retroactively, only bounded — mitigants are the momentum
+  eligibility, the 10% blend cap and the Phase 27 gate.
+- **FX consistency:** D EUR→USD (`run_europe_rotation.py:128-158`), C
+  CNY→USD with 10-day cap (`run_thematic_rotation.py:430-479`); cached
+  EURUSD anchors sane (2022-09 parity trough 0.969; latest 1.146);
+  offline session — anchors not re-verified against a second source
+  today (series was two-source verified at Phase 20.2).
+
+### WS3 verdict table (the deliverable)
+
+| Component | Verdict | Evidence (deflated / WF OOS / cost) |
+|---|---|---|
+| Sleeve A (14 lines, breadth top-7) | **KEEP** | in all surviving tracks; cost break-even 12.25x |
+| Sleeve B (12 lines + SHY, momentum top-7) | **KEEP** | post-Phase-29 rebuild +1.0217; break-even 5.75x |
+| Sleeve C (25 thematics, K=5, floor+gate) | **KEEP, ON NOTICE** | loses to own EW basket at realistic spreads (+0.684 vs +0.759, DD matched); blend seat adds ~nothing (without-C diagnostic +1.2964 vs +1.2921, 4/6); survivorship quantified (BTC-USD 23% of contribution). No change now — dropping a sleeve on a +0.004 margin is tuning on noise — but C must justify its seat at the next scheduled review |
+| Sleeve D (5 UCITS, breadth top-3) | **KEEP, EXECUTION-WATCH** | cost-fragile: break-even 1.75x of 15 bps; monitor realised UCITS spreads vs the 9 bps assumption |
+| Blend weights 35/35/10/20 | **KEEP** | weights-only WF re-fit loses (+1.121 vs +1.173); never picked by train Sharpe yet beats every re-fit |
+| Phase 19 gate (20/50, 50% derisk) | **KEEP — structural** | DSR-clean; timing real (placebo p90 Sharpe / p92 DD); −0.62%/yr premium buys +7.4pp DD |
+| Phase 22 tilt (50/200, 10pp) | **KEEP AS POSITIONAL — not edge** | 6 bets ever; bootstrap P(>0) 0.56; placebo 82/87/36; retained solely as the designated EM expression |
+| S1 — drop C +5% floor | **REJECT** | DSR pass; WF OOS FAIL (+1.101 vs +1.173, DD worse); 2x cost FAIL (+1.1549 vs +1.1637). The floor's 2022 value is real |
+| S2 — slope gate on B | **PASSES THE BAR; NOT DEPLOYED (parsimony)** | DSR pass; WF OOS +1.185 vs +1.173; 2x PASS; consistency 4/6 — every margin ≈ +0.01, inside noise; fewer-knobs-wins-ties (WS1 verdict re-confirmed on the new architecture) |
+| S3 — EEM overlay-only | **CLOSED** | landed as Phase 29 before this session |
+| Full-config annual re-fit | **REJECT (evidence, not taste)** | −0.205 Sharpe OOS vs frozen; every refit bought the in-sample peak |
+
+**Final proposed configuration: the deployed Phase 29 system, unchanged.**
+Zero parameter changes survive the heavy gate with an economically
+meaningful margin. Proposed patch list (maintenance, not tuning), for
+approval:
+1. `run_risk_overlay.py` — add a staleness cap (e.g. 10 trading days,
+   mirroring the C FX cap) to the EEM/SPY ratio ffill at :269-270, with a
+   WARN + tilt-hold-flat degradation path.
+2. README "Known caveats" — update the Phase 22 line to cite the WS3
+   bootstrap numbers (6 bets, P(mean>0) 0.56, placebo 82nd pct); add the
+   C survivorship quantification (BTC-USD 23% of contribution) and the
+   C-on-notice / D-execution-watch flags.
+3. Docs/factsheet: no changes (numbers unchanged).
+
+### WS3 trial register
+
+Counting convention as WS1/WS2 (each evaluated configuration once; stress
+reports and diagnostics of the same configuration do not count; WF
+protocols count once each; benchmarks count):
+
+- Grid sleeve configs new to the register: A 6, B 8 (new architecture),
+  C 14, D 6 = 34
+- S2 on the new architecture: 1
+- WF protocols: frozen_S1, frozen_S2, wf_full, wf_weights_only,
+  oracle_full = 5
+- EW cost benchmarks: 4 sleeves + 1 blend = 5
+- Blend-without-C diagnostic composition: 1
+- Deflated/bootstrap/placebo/entry-point: diagnostics on registered
+  configurations = 0
+
+**Session 3 total: 46 new. Cumulative register: ~171 + 46 = ~217.**
+
+### WS3 bottom line
+
+The heavy gate closes the review with the strongest possible statement a
+robustness audit can make: **the deployed system survives everything, and
+every alternative loses.** The deployed Sharpe is 3-4x what pure
+selection would have manufactured from the documented search (DSR ≥ 0.99
+at the register count, ≥ 0.98 at the liberal bound); re-fitting any
+subset of the configuration annually — one parameter (WS1), the weights,
+or everything at once — loses out of sample, with the full re-fit losing
+−0.21 Sharpe; the blend's edge survives 6x deliberately-wide per-line
+costs; and the structural audit finds the look-ahead discipline intact.
+Both shortlist survivors resolve without a deployment: S1 fails two of
+three legs (the C floor's 2022 drawdown value is real and shows up in
+exactly the OOS window that matters), and S2 passes all three legs at a
++0.01 margin that parsimony declines. The honest debits are now on the
+record with numbers: the tilt is a positional bet, not alpha (6 bets,
+coin-flip bootstrap); C's rotation does not beat its own basket at
+realistic spreads and carries a quantified survivorship bias (BTC-USD =
+23% of contribution); D's edge is the most cost-sensitive; and today is
+a strong-run entry point (trailing 12m at p91), so capital adds should
+wait. The review ends where it began, deliberately: no changes — now
+with ~217 registered configurations of evidence that no change was the
+right answer.

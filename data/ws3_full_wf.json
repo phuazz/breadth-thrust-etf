@@ -1,0 +1,733 @@
+{
+ "computed_at_utc": "2026-07-02T14:03:00+00:00",
+ "description": "Full-system annual expanding walk-forward (weights, per-sleeve K, common horizon, C floor, gate pair, tilt windows) vs frozen deployed config; identical OOS calendar; ws1_wf switch-cost protocol.",
+ "search_space": {
+  "w_grid": [
+   200,
+   250,
+   275
+  ],
+  "weights_menu": [
+   [
+    0.35,
+    0.35,
+    0.1,
+    0.2
+   ],
+   [
+    0.4,
+    0.3,
+    0.1,
+    0.2
+   ],
+   [
+    0.3,
+    0.4,
+    0.1,
+    0.2
+   ],
+   [
+    0.35,
+    0.35,
+    0.15,
+    0.15
+   ],
+   [
+    0.35,
+    0.35,
+    0.05,
+    0.25
+   ],
+   [
+    0.25,
+    0.25,
+    0.25,
+    0.25
+   ]
+  ],
+  "ka": [
+   5,
+   7,
+   9
+  ],
+  "kb": [
+   5,
+   7,
+   9
+  ],
+  "kc": [
+   3,
+   5,
+   7
+  ],
+  "kd": [
+   2,
+   3,
+   4
+  ],
+  "c_floor": [
+   0.05,
+   0.0
+  ],
+  "gate_menu": [
+   [
+    0.15,
+    0.45
+   ],
+   [
+    0.2,
+    0.5
+   ],
+   [
+    0.25,
+    0.55
+   ],
+   null
+  ],
+  "tilt_menu": [
+   [
+    50,
+    200
+   ],
+   [
+    100,
+    200
+   ],
+   [
+    50,
+    150
+   ],
+   null
+  ],
+  "candidates_per_refit": 46656
+ },
+ "oos_start": "2022-01-03",
+ "oos_end": "2026-06-16",
+ "protocols": {
+  "frozen_deployed": {
+   "log": [
+    {
+     "train_end": "2021-12-30",
+     "picked": {
+      "w": 200,
+      "weights": [
+       0.35,
+       0.35,
+       0.1,
+       0.2
+      ],
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.05,
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": null,
+     "test_sharpe": -0.1033
+    },
+    {
+     "train_end": "2022-12-30",
+     "picked": {
+      "w": 200,
+      "weights": [
+       0.35,
+       0.35,
+       0.1,
+       0.2
+      ],
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.05,
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": null,
+     "test_sharpe": 0.9719
+    },
+    {
+     "train_end": "2023-12-29",
+     "picked": {
+      "w": 200,
+      "weights": [
+       0.35,
+       0.35,
+       0.1,
+       0.2
+      ],
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.05,
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": null,
+     "test_sharpe": 1.0335
+    },
+    {
+     "train_end": "2024-12-30",
+     "picked": {
+      "w": 200,
+      "weights": [
+       0.35,
+       0.35,
+       0.1,
+       0.2
+      ],
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.05,
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": null,
+     "test_sharpe": 1.9452
+    },
+    {
+     "train_end": "2025-12-30",
+     "picked": {
+      "w": 200,
+      "weights": [
+       0.35,
+       0.35,
+       0.1,
+       0.2
+      ],
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.05,
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": null,
+     "test_sharpe": 2.3504
+    }
+   ],
+   "oos_sharpe": 1.172534,
+   "oos_stats": {
+    "sharpe": 1.172534,
+    "cagr": 0.130351,
+    "total_return": 0.724832,
+    "max_dd": -0.096074,
+    "n_days": 1100
+   }
+  },
+  "frozen_S1": {
+   "log": [
+    {
+     "train_end": "2021-12-30",
+     "picked": {
+      "w": 200,
+      "weights": [
+       0.35,
+       0.35,
+       0.1,
+       0.2
+      ],
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.0,
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": null,
+     "test_sharpe": -0.4349
+    },
+    {
+     "train_end": "2022-12-30",
+     "picked": {
+      "w": 200,
+      "weights": [
+       0.35,
+       0.35,
+       0.1,
+       0.2
+      ],
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.0,
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": null,
+     "test_sharpe": 1.0732
+    },
+    {
+     "train_end": "2023-12-29",
+     "picked": {
+      "w": 200,
+      "weights": [
+       0.35,
+       0.35,
+       0.1,
+       0.2
+      ],
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.0,
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": null,
+     "test_sharpe": 1.1092
+    },
+    {
+     "train_end": "2024-12-30",
+     "picked": {
+      "w": 200,
+      "weights": [
+       0.35,
+       0.35,
+       0.1,
+       0.2
+      ],
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.0,
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": null,
+     "test_sharpe": 1.8454
+    },
+    {
+     "train_end": "2025-12-30",
+     "picked": {
+      "w": 200,
+      "weights": [
+       0.35,
+       0.35,
+       0.1,
+       0.2
+      ],
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.0,
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": null,
+     "test_sharpe": 2.3504
+    }
+   ],
+   "oos_sharpe": 1.10114,
+   "oos_stats": {
+    "sharpe": 1.10114,
+    "cagr": 0.12522,
+    "total_return": 0.690266,
+    "max_dd": -0.116441,
+    "n_days": 1100
+   }
+  },
+  "frozen_S2": {
+   "log": [
+    {
+     "note": "deployed config with slope-gated B (W200 K7)"
+    }
+   ],
+   "oos_sharpe": 1.184749,
+   "oos_stats": {
+    "sharpe": 1.184749,
+    "cagr": 0.129086,
+    "total_return": 0.716256,
+    "max_dd": -0.093441,
+    "n_days": 1100
+   }
+  },
+  "wf_full": {
+   "log": [
+    {
+     "train_end": "2021-12-30",
+     "picked": {
+      "w": 250,
+      "ka": 9,
+      "kb": 5,
+      "kc": 7,
+      "kd": 3,
+      "floor": 0.0,
+      "weights": [
+       0.25,
+       0.25,
+       0.25,
+       0.25
+      ],
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": null
+     },
+     "train_sharpe": 1.7213,
+     "test_sharpe": -0.4312
+    },
+    {
+     "train_end": "2022-12-30",
+     "picked": {
+      "w": 275,
+      "ka": 7,
+      "kb": 5,
+      "kc": 7,
+      "kd": 2,
+      "floor": 0.0,
+      "weights": [
+       0.3,
+       0.4,
+       0.1,
+       0.2
+      ],
+      "gate": [
+       0.15,
+       0.45
+      ],
+      "tilt": null
+     },
+     "train_sharpe": 1.2936,
+     "test_sharpe": 0.8872
+    },
+    {
+     "train_end": "2023-12-29",
+     "picked": {
+      "w": 250,
+      "ka": 9,
+      "kb": 5,
+      "kc": 7,
+      "kd": 3,
+      "floor": 0.0,
+      "weights": [
+       0.3,
+       0.4,
+       0.1,
+       0.2
+      ],
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": null
+     },
+     "train_sharpe": 1.239,
+     "test_sharpe": 1.1166
+    },
+    {
+     "train_end": "2024-12-30",
+     "picked": {
+      "w": 250,
+      "ka": 9,
+      "kb": 5,
+      "kc": 5,
+      "kd": 2,
+      "floor": 0.0,
+      "weights": [
+       0.35,
+       0.35,
+       0.15,
+       0.15
+      ],
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": null
+     },
+     "train_sharpe": 1.2314,
+     "test_sharpe": 1.4981
+    },
+    {
+     "train_end": "2025-12-30",
+     "picked": {
+      "w": 250,
+      "ka": 9,
+      "kb": 5,
+      "kc": 7,
+      "kd": 3,
+      "floor": 0.0,
+      "weights": [
+       0.25,
+       0.25,
+       0.25,
+       0.25
+      ],
+      "gate": [
+       0.15,
+       0.45
+      ],
+      "tilt": null
+     },
+     "train_sharpe": 1.3281,
+     "test_sharpe": 2.0944
+    }
+   ],
+   "oos_sharpe": 0.967984,
+   "oos_stats": {
+    "sharpe": 0.967984,
+    "cagr": 0.115823,
+    "total_return": 0.628363,
+    "max_dd": -0.116343,
+    "n_days": 1100
+   }
+  },
+  "wf_weights_only": {
+   "log": [
+    {
+     "train_end": "2021-12-30",
+     "picked": {
+      "w": 200,
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.05,
+      "weights": [
+       0.3,
+       0.4,
+       0.1,
+       0.2
+      ],
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": 1.4604,
+     "test_sharpe": -0.1793
+    },
+    {
+     "train_end": "2022-12-30",
+     "picked": {
+      "w": 200,
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.05,
+      "weights": [
+       0.35,
+       0.35,
+       0.15,
+       0.15
+      ],
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": 1.1422,
+     "test_sharpe": 0.8482
+    },
+    {
+     "train_end": "2023-12-29",
+     "picked": {
+      "w": 200,
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.05,
+      "weights": [
+       0.3,
+       0.4,
+       0.1,
+       0.2
+      ],
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": 1.1076,
+     "test_sharpe": 0.9864
+    },
+    {
+     "train_end": "2024-12-30",
+     "picked": {
+      "w": 200,
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.05,
+      "weights": [
+       0.3,
+       0.4,
+       0.1,
+       0.2
+      ],
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": 1.0892,
+     "test_sharpe": 1.998
+    },
+    {
+     "train_end": "2025-12-30",
+     "picked": {
+      "w": 200,
+      "ka": 7,
+      "kb": 7,
+      "kc": 5,
+      "kd": 3,
+      "floor": 0.05,
+      "weights": [
+       0.3,
+       0.4,
+       0.1,
+       0.2
+      ],
+      "gate": [
+       0.2,
+       0.5
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "train_sharpe": 1.2137,
+     "test_sharpe": 2.1971
+    }
+   ],
+   "oos_sharpe": 1.120691,
+   "oos_stats": {
+    "sharpe": 1.120691,
+    "cagr": 0.122773,
+    "total_return": 0.673976,
+    "max_dd": -0.091798,
+    "n_days": 1100
+   }
+  },
+  "oracle_full": {
+   "log": [
+    {
+     "picked": {
+      "w": 275,
+      "ka": 5,
+      "kb": 5,
+      "kc": 7,
+      "kd": 3,
+      "floor": 0.05,
+      "weights": [
+       0.35,
+       0.35,
+       0.05,
+       0.25
+      ],
+      "gate": [
+       0.15,
+       0.45
+      ],
+      "tilt": [
+       50,
+       200
+      ]
+     },
+     "note": "hindsight upper bound, not deployable"
+    }
+   ],
+   "oos_sharpe": 1.332845,
+   "oos_stats": {
+    "sharpe": 1.332845,
+    "cagr": 0.154097,
+    "total_return": 0.891976,
+    "max_dd": -0.105781,
+    "n_days": 1100
+   }
+  }
+ }
+}
