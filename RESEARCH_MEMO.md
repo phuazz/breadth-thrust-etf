@@ -297,6 +297,33 @@ the selection variance of any honest calibration process. This upgrades
 "keep 200d" from "the alternative is inside noise" to "recalibration
 demonstrably loses out of sample".
 
+### 1d. Can the parameter be IMPROVED, not just trusted? (2026-07-03)
+
+Question raised after the review: beyond robustness, is a better lookback
+being left on the table? Paired daily-return test of the surface's best
+rivals against the deployed 200d blend (`run_ws1_paired_test.py`,
+`data/ws1_paired_test.json`) — the paired form is the sharpest available
+test because the variants hold near-identical portfolios (daily-return
+correlation 0.99), which shrinks the standard error far below the ±0.4 of
+a headline-Sharpe comparison:
+
+| Rival | Ann. return edge | t (NW-10) | Data needed for 2σ |
+|---|---:|---:|---:|
+| 250d | +0.62%/yr | +1.07 | ~26 years |
+| 275d | +0.83%/yr | +1.20 | ~21 years |
+
+Both rivals sit around one standard error from zero on 7.6 years — BEFORE
+any multiple-testing haircut, and each was selected as the max of 13
+trials, so the honest expected edge is lower still. Combined with 1c (every
+real-time capture process loses money), the answer is: **no — the lookback
+has no harvestable improvement at this sample size.** The improvement
+budget lives elsewhere (Sleeve C quality, universe composition, execution),
+not in the trend parameter. Re-visit only on a material universe change
+(re-run the surface as a check) or after roughly another decade of data;
+choosing 250-300d on a regime FORECAST (persistent 2022-like chop) would be
+a discretionary macro bet to be named and logged as such, not calibration.
+(Trials logged: 2 paired comparisons.)
+
 ### 2. Vol-normalised / ensemble variants — all fail on contact
 
 Decomposition (each step isolated; fixed window; sleeve-level full Sharpe,

@@ -1,0 +1,41 @@
+{
+ "computed_at_utc": "2026-07-02T23:42:40+00:00",
+ "description": "Paired daily-return test of rival lookbacks vs the deployed 200d blend on the fixed WS1 window. A rival must clear ~2 sigma BEFORE any multiple-testing haircut to count as a real improvement; it was selected as the max of 13 trials, so even that would overstate it.",
+ "base_w": 200,
+ "window": [
+  "2018-11-08",
+  "2026-06-16"
+ ],
+ "rivals": {
+  "250": {
+   "n_days": 1873,
+   "n_years": 7.6,
+   "daily_return_correlation": 0.9935,
+   "sharpe_base_200": 1.202,
+   "sharpe_rival": 1.238,
+   "annualised_return_difference": 0.00617,
+   "t_stat_plain": 1.115,
+   "t_stat_newey_west_10lag": 1.074,
+   "years_of_data_needed_for_2_sigma": 26,
+   "halves_ann_diff": {
+    "train_ann_diff": 0.00842,
+    "test_ann_diff": 0.00387
+   }
+  },
+  "275": {
+   "n_days": 1873,
+   "n_years": 7.6,
+   "daily_return_correlation": 0.9906,
+   "sharpe_base_200": 1.202,
+   "sharpe_rival": 1.252,
+   "annualised_return_difference": 0.00828,
+   "t_stat_plain": 1.244,
+   "t_stat_newey_west_10lag": 1.198,
+   "years_of_data_needed_for_2_sigma": 21,
+   "halves_ann_diff": {
+    "train_ann_diff": 0.00564,
+    "test_ann_diff": 0.01096
+   }
+  }
+ }
+}
