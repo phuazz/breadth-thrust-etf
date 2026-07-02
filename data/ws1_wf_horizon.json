@@ -1,0 +1,363 @@
+{
+ "computed_at_utc": "2026-07-02T03:51:45+00:00",
+ "description": "Walk-forward lookback selection (annual expanding re-fit) vs fixed lookbacks, blend level, identical OOS window; 100% turnover charged per sleeve on each W change.",
+ "grid": [
+  25,
+  50,
+  75,
+  100,
+  125,
+  150,
+  175,
+  200,
+  225,
+  250,
+  275,
+  300,
+  325
+ ],
+ "oos_start": "2022-01-03",
+ "oos_end": "2026-06-16",
+ "protocols": {
+  "fixed_200": {
+   "oos_sharpe": 1.183194,
+   "oos_stats": {
+    "sharpe": 1.183194,
+    "cagr": 0.143258,
+    "total_return": 0.814194,
+    "max_dd": -0.142446,
+    "n_days": 1100
+   },
+   "segments": [
+    {
+     "train_end": "2021-12-30",
+     "test_end": "2022-12-30",
+     "picked": {
+      "A": 200,
+      "B": 200,
+      "C": 200,
+      "D": 200
+     },
+     "test_sharpe": -0.091084
+    },
+    {
+     "train_end": "2022-12-30",
+     "test_end": "2023-12-29",
+     "picked": {
+      "A": 200,
+      "B": 200,
+      "C": 200,
+      "D": 200
+     },
+     "test_sharpe": 0.909262
+    },
+    {
+     "train_end": "2023-12-29",
+     "test_end": "2024-12-30",
+     "picked": {
+      "A": 200,
+      "B": 200,
+      "C": 200,
+      "D": 200
+     },
+     "test_sharpe": 1.055394
+    },
+    {
+     "train_end": "2024-12-30",
+     "test_end": "2025-12-30",
+     "picked": {
+      "A": 200,
+      "B": 200,
+      "C": 200,
+      "D": 200
+     },
+     "test_sharpe": 2.16992
+    },
+    {
+     "train_end": "2025-12-30",
+     "test_end": "2026-06-16",
+     "picked": {
+      "A": 200,
+      "B": 200,
+      "C": 200,
+      "D": 200
+     },
+     "test_sharpe": 2.320849
+    }
+   ]
+  },
+  "fixed_250": {
+   "oos_sharpe": 1.18128,
+   "oos_stats": {
+    "sharpe": 1.18128,
+    "cagr": 0.143959,
+    "total_return": 0.819152,
+    "max_dd": -0.131956,
+    "n_days": 1100
+   },
+   "segments": [
+    {
+     "train_end": "2021-12-30",
+     "test_end": "2022-12-30",
+     "picked": {
+      "A": 250,
+      "B": 250,
+      "C": 250,
+      "D": 250
+     },
+     "test_sharpe": -0.10594
+    },
+    {
+     "train_end": "2022-12-30",
+     "test_end": "2023-12-29",
+     "picked": {
+      "A": 250,
+      "B": 250,
+      "C": 250,
+      "D": 250
+     },
+     "test_sharpe": 0.879206
+    },
+    {
+     "train_end": "2023-12-29",
+     "test_end": "2024-12-30",
+     "picked": {
+      "A": 250,
+      "B": 250,
+      "C": 250,
+      "D": 250
+     },
+     "test_sharpe": 1.168044
+    },
+    {
+     "train_end": "2024-12-30",
+     "test_end": "2025-12-30",
+     "picked": {
+      "A": 250,
+      "B": 250,
+      "C": 250,
+      "D": 250
+     },
+     "test_sharpe": 2.132709
+    },
+    {
+     "train_end": "2025-12-30",
+     "test_end": "2026-06-16",
+     "picked": {
+      "A": 250,
+      "B": 250,
+      "C": 250,
+      "D": 250
+     },
+     "test_sharpe": 2.358247
+    }
+   ]
+  },
+  "fixed_275": {
+   "oos_sharpe": 1.227104,
+   "oos_stats": {
+    "sharpe": 1.227104,
+    "cagr": 0.150086,
+    "total_return": 0.862901,
+    "max_dd": -0.134679,
+    "n_days": 1100
+   },
+   "segments": [
+    {
+     "train_end": "2021-12-30",
+     "test_end": "2022-12-30",
+     "picked": {
+      "A": 275,
+      "B": 275,
+      "C": 275,
+      "D": 275
+     },
+     "test_sharpe": -0.078721
+    },
+    {
+     "train_end": "2022-12-30",
+     "test_end": "2023-12-29",
+     "picked": {
+      "A": 275,
+      "B": 275,
+      "C": 275,
+      "D": 275
+     },
+     "test_sharpe": 0.972749
+    },
+    {
+     "train_end": "2023-12-29",
+     "test_end": "2024-12-30",
+     "picked": {
+      "A": 275,
+      "B": 275,
+      "C": 275,
+      "D": 275
+     },
+     "test_sharpe": 1.22449
+    },
+    {
+     "train_end": "2024-12-30",
+     "test_end": "2025-12-30",
+     "picked": {
+      "A": 275,
+      "B": 275,
+      "C": 275,
+      "D": 275
+     },
+     "test_sharpe": 2.192308
+    },
+    {
+     "train_end": "2025-12-30",
+     "test_end": "2026-06-16",
+     "picked": {
+      "A": 275,
+      "B": 275,
+      "C": 275,
+      "D": 275
+     },
+     "test_sharpe": 2.3615
+    }
+   ]
+  },
+  "wf_common": {
+   "oos_sharpe": 1.169729,
+   "oos_stats": {
+    "sharpe": 1.169729,
+    "cagr": 0.141879,
+    "total_return": 0.804479,
+    "max_dd": -0.1346,
+    "n_days": 1100
+   },
+   "segments": [
+    {
+     "train_end": "2021-12-30",
+     "test_end": "2022-12-30",
+     "picked": {
+      "A": 325,
+      "B": 325,
+      "C": 325,
+      "D": 325
+     },
+     "test_sharpe": -0.041693
+    },
+    {
+     "train_end": "2022-12-30",
+     "test_end": "2023-12-29",
+     "picked": {
+      "A": 325,
+      "B": 325,
+      "C": 325,
+      "D": 325
+     },
+     "test_sharpe": 0.667733
+    },
+    {
+     "train_end": "2023-12-29",
+     "test_end": "2024-12-30",
+     "picked": {
+      "A": 275,
+      "B": 275,
+      "C": 275,
+      "D": 275
+     },
+     "test_sharpe": 1.22449
+    },
+    {
+     "train_end": "2024-12-30",
+     "test_end": "2025-12-30",
+     "picked": {
+      "A": 275,
+      "B": 275,
+      "C": 275,
+      "D": 275
+     },
+     "test_sharpe": 2.192308
+    },
+    {
+     "train_end": "2025-12-30",
+     "test_end": "2026-06-16",
+     "picked": {
+      "A": 275,
+      "B": 275,
+      "C": 275,
+      "D": 275
+     },
+     "test_sharpe": 2.3615
+    }
+   ]
+  },
+  "wf_per_sleeve": {
+   "oos_sharpe": 1.107073,
+   "oos_stats": {
+    "sharpe": 1.107073,
+    "cagr": 0.128331,
+    "total_return": 0.71116,
+    "max_dd": -0.136164,
+    "n_days": 1100
+   },
+   "segments": [
+    {
+     "train_end": "2021-12-30",
+     "test_end": "2022-12-30",
+     "picked": {
+      "A": 325,
+      "B": 250,
+      "C": 25,
+      "D": 200
+     },
+     "test_sharpe": -0.003484
+    },
+    {
+     "train_end": "2022-12-30",
+     "test_end": "2023-12-29",
+     "picked": {
+      "A": 325,
+      "B": 300,
+      "C": 175,
+      "D": 250
+     },
+     "test_sharpe": 0.587121
+    },
+    {
+     "train_end": "2023-12-29",
+     "test_end": "2024-12-30",
+     "picked": {
+      "A": 325,
+      "B": 275,
+      "C": 25,
+      "D": 250
+     },
+     "test_sharpe": 1.134567
+    },
+    {
+     "train_end": "2024-12-30",
+     "test_end": "2025-12-30",
+     "picked": {
+      "A": 250,
+      "B": 275,
+      "C": 25,
+      "D": 275
+     },
+     "test_sharpe": 2.044152
+    },
+    {
+     "train_end": "2025-12-30",
+     "test_end": "2026-06-16",
+     "picked": {
+      "A": 325,
+      "B": 275,
+      "C": 275,
+      "D": 250
+     },
+     "test_sharpe": 2.400696
+    }
+   ]
+  },
+  "oracle_fixed": {
+   "w": 275,
+   "oos_sharpe": 1.227104,
+   "note": "hindsight upper bound, not deployable"
+  }
+ }
+}

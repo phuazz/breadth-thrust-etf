@@ -131,10 +131,13 @@ Ranked by expected OOS-expectancy impact per unit of added complexity:
 ### Method
 
 - New scripts: `scripts/ws1_common.py`, `scripts/run_ws1_ma_surface.py`,
-  `scripts/run_ws1_vol_variants.py`, `scripts/plot_ws1_surface.py`.
+  `scripts/run_ws1_vol_variants.py`, `scripts/run_ws1_wf_horizon.py`,
+  `scripts/run_ws1_threshold_surface.py`, `scripts/plot_ws1_surface.py`,
+  `scripts/plot_ws1_thresholds.py`.
   Artefacts: `data/ws1_ma_surface.json`, `data/ws1_vol_variants.json`,
+  `data/ws1_wf_horizon.json`, `data/ws1_threshold_surface.json`,
   `data/ws1_ma_surface.png`, `data/ws1_ma_dd_surface.png`,
-  `data/ws1_fx_eurusd_cache.parquet`.
+  `data/ws1_threshold_surface.png`, `data/ws1_fx_eurusd_cache.parquet`.
 - Lookback grid densified 2026-07-02 from 8 to **13 points (25d steps,
   25→325)** for surface-shape resolution. Grid size is a trial count for
   WS3's deflated-Sharpe audit: log 13 lookbacks x 4 sleeves + blend as
@@ -254,6 +257,35 @@ Findings:
   50d breadth gate for de-risking. The DD surface therefore confirms the
   two-horizon design rather than suggesting a recalibration.
 
+### 1c. Walk-forward horizon selection — re-fitting LOSES to fixed 200d
+
+Prompted by the chart-reading question (2026-07-02): "the plateau at 250-325
+looks worth capturing". The disciplined version of that instinct is an annual
+re-fit that may only use data available at each refit date. Protocol: refits
+at each year-end 2021-2025 on expanding windows; W chosen from the 13-point
+grid by train Sharpe (blend-level for `wf_common`, per sleeve for
+`wf_per_sleeve`); 100% one-way turnover charged per sleeve on every W change;
+all protocols evaluated on the IDENTICAL OOS window 2022-01-03 → 2026-06-16.
+Artefact: `data/ws1_wf_horizon.json` (script `run_ws1_wf_horizon.py`).
+
+| Protocol | OOS Sharpe | Ws used |
+|---|---:|---|
+| fixed 200 (deployed) | **+1.183** | 200 |
+| fixed 250 | +1.181 | 250 |
+| fixed 275 | +1.227 | 275 |
+| wf_common (annual re-fit) | +1.170 | 275→325 |
+| wf_per_sleeve (annual re-fit) | +1.107 | 25…325 |
+| oracle (hindsight) | +1.227 | 275 |
+
+Reading: the hindsight optimum IS 275 (+0.044 over 200) — but no re-fit
+process run on information available at the time captures it. Re-fitting the
+common horizon annually UNDERPERFORMS never touching 200 (+1.170 vs +1.183),
+and per-sleeve re-fitting — more knobs — is worse again (+1.107; one refit
+picked W=25, noise-chasing in action). The plateau's gradient is smaller than
+the selection variance of any honest calibration process. This upgrades
+"keep 200d" from "the alternative is inside noise" to "recalibration
+demonstrably loses out of sample".
+
 ### 2. Vol-normalised / ensemble variants — all fail on contact
 
 Decomposition (each step isolated; fixed window; sleeve-level full Sharpe,
@@ -307,6 +339,40 @@ deployed baseline in bold):
   re-check on the frozen shortlist, not a deployment.
 - **S2 slope gate on C: KILL** (−0.017 full, −0.087 test).
 
+### 4. Threshold surfaces — Phase 19 gate flat (keep); C floor/gate bumpy
+
+First surfaces ever built for the deployed thresholds (2026-07-02, prompted
+by the calibration question). Artefacts: `data/ws1_threshold_surface.json`,
+chart [`data/ws1_threshold_surface.png`](data/ws1_threshold_surface.png)
+(scripts `run_ws1_threshold_surface.py`, `plot_ws1_thresholds.py`). Trials
+logged for WS3: 25 C cells + 25 gate cells + 5 WF-horizon protocols.
+
+- **Phase 19 gate (off x on hysteresis): FLAT — the in-sample-tuning caveat
+  is materially defused.** All 25 valid pairs land Sharpe +1.22 to +1.33
+  against +1.20 ungated, and EVERY cell beats ungated on both Sharpe and max
+  DD (−14.7/−16.4% vs −23.8%). Deployed (20%/50%) sits mid-plateau at
+  +1.287. Earlier de-risking (off 25-30%) buys ~1.7pp shallower DD at 2-3x
+  the switch count — a taste choice, not an edge. Whatever pair the Phase 19
+  12-variant sweep had picked, the outcome would have been similar: the
+  gate's value is structural (de-risk on breadth collapse), not parameter
+  luck. Keep 20/50.
+- **Sleeve C floor x gate: genuinely bumpy — and the attractive ridge is
+  train-concentrated.** The high-gate cells that look best full-window
+  (e.g. floor 0%/gate 50%: +0.97) earn it in the train half (+1.23) and fade
+  to +0.72 OOS; the high-floor/high-gate corner is degenerate (average
+  invested share down to 24% — SHY wearing a thematic badge). This is
+  independent confirmation of the Phase 27 bake-off finding that the 50%
+  gate fails OOS. Deployed (5%/30%) has the smallest train/test gap in its
+  neighbourhood.
+- **One pre-registered candidate passed the cheap reflex: REMOVE the +5%
+  floor, keep the 30% gate.** (0%,30%) vs deployed: full +0.78 vs +0.74,
+  test +0.83 vs +0.69, 5/6 regimes, survives 2x cost, one knob fewer, lower
+  turnover. BUT max DD degrades −36% → −48%, with the floor's entire value
+  concentrated in the 2022 grind (sub-period Sharpe −2.49 vs −0.94).
+  Sharpe says remove, drawdown says keep. Verdict: leave deployed; "drop C
+  floor" goes on the WS3 shortlist with the trade-off stated, to be
+  re-examined after WS2 potentially restructures C's universe.
+
 ### WS1 bottom line
 
 The deployed single-horizon 200d formulation — binary constituent breadth for
@@ -318,8 +384,15 @@ plateau, and every added degree of freedom failed the OOS bar. **Recommended
 change to the MA formulation: none.** The drawdown surface (1b) reaches the
 same verdict independently: max DD is horizon-invariant (COVID binds at every
 W), every conditionable DD metric prefers slow, and the deployed 200d holds
-the grid's shortest underwater spell. The valuable outputs are the surface
-itself (now on file for WS3's deflated-Sharpe audit), the 2022-regime
-evidence against ever shortening the horizon, the C-horizon-is-noise result,
-and the confirmed slow-selection / fast-gate division of labour. Next
-session: Workstream 2 (universe) per the ranked plan.
+the grid's shortest underwater spell. The walk-forward test (1c) closes the
+calibration question outright: annually re-fitting the horizon on the
+plateau would have UNDERPERFORMED fixed 200 out of sample (+1.170 vs
++1.183), and per-sleeve re-fitting is worse again. The threshold surfaces
+(4) clear the Phase 19 gate (flat plateau, in-sample-tuning caveat defused,
+keep 20/50) and put exactly one candidate on the WS3 shortlist: dropping
+C's +5% floor (better Sharpe OOS, one knob fewer, but −12pp max DD
+concentrated in 2022). The valuable outputs are the surfaces themselves
+(now on file for WS3's deflated-Sharpe audit), the 2022-regime evidence
+against ever shortening the horizon, the C-horizon-is-noise result, and the
+confirmed slow-selection / fast-gate division of labour. Next session:
+Workstream 2 (universe) per the ranked plan.
