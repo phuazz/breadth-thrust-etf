@@ -16,7 +16,9 @@ robustness gate on the frozen shortlist) — see the Workstream 3 section.
 - Filed records: [`reviews/2026-07-02_ws0-ws1_ma-robustness.docx`](reviews/2026-07-02_ws0-ws1_ma-robustness.docx),
   [`reviews/2026-07-02_ws2_universe.docx`](reviews/2026-07-02_ws2_universe.docx),
   detailed test appendix
-  [`reviews/2026-07-02_ws2_test-appendix.docx`](reviews/2026-07-02_ws2_test-appendix.docx)
+  [`reviews/2026-07-02_ws2_test-appendix.docx`](reviews/2026-07-02_ws2_test-appendix.docx),
+  plain-language summary
+  [`reviews/2026-07-03_ws2_universe_summary.docx`](reviews/2026-07-03_ws2_universe_summary.docx)
   (naming convention `reviews/<yyyy-mm-dd>_<workstreams>_<topic>.docx`).
 
 ---
