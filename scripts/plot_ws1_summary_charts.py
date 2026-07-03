@@ -218,11 +218,124 @@ def scope():
     print("wrote", out.relative_to(ROOT))
 
 
+# ---------------------------------------------------------------------------
+# Chart 4 — threshold surfaces as an IN-SAMPLE vs OUT-OF-SAMPLE split (A4)
+# ---------------------------------------------------------------------------
+# Reads data/ws1_threshold_surface.json. Shows each dial as three panels:
+# first half (in-sample) -> second half (out-of-sample, same colour scale) ->
+# overfitting map (in minus out; red = the shine was fitted to the past). The
+# reader sees directly WHY a darker in-sample cell is not chosen: it goes red
+# in the overfitting map. Replaces the earlier full/test/gate triptych for the
+# allocator summary; the technical record keeps ws1_threshold_surface.png.
+THRESH_SRC = DATA / "ws1_threshold_surface.json"
+
+
+def _grid_vals(cells, keyfmt, rows, cols, field):
+    m = np.full((len(rows), len(cols)), np.nan)
+    for i, r in enumerate(rows):
+        for j, c in enumerate(cols):
+            cell = cells.get(keyfmt(r, c))
+            if cell is None:
+                continue
+            m[i, j] = (cell[field]["sharpe"] if field in ("train", "test")
+                       else cell.get(field))
+    return m
+
+
+def _heat(ax, mat, xlabels, ylabels, title, deployed_ij, cmap, vmin, vmax,
+          star=None, fmt="{:+.2f}"):
+    cmap = plt.get_cmap(cmap).copy()
+    cmap.set_bad("#f3f4f6")
+    ax.imshow(np.ma.masked_invalid(mat), aspect="auto", cmap=cmap,
+              vmin=vmin, vmax=vmax)
+    ax.set_xticks(range(len(xlabels)), xlabels, fontsize=8)
+    ax.set_yticks(range(len(ylabels)), ylabels, fontsize=8)
+    ax.grid(False)
+    for i in range(mat.shape[0]):
+        for j in range(mat.shape[1]):
+            if np.isnan(mat[i, j]):
+                continue
+            s = "*" if star is not None and star[i, j] else ""
+            ax.text(j, i, fmt.format(mat[i, j]) + s, ha="center", va="center",
+                    fontsize=7.2, color="black")
+    if deployed_ij is not None:
+        import matplotlib.patches as mp
+        ax.add_patch(mp.Rectangle((deployed_ij[1] - 0.5, deployed_ij[0] - 0.5),
+                     1, 1, fill=False, edgecolor="#111111", lw=2.2))
+    ax.set_title(title, fontsize=9.8)
+
+
+def threshold_split():
+    d = json.loads(THRESH_SRC.read_text(encoding="utf-8"))
+    floors, gates = d["c_floors"], d["c_gates"]
+    offs, ons = d["gate_offs"], d["gate_ons"]
+    cfmt = lambda fl, gt: f"floor={fl}|gate={gt}"
+    gfmt = lambda o, n: f"off={o}|on={n}"
+
+    c_train = _grid_vals(d["c_surface"], cfmt, floors, gates, "train")
+    c_test = _grid_vals(d["c_surface"], cfmt, floors, gates, "test")
+    c_gap = c_train - c_test
+    c_star = np.array([[bool(d["c_surface"].get(cfmt(fl, gt), {}).get("degenerate"))
+                        for gt in gates] for fl in floors])
+    g_train = _grid_vals(d["phase19_surface"], gfmt, offs, ons, "train")
+    g_test = _grid_vals(d["phase19_surface"], gfmt, offs, ons, "test")
+    g_gap = g_train - g_test
+
+    c_lo = np.nanmin([c_train, c_test]); c_hi = np.nanmax([c_train, c_test])
+    g_lo = np.nanmin([g_train, g_test]); g_hi = np.nanmax([g_train, g_test])
+    c_gmax = np.nanmax(np.abs(c_gap)); g_gmax = max(np.nanmax(np.abs(g_gap)), 0.05)
+
+    xg = [f"{g*100:.0f}%" for g in gates]
+    yf = [f"{f*100:.1f}%" for f in floors]
+    xo = [f"{o*100:.0f}%" for o in ons]
+    yo = [f"{o*100:.0f}%" for o in offs]
+    c_dep = (floors.index(0.05), gates.index(0.30))
+    g_dep = (offs.index(0.20), ons.index(0.50))
+
+    fig, axes = plt.subplots(2, 3, figsize=(12.6, 6.8), dpi=150)
+    fig.suptitle("The two safety dials — in-sample vs out-of-sample, and where the "
+                 "shine was fitted to the past",
+                 fontsize=12.5, fontweight="bold")
+    # Row 1 — Sleeve C thematic hurdle
+    _heat(axes[0, 0], c_train, xg, yf, "Thematic hurdle — first half (in-sample)",
+          c_dep, "RdYlGn", c_lo, c_hi, c_star)
+    _heat(axes[0, 1], c_test, xg, yf, "Second half (out-of-sample, same scale)",
+          c_dep, "RdYlGn", c_lo, c_hi, c_star)
+    _heat(axes[0, 2], c_gap, xg, yf, "In-sample − out-of-sample",
+          c_dep, "RdBu_r", -c_gmax, c_gmax)
+    axes[0, 0].set_ylabel("signal floor", fontsize=8.5)
+    for a in axes[0]:
+        a.set_xlabel("sleeve-gate threshold", fontsize=8.5)
+    # Row 2 — Phase 19 market-breadth brake
+    _heat(axes[1, 0], g_train, xo, yo, "Market-breadth brake — first half (in-sample)",
+          g_dep, "RdYlGn", g_lo, g_hi)
+    _heat(axes[1, 1], g_test, xo, yo, "Second half (out-of-sample, same scale)",
+          g_dep, "RdYlGn", g_lo, g_hi)
+    _heat(axes[1, 2], g_gap, xo, yo, "In-sample − out-of-sample",
+          g_dep, "RdBu_r", -g_gmax, g_gmax)
+    axes[1, 0].set_ylabel("de-risk (off) threshold", fontsize=8.5)
+    for a in axes[1]:
+        a.set_xlabel("re-engage (on) threshold", fontsize=8.5)
+    fig.text(0.5, 0.005, "Deployed setting outlined · * = degenerate (book mostly "
+             "in cash). Right column = in-sample minus out-of-sample: RED = looked "
+             "better on its design data than on unseen data (fitted to the past); "
+             "BLUE = held up or improved out of sample. The thematic hurdle has a "
+             "red overfit ridge to avoid; the brake is blue throughout — robust, "
+             "so its small differences are noise.",
+             ha="center", fontsize=9.0, color="#444444")
+    fig.tight_layout(rect=(0, 0.03, 1, 0.95))
+    out = DATA / "ws1_threshold_summary.png"
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote", out.relative_to(ROOT))
+
+
 def main():
     _, grid, surf = _load()
     blend_simple(grid, surf)
     six_panel(grid, surf)
     scope()
+    threshold_split()
 
 
 if __name__ == "__main__":
