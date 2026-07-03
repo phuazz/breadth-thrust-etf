@@ -1,8 +1,8 @@
 {
-  "computed_at_utc": "2026-07-03 22:31 UTC",
+  "computed_at_utc": "2026-07-03 23:00 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-06-18",
-  "anchor_equity": 2.992327,
+  "anchor_equity": 2.99233,
   "regime_state": "RISK_ON",
   "eem_tilt_active": true,
   "effective_weights": {
@@ -41,16 +41,16 @@
     "2026-07-02"
   ],
   "live_equity": [
-    2.993982,
-    3.021463,
-    2.950461,
-    2.947604,
-    2.991853,
-    2.95907,
-    2.987631,
-    3.016692,
-    2.963161,
-    2.947829
+    2.993985,
+    3.021466,
+    2.950464,
+    2.947607,
+    2.991856,
+    2.959073,
+    2.987634,
+    3.016695,
+    2.963164,
+    2.947832
   ],
   "sleeve_extensions": {
     "strategy_a": {
