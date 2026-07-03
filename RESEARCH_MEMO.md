@@ -616,7 +616,10 @@ indistinguishable — so the decision is ARCHITECTURAL, not performance-led:
   **15.0% of NAV**; both roles held EEM simultaneously on 26% of days;
   mean look-through 4.5%); it is weakly dominant ungated (best full and
   test of the four cells, 5/6 consistency vs V0); B does not miss EEM
-  (standalone +1.02 without vs +1.01 with; B's top-K held EEM rarely);
+  (standalone +1.02 without vs +1.01 with; *corrected 2026-07-03: the
+  overlap was NOT rare — B held EEM on 45% of days, mean 12% of the book
+  when held, and on 88% of tilt-ON days both routes held it together,
+  which is exactly the stacking the ablation shows added nothing*);
   and it PRESERVES the EM-turn thesis expression whose walk-forward
   validation is on file (`em_tilt_validation.json`: fixed 50/200 beats
   baseline OOS). Choosing V3 on its +0.006 gated edge would be sequential

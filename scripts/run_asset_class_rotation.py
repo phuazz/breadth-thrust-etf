@@ -91,9 +91,12 @@ UNIVERSE: dict[str, dict] = {
     # window put all four cells within 0.009 full-window Sharpe —
     # statistically indistinguishable — so the decision is architectural:
     # ONE role, the Phase 22 overlay. Strategy B standalone is no worse
-    # without EEM (+1.02 vs +1.01), because B's slow 200d momentum rarely
-    # selected it anyway. EEM exposure is now expressed ONLY via the
-    # Phase 22 EEM/SPY golden-cross tilt in run_risk_overlay.py.
+    # without EEM (+1.02 vs +1.01). The overlap was NOT rare (corrected
+    # 2026-07-03): B held EEM on 45% of days (mean 12% of the book when
+    # held), and on 88% of tilt-ON days BOTH routes held it together —
+    # exactly the stacking the ablation shows added nothing. EEM exposure
+    # is now expressed ONLY via the Phase 22 EEM/SPY golden-cross tilt in
+    # run_risk_overlay.py.
     # Evidence: data/ws2_eem_coherence.json; record
     # reviews/2026-07-02_ws2_universe.docx sections 3.5 and 4.1.
     # Real estate

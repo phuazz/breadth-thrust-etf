@@ -82,8 +82,9 @@ def eem_lookthrough():
     old, new = _lookthrough_series()
     fig, ax = plt.subplots(figsize=(9.2, 4.3), dpi=150)
     ax.axhline(0.10, color=GREY, lw=1.1, ls=(0, (5, 3)))
-    ax.text(pd.Timestamp("2023-06-01"), 0.108,
-            "intended maximum: the 10% overlay", fontsize=9.5, color=GREY,
+    ax.text(pd.Timestamp("2023-04-01"), 0.108,
+            "the overlay's size (10%) — also the new set-up's hard cap",
+            fontsize=9.5, color=GREY,
             bbox=dict(facecolor="white", edgecolor="none", pad=1.2))
     ax.fill_between(old.index, 0.10, old.where(old > 0.10, 0.10),
                     color="#fecaca", zorder=1)
@@ -93,7 +94,7 @@ def eem_lookthrough():
             label="new set-up (from 2 Jul 2026): overlay only, capped at 10%")
     peak_dt = old.idxmax()
     ax.annotate(f"peak {old.max()*100:.0f}% of the whole portfolio —\n"
-                "half as much again as intended",
+                "half as much again as the overlay's 10%",
                 (peak_dt, float(old.max())),
                 xytext=(pd.Timestamp("2021-08-01"), 0.155),
                 textcoords="data", fontsize=9.6, color="#991b1b",
@@ -101,8 +102,8 @@ def eem_lookthrough():
     ax.set_ylim(-0.005, 0.175)
     ax.set_yticks([0, 0.05, 0.10, 0.15], ["0%", "5%", "10%", "15%"])
     ax.set_ylabel("Share of the portfolio in emerging markets", fontsize=10.5)
-    ax.set_title("Emerging markets was held two ways at once — the true position "
-                 "ran half as large again as intended", fontsize=11.8,
+    ax.set_title("The broad EM fund was held two ways at once — and no rule "
+                 "capped the combined position", fontsize=11.8,
                  fontweight="bold", pad=12)
     ax.legend(fontsize=9.3, loc="lower center", bbox_to_anchor=(0.5, 0.42),
               framealpha=0.95)
