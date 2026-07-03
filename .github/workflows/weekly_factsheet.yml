@@ -287,6 +287,12 @@ jobs:
 
             If the log shows the breadth_csp1 freshness guard, the fix is
             local: python scripts/refresh_all.py, then commit and push,
-            then re-run this workflow from the Actions tab.
+            then start a NEW run via the 'Run workflow' button. Do NOT
+            use 'Re-run failed jobs' after a refresh - it re-runs the
+            original commit without the refreshed panels and hits the
+            same guard again.
+
+            For transient failures (network, yfinance), 'Re-run failed
+            jobs' is fine - same commit, same inputs, likely to pass.
 
             Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
