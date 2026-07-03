@@ -1,0 +1,17 @@
+{
+  "probe": "capture-integrity Monday single-point",
+  "generated_utc": "2026-07-03T16:15:08+00:00",
+  "evaluate_target_on_single_point": {
+    "label": "Live track (synthetic Monday, 1 point)",
+    "status": "fail",
+    "evidence": "malformed series: 1 dates, 1 equity points"
+  },
+  "project_daily_equity_monday": {
+    "n_points_after_friday_anchor": 1,
+    "dates": [
+      "2026-07-06"
+    ]
+  },
+  "defect_confirmed": true,
+  "reading": "CONFIRMED: a healthy Monday live_track (1 post-anchor point) is graded 'fail' by evaluate_target, and _project_daily_equity does emit exactly 1 point on Monday \u2014 so the daily job's non-continue-on-error capture step returns 1 and the job dies before pipeline.py, firing a spurious [FAIL] email and skipping the Monday publish."
+}

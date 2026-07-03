@@ -970,3 +970,178 @@ a strong-run entry point (trailing 12m at p91), so capital adds should
 wait. The review ends where it began, deliberately: no changes — now
 with ~217 registered configurations of evidence that no change was the
 right answer.
+
+---
+
+## Implementation & pipeline audit (session 4, 2026-07-04)
+
+Correctness audit of the code and pipelines behind the WS0-WS3 evidence and the
+daily live path — NO backtests, no performance numbers. Read-only on deployed
+code in BOTH repos (engine `breadth-thrust-etf`; consumer
+`navigo-systematic-trend`). Every defect is CONFIRMED (minimal reproduction) or
+PLAUSIBLE; severity S1 (invalidates review evidence) → S4 (hygiene). Filed
+record: [`reviews/2026-07-04_implementation-audit.docx`](reviews/2026-07-04_implementation-audit.docx).
+Pre-session state verified: WS3 record filed; Phase 29 (`9bdfb8c`) the last
+config commit; the EEM/SPY staleness-cap patch still PENDING; the 3-Jul ops
+commits (`913e8a6`, `b89c002`, `7843a02`, `280eeed`, `63b4678`) audited as new
+code. Probe: `scripts/run_audit_probe_capture.py` → `data/audit_capture_probe.json`.
+
+### Scope 1 — signal-path correctness: every deployed path CLEAN on the audited axes
+
+For A/B/C/D and both overlays, verified beyond WS3's closed shift(1)/FX-conversion/
+survivorship/stale-cap checks:
+
+- **Execution timing** is uniformly prior-day signal → rebalance,
+  `weight.shift(1) * pct_change` close-to-close, costs charged on the rebalance
+  day (`run_portfolio.py:154-168`, `run_asset_class_rotation.py:307-325`,
+  `run_thematic_rotation.py:668-692`, D via `run_portfolio`). No decision-vs-fill
+  mismatch; a holiday-Friday rebalance is silently skipped (weights ffill), a
+  conservative, immaterial choice.
+- **Total-return basis** consistent — every yfinance loader uses `auto_adjust=True`.
+- **Resampling** uniformly `.resample("W-FRI").last()` (right-labelled Friday).
+- **Threshold operators** match spec exactly (all strict, matching "below/above/
+  fewer-than"): gate de-risk `v < 0.20` / re-engage `v > 0.50`
+  (`run_risk_overlay.py:171-173`); tilt golden cross `fast > slow` (`:224`); C
+  sleeve-gate `sleeve_breadth < 0.30` (`:575`).
+- **Venue calendars** handled correctly. The blend runs on the INTERSECTION of
+  the four sleeve equity indices and takes `pct_change` on the sliced curves, so
+  a Xetra-only or US-only session compounds into the next common day — no return
+  lost or double-counted (`run_multi_strategy.py:181-215`). BTC-USD's 7-day week
+  is reindexed to the NYSE calendar (weekend prints dropped,
+  `run_thematic_rotation.py:408-427`) and the weekend move folds into the Monday
+  close-to-close return. CNY→USD uses the CAPPED `align_series_to_index(max_stale_days=10)`.
+- **FX date alignment** (timing, not the conversion WS3 closed): D and C both
+  align the FX rate to the price date (same-day merge / ffill), no off-by-one.
+
+Verdict per path: **CLEAN**. Two items carried to the register: C's `SIGNAL_FLOOR`
+docstring says "require >= 5%" but the code is strict `valid > SIGNAL_FLOOR`
+(measure-zero effect; doc/code mismatch, S4); D's EUR→USD ffill is UNCAPPED
+(`run_europe_rotation.py:154`), inconsistent with C's capped FX (S3).
+
+### Scope 2 — backtest↔live parity: DUAL-BUT-EQUIVALENT
+
+The daily live track does NOT share the backtest code path. `mark_to_market_live.py`
+reads the Friday anchor from `risk_overlay.json` (declared source of truth) and
+REIMPLEMENTS the effective NAV weights in `_build_effective_weights` (`:127-170`),
+explicitly mirroring the dashboard JS `renderPositionsPreview` — a third
+implementation of the same weight logic. The reconstruction is EQUIVALENT to the
+backtest gate∘tilt composition (backtest gates the tilted-ungated blend at
+`run_risk_overlay.py:414-419`; live RISK_OFF → sleeves halved, EEM 0.10×0.5 = 5%,
+residual to SHY): the same portfolio, valued buy-and-hold from the anchor.
+Micro-differences only, immaterial over ≤5 days (backtest daily-rebalances the
+50/50 gate split and snaps the blend weekly; live is pure buy-and-hold; live
+marks a missing price flat). No shared function — equivalence holds by manual
+mirroring across three surfaces. That fragility, not a present error, is the
+finding.
+
+### Defect register
+
+| ID | Repo | File:line | Class | Sev | Status | Impact |
+|---|---|---|---|---|---|---|
+| D1 | engine | `check_capture_integrity.py:82` + `mark_to_market_live.py:216` | pipeline / ops | **S2** | CONFIRMED | `evaluate_target` grades any live series with `len(dates) < 2` as `fail`; `_project_daily_equity` emits only points strictly after the Friday anchor, so the first session after a fully-fresh anchor (Monday) and the weekly re-anchor (0 points) fail the non-`continue-on-error` capture step → daily/weekly job dies before publish, false `[FAIL]` email, dashboard not updated. Self-heals next session. |
+| D2 | consumer | `portfolios/navigo-systematic-trend.json:47` (+ `adapter.py` `build_weights` grouping) | contract drift | S2/S3 | CONFIRMED (inspection) | `etf_meta.EEM.sleeve = "B"` predates Phase 29 (EEM now overlay-only). With the tilt ON (current), the 10% EEM rolls into `by_sleeve["B"]` and the TILT bucket shows ~0 — the consumer's sleeve breakdown misattributes the overlay to Sleeve B. |
+| D3 | engine | `run_risk_overlay.py:363` | silent staleness | S3 | PLAUSIBLE | Phase 19 gate breadth `reindex(common, method="ffill")` is UNCAPPED — same class as the flagged tilt ratio (`:269`), but NOT in the pending patch. A stalled CSP1 feed freezes the gate on stale breadth (not NaN), so the WS3 "gate holds state on NaN" degradation path is not reached on a stopped feed. |
+| D4 | engine | `run_europe_rotation.py:154`; live `mark_to_market_live.py:284` | silent staleness | S3 | CONFIRMED (inspection) | Sleeve D EUR→USD ffill UNCAPPED — inconsistent with Sleeve C's capped 10-day FX (`run_thematic_rotation.py:477`). A stalled EURUSD freezes D at a stale rate. |
+| D5 | both | engine `run_risk_overlay.py:253-256`, `mark_to_market_live.py:139-144`; consumer registry `sleeves.*.alloc` + `adapter.py:556,563` | duplicated constant | S3 | CONFIRMED | Blend weights 35/35/10/20 + tilt 10%/fund-from-B restated in ≥4 places, none cross-checked. `validate.py` reconciles equity-curve stats only, not weights — a future reweight/tilt change drifts the consumer's attribution and weight-history silently. |
+| D6 | consumer | `portfolios/navigo-systematic-trend.json:11` | doc/config | S4 | CONFIRMED | `cost_assumption_bps: 5` does not match the engine's per-sleeve costs (A2/B2/C5/D9). Display / future-valuation metadata only (thin-renderer does not recompute returns). |
+| D7 | engine | `run_thematic_rotation.py:538,580` | doc/code | S4 | CONFIRMED | `SIGNAL_FLOOR` docstrings say "require >= 5%"; code is strict `> SIGNAL_FLOOR`. Measure-zero economic effect. |
+| D8 | engine | `run_europe_rotation.py:136-158` | doc/code | S4 | CONFIRMED | `_fx_convert_eur_to_usd` docstring says it fetches `USDEUR=X` and inverts; code fetches `EURUSD=X` and multiplies (correct result, stale docstring). |
+
+### Scope 3 — per-workflow failure modes (loud vs silent)
+
+| Workflow | Loud (fails / aborts / emails) | Silent risk remaining |
+|---|---|---|
+| `daily_live_track.yml` | pipeline hard guard abort (CSP1 lag > budget); capture-integrity 2+ behind/corrupt-tail; pytest; any step error → `[FAIL]` email | **D1 false-fail on the first-session-after-anchor**; A/D sleeves never re-run in CI (stale up to the CSP1 guard window, ~6 weekdays) |
+| `weekly_factsheet.yml` | freshness warning (lag 4); capture-integrity `--targets all` (B/C/live); pytest; email step; `[FAIL]` on any failure | **D1** if the live target has 0 points (local A/D refresh lands the same Friday); A/D staleness masked by the live splice |
+| `sentinel.yml` | outside-in: fetches the live Pages `factsheet_meta.json`, compares `asof_iso` to the NYSE calendar; `[SENTINEL]` email on mismatch; retries + cache-buster | Cannot see stale A/D *signals* — the live splice keeps the as-of fresh, so a weeks-stale sleeve pick passes the as-of check |
+
+pipeline.py guards are strong: freeze detection (`:286`), source-panel freshness abort (`:351` busday_count), derived-freshness (`:415`), `built_at` assertion (`:478`), roster-staleness `PUBLISH ABORTED` (`:1155`), regime-STALE abort (`:1183`). The new 3-Jul scripts are otherwise well-built (`check_freshness_headroom.py` fail-safe-to-alert; `nyse_sessions.py` true exchange calendar; `sentinel_check.py` retries) — D1 is the one defect among them.
+
+### Scope 4 — engine↔consumer contract
+
+Navigo is a THIN RENDERER of the engine's `live_track.json` in production; the
+valuation layer that would restate weights/cost/FX is real code, flag-gated OFF
+(`config.py:38`, `NAVIGO_VALUATION_LAYER`). It READS from engine outputs (equity
+curves, sleeve equities, gate parameters — thresholds/derisk/fallback,
+regime/tilt state, effective_weights, sleeve within-weights) and RESTATES:
+
+- registry `deployed_key`/`gated_key`/`ungated_key` — JSON key strings; a rename
+  KeyErrors in `adapter.build_equity` (LOUD, not silent).
+- registry `sleeves.*.alloc`/`alloc_tilt` (35/35/10/20; B→25, TILT 10%) and the
+  SAME constants hardcoded again at `adapter.py:556,563` — used for attribution
+  and reconstructed weight-history; **silent** drift on any reweight.
+- registry `etf_meta` sleeve map (drift D2 already live) and `cost_assumption_bps`
+  (D6).
+
+**Would `validate.py` catch drift? No** — it reconciles recomputed *equity-curve*
+stats vs the engine's figures (always the engine's own curve → always passes) and
+checks freshness + regime-since consistency, but never the weights/allocations/
+universe. Weight-constant drift passes silently.
+
+**Pending patch safety:** the EEM/SPY staleness-cap patch changes only the tilt's
+degradation behaviour (WARN + hold-flat) — no key/weight/threshold change — so it
+does NOT break any restated consumer constant.
+
+**Proposed ONE contract test (spec):** in navigo, parse the blend weights from
+the engine `deployed_key` string (it literally encodes `blend_35_35_10_20_…`) and
+read `phase22.parameters.tilt_weight`/`fund_from_sleeve` from `risk_overlay.json`;
+assert they equal (a) registry `sleeves.*.alloc`/`alloc_tilt`, (b) the hardcoded
+`alloc` dict in `adapter.build_weight_history`, and (c) that every
+`effective_weights` ticker maps to a live engine sleeve (EEM not under B). Fail
+the build loudly on any mismatch — this is exactly the drift `validate.py` misses.
+
+### Scope 6 — test adequacy (per repo)
+
+- Engine: `test_no_lookahead.py`, `test_backtest_math.py`, `test_wtd_logic.py`,
+  `test_stale_breadth.py`, `test_dates.py`, `test_nyse_sessions.py` pin
+  CORRECTNESS. `test_check_capture_integrity.py` pins verdict logic but ENSHRINES
+  D1: every ok/warn case uses a 2-point series and `test_fail_on_length_mismatch`
+  codifies `<2 → fail`; no single-point cadence case exists. Others
+  (`test_derived_freshness.py`, `test_backtest.py`) are REGRESSION SNAPSHOTS.
+- Consumer: `test_adapter.py`, `test_metrics.py`, `test_validate.py`,
+  `test_valuation.py`, `test_capture_integrity.py`, `test_nyse_sessions.py`.
+  navigo's `check_capture_integrity.py` is a DIFFERENT design (checks the baked
+  dataset's single as-of via `sessions_behind`; `fail` only on corrupt/missing) —
+  it does NOT inherit D1.
+
+Highest-value missing tests — engine: (1) capture-integrity on a legitimate
+single-point live series returns ok/warn, not fail (would have caught D1);
+(2) `mark_to_market_live` NAV reconciles to the backtest gated+tilted curve at a
+shared anchor within tolerance (parity guard for scope 2); (3) uncapped-ffill
+degradation: a stalled gate-breadth / D-FX feed produces WARN/NaN, not a frozen
+value (D3/D4). Consumer: (4) a config-drift contract test (scope-4 spec above);
+(5) `by_sleeve` puts the EEM tilt under TILT not B (would catch D2);
+(6) `build_weight_history` last reconstructed week equals `live_track` weights
+(the docstring claims it; no test enforces it).
+
+### Scope 5 — accretion (deletions only, no refactors)
+
+- **Legacy SOXX 50/150 path** — `live_signal.py`, `backtest.py`, `run_etf_oos.py`
+  operate the pre-deployment single-ETF thrust strategy (`backtest_soxx_oos.json`),
+  wired into no current workflow. Candidate for removal or an explicit `legacy/`
+  quarantine; confirm nothing external reads `live_signal.json` first.
+- **Dead-but-deliberate:** `top_k_by_signal_capped` (thematic; `WEIGHTER_FACTORY =
+  top_k_equal_weight`), retained for reversibility; EEM/HYG/IEF colour-palette
+  entries kept for old payloads — harmless, leave.
+- **Duplicated constants** (see D5) — the blend/tilt weights should collapse to one
+  engine-published source the consumer reads, not four hand-kept copies.
+- `_safe`/`round_series` are copy-pasted across ~8 `run_*.py`; cosmetic, out of
+  scope for a deletions-only pass.
+
+### Closing statement
+
+**No CONFIRMED S1.** Every confirmed defect sits in the publication/alerting/
+consumer-reporting plumbing (D1, D2, D6) or in silent-degradation ffill paths
+(D3, D4) or is documentation drift (D5, D7, D8) — none touches the backtest
+signal computation or accounting that produced the WS0-WS3 evidence, which ran
+on fresh caches. The signal paths (A/B/C/D + Phase 19 gate + Phase 22 tilt) are
+CLEAN on execution timing, total-return consistency, FX timing, venue-calendar
+handling, threshold operators and look-ahead. **The WS0-WS3 conclusions and the
+keep-Phase-29-unchanged decision STAND — nothing found requires the review
+evidence to be revisited.** Maintenance follow-ups (review-and-propose, not
+in-session): fix D1 before the next Monday (a false `[FAIL]` poisons the one
+alert channel the sentinel design says must stay trusted); fold D3 (gate breadth)
+and D4 (D FX) into the already-pending tilt-ratio staleness-cap patch for a
+single consistent degradation policy; correct D2 in the consumer registry; and
+add the scope-4 contract test so the next config change cannot drift the consumer
+silently.
