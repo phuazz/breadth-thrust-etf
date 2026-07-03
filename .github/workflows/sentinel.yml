@@ -7,18 +7,28 @@ name: Deployed-dashboard sentinel
 # silent class — a run that succeeds while publishing wrong or stale
 # data — which no amount of in-run guarding can fully exclude.
 #
-# Schedule: Mon-Sat 23:45 UTC.
-#   Mon-Fri: ~70 min after the daily job's commit (21:30 UTC cron +
-#            ~1 min run + Pages deploy), and on Fridays also ~95 min
-#            after the weekly factsheet publish (22:00 UTC cron).
-#   Sat:     re-validates after any Saturday-morning manual recovery of
-#            a failed Friday weekly; keeps nagging if nothing was fixed.
-#   Sun:     omitted — no state change is expected on Sundays that
-#            Monday's check would not catch before the next US close.
+# Schedule: daily 03:35 UTC (11:35 SGT).
+#
+# Why so long after the 21:30/22:00 UTC publishes: GitHub fires
+# scheduled crons late, and the buffer must absorb the DELAY TAIL, not
+# the average. Measured on this repo (2026-06/07): daily starts 22:29
+# to 23:15 (59-105 min late); the old Saturday 02:00 slot fired up to
+# 4h17m late (06:17 start, 2026-06-13). At 03:35 UTC the sentinel keeps
+# more than an hour of buffer even against a 4h20m-delayed publish,
+# while the verdict it checks is unchanged — the expected session only
+# advances at the NEXT market close (20:00 UTC). Never move this
+# earlier than ~02:30 UTC; a false [SENTINEL] alarm from a slow cron
+# would train the operator to ignore the one email that must be read.
+#
+# Daily cadence (all 7 days): each run validates the last completed
+# session as of its own run time — Tue validates Mon, Sat validates
+# Fri (factsheet night), Sun and Mon revalidate Fri, which confirms a
+# Saturday-morning manual recovery and keeps nagging if nothing was
+# fixed. An unchanged weekend costs two trivially-green 1-minute runs.
 
 on:
   schedule:
-    - cron: '45 23 * * 1-6'
+    - cron: '35 3 * * *'
   workflow_dispatch:
 
 permissions:
