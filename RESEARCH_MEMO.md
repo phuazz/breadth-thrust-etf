@@ -2,7 +2,7 @@
 
 Running memo across review sessions. Session 1 covers Workstream 0 (orient) and
 Workstream 1 (moving-average robustness). Session 2 (same day) covers
-Workstream 2 (universe). Session 3 (same day) covers Workstream 3 (heavy
+Workstream 2 (universe). Session 3 (2026-07-03) covers Workstream 3 (heavy
 robustness gate on the frozen shortlist) — see the Workstream 3 section.
 
 - Started: 2026-07-02
@@ -18,8 +18,13 @@ robustness gate on the frozen shortlist) — see the Workstream 3 section.
   detailed test appendix
   [`reviews/2026-07-02_ws2_test-appendix.docx`](reviews/2026-07-02_ws2_test-appendix.docx),
   plain-language summary
-  [`reviews/2026-07-03_ws2_universe_summary.docx`](reviews/2026-07-03_ws2_universe_summary.docx)
-  (naming convention `reviews/<yyyy-mm-dd>_<workstreams>_<topic>.docx`).
+  [`reviews/2026-07-03_ws2_universe_summary.docx`](reviews/2026-07-03_ws2_universe_summary.docx),
+  [`reviews/2026-07-03_ws3_heavy-gate.docx`](reviews/2026-07-03_ws3_heavy-gate.docx)
+  with plain-language summary
+  [`reviews/2026-07-03_ws3_heavy-gate_summary.docx`](reviews/2026-07-03_ws3_heavy-gate_summary.docx)
+  (supersedes the misdated `2026-07-02_ws3_heavy-gate.docx` — the WS3 session
+  ran 2026-07-03; naming convention
+  `reviews/<yyyy-mm-dd>_<workstreams>_<topic>.docx`).
 
 ---
 
