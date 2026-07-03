@@ -43,6 +43,8 @@ The deployed strategy is the **35/35/10/20 A:B:C:D blend** with two overlays:
 
 **Ops alerting (2026-07-03)**: both workflows email the operator (GMAIL_USER, not the factsheet distribution list) on any failure, and send an early warning from weekday-lag 4 on `breadth_csp1.json` via `scripts/check_freshness_headroom.py` — the pipeline's hard guard aborts publishes once that lag exceeds 5, so the warning arrives one to two runs before the dashboard would freeze.
 
+**Silent-wrong-data defences (2026-07-03)**: process status alone cannot prove the data is right, so two outcome-level checks exist. In-run, `scripts/check_capture_integrity.py` anchors the series each job just fetched (B, C, live track in the weekly; live track in the daily) to the true NYSE calendar (`scripts/nyse_sessions.py`, holiday- and early-close-aware): 1 session behind warns and still publishes, 2+ behind or a corrupt/implausible tail fails the job before anything is built or emailed. Outside-in, `.github/workflows/sentinel.yml` (Mon-Sat 23:45 UTC) fetches the LIVE site's `factsheet_meta.json` and emails `[SENTINEL]` if the deployed as-of does not match the calendar — it shares no state with the pipeline, so it catches a green run that published wrong artefacts. Remaining judgement-level checks (Data Health panel consistency, regime/tilt cross-file agreement) live in the `VERIFY_DASHBOARD.md` audit prompt.
+
 The heavy constituent-roster refresh runs LOCALLY (per-ETF parquet caches are gitignored due to size). CI relies on committed breadth JSONs being current; if they go stale beyond 14 days, sleeves degrade gracefully (signal NaN → sleeve goes flat) with a visible stale-data banner.
 
 ---

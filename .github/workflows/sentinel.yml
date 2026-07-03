@@ -1,0 +1,75 @@
+name: Deployed-dashboard sentinel
+
+# Outside-in verification (2026-07-03). The pipeline workflows verify
+# their own process; this workflow verifies the OUTCOME: it fetches the
+# LIVE GitHub Pages site and checks the published as-of against the
+# NYSE calendar, sharing no state with the pipeline. It exists for the
+# silent class — a run that succeeds while publishing wrong or stale
+# data — which no amount of in-run guarding can fully exclude.
+#
+# Schedule: Mon-Sat 23:45 UTC.
+#   Mon-Fri: ~70 min after the daily job's commit (21:30 UTC cron +
+#            ~1 min run + Pages deploy), and on Fridays also ~95 min
+#            after the weekly factsheet publish (22:00 UTC cron).
+#   Sat:     re-validates after any Saturday-morning manual recovery of
+#            a failed Friday weekly; keeps nagging if nothing was fixed.
+#   Sun:     omitted — no state change is expected on Sundays that
+#            Monday's check would not catch before the next US close.
+
+on:
+  schedule:
+    - cron: '45 23 * * 1-6'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sentinel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install calendar dependency
+        # Deliberately NOT the full requirements.txt: the sentinel must
+        # stay independent of the pipeline's environment and fast.
+        run: pip install "pandas_market_calendars>=4.4"
+
+      - name: Check deployed as-of against the NYSE calendar
+        run: python scripts/sentinel_check.py
+
+      - name: Email sentinel alert
+        if: failure()
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[SENTINEL] Live dashboard as-of does not match the NYSE calendar'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            The deployed site at
+            https://phuazz.github.io/breadth-thrust-etf/ is not showing
+            the as-of date the NYSE calendar says it should.
+
+            If a [FAIL] email also arrived tonight, this confirms the
+            outage reached the public site - fix per that email. If NO
+            failure email arrived, a run went green while publishing
+            wrong or stale data: run the VERIFY_DASHBOARD.md audit to
+            localise where the chain diverged.
+
+            Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

@@ -87,6 +87,41 @@ jobs:
       - name: Run daily mark-to-market overlay
         run: python scripts/mark_to_market_live.py
 
+      # ----- Capture integrity (2026-07-03) -----
+      # A run can succeed while the fetch quietly captured nothing new
+      # (partial yfinance response, cached feed) or a corrupt print — the
+      # silent-wrong class no process-level check sees. This anchors the
+      # series THIS job just refreshed (live track only — B/C are weekly-
+      # cadence by design) to the true NYSE calendar: 1 session behind
+      # emails a warning and still publishes (cadence rule: publish the
+      # latest populated close); 2+ behind or a corrupt tail FAILS the
+      # job before anything is built or committed.
+      - name: Check capture integrity (live track vs NYSE calendar)
+        id: capture
+        run: python scripts/check_capture_integrity.py --targets live
+
+      - name: Email capture warning (1 session behind, still publishing)
+        if: steps.capture.outputs.capture_warn == 'true'
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[WARN] Capture lag — ${{ steps.capture.outputs.summary }}'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            ${{ steps.capture.outputs.detail }}
+
+            The run continues and publishes the latest populated close.
+            If this repeats tomorrow, the upstream feed is stuck — the
+            2-session threshold will then fail the job.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
       - name: Rebuild dashboard + factsheet with live extension
         run: python scripts/pipeline.py
 

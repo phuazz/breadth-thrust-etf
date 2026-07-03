@@ -200,6 +200,41 @@ jobs:
         # than stuck-on-last-locally-refreshed-Friday.
         run: python scripts/mark_to_market_live.py
 
+      # ----- Capture integrity (2026-07-03) -----
+      # A run can succeed while the engines quietly captured nothing new
+      # (partial yfinance response, cached feed) or a corrupt print — the
+      # silent-wrong class no process-level check sees. This anchors the
+      # series THIS job just refreshed (Strategy B, Strategy C and the
+      # live track) to the true NYSE calendar: 1 session behind emails a
+      # warning and still publishes (cadence rule: publish the latest
+      # populated close); 2+ behind or a corrupt tail FAILS the job
+      # before the factsheet is built, committed or emailed.
+      - name: Check capture integrity (B, C, live track vs NYSE calendar)
+        id: capture
+        run: python scripts/check_capture_integrity.py --targets all
+
+      - name: Email capture warning (1 session behind, still publishing)
+        if: steps.capture.outputs.capture_warn == 'true'
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[WARN] Capture lag — ${{ steps.capture.outputs.summary }}'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            ${{ steps.capture.outputs.detail }}
+
+            The run continues and publishes the latest populated close.
+            If the lag persists into the next scheduled run, the
+            2-session threshold will fail the job.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
       - name: Run holdings price export (soft-fail)
         run: python scripts/export_holdings_prices.py || true
 

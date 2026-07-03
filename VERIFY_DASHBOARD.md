@@ -43,6 +43,15 @@ fell behind). Keep the checklist in sync with `.github/workflows/*.yml` and
   weekday-lag 4 via scripts/check_freshness_headroom.py. When auditing,
   a recent [WARN] email plus green runs is a consistent state, not a
   contradiction.
+- Silent-wrong-data defences (added 2026-07-03): in-run,
+  scripts/check_capture_integrity.py anchors freshly-fetched series to
+  the true NYSE calendar (warn at 1 session behind, job-fail at 2+ or a
+  corrupt tail). Outside-in, .github/workflows/sentinel.yml (Mon-Sat
+  23:45 UTC) fetches the DEPLOYED factsheet_meta.json and emails
+  [SENTINEL] on an as-of mismatch vs the calendar. Include sentinel.yml
+  in the run-health sweep (gh run list --workflow=sentinel.yml) — it is
+  itself evidence for check 2, but do not substitute it for fetching the
+  deployed URL directly.
 - Cadence rule (Zhenghao, 2026-07-03): the weekly factsheet runs every
   Friday after the US close even on US market holidays, publishing the
   latest populated close — a Friday-holiday factsheet dated Thursday is
