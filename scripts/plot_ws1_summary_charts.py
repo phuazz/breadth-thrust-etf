@@ -268,20 +268,20 @@ def _heat(ax, mat, xlabels, ylabels, title, deployed_ij, cmap, vmin, vmax,
 
 
 def _dial_figure(out_png, suptitle, ylabels, xlabels, ylab, xlab,
-                 train, test, gap, dep, star, foot):
-    """One dial as TWO large, comfortably-readable panels: out-of-sample
-    return (the honest test), and the overfitting map (how much higher the
-    cell looked in-sample). Two panels keep cells ~60px wide at full page
-    width; the in-sample level is implied (in = out + gap)."""
-    lo = np.nanmin(test); hi = np.nanmax(test)
-    gmax = max(np.nanmax(np.abs(gap)), 0.05)
+                 train, test, dep, star, foot, vmin, vmax):
+    """One dial as TWO large panels — first half (in-sample) beside second
+    half (out-of-sample) — on ONE shared absolute green scale (green = strong
+    risk-adjusted return). A cell bright green on the left but dull on the
+    right looked good only because it was fitted to the past. An absolute
+    scale (not each panel's own range) means a genuinely strong cell is never
+    coloured red just for sitting low within a uniformly-good surface."""
     kw = dict(cellfs=12.5, titlefs=13.0, tickfs=11.0)
-    fig, ax = plt.subplots(1, 2, figsize=(8.2, 4.1), dpi=150)
+    fig, ax = plt.subplots(1, 2, figsize=(8.6, 3.5), dpi=150)
     fig.suptitle(suptitle, fontsize=13.5, fontweight="bold", y=1.02)
-    _heat(ax[0], test, xlabels, ylabels, "Out-of-sample return (unseen data)",
-          dep, "RdYlGn", lo, hi, star, **kw)
-    _heat(ax[1], gap, xlabels, ylabels,
-          "How much higher it looked in-sample", dep, "RdBu_r", -gmax, gmax, **kw)
+    _heat(ax[0], train, xlabels, ylabels, "First half (in-sample)",
+          dep, "RdYlGn", vmin, vmax, star, **kw)
+    _heat(ax[1], test, xlabels, ylabels, "Second half (out-of-sample)",
+          dep, "RdYlGn", vmin, vmax, star, **kw)
     for a in ax:
         a.set_xlabel(xlab, fontsize=11)
         a.set_ylabel(ylab, fontsize=11)
@@ -301,12 +301,18 @@ def threshold_split():
 
     c_train = _grid_vals(d["c_surface"], cfmt, floors, gates, "train")
     c_test = _grid_vals(d["c_surface"], cfmt, floors, gates, "test")
-    c_gap = c_train - c_test
     c_star = np.array([[bool(d["c_surface"].get(cfmt(fl, gt), {}).get("degenerate"))
                         for gt in gates] for fl in floors])
     g_train = _grid_vals(d["phase19_surface"], gfmt, offs, ons, "train")
     g_test = _grid_vals(d["phase19_surface"], gfmt, offs, ons, "test")
-    g_gap = g_train - g_test
+
+    # ONE shared absolute green scale for all four panels: green = strong
+    # Sharpe. Anchored at 0 (a genuinely weak reading) so a strong cell is
+    # never red merely for sitting low within a uniformly-good surface — the
+    # brake's deployed +1.41 reads correctly green, not red.
+    vmin = 0.0
+    vmax = float(np.nanmax([c_train, c_test, g_train, g_test]))
+    vmax = round(vmax + 0.05, 1)
 
     xg = [f"{g*100:.0f}%" for g in gates]
     yf = [f"{f*100:.1f}%" for f in floors]
@@ -319,20 +325,21 @@ def threshold_split():
         DATA / "ws1_threshold_hurdle.png",
         "Thematic entry hurdle — in-sample vs out-of-sample",
         yf, xg, "signal floor", "sleeve-gate threshold",
-        c_train, c_test, c_gap, c_dep, c_star,
-        "Left: return on unseen data (green = good). Right: how much higher the "
-        "cell looked on its design data (RED = fitted to the past). Deployed cell "
-        "outlined · * = degenerate (book mostly in cash). The dark high-gate cells "
-        "look best in-sample but give it back — that is why they are not chosen.")
+        c_train, c_test, c_dep, c_star,
+        "Green = strong risk-adjusted return, on one shared scale for both dials. "
+        "The dark high-gate cells are bright green in-sample (left) and fade out "
+        "of sample (right) — they looked good only on their design data, so they "
+        "are not chosen. Deployed cell outlined · * = degenerate (book mostly in "
+        "cash).", vmin, vmax)
     _dial_figure(
         DATA / "ws1_threshold_brake.png",
         "Market-breadth brake — in-sample vs out-of-sample",
         yo, xo, "de-risk (off) threshold", "re-engage (on) threshold",
-        g_train, g_test, g_gap, g_dep, None,
-        "Left: return on unseen data (green = good) — every trigger works. Right: "
-        "BLUE everywhere means each held up or improved out of sample (nothing "
-        "fitted to the past). Deployed cell outlined. The surface is robust, so "
-        "its small differences are noise.")
+        g_train, g_test, g_dep, None,
+        "Same green scale as above. Both halves are solid green — every trigger "
+        "is strong and holds up out of sample — so the surface is robust and the "
+        "small differences between cells are noise. Deployed cell outlined.",
+        vmin, vmax)
 
 
 def main():
