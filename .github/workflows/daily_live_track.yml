@@ -51,6 +51,39 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # ----- Freshness early warning (2026-07-03) -----
+      # The pipeline's hard guard aborts every build once breadth_csp1.json
+      # lags the run date by more than 5 weekdays — by which point the
+      # dashboard is already frozen (the 26 Jun - 1 Jul outage gave no
+      # notice at all). This step emails a warning from weekday-lag 4, one
+      # to two runs BEFORE the hard stop, naming the exact run that will
+      # fail and the local remediation. It never blocks the build: the
+      # script always exits 0 and the step is continue-on-error besides.
+      - name: Check breadth_csp1 freshness headroom
+        id: headroom
+        continue-on-error: true
+        run: python scripts/check_freshness_headroom.py
+
+      - name: Email freshness warning (warn-early, before the hard stop)
+        if: steps.headroom.outputs.warn == 'true'
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[WARN] Dashboard freshness — ${{ steps.headroom.outputs.summary }}'
+          # Ops alerts go to the operator only, NOT RECIPIENT_EMAIL — the
+          # factsheet distribution list should not receive plumbing email.
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            ${{ steps.headroom.outputs.detail }}
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
       - name: Run daily mark-to-market overlay
         run: python scripts/mark_to_market_live.py
 
@@ -67,3 +100,31 @@ jobs:
           git add data/live_track.json data/ docs/ || true
           git diff --cached --quiet || git commit -m "Daily live track refresh $(date -u +%Y-%m-%d)"
           git push origin main || echo "Nothing to push"
+
+      # ----- Failure alert (2026-07-03) -----
+      # Four consecutive scheduled failures (26 Jun - 1 Jul) went unseen
+      # for a week because nothing emailed. if: failure() fires when any
+      # earlier step failed, so a frozen dashboard is now loud.
+      - name: Email failure alert
+        if: failure()
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[FAIL] Daily live track did not publish — dashboard frozen at last as-of'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            The scheduled daily mark-to-market run failed. The deployed
+            dashboard stays at its last committed as-of until a run
+            succeeds.
+
+            If the log shows the breadth_csp1 freshness guard, the fix is
+            local: python scripts/refresh_all.py, then commit and push,
+            then re-run this workflow from the Actions tab.
+
+            Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

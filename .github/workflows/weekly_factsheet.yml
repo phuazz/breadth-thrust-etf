@@ -73,6 +73,35 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # ----- Freshness early warning (2026-07-03) -----
+      # Same tripwire as in daily_live_track.yml: emails a warning from
+      # weekday-lag 4 on breadth_csp1.json, before the pipeline's hard
+      # guard starts aborting builds at lag > 5. Never blocks the build.
+      - name: Check breadth_csp1 freshness headroom
+        id: headroom
+        continue-on-error: true
+        run: python scripts/check_freshness_headroom.py
+
+      - name: Email freshness warning (warn-early, before the hard stop)
+        if: steps.headroom.outputs.warn == 'true'
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[WARN] Dashboard freshness — ${{ steps.headroom.outputs.summary }}'
+          # Ops alerts go to the operator only, NOT RECIPIENT_EMAIL — the
+          # factsheet distribution list should not receive plumbing email.
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            ${{ steps.headroom.outputs.detail }}
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
       # ----- SOXX-specific refresh (Phase 26, 2026-05-31) -----
       # SOXX is the only Strategy A ETF that uses the iShares US
       # holdings endpoint (all others use iShares UK). The US endpoint
@@ -233,3 +262,31 @@ jobs:
           # (written by build_factsheet.py) so the workflow never has to
           # re-derive the date independently.
           attachments: ${{ steps.meta.outputs.dated_path }}
+
+      # ----- Failure alert (2026-07-03) -----
+      # The scheduled 26 Jun run failed and no factsheet went out that
+      # weekend; nothing emailed about the failure itself. if: failure()
+      # fires when any earlier step failed — including the email step.
+      - name: Email failure alert
+        if: failure()
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[FAIL] Weekly factsheet did not publish or send'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            The scheduled weekly factsheet run failed. The dashboard was
+            not refreshed and no factsheet email went to the distribution
+            list.
+
+            If the log shows the breadth_csp1 freshness guard, the fix is
+            local: python scripts/refresh_all.py, then commit and push,
+            then re-run this workflow from the Actions tab.
+
+            Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

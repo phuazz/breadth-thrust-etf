@@ -39,7 +39,9 @@ The deployed strategy is the **35/35/10/20 A:B:C:D blend** with two overlays:
 
 ### CI / weekly publish
 
-`.github/workflows/weekly_factsheet.yml` runs every Saturday 02:00 UTC: refresh strategy engines + blend + overlay, rebuild dashboard + factsheet PDF, commit refreshed data + docs to main, email factsheet via Gmail SMTP.
+`.github/workflows/weekly_factsheet.yml` runs every Friday 22:00 UTC, after the US close — including on US market holidays, publishing whatever the latest populated close is (a Friday-holiday factsheet dated Thursday is correct, not stale): refresh strategy engines + blend + overlay, rebuild dashboard + factsheet PDF, commit refreshed data + docs to main, email factsheet via Gmail SMTP. `.github/workflows/daily_live_track.yml` (Mon-Fri 21:30 UTC) extends the deployed blend through the latest daily close.
+
+**Ops alerting (2026-07-03)**: both workflows email the operator (GMAIL_USER, not the factsheet distribution list) on any failure, and send an early warning from weekday-lag 4 on `breadth_csp1.json` via `scripts/check_freshness_headroom.py` — the pipeline's hard guard aborts publishes once that lag exceeds 5, so the warning arrives one to two runs before the dashboard would freeze.
 
 The heavy constituent-roster refresh runs LOCALLY (per-ETF parquet caches are gitignored due to size). CI relies on committed breadth JSONs being current; if they go stale beyond 14 days, sleeves degrade gracefully (signal NaN → sleeve goes flat) with a visible stale-data banner.
 

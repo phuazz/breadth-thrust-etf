@@ -38,6 +38,15 @@ fell behind). Keep the checklist in sync with `.github/workflows/*.yml` and
   budget, so around every US holiday the guard trips one trading day earlier
   than a true market calendar would. That is deliberate fail-early
   behaviour, not a bug; mirror it when forecasting the guard.
+- Ops alerting (added 2026-07-03): both workflows email GMAIL_USER on any
+  failure (if: failure() step) and send a freshness warning from
+  weekday-lag 4 via scripts/check_freshness_headroom.py. When auditing,
+  a recent [WARN] email plus green runs is a consistent state, not a
+  contradiction.
+- Cadence rule (Zhenghao, 2026-07-03): the weekly factsheet runs every
+  Friday after the US close even on US market holidays, publishing the
+  latest populated close — a Friday-holiday factsheet dated Thursday is
+  correct, not stale.
 
 [TASK]
 Audit two things: (a) the DEPLOYED dashboard shows the latest datapoints it
