@@ -1,9 +1,11 @@
 """Allocator-facing charts for the plain-language summary (reproducible).
 
-Reads  data/ws1_ma_surface.json
+Reads  data/ws1_ma_surface.json, data/ws1_threshold_surface.json
 Writes data/ws1_blend_surface_simple.png    (summary finding 1)
        data/ws1_ma_surface_summary.png       (appendix A2)
        data/ws1_sum_scope.png                 (appendix A1)
+       data/ws1_threshold_hurdle.png          (appendix A4, dial 1)
+       data/ws1_threshold_brake.png           (appendix A4, dial 2)
 
 Design decision (2026-07-03): the shaded band represents the FLAT ZONE —
 the range of trend lengths whose full-window results are statistically
@@ -243,13 +245,13 @@ def _grid_vals(cells, keyfmt, rows, cols, field):
 
 
 def _heat(ax, mat, xlabels, ylabels, title, deployed_ij, cmap, vmin, vmax,
-          star=None, fmt="{:+.2f}"):
+          star=None, fmt="{:+.2f}", cellfs=10.0, titlefs=11.5, tickfs=9.5):
     cmap = plt.get_cmap(cmap).copy()
     cmap.set_bad("#f3f4f6")
     ax.imshow(np.ma.masked_invalid(mat), aspect="auto", cmap=cmap,
               vmin=vmin, vmax=vmax)
-    ax.set_xticks(range(len(xlabels)), xlabels, fontsize=8)
-    ax.set_yticks(range(len(ylabels)), ylabels, fontsize=8)
+    ax.set_xticks(range(len(xlabels)), xlabels, fontsize=tickfs)
+    ax.set_yticks(range(len(ylabels)), ylabels, fontsize=tickfs)
     ax.grid(False)
     for i in range(mat.shape[0]):
         for j in range(mat.shape[1]):
@@ -257,12 +259,37 @@ def _heat(ax, mat, xlabels, ylabels, title, deployed_ij, cmap, vmin, vmax,
                 continue
             s = "*" if star is not None and star[i, j] else ""
             ax.text(j, i, fmt.format(mat[i, j]) + s, ha="center", va="center",
-                    fontsize=7.2, color="black")
+                    fontsize=cellfs, color="black")
     if deployed_ij is not None:
         import matplotlib.patches as mp
         ax.add_patch(mp.Rectangle((deployed_ij[1] - 0.5, deployed_ij[0] - 0.5),
-                     1, 1, fill=False, edgecolor="#111111", lw=2.2))
-    ax.set_title(title, fontsize=9.8)
+                     1, 1, fill=False, edgecolor="#111111", lw=2.4))
+    ax.set_title(title, fontsize=titlefs)
+
+
+def _dial_figure(out_png, suptitle, ylabels, xlabels, ylab, xlab,
+                 train, test, gap, dep, star, foot):
+    """One dial as TWO large, comfortably-readable panels: out-of-sample
+    return (the honest test), and the overfitting map (how much higher the
+    cell looked in-sample). Two panels keep cells ~60px wide at full page
+    width; the in-sample level is implied (in = out + gap)."""
+    lo = np.nanmin(test); hi = np.nanmax(test)
+    gmax = max(np.nanmax(np.abs(gap)), 0.05)
+    kw = dict(cellfs=12.5, titlefs=13.0, tickfs=11.0)
+    fig, ax = plt.subplots(1, 2, figsize=(8.2, 4.1), dpi=150)
+    fig.suptitle(suptitle, fontsize=13.5, fontweight="bold", y=1.02)
+    _heat(ax[0], test, xlabels, ylabels, "Out-of-sample return (unseen data)",
+          dep, "RdYlGn", lo, hi, star, **kw)
+    _heat(ax[1], gap, xlabels, ylabels,
+          "How much higher it looked in-sample", dep, "RdBu_r", -gmax, gmax, **kw)
+    for a in ax:
+        a.set_xlabel(xlab, fontsize=11)
+        a.set_ylabel(ylab, fontsize=11)
+    fig.text(0.5, -0.03, foot, ha="center", fontsize=10.2, color="#444444")
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    fig.savefig(out_png, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote", out_png.relative_to(ROOT))
 
 
 def threshold_split():
@@ -281,10 +308,6 @@ def threshold_split():
     g_test = _grid_vals(d["phase19_surface"], gfmt, offs, ons, "test")
     g_gap = g_train - g_test
 
-    c_lo = np.nanmin([c_train, c_test]); c_hi = np.nanmax([c_train, c_test])
-    g_lo = np.nanmin([g_train, g_test]); g_hi = np.nanmax([g_train, g_test])
-    c_gmax = np.nanmax(np.abs(c_gap)); g_gmax = max(np.nanmax(np.abs(g_gap)), 0.05)
-
     xg = [f"{g*100:.0f}%" for g in gates]
     yf = [f"{f*100:.1f}%" for f in floors]
     xo = [f"{o*100:.0f}%" for o in ons]
@@ -292,42 +315,24 @@ def threshold_split():
     c_dep = (floors.index(0.05), gates.index(0.30))
     g_dep = (offs.index(0.20), ons.index(0.50))
 
-    fig, axes = plt.subplots(2, 3, figsize=(12.6, 6.8), dpi=150)
-    fig.suptitle("The two safety dials — in-sample vs out-of-sample, and where the "
-                 "shine was fitted to the past",
-                 fontsize=12.5, fontweight="bold")
-    # Row 1 — Sleeve C thematic hurdle
-    _heat(axes[0, 0], c_train, xg, yf, "Thematic hurdle — first half (in-sample)",
-          c_dep, "RdYlGn", c_lo, c_hi, c_star)
-    _heat(axes[0, 1], c_test, xg, yf, "Second half (out-of-sample, same scale)",
-          c_dep, "RdYlGn", c_lo, c_hi, c_star)
-    _heat(axes[0, 2], c_gap, xg, yf, "In-sample − out-of-sample",
-          c_dep, "RdBu_r", -c_gmax, c_gmax)
-    axes[0, 0].set_ylabel("signal floor", fontsize=8.5)
-    for a in axes[0]:
-        a.set_xlabel("sleeve-gate threshold", fontsize=8.5)
-    # Row 2 — Phase 19 market-breadth brake
-    _heat(axes[1, 0], g_train, xo, yo, "Market-breadth brake — first half (in-sample)",
-          g_dep, "RdYlGn", g_lo, g_hi)
-    _heat(axes[1, 1], g_test, xo, yo, "Second half (out-of-sample, same scale)",
-          g_dep, "RdYlGn", g_lo, g_hi)
-    _heat(axes[1, 2], g_gap, xo, yo, "In-sample − out-of-sample",
-          g_dep, "RdBu_r", -g_gmax, g_gmax)
-    axes[1, 0].set_ylabel("de-risk (off) threshold", fontsize=8.5)
-    for a in axes[1]:
-        a.set_xlabel("re-engage (on) threshold", fontsize=8.5)
-    fig.text(0.5, 0.005, "Deployed setting outlined · * = degenerate (book mostly "
-             "in cash). Right column = in-sample minus out-of-sample: RED = looked "
-             "better on its design data than on unseen data (fitted to the past); "
-             "BLUE = held up or improved out of sample. The thematic hurdle has a "
-             "red overfit ridge to avoid; the brake is blue throughout — robust, "
-             "so its small differences are noise.",
-             ha="center", fontsize=9.0, color="#444444")
-    fig.tight_layout(rect=(0, 0.03, 1, 0.95))
-    out = DATA / "ws1_threshold_summary.png"
-    fig.savefig(out, bbox_inches="tight")
-    plt.close(fig)
-    print("wrote", out.relative_to(ROOT))
+    _dial_figure(
+        DATA / "ws1_threshold_hurdle.png",
+        "Thematic entry hurdle — in-sample vs out-of-sample",
+        yf, xg, "signal floor", "sleeve-gate threshold",
+        c_train, c_test, c_gap, c_dep, c_star,
+        "Left: return on unseen data (green = good). Right: how much higher the "
+        "cell looked on its design data (RED = fitted to the past). Deployed cell "
+        "outlined · * = degenerate (book mostly in cash). The dark high-gate cells "
+        "look best in-sample but give it back — that is why they are not chosen.")
+    _dial_figure(
+        DATA / "ws1_threshold_brake.png",
+        "Market-breadth brake — in-sample vs out-of-sample",
+        yo, xo, "de-risk (off) threshold", "re-engage (on) threshold",
+        g_train, g_test, g_gap, g_dep, None,
+        "Left: return on unseen data (green = good) — every trigger works. Right: "
+        "BLUE everywhere means each held up or improved out of sample (nothing "
+        "fitted to the past). Deployed cell outlined. The surface is robust, so "
+        "its small differences are noise.")
 
 
 def main():
