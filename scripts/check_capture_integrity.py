@@ -48,14 +48,19 @@ DATA_DIR = ROOT / "data"
 # moves are deliberately not bounded here — single names can gap.
 RETURN_BOUND = 0.15
 
-# (label, file, dates JSON path, equity JSON path)
+# (label, file, dates JSON path, equity JSON path, anchor-date JSON path)
+# anchor path is None for the weekly-cadence sleeves (B/C), which must always
+# be multi-point; it is set for the forward-only live track, which may
+# legitimately be short when its backtest anchor is already current.
 TARGETS = {
     "b": ("Strategy B (asset-class)", "asset_class_rotation.json",
-          ("headline", "headline_equity_dates"), ("headline", "headline_equity")),
+          ("headline", "headline_equity_dates"), ("headline", "headline_equity"),
+          None),
     "c": ("Strategy C (thematic)", "thematic_rotation.json",
-          ("headline", "headline_equity_dates"), ("headline", "headline_equity")),
+          ("headline", "headline_equity_dates"), ("headline", "headline_equity"),
+          None),
     "live": ("Live track", "live_track.json",
-             ("live_dates",), ("live_equity",)),
+             ("live_dates",), ("live_equity",), ("anchor_date",)),
 }
 TARGET_SETS = {"all": ("b", "c", "live"), "live": ("live",)}
 
@@ -70,8 +75,21 @@ def _dig(blob: dict, path: tuple[str, ...]) -> list:
 def evaluate_target(
     label: str, path: Path, dates_path: tuple[str, ...],
     equity_path: tuple[str, ...], expected: date,
+    anchor_path: tuple[str, ...] | None = None,
 ) -> dict:
-    """Verdict dict for one series: {label, status, evidence}."""
+    """Verdict dict for one series: {label, status, evidence}.
+
+    ``anchor_path`` (live track only) points at the forward-only series'
+    backtest anchor date. A forward-only extension legitimately has 0-1
+    points when the anchor already sits on the latest completed session —
+    nothing to extend. This happens on a US-holiday Friday when only the
+    Europe sleeve traded (07-03), or after a refresh that brings the
+    backtest fully current. In that case freshness is judged on the deployed
+    series' effective end (the later of the anchor date and any live point)
+    rather than failing on the short length. Series WITHOUT an anchor path
+    (weekly-cadence B/C) must always be multi-point; a short one there is
+    genuine capture corruption -> fail.
+    """
     try:
         blob = json.loads(path.read_text(encoding="utf-8"))
         dates = _dig(blob, dates_path)
@@ -79,10 +97,34 @@ def evaluate_target(
     except Exception as exc:
         return {"label": label, "status": "fail",
                 "evidence": f"unreadable ({path.name}): {exc}"}
-    if len(dates) < 2 or len(dates) != len(equity):
+    if len(dates) != len(equity):
         return {"label": label, "status": "fail",
                 "evidence": f"malformed series: {len(dates)} dates, "
                             f"{len(equity)} equity points"}
+    if len(dates) < 2:
+        # Short series: only valid for a forward-only extension whose anchor
+        # is itself current. The tail-return check is skipped (needs 2 points);
+        # the anchor equity came from the already-validated backtest.
+        if anchor_path is None:
+            return {"label": label, "status": "fail",
+                    "evidence": f"malformed series: {len(dates)} dates, "
+                                f"{len(equity)} equity points"}
+        try:
+            anchor_date = _dig(blob, anchor_path)
+            # ISO dates sort chronologically -> max() is the latest bar the
+            # deployed series actually reaches (anchor, or the lone live point).
+            effective_end = date.fromisoformat(max([anchor_date, *dates]))
+        except Exception as exc:
+            return {"label": label, "status": "fail",
+                    "evidence": f"short series with unusable anchor "
+                                f"({'/'.join(anchor_path)}): {exc}"}
+        lag = sessions_behind(effective_end, expected)
+        status = "fail" if lag >= 2 else "warn" if lag == 1 else "ok"
+        return {"label": label, "status": status,
+                "evidence": f"{len(dates)} live point(s); deployed series ends "
+                            f"{effective_end.isoformat()} (anchor {anchor_date}), "
+                            f"{lag} session(s) behind expected "
+                            f"{expected.isoformat()}"}
     if dates[-1] <= dates[-2]:
         return {"label": label, "status": "fail",
                 "evidence": f"non-increasing tail dates: {dates[-2]} -> {dates[-1]}"}
@@ -110,9 +152,10 @@ def evaluate_target(
 def evaluate_targets(keys: tuple[str, ...], expected: date) -> list[dict]:
     results = []
     for key in keys:
-        label, fname, dpath, epath = TARGETS[key]
+        label, fname, dpath, epath, apath = TARGETS[key]
         results.append(
-            evaluate_target(label, DATA_DIR / fname, dpath, epath, expected)
+            evaluate_target(label, DATA_DIR / fname, dpath, epath, expected,
+                            anchor_path=apath)
         )
     return results
 
