@@ -860,9 +860,14 @@ def build_hero_strip(deployed_series, full_stats, page_w, styles,
 
 def build_returns_table(deployed_series, spy_series, page_w, styles):
     last_date = deployed_series.index[-1]
+    # Phase 30 — these two rows compute TRAILING windows (last close minus 7
+    # days / minus 1 month), so they were mislabelled "Week/Month to date"
+    # (a to-date figure would anchor to Monday / the 1st of the month — a 2-day
+    # number as of 02 Jul). Renamed to match the computation and the page-1
+    # "1-WEEK / 1-MONTH" hero tiles, which use the identical anchors.
     windows = [
-        ("Week to date",   last_date - pd.Timedelta(days=7)),
-        ("Month to date",  last_date - pd.DateOffset(months=1)),
+        ("1 week",         last_date - pd.Timedelta(days=7)),
+        ("1 month",        last_date - pd.DateOffset(months=1)),
         ("3 months",       last_date - pd.DateOffset(months=3)),
         ("6 months",       last_date - pd.DateOffset(months=6)),
         ("Year to date",   pd.Timestamp(last_date.year, 1, 1)),
@@ -1145,7 +1150,7 @@ def build_holdings_table(sleeves, p22_active, page_w, styles):
     return t
 
 
-def build_trades_table(sleeves, page_w, styles):
+def build_trades_table(sleeves, page_w, styles, p22_active, as_of=None):
     """Phase 28.7b — filter to THIS WEEK's rebal activity only.
 
     Prior version included every sleeve's most recent rebalance regardless
@@ -1154,11 +1159,34 @@ def build_trades_table(sleeves, page_w, styles):
     week' was misleading. Now: only rows from rebalances within the past
     7 calendar days are included. The DATE column is dropped because all
     rows are in the same week and the header carries the date stamp.
+
+    Phase 30 — PRIOR / NEW / Δ are reported as % of TOTAL portfolio NAV
+    (within-sleeve weight × sleeve weight), matching the CURRENT TARGET
+    PORTFOLIO table. Previously these were within-sleeve percentages, which
+    made trade sizes non-comparable across sleeves and misleading for
+    execution: a C ``ENTER 20%`` (2.0% of NAV) looked larger than an A
+    ``EXIT 20%`` (7.0% of NAV). The RESIZE display threshold stays on the
+    within-sleeve delta so the set of displayed rows is unchanged; only the
+    denominator of the printed figures changes. Sleeve B is 25% while the
+    EEM tilt is on (``p22_active``), 35% otherwise — mirrors the holdings
+    table and asset-class rollup so all three tables agree.
     """
     from datetime import date as _date, timedelta as _td
-    cutoff = (_date.today() - _td(days=7)).isoformat()
+    # Phase 30 — anchor the 7-day window to the factsheet's DATA as-of date
+    # (deployed series last close), NOT wall-clock today(). Keying off today()
+    # made "this week" depend on which day the build ran: regenerating the same
+    # data one day later silently dropped the week's rebalance rows (the
+    # 2026-06-26 rebal vanished when rebuilt on 2026-07-04). The as-of anchor is
+    # reproducible and makes the filter deterministic w.r.t. the data.
+    if as_of is not None:
+        anchor = as_of.date() if hasattr(as_of, "date") else as_of
+    else:
+        anchor = _date.today()
+    cutoff = (anchor - _td(days=7)).isoformat()
 
     sleeve_letter = {"a": "A", "b": "B", "c": "C", "d": "D"}
+    sleeve_wt = {"a": 0.35, "b": 0.25 if p22_active else 0.35,
+                  "c": 0.10, "d": 0.20}
     rows = []
     week_rebal_dates: set[str] = set()
     most_recent_rebal: str | None = None
@@ -1174,19 +1202,21 @@ def build_trades_table(sleeves, page_w, styles):
         if rebal_date < cutoff:
             continue  # this rebal predates the past-7-day window
         week_rebal_dates.add(rebal_date)
+        sw = sleeve_wt[key]  # within-sleeve weight -> effective NAV weight
         prev_h = {h["etf"]: h["weight"] for h in trades[-2]["holdings"]}
         curr_h = {h["etf"]: h["weight"] for h in trades[-1]["holdings"]}
         for etf in curr_h:
             if etf not in prev_h:
-                rows.append((sleeve, "ENTER", etf, None, curr_h[etf]))
+                rows.append((sleeve, "ENTER", etf, None, curr_h[etf] * sw))
         for etf in prev_h:
             if etf not in curr_h:
-                rows.append((sleeve, "EXIT", etf, prev_h[etf], None))
+                rows.append((sleeve, "EXIT", etf, prev_h[etf] * sw, None))
         for etf in curr_h:
             if etf in prev_h:
-                d = curr_h[etf] - prev_h[etf]
+                d = curr_h[etf] - prev_h[etf]  # threshold on within-sleeve Δ
                 if abs(d) > 0.01:
-                    rows.append((sleeve, "RESIZE", etf, prev_h[etf], curr_h[etf]))
+                    rows.append((sleeve, "RESIZE", etf,
+                                  prev_h[etf] * sw, curr_h[etf] * sw))
 
     if not rows:
         msg = ("<i>No new rebalance activity this week — strategy stable. "
@@ -1682,9 +1712,11 @@ def build(out_path: Path):
 
     activity_left = section_header(
         "REBALANCE THIS WEEK",
-        "Position changes from rebalances in the past 7 days. Trades from earlier weeks should already have been executed.",
+        "Position changes from rebalances in the past 7 days, as % of total portfolio NAV. Trades from earlier weeks should already have been executed.",
         styles)
-    activity_left.append(build_trades_table(sleeves, body_w / 2 - 6, styles))
+    activity_left.append(build_trades_table(sleeves, body_w / 2 - 6, styles,
+                                              p22_active,
+                                              as_of=deployed_series.index[-1]))
     watchlist_right = section_header(
         "WATCHLIST — APPROACHING THRESHOLDS",
         "Signal levels relative to the next regime change",
