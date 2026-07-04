@@ -1,9 +1,9 @@
 {
-  "asof_iso": "2026-07-02",
-  "asof_pretty": "02 July 2026",
+  "asof_iso": "2026-07-03",
+  "asof_pretty": "03 July 2026",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
-  "computed_at_utc": "2026-07-04 01:06 UTC",
+  "computed_at_utc": "2026-07-04 05:09 UTC",
   "latest_pdf": "factsheet_latest.pdf",
-  "dated_pdf": "factsheet_2026-07-02.pdf",
-  "dated_pdf_path": "docs/factsheet_2026-07-02.pdf"
+  "dated_pdf": "factsheet_2026-07-03.pdf",
+  "dated_pdf_path": "docs/factsheet_2026-07-03.pdf"
 }
