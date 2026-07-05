@@ -30,6 +30,7 @@ from edgar_nport import (  # noqa: E402
     _strip_acc,
     fetch_holdings_from_filing,
     find_filing_for_series,
+    list_series_nport_filings,
     resolve_tickers,
 )
 
@@ -84,51 +85,63 @@ def _make_response(status_code: int, text: str = "", json_payload=None):
     return r
 
 
-SUBMISSIONS_PAYLOAD = {
-    "filings": {
-        "recent": {
-            "form":             ["NPORT-P", "NPORT-P", "10-K"],
-            "filingDate":       ["2026-05-28", "2026-04-23", "2026-03-15"],
-            "accessionNumber":  ["0001-26-1", "0001-26-2", "0001-26-3"],
-            "primaryDocument":  ["primary_doc.xml", "primary_doc.xml",
-                                  "10k.htm"],
-        }
-    }
-}
+# browse-edgar series view (atom): one <entry> per filing, most recent
+# first, each carrying a <filing-href> whose 18-digit folder is the
+# accession without dashes.
+BROWSE_ATOM = (
+    '<?xml version="1.0" encoding="UTF-8"?><feed>'
+    '<entry><filing-type>NPORT-P</filing-type>'
+    '<filing-date>2026-05-28</filing-date>'
+    '<filing-href>https://www.sec.gov/Archives/edgar/data/1100663/'
+    '000207169126012504/0002071691-26-012504-index.htm</filing-href>'
+    '</entry>'
+    '<entry><filing-type>NPORT-P</filing-type>'
+    '<filing-date>2026-02-25</filing-date>'
+    '<filing-href>https://www.sec.gov/Archives/edgar/data/1100663/'
+    '000207169126004253/0002071691-26-004253-index.htm</filing-href>'
+    '</entry>'
+    '</feed>'
+)
+
+
+def _series_xml(series_id: str, name: str, rep_end: str = "2026-03-31") -> str:
+    """Minimal N-PORT-P primary_doc.xml with the tags find_filing reads."""
+    return (
+        '<?xml version="1.0"?><edgarSubmission>'
+        '<headerData><seriesClassInfo>'
+        f'<seriesId>{series_id}</seriesId>'
+        '</seriesClassInfo></headerData>'
+        '<formData><genInfo>'
+        f'<seriesName>{name}</seriesName>'
+        f'<repPdEnd>{rep_end}</repPdEnd>'
+        '</genInfo></formData></edgarSubmission>'
+    )
+
+
+def test_list_series_nport_filings_parses_accession_and_date():
+    """The series view returns one <entry> per filing; the accession is
+    recovered from the <filing-href> folder (18-digit no-dash) and
+    re-hyphenated, in most-recent-first order."""
+    with patch("edgar_nport.requests.get") as mock_get:
+        mock_get.return_value = _make_response(200, text=BROWSE_ATOM)
+        filings = list_series_nport_filings("S000004354")
+    assert len(filings) == 2
+    assert filings[0]["accession_nodash"] == "000207169126012504"
+    assert filings[0]["accession"] == "0002071691-26-012504"
+    assert filings[0]["filing_date"] == "2026-05-28"
+    assert filings[1]["accession"] == "0002071691-26-004253"
 
 
 def test_find_filing_for_series_matches_target_series():
-    """find_filing_for_series should pick the FIRST filing whose XML
-    contains <seriesId>{target}</seriesId>, in submission order
-    (most recent first)."""
+    """find_filing_for_series walks the SERIES-scoped list most-recent-first
+    and returns the newest filing whose primary_doc.xml re-confirms the
+    seriesId."""
     target = "S000004354"
-    xml_for_first = (
-        '<?xml version="1.0"?><edgarSubmission>'
-        '<headerData><seriesClassInfo>'
-        f'<seriesId>S000000000</seriesId>'  # wrong series
-        '</seriesClassInfo></headerData>'
-        '<formData><genInfo>'
-        '<seriesName>Wrong Fund</seriesName>'
-        '<repPdEnd>2026-03-31</repPdEnd>'
-        '</genInfo></formData></edgarSubmission>'
-    )
-    xml_for_second = (
-        '<?xml version="1.0"?><edgarSubmission>'
-        '<headerData><seriesClassInfo>'
-        f'<seriesId>{target}</seriesId>'  # MATCH
-        '</seriesClassInfo></headerData>'
-        '<formData><genInfo>'
-        '<seriesName>iShares Semiconductor ETF</seriesName>'
-        '<repPdEnd>2026-03-31</repPdEnd>'
-        '</genInfo></formData></edgarSubmission>'
-    )
-
     with patch("edgar_nport.requests.get") as mock_get:
-        # Submissions JSON then two XML fetches.
         mock_get.side_effect = [
-            _make_response(200, json_payload=SUBMISSIONS_PAYLOAD),
-            _make_response(200, text=xml_for_first),
-            _make_response(200, text=xml_for_second),
+            _make_response(200, text=BROWSE_ATOM),                 # series list
+            _make_response(200, text=_series_xml(
+                target, "iShares Semiconductor ETF")),             # newest XML
         ]
         filing = find_filing_for_series("1100663", target)
 
@@ -136,26 +149,47 @@ def test_find_filing_for_series_matches_target_series():
     assert filing.series_id == target
     assert filing.series_name == "iShares Semiconductor ETF"
     assert filing.report_period_end == "2026-03-31"
-    # CIK must be zero-padded in the URL even though the input was not.
+    assert filing.filing_date == "2026-05-28"
+    assert filing.accession_number == "0002071691-26-012504"   # newest entry
     assert "1100663" in filing.primary_doc_url
+    assert "000207169126012504" in filing.primary_doc_url
+
+
+def test_find_filing_for_series_skips_xml_that_fails_reverification():
+    """Belt-and-braces: if the newest filing's XML does not confirm the
+    target seriesId, fall through to the next candidate."""
+    target = "S000004354"
+    with patch("edgar_nport.requests.get") as mock_get:
+        mock_get.side_effect = [
+            _make_response(200, text=BROWSE_ATOM),
+            _make_response(200, text=_series_xml("S000000000", "Wrong Fund")),
+            _make_response(200, text=_series_xml(target, "iShares Semiconductor ETF")),
+        ]
+        filing = find_filing_for_series("1100663", target)
+    assert filing is not None
+    assert filing.accession_number == "0002071691-26-004253"   # second entry
 
 
 def test_find_filing_for_series_returns_none_when_no_match():
-    """When no recent filing matches the target series, return None."""
+    """When no series-scoped filing's XML confirms the target series,
+    return None."""
     target = "S999999999"
-    xml = (
-        '<edgarSubmission><headerData><seriesClassInfo>'
-        '<seriesId>S000000000</seriesId>'
-        '</seriesClassInfo></headerData></edgarSubmission>'
-    )
     with patch("edgar_nport.requests.get") as mock_get:
-        # Submissions returns 2 NPORT-P filings; both XMLs miss the series.
         mock_get.side_effect = [
-            _make_response(200, json_payload=SUBMISSIONS_PAYLOAD),
-            _make_response(200, text=xml),
-            _make_response(200, text=xml),
+            _make_response(200, text=BROWSE_ATOM),
+            _make_response(200, text=_series_xml("S000000000", "Other")),
+            _make_response(200, text=_series_xml("S000000000", "Other")),
         ]
         filing = find_filing_for_series("1100663", target)
+    assert filing is None
+
+
+def test_find_filing_for_series_returns_none_when_series_view_empty():
+    """No filings for the series (empty atom feed) -> None."""
+    with patch("edgar_nport.requests.get") as mock_get:
+        mock_get.return_value = _make_response(
+            200, text='<?xml version="1.0"?><feed></feed>')
+        filing = find_filing_for_series("1100663", "S000004354")
     assert filing is None
 
 

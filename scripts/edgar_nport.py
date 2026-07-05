@@ -74,15 +74,28 @@ EDGAR_SUBMISSIONS_TEMPLATE = (
 EDGAR_FILING_TEMPLATE = (
     "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/primary_doc.xml"
 )
+# Series-scoped filing view. browse-edgar accepts a fund seriesId (S...) in
+# the CIK parameter and returns ONLY that series' filings. We use this rather
+# than scanning the sponsor's CIK-wide submissions feed: iShares Trust
+# (CIK 1100663) files >1400 N-PORT-P/yr across ~400 series, so any one
+# series' most-recent filing is buried hundreds deep in the CIK-wide feed —
+# which is exactly why the old scan silently returned None for SOXX.
+BROWSE_EDGAR_SERIES_TEMPLATE = (
+    "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany"
+    "&CIK={series_id}&type=NPORT-P&dateb=&owner=include&count={count}"
+    "&output=atom"
+)
 
 # Throttle: 0.12 s between SEC requests = 8.3 req/s, under the 10 req/s cap.
 SEC_THROTTLE_SECONDS = 0.12
 
-# How many recent N-PORT-P filings to scan before giving up. iShares
-# Trust files several hundred per quarter (one per series), so the
-# target series usually appears within the first ~100 filings of any
-# given filing date. Cap at 200 to bound runtime.
-MAX_FILINGS_TO_SCAN = 200
+# Upper safety bound on how many SERIES-scoped N-PORT-P filings to
+# fetch+verify before giving up. The series view is already narrow (one
+# fund's own filings, ~4/yr), so the newest candidate almost always matches
+# on the first pass; this only bounds the belt-and-braces re-verification
+# loop. (Before the series-scoped lookup this was a cap on the CIK-wide
+# scan, where 200 was too small for a mega-filer and SOXX was never found.)
+MAX_FILINGS_TO_SCAN = 40
 
 # OpenFIGI free tier limits (no API key):
 #   - 10 mappings per request (vs 100 with a free-registered API key)
@@ -182,27 +195,65 @@ def list_recent_nport_filings(cik: str | int) -> list[dict]:
     return out
 
 
+def list_series_nport_filings(series_id: str, count: int = 40) -> list[dict]:
+    """Return recent N-PORT-P filings for a SINGLE fund series, most recent
+    first, as dicts with keys ``accession_nodash``, ``accession``,
+    ``filing_date``.
+
+    Uses EDGAR's browse-edgar series view (BROWSE_EDGAR_SERIES_TEMPLATE),
+    which accepts the seriesId in its CIK parameter and returns only that
+    series' filings. The accession is recovered from each atom entry's
+    ``<filing-href>`` folder (the 18-digit no-dash accession).
+    """
+    url = BROWSE_EDGAR_SERIES_TEMPLATE.format(series_id=series_id, count=count)
+    r = requests.get(url, headers={"User-Agent": SEC_USER_AGENT}, timeout=30)
+    r.raise_for_status()
+    out: list[dict] = []
+    for entry in re.findall(r"<entry>(.*?)</entry>", r.text, re.DOTALL):
+        href = re.search(r"<filing-href>([^<]+)</filing-href>", entry)
+        if not href:
+            continue
+        m = re.search(r"/data/\d+/(\d{18})/", href.group(1))
+        if not m:
+            continue
+        nodash = m.group(1)
+        fdate = re.search(r"<filing-date>([^<]+)</filing-date>", entry)
+        out.append({
+            "accession_nodash": nodash,
+            "accession": f"{nodash[:10]}-{nodash[10:12]}-{nodash[12:]}",
+            "filing_date": fdate.group(1) if fdate else None,
+        })
+    return out
+
+
 def find_filing_for_series(
     cik: str | int,
     series_id: str,
     max_scan: int = MAX_FILINGS_TO_SCAN,
 ) -> EdgarFiling | None:
-    """Scan recent N-PORT-P filings under ``cik`` and return the most
-    recent one whose ``<seriesId>`` matches ``series_id``.
+    """Return the most recent N-PORT-P filing for ``series_id`` (filed under
+    sponsor ``cik``), or None if none is found / verifiable.
 
-    Returns None if no match within ``max_scan`` filings. Throttles to
+    Filings are looked up SERIES-scoped via list_series_nport_filings, so
+    this is correct even for a mega-filer whose CIK-wide feed would bury the
+    series — the bug that left SOXX permanently on carry-forward. Each
+    candidate's primary_doc.xml is fetched most-recent-first and its
+    ``<seriesId>`` re-verified before returning: the series view is
+    authoritative, the XML check is belt-and-braces. Throttles to
     ``SEC_THROTTLE_SECONDS`` between requests to respect SEC fair-use.
     """
     cik_padded = _pad_cik(cik)
-    filings = list_recent_nport_filings(cik)
+    try:
+        filings = list_series_nport_filings(series_id)
+    except requests.RequestException:
+        return None
     if not filings:
         return None
     for i, f in enumerate(filings[:max_scan]):
         if i > 0:
             time.sleep(SEC_THROTTLE_SECONDS)
-        acc = f["accessionNumber"]
         url = EDGAR_FILING_TEMPLATE.format(
-            cik=int(cik_padded), acc_nodash=_strip_acc(acc),
+            cik=int(cik_padded), acc_nodash=f["accession_nodash"],
         )
         try:
             r = requests.get(url, headers=SEC_HEADERS, timeout=30)
@@ -211,16 +262,17 @@ def find_filing_for_series(
         if r.status_code != 200:
             continue
         body = r.text
-        # Fast path: substring check before regex
+        # Belt-and-braces: confirm the XML really is this series.
         if f"<seriesId>{series_id}</seriesId>" not in body:
             continue
         sname = re.search(r"<seriesName>([^<]+)</seriesName>", body)
         rep_end = re.search(r"<repPdEnd>([^<]+)</repPdEnd>", body)
         return EdgarFiling(
             cik=cik_padded,
-            accession_number=acc,
-            filing_date=f["filingDate"],
-            report_period_end=rep_end.group(1) if rep_end else f["filingDate"],
+            accession_number=f["accession"],
+            filing_date=f["filing_date"],
+            report_period_end=(rep_end.group(1) if rep_end
+                                else f["filing_date"]),
             series_id=series_id,
             series_name=(sname.group(1).replace("&amp;", "&")
                           if sname else f"series-{series_id}"),
