@@ -193,6 +193,7 @@ def _project_daily_equity(
     anchor_equity: float,
     prices: pd.DataFrame,
     anchor_ts: pd.Timestamp,
+    session_cap: pd.Timestamp | None = None,
 ) -> tuple[list[str], list[float]]:
     """Compute weighted buy-and-hold NAV from anchor_ts forward.
 
@@ -200,6 +201,13 @@ def _project_daily_equity(
     anchor_ts. Holdings without prices are treated as flat (0% return)
     — their weight contributes 1.0x to the factor unchanged. Cash
     residual (1 - sum(weights)) is also treated as flat.
+
+    ``session_cap`` (the last completed NYSE session) bounds the output:
+    no point is emitted for a price date after it. This keeps the deployed
+    series USD-NYSE-anchored — on a US-holiday Friday when only the Europe
+    sleeve traded, yfinance supplies that later bar but the product must
+    not stamp its as-of on a day with no US close. Any caller that extends
+    the deployed series MUST pass it (a normal weekday cap is a no-op).
     """
     baselines: dict[str, float] = {}
     for etf in weights:
@@ -214,6 +222,8 @@ def _project_daily_equity(
     cash_wt = max(0.0, 1.0 - sum(weights.values()))
 
     post_dates = prices.index[prices.index > anchor_ts]
+    if session_cap is not None:
+        post_dates = post_dates[post_dates <= session_cap]
     dates_out: list[str] = []
     equity_out: list[float] = []
     for d in post_dates:
@@ -366,6 +376,22 @@ def main() -> int:
               file=sys.stderr)
         return 1
 
+    # --- NYSE anchor cap for the deployed series' as-of.
+    # This is a USD-NYSE-anchored product: the deployed NAV must not carry
+    # a date past the last completed NYSE session. On a US-holiday Friday
+    # only the Europe sleeve trades, so yfinance supplies e.g. a 2026-07-03
+    # bar while the last US close was 07-02; without this cap the factsheet
+    # dates to 07-03 (against the cadence rule) and the deployed-site
+    # sentinel false-alarms. On a normal weekday the last session IS today's
+    # close, so the cap drops nothing.
+    from nyse_sessions import last_completed_session  # scripts/ is on sys.path
+    session_cap = pd.Timestamp(last_completed_session(datetime.now(timezone.utc)))
+    late = [d.strftime("%Y-%m-%d") for d in prices.index[prices.index > session_cap]]
+    if late:
+        print(f"\nNYSE anchor cap: last completed session {session_cap.date()}; "
+              f"dropping {len(late)} later price row(s) {late} from the deployed "
+              f"extension (e.g. Europe-only holiday bar).")
+
     # --- Deployed-blend projection
     anchor_ts = pd.Timestamp(anchor_date)
     if anchor_ts not in prices.index:
@@ -380,7 +406,8 @@ def main() -> int:
         anchor_ts = actual_anchor
 
     daily_dates, daily_equity = _project_daily_equity(
-        deployed_weights, anchor_equity, prices, anchor_ts)
+        deployed_weights, anchor_equity, prices, anchor_ts,
+        session_cap=session_cap)
     if daily_dates:
         print(f"\nDeployed-blend extension ({len(daily_dates)} point(s)):")
         for d, e in zip(daily_dates, daily_equity):
@@ -400,7 +427,8 @@ def main() -> int:
                 continue
             s_anchor_ts = valid.max()
         s_dates, s_equity = _project_daily_equity(
-            sa["weights"], sa["anchor_equity"], prices, s_anchor_ts)
+            sa["weights"], sa["anchor_equity"], prices, s_anchor_ts,
+            session_cap=session_cap)
         sleeve_extensions[sa["ms_key"]] = {
             "anchor_date": sa["anchor_date"],
             "anchor_equity": round(sa["anchor_equity"], 6),

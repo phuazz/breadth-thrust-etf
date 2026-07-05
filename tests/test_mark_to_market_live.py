@@ -13,10 +13,12 @@ GitHub Actions daily workflow on every weekday.
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from scripts.mark_to_market_live import (
     _build_effective_weights,
+    _project_daily_equity,
     _resolve_yf_symbol,
 )
 
@@ -201,3 +203,72 @@ def test_weights_partial_sleeve_fill_creates_shy_residual():
     assert w["SPY"] == pytest.approx(0.35 * 0.3)
     assert w["SHY"] == pytest.approx(0.35 * 0.7)
     assert sum(w.values()) == pytest.approx(1.0)
+
+
+# ---------------------------------------------------------------------------
+# Daily-equity projection + NYSE anchor cap
+# ---------------------------------------------------------------------------
+
+def _prices(dates: list[str], values: list[float]) -> pd.DataFrame:
+    """One-column ('SPY') USD price frame indexed by date, for the
+    projection tests (no yfinance)."""
+    idx = pd.to_datetime(dates)
+    return pd.DataFrame({"SPY": values}, index=idx).sort_index()
+
+
+def test_projection_emits_every_post_anchor_date_without_cap():
+    """With no session_cap, the projection extends to every price date
+    strictly after the anchor. SPY-only at weight 1.0 -> equity tracks the
+    price ratio exactly."""
+    prices = _prices(["2026-07-01", "2026-07-02", "2026-07-03"],
+                     [100.0, 101.0, 102.0])
+    dates, equity = _project_daily_equity(
+        {"SPY": 1.0}, 1.0, prices, pd.Timestamp("2026-07-01"))
+    assert dates == ["2026-07-02", "2026-07-03"]
+    assert equity[0] == pytest.approx(1.01)   # 101 / 100
+    assert equity[1] == pytest.approx(1.02)   # 102 / 100
+
+
+def test_projection_caps_at_last_nyse_session_drops_europe_holiday_bar():
+    """The boundary case: 2026-07-03 was a US market holiday (Independence
+    Day observed) when only Europe traded. Capping at 07-02 drops that bar
+    so the deployed as-of stays on the last US close."""
+    prices = _prices(["2026-07-01", "2026-07-02", "2026-07-03"],
+                     [100.0, 101.0, 102.0])
+    dates, equity = _project_daily_equity(
+        {"SPY": 1.0}, 1.0, prices, pd.Timestamp("2026-07-01"),
+        session_cap=pd.Timestamp("2026-07-02"))
+    assert dates == ["2026-07-02"]            # 07-03 excluded
+    assert equity == [pytest.approx(1.01)]
+
+
+def test_projection_cap_is_inclusive_of_the_session_itself():
+    """The cap date is the last GOOD session — it must be kept, not
+    dropped (off-by-one guard)."""
+    prices = _prices(["2026-07-01", "2026-07-02"], [100.0, 101.0])
+    dates, _ = _project_daily_equity(
+        {"SPY": 1.0}, 1.0, prices, pd.Timestamp("2026-07-01"),
+        session_cap=pd.Timestamp("2026-07-02"))
+    assert dates == ["2026-07-02"]
+
+
+def test_projection_cap_across_month_boundary():
+    """Month-boundary edge (CLAUDE.md date rule): cap on 2026-06-30 keeps
+    June and drops the 1 July bar."""
+    prices = _prices(["2026-06-29", "2026-06-30", "2026-07-01"],
+                     [100.0, 101.0, 102.0])
+    dates, _ = _project_daily_equity(
+        {"SPY": 1.0}, 1.0, prices, pd.Timestamp("2026-06-29"),
+        session_cap=pd.Timestamp("2026-06-30"))
+    assert dates == ["2026-06-30"]
+
+
+def test_projection_cap_across_year_boundary():
+    """Year-boundary edge (CLAUDE.md date rule): cap on 2025-12-31 keeps
+    December and drops the 2 Jan bar."""
+    prices = _prices(["2025-12-30", "2025-12-31", "2026-01-02"],
+                     [100.0, 101.0, 102.0])
+    dates, _ = _project_daily_equity(
+        {"SPY": 1.0}, 1.0, prices, pd.Timestamp("2025-12-30"),
+        session_cap=pd.Timestamp("2025-12-31"))
+    assert dates == ["2025-12-31"]
