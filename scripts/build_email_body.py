@@ -212,11 +212,21 @@ def _collect_holdings(sleeves, p22_active):
 
 
 def _collect_activity(sleeves, p22_active):
-    """Identify ENTER/EXIT/RESIZE moves from prior rebalance to current.
+    """Identify ENTER/EXIT/RESIZE moves from prior rebalance to current,
+    across all four sleeves.
 
-    Returns rows with PORTFOLIO-LEVEL % NAV (not within-sleeve), to
-    match the dashboard's positions-preview activity table. Sleeve
-    weights account for the EEM tilt (B drops 35% -> 25% when ON)."""
+    Returns one dict per move: ``{sleeve, action, etf, prev, new, date,
+    nav_impact}``. Weights are PORTFOLIO-level % NAV (not within-sleeve),
+    so ``nav_impact`` (the |ΔNAV| a move represents) means the same thing
+    in every sleeve — a 1% within-sleeve move is 0.35% NAV in A but only
+    0.10% NAV in C. Sleeve weights account for the EEM tilt (B drops 35%
+    -> 25% when ON). ``date`` is the sleeve's own rebalance Friday (they
+    differ — only Europe/D trades on a US-holiday Friday).
+
+    Every non-zero move is returned (no threshold here); the caller
+    applies the 0.5%-NAV materiality filter and computes the
+    reconciliation net over the FULL set. Mirrors the dashboard's
+    renderPositionsPreview so the email and dashboard tell one story."""
     sleeve_wts = {
         "a": 0.35,
         "b": 0.25 if p22_active else 0.35,
@@ -231,20 +241,26 @@ def _collect_activity(sleeves, p22_active):
         if len(trades) < 2:
             continue
         sw = sleeve_wts[key]
+        rebal_date = trades[-1].get("date", "")
         prev_h = {h["etf"]: h["weight"] for h in trades[-2].get("holdings", [])}
         curr_h = {h["etf"]: h["weight"] for h in trades[-1].get("holdings", [])}
         for etf in curr_h:
             if etf not in prev_h:
-                rows.append((sl, "ENTER", etf, None, curr_h[etf] * sw))
+                rows.append({"sleeve": sl, "action": "ENTER", "etf": etf,
+                             "prev": None, "new": curr_h[etf] * sw,
+                             "date": rebal_date, "nav_impact": curr_h[etf] * sw})
         for etf in prev_h:
             if etf not in curr_h:
-                rows.append((sl, "EXIT", etf, prev_h[etf] * sw, None))
+                rows.append({"sleeve": sl, "action": "EXIT", "etf": etf,
+                             "prev": prev_h[etf] * sw, "new": None,
+                             "date": rebal_date, "nav_impact": prev_h[etf] * sw})
         for etf in curr_h:
             if etf in prev_h:
-                d = curr_h[etf] - prev_h[etf]
-                if abs(d) > 0.01:
-                    rows.append((sl, "RESIZE", etf,
-                                  prev_h[etf] * sw, curr_h[etf] * sw))
+                d_nav = (curr_h[etf] - prev_h[etf]) * sw
+                if abs(d_nav) > 1e-6:
+                    rows.append({"sleeve": sl, "action": "RESIZE", "etf": etf,
+                                 "prev": prev_h[etf] * sw, "new": curr_h[etf] * sw,
+                                 "date": rebal_date, "nav_impact": abs(d_nav)})
     return rows
 
 
@@ -461,24 +477,57 @@ def build_html(out_path: Path):
         )
     out.append('</table>')
 
-    # This week's changes — same shape as the dashboard's activity card.
-    # Weights expressed in % NAV (not within-sleeve), so the reader sees
-    # portfolio-level impact directly.
+    # Latest rebalance changes — aligned with the dashboard's activity card:
+    # portfolio-level 0.5% NAV materiality, a per-move date, newest-first
+    # order, and a net reconciliation line. A static email has no
+    # reveal-toggle, so sub-0.5%-NAV moves are summarised as a count (the
+    # dashboard has a checkbox that shows them).
+    MATERIAL_NAV = 0.005
+    _act_order = {"ENTER": 0, "EXIT": 1, "RESIZE": 2}
+    material = [a for a in activity if a["nav_impact"] >= MATERIAL_NAV]
+    # Stable multi-key sort: date desc, then action (ENTER/EXIT/RESIZE),
+    # then resulting position size desc — identical ordering to the
+    # dashboard (which keys the tertiary sort on newNav||prevNav).
+    material.sort(key=lambda a: (a["new"] or a["prev"] or 0), reverse=True)
+    material.sort(key=lambda a: _act_order.get(a["action"], 9))
+    material.sort(key=lambda a: a["date"], reverse=True)
+    n_small = len(activity) - len(material)
+    net_nav = sum((a["new"] or 0) - (a["prev"] or 0) for a in activity)
+    shown_dates = sorted({a["date"] for a in material if a["date"]})
+    date_note = (f"{shown_dates[0]} &rarr; {shown_dates[-1]}" if len(shown_dates) > 1
+                 else shown_dates[0] if shown_dates else asof_iso)
+
+    def _net_note():
+        sign = "+" if net_nav >= -0.00005 else "−"
+        note = (f'Buys minus sells net to <strong>{sign}{abs(net_nav) * 100:.1f}% NAV'
+                f'</strong> across all moves (remainder is unchanged holdings or cash).')
+        if n_small:
+            note += (f' {n_small} smaller move{"" if n_small == 1 else "s"} '
+                     f'(&lt;0.5% NAV) omitted.')
+        return ('<p style="color:#7c8590;font-size:11px;margin:6px 0 18px 0;'
+                'line-height:1.5;">' + note + '</p>')
+
     out.append('<h3 style="margin:0 0 10px 0;font-size:14px;'
                'color:#3a4148;text-transform:uppercase;letter-spacing:1px;">'
-               f"This week's changes <span style=\"float:right;font-size:11px;"
+               f"Latest rebalance changes <span style=\"float:right;font-size:11px;"
                f"color:#7c8590;font-weight:400;text-transform:none;"
-               f"letter-spacing:0;\">{asof_iso}</span></h3>")
+               f"letter-spacing:0;\">{date_note}</span></h3>")
     if not activity:
         out.append('<p style="color:#7c8590;font-style:italic;'
                    'margin-bottom:18px;">'
                    'No position changes &mdash; strategy stable since last week.</p>')
+    elif not material:
+        out.append('<p style="color:#7c8590;font-style:italic;margin:0 0 6px 0;">'
+                   'No moves &ge; 0.5% NAV this cycle.</p>')
+        out.append(_net_note())
     else:
         out.append('<table style="width:100%;border-collapse:collapse;'
-                   'margin-bottom:18px;font-size:13px;">')
+                   'margin-bottom:6px;font-size:13px;">')
         out.append(
             '<tr style="color:#7c8590;font-size:10px;text-transform:uppercase;'
             'letter-spacing:0.5px;">'
+            '<th style="text-align:left;padding:4px 10px;'
+            'border-bottom:1px solid #c8ccd2;">Date</th>'
             '<th style="text-align:left;padding:4px 10px;'
             'border-bottom:1px solid #c8ccd2;">Sleeve</th>'
             '<th style="text-align:left;padding:4px 10px;'
@@ -490,24 +539,28 @@ def build_html(out_path: Path):
         )
         action_colour = {"ENTER": "#1d7a3a", "EXIT": "#b3261e",
                           "RESIZE": "#b76e00"}
-        for sleeve, action, etf, prev_w, new_w in activity:  # show all changes
-            prev_str = f"{prev_w * 100:.1f}%" if prev_w is not None else "&mdash;"
-            new_str = f"{new_w * 100:.1f}%" if new_w is not None else "&mdash;"
+        for a in material:
+            prev_str = f"{a['prev'] * 100:.1f}%" if a["prev"] is not None else "&mdash;"
+            new_str = f"{a['new'] * 100:.1f}%" if a["new"] is not None else "&mdash;"
             out.append(
-                f'<tr><td style="padding:6px 10px;color:#3a4148;vertical-align:top;'
-                f'border-bottom:1px solid #f0f2f4;">{sleeve}</td>'
+                f'<tr><td style="padding:6px 10px;color:#7c8590;vertical-align:top;'
+                f'font-family:{MONO};font-size:11px;white-space:nowrap;'
+                f'border-bottom:1px solid #f0f2f4;">{a["date"] or "&mdash;"}</td>'
+                f'<td style="padding:6px 10px;color:#3a4148;vertical-align:top;'
+                f'border-bottom:1px solid #f0f2f4;">{a["sleeve"]}</td>'
                 f'<td style="padding:6px 10px;font-weight:700;font-size:11px;'
                 f'letter-spacing:0.4px;vertical-align:top;'
-                f'color:{action_colour.get(action, "#3a4148")};'
-                f'border-bottom:1px solid #f0f2f4;">{action}</td>'
+                f'color:{action_colour.get(a["action"], "#3a4148")};'
+                f'border-bottom:1px solid #f0f2f4;">{a["action"]}</td>'
                 f'<td style="padding:6px 10px;vertical-align:top;'
-                f'border-bottom:1px solid #f0f2f4;">{_name_cell(etf)}</td>'
+                f'border-bottom:1px solid #f0f2f4;">{_name_cell(a["etf"])}</td>'
                 f'<td style="padding:6px 10px;text-align:right;'
                 f'font-family:{MONO};vertical-align:top;'
                 f'border-bottom:1px solid #f0f2f4;">'
                 f'{prev_str} &rarr; {new_str}</td></tr>'
             )
         out.append('</table>')
+        out.append(_net_note())
 
     # Compact regime / tilt / allocation line — single row instead of
     # the 3-row table that used to dominate the top of the email.
@@ -590,7 +643,8 @@ def build_html(out_path: Path):
     print(f"  Regime:       {regime_state} (since {regime_since})")
     print(f"  EEM tilt:     {tilt_state}")
     print(f"  Top holdings: {len(holdings)}")
-    print(f"  Activity:     {len(activity)} changes")
+    print(f"  Activity:     {len(material)} material of {len(activity)} moves "
+          f"({n_small} sub-0.5% NAV)")
     return 0
 
 
