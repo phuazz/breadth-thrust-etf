@@ -1286,6 +1286,23 @@
       font-size: 10.5px;
       color: var(--ink-faint);
     }
+    .prev-card-ctrls {
+      display: flex;
+      justify-content: flex-end;
+      margin: -2px 0 6px 0;
+    }
+    .prev-card-ctrls .toggle { font-size: 11px; color: var(--ink-soft); cursor: pointer; }
+    .prev-card-ctrls .toggle input { vertical-align: -1px; margin-right: 4px; }
+    .prev-card-ctrls .toggle input:disabled + span,
+    .prev-card-ctrls .toggle:has(input:disabled) { color: var(--ink-faint); cursor: default; }
+    .prev-card-net {
+      font-size: 11px;
+      color: var(--ink-soft);
+      border-top: 1px dashed var(--border);
+      margin-top: 8px;
+      padding-top: 7px;
+    }
+    .prev-card-net b { color: var(--ink); font-variant-numeric: tabular-nums; }
     table.prev-table {
       width: 100%;
       border-collapse: collapse;
@@ -1803,6 +1820,9 @@
           <span class="prev-card-h-title">Latest rebalance changes</span>
           <span class="prev-card-h-asof" id="preview-activity-asof">—</span>
         </div>
+        <div class="prev-card-ctrls">
+          <label class="toggle"><input type="checkbox" id="activity-show-small"> <span id="activity-small-label">Show smaller moves</span></label>
+        </div>
         <table class="prev-table" id="preview-activity-table">
           <thead>
             <tr>
@@ -1815,6 +1835,7 @@
           </thead>
           <tbody></tbody>
         </table>
+        <div class="prev-card-net" id="preview-activity-net"></div>
         <div class="prev-card-foot">
           <a href="#" onclick="document.querySelector('[data-tab=history]').click();return false;">Full rebalance ledger &rarr;</a>
         </div>
@@ -3385,6 +3406,10 @@ function _escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// Monitor activity panel: hide sub-0.5%-NAV moves by default; the checkbox
+// flips this so every buy/sell is visible and reconciles to 100% exposure.
+let _activityShowSmall = false;
+
 function renderPositionsPreview() {
   const data = window.DATA;
   if (!data) return;
@@ -3459,23 +3484,31 @@ function renderPositionsPreview() {
     // Friday only Europe/D trades), so stamp every change with the date
     // it actually happened — the same date the combined ledger shows.
     const rebalDate = trades[trades.length - 1].date || '';
+    // navImpact = the move's PORTFOLIO-level materiality (|ΔNAV weight|):
+    // a new/closed position's own NAV weight, or a resize's NAV-weight
+    // change. Measured at NAV so 0.5% means the same thing in every sleeve
+    // (1% within C is only 0.1% NAV; within A it is 0.35% NAV).
     for (const etf in curr) {
       if (!(etf in prev)) activity.push({
         sl, action: 'ENTER', etf, date: rebalDate,
         prevNav: null, newNav: curr[etf] * sleeveWt,
+        navImpact: curr[etf] * sleeveWt,
       });
     }
     for (const etf in prev) {
       if (!(etf in curr)) activity.push({
         sl, action: 'EXIT', etf, date: rebalDate,
         prevNav: prev[etf] * sleeveWt, newNav: null,
+        navImpact: prev[etf] * sleeveWt,
       });
     }
     for (const etf in curr) {
-      if (etf in prev && Math.abs(curr[etf] - prev[etf]) > 0.01) {
-        activity.push({
+      if (etf in prev) {
+        const dNav = (curr[etf] - prev[etf]) * sleeveWt;
+        if (Math.abs(dNav) > 1e-6) activity.push({
           sl, action: 'RESIZE', etf, date: rebalDate,
           prevNav: prev[etf] * sleeveWt, newNav: curr[etf] * sleeveWt,
+          navImpact: Math.abs(dNav),
         });
       }
     }
@@ -3489,12 +3522,22 @@ function renderPositionsPreview() {
     if (actOrder[x.action] !== actOrder[y.action]) return actOrder[x.action] - actOrder[y.action];
     return (y.newNav || y.prevNav || 0) - (x.newNav || x.prevNav || 0);
   });
+  // Portfolio-level materiality filter: hide moves under 0.5% NAV by
+  // default; the checkbox reveals them so the buys/sells reconcile in full.
+  const MATERIAL_NAV = 0.005;
+  const nSmall = activity.filter(a => a.navImpact < MATERIAL_NAV).length;
+  const shown = _activityShowSmall
+    ? activity
+    : activity.filter(a => a.navImpact >= MATERIAL_NAV);
   const aTable = document.querySelector('#preview-activity-table tbody');
   if (aTable) {
-    if (!activity.length) {
-      aTable.innerHTML = '<tr><td colspan="5" class="prev-card-empty">No position changes &mdash; strategy stable.</td></tr>';
+    if (!shown.length) {
+      const msg = activity.length
+        ? 'No moves &ge; 0.5% NAV this cycle &mdash; tick the box to see smaller ones.'
+        : 'No position changes &mdash; strategy stable.';
+      aTable.innerHTML = `<tr><td colspan="5" class="prev-card-empty">${msg}</td></tr>`;
     } else {
-      aTable.innerHTML = activity.map(a => {
+      aTable.innerHTML = shown.map(a => {
         const prevStr = a.prevNav != null ? (a.prevNav * 100).toFixed(1) + '%' : '—';
         const newStr  = a.newNav  != null ? (a.newNav  * 100).toFixed(1) + '%' : '—';
         const labelHtml = lbl(a.etf)
@@ -3510,10 +3553,32 @@ function renderPositionsPreview() {
       }).join('');
     }
   }
+  // Checkbox label reflects how many moves are being hidden; disable it
+  // when there is nothing sub-threshold to reveal.
+  const smallLabel = document.getElementById('activity-small-label');
+  if (smallLabel) smallLabel.textContent = nSmall > 0
+    ? `Show ${nSmall} smaller move${nSmall === 1 ? '' : 's'} (<0.5% NAV)`
+    : 'No moves below 0.5% NAV';
+  const smallBox = document.getElementById('activity-show-small');
+  if (smallBox) smallBox.disabled = (nSmall === 0);
+  // Reconciliation line: buys minus sells across ALL moves (independent of
+  // the filter) — nets to ~0 when fully invested, else the cash delta. This
+  // answers "how do the buys and sells square to 100% exposure?".
+  const netNavAll = activity.reduce((s, a) => s + ((a.newNav || 0) - (a.prevNav || 0)), 0);
+  const netEl = document.getElementById('preview-activity-net');
+  if (netEl) {
+    if (!activity.length) {
+      netEl.innerHTML = '';
+    } else {
+      const netPct = netNavAll * 100;
+      const sign = netPct >= -0.05 ? '+' : '−';  // values that round to 0 show as +0.0%, never −0.0%
+      netEl.innerHTML = `Buys minus sells net to <b>${sign}${Math.abs(netPct).toFixed(1)}% NAV</b> across all moves (remainder is unchanged holdings or cash).`;
+    }
+  }
   // Header note = the span of rebalance dates actually represented. The
   // sleeves rebalance on different Fridays (only Europe/D trades on a US
   // holiday), so this can legitimately span two dates; each row is dated.
-  const actDates = [...new Set(activity.map(a => a.date).filter(Boolean))].sort();
+  const actDates = [...new Set(shown.map(a => a.date).filter(Boolean))].sort();
   const asofA = document.getElementById('preview-activity-asof');
   if (asofA) {
     asofA.textContent = actDates.length === 0 ? ''
@@ -9989,6 +10054,11 @@ function _runLoadingWatchdog() {
   document.getElementById('europe-trade-filter')?.addEventListener('input', (e) => {
     _europeTradeFilter = e.target.value;
     renderEuropeTradeTable();
+  });
+  // Monitor activity panel — reveal/hide sub-0.5%-NAV moves.
+  document.getElementById('activity-show-small')?.addEventListener('change', (e) => {
+    _activityShowSmall = e.target.checked;
+    renderPositionsPreview();
   });
   // Phase 10 — Trade History tab ledger filters
   document.getElementById('ledger-recent-only')?.addEventListener('change', (e) => {
