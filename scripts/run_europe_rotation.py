@@ -151,7 +151,14 @@ def _fx_convert_eur_to_usd(closes: pd.DataFrame) -> pd.DataFrame:
     if isinstance(fx, pd.DataFrame):
         fx = fx.iloc[:, 0]
     fx.index = pd.to_datetime(fx.index).tz_localize(None)
-    fx = fx.reindex(closes.index, method="ffill").bfill()
+    # WS3 maintenance patch (defect D4): cap the forward-fill at 10 calendar
+    # days — the same one-liner Sleeve C uses (run_thematic_rotation.py) — so
+    # a stalled EURUSD feed degrades to NaN rather than silently freezing the
+    # last rate. Replaces the previous uncapped
+    # `.reindex(method="ffill").bfill()`; EURUSD and Xetra both trade
+    # weekdays from the same fetch start, so no leading gap to back-fill.
+    from alignment import align_series_to_index  # noqa: E402
+    fx = align_series_to_index(fx, closes.index, max_stale_days=10)
     print(f"  EUR/USD range over window: {fx.min():.4f} - {fx.max():.4f}  "
           f"(today {fx.iloc[-1]:.4f})")
     # Multiply EUR price by USD/EUR rate (= EURUSD=X) -> USD price

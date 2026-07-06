@@ -86,6 +86,7 @@ from regime_publish import (  # noqa: E402
     assert_state_since_matches_events,
     detect_historical_revision,
 )
+from alignment import align_series_to_index  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -112,6 +113,14 @@ FALLBACK_TICKER = "SHY" # 1-3y Treasury — cleaner cash-equivalent than IEF.
                          # always defensive. Full backtest: SHY gives Sharpe
                          # +1.29 vs IEF +1.27, Max DD -16.5% vs -16.9%.
 
+# Phase 19.2 (WS3 maintenance patch, defect D3) — staleness cap on the
+# gate breadth feed. An uncapped forward-fill would freeze the gate on a
+# stalled CSP1 panel by carrying a stale breadth NUMBER forward; capping
+# at 10 calendar days (mirroring the Sleeve C FX cap) makes it NaN past
+# the window so _compute_states holds the last regime state instead —
+# the WS3-verified "gate holds state on NaN" degradation.
+GATE_MAX_STALE_DAYS = 10
+
 # ----------------------------------------------------------------------
 # Phase 22 — EEM/SPY relative-strength tilt parameters
 # Test sweep in scripts/test_phase22_eem_overlay.py + funding-source
@@ -125,6 +134,12 @@ EEM_TILT_SLOW_MA = 200            # long MA — golden cross when fast > slow
 EEM_TILT_WEIGHT = 0.10            # tilt 10% of blend into EEM on signal-ON
 EEM_FUND_FROM_SLEEVE = "strategy_b"  # take the 10pp out of Strategy B
 EEM_RATIO_CACHE = "em_regime_context.parquet"
+# WS3 maintenance patch (memo proposal #1): staleness cap on the EEM/SPY
+# tilt feed. A stopped em_regime_context cache forward-filled without a cap
+# would freeze the tilt state and mark the 10pp EEM sleeve at a fake 0%
+# daily return while ON. Cap at 10 calendar days (mirroring the Sleeve C FX
+# cap); past the window the tilt is HELD FLAT (baseline 35/35/10/20 blend).
+EEM_MAX_STALE_DAYS = 10
 
 
 def _round(x, n=4):
@@ -266,8 +281,28 @@ def _build_eem_tilted_blend(
 
     rets = {k: s.reindex(common).pct_change().fillna(0)
             for k, s in sleeves.items()}
-    eem_ret = eem_prices.reindex(common, method="ffill").pct_change().fillna(0)
-    sig = eem_signal.reindex(common, method="ffill").fillna(0).shift(1).fillna(0)
+    # WS3 maintenance patch (memo proposal #1). The EEM price and tilt
+    # signal share the em_regime_context cache; an uncapped
+    # .reindex(method="ffill") would freeze a stopped cache indefinitely —
+    # marking the 10pp EEM sleeve at a fake 0% daily return while the tilt
+    # reads ON. Cap the forward-fill at EEM_MAX_STALE_DAYS (mirroring the
+    # Sleeve C FX cap) and DEGRADE by holding the tilt flat: on any day the
+    # feed is stale, force the tilt OFF so the blend reverts to the baseline
+    # 35/35/10/20 rather than trusting a frozen signal/return.
+    eem_aligned = align_series_to_index(eem_prices, common,
+                                        max_stale_days=EEM_MAX_STALE_DAYS)
+    sig_capped = align_series_to_index(eem_signal, common,
+                                       max_stale_days=EEM_MAX_STALE_DAYS)
+    tilt_stale = eem_aligned.isna() | sig_capped.isna()
+    if bool(tilt_stale.iloc[-1]):
+        print(f"  WARN: Phase 22 EEM/SPY feed stale > {EEM_MAX_STALE_DAYS} "
+              f"days at as-of {common[-1].date()} — tilt held flat "
+              f"(baseline blend, no EEM tilt).", file=sys.stderr)
+    eem_ret = eem_aligned.pct_change().fillna(0)
+    # Lag the signal one day (decision uses the prior close), then force the
+    # tilt OFF wherever the feed is stale — the hold-flat degradation path.
+    sig = sig_capped.fillna(0).shift(1).fillna(0)
+    sig = sig.where(~tilt_stale, 0.0)
     # Tilt-OFF daily return: baseline 35/35/10/20
     tilt_off_ret = sum(sleeve_weights[k] * rets[k] for k in sleeve_weights)
     # Tilt-ON daily return: fund_from_sleeve reduced by tilt_weight; EEM added
@@ -360,7 +395,14 @@ def main() -> int:
 
     # ----- Align on the blend's calendar -----
     common = blend_eq.index
-    breadth = breadth.reindex(common, method="ffill")
+    # WS3 maintenance patch (defect D3): cap the gate-breadth forward-fill
+    # at GATE_MAX_STALE_DAYS. Past the cap the value is NaN, which
+    # _compute_states holds as the last regime state ("gate holds state on
+    # NaN") — NOT a frozen breadth number that a stalled CSP1 feed could
+    # otherwise carry forward and act on. (fallback SHY below stays a plain
+    # ffill: a 1-3y Treasury proxy, not a signal feed, and out of scope.)
+    breadth = align_series_to_index(breadth, common,
+                                    max_stale_days=GATE_MAX_STALE_DAYS)
     fallback_aligned = fallback.reindex(common, method="ffill")
     blend_ret = blend_eq.pct_change().fillna(0)
     fallback_ret = fallback_aligned.pct_change().fillna(0)

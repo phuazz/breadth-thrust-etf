@@ -21,9 +21,10 @@ The deployed strategy is the **35/35/10/20 A:B:C:D blend** with two overlays:
 
 ### Known caveats (acknowledged upfront)
 
-- **Survivorship bias in Strategy C** — 25 thematics all survived to 2026; failed thematics (cannabis, leveraged-thematic, volatility) never in universe.
+- **Survivorship bias in Strategy C** — 25 thematics all survived to 2026; failed thematics (cannabis, leveraged-thematic, volatility) never in universe. WS3 (2026-07) quantified the bias: BTC-USD alone contributes ~23% of gross sleeve return (top five names ≈ 62%), several post-hoc adds carry history backfilled to before their inclusion, and no point-in-time membership exists. Sleeve C is **KEEP, ON NOTICE** — it loses to its own equal-weight basket at realistic spreads and must justify its seat at the next scheduled review.
 - **Phase 19 overlay parameters tuned in-sample** — chosen from 12-variant sweep on same data the gated-vs-ungated comparison reports on.
-- **Phase 22 EEM tilt deployed on weak sample** — golden cross has produced few distinct ON-events in 7.5y. Deployed as a low-cost positional bet, not robustly-evidenced alpha.
+- **Phase 22 EEM tilt deployed on weak sample** — golden cross has produced few distinct ON-events in 7.5y. WS3 (2026-07): 6 distinct bets ever, bootstrap P(mean > 0) ≈ 0.56, placebo 82nd percentile — retained solely as the designated EM expression, not robustly-evidenced alpha. The tilt feed carries a 10-day staleness cap: if the EEM/SPY cache stalls, the tilt is held flat (baseline blend) rather than freezing the last signal.
+- **Strategy D execution-watch** — cost-fragile: the WS3 break-even is ~1.75x of the assumed 15 bps round-trip. Monitor realised Xetra UCITS spreads against the 9 bps one-way assumption; the sleeve's edge is thin if European trading costs run hotter.
 - **Sharpe sample noise** — 7.5y × weekly gives Sharpe SE ≈ ±0.4; +1.29 sits in ~95% CI [+0.55, +2.03]. Treat as range, not point estimate.
 - **Walk-forward scope narrow** — covers within-sleeve K refit only. Weighting scheme, universe additions, cost calibration, overlay parameters all applied across entire backtest as in-sample.
 - **No live track record** — every return shown is simulated.

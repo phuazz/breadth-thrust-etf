@@ -1145,3 +1145,74 @@ and D4 (D FX) into the already-pending tilt-ratio staleness-cap patch for a
 single consistent degradation policy; correct D2 in the consumer registry; and
 add the scope-4 contract test so the next config change cannot drift the consumer
 silently.
+
+## Staleness-cap patch — landed against a live incident (2026-07-06)
+
+Proposal #1 (WS3) plus defects D3/D4 landed as one staleness-cap patch, approved
+(Fable review, 2026-07-05). A single 10-calendar-day cap
+(`scripts/alignment.align_series_to_index`, mirroring the Sleeve C FX cap) now sits
+at four sites: the Phase 22 EEM/SPY tilt feed (`run_risk_overlay._build_eem_tilted_blend`
+— WARN + hold-flat past the cap), the Phase 19 gate breadth (`run_risk_overlay.main`
+— NaN past the cap, so `_compute_states` holds the last regime state), the Sleeve D
+EUR→USD leg (`run_europe_rotation._fx_convert_eur_to_usd`), and the live path EUR
+**and** CNY legs (`mark_to_market_live._fetch_usd_prices`). Five tests added in
+`tests/test_stale_breadth.py`; README "Known caveats" updated. D2/D5 deliberately
+left out of scope.
+
+### The live incident (the patch caught a real one)
+
+`data/em_regime_context.parquet` was frozen at **2026-05-27** — the weekly refresh
+does not update this cache (`_load_eem_data` uses it as-is whenever the EEM+SPY
+columns are present). Against the blend as-of **2026-07-01** that is a 35-calendar-day
+gap: **17 sessions stale from 2026-06-08**. The pre-patch uncapped forward-fill was
+marking the 10pp EEM sleeve at a **frozen 0% daily return** while the tilt still read
+ON (ratio frozen at 0.0910). The patch was validated against this incident, not a
+synthetic one:
+
+- **Stale cache (rebuild before refresh).** The WARN fires —
+  `Phase 22 EEM/SPY feed stale > 10 days at as-of 2026-07-01 — tilt held flat
+  (baseline blend, no EEM tilt).` The tilt is held flat across the 17 stale sessions.
+- **Refreshed cache (rebuild after refresh).** The WARN is silent and the tilt reads
+  real EEM again — ratio 0.0910→**0.0902**, fast MA 0.0887→**0.0903**, slow MA
+  0.0835→**0.0851**.
+- **The cap is a pure no-op on fresh data** — patched equals pre-patch to eight
+  decimal places on the refreshed cache. It is a safety net, not a signal change, as
+  designed.
+
+### Impact — measured, and a correction to the pre-approval figure
+
+The pre-approval note quoted "tilt ungated tail moves +0.059%". Re-measured against
+the live pipeline at full precision (ungated tilted total return, as-of 2026-07-01)
+**that figure does not reproduce**. The reconciled numbers:
+
+| State | Ungated tilted total return | Move |
+| --- | --- | --- |
+| Deployed pre-patch (EEM frozen at 0%) | 202.9170% | — |
+| Patched, held flat (stale cache) | 202.9442% | **+0.0272 pp** — patch effect: funding back to Strategy B beats a frozen-0% EEM over the 17 sessions |
+| Patched, real EEM (refreshed cache) | 202.3403% | **−0.6039 pp** vs held-flat |
+
+Deployed **gated** `total_return` (the dashboard figure): 1.9340 → 1.9343 → **1.9285**.
+
+Two points of substance:
+
+1. **The refresh moves the tail down, not up.** Real EEM *fell* 2.5% over the frozen
+   window (68.17 on 2026-05-27 → 66.48 on 2026-07-01), so un-freezing the 10pp EEM
+   sleeve costs ~0.60 pp on the ungated tail (~0.58 pp on the gated) versus the
+   held-flat rebuild. Refreshing to real data is still the correct end state, but it
+   is a small **reduction** in the deployed track's stated total return — recorded
+   here so the number is not misread as accretive.
+2. **The +0.059% was a mischaracterisation.** It described the held-flat-vs-frozen
+   move (the WARN-firing stale rebuild), which measures **+0.0272 pp** here — not
+   +0.059%, and not the refresh. Superseded by the table above; flagged to Zhenghao
+   for reconciliation against the source of the original figure.
+
+The patch mechanism (WARN, hold-flat, NaN-holds-state, no-op-on-fresh) is validated
+regardless; only the impact magnitude and direction differed from the pre-approval
+description.
+
+### D-class follow-ups registered (deliberate carve-outs from proposal-#1 scope)
+
+| ID | site | class | note |
+| --- | --- | --- | --- |
+| **D9** | engine `run_risk_overlay.py:464` | silent staleness (display only) | The tilt **diagnostic** `sig_aligned = eem_signal.reindex(common, method="ffill")` — feeding `phase22_eem_tilt.current_state` / `current_ratio` / `daily_series` — is UNCAPPED, left out of the patch (a cap would need `int(NaN)` display handling). Consequence: after the patch, on a stalled cache the RETURN path correctly holds flat, but the dashboard tilt diagnostic still reads `EM_TILT_ON` at a frozen ratio. Reporting only; the equity is safe. Fix: cap the diagnostic alignment and render NaN as "STALE / no signal". |
+| **D10** | engine `run_risk_overlay.py:406` | deliberate non-cap | The Phase 19 risk-off fallback `fallback_aligned = fallback.reindex(common, method="ffill")` (SHY, 1-3y Treasury) was deliberately left UNCAPPED — it is a price PROXY, not a signal feed, so a staleness cap does not apply. Logged so the decision is on record; revisit only if SHY sourcing changes. |

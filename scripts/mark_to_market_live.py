@@ -276,11 +276,20 @@ def _fetch_usd_prices(
     if raw.empty:
         return pd.DataFrame()
 
-    # Normalise the index (drop time component) and forward-fill FX so it
-    # exists on every trading day even when FX has weekend gaps.
+    # Normalise the index (drop time component). Convert each ETF's native
+    # price to USD by forward-filling the FX rate onto its dates with a
+    # 10-calendar-day staleness cap (mirrors the Sleeve C / Sleeve D engine
+    # FX caps, defect D4): a stalled FX feed degrades to NaN — the USD price
+    # drops out for that span — rather than silently freezing the last rate,
+    # keeping the live path at parity with the engine. Both the EUR->USD
+    # (Sleeve D) and CNY->USD (Sleeve C) legs get the cap; the engine caps
+    # its CNY leg already, so capping only EUR here would leave the live path
+    # inconsistent with itself.
+    sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+    from alignment import align_series_to_index  # noqa: E402
     raw.index = pd.to_datetime(raw.index).normalize()
-    eur_usd = raw["EURUSD=X"].ffill() if "EURUSD=X" in raw.columns else None
-    usd_cny = raw["USDCNY=X"].ffill() if "USDCNY=X" in raw.columns else None
+    eur_usd = raw["EURUSD=X"].dropna() if "EURUSD=X" in raw.columns else None
+    usd_cny = raw["USDCNY=X"].dropna() if "USDCNY=X" in raw.columns else None
 
     out = {}
     for etf, (sym, fx) in resolutions.items():
@@ -291,11 +300,13 @@ def _fetch_usd_prices(
             continue
         if fx == "eur_to_usd" and eur_usd is not None:
             # EUR price * (USD/EUR) -> USD price
-            fx_aligned = eur_usd.reindex(series.index, method="ffill")
+            fx_aligned = align_series_to_index(eur_usd, series.index,
+                                               max_stale_days=10)
             series = series * fx_aligned
         elif fx == "cny_to_usd" and usd_cny is not None:
             # CNY price * (1 / (CNY/USD)) -> USD price
-            fx_aligned = usd_cny.reindex(series.index, method="ffill")
+            fx_aligned = align_series_to_index(usd_cny, series.index,
+                                               max_stale_days=10)
             series = series / fx_aligned
         out[etf] = series
 
