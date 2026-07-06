@@ -1800,12 +1800,13 @@
       </div>
       <div class="prev-card">
         <div class="prev-card-h">
-          <span class="prev-card-h-title">This week's changes</span>
+          <span class="prev-card-h-title">Latest rebalance changes</span>
           <span class="prev-card-h-asof" id="preview-activity-asof">—</span>
         </div>
         <table class="prev-table" id="preview-activity-table">
           <thead>
             <tr>
+              <th class="th-dt">Date</th>
               <th class="th-sl">Sleeve</th>
               <th class="th-act">Action</th>
               <th class="th-tk">Ticker &amp; name</th>
@@ -3454,45 +3455,53 @@ function renderPositionsPreview() {
     const prev = Object.fromEntries((trades[trades.length - 2].holdings || []).map(h => [h.etf, h.weight]));
     const curr = Object.fromEntries((trades[trades.length - 1].holdings || []).map(h => [h.etf, h.weight]));
     const sl = k.toUpperCase();
+    // Each sleeve rebalances on its own Friday (e.g. on a US-holiday
+    // Friday only Europe/D trades), so stamp every change with the date
+    // it actually happened — the same date the combined ledger shows.
+    const rebalDate = trades[trades.length - 1].date || '';
     for (const etf in curr) {
       if (!(etf in prev)) activity.push({
-        sl, action: 'ENTER', etf,
+        sl, action: 'ENTER', etf, date: rebalDate,
         prevNav: null, newNav: curr[etf] * sleeveWt,
       });
     }
     for (const etf in prev) {
       if (!(etf in curr)) activity.push({
-        sl, action: 'EXIT', etf,
+        sl, action: 'EXIT', etf, date: rebalDate,
         prevNav: prev[etf] * sleeveWt, newNav: null,
       });
     }
     for (const etf in curr) {
       if (etf in prev && Math.abs(curr[etf] - prev[etf]) > 0.01) {
         activity.push({
-          sl, action: 'RESIZE', etf,
+          sl, action: 'RESIZE', etf, date: rebalDate,
           prevNav: prev[etf] * sleeveWt, newNav: curr[etf] * sleeveWt,
         });
       }
     }
   }
-  // Action priority: ENTER > EXIT > RESIZE; within each, largest NAV first.
+  // Newest rebalance first (ISO dates sort lexically); then action
+  // priority ENTER > EXIT > RESIZE; then largest NAV within that. This
+  // matches the combined ledger's most-recent-first ordering.
   const actOrder = { ENTER: 0, EXIT: 1, RESIZE: 2 };
   activity.sort((x, y) => {
+    if (x.date !== y.date) return y.date.localeCompare(x.date);
     if (actOrder[x.action] !== actOrder[y.action]) return actOrder[x.action] - actOrder[y.action];
     return (y.newNav || y.prevNav || 0) - (x.newNav || x.prevNav || 0);
   });
   const aTable = document.querySelector('#preview-activity-table tbody');
   if (aTable) {
     if (!activity.length) {
-      aTable.innerHTML = '<tr><td colspan="4" class="prev-card-empty">No position changes &mdash; strategy stable.</td></tr>';
+      aTable.innerHTML = '<tr><td colspan="5" class="prev-card-empty">No position changes &mdash; strategy stable.</td></tr>';
     } else {
-      aTable.innerHTML = activity.slice(0, 6).map(a => {
+      aTable.innerHTML = activity.map(a => {
         const prevStr = a.prevNav != null ? (a.prevNav * 100).toFixed(1) + '%' : '—';
         const newStr  = a.newNav  != null ? (a.newNav  * 100).toFixed(1) + '%' : '—';
         const labelHtml = lbl(a.etf)
           ? `<span class="tk-label">${_escapeHtml(lbl(a.etf))}</span>`
           : '';
         return `<tr>
+          <td class="dt">${a.date || '—'}</td>
           <td class="sl">${a.sl}</td>
           <td class="act ${a.action.toLowerCase()}">${a.action}</td>
           <td class="tk">${a.etf}${labelHtml}</td>
@@ -3501,17 +3510,16 @@ function renderPositionsPreview() {
       }).join('');
     }
   }
-  // Activity 'as of' is the most recent rebalance date among the sleeves.
-  let activityDate = '';
-  for (const sleeve of Object.values(sleeves)) {
-    const trades = sleeve?.headline?.trade_history || [];
-    if (trades.length) {
-      const d = trades[trades.length - 1].date;
-      if (d && d > activityDate) activityDate = d;
-    }
-  }
+  // Header note = the span of rebalance dates actually represented. The
+  // sleeves rebalance on different Fridays (only Europe/D trades on a US
+  // holiday), so this can legitimately span two dates; each row is dated.
+  const actDates = [...new Set(activity.map(a => a.date).filter(Boolean))].sort();
   const asofA = document.getElementById('preview-activity-asof');
-  if (asofA && activityDate) asofA.textContent = activityDate;
+  if (asofA) {
+    asofA.textContent = actDates.length === 0 ? ''
+      : actDates.length === 1 ? actDates[0]
+      : `${actDates[0]} → ${actDates[actDates.length - 1]}`;
+  }
 }
 
 // =====================================================================
