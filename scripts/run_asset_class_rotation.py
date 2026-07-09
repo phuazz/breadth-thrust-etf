@@ -68,6 +68,9 @@ DATA_DIR = PROJECT_ROOT / "data"
 PRICE_CACHE = DATA_DIR / "asset_class_prices_cache.parquet"
 OUT_PATH = DATA_DIR / "asset_class_rotation.json"
 
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+from rebalance_calendar import weekly_rebalance_dates  # noqa: E402
+
 sys.stdout.reconfigure(encoding="utf-8")
 
 
@@ -305,9 +308,8 @@ def run_rotation(closes: pd.DataFrame, signal: pd.DataFrame, weight_fn,
                   cost: float = COST_FRAC) -> dict:
     """Run the rotation portfolio. Same mechanics as run_portfolio: yesterday's
     signal -> today's rebalance, yesterday's weights * today's returns."""
-    rebalance_dates_target = pd.date_range(eligible_start, closes.index[-1],
-                                             freq=rebalance_freq)
-    rebalance_dates = closes.index[closes.index.isin(rebalance_dates_target)]
+    rebalance_dates = weekly_rebalance_dates(closes.index, eligible_start,
+                                             rebalance_freq)
     rb_weights = pd.DataFrame(index=rebalance_dates, columns=closes.columns,
                                dtype=float)
     for rd in rebalance_dates:
@@ -332,9 +334,8 @@ def sixty_forty(closes: pd.DataFrame, eligible_start: pd.Timestamp,
                   rebalance_freq: str = "W-FRI") -> dict:
     """60% SPY / 40% IEF, rebalanced same cadence. The classical benchmark."""
     target = pd.Series({"SPY": 0.6, "IEF": 0.4})
-    rebalance_dates_target = pd.date_range(eligible_start, closes.index[-1],
-                                             freq=rebalance_freq)
-    rebalance_dates = closes.index[closes.index.isin(rebalance_dates_target)]
+    rebalance_dates = weekly_rebalance_dates(closes.index, eligible_start,
+                                             rebalance_freq)
     rb_weights = pd.DataFrame(index=rebalance_dates, columns=closes.columns,
                                dtype=float)
     for rd in rebalance_dates:
@@ -354,9 +355,8 @@ def equal_weight_all(closes: pd.DataFrame, eligible_start: pd.Timestamp,
     """Equal weight across all N tickers in the universe."""
     n = len(closes.columns)
     target_w = 1.0 / n
-    rebalance_dates_target = pd.date_range(eligible_start, closes.index[-1],
-                                             freq=rebalance_freq)
-    rebalance_dates = closes.index[closes.index.isin(rebalance_dates_target)]
+    rebalance_dates = weekly_rebalance_dates(closes.index, eligible_start,
+                                             rebalance_freq)
     rb_weights = pd.DataFrame(target_w, index=rebalance_dates,
                                 columns=closes.columns, dtype=float)
     weight_panel = rb_weights.reindex(closes.index, method="ffill").fillna(0.0)

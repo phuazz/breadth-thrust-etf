@@ -46,6 +46,7 @@ from run_ma200_sweep import (  # noqa: E402
     align_breadth_to_index, compute_ma200_breadth, load_constituent_prices,
     MA_PERIOD, COST_BPS,
 )
+from rebalance_calendar import weekly_rebalance_dates  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -138,11 +139,11 @@ def run_portfolio(
     `weight_fn(b_row)` takes a row of ma200_breadth (Series indexed by ETF)
     and returns a Series of weights (sums to <= 1).
     """
-    # Rebalance grid: every Friday close, build weights from yesterday's breadth.
-    rebalance_dates_target = pd.date_range(
-        eligible_start, closes.index[-1], freq=rebalance_freq
+    # Rebalance grid: every Friday close, build weights from yesterday's
+    # breadth. Cadence rule centralised in rebalance_calendar.
+    rebalance_dates = weekly_rebalance_dates(
+        closes.index, eligible_start, rebalance_freq
     )
-    rebalance_dates = closes.index[closes.index.isin(rebalance_dates_target)]
     # Build a sparse rebalance-weights frame (rows = rebalance days),
     # then reindex to daily with ffill so the WHOLE row carries forward
     # (a dropped position correctly goes to 0 on the next rebalance, not

@@ -74,6 +74,9 @@ DATA_DIR = PROJECT_ROOT / "data"
 PRICE_CACHE = DATA_DIR / "thematic_prices_cache.parquet"
 OUT_PATH = DATA_DIR / "thematic_rotation.json"
 
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+from rebalance_calendar import weekly_rebalance_dates  # noqa: E402
+
 sys.stdout.reconfigure(encoding="utf-8")
 
 
@@ -669,9 +672,8 @@ def run_rotation(closes: pd.DataFrame, signal: pd.DataFrame, weight_fn,
                   eligible_start: pd.Timestamp,
                   rebalance_freq: str = "W-FRI",
                   cost: float = COST_FRAC) -> dict:
-    rebalance_dates_target = pd.date_range(eligible_start, closes.index[-1],
-                                            freq=rebalance_freq)
-    rebalance_dates = closes.index[closes.index.isin(rebalance_dates_target)]
+    rebalance_dates = weekly_rebalance_dates(closes.index, eligible_start,
+                                             rebalance_freq)
     rb_weights = pd.DataFrame(index=rebalance_dates, columns=closes.columns,
                                dtype=float)
     for rd in rebalance_dates:
