@@ -1216,3 +1216,40 @@ description.
 | --- | --- | --- | --- |
 | **D9** | engine `run_risk_overlay.py:464` | silent staleness (display only) | The tilt **diagnostic** `sig_aligned = eem_signal.reindex(common, method="ffill")` — feeding `phase22_eem_tilt.current_state` / `current_ratio` / `daily_series` — is UNCAPPED, left out of the patch (a cap would need `int(NaN)` display handling). Consequence: after the patch, on a stalled cache the RETURN path correctly holds flat, but the dashboard tilt diagnostic still reads `EM_TILT_ON` at a frozen ratio. Reporting only; the equity is safe. Fix: cap the diagnostic alignment and render NaN as "STALE / no signal". |
 | **D10** | engine `run_risk_overlay.py:406` | deliberate non-cap | The Phase 19 risk-off fallback `fallback_aligned = fallback.reindex(common, method="ffill")` (SHY, 1-3y Treasury) was deliberately left UNCAPPED — it is a price PROXY, not a signal feed, so a staleness cap does not apply. Logged so the decision is on record; revisit only if SHY sourcing changes. |
+
+---
+
+## Workstream 5 — constituent relative-trend challenger (2026-07-10)
+
+Origin: the SentimenTrader relative-trend-score concept (emails 2026-07-02 financials, 2026-07-07 semis; PDFs stay in OneDrive, IP firewall — own binary definitions only). Their sector table aggregates two per-stock 0–10 trend composites (absolute price + price/S&P-500 ratio) and highlights the dual-≥8 share. Sleeve A already runs the ABSOLUTE per-name leg (close > own 200d MA, Phase-20 cross-sectionally demeaned, Phase-20.1 top-K positive-weighted). The one genuinely new object is the per-name RELATIVE leg (trend on the stock/SPY ratio) and the dual AND. WS1 tested only reformulations of the absolute measure (flat plateau, all lost OOS), so this is the first structurally different per-name signal since Phase 20 — a new-mechanism test, not a re-fit.
+
+### Method
+Swap ONLY the per-name condition; hold demeaning, top-K, universe (14 Sleeve-A ETFs) and 2 bps cost fixed. Engine `scripts/relative_trend.py` uses ONE shared cross-leg validity mask (a name counts on a day only if BOTH legs are computable) so arms differ solely in the condition, never in eligibility. Because ratio = close/SPY inherits the close's NaN mask, the shared mask collapses to the absolute leg's own mask → A0 reproduces the deployed `compute_ma200_breadth` to 0.0 (asserted selftest). 13 selftests (look-ahead ×2, denominator symmetry ×2, deployed parity, invariants, date boundaries) committed BEFORE the run (75acc3d, 837c9ff) per em-rotation §1.9b. Registered window 2018-10-12→2026-06-30; WF = initial train to 2020-12-31 then 6 annual K-refits (K∈{3,5,7,9}) OOS 2021→2026-Q2. Verdict rule (frozen, 4 sign-off items confirmed 2026-07-10): a challenger must (1) WF Sharpe ≥ A0 + 0.10, (2) ≥ P + 0.10, (3) MaxDD within 2pp, (4) survive both at 2× cost, (5) weekly Jaccard vs P < 0.8.
+
+### Result — VERDICT KEEP A0 (`data/ws5_results.json`, run harness `scripts/run_ws5_relative_trend.py`)
+
+| Arm | Full Sharpe | WF OOS | WF 2× | MaxDD |
+|---|---:|---:|---:|---:|
+| A0 absolute (deployed) | +1.009 | **+1.128** | +1.107 | −30.6% |
+| OR (A0 ∪ A1) | +1.031 | +1.126 | +1.106 | −30.9% |
+| P momentum placebo (126d) | +0.924 | +1.031 | +1.016 | −33.1% |
+| A2 dual rel-250d (neighbour) | +0.929 | +0.984 | +0.966 | −30.8% |
+| A2 dual rel-150d (neighbour) | +0.887 | +0.955 | +0.934 | −31.1% |
+| A1 relative | +0.923 | +0.947 | +0.929 | −31.2% |
+| A2 dual (rel-200d) | +0.905 | +0.906 | +0.887 | −30.9% |
+
+Adopt bar = A0 + 0.10 = +1.228. Both A1 and A2 fail cond 1/2/4, pass only 3/5 (Jaccard 0.64 vs P). No relative or dual arm reaches even the momentum placebo (+1.031). The failure is structural (holds at 2× cost) and not a drawdown trade (all arms −30.6% to −31.2%; the placebo is the −33.1% outlier).
+
+**Interpretation.** The relative leg is real, not noise — best challenger A1's annual Sharpe 0.92 vs expected-max-under-null 0.08 gives DSR 0.989 (z 2.29, N=8) — but redundant: it loses to the deployed absolute leg AND to plain momentum, tracking the placebo at 0.95 return-correlation. Mechanism: Phase 20 already demeans sector breadth cross-sectionally (removes market beta at the sector level); measuring each name relative to SPY subtracts a market-beta component a SECOND time at the name level — in a broad up-market with concentrated leadership (2019–26) that beta is what the rotation signal rides, so double-subtracting leaves a noisier residual. Consistent with WS4 (strength entries carry nothing) and the house read (breadth for concentrated sleeves, momentum for diversified baskets). **Positive by-product:** A0 beats the ETF-momentum placebo by +0.097 WF, direct re-validation of Sleeve A's constituent-breadth premise.
+
+### Trial register
+7 engine arms evaluated, 0 selected: A0, A1, A2, OR, dual-rel150, dual-rel250, P. DSR charged at N=8 (the 7 arms + 1 blend-context pad). K-grid is within-arm WF selection, not a separate testing axis. Parity: A0-vs-deployed breadth 0.0; `_wf_local` ≡ canonical `walk_forward_sharpe` at matched 5 bps 0.0 (verdict runs at the deployed 2 bps).
+
+### Decisions
+- **A0 KEEP** (frozen rule); **A1/A2 REJECT**.
+- **Tier-1 dual-trend panel DOWNGRADED** to an on-demand digest read — the verdict shows the abs-vs-rel divergence carries no rotation-relevant edge, so no standing dashboard panel; the frozen engine can produce the divergence table for the weekly digest when topical.
+- **IBD Power Trend PARKED** (index-level gate class; Phase 19 defended twice).
+- **FLAG (tooling, not deployed-risk):** `walk_forward_sharpe` hardcodes Strategy C's 5 bps (imports `COST_FRAC` from `run_thematic_rotation`) — mis-costs any 2 bps sleeve if reused. Cheap one-line fix, separate from this study.
+
+### WS5 bottom line
+0 deployed changes. The SentimenTrader concept is exhausted as a source of Sleeve-A alpha; reopening needs a genuinely new object, not a re-fit of this one. **WS5 tested Sleeve A ONLY** — B, C, D and the two overlays were out of scope and are neither changed nor cleared; their standing is governed by the 2026-07 staged review. Record `reviews/2026-07-10_ws5_relative-trend.docx`.
