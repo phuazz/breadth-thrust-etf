@@ -1,0 +1,257 @@
+{
+  "computed_at_utc": "2026-07-10T08:26:39.078871+00:00",
+  "window": {
+    "start": "2018-10-12",
+    "end": "2026-06-30",
+    "registered": "2018-Q4 -> 2026-Q2"
+  },
+  "config": {
+    "cost_bps": 2,
+    "K_deployed": 7,
+    "K_grid": [
+      3,
+      5,
+      7,
+      9
+    ],
+    "rebal": "W-FRI",
+    "adopt_margin": 0.1,
+    "dd_tol_pp": 2.0,
+    "jaccard_max": 0.8,
+    "n_trials": 8,
+    "placebo_mom_days": 126,
+    "initial_train_end": "2020-12-31"
+  },
+  "parity": {
+    "a0_breadth_maxdiff": 0.0,
+    "wf_local_vs_canonical_matched_5bps": 0.0,
+    "note": "verdict WF runs at Sleeve A's deployed 2 bps; the canonical walk_forward_sharpe is hardcoded to 5 bps, so validation is at matched 5 bps"
+  },
+  "register": {
+    "0_A0_absolute": {
+      "full_1x": {
+        "sharpe": 1.0086287588341767,
+        "total_return": 2.7931181295202254,
+        "max_dd": 0.306058950973641,
+        "cagr": 0.18939558347265883
+      },
+      "full_2x": {
+        "sharpe": 0.9911974819172221,
+        "total_return": 2.6979868061916163,
+        "max_dd": 0.3064368367699142,
+        "cagr": 0.18547174714725623
+      },
+      "wf_1x_sharpe": 1.1276564298041374,
+      "wf_2x_sharpe": 1.1074040130846756,
+      "wf_K_sequence": [
+        5,
+        9,
+        9,
+        9,
+        9,
+        9
+      ]
+    },
+    "1_A1_relative": {
+      "full_1x": {
+        "sharpe": 0.9225774600917402,
+        "total_return": 2.6286178676767724,
+        "max_dd": 0.31158742832197717,
+        "cagr": 0.1825547733327173
+      },
+      "full_2x": {
+        "sharpe": 0.9067560265015292,
+        "total_return": 2.539697620744626,
+        "max_dd": 0.31180330933939937,
+        "cagr": 0.1787438756582176
+      },
+      "wf_1x_sharpe": 0.9471840410321161,
+      "wf_2x_sharpe": 0.928727276308486,
+      "wf_K_sequence": [
+        5,
+        9,
+        9,
+        9,
+        9,
+        9
+      ]
+    },
+    "2_A2_dual": {
+      "full_1x": {
+        "sharpe": 0.9045729831526608,
+        "total_return": 2.538194500177766,
+        "max_dd": 0.30916605726323787,
+        "cagr": 0.17867874308282627
+      },
+      "full_2x": {
+        "sharpe": 0.8879376472342103,
+        "total_return": 2.4467405521544388,
+        "max_dd": 0.30953603949361685,
+        "cagr": 0.17466987586359828
+      },
+      "wf_1x_sharpe": 0.9057383786902476,
+      "wf_2x_sharpe": 0.8867871254915907,
+      "wf_K_sequence": [
+        3,
+        9,
+        9,
+        9,
+        9,
+        9
+      ]
+    },
+    "3_P_placebo": {
+      "full_1x": {
+        "sharpe": 0.9236159034192184,
+        "total_return": 3.1253715395590884,
+        "max_dd": 0.3314174744874405,
+        "cagr": 0.20245980923965634
+      },
+      "full_2x": {
+        "sharpe": 0.91044375823543,
+        "total_return": 3.0313701697358537,
+        "max_dd": 0.33162895174229834,
+        "cagr": 0.1988593559473253
+      },
+      "wf_1x_sharpe": 1.030589797666357,
+      "wf_2x_sharpe": 1.0164337978251337,
+      "wf_K_sequence": [
+        5,
+        9,
+        5,
+        5,
+        5,
+        5
+      ]
+    },
+    "4_OR": {
+      "full_1x": {
+        "sharpe": 1.0305024024317047,
+        "total_return": 2.899731660360557,
+        "max_dd": 0.30848124520704656,
+        "cagr": 0.19369256450801609
+      },
+      "full_2x": {
+        "sharpe": 1.0140751164885673,
+        "total_return": 2.807924148709064,
+        "max_dd": 0.3086943671919502,
+        "cagr": 0.18999856361331546
+      },
+      "wf_1x_sharpe": 1.1258175983725915,
+      "wf_2x_sharpe": 1.105638559903098,
+      "wf_K_sequence": [
+        5,
+        7,
+        7,
+        9,
+        9,
+        9
+      ]
+    },
+    "5_A2_rel150": {
+      "full_1x": {
+        "sharpe": 0.8869741991312551,
+        "total_return": 2.4235431096761353,
+        "max_dd": 0.3105181370243355,
+        "cagr": 0.1736383192350761
+      },
+      "full_2x": {
+        "sharpe": 0.8683811381380798,
+        "total_return": 2.3252927602663016,
+        "max_dd": 0.31088742874236563,
+        "cagr": 0.16920071290018956
+      },
+      "wf_1x_sharpe": 0.954776128450259,
+      "wf_2x_sharpe": 0.934164174811182,
+      "wf_K_sequence": [
+        3,
+        9,
+        9,
+        9,
+        9,
+        3
+      ]
+    },
+    "6_A2_rel250": {
+      "full_1x": {
+        "sharpe": 0.9287624081568525,
+        "total_return": 2.6709079372042117,
+        "max_dd": 0.30799907504154433,
+        "cagr": 0.184338786994952
+      },
+      "full_2x": {
+        "sharpe": 0.9127633183846331,
+        "total_return": 2.5798807148098093,
+        "max_dd": 0.3083519627397584,
+        "cagr": 0.18047621517658752
+      },
+      "wf_1x_sharpe": 0.983658539370902,
+      "wf_2x_sharpe": 0.9658839111769855,
+      "wf_K_sequence": [
+        5,
+        9,
+        9,
+        7,
+        7,
+        7
+      ]
+    }
+  },
+  "coverage_shared_valid_share": {
+    "SOXX": 0.9186200796107917,
+    "CSP1": 0.9186200796107917,
+    "CNDX": 0.9186200796107917,
+    "IUES": 0.9186200796107917,
+    "IUFS": 0.9186200796107917,
+    "IUHC": 0.9186200796107917,
+    "IUIS": 0.9186200796107917,
+    "IUCS": 0.9186200796107917,
+    "IUCD": 0.9186200796107917,
+    "IUUS": 0.9186200796107917,
+    "IUMS": 0.9186200796107917,
+    "IUCM": 0.9186200796107917,
+    "IUSP": 0.9186200796107917,
+    "IDP6": 0.9186200796107917
+  },
+  "overlap_vs_placebo": {
+    "A1_relative": {
+      "weekly_jaccard_vs_P": 0.6386344161408428,
+      "return_corr_vs_P": 0.9513182653017486
+    },
+    "A2_dual": {
+      "weekly_jaccard_vs_P": 0.640293125897239,
+      "return_corr_vs_P": 0.9523820513195567
+    }
+  },
+  "dsr_best_challenger": {
+    "arm": "A1_relative",
+    "var_trials_daily": 1.2052290216457265e-05,
+    "T": 1937.0,
+    "sr_annual": 0.9224497797288255,
+    "skew": -0.4362236307115699,
+    "kurtosis_raw": 12.18212419765557,
+    "sr0_annual_expected_max": 0.08040712668435576,
+    "dsr": 0.989114971759395,
+    "z": 2.2943560325000942
+  },
+  "verdict_conditions": {
+    "A1_relative": {
+      "cond1_wf_vs_A0": false,
+      "cond2_wf_vs_P": false,
+      "cond3_maxdd": true,
+      "cond4_2x_costs": false,
+      "cond5_jaccard": true,
+      "passes_all": false
+    },
+    "A2_dual": {
+      "cond1_wf_vs_A0": false,
+      "cond2_wf_vs_P": false,
+      "cond3_maxdd": true,
+      "cond4_2x_costs": false,
+      "cond5_jaccard": true,
+      "passes_all": false
+    }
+  },
+  "verdict": "KEEP A0 (incumbent) \u2014 no challenger clears the frozen rule",
+  "winner": null
+}
