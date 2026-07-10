@@ -80,21 +80,27 @@ def _align_benchmark(prices: pd.DataFrame, benchmark: pd.Series) -> pd.Series:
     return bench
 
 
-def _legs(prices: pd.DataFrame, benchmark: pd.Series, period: int):
+def _legs(prices: pd.DataFrame, benchmark: pd.Series, abs_period: int,
+          rel_period: int):
     """Return (shared_mask, above_abs, above_rel) boolean frames aligned to
     `prices`.
 
     shared_mask[i, t] is True iff constituent t is computable on BOTH legs on
     day i (price & abs-MA valid AND ratio & rel-MA valid).
-    above_abs[i, t]   is close > SMA(close).
-    above_rel[i, t]   is ratio > SMA(ratio), ratio = close / benchmark.
+    above_abs[i, t]   is close > SMA_{abs_period}(close).
+    above_rel[i, t]   is ratio > SMA_{rel_period}(ratio), ratio = close / bmk.
+
+    `abs_period` and `rel_period` are usually equal (the symmetric case that
+    reproduces the deployed leg). They differ only for the WS5 report-only
+    neighbour arms that hold the absolute leg at 200d while sliding the
+    relative leg to 150d / 250d — a strict superset; when they are equal the
+    behaviour is bit-identical to the single-window path.
     """
-    min_p = _min_periods(period)
     bench = _align_benchmark(prices, benchmark)
     ratio = prices.div(bench, axis=0)
 
-    sma_abs = prices.rolling(period, min_periods=min_p).mean()
-    sma_rel = ratio.rolling(period, min_periods=min_p).mean()
+    sma_abs = prices.rolling(abs_period, min_periods=_min_periods(abs_period)).mean()
+    sma_rel = ratio.rolling(rel_period, min_periods=_min_periods(rel_period)).mean()
 
     abs_ok = prices.notna() & sma_abs.notna()
     rel_ok = ratio.notna() & sma_rel.notna()
@@ -109,6 +115,7 @@ def compute_trend_breadth_all(
     prices: pd.DataFrame,
     benchmark: pd.Series,
     period: int = MA_PERIOD,
+    rel_period: int | None = None,
 ) -> pd.DataFrame:
     """All three per-name trend-breadth arms for one ETF's constituent panel.
 
@@ -119,7 +126,13 @@ def compute_trend_breadth_all(
     benchmark : Series  (index = trading dates)
         Benchmark adjusted close (SPY) for the relative leg's ratio.
     period : int
-        MA window (default 200), 90%-populated minimum.
+        Absolute-leg MA window (default 200), 90%-populated minimum. Also the
+        relative-leg window unless `rel_period` is given.
+    rel_period : int or None
+        Relative-leg MA window. Defaults to `period` (symmetric — the deployed
+        object). Set to 150 / 250 only for the WS5 report-only neighbour arms;
+        with the default None this argument is a no-op and the result is
+        bit-identical to the single-window computation.
 
     Returns
     -------
@@ -131,7 +144,10 @@ def compute_trend_breadth_all(
     """
     if period <= 1:
         raise ValueError("period must be > 1")
-    shared, above_abs, above_rel = _legs(prices, benchmark, period)
+    rp = period if rel_period is None else rel_period
+    if rp <= 1:
+        raise ValueError("rel_period must be > 1")
+    shared, above_abs, above_rel = _legs(prices, benchmark, period, rp)
 
     denom = shared.sum(axis=1)
     denom = denom.where(denom > 0, np.nan)
@@ -156,20 +172,25 @@ def compute_trend_breadth(
     benchmark: pd.Series,
     mode: str = "absolute",
     period: int = MA_PERIOD,
+    rel_period: int | None = None,
 ) -> pd.Series:
     """Single-arm convenience wrapper. `mode` in TREND_MODES."""
     if mode not in TREND_MODES:
         raise ValueError(f"mode must be one of {TREND_MODES}, got {mode!r}")
-    return compute_trend_breadth_all(prices, benchmark, period=period)[mode]
+    return compute_trend_breadth_all(
+        prices, benchmark, period=period, rel_period=rel_period
+    )[mode]
 
 
 def shared_valid_count(
     prices: pd.DataFrame,
     benchmark: pd.Series,
     period: int = MA_PERIOD,
+    rel_period: int | None = None,
 ) -> pd.Series:
     """Per-day count of constituents valid on BOTH legs — the common
     denominator of all three arms. Exposed for the diagnostic panel and for
     per-ETF coverage reporting in the WS5 record."""
-    shared, _, _ = _legs(prices, benchmark, period)
+    rp = period if rel_period is None else rel_period
+    shared, _, _ = _legs(prices, benchmark, period, rp)
     return shared.sum(axis=1)

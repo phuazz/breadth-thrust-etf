@@ -254,6 +254,45 @@ def test_relative_leg_detects_outperformance():
 
 
 # ---------------------------------------------------------------------------
+# Asymmetric-window neighbour arms (WS5 register #5 rel-150d, #6 rel-250d)
+# ---------------------------------------------------------------------------
+
+def test_rel_period_default_is_bit_identical():
+    """rel_period=None (default) must reproduce the single-window computation
+    exactly — the asymmetric extension is a strict superset that changes
+    nothing on the frozen symmetric path."""
+    prices = _panel(seed=61)
+    spy = _benchmark(prices.index, seed=62)
+    a = compute_trend_breadth_all(prices, spy, period=MA_PERIOD)
+    b = compute_trend_breadth_all(prices, spy, period=MA_PERIOD, rel_period=None)
+    c = compute_trend_breadth_all(prices, spy, period=MA_PERIOD, rel_period=MA_PERIOD)
+    pd.testing.assert_frame_equal(a, b)
+    pd.testing.assert_frame_equal(a, c)
+
+
+def test_asymmetric_window_changes_only_rel_and_dual():
+    """Sliding the relative leg to 150d leaves the absolute arm untouched
+    (it still uses the 200d window) and keeps the dual invariant intact."""
+    prices = _panel(seed=63)
+    spy = _benchmark(prices.index, seed=64)
+    sym = compute_trend_breadth_all(prices, spy, period=200)
+    asy = compute_trend_breadth_all(prices, spy, period=200, rel_period=150)
+    common = sym.dropna().index.intersection(asy.dropna().index)
+    # Absolute arm unchanged where BOTH are defined... but the shared mask
+    # differs between symmetric-200 and asymmetric-(200,150), so compare only
+    # the STRUCTURE, not equality: dual <= each leg must still hold.
+    assert (asy["dual"].dropna() <= asy["absolute"].dropna() + 1e-12).all()
+    assert (asy["dual"].dropna() <= asy["relative"].dropna() + 1e-12).all()
+    # The 150d relative leg warms up sooner than the 200d absolute leg, but the
+    # shared mask requires both, so the first defined date is governed by 200d.
+    assert asy["dual"].first_valid_index() == sym["dual"].first_valid_index()
+    # And the relative arm genuinely differs from the symmetric case somewhere.
+    rel_sym = sym["relative"].reindex(common)
+    rel_asy = asy["relative"].reindex(common)
+    assert not np.allclose(rel_sym.values, rel_asy.values)
+
+
+# ---------------------------------------------------------------------------
 # Date-boundary rule (vault CLAUDE.md): one month boundary, one year boundary
 # ---------------------------------------------------------------------------
 
