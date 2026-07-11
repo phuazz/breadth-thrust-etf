@@ -122,6 +122,17 @@ jobs:
 
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
+      # The dashboard rebuilds daily, but the holdings 1Y price series (which
+      # feeds the Monitor click-expand mini-charts) was only refreshed in the
+      # weekly factsheet workflow. Its Data Health budget is daily (warn 3 /
+      # stale 7), so 3+ days after each weekly run the feed chronically flagged
+      # "approaching". The export is cache-first and now self-heals from
+      # yfinance for any book ticker whose (gitignored) cache is absent on the
+      # runner, so it is cheap and safe to refresh daily. Soft-fail so a feed
+      # hiccup never blocks the live-track publish.
+      - name: Run holdings price export (soft-fail)
+        run: python scripts/export_holdings_prices.py || true
+
       - name: Rebuild dashboard + factsheet with live extension
         run: python scripts/pipeline.py
 
