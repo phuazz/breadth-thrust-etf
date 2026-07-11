@@ -1837,7 +1837,7 @@
         </table>
         <div class="prev-card-net" id="preview-activity-net"></div>
         <div class="prev-card-foot">
-          <a href="#" onclick="document.querySelector('[data-tab=history]').click();return false;">Full rebalance ledger &rarr;</a>
+          <a href="#" onclick="document.querySelector('[data-tab=history]').click();document.getElementById('combined-ledger-section')?.scrollIntoView({behavior:'smooth',block:'start'});return false;">Full rebalance ledger &rarr;</a>
         </div>
       </div>
     </div>
@@ -1999,15 +1999,8 @@
       <div id="overlay-events-history-card"></div>
     </section>
 
-    <section>
-      <h2>1 · Asset-class exposure over time</h2>
-      <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly Friday snapshots since 2018-Q4 (common window across all four sleeves). <strong>Strategy A's 14 US sector ETFs are decomposed into 5 macro buckets</strong> (US Tech / Comms, US Cyclicals, US Energy, US Financials, US Defensives) so A's actual sector rotation is visible. <strong>Amber-shaded vertical bands</strong> mark periods when the breadth-regime overlay was RISK_OFF — look for the corresponding swell in the pale-green <strong>Cash (SHY)</strong> band at the bottom. Notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic burst in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, and the rotation between US Tech / Cyclicals / Defensives within Strategy A over the full window.</p>
-      <div id="blend-allocation-chart" class="chart tall"></div>
-      <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every Friday. <strong>Colours grouped by exposure family</strong>: greens for cash + fixed income + real estate, blues / purples for US equities (defensives → cyclicals → tech), teals for international equities, amber for commodities, magenta for thematic optionality. <strong>Stack order bottom-up</strong>: defensive base first (cash, bonds, real estate), then US equities, then intl / commodities / thematic optionality — the "satellite" risk that moves most. <strong>Bucketing</strong>: Strategy A's sectors split into Tech / Comms (CNDX, SOXX, IUCM), Cyclicals (IUIS, IUCD, IUMS), Energy (IUES), Financials (IUFS), Defensives (IUHC, IUCS, IUUS); IUSP rolls into Real Estate; VGK aggregates with Strategy D's Stoxx 600 sectors into Europe Equity; Strategy C's commodity-equity themes (XME, GDX, COPX, WOOD, REMX, MOO) aggregate into Commodities; SHY (both sleeves' cash floor and the breadth gate's defensive parking) is its own band so the overlay engagement is visible.</p>
-    </section>
-
-    <section>
-      <h2>2 · Combined trade ledger — every rebalance across all four sleeves</h2>
+    <section id="combined-ledger-section">
+      <h2>1 · Combined trade ledger — every rebalance across all four sleeves</h2>
       <p class="section-sub full">Flat list of every position change across A, B, C, and D. <strong>One row per (sleeve × rebalance × ETF)</strong>. Action = entry (first appearance) / exit (last appearance) / resize (weight change within an existing position). Filter by sleeve, ETF, or date to drill into a specific moment.</p>
       <div class="trade-controls">
         <label class="toggle" style="font-size:12px;"><input type="checkbox" id="ledger-recent-only" checked> Show last 200 only</label>
@@ -2030,6 +2023,13 @@
       <div class="trade-table-wrap">
         <table class="small-table" id="ledger-table" style="margin-top:10px;"><thead></thead><tbody></tbody></table>
       </div>
+    </section>
+
+    <section>
+      <h2>2 · Asset-class exposure over time</h2>
+      <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly Friday snapshots since 2018-Q4 (common window across all four sleeves). <strong>Strategy A's 14 US sector ETFs are decomposed into 5 macro buckets</strong> (US Tech / Comms, US Cyclicals, US Energy, US Financials, US Defensives) so A's actual sector rotation is visible. <strong>Amber-shaded vertical bands</strong> mark periods when the breadth-regime overlay was RISK_OFF — look for the corresponding swell in the pale-green <strong>Cash (SHY)</strong> band at the bottom. Notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic burst in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, and the rotation between US Tech / Cyclicals / Defensives within Strategy A over the full window.</p>
+      <div id="blend-allocation-chart" class="chart tall"></div>
+      <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every Friday. <strong>Colours grouped by exposure family</strong>: greens for cash + fixed income + real estate, blues / purples for US equities (defensives → cyclicals → tech), teals for international equities, amber for commodities, magenta for thematic optionality. <strong>Stack order bottom-up</strong>: defensive base first (cash, bonds, real estate), then US equities, then intl / commodities / thematic optionality — the "satellite" risk that moves most. <strong>Bucketing</strong>: Strategy A's sectors split into Tech / Comms (CNDX, SOXX, IUCM), Cyclicals (IUIS, IUCD, IUMS), Energy (IUES), Financials (IUFS), Defensives (IUHC, IUCS, IUUS); IUSP rolls into Real Estate; VGK aggregates with Strategy D's Stoxx 600 sectors into Europe Equity; Strategy C's commodity-equity themes (XME, GDX, COPX, WOOD, REMX, MOO) aggregate into Commodities; SHY (both sleeves' cash floor and the breadth gate's defensive parking) is its own band so the overlay engagement is visible.</p>
     </section>
 
     <section>
@@ -9221,7 +9221,7 @@ function _historySleeveWeights() {
 }
 
 
-// --- Section 1 — Asset-class exposure stacked over time --------------
+// --- Section 2 — Asset-class exposure stacked over time --------------
 // ----------- Trade History: risk overlay events table -----------------
 // Renders the 16 historical regime-change events (RISK_OFF / RISK_ON)
 // from window.DATA.risk_overlay.events, with inferred trade ticket
@@ -9471,7 +9471,7 @@ function renderBlendAllocationTimeline() {
 }
 
 
-// --- Section 2 — Combined trade ledger -----------------------------------
+// --- Section 1 — Combined trade ledger -----------------------------------
 let _ledgerRecentOnly = true;
 let _ledgerSleeveFilter = '';
 let _ledgerActionFilter = '';
