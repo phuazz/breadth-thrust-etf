@@ -58,9 +58,21 @@ INDIVIDUAL_OHLC_TICKERS = [
     "SPY", "QQQ", "IJR", "SOXX",
     # Strategy D Xetra UCITS
     "EXV1.DE", "EXH1.DE", "EXV3.DE", "EXH3.DE", "EXH9.DE",
+    # EM sleeve — overlay-only since Phase 29, no longer in the rotation
+    # parquet, so it must be sourced explicitly (em_regime_context or yfinance).
+    "EEM",
     # Reference / extras
     "INDA", "MCHI",
 ]
+
+# Book-critical tickers whose ONLY on-disk source (the individual OHLC and
+# multi-ETF price caches) is gitignored, so a fresh CI runner never has them.
+# Prior to this, the weekly Actions run emitted only the ~38 tickers that its
+# Strategy B/C rotation steps download live, silently dropping SOXX, the US
+# sector proxies (XLE/XLU/XLRE/XLB), the Xetra lines and EEM — 55-60% of NAV.
+# For any of these still missing after the cache sweep, fetch from yfinance so
+# the exported universe is complete regardless of which caches exist locally.
+NETWORK_FALLBACK_TICKERS = sorted(set(INDIVIDUAL_OHLC_TICKERS))
 
 
 def load_close_series(ticker: str) -> pd.Series | None:
@@ -97,6 +109,19 @@ def load_close_series(ticker: str) -> pd.Series | None:
                 return ser.dropna()
         except Exception:
             pass
+    # 4. EM regime-context parquet — the only COMMITTED (non-gitignored)
+    #    price source for EEM and SPY. Phase 29 removed EEM from the
+    #    Strategy B rotation universe, so EEM left asset_class_prices_cache;
+    #    the book still holds it (overlay-only), and this is where its close
+    #    survives. Committed, so it is present on a fresh CI runner.
+    em = DATA_DIR / "em_regime_context.parquet"
+    if em.exists():
+        try:
+            df = pd.read_parquet(em)
+            if ticker in df.columns and df[ticker].notna().any():
+                return df[ticker].dropna()
+        except Exception:
+            pass
     return None
 
 
@@ -130,7 +155,108 @@ def collect_all_tickers() -> set[str]:
             tickers.update(pd.read_parquet(tc).columns)
         except Exception:
             pass
+    tickers.update(NETWORK_FALLBACK_TICKERS)
     return tickers
+
+
+def build_entry(close: "pd.Series | None") -> dict | None:
+    """Turn a raw Close series into the exported per-ticker record (dates,
+    prices, MA overlays and trend stats), or None if there is too little
+    history. MAs are computed on the FULL series then sliced to the last
+    LOOKBACK_DAYS, so the 200d MA is populated across the whole 1Y window
+    whenever >=200 prior sessions exist; for young tickers the leading MA
+    values are NaN and serialise to None (Plotly skips those points)."""
+    if close is None or len(close) < 2:
+        return None
+    ma_series: dict[int, pd.Series] = {
+        p: close.rolling(p, min_periods=p).mean() for p in MA_PERIODS
+    }
+    tail = close.iloc[-LOOKBACK_DAYS:]
+    if len(tail) < 2:
+        return None
+    first = float(tail.iloc[0])
+    last = float(tail.iloc[-1])
+    change_pct = (last / first - 1.0) if first else None
+    # Distance of last close above the 200d MA, as a decimal (0.05 = 5%).
+    ma200_last = ma_series[200].iloc[-1] if not ma_series[200].empty else None
+    vs_ma200 = None
+    if (ma200_last is not None and not pd.isna(ma200_last)
+            and ma200_last != 0):
+        vs_ma200 = float(last / ma200_last - 1.0)
+
+    def _ma_tail_arr(p: int) -> list:
+        series_tail = ma_series[p].iloc[-LOOKBACK_DAYS:]
+        return [
+            round(float(v), max(0, 4 - int(__import__("math").floor(
+                __import__("math").log10(abs(v)) if v != 0 else 0
+            )) - 1)) if not pd.isna(v) else None
+            for v in series_tail.values
+        ]
+
+    return {
+        "dates": [d.strftime("%Y-%m-%d") for d in tail.index],
+        "prices": _round_sig([float(v) for v in tail.values]),
+        "ma50": _ma_tail_arr(50),
+        "ma100": _ma_tail_arr(100),
+        "ma200": _ma_tail_arr(200),
+        "change_pct": round(change_pct, 4) if change_pct is not None else None,
+        "vs_ma200": round(vs_ma200, 4) if vs_ma200 is not None else None,
+        "n_days": int(len(tail)),
+    }
+
+
+def fetch_missing_from_yfinance(tickers: list[str]) -> dict[str, pd.Series]:
+    """Last-resort fetch for book-critical tickers whose local caches are
+    absent (the CI-runner case — those caches are gitignored). Downloads ~2
+    calendar years of daily closes in one batched call so the 200d MA is
+    populated, writes each back to its ``{ticker}_ohlc_cache.parquet`` so
+    subsequent runs are cheap, and returns {ticker: Close series}. Any
+    failure degrades gracefully to an empty mapping — the caller then simply
+    reports the ticker as skipped rather than crashing the (soft-fail) step.
+    """
+    if not tickers:
+        return {}
+    try:
+        import yfinance as yf
+    except Exception as exc:  # pragma: no cover - env without yfinance
+        print(f"  WARN: yfinance unavailable, cannot backfill {tickers}: {exc}")
+        return {}
+    # ~2y of calendar days comfortably covers 200 trading sessions + the 1Y
+    # window. auto_adjust=True matches the convention used by the Strategy B/C
+    # rotations and the EEM loader (adjusted closes).
+    print(f"  Backfilling {len(tickers)} ticker(s) from yfinance: "
+          f"{', '.join(tickers)}")
+    out: dict[str, pd.Series] = {}
+    try:
+        raw = yf.download(tickers, period="2y", auto_adjust=True,
+                          progress=False, threads=True, group_by="ticker")
+    except Exception as exc:
+        print(f"  WARN: yfinance batch download failed: {exc}")
+        return {}
+    for tk in tickers:
+        try:
+            if len(tickers) == 1:
+                # Single-ticker downloads are not MultiIndex-keyed by ticker.
+                ser = raw["Close"] if "Close" in raw.columns else None
+            else:
+                ser = raw[(tk, "Close")] if (tk, "Close") in raw.columns else None
+            if ser is None:
+                continue
+            ser = ser.dropna()
+            if ser.empty:
+                continue
+            ser.index = pd.to_datetime(ser.index).tz_localize(None)
+            out[tk] = ser
+            # Persist as an OHLC-style cache so load_close_series finds it next
+            # time and local runs stay network-free.
+            try:
+                pd.DataFrame({"Close": ser}).to_parquet(
+                    DATA_DIR / f"{tk.lower()}_ohlc_cache.parquet")
+            except Exception:
+                pass
+        except Exception:
+            continue
+    return out
 
 
 def main() -> int:
@@ -142,56 +268,24 @@ def main() -> int:
     out: dict[str, dict] = {}
     n_skipped: list[str] = []
     for ticker in tickers:
-        close = load_close_series(ticker)
-        if close is None or len(close) < 2:
+        entry = build_entry(load_close_series(ticker))
+        if entry is None:
             n_skipped.append(ticker)
             continue
-        # Compute MAs on the FULL available history, then slice last
-        # LOOKBACK_DAYS — that way the 200d MA is populated for every
-        # date in the 1Y window when at least 200 prior days exist.
-        # For young tickers (BTC-USD, 159801.SZ, IBIT proxies) the
-        # leading MA values will be NaN; those serialise to None and
-        # Plotly skips connecting points.
-        ma_series: dict[int, pd.Series] = {
-            p: close.rolling(p, min_periods=p).mean() for p in MA_PERIODS
-        }
-        # Take last LOOKBACK_DAYS trading days. If less history available,
-        # take whatever exists (chart will just show a shorter window).
-        tail = close.iloc[-LOOKBACK_DAYS:]
-        if len(tail) < 2:
-            n_skipped.append(ticker)
-            continue
-        first = float(tail.iloc[0])
-        last = float(tail.iloc[-1])
-        change_pct = (last / first - 1.0) if first else None
-        # Distance of last close above the 200d MA, expressed as a
-        # decimal (0.05 = 5% above MA). Useful as a "trend context"
-        # stat in the mini-chart header.
-        ma200_last = ma_series[200].iloc[-1] if not ma_series[200].empty else None
-        vs_ma200 = None
-        if (ma200_last is not None and not pd.isna(ma200_last)
-                and ma200_last != 0):
-            vs_ma200 = float(last / ma200_last - 1.0)
+        out[ticker] = entry
 
-        def _ma_tail_arr(p: int) -> list:
-            series_tail = ma_series[p].iloc[-LOOKBACK_DAYS:]
-            return [
-                round(float(v), max(0, 4 - int(__import__("math").floor(
-                    __import__("math").log10(abs(v)) if v != 0 else 0
-                )) - 1)) if not pd.isna(v) else None
-                for v in series_tail.values
-            ]
-
-        out[ticker] = {
-            "dates": [d.strftime("%Y-%m-%d") for d in tail.index],
-            "prices": _round_sig([float(v) for v in tail.values]),
-            "ma50": _ma_tail_arr(50),
-            "ma100": _ma_tail_arr(100),
-            "ma200": _ma_tail_arr(200),
-            "change_pct": round(change_pct, 4) if change_pct is not None else None,
-            "vs_ma200": round(vs_ma200, 4) if vs_ma200 is not None else None,
-            "n_days": int(len(tail)),
-        }
+    # Second pass: any book-critical ticker still missing had no on-disk
+    # source (its cache is gitignored and was not present — the CI-runner
+    # regression that dropped SOXX / the sector proxies / the Xetra lines /
+    # EEM). Backfill those from yfinance so the exported universe is complete.
+    missing_critical = [t for t in NETWORK_FALLBACK_TICKERS if t not in out]
+    if missing_critical:
+        for tk, close in fetch_missing_from_yfinance(missing_critical).items():
+            entry = build_entry(close)
+            if entry is not None:
+                out[tk] = entry
+                if tk in n_skipped:
+                    n_skipped.remove(tk)
 
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
