@@ -10024,6 +10024,24 @@ function _runLoadingWatchdog() {
   document.querySelectorAll('nav.tabs button').forEach((btn) => {
     btn.addEventListener('click', () => activateTab(btn.dataset.tab));
   });
+  // Deep-link routing: a URL hash naming a section inside a tab
+  // (e.g. #combined-ledger-section) opens that tab and scrolls the section
+  // into view; a hash naming a tab (e.g. #history) just opens it. Lets the
+  // weekly factsheet email link straight to the combined trade ledger.
+  function _applyHashRoute() {
+    const h = decodeURIComponent((location.hash || '').replace(/^#/, ''));
+    if (!h) return;
+    const el = document.getElementById(h);
+    const tc = el && el.closest('.tab-content');
+    if (tc && tc.id.indexOf('tab-') === 0) {
+      activateTab(tc.id.slice(4));
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 90);
+    } else if (document.getElementById('tab-' + h)) {
+      activateTab(h);
+    }
+  }
+  window.addEventListener('hashchange', _applyHashRoute);
+  _applyHashRoute();
   document.getElementById('trade-recent-only')?.addEventListener('change', (e) => {
     _tradeStateRecentOnly = e.target.checked;
     renderTradeTable();

@@ -485,15 +485,19 @@ def build_html(out_path: Path):
     MATERIAL_NAV = 0.005
     _act_order = {"ENTER": 0, "EXIT": 1, "RESIZE": 2}
     material = [a for a in activity if a["nav_impact"] >= MATERIAL_NAV]
+    # Show EVERY move this cycle (no materiality omission) so the email is a
+    # complete rebalance record — the recipient should not have to open the
+    # dashboard to catch the smaller moves. The dashboard hides sub-0.5%-NAV
+    # moves behind a toggle; a static email has no toggle, so it lists them.
+    shown = list(activity)
     # Stable multi-key sort: date desc, then action (ENTER/EXIT/RESIZE),
-    # then resulting position size desc — identical ordering to the
-    # dashboard (which keys the tertiary sort on newNav||prevNav).
-    material.sort(key=lambda a: (a["new"] or a["prev"] or 0), reverse=True)
-    material.sort(key=lambda a: _act_order.get(a["action"], 9))
-    material.sort(key=lambda a: a["date"], reverse=True)
+    # then resulting position size desc — identical ordering to the dashboard.
+    shown.sort(key=lambda a: (a["new"] or a["prev"] or 0), reverse=True)
+    shown.sort(key=lambda a: _act_order.get(a["action"], 9))
+    shown.sort(key=lambda a: a["date"], reverse=True)
     n_small = len(activity) - len(material)
     net_nav = sum((a["new"] or 0) - (a["prev"] or 0) for a in activity)
-    shown_dates = sorted({a["date"] for a in material if a["date"]})
+    shown_dates = sorted({a["date"] for a in shown if a["date"]})
     date_note = (f"{shown_dates[0]} &rarr; {shown_dates[-1]}" if len(shown_dates) > 1
                  else shown_dates[0] if shown_dates else asof_iso)
 
@@ -502,8 +506,8 @@ def build_html(out_path: Path):
         note = (f'Buys minus sells net to <strong>{sign}{abs(net_nav) * 100:.1f}% NAV'
                 f'</strong> across all moves (remainder is unchanged holdings or cash).')
         if n_small:
-            note += (f' {n_small} smaller move{"" if n_small == 1 else "s"} '
-                     f'(&lt;0.5% NAV) omitted.')
+            note += (f' Includes {n_small} smaller move{"" if n_small == 1 else "s"} '
+                     f'(&lt;0.5% NAV) — full set shown, nothing omitted.')
         return ('<p style="color:#7c8590;font-size:11px;margin:6px 0 18px 0;'
                 'line-height:1.5;">' + note + '</p>')
 
@@ -516,10 +520,6 @@ def build_html(out_path: Path):
         out.append('<p style="color:#7c8590;font-style:italic;'
                    'margin-bottom:18px;">'
                    'No position changes &mdash; strategy stable since last week.</p>')
-    elif not material:
-        out.append('<p style="color:#7c8590;font-style:italic;margin:0 0 6px 0;">'
-                   'No moves &ge; 0.5% NAV this cycle.</p>')
-        out.append(_net_note())
     else:
         out.append('<table style="width:100%;border-collapse:collapse;'
                    'margin-bottom:6px;font-size:13px;">')
@@ -539,7 +539,7 @@ def build_html(out_path: Path):
         )
         action_colour = {"ENTER": "#1d7a3a", "EXIT": "#b3261e",
                           "RESIZE": "#b76e00"}
-        for a in material:
+        for a in shown:
             prev_str = f"{a['prev'] * 100:.1f}%" if a["prev"] is not None else "&mdash;"
             new_str = f"{a['new'] * 100:.1f}%" if a["new"] is not None else "&mdash;"
             out.append(
@@ -561,6 +561,18 @@ def build_html(out_path: Path):
             )
         out.append('</table>')
         out.append(_net_note())
+
+    # Deep-link to the full, filterable ledger on the live dashboard. The
+    # email lists this week's moves; the dashboard holds the entire history
+    # (every rebalance across all four sleeves). The #combined-ledger-section
+    # hash opens the Trade History tab and scrolls to the ledger.
+    out.append(
+        '<p style="margin:0 0 18px 0;font-size:12px;">&rarr; '
+        '<a href="https://phuazz.github.io/breadth-thrust-etf/#combined-ledger-section" '
+        'style="color:#1351b4;font-weight:600;">Open the full interactive trade ledger</a> '
+        '<span style="color:#7c8590;">&mdash; every rebalance across all four sleeves, '
+        'filterable by sleeve, ETF, or date.</span></p>'
+    )
 
     # Compact regime / tilt / allocation line — single row instead of
     # the 3-row table that used to dominate the top of the email.
