@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-07-05T10:56:34.286561+00:00",
+  "computed_at_utc": "2026-07-11T08:09:26.701333+00:00",
   "common_monthly_window": [
     "2018-12-31",
     "2026-07-31"
@@ -9,19 +9,19 @@
       "label": "Strategy A \u2014 US sector breadth (standalone)",
       "date_range": [
         "2018-10-12",
-        "2026-07-02"
+        "2026-07-10"
       ],
-      "n_days": 1939,
+      "n_days": 1944,
       "n_months": 93,
-      "sharpe": 0.9846283111875929,
-      "sortino": 0.9348699683218894,
-      "calmar": 0.599155129065397,
-      "skew_daily": -0.6233621568055296,
-      "skew_monthly": -0.054089934224754076,
-      "cagr": 0.18338775868712065,
-      "max_dd": -0.3060772574427951,
-      "rolling_12m_best": 0.8617184729937359,
-      "rolling_12m_worst": -0.19694381169324238,
+      "sharpe": 0.9885895858542574,
+      "sortino": 0.938504000868535,
+      "calmar": 0.6005230703175177,
+      "skew_daily": -0.6233576291271772,
+      "skew_monthly": -0.052087105557218454,
+      "cagr": 0.1838950673351234,
+      "max_dd": -0.30622481703807247,
+      "rolling_12m_best": 0.8563470427877209,
+      "rolling_12m_worst": -0.19846095382861484,
       "rolling_12m_best_window": [
         "2020-03-23",
         "2021-03-23"
@@ -30,10 +30,10 @@
         "2019-03-22",
         "2020-03-23"
       ],
-      "hit_rate_12m_pct": 92.294013040901,
-      "hit_rate_12m_n_windows": 1687,
-      "hit_rate_12m_n_positive": 1557,
-      "longest_dd_depth": -0.2091316754993885,
+      "hit_rate_12m_pct": 92.25768321513003,
+      "hit_rate_12m_n_windows": 1692,
+      "hit_rate_12m_n_positive": 1561,
+      "longest_dd_depth": -0.20919599280760337,
       "longest_dd_duration_days": 370,
       "longest_dd_duration_months": 12.2,
       "longest_dd_peak_date": "2022-06-07",
@@ -45,16 +45,16 @@
       "label": "Strategy B \u2014 asset-class momentum (standalone)",
       "date_range": [
         "2007-10-18",
-        "2026-07-01"
+        "2026-07-10"
       ],
-      "n_days": 4704,
+      "n_days": 4710,
       "n_months": 225,
-      "sharpe": 0.8051268464398813,
-      "sortino": 0.742468789735254,
-      "calmar": 0.566151956708208,
-      "skew_daily": -0.5882759965482797,
-      "skew_monthly": -0.12401860100817666,
-      "cagr": 0.0886358040174342,
+      "sharpe": 0.8073029020540033,
+      "sortino": 0.7444875027406922,
+      "calmar": 0.5678019551131971,
+      "skew_daily": -0.5876819624675094,
+      "skew_monthly": -0.12688621899245542,
+      "cagr": 0.0888941250097417,
       "max_dd": -0.15655832849680792,
       "rolling_12m_best": 0.4472687018350576,
       "rolling_12m_worst": -0.14889189973870143,
@@ -66,9 +66,9 @@
         "2015-01-26",
         "2016-01-26"
       ],
-      "hit_rate_12m_pct": 84.43396226415094,
-      "hit_rate_12m_n_windows": 4452,
-      "hit_rate_12m_n_positive": 3759,
+      "hit_rate_12m_pct": 84.45491251682368,
+      "hit_rate_12m_n_windows": 4458,
+      "hit_rate_12m_n_positive": 3765,
       "longest_dd_depth": -0.15655832849680795,
       "longest_dd_duration_days": 917,
       "longest_dd_duration_months": 30.1,
@@ -81,16 +81,16 @@
       "label": "Strategy C \u2014 thematic momentum (standalone, equal-weight)",
       "date_range": [
         "2018-11-08",
-        "2026-07-01"
+        "2026-07-10"
       ],
-      "n_days": 1919,
+      "n_days": 1925,
       "n_months": 92,
-      "sharpe": 0.7400757390501077,
-      "sortino": 0.7214900344296045,
-      "calmar": 0.45908995012979836,
-      "skew_daily": -0.46848711978512475,
-      "skew_monthly": 0.3185196661896548,
-      "cagr": 0.16588151824955988,
+      "sharpe": 0.7217888756921897,
+      "sortino": 0.7039994176458659,
+      "calmar": 0.4446707060302929,
+      "skew_daily": -0.4623684129295913,
+      "skew_monthly": 0.3267714295556717,
+      "cagr": 0.16067145842890662,
       "max_dd": -0.36132683410442823,
       "rolling_12m_best": 1.8668185846309657,
       "rolling_12m_worst": -0.22689836184270074,
@@ -102,9 +102,9 @@
         "2019-06-28",
         "2020-06-29"
       ],
-      "hit_rate_12m_pct": 56.448710257948406,
-      "hit_rate_12m_n_windows": 1667,
-      "hit_rate_12m_n_positive": 941,
+      "hit_rate_12m_pct": 56.60490137477585,
+      "hit_rate_12m_n_windows": 1673,
+      "hit_rate_12m_n_positive": 947,
       "longest_dd_depth": -0.36132683410442823,
       "longest_dd_duration_days": 1390,
       "longest_dd_duration_months": 45.7,
@@ -117,16 +117,16 @@
       "label": "Strategy D \u2014 Europe sector breadth (standalone)",
       "date_range": [
         "2018-10-08",
-        "2026-07-03"
+        "2026-07-10"
       ],
-      "n_days": 1963,
+      "n_days": 1968,
       "n_months": 93,
-      "sharpe": 0.8030808124652948,
-      "sortino": 0.7328432386693503,
-      "calmar": 0.4151670834126212,
-      "skew_daily": -0.9653916157547638,
-      "skew_monthly": -0.28435825907229584,
-      "cagr": 0.13704082524107153,
+      "sharpe": 0.797380460096289,
+      "sortino": 0.7278670303727213,
+      "calmar": 0.4112368310255805,
+      "skew_daily": -0.9654049506132436,
+      "skew_monthly": -0.28020070848029394,
+      "cagr": 0.13574350410930336,
       "max_dd": -0.3300859598853868,
       "rolling_12m_best": 0.7527429972892732,
       "rolling_12m_worst": -0.2753920964317512,
@@ -138,9 +138,9 @@
         "2021-10-19",
         "2022-10-12"
       ],
-      "hit_rate_12m_pct": 80.88836937463472,
-      "hit_rate_12m_n_windows": 1711,
-      "hit_rate_12m_n_positive": 1384,
+      "hit_rate_12m_pct": 80.94405594405595,
+      "hit_rate_12m_n_windows": 1716,
+      "hit_rate_12m_n_positive": 1389,
       "longest_dd_depth": -0.3159061277705345,
       "longest_dd_duration_days": 761,
       "longest_dd_duration_months": 25.0,
@@ -153,19 +153,19 @@
       "label": "35% A + 35% B + 10% C + 20% D (Phase 4 ungated reference \u2014 overlay disabled)",
       "date_range": [
         "2018-11-08",
-        "2026-07-01"
+        "2026-07-10"
       ],
-      "n_days": 1884,
+      "n_days": 1890,
       "n_months": 92,
-      "sharpe": 1.172841783354849,
-      "sortino": 1.0552929656028462,
-      "calmar": 0.6424568954090007,
-      "skew_daily": -1.0312978452332577,
-      "skew_monthly": -0.049750150387070625,
-      "cagr": 0.1535213217940954,
-      "max_dd": -0.2389597230431478,
-      "rolling_12m_best": 0.7035393320758905,
-      "rolling_12m_worst": -0.11758370863520662,
+      "sharpe": 1.173621368928458,
+      "sortino": 1.0567310846200226,
+      "calmar": 0.6420307740247463,
+      "skew_daily": -1.0281299431959319,
+      "skew_monthly": -0.05075572280169654,
+      "cagr": 0.15344063457635282,
+      "max_dd": -0.23899264768021639,
+      "rolling_12m_best": 0.7017212659633538,
+      "rolling_12m_worst": -0.11819428123775966,
       "rolling_12m_best_window": [
         "2020-03-23",
         "2021-03-30"
@@ -174,10 +174,10 @@
         "2019-03-13",
         "2020-03-23"
       ],
-      "hit_rate_12m_pct": 87.07107843137256,
-      "hit_rate_12m_n_windows": 1632,
-      "hit_rate_12m_n_positive": 1421,
-      "longest_dd_depth": -0.14279951593384432,
+      "hit_rate_12m_pct": 86.99633699633699,
+      "hit_rate_12m_n_windows": 1638,
+      "hit_rate_12m_n_positive": 1425,
+      "longest_dd_depth": -0.14284063330636765,
       "longest_dd_duration_days": 240,
       "longest_dd_duration_months": 7.9,
       "longest_dd_peak_date": "2022-06-07",
@@ -189,19 +189,19 @@
       "label": "45% A + 45% B + 10% C (3-way baseline \u2014 pre-Europe)",
       "date_range": [
         "2018-11-08",
-        "2026-07-01"
+        "2026-07-10"
       ],
-      "n_days": 1884,
+      "n_days": 1890,
       "n_months": 92,
-      "sharpe": 1.1376994243641776,
-      "sortino": 1.0494172978337466,
-      "calmar": 0.723799044291728,
-      "skew_daily": -0.7511165583364892,
-      "skew_monthly": -0.011532259595933854,
-      "cagr": 0.1546320423235059,
-      "max_dd": -0.21363946739501535,
-      "rolling_12m_best": 0.6891349180505808,
-      "rolling_12m_worst": -0.08908443741348637,
+      "sharpe": 1.1345417542720744,
+      "sortino": 1.0456609687090817,
+      "calmar": 0.7205768375335757,
+      "skew_daily": -0.7484311403107616,
+      "skew_monthly": -0.009120345954320161,
+      "cagr": 0.15397835532052917,
+      "max_dd": -0.21368762816131243,
+      "rolling_12m_best": 0.6868412474193197,
+      "rolling_12m_worst": -0.08989319620253178,
       "rolling_12m_best_window": [
         "2020-03-23",
         "2021-03-30"
@@ -210,10 +210,10 @@
         "2019-03-13",
         "2020-03-23"
       ],
-      "hit_rate_12m_pct": 90.625,
-      "hit_rate_12m_n_windows": 1632,
-      "hit_rate_12m_n_positive": 1479,
-      "longest_dd_depth": -0.11990887370117242,
+      "hit_rate_12m_pct": 90.53724053724054,
+      "hit_rate_12m_n_windows": 1638,
+      "hit_rate_12m_n_positive": 1483,
+      "longest_dd_depth": -0.11993977919036469,
       "longest_dd_duration_days": 371,
       "longest_dd_duration_months": 12.2,
       "longest_dd_peak_date": "2022-06-07",
@@ -225,19 +225,19 @@
       "label": "50% A + 50% B (no thematic)",
       "date_range": [
         "2018-11-08",
-        "2026-07-01"
+        "2026-07-10"
       ],
-      "n_days": 1884,
+      "n_days": 1890,
       "n_months": 92,
-      "sharpe": 1.1240568463730063,
-      "sortino": 1.0377311833345955,
-      "calmar": 0.7289050085266158,
-      "skew_daily": -0.6744829085938379,
-      "skew_monthly": -0.19058992939061817,
-      "cagr": 0.1505894264611367,
-      "max_dd": -0.2065967783175659,
-      "rolling_12m_best": 0.5994199162101193,
-      "rolling_12m_worst": -0.08258598600571598,
+      "sharpe": 1.124526630483842,
+      "sortino": 1.0364709568920916,
+      "calmar": 0.7279138644455436,
+      "skew_daily": -0.6745710064715621,
+      "skew_monthly": -0.18901600821758854,
+      "cagr": 0.1504400870114435,
+      "max_dd": -0.20667292431094803,
+      "rolling_12m_best": 0.5969667634720877,
+      "rolling_12m_worst": -0.08349763406940058,
       "rolling_12m_best_window": [
         "2020-03-23",
         "2021-03-30"
@@ -246,10 +246,10 @@
         "2019-03-13",
         "2020-03-23"
       ],
-      "hit_rate_12m_pct": 95.52696078431373,
-      "hit_rate_12m_n_windows": 1632,
-      "hit_rate_12m_n_positive": 1559,
-      "longest_dd_depth": -0.1308950914340713,
+      "hit_rate_12m_pct": 95.6043956043956,
+      "hit_rate_12m_n_windows": 1638,
+      "hit_rate_12m_n_positive": 1566,
+      "longest_dd_depth": -0.13095373422757772,
       "longest_dd_duration_days": 370,
       "longest_dd_duration_months": 12.2,
       "longest_dd_peak_date": "2022-06-07",
@@ -266,15 +266,15 @@
       "narrative": "Hawkish Powell + global growth scare. SPY fell ~14% in Q4. Tested whether the strategies handled the first real risk-off since launch.",
       "per_strategy": {
         "strategy_a": {
-          "total_return": -0.04830000000000001,
-          "max_dd": -0.11409589832466777,
-          "sharpe": -1.360607859650995,
+          "total_return": -0.049699999999999966,
+          "max_dd": -0.11434631700732736,
+          "sharpe": -1.403752653390324,
           "n_days": 54
         },
         "strategy_b": {
           "total_return": -0.05534418686958065,
           "max_dd": -0.06158202088126008,
-          "sharpe": -2.9577591864033113,
+          "sharpe": -2.9578761474543644,
           "n_days": 63
         },
         "strategy_c": {
@@ -290,21 +290,21 @@
           "n_days": 57
         },
         "blend_35_35_10_20": {
-          "total_return": -0.0363,
-          "max_dd": -0.04575814973581901,
-          "sharpe": -3.9263367526673143,
+          "total_return": -0.036699999999999955,
+          "max_dd": -0.045676672982946004,
+          "sharpe": -3.9917806100812383,
           "n_days": 32
         },
         "blend_45_45_10": {
-          "total_return": -0.036699999999999955,
-          "max_dd": -0.04758128469468669,
-          "sharpe": -3.8595022355999284,
+          "total_return": -0.03720000000000001,
+          "max_dd": -0.047604879500148696,
+          "sharpe": -3.91234355635648,
           "n_days": 32
         },
         "blend_50_50": {
-          "total_return": -0.04190000000000005,
-          "max_dd": -0.05349712700614231,
-          "sharpe": -3.9675219399898456,
+          "total_return": -0.04249999999999998,
+          "max_dd": -0.053523639607493255,
+          "sharpe": -4.029286104538841,
           "n_days": 32
         }
       }
@@ -316,45 +316,45 @@
       "narrative": "Maximum stimulus + ZIRP environment. ARKK +152%, clean energy doubled, biotech surged. The single best window for Strategy C-style thematic exposure in living memory.",
       "per_strategy": {
         "strategy_a": {
-          "total_return": 0.8346531142890912,
-          "max_dd": -0.08258979638526635,
-          "sharpe": 2.9557556632798954,
+          "total_return": 0.8294417446959821,
+          "max_dd": -0.08287461773700314,
+          "sharpe": 2.950378854357689,
           "n_days": 227
         },
         "strategy_b": {
           "total_return": 0.3357768639370642,
           "max_dd": -0.08763547372101162,
-          "sharpe": 2.5845627193218554,
+          "sharpe": 2.5846651373641647,
           "n_days": 227
         },
         "strategy_c": {
           "total_return": 1.7324132877381535,
           "max_dd": -0.10510760136695305,
-          "sharpe": 3.734784835313804,
+          "sharpe": 3.7346185103958223,
           "n_days": 227
         },
         "strategy_d": {
           "total_return": 0.641329585726506,
           "max_dd": -0.12173215717722546,
-          "sharpe": 2.569428086824546,
+          "sharpe": 2.569473479535897,
           "n_days": 228
         },
         "blend_35_35_10_20": {
-          "total_return": 0.6802396538333517,
-          "max_dd": -0.07653843051859006,
-          "sharpe": 3.641878389552696,
+          "total_return": 0.6785119378123265,
+          "max_dd": -0.07660020986358866,
+          "sharpe": 3.6398543658066016,
           "n_days": 222
         },
         "blend_45_45_10": {
-          "total_return": 0.6686204276565724,
-          "max_dd": -0.07934835467660908,
-          "sharpe": 3.522878573709918,
+          "total_return": 0.666413126154515,
+          "max_dd": -0.07943204868154147,
+          "sharpe": 3.518443057137174,
           "n_days": 222
         },
         "blend_50_50": {
-          "total_return": 0.5715973788806532,
-          "max_dd": -0.08102909353209906,
-          "sharpe": 3.1924351082218023,
+          "total_return": 0.569430999247069,
+          "max_dd": -0.08112011554200445,
+          "sharpe": 3.188960634526116,
           "n_days": 222
         }
       }
@@ -366,21 +366,21 @@
       "narrative": "Fed pivot to aggressive hiking. SPY -25%, NASDAQ -35%, thematic ETFs (ARKK, ICLN) -50%+. Test of downside protection.",
       "per_strategy": {
         "strategy_a": {
-          "total_return": -0.04706886738759253,
-          "max_dd": -0.20913167549938838,
-          "sharpe": -0.16301442075034928,
+          "total_return": -0.04786746159137811,
+          "max_dd": -0.20919599280760337,
+          "sharpe": -0.1676943781552152,
           "n_days": 196
         },
         "strategy_b": {
-          "total_return": -0.03886769012334734,
-          "max_dd": -0.05677096952264743,
-          "sharpe": -0.5447911951230322,
+          "total_return": -0.03889611926171321,
+          "max_dd": -0.056770969522647305,
+          "sharpe": -0.545222343239785,
           "n_days": 196
         },
         "strategy_c": {
           "total_return": -0.05358751125788053,
           "max_dd": -0.060156015601560205,
-          "sharpe": -1.2445292310584397,
+          "sharpe": -1.2445100223946939,
           "n_days": 196
         },
         "strategy_d": {
@@ -390,21 +390,21 @@
           "n_days": 201
         },
         "blend_35_35_10_20": {
-          "total_return": -0.09133210045934492,
-          "max_dd": -0.14279951593384435,
-          "sharpe": -0.9297317486419402,
+          "total_return": -0.09155603396722878,
+          "max_dd": -0.1428406333063676,
+          "sharpe": -0.9321100015342716,
           "n_days": 195
         },
         "blend_45_45_10": {
-          "total_return": -0.03896027694654702,
-          "max_dd": -0.11990887370117244,
-          "sharpe": -0.3471996309925679,
+          "total_return": -0.03925838728663922,
+          "max_dd": -0.1199397791903647,
+          "sharpe": -0.35033973530681956,
           "n_days": 195
         },
         "blend_50_50": {
-          "total_return": -0.038096963110547666,
-          "max_dd": -0.13089509143407124,
-          "sharpe": -0.29503856833786674,
+          "total_return": -0.03853144311159584,
+          "max_dd": -0.13095373422757758,
+          "sharpe": -0.2991323844458401,
           "n_days": 195
         }
       }
@@ -416,45 +416,45 @@
       "narrative": "Nvidia +170%, large-cap AI plays drove the index. Test of whether the rotation engines caught the move or chased it.",
       "per_strategy": {
         "strategy_a": {
-          "total_return": 0.17736643651143424,
-          "max_dd": -0.06577711691970581,
-          "sharpe": 1.5151057211675598,
+          "total_return": 0.17671712440214993,
+          "max_dd": -0.0660485302821068,
+          "sharpe": 1.51082724116485,
           "n_days": 252
         },
         "strategy_b": {
           "total_return": 0.07454601588593568,
           "max_dd": -0.06902014030323593,
-          "sharpe": 0.6931217691823222,
+          "sharpe": 0.6931074363023132,
           "n_days": 252
         },
         "strategy_c": {
           "total_return": 0.17392791970802923,
           "max_dd": -0.1574113324855165,
-          "sharpe": 0.7522892776437623,
+          "sharpe": 0.75231823500494,
           "n_days": 252
         },
         "strategy_d": {
           "total_return": 0.004921790722761443,
           "max_dd": -0.12244407024296361,
-          "sharpe": 0.10210866080049306,
+          "sharpe": 0.10210548271378565,
           "n_days": 254
         },
         "blend_35_35_10_20": {
-          "total_return": 0.1100289403383794,
-          "max_dd": -0.060581785410304,
-          "sharpe": 1.0725553474897058,
+          "total_return": 0.10949963741841917,
+          "max_dd": -0.060491967871485974,
+          "sharpe": 1.0689625666246831,
           "n_days": 247
         },
         "blend_45_45_10": {
-          "total_return": 0.13434522848377184,
-          "max_dd": -0.05975386982020973,
-          "sharpe": 1.1844298563180604,
+          "total_return": 0.1337112010796222,
+          "max_dd": -0.05966909459263905,
+          "sharpe": 1.1801479844988207,
           "n_days": 247
         },
         "blend_50_50": {
-          "total_return": 0.12686203347597624,
-          "max_dd": -0.057239364615665575,
-          "sharpe": 1.1905966622051625,
+          "total_return": 0.1261413043478259,
+          "max_dd": -0.05737855178735094,
+          "sharpe": 1.1852316506358183,
           "n_days": 247
         }
       }
@@ -486,34 +486,34 @@
     "matrix": {
       "strategy_a": {
         "strategy_a": 1.0,
-        "strategy_b": 0.56,
-        "strategy_c": 0.428,
-        "strategy_d": 0.494
+        "strategy_b": 0.559,
+        "strategy_c": 0.427,
+        "strategy_d": 0.493
       },
       "strategy_b": {
-        "strategy_a": 0.56,
+        "strategy_a": 0.559,
         "strategy_b": 1.0,
         "strategy_c": 0.577,
-        "strategy_d": 0.333
+        "strategy_d": 0.332
       },
       "strategy_c": {
-        "strategy_a": 0.428,
+        "strategy_a": 0.427,
         "strategy_b": 0.577,
         "strategy_c": 1.0,
         "strategy_d": 0.255
       },
       "strategy_d": {
-        "strategy_a": 0.494,
-        "strategy_b": 0.333,
+        "strategy_a": 0.493,
+        "strategy_b": 0.332,
         "strategy_c": 0.255,
         "strategy_d": 1.0
       }
     },
     "common_window": [
       "2018-11-09",
-      "2026-07-01"
+      "2026-07-10"
     ],
-    "n_days": 1883,
+    "n_days": 1889,
     "most_diversifying_pair": {
       "a": "strategy_c",
       "b": "strategy_d",
