@@ -3027,6 +3027,7 @@ const ETF_DESCRIPTIONS = {
   DBC: 'Broad commodities basket',
   TLT: '20+y US Treasury (long duration)',
   IEF: '7-10y US Treasury (intermediate duration; rotation candidate in Strategy B)',
+  SHY: '1-3y US Treasury (cash floor & regime-gate parking)',
   TIP: 'TIPS (inflation-linked Treasuries)',
   HYG: 'US High-Yield Credit',
 
@@ -9574,7 +9575,7 @@ function renderCombinedTradeLedger() {
   el.querySelector('thead').innerHTML = `<tr>
     <th>Date</th>
     <th>Sleeve</th>
-    <th>ETF</th>
+    <th>ETF &amp; name</th>
     <th>Action</th>
     <th class="num">Within-sleeve weight</th>
     <th class="num">NAV weight (after × sleeve)</th>
@@ -9590,7 +9591,7 @@ function renderCombinedTradeLedger() {
     return `<tr>
       <td style="font-family:'JetBrains Mono',monospace;">${r.date}</td>
       <td>${sleeveTag(r.sleeve)}</td>
-      <td><strong>${r.etf}</strong></td>
+      <td><strong>${r.etf}</strong>${ETF_DESCRIPTIONS[r.etf] ? '<br><span style="color:var(--ink-faint);font-weight:400;font-size:11px;">' + ETF_DESCRIPTIONS[r.etf] + '</span>' : ''}</td>
       <td>${actionTag(r.action)}</td>
       <td class="num">${fmtW(r.withinWeight)} ${wChange}</td>
       <td class="num">${fmtW(r.effWeight)}</td>
