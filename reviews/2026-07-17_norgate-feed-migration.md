@@ -145,3 +145,19 @@ and is untouched here.
 3. Note for the ledger: standing follow-up (1) — the EEM/SPY staleness
    cap — is DEPLOYED (D3/D4 caps live in `run_risk_overlay.py`); the
    follow-ups block should be amended accordingly.
+
+## 8. Addendum — approvals and Stage 1 LIVE (2026-07-17)
+
+ZH approved both asks same day ("both ok", in session). **Stage 1 is
+LIVE**: scheduled task `breadth-thrust norgate feed parallel-run`,
+Tue–Sat 07:15 SGT (first fire 2026-07-18, capturing Friday's US close),
+wrapper `scripts/run_norgate_publisher.bat`, all output to git-ignored
+`data_local/` (`publisher.log` + `gate_states_norgate.preview.json`).
+Validated with two manual runs: divergence check ok, both feeds RISK_ON
+on the 2026-07-16 bar. One delta from §4 as filed: the Stage-1
+divergence flag surfaces via the local log and the soak review, NOT via
+the CI freshness sentinel — sentinel integration belongs to Stage 2,
+keeping Stage 1 strictly zero-deployed-impact. **Stage 2 is approved in
+principle**; execution waits on the soak review — due **Friday
+2026-08-07** (weekday verified) — where the concrete loader diff will be
+presented against the soak log before anything deploys.

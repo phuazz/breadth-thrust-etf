@@ -1279,3 +1279,9 @@ feeds read RISK_ON on the 2026-07-16 bar. Sleeves A/D stay on the scrape
 (no vendor equivalent for UCITS sectors / Stoxx). Stale ledger follow-up
 corrected in passing: the D3/D4 staleness caps are DEPLOYED in
 `run_risk_overlay.py`.
+
+**2026-07-17 — both approvals given (ZH, in session). Stage 1 LIVE**:
+task `breadth-thrust norgate feed parallel-run`, Tue–Sat 07:15 SGT,
+wrapper `scripts/run_norgate_publisher.bat`, output confined to
+git-ignored `data_local/`. Stage 2 approved in principle; soak review
+due Friday 2026-08-07 with the concrete loader diff. Record §8.
