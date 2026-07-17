@@ -1253,3 +1253,29 @@ Adopt bar = A0 + 0.10 = +1.228. Both A1 and A2 fail cond 1/2/4, pass only 3/5 (J
 
 ### WS5 bottom line
 0 deployed changes. The SentimenTrader concept is exhausted as a source of Sleeve-A alpha; reopening needs a genuinely new object, not a re-fit of this one. **WS5 tested Sleeve A ONLY** — B, C, D and the two overlays were out of scope and are neither changed nor cleared; their standing is governed by the 2026-07 staged review. Record `reviews/2026-07-10_ws5_relative-trend.docx`.
+
+## Norgate breadth-feed migration study — 2026-07-17 (REVIEW-AND-PROPOSE; 0 deployed changes)
+
+The Phase 19 gate input (scrape-built CSP1 `ma_breadth`) reconciled
+against Norgate `#SPX%MA50` over the full overlap (2,138 joint days,
+2018-01-05 → 2026-07-10): level correlation 0.9986, median bias −1.24 pp
+(definitional: official membership + vendor price basis vs scraped roster
++ yfinance adjusted closes), gate-state agreement 98.60%, and **all 24
+regime flips paired across feeds** (17 same-day, 20 within one day; the
+three laggards are ON-side threshold crawls — protection triggers are
+effectively identical, 8 zone-disagree days at 0.20 in 8.5 years). The
+hysteresis used was `_compute_states` IMPORTED from `run_risk_overlay`,
+not re-implemented. Candidate depth reaches 1957-03-04.
+
+**Staged proposal filed** (`reviews/2026-07-17_norgate-feed-migration.md`),
+each stage behind its own approval: S1 local parallel-run (Task Scheduler,
+sentiment-composite pattern), S2 derived-states swap with automatic scrape
+fallback under the deployed 10-day cap, S3 keep-both steady state; rollback
+= delete the states file. Licence design: the raw vendor series never
+enters this public repo — the handover is a derived 0/1 states file
+(`scripts/publish_norgate_breadth.py`, currently UNWIRED; raw pulls
+confined to git-ignored `data_local/`). Live smoke test 2026-07-17: both
+feeds read RISK_ON on the 2026-07-16 bar. Sleeves A/D stay on the scrape
+(no vendor equivalent for UCITS sectors / Stoxx). Stale ledger follow-up
+corrected in passing: the D3/D4 staleness caps are DEPLOYED in
+`run_risk_overlay.py`.
