@@ -48,6 +48,16 @@ Coverage maps to the WS6 pre-registration failure modes:
       test_resolve_membership_counts (per-snapshot maps, unresolved counting),
       test_instrument_keys_do_not_blend_eras (a recycled ticker occupies two
           separate instrument columns, weights era-consistent)
+
+  Amendment A2 (kickoff §5b) — base-ticker tenure disambiguation:
+      test_tenure_rule_recycled_reit (dead REIT vs live acquirer with
+          pre-recycle history under the same base: tenure partitions the
+          membership dates, including inside the delisting month),
+      test_tenure_override_only_disambiguates (tenure never touches the
+          single-candidate path or the rename-target life check; no tenure
+          information keeps the ambiguous never-guess outcome),
+      test_fox_era_split (rename-at-death plus a recycled base: pre-recycle
+          rows through the verified rename entry, post-recycle rows natively)
 """
 
 from __future__ import annotations
@@ -67,6 +77,7 @@ from single_name_impl import (  # noqa: E402
     BROAD_SLICES,
     INSTRUMENT_RENAMES,
     SINGLE_NAMED_LINES,
+    TICKER_TENURE_OVERRIDES,
     ArmSpec,
     Instrument,
     InstrumentDirectory,
@@ -775,3 +786,103 @@ def test_instrument_keys_do_not_blend_eras():
     # new one only after the second snapshot takes effect.
     assert old_held[old_held].index.max() <= pd.Timestamp("2020-02-28")
     assert new_held[new_held].index.min() >= pd.Timestamp("2020-06-19")
+
+
+# ---------------------------------------------------------------------------
+# Amendment A2 (kickoff §5b) — base-ticker tenure disambiguation
+# ---------------------------------------------------------------------------
+
+def test_tenure_rule_recycled_reit():
+    """A dead REIT and a live acquirer that carries pre-recycle history under
+    the same base BOTH life-contain the old-era dates; the tenure refinement
+    assigns each membership date to the instrument that actually traded under
+    the base ticker — including inside the delisting month, where the dead
+    instrument's day-granular last quote and the successor's rename date
+    partition the month the suffix can only bound."""
+    d = InstrumentDirectory([
+        # Dead REIT: life 1993 -> suffix month end; traded the base to 07-20.
+        Instrument("HRX-202207", "HRX", pd.Timestamp("1993-05-27"),
+                   suffix_month_end("202207"),
+                   tenure_end=pd.Timestamp("2022-07-20")),
+        # Live acquirer: lineage history from 2012 under the SAME base after
+        # the 2022 rename (the recycled-REIT shape of HR / DOC / RPT / COR).
+        Instrument("HRX", "HRX", pd.Timestamp("2012-06-06"), None,
+                   tenure_start=pd.Timestamp("2022-07-21")),
+    ])
+    # Old era: both life-contain, tenure separates -> the dead instrument.
+    assert resolve_instrument("HRX", pd.Timestamp("2019-06-07"), d) == \
+        ("HRX-202207", "tenure")
+    assert resolve_instrument("HRX", pd.Timestamp("2022-07-20"), d) == \
+        ("HRX-202207", "tenure")
+    # Inside the delisting month but after the hand-over -> the successor.
+    assert resolve_instrument("HRX", pd.Timestamp("2022-07-22"), d) == \
+        ("HRX", "tenure")
+    # After the suffix month only the live instrument life-contains -> native.
+    assert resolve_instrument("HRX", pd.Timestamp("2023-03-03"), d) == \
+        ("HRX", "native")
+    # Before either instrument existed -> unresolved.
+    assert resolve_instrument("HRX", pd.Timestamp("1990-01-05"), d) == \
+        (None, "unresolved")
+
+
+def test_tenure_override_only_disambiguates():
+    """Tenure refines ONLY the multi-candidate case: a lone dead candidate
+    keeps the A1 month-end slack past its last quote; claimants without tenure
+    information stay ambiguous (never guess); and a rename-table target is
+    validated on its LIFE interval, not its tenure over its own base."""
+    d = InstrumentDirectory([
+        # Lone dead instrument: no competing claimant for the base.
+        Instrument("SOLO-202207", "SOLO", pd.Timestamp("2000-01-05"),
+                   suffix_month_end("202207"),
+                   tenure_end=pd.Timestamp("2022-07-20")),
+        # Overlapping pair WITHOUT tenure metadata (the A1 ambiguous shape).
+        Instrument("OVL-202012", "OVL", pd.Timestamp("2010-03-01"),
+                   suffix_month_end("202012")),
+        Instrument("OVL", "OVL", pd.Timestamp("2020-11-16"), None),
+        # Rename target: live, lineage from 1990, base recycled only in 2024.
+        Instrument("DOCX", "DOCX", pd.Timestamp("1990-01-02"), None,
+                   tenure_start=pd.Timestamp("2024-03-01")),
+    ])
+    # Single-candidate month-end slack intact after the last quote.
+    assert resolve_instrument("SOLO", pd.Timestamp("2022-07-25"), d) == \
+        ("SOLO-202207", "native")
+    # No tenure information on either claimant -> still ambiguous.
+    assert resolve_instrument("OVL", pd.Timestamp("2020-11-20"), d) == \
+        (None, "ambiguous")
+    # Rename-target check is LIFE-based: the 2019 date precedes the target's
+    # tenure over its own base, but the instrument existed -> renamed.
+    assert resolve_instrument("HCPX", pd.Timestamp("2019-05-03"), d,
+                              renames={"HCPX": "DOCX"}) == ("DOCX", "renamed")
+    # Structural sanity of the shipped override table: plain uppercase live
+    # symbols mapping to ISO dates.
+    for sym, iso in TICKER_TENURE_OVERRIDES.items():
+        assert sym == sym.upper() and "-" not in sym
+        assert pd.Timestamp(iso) > pd.Timestamp("2018-01-01")
+
+
+def test_fox_era_split():
+    """Rename-at-death plus a recycled base: pre-recycle membership rows
+    resolve through the verified rename entry to the dead lineage instrument;
+    rows from the new instrument's first quote resolve natively — the era
+    boundary needs no override because the successor is a fresh listing whose
+    first quote IS its tenure start."""
+    d = InstrumentDirectory([
+        Instrument("FOX", "FOX", pd.Timestamp("2019-03-13"), None),
+        Instrument("FOX-200503", "FOX", pd.Timestamp("1998-11-11"),
+                   suffix_month_end("200503"),
+                   tenure_end=pd.Timestamp("2005-03-21")),
+        Instrument("TFCF-201903", "TFCF", pd.Timestamp("1990-01-02"),
+                   suffix_month_end("201903"),
+                   tenure_end=pd.Timestamp("2019-03-19")),
+    ])
+    renames = {"FOX": "TFCF-201903"}
+    # Pre-recycle era (and the last pre-recycle Friday): the dead lineage.
+    assert resolve_instrument("FOX", pd.Timestamp("2018-06-01"), d,
+                              renames=renames) == ("TFCF-201903", "renamed")
+    assert resolve_instrument("FOX", pd.Timestamp("2019-03-08"), d,
+                              renames=renames) == ("TFCF-201903", "renamed")
+    # From the new instrument's first quote the base resolves natively.
+    assert resolve_instrument("FOX", pd.Timestamp("2019-03-15"), d,
+                              renames=renames) == ("FOX", "native")
+    assert resolve_instrument("FOX", pd.Timestamp("2022-05-06"), d,
+                              renames=renames) == ("FOX", "native")

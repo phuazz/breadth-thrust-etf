@@ -67,6 +67,23 @@ blends two companies' price histories in one column. G1 re-tests at the
 unchanged 97% bar; arm definitions, constants, costs, window and verdict rule
 are all unchanged by A1.
 
+Amendment A2 (2026-07-18, kickoff §5b — logged pre-results after the post-A1 G1
+re-test narrowed to 6 failing cells): BASE-TICKER TENURE disambiguation. Where
+more than one candidate's LIFE interval contains the membership date (a dead
+instrument whose base was later recycled by a live acquirer carrying
+pre-recycle history under the same base), the week belongs to the instrument
+that actually traded under the base ticker on that date. A dead instrument's
+tenure ends at its day-granular ``last_quoted_date`` (the one tenure signal the
+NDU API exposes — there is no former-symbol/rename-date metadata; the
+deprecated ``base_symbol`` helper is futures-only); a live successor's tenure
+over a recycled base begins at its verified rename date, carried in
+``TICKER_TENURE_OVERRIDES`` (NDU-verified per entry). Tenure refines ONLY the
+multi-candidate case; single-candidate resolution keeps the A1 month-end slack,
+and rename-table targets are still validated on the LIFE interval (the
+snapshot ticker in those eras was the source name, not the target's base). A2
+also completes the rename table (rename-at-death and relist gaps: FOX/FOXA
+pre-2019, LB, PCLN, CBL, OPI, RVI). Bar and design otherwise unchanged.
+
 Dates: pandas / dateutil only, never manual day arithmetic. Python ``datetime``
 months are 1-indexed (stated where any month indexing occurs; this module does
 none). The rebalance calendar is the deployed ``rebalance_calendar`` helper.
@@ -210,6 +227,11 @@ INSTRUMENT_RENAMES: dict[str, str] = {
     # --- IUCS / IUCD (consumer) ---
     "KORS": "CPRI",          # Capri Holdings Ltd Common, fqd 2011-12-15 (Michael Kors lineage)
     "GPS": "GAP",            # Gap Inc Common, fqd 1990-01-02
+    "LB": "BBWI",            # Bath & Body Works Inc Common, fqd 1990-01-02 (Limited /
+                             # L Brands lineage; the live LB is LandBridge Company,
+                             # fqd 2024-06-28 — wrong era, excluded natively)
+    "PCLN": "BKNG",          # Booking Holdings Inc Common, fqd 1999-03-30 (Priceline
+                             # lineage; the live PCLN is a 2025 Pictet ETF)
     "WYN": "TNL",            # Travel + Leisure Co Common, fqd 2006-07-19 (Wyndham
                              # Worldwide lineage; WH is the 2018 hotel spinoff, not the parent)
     "DPS": "KDP",            # Keurig Dr Pepper Inc Common, fqd 2008-04-28 (Dr Pepper
@@ -228,6 +250,13 @@ INSTRUMENT_RENAMES: dict[str, str] = {
     "DISCA": "WBD",          # Warner Bros. Discovery Series A, fqd 2005-07-06 (Discovery-A
                              # lineage; DISCK resolves natively to DISCK-202204)
     "SATS": "ECHO",          # EchoStar Corporation Class A Common, fqd 2007-12-31
+    "FOX": "TFCF-201903",    # Twenty-First Century Fox Class B Common, fqd 1990-01-02,
+                             # lqd 2019-03-19 (renamed TFCF at the Disney close; the
+                             # NEW Fox Corporation Class B, fqd 2019-03-13, wins
+                             # natively from the recycle date — class-consistent B->B)
+    "FOXA": "TFCFA-201903",  # Twenty-First Century Fox Class A Common, fqd 1994-11-03,
+                             # lqd 2019-03-19 (class-consistent A->A; Fox Corporation
+                             # Class A, fqd 2019-03-12, wins natively post-recycle)
     # --- IUMS (materials) ---
     "DWDP": "DD",            # DuPont de Nemours Inc Common, fqd 2017-09-01 (DowDuPont
                              # lineage; DD-201708 is the pre-merger E I du Pont)
@@ -266,6 +295,47 @@ INSTRUMENT_RENAMES: dict[str, str] = {
     "MPW": "MPT",            # Medical Properties Trust Inc Common, fqd 2005-07-08
     "AHH": "AHRT",           # AH Realty Trust Inc Common, fqd 2013-05-08 (Armada
                              # Hoffler lineage)
+    "CBL": "CBLAQ-202111",   # CBL And Associates Properties Common, fqd 1993-10-28,
+                             # lqd 2021-11-01 (renamed CBLAQ at ch.11; the live CBL,
+                             # fqd 2021-11-02, is the post-reorg re-registration and
+                             # wins natively for any post-relist rows)
+    "OPI": "OPITQ-202606",   # Office Properties Income Trust Common, fqd 2009-06-03,
+                             # lqd 2026-06-17 (renamed OPITQ at death; the live OPI,
+                             # fqd 2026-06-22, is a DISTINCT post-reorg re-registration
+                             # — assetid 4090874 vs 455627 — whose first quote
+                             # postdates every membership row; diagnosed 2026-07-18)
+    "RVI": "RVIC-202304",    # Retail Value Inc Common, fqd 2018-06-26, lqd 2023-04-04
+                             # (renamed RVIC at its OTC move; the live RVI is a 2026
+                             # Robinhood CEF, wrong era)
+}
+
+# Amendment A2 — verified BASE-TICKER TENURE starts for live instruments that
+# RECYCLED a dead namesake's base ticker while carrying pre-recycle history
+# under the same base (Norgate keys full lineage history to the final symbol,
+# so the life interval alone cannot separate the claimants). The date is the
+# first session the LIVE instrument traded under this base — the day after the
+# predecessor's day-granular last_quoted_date (NDU metadata; there is no
+# former-symbol API). Dead instruments need no entry: their tenure end is read
+# directly from last_quoted_date by the live directory. Every entry
+# NDU-verified 2026-07-18 (security names + dates in the comment).
+TICKER_TENURE_OVERRIDES: dict[str, str] = {
+    "HR": "2022-07-21",      # predecessor HR-202207 'Healthcare Realty Trust Common'
+                             # (fqd 1993-05-27) lqd 2022-07-20; successor = ex-HTA
+                             # 'Healthcare Realty Trust Inc Class A Common'
+                             # (fqd 2012-06-06) under HR from the next session
+    "DOC": "2024-03-01",     # predecessor DOC-202402 'Physicians Realty Trust Common'
+                             # lqd 2024-02-29; successor = Healthpeak Properties
+                             # (fqd 1990-01-02), PEAK -> DOC at the merger
+    "COR": "2021-12-28",     # predecessor COR-202112 'CoreSite Realty Common'
+                             # lqd 2021-12-27; successor = Cencora (fqd 1995-04-04),
+                             # ABC -> COR rename 2023-08 — the override is the
+                             # earliest-possible floor anchored to the predecessor's
+                             # last quote; no snapshot rows fall in the dark gap
+    "RPT": "2023-12-30",     # predecessor RPT-202312 'RPT Realty Common'
+                             # (fqd 1990-01-02) lqd 2023-12-29; successor = 'Rithm
+                             # Property Trust Inc Common' (ex-Great Ajax lineage,
+                             # fqd 2015-02-13) recycled the base in 2024 — floor
+                             # bound as for COR; snapshot RPT rows end 2023-12-29
 }
 
 
@@ -331,17 +401,35 @@ class Instrument:
     end for a delisted instrument, or None for a live one (open-ended). A None
     ``first_quoted`` means the metadata was unavailable; such an instrument can
     never be confirmed to contain a date and is excluded from candidacy (never
-    guess)."""
+    guess).
+
+    Amendment A2 tenure fields — the interval the instrument actually traded
+    UNDER ITS BASE TICKER, used only to separate multiple claimants of one
+    base (see resolve_instrument): ``tenure_end`` is the dead instrument's
+    day-granular last quoted date (NDU metadata); ``tenure_start`` is a live
+    successor's verified rename date (TICKER_TENURE_OVERRIDES). None falls
+    back to the corresponding life bound."""
     symbol: str
     base: str
     first_quoted: pd.Timestamp | None
     last_valid: pd.Timestamp | None
+    tenure_start: pd.Timestamp | None = None
+    tenure_end: pd.Timestamp | None = None
 
     def contains(self, date: pd.Timestamp) -> bool:
         """True iff ``date`` lies within this instrument's life interval."""
         if self.first_quoted is None or date < self.first_quoted:
             return False
         return self.last_valid is None or date <= self.last_valid
+
+    def tenure_contains(self, date: pd.Timestamp) -> bool:
+        """True iff this instrument traded under its base ticker on ``date``
+        (tenure bounds where known, life bounds otherwise)."""
+        start = self.tenure_start if self.tenure_start is not None else self.first_quoted
+        end = self.tenure_end if self.tenure_end is not None else self.last_valid
+        if start is None or date < start:
+            return False
+        return end is None or date <= end
 
 
 class InstrumentDirectory:
@@ -390,6 +478,7 @@ class NorgateInstrumentDirectory(InstrumentDirectory):
             if m:
                 self._suffixed_by_base.setdefault(m.group("base"), []).append(sym)
         self._fqd_memo: dict[str, pd.Timestamp | None] = {}
+        self._lqd_memo: dict[str, pd.Timestamp | None] = {}
 
     def _first_quoted(self, symbol: str) -> pd.Timestamp | None:
         if symbol not in self._fqd_memo:
@@ -400,6 +489,19 @@ class NorgateInstrumentDirectory(InstrumentDirectory):
                 self._fqd_memo[symbol] = None
         return self._fqd_memo[symbol]
 
+    def _last_quoted(self, symbol: str) -> pd.Timestamp | None:
+        """Day-granular last quoted date (A2 tenure end for dead instruments).
+        Populated by NDU for delisted symbols; None (or an error) simply leaves
+        the month-end life bound in charge."""
+        if symbol not in self._lqd_memo:
+            try:
+                raw = self._nd.last_quoted_date(symbol)
+                self._lqd_memo[symbol] = (pd.Timestamp(str(raw))
+                                          if raw is not None else None)
+            except Exception:  # noqa: BLE001 — unavailable metadata -> None
+                self._lqd_memo[symbol] = None
+        return self._lqd_memo[symbol]
+
     def _instrument(self, symbol: str) -> Instrument | None:
         m = DELISTED_SUFFIX_RE.match(symbol)
         if m:
@@ -407,11 +509,15 @@ class NorgateInstrumentDirectory(InstrumentDirectory):
                 return None
             return Instrument(symbol=symbol, base=m.group("base"),
                               first_quoted=self._first_quoted(symbol),
-                              last_valid=suffix_month_end(m.group("yyyymm")))
+                              last_valid=suffix_month_end(m.group("yyyymm")),
+                              tenure_end=self._last_quoted(symbol))
         if symbol in self._live:
+            override = TICKER_TENURE_OVERRIDES.get(symbol)
             return Instrument(symbol=symbol, base=symbol,
                               first_quoted=self._first_quoted(symbol),
-                              last_valid=None)
+                              last_valid=None,
+                              tenure_start=(pd.Timestamp(override)
+                                            if override is not None else None))
         return None
 
     def candidates(self, base: str) -> list[Instrument]:
@@ -447,22 +553,30 @@ def resolve_instrument(ishares_ticker: str, membership_date: pd.Timestamp,
                        ) -> tuple[str | None, str]:
     """Resolve (ticker, membership date) to the exact Norgate instrument symbol.
 
-    Deterministic chain (amendment A1; never guess):
+    Deterministic chain (amendments A1 + A2; never guess):
       1. Native candidates of the base — the plain live symbol plus every
          delisted-suffixed variant. Exactly one whose life interval contains
-         the membership date -> resolved. More than one -> AMBIGUOUS ->
-         unresolved (recycled base whose eras cannot be separated at month
-         granularity; counted, never guessed).
+         the membership date -> resolved.
+      1b. More than one life-interval claimant -> BASE-TICKER TENURE
+         refinement (A2): keep candidates that actually traded under the base
+         ticker on the date (dead instruments up to their day-granular last
+         quoted date; a recycling live successor from its verified rename
+         date). Exactly one survivor -> resolved as "tenure"; zero or several
+         (no tenure information, or a genuine overlap) -> AMBIGUOUS ->
+         unresolved, counted, never guessed.
       2. Zero native matches -> the verified rename table: the entry names one
          exact target instrument (live or suffixed), accepted only if ITS
-         interval contains the date. Renames fire only when the native symbol
-         has no instrument claiming the date, so a recycled base resolves to
-         its own era's instrument first (e.g. old-era CHK to the delisted
-         instrument, post-rename dates through the table).
+         LIFE interval contains the date (the snapshot ticker in that era was
+         the SOURCE name, so the target's tenure over its own base is not the
+         test). Renames fire only when the native symbol has no instrument
+         claiming the date, so a recycled base resolves to its own era's
+         instrument first (e.g. old-era CHK to the delisted instrument,
+         post-rename dates through the table).
       3. Otherwise unresolved.
 
-    Returns (symbol | None, status) with status in {"native", "renamed",
-    "unresolved", "ambiguous"}; a None symbol always counts against coverage.
+    Returns (symbol | None, status) with status in {"native", "tenure",
+    "renamed", "unresolved", "ambiguous"}; a None symbol always counts against
+    coverage.
     """
     base = normalise_ticker(ishares_ticker)
     date = pd.Timestamp(membership_date)
@@ -470,6 +584,9 @@ def resolve_instrument(ishares_ticker: str, membership_date: pd.Timestamp,
     if len(native) == 1:
         return native[0].symbol, "native"
     if len(native) > 1:
+        tenured = [c for c in native if c.tenure_contains(date)]
+        if len(tenured) == 1:
+            return tenured[0].symbol, "tenure"
         return None, "ambiguous"
     table = INSTRUMENT_RENAMES if renames is None else renames
     target = table.get(base)
