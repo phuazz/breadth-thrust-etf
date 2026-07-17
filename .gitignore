@@ -33,4 +33,6 @@ Thumbs.db
 
 # Claude Code local config (preview launch settings, worktrees)
 .claude/
-data_local/  # Norgate vendor pulls — licence: never committed
+# Norgate vendor pulls — licence: never committed (trailing comments are not
+# supported in gitignore patterns; keep this pattern on its own line)
+data_local/

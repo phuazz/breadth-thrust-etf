@@ -44,6 +44,14 @@ from run_risk_overlay import (_compute_states, OFF_THRESHOLD,  # noqa: E402
 SYMBOL = "#SPX%MA50"
 STALE_TRADING_DAYS = 3
 
+# State labels MUST match run_risk_overlay's deployed naming ("RISK_ON" /
+# "RISK_OFF") exactly: the Stage-1 divergence check compares state strings
+# against data/risk_overlay.json, and Stage-2 consumers display
+# current_state. The original "DERISK" label would have printed a false
+# FLAG on every both-feeds-OFF soak day (fixed 2026-07-17, pre-soak,
+# before the first scheduled fire; review addendum §9).
+STATE_LABELS = {1.0: "RISK_ON", 0.0: "RISK_OFF"}
+
 
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -86,7 +94,7 @@ def main() -> int:
         "state_machine": "run_risk_overlay._compute_states "
                          f"(off {OFF_THRESHOLD}, on {ON_THRESHOLD})",
         "last_bar": str(last_bar),
-        "current_state": "RISK_ON" if states.iloc[-1] == 1.0 else "DERISK",
+        "current_state": STATE_LABELS[float(states.iloc[-1])],
         "series": {
             "dates": [str(d.date()) for d in states.index],
             "state": [int(s) for s in states.values],
@@ -107,7 +115,9 @@ def main() -> int:
         cand_state = out["current_state"]
         zone = (abs(breadth.iloc[-1] - OFF_THRESHOLD) < 0.02
                 or abs(breadth.iloc[-1] - ON_THRESHOLD) < 0.02)
-        flag = (dep_state and cand_state not in dep_state) or zone
+        # Exact string equality — the substring test (`not in`) plus the
+        # old "DERISK" label could never match deployed "RISK_OFF".
+        flag = (bool(dep_state) and cand_state != dep_state) or zone
         print(f"divergence check: deployed={dep_state or 'n/a'} "
               f"norgate={cand_state} zone={zone} -> "
               f"{'FLAG' if flag else 'ok'}")
