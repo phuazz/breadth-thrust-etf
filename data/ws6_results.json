@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-07-17T15:59:33.494760+00:00",
+  "computed_at_utc": "2026-07-17T16:50:21.792352+00:00",
   "status": "STOP_G1",
   "register_meta": {
     "arms": [
@@ -100,14 +100,14 @@
       "n_rebalances": 389
     },
     "split_boundary": "2022-09-08",
-    "engine_commit": "b12d0f9"
+    "engine_commit": "54f0f14"
   },
   "mechanics_notes": {
     "t_minus_1_read": "Per-name trend state/rank AND the membership snapshot are read as of the prior trading day (t-1) of each W-FRI rebalance, identical to the deployed sector signal's shift(1); a Friday-D rebalance uses the snapshot effective <= D-1 and the price/state row on or before D-1.",
     "fallback_scope": "The <3-passing fallback applies to every SCREENED arm (I1, I2, P2, I2-N15, P2-N15, I1-all): a single-named line with fewer than MIN_PASS=3 members passing the trend state reverts to its ETF that week. I0 (unscreened) reverts only if it has no holdable name at all. E0 and the three broad slices (CSP1, CNDX, IDP6) are always their own ETF.",
     "delisting_handling": "A member delisting mid-hold earns its final Norgate TOTALRETURN print; the return panel forward-fills its price so it sits flat until the next rebalance drops it (exit at final print).",
     "renormalisation": "Baskets are equal-weight and renormalise over the names present / passing each week; the name-level book preserves the sector line weight exactly, so the full-vector one-way turnover the cost model charges is the book's own churn (sector-rotation + screen + membership).",
-    "coverage_definition": "G1 covers snapshot member-weeks with snapshot date in [2018-10-12, 2026-06-30] grouped by calendar year; a member-week is covered iff its mapped Norgate symbol has a non-NaN TOTALRETURN close on >= 1 of the 5 trailing rows up to the snapshot as-of date; unmapped/unresolved names count against coverage.",
+    "coverage_definition": "G1 covers snapshot member-weeks with snapshot date in [2018-10-12, 2026-06-30] grouped by calendar year; a member-week is covered iff its RESOLVED Norgate instrument (amendment A1: (ticker, snapshot date) -> instrument, delisted suffixes enumerated, recycled bases era-disambiguated by life interval, verified renames as fallback) has a non-NaN TOTALRETURN close on >= 1 of the 5 trailing rows up to the snapshot as-of date; unresolved and ambiguous names count against coverage.",
     "e0_cost": "E0 keeps the deployed cost model (2 bps on its line-level book) at every cost point; the sweep {2,5,10,20} bps applies to the constituent arms' full name-level vector."
   },
   "gates": {
@@ -116,29 +116,29 @@
       "table": {
         "SOXX": {
           "2018": {
-            "covered": 288,
+            "covered": 360,
             "total": 360,
-            "share": 0.8
+            "share": 1.0
           },
           "2019": {
-            "covered": 1316,
+            "covered": 1560,
             "total": 1560,
-            "share": 0.8435897435897436
+            "share": 1.0
           },
           "2020": {
-            "covered": 1337,
+            "covered": 1560,
             "total": 1560,
-            "share": 0.857051282051282
+            "share": 1.0
           },
           "2021": {
-            "covered": 1425,
+            "covered": 1591,
             "total": 1591,
-            "share": 0.8956631049654306
+            "share": 1.0
           },
           "2022": {
-            "covered": 1554,
+            "covered": 1560,
             "total": 1560,
-            "share": 0.9961538461538462
+            "share": 1.0
           },
           "2023": {
             "covered": 1560,
@@ -163,264 +163,264 @@
         },
         "IUES": {
           "2018": {
-            "covered": 226,
+            "covered": 358,
             "total": 358,
-            "share": 0.6312849162011173
+            "share": 1.0
           },
           "2019": {
-            "covered": 999,
+            "covered": 1493,
             "total": 1493,
-            "share": 0.6691225720026792
+            "share": 1.0
           },
           "2020": {
-            "covered": 1008,
+            "covered": 1369,
             "total": 1372,
-            "share": 0.7346938775510204
+            "share": 0.9978134110787172
           },
           "2021": {
-            "covered": 944,
+            "covered": 1181,
             "total": 1181,
-            "share": 0.7993226079593565
+            "share": 1.0
           },
           "2022": {
-            "covered": 910,
+            "covered": 1118,
             "total": 1118,
-            "share": 0.813953488372093
+            "share": 1.0
           },
           "2023": {
-            "covered": 988,
+            "covered": 1196,
             "total": 1196,
-            "share": 0.8260869565217391
+            "share": 1.0
           },
           "2024": {
-            "covered": 993,
+            "covered": 1160,
             "total": 1160,
-            "share": 0.8560344827586207
+            "share": 1.0
           },
           "2025": {
-            "covered": 1081,
+            "covered": 1161,
             "total": 1161,
-            "share": 0.9310938845822567
+            "share": 1.0
           },
           "2026": {
-            "covered": 546,
+            "covered": 564,
             "total": 564,
-            "share": 0.9680851063829787
+            "share": 1.0
           }
         },
         "IUFS": {
           "2018": {
-            "covered": 672,
+            "covered": 804,
             "total": 804,
-            "share": 0.835820895522388
+            "share": 1.0
           },
           "2019": {
-            "covered": 2909,
+            "covered": 3509,
             "total": 3509,
-            "share": 0.8290111142775719
+            "share": 1.0
           },
           "2020": {
-            "covered": 2912,
+            "covered": 3420,
             "total": 3420,
-            "share": 0.8514619883040936
+            "share": 1.0
           },
           "2021": {
-            "covered": 2976,
+            "covered": 3453,
             "total": 3453,
-            "share": 0.8618592528236316
+            "share": 1.0
           },
           "2022": {
-            "covered": 3076,
+            "covered": 3454,
             "total": 3454,
-            "share": 0.8905616676317313
+            "share": 1.0
           },
           "2023": {
-            "covered": 3367,
+            "covered": 3701,
             "total": 3705,
-            "share": 0.9087719298245615
+            "share": 0.9989203778677462
           },
           "2024": {
-            "covered": 3475,
+            "covered": 3719,
             "total": 3719,
-            "share": 0.9343909653132563
+            "share": 1.0
           },
           "2025": {
-            "covered": 3672,
+            "covered": 3841,
             "total": 3841,
-            "share": 0.9560010413954699
+            "share": 1.0
           },
           "2026": {
-            "covered": 1954,
+            "covered": 1976,
             "total": 1976,
-            "share": 0.9888663967611336
+            "share": 1.0
           }
         },
         "IUHC": {
           "2018": {
-            "covered": 588,
+            "covered": 749,
             "total": 749,
-            "share": 0.7850467289719626
+            "share": 1.0
           },
           "2019": {
-            "covered": 2587,
+            "covered": 3206,
             "total": 3206,
-            "share": 0.8069245165315034
+            "share": 1.0
           },
           "2020": {
-            "covered": 2699,
+            "covered": 3197,
             "total": 3197,
-            "share": 0.8442289646543635
+            "share": 1.0
           },
           "2021": {
-            "covered": 2954,
+            "covered": 3369,
             "total": 3369,
-            "share": 0.8768180468981893
+            "share": 1.0
           },
           "2022": {
-            "covered": 3036,
+            "covered": 3341,
             "total": 3341,
-            "share": 0.9087099670757258
+            "share": 1.0
           },
           "2023": {
-            "covered": 3202,
+            "covered": 3359,
             "total": 3359,
-            "share": 0.9532598987793987
+            "share": 1.0
           },
           "2024": {
-            "covered": 3181,
+            "covered": 3283,
             "total": 3283,
-            "share": 0.9689308559244594
+            "share": 1.0
           },
           "2025": {
-            "covered": 3079,
+            "covered": 3131,
             "total": 3131,
-            "share": 0.9833918875758544
+            "share": 1.0
           },
           "2026": {
-            "covered": 1527,
+            "covered": 1541,
             "total": 1543,
-            "share": 0.9896305897602073
+            "share": 0.998703823720026
           }
         },
         "IUIS": {
           "2018": {
-            "covered": 708,
+            "covered": 842,
             "total": 842,
-            "share": 0.8408551068883611
+            "share": 1.0
           },
           "2019": {
-            "covered": 3136,
+            "covered": 3601,
             "total": 3601,
-            "share": 0.8708692029991669
+            "share": 1.0
           },
           "2020": {
-            "covered": 3502,
+            "covered": 3755,
             "total": 3755,
-            "share": 0.9326231691078561
+            "share": 1.0
           },
           "2021": {
-            "covered": 3684,
+            "covered": 3893,
             "total": 3893,
-            "share": 0.9463138967377344
+            "share": 1.0
           },
           "2022": {
-            "covered": 3615,
+            "covered": 3712,
             "total": 3712,
-            "share": 0.9738685344827587
+            "share": 1.0
           },
           "2023": {
-            "covered": 3835,
+            "covered": 3871,
             "total": 3871,
-            "share": 0.9907000774993542
+            "share": 1.0
           },
           "2024": {
-            "covered": 4013,
+            "covered": 4065,
             "total": 4065,
-            "share": 0.9872078720787207
+            "share": 1.0
           },
           "2025": {
-            "covered": 4026,
+            "covered": 4078,
             "total": 4078,
-            "share": 0.9872486512996567
+            "share": 1.0
           },
           "2026": {
-            "covered": 2058,
+            "covered": 2063,
             "total": 2063,
-            "share": 0.9975763451284537
+            "share": 1.0
           }
         },
         "IUCS": {
           "2018": {
-            "covered": 353,
+            "covered": 389,
             "total": 389,
-            "share": 0.9074550128534704
+            "share": 1.0
           },
           "2019": {
-            "covered": 1560,
+            "covered": 1716,
             "total": 1716,
-            "share": 0.9090909090909091
+            "share": 1.0
           },
           "2020": {
-            "covered": 1545,
+            "covered": 1701,
             "total": 1701,
-            "share": 0.908289241622575
+            "share": 1.0
           },
           "2021": {
-            "covered": 1537,
+            "covered": 1696,
             "total": 1696,
-            "share": 0.90625
+            "share": 1.0
           },
           "2022": {
-            "covered": 1537,
+            "covered": 1693,
             "total": 1693,
-            "share": 0.9078558771411696
+            "share": 1.0
           },
           "2023": {
-            "covered": 1747,
+            "covered": 1903,
             "total": 1903,
-            "share": 0.9180241723594325
+            "share": 1.0
           },
           "2024": {
-            "covered": 1820,
+            "covered": 1976,
             "total": 1976,
-            "share": 0.9210526315789473
+            "share": 1.0
           },
           "2025": {
-            "covered": 1820,
+            "covered": 1955,
             "total": 1955,
-            "share": 0.9309462915601023
+            "share": 1.0
           },
           "2026": {
-            "covered": 905,
+            "covered": 931,
             "total": 931,
-            "share": 0.9720730397422127
+            "share": 1.0
           }
         },
         "IUCD": {
           "2018": {
-            "covered": 696,
+            "covered": 768,
             "total": 780,
-            "share": 0.8923076923076924
+            "share": 0.9846153846153847
           },
           "2019": {
-            "covered": 3022,
+            "covered": 3261,
             "total": 3313,
-            "share": 0.9121642016299426
+            "share": 0.9843042559613643
           },
           "2020": {
-            "covered": 3000,
+            "covered": 3180,
             "total": 3232,
-            "share": 0.9282178217821783
+            "share": 0.9839108910891089
           },
           "2021": {
-            "covered": 3177,
+            "covered": 3288,
             "total": 3319,
-            "share": 0.9572160289243749
+            "share": 0.9906598373003916
           },
           "2022": {
-            "covered": 3030,
+            "covered": 3034,
             "total": 3034,
-            "share": 0.998681608437706
+            "share": 1.0
           },
           "2023": {
             "covered": 2780,
@@ -445,9 +445,9 @@
         },
         "IUUS": {
           "2018": {
-            "covered": 336,
+            "covered": 348,
             "total": 348,
-            "share": 0.9655172413793104
+            "share": 1.0
           },
           "2019": {
             "covered": 1452,
@@ -492,39 +492,39 @@
         },
         "IUMS": {
           "2018": {
-            "covered": 239,
+            "covered": 290,
             "total": 290,
-            "share": 0.8241379310344827
+            "share": 1.0
           },
           "2019": {
-            "covered": 1220,
+            "covered": 1399,
             "total": 1399,
-            "share": 0.8720514653323803
+            "share": 1.0
           },
           "2020": {
-            "covered": 1300,
+            "covered": 1456,
             "total": 1456,
-            "share": 0.8928571428571429
+            "share": 1.0
           },
           "2021": {
-            "covered": 1326,
+            "covered": 1485,
             "total": 1485,
-            "share": 0.8929292929292929
+            "share": 1.0
           },
           "2022": {
-            "covered": 1336,
+            "covered": 1458,
             "total": 1458,
-            "share": 0.9163237311385459
+            "share": 1.0
           },
           "2023": {
-            "covered": 1404,
+            "covered": 1505,
             "total": 1505,
-            "share": 0.932890365448505
+            "share": 1.0
           },
           "2024": {
-            "covered": 1429,
+            "covered": 1456,
             "total": 1456,
-            "share": 0.9814560439560439
+            "share": 1.0
           },
           "2025": {
             "covered": 1375,
@@ -539,575 +539,141 @@
         },
         "IUCM": {
           "2018": {
-            "covered": 180,
+            "covered": 288,
             "total": 312,
-            "share": 0.5769230769230769
+            "share": 0.9230769230769231
           },
           "2019": {
-            "covered": 889,
+            "covered": 1353,
             "total": 1374,
-            "share": 0.6470160116448326
+            "share": 0.9847161572052402
           },
           "2020": {
-            "covered": 951,
+            "covered": 1352,
             "total": 1357,
-            "share": 0.7008106116433309
+            "share": 0.9963154016212233
           },
           "2021": {
-            "covered": 1023,
+            "covered": 1394,
             "total": 1394,
-            "share": 0.7338593974175036
+            "share": 1.0
           },
           "2022": {
-            "covered": 1078,
+            "covered": 1356,
             "total": 1356,
-            "share": 0.7949852507374632
+            "share": 1.0
           },
           "2023": {
-            "covered": 1050,
+            "covered": 1217,
             "total": 1217,
-            "share": 0.8627773212818406
+            "share": 1.0
           },
           "2024": {
-            "covered": 1040,
+            "covered": 1144,
             "total": 1144,
-            "share": 0.9090909090909091
+            "share": 1.0
           },
           "2025": {
-            "covered": 1126,
+            "covered": 1204,
             "total": 1204,
-            "share": 0.9352159468438538
+            "share": 1.0
           },
           "2026": {
-            "covered": 584,
+            "covered": 598,
             "total": 598,
-            "share": 0.9765886287625418
+            "share": 1.0
           }
         },
         "IUSP": {
           "2018": {
-            "covered": 1009,
+            "covered": 1444,
             "total": 1492,
-            "share": 0.6762734584450402
+            "share": 0.967828418230563
           },
           "2019": {
-            "covered": 4384,
+            "covered": 5976,
             "total": 6194,
-            "share": 0.7077817242492734
+            "share": 0.9648046496609622
           },
           "2020": {
-            "covered": 4498,
+            "covered": 5791,
             "total": 5999,
-            "share": 0.7497916319386564
+            "share": 0.965327554592432
           },
           "2021": {
-            "covered": 4378,
+            "covered": 5537,
             "total": 5765,
-            "share": 0.7594102341717259
+            "share": 0.9604509973980919
           },
           "2022": {
-            "covered": 3938,
+            "covered": 4704,
             "total": 4889,
-            "share": 0.8054816935978728
+            "share": 0.9621599509102066
           },
           "2023": {
-            "covered": 4626,
+            "covered": 5095,
             "total": 5222,
-            "share": 0.8858674837227116
+            "share": 0.9756798161623899
           },
           "2024": {
-            "covered": 4679,
+            "covered": 5035,
             "total": 5043,
-            "share": 0.9278207416220504
+            "share": 0.9984136426730121
           },
           "2025": {
-            "covered": 4674,
+            "covered": 4964,
             "total": 4964,
-            "share": 0.9415793714746172
+            "share": 1.0
           },
           "2026": {
-            "covered": 2282,
+            "covered": 2368,
             "total": 2368,
-            "share": 0.9636824324324325
+            "share": 1.0
           }
         }
       },
       "failing": [
         {
-          "line": "SOXX",
+          "line": "IUCM",
           "year": 2018,
           "covered": 288,
-          "total": 360,
-          "share": 0.8
-        },
-        {
-          "line": "SOXX",
-          "year": 2019,
-          "covered": 1316,
-          "total": 1560,
-          "share": 0.8435897435897436
-        },
-        {
-          "line": "SOXX",
-          "year": 2020,
-          "covered": 1337,
-          "total": 1560,
-          "share": 0.857051282051282
-        },
-        {
-          "line": "SOXX",
-          "year": 2021,
-          "covered": 1425,
-          "total": 1591,
-          "share": 0.8956631049654306
-        },
-        {
-          "line": "IUES",
-          "year": 2018,
-          "covered": 226,
-          "total": 358,
-          "share": 0.6312849162011173
-        },
-        {
-          "line": "IUES",
-          "year": 2019,
-          "covered": 999,
-          "total": 1493,
-          "share": 0.6691225720026792
-        },
-        {
-          "line": "IUES",
-          "year": 2020,
-          "covered": 1008,
-          "total": 1372,
-          "share": 0.7346938775510204
-        },
-        {
-          "line": "IUES",
-          "year": 2021,
-          "covered": 944,
-          "total": 1181,
-          "share": 0.7993226079593565
-        },
-        {
-          "line": "IUES",
-          "year": 2022,
-          "covered": 910,
-          "total": 1118,
-          "share": 0.813953488372093
-        },
-        {
-          "line": "IUES",
-          "year": 2023,
-          "covered": 988,
-          "total": 1196,
-          "share": 0.8260869565217391
-        },
-        {
-          "line": "IUES",
-          "year": 2024,
-          "covered": 993,
-          "total": 1160,
-          "share": 0.8560344827586207
-        },
-        {
-          "line": "IUES",
-          "year": 2025,
-          "covered": 1081,
-          "total": 1161,
-          "share": 0.9310938845822567
-        },
-        {
-          "line": "IUES",
-          "year": 2026,
-          "covered": 546,
-          "total": 564,
-          "share": 0.9680851063829787
-        },
-        {
-          "line": "IUFS",
-          "year": 2018,
-          "covered": 672,
-          "total": 804,
-          "share": 0.835820895522388
-        },
-        {
-          "line": "IUFS",
-          "year": 2019,
-          "covered": 2909,
-          "total": 3509,
-          "share": 0.8290111142775719
-        },
-        {
-          "line": "IUFS",
-          "year": 2020,
-          "covered": 2912,
-          "total": 3420,
-          "share": 0.8514619883040936
-        },
-        {
-          "line": "IUFS",
-          "year": 2021,
-          "covered": 2976,
-          "total": 3453,
-          "share": 0.8618592528236316
-        },
-        {
-          "line": "IUFS",
-          "year": 2022,
-          "covered": 3076,
-          "total": 3454,
-          "share": 0.8905616676317313
-        },
-        {
-          "line": "IUFS",
-          "year": 2023,
-          "covered": 3367,
-          "total": 3705,
-          "share": 0.9087719298245615
-        },
-        {
-          "line": "IUFS",
-          "year": 2024,
-          "covered": 3475,
-          "total": 3719,
-          "share": 0.9343909653132563
-        },
-        {
-          "line": "IUFS",
-          "year": 2025,
-          "covered": 3672,
-          "total": 3841,
-          "share": 0.9560010413954699
-        },
-        {
-          "line": "IUHC",
-          "year": 2018,
-          "covered": 588,
-          "total": 749,
-          "share": 0.7850467289719626
-        },
-        {
-          "line": "IUHC",
-          "year": 2019,
-          "covered": 2587,
-          "total": 3206,
-          "share": 0.8069245165315034
-        },
-        {
-          "line": "IUHC",
-          "year": 2020,
-          "covered": 2699,
-          "total": 3197,
-          "share": 0.8442289646543635
-        },
-        {
-          "line": "IUHC",
-          "year": 2021,
-          "covered": 2954,
-          "total": 3369,
-          "share": 0.8768180468981893
-        },
-        {
-          "line": "IUHC",
-          "year": 2022,
-          "covered": 3036,
-          "total": 3341,
-          "share": 0.9087099670757258
-        },
-        {
-          "line": "IUHC",
-          "year": 2023,
-          "covered": 3202,
-          "total": 3359,
-          "share": 0.9532598987793987
-        },
-        {
-          "line": "IUHC",
-          "year": 2024,
-          "covered": 3181,
-          "total": 3283,
-          "share": 0.9689308559244594
-        },
-        {
-          "line": "IUIS",
-          "year": 2018,
-          "covered": 708,
-          "total": 842,
-          "share": 0.8408551068883611
-        },
-        {
-          "line": "IUIS",
-          "year": 2019,
-          "covered": 3136,
-          "total": 3601,
-          "share": 0.8708692029991669
-        },
-        {
-          "line": "IUIS",
-          "year": 2020,
-          "covered": 3502,
-          "total": 3755,
-          "share": 0.9326231691078561
-        },
-        {
-          "line": "IUIS",
-          "year": 2021,
-          "covered": 3684,
-          "total": 3893,
-          "share": 0.9463138967377344
-        },
-        {
-          "line": "IUCS",
-          "year": 2018,
-          "covered": 353,
-          "total": 389,
-          "share": 0.9074550128534704
-        },
-        {
-          "line": "IUCS",
-          "year": 2019,
-          "covered": 1560,
-          "total": 1716,
-          "share": 0.9090909090909091
-        },
-        {
-          "line": "IUCS",
-          "year": 2020,
-          "covered": 1545,
-          "total": 1701,
-          "share": 0.908289241622575
-        },
-        {
-          "line": "IUCS",
-          "year": 2021,
-          "covered": 1537,
-          "total": 1696,
-          "share": 0.90625
-        },
-        {
-          "line": "IUCS",
-          "year": 2022,
-          "covered": 1537,
-          "total": 1693,
-          "share": 0.9078558771411696
-        },
-        {
-          "line": "IUCS",
-          "year": 2023,
-          "covered": 1747,
-          "total": 1903,
-          "share": 0.9180241723594325
-        },
-        {
-          "line": "IUCS",
-          "year": 2024,
-          "covered": 1820,
-          "total": 1976,
-          "share": 0.9210526315789473
-        },
-        {
-          "line": "IUCS",
-          "year": 2025,
-          "covered": 1820,
-          "total": 1955,
-          "share": 0.9309462915601023
-        },
-        {
-          "line": "IUCD",
-          "year": 2018,
-          "covered": 696,
-          "total": 780,
-          "share": 0.8923076923076924
-        },
-        {
-          "line": "IUCD",
-          "year": 2019,
-          "covered": 3022,
-          "total": 3313,
-          "share": 0.9121642016299426
-        },
-        {
-          "line": "IUCD",
-          "year": 2020,
-          "covered": 3000,
-          "total": 3232,
-          "share": 0.9282178217821783
-        },
-        {
-          "line": "IUCD",
-          "year": 2021,
-          "covered": 3177,
-          "total": 3319,
-          "share": 0.9572160289243749
-        },
-        {
-          "line": "IUUS",
-          "year": 2018,
-          "covered": 336,
-          "total": 348,
-          "share": 0.9655172413793104
-        },
-        {
-          "line": "IUMS",
-          "year": 2018,
-          "covered": 239,
-          "total": 290,
-          "share": 0.8241379310344827
-        },
-        {
-          "line": "IUMS",
-          "year": 2019,
-          "covered": 1220,
-          "total": 1399,
-          "share": 0.8720514653323803
-        },
-        {
-          "line": "IUMS",
-          "year": 2020,
-          "covered": 1300,
-          "total": 1456,
-          "share": 0.8928571428571429
-        },
-        {
-          "line": "IUMS",
-          "year": 2021,
-          "covered": 1326,
-          "total": 1485,
-          "share": 0.8929292929292929
-        },
-        {
-          "line": "IUMS",
-          "year": 2022,
-          "covered": 1336,
-          "total": 1458,
-          "share": 0.9163237311385459
-        },
-        {
-          "line": "IUMS",
-          "year": 2023,
-          "covered": 1404,
-          "total": 1505,
-          "share": 0.932890365448505
-        },
-        {
-          "line": "IUCM",
-          "year": 2018,
-          "covered": 180,
           "total": 312,
-          "share": 0.5769230769230769
-        },
-        {
-          "line": "IUCM",
-          "year": 2019,
-          "covered": 889,
-          "total": 1374,
-          "share": 0.6470160116448326
-        },
-        {
-          "line": "IUCM",
-          "year": 2020,
-          "covered": 951,
-          "total": 1357,
-          "share": 0.7008106116433309
-        },
-        {
-          "line": "IUCM",
-          "year": 2021,
-          "covered": 1023,
-          "total": 1394,
-          "share": 0.7338593974175036
-        },
-        {
-          "line": "IUCM",
-          "year": 2022,
-          "covered": 1078,
-          "total": 1356,
-          "share": 0.7949852507374632
-        },
-        {
-          "line": "IUCM",
-          "year": 2023,
-          "covered": 1050,
-          "total": 1217,
-          "share": 0.8627773212818406
-        },
-        {
-          "line": "IUCM",
-          "year": 2024,
-          "covered": 1040,
-          "total": 1144,
-          "share": 0.9090909090909091
-        },
-        {
-          "line": "IUCM",
-          "year": 2025,
-          "covered": 1126,
-          "total": 1204,
-          "share": 0.9352159468438538
+          "share": 0.9230769230769231
         },
         {
           "line": "IUSP",
           "year": 2018,
-          "covered": 1009,
+          "covered": 1444,
           "total": 1492,
-          "share": 0.6762734584450402
+          "share": 0.967828418230563
         },
         {
           "line": "IUSP",
           "year": 2019,
-          "covered": 4384,
+          "covered": 5976,
           "total": 6194,
-          "share": 0.7077817242492734
+          "share": 0.9648046496609622
         },
         {
           "line": "IUSP",
           "year": 2020,
-          "covered": 4498,
+          "covered": 5791,
           "total": 5999,
-          "share": 0.7497916319386564
+          "share": 0.965327554592432
         },
         {
           "line": "IUSP",
           "year": 2021,
-          "covered": 4378,
+          "covered": 5537,
           "total": 5765,
-          "share": 0.7594102341717259
+          "share": 0.9604509973980919
         },
         {
           "line": "IUSP",
           "year": 2022,
-          "covered": 3938,
+          "covered": 4704,
           "total": 4889,
-          "share": 0.8054816935978728
-        },
-        {
-          "line": "IUSP",
-          "year": 2023,
-          "covered": 4626,
-          "total": 5222,
-          "share": 0.8858674837227116
-        },
-        {
-          "line": "IUSP",
-          "year": 2024,
-          "covered": 4679,
-          "total": 5043,
-          "share": 0.9278207416220504
-        },
-        {
-          "line": "IUSP",
-          "year": 2025,
-          "covered": 4674,
-          "total": 4964,
-          "share": 0.9415793714746172
-        },
-        {
-          "line": "IUSP",
-          "year": 2026,
-          "covered": 2282,
-          "total": 2368,
-          "share": 0.9636824324324325
+          "share": 0.9621599509102066
         }
       ],
       "passed": false
@@ -1117,197 +683,91 @@
     "fetch_summary": {
       "SOXX": {
         "source": "fetch",
-        "n_requested": 57,
-        "n_resolved": 44,
-        "n_uncovered": 13,
-        "uncovered": [
-          "XLNX",
-          "MXIM",
-          "MSCC",
-          "CAVM",
-          "CY",
-          "IDTI",
-          "MLNX",
-          "SGH",
-          "CREE",
-          "IPHI",
-          "CCMP",
-          "BRKS",
-          "IIVI"
-        ],
+        "n_requested": 56,
+        "n_resolved": 56,
+        "n_uncovered": 0,
+        "uncovered": [],
         "panel_shape": [
           2385,
-          44
+          56
         ],
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
       },
       "IUES": {
         "source": "fetch",
-        "n_requested": 42,
-        "n_resolved": 26,
-        "n_uncovered": 16,
-        "uncovered": [
-          "PXD",
-          "CXO",
-          "ANDV",
-          "NBL",
-          "MRO",
-          "BHGE",
-          "HES",
-          "COG",
-          "XEC",
-          "NFX",
-          "CHK",
-          "HFC",
-          "1812473D",
-          "OXY WS WI",
-          "OXY WS",
-          "CTRA"
-        ],
+        "n_requested": 37,
+        "n_resolved": 37,
+        "n_uncovered": 0,
+        "uncovered": [],
         "panel_shape": [
           2385,
-          26
+          37
         ],
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
       },
       "IUFS": {
         "source": "fetch",
-        "n_requested": 102,
-        "n_resolved": 87,
-        "n_uncovered": 15,
-        "uncovered": [
-          "BK",
-          "MMC",
-          "DFS",
-          "WLTW",
-          "CMA",
-          "ETFC",
-          "TMK",
-          "XL",
-          "RE",
-          "LUK",
-          "PBCT",
-          "SIVB",
-          "FRC",
-          "FLT",
-          "FI"
-        ],
+        "n_requested": 94,
+        "n_resolved": 94,
+        "n_uncovered": 0,
+        "uncovered": [],
         "panel_shape": [
           2385,
-          87
+          94
         ],
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
       },
       "IUHC": {
         "source": "fetch",
-        "n_requested": 87,
-        "n_resolved": 68,
-        "n_uncovered": 19,
-        "uncovered": [
-          "CELG",
-          "AET",
-          "ANTM",
-          "AGN",
-          "ESRX",
-          "ALXN",
-          "MYL",
-          "CERN",
-          "ABC",
-          "HOLX",
-          "VAR",
-          "PKI",
-          "EVHC",
-          "PDCO",
-          "ABMD",
-          "WCG",
-          "CVET",
-          "CTLT",
-          "HOLX US"
-        ],
+        "n_requested": 82,
+        "n_resolved": 82,
+        "n_uncovered": 0,
+        "uncovered": [],
         "panel_shape": [
           2385,
-          68
+          82
         ],
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
       },
       "IUIS": {
         "source": "fetch",
-        "n_requested": 111,
-        "n_resolved": 96,
-        "n_uncovered": 15,
-        "uncovered": [
-          "UTX",
-          "RTN",
-          "COL",
-          "HRS",
-          "LLL",
-          "ARNC",
-          "NLSN",
-          "KSU",
-          "FBHS",
-          "JEC",
-          "SRCL",
-          "APY",
-          "RTX US",
-          "CDAY",
-          "DAY"
-        ],
+        "n_requested": 106,
+        "n_resolved": 106,
+        "n_uncovered": 0,
+        "uncovered": [],
         "panel_shape": [
           2385,
-          96
+          106
         ],
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
       },
       "IUCS": {
         "source": "fetch",
-        "n_requested": 42,
-        "n_resolved": 38,
-        "n_uncovered": 4,
-        "uncovered": [
-          "WBA",
-          "DPS",
-          "K",
-          "BFB"
-        ],
+        "n_requested": 41,
+        "n_resolved": 41,
+        "n_uncovered": 0,
+        "uncovered": [],
         "panel_shape": [
           2385,
-          38
+          41
         ],
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
       },
       "IUCD": {
         "source": "fetch",
-        "n_requested": 109,
-        "n_resolved": 92,
-        "n_uncovered": 17,
-        "uncovered": [
-          "TWX",
-          "CBS",
-          "WYN",
-          "DISH",
-          "TIF",
-          "VIAB",
-          "KORS",
-          "SNI",
-          "IPG",
-          "HBI",
-          "GPS",
-          "FL",
-          "JWN",
-          "DISCK",
-          "DISCA",
-          "VSCO",
-          "MRP.W"
-        ],
+        "n_requested": 103,
+        "n_resolved": 103,
+        "n_uncovered": 0,
+        "uncovered": [],
         "panel_shape": [
           2385,
-          92
+          103
         ],
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
@@ -1315,11 +775,35 @@
       "IUUS": {
         "source": "fetch",
         "n_requested": 33,
-        "n_resolved": 32,
-        "n_uncovered": 1,
-        "uncovered": [
-          "SCG"
+        "n_resolved": 33,
+        "n_uncovered": 0,
+        "uncovered": [],
+        "panel_shape": [
+          2385,
+          33
         ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUMS": {
+        "source": "fetch",
+        "n_requested": 36,
+        "n_resolved": 36,
+        "n_uncovered": 0,
+        "uncovered": [],
+        "panel_shape": [
+          2385,
+          36
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUCM": {
+        "source": "fetch",
+        "n_requested": 32,
+        "n_resolved": 32,
+        "n_uncovered": 0,
+        "uncovered": [],
         "panel_shape": [
           2385,
           32
@@ -1327,123 +811,15 @@
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
       },
-      "IUMS": {
-        "source": "fetch",
-        "n_requested": 38,
-        "n_resolved": 31,
-        "n_uncovered": 7,
-        "uncovered": [
-          "DWDP",
-          "MON",
-          "PX",
-          "WRK",
-          "BLL",
-          "SEE",
-          "BMS"
-        ],
-        "panel_shape": [
-          2385,
-          31
-        ],
-        "panel_start": "2017-01-03",
-        "panel_end": "2026-06-30"
-      },
-      "IUCM": {
-        "source": "fetch",
-        "n_requested": 40,
-        "n_resolved": 26,
-        "n_uncovered": 14,
-        "uncovered": [
-          "ATVI",
-          "CTL",
-          "TWTR",
-          "CBS",
-          "VIAB",
-          "DISCK",
-          "IPG",
-          "DISH",
-          "DISCA",
-          "DISHR",
-          "VIAC",
-          "TMUSR",
-          "PARA",
-          "SATS"
-        ],
-        "panel_shape": [
-          2385,
-          26
-        ],
-        "panel_start": "2017-01-03",
-        "panel_end": "2026-06-30"
-      },
       "IUSP": {
         "source": "fetch",
-        "n_requested": 178,
-        "n_resolved": 120,
-        "n_uncovered": 58,
-        "uncovered": [
-          "HCN",
-          "GGP",
-          "HCP",
-          "DRE",
-          "VER",
-          "LPT",
-          "HTA",
-          "ACC",
-          "DCT",
-          "MPW",
-          "STOR",
-          "LSI",
-          "WRI",
-          "HPT",
-          "TCO",
-          "SRC",
-          "SNH",
-          "PGRE",
-          "LHO",
-          "RPAI",
-          "OFC",
-          "DDR",
-          "CXP",
-          "QTS",
-          "EDR",
-          "PSB",
-          "WRE",
-          "ROIC",
-          "CLI",
-          "CHSP",
-          "SIR",
-          "WPG",
-          "GOV",
-          "PEI",
-          "HT",
-          "UBA",
-          "IRET",
-          "SNR",
-          "CDR",
-          "SMTA",
-          "BPR",
-          "CONE",
-          "FCEA",
-          "CLNY",
-          "KW",
-          "PEAK",
-          "FVE",
-          "BPYU",
-          "AFIN",
-          "AHH",
-          "AIRC",
-          "EQC",
-          "ALEX",
-          "AFIN US",
-          "RTL US",
-          "RTL",
-          "SILA",
-          "VRE"
-        ],
+        "n_requested": 156,
+        "n_resolved": 156,
+        "n_uncovered": 0,
+        "uncovered": [],
         "panel_shape": [
           2385,
-          120
+          156
         ],
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
@@ -1451,37 +827,174 @@
     },
     "mapping": {
       "SOXX": {
-        "n_ishares_unique": 57
+        "n_ishares_unique": 57,
+        "n_instruments": 56,
+        "n_member_weeks": 13292,
+        "n_resolved_weeks": 13292,
+        "unresolved": {}
       },
       "IUES": {
-        "n_ishares_unique": 42
+        "n_ishares_unique": 42,
+        "n_instruments": 37,
+        "n_member_weeks": 10851,
+        "n_resolved_weeks": 10848,
+        "unresolved": {
+          "1812473D": {
+            "status": "unresolved",
+            "n_weeks": 1
+          },
+          "OXY WS WI": {
+            "status": "unresolved",
+            "n_weeks": 1
+          },
+          "OXY WS": {
+            "status": "unresolved",
+            "n_weeks": 1
+          }
+        }
       },
       "IUFS": {
-        "n_ishares_unique": 102
+        "n_ishares_unique": 102,
+        "n_instruments": 94,
+        "n_member_weeks": 30596,
+        "n_resolved_weeks": 30596,
+        "unresolved": {}
       },
       "IUHC": {
-        "n_ishares_unique": 87
+        "n_ishares_unique": 87,
+        "n_instruments": 82,
+        "n_member_weeks": 27664,
+        "n_resolved_weeks": 27662,
+        "unresolved": {
+          "HOLX US": {
+            "status": "unresolved",
+            "n_weeks": 1
+          },
+          "HOLX": {
+            "status": "unresolved",
+            "n_weeks": 1
+          }
+        }
       },
       "IUIS": {
-        "n_ishares_unique": 111
+        "n_ishares_unique": 111,
+        "n_instruments": 106,
+        "n_member_weeks": 32681,
+        "n_resolved_weeks": 32681,
+        "unresolved": {}
       },
       "IUCS": {
-        "n_ishares_unique": 42
+        "n_ishares_unique": 42,
+        "n_instruments": 41,
+        "n_member_weeks": 15282,
+        "n_resolved_weeks": 15282,
+        "unresolved": {}
       },
       "IUCD": {
-        "n_ishares_unique": 109
+        "n_ishares_unique": 109,
+        "n_instruments": 103,
+        "n_member_weeks": 26232,
+        "n_resolved_weeks": 25960,
+        "unresolved": {
+          "PCLN": {
+            "status": "unresolved",
+            "n_weeks": 8
+          },
+          "FOXA": {
+            "status": "unresolved",
+            "n_weeks": 38
+          },
+          "FOX": {
+            "status": "unresolved",
+            "n_weeks": 37
+          },
+          "LB": {
+            "status": "unresolved",
+            "n_weeks": 187
+          },
+          "MRP-W": {
+            "status": "unresolved",
+            "n_weeks": 2
+          }
+        }
       },
       "IUUS": {
-        "n_ishares_unique": 33
+        "n_ishares_unique": 33,
+        "n_instruments": 33,
+        "n_member_weeks": 12969,
+        "n_resolved_weeks": 12969,
+        "unresolved": {}
       },
       "IUMS": {
-        "n_ishares_unique": 38
+        "n_ishares_unique": 38,
+        "n_instruments": 36,
+        "n_member_weeks": 12082,
+        "n_resolved_weeks": 12082,
+        "unresolved": {}
       },
       "IUCM": {
-        "n_ishares_unique": 40
+        "n_ishares_unique": 41,
+        "n_instruments": 32,
+        "n_member_weeks": 10034,
+        "n_resolved_weeks": 9978,
+        "unresolved": {
+          "FOXA": {
+            "status": "unresolved",
+            "n_weeks": 25
+          },
+          "FOX": {
+            "status": "unresolved",
+            "n_weeks": 25
+          },
+          "DISHR": {
+            "status": "unresolved",
+            "n_weeks": 1
+          },
+          "TMUSR": {
+            "status": "unresolved",
+            "n_weeks": 5
+          }
+        }
       },
       "IUSP": {
-        "n_ishares_unique": 178
+        "n_ishares_unique": 178,
+        "n_instruments": 156,
+        "n_member_weeks": 46789,
+        "n_resolved_weeks": 45606,
+        "unresolved": {
+          "HR": {
+            "status": "ambiguous",
+            "n_weeks": 238
+          },
+          "DOC": {
+            "status": "ambiguous",
+            "n_weeks": 321
+          },
+          "RPT": {
+            "status": "ambiguous",
+            "n_weeks": 313
+          },
+          "CBL": {
+            "status": "unresolved",
+            "n_weeks": 62
+          },
+          "RVI": {
+            "status": "unresolved",
+            "n_weeks": 1
+          },
+          "OPI": {
+            "status": "unresolved",
+            "n_weeks": 232
+          },
+          "TCO": {
+            "status": "unresolved",
+            "n_weeks": 1
+          },
+          "COR": {
+            "status": "ambiguous",
+            "n_weeks": 15
+          }
+        }
       }
     }
   }

@@ -89,7 +89,7 @@ from run_improvements import compute_stats  # noqa: E402  (deployed stats helper
 # Frozen run parameters (kickoff §2 [GATES] / verdict rule; nothing tunable)
 # ---------------------------------------------------------------------------
 
-ENGINE_COMMIT = "b12d0f9"          # scripts/single_name_impl.py at T2
+ENGINE_COMMIT = "54f0f14"          # scripts/single_name_impl.py at T2 + A1
 COVERAGE_MIN = 0.97                # G1 threshold
 G2_CORR_MIN = 0.95                 # G2 threshold
 G2_MIN_WEEKS = 26                  # lines held fewer than this are not gated
@@ -718,9 +718,32 @@ def main() -> int:
     finished = datetime.now(timezone.utc)
     runtime_s = (finished - started).total_seconds()
 
-    write_payload("COMPLETE", {
+    # First-run G1 STOP record (commit 24aa6d0): the gate fired on the b12d0f9
+    # base-ticker mapping and was cleared by data-layer completion (amendment
+    # A1, kickoff §5b) at the UNCHANGED 97% bar — not by lowering it.
+    g1_history = {
+        "first_run": {
+            "status": "STOP_G1", "engine_commit": "b12d0f9",
+            "harness_commit": "24aa6d0",
+            "n_failing_cells": 68,
+            "worst_cell": {"line": "IUCM", "year": 2018, "share": 0.5769},
+            "cause": ("Delisted members unresolved: Norgate stores delisted "
+                      "instruments under delisting-dated -YYYYMM suffixes and "
+                      "the b12d0f9 mapper emitted only plain tickers, so "
+                      "delisted/renamed members counted against coverage."),
+            "resolution": ("Amendment A1 (logged pre-results, kickoff 5b; "
+                           "engine 54f0f14): (ticker, membership date) -> "
+                           "instrument resolution with delisted-suffix "
+                           "candidates, life-interval disambiguation and a "
+                           "verified rename table. G1 re-tested in full at "
+                           "the unchanged 97% bar."),
+        },
+    }
+
+    write_payload("COMPLETE_POST_A1", {
         "runtime_seconds": _safe(runtime_s),
         "parity": {"e0_vs_deployed_maxdiff": _safe(parity)},
+        "g1_history": g1_history,
         "gates": {
             "G1": {"threshold": COVERAGE_MIN, "asof_trailing_rows": COVERAGE_ASOF_ROWS,
                    "table": g1_table, "worst_cell": worst_cell, "passed": True},
