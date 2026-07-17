@@ -1,0 +1,506 @@
+{
+ "computed_at_utc": "2026-07-17T02:58:18+00:00",
+ "review_and_propose": "no deployed change; measurement only",
+ "state_machine_source": "imported from run_risk_overlay (deployed)",
+ "thresholds": {
+  "off": 0.2,
+  "on": 0.5
+ },
+ "candidate": {
+  "symbol": "#SPX%MA50",
+  "scale_detected": 100.0,
+  "full_depth_start": "1957-03-04",
+  "full_depth_end": "2026-07-16",
+  "full_depth_days": 17459
+ },
+ "overlap": {
+  "start": "2018-01-05",
+  "end": "2026-07-10",
+  "days": 2138,
+  "missing_days_deployed": 0,
+  "missing_days_norgate": 0
+ },
+ "level_reconciliation": {
+  "correlation": 0.998638,
+  "median_signed_diff_pp": -1.243,
+  "iqr_pp": 1.363,
+  "mean_abs_diff_pp": 1.441,
+  "p95_abs_diff_pp": 3.365,
+  "max_abs_diff_pp": 5.788,
+  "max_abs_diff_date": "2018-03-19"
+ },
+ "threshold_zone": {
+  "band_pp": 2.0,
+  "days_in_zone_either_series": 234,
+  "days_side_disagree_off_0.20": 8,
+  "days_side_disagree_on_0.50": 60
+ },
+ "gate_states": {
+  "agreement_share": 0.985968,
+  "disagreement_days": 30,
+  "flips_deployed": [
+   {
+    "date": "2018-02-08",
+    "direction": "OFF"
+   },
+   {
+    "date": "2018-02-23",
+    "direction": "ON"
+   },
+   {
+    "date": "2018-03-23",
+    "direction": "OFF"
+   },
+   {
+    "date": "2018-04-16",
+    "direction": "ON"
+   },
+   {
+    "date": "2018-10-11",
+    "direction": "OFF"
+   },
+   {
+    "date": "2018-11-07",
+    "direction": "ON"
+   },
+   {
+    "date": "2018-12-17",
+    "direction": "OFF"
+   },
+   {
+    "date": "2019-01-17",
+    "direction": "ON"
+   },
+   {
+    "date": "2020-02-27",
+    "direction": "OFF"
+   },
+   {
+    "date": "2020-04-27",
+    "direction": "ON"
+   },
+   {
+    "date": "2022-05-10",
+    "direction": "OFF"
+   },
+   {
+    "date": "2022-07-20",
+    "direction": "ON"
+   },
+   {
+    "date": "2022-09-21",
+    "direction": "OFF"
+   },
+   {
+    "date": "2022-10-27",
+    "direction": "ON"
+   },
+   {
+    "date": "2023-03-10",
+    "direction": "OFF"
+   },
+   {
+    "date": "2023-03-31",
+    "direction": "ON"
+   },
+   {
+    "date": "2023-09-21",
+    "direction": "OFF"
+   },
+   {
+    "date": "2023-11-03",
+    "direction": "ON"
+   },
+   {
+    "date": "2024-12-18",
+    "direction": "OFF"
+   },
+   {
+    "date": "2025-01-21",
+    "direction": "ON"
+   },
+   {
+    "date": "2025-04-04",
+    "direction": "OFF"
+   },
+   {
+    "date": "2025-05-02",
+    "direction": "ON"
+   },
+   {
+    "date": "2026-03-27",
+    "direction": "OFF"
+   },
+   {
+    "date": "2026-04-13",
+    "direction": "ON"
+   }
+  ],
+  "flips_norgate": [
+   {
+    "date": "2018-02-08",
+    "direction": "OFF"
+   },
+   {
+    "date": "2018-02-23",
+    "direction": "ON"
+   },
+   {
+    "date": "2018-03-23",
+    "direction": "OFF"
+   },
+   {
+    "date": "2018-04-17",
+    "direction": "ON"
+   },
+   {
+    "date": "2018-10-11",
+    "direction": "OFF"
+   },
+   {
+    "date": "2018-11-28",
+    "direction": "ON"
+   },
+   {
+    "date": "2018-12-17",
+    "direction": "OFF"
+   },
+   {
+    "date": "2019-01-17",
+    "direction": "ON"
+   },
+   {
+    "date": "2020-02-27",
+    "direction": "OFF"
+   },
+   {
+    "date": "2020-04-27",
+    "direction": "ON"
+   },
+   {
+    "date": "2022-05-10",
+    "direction": "OFF"
+   },
+   {
+    "date": "2022-07-21",
+    "direction": "ON"
+   },
+   {
+    "date": "2022-09-21",
+    "direction": "OFF"
+   },
+   {
+    "date": "2022-10-27",
+    "direction": "ON"
+   },
+   {
+    "date": "2023-03-10",
+    "direction": "OFF"
+   },
+   {
+    "date": "2023-04-03",
+    "direction": "ON"
+   },
+   {
+    "date": "2023-09-21",
+    "direction": "OFF"
+   },
+   {
+    "date": "2023-11-14",
+    "direction": "ON"
+   },
+   {
+    "date": "2024-12-18",
+    "direction": "OFF"
+   },
+   {
+    "date": "2025-01-21",
+    "direction": "ON"
+   },
+   {
+    "date": "2025-04-04",
+    "direction": "OFF"
+   },
+   {
+    "date": "2025-05-02",
+    "direction": "ON"
+   },
+   {
+    "date": "2026-03-20",
+    "direction": "OFF"
+   },
+   {
+    "date": "2026-04-14",
+    "direction": "ON"
+   }
+  ],
+  "paired_flips": [
+   {
+    "deployed": {
+     "date": "2018-02-08",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2018-02-08",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2018-02-23",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2018-02-23",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2018-03-23",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2018-03-23",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2018-04-16",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2018-04-17",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 1
+   },
+   {
+    "deployed": {
+     "date": "2018-10-11",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2018-10-11",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2018-11-07",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2018-11-28",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 21
+   },
+   {
+    "deployed": {
+     "date": "2018-12-17",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2018-12-17",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2019-01-17",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2019-01-17",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2020-02-27",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2020-02-27",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2020-04-27",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2020-04-27",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2022-05-10",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2022-05-10",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2022-07-20",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2022-07-21",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 1
+   },
+   {
+    "deployed": {
+     "date": "2022-09-21",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2022-09-21",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2022-10-27",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2022-10-27",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2023-03-10",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2023-03-10",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2023-03-31",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2023-04-03",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 3
+   },
+   {
+    "deployed": {
+     "date": "2023-09-21",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2023-09-21",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2023-11-03",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2023-11-14",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 11
+   },
+   {
+    "deployed": {
+     "date": "2024-12-18",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2024-12-18",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2025-01-21",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2025-01-21",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2025-04-04",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2025-04-04",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2025-05-02",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2025-05-02",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 0
+   },
+   {
+    "deployed": {
+     "date": "2026-03-27",
+     "direction": "OFF"
+    },
+    "norgate": {
+     "date": "2026-03-20",
+     "direction": "OFF"
+    },
+    "calendar_day_delta": -7
+   },
+   {
+    "deployed": {
+     "date": "2026-04-13",
+     "direction": "ON"
+    },
+    "norgate": {
+     "date": "2026-04-14",
+     "direction": "ON"
+    },
+    "calendar_day_delta": 1
+   }
+  ],
+  "unmatched_deployed_flips": [],
+  "unmatched_norgate_flips": []
+ }
+}

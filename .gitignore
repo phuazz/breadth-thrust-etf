@@ -33,3 +33,4 @@ Thumbs.db
 
 # Claude Code local config (preview launch settings, worktrees)
 .claude/
+data_local/  # Norgate vendor pulls — licence: never committed
