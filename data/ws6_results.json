@@ -1,0 +1,1488 @@
+{
+  "computed_at_utc": "2026-07-17T15:59:33.494760+00:00",
+  "status": "STOP_G1",
+  "register_meta": {
+    "arms": [
+      {
+        "id": "E0",
+        "label": "deployed ETF baseline",
+        "pool": "topM",
+        "screen": true,
+        "rank_key": "none",
+        "select_n": null,
+        "is_etf_baseline": true
+      },
+      {
+        "id": "I0",
+        "label": "unscreened top-M EW basket",
+        "pool": "topM",
+        "screen": false,
+        "rank_key": "none",
+        "select_n": null,
+        "is_etf_baseline": false
+      },
+      {
+        "id": "I1",
+        "label": "screened top-M EW basket (Design 1)",
+        "pool": "topM",
+        "screen": true,
+        "rank_key": "none",
+        "select_n": null,
+        "is_etf_baseline": false
+      },
+      {
+        "id": "I2",
+        "label": "top-N by strength, screened (Design 2)",
+        "pool": "full",
+        "screen": true,
+        "rank_key": "strength",
+        "select_n": 10,
+        "is_etf_baseline": false
+      },
+      {
+        "id": "P2",
+        "label": "top-N by 126d momentum, screened (placebo)",
+        "pool": "full",
+        "screen": true,
+        "rank_key": "momentum",
+        "select_n": 10,
+        "is_etf_baseline": false
+      },
+      {
+        "id": "I2-N15",
+        "label": "top-N=15 by strength (neighbour)",
+        "pool": "full",
+        "screen": true,
+        "rank_key": "strength",
+        "select_n": 15,
+        "is_etf_baseline": false
+      },
+      {
+        "id": "P2-N15",
+        "label": "top-N=15 by momentum (neighbour)",
+        "pool": "full",
+        "screen": true,
+        "rank_key": "momentum",
+        "select_n": 15,
+        "is_etf_baseline": false
+      },
+      {
+        "id": "I1-all",
+        "label": "screened EW over all members (neighbour)",
+        "pool": "full",
+        "screen": true,
+        "rank_key": "none",
+        "select_n": null,
+        "is_etf_baseline": false
+      }
+    ],
+    "constants": {
+      "M_pool": 15,
+      "N_select": 10,
+      "N_neighbour": 15,
+      "min_pass": 3,
+      "trend_ma_days": 200,
+      "placebo_mom_days": 126,
+      "K_deployed": 7
+    },
+    "cost_sweep_bps": [
+      2,
+      5,
+      10,
+      20
+    ],
+    "binding_cost_bps": 10,
+    "deployed_cost_bps": 2,
+    "window": {
+      "eligible": "2018-10-12",
+      "end": "2026-06-30",
+      "registered": "2018-Q4 -> 2026-Q2",
+      "n_rebalances": 389
+    },
+    "split_boundary": "2022-09-08",
+    "engine_commit": "b12d0f9"
+  },
+  "mechanics_notes": {
+    "t_minus_1_read": "Per-name trend state/rank AND the membership snapshot are read as of the prior trading day (t-1) of each W-FRI rebalance, identical to the deployed sector signal's shift(1); a Friday-D rebalance uses the snapshot effective <= D-1 and the price/state row on or before D-1.",
+    "fallback_scope": "The <3-passing fallback applies to every SCREENED arm (I1, I2, P2, I2-N15, P2-N15, I1-all): a single-named line with fewer than MIN_PASS=3 members passing the trend state reverts to its ETF that week. I0 (unscreened) reverts only if it has no holdable name at all. E0 and the three broad slices (CSP1, CNDX, IDP6) are always their own ETF.",
+    "delisting_handling": "A member delisting mid-hold earns its final Norgate TOTALRETURN print; the return panel forward-fills its price so it sits flat until the next rebalance drops it (exit at final print).",
+    "renormalisation": "Baskets are equal-weight and renormalise over the names present / passing each week; the name-level book preserves the sector line weight exactly, so the full-vector one-way turnover the cost model charges is the book's own churn (sector-rotation + screen + membership).",
+    "coverage_definition": "G1 covers snapshot member-weeks with snapshot date in [2018-10-12, 2026-06-30] grouped by calendar year; a member-week is covered iff its mapped Norgate symbol has a non-NaN TOTALRETURN close on >= 1 of the 5 trailing rows up to the snapshot as-of date; unmapped/unresolved names count against coverage.",
+    "e0_cost": "E0 keeps the deployed cost model (2 bps on its line-level book) at every cost point; the sweep {2,5,10,20} bps applies to the constituent arms' full name-level vector."
+  },
+  "gates": {
+    "G1": {
+      "threshold": 0.97,
+      "table": {
+        "SOXX": {
+          "2018": {
+            "covered": 288,
+            "total": 360,
+            "share": 0.8
+          },
+          "2019": {
+            "covered": 1316,
+            "total": 1560,
+            "share": 0.8435897435897436
+          },
+          "2020": {
+            "covered": 1337,
+            "total": 1560,
+            "share": 0.857051282051282
+          },
+          "2021": {
+            "covered": 1425,
+            "total": 1591,
+            "share": 0.8956631049654306
+          },
+          "2022": {
+            "covered": 1554,
+            "total": 1560,
+            "share": 0.9961538461538462
+          },
+          "2023": {
+            "covered": 1560,
+            "total": 1560,
+            "share": 1.0
+          },
+          "2024": {
+            "covered": 1560,
+            "total": 1560,
+            "share": 1.0
+          },
+          "2025": {
+            "covered": 1560,
+            "total": 1560,
+            "share": 1.0
+          },
+          "2026": {
+            "covered": 780,
+            "total": 780,
+            "share": 1.0
+          }
+        },
+        "IUES": {
+          "2018": {
+            "covered": 226,
+            "total": 358,
+            "share": 0.6312849162011173
+          },
+          "2019": {
+            "covered": 999,
+            "total": 1493,
+            "share": 0.6691225720026792
+          },
+          "2020": {
+            "covered": 1008,
+            "total": 1372,
+            "share": 0.7346938775510204
+          },
+          "2021": {
+            "covered": 944,
+            "total": 1181,
+            "share": 0.7993226079593565
+          },
+          "2022": {
+            "covered": 910,
+            "total": 1118,
+            "share": 0.813953488372093
+          },
+          "2023": {
+            "covered": 988,
+            "total": 1196,
+            "share": 0.8260869565217391
+          },
+          "2024": {
+            "covered": 993,
+            "total": 1160,
+            "share": 0.8560344827586207
+          },
+          "2025": {
+            "covered": 1081,
+            "total": 1161,
+            "share": 0.9310938845822567
+          },
+          "2026": {
+            "covered": 546,
+            "total": 564,
+            "share": 0.9680851063829787
+          }
+        },
+        "IUFS": {
+          "2018": {
+            "covered": 672,
+            "total": 804,
+            "share": 0.835820895522388
+          },
+          "2019": {
+            "covered": 2909,
+            "total": 3509,
+            "share": 0.8290111142775719
+          },
+          "2020": {
+            "covered": 2912,
+            "total": 3420,
+            "share": 0.8514619883040936
+          },
+          "2021": {
+            "covered": 2976,
+            "total": 3453,
+            "share": 0.8618592528236316
+          },
+          "2022": {
+            "covered": 3076,
+            "total": 3454,
+            "share": 0.8905616676317313
+          },
+          "2023": {
+            "covered": 3367,
+            "total": 3705,
+            "share": 0.9087719298245615
+          },
+          "2024": {
+            "covered": 3475,
+            "total": 3719,
+            "share": 0.9343909653132563
+          },
+          "2025": {
+            "covered": 3672,
+            "total": 3841,
+            "share": 0.9560010413954699
+          },
+          "2026": {
+            "covered": 1954,
+            "total": 1976,
+            "share": 0.9888663967611336
+          }
+        },
+        "IUHC": {
+          "2018": {
+            "covered": 588,
+            "total": 749,
+            "share": 0.7850467289719626
+          },
+          "2019": {
+            "covered": 2587,
+            "total": 3206,
+            "share": 0.8069245165315034
+          },
+          "2020": {
+            "covered": 2699,
+            "total": 3197,
+            "share": 0.8442289646543635
+          },
+          "2021": {
+            "covered": 2954,
+            "total": 3369,
+            "share": 0.8768180468981893
+          },
+          "2022": {
+            "covered": 3036,
+            "total": 3341,
+            "share": 0.9087099670757258
+          },
+          "2023": {
+            "covered": 3202,
+            "total": 3359,
+            "share": 0.9532598987793987
+          },
+          "2024": {
+            "covered": 3181,
+            "total": 3283,
+            "share": 0.9689308559244594
+          },
+          "2025": {
+            "covered": 3079,
+            "total": 3131,
+            "share": 0.9833918875758544
+          },
+          "2026": {
+            "covered": 1527,
+            "total": 1543,
+            "share": 0.9896305897602073
+          }
+        },
+        "IUIS": {
+          "2018": {
+            "covered": 708,
+            "total": 842,
+            "share": 0.8408551068883611
+          },
+          "2019": {
+            "covered": 3136,
+            "total": 3601,
+            "share": 0.8708692029991669
+          },
+          "2020": {
+            "covered": 3502,
+            "total": 3755,
+            "share": 0.9326231691078561
+          },
+          "2021": {
+            "covered": 3684,
+            "total": 3893,
+            "share": 0.9463138967377344
+          },
+          "2022": {
+            "covered": 3615,
+            "total": 3712,
+            "share": 0.9738685344827587
+          },
+          "2023": {
+            "covered": 3835,
+            "total": 3871,
+            "share": 0.9907000774993542
+          },
+          "2024": {
+            "covered": 4013,
+            "total": 4065,
+            "share": 0.9872078720787207
+          },
+          "2025": {
+            "covered": 4026,
+            "total": 4078,
+            "share": 0.9872486512996567
+          },
+          "2026": {
+            "covered": 2058,
+            "total": 2063,
+            "share": 0.9975763451284537
+          }
+        },
+        "IUCS": {
+          "2018": {
+            "covered": 353,
+            "total": 389,
+            "share": 0.9074550128534704
+          },
+          "2019": {
+            "covered": 1560,
+            "total": 1716,
+            "share": 0.9090909090909091
+          },
+          "2020": {
+            "covered": 1545,
+            "total": 1701,
+            "share": 0.908289241622575
+          },
+          "2021": {
+            "covered": 1537,
+            "total": 1696,
+            "share": 0.90625
+          },
+          "2022": {
+            "covered": 1537,
+            "total": 1693,
+            "share": 0.9078558771411696
+          },
+          "2023": {
+            "covered": 1747,
+            "total": 1903,
+            "share": 0.9180241723594325
+          },
+          "2024": {
+            "covered": 1820,
+            "total": 1976,
+            "share": 0.9210526315789473
+          },
+          "2025": {
+            "covered": 1820,
+            "total": 1955,
+            "share": 0.9309462915601023
+          },
+          "2026": {
+            "covered": 905,
+            "total": 931,
+            "share": 0.9720730397422127
+          }
+        },
+        "IUCD": {
+          "2018": {
+            "covered": 696,
+            "total": 780,
+            "share": 0.8923076923076924
+          },
+          "2019": {
+            "covered": 3022,
+            "total": 3313,
+            "share": 0.9121642016299426
+          },
+          "2020": {
+            "covered": 3000,
+            "total": 3232,
+            "share": 0.9282178217821783
+          },
+          "2021": {
+            "covered": 3177,
+            "total": 3319,
+            "share": 0.9572160289243749
+          },
+          "2022": {
+            "covered": 3030,
+            "total": 3034,
+            "share": 0.998681608437706
+          },
+          "2023": {
+            "covered": 2780,
+            "total": 2780,
+            "share": 1.0
+          },
+          "2024": {
+            "covered": 2689,
+            "total": 2689,
+            "share": 1.0
+          },
+          "2025": {
+            "covered": 2616,
+            "total": 2618,
+            "share": 0.9992360580595875
+          },
+          "2026": {
+            "covered": 1247,
+            "total": 1247,
+            "share": 1.0
+          }
+        },
+        "IUUS": {
+          "2018": {
+            "covered": 336,
+            "total": 348,
+            "share": 0.9655172413793104
+          },
+          "2019": {
+            "covered": 1452,
+            "total": 1452,
+            "share": 1.0
+          },
+          "2020": {
+            "covered": 1456,
+            "total": 1456,
+            "share": 1.0
+          },
+          "2021": {
+            "covered": 1485,
+            "total": 1485,
+            "share": 1.0
+          },
+          "2022": {
+            "covered": 1518,
+            "total": 1518,
+            "share": 1.0
+          },
+          "2023": {
+            "covered": 1560,
+            "total": 1560,
+            "share": 1.0
+          },
+          "2024": {
+            "covered": 1594,
+            "total": 1594,
+            "share": 1.0
+          },
+          "2025": {
+            "covered": 1612,
+            "total": 1612,
+            "share": 1.0
+          },
+          "2026": {
+            "covered": 806,
+            "total": 806,
+            "share": 1.0
+          }
+        },
+        "IUMS": {
+          "2018": {
+            "covered": 239,
+            "total": 290,
+            "share": 0.8241379310344827
+          },
+          "2019": {
+            "covered": 1220,
+            "total": 1399,
+            "share": 0.8720514653323803
+          },
+          "2020": {
+            "covered": 1300,
+            "total": 1456,
+            "share": 0.8928571428571429
+          },
+          "2021": {
+            "covered": 1326,
+            "total": 1485,
+            "share": 0.8929292929292929
+          },
+          "2022": {
+            "covered": 1336,
+            "total": 1458,
+            "share": 0.9163237311385459
+          },
+          "2023": {
+            "covered": 1404,
+            "total": 1505,
+            "share": 0.932890365448505
+          },
+          "2024": {
+            "covered": 1429,
+            "total": 1456,
+            "share": 0.9814560439560439
+          },
+          "2025": {
+            "covered": 1375,
+            "total": 1375,
+            "share": 1.0
+          },
+          "2026": {
+            "covered": 676,
+            "total": 676,
+            "share": 1.0
+          }
+        },
+        "IUCM": {
+          "2018": {
+            "covered": 180,
+            "total": 312,
+            "share": 0.5769230769230769
+          },
+          "2019": {
+            "covered": 889,
+            "total": 1374,
+            "share": 0.6470160116448326
+          },
+          "2020": {
+            "covered": 951,
+            "total": 1357,
+            "share": 0.7008106116433309
+          },
+          "2021": {
+            "covered": 1023,
+            "total": 1394,
+            "share": 0.7338593974175036
+          },
+          "2022": {
+            "covered": 1078,
+            "total": 1356,
+            "share": 0.7949852507374632
+          },
+          "2023": {
+            "covered": 1050,
+            "total": 1217,
+            "share": 0.8627773212818406
+          },
+          "2024": {
+            "covered": 1040,
+            "total": 1144,
+            "share": 0.9090909090909091
+          },
+          "2025": {
+            "covered": 1126,
+            "total": 1204,
+            "share": 0.9352159468438538
+          },
+          "2026": {
+            "covered": 584,
+            "total": 598,
+            "share": 0.9765886287625418
+          }
+        },
+        "IUSP": {
+          "2018": {
+            "covered": 1009,
+            "total": 1492,
+            "share": 0.6762734584450402
+          },
+          "2019": {
+            "covered": 4384,
+            "total": 6194,
+            "share": 0.7077817242492734
+          },
+          "2020": {
+            "covered": 4498,
+            "total": 5999,
+            "share": 0.7497916319386564
+          },
+          "2021": {
+            "covered": 4378,
+            "total": 5765,
+            "share": 0.7594102341717259
+          },
+          "2022": {
+            "covered": 3938,
+            "total": 4889,
+            "share": 0.8054816935978728
+          },
+          "2023": {
+            "covered": 4626,
+            "total": 5222,
+            "share": 0.8858674837227116
+          },
+          "2024": {
+            "covered": 4679,
+            "total": 5043,
+            "share": 0.9278207416220504
+          },
+          "2025": {
+            "covered": 4674,
+            "total": 4964,
+            "share": 0.9415793714746172
+          },
+          "2026": {
+            "covered": 2282,
+            "total": 2368,
+            "share": 0.9636824324324325
+          }
+        }
+      },
+      "failing": [
+        {
+          "line": "SOXX",
+          "year": 2018,
+          "covered": 288,
+          "total": 360,
+          "share": 0.8
+        },
+        {
+          "line": "SOXX",
+          "year": 2019,
+          "covered": 1316,
+          "total": 1560,
+          "share": 0.8435897435897436
+        },
+        {
+          "line": "SOXX",
+          "year": 2020,
+          "covered": 1337,
+          "total": 1560,
+          "share": 0.857051282051282
+        },
+        {
+          "line": "SOXX",
+          "year": 2021,
+          "covered": 1425,
+          "total": 1591,
+          "share": 0.8956631049654306
+        },
+        {
+          "line": "IUES",
+          "year": 2018,
+          "covered": 226,
+          "total": 358,
+          "share": 0.6312849162011173
+        },
+        {
+          "line": "IUES",
+          "year": 2019,
+          "covered": 999,
+          "total": 1493,
+          "share": 0.6691225720026792
+        },
+        {
+          "line": "IUES",
+          "year": 2020,
+          "covered": 1008,
+          "total": 1372,
+          "share": 0.7346938775510204
+        },
+        {
+          "line": "IUES",
+          "year": 2021,
+          "covered": 944,
+          "total": 1181,
+          "share": 0.7993226079593565
+        },
+        {
+          "line": "IUES",
+          "year": 2022,
+          "covered": 910,
+          "total": 1118,
+          "share": 0.813953488372093
+        },
+        {
+          "line": "IUES",
+          "year": 2023,
+          "covered": 988,
+          "total": 1196,
+          "share": 0.8260869565217391
+        },
+        {
+          "line": "IUES",
+          "year": 2024,
+          "covered": 993,
+          "total": 1160,
+          "share": 0.8560344827586207
+        },
+        {
+          "line": "IUES",
+          "year": 2025,
+          "covered": 1081,
+          "total": 1161,
+          "share": 0.9310938845822567
+        },
+        {
+          "line": "IUES",
+          "year": 2026,
+          "covered": 546,
+          "total": 564,
+          "share": 0.9680851063829787
+        },
+        {
+          "line": "IUFS",
+          "year": 2018,
+          "covered": 672,
+          "total": 804,
+          "share": 0.835820895522388
+        },
+        {
+          "line": "IUFS",
+          "year": 2019,
+          "covered": 2909,
+          "total": 3509,
+          "share": 0.8290111142775719
+        },
+        {
+          "line": "IUFS",
+          "year": 2020,
+          "covered": 2912,
+          "total": 3420,
+          "share": 0.8514619883040936
+        },
+        {
+          "line": "IUFS",
+          "year": 2021,
+          "covered": 2976,
+          "total": 3453,
+          "share": 0.8618592528236316
+        },
+        {
+          "line": "IUFS",
+          "year": 2022,
+          "covered": 3076,
+          "total": 3454,
+          "share": 0.8905616676317313
+        },
+        {
+          "line": "IUFS",
+          "year": 2023,
+          "covered": 3367,
+          "total": 3705,
+          "share": 0.9087719298245615
+        },
+        {
+          "line": "IUFS",
+          "year": 2024,
+          "covered": 3475,
+          "total": 3719,
+          "share": 0.9343909653132563
+        },
+        {
+          "line": "IUFS",
+          "year": 2025,
+          "covered": 3672,
+          "total": 3841,
+          "share": 0.9560010413954699
+        },
+        {
+          "line": "IUHC",
+          "year": 2018,
+          "covered": 588,
+          "total": 749,
+          "share": 0.7850467289719626
+        },
+        {
+          "line": "IUHC",
+          "year": 2019,
+          "covered": 2587,
+          "total": 3206,
+          "share": 0.8069245165315034
+        },
+        {
+          "line": "IUHC",
+          "year": 2020,
+          "covered": 2699,
+          "total": 3197,
+          "share": 0.8442289646543635
+        },
+        {
+          "line": "IUHC",
+          "year": 2021,
+          "covered": 2954,
+          "total": 3369,
+          "share": 0.8768180468981893
+        },
+        {
+          "line": "IUHC",
+          "year": 2022,
+          "covered": 3036,
+          "total": 3341,
+          "share": 0.9087099670757258
+        },
+        {
+          "line": "IUHC",
+          "year": 2023,
+          "covered": 3202,
+          "total": 3359,
+          "share": 0.9532598987793987
+        },
+        {
+          "line": "IUHC",
+          "year": 2024,
+          "covered": 3181,
+          "total": 3283,
+          "share": 0.9689308559244594
+        },
+        {
+          "line": "IUIS",
+          "year": 2018,
+          "covered": 708,
+          "total": 842,
+          "share": 0.8408551068883611
+        },
+        {
+          "line": "IUIS",
+          "year": 2019,
+          "covered": 3136,
+          "total": 3601,
+          "share": 0.8708692029991669
+        },
+        {
+          "line": "IUIS",
+          "year": 2020,
+          "covered": 3502,
+          "total": 3755,
+          "share": 0.9326231691078561
+        },
+        {
+          "line": "IUIS",
+          "year": 2021,
+          "covered": 3684,
+          "total": 3893,
+          "share": 0.9463138967377344
+        },
+        {
+          "line": "IUCS",
+          "year": 2018,
+          "covered": 353,
+          "total": 389,
+          "share": 0.9074550128534704
+        },
+        {
+          "line": "IUCS",
+          "year": 2019,
+          "covered": 1560,
+          "total": 1716,
+          "share": 0.9090909090909091
+        },
+        {
+          "line": "IUCS",
+          "year": 2020,
+          "covered": 1545,
+          "total": 1701,
+          "share": 0.908289241622575
+        },
+        {
+          "line": "IUCS",
+          "year": 2021,
+          "covered": 1537,
+          "total": 1696,
+          "share": 0.90625
+        },
+        {
+          "line": "IUCS",
+          "year": 2022,
+          "covered": 1537,
+          "total": 1693,
+          "share": 0.9078558771411696
+        },
+        {
+          "line": "IUCS",
+          "year": 2023,
+          "covered": 1747,
+          "total": 1903,
+          "share": 0.9180241723594325
+        },
+        {
+          "line": "IUCS",
+          "year": 2024,
+          "covered": 1820,
+          "total": 1976,
+          "share": 0.9210526315789473
+        },
+        {
+          "line": "IUCS",
+          "year": 2025,
+          "covered": 1820,
+          "total": 1955,
+          "share": 0.9309462915601023
+        },
+        {
+          "line": "IUCD",
+          "year": 2018,
+          "covered": 696,
+          "total": 780,
+          "share": 0.8923076923076924
+        },
+        {
+          "line": "IUCD",
+          "year": 2019,
+          "covered": 3022,
+          "total": 3313,
+          "share": 0.9121642016299426
+        },
+        {
+          "line": "IUCD",
+          "year": 2020,
+          "covered": 3000,
+          "total": 3232,
+          "share": 0.9282178217821783
+        },
+        {
+          "line": "IUCD",
+          "year": 2021,
+          "covered": 3177,
+          "total": 3319,
+          "share": 0.9572160289243749
+        },
+        {
+          "line": "IUUS",
+          "year": 2018,
+          "covered": 336,
+          "total": 348,
+          "share": 0.9655172413793104
+        },
+        {
+          "line": "IUMS",
+          "year": 2018,
+          "covered": 239,
+          "total": 290,
+          "share": 0.8241379310344827
+        },
+        {
+          "line": "IUMS",
+          "year": 2019,
+          "covered": 1220,
+          "total": 1399,
+          "share": 0.8720514653323803
+        },
+        {
+          "line": "IUMS",
+          "year": 2020,
+          "covered": 1300,
+          "total": 1456,
+          "share": 0.8928571428571429
+        },
+        {
+          "line": "IUMS",
+          "year": 2021,
+          "covered": 1326,
+          "total": 1485,
+          "share": 0.8929292929292929
+        },
+        {
+          "line": "IUMS",
+          "year": 2022,
+          "covered": 1336,
+          "total": 1458,
+          "share": 0.9163237311385459
+        },
+        {
+          "line": "IUMS",
+          "year": 2023,
+          "covered": 1404,
+          "total": 1505,
+          "share": 0.932890365448505
+        },
+        {
+          "line": "IUCM",
+          "year": 2018,
+          "covered": 180,
+          "total": 312,
+          "share": 0.5769230769230769
+        },
+        {
+          "line": "IUCM",
+          "year": 2019,
+          "covered": 889,
+          "total": 1374,
+          "share": 0.6470160116448326
+        },
+        {
+          "line": "IUCM",
+          "year": 2020,
+          "covered": 951,
+          "total": 1357,
+          "share": 0.7008106116433309
+        },
+        {
+          "line": "IUCM",
+          "year": 2021,
+          "covered": 1023,
+          "total": 1394,
+          "share": 0.7338593974175036
+        },
+        {
+          "line": "IUCM",
+          "year": 2022,
+          "covered": 1078,
+          "total": 1356,
+          "share": 0.7949852507374632
+        },
+        {
+          "line": "IUCM",
+          "year": 2023,
+          "covered": 1050,
+          "total": 1217,
+          "share": 0.8627773212818406
+        },
+        {
+          "line": "IUCM",
+          "year": 2024,
+          "covered": 1040,
+          "total": 1144,
+          "share": 0.9090909090909091
+        },
+        {
+          "line": "IUCM",
+          "year": 2025,
+          "covered": 1126,
+          "total": 1204,
+          "share": 0.9352159468438538
+        },
+        {
+          "line": "IUSP",
+          "year": 2018,
+          "covered": 1009,
+          "total": 1492,
+          "share": 0.6762734584450402
+        },
+        {
+          "line": "IUSP",
+          "year": 2019,
+          "covered": 4384,
+          "total": 6194,
+          "share": 0.7077817242492734
+        },
+        {
+          "line": "IUSP",
+          "year": 2020,
+          "covered": 4498,
+          "total": 5999,
+          "share": 0.7497916319386564
+        },
+        {
+          "line": "IUSP",
+          "year": 2021,
+          "covered": 4378,
+          "total": 5765,
+          "share": 0.7594102341717259
+        },
+        {
+          "line": "IUSP",
+          "year": 2022,
+          "covered": 3938,
+          "total": 4889,
+          "share": 0.8054816935978728
+        },
+        {
+          "line": "IUSP",
+          "year": 2023,
+          "covered": 4626,
+          "total": 5222,
+          "share": 0.8858674837227116
+        },
+        {
+          "line": "IUSP",
+          "year": 2024,
+          "covered": 4679,
+          "total": 5043,
+          "share": 0.9278207416220504
+        },
+        {
+          "line": "IUSP",
+          "year": 2025,
+          "covered": 4674,
+          "total": 4964,
+          "share": 0.9415793714746172
+        },
+        {
+          "line": "IUSP",
+          "year": 2026,
+          "covered": 2282,
+          "total": 2368,
+          "share": 0.9636824324324325
+        }
+      ],
+      "passed": false
+    }
+  },
+  "data_stage": {
+    "fetch_summary": {
+      "SOXX": {
+        "source": "fetch",
+        "n_requested": 57,
+        "n_resolved": 44,
+        "n_uncovered": 13,
+        "uncovered": [
+          "XLNX",
+          "MXIM",
+          "MSCC",
+          "CAVM",
+          "CY",
+          "IDTI",
+          "MLNX",
+          "SGH",
+          "CREE",
+          "IPHI",
+          "CCMP",
+          "BRKS",
+          "IIVI"
+        ],
+        "panel_shape": [
+          2385,
+          44
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUES": {
+        "source": "fetch",
+        "n_requested": 42,
+        "n_resolved": 26,
+        "n_uncovered": 16,
+        "uncovered": [
+          "PXD",
+          "CXO",
+          "ANDV",
+          "NBL",
+          "MRO",
+          "BHGE",
+          "HES",
+          "COG",
+          "XEC",
+          "NFX",
+          "CHK",
+          "HFC",
+          "1812473D",
+          "OXY WS WI",
+          "OXY WS",
+          "CTRA"
+        ],
+        "panel_shape": [
+          2385,
+          26
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUFS": {
+        "source": "fetch",
+        "n_requested": 102,
+        "n_resolved": 87,
+        "n_uncovered": 15,
+        "uncovered": [
+          "BK",
+          "MMC",
+          "DFS",
+          "WLTW",
+          "CMA",
+          "ETFC",
+          "TMK",
+          "XL",
+          "RE",
+          "LUK",
+          "PBCT",
+          "SIVB",
+          "FRC",
+          "FLT",
+          "FI"
+        ],
+        "panel_shape": [
+          2385,
+          87
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUHC": {
+        "source": "fetch",
+        "n_requested": 87,
+        "n_resolved": 68,
+        "n_uncovered": 19,
+        "uncovered": [
+          "CELG",
+          "AET",
+          "ANTM",
+          "AGN",
+          "ESRX",
+          "ALXN",
+          "MYL",
+          "CERN",
+          "ABC",
+          "HOLX",
+          "VAR",
+          "PKI",
+          "EVHC",
+          "PDCO",
+          "ABMD",
+          "WCG",
+          "CVET",
+          "CTLT",
+          "HOLX US"
+        ],
+        "panel_shape": [
+          2385,
+          68
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUIS": {
+        "source": "fetch",
+        "n_requested": 111,
+        "n_resolved": 96,
+        "n_uncovered": 15,
+        "uncovered": [
+          "UTX",
+          "RTN",
+          "COL",
+          "HRS",
+          "LLL",
+          "ARNC",
+          "NLSN",
+          "KSU",
+          "FBHS",
+          "JEC",
+          "SRCL",
+          "APY",
+          "RTX US",
+          "CDAY",
+          "DAY"
+        ],
+        "panel_shape": [
+          2385,
+          96
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUCS": {
+        "source": "fetch",
+        "n_requested": 42,
+        "n_resolved": 38,
+        "n_uncovered": 4,
+        "uncovered": [
+          "WBA",
+          "DPS",
+          "K",
+          "BFB"
+        ],
+        "panel_shape": [
+          2385,
+          38
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUCD": {
+        "source": "fetch",
+        "n_requested": 109,
+        "n_resolved": 92,
+        "n_uncovered": 17,
+        "uncovered": [
+          "TWX",
+          "CBS",
+          "WYN",
+          "DISH",
+          "TIF",
+          "VIAB",
+          "KORS",
+          "SNI",
+          "IPG",
+          "HBI",
+          "GPS",
+          "FL",
+          "JWN",
+          "DISCK",
+          "DISCA",
+          "VSCO",
+          "MRP.W"
+        ],
+        "panel_shape": [
+          2385,
+          92
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUUS": {
+        "source": "fetch",
+        "n_requested": 33,
+        "n_resolved": 32,
+        "n_uncovered": 1,
+        "uncovered": [
+          "SCG"
+        ],
+        "panel_shape": [
+          2385,
+          32
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUMS": {
+        "source": "fetch",
+        "n_requested": 38,
+        "n_resolved": 31,
+        "n_uncovered": 7,
+        "uncovered": [
+          "DWDP",
+          "MON",
+          "PX",
+          "WRK",
+          "BLL",
+          "SEE",
+          "BMS"
+        ],
+        "panel_shape": [
+          2385,
+          31
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUCM": {
+        "source": "fetch",
+        "n_requested": 40,
+        "n_resolved": 26,
+        "n_uncovered": 14,
+        "uncovered": [
+          "ATVI",
+          "CTL",
+          "TWTR",
+          "CBS",
+          "VIAB",
+          "DISCK",
+          "IPG",
+          "DISH",
+          "DISCA",
+          "DISHR",
+          "VIAC",
+          "TMUSR",
+          "PARA",
+          "SATS"
+        ],
+        "panel_shape": [
+          2385,
+          26
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      },
+      "IUSP": {
+        "source": "fetch",
+        "n_requested": 178,
+        "n_resolved": 120,
+        "n_uncovered": 58,
+        "uncovered": [
+          "HCN",
+          "GGP",
+          "HCP",
+          "DRE",
+          "VER",
+          "LPT",
+          "HTA",
+          "ACC",
+          "DCT",
+          "MPW",
+          "STOR",
+          "LSI",
+          "WRI",
+          "HPT",
+          "TCO",
+          "SRC",
+          "SNH",
+          "PGRE",
+          "LHO",
+          "RPAI",
+          "OFC",
+          "DDR",
+          "CXP",
+          "QTS",
+          "EDR",
+          "PSB",
+          "WRE",
+          "ROIC",
+          "CLI",
+          "CHSP",
+          "SIR",
+          "WPG",
+          "GOV",
+          "PEI",
+          "HT",
+          "UBA",
+          "IRET",
+          "SNR",
+          "CDR",
+          "SMTA",
+          "BPR",
+          "CONE",
+          "FCEA",
+          "CLNY",
+          "KW",
+          "PEAK",
+          "FVE",
+          "BPYU",
+          "AFIN",
+          "AHH",
+          "AIRC",
+          "EQC",
+          "ALEX",
+          "AFIN US",
+          "RTL US",
+          "RTL",
+          "SILA",
+          "VRE"
+        ],
+        "panel_shape": [
+          2385,
+          120
+        ],
+        "panel_start": "2017-01-03",
+        "panel_end": "2026-06-30"
+      }
+    },
+    "mapping": {
+      "SOXX": {
+        "n_ishares_unique": 57
+      },
+      "IUES": {
+        "n_ishares_unique": 42
+      },
+      "IUFS": {
+        "n_ishares_unique": 102
+      },
+      "IUHC": {
+        "n_ishares_unique": 87
+      },
+      "IUIS": {
+        "n_ishares_unique": 111
+      },
+      "IUCS": {
+        "n_ishares_unique": 42
+      },
+      "IUCD": {
+        "n_ishares_unique": 109
+      },
+      "IUUS": {
+        "n_ishares_unique": 33
+      },
+      "IUMS": {
+        "n_ishares_unique": 38
+      },
+      "IUCM": {
+        "n_ishares_unique": 40
+      },
+      "IUSP": {
+        "n_ishares_unique": 178
+      }
+    }
+  }
+}
