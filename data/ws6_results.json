@@ -1,6 +1,6 @@
 {
-  "computed_at_utc": "2026-07-17T16:50:21.792352+00:00",
-  "status": "STOP_G1",
+  "computed_at_utc": "2026-07-17T23:45:13.957730+00:00",
+  "status": "STOP_G2",
   "register_meta": {
     "arms": [
       {
@@ -100,7 +100,7 @@
       "n_rebalances": 389
     },
     "split_boundary": "2022-09-08",
-    "engine_commit": "54f0f14"
+    "engine_commit": "dbb6543"
   },
   "mechanics_notes": {
     "t_minus_1_read": "Per-name trend state/rank AND the membership snapshot are read as of the prior trading day (t-1) of each W-FRI rebalance, identical to the deployed sector signal's shift(1); a Friday-D rebalance uses the snapshot effective <= D-1 and the price/state row on or before D-1.",
@@ -398,24 +398,24 @@
         },
         "IUCD": {
           "2018": {
-            "covered": 768,
+            "covered": 780,
             "total": 780,
-            "share": 0.9846153846153847
+            "share": 1.0
           },
           "2019": {
-            "covered": 3261,
+            "covered": 3313,
             "total": 3313,
-            "share": 0.9843042559613643
+            "share": 1.0
           },
           "2020": {
-            "covered": 3180,
+            "covered": 3232,
             "total": 3232,
-            "share": 0.9839108910891089
+            "share": 1.0
           },
           "2021": {
-            "covered": 3288,
+            "covered": 3319,
             "total": 3319,
-            "share": 0.9906598373003916
+            "share": 1.0
           },
           "2022": {
             "covered": 3034,
@@ -539,14 +539,14 @@
         },
         "IUCM": {
           "2018": {
-            "covered": 288,
+            "covered": 312,
             "total": 312,
-            "share": 0.9230769230769231
+            "share": 1.0
           },
           "2019": {
-            "covered": 1353,
+            "covered": 1373,
             "total": 1374,
-            "share": 0.9847161572052402
+            "share": 0.9992721979621543
           },
           "2020": {
             "covered": 1352,
@@ -586,39 +586,39 @@
         },
         "IUSP": {
           "2018": {
-            "covered": 1444,
+            "covered": 1492,
             "total": 1492,
-            "share": 0.967828418230563
+            "share": 1.0
           },
           "2019": {
-            "covered": 5976,
+            "covered": 6194,
             "total": 6194,
-            "share": 0.9648046496609622
+            "share": 1.0
           },
           "2020": {
-            "covered": 5791,
+            "covered": 5999,
             "total": 5999,
-            "share": 0.965327554592432
+            "share": 1.0
           },
           "2021": {
-            "covered": 5537,
+            "covered": 5764,
             "total": 5765,
-            "share": 0.9604509973980919
+            "share": 0.9998265394622723
           },
           "2022": {
-            "covered": 4704,
+            "covered": 4889,
             "total": 4889,
-            "share": 0.9621599509102066
+            "share": 1.0
           },
           "2023": {
-            "covered": 5095,
+            "covered": 5222,
             "total": 5222,
-            "share": 0.9756798161623899
+            "share": 1.0
           },
           "2024": {
-            "covered": 5035,
+            "covered": 5043,
             "total": 5043,
-            "share": 0.9984136426730121
+            "share": 1.0
           },
           "2025": {
             "covered": 4964,
@@ -632,48 +632,78 @@
           }
         }
       },
+      "passed": true
+    },
+    "G2": {
+      "threshold": 0.95,
+      "min_weeks": 26,
+      "table": {
+        "SOXX": {
+          "n_held_weeks": 256,
+          "corr_i0_vs_e0": 0.9918666455302706,
+          "gated": true
+        },
+        "IUES": {
+          "n_held_weeks": 183,
+          "corr_i0_vs_e0": 0.9919816877044734,
+          "gated": true
+        },
+        "IUFS": {
+          "n_held_weeks": 253,
+          "corr_i0_vs_e0": 0.9865179330527711,
+          "gated": true
+        },
+        "IUHC": {
+          "n_held_weeks": 135,
+          "corr_i0_vs_e0": 0.9849839871636087,
+          "gated": true
+        },
+        "IUIS": {
+          "n_held_weeks": 281,
+          "corr_i0_vs_e0": 0.9797542606560045,
+          "gated": true
+        },
+        "IUCS": {
+          "n_held_weeks": 178,
+          "corr_i0_vs_e0": 0.9849086183542958,
+          "gated": true
+        },
+        "IUCD": {
+          "n_held_weeks": 136,
+          "corr_i0_vs_e0": 0.9193396250664287,
+          "gated": true
+        },
+        "IUUS": {
+          "n_held_weeks": 251,
+          "corr_i0_vs_e0": 0.9919142962375607,
+          "gated": true
+        },
+        "IUMS": {
+          "n_held_weeks": 175,
+          "corr_i0_vs_e0": 0.9852324940487771,
+          "gated": true
+        },
+        "IUCM": {
+          "n_held_weeks": 164,
+          "corr_i0_vs_e0": 0.946800188541165,
+          "gated": true
+        },
+        "IUSP": {
+          "n_held_weeks": 157,
+          "corr_i0_vs_e0": 0.9575207887063582,
+          "gated": true
+        }
+      },
       "failing": [
         {
+          "line": "IUCD",
+          "n_held_weeks": 136,
+          "corr_i0_vs_e0": 0.9193396250664287
+        },
+        {
           "line": "IUCM",
-          "year": 2018,
-          "covered": 288,
-          "total": 312,
-          "share": 0.9230769230769231
-        },
-        {
-          "line": "IUSP",
-          "year": 2018,
-          "covered": 1444,
-          "total": 1492,
-          "share": 0.967828418230563
-        },
-        {
-          "line": "IUSP",
-          "year": 2019,
-          "covered": 5976,
-          "total": 6194,
-          "share": 0.9648046496609622
-        },
-        {
-          "line": "IUSP",
-          "year": 2020,
-          "covered": 5791,
-          "total": 5999,
-          "share": 0.965327554592432
-        },
-        {
-          "line": "IUSP",
-          "year": 2021,
-          "covered": 5537,
-          "total": 5765,
-          "share": 0.9604509973980919
-        },
-        {
-          "line": "IUSP",
-          "year": 2022,
-          "covered": 4704,
-          "total": 4889,
-          "share": 0.9621599509102066
+          "n_held_weeks": 164,
+          "corr_i0_vs_e0": 0.946800188541165
         }
       ],
       "passed": false
@@ -682,7 +712,7 @@
   "data_stage": {
     "fetch_summary": {
       "SOXX": {
-        "source": "fetch",
+        "source": "cache",
         "n_requested": 56,
         "n_resolved": 56,
         "n_uncovered": 0,
@@ -695,7 +725,7 @@
         "panel_end": "2026-06-30"
       },
       "IUES": {
-        "source": "fetch",
+        "source": "cache",
         "n_requested": 37,
         "n_resolved": 37,
         "n_uncovered": 0,
@@ -708,7 +738,7 @@
         "panel_end": "2026-06-30"
       },
       "IUFS": {
-        "source": "fetch",
+        "source": "cache",
         "n_requested": 94,
         "n_resolved": 94,
         "n_uncovered": 0,
@@ -721,7 +751,7 @@
         "panel_end": "2026-06-30"
       },
       "IUHC": {
-        "source": "fetch",
+        "source": "cache",
         "n_requested": 82,
         "n_resolved": 82,
         "n_uncovered": 0,
@@ -734,7 +764,7 @@
         "panel_end": "2026-06-30"
       },
       "IUIS": {
-        "source": "fetch",
+        "source": "cache",
         "n_requested": 106,
         "n_resolved": 106,
         "n_uncovered": 0,
@@ -747,7 +777,7 @@
         "panel_end": "2026-06-30"
       },
       "IUCS": {
-        "source": "fetch",
+        "source": "cache",
         "n_requested": 41,
         "n_resolved": 41,
         "n_uncovered": 0,
@@ -761,19 +791,19 @@
       },
       "IUCD": {
         "source": "fetch",
-        "n_requested": 103,
-        "n_resolved": 103,
+        "n_requested": 105,
+        "n_resolved": 105,
         "n_uncovered": 0,
         "uncovered": [],
         "panel_shape": [
           2385,
-          103
+          105
         ],
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
       },
       "IUUS": {
-        "source": "fetch",
+        "source": "cache",
         "n_requested": 33,
         "n_resolved": 33,
         "n_uncovered": 0,
@@ -786,7 +816,7 @@
         "panel_end": "2026-06-30"
       },
       "IUMS": {
-        "source": "fetch",
+        "source": "cache",
         "n_requested": 36,
         "n_resolved": 36,
         "n_uncovered": 0,
@@ -800,26 +830,26 @@
       },
       "IUCM": {
         "source": "fetch",
-        "n_requested": 32,
-        "n_resolved": 32,
+        "n_requested": 34,
+        "n_resolved": 34,
         "n_uncovered": 0,
         "uncovered": [],
         "panel_shape": [
           2385,
-          32
+          34
         ],
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
       },
       "IUSP": {
         "source": "fetch",
-        "n_requested": 156,
-        "n_resolved": 156,
+        "n_requested": 162,
+        "n_resolved": 162,
         "n_uncovered": 0,
         "uncovered": [],
         "panel_shape": [
           2385,
-          156
+          162
         ],
         "panel_start": "2017-01-03",
         "panel_end": "2026-06-30"
@@ -892,26 +922,10 @@
       },
       "IUCD": {
         "n_ishares_unique": 109,
-        "n_instruments": 103,
+        "n_instruments": 105,
         "n_member_weeks": 26232,
-        "n_resolved_weeks": 25960,
+        "n_resolved_weeks": 26230,
         "unresolved": {
-          "PCLN": {
-            "status": "unresolved",
-            "n_weeks": 8
-          },
-          "FOXA": {
-            "status": "unresolved",
-            "n_weeks": 38
-          },
-          "FOX": {
-            "status": "unresolved",
-            "n_weeks": 37
-          },
-          "LB": {
-            "status": "unresolved",
-            "n_weeks": 187
-          },
           "MRP-W": {
             "status": "unresolved",
             "n_weeks": 2
@@ -934,18 +948,10 @@
       },
       "IUCM": {
         "n_ishares_unique": 41,
-        "n_instruments": 32,
+        "n_instruments": 34,
         "n_member_weeks": 10034,
-        "n_resolved_weeks": 9978,
+        "n_resolved_weeks": 10028,
         "unresolved": {
-          "FOXA": {
-            "status": "unresolved",
-            "n_weeks": 25
-          },
-          "FOX": {
-            "status": "unresolved",
-            "n_weeks": 25
-          },
           "DISHR": {
             "status": "unresolved",
             "n_weeks": 1
@@ -958,41 +964,13 @@
       },
       "IUSP": {
         "n_ishares_unique": 178,
-        "n_instruments": 156,
+        "n_instruments": 162,
         "n_member_weeks": 46789,
-        "n_resolved_weeks": 45606,
+        "n_resolved_weeks": 46788,
         "unresolved": {
-          "HR": {
-            "status": "ambiguous",
-            "n_weeks": 238
-          },
-          "DOC": {
-            "status": "ambiguous",
-            "n_weeks": 321
-          },
-          "RPT": {
-            "status": "ambiguous",
-            "n_weeks": 313
-          },
-          "CBL": {
-            "status": "unresolved",
-            "n_weeks": 62
-          },
-          "RVI": {
-            "status": "unresolved",
-            "n_weeks": 1
-          },
-          "OPI": {
-            "status": "unresolved",
-            "n_weeks": 232
-          },
           "TCO": {
             "status": "unresolved",
             "n_weeks": 1
-          },
-          "COR": {
-            "status": "ambiguous",
-            "n_weeks": 15
           }
         }
       }

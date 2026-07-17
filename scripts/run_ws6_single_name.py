@@ -89,7 +89,7 @@ from run_improvements import compute_stats  # noqa: E402  (deployed stats helper
 # Frozen run parameters (kickoff §2 [GATES] / verdict rule; nothing tunable)
 # ---------------------------------------------------------------------------
 
-ENGINE_COMMIT = "54f0f14"          # scripts/single_name_impl.py at T2 + A1
+ENGINE_COMMIT = "dbb6543"          # scripts/single_name_impl.py at T2 + A1 + A2
 COVERAGE_MIN = 0.97                # G1 threshold
 G2_CORR_MIN = 0.95                 # G2 threshold
 G2_MIN_WEEKS = 26                  # lines held fewer than this are not gated
@@ -718,9 +718,9 @@ def main() -> int:
     finished = datetime.now(timezone.utc)
     runtime_s = (finished - started).total_seconds()
 
-    # First-run G1 STOP record (commit 24aa6d0): the gate fired on the b12d0f9
-    # base-ticker mapping and was cleared by data-layer completion (amendment
-    # A1, kickoff §5b) at the UNCHANGED 97% bar — not by lowering it.
+    # G1 STOP history: the gate fired twice and was cleared each time by
+    # data-layer completion (amendments A1 and A2, kickoff §5b) at the
+    # UNCHANGED 97% bar — never by lowering it.
     g1_history = {
         "first_run": {
             "status": "STOP_G1", "engine_commit": "b12d0f9",
@@ -738,9 +738,28 @@ def main() -> int:
                            "verified rename table. G1 re-tested in full at "
                            "the unchanged 97% bar."),
         },
+        "second_run": {
+            "status": "STOP_G1", "engine_commit": "54f0f14",
+            "harness_commit": "05561d6",
+            "n_failing_cells": 6,
+            "worst_cell": {"line": "IUCM", "year": 2018, "share": 0.9231},
+            "cause": ("Recycled-ticker ambiguity (HR, DOC, RPT, COR: dead REIT "
+                      "and live recycled base both contain the membership "
+                      "date) plus rename-at-death gaps (FOX/FOXA pre-2019, LB, "
+                      "PCLN, CBL, RVI, OPI)."),
+            "resolution": ("Amendment A2 (logged pre-results, kickoff 5b; "
+                           "engine dbb6543): base-ticker tenure "
+                           "disambiguation anchored to the predecessor's "
+                           "last_quoted_date + 1 (TICKER_TENURE_OVERRIDES) "
+                           "plus verified rename additions (FOX/FOXA -> "
+                           "TFCF/TFCFA-201903, LB -> BBWI, PCLN -> BKNG, "
+                           "CBL -> CBLAQ-202111, RVI -> RVIC-202304, OPI -> "
+                           "OPITQ-202606). G1 re-tested in full at the "
+                           "unchanged 97% bar."),
+        },
     }
 
-    write_payload("COMPLETE_POST_A1", {
+    write_payload("COMPLETE", {
         "runtime_seconds": _safe(runtime_s),
         "parity": {"e0_vs_deployed_maxdiff": _safe(parity)},
         "g1_history": g1_history,
