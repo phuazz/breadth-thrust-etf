@@ -80,7 +80,6 @@ from single_name_impl import (  # noqa: E402  (the committed T2 engine)
     line_member_universe,
     load_constituents,
     member_cache_path,
-    normalise_ticker,
     precompute_member_signals,
     simulate_arm,
 )
@@ -144,20 +143,31 @@ def _meta_path(line: str) -> Path:
 def load_or_fetch_member_prices(lines: tuple[str, ...]):
     """For each single-named line, fetch (or reuse a cache of) Norgate
     TOTALRETURN closes for the FULL in-window membership union, delisted names
-    included. Cache + sidecar meta live under the git-ignored data_local/ws6/.
+    included — requested at INSTRUMENT level (amendment A1: delisted members
+    under their suffixed symbols, recycled tickers era-disambiguated). Cache +
+    sidecar meta live under the git-ignored data_local/ws6/.
 
     A cache is reused only when its meta records the identical requested-symbol
-    union and fetch window, so a stale smoke cache (latest top-M pool only) is
-    correctly re-fetched. Returns (prices_by_line, mapping_reports, fetch_reports).
-    Raises on an empty fetch (NDU down surfaces via the engine's _norgate())."""
+    union and fetch window, so a stale pre-A1 cache (base-ticker union) is
+    correctly re-fetched. Returns (prices_by_line, mapping_reports,
+    fetch_reports, resolution_by_line); the resolution maps feed select_basket
+    and G1. Raises on an empty fetch (NDU down surfaces via _norgate())."""
     DATA_LOCAL_WS6.mkdir(parents=True, exist_ok=True)
     end = WINDOW_END.strftime("%Y-%m-%d")
     prices: dict[str, pd.DataFrame] = {}
     mapping_reports: dict[str, dict] = {}
     fetch_reports: dict[str, dict] = {}
+    resolution_by_line: dict[str, dict] = {}
     for line in lines:
         symbols, mrep = line_member_universe(line, WINDOW_END)
-        mapping_reports[line] = {"n_ishares_unique": mrep["n_ishares_unique"]}
+        resolution_by_line[line] = mrep["resolution"]
+        mapping_reports[line] = {
+            "n_ishares_unique": mrep["n_ishares_unique"],
+            "n_instruments": mrep["n_instruments"],
+            "n_member_weeks": mrep["n_member_weeks"],
+            "n_resolved_weeks": mrep["n_resolved_weeks"],
+            "unresolved": mrep["unresolved"],
+        }
         cache = member_cache_path(line)
         meta = _meta_path(line)
         reused = False
@@ -193,20 +203,22 @@ def load_or_fetch_member_prices(lines: tuple[str, ...]):
             prices[line] = panel
             fetch_reports[line] = fr
             print(f"  {line:<6} FETCH        cols={panel.shape[1]:>4} "
-                  f"req={len(symbols)} uncovered={fr['n_uncovered']}", flush=True)
-    return prices, mapping_reports, fetch_reports
+                  f"req={len(symbols)} uncovered={fr['n_uncovered']} "
+                  f"unresolved_names={len(mrep['unresolved'])}", flush=True)
+    return prices, mapping_reports, fetch_reports, resolution_by_line
 
 
 # ---------------------------------------------------------------------------
 # Gate G1 — coverage (survivorship through the feed and the ticker mapping)
 # ---------------------------------------------------------------------------
 
-def compute_g1(lines, membership, prices_by_line, eligible):
+def compute_g1(lines, membership, prices_by_line, eligible, resolution_by_line):
     """Per line x calendar year, the share of snapshot member-weeks (snapshot
-    date in [eligible, WINDOW_END]) whose mapped Norgate symbol has a non-NaN
-    close within the trailing COVERAGE_ASOF_ROWS rows up to the snapshot as-of
-    date. Unmapped/unresolved names have no panel column -> uncovered. Returns
-    (table, failing_cells). table[line][str(year)] = {covered, total, share}."""
+    date in [eligible, WINDOW_END]) whose RESOLVED Norgate instrument (amendment
+    A1) has a non-NaN close within the trailing COVERAGE_ASOF_ROWS rows up to
+    the snapshot as-of date. Unresolved/ambiguous names resolve to None ->
+    uncovered. Returns (table, failing_cells).
+    table[line][str(year)] = {covered, total, share}."""
     table: dict[str, dict] = {}
     failing: list[dict] = []
     for line in lines:
@@ -214,6 +226,7 @@ def compute_g1(lines, membership, prices_by_line, eligible):
         idx = panel.index
         cols = set(panel.columns)
         snaps = membership[line]
+        res_line = resolution_by_line[line]
         per_year: dict[int, dict] = {}
         for key in sorted(snaps.keys()):
             W = pd.Timestamp(key)
@@ -227,10 +240,12 @@ def compute_g1(lines, membership, prices_by_line, eligible):
                 window = panel.iloc[lo:pos + 1]
             else:
                 window = panel.iloc[0:0]
+            row_res = res_line.get(W, {})
             for ish in snaps[key].get("tickers", []):
-                sym = normalise_ticker(ish)
+                sym = row_res.get(ish)
                 d["total"] += 1
-                if sym in cols and pos >= 0 and bool(window[sym].notna().any()):
+                if (sym is not None and sym in cols and pos >= 0
+                        and bool(window[sym].notna().any())):
                     d["covered"] += 1
         line_tbl = {}
         for yr, v in sorted(per_year.items()):
@@ -262,15 +277,15 @@ def _line_book(sector_weights: pd.DataFrame, line: str, normalise: bool) -> pd.D
 
 
 def line_isolated_daily(spec, sector, membership, member_signals, member_prices,
-                        returns_panel, line, normalise):
+                        returns_panel, line, normalise, resolution):
     """Daily 0-cost return series of a single line's book (E0 = the ETF line,
     else the arm's member basket). Returns (daily, invested_mask)."""
     book = _line_book(sector["weights"], line, normalise)
-    mm, ms, mp = ({}, {}, {}) if spec.is_etf_baseline else (
-        membership, member_signals, member_prices)
+    mm, ms, mp, mr = ({}, {}, {}, {}) if spec.is_etf_baseline else (
+        membership, member_signals, member_prices, resolution)
     build = build_arm_name_weights(spec, book, sector["closes"],
                                    sector["rebal_dates"], sector["eligible"],
-                                   mm, ms, mp)
+                                   mm, ms, mp, member_resolution=mr)
     sim = simulate_arm(build.name_weights, returns_panel, cost_bps=0.0)
     invested = build.name_weights.abs().sum(axis=1) > 0
     return sim["daily"], invested
@@ -287,7 +302,8 @@ def _held_weekly(daily: pd.Series, invested: pd.Series, eligible) -> pd.Series:
     return wk.loc[held]
 
 
-def compute_g2(lines, sector, membership, member_signals, member_prices, returns_panel):
+def compute_g2(lines, sector, membership, member_signals, member_prices,
+               returns_panel, resolution):
     """Per line, weekly return correlation of the I0 basket vs the E0 ETF over
     weeks the line is held. Lines held >= G2_MIN_WEEKS are gated at G2_CORR_MIN.
     Returns (table, failing_cells)."""
@@ -296,9 +312,11 @@ def compute_g2(lines, sector, membership, member_signals, member_prices, returns
     failing: list[dict] = []
     for line in lines:
         e_daily, e_inv = line_isolated_daily(e0, sector, membership, member_signals,
-                                             member_prices, returns_panel, line, True)
+                                             member_prices, returns_panel, line,
+                                             True, resolution)
         i_daily, i_inv = line_isolated_daily(i0, sector, membership, member_signals,
-                                             member_prices, returns_panel, line, True)
+                                             member_prices, returns_panel, line,
+                                             True, resolution)
         e_wk = _held_weekly(e_daily, e_inv, sector["eligible"])
         i_wk = _held_weekly(i_daily, i_inv, sector["eligible"])
         common = e_wk.index.intersection(i_wk.index)
@@ -318,14 +336,14 @@ def compute_g2(lines, sector, membership, member_signals, member_prices, returns
 # Register run helpers
 # ---------------------------------------------------------------------------
 
-def build_arm(spec, sector, membership, member_signals, member_prices):
+def build_arm(spec, sector, membership, member_signals, member_prices, resolution):
     """Build one arm's daily name-level weight panel (E0 ignores the member
     inputs)."""
-    mm, ms, mp = ({}, {}, {}) if spec.is_etf_baseline else (
-        membership, member_signals, member_prices)
+    mm, ms, mp, mr = ({}, {}, {}, {}) if spec.is_etf_baseline else (
+        membership, member_signals, member_prices, resolution)
     return build_arm_name_weights(spec, sector["weights"], sector["closes"],
                                   sector["rebal_dates"], sector["eligible"],
-                                  mm, ms, mp)
+                                  mm, ms, mp, member_resolution=mr)
 
 
 def held_name_sets(build, rebal_dates, eligible, line_codes):
@@ -378,7 +396,8 @@ def worst_single_name_weeks(build, returns_panel, eligible, line_codes, top=10):
     return out
 
 
-def per_line_breakdown(sector, membership, member_signals, member_prices, returns_panel):
+def per_line_breakdown(sector, membership, member_signals, member_prices,
+                       returns_panel, resolution):
     """Per single-named line: I1-vs-E0 weekly held-week correlation and the
     compounded + additive P&L contribution of the line under E0 (ETF) and I1
     (screened basket)."""
@@ -388,9 +407,11 @@ def per_line_breakdown(sector, membership, member_signals, member_prices, return
     for line in SINGLE_NAMED_LINES:
         # Replication correlation (normalised 100%-into-line books).
         e_daily, e_inv = line_isolated_daily(e0, sector, membership, member_signals,
-                                             member_prices, returns_panel, line, True)
+                                             member_prices, returns_panel, line,
+                                             True, resolution)
         i_daily, i_inv = line_isolated_daily(i1, sector, membership, member_signals,
-                                             member_prices, returns_panel, line, True)
+                                             member_prices, returns_panel, line,
+                                             True, resolution)
         e_wk = _held_weekly(e_daily, e_inv, elig)
         i_wk = _held_weekly(i_daily, i_inv, elig)
         common = e_wk.index.intersection(i_wk.index)
@@ -399,9 +420,11 @@ def per_line_breakdown(sector, membership, member_signals, member_prices, return
         # Additive P&L contribution (actual-weight books; sum decomposes the
         # sleeve arithmetic return, compounded is the multiplicative growth add).
         e_con, _ = line_isolated_daily(e0, sector, membership, member_signals,
-                                       member_prices, returns_panel, line, False)
+                                       member_prices, returns_panel, line,
+                                       False, resolution)
         i_con, _ = line_isolated_daily(i1, sector, membership, member_signals,
-                                       member_prices, returns_panel, line, False)
+                                       member_prices, returns_panel, line,
+                                       False, resolution)
         e_con = e_con.loc[e_con.index >= elig]
         i_con = i_con.loc[i_con.index >= elig]
         out[line] = {
@@ -475,10 +498,13 @@ def main() -> int:
         "coverage_definition": (
             "G1 covers snapshot member-weeks with snapshot date in "
             f"[{eligible.date()}, {WINDOW_END.date()}] grouped by calendar year; a "
-            "member-week is covered iff its mapped Norgate symbol has a non-NaN "
-            f"TOTALRETURN close on >= 1 of the {COVERAGE_ASOF_ROWS} trailing rows "
-            "up to the snapshot as-of date; unmapped/unresolved names count "
-            "against coverage."),
+            "member-week is covered iff its RESOLVED Norgate instrument "
+            "(amendment A1: (ticker, snapshot date) -> instrument, delisted "
+            "suffixes enumerated, recycled bases era-disambiguated by life "
+            "interval, verified renames as fallback) has a non-NaN TOTALRETURN "
+            f"close on >= 1 of the {COVERAGE_ASOF_ROWS} trailing rows up to the "
+            "snapshot as-of date; unresolved and ambiguous names count against "
+            "coverage."),
         "e0_cost": (
             "E0 keeps the deployed cost model (2 bps on its line-level book) at "
             "every cost point; the sweep {2,5,10,20} bps applies to the "
@@ -495,8 +521,8 @@ def main() -> int:
     # --- Stage 1: data -----------------------------------------------------
     print("\nStage 1 — Norgate member prices (data_local/ws6, git-ignored):", flush=True)
     try:
-        prices_by_line, mapping_reports, fetch_reports = load_or_fetch_member_prices(
-            SINGLE_NAMED_LINES)
+        (prices_by_line, mapping_reports, fetch_reports,
+         resolution_by_line) = load_or_fetch_member_prices(SINGLE_NAMED_LINES)
     except Exception as exc:  # noqa: BLE001 — NDU down / empty fetch = STOP
         print(f"\nSTOP_DATA: member-price stage failed: {type(exc).__name__}: {exc}")
         print("NDU not running or the fetch errored — no gate or arm results computed.")
@@ -518,7 +544,8 @@ def main() -> int:
     # --- Stage 2: Gate G1 --------------------------------------------------
     print("\nStage 2 — Gate G1 (coverage) ...", flush=True)
     g1_table, g1_failing = compute_g1(SINGLE_NAMED_LINES, membership,
-                                      prices_by_line, eligible)
+                                      prices_by_line, eligible,
+                                      resolution_by_line)
     worst_cell = min(
         (c for L in g1_table for c in g1_table[L].values() if c["share"] is not None),
         key=lambda c: c["share"], default=None)
@@ -540,7 +567,8 @@ def main() -> int:
     # --- Stage 3: Gate G2 --------------------------------------------------
     print("\nStage 3 — Gate G2 (I0-vs-E0 replication) ...", flush=True)
     g2_table, g2_failing = compute_g2(SINGLE_NAMED_LINES, sector, membership,
-                                      member_signals, prices_by_line, returns_panel)
+                                      member_signals, prices_by_line,
+                                      returns_panel, resolution_by_line)
     for L in SINGLE_NAMED_LINES:
         r = g2_table[L]
         print(f"    {L:<6} n={r['n_held_weeks']:>3} corr={r['corr_i0_vs_e0']} "
@@ -566,7 +594,8 @@ def main() -> int:
     sims: dict[str, dict] = {}
     for spec in ARM_REGISTER:
         builds[spec.arm_id] = build_arm(spec, sector, membership,
-                                        member_signals, prices_by_line)
+                                        member_signals, prices_by_line,
+                                        resolution_by_line)
         sims[spec.arm_id] = {}
         for c in COST_SWEEP_BPS:
             cost = DEPLOYED_COST_BPS if spec.is_etf_baseline else c
@@ -683,7 +712,8 @@ def main() -> int:
     # Per-line breakdown (I1-vs-E0 corr + per-line contributions).
     print("  per-line breakdown ...", flush=True)
     per_line = per_line_breakdown(sector, membership, member_signals,
-                                  prices_by_line, returns_panel)
+                                  prices_by_line, returns_panel,
+                                  resolution_by_line)
 
     finished = datetime.now(timezone.utc)
     runtime_s = (finished - started).total_seconds()

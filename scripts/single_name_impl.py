@@ -52,6 +52,21 @@ sector signal's ``shift(1)``. Membership therefore never comes from the same
 week's forward-dated file. ``select_basket`` reads only member data at or before
 the effective date; tests/test_single_name_impl.py pins the invariance.
 
+Amendment A1 (2026-07-18, kickoff §5b — logged pre-results after the first G1
+FAIL_STOP): ticker resolution is completed to (ticker, membership date) ->
+Norgate INSTRUMENT. Norgate stores delisted instruments under delisting-dated
+suffixes (``XLNX-202202`` style, suffix = delisting YYYYMM), so the resolver
+enumerates the plain live symbol plus every delisted-suffixed variant of the
+base, disambiguates recycled base tickers by the instrument life interval
+(first quoted date to the suffix month end) containing the membership date, and
+falls back to a small VERIFIED rename table only when no native candidate
+contains the date. A membership date contained by no candidate — or by more
+than one (never guess) — leaves the name unresolved, counted against coverage.
+Panels and screens are keyed by INSTRUMENT symbol, so a recycled ticker never
+blends two companies' price histories in one column. G1 re-tests at the
+unchanged 97% bar; arm definitions, constants, costs, window and verdict rule
+are all unchanged by A1.
+
 Dates: pandas / dateutil only, never manual day arithmetic. Python ``datetime``
 months are 1-indexed (stated where any month indexing occurs; this module does
 none). The rebalance calendar is the deployed ``rebalance_calendar`` helper.
@@ -59,6 +74,7 @@ none). The rebalance calendar is the deployed ``rebalance_calendar`` helper.
 
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -121,7 +137,7 @@ WINDOW_END = pd.Timestamp("2026-06-30")
 
 REBAL_FREQ = "W-FRI"
 
-# Explicit iShares -> Norgate ticker renames. Punctuation (dash -> dot for
+# Explicit iShares -> Norgate BASE-ticker renames. Punctuation (dash -> dot for
 # share classes) is handled algorithmically in normalise_ticker; this table is
 # for genuine symbol RENAMES that punctuation cannot recover. Unmapped names are
 # never silently dropped — they are counted against coverage (failure mode 1).
@@ -134,26 +150,149 @@ KNOWN_RENAMES: dict[str, str] = {
     "GOOG": "GOOG",
 }
 
+# Amendment A1 — verified snapshot-ticker -> exact Norgate INSTRUMENT renames.
+# Fired ONLY when the base has no native instrument whose life interval
+# contains the membership date (resolve_instrument step 2), and accepted only
+# if the target instrument's own interval contains the date. Values are exact
+# Norgate symbols: a live symbol for a rename-continuation, a delisted
+# "-YYYYMM" symbol where the continuing instrument itself later delisted (the
+# suffix is then part of the verified target, e.g. CHKAQ-202102).
+#
+# EVERY entry was verified against the local NDU on 2026-07-18 by
+# security_name + first_quoted_date: the target's name matches the known
+# corporate action and its first quoted date matches the SOURCE company's
+# lineage (Norgate keys an instrument's full history to its final symbol), so
+# the interval check passes exactly for the source-era membership dates. The
+# per-entry comment records that evidence.
+INSTRUMENT_RENAMES: dict[str, str] = {
+    # --- SOXX (semiconductors) ---
+    "CREE": "WOLF",          # Wolfspeed Inc Common, fqd 1993-02-09 (Cree lineage)
+    "BRKS": "AZTA",          # Azenta Inc Common, fqd 1995-02-02 (Brooks Automation lineage)
+    "IIVI": "COHR",          # Coherent Corp Common, fqd 1990-01-02 (II-VI lineage;
+                             # delisted COHR-202206 is the acquired old Coherent Inc)
+    "SGH": "PENG",           # Penguin Solutions Inc Common, fqd 2017-05-24 (SMART Global lineage)
+    # --- IUFS (financials) ---
+    "FI": "FISV",            # Fiserv Inc Common, fqd 1990-01-02 (Norgate keeps FISV;
+                             # FI-199808 is Fina Inc — wrong era, excluded natively)
+    "WLTW": "WTW",           # Willis Towers Watson plc Common, fqd 2001-06-12
+    "TMK": "GL",             # Globe Life Inc Common, fqd 1990-01-02 (Torchmark lineage)
+    "RE": "EG",              # Everest Group Ltd Common, fqd 1995-10-03 (Everest Re lineage)
+    "LUK": "JEF",            # Jefferies Financial Group Common, fqd 1990-01-02 (Leucadia lineage)
+    "FLT": "CPAY",           # Corpay Inc Common, fqd 2010-12-15 (Fleetcor lineage)
+    "SIVB": "SIVBQ-202411",  # SVB Financial Group Common, fqd 1990-01-02 (ch.11 OTC form)
+    "FRC": "FRCB",           # First Republic Bank Common (live), fqd 2010-12-09
+    "BK": "BNY",             # Bank of New York Mellon Corp Common, fqd 1990-01-02
+    "MMC": "MRSH",           # Marsh & McLennan Companies Inc Common, fqd 1990-01-02
+    # --- IUHC (health care) ---
+    "ANTM": "ELV",           # Elevance Health Inc Common, fqd 2001-10-30 (Anthem lineage)
+    "ABC": "COR",            # Cencora Inc Common, fqd 1995-04-04 (AmerisourceBergen lineage)
+    "MYL": "VTRS",           # Viatris Inc Common, fqd 1990-01-02 (Mylan lineage)
+    "PKI": "RVTY",           # Revvity Inc Common, fqd 1990-01-02 (PerkinElmer lineage)
+    # --- IUIS (industrials) ---
+    "UTX": "RTX",            # RTX Corp Common, fqd 1990-01-02 (United Technologies lineage)
+    "HRS": "LHX",            # L3Harris Technologies Common, fqd 1990-01-02 (Harris lineage)
+    "JEC": "J",              # Jacobs Solutions Inc Common, fqd 1990-01-02
+    "FBHS": "FBIN",          # Fortune Brands Innovations Common, fqd 2011-09-16
+    "ARNC": "HWM",           # Howmet Aerospace Inc Common, fqd 1990-01-02 — covers the
+                             # pre-2020-04 Arconic Inc era; the 2020 spinoff Arconic
+                             # Corp is ARNC-202308 (fqd 2020-04-01) and wins natively
+                             # for its own era, so the chain is era-consistent
+    "APY": "CHX-202507",     # ChampionX Corp Common, fqd 2018-04-27 (Apergy lineage)
+    "CDAY": "DAY-202602",    # Dayforce Inc Common, fqd 2018-04-26 (Ceridian lineage)
+    # --- IUES (energy) ---
+    "COG": "CTRA-202605",    # Coterra Energy Inc Common, fqd 1990-02-08 (Cabot lineage)
+    "HFC": "DINO",           # HF Sinclair Corp Common, fqd 1990-01-02 (HollyFrontier lineage)
+    "BHGE": "BKR",           # Baker Hughes Company Class A Common, fqd 1990-01-02
+    "CHK": "CHKAQ-202102",   # Chesapeake Energy Corp Common, fqd 1993-02-05 (ch.11 OTC
+                             # form; covers the old-equity era through 2021-02 — the
+                             # post-bankruptcy Chesapeake/Expand is a different equity,
+                             # so later CHK dates correctly stay unresolved)
+    # --- IUCS / IUCD (consumer) ---
+    "KORS": "CPRI",          # Capri Holdings Ltd Common, fqd 2011-12-15 (Michael Kors lineage)
+    "GPS": "GAP",            # Gap Inc Common, fqd 1990-01-02
+    "WYN": "TNL",            # Travel + Leisure Co Common, fqd 2006-07-19 (Wyndham
+                             # Worldwide lineage; WH is the 2018 hotel spinoff, not the parent)
+    "DPS": "KDP",            # Keurig Dr Pepper Inc Common, fqd 2008-04-28 (Dr Pepper
+                             # Snapple lineage)
+    "BFB": "BF.B",           # Brown-Forman Class B Common, fqd 1990-01-02 (dash-less
+                             # snapshot form of BF-B seen in a few IUCS rows)
+    "VSCO": "VSXY",          # Victoria's Secret & Co Common, fqd 2021-07-21
+    # --- IUCM (communications) ---
+    "CTL": "LUMN",           # Lumen Technologies Inc Common, fqd 1990-01-02 (CenturyLink lineage)
+    "CBS": "PSKY",           # Paramount Skydance Corp Class B Common, fqd 1990-06-14 —
+                             # CBS Corp was the surviving entity of the 2019 merger;
+                             # CBS-199511 / CBS-200005 are earlier CBS incarnations
+                             # whose intervals end pre-window
+    "VIAC": "PSKY",          # same continuing instrument for the 2019-12 -> 2022-02 era
+    "PARA": "PSKY",          # same continuing instrument for the 2022 -> 2025 era
+    "DISCA": "WBD",          # Warner Bros. Discovery Series A, fqd 2005-07-06 (Discovery-A
+                             # lineage; DISCK resolves natively to DISCK-202204)
+    "SATS": "ECHO",          # EchoStar Corporation Class A Common, fqd 2007-12-31
+    # --- IUMS (materials) ---
+    "DWDP": "DD",            # DuPont de Nemours Inc Common, fqd 2017-09-01 (DowDuPont
+                             # lineage; DD-201708 is the pre-merger E I du Pont)
+    "BLL": "BALL",           # Ball Corp Common, fqd 1990-01-02
+    # --- IUSP (real estate) ---
+    "HCN": "WELL",           # Welltower Inc Common, fqd 1990-01-02 (Health Care REIT lineage)
+    "HCP": "DOC",            # Healthpeak Properties Common, fqd 1990-01-02 (HCP lineage;
+                             # HashiCorp's HCP-202502 has fqd 2021-12 and never claims
+                             # the 2018-2019 HCP-REIT dates natively)
+    "PEAK": "DOC",           # same continuing instrument for the 2019 -> 2023 era
+    "HPT": "SVC",            # Service Properties Trust Common, fqd 1995-08-17 (HPT lineage)
+    "SNH": "DHC",            # Diversified Healthcare Trust Common, fqd 1999-10-07
+                             # (Senior Housing lineage)
+    "OFC": "CDP",            # COPT Defense Properties Common, fqd 1991-12-31 (COPT lineage)
+    "DDR": "SITC",           # SITE Centers Corp Common, fqd 1993-02-02 (DDR lineage)
+    "WRE": "ELME",           # Elme Communities Common, fqd 1990-01-02 (Washington REIT lineage)
+    "CLI": "VRE-202605",     # Veris Residential Inc Common, fqd 1994-08-25 (Mack-Cali lineage)
+    "WPG": "WPGGQ-202110",   # Washington Prime Group Common, fqd 2014-05-14 (ch.11 OTC form)
+    "PEI": "PRETQ-202404",   # Pennsylvania REIT Common, fqd 1990-01-02 (ch.11 OTC form)
+    "FVE": "ALR-202303",     # AlerisLife Inc Common, fqd 2001-12-17 (Five Star Senior lineage)
+    "FCEA": "FCE.A-201812",  # Forest City Realty Class A Common, fqd 1990-01-02
+                             # (dash-less snapshot form of FCE.A)
+    "BPR": "BPYU-202107",    # Brookfield Property REIT Class A, fqd 2018-08-28 (BPR lineage)
+    "AFIN": "RTL-202309",    # Necessity Retail REIT Class A Common, fqd 2018-07-19
+                             # (American Finance Trust lineage; bare RTL snapshot rows
+                             # resolve natively to the same instrument)
+    "GOV": "OPITQ-202606",   # Office Properties Income Trust Common, fqd 2009-06-03
+                             # (GOV lineage; ch.11 OTC form)
+    "HTA": "HR",             # Healthcare Realty Class A Common (live), fqd 2012-06-06 —
+                             # the surviving ex-HTA entity; delisted HR-202207 is the
+                             # old Healthcare Realty absorbed in the 2022 merger
+    "CLNY": "DBRG",          # DigitalBridge Group Class A Common, fqd 2014-06-27
+                             # (Colony lineage post-2017 merger; CLNY-201701 is the
+                             # pre-merger Colony, interval ends pre-window)
+    "IRET": "CSR",           # Centerspace Common, fqd 1997-10-17 (IRET lineage)
+    "MPW": "MPT",            # Medical Properties Trust Inc Common, fqd 2005-07-08
+    "AHH": "AHRT",           # AH Realty Trust Inc Common, fqd 2013-05-08 (Armada
+                             # Hoffler lineage)
+}
+
 
 # ---------------------------------------------------------------------------
 # Ticker mapping (failure mode 1 — survivorship through the mapping)
 # ---------------------------------------------------------------------------
 
 def normalise_ticker(ishares_ticker: str) -> str:
-    """Map an iShares constituent ticker to its Norgate symbol.
+    """Map an iShares constituent ticker to its Norgate BASE symbol.
 
-    Two deterministic steps, both explicit:
-      1. Apply a KNOWN_RENAMES entry if one exists (genuine symbol change).
-      2. Convert share-class punctuation from the iShares dash form to the
+    Three deterministic steps, all explicit:
+      1. Strip a single trailing " US" token (Bloomberg country qualifier seen
+         in a handful of snapshot rows, e.g. ``HOLX US``, ``RTX US`` — the same
+         instrument as the plain ticker).
+      2. Apply a KNOWN_RENAMES entry if one exists (genuine symbol change).
+      3. Convert share-class punctuation from the iShares dash form to the
          Norgate dot form (``BRK-B`` -> ``BRK.B``, ``BF-B`` -> ``BF.B``).
 
-    A plain alphabetic ticker maps to itself. This function ALWAYS returns a
-    candidate symbol; whether Norgate actually carries that symbol is a separate
-    coverage question resolved against the fetched price panel (a candidate with
-    no Norgate data is counted against coverage in select_basket, never dropped
-    silently).
+    A plain alphabetic ticker maps to itself. This function returns a BASE
+    symbol only; instrument-level resolution (delisted suffixes, recycled
+    tickers, verified renames — amendment A1) is ``resolve_instrument``. A base
+    with no Norgate instrument is counted against coverage downstream, never
+    dropped silently.
     """
     t = ishares_ticker.strip().upper()
+    if t.endswith(" US"):
+        t = t[:-3].strip()
     if t in KNOWN_RENAMES:
         t = KNOWN_RENAMES[t]
     # Share-class punctuation: iShares uses a dash, Norgate uses a dot. Only the
@@ -161,6 +300,230 @@ def normalise_ticker(ishares_ticker: str) -> str:
     if "-" in t:
         t = t.replace("-", ".")
     return t
+
+
+# ---------------------------------------------------------------------------
+# Instrument resolution (amendment A1, kickoff §5b) — (ticker, date) -> the
+# Norgate INSTRUMENT that was quoted under that ticker on that date
+# ---------------------------------------------------------------------------
+
+# Norgate marks a delisted instrument with a "-YYYYMM" suffix on its base
+# ticker (delisting year-month). All 21,030 symbols in the "US Equities
+# Delisted" database carry it (verified against NDU, 2026-07-18).
+DELISTED_SUFFIX_RE = re.compile(r"^(?P<base>.+)-(?P<yyyymm>\d{6})$")
+
+
+def suffix_month_end(yyyymm: str) -> pd.Timestamp:
+    """Last calendar day of a delisted suffix's YYYYMM month, via pandas Period
+    arithmetic (vault date rule: no manual day offsets; Python datetime months
+    are 1-indexed and the suffix encodes the month as 01-12)."""
+    period = pd.Period(f"{yyyymm[:4]}-{yyyymm[4:6]}", freq="M")
+    return period.end_time.normalize()
+
+
+@dataclass(frozen=True)
+class Instrument:
+    """One Norgate instrument: an exact symbol plus its life interval.
+
+    ``first_quoted`` is Norgate's first quoted date for the SECURITY (the full
+    lineage under any earlier ticker — Norgate keys an instrument's whole
+    history to its final symbol). ``last_valid`` is the delisting suffix month
+    end for a delisted instrument, or None for a live one (open-ended). A None
+    ``first_quoted`` means the metadata was unavailable; such an instrument can
+    never be confirmed to contain a date and is excluded from candidacy (never
+    guess)."""
+    symbol: str
+    base: str
+    first_quoted: pd.Timestamp | None
+    last_valid: pd.Timestamp | None
+
+    def contains(self, date: pd.Timestamp) -> bool:
+        """True iff ``date`` lies within this instrument's life interval."""
+        if self.first_quoted is None or date < self.first_quoted:
+            return False
+        return self.last_valid is None or date <= self.last_valid
+
+
+class InstrumentDirectory:
+    """Base-ticker -> instrument-candidates lookup, built from an explicit
+    instrument list. Used directly by the selftests (synthetic instruments);
+    the live path subclasses it with lazy Norgate enumeration."""
+
+    def __init__(self, instruments: list[Instrument] | None = None):
+        self._by_symbol: dict[str, Instrument] = {}
+        self._by_base: dict[str, list[Instrument]] = {}
+        for inst in instruments or []:
+            self._by_symbol[inst.symbol] = inst
+            self._by_base.setdefault(inst.base, []).append(inst)
+
+    def candidates(self, base: str) -> list[Instrument]:
+        """Every instrument that ever traded under ``base`` (the plain live
+        symbol plus all delisted-suffixed variants)."""
+        return list(self._by_base.get(base, []))
+
+    def lookup(self, symbol: str) -> Instrument | None:
+        """The instrument with this exact symbol, or None."""
+        return self._by_symbol.get(symbol)
+
+
+class NorgateInstrumentDirectory(InstrumentDirectory):
+    """Live directory over the local NDU databases.
+
+    Enumeration is two calls (``database_symbols`` for "US Equities" and
+    "US Equities Delisted" — 14,537 + 21,030 symbols, held as in-memory maps);
+    ``first_quoted_date`` is then fetched lazily per candidate actually needed
+    and memoised, so resolving a line's membership costs a handful of metadata
+    calls, not a database sweep. Pattern per the solved reference
+    implementation (event-studies scripts/norgate_universe.py)."""
+
+    _LIVE_DB = "US Equities"
+    _DELISTED_DB = "US Equities Delisted"
+
+    def __init__(self):
+        super().__init__()
+        nd = _norgate()
+        self._nd = nd
+        self._live: set[str] = set(nd.database_symbols(self._LIVE_DB))
+        self._suffixed_by_base: dict[str, list[str]] = {}
+        for sym in nd.database_symbols(self._DELISTED_DB):
+            m = DELISTED_SUFFIX_RE.match(sym)
+            if m:
+                self._suffixed_by_base.setdefault(m.group("base"), []).append(sym)
+        self._fqd_memo: dict[str, pd.Timestamp | None] = {}
+
+    def _first_quoted(self, symbol: str) -> pd.Timestamp | None:
+        if symbol not in self._fqd_memo:
+            try:
+                raw = self._nd.first_quoted_date(symbol)
+                self._fqd_memo[symbol] = pd.Timestamp(str(raw))
+            except Exception:  # noqa: BLE001 — unavailable metadata -> None
+                self._fqd_memo[symbol] = None
+        return self._fqd_memo[symbol]
+
+    def _instrument(self, symbol: str) -> Instrument | None:
+        m = DELISTED_SUFFIX_RE.match(symbol)
+        if m:
+            if symbol not in self._suffixed_by_base.get(m.group("base"), []):
+                return None
+            return Instrument(symbol=symbol, base=m.group("base"),
+                              first_quoted=self._first_quoted(symbol),
+                              last_valid=suffix_month_end(m.group("yyyymm")))
+        if symbol in self._live:
+            return Instrument(symbol=symbol, base=symbol,
+                              first_quoted=self._first_quoted(symbol),
+                              last_valid=None)
+        return None
+
+    def candidates(self, base: str) -> list[Instrument]:
+        out: list[Instrument] = []
+        if base in self._live:
+            inst = self._instrument(base)
+            if inst is not None:
+                out.append(inst)
+        for sym in self._suffixed_by_base.get(base, []):
+            inst = self._instrument(sym)
+            if inst is not None:
+                out.append(inst)
+        return out
+
+    def lookup(self, symbol: str) -> Instrument | None:
+        return self._instrument(symbol)
+
+
+_DEFAULT_DIRECTORY: NorgateInstrumentDirectory | None = None
+
+
+def default_instrument_directory() -> NorgateInstrumentDirectory:
+    """Process-wide memoised live directory (one NDU enumeration per run)."""
+    global _DEFAULT_DIRECTORY
+    if _DEFAULT_DIRECTORY is None:
+        _DEFAULT_DIRECTORY = NorgateInstrumentDirectory()
+    return _DEFAULT_DIRECTORY
+
+
+def resolve_instrument(ishares_ticker: str, membership_date: pd.Timestamp,
+                       directory: InstrumentDirectory,
+                       renames: dict[str, str] | None = None
+                       ) -> tuple[str | None, str]:
+    """Resolve (ticker, membership date) to the exact Norgate instrument symbol.
+
+    Deterministic chain (amendment A1; never guess):
+      1. Native candidates of the base — the plain live symbol plus every
+         delisted-suffixed variant. Exactly one whose life interval contains
+         the membership date -> resolved. More than one -> AMBIGUOUS ->
+         unresolved (recycled base whose eras cannot be separated at month
+         granularity; counted, never guessed).
+      2. Zero native matches -> the verified rename table: the entry names one
+         exact target instrument (live or suffixed), accepted only if ITS
+         interval contains the date. Renames fire only when the native symbol
+         has no instrument claiming the date, so a recycled base resolves to
+         its own era's instrument first (e.g. old-era CHK to the delisted
+         instrument, post-rename dates through the table).
+      3. Otherwise unresolved.
+
+    Returns (symbol | None, status) with status in {"native", "renamed",
+    "unresolved", "ambiguous"}; a None symbol always counts against coverage.
+    """
+    base = normalise_ticker(ishares_ticker)
+    date = pd.Timestamp(membership_date)
+    native = [c for c in directory.candidates(base) if c.contains(date)]
+    if len(native) == 1:
+        return native[0].symbol, "native"
+    if len(native) > 1:
+        return None, "ambiguous"
+    table = INSTRUMENT_RENAMES if renames is None else renames
+    target = table.get(base)
+    if target is not None:
+        inst = directory.lookup(target)
+        if inst is not None and inst.contains(date):
+            return inst.symbol, "renamed"
+    return None, "unresolved"
+
+
+def resolve_membership(snapshots: dict, directory: InstrumentDirectory,
+                       window_end: pd.Timestamp = WINDOW_END,
+                       renames: dict[str, str] | None = None) -> dict:
+    """Resolve every in-window snapshot roster to instrument symbols.
+
+    The membership date of a snapshot is its KEY (the target Friday the roster
+    is asserted for); the suffix month-end convention gives the resolution
+    slack for an intra-week delisting. Returns::
+
+        {"by_snapshot": {Timestamp(key): {ishares_ticker: symbol | None}},
+         "instruments": sorted union of resolved symbols,
+         "unresolved":  {ishares_ticker: {"status": ..., "n_weeks": int}},
+         "n_member_weeks": int, "n_resolved_weeks": int}
+
+    Unresolved and ambiguous names are counted per ticker (never silently
+    dropped); the per-week None entries flow into select_basket / G1 as
+    uncovered member-weeks.
+    """
+    by_snapshot: dict[pd.Timestamp, dict[str, str | None]] = {}
+    instruments: set[str] = set()
+    unresolved: dict[str, dict] = {}
+    n_weeks = 0
+    n_resolved = 0
+    for key in sorted(snapshots.keys()):
+        ts = pd.Timestamp(key)
+        if ts > window_end:
+            continue
+        row: dict[str, str | None] = {}
+        for ish in snapshots[key].get("tickers", []):
+            sym, status = resolve_instrument(ish, ts, directory, renames=renames)
+            row[ish] = sym
+            n_weeks += 1
+            if sym is None:
+                rec = unresolved.setdefault(ish, {"status": status, "n_weeks": 0})
+                rec["n_weeks"] += 1
+            else:
+                instruments.add(sym)
+                n_resolved += 1
+        by_snapshot[ts] = row
+    return {"by_snapshot": by_snapshot,
+            "instruments": sorted(instruments),
+            "unresolved": unresolved,
+            "n_member_weeks": n_weeks,
+            "n_resolved_weeks": n_resolved}
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +674,8 @@ class BasketResult:
 
 
 def select_basket(spec: ArmSpec, eff_date: pd.Timestamp | None,
-                  snapshots: dict, prices: pd.DataFrame, sig: dict
+                  snapshots: dict, prices: pd.DataFrame, sig: dict,
+                  resolution: dict[pd.Timestamp, dict[str, str | None]] | None = None
                   ) -> BasketResult:
     """Build one single-named line's basket for a rebalance whose effective
     (t-1) date is ``eff_date``, per the arm ``spec``.
@@ -319,8 +683,16 @@ def select_basket(spec: ArmSpec, eff_date: pd.Timestamp | None,
     Steps (all as of ``eff_date`` — no look-ahead):
       1. Roster: ``snapshot_asof`` (membership on or before t-1), cap-rank order.
       2. Pool: first M for ``pool == "topM"``, else the full roster.
-      3. Map iShares -> Norgate; a symbol Norgate does not carry is UNCOVERED
-         (counted, excluded — never silently dropped).
+      3. Map iShares -> Norgate INSTRUMENT via ``resolution`` (amendment A1:
+         the per-snapshot output of ``resolve_membership``, so a delisted or
+         recycled ticker keys the era-correct instrument column). A name whose
+         resolution is None, or whose instrument has no price column, is
+         UNCOVERED (counted, excluded — never silently dropped). ``resolution``
+         None falls back to base-symbol identity — the degenerate case for
+         synthetic panels keyed by plain tickers; the live path always passes
+         the resolved mapping, and a delisted member under identity mapping has
+         no price column, so misuse surfaces as uncovered weeks in G1 rather
+         than silent survivorship.
       4. Present: covered names with a price as of t-1 (a gap / not-yet-listed /
          already-delisted name is missing_price — counted, excluded).
       5. Screen (if ``spec.screen``): keep names with trend state True. Fewer
@@ -338,13 +710,21 @@ def select_basket(spec: ArmSpec, eff_date: pd.Timestamp | None,
 
     pool_ish = roster[:M_POOL] if spec.pool == "topM" else list(roster)
 
-    # Map to Norgate; split covered vs uncovered against the price panel columns.
+    # Map to the era-correct Norgate instrument; split covered vs uncovered
+    # against the price panel columns.
+    res_map = resolution.get(snap_date, {}) if resolution is not None else None
     price_cols = set(prices.columns)
     covered: list[str] = []
     uncovered: list[str] = []
     seen: set[str] = set()
     for ish in pool_ish:
-        sym = normalise_ticker(ish)
+        if res_map is not None:
+            sym = res_map.get(ish)
+            if sym is None:
+                uncovered.append(normalise_ticker(ish))   # unresolved name
+                continue
+        else:
+            sym = normalise_ticker(ish)
         if sym in seen:
             continue          # a roster can list a name once; guard duplicates
         seen.add(sym)
@@ -499,7 +879,8 @@ def build_arm_name_weights(spec: ArmSpec, sector_weights: pd.DataFrame,
                            closes: pd.DataFrame, rebal_dates: pd.DatetimeIndex,
                            eligible: pd.Timestamp,
                            membership: dict, member_signals: dict,
-                           member_prices: dict) -> ArmBuild:
+                           member_prices: dict,
+                           member_resolution: dict | None = None) -> ArmBuild:
     """Distribute the shared per-line book into a daily name-level weight panel.
 
     ``sector_weights`` is the deployed E0 weight panel (columns = the 14 lines,
@@ -513,8 +894,12 @@ def build_arm_name_weights(spec: ArmSpec, sector_weights: pd.DataFrame,
     reproduces the deployed weights to 0.0.
 
     ``membership`` / ``member_signals`` / ``member_prices`` are keyed by line
-    (single-named lines only). They are dependency-injected so the selftests can
-    drive the builder on synthetic panels and T3 on the Norgate caches.
+    (single-named lines only). ``member_resolution`` (amendment A1) carries the
+    per-line ``resolve_membership(...)['by_snapshot']`` maps so baskets are
+    keyed by instrument; a line absent from it uses the identity mapping (the
+    synthetic degenerate case — see select_basket). All are dependency-injected
+    so the selftests can drive the builder on synthetic panels and T3 on the
+    Norgate caches.
     """
     lines = list(sector_weights.columns)
     fallback_weeks = {L: 0 for L in SINGLE_NAMED_LINES if L in lines}
@@ -539,8 +924,10 @@ def build_arm_name_weights(spec: ArmSpec, sector_weights: pd.DataFrame,
                 continue
             # Single-named line under a basket arm.
             weeks_evaluated[L] += 1
+            resolution = (member_resolution or {}).get(L)
             basket = select_basket(spec, eff_date, membership[L],
-                                   member_prices[L], member_signals[L])
+                                   member_prices[L], member_signals[L],
+                                   resolution=resolution)
             uncovered_seen[L].update(basket.uncovered)
             missing_seen[L].update(basket.missing_price)
             if basket.fallback:
@@ -616,13 +1003,14 @@ def simulate_arm(name_weights: pd.DataFrame, name_returns: pd.DataFrame,
 def run_arm(spec: ArmSpec, sector: dict, membership: dict,
             member_signals: dict, member_prices_by_line: dict,
             combined_member_prices: pd.DataFrame | None,
-            cost_bps: float) -> dict:
+            cost_bps: float, member_resolution: dict | None = None) -> dict:
     """Convenience: build an arm and simulate it at one cost. E0 ignores the
     member inputs. Provided for the T3 harness and the selftests; this module
     never invokes it across the register (that is T3's job)."""
     build = build_arm_name_weights(
         spec, sector["weights"], sector["closes"], sector["rebal_dates"],
-        sector["eligible"], membership, member_signals, member_prices_by_line)
+        sector["eligible"], membership, member_signals, member_prices_by_line,
+        member_resolution=member_resolution)
     returns = build_name_return_panel(sector["closes"], combined_member_prices)
     sim = simulate_arm(build.name_weights, returns, cost_bps)
     return {"build": build, **sim}
@@ -683,27 +1071,33 @@ def member_cache_path(line: str) -> Path:
     return DATA_LOCAL_WS6 / f"prices_{line.lower()}.parquet"
 
 
-def line_member_universe(line: str, window_end: pd.Timestamp = WINDOW_END
+def line_member_universe(line: str, window_end: pd.Timestamp = WINDOW_END,
+                         directory: InstrumentDirectory | None = None
                          ) -> tuple[list[str], dict]:
-    """The union of Norgate symbols a line ever needs over the window: every
-    ticker in any snapshot up to ``window_end``, mapped and de-duplicated in
-    first-seen (roughly cap-rank) order. Returns (symbols, mapping_report) where
-    the report records the iShares->Norgate mapping and any duplicates folded."""
+    """The union of Norgate INSTRUMENTS a line ever needs over the window
+    (amendment A1): every in-window snapshot roster resolved through
+    ``resolve_instrument`` at its snapshot date, so delisted members appear
+    under their suffixed instrument symbols and recycled tickers under the
+    era-correct instrument. Returns (instrument_symbols, report); the report
+    carries the per-snapshot resolution (``resolution``, keyed by snapshot
+    Timestamp — feed this to select_basket / build_arm_name_weights), the
+    per-ticker ``unresolved`` counts (these member-weeks count against G1
+    coverage), and the week totals. ``directory`` defaults to the live NDU
+    directory; the selftests inject a synthetic one."""
     data = load_constituents(line)
     snapshots = data.get("snapshots", {})
-    mapping: dict[str, str] = {}
-    order: list[str] = []
-    for key in sorted(snapshots.keys()):
-        if pd.Timestamp(key) > window_end:
-            continue
-        for ish in snapshots[key].get("tickers", []):
-            sym = normalise_ticker(ish)
-            if sym not in mapping:
-                mapping[sym] = ish
-                order.append(sym)
-    report = {"line": line, "n_ishares_unique": len(mapping),
-              "mapping": mapping}
-    return order, report
+    if directory is None:
+        directory = default_instrument_directory()
+    res = resolve_membership(snapshots, directory, window_end=window_end)
+    n_unique = len({ish for row in res["by_snapshot"].values() for ish in row})
+    report = {"line": line,
+              "n_ishares_unique": n_unique,
+              "n_instruments": len(res["instruments"]),
+              "resolution": res["by_snapshot"],
+              "unresolved": res["unresolved"],
+              "n_member_weeks": res["n_member_weeks"],
+              "n_resolved_weeks": res["n_resolved_weeks"]}
+    return res["instruments"], report
 
 
 def smoke_test_iufs(window_end: pd.Timestamp = WINDOW_END) -> dict:

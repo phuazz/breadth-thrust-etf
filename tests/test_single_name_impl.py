@@ -36,10 +36,23 @@ Coverage maps to the WS6 pre-registration failure modes:
   Date-boundary rule (vault CLAUDE.md — one month, one year boundary):
       test_rebalance_calendar_month_boundary,
       test_rebalance_calendar_year_boundary
+
+  Amendment A1 (kickoff §5b) — instrument resolution:
+      test_suffix_candidate_resolution (delisted "-YYYYMM" candidates, month-end
+          slack, leap-February handling),
+      test_recycled_ticker_disambiguation (disjoint life intervals -> the
+          era-correct instrument; gap/pre-history dates stay unresolved;
+          overlapping intervals -> ambiguous, never guessed),
+      test_rename_table_hit (verified-entry fallback fires only when no native
+          candidate contains the date; target interval still enforced),
+      test_resolve_membership_counts (per-snapshot maps, unresolved counting),
+      test_instrument_keys_do_not_blend_eras (a recycled ticker occupies two
+          separate instrument columns, weights era-consistent)
 """
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -52,8 +65,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 from single_name_impl import (  # noqa: E402
     ARM_BY_ID,
     BROAD_SLICES,
+    INSTRUMENT_RENAMES,
     SINGLE_NAMED_LINES,
     ArmSpec,
+    Instrument,
+    InstrumentDirectory,
     build_arm_name_weights,
     build_name_return_panel,
     demean,
@@ -62,9 +78,12 @@ from single_name_impl import (  # noqa: E402
     load_constituents,
     normalise_ticker,
     precompute_member_signals,
+    resolve_instrument,
+    resolve_membership,
     select_basket,
     simulate_arm,
     snapshot_asof,
+    suffix_month_end,
 )
 from run_portfolio import run_portfolio, top_k_breadth_weight  # noqa: E402
 from rebalance_calendar import weekly_rebalance_dates  # noqa: E402
@@ -577,3 +596,182 @@ def test_latest_snapshot_top5_plausible():
             assert t and isinstance(t, str)
             sym = normalise_ticker(t)
             assert sym and "-" not in sym       # dash normalised to dot
+
+
+# ---------------------------------------------------------------------------
+# Amendment A1 (kickoff §5b) — (ticker, date) -> Norgate instrument resolution
+# ---------------------------------------------------------------------------
+
+def _a1_directory() -> InstrumentDirectory:
+    """Synthetic directory: a plain delisted name (XLNX-style), a recycled base
+    with DISJOINT eras (RCY), an overlapping pair (OVL, delisting-month overlap
+    with the successor's first quote), live fillers, and a rename target."""
+    return InstrumentDirectory([
+        Instrument("XLNX-202202", "XLNX", pd.Timestamp("1990-06-12"),
+                   suffix_month_end("202202")),
+        Instrument("RCY-202001", "RCY", pd.Timestamp("2018-01-02"),
+                   suffix_month_end("202001")),
+        Instrument("RCY", "RCY", pd.Timestamp("2020-06-01"), None),
+        Instrument("OVL-202012", "OVL", pd.Timestamp("2010-03-01"),
+                   suffix_month_end("202012")),
+        Instrument("OVL", "OVL", pd.Timestamp("2020-11-16"), None),
+        Instrument("AAA", "AAA", pd.Timestamp("2018-01-02"), None),
+        Instrument("BBB", "BBB", pd.Timestamp("2018-01-02"), None),
+        Instrument("NEWCO", "NEWCO", pd.Timestamp("2015-01-02"), None),
+    ])
+
+
+def test_suffix_candidate_resolution():
+    """A base whose only instrument is delisted-suffixed resolves within its life
+    interval (first quoted date to the suffix month end, inclusive) and is
+    unresolved outside it. suffix_month_end is pandas Period arithmetic (Python
+    datetime months are 1-indexed), including the leap-February edge."""
+    d = _a1_directory()
+    assert resolve_instrument("XLNX", pd.Timestamp("2019-06-07"), d) == \
+        ("XLNX-202202", "native")
+    # Within the delisting month: the month-end slack keeps the name resolved.
+    assert resolve_instrument("XLNX", pd.Timestamp("2022-02-15"), d) == \
+        ("XLNX-202202", "native")
+    assert resolve_instrument("XLNX", pd.Timestamp("2022-02-28"), d) == \
+        ("XLNX-202202", "native")
+    # After the delisting month, and before the first quote: unresolved.
+    assert resolve_instrument("XLNX", pd.Timestamp("2022-03-04"), d) == \
+        (None, "unresolved")
+    assert resolve_instrument("XLNX", pd.Timestamp("1990-01-05"), d) == \
+        (None, "unresolved")
+    # Month-end arithmetic: ordinary, leap and year-end months.
+    assert suffix_month_end("202202") == pd.Timestamp("2022-02-28")
+    assert suffix_month_end("202402") == pd.Timestamp("2024-02-29")   # leap year
+    assert suffix_month_end("202112") == pd.Timestamp("2021-12-31")
+
+
+def test_recycled_ticker_disambiguation():
+    """A recycled base with disjoint life intervals maps each membership date to
+    the era-correct instrument; dates in the gap or before all history stay
+    unresolved; overlapping intervals are AMBIGUOUS and never guessed — not even
+    through a rename entry."""
+    d = _a1_directory()
+    # Old era -> the delisted instrument; new era -> the live one.
+    assert resolve_instrument("RCY", pd.Timestamp("2019-06-07"), d) == \
+        ("RCY-202001", "native")
+    assert resolve_instrument("RCY", pd.Timestamp("2021-03-05"), d) == \
+        ("RCY", "native")
+    # Gap between the eras, and pre-history: unresolved.
+    assert resolve_instrument("RCY", pd.Timestamp("2020-03-06"), d) == \
+        (None, "unresolved")
+    assert resolve_instrument("RCY", pd.Timestamp("2016-01-08"), d) == \
+        (None, "unresolved")
+    # Overlap (successor first quoted inside the predecessor's delisting month):
+    # both intervals contain the date -> ambiguous, never guessed.
+    assert resolve_instrument("OVL", pd.Timestamp("2020-11-20"), d) == \
+        (None, "ambiguous")
+    # Ambiguity does NOT fall through to the rename table.
+    assert resolve_instrument("OVL", pd.Timestamp("2020-11-20"), d,
+                              renames={"OVL": "NEWCO"}) == (None, "ambiguous")
+    # Outside the overlap the same base resolves normally on both sides.
+    assert resolve_instrument("OVL", pd.Timestamp("2019-05-03"), d) == \
+        ("OVL-202012", "native")
+    assert resolve_instrument("OVL", pd.Timestamp("2021-02-05"), d) == \
+        ("OVL", "native")
+
+
+def test_rename_table_hit():
+    """The verified rename table fires only when the base has NO native
+    instrument containing the date, and the target's own interval is enforced.
+    A native-era instrument always wins over a table entry."""
+    d = _a1_directory()
+    renames = {"OLDT": "NEWCO", "RCY": "NEWCO"}
+    # No native OLDT instrument -> the verified target, interval-checked.
+    assert resolve_instrument("OLDT", pd.Timestamp("2019-04-05"), d,
+                              renames=renames) == ("NEWCO", "renamed")
+    # Date before the target's first quote -> unresolved, not guessed.
+    assert resolve_instrument("OLDT", pd.Timestamp("2014-06-06"), d,
+                              renames=renames) == (None, "unresolved")
+    # A rename entry must never shadow a native-era instrument.
+    assert resolve_instrument("RCY", pd.Timestamp("2019-06-07"), d,
+                              renames=renames) == ("RCY-202001", "native")
+    # A rename target absent from the directory -> unresolved.
+    assert resolve_instrument("GHOST", pd.Timestamp("2019-04-05"), d,
+                              renames={"GHOST": "NOSUCH"}) == (None, "unresolved")
+    # Structural sanity of the shipped table: exact-symbol values, no identity
+    # entries, no lowercase.
+    for src, tgt in INSTRUMENT_RENAMES.items():
+        assert src == src.upper() and tgt == tgt.upper()
+        assert src != tgt
+        assert re.fullmatch(r"[A-Z0-9.]+(-\d{6})?", tgt), tgt
+
+
+def test_resolve_membership_counts():
+    """resolve_membership maps every in-window snapshot roster through the
+    resolver, unions the instruments, and counts unresolved names per ticker —
+    never silently dropping them."""
+    d = _a1_directory()
+    snaps = {
+        "2019-01-04": {"tickers": ["RCY", "AAA", "ZZZ"]},
+        "2021-01-08": {"tickers": ["RCY", "AAA"]},
+        "2030-01-04": {"tickers": ["AAA"]},          # beyond window_end: ignored
+    }
+    res = resolve_membership(snaps, d, window_end=pd.Timestamp("2026-06-30"))
+    assert set(res["by_snapshot"]) == {pd.Timestamp("2019-01-04"),
+                                       pd.Timestamp("2021-01-08")}
+    assert res["by_snapshot"][pd.Timestamp("2019-01-04")] == \
+        {"RCY": "RCY-202001", "AAA": "AAA", "ZZZ": None}
+    assert res["by_snapshot"][pd.Timestamp("2021-01-08")] == \
+        {"RCY": "RCY", "AAA": "AAA"}
+    assert res["instruments"] == ["AAA", "RCY", "RCY-202001"]
+    assert res["unresolved"] == {"ZZZ": {"status": "unresolved", "n_weeks": 1}}
+    assert res["n_member_weeks"] == 5 and res["n_resolved_weeks"] == 4
+
+
+def test_instrument_keys_do_not_blend_eras():
+    """End-to-end: a recycled ticker in the membership snapshots occupies TWO
+    separate instrument columns in the name-level weight panel — the old era's
+    weight sits on the delisted instrument, the new era's on the live one, and
+    no rebalance holds both. Prices, screens and weights are all keyed by
+    instrument, so the two companies' histories never blend in one column."""
+    sector, mem_idx = _sector_fixture()
+    membership, signals, prices, _ = _member_fixtures(mem_idx)
+
+    # Override IUFS with a recycled-ticker construction. Era boundaries chosen
+    # inside the fixture's calendar (mem_idx starts 2018-01-02; the sector
+    # calendar and rebalances start around 2019; pandas Timestamp comparisons
+    # only — no manual day arithmetic).
+    old_end = pd.Timestamp("2020-01-31")
+    new_start = pd.Timestamp("2020-06-01")
+    growths = {"RCY-202001": 0.0012, "RCY": 0.0014,
+               "AAA": 0.0010, "BBB": 0.0008}
+    panel = _monotone_panel(growths, mem_idx)
+    panel.loc[panel.index > old_end, "RCY-202001"] = np.nan
+    panel.loc[panel.index < new_start, "RCY"] = np.nan
+    directory = InstrumentDirectory([
+        Instrument("RCY-202001", "RCY", mem_idx[0], suffix_month_end("202001")),
+        Instrument("RCY", "RCY", new_start, None),
+        Instrument("AAA", "AAA", mem_idx[0], None),
+        Instrument("BBB", "BBB", mem_idx[0], None),
+    ])
+    snaps = {"2018-01-05": {"tickers": ["RCY", "AAA", "BBB"]},
+             "2020-06-19": {"tickers": ["RCY", "AAA", "BBB"]}}
+    res = resolve_membership(snaps, directory)
+    membership["IUFS"] = snaps
+    prices["IUFS"] = panel
+    signals["IUFS"] = precompute_member_signals(panel)
+
+    build = build_arm_name_weights(
+        ARM_BY_ID["I0"], sector["weights"], sector["closes"],
+        sector["rebal_dates"], sector["eligible"],
+        membership, signals, prices,
+        member_resolution={"IUFS": res["by_snapshot"]})
+
+    nw = build.name_weights
+    assert "RCY-202001" in nw.columns and "RCY" in nw.columns
+    on_rebal = nw.loc[sector["rebal_dates"]]
+    old_held = on_rebal["RCY-202001"] > 0
+    new_held = on_rebal["RCY"] > 0
+    assert old_held.any(), "old-era instrument never held"
+    assert new_held.any(), "new-era instrument never held"
+    # No rebalance holds both eras of the recycled ticker.
+    assert not (old_held & new_held).any()
+    # Era consistency: the old instrument only up to its final print month, the
+    # new one only after the second snapshot takes effect.
+    assert old_held[old_held].index.max() <= pd.Timestamp("2020-02-28")
+    assert new_held[new_held].index.min() >= pd.Timestamp("2020-06-19")
