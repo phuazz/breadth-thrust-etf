@@ -1,0 +1,381 @@
+diff --git a/scripts/publish_norgate_breadth.py b/scripts/publish_norgate_breadth.py
+index d6323c9..4e37068 100644
+--- a/scripts/publish_norgate_breadth.py
++++ b/scripts/publish_norgate_breadth.py
+@@ -53,11 +53,55 @@ STALE_TRADING_DAYS = 3
+ STATE_LABELS = {1.0: "RISK_ON", 0.0: "RISK_OFF"}
+ 
+ 
++def _git_publish(path: Path) -> None:
++    """Stage-2 publication: commit and push ONLY the states file.
++
++    Explicit single-file ``git add`` (never ``-A`` — interactive sessions
++    share this working tree), commit, rebase, push. Fail-soft throughout:
++    on any git failure the file is still written locally and the message
++    says so; CI keeps consuming the scrape path until the next successful
++    push, which is the designed degradation ladder (review §5). A refusal
++    caused by unrelated dirty files self-heals on a later run — local
++    commits accumulate and push together, always inside the 10-day cap.
++    """
++    import subprocess
++
++    rel = str(path.relative_to(ROOT)).replace("\\", "/")
++
++    def run(*cmd: str) -> subprocess.CompletedProcess:
++        return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
++
++    if not run("git", "status", "--porcelain", "--", rel).stdout.strip():
++        print("git publish: states file unchanged — nothing to push")
++        return
++    for cmd in (
++        ("git", "add", "--", rel),
++        ("git", "commit", "-m",
++         f"Norgate gate-states publish (last bar per file; "
++         f"run {dt.date.today().isoformat()})"),
++        ("git", "pull", "--rebase", "origin", "main"),
++        ("git", "push", "origin", "main"),
++    ):
++        res = run(*cmd)
++        if res.returncode != 0:
++            print(f"git publish FAILED at `{' '.join(cmd[:3])}`: "
++                  f"{(res.stderr or res.stdout).strip()[:300]} — file "
++                  f"written locally; scrape fallback governs in CI")
++            if cmd[1] == "pull":
++                run("git", "rebase", "--abort")
++            return
++    print(f"git publish: pushed {rel}")
++
++
+ def main() -> int:
+     sys.stdout.reconfigure(encoding="utf-8")
+     ap = argparse.ArgumentParser()
+     ap.add_argument("--commit-path", action="store_true",
+                     help="write to data/ (Stage 2, post-approval only)")
++    ap.add_argument("--push", action="store_true",
++                    help="git add/commit/push the states file after "
++                         "writing (Stage 2; single-file add, fail-soft; "
++                         "requires --commit-path)")
+     args = ap.parse_args()
+ 
+     import norgatedata as nd
+@@ -126,6 +170,12 @@ def main() -> int:
+ 
+     print(f"wrote {path.relative_to(ROOT)} (last bar {last_bar}, "
+           f"state {out['current_state']})")
++    if args.push:
++        if not args.commit_path:
++            print("--push ignored: only the data/ commit path is ever "
++                  "pushed (data_local/ previews are licence-guarded)")
++        else:
++            _git_publish(path)
+     return 0
+ 
+ 
+diff --git a/scripts/run_risk_overlay.py b/scripts/run_risk_overlay.py
+index 653aada..a7cd467 100644
+--- a/scripts/run_risk_overlay.py
++++ b/scripts/run_risk_overlay.py
+@@ -121,6 +121,15 @@ FALLBACK_TICKER = "SHY" # 1-3y Treasury — cleaner cash-equivalent than IEF.
+ # the WS3-verified "gate holds state on NaN" degradation.
+ GATE_MAX_STALE_DAYS = 10
+ 
++# Stage 2 — Norgate feed migration (reviews/2026-07-17_norgate-feed-
++# migration.md §4). publish_norgate_breadth.py --commit-path writes
++# vendor-DERIVED gate states (0/1 only; licence: never the series values)
++# to this file each trading morning. When the file is present and fresh
++# under the same 10-day cap, its states are consumed directly and
++# _compute_states on the scrape series is bypassed; otherwise the scrape
++# path below runs verbatim. Rollback = delete or stop refreshing the file.
++NORGATE_STATES_PATH = DATA_DIR / "gate_states_norgate.json"
++
+ # ----------------------------------------------------------------------
+ # Phase 22 — EEM/SPY relative-strength tilt parameters
+ # Test sweep in scripts/test_phase22_eem_overlay.py + funding-source
+@@ -191,6 +200,53 @@ def _compute_states(breadth: pd.Series, off: float, on: float) -> pd.Series:
+     return pd.Series(states, index=breadth.index, dtype=float)
+ 
+ 
++def _load_norgate_states(
++    common: pd.DatetimeIndex,
++) -> tuple[pd.Series | None, str | None]:
++    """Load vendor-derived gate states aligned to ``common`` (Stage 2).
++
++    Returns ``(states, last_bar)`` when NORGATE_STATES_PATH exists, parses
++    cleanly, carries strictly binary states, and its last bar is within
++    GATE_MAX_STALE_DAYS calendar days of the end of ``common`` — the same
++    10-day convention as the D3 scrape cap, measured against the target
++    index (deterministic), never wall clock. Returns ``(None, None)`` on
++    absence, staleness, or any parse defect so the caller falls through to
++    the scrape path verbatim: fail-open to the incumbent feed, never
++    fail-silent on a malformed file.
++    """
++    if not NORGATE_STATES_PATH.exists():
++        return None, None
++    try:
++        doc = json.loads(NORGATE_STATES_PATH.read_text(encoding="utf-8"))
++        ser = pd.Series(
++            [float(s) for s in doc["series"]["state"]],
++            index=pd.to_datetime(doc["series"]["dates"]),
++            dtype=float,
++        ).sort_index()
++        last_bar = pd.Timestamp(doc["last_bar"])
++    except Exception as exc:
++        print(f"  WARN: {NORGATE_STATES_PATH.name} unreadable "
++              f"({type(exc).__name__}: {exc}) — scrape feed governs")
++        return None, None
++    if len(ser) == 0 or not set(pd.unique(ser.values)).issubset({0.0, 1.0}):
++        print(f"  WARN: {NORGATE_STATES_PATH.name} empty or non-binary "
++              f"states — scrape feed governs")
++        return None, None
++    gap_days = int((common[-1] - last_bar).days)
++    if gap_days > GATE_MAX_STALE_DAYS:
++        print(f"  {NORGATE_STATES_PATH.name} stale ({gap_days} calendar "
++              f"days behind blend calendar end > {GATE_MAX_STALE_DAYS}-day "
++              f"cap) — scrape feed governs")
++        return None, None
++    # ffill = hold state on days past the file's last bar — the same
++    # degradation the scrape path produces (NaN past the cap holds state
++    # inside _compute_states), bounded above by the freshness gate. Days
++    # before the file's first bar (1957) cannot occur on the blend
++    # calendar; fillna(1.0) mirrors _compute_states' RISK_ON start.
++    aligned = ser.reindex(common, method="ffill").fillna(1.0)
++    return aligned, doc.get("last_bar")
++
++
+ def _load_eem_data() -> tuple[pd.Series, pd.Series] | tuple[None, None]:
+     """Load (EEM_close, EEM_SPY_ratio). Tries em_regime_context.parquet
+     first, then falls back to yfinance. Returns (None, None) on failure
+@@ -408,7 +464,17 @@ def main() -> int:
+     fallback_ret = fallback_aligned.pct_change().fillna(0)
+ 
+     # ----- Compute gated equity -----
+-    states = _compute_states(breadth, OFF_THRESHOLD, ON_THRESHOLD)
++    # Stage 2 feed preference (review §4): vendor-derived states when the
++    # published file is fresh, scrape-computed states otherwise —
++    # behaviour identical to the pre-Stage-2 pipeline whenever the file is
++    # absent or stale past the cap.
++    norgate_states, norgate_last_bar = _load_norgate_states(common)
++    if norgate_states is not None:
++        states = norgate_states
++        gate_feed = "norgate-local"
++    else:
++        states = _compute_states(breadth, OFF_THRESHOLD, ON_THRESHOLD)
++        gate_feed = "csp1-scrape"
+     states_lagged = states.shift(1).fillna(1.0)
+     state_changes = states_lagged.diff().fillna(0).abs()
+     switch_cost = state_changes * (SWITCH_COST_BPS / 10_000.0)
+@@ -425,6 +491,11 @@ def main() -> int:
+     last_change_date = (states.index[transitions != 0][-1]
+                          if (transitions != 0).any() else states.index[0])
+     current_state = "RISK_ON" if states.iloc[-1] == 1.0 else "RISK_OFF"
++    # NOTE (Stage 2): event `breadth` annotations always read the SCRAPE
++    # series — the derived-states file carries no levels (licence). On the
++    # norgate feed a flip date may therefore annotate a scrape level that
++    # sits on the other side of the threshold; the annotation is
++    # diagnostic only, never an input.
+     events = [
+         {"date": d.strftime("%Y-%m-%d"),
+          "direction": "RISK_OFF" if states.loc[d] == 0.0 else "RISK_ON",
+@@ -596,6 +667,14 @@ def main() -> int:
+     # CSP1-original end_date (captured pre-ffill), not breadth.index[-1]
+     # which has been extended onto the blend calendar by ffill.
+     payload["panel_end_date"] = panel_end_date_str
++    # Stage 2 feed provenance: which feed produced the STATES this run,
++    # and that feed's own freshness anchor. csp1-scrape keeps the CSP1
++    # panel end as its anchor (behaviour unchanged from pre-Stage-2).
++    payload["gate_feed"] = gate_feed
++    payload["gate_feed_last_bar"] = (
++        norgate_last_bar if gate_feed == "norgate-local"
++        else panel_end_date_str
++    )
+ 
+     # FM-2 reconciliation: current_state_since must equal the most recent
+     # event date matching current_state. Hard-fail at write time so the
+@@ -653,6 +732,8 @@ def main() -> int:
+     print(f"  Current state: {current_state} since "
+           f"{last_change_date.strftime('%Y-%m-%d')}  "
+           f"(S&P 500 breadth {breadth.iloc[-1]*100:.1f}%)")
++    print(f"  Gate feed: {gate_feed} "
++          f"(states last bar {payload['gate_feed_last_bar']})")
+     print(f"  History: {n_switches} switches, "
+           f"{pct_off:.1f}% of days RISK_OFF")
+     if tilted_gated_eq is not None and tilted_gated_stats is not None:
+diff --git a/tests/test_norgate_gate_states.py b/tests/test_norgate_gate_states.py
+new file mode 100644
+index 0000000..590954d
+--- /dev/null
++++ b/tests/test_norgate_gate_states.py
+@@ -0,0 +1,173 @@
++"""Stage-2 loader guards for the Norgate derived-states gate feed.
++
++The Stage-2 swap (reviews/2026-07-17_norgate-feed-migration.md §4) makes
++run_risk_overlay consume vendor-derived gate states from
++data/gate_states_norgate.json when present and fresh, falling back to the
++scrape-computed path under the deployed GATE_MAX_STALE_DAYS cap. These
++tests pin:
++
++  * the freshness boundary at exactly the cap, including a month boundary
++    and a year boundary (CLAUDE.md date-edge rule);
++  * hold-state alignment semantics (ffill past the file's last bar equals
++    the scrape path's NaN-hold degradation);
++  * every fallback branch — absent, stale, malformed, empty, non-binary —
++    returns (None, None) and never raises.
++
++Dates are constructed with pandas/datetime (Python months are 1-indexed);
++each boundary test asserts the calendar-day gap it claims to exercise.
++"""
++
++from __future__ import annotations
++
++import json
++import sys
++from pathlib import Path
++
++import numpy as np
++import pandas as pd
++import pytest
++
++sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
++
++import run_risk_overlay as ro  # noqa: E402
++
++
++def _write_states(path: Path, dates: list[str], states: list[int],
++                  last_bar: str | None = None) -> None:
++    doc = {
++        "generated_at_utc": "2026-07-17T00:00:00+00:00",
++        "source": "test fixture (derived states only)",
++        "state_machine": "run_risk_overlay._compute_states (off 0.2, on 0.5)",
++        "last_bar": last_bar or dates[-1],
++        "current_state": ("RISK_ON" if states and states[-1] == 1
++                          else "RISK_OFF"),
++        "series": {"dates": dates, "state": states},
++    }
++    path.write_text(json.dumps(doc), encoding="utf-8")
++
++
++@pytest.fixture
++def states_path(tmp_path, monkeypatch):
++    p = tmp_path / "gate_states_norgate.json"
++    monkeypatch.setattr(ro, "NORGATE_STATES_PATH", p)
++    return p
++
++
++def test_fresh_file_consumed_and_held_to_calendar_end(states_path):
++    """A fresh file is consumed on the blend calendar; days past its last
++    bar hold the last state (the scrape path's NaN-hold degradation,
++    bounded above by the freshness cap)."""
++    _write_states(states_path,
++                  ["2026-07-13", "2026-07-14", "2026-07-15"], [1, 0, 0])
++    common = pd.date_range("2026-07-13", "2026-07-21", freq="B")
++    states, last_bar = ro._load_norgate_states(common)
++    assert last_bar == "2026-07-15"
++    assert list(states.index) == list(common)
++    assert states.loc["2026-07-13"] == 1.0
++    assert states.loc["2026-07-14"] == 0.0
++    # Held flat past the file's last bar, through to the calendar end.
++    assert (states.loc["2026-07-16":] == 0.0).all()
++
++
++def test_stale_file_rejected_past_cap(states_path):
++    """Last bar more than GATE_MAX_STALE_DAYS calendar days behind the
++    blend calendar end: loader declines, scrape path governs."""
++    _write_states(states_path, ["2026-07-01", "2026-07-02"], [1, 1])
++    common = pd.date_range("2026-07-01", "2026-07-13", freq="B")
++    gap = (common[-1] - pd.Timestamp("2026-07-02")).days
++    assert gap == 11 > ro.GATE_MAX_STALE_DAYS
++    assert ro._load_norgate_states(common) == (None, None)
++
++
++def test_freshness_boundary_at_cap_across_month_end(states_path):
++    """Month-boundary edge: last bar 2026-07-24, calendar end 2026-08-03
++    is exactly the 10-day cap across the July/August boundary — still
++    fresh. One more calendar day is stale."""
++    _write_states(states_path, ["2026-07-23", "2026-07-24"], [1, 1])
++    at_cap = pd.date_range("2026-07-23", "2026-08-03", freq="B")
++    assert (at_cap[-1] - pd.Timestamp("2026-07-24")).days == \
++        ro.GATE_MAX_STALE_DAYS == 10
++    states, _ = ro._load_norgate_states(at_cap)
++    assert states is not None and (states == 1.0).all()
++
++    past_cap = pd.date_range("2026-07-23", "2026-08-04", freq="B")
++    assert (past_cap[-1] - pd.Timestamp("2026-07-24")).days == 11
++    assert ro._load_norgate_states(past_cap) == (None, None)
++
++
++def test_freshness_boundary_at_cap_across_year_end(states_path):
++    """Year-boundary edge: last bar 2026-12-28, calendar end 2027-01-07 is
++    exactly the 10-day cap across the year boundary — still fresh. One
++    more calendar day is stale."""
++    _write_states(states_path, ["2026-12-24", "2026-12-28"], [0, 0])
++    at_cap = pd.date_range("2026-12-24", "2027-01-07", freq="B")
++    assert (at_cap[-1] - pd.Timestamp("2026-12-28")).days == \
++        ro.GATE_MAX_STALE_DAYS == 10
++    states, _ = ro._load_norgate_states(at_cap)
++    assert states is not None
++    # OFF state held across the year boundary, never silently reset.
++    assert (states.loc["2026-12-28":] == 0.0).all()
++
++    past_cap = pd.date_range("2026-12-24", "2027-01-08", freq="B")
++    assert (past_cap[-1] - pd.Timestamp("2026-12-28")).days == 11
++    assert ro._load_norgate_states(past_cap) == (None, None)
++
++
++def test_absent_file_falls_back(states_path):
++    common = pd.date_range("2026-07-01", "2026-07-10", freq="B")
++    assert not states_path.exists()
++    assert ro._load_norgate_states(common) == (None, None)
++
++
++def test_malformed_file_falls_back_without_raising(states_path):
++    states_path.write_text("{this is not json", encoding="utf-8")
++    common = pd.date_range("2026-07-01", "2026-07-10", freq="B")
++    assert ro._load_norgate_states(common) == (None, None)
++
++
++def test_missing_series_key_falls_back(states_path):
++    states_path.write_text(json.dumps({"last_bar": "2026-07-10"}),
++                           encoding="utf-8")
++    common = pd.date_range("2026-07-01", "2026-07-10", freq="B")
++    assert ro._load_norgate_states(common) == (None, None)
++
++
++def test_empty_series_falls_back(states_path):
++    _write_states(states_path, [], [], last_bar="2026-07-10")
++    common = pd.date_range("2026-07-01", "2026-07-10", freq="B")
++    assert ro._load_norgate_states(common) == (None, None)
++
++
++def test_non_binary_states_rejected(states_path):
++    """States other than 0/1 (a corrupted or wrong-schema file) must not
++    reach the weight arithmetic, where a 2.0 would lever the blend."""
++    _write_states(states_path, ["2026-07-09", "2026-07-10"], [1, 2])
++    common = pd.date_range("2026-07-01", "2026-07-10", freq="B")
++    assert ro._load_norgate_states(common) == (None, None)
++
++
++def test_hold_semantics_match_scrape_nan_hold(states_path):
++    """Equivalence pin: published states ffilled onto the blend calendar
++    equal _compute_states run on a breadth series whose tail has gone NaN
++    under the cap — the two degradation paths must agree."""
++    idx = pd.date_range("2026-01-05", "2026-01-16", freq="B")
++    # ON -> OFF flip on 2026-01-07, then the feed stalls (NaN tail).
++    breadth = pd.Series(
++        [0.55, 0.40, 0.15, 0.30, 0.30, np.nan, np.nan, np.nan, np.nan,
++         np.nan],
++        index=idx,
++    )
++    scrape_states = ro._compute_states(
++        breadth, ro.OFF_THRESHOLD, ro.ON_THRESHOLD)
++
++    # Publisher view: real bars only (padding NONE), states from the same
++    # machine, file then ffilled by the loader onto the full calendar.
++    real = breadth.dropna()
++    pub_states = ro._compute_states(real, ro.OFF_THRESHOLD, ro.ON_THRESHOLD)
++    _write_states(states_path,
++                  [d.strftime("%Y-%m-%d") for d in pub_states.index],
++                  [int(s) for s in pub_states.values])
++    loaded, _ = ro._load_norgate_states(idx)
++
++    pd.testing.assert_series_equal(loaded, scrape_states,
++                                   check_names=False)

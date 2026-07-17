@@ -161,3 +161,60 @@ keeping Stage 1 strictly zero-deployed-impact. **Stage 2 is approved in
 principle**; execution waits on the soak review — due **Friday
 2026-08-07** (weekday verified) — where the concrete loader diff will be
 presented against the soak log before anything deploys.
+
+## 9. Addendum — pre-soak hardening and prepared Stage-2 diff (2026-07-17 PM)
+
+A soak-review prompt fired prematurely the same afternoon (soak log at
+that point: only the §8 validation runs). Per the §8 gate the Stage-2
+diff was NOT put up for approval; instead the remaining preparable work
+was front-loaded. All items below are Stage-1-scope or unapplied:
+
+1. **Licence-guard defect fixed.** `.gitignore`'s `data_local/` entry
+   carried a trailing comment on the same line; gitignore does not
+   support trailing comments, so **`data_local/` (raw vendor panel
+   included) was not ignored at all** — one `git add .` from a licence
+   breach. Pattern moved to its own line; `git check-ignore` verified.
+2. **False-FLAG bug fixed pre-soak.** The publisher labelled the off
+   state `"DERISK"` while the deployed file says `"RISK_OFF"`, and the
+   divergence check used a substring test — every both-feeds-OFF day
+   would have printed a spurious FLAG into the soak log. Labels pinned
+   to deployed naming (`STATE_LABELS`), exact-equality compare, guard
+   tests in `tests/test_norgate_publisher_labels.py` (commit 76e75ff).
+3. **`norgatedata` 1.0.74 → 1.0.77** upgraded before the first scheduled
+   fire (the never-mid-cycle window §5 reserved), so the soak runs on
+   the configuration Stage 2 would keep.
+4. **Scheduler-path smoke tests.** The Task Scheduler trigger itself
+   (never exercised by the §8 manual runs) was fired on demand twice —
+   pre- and post-upgrade — exit 0, clean divergence line both times.
+   The four 2026-07-17 log entries (2 manual, 2 on-demand smoke) are
+   **not soak evidence**; the soak window is the ~15 scheduled Tue–Sat
+   fires 2026-07-18 → 2026-08-07.
+5. **Missed-run semantics.** The task had `StartWhenAvailable=False`
+   (machine off/asleep at 07:15 = silent skip, which doubles as
+   fallback rehearsal); flipped to True on approval so late boots still
+   capture the bar — the publisher is idempotent per the repeated
+   same-day runs.
+6. **Stage-2 diff prepared, tested, UNAPPLIED.** Branch
+   `norgate-stage2-loader` (local), filed as
+   `reviews/2026-07-17_norgate-stage2-loader.patch` (applies cleanly to
+   main): `run_risk_overlay` consumes `data/gate_states_norgate.json`
+   when fresh under the deployed `GATE_MAX_STALE_DAYS`, scrape path
+   verbatim otherwise; `gate_feed` / `gate_feed_last_bar` provenance in
+   payload and console; publisher `--push` (single-file add, fail-soft)
+   for Stage-2 publication. Ten loader guard tests incl. the 10-day cap
+   at a month boundary and a year boundary, and an equivalence pin that
+   ffilled published states equal the scrape path's NaN-hold
+   degradation. Full suite in the worktree: **265 passed**.
+7. **Dry-run findings the 2026-08-07 review should expect.** Driving
+   the patched pipeline with the real preview file: `gate_feed`
+   flips to `norgate-local`, states run **six days fresher** than the
+   weekly scrape panel (2026-07-16 vs 2026-07-10), current state
+   agrees (RISK_ON), and the historical-revision detector surfaces a
+   **one-time ~10-entry event diff** at cutover — the §3 flip-date
+   shifts (+1/+3/+11d ON-side, the −7d earlier OFF in 2026-03) plus one
+   start-context artefact (an added 2018-11-28 ON event: full-1957
+   hysteresis context resolves the 2018-Q4 episode differently from the
+   2018-panel-start-ON assumption). Expected, explained, and surfaced
+   by design; `current_state_since` moves 2026-04-13 → 2026-04-14
+   (+1d). Stage-2 activation after approval = apply the patch + add
+   `--commit-path --push` to the wrapper.
