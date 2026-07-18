@@ -1792,29 +1792,12 @@
     </div>
 
     <!-- ==================== POSITIONS PREVIEW ==================== -->
-    <!-- Current top holdings + this week's rebalance — relocated into
-         Monitor tab so the tab bar can sit higher in the page. -->
+    <!-- This week's rebalance + current top holdings — relocated into
+         Monitor tab so the tab bar can sit higher in the page. Rebalance
+         card leads (owner verdict 2026-07-18, mirroring the weekly email:
+         the week's trades are the actionable payload and read first; the
+         standing book follows). -->
     <div id="positions-preview">
-      <div class="prev-card">
-        <div class="prev-card-h">
-          <span class="prev-card-h-title">Current top holdings</span>
-          <span class="prev-card-h-asof" id="preview-holdings-asof">—</span>
-        </div>
-        <table class="prev-table" id="preview-holdings-table">
-          <thead>
-            <tr>
-              <th class="th-tk">Ticker &amp; name</th>
-              <th class="th-sl">Sleeve</th>
-              <th class="th-wt">% NAV</th>
-              <th class="th-cash">$ on $1.0M</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <div class="prev-card-foot">
-          <a href="#" onclick="document.getElementById('live-holdings-table')?.scrollIntoView({behavior:'smooth',block:'start'});return false;">Full target portfolio &rarr;</a>
-        </div>
-      </div>
       <div class="prev-card">
         <div class="prev-card-h">
           <span class="prev-card-h-title">Latest rebalance changes</span>
@@ -1838,6 +1821,26 @@
         <div class="prev-card-net" id="preview-activity-net"></div>
         <div class="prev-card-foot">
           <a href="#" onclick="document.querySelector('[data-tab=history]').click();document.getElementById('combined-ledger-section')?.scrollIntoView({behavior:'smooth',block:'start'});return false;">Full rebalance ledger &rarr;</a>
+        </div>
+      </div>
+      <div class="prev-card">
+        <div class="prev-card-h">
+          <span class="prev-card-h-title">Current top holdings</span>
+          <span class="prev-card-h-asof" id="preview-holdings-asof">—</span>
+        </div>
+        <table class="prev-table" id="preview-holdings-table">
+          <thead>
+            <tr>
+              <th class="th-tk">Ticker &amp; name</th>
+              <th class="th-sl">Sleeve</th>
+              <th class="th-wt">% NAV</th>
+              <th class="th-cash">$ on $1.0M</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="prev-card-foot">
+          <a href="#" onclick="document.getElementById('live-holdings-table')?.scrollIntoView({behavior:'smooth',block:'start'});return false;">Full target portfolio &rarr;</a>
         </div>
       </div>
     </div>
@@ -3654,15 +3657,37 @@ function renderPositionsPreview() {
   });
   // Portfolio-level materiality filter: hide moves under 0.5% NAV by
   // default; the checkbox reveals them so the buys/sells reconcile in full.
+  //
+  // Owner verdict 2026-07-18 (trial approved): only the LATEST WEEK's
+  // moves display — sleeves legitimately skip weeks, and mixing week-old
+  // rows the reader has already executed with the new ones invited double
+  // execution. The week is Monday-anchored on the newest move date so a
+  // mid-week overlay flip (TILT / GATE row) shows beside Friday's
+  // rebalance rows; older-dated sleeves become a footnote, mirroring the
+  // weekly email's card.
+  let weekRows = activity;
+  let staleSleeves = [];
+  const allDatesSorted = activity.map(a => a.date).filter(Boolean).sort();
+  if (allDatesSorted.length) {
+    const latest = allDatesSorted[allDatesSorted.length - 1];
+    const [ly, lm, ld] = latest.split('-').map(Number);
+    const mon = new Date(Date.UTC(ly, lm - 1, ld));   // months 0-indexed in Date.UTC
+    mon.setUTCDate(mon.getUTCDate() - ((mon.getUTCDay() + 6) % 7));  // back to Monday
+    const weekStart = mon.toISOString().slice(0, 10);
+    weekRows = activity.filter(a => a.date && a.date >= weekStart);
+    staleSleeves = [...new Set(activity
+      .filter(a => a.date && a.date < weekStart)
+      .map(a => `${a.sl}|${a.date}`))].sort().map(s => s.split('|'));
+  }
   const MATERIAL_NAV = 0.005;
-  const nSmall = activity.filter(a => a.navImpact < MATERIAL_NAV).length;
+  const nSmall = weekRows.filter(a => a.navImpact < MATERIAL_NAV).length;
   const shown = _activityShowSmall
-    ? activity
-    : activity.filter(a => a.navImpact >= MATERIAL_NAV);
+    ? weekRows
+    : weekRows.filter(a => a.navImpact >= MATERIAL_NAV);
   const aTable = document.querySelector('#preview-activity-table tbody');
   if (aTable) {
     if (!shown.length) {
-      const msg = activity.length
+      const msg = weekRows.length
         ? 'No moves &ge; 0.5% NAV this cycle &mdash; tick the box to see smaller ones.'
         : 'No position changes &mdash; strategy stable.';
       aTable.innerHTML = `<tr><td colspan="5" class="prev-card-empty">${msg}</td></tr>`;
@@ -3673,12 +3698,19 @@ function renderPositionsPreview() {
         const labelHtml = lbl(a.etf)
           ? `<span class="tk-label">${_escapeHtml(lbl(a.etf))}</span>`
           : '';
+        // Direction marker on RESIZE rows (owner verdict 2026-07-18,
+        // mirroring the email): the amber action label says the weight
+        // changed but not which way; ENTER/EXIT already carry direction.
+        const up = a.newNav > a.prevNav;
+        const arrow = (a.action === 'RESIZE' && a.prevNav != null && a.newNav != null)
+          ? ` <span style="color:${up ? '#1a8754' : '#dc2626'};font-size:10px;">${up ? '&#9650;' : '&#9660;'}</span>`
+          : '';
         return `<tr>
           <td class="dt">${a.date || '—'}</td>
           <td class="sl">${a.sl}</td>
           <td class="act ${a.action.toLowerCase()}">${a.action}</td>
           <td class="tk">${a.etf}${labelHtml}</td>
-          <td class="delta">${prevStr} &rarr; ${newStr}</td>
+          <td class="delta">${prevStr} &rarr; ${newStr}${arrow}</td>
         </tr>`;
       }).join('');
     }
@@ -3691,18 +3723,24 @@ function renderPositionsPreview() {
     : 'No moves below 0.5% NAV';
   const smallBox = document.getElementById('activity-show-small');
   if (smallBox) smallBox.disabled = (nSmall === 0);
-  // Reconciliation line: buys minus sells across ALL moves (independent of
-  // the filter) — nets to ~0 when fully invested, else the cash delta. This
-  // answers "how do the buys and sells square to 100% exposure?".
-  const netNavAll = activity.reduce((s, a) => s + ((a.newNav || 0) - (a.prevNav || 0)), 0);
+  // Reconciliation line: buys minus sells across THIS WEEK's moves
+  // (independent of the size filter, so the net always reconciles over the
+  // full displayed week) — nets to ~0 when fully invested, else the cash
+  // delta. Older weeks' already-executed moves no longer pollute the net;
+  // their sleeves are footnoted instead (matches the weekly email).
+  const netNavAll = weekRows.reduce((s, a) => s + ((a.newNav || 0) - (a.prevNav || 0)), 0);
   const netEl = document.getElementById('preview-activity-net');
   if (netEl) {
-    if (!activity.length) {
+    if (!weekRows.length) {
       netEl.innerHTML = '';
     } else {
       const netPct = netNavAll * 100;
       const sign = netPct >= -0.05 ? '+' : '−';  // values that round to 0 show as +0.0%, never −0.0%
-      netEl.innerHTML = `Buys minus sells net to <b>${sign}${Math.abs(netPct).toFixed(1)}% NAV</b> across all moves (remainder is unchanged holdings or cash).`;
+      const staleNote = staleSleeves.length
+        ? ' ' + staleSleeves.map(([sl, d]) =>
+            `Sleeve ${sl} unchanged this week (last rebalanced ${d}).`).join(' ')
+        : '';
+      netEl.innerHTML = `Buys minus sells net to <b>${sign}${Math.abs(netPct).toFixed(1)}% NAV</b> across this week's moves (remainder is unchanged holdings or cash).${staleNote}`;
     }
   }
   // Header note = the span of rebalance dates actually represented. The

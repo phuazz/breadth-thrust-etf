@@ -1316,6 +1316,7 @@ def build_trades_table(sleeves, page_w, styles, overlay, as_of=None):
     rows = []
     week_rebal_dates: set[str] = set()
     most_recent_rebal: str | None = None
+    stale_sleeves: list[tuple[str, str]] = []
     for key, sleeve in sleeve_letter.items():
         s = sleeves.get(key, {})
         trades = s.get("headline", {}).get("trade_history", [])
@@ -1330,7 +1331,10 @@ def build_trades_table(sleeves, page_w, styles, overlay, as_of=None):
             # Boundary EXCLUSIVE (2026-07-18): with a Friday as-of, a
             # rebalance dated exactly 7 days earlier is LAST week's
             # Friday — it must not display (undated) next to this
-            # week's rows, inviting double execution.
+            # week's rows, inviting double execution. The sleeve is
+            # footnoted instead (owner verdict 2026-07-18, mirroring
+            # the weekly email's unchanged-sleeve note).
+            stale_sleeves.append((sleeve, rebal_date))
             continue  # last week's rebalance or older — not this week
         week_rebal_dates.add(rebal_date)
         # Sleeve weights AS OF each side's own rebalance date, so a tilt
@@ -1388,7 +1392,7 @@ def build_trades_table(sleeves, page_w, styles, overlay, as_of=None):
                 f"Most recent rebal: {most_recent_rebal}.</i>"
                 if most_recent_rebal else
                 "<i>No position changes this week — strategy stable.</i>")
-        return Paragraph(msg, styles["body"])
+        return [Paragraph(msg, styles["body"])]
 
     # Order to match the email card and the dashboard activity card so all three
     # artefacts tell one story: action group (ENTER/EXIT/RESIZE), then |ΔNAV|
@@ -1438,7 +1442,14 @@ def build_trades_table(sleeves, page_w, styles, overlay, as_of=None):
         ("BOTTOMPADDING", (0, 1), (-1, -1), 5),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, ZEBRA]),
     ]))
-    return t
+    flows: list = [t]
+    if stale_sleeves:
+        note = " &middot; ".join(
+            f"Sleeve {sl} unchanged this week (last rebalanced {d})"
+            for sl, d in sorted(set(stale_sleeves)))
+        flows.append(Spacer(1, 2))
+        flows.append(Paragraph(f"<i>{note}.</i>", styles["body_small"]))
+    return flows
 
 
 def build_watchlist(overlay, page_w, styles,
@@ -1903,7 +1914,7 @@ def build(out_path: Path):
         "REBALANCE THIS WEEK",
         "Position changes from rebalances in the past 7 days, as % of total portfolio NAV. Trades from earlier weeks should already have been executed.",
         styles)
-    activity_left.append(build_trades_table(sleeves, body_w / 2 - 6, styles,
+    activity_left.extend(build_trades_table(sleeves, body_w / 2 - 6, styles,
                                               overlay,
                                               as_of=deployed_series.index[-1]))
     watchlist_right = section_header(
