@@ -37,7 +37,7 @@ Output schema:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -72,7 +72,86 @@ INDIVIDUAL_OHLC_TICKERS = [
 # sector proxies (XLE/XLU/XLRE/XLB), the Xetra lines and EEM — 55-60% of NAV.
 # For any of these still missing after the cache sweep, fetch from yfinance so
 # the exported universe is complete regardless of which caches exist locally.
+#
+# 2026-07-18: the static list alone was NOT complete — the daily Actions run
+# (which refreshes no caches before exporting) emitted only these 23 names,
+# silently dropping every Strategy B rotation holding beyond SPY/IJR/QQQ and
+# the whole thematic sleeve, and it committed that 23-ticker panel OVER the
+# weekly run's full one. The candidate set is therefore now also derived from
+# the DEPLOYED BOOK itself (each sleeve's latest trade_history holdings,
+# resolved to their trading symbols), so any runner exports the complete book
+# via the yfinance fallback regardless of which caches exist. See
+# ``collect_book_symbols``.
 NETWORK_FALLBACK_TICKERS = sorted(set(INDIVIDUAL_OHLC_TICKERS))
+
+# Maximum age of a cache-sourced series before the yfinance fallback re-fetches
+# it anyway. em_regime_context.parquet (the only committed EEM source after
+# Phase 29) froze at 2026-07-06 and every panel vintage shipped a 9-session-old
+# EEM row — 10% of NAV — under a current as-of stamp. Seven calendar days spans
+# any weekend + holiday cluster without tolerating a genuinely stalled feed.
+MAX_CACHE_AGE_DAYS = 7
+
+# Sleeve holdings files that define the deployed book (same set the email,
+# factsheet and live mark-to-market read).
+SLEEVE_FILES = [
+    "topk_robustness.json",        # A — US sectors
+    "asset_class_rotation.json",   # B — asset class
+    "thematic_rotation.json",      # C — thematic
+    "europe_rotation.json",        # D — Europe sectors
+]
+
+# Xetra-listed Europe sleeve tickers (trade with a .DE suffix). Mirrors
+# mark_to_market_live.EUROPE_TICKERS.
+EUROPE_TICKERS = {"EXV1", "EXH1", "EXV3", "EXH3", "EXH9"}
+
+
+def resolve_book_symbol(etf: str) -> str:
+    """Map a holdings ticker to the yfinance symbol its prices trade under.
+
+    Same convention as ``mark_to_market_live._resolve_yf_symbol`` minus the
+    FX handling (this exporter publishes native-currency closes; consumers
+    that need USD conversion do it themselves): Europe-sleeve UCITS gain a
+    .DE suffix, China A-shares (.SZ/.SS) pass through, Strategy A iShares
+    UCITS use their US trading proxy from the registry, everything else is
+    already a direct yfinance ticker.
+    """
+    if etf in EUROPE_TICKERS:
+        return f"{etf}.DE"
+    if etf.endswith((".SZ", ".SS")):
+        return etf
+    try:
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from etf_registry import ETF_REGISTRY
+        proxy = (ETF_REGISTRY.get(etf) or {}).get("yfinance_trading_proxy")
+        if proxy:
+            return proxy
+    except Exception:
+        pass
+    return etf
+
+
+def collect_book_symbols() -> set[str]:
+    """Trading symbols for every CURRENT holding across the four sleeves,
+    plus EEM (overlay-only since Phase 29). Missing sleeve files are
+    skipped — the static list still provides the floor."""
+    symbols: set[str] = {"EEM"}
+    for fname in SLEEVE_FILES:
+        path = DATA_DIR / fname
+        if not path.exists():
+            continue
+        try:
+            sleeve = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        trades = (sleeve.get("headline") or {}).get("trade_history") or []
+        if not trades:
+            continue
+        for h in trades[-1].get("holdings", []):
+            etf = h.get("etf")
+            if etf:
+                symbols.add(resolve_book_symbol(etf))
+    return symbols
 
 
 def load_close_series(ticker: str) -> pd.Series | None:
@@ -156,6 +235,7 @@ def collect_all_tickers() -> set[str]:
         except Exception:
             pass
     tickers.update(NETWORK_FALLBACK_TICKERS)
+    tickers.update(collect_book_symbols())
     return tickers
 
 
@@ -259,11 +339,26 @@ def fetch_missing_from_yfinance(tickers: list[str]) -> dict[str, pd.Series]:
     return out
 
 
+def entry_is_stale(entry: dict | None, now_utc: datetime,
+                   max_age_days: int = MAX_CACHE_AGE_DAYS) -> bool:
+    """True when a per-ticker record's last date is older than
+    ``max_age_days`` calendar days before ``now_utc``. Calendar days, not
+    sessions, so a weekend + holiday cluster never trips it."""
+    if not entry or not entry.get("dates"):
+        return True
+    cutoff = (now_utc - timedelta(days=max_age_days)).date().isoformat()
+    return entry["dates"][-1] < cutoff
+
+
 def main() -> int:
+    now_utc = datetime.now(timezone.utc)
     print(f"Exporting holdings 1Y price series at "
-          f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} ...")
+          f"{now_utc.isoformat(timespec='seconds')} ...")
     tickers = sorted(collect_all_tickers())
-    print(f"  Candidate tickers: {len(tickers)}")
+    book = collect_book_symbols()
+    critical = sorted(set(NETWORK_FALLBACK_TICKERS) | book)
+    print(f"  Candidate tickers: {len(tickers)} "
+          f"(book-critical: {len(critical)})")
 
     out: dict[str, dict] = {}
     n_skipped: list[str] = []
@@ -274,21 +369,46 @@ def main() -> int:
             continue
         out[ticker] = entry
 
-    # Second pass: any book-critical ticker still missing had no on-disk
-    # source (its cache is gitignored and was not present — the CI-runner
-    # regression that dropped SOXX / the sector proxies / the Xetra lines /
-    # EEM). Backfill those from yfinance so the exported universe is complete.
-    missing_critical = [t for t in NETWORK_FALLBACK_TICKERS if t not in out]
-    if missing_critical:
-        for tk, close in fetch_missing_from_yfinance(missing_critical).items():
+    # Second pass: any book-critical ticker that is missing OR whose only
+    # on-disk source is stale gets fetched from yfinance. Missing happens on
+    # runners whose caches are gitignored; stale happened to EEM, whose only
+    # committed source (em_regime_context.parquet) froze at 2026-07-06 while
+    # the panel shipped it under a current as-of stamp for two weeks.
+    refetch = [t for t in critical
+               if t not in out or entry_is_stale(out.get(t), now_utc)]
+    if refetch:
+        stale_names = [t for t in refetch if t in out]
+        if stale_names:
+            print(f"  Stale beyond {MAX_CACHE_AGE_DAYS}d, re-fetching: "
+                  f"{', '.join(stale_names)}")
+        for tk, close in fetch_missing_from_yfinance(refetch).items():
             entry = build_entry(close)
             if entry is not None:
                 out[tk] = entry
                 if tk in n_skipped:
                     n_skipped.remove(tk)
 
+    # Coverage guard: never let one degraded run shrink the published panel.
+    # The daily Actions job (no cache refresh) used to export 23 tickers and
+    # commit that OVER the weekly job's 58 — the dashboard, the nightly
+    # factsheet rebuild and the digest's risk visuals then ran all week on a
+    # panel missing ~25% of the book. Any ticker present in the existing
+    # panel but absent from this run is carried forward unchanged (its own
+    # dates array keeps its staleness honest) and reported loudly.
+    carried: list[str] = []
+    if OUT_PATH.exists():
+        try:
+            prev = json.loads(OUT_PATH.read_text(encoding="utf-8"))
+            for tk, entry in (prev.get("prices") or {}).items():
+                if tk not in out and entry and entry.get("dates"):
+                    out[tk] = entry
+                    carried.append(tk)
+        except Exception as exc:
+            print(f"  WARN: could not read previous panel for the "
+                  f"carry-forward guard: {exc}")
+
     payload = {
-        "computed_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "computed_at_utc": now_utc.isoformat(timespec="seconds"),
         "lookback_days": LOOKBACK_DAYS,
         "prices": out,
     }
@@ -297,6 +417,14 @@ def main() -> int:
     size_kb = OUT_PATH.stat().st_size / 1024
     print(f"  Wrote {OUT_PATH.relative_to(ROOT)}  "
           f"({len(out)} tickers, {size_kb:.1f} KB)")
+    if carried:
+        print(f"  WARN: carried {len(carried)} ticker(s) forward from the "
+              f"previous panel (this run could not source them): "
+              f"{', '.join(sorted(carried))}")
+    still_missing = [t for t in critical if t not in out]
+    if still_missing:
+        print(f"  WARN: book-critical ticker(s) STILL missing after "
+              f"fallback: {', '.join(still_missing)}")
     if n_skipped:
         print(f"  Skipped (no cache / insufficient data): "
               f"{', '.join(n_skipped)}")
