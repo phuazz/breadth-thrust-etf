@@ -1229,6 +1229,20 @@ def build_trades_table(sleeves, page_w, styles, p22_active, as_of=None):
                 "<i>No position changes this week — strategy stable.</i>")
         return Paragraph(msg, styles["body"])
 
+    # Order to match the email card and the dashboard activity card so all three
+    # artefacts tell one story: action group (ENTER/EXIT/RESIZE), then |ΔNAV|
+    # desc, resulting size as tie-break. Magnitude, NOT resulting size — the
+    # table's job is to show what MOVED (a 0.5% -> 3.9% resize outranks a
+    # 3.0% -> 4.0% nudge). Weights here are already NAV-level (× sleeve weight),
+    # so |new - prev| is the sleeve-weighted materiality and is comparable
+    # across sleeves. Previously rows carried no explicit sort at all — they
+    # emerged in sleeve-then-dict order, i.e. an arbitrary order in a
+    # client-facing document.
+    _act_order = {"ENTER": 0, "EXIT": 1, "RESIZE": 2}
+    rows.sort(key=lambda r: (abs((r[4] or 0) - (r[3] or 0)), (r[4] or r[3] or 0)),
+              reverse=True)
+    rows.sort(key=lambda r: _act_order.get(r[1], 9))
+
     data = [["SLEEVE", "ACTION", "TICKER", "PRIOR", "NEW", "Δ"]]
     for sleeve, action, etf, prev_w, new_w in rows:
         action_col = (GOOD if action == "ENTER" else BAD if action == "EXIT"

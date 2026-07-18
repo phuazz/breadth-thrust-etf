@@ -16,7 +16,11 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from build_email_body import _collect_activity, _current_week_moves  # noqa: E402
+from build_email_body import (  # noqa: E402
+    _collect_activity,
+    _current_week_moves,
+    _order_activity,
+)
 
 
 def _sleeve(prev_date, prev_holdings, curr_date, curr_holdings):
@@ -92,6 +96,43 @@ def test_collect_activity_eem_tilt_scales_sleeve_b_weight():
     assert off["QQQ"]["nav_impact"] == pytest.approx(0.5 * 0.35)  # B at 35%
     on = {r["etf"]: r for r in _collect_activity(sleeves, p22_active=True)}
     assert on["QQQ"]["nav_impact"] == pytest.approx(0.5 * 0.25)   # B at 25%
+
+
+def _resize(etf, prev, new, sleeve="B"):
+    return {"sleeve": sleeve, "action": "RESIZE", "etf": etf, "prev": prev,
+            "new": new, "date": "2026-07-17", "nav_impact": abs(new - prev)}
+
+
+def test_order_activity_ranks_by_magnitude_not_resulting_size():
+    """The card must lead with the BIGGEST MOVE, not the biggest resulting
+    position. Regression for the 2026-07-18 owner report: IUFS resized
+    0.5% -> 3.9% (+3.4pp, by far the largest change) but rendered fourth,
+    below DBC 3.0% -> 4.0%, because rows were sorted by resulting weight
+    (4.0 > 3.9 > 3.8 > 3.6)."""
+    rows = [
+        _resize("DBC", 0.030, 0.040),   # +1.0pp, biggest RESULTING weight
+        _resize("IUFS", 0.005, 0.039),  # +3.4pp, biggest MOVE
+        _resize("QQQ", 0.050, 0.038),   # -1.2pp
+        _resize("VNQ", 0.025, 0.036),   # +1.1pp
+    ]
+    assert [a["etf"] for a in _order_activity(rows)] == ["IUFS", "QQQ", "VNQ", "DBC"]
+
+
+def test_order_activity_keeps_action_groups_and_ranks_within_them():
+    """Action grouping (ENTER, then EXIT, then RESIZE) still wins over
+    magnitude, so a small ENTER stays above a large RESIZE; magnitude only
+    orders rows WITHIN a group. Direction is irrelevant — a big trim
+    outranks a small add."""
+    rows = [
+        _resize("BIGTRIM", 0.090, 0.010),   # RESIZE, -8.0pp
+        _resize("SMALLADD", 0.010, 0.012),  # RESIZE, +0.2pp
+        {"sleeve": "A", "action": "ENTER", "etf": "NEWCO", "prev": None,
+         "new": 0.004, "date": "2026-07-17", "nav_impact": 0.004},
+        {"sleeve": "A", "action": "EXIT", "etf": "GONE", "prev": 0.070,
+         "new": None, "date": "2026-07-17", "nav_impact": 0.070},
+    ]
+    assert [a["etf"] for a in _order_activity(rows)] == [
+        "NEWCO", "GONE", "BIGTRIM", "SMALLADD"]
 
 
 def _move(sleeve, date, etf="XYZ"):

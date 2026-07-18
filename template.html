@@ -3515,12 +3515,18 @@ function renderPositionsPreview() {
     }
   }
   // Newest rebalance first (ISO dates sort lexically); then action
-  // priority ENTER > EXIT > RESIZE; then largest NAV within that. This
-  // matches the combined ledger's most-recent-first ordering.
+  // priority ENTER > EXIT > RESIZE; then largest |ΔNAV| within that,
+  // resulting size as tie-break. This matches the combined ledger's
+  // most-recent-first ordering and the email card's ordering.
+  // Magnitude, NOT resulting size: the card shows what MOVED, and ranking
+  // by resulting weight buried the largest move (IUFS 0.5% -> 3.9%, +3.4pp,
+  // sat below a 3.0% -> 4.0% nudge because 3.9 < 4.0). navImpact is already
+  // sleeve-weighted, so cross-sleeve comparison is fair.
   const actOrder = { ENTER: 0, EXIT: 1, RESIZE: 2 };
   activity.sort((x, y) => {
     if (x.date !== y.date) return y.date.localeCompare(x.date);
     if (actOrder[x.action] !== actOrder[y.action]) return actOrder[x.action] - actOrder[y.action];
+    if ((y.navImpact || 0) !== (x.navImpact || 0)) return (y.navImpact || 0) - (x.navImpact || 0);
     return (y.newNav || y.prevNav || 0) - (x.newNav || x.prevNav || 0);
   });
   // Portfolio-level materiality filter: hide moves under 0.5% NAV by

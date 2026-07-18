@@ -288,6 +288,26 @@ def _current_week_moves(activity):
     return latest, current, stale
 
 
+def _order_activity(shown):
+    """Order the activity card's rows: action group (ENTER/EXIT/RESIZE), then
+    |ΔNAV| desc, with resulting size as tie-break. Sorts in place; returns it.
+
+    Magnitude, NOT resulting position size. The card's job is to show what
+    MOVED, and ranking by the resulting weight buried the largest move: IUFS
+    0.5% -> 3.9% (+3.4pp) sat BELOW a 3.0% -> 4.0% nudge purely because
+    3.9 < 4.0. ``nav_impact`` is already sleeve-weighted (see
+    ``_collect_activity``), so a large within-sleeve move in the small C sleeve
+    cannot outrank a genuinely larger move in the big A sleeve.
+
+    Mirrors the dashboard's ``renderPositionsPreview`` and the factsheet PDF's
+    ``build_trades_table`` so all three artefacts tell one story."""
+    act_order = {"ENTER": 0, "EXIT": 1, "RESIZE": 2}
+    shown.sort(key=lambda a: (a.get("nav_impact", 0), a["new"] or a["prev"] or 0),
+               reverse=True)
+    shown.sort(key=lambda a: act_order.get(a["action"], 9))
+    return shown
+
+
 def _regime_colour(state):
     return {
         "RISK_ON": "#1d7a3a",
@@ -478,12 +498,8 @@ def build_html(out_path: Path):
     # beside A/B/D's 07-17 rows under a "07-10 -> 07-17" range chip).
     # Sleeves whose latest rebalance is older get a footnote, not rows.
     MATERIAL_NAV = 0.005
-    _act_order = {"ENTER": 0, "EXIT": 1, "RESIZE": 2}
     latest_rebal, shown, stale_sleeves = _current_week_moves(activity)
-    # Stable multi-key sort: action group (ENTER/EXIT/RESIZE), then
-    # resulting position size desc — the factsheet PDF table's grouping.
-    shown.sort(key=lambda a: (a["new"] or a["prev"] or 0), reverse=True)
-    shown.sort(key=lambda a: _act_order.get(a["action"], 9))
+    _order_activity(shown)
     n_small = sum(1 for a in shown if a["nav_impact"] < MATERIAL_NAV)
     net_nav = sum((a["new"] or 0) - (a["prev"] or 0) for a in shown)
     date_note = latest_rebal or asof_iso
