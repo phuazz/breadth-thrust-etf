@@ -12,7 +12,11 @@ import json
 from datetime import date
 from pathlib import Path
 
-from scripts.check_capture_integrity import RETURN_BOUND, evaluate_target
+from scripts.check_capture_integrity import (
+    RETURN_BOUND,
+    apply_strict,
+    evaluate_target,
+)
 
 # Fri 2 Jul 2026 close as the reference "expected" session; Wed 1 Jul
 # and Tue 30 Jun are the 1- and 2-session-behind cases (no holiday in
@@ -66,6 +70,32 @@ def test_fail_on_non_increasing_tail_dates(tmp_path):
 def test_fail_on_length_mismatch(tmp_path):
     r = _eval(tmp_path, ["2026-07-01", "2026-07-02"], [1.00])
     assert r["status"] == "fail"
+
+
+# ---------------------------------------------------------------------------
+# --strict escalation (2026-07-18): the weekly run must not email a
+# factsheet whose B/C series are missing the Friday rebalance bar.
+# ---------------------------------------------------------------------------
+
+def test_strict_escalates_warn_to_fail_for_named_targets_only():
+    results = [
+        {"label": "Strategy B (asset-class)", "status": "warn", "evidence": "e"},
+        {"label": "Live track", "status": "warn", "evidence": "e"},
+    ]
+    out = apply_strict(results, ("b", "live"), {"b", "c"})
+    assert out[0]["status"] == "fail"
+    assert "strict" in out[0]["evidence"]
+    # The live track keeps the warn-and-publish cadence rule.
+    assert out[1]["status"] == "warn"
+
+
+def test_strict_leaves_ok_and_fail_untouched():
+    results = [
+        {"label": "Strategy B (asset-class)", "status": "ok", "evidence": "e"},
+        {"label": "Strategy C (thematic)", "status": "fail", "evidence": "e"},
+    ]
+    out = apply_strict(results, ("b", "c"), {"b", "c"})
+    assert [r["status"] for r in out] == ["ok", "fail"]
 
 
 def test_fail_on_missing_file(tmp_path):

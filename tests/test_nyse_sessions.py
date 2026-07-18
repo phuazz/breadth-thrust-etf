@@ -13,7 +13,12 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from scripts.nyse_sessions import last_completed_session, sessions_behind
+from scripts.nyse_sessions import (
+    cap_to_last_completed_session,
+    last_completed_session,
+    sessions_behind,
+    yf_fetch_end,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -91,3 +96,52 @@ def test_sessions_behind_year_boundary():
     # Wed 31 Dec 2025 -> Fri 2 Jan 2026: only 2 Jan is a session in
     # between (1 Jan is a holiday) = 1 session behind.
     assert sessions_behind(date(2025, 12, 31), date(2026, 1, 2)) == 1
+
+
+# ---------------------------------------------------------------------------
+# yf_fetch_end / cap_to_last_completed_session (2026-07-18 fencepost fix)
+# ---------------------------------------------------------------------------
+
+def test_yf_fetch_end_pads_past_today():
+    # Fri 17 Jul 2026 22:10 UTC — the minute-class of the weekly CI run
+    # that shipped the factsheet without the Friday rebalance. yfinance's
+    # `end` is exclusive, so end=today would EXCLUDE 17 Jul; the padded
+    # window ends 19 Jul, putting 17 Jul strictly inside it.
+    assert yf_fetch_end(
+        datetime(2026, 7, 17, 22, 10, tzinfo=timezone.utc)
+    ) == "2026-07-19"
+
+
+def test_yf_fetch_end_month_and_year_boundary():
+    # Month boundary: Fri 31 Jul 2026 pads to 2 Aug. Year boundary:
+    # Thu 31 Dec 2026 pads to 2 Jan 2027.
+    assert yf_fetch_end(
+        datetime(2026, 7, 31, 22, 0, tzinfo=timezone.utc)
+    ) == "2026-08-02"
+    assert yf_fetch_end(
+        datetime(2026, 12, 31, 22, 0, tzinfo=timezone.utc)
+    ) == "2027-01-02"
+
+
+def test_yf_fetch_end_naive_rejected():
+    with pytest.raises(ValueError, match="timezone-aware"):
+        yf_fetch_end(datetime(2026, 7, 17, 22, 10))
+
+
+def test_cap_drops_rows_after_last_completed_session():
+    import pandas as pd
+
+    df = pd.DataFrame(
+        {"SPY": [1.0, 2.0, 3.0]},
+        index=pd.to_datetime(["2026-07-16", "2026-07-17", "2026-07-18"]),
+    )
+    # After the Friday 20:00 UTC close: the synthetic Saturday row goes
+    # (e.g. a 24/7-traded component's weekend print), Friday stays.
+    after_close = datetime(2026, 7, 17, 22, 10, tzinfo=timezone.utc)
+    assert list(cap_to_last_completed_session(df, after_close).index) == [
+        pd.Timestamp("2026-07-16"), pd.Timestamp("2026-07-17")]
+    # Mid-session Friday (before the close): Friday's partial bar must
+    # go too — a weekly engine must never stamp a rebalance on it.
+    mid_session = datetime(2026, 7, 17, 18, 0, tzinfo=timezone.utc)
+    assert list(cap_to_last_completed_session(df, mid_session).index) == [
+        pd.Timestamp("2026-07-16")]

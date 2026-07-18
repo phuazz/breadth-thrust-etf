@@ -76,6 +76,11 @@ OUT_PATH = DATA_DIR / "thematic_rotation.json"
 
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 from rebalance_calendar import weekly_rebalance_dates  # noqa: E402
+from nyse_sessions import (  # noqa: E402
+    cap_to_last_completed_session,
+    last_completed_session,
+    yf_fetch_end,
+)
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -286,7 +291,13 @@ DEFERRED_UNIVERSE: dict[str, dict] = {}
 CASH_PROXY = "SHY"
 
 START_DATE = "2018-01-01"  # BLOK inception (Jan 2018) is the binding date
-END_DATE = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+# yfinance's `end` is EXCLUSIVE — end=today drops today's completed
+# close (this is how the 2026-07-17 weekly CI run captured the sleeve
+# only through Thursday and the factsheet missed the Friday rebalance).
+# Fetch padded 2 days ahead; download_prices() caps the panel at the
+# last completed NYSE session so a mid-session run cannot ingest a
+# partial bar either.
+END_DATE = yf_fetch_end()
 
 MA_PERIOD = 200
 SIGNAL_FLOOR = 0.05       # require >= 5% above 200d MA (not just positive)
@@ -486,15 +497,18 @@ def download_prices() -> pd.DataFrame:
     """Download adjusted-close prices for the thematic universe + cash proxy.
 
     Reuses the asset_class cache when available for the cash proxy (avoid
-    double-downloading). Refreshes if more than 7 days stale.
+    double-downloading). Reused only when current through the last
+    COMPLETED NYSE session — the previous "<= 7 calendar days stale"
+    rule could serve a days-old panel to an ad-hoc midweek run.
     """
     needed = TICKERS + [CASH_PROXY]
+    current_through = last_completed_session(datetime.now(timezone.utc))
     if PRICE_CACHE.exists():
         cached = pd.read_parquet(PRICE_CACHE)
-        stale_days = (pd.Timestamp.utcnow().tz_localize(None) - cached.index.max()).days
-        if stale_days <= 7 and set(needed).issubset(set(cached.columns)):
+        cache_end = cached.index.max().date()
+        if cache_end >= current_through and set(needed).issubset(set(cached.columns)):
             print(f"  Using cached prices ({cached.index.min().date()} -> "
-                  f"{cached.index.max().date()}, {stale_days}d stale)")
+                  f"{cache_end}, current through {current_through})")
             return cached[needed]
 
     print(f"  Downloading {len(needed)} tickers from yfinance "
@@ -510,6 +524,11 @@ def download_prices() -> pd.DataFrame:
     df = pd.DataFrame(closes)
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.sort_index()
+    # Partial-bar guard: the padded fetch window may include today's
+    # in-progress session (and crypto's current partial day) when run
+    # during market hours. Cap BEFORE the crypto/FX calendar work so
+    # equity_cal is bounded too.
+    df = cap_to_last_completed_session(df)
     # Phase 15.2: reindex crypto to equity calendar BEFORE applying
     # expense-ratio drag, so the drag's elapsed-days arithmetic uses the
     # right base index.

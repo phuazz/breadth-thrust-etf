@@ -17,6 +17,13 @@ Verdicts per series:
   fail  2+ sessions behind, corrupt tail, or an implausible last return
         -> exit 1, the job fails, the failure alert email fires
 
+--strict KEYS (comma-separated target keys) escalates warn -> fail for
+those targets. The weekly factsheet run passes --strict b,c: its whole
+payload is the Friday rebalance, and 2026-07-17 showed that emailing a
+factsheet without the Friday bar (last week's trades presented as "this
+week") is worse than failing loudly and re-dispatching later. The daily
+live track keeps the warn-and-publish cadence rule.
+
 Which series are validated depends on which the invoking workflow just
 refreshed (--targets): the daily job only re-fetches the live track;
 checking Strategy B/C there would false-alarm mid-week by design (they
@@ -160,6 +167,21 @@ def evaluate_targets(keys: tuple[str, ...], expected: date) -> list[dict]:
     return results
 
 
+def apply_strict(results: list[dict], keys: tuple[str, ...],
+                 strict_keys: set[str]) -> list[dict]:
+    """Escalate warn -> fail for targets whose newest session is not
+    optional (weekly rebalance semantics). ok/fail verdicts pass through
+    unchanged; ``results`` must be parallel to ``keys``."""
+    out = []
+    for key, r in zip(keys, results):
+        if key in strict_keys and r["status"] == "warn":
+            r = {**r, "status": "fail",
+                 "evidence": r["evidence"] + " [strict: this run must "
+                 "include the latest completed session]"}
+        out.append(r)
+    return out
+
+
 def write_github_output(values: dict[str, str], detail: str) -> None:
     """Append step outputs for the conditional warn-email step. No-op
     outside GitHub Actions."""
@@ -181,10 +203,19 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--targets", choices=sorted(TARGET_SETS), default="all",
                         help="which series THIS workflow just refreshed")
+    parser.add_argument("--strict", default="",
+                        help="comma-separated target keys whose 1-session-"
+                        "behind warn escalates to fail (weekly rebalance "
+                        "semantics), e.g. --strict b,c")
     args = parser.parse_args(argv)
+    strict_keys = {k.strip() for k in args.strict.split(",") if k.strip()}
+    unknown = strict_keys - set(TARGETS)
+    if unknown:
+        parser.error(f"unknown --strict target(s): {sorted(unknown)}")
 
     expected = last_completed_session(datetime.now(timezone.utc))
-    results = evaluate_targets(TARGET_SETS[args.targets], expected)
+    keys = TARGET_SETS[args.targets]
+    results = apply_strict(evaluate_targets(keys, expected), keys, strict_keys)
 
     worst = ("ok" if all(r["status"] == "ok" for r in results)
              else "fail" if any(r["status"] == "fail" for r in results)

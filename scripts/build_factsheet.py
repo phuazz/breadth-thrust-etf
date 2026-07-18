@@ -1199,8 +1199,12 @@ def build_trades_table(sleeves, page_w, styles, p22_active, as_of=None):
             continue
         if most_recent_rebal is None or rebal_date > most_recent_rebal:
             most_recent_rebal = rebal_date
-        if rebal_date < cutoff:
-            continue  # this rebal predates the past-7-day window
+        if rebal_date <= cutoff:
+            # Boundary EXCLUSIVE (2026-07-18): with a Friday as-of, a
+            # rebalance dated exactly 7 days earlier is LAST week's
+            # Friday — it must not display (undated) next to this
+            # week's rows, inviting double execution.
+            continue  # last week's rebalance or older — not this week
         week_rebal_dates.add(rebal_date)
         sw = sleeve_wt[key]  # within-sleeve weight -> effective NAV weight
         prev_h = {h["etf"]: h["weight"] for h in trades[-2]["holdings"]}

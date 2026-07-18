@@ -70,6 +70,11 @@ OUT_PATH = DATA_DIR / "asset_class_rotation.json"
 
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 from rebalance_calendar import weekly_rebalance_dates  # noqa: E402
+from nyse_sessions import (  # noqa: E402
+    cap_to_last_completed_session,
+    last_completed_session,
+    yf_fetch_end,
+)
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -135,7 +140,13 @@ UNIVERSE: dict[str, dict] = {
 TICKERS = list(UNIVERSE.keys())
 
 START_DATE = "2007-01-01"  # earliest common start across the universe
-END_DATE   = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+# yfinance's `end` is EXCLUSIVE — end=today drops today's completed
+# close. The Friday 2026-07-17 22:00 UTC CI run captured this sleeve
+# only through Thursday that way, and the factsheet shipped without the
+# Friday rebalance. Fetch padded 2 days ahead; download_prices() then
+# caps the panel at the last completed NYSE session so a mid-session
+# run cannot ingest a partial bar either.
+END_DATE   = yf_fetch_end()
 
 MA_PERIOD = 200
 # Phase 12 cost calibration: Strategy B trades 12 broad-asset ETFs
@@ -214,20 +225,23 @@ def round_series(values, ndigits=4):
 def download_prices() -> pd.DataFrame:
     """Download adjusted-close prices for the asset-class universe.
 
-    Parquet cache at data/asset_class_prices_cache.parquet. Refreshes if the
-    cache is more than 7 days stale relative to today (so weekly Friday
-    rebalances stay current without re-downloading every run).
+    Parquet cache at data/asset_class_prices_cache.parquet. Reused only
+    when current through the last COMPLETED NYSE session — the previous
+    "<= 7 calendar days stale" rule could serve a days-old panel to an
+    ad-hoc midweek run, silently rebalancing on stale closes.
     """
     needed = TICKERS + CASH_ONLY_TICKERS
+    current_through = last_completed_session(datetime.now(timezone.utc))
     if PRICE_CACHE.exists():
         cached = pd.read_parquet(PRICE_CACHE)
-        stale_days = (pd.Timestamp.utcnow().tz_localize(None) - cached.index.max()).days
+        cache_end = cached.index.max().date()
         cached_universe = set(cached.columns)
-        if stale_days <= 7 and set(needed).issubset(cached_universe):
+        if cache_end >= current_through and set(needed).issubset(cached_universe):
             print(f"  Using cached prices ({cached.index.min().date()} -> "
-                  f"{cached.index.max().date()}, {stale_days}d stale)")
+                  f"{cache_end}, current through {current_through})")
             return cached[needed]
-        print(f"  Cache stale ({stale_days}d) or universe expanded — refreshing")
+        print(f"  Cache ends {cache_end} < last completed session "
+              f"{current_through}, or universe expanded — refreshing")
 
     print(f"  Downloading {len(needed)} tickers from yfinance "
           f"({START_DATE} -> {END_DATE}) ...", flush=True)
@@ -243,6 +257,9 @@ def download_prices() -> pd.DataFrame:
     df = pd.DataFrame(closes)
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.sort_index().dropna(how="all")
+    # Partial-bar guard: the padded fetch window may include today's
+    # in-progress session when run during US market hours.
+    df = cap_to_last_completed_session(df)
     df.to_parquet(PRICE_CACHE)
     print(f"  Downloaded {df.shape[0]} rows x {df.shape[1]} tickers")
     return df

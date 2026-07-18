@@ -60,3 +60,38 @@ def sessions_behind(series_end: date, expected: date) -> int:
         start_date=series_end.isoformat(), end_date=expected.isoformat()
     )
     return int((sched.index.date > series_end).sum())
+
+
+def yf_fetch_end(now_utc: datetime | None = None) -> str:
+    """ISO ``end`` argument for a yfinance download that must include the
+    latest completed close. yfinance's ``end`` is EXCLUSIVE — rows come
+    back strictly before it, so ``end=today`` silently drops today's
+    completed session. That is how the Friday 2026-07-17 22:00 UTC weekly
+    run captured Strategy B/C only through Thursday and the factsheet
+    shipped without the Friday rebalance. Pad two calendar days; pair
+    with cap_to_last_completed_session so a mid-session run cannot
+    ingest a partial bar instead.
+    """
+    if now_utc is None:
+        now_utc = datetime.now(timezone.utc)
+    if now_utc.tzinfo is None:
+        raise ValueError("now_utc must be timezone-aware (UTC)")
+    return ((now_utc.astimezone(timezone.utc) + timedelta(days=2)).date()
+            .isoformat())
+
+
+def cap_to_last_completed_session(frame, now_utc: datetime | None = None):
+    """Drop rows dated after the last completed NYSE session from a
+    DatetimeIndex-ed pandas object (DataFrame or Series).
+
+    The partial-bar guard that makes the padded ``yf_fetch_end`` window
+    safe: a run during US market hours would otherwise ingest today's
+    in-progress bar as if it were a close, and a weekly engine could
+    stamp a rebalance on it.
+    """
+    if now_utc is None:
+        now_utc = datetime.now(timezone.utc)
+    cutoff = last_completed_session(now_utc)
+    if len(frame) == 0:
+        return frame
+    return frame[frame.index.date <= cutoff]

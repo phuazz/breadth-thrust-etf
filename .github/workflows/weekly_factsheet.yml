@@ -200,18 +200,24 @@ jobs:
         # than stuck-on-last-locally-refreshed-Friday.
         run: python scripts/mark_to_market_live.py
 
-      # ----- Capture integrity (2026-07-03) -----
+      # ----- Capture integrity (2026-07-03; strict B/C 2026-07-18) -----
       # A run can succeed while the engines quietly captured nothing new
       # (partial yfinance response, cached feed) or a corrupt print — the
       # silent-wrong class no process-level check sees. This anchors the
       # series THIS job just refreshed (Strategy B, Strategy C and the
-      # live track) to the true NYSE calendar: 1 session behind emails a
-      # warning and still publishes (cadence rule: publish the latest
-      # populated close); 2+ behind or a corrupt tail FAILS the job
-      # before the factsheet is built, committed or emailed.
-      - name: Check capture integrity (B, C, live track vs NYSE calendar)
+      # live track) to the true NYSE calendar. The live track keeps the
+      # warn-and-publish cadence rule at 1 session behind; Strategy B/C
+      # run STRICT — this workflow's whole payload is the Friday
+      # rebalance, and 2026-07-17 shipped a factsheet presenting last
+      # week's trades as "this week" because B/C quietly ended Thursday.
+      # (The engines' exclusive-end fetch fencepost that caused that miss
+      # is fixed, so a strict failure now means genuine upstream lag —
+      # re-dispatch later rather than publish without the Friday bar.)
+      # 2+ behind or a corrupt tail fails as before, before anything is
+      # built, committed or emailed.
+      - name: Check capture integrity (B/C strict, live track vs NYSE calendar)
         id: capture
-        run: python scripts/check_capture_integrity.py --targets all
+        run: python scripts/check_capture_integrity.py --targets all --strict b,c
 
       - name: Email capture warning (1 session behind, still publishing)
         if: steps.capture.outputs.capture_warn == 'true'
@@ -326,6 +332,12 @@ jobs:
             use 'Re-run failed jobs' after a refresh - it re-runs the
             original commit without the refreshed panels and hits the
             same guard again.
+
+            If the log shows the capture-integrity check failing STRICT
+            on Strategy B/C (1 session behind), the vendor has not yet
+            posted the latest close: re-dispatch via 'Run workflow' an
+            hour later or on Saturday morning SGT. Do not loosen the
+            check - a factsheet without the Friday rebalance misleads.
 
             For transient failures (network, yfinance), 'Re-run failed
             jobs' is fine - same commit, same inputs, likely to pass.
