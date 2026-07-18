@@ -1285,3 +1285,36 @@ task `breadth-thrust norgate feed parallel-run`, Tue–Sat 07:15 SGT,
 wrapper `scripts/run_norgate_publisher.bat`, output confined to
 git-ignored `data_local/`. Stage 2 approved in principle; soak review
 due Friday 2026-08-07 with the concrete loader diff. Record §8.
+
+## 2026-07-18 — Reporting-layer robustness audit (CLOSED, REMEDIATED)
+
+**Scope**: calculation/reporting layer only — `build_email_body.py`,
+`build_factsheet.py`, `template.html`, `build_risk_visuals.py` and their
+feeds; strategy logic out of scope (2026-07-04 implementation audit covers
+it). Method: cross-artefact reconciliation with per-artefact formula clones
+calibrated against stored engine fields, then independent date-library
+recomputation; shipped vintages pinned per git commit.
+
+**Result: ten confirmed silent numerical defects, all fixed and deployed
+the same day** (4efa087, 19552f8, 7671120, 40e59c7; 317 tests; live deploy
+verified). The three most material: (1) the factsheet attribution charts
+silently dropped 47.6% of NAV in every weekly build — sleeves A ex-SOXX
+and D could never resolve against the panel's proxy keys — and the EEM bar
+(10% NAV) covered the wrong week; (2) the same delivery printed email 1Y
++32.19% against PDF +30.75% (252-bar "1Y" = 374 calendar days on the
+~246.5-bar/yr intersect calendar) while the dashboard's default view showed
+YTD +13.95% against +15.26% everywhere else and Sharpe 1.333 beside the
+header's 1.236; (3) eight published daily builds carried phantom non-NYSE
+bars after US holidays (tail-only session cap), shifting the 2026-07-06
+WTD by −0.25pp. Latent state divergences (tilt-flip priors ≤5.7pp NAV,
+missing 10% EEM trade rows, RISK_OFF holdings at 2× live target) are now
+unified behind `scripts/overlay_state.py` and its JS port — point-in-time
+sleeve weights from the overlay event log, flip-day inclusive.
+
+**Convention guard going forward**: any new metric surface must reuse
+`overlay_state` / `ytd_ret` / the shared JS window helpers and ship a
+cross-artefact agreement test (pattern: `tests/test_wtd_logic.py`).
+Watchpoint: first US-holiday-with-Xetra-open after any live-track change
+(next: Labor Day, Monday 2026-09-07) — regression test covers the
+mechanism. Record: `reviews/2026-07-18_reporting-audit.docx`. Follow-up
+spawned for the monitor repo's registry coverage (digest proximity chart).
