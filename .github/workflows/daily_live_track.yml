@@ -36,12 +36,12 @@ jobs:
     timeout-minutes: 8
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -67,7 +67,7 @@ jobs:
       - name: Email freshness warning (warn-early, before the hard stop)
         if: steps.headroom.outputs.warn == 'true'
         continue-on-error: true
-        uses: dawidd6/action-send-mail@v3
+        uses: dawidd6/action-send-mail@v18
         with:
           server_address: smtp.gmail.com
           server_port: 465
@@ -103,7 +103,7 @@ jobs:
       - name: Email capture warning (1 session behind, still publishing)
         if: steps.capture.outputs.capture_warn == 'true'
         continue-on-error: true
-        uses: dawidd6/action-send-mail@v3
+        uses: dawidd6/action-send-mail@v18
         with:
           server_address: smtp.gmail.com
           server_port: 465
@@ -154,7 +154,7 @@ jobs:
       - name: Email failure alert
         if: failure()
         continue-on-error: true
-        uses: dawidd6/action-send-mail@v3
+        uses: dawidd6/action-send-mail@v18
         with:
           server_address: smtp.gmail.com
           server_port: 465

@@ -1,0 +1,44 @@
+name: Ops mail smoke test
+
+# Manual-dispatch-only self-test of the alerting mail path (2026-07-18).
+#
+# Why this exists: every alert in this repo (freshness warn, capture
+# warn, failure alerts, [SENTINEL]) goes through dawidd6/action-send-mail.
+# A broken mailer therefore fails SILENTLY — the failure-alert step that
+# would report it uses the same action. This workflow lets the operator
+# prove the mail path end-to-end (SMTP auth + send) in ~30 seconds after
+# any action version bump or Gmail app-password rotation, instead of
+# waiting for the next real alert to find out.
+#
+# Sends ONE email to the operator (GMAIL_USER) only — never the
+# factsheet distribution list. There is no cron: dispatch it from the
+# Actions tab whenever the mail stack changes.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send test email to operator
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[SMOKE] Alert mail path OK'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            Manual smoke test of the ops alerting mail path. If you are
+            reading this, SMTP auth and send both work on the currently
+            pinned mailer action version.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
