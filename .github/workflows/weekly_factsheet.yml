@@ -40,6 +40,11 @@ on:
     # across US DST changeovers, never compromising the data buffer.
     - cron: '0 22 * * 5'
   workflow_dispatch:  # manual trigger button in Actions tab
+    inputs:
+      trial:
+        description: 'Trial: email the factsheet to the operator (GMAIL_USER) only, [TRIAL] subject, and skip the publish commit'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -251,6 +256,9 @@ jobs:
         run: python -m pytest tests/ -q
 
       - name: Commit refreshed outputs
+        # Trial runs publish nothing — the rebuilt artefacts stay on the
+        # runner so a styling experiment never reaches the live site.
+        if: ${{ !inputs.trial }}
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "Weekly Factsheet Bot"
@@ -294,8 +302,11 @@ jobs:
           secure: true
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: 'Weekly factsheet · USD Multi-Strategy ETF Portfolio · ${{ steps.meta.outputs.asof }}'
-          to: ${{ secrets.RECIPIENT_EMAIL }}
+          subject: "${{ inputs.trial && '[TRIAL] ' || '' }}Weekly factsheet · USD Multi-Strategy ETF Portfolio · ${{ steps.meta.outputs.asof }}"
+          # Trial runs go to the operator only — never the distribution
+          # list. Scheduled runs have no inputs context, so the ternary
+          # falls through to RECIPIENT_EMAIL.
+          to: ${{ inputs.trial && secrets.GMAIL_USER || secrets.RECIPIENT_EMAIL }}
           from: 'USD Multi-Strategy ETF Factsheet <${{ secrets.GMAIL_USER }}>'
           html_body: ${{ steps.emailbody.outputs.html }}
           # Attach the dated copy so the recipient sees a properly-named

@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from build_email_body import _collect_activity  # noqa: E402
+from build_email_body import _collect_activity, _current_week_moves  # noqa: E402
 
 
 def _sleeve(prev_date, prev_holdings, curr_date, curr_holdings):
@@ -92,3 +92,54 @@ def test_collect_activity_eem_tilt_scales_sleeve_b_weight():
     assert off["QQQ"]["nav_impact"] == pytest.approx(0.5 * 0.35)  # B at 35%
     on = {r["etf"]: r for r in _collect_activity(sleeves, p22_active=True)}
     assert on["QQQ"]["nav_impact"] == pytest.approx(0.5 * 0.25)   # B at 25%
+
+
+def _move(sleeve, date, etf="XYZ"):
+    return {"sleeve": sleeve, "action": "RESIZE", "etf": etf,
+            "prev": 0.05, "new": 0.06, "date": date, "nav_impact": 0.01}
+
+
+def test_current_week_moves_filters_to_latest_date_and_footnotes_rest():
+    """Mixed-date activity (the 2026-07-17 build: A/B/D on 07-17, C still
+    on 07-10) keeps only the latest date's rows; older-dated sleeves come
+    back as (sleeve, date) footnote pairs, deduplicated."""
+    activity = [
+        _move("A", "2026-07-17", "SOXX"),
+        _move("B", "2026-07-17", "IJR"),
+        _move("D", "2026-07-17", "EXV1"),
+        _move("C", "2026-07-10", "CIBR"),
+        _move("C", "2026-07-10", "PAVE"),
+    ]
+    latest, current, stale = _current_week_moves(activity)
+    assert latest == "2026-07-17"
+    assert {a["etf"] for a in current} == {"SOXX", "IJR", "EXV1"}
+    assert stale == [("C", "2026-07-10")]  # two C moves -> one footnote
+
+
+def test_current_week_moves_single_date_has_no_footnote():
+    activity = [_move("A", "2026-07-17"), _move("B", "2026-07-17")]
+    latest, current, stale = _current_week_moves(activity)
+    assert latest == "2026-07-17"
+    assert len(current) == 2
+    assert stale == []
+
+
+def test_current_week_moves_month_and_year_boundaries():
+    """ISO date strings must order correctly across month and year ends
+    (string max is only safe because the format is YYYY-MM-DD)."""
+    # Month boundary: 2026-07-31 vs 2026-08-07.
+    latest, current, stale = _current_week_moves(
+        [_move("A", "2026-07-31"), _move("B", "2026-08-07")])
+    assert latest == "2026-08-07"
+    assert stale == [("A", "2026-07-31")]
+    # Year boundary: 2026-12-31 vs 2027-01-08.
+    latest, current, stale = _current_week_moves(
+        [_move("C", "2026-12-31"), _move("D", "2027-01-08")])
+    assert latest == "2027-01-08"
+    assert stale == [("C", "2026-12-31")]
+
+
+def test_current_week_moves_empty_and_undated():
+    assert _current_week_moves([]) == (None, [], [])
+    undated = [_move("A", "")]  # corrupt input: no dates at all
+    assert _current_week_moves(undated) == (None, [], [])

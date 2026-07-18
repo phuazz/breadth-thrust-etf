@@ -264,6 +264,30 @@ def _collect_activity(sleeves, p22_active):
     return rows
 
 
+def _current_week_moves(activity):
+    """Split activity into the latest rebalance date's moves plus a
+    summary of sleeves whose most recent rebalance is older.
+
+    _collect_activity returns each sleeve's own latest rebalance, and
+    sleeves legitimately skip weeks (no signal change; US-holiday
+    Fridays), so rendering everything in one table mixes week-old moves
+    the reader has already executed with the new ones. Only the newest
+    date's rows should display; older-dated sleeves become a footnote.
+
+    Returns ``(latest_date, current_rows, stale_sleeves)`` where
+    ``stale_sleeves`` is a sorted list of ``(sleeve, date)`` pairs.
+    ``latest_date`` is None when no move carries a date (corrupt input —
+    caller falls back to showing nothing rather than guessing).
+    """
+    dated = [a for a in activity if a.get("date")]
+    if not dated:
+        return None, [], []
+    latest = max(a["date"] for a in dated)
+    current = [a for a in dated if a["date"] == latest]
+    stale = sorted({(a["sleeve"], a["date"]) for a in dated if a["date"] != latest})
+    return latest, current, stale
+
+
 def _regime_colour(state):
     return {
         "RISK_ON": "#1d7a3a",
@@ -430,9 +454,8 @@ def build_html(out_path: Path):
             f'Other stats span the full deployed-blend backtest history.</p>'
         )
 
-    # Top holdings — mirrors the dashboard's positions-preview card:
-    # ticker bold, fund name in small grey secondary line, sleeve tag,
-    # % NAV, $ on $1.0M.
+    # Shared cell renderer — ticker bold with the fund name as a small
+    # grey secondary line. Used by both the rebalance and holdings tables.
     def _name_cell(etf: str) -> str:
         nm = labels.get(etf, "")
         if not nm:
@@ -440,6 +463,126 @@ def build_html(out_path: Path):
         return (f'<strong style="font-family:{MONO};">{etf}</strong>'
                 f'<br><span style="font-size:11px;color:#7c8590;">{nm}</span>')
 
+    # Latest rebalance changes — placed directly after performance (owner
+    # preference 2026-07-18: the week's trades are the actionable payload
+    # of this email and read first). Portfolio-level % NAV figures and a
+    # net reconciliation line, aligned with the dashboard's activity card.
+    # A static email has no reveal-toggle, so every move shows, with
+    # sub-0.5%-NAV moves counted in the note rather than hidden.
+    #
+    # Only the LATEST rebalance date's rows display. _collect_activity
+    # returns each sleeve's own most recent rebalance, and sleeves skip
+    # weeks (no signal change; US-holiday Fridays), so one table would
+    # otherwise mix week-old moves the reader has already executed with
+    # the new ones (2026-07-17 build: C's 07-10 CIBR/PAVE rows sat
+    # beside A/B/D's 07-17 rows under a "07-10 -> 07-17" range chip).
+    # Sleeves whose latest rebalance is older get a footnote, not rows.
+    MATERIAL_NAV = 0.005
+    _act_order = {"ENTER": 0, "EXIT": 1, "RESIZE": 2}
+    latest_rebal, shown, stale_sleeves = _current_week_moves(activity)
+    # Stable multi-key sort: action group (ENTER/EXIT/RESIZE), then
+    # resulting position size desc — the factsheet PDF table's grouping.
+    shown.sort(key=lambda a: (a["new"] or a["prev"] or 0), reverse=True)
+    shown.sort(key=lambda a: _act_order.get(a["action"], 9))
+    n_small = sum(1 for a in shown if a["nav_impact"] < MATERIAL_NAV)
+    net_nav = sum((a["new"] or 0) - (a["prev"] or 0) for a in shown)
+    date_note = latest_rebal or asof_iso
+
+    def _net_note():
+        sign = "+" if net_nav >= -0.00005 else "−"
+        note = (f'Buys minus sells net to <strong>{sign}{abs(net_nav) * 100:.1f}% NAV'
+                f'</strong> across the moves shown (remainder is unchanged holdings or cash).')
+        if n_small:
+            note += (f' Includes {n_small} smaller move{"" if n_small == 1 else "s"} '
+                     f'(&lt;0.5% NAV) — full set shown, nothing omitted.')
+        return ('<p style="color:#7c8590;font-size:11px;margin:6px 0 18px 0;'
+                'line-height:1.5;">' + note + '</p>')
+
+    out.append('<h3 style="margin:0 0 10px 0;font-size:14px;'
+               'color:#3a4148;text-transform:uppercase;letter-spacing:1px;">'
+               f"Latest rebalance changes <span style=\"float:right;font-size:11px;"
+               f"color:#7c8590;font-weight:400;text-transform:none;"
+               f"letter-spacing:0;\">rebalanced {date_note}</span></h3>")
+    if not shown:
+        out.append('<p style="color:#7c8590;font-style:italic;'
+                   'margin-bottom:18px;">'
+                   'No position changes this week &mdash; strategy stable.</p>')
+    else:
+        out.append('<table style="width:100%;border-collapse:collapse;'
+                   'margin-bottom:6px;font-size:13px;">')
+        out.append(
+            '<tr style="color:#7c8590;font-size:10px;text-transform:uppercase;'
+            'letter-spacing:0.5px;">'
+            '<th style="text-align:left;padding:4px 10px;'
+            'border-bottom:1px solid #c8ccd2;">Sleeve</th>'
+            '<th style="text-align:left;padding:4px 10px;'
+            'border-bottom:1px solid #c8ccd2;">Action</th>'
+            '<th style="text-align:left;padding:4px 10px;'
+            'border-bottom:1px solid #c8ccd2;">Ticker &amp; name</th>'
+            '<th style="text-align:right;padding:4px 10px;'
+            'border-bottom:1px solid #c8ccd2;">Prior &rarr; New (% NAV)</th>'
+            '<th style="padding:4px 2px 4px 0;'
+            'border-bottom:1px solid #c8ccd2;">&nbsp;</th></tr>'
+        )
+        action_colour = {"ENTER": "#1d7a3a", "EXIT": "#b3261e",
+                          "RESIZE": "#b76e00"}
+        for a in shown:
+            prev_str = f"{a['prev'] * 100:.1f}%" if a["prev"] is not None else "&mdash;"
+            new_str = f"{a['new'] * 100:.1f}%" if a["new"] is not None else "&mdash;"
+            # Slight direction marker on RESIZE rows: the amber action
+            # label says the weight changed but not which way — ENTER and
+            # EXIT already carry direction in their green/red labels.
+            if (a["action"] == "RESIZE" and a["prev"] is not None
+                    and a["new"] is not None):
+                up = a["new"] > a["prev"]
+                arrow = (f'<span style="color:{"#1d7a3a" if up else "#b3261e"};'
+                         f'font-size:10px;">{"&#9650;" if up else "&#9660;"}</span>')
+            else:
+                arrow = "&nbsp;"
+            out.append(
+                f'<tr><td style="padding:6px 10px;color:#3a4148;vertical-align:top;'
+                f'border-bottom:1px solid #f0f2f4;">{a["sleeve"]}</td>'
+                f'<td style="padding:6px 10px;font-weight:700;font-size:11px;'
+                f'letter-spacing:0.4px;vertical-align:top;'
+                f'color:{action_colour.get(a["action"], "#3a4148")};'
+                f'border-bottom:1px solid #f0f2f4;">{a["action"]}</td>'
+                f'<td style="padding:6px 10px;vertical-align:top;'
+                f'border-bottom:1px solid #f0f2f4;">{_name_cell(a["etf"])}</td>'
+                f'<td style="padding:6px 10px;text-align:right;'
+                f'font-family:{MONO};vertical-align:top;'
+                f'border-bottom:1px solid #f0f2f4;">'
+                f'{prev_str} &rarr; {new_str}</td>'
+                f'<td style="padding:6px 2px 6px 0;width:16px;'
+                f'vertical-align:top;border-bottom:1px solid #f0f2f4;">'
+                f'{arrow}</td></tr>'
+            )
+        out.append('</table>')
+        if stale_sleeves:
+            unchanged = " &middot; ".join(
+                f"Sleeve {s} unchanged this week (last rebalanced {d})"
+                for s, d in stale_sleeves)
+            out.append('<p style="color:#7c8590;font-size:11px;'
+                       'margin:6px 0 0 0;line-height:1.5;">'
+                       + unchanged + '</p>')
+        out.append(_net_note())
+
+    # Deep-link to the full, filterable ledger on the live dashboard. The
+    # email lists this week's moves; the dashboard holds the entire history
+    # (every rebalance across all four sleeves). The #combined-ledger-section
+    # hash opens the Trade History tab and scrolls to the ledger.
+    out.append(
+        '<p style="margin:0 0 18px 0;font-size:12px;">&rarr; '
+        '<a href="https://phuazz.github.io/breadth-thrust-etf/#combined-ledger-section" '
+        'style="color:#1351b4;font-weight:600;">Open the full interactive trade ledger</a> '
+        '<span style="color:#7c8590;">&mdash; every rebalance across all four sleeves, '
+        'filterable by sleeve, ETF, or date.</span></p>'
+    )
+
+    # Top holdings — mirrors the dashboard's positions-preview card:
+    # ticker bold, fund name in small grey secondary line, sleeve tag,
+    # % NAV, $ on $1.0M. Renders AFTER the rebalance card (owner
+    # preference 2026-07-18: the week's trades are the actionable payload
+    # and read first; the standing book follows).
     out.append('<h3 style="margin:0 0 10px 0;font-size:14px;'
                'color:#3a4148;text-transform:uppercase;letter-spacing:1px;">'
                f'Current holdings <span style="float:right;font-size:11px;'
@@ -476,103 +619,6 @@ def build_html(out_path: Path):
             f'${cash:,.0f}</td></tr>'
         )
     out.append('</table>')
-
-    # Latest rebalance changes — aligned with the dashboard's activity card:
-    # portfolio-level 0.5% NAV materiality, a per-move date, newest-first
-    # order, and a net reconciliation line. A static email has no
-    # reveal-toggle, so sub-0.5%-NAV moves are summarised as a count (the
-    # dashboard has a checkbox that shows them).
-    MATERIAL_NAV = 0.005
-    _act_order = {"ENTER": 0, "EXIT": 1, "RESIZE": 2}
-    material = [a for a in activity if a["nav_impact"] >= MATERIAL_NAV]
-    # Show EVERY move this cycle (no materiality omission) so the email is a
-    # complete rebalance record — the recipient should not have to open the
-    # dashboard to catch the smaller moves. The dashboard hides sub-0.5%-NAV
-    # moves behind a toggle; a static email has no toggle, so it lists them.
-    shown = list(activity)
-    # Stable multi-key sort: date desc, then action (ENTER/EXIT/RESIZE),
-    # then resulting position size desc — identical ordering to the dashboard.
-    shown.sort(key=lambda a: (a["new"] or a["prev"] or 0), reverse=True)
-    shown.sort(key=lambda a: _act_order.get(a["action"], 9))
-    shown.sort(key=lambda a: a["date"], reverse=True)
-    n_small = len(activity) - len(material)
-    net_nav = sum((a["new"] or 0) - (a["prev"] or 0) for a in activity)
-    shown_dates = sorted({a["date"] for a in shown if a["date"]})
-    date_note = (f"{shown_dates[0]} &rarr; {shown_dates[-1]}" if len(shown_dates) > 1
-                 else shown_dates[0] if shown_dates else asof_iso)
-
-    def _net_note():
-        sign = "+" if net_nav >= -0.00005 else "−"
-        note = (f'Buys minus sells net to <strong>{sign}{abs(net_nav) * 100:.1f}% NAV'
-                f'</strong> across all moves (remainder is unchanged holdings or cash).')
-        if n_small:
-            note += (f' Includes {n_small} smaller move{"" if n_small == 1 else "s"} '
-                     f'(&lt;0.5% NAV) — full set shown, nothing omitted.')
-        return ('<p style="color:#7c8590;font-size:11px;margin:6px 0 18px 0;'
-                'line-height:1.5;">' + note + '</p>')
-
-    out.append('<h3 style="margin:0 0 10px 0;font-size:14px;'
-               'color:#3a4148;text-transform:uppercase;letter-spacing:1px;">'
-               f"Latest rebalance changes <span style=\"float:right;font-size:11px;"
-               f"color:#7c8590;font-weight:400;text-transform:none;"
-               f"letter-spacing:0;\">{date_note}</span></h3>")
-    if not activity:
-        out.append('<p style="color:#7c8590;font-style:italic;'
-                   'margin-bottom:18px;">'
-                   'No position changes &mdash; strategy stable since last week.</p>')
-    else:
-        out.append('<table style="width:100%;border-collapse:collapse;'
-                   'margin-bottom:6px;font-size:13px;">')
-        out.append(
-            '<tr style="color:#7c8590;font-size:10px;text-transform:uppercase;'
-            'letter-spacing:0.5px;">'
-            '<th style="text-align:left;padding:4px 10px;'
-            'border-bottom:1px solid #c8ccd2;">Date</th>'
-            '<th style="text-align:left;padding:4px 10px;'
-            'border-bottom:1px solid #c8ccd2;">Sleeve</th>'
-            '<th style="text-align:left;padding:4px 10px;'
-            'border-bottom:1px solid #c8ccd2;">Action</th>'
-            '<th style="text-align:left;padding:4px 10px;'
-            'border-bottom:1px solid #c8ccd2;">Ticker &amp; name</th>'
-            '<th style="text-align:right;padding:4px 10px;'
-            'border-bottom:1px solid #c8ccd2;">Prior &rarr; New (% NAV)</th></tr>'
-        )
-        action_colour = {"ENTER": "#1d7a3a", "EXIT": "#b3261e",
-                          "RESIZE": "#b76e00"}
-        for a in shown:
-            prev_str = f"{a['prev'] * 100:.1f}%" if a["prev"] is not None else "&mdash;"
-            new_str = f"{a['new'] * 100:.1f}%" if a["new"] is not None else "&mdash;"
-            out.append(
-                f'<tr><td style="padding:6px 10px;color:#7c8590;vertical-align:top;'
-                f'font-family:{MONO};font-size:11px;white-space:nowrap;'
-                f'border-bottom:1px solid #f0f2f4;">{a["date"] or "&mdash;"}</td>'
-                f'<td style="padding:6px 10px;color:#3a4148;vertical-align:top;'
-                f'border-bottom:1px solid #f0f2f4;">{a["sleeve"]}</td>'
-                f'<td style="padding:6px 10px;font-weight:700;font-size:11px;'
-                f'letter-spacing:0.4px;vertical-align:top;'
-                f'color:{action_colour.get(a["action"], "#3a4148")};'
-                f'border-bottom:1px solid #f0f2f4;">{a["action"]}</td>'
-                f'<td style="padding:6px 10px;vertical-align:top;'
-                f'border-bottom:1px solid #f0f2f4;">{_name_cell(a["etf"])}</td>'
-                f'<td style="padding:6px 10px;text-align:right;'
-                f'font-family:{MONO};vertical-align:top;'
-                f'border-bottom:1px solid #f0f2f4;">'
-                f'{prev_str} &rarr; {new_str}</td></tr>'
-            )
-        out.append('</table>')
-        out.append(_net_note())
-
-    # Deep-link to the full, filterable ledger on the live dashboard. The
-    # email lists this week's moves; the dashboard holds the entire history
-    # (every rebalance across all four sleeves). The #combined-ledger-section
-    # hash opens the Trade History tab and scrolls to the ledger.
-    out.append(
-        '<p style="margin:0 0 18px 0;font-size:12px;">&rarr; '
-        '<a href="https://phuazz.github.io/breadth-thrust-etf/#combined-ledger-section" '
-        'style="color:#1351b4;font-weight:600;">Open the full interactive trade ledger</a> '
-        '<span style="color:#7c8590;">&mdash; every rebalance across all four sleeves, '
-        'filterable by sleeve, ETF, or date.</span></p>'
-    )
 
     # Compact regime / tilt / allocation line — single row instead of
     # the 3-row table that used to dominate the top of the email.
@@ -655,8 +701,9 @@ def build_html(out_path: Path):
     print(f"  Regime:       {regime_state} (since {regime_since})")
     print(f"  EEM tilt:     {tilt_state}")
     print(f"  Top holdings: {len(holdings)}")
-    print(f"  Activity:     {len(material)} material of {len(activity)} moves "
-          f"({n_small} sub-0.5% NAV)")
+    print(f"  Activity:     {len(shown)} move(s) dated {date_note}; "
+          f"{n_small} sub-0.5% NAV; "
+          f"{len(activity) - len(shown)} older-dated move(s) footnoted")
     return 0
 
 
