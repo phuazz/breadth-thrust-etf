@@ -191,3 +191,63 @@ def test_against_live_deployed_blend():
     assert -0.25 < r["pct"] < 0.25, (
         f"WTD {r['pct']:.4%} on {r['from_date']} -> {r['to_date']} is "
         "implausibly large for a single week — investigate.")
+
+
+# ---------------------------------------------------------------------------
+# YTD anchoring — the email body and the factsheet PDF must agree.
+# ---------------------------------------------------------------------------
+# Regression for 2026-07-18: the factsheet based YTD on the first observation
+# AT/AFTER 1 January (window_ret slices .loc[start:] and divides by iloc[0]),
+# so it silently dropped the first trading day. On 2026-01-02 the strategy
+# gained +1.15% while SPY lost -0.56% — a +1.70pp relative day discarded
+# outright. The PDF printed YTD +14.0% / vs SPY +4.6% while the email body,
+# which anchors to the prior year's final close, printed +15.3% — the same
+# portfolio, two numbers, in one delivery (the PDF is attached to that email).
+
+import sys as _sys
+from pathlib import Path as _Path
+
+_sys.path.insert(0, str(_Path(__file__).resolve().parent.parent / "scripts"))
+
+
+def _year_series():
+    """Prior-year close then three sessions of the new year."""
+    import pandas as pd
+    idx = pd.to_datetime(["2025-12-30", "2026-01-02", "2026-01-05", "2026-07-17"])
+    #                      100.0          101.15 (+1.15%)  102.0        115.26
+    return pd.Series([100.0, 101.15, 102.0, 115.26], index=idx)
+
+
+def test_ytd_anchors_to_prior_year_close_not_first_session():
+    """YTD must measure from the PRIOR YEAR'S FINAL CLOSE, so the first
+    session's move is included."""
+    from build_factsheet import ytd_ret
+
+    s = _year_series()
+    # 115.26 / 100.0 - 1 = +15.26%  (anchored to 2025-12-30)
+    assert ytd_ret(s, 2026) == pytest.approx(0.1526, abs=1e-6)
+    # The buggy convention would have given 115.26 / 101.15 - 1 = +13.95%.
+    assert ytd_ret(s, 2026) != pytest.approx(0.1395, abs=1e-4)
+
+
+def test_ytd_agrees_between_email_and_factsheet():
+    """The two artefacts ship together; their YTD must be identical."""
+    from build_email_body import _ytd_return
+    from build_factsheet import ytd_ret
+
+    s = _year_series()
+    assert ytd_ret(s, 2026) == pytest.approx(_ytd_return(s), abs=1e-12)
+
+
+def test_ytd_falls_back_when_no_prior_year_data():
+    """With no prior-year close available, anchor to the first in-year
+    observation rather than returning nothing."""
+    import pandas as pd
+
+    from build_factsheet import ytd_ret
+
+    s = pd.Series([50.0, 55.0], index=pd.to_datetime(["2026-01-02", "2026-06-30"]))
+    assert ytd_ret(s, 2026) == pytest.approx(0.10, abs=1e-9)
+    # A single in-year point with no prior year cannot produce a return.
+    one = pd.Series([50.0], index=pd.to_datetime(["2026-01-02"]))
+    assert ytd_ret(one, 2026) is None

@@ -224,6 +224,34 @@ def window_ret(series, start, end=None):
     return s.iloc[-1] / s.iloc[0] - 1
 
 
+def ytd_ret(series, year):
+    """YTD return anchored to the PRIOR YEAR'S FINAL CLOSE, not 1 January.
+
+    window_ret() bases its return on the first observation AT/AFTER ``start``,
+    so passing Timestamp(year, 1, 1) based YTD on the first trading day's
+    CLOSE and silently dropped that session's move. For 2026 the first session
+    (02 Jan) gained +1.15%, so this factsheet printed YTD +14.0% while the
+    weekly email body — which anchors correctly — printed +15.3% for the same
+    portfolio, in the same delivery (the PDF is attached to that email).
+
+    Anchoring to the prior year's last close is the standard convention and
+    matches build_email_body._ytd_return. Applied per-series so the strategy
+    and SPY are each anchored on their own calendar."""
+    s = series.dropna()
+    year_start = pd.Timestamp(year, 1, 1)
+    in_year = s[s.index >= year_start]
+    if not len(in_year):
+        return None
+    prior = s[s.index < year_start]
+    if len(prior):
+        base = prior.iloc[-1]
+    elif len(in_year) >= 2:
+        base = in_year.iloc[0]          # no prior-year data — best available
+    else:
+        return None
+    return in_year.iloc[-1] / base - 1
+
+
 def window_stats(series, start=None, end=None):
     s = series.loc[start:end].dropna() if (start or end) else series.dropna()
     if len(s) < 5: return None
@@ -794,8 +822,15 @@ def build_hero_strip(deployed_series, full_stats, page_w, styles,
     ]
     cells = []
     for label, start in windows:
-        strat = window_ret(deployed_series, start)
-        spy = window_ret(spy_series, start) if spy_series is not None else None
+        # YTD must anchor to the prior year's final close (see ytd_ret); the
+        # other windows land on a real close naturally, so window_ret is right.
+        if label == "YEAR TO DATE":
+            strat = ytd_ret(deployed_series, last_date.year)
+            spy = (ytd_ret(spy_series, last_date.year)
+                   if spy_series is not None else None)
+        else:
+            strat = window_ret(deployed_series, start)
+            spy = window_ret(spy_series, start) if spy_series is not None else None
         delta = (strat - spy) if (strat is not None and spy is not None) else None
         cells.append({
             "label": label,
@@ -877,8 +912,15 @@ def build_returns_table(deployed_series, spy_series, page_w, styles):
     ]
     data = [["PERIOD", "STRATEGY", "SPY", "Δ VS SPY"]]
     for label, start in windows:
-        strat = window_ret(deployed_series, start)
-        spy = window_ret(spy_series, start) if spy_series is not None else None
+        # Same prior-year-close anchoring as the page-1 KPI card (see ytd_ret),
+        # so this table and the hero tile cannot print different YTD figures.
+        if label == "Year to date":
+            strat = ytd_ret(deployed_series, last_date.year)
+            spy = (ytd_ret(spy_series, last_date.year)
+                   if spy_series is not None else None)
+        else:
+            strat = window_ret(deployed_series, start)
+            spy = window_ret(spy_series, start) if spy_series is not None else None
         delta = (strat - spy) if (strat is not None and spy is not None) else None
         data.append([
             label,
@@ -1683,6 +1725,18 @@ def build(out_path: Path):
                 spy_series = spy_df["SPY"].dropna()
         except Exception:
             pass
+
+    # Align SPY onto the STRATEGY'S trading calendar so every comparison spans
+    # identical dates. The deployed blend has no 2025-12-31 observation while
+    # SPY does, so an unaligned SPY anchored YTD to its own 31-Dec close while
+    # the strategy anchored to 30-Dec — "vs SPY" then compared two different
+    # windows (+5.7pp unaligned vs +6.5pp aligned). chart_performance_dual
+    # already reindexes this way; doing it once here makes the KPI cards and
+    # the returns table agree with the charts and with the weekly email's
+    # build_email_body._spy_metrics.
+    if spy_series is not None:
+        spy_series = spy_series.reindex(deployed_series.index,
+                                        method="ffill").dropna()
 
     asof_date = deployed_series.index[-1]
     asof_str = asof_date.strftime("%d %B %Y")

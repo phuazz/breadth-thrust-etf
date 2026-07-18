@@ -159,6 +159,58 @@ def _max_drawdown(series: pd.Series):
     return float(dd.min())
 
 
+def _load_spy():
+    """SPY closes from the asset-class price cache — the SAME source the
+    factsheet PDF reads, so the email body and the attached PDF quote one
+    benchmark rather than two. Returns None if unavailable; every caller
+    degrades to bare strategy figures."""
+    p = DATA_DIR / "asset_class_prices_cache.parquet"
+    if not p.exists():
+        return None
+    try:
+        df = pd.read_parquet(p)
+    except Exception:
+        return None
+    if "SPY" not in df.columns:
+        return None
+    s = df["SPY"].dropna()
+    if not len(s):
+        return None
+    s.index = pd.to_datetime(s.index)
+    return s
+
+
+def _spy_metrics(spy, series, wtd):
+    """Benchmark figures over EXACTLY the strategy's own windows.
+
+    SPY is reindexed onto the strategy's trading calendar so Sharpe and max
+    drawdown span the identical history (otherwise SPY's 2007-start cache
+    would be compared against a 2018-inception strategy), and week-to-date
+    reuses the strategy's own (from, to) dates rather than recomputing a
+    week — the two must be the same window or the 'vs SPY' figure is a
+    comparison of two different periods."""
+    if spy is None or series is None or not len(series):
+        return {}
+    al = spy.reindex(series.index, method="ffill").dropna()
+    if len(al) < 30:
+        return {}
+    m = {
+        "ytd": _ytd_return(al),
+        "r1y": _period_return(al, 252),
+        "sharpe": _sharpe_full(al),
+        "mdd": _max_drawdown(al),
+        "wtd": None,
+    }
+    if wtd:
+        try:
+            base = al.loc[:pd.Timestamp(wtd[1])].iloc[-1]
+            last = al.loc[:pd.Timestamp(wtd[2])].iloc[-1]
+            m["wtd"] = float(last / base - 1.0)
+        except (KeyError, IndexError):
+            m["wtd"] = None
+    return m
+
+
 def _fmt_pct(x, signed=True, dp=2):
     if x is None or (isinstance(x, float) and (np.isnan(x) or np.isinf(x))):
         return "n/a"
@@ -433,45 +485,66 @@ def build_html(out_path: Path):
     wtd_pct = wtd[0] if wtd else None
     wtd_colour = "#1d7a3a" if (wtd_pct is not None and wtd_pct >= 0) else "#b3261e"
     wtd_str = _fmt_pct(wtd_pct, signed=True, dp=2) if wtd_pct is not None else "n/a"
-    out.append(
-        f'<tr>'
-        f'<td style="padding:8px 10px;background:#eef3fb;'
-        f'border:1px solid #c5d6ee;width:20%;text-align:center;">'
-        f'<div style="color:#3a4148;font-size:10px;text-transform:uppercase;'
-        f'letter-spacing:0.5px;">Week-to-date</div>'
-        f'<div style="font-weight:700;font-size:16px;color:{wtd_colour};">'
-        f'{wtd_str}</div></td>'
-        f'<td style="padding:8px 10px;background:#f7f8fa;'
-        f'border:1px solid #e1e4e8;width:20%;text-align:center;">'
-        f'<div style="color:#7c8590;font-size:10px;text-transform:uppercase;'
-        f'letter-spacing:0.5px;">YTD</div>'
-        f'<div style="font-weight:600;font-size:15px;color:#0f1217;">'
-        f'{_fmt_pct(ytd, signed=True, dp=1)}</div></td>'
-        f'<td style="padding:8px 10px;background:#f7f8fa;'
-        f'border:1px solid #e1e4e8;width:20%;text-align:center;">'
-        f'<div style="color:#7c8590;font-size:10px;text-transform:uppercase;'
-        f'letter-spacing:0.5px;">1Y</div>'
-        f'<div style="font-weight:600;font-size:15px;color:#0f1217;">'
-        f'{_fmt_pct(r1y, signed=True, dp=1)}</div></td>'
-        f'<td style="padding:8px 10px;background:#f7f8fa;'
-        f'border:1px solid #e1e4e8;width:20%;text-align:center;">'
-        f'<div style="color:#7c8590;font-size:10px;text-transform:uppercase;'
-        f'letter-spacing:0.5px;">Sharpe</div>'
-        f'<div style="font-weight:600;font-size:15px;color:#0f1217;">'
-        f'{sharpe_str}</div></td>'
-        f'<td style="padding:8px 10px;background:#f7f8fa;'
-        f'border:1px solid #e1e4e8;width:20%;text-align:center;">'
-        f'<div style="color:#7c8590;font-size:10px;text-transform:uppercase;'
-        f'letter-spacing:0.5px;">Max DD</div>'
-        f'<div style="font-weight:600;font-size:15px;color:#b3261e;">'
-        f'{_fmt_pct(mdd, signed=True, dp=1)}</div></td>'
-        f'</tr></table>'
-    )
+
+    # Every return cell carries its benchmark in-cell ('SPY x · vs y'),
+    # mirroring the factsheet PDF's KPI cards so the body and the attached
+    # PDF answer "did we beat the index?" the same way and in one place.
+    # Sharpe and max drawdown show SPY as bare context: a signed "vs" delta
+    # on a ratio, or on two negative drawdowns, reads ambiguously.
+    spy_m = _spy_metrics(_load_spy(), series, wtd)
+
+    def _bench(spy_val, strat_val, dp=1, ratio=False):
+        base = ('<div style="font-size:10px;color:#7c8590;'
+                'margin-top:3px;line-height:1.35;">')
+        if spy_val is None:
+            return ""
+        if ratio:
+            return f'{base}SPY {spy_val:.2f}</div>'
+        spy_txt = _fmt_pct(spy_val, signed=True, dp=dp)
+        if strat_val is None:
+            return f'{base}SPY {spy_txt}</div>'
+        d = strat_val - spy_val
+        dcol = "#1d7a3a" if d >= 0 else "#b3261e"
+        return (f'{base}SPY {spy_txt} &middot; '
+                f'<span style="color:{dcol};font-weight:700;">'
+                f'vs {_fmt_pct(d, signed=True, dp=dp)}</span></div>')
+
+    # (label, value, value_colour, value_size, value_weight, highlighted, bench_html)
+    cells = [
+        ("Week-to-date", wtd_str, wtd_colour, 16, 700, True,
+         _bench(spy_m.get("wtd"), wtd_pct, dp=2)),
+        ("YTD", _fmt_pct(ytd, signed=True, dp=1), "#0f1217", 15, 600, False,
+         _bench(spy_m.get("ytd"), ytd)),
+        ("1Y", _fmt_pct(r1y, signed=True, dp=1), "#0f1217", 15, 600, False,
+         _bench(spy_m.get("r1y"), r1y)),
+        ("Sharpe", sharpe_str, "#0f1217", 15, 600, False,
+         _bench(spy_m.get("sharpe"), None, ratio=True)),
+        ("Max DD", _fmt_pct(mdd, signed=True, dp=1), "#b3261e", 15, 600, False,
+         _bench(spy_m.get("mdd"), None)),
+    ]
+    row = ["<tr>"]
+    for label, val, colour, size, weight, hi, bench in cells:
+        bg, border = ("#eef3fb", "#c5d6ee") if hi else ("#f7f8fa", "#e1e4e8")
+        lbl_colour = "#3a4148" if hi else "#7c8590"
+        row.append(
+            f'<td style="padding:8px 10px;background:{bg};'
+            f'border:1px solid {border};width:20%;text-align:center;'
+            f'vertical-align:top;">'
+            f'<div style="color:{lbl_colour};font-size:10px;'
+            f'text-transform:uppercase;letter-spacing:0.5px;">{label}</div>'
+            f'<div style="font-weight:{weight};font-size:{size}px;'
+            f'color:{colour};">{val}</div>{bench}</td>'
+        )
+    row.append("</tr></table>")
+    out.append("".join(row))
     if wtd:
+        bench_note = (" Benchmark SPY over the identical windows."
+                      if spy_m else "")
         out.append(
             f'<p style="margin:0 0 16px 0;font-size:11px;color:#7c8590;">'
             f'WTD window: {wtd[1]} close &rarr; {wtd[2]} close. '
-            f'Other stats span the full deployed-blend backtest history.</p>'
+            f'Other stats span the full deployed-blend backtest history.'
+            f'{bench_note}</p>'
         )
 
     # Shared cell renderer — ticker bold with the fund name as a small
