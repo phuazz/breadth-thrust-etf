@@ -33,6 +33,11 @@ def _sleeve(prev_date, prev_holdings, curr_date, curr_holdings):
     ]}}
 
 
+def _tilt_overlay(events):
+    return {"phase22_eem_tilt": {"enabled": True, "events": events,
+                                  "parameters": {"tilt_weight": 0.10}}}
+
+
 def test_collect_activity_detects_moves_with_nav_impact_and_dates():
     """ENTER/EXIT/RESIZE are detected; weights and nav_impact are at
     PORTFOLIO level (within-sleeve x sleeve weight); each move carries its
@@ -44,7 +49,7 @@ def test_collect_activity_detects_moves_with_nav_impact_and_dates():
         "c": _sleeve("2026-06-12", [("TAN", 1.0)], "2026-06-26", [("TAN", 1.0)]),
         "d": _sleeve("2026-06-19", [("EXH1", 1.0)], "2026-07-03", [("EXH1", 1.0)]),
     }
-    rows = _collect_activity(sleeves, p22_active=False)
+    rows = _collect_activity(sleeves, overlay=None)
     by = {(r["sleeve"], r["action"], r["etf"]): r for r in rows}
 
     # A sleeve weight = 0.35 throughout.
@@ -77,25 +82,61 @@ def test_collect_activity_keeps_sub_half_percent_moves():
         "c": _sleeve("2026-06-12", [("TAN", 1.0)], "2026-06-26", [("TAN", 1.0)]),
         "d": _sleeve("2026-06-12", [("EXH1", 1.0)], "2026-06-26", [("EXH1", 1.0)]),
     }
-    resizes = [r for r in _collect_activity(sleeves, p22_active=False)
+    resizes = [r for r in _collect_activity(sleeves, overlay=None)
                if r["action"] == "RESIZE"]
     assert {r["etf"] for r in resizes} == {"SPY", "QQQ"}
     assert all(r["nav_impact"] < 0.005 for r in resizes)  # sub-threshold, kept
 
 
 def test_collect_activity_eem_tilt_scales_sleeve_b_weight():
-    """When the EEM tilt is ON, sleeve B drops from 35% to 25% NAV, so a
-    B-sleeve move's nav_impact scales accordingly."""
+    """When the EEM tilt is ON across both rebalance dates, sleeve B is at
+    25% NAV for both columns; with no tilt it is at 35%."""
     sleeves = {
         "a": _sleeve("2026-06-12", [("SPY", 1.0)], "2026-06-26", [("SPY", 1.0)]),
         "b": _sleeve("2026-06-12", [("QQQ", 0.5)], "2026-06-26", [("QQQ", 1.0)]),
         "c": _sleeve("2026-06-12", [("TAN", 1.0)], "2026-06-26", [("TAN", 1.0)]),
         "d": _sleeve("2026-06-12", [("EXH1", 1.0)], "2026-06-26", [("EXH1", 1.0)]),
     }
-    off = {r["etf"]: r for r in _collect_activity(sleeves, p22_active=False)}
+    off = {r["etf"]: r for r in _collect_activity(sleeves, overlay=None)}
     assert off["QQQ"]["nav_impact"] == pytest.approx(0.5 * 0.35)  # B at 35%
-    on = {r["etf"]: r for r in _collect_activity(sleeves, p22_active=True)}
+    ov_on = _tilt_overlay([{"date": "2026-01-02", "direction": "EM_TILT_ON"}])
+    on = {r["etf"]: r for r in _collect_activity(sleeves, ov_on)}
     assert on["QQQ"]["nav_impact"] == pytest.approx(0.5 * 0.25)   # B at 25%
+
+
+def test_collect_activity_tilt_flip_week_prices_each_column_on_its_date():
+    """Regression for the 2026-07-18 audit F7: a tilt flip BETWEEN the two
+    rebalance dates must price the prior column at the pre-flip sleeve
+    weight (B 35%) and the new column at the post-flip weight (B 25%),
+    and the flip itself must emit a TILT ENTER row for EEM at 10% NAV.
+    The old current-state shortcut scaled BOTH columns by 0.25 —
+    misstating GLD's prior by 5.7pp NAV on the real 2025-04-11 build."""
+    sleeves = {
+        "a": _sleeve("2026-06-19", [("SPY", 1.0)], "2026-06-26", [("SPY", 1.0)]),
+        "b": _sleeve("2026-06-19", [("QQQ", 0.6), ("GLD", 0.4)],
+                     "2026-06-26", [("QQQ", 0.6), ("GLD", 0.4)]),
+        "c": _sleeve("2026-06-19", [("TAN", 1.0)], "2026-06-26", [("TAN", 1.0)]),
+        "d": _sleeve("2026-06-19", [("EXH1", 1.0)], "2026-06-26", [("EXH1", 1.0)]),
+    }
+    ov = _tilt_overlay([{"date": "2026-06-22", "direction": "EM_TILT_ON"}])
+    rows = _collect_activity(sleeves, ov)
+    by = {(r["sleeve"], r["action"], r["etf"]): r for r in rows}
+    # B holdings resize purely from the sleeve-weight change:
+    # prior 0.6 x 0.35 = 21% NAV, new 0.6 x 0.25 = 15% NAV.
+    qqq = by[("B", "RESIZE", "QQQ")]
+    assert qqq["prev"] == pytest.approx(0.6 * 0.35)
+    assert qqq["new"] == pytest.approx(0.6 * 0.25)
+    assert qqq["nav_impact"] == pytest.approx(0.6 * 0.10)
+    # The tilt's own trade appears, dated with the event's true date.
+    tilt = by[("TILT", "ENTER", "EEM")]
+    assert tilt["new"] == pytest.approx(0.10)
+    assert tilt["prev"] is None
+    assert tilt["date"] == "2026-06-22"
+    # And the week view shows the Monday flip beside the Friday rows.
+    latest, current, stale = _current_week_moves(rows)
+    assert latest == "2026-06-26"
+    assert ("TILT", "ENTER") in {(r["sleeve"], r["action"]) for r in current}
+    assert stale == []
 
 
 def _resize(etf, prev, new, sleeve="B"):

@@ -239,6 +239,43 @@ def test_ytd_agrees_between_email_and_factsheet():
     assert ytd_ret(s, 2026) == pytest.approx(_ytd_return(s), abs=1e-12)
 
 
+def test_one_year_window_agrees_between_email_and_factsheet():
+    """Regression for the 2026-07-18 audit F5: the email's 1Y was 252
+    TRADING BARS (374 calendar days on the ~246.5-bar/year intersect
+    calendar) while the PDF's '1 year' was a calendar-year anchor — the
+    same delivery printed +32.2% vs +30.8%. Both must now use the
+    DateOffset anchor. The series omits the exact anniversary date so the
+    first-bar-at/after convention is exercised (holiday anniversary)."""
+    import pandas as pd
+
+    from build_email_body import _one_year_return
+    from build_factsheet import window_ret
+
+    idx = pd.to_datetime([
+        "2025-07-16",   # day before anniversary
+        "2025-07-18",   # first bar AT/AFTER the 2025-07-17 anniversary
+        "2026-01-02", "2026-07-17",
+    ])
+    s = pd.Series([98.0, 100.0, 108.0, 120.0], index=idx)
+    email_1y = _one_year_return(s)
+    fs_1y = window_ret(s, s.index[-1] - pd.DateOffset(years=1))
+    assert email_1y == pytest.approx(0.20, abs=1e-12)   # 120 / 100 - 1
+    assert email_1y == pytest.approx(fs_1y, abs=1e-12)
+
+
+def test_one_year_window_handles_leap_day_asof():
+    """Leap-day as-of: DateOffset(years=1) from 2028-02-29 anchors at
+    2027-02-28 (pandas clamps); the base is the first bar at/after it."""
+    import pandas as pd
+
+    from build_email_body import _one_year_return
+
+    idx = pd.to_datetime(["2027-02-26", "2027-03-01", "2028-02-29"])
+    s = pd.Series([95.0, 100.0, 110.0], index=idx)
+    # Anchor 2027-02-28 -> first bar at/after is 2027-03-01 (base 100).
+    assert _one_year_return(s) == pytest.approx(0.10, abs=1e-12)
+
+
 def test_ytd_falls_back_when_no_prior_year_data():
     """With no prior-year close available, anchor to the first in-year
     observation rather than returning nothing."""

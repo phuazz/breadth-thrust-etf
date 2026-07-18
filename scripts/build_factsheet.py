@@ -32,6 +32,9 @@ from pathlib import Path
 # script (PROJECT_ROOT/scripts/build_factsheet.py).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from regime_publish import regime_publish_status  # noqa: E402
+from overlay_state import (  # noqa: E402
+    sleeve_nav_weights, state_active_on, derisk_fraction as _derisk_fraction,
+    tilt_weight as _p22_tilt_weight)
 
 import numpy as np
 import pandas as pd
@@ -468,43 +471,97 @@ def chart_drawdown(*args, **kwargs):
     return _chart_to_image(fig, kwargs.get("width_pts", args[-1] if args else 480))
 
 
-def _collect_deployed_holdings(sleeves, p22_active):
+def _collect_deployed_holdings(sleeves, overlay, asof_iso):
     """Phase 28.7d — factored out of build_holdings_table so the per-ETF
     attribution chart and the holdings PDF table share one source of
     truth for effective NAV weights. Returns a list of
     ``{etf, sleeve, within, effective}`` dicts sorted by effective desc.
+
+    2026-07-18: sleeve weights now come from ``overlay_state`` for the
+    as-of date, so BOTH overlays apply — the EEM tilt (B 35% -> 25% plus
+    a TILT leg) and the Phase 19 de-risk gate. Previously the gate was
+    ignored: a RISK_OFF factsheet would have printed the full-equity book
+    at twice the live target while ``live_track`` (correctly) halved it
+    and held 50% in SHY.
     """
-    sleeve_weights = {"a": 0.35, "b": 0.25 if p22_active else 0.35,
-                      "c": 0.10, "d": 0.20}
+    st = sleeve_nav_weights(overlay, asof_iso)
     sleeve_letter = {"a": "A", "b": "B", "c": "C", "d": "D"}
     holdings = []
-    for key, sleeve_wt in sleeve_weights.items():
+    for key, letter in sleeve_letter.items():
         s = sleeves.get(key, {})
         trades = s.get("headline", {}).get("trade_history", [])
         if not trades:
             continue
         latest = trades[-1]
         for h in latest.get("holdings", []):
-            eff = h.get("weight", 0) * sleeve_wt
+            eff = h.get("weight", 0) * st[key]
             holdings.append({
-                "etf": h.get("etf"), "sleeve": sleeve_letter[key],
+                "etf": h.get("etf"), "sleeve": letter,
                 "within": h.get("weight", 0), "effective": eff,
+                "signal": h.get("signal_pct") or h.get("breadth_pct"),
             })
-    if p22_active:
-        holdings.append({"etf": "EEM", "sleeve": "TILT",
-                         "within": 1.0, "effective": 0.10})
+    if st["tilt_nav"] > 0:
+        holdings.append({"etf": "EEM", "sleeve": "TILT", "within": 1.0,
+                         "effective": st["tilt_nav"], "signal": None})
+    if st["shy_overlay"] > 0:
+        fb = ((overlay or {}).get("gate_parameters") or {}).get(
+            "fallback_ticker", "SHY")
+        holdings.append({"etf": fb, "sleeve": "GATE", "within": 1.0,
+                         "effective": st["shy_overlay"], "signal": None})
     holdings.sort(key=lambda x: -x["effective"])
     return holdings
 
 
-def _etf_return_over_window(holdings_prices, etf, days_back):
-    """Compute an ETF's total return over the last ``days_back`` calendar
-    days using the holdings_prices_1y panel. Returns None if the ETF or
-    enough history is not available.
+# Maximum calendar-day lag between a per-ETF series' last bar and the build
+# as-of before its attribution row is treated as UNCOVERED rather than
+# silently plotted against a different week. The 2026-07-18 audit found the
+# EEM bar — at 10% NAV the largest on the chart — covering 2026-06-29 ->
+# 2026-07-06 in a "this week" chart dated 2026-07-17.
+_ATTR_MAX_ROW_LAG_DAYS = 5
+
+
+def _resolve_price_record(holdings_prices, etf):
+    """Return the price-panel record for a holding, resolving the BOOK
+    ticker to the symbol the panel is keyed by.
+
+    The panel (holdings_prices_1y.json) is keyed by trading symbols: the
+    Strategy A iShares UCITS live under their US proxies (IUES -> XLE),
+    the Europe sleeve under Xetra symbols (EXV1 -> EXV1.DE). A raw
+    ``prices.get(etf)`` therefore NEVER resolved sleeves A (except SOXX)
+    or D — 47.6% of NAV silently absent from every attribution chart
+    shipped before 2026-07-18. Resolution order: exact key, Xetra suffix,
+    registry trading proxy.
     """
-    if not holdings_prices:
+    prices = (holdings_prices or {}).get("prices") or {}
+    rec = prices.get(etf)
+    if rec is not None:
+        return rec
+    rec = prices.get(f"{etf}.DE")
+    if rec is not None:
+        return rec
+    try:
+        from etf_registry import ETF_REGISTRY
+        proxy = (ETF_REGISTRY.get(etf) or {}).get("yfinance_trading_proxy")
+        if proxy:
+            return prices.get(proxy)
+    except Exception:
         return None
-    prices_block = (holdings_prices.get("prices") or {}).get(etf)
+    return None
+
+
+def _etf_return_over_window(holdings_prices, etf, days_back, asof=None):
+    """An ETF's total return over the trailing ``days_back`` calendar days.
+
+    Base bar = the FIRST session at/after (series end - days_back), the
+    same anchoring as ``window_ret`` on the blend, so the per-ETF windows
+    and the hero 1-WEEK window agree in holiday weeks (the old last-bar-
+    at/before walk gave US names a six-session window spanning the
+    2026-07-03 holiday while the blend's covered four). Returns None when
+    the series is missing, too short, or — with ``asof`` supplied — ends
+    more than ``_ATTR_MAX_ROW_LAG_DAYS`` before the build as-of (a stale
+    row must be dropped and COUNTED, not plotted against another week).
+    """
+    prices_block = _resolve_price_record(holdings_prices, etf)
     if not prices_block:
         return None
     arr = prices_block.get("prices") or []
@@ -513,13 +570,11 @@ def _etf_return_over_window(holdings_prices, etf, days_back):
         return None
     end_idx = len(arr) - 1
     end_date = pd.Timestamp(dates[end_idx])
+    if asof is not None and (pd.Timestamp(asof) - end_date).days > _ATTR_MAX_ROW_LAG_DAYS:
+        return None
     target = end_date - pd.Timedelta(days=days_back)
-    # Walk back to the first date <= target. arr.index requires exact
-    # match, which is not safe for non-trading-day targets.
-    start_idx = 0
-    for i, d in enumerate(dates):
-        if pd.Timestamp(d) <= target:
-            start_idx = i
+    start_idx = next((i for i, d in enumerate(dates)
+                       if pd.Timestamp(d) >= target), 0)
     p0 = arr[start_idx]
     p1 = arr[end_idx]
     if p0 is None or p1 is None or p0 == 0:
@@ -527,16 +582,22 @@ def _etf_return_over_window(holdings_prices, etf, days_back):
     return (p1 / p0) - 1.0
 
 
-def _etf_return_from_date(holdings_prices, etf, start_date):
-    """Total return from a specific Timestamp to the latest available."""
-    if not holdings_prices:
-        return None
-    prices_block = (holdings_prices.get("prices") or {}).get(etf)
+def _etf_return_from_date(holdings_prices, etf, start_date, asof=None):
+    """Total return from ``start_date`` to the latest available bar.
+
+    Base bar = the LAST session at/before ``start_date``: for the YTD
+    chart the target is 1 January, so this anchors on the prior year's
+    final close — the same convention as ``ytd_ret``.
+    """
+    prices_block = _resolve_price_record(holdings_prices, etf)
     if not prices_block:
         return None
     arr = prices_block.get("prices") or []
     dates = prices_block.get("dates") or []
     if len(arr) < 2 or len(dates) != len(arr):
+        return None
+    end_date = pd.Timestamp(dates[-1])
+    if asof is not None and (pd.Timestamp(asof) - end_date).days > _ATTR_MAX_ROW_LAG_DAYS:
         return None
     target = pd.Timestamp(start_date)
     start_idx = 0
@@ -555,9 +616,9 @@ _SLEEVE_PALETTE = {"A": PALETTE_A, "B": PALETTE_B, "C": PALETTE_C,
                     "D": PALETTE_D, "TILT": "#b45309"}
 
 
-def chart_per_etf_attribution(sleeves, p22_active, holdings_prices,
+def chart_per_etf_attribution(sleeves, overlay, holdings_prices,
                                 width_pts, *, days_back=None, ytd_start=None,
-                                top_n=12):
+                                top_n=12, asof=None):
     """Per-ETF contribution to the deployed blend's return over a window.
 
     Returns a horizontal-bar chart sorted by absolute contribution; bars
@@ -569,22 +630,43 @@ def chart_per_etf_attribution(sleeves, p22_active, holdings_prices,
     The sum across all positions reconciles to the blend return for the
     same window when weights are static (true week-over-week between
     rebalances; YTD is approximate because rebalances change weights).
+
+    Coverage is DISCLOSED, never silent: any holding whose price series
+    cannot be resolved, or whose series ends more than
+    ``_ATTR_MAX_ROW_LAG_DAYS`` before ``asof``, is dropped from the bars
+    and counted into an on-chart coverage note (the pre-2026-07-18 chart
+    silently omitted 47.6% of NAV and its largest bar covered a
+    different week — see the audit of that date).
     """
     if days_back is None and ytd_start is None:
         raise ValueError("pass days_back or ytd_start")
-    holdings = _collect_deployed_holdings(sleeves, p22_active)
+    asof_iso = (pd.Timestamp(asof).strftime("%Y-%m-%d") if asof is not None
+                else None)
+    holdings = _collect_deployed_holdings(sleeves, overlay, asof_iso)
 
     rows = []
+    uncovered = []
     for h in holdings:
         etf = h["etf"]
         wt = h["effective"]
-        ret = (_etf_return_over_window(holdings_prices, etf, days_back)
+        ret = (_etf_return_over_window(holdings_prices, etf, days_back,
+                                        asof=asof)
                 if days_back is not None
-                else _etf_return_from_date(holdings_prices, etf, ytd_start))
+                else _etf_return_from_date(holdings_prices, etf, ytd_start,
+                                            asof=asof))
         if ret is None:
+            uncovered.append((etf, wt))
             continue
         rows.append({"etf": etf, "sleeve": h["sleeve"],
                       "weight": wt, "ret": ret, "contrib": wt * ret})
+
+    total_w = sum(h["effective"] for h in holdings) or 1.0
+    covered_w = sum(r["weight"] for r in rows)
+    n_covered = len(rows)
+    if uncovered:
+        print(f"  WARN: attribution chart missing series for "
+              f"{', '.join(e for e, _ in uncovered)} "
+              f"({sum(w for _, w in uncovered) * 100:.1f}% NAV)")
 
     if not rows:
         fig, ax = plt.subplots(figsize=(8, 1.0), facecolor="white")
@@ -636,6 +718,18 @@ def chart_per_etf_attribution(sleeves, p22_active, holdings_prices,
     pad = max(abs(xmin), abs(xmax)) * 0.45 + 0.5
     ax.set_xlim(xmin - pad if xmin < 0 else -pad * 0.4,
                   xmax + pad if xmax > 0 else pad * 0.4)
+    # Coverage note — printed on the chart whenever any held position is
+    # missing from the bars, so truncation is visible to the reader, not
+    # only to whoever tails the build log.
+    if covered_w / total_w < 0.995:
+        miss = ", ".join(e for e, _ in uncovered[:6])
+        more = "…" if len(uncovered) > 6 else ""
+        ax.text(0.995, -0.16,
+                 f"Bars cover {covered_w / total_w:.0%} of NAV "
+                 f"({n_covered}/{len(holdings)} positions); "
+                 f"no usable series: {miss}{more}",
+                 transform=ax.transAxes, ha="right", va="top",
+                 fontsize=7, color="#b45309")
     return _chart_to_image(fig, width_pts)
 
 
@@ -1125,27 +1219,13 @@ def build_regime_panel(overlay, page_w, styles,
                    ]))
 
 
-def build_holdings_table(sleeves, p22_active, page_w, styles):
-    sleeve_weights = {"a": 0.35, "b": 0.25 if p22_active else 0.35,
-                      "c": 0.10, "d": 0.20}
-    sleeve_letter = {"a": "A", "b": "B", "c": "C", "d": "D"}
-    holdings = []
-    for key, sleeve_wt in sleeve_weights.items():
-        s = sleeves.get(key, {})
-        trades = s.get("headline", {}).get("trade_history", [])
-        if not trades: continue
-        latest = trades[-1]
-        for h in latest.get("holdings", []):
-            eff = h.get("weight", 0) * sleeve_wt
-            holdings.append({
-                "etf": h.get("etf"), "sleeve": sleeve_letter[key],
-                "within": h.get("weight", 0), "effective": eff,
-                "signal": h.get("signal_pct") or h.get("breadth_pct"),
-            })
-    if p22_active:
-        holdings.append({"etf": "EEM", "sleeve": "TILT",
-                         "within": 1.0, "effective": 0.10, "signal": None})
-    holdings = sorted(holdings, key=lambda x: -x["effective"])
+def build_holdings_table(sleeves, overlay, asof_iso, page_w, styles):
+    # Single source of truth with the attribution chart — and, since
+    # 2026-07-18, gate-aware: in a RISK_OFF week this table halves the
+    # equity legs and carries the 50% SHY overlay row, matching
+    # live_track's effective weights instead of printing a double-size
+    # equity book precisely when the de-risk is the story.
+    holdings = _collect_deployed_holdings(sleeves, overlay, asof_iso)
 
     # Data-integrity guard (vault rule: cross-reference slides against source).
     # The "current target portfolio" must show EVERY deployed position — a
@@ -1192,7 +1272,7 @@ def build_holdings_table(sleeves, p22_active, page_w, styles):
     return t
 
 
-def build_trades_table(sleeves, page_w, styles, p22_active, as_of=None):
+def build_trades_table(sleeves, page_w, styles, overlay, as_of=None):
     """Phase 28.7b — filter to THIS WEEK's rebal activity only.
 
     Prior version included every sleeve's most recent rebalance regardless
@@ -1207,11 +1287,17 @@ def build_trades_table(sleeves, page_w, styles, p22_active, as_of=None):
     PORTFOLIO table. Previously these were within-sleeve percentages, which
     made trade sizes non-comparable across sleeves and misleading for
     execution: a C ``ENTER 20%`` (2.0% of NAV) looked larger than an A
-    ``EXIT 20%`` (7.0% of NAV). The RESIZE display threshold stays on the
-    within-sleeve delta so the set of displayed rows is unchanged; only the
-    denominator of the printed figures changes. Sleeve B is 25% while the
-    EEM tilt is on (``p22_active``), 35% otherwise — mirrors the holdings
-    table and asset-class rollup so all three tables agree.
+    ``EXIT 20%`` (7.0% of NAV).
+
+    2026-07-18 — the PRIOR column is priced with the sleeve weights that
+    applied ON THE PRIOR REBALANCE DATE (``overlay_state``), not the
+    current state's. On a tilt-flip week the old current-state shortcut
+    misstated every B prior weight (up to 5.7pp NAV on the 2025-04-11
+    build) and hid the flip itself; the tilt's EEM ENTER/EXIT and the
+    gate's SHY shift now appear as their own TILT / GATE rows. The RESIZE
+    threshold moved from the within-sleeve delta to |ΔNAV| > 0.25% so a
+    sleeve-weight change (B 35% -> 25%) surfaces even when the
+    within-sleeve weight did not move.
     """
     from datetime import date as _date, timedelta as _td
     # Phase 30 — anchor the 7-day window to the factsheet's DATA as-of date
@@ -1227,8 +1313,6 @@ def build_trades_table(sleeves, page_w, styles, p22_active, as_of=None):
     cutoff = (anchor - _td(days=7)).isoformat()
 
     sleeve_letter = {"a": "A", "b": "B", "c": "C", "d": "D"}
-    sleeve_wt = {"a": 0.35, "b": 0.25 if p22_active else 0.35,
-                  "c": 0.10, "d": 0.20}
     rows = []
     week_rebal_dates: set[str] = set()
     most_recent_rebal: str | None = None
@@ -1237,6 +1321,7 @@ def build_trades_table(sleeves, page_w, styles, p22_active, as_of=None):
         trades = s.get("headline", {}).get("trade_history", [])
         if len(trades) < 2: continue
         rebal_date = trades[-1].get("date", "")
+        prev_date = trades[-2].get("date", "") or rebal_date
         if not rebal_date:
             continue
         if most_recent_rebal is None or rebal_date > most_recent_rebal:
@@ -1248,21 +1333,55 @@ def build_trades_table(sleeves, page_w, styles, p22_active, as_of=None):
             # week's rows, inviting double execution.
             continue  # last week's rebalance or older — not this week
         week_rebal_dates.add(rebal_date)
-        sw = sleeve_wt[key]  # within-sleeve weight -> effective NAV weight
+        # Sleeve weights AS OF each side's own rebalance date, so a tilt
+        # or gate flip between the two prices each column correctly.
+        sw_prev = sleeve_nav_weights(overlay, prev_date)[key]
+        sw_curr = sleeve_nav_weights(overlay, rebal_date)[key]
         prev_h = {h["etf"]: h["weight"] for h in trades[-2]["holdings"]}
         curr_h = {h["etf"]: h["weight"] for h in trades[-1]["holdings"]}
         for etf in curr_h:
             if etf not in prev_h:
-                rows.append((sleeve, "ENTER", etf, None, curr_h[etf] * sw))
+                rows.append((sleeve, "ENTER", etf, None, curr_h[etf] * sw_curr))
         for etf in prev_h:
             if etf not in curr_h:
-                rows.append((sleeve, "EXIT", etf, prev_h[etf] * sw, None))
+                rows.append((sleeve, "EXIT", etf, prev_h[etf] * sw_prev, None))
         for etf in curr_h:
             if etf in prev_h:
-                d = curr_h[etf] - prev_h[etf]  # threshold on within-sleeve Δ
-                if abs(d) > 0.01:
+                d_nav = curr_h[etf] * sw_curr - prev_h[etf] * sw_prev
+                if abs(d_nav) > 0.0025:   # 0.25% of NAV
                     rows.append((sleeve, "RESIZE", etf,
-                                  prev_h[etf] * sw, curr_h[etf] * sw))
+                                  prev_h[etf] * sw_prev, curr_h[etf] * sw_curr))
+
+    # Overlay actions inside the window — the macro trades. A tilt flip
+    # moves 10% of NAV into/out of EEM and a gate flip moves
+    # ``derisk_fraction`` into/out of the fallback ticker; both used to be
+    # absent from this table (the largest trades of exactly those weeks).
+    p22 = (overlay or {}).get("phase22_eem_tilt") or {}
+    gp = (overlay or {}).get("gate_parameters") or {}
+    fb = gp.get("fallback_ticker", "SHY")
+    anchor_iso = anchor.isoformat()
+    for ev in (p22.get("events") or []):
+        d = ev.get("date") or ""
+        if not (cutoff < d <= anchor_iso):
+            continue
+        day_before = (pd.Timestamp(d) - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+        nav_before = sleeve_nav_weights(overlay, day_before)["tilt_nav"]
+        nav_after = sleeve_nav_weights(overlay, d)["tilt_nav"]
+        if ev.get("direction") == "EM_TILT_ON":
+            rows.append(("TILT", "ENTER", "EEM", None, nav_after))
+        else:
+            rows.append(("TILT", "EXIT", "EEM", nav_before, None))
+        week_rebal_dates.add(d)
+    for ev in ((overlay or {}).get("events") or []):
+        d = ev.get("date") or ""
+        if not (cutoff < d <= anchor_iso):
+            continue
+        frac = _derisk_fraction(overlay)
+        if ev.get("direction") == "RISK_OFF":
+            rows.append(("GATE", "ENTER", fb, None, frac))
+        else:
+            rows.append(("GATE", "EXIT", fb, frac, None))
+        week_rebal_dates.add(d)
 
     if not rows:
         msg = ("<i>No new rebalance activity this week — strategy stable. "
@@ -1452,7 +1571,11 @@ def build_sleeve_stats_table(sleeves, multi, page_w, styles):
         ytd = None
         if dates and equity:
             ser = pd.Series(equity, index=pd.to_datetime(dates))
-            ytd = window_ret(ser, pd.Timestamp(ser.index[-1].year, 1, 1))
+            # Prior-year-close anchor (ytd_ret), NOT window_ret(1 Jan) —
+            # the first-session anchor shifted every sleeve at dp0 in the
+            # 2026-07-18 audit (A +28% -> +31%; C printed -0% when the
+            # true figure was +1.9%).
+            ytd = ytd_ret(ser, ser.index[-1].year)
         # dp=0 percentages save 3 characters per cell — enough to keep
         # the half-width table single-line at any realistic value.
         data.append([
@@ -1489,7 +1612,7 @@ def build_sleeve_stats_table(sleeves, multi, page_w, styles):
     return t
 
 
-def build_parameters_footer(overlay, sleeves, p22_active, breadth_end_date,
+def build_parameters_footer(overlay, sleeves, breadth_end_date,
                               page_w, styles):
     """Phase 28.7f — last-page parameters + provenance footer.
 
@@ -1589,7 +1712,7 @@ def build_parameters_footer(overlay, sleeves, p22_active, breadth_end_date,
     ]
 
 
-def build_asset_class_rollup(sleeves, p22_active, page_w, styles):
+def build_asset_class_rollup(sleeves, overlay, asof_iso, page_w, styles):
     AC_MAP = {
         **{e: "US Equity" for e in [
             "SOXX", "CSP1", "CNDX", "IUES", "IUFS", "IUHC", "IUIS",
@@ -1608,18 +1731,13 @@ def build_asset_class_rollup(sleeves, p22_active, page_w, styles):
             "LIT", "URA", "XBI", "ARKG", "JETS", "PAVE", "ITA"]},
         "BTC-USD": "Crypto",
     }
-    sleeve_weights = {"a": 0.35, "b": 0.25 if p22_active else 0.35,
-                      "c": 0.10, "d": 0.20}
+    # Roll up from the SAME gate- and tilt-aware holdings list the target
+    # table prints (the TILT EEM leg and the gate's SHY overlay map through
+    # AC_MAP like any other position), so the two tables cannot disagree.
     rollup = {}
-    for key, sleeve_wt in sleeve_weights.items():
-        s = sleeves.get(key, {})
-        trades = s.get("headline", {}).get("trade_history", [])
-        if not trades: continue
-        for h in trades[-1].get("holdings", []):
-            ac = AC_MAP.get(h["etf"], "Other")
-            rollup[ac] = rollup.get(ac, 0) + h["weight"] * sleeve_wt
-    if p22_active:
-        rollup["Emerging Mkts Equity"] = rollup.get("Emerging Mkts Equity", 0) + 0.10
+    for h in _collect_deployed_holdings(sleeves, overlay, asof_iso):
+        ac = AC_MAP.get(h["etf"], "Other")
+        rollup[ac] = rollup.get(ac, 0) + h["effective"]
     items = sorted(rollup.items(), key=lambda x: -x[1])
 
     colour_map = {
@@ -1740,9 +1858,8 @@ def build(out_path: Path):
 
     asof_date = deployed_series.index[-1]
     asof_str = asof_date.strftime("%d %B %Y")
+    asof_iso = asof_date.strftime("%Y-%m-%d")
     computed_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    p22_active = (overlay and (overlay.get("phase22_eem_tilt", {})
-                                .get("current_state") == "EM_TILT_ON"))
     full_stats = window_stats(deployed_series)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1787,7 +1904,7 @@ def build(out_path: Path):
         "Position changes from rebalances in the past 7 days, as % of total portfolio NAV. Trades from earlier weeks should already have been executed.",
         styles)
     activity_left.append(build_trades_table(sleeves, body_w / 2 - 6, styles,
-                                              p22_active,
+                                              overlay,
                                               as_of=deployed_series.index[-1]))
     watchlist_right = section_header(
         "WATCHLIST — APPROACHING THRESHOLDS",
@@ -1806,10 +1923,11 @@ def build(out_path: Path):
         "WHAT DROVE THIS WEEK'S RETURN",
         "Per-position contribution to the deployed blend's 1-week move "
         "(effective NAV weight × ETF return; top 12 by absolute "
-        "contribution; bars coloured by sleeve).",
+        "contribution; bars coloured by sleeve; Xetra lines in EUR, so "
+        "the FX leg of Europe returns is excluded).",
         styles) + [
-        chart_per_etf_attribution(sleeves, p22_active, holdings_prices,
-                                    body_w, days_back=7),
+        chart_per_etf_attribution(sleeves, overlay, holdings_prices,
+                                    body_w, days_back=7, asof=asof_date),
     ]))
     story.append(Spacer(1, 6 * mm))
 
@@ -1825,7 +1943,7 @@ def build(out_path: Path):
         "CURRENT TARGET PORTFOLIO",
         "What to own today, sorted by effective weight — sized for a $1.0M portfolio",
         styles) + [
-        build_holdings_table(sleeves, p22_active, body_w, styles),
+        build_holdings_table(sleeves, overlay, asof_iso, body_w, styles),
     ]))
     story.append(Spacer(1, 6 * mm))
 
@@ -1833,7 +1951,7 @@ def build(out_path: Path):
         "ASSET CLASS EXPOSURE",
         "Today's positions rolled up by broad asset class",
         styles)
-    rollup_left.append(build_asset_class_rollup(sleeves, p22_active,
+    rollup_left.append(build_asset_class_rollup(sleeves, overlay, asof_iso,
                                                     body_w / 2 - 6, styles))
     stats_right = section_header(
         "PER-SLEEVE STANDALONE STATISTICS",
@@ -1849,10 +1967,12 @@ def build(out_path: Path):
         "WHAT DROVE YTD RETURN",
         "Per-position contribution to the deployed blend's year-to-date "
         "move (effective NAV weight × ETF YTD return; top 12). "
-        "Approximation — weights change at weekly rebalances.",
+        "Approximation — weights change at weekly rebalances; Xetra "
+        "lines in EUR.",
         styles) + [
-        chart_per_etf_attribution(sleeves, p22_active, holdings_prices,
-                                    body_w, ytd_start=ytd_start),
+        chart_per_etf_attribution(sleeves, overlay, holdings_prices,
+                                    body_w, ytd_start=ytd_start,
+                                    asof=asof_date),
     ]))
     story.append(Spacer(1, 6 * mm))
 
@@ -1880,7 +2000,7 @@ def build(out_path: Path):
     # strategy actually runs + the date stamps every published number
     # traces back to). Pre-fix, the last page was mostly empty.
     story.extend(build_parameters_footer(
-        overlay, sleeves, p22_active, breadth_end_date, body_w, styles,
+        overlay, sleeves, breadth_end_date, body_w, styles,
     ))
 
     # Build doc with custom canvas for headers/footers
@@ -1916,7 +2036,6 @@ def build(out_path: Path):
     # trading day the positions reflect). This dated copy is what the
     # weekly email attaches so recipients get a properly-named archive
     # in their inbox.
-    asof_iso = asof_date.strftime("%Y-%m-%d")
     dated_path = out_path.with_name(f"factsheet_{asof_iso}.pdf")
     if dated_path != out_path:
         dated_path.write_bytes(out_path.read_bytes())

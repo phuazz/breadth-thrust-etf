@@ -26,6 +26,8 @@ import pandas as pd
 # Allow importing sibling scripts/ modules.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from regime_publish import regime_publish_status  # noqa: E402
+from overlay_state import (  # noqa: E402
+    derisk_fraction as _gate_derisk_fraction, sleeve_nav_weights)
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -125,11 +127,23 @@ def _get_deployed_series(multi, overlay, live_track=None):
     return key, dates, equity
 
 
-def _period_return(series: pd.Series, days: int):
-    """Total return over the most recent `days` trading days, or None."""
-    if len(series) < days + 1:
+def _one_year_return(series: pd.Series):
+    """Trailing 1-year total return, DATE-anchored: last close over the
+    first close at/after (as-of minus one calendar year). Identical to
+    the factsheet's "1 year" row (window_ret with a DateOffset anchor).
+
+    The previous 252-TRADING-BAR window was mislabelled on this blend's
+    US-intersect-Europe calendar (~246.5 bars/year): 252 bars spanned
+    374 calendar days, so the 2026-07-18 email printed 1Y +32.2% while
+    the PDF attached to it printed +30.8% for the same portfolio.
+    pandas DateOffset handles month/year boundaries and leap days."""
+    if len(series) < 2:
         return None
-    return series.iloc[-1] / series.iloc[-1 - days] - 1.0
+    start = series.index[-1] - pd.DateOffset(years=1)
+    s = series.loc[start:]
+    if len(s) < 2:
+        return None
+    return s.iloc[-1] / s.iloc[0] - 1.0
 
 
 def _ytd_return(series: pd.Series):
@@ -196,7 +210,7 @@ def _spy_metrics(spy, series, wtd):
         return {}
     m = {
         "ytd": _ytd_return(al),
-        "r1y": _period_return(al, 252),
+        "r1y": _one_year_return(al),
         "sharpe": _sharpe_full(al),
         "mdd": _max_drawdown(al),
         "wtd": None,
@@ -236,95 +250,156 @@ def _eem_tilt_state(overlay):
     return (state, since, ratio)
 
 
-def _collect_holdings(sleeves, p22_active):
-    """Mirror build_factsheet.build_holdings_table — return top-N list."""
-    sleeve_weights = {
-        "a": 0.35,
-        "b": 0.25 if p22_active else 0.35,
-        "c": 0.10,
-        "d": 0.20,
-    }
+def _collect_holdings(sleeves, overlay, asof_iso):
+    """Mirror build_factsheet's holdings table — return the effective-NAV
+    holdings list, BOTH overlays applied via ``overlay_state``: the EEM
+    tilt (B 35% -> 25% plus a TILT row) and the Phase 19 de-risk gate
+    (equity legs scaled by 1 - derisk_fraction plus a GATE row in the
+    fallback ticker). Before 2026-07-18 the gate was ignored here, so a
+    RISK_OFF email would have shown the full-equity book at twice the
+    live target."""
+    st = sleeve_nav_weights(overlay, asof_iso)
     letter = {"a": "A", "b": "B", "c": "C", "d": "D"}
     holdings = []
-    for key, sleeve_wt in sleeve_weights.items():
+    for key, sl in letter.items():
         s = sleeves.get(key, {})
         trades = s.get("headline", {}).get("trade_history", [])
         if not trades:
             continue
         for h in trades[-1].get("holdings", []):
-            eff = h.get("weight", 0) * sleeve_wt
+            eff = h.get("weight", 0) * st[key]
             holdings.append({
                 "etf": h.get("etf"),
-                "sleeve": letter[key],
+                "sleeve": sl,
                 "effective": eff,
             })
-    if p22_active:
-        holdings.append({"etf": "EEM", "sleeve": "TILT", "effective": 0.10})
+    if st["tilt_nav"] > 0:
+        holdings.append({"etf": "EEM", "sleeve": "TILT",
+                         "effective": st["tilt_nav"]})
+    if st["shy_overlay"] > 0:
+        fb = ((overlay or {}).get("gate_parameters") or {}).get(
+            "fallback_ticker", "SHY")
+        holdings.append({"etf": fb, "sleeve": "GATE",
+                         "effective": st["shy_overlay"]})
     return sorted(holdings, key=lambda x: -x["effective"])
 
 
-def _collect_activity(sleeves, p22_active):
+def _collect_activity(sleeves, overlay):
     """Identify ENTER/EXIT/RESIZE moves from prior rebalance to current,
-    across all four sleeves.
+    across all four sleeves, plus the overlays' own trades.
 
     Returns one dict per move: ``{sleeve, action, etf, prev, new, date,
     nav_impact}``. Weights are PORTFOLIO-level % NAV (not within-sleeve),
     so ``nav_impact`` (the |ΔNAV| a move represents) means the same thing
     in every sleeve — a 1% within-sleeve move is 0.35% NAV in A but only
-    0.10% NAV in C. Sleeve weights account for the EEM tilt (B drops 35%
-    -> 25% when ON). ``date`` is the sleeve's own rebalance Friday (they
+    0.10% NAV in C. ``date`` is the sleeve's own rebalance Friday (they
     differ — only Europe/D trades on a US-holiday Friday).
+
+    2026-07-18 — each column is priced with the sleeve weights that
+    applied ON ITS OWN REBALANCE DATE (``overlay_state``), not the
+    current state's. The old current-state shortcut misstated every B
+    prior weight on a tilt-flip week (up to 5.7pp NAV on the 2025-04-11
+    pair) and omitted the flip's own trades; a tilt or gate event in the
+    current week now emits its own TILT / GATE row (EEM in or out at 10%
+    NAV; the gate's shift into the fallback ticker), dated with the
+    event's true date.
 
     Every non-zero move is returned (no threshold here); the caller
     applies the 0.5%-NAV materiality filter and computes the
     reconciliation net over the FULL set. Mirrors the dashboard's
     renderPositionsPreview so the email and dashboard tell one story."""
-    sleeve_wts = {
-        "a": 0.35,
-        "b": 0.25 if p22_active else 0.35,
-        "c": 0.10,
-        "d": 0.20,
-    }
     letter = {"a": "A", "b": "B", "c": "C", "d": "D"}
     rows = []
+    latest_rebal = ""
     for key, sl in letter.items():
         s = sleeves.get(key, {})
         trades = s.get("headline", {}).get("trade_history", [])
         if len(trades) < 2:
             continue
-        sw = sleeve_wts[key]
         rebal_date = trades[-1].get("date", "")
+        prev_date = trades[-2].get("date", "") or rebal_date
+        if rebal_date > latest_rebal:
+            latest_rebal = rebal_date
+        sw_prev = sleeve_nav_weights(overlay, prev_date)[key]
+        sw_curr = sleeve_nav_weights(overlay, rebal_date)[key]
         prev_h = {h["etf"]: h["weight"] for h in trades[-2].get("holdings", [])}
         curr_h = {h["etf"]: h["weight"] for h in trades[-1].get("holdings", [])}
         for etf in curr_h:
             if etf not in prev_h:
                 rows.append({"sleeve": sl, "action": "ENTER", "etf": etf,
-                             "prev": None, "new": curr_h[etf] * sw,
-                             "date": rebal_date, "nav_impact": curr_h[etf] * sw})
+                             "prev": None, "new": curr_h[etf] * sw_curr,
+                             "date": rebal_date,
+                             "nav_impact": curr_h[etf] * sw_curr})
         for etf in prev_h:
             if etf not in curr_h:
                 rows.append({"sleeve": sl, "action": "EXIT", "etf": etf,
-                             "prev": prev_h[etf] * sw, "new": None,
-                             "date": rebal_date, "nav_impact": prev_h[etf] * sw})
+                             "prev": prev_h[etf] * sw_prev, "new": None,
+                             "date": rebal_date,
+                             "nav_impact": prev_h[etf] * sw_prev})
         for etf in curr_h:
             if etf in prev_h:
-                d_nav = (curr_h[etf] - prev_h[etf]) * sw
+                d_nav = curr_h[etf] * sw_curr - prev_h[etf] * sw_prev
                 if abs(d_nav) > 1e-6:
                     rows.append({"sleeve": sl, "action": "RESIZE", "etf": etf,
-                                 "prev": prev_h[etf] * sw, "new": curr_h[etf] * sw,
+                                 "prev": prev_h[etf] * sw_prev,
+                                 "new": curr_h[etf] * sw_curr,
                                  "date": rebal_date, "nav_impact": abs(d_nav)})
+
+    # Overlay trades near the latest rebalance week. A tilt flip moves 10%
+    # of NAV into/out of EEM; a gate flip moves derisk_fraction into/out of
+    # the fallback ticker. Both are the largest trades of exactly those
+    # weeks and appeared in no table before 2026-07-18.
+    if latest_rebal:
+        lo = (pd.Timestamp(latest_rebal) - pd.Timedelta(days=6))
+        hi = (pd.Timestamp(latest_rebal) + pd.Timedelta(days=6))
+        p22 = (overlay or {}).get("phase22_eem_tilt") or {}
+        fb = ((overlay or {}).get("gate_parameters") or {}).get(
+            "fallback_ticker", "SHY")
+        for ev in (p22.get("events") or []):
+            d = ev.get("date") or ""
+            if not d or not (lo <= pd.Timestamp(d) <= hi):
+                continue
+            day_before = (pd.Timestamp(d)
+                          - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+            nav_b = sleeve_nav_weights(overlay, day_before)["tilt_nav"]
+            nav_a = sleeve_nav_weights(overlay, d)["tilt_nav"]
+            if ev.get("direction") == "EM_TILT_ON":
+                rows.append({"sleeve": "TILT", "action": "ENTER",
+                             "etf": "EEM", "prev": None, "new": nav_a,
+                             "date": d, "nav_impact": nav_a})
+            else:
+                rows.append({"sleeve": "TILT", "action": "EXIT",
+                             "etf": "EEM", "prev": nav_b, "new": None,
+                             "date": d, "nav_impact": nav_b})
+        for ev in ((overlay or {}).get("events") or []):
+            d = ev.get("date") or ""
+            if not d or not (lo <= pd.Timestamp(d) <= hi):
+                continue
+            frac = _gate_derisk_fraction(overlay)
+            if ev.get("direction") == "RISK_OFF":
+                rows.append({"sleeve": "GATE", "action": "ENTER",
+                             "etf": fb, "prev": None, "new": frac,
+                             "date": d, "nav_impact": frac})
+            else:
+                rows.append({"sleeve": "GATE", "action": "EXIT",
+                             "etf": fb, "prev": frac, "new": None,
+                             "date": d, "nav_impact": frac})
     return rows
 
 
 def _current_week_moves(activity):
-    """Split activity into the latest rebalance date's moves plus a
+    """Split activity into the latest CALENDAR WEEK's moves plus a
     summary of sleeves whose most recent rebalance is older.
 
     _collect_activity returns each sleeve's own latest rebalance, and
     sleeves legitimately skip weeks (no signal change; US-holiday
     Fridays), so rendering everything in one table mixes week-old moves
-    the reader has already executed with the new ones. Only the newest
-    date's rows should display; older-dated sleeves become a footnote.
+    the reader has already executed with the new ones. Rows from the
+    same Monday-anchored week as the newest date display together —
+    overlay flips (TILT / GATE rows) happen mid-week, and an exact
+    latest-date match would have footnoted a Monday tilt flip as a stale
+    sleeve next to Friday's rebalance rows. Older weeks' sleeves become
+    a footnote, exactly as before.
 
     Returns ``(latest_date, current_rows, stale_sleeves)`` where
     ``stale_sleeves`` is a sorted list of ``(sleeve, date)`` pairs.
@@ -335,8 +410,14 @@ def _current_week_moves(activity):
     if not dated:
         return None, [], []
     latest = max(a["date"] for a in dated)
-    current = [a for a in dated if a["date"] == latest]
-    stale = sorted({(a["sleeve"], a["date"]) for a in dated if a["date"] != latest})
+    # Monday of the latest date's week, via the date library (weekday():
+    # Mon=0). Rows on/after this Monday are "this week".
+    latest_dt = datetime.strptime(latest, "%Y-%m-%d").date()
+    week_start = (latest_dt
+                  - pd.Timedelta(days=latest_dt.weekday())).strftime("%Y-%m-%d")
+    current = [a for a in dated if a["date"] >= week_start]
+    stale = sorted({(a["sleeve"], a["date"])
+                    for a in dated if a["date"] < week_start})
     return latest, current, stale
 
 
@@ -414,7 +495,7 @@ def build_html(out_path: Path):
 
     # Headline stats
     ytd = _ytd_return(series)
-    r1y = _period_return(series, 252)
+    r1y = _one_year_return(series)
     sharpe = _sharpe_full(series)
     mdd = _max_drawdown(series)
     wtd = _compute_wtd(series)
@@ -422,7 +503,6 @@ def build_html(out_path: Path):
     # Regime + tilt state
     regime_state, regime_since = _regime_state(overlay)
     tilt_state, tilt_since, tilt_ratio = _eem_tilt_state(overlay)
-    p22_active = tilt_state == "EM_TILT_ON"
 
     # Phase 28.5 — regime publish freshness guard. The 2026-06-13 email
     # printed 'RISK_ON since 2025-05-02' while the panel had stopped
@@ -440,16 +520,26 @@ def build_html(out_path: Path):
             today=date.today(),
         )
 
-    # Holdings + activity
-    holdings = _collect_holdings(sleeves, p22_active)
-    activity = _collect_activity(sleeves, p22_active)
+    # Holdings + activity — sleeve weights carry BOTH overlays for the
+    # as-of date (tilt funding and the de-risk gate) via overlay_state.
+    holdings = _collect_holdings(sleeves, overlay, asof_iso)
+    activity = _collect_activity(sleeves, overlay)
     labels = _build_label_map(sleeves)
 
-    # Sleeve weights for allocation summary
-    if p22_active:
-        alloc = "A 35% &middot; B 25% &middot; C 10% &middot; D 20% &middot; EEM tilt 10%"
-    else:
-        alloc = "A 35% &middot; B 35% &middot; C 10% &middot; D 20%"
+    # Allocation summary from the same per-date weights the tables use.
+    st_now = sleeve_nav_weights(overlay, asof_iso)
+
+    def _wfmt(x):
+        return f"{x * 100:g}%"
+
+    alloc_parts = [f"A {_wfmt(st_now['a'])}", f"B {_wfmt(st_now['b'])}",
+                   f"C {_wfmt(st_now['c'])}", f"D {_wfmt(st_now['d'])}"]
+    if st_now["tilt_nav"] > 0:
+        alloc_parts.append(f"EEM tilt {_wfmt(st_now['tilt_nav'])}")
+    if st_now["shy_overlay"] > 0:
+        alloc_parts.append(
+            f"SHY overlay {_wfmt(st_now['shy_overlay'])} (DE-RISKED)")
+    alloc = " &middot; ".join(alloc_parts)
 
     # ----- HTML assembly --------------------------------------------------
     css = (
@@ -543,8 +633,9 @@ def build_html(out_path: Path):
         out.append(
             f'<p style="margin:0 0 16px 0;font-size:11px;color:#7c8590;">'
             f'WTD window: {wtd[1]} close &rarr; {wtd[2]} close. '
-            f'Other stats span the full deployed-blend backtest history.'
-            f'{bench_note}</p>'
+            f'YTD anchors to the prior year-end close; 1Y is the trailing '
+            f'calendar year; Sharpe and Max DD span the full deployed-blend '
+            f'history.{bench_note}</p>'
         )
 
     # Shared cell renderer — ticker bold with the fund name as a small
