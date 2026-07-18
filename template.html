@@ -3073,18 +3073,28 @@ function fmtPct(x, signed = false) {
 }
 
 // Shared period-selector helper used by every chart's timeframe buttons.
-// Given an ISO-date array and a period code (1m/3m/ytd/1y/3y/5y/max),
-// returns the index of the first date that falls inside that window from
-// the SERIES'S OWN LAST DATE. (Anchoring on series last date rather than
-// "today" keeps the chart stable even when the data lags the calendar by
-// a few days — common for Friday-rebalanced backtests.) Returns 0 for
-// 'max' or when the requested window is older than the series start.
+// Given an ISO-date array and a period code (1w/1m/3m/ytd/1y/3y/5y/max),
+// returns the index of the bar the window REBASES ON, from the SERIES'S
+// OWN LAST DATE. (Anchoring on series last date rather than "today"
+// keeps the chart stable even when the data lags the calendar by a few
+// days — common for Friday-rebalanced backtests.) Returns 0 for 'max'
+// or when the requested window is older than the series start.
+//
+// Anchor conventions (2026-07-18 audit F4):
+//   - Trailing windows (1w/1m/3m/1y/3y/5y): FIRST bar at/after the
+//     calendar cutoff — same as the factsheet's window_ret.
+//   - 'ytd': the PRIOR YEAR'S FINAL CLOSE (one bar before the first
+//     in-year bar). Rebasing on the first in-year bar silently dropped
+//     the 2026-01-02 session (+1.15%): the dashboard printed YTD +14.0%
+//     while the email and PDF printed +15.3% for the same series.
 function _periodToStartIndex(dates, period) {
   if (!dates || !dates.length) return 0;
   if (period === 'max') return 0;
   const last = new Date(dates[dates.length - 1]);
   let cutoff;
-  if (period === '1m') {
+  if (period === '1w') {
+    cutoff = new Date(last); cutoff.setDate(cutoff.getDate() - 7);
+  } else if (period === '1m') {
     cutoff = new Date(last); cutoff.setMonth(cutoff.getMonth() - 1);
   } else if (period === '3m') {
     cutoff = new Date(last); cutoff.setMonth(cutoff.getMonth() - 3);
@@ -3101,7 +3111,11 @@ function _periodToStartIndex(dates, period) {
   }
   // Binary search would be cleaner but linear is fine for ~2000 daily points
   for (let i = 0; i < dates.length; i++) {
-    if (new Date(dates[i]) >= cutoff) return i;
+    if (new Date(dates[i]) >= cutoff) {
+      // YTD rebases on the prior year-end close so the first session's
+      // move is included; trailing windows rebase on the cutoff bar.
+      return (period === 'ytd' && i > 0) ? i - 1 : i;
+    }
   }
   return Math.max(0, dates.length - 1);
 }
@@ -3411,17 +3425,64 @@ function _escapeHtml(s) {
 // flips this so every buy/sell is visible and reconciles to 100% exposure.
 let _activityShowSmall = false;
 
+// ----- Point-in-time overlay state (JS port of scripts/overlay_state.py) --
+// The tilt and the de-risk gate flip mid-history; any table comparing TWO
+// rebalance dates must price each column with the sleeve weights that
+// applied ON THAT DATE. State on date D = direction of the latest overlay
+// event dated on/before D (an event dated D takes effect on D) — the same
+// convention as the engine's overlay_state module and the monitor's
+// build_weight_history. ISO strings compare lexicographically.
+function _overlayEventStateOn(events, dateIso, onDir) {
+  let active = false;
+  const sorted = [...(events || [])]
+    .sort((x, y) => (x.date || '').localeCompare(y.date || ''));
+  for (const ev of sorted) {
+    if (!ev.date || ev.date > dateIso) break;
+    active = ev.direction === onDir;
+  }
+  return active;
+}
+
+function _sleeveNavWeightsOn(dateIso) {
+  const ro = window.DATA?.risk_overlay || {};
+  const p22 = ro.phase22_eem_tilt || {};
+  const gp = ro.gate_parameters || {};
+  const tiltOn = !!p22.enabled
+    && _overlayEventStateOn(p22.events, dateIso, 'EM_TILT_ON');
+  const deriskOn = _overlayEventStateOn(ro.events, dateIso, 'RISK_OFF');
+  const tiltW = (p22.parameters && p22.parameters.tilt_weight) || 0.10;
+  const frac = gp.derisk_fraction || 0.5;
+  const s = deriskOn ? 1 - frac : 1;
+  return {
+    a: 0.35 * s,
+    b: (tiltOn ? 0.35 - tiltW : 0.35) * s,
+    c: 0.10 * s,
+    d: 0.20 * s,
+    tiltOn, deriskOn, equityScaler: s,
+    tiltNav: tiltOn ? tiltW * s : 0,
+    shyOverlay: deriskOn ? frac : 0,
+    fallback: gp.fallback_ticker || 'SHY',
+  };
+}
+
 function renderPositionsPreview() {
   const data = window.DATA;
   if (!data) return;
   const sleeves = {
     a: data.topk, b: data.asset_class, c: data.thematic, d: data.europe,
   };
-  // EEM tilt active? — funds 10pp from B into EEM
-  const p22Active = data.risk_overlay?.phase22_eem_tilt?.current_state === 'EM_TILT_ON';
-  const wts = {
-    a: 0.35, b: p22Active ? 0.25 : 0.35, c: 0.10, d: 0.20,
-  };
+  // Sleeve NAV weights for the CURRENT book: latest rebalance date across
+  // the four sleeves, both overlays applied (tilt funding + de-risk gate).
+  // The gate was previously ignored here — a RISK_OFF dashboard would
+  // have shown the full-equity book at twice the live target.
+  let latestRebal = '';
+  for (const sleeve of Object.values(sleeves)) {
+    const trades = sleeve?.headline?.trade_history || [];
+    const d = trades.length ? (trades[trades.length - 1].date || '') : '';
+    if (d > latestRebal) latestRebal = d;
+  }
+  const stNow = _sleeveNavWeightsOn(latestRebal || '9999-12-31');
+  const wts = { a: stNow.a, b: stNow.b, c: stNow.c, d: stNow.d };
   const labelMap = _buildEtfLabelMap(data);
   const lbl = (etf) => labelMap[etf] || '';
 
@@ -3440,8 +3501,13 @@ function renderPositionsPreview() {
       });
     }
   }
-  if (p22Active) {
-    holdings.push({ etf: 'EEM', sleeve: 'TILT', within: 1.0, eff: 0.10 });
+  if (stNow.tiltNav > 0) {
+    holdings.push({ etf: 'EEM', sleeve: 'TILT', within: 1.0,
+                    eff: stNow.tiltNav });
+  }
+  if (stNow.shyOverlay > 0) {
+    holdings.push({ etf: stNow.fallback, sleeve: 'GATE', within: 1.0,
+                    eff: stNow.shyOverlay });
   }
   holdings.sort((x, y) => y.eff - x.eff);
   const top = holdings.slice(0, 5);
@@ -3477,7 +3543,6 @@ function renderPositionsPreview() {
   for (const [k, sleeve] of Object.entries(sleeves)) {
     const trades = sleeve?.headline?.trade_history || [];
     if (trades.length < 2) continue;
-    const sleeveWt = wts[k];
     const prev = Object.fromEntries((trades[trades.length - 2].holdings || []).map(h => [h.etf, h.weight]));
     const curr = Object.fromEntries((trades[trades.length - 1].holdings || []).map(h => [h.etf, h.weight]));
     const sl = k.toUpperCase();
@@ -3485,6 +3550,13 @@ function renderPositionsPreview() {
     // Friday only Europe/D trades), so stamp every change with the date
     // it actually happened — the same date the combined ledger shows.
     const rebalDate = trades[trades.length - 1].date || '';
+    const prevDate = trades[trades.length - 2].date || rebalDate;
+    // Sleeve weights AS OF each side's own rebalance date — a tilt or
+    // gate flip between the two must price each column with its own
+    // weight (the current-state shortcut misstated every B prior by up
+    // to 5.7pp NAV on the 2025-04-11 flip pair; 2026-07-18 audit F7).
+    const wPrev = _sleeveNavWeightsOn(prevDate)[k];
+    const wCurr = _sleeveNavWeightsOn(rebalDate)[k];
     // navImpact = the move's PORTFOLIO-level materiality (|ΔNAV weight|):
     // a new/closed position's own NAV weight, or a resize's NAV-weight
     // change. Measured at NAV so 0.5% means the same thing in every sleeve
@@ -3492,25 +3564,76 @@ function renderPositionsPreview() {
     for (const etf in curr) {
       if (!(etf in prev)) activity.push({
         sl, action: 'ENTER', etf, date: rebalDate,
-        prevNav: null, newNav: curr[etf] * sleeveWt,
-        navImpact: curr[etf] * sleeveWt,
+        prevNav: null, newNav: curr[etf] * wCurr,
+        navImpact: curr[etf] * wCurr,
       });
     }
     for (const etf in prev) {
       if (!(etf in curr)) activity.push({
         sl, action: 'EXIT', etf, date: rebalDate,
-        prevNav: prev[etf] * sleeveWt, newNav: null,
-        navImpact: prev[etf] * sleeveWt,
+        prevNav: prev[etf] * wPrev, newNav: null,
+        navImpact: prev[etf] * wPrev,
       });
     }
     for (const etf in curr) {
       if (etf in prev) {
-        const dNav = (curr[etf] - prev[etf]) * sleeveWt;
+        const dNav = curr[etf] * wCurr - prev[etf] * wPrev;
         if (Math.abs(dNav) > 1e-6) activity.push({
           sl, action: 'RESIZE', etf, date: rebalDate,
-          prevNav: prev[etf] * sleeveWt, newNav: curr[etf] * sleeveWt,
+          prevNav: prev[etf] * wPrev, newNav: curr[etf] * wCurr,
           navImpact: Math.abs(dNav),
         });
+      }
+    }
+  }
+  // Overlay trades near the latest rebalance week — the tilt's 10% NAV
+  // EEM ENTER/EXIT and the gate's shift into the fallback ticker are the
+  // largest trades of exactly those weeks and used to appear in no table.
+  // Window: within 6 days either side of the latest sleeve rebalance.
+  if (latestRebal) {
+    const inWindow = (d) => {
+      if (!d) return false;
+      const [y, mo, dd] = latestRebal.split('-').map(Number);
+      const centre = new Date(Date.UTC(y, mo - 1, dd));  // months 0-indexed in Date.UTC
+      const lo = new Date(centre); lo.setUTCDate(lo.getUTCDate() - 6);
+      const hi = new Date(centre); hi.setUTCDate(hi.getUTCDate() + 6);
+      const [ey, em, ed] = d.split('-').map(Number);
+      const evd = new Date(Date.UTC(ey, em - 1, ed));
+      return evd >= lo && evd <= hi;
+    };
+    const ro = data.risk_overlay || {};
+    for (const ev of (ro.phase22_eem_tilt?.events || [])) {
+      if (!inWindow(ev.date)) continue;
+      const dayBefore = (() => {
+        const [y, mo, dd] = ev.date.split('-').map(Number);
+        const t = new Date(Date.UTC(y, mo - 1, dd));
+        t.setUTCDate(t.getUTCDate() - 1);
+        return t.toISOString().slice(0, 10);
+      })();
+      const navB = _sleeveNavWeightsOn(dayBefore).tiltNav;
+      const navA = _sleeveNavWeightsOn(ev.date).tiltNav;
+      if (ev.direction === 'EM_TILT_ON') {
+        activity.push({ sl: 'TILT', action: 'ENTER', etf: 'EEM',
+                        date: ev.date, prevNav: null, newNav: navA,
+                        navImpact: navA });
+      } else {
+        activity.push({ sl: 'TILT', action: 'EXIT', etf: 'EEM',
+                        date: ev.date, prevNav: navB, newNav: null,
+                        navImpact: navB });
+      }
+    }
+    for (const ev of (ro.events || [])) {
+      if (!inWindow(ev.date)) continue;
+      const frac = (ro.gate_parameters || {}).derisk_fraction || 0.5;
+      const fb = (ro.gate_parameters || {}).fallback_ticker || 'SHY';
+      if (ev.direction === 'RISK_OFF') {
+        activity.push({ sl: 'GATE', action: 'ENTER', etf: fb,
+                        date: ev.date, prevNav: null, newNav: frac,
+                        navImpact: frac });
+      } else {
+        activity.push({ sl: 'GATE', action: 'EXIT', etf: fb,
+                        date: ev.date, prevNav: frac, newNav: null,
+                        navImpact: frac });
       }
     }
   }
@@ -4529,36 +4652,28 @@ const _PERF_SERIES = [
   { key: 'strategy_c', name: 'C · Thematic',    color: '#f59e0b', width: 1.3 },
   { key: 'strategy_d', name: 'D · Europe',      color: '#a855f7', width: 1.3 },
 ];
-// Approximate trading-day count for each period. YTD/MAX use date-based
-// slicing instead. 1D shows a 1-day return but the chart needs at least
-// a handful of points to read, so we still pull the last 5 days for it.
-const _PERIOD_DAYS = {
-  '1d': 5,    // chart shows ~1 week so the line is visible; stat is 1-day
-  '1w': 5,
-  '1m': 21,
-  '1y': 252,
-  '3y': 756,
-  '5y': 1260,
-};
-const _WEIGHTS_4WAY = {
-  strategy_a: 0.35, strategy_b: 0.35,
-  strategy_c: 0.10, strategy_d: 0.20,
-};
+// Per-strategy blend weights for the attribution panel resolve at render
+// time via _attributionWeights() — the EEM tilt funds 10pp from B and the
+// de-risk gate scales every equity leg, so a hard-coded 35/35/10/20 map
+// (the pre-2026-07-18 behaviour) overstated B by 10pp and omitted the
+// EEM leg entirely whenever the tilt was ON.
 let _perfCurrentPeriod = 'ytd';
 
 // Shared by perf-chart AND every equity chart with a timeframe selector.
+// All windows are DATE-anchored via _periodToStartIndex (2026-07-18 audit
+// F6: the old bar-count windows — 252/756 bars for 1y/3y — spanned ~374
+// days per "year" on this blend's ~246.5-bar/year US-intersect-Europe
+// calendar, so the 3-year tile overstated the factsheet's date-based
+// figure by 7.4pp). '1d' keeps a 5-bar chart window so the line is
+// visible; its stat is the 1-day return.
 function _sliceByPeriod(dates, equity, period) {
   if (!dates || dates.length === 0) return { dates: [], equity: [] };
   if (period === 'max') return { dates, equity };
   let startIdx = 0;
-  if (period === 'ytd') {
-    const lastYear = dates[dates.length - 1].slice(0, 4);
-    const jan1 = `${lastYear}-01-01`;
-    startIdx = dates.findIndex(d => d >= jan1);
-    if (startIdx < 0) startIdx = 0;
+  if (period === '1d') {
+    startIdx = Math.max(0, dates.length - 1 - 5);
   } else {
-    const back = _PERIOD_DAYS[period] || 252;
-    startIdx = Math.max(0, dates.length - 1 - back);
+    startIdx = _periodToStartIndex(dates, period);
   }
   return { dates: dates.slice(startIdx), equity: equity.slice(startIdx) };
 }
@@ -4630,19 +4745,32 @@ function _perfComputeStats(dates, equity, period) {
     ? equity[equity.length - 1] / equity[equity.length - 2] - 1
     : 0;
   const periodRet = equity[equity.length - 1] / equity[0] - 1;
-  // Annualised
   const dailyReturns = [];
   for (let i = 1; i < equity.length; i++) {
     dailyReturns.push(equity[i] / equity[i - 1] - 1);
   }
   const mean = dailyReturns.reduce((s, x) => s + x, 0) / dailyReturns.length;
-  const variance = dailyReturns.reduce(
-    (s, x) => s + (x - mean) * (x - mean), 0
-  ) / dailyReturns.length;
+  // Sample variance (ddof=1) to match the engine / email / factsheet
+  // (pandas std default). n >= 2 is guaranteed by the length check above
+  // only when equity.length >= 3; guard the divisor for the 2-bar case.
+  const variance = dailyReturns.length > 1
+    ? dailyReturns.reduce((s, x) => s + (x - mean) * (x - mean), 0)
+        / (dailyReturns.length - 1)
+    : 0;
   const std = Math.sqrt(variance);
-  const ann = Math.pow(1 + mean, 252) - 1;
+  // Annualised return is GEOMETRIC from the window's compounded return
+  // over its actual calendar span (days/365.25) — matching the engine's
+  // CAGR. The previous (1+mean_daily)^252-1 compounded the ARITHMETIC
+  // mean, printing "Annualised +16.0%" beside a header CAGR of +14.8%
+  // for the same series, and inflating Sharpe to 1.33 vs the engine's
+  // 1.24 (2026-07-18 audit F6). Sharpe uses mean/std*sqrt(252), the
+  // convention every other artefact uses.
+  const spanDays = (new Date(dates[dates.length - 1]) - new Date(dates[0]))
+    / (24 * 3600 * 1000);
+  const years = spanDays / 365.25;
+  const ann = years > 0 ? Math.pow(1 + periodRet, 1 / years) - 1 : 0;
   const annVol = std * Math.sqrt(252);
-  const sharpe = annVol > 0 ? ann / annVol : 0;
+  const sharpe = std > 0 ? (mean / std) * Math.sqrt(252) : 0;
   // Max DD inside the window
   let peak = equity[0];
   let maxDd = 0;
@@ -4652,7 +4780,7 @@ function _perfComputeStats(dates, equity, period) {
     if (dd < maxDd) maxDd = dd;
   }
   const totalReturn = period === '1d' ? oneDay : periodRet;
-  return { totalReturn, periodRet, ann, sharpe, maxDd, oneDay };
+  return { totalReturn, periodRet, ann, annVol, sharpe, maxDd, oneDay };
 }
 
 function _perfRender(period) {
@@ -4800,22 +4928,56 @@ function _perfRender(period) {
     `;
   }
 
-  // Attribution: per-strategy contribution = target weight × strategy
+  // Attribution: per-strategy contribution = LIVE blend weight × strategy
   // period return. Sums to ~blend return (small error from intra-period
-  // weight drift before weekly rebalance, treated as residual).
+  // weight drift before weekly rebalance, treated as residual). Weights
+  // resolve through _sleeveNavWeightsOn so the EEM tilt (B 35% -> 25%
+  // plus a 10% EEM leg) and the de-risk gate apply — the old hard-coded
+  // 35/35/10/20 map overstated B's contribution by +0.63pp YTD with the
+  // tilt ON and omitted the EEM leg entirely (2026-07-18 audit F10).
   const sleeves = ['strategy_a', 'strategy_b', 'strategy_c', 'strategy_d'];
+  const attribAsOf = (m.strategies[deployedKey]?.dates || []).slice(-1)[0]
+    || '9999-12-31';
+  const stAttr = _sleeveNavWeightsOn(attribAsOf);
+  const attrWMap = { strategy_a: stAttr.a, strategy_b: stAttr.b,
+                     strategy_c: stAttr.c, strategy_d: stAttr.d };
   const contribs = sleeves.map(k => {
-    const w = _WEIGHTS_4WAY[k] || 0;
+    const w = attrWMap[k] || 0;
     const r = (statsByKey[k] || {}).totalReturn || 0;
     return { key: k, weight: w, ret: r, contrib: w * r };
   });
+  // Overlay legs from the holdings price panel over the SAME window.
+  const _panelPeriodReturn = (tkr) => {
+    const rec = window.DATA?.holdings_prices?.prices?.[tkr];
+    if (!rec || !rec.dates || !rec.prices) return null;
+    const sl = _sliceByPeriod(rec.dates, rec.prices, period);
+    const vals = sl.equity.filter(v => v != null);
+    if (vals.length < 2) return null;
+    return vals[vals.length - 1] / vals[0] - 1;
+  };
+  if (stAttr.tiltNav > 0) {
+    const r = _panelPeriodReturn('EEM');
+    contribs.push({ key: '__eem_tilt__', weight: stAttr.tiltNav,
+                    ret: r || 0, contrib: (r || 0) * stAttr.tiltNav });
+  }
+  if (stAttr.shyOverlay > 0) {
+    const r = _panelPeriodReturn(stAttr.fallback);
+    contribs.push({ key: '__gate_shy__', weight: stAttr.shyOverlay,
+                    ret: r || 0, contrib: (r || 0) * stAttr.shyOverlay });
+  }
   const sumContrib = contribs.reduce((s, c) => s + c.contrib, 0);
   // Scale bars by max absolute contribution for visibility
   const maxAbs = Math.max(0.0001, ...contribs.map(c => Math.abs(c.contrib)));
 
+  const _ATTR_EXTRA = {
+    '__eem_tilt__': { name: 'EEM tilt', color: '#0891b2' },
+    '__gate_shy__': { name: 'SHY (de-risk gate)', color: '#a16207' },
+  };
   const attribHtml = contribs.map(c => {
-    const name = _PERF_SERIES.find(s => s.key === c.key)?.name || c.key;
-    const color = _PERF_SERIES.find(s => s.key === c.key)?.color || '#999';
+    const name = _PERF_SERIES.find(s => s.key === c.key)?.name
+      || _ATTR_EXTRA[c.key]?.name || c.key;
+    const color = _PERF_SERIES.find(s => s.key === c.key)?.color
+      || _ATTR_EXTRA[c.key]?.color || '#999';
     const widthPct = Math.min(100, (Math.abs(c.contrib) / maxAbs) * 100);
     const barColor = c.contrib >= 0 ? color : '#dc2626';
     // Bar grows from centre — left side for negative, right for positive
@@ -4840,7 +5002,7 @@ function _perfRender(period) {
     attribEl.innerHTML = `
       <p style="margin:14px 0 6px;font-size:13px;color:var(--ink-soft);">
         <strong>Attribution to blend ${label.toLowerCase()} return</strong>
-        — sleeve return × target weight (vertical line = 0pp; bars left of line are detractors).
+        — sleeve return × live blend weight (tilt- and gate-aware; vertical line = 0pp; bars left of line are detractors).
       </p>
       <div class="attrib-grid">
         ${attribHtml}
