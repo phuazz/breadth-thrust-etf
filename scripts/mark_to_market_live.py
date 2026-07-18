@@ -194,6 +194,7 @@ def _project_daily_equity(
     prices: pd.DataFrame,
     anchor_ts: pd.Timestamp,
     session_cap: pd.Timestamp | None = None,
+    valid_sessions: set | None = None,
 ) -> tuple[list[str], list[float]]:
     """Compute weighted buy-and-hold NAV from anchor_ts forward.
 
@@ -208,6 +209,15 @@ def _project_daily_equity(
     sleeve traded, yfinance supplies that later bar but the product must
     not stamp its as-of on a day with no US close. Any caller that extends
     the deployed series MUST pass it (a normal weekday cap is a no-op).
+
+    ``valid_sessions`` (a set of ``datetime.date`` — the true NYSE
+    sessions covering the fetch window) filters INTERIOR non-NYSE dates
+    too. The cap alone only trims the tail: a Europe-only holiday bar
+    (Juneteenth, Independence Day) fell inside the range on the NEXT
+    run and re-entered the splice — the published 2026-06-22 and
+    2026-07-06 daily builds each carried such a phantom bar, shifting
+    the dashboard's WTD base by -0.25pp on 2026-07-06. Callers that
+    extend any published series MUST pass it.
     """
     baselines: dict[str, float] = {}
     for etf in weights:
@@ -224,6 +234,14 @@ def _project_daily_equity(
     post_dates = prices.index[prices.index > anchor_ts]
     if session_cap is not None:
         post_dates = post_dates[post_dates <= session_cap]
+    if valid_sessions is not None:
+        non_sessions = [d for d in post_dates if d.date() not in valid_sessions]
+        if non_sessions:
+            print(f"  NYSE session filter: dropping "
+                  f"{[d.strftime('%Y-%m-%d') for d in non_sessions]} "
+                  f"(price bars on non-NYSE days, e.g. Europe-only holidays)")
+        post_dates = post_dates[[d.date() in valid_sessions
+                                  for d in post_dates]]
     dates_out: list[str] = []
     equity_out: list[float] = []
     for d in post_dates:
@@ -395,13 +413,22 @@ def main() -> int:
     # dates to 07-03 (against the cadence rule) and the deployed-site
     # sentinel false-alarms. On a normal weekday the last session IS today's
     # close, so the cap drops nothing.
-    from nyse_sessions import last_completed_session  # scripts/ is on sys.path
+    from nyse_sessions import (  # scripts/ is on sys.path
+        last_completed_session, sessions_between)
     session_cap = pd.Timestamp(last_completed_session(datetime.now(timezone.utc)))
     late = [d.strftime("%Y-%m-%d") for d in prices.index[prices.index > session_cap]]
     if late:
         print(f"\nNYSE anchor cap: last completed session {session_cap.date()}; "
               f"dropping {len(late)} later price row(s) {late} from the deployed "
               f"extension (e.g. Europe-only holiday bar).")
+    # True NYSE sessions across the whole fetch window. The cap above only
+    # trims the TAIL — an interior Europe-only bar (US-holiday Friday or
+    # Monday, Xetra open) passed the cap on the next run and re-entered the
+    # splice (published 2026-06-22 and 2026-07-06 builds). Every projection
+    # filters through this set so the extension can never carry a date the
+    # deployed calendar rejects.
+    valid_sessions = sessions_between(prices.index[0].date(),
+                                       session_cap.date())
 
     # --- Deployed-blend projection
     anchor_ts = pd.Timestamp(anchor_date)
@@ -418,7 +445,7 @@ def main() -> int:
 
     daily_dates, daily_equity = _project_daily_equity(
         deployed_weights, anchor_equity, prices, anchor_ts,
-        session_cap=session_cap)
+        session_cap=session_cap, valid_sessions=valid_sessions)
     if daily_dates:
         print(f"\nDeployed-blend extension ({len(daily_dates)} point(s)):")
         for d, e in zip(daily_dates, daily_equity):
@@ -439,7 +466,7 @@ def main() -> int:
             s_anchor_ts = valid.max()
         s_dates, s_equity = _project_daily_equity(
             sa["weights"], sa["anchor_equity"], prices, s_anchor_ts,
-            session_cap=session_cap)
+            session_cap=session_cap, valid_sessions=valid_sessions)
         sleeve_extensions[sa["ms_key"]] = {
             "anchor_date": sa["anchor_date"],
             "anchor_equity": round(sa["anchor_equity"], 6),

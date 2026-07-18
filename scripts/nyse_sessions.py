@@ -62,6 +62,23 @@ def sessions_behind(series_end: date, expected: date) -> int:
     return int((sched.index.date > series_end).sum())
 
 
+def sessions_between(start: date, end: date) -> set[date]:
+    """The set of NYSE session dates in [start, end], both inclusive.
+
+    Used by the live mark-to-market to keep its extension on the true
+    NYSE calendar: yfinance's union index contains Xetra bars on US
+    holidays (Juneteenth, Independence Day), and the tail-only
+    ``session_cap`` let those re-enter one run later — the published
+    2026-06-22 and 2026-07-06 daily builds each carried a Europe-only
+    phantom bar the deployed series' own calendar rejects.
+    """
+    if start > end:
+        return set()
+    sched = _NYSE.schedule(start_date=start.isoformat(),
+                           end_date=end.isoformat())
+    return {d.date() for d in sched.index}
+
+
 def yf_fetch_end(now_utc: datetime | None = None) -> str:
     """ISO ``end`` argument for a yfinance download that must include the
     latest completed close. yfinance's ``end`` is EXCLUSIVE — rows come

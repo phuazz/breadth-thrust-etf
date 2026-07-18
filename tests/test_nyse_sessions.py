@@ -145,3 +145,36 @@ def test_cap_drops_rows_after_last_completed_session():
     mid_session = datetime(2026, 7, 17, 18, 0, tzinfo=timezone.utc)
     assert list(cap_to_last_completed_session(df, mid_session).index) == [
         pd.Timestamp("2026-07-16")]
+
+
+def test_sessions_between_excludes_juneteenth_and_weekend():
+    """2026-06-19 (Friday) is Juneteenth — an NYSE holiday with Xetra
+    open, exactly the phantom-bar case the live-track filter exists for."""
+    from datetime import date
+
+    from scripts.nyse_sessions import sessions_between
+
+    got = sessions_between(date(2026, 6, 15), date(2026, 6, 22))
+    assert date(2026, 6, 18) in got
+    assert date(2026, 6, 19) not in got     # Juneteenth
+    assert date(2026, 6, 20) not in got     # Saturday
+    assert date(2026, 6, 22) in got         # Monday
+
+
+def test_sessions_between_year_boundary_excludes_new_years_day():
+    from datetime import date
+
+    from scripts.nyse_sessions import sessions_between
+
+    got = sessions_between(date(2025, 12, 30), date(2026, 1, 2))
+    assert date(2025, 12, 31) in got        # NYSE trades 31 Dec
+    assert date(2026, 1, 1) not in got      # New Year's Day
+    assert date(2026, 1, 2) in got
+
+
+def test_sessions_between_inverted_range_is_empty():
+    from datetime import date
+
+    from scripts.nyse_sessions import sessions_between
+
+    assert sessions_between(date(2026, 7, 10), date(2026, 7, 1)) == set()

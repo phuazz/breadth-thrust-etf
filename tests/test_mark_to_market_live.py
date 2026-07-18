@@ -252,6 +252,35 @@ def test_projection_cap_is_inclusive_of_the_session_itself():
     assert dates == ["2026-07-02"]
 
 
+def test_projection_session_filter_drops_interior_holiday_bar():
+    """Regression for the 2026-07-18 audit F3: the tail cap alone let an
+    INTERIOR non-NYSE bar re-enter one run later. On Monday 2026-07-06 the
+    cap was 07-06, so the Europe-only 07-03 bar (Independence Day
+    observed) passed it and shipped in four consecutive daily builds,
+    shifting the dashboard's WTD base by -0.25pp. With ``valid_sessions``
+    the 07-03 bar is dropped wherever it sits in the range."""
+    prices = _prices(["2026-07-01", "2026-07-02", "2026-07-03", "2026-07-06"],
+                     [100.0, 101.0, 102.0, 103.0])
+    from datetime import date
+    valid = {date(2026, 7, 1), date(2026, 7, 2), date(2026, 7, 6)}
+    dates, equity = _project_daily_equity(
+        {"SPY": 1.0}, 1.0, prices, pd.Timestamp("2026-07-01"),
+        session_cap=pd.Timestamp("2026-07-06"), valid_sessions=valid)
+    assert dates == ["2026-07-02", "2026-07-06"]   # 07-03 phantom excluded
+    assert equity[-1] == pytest.approx(1.03)
+
+
+def test_projection_session_filter_none_keeps_prior_behaviour():
+    """valid_sessions=None must not change the cap-only behaviour (older
+    callers and the no-calendar fallback path)."""
+    prices = _prices(["2026-07-01", "2026-07-02", "2026-07-03"],
+                     [100.0, 101.0, 102.0])
+    dates, _ = _project_daily_equity(
+        {"SPY": 1.0}, 1.0, prices, pd.Timestamp("2026-07-01"),
+        session_cap=pd.Timestamp("2026-07-06"), valid_sessions=None)
+    assert dates == ["2026-07-02", "2026-07-03"]
+
+
 def test_projection_cap_across_month_boundary():
     """Month-boundary edge (CLAUDE.md date rule): cap on 2026-06-30 keeps
     June and drops the 1 July bar."""
