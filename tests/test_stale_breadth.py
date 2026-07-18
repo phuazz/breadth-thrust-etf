@@ -295,3 +295,52 @@ def test_live_fx_stale_drops_usd_price_to_nan(monkeypatch):
     # Past the 10-day cap: NaN, not the frozen last rate.
     late = idx[idx > last_fx + pd.Timedelta(days=10)][0]
     assert np.isnan(usd.loc[late])
+
+
+# --- D9: tilt DIAGNOSTIC freshness cap (2026-07-18) -------------------------
+# The money path already caps and degrades to baseline; these pin the
+# published diagnostics to the same freshness policy.
+
+def test_tilt_diagnostic_fresh_feed_matches_old_behaviour_and_is_not_stale():
+    import pandas as pd
+
+    from scripts.run_risk_overlay import _align_tilt_signal_for_diagnostics
+
+    common = pd.date_range("2026-06-01", "2026-06-12", freq="B")
+    sig = pd.Series(1.0, index=common)          # fresh signal on every bar
+    aligned, last_valid, stale = _align_tilt_signal_for_diagnostics(sig, common)
+    old = sig.reindex(common, method="ffill").fillna(0)
+    assert not stale
+    assert last_valid == common[-1]
+    assert (aligned == old).all()               # value-identical when fresh
+    assert not aligned.isna().any()             # int() serialisation safe
+
+
+def test_tilt_diagnostic_stale_tail_is_flagged_and_holds_last_reading():
+    import pandas as pd
+
+    from scripts.run_risk_overlay import _align_tilt_signal_for_diagnostics
+
+    common = pd.date_range("2026-06-01", "2026-06-30", freq="B")
+    sig = pd.Series(1.0, index=common[:5])      # feed stops on 2026-06-05
+    aligned, last_valid, stale = _align_tilt_signal_for_diagnostics(sig, common)
+    assert stale
+    # Within the 10-calendar-day cap the fill is a real (capped) reading;
+    # past it the display holds the last valid value rather than NaN.
+    assert last_valid < common[-1]
+    assert (common[-1] - last_valid).days >= 10
+    assert not aligned.isna().any()
+    assert aligned.iloc[-1] == 1.0              # held, visibly stale via flag
+
+
+def test_tilt_diagnostic_pre_signal_head_fills_off():
+    import pandas as pd
+
+    from scripts.run_risk_overlay import _align_tilt_signal_for_diagnostics
+
+    common = pd.date_range("2026-06-01", "2026-06-12", freq="B")
+    sig = pd.Series(1.0, index=common[5:])      # signal starts mid-window
+    aligned, last_valid, stale = _align_tilt_signal_for_diagnostics(sig, common)
+    assert not stale
+    assert (aligned.iloc[:5] == 0.0).all()      # no signal -> tilt OFF
+    assert (aligned.iloc[5:] == 1.0).all()

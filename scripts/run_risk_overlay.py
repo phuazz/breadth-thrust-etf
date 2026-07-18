@@ -239,6 +239,36 @@ def _compute_eem_tilt_signal(ratio: pd.Series) -> pd.Series:
     return (fast > slow).astype(float)
 
 
+def _align_tilt_signal_for_diagnostics(
+    eem_signal: pd.Series, common: pd.DatetimeIndex,
+) -> tuple[pd.Series, pd.Timestamp | None, bool]:
+    """Freshness-capped alignment for the PUBLISHED tilt diagnostics (D9).
+
+    The money path (``_build_eem_tilted_blend``) caps its forward-fill at
+    ``EEM_MAX_STALE_DAYS`` and degrades to the baseline blend when the
+    EEM/SPY feed stalls; the diagnostics used a raw uncapped ffill, so a
+    frozen feed kept publishing a confident ``current_state`` forever.
+
+    Returns ``(sig_aligned, signal_last_valid, signal_stale)``:
+      - ``sig_aligned`` holds the LAST VALID signal through any stale tail
+        (display continuity; NaN-free, so the daily_series ``int()``
+        serialisation cannot crash) and is value-identical to the old raw
+        ffill whenever the feed is fresh;
+      - ``signal_last_valid`` is the last bar with a within-cap
+        observation (None when the feed never overlaps the window);
+      - ``signal_stale`` is True when that bar is before the window end —
+        the caller must surface it (WARN + payload fields), never hide it.
+    Dates before the first observation fill as 0 (no signal -> tilt OFF),
+    matching the previous behaviour.
+    """
+    sig_capped = align_series_to_index(eem_signal, common,
+                                       max_stale_days=EEM_MAX_STALE_DAYS)
+    signal_last_valid = sig_capped.last_valid_index()
+    signal_stale = bool(signal_last_valid is not None
+                        and signal_last_valid < common[-1])
+    return sig_capped.ffill().fillna(0), signal_last_valid, signal_stale
+
+
 def _build_eem_tilted_blend(
     multi: dict,
     eem_prices: pd.Series,
@@ -460,8 +490,19 @@ def main() -> int:
                                      - switch_cost)
                 tilted_gated_eq = (1.0 + tilted_gated_ret).cumprod()
                 tilted_gated_stats = _stats(tilted_gated_ret, tilted_gated_eq)
-                # Phase 22 diagnostics
-                sig_aligned = eem_signal.reindex(common, method="ffill").fillna(0)
+                # Phase 22 diagnostics — freshness-capped (D9, 2026-07-18):
+                # aligned like the money path so a stalled feed cannot keep
+                # publishing a confident live state. The displayed series
+                # holds the last valid reading; the payload carries
+                # signal_as_of / signal_stale so consumers can badge it.
+                (sig_aligned, signal_last_valid,
+                 signal_stale) = _align_tilt_signal_for_diagnostics(
+                    eem_signal, common)
+                if signal_stale:
+                    print(f"  WARN: Phase 22 tilt DIAGNOSTIC frozen past "
+                          f"{signal_last_valid.date()} (EEM/SPY feed stale "
+                          f"> {EEM_MAX_STALE_DAYS}d) — published state is "
+                          f"the last valid reading, not a live signal")
                 tilt_state = "EM_TILT_ON" if sig_aligned.iloc[-1] == 1.0 else "EM_TILT_OFF"
                 tilt_transitions = sig_aligned.diff().fillna(0)
                 last_tilt_change = (sig_aligned.index[tilt_transitions != 0][-1]
@@ -514,6 +555,13 @@ def main() -> int:
                     },
                     "current_state": tilt_state,
                     "current_state_since": last_tilt_change.strftime("%Y-%m-%d"),
+                    # D9 — freshness of the signal behind current_state. A
+                    # consumer must treat signal_stale=True like the gate's
+                    # stale-panel banner: last valid reading, not live.
+                    "signal_as_of": (signal_last_valid.strftime("%Y-%m-%d")
+                                      if signal_last_valid is not None
+                                      else None),
+                    "signal_stale": signal_stale,
                     "current_ratio": _round(eem_ratio.iloc[-1]),
                     "current_fast_ma": _round(
                         eem_ratio.rolling(EEM_TILT_FAST_MA).mean().iloc[-1]),
