@@ -1318,3 +1318,29 @@ Watchpoint: first US-holiday-with-Xetra-open after any live-track change
 (next: Labor Day, Monday 2026-09-07) — regression test covers the
 mechanism. Record: `reviews/2026-07-18_reporting-audit.docx`. Follow-up
 spawned for the monitor repo's registry coverage (digest proximity chart).
+
+## 2026-07-18 — WS7 registered: Sleeve C seat review (evidence live, sign-off pending)
+
+The WS3 "KEEP, ON NOTICE" item is now a pre-registered workstream:
+`KICKOFF_ws7-c-seat.md` fixes the review date (Fri 2026-10-02), the two
+comparisons (rotation vs its own EW-25 basket at the frozen WS3 1x
+per-line cost vector; blend with-C vs the registered pro-rata without-C
+counterfactual with gate-scaled w_C), a three-way decision rule
+(KEEP / SWITCH-to-passive-EW / DROP), a ±2.0pp OOS noise band with a
+confirm-or-veto role only, and a one-sided −5pp tripwire — all BEFORE any
+out-of-sample evidence was read. The owner deferred the scoping choices
+to the recommended options; every gate is marked pending countersign in
+the kickoff's sign-off block. No strategy behaviour changes until the
+review.
+
+Instrumentation live from this week: `scripts/run_c_seat_watch.py`
+(weekly workflow + refresh_all) appends one point-in-time row per
+completed week to `data/c_seat_watch.json`; the weekly email carries a
+one-line watch with STALE and TRIPWIRE tags (soft-fail is safe because
+staleness surfaces in the artefact). Universe membership frozen in
+`data/c_universe_pit.json` — future adds join the benchmark only from
+their dated entry. First two OOS weeks (to 2026-07-17): rotation vs
+EW-25 **−2.58pp**, seat **−0.84pp** — both point the same way as WS3,
+and both are inside the registered noise framing; no reading before the
+review date. Without-C algebra verified exact against the published
+series; 7 unit tests; full suite 334.
