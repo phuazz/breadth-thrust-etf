@@ -164,6 +164,8 @@ def main() -> int:
         ("mark_to_market_live (intra-week NAV)", "scripts/mark_to_market_live.py"),
         ("export_holdings_prices (1Y price series)",
             "scripts/export_holdings_prices.py"),
+        ("c_seat_watch (WS7 OOS evidence accumulator)",
+            "scripts/run_c_seat_watch.py"),
         ("pipeline (build docs/index.html + factsheet PDF)",
             "scripts/pipeline.py"),
     ]

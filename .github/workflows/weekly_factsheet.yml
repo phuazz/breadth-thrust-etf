@@ -249,6 +249,13 @@ jobs:
       - name: Run holdings price export (soft-fail)
         run: python scripts/export_holdings_prices.py || true
 
+      # WS7 evidence accumulator (KICKOFF_ws7-c-seat.md). Soft-fail is safe
+      # BECAUSE the email watch line renders a STALE tag whenever the
+      # tracker's last week trails the as-of — failure is visible in the
+      # artefact, never silent.
+      - name: Run Sleeve C seat watch (WS7; soft-fail, staleness surfaces in the email)
+        run: python scripts/run_c_seat_watch.py || true
+
       - name: Build dashboard + factsheet PDF
         run: python scripts/pipeline.py
 

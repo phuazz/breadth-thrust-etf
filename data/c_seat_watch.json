@@ -1,0 +1,38 @@
+{
+  "registered_by": "KICKOFF_ws7-c-seat.md",
+  "anchor_date": "2026-07-03",
+  "review_date": "2026-10-02",
+  "tripwire_pp": -5.0,
+  "noise_band_pp": 2.0,
+  "universe_n": 25,
+  "weeks": [
+    {
+      "week_end": "2026-07-10",
+      "r_rotation": -0.012225,
+      "r_ew25": -0.009144,
+      "r_blend": 0.010604,
+      "r_without_c": 0.01314,
+      "w_c": 0.1,
+      "n_ew_names": 25,
+      "fx_fallback": false,
+      "computed_at_utc": "2026-07-18 13:46 UTC",
+      "cum_rotation_minus_ew_pp": -0.308,
+      "cum_with_minus_without_pp": -0.254,
+      "tripwire": false
+    },
+    {
+      "week_end": "2026-07-17",
+      "r_rotation": -0.065104,
+      "r_ew25": -0.041949,
+      "r_blend": -0.012336,
+      "r_without_c": -0.006473,
+      "w_c": 0.1,
+      "n_ew_names": 25,
+      "fx_fallback": false,
+      "computed_at_utc": "2026-07-18 13:46 UTC",
+      "cum_rotation_minus_ew_pp": -2.582,
+      "cum_with_minus_without_pp": -0.844,
+      "tripwire": false
+    }
+  ]
+}

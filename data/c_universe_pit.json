@@ -1,0 +1,137 @@
+{
+  "registered_by": "KICKOFF_ws7-c-seat.md",
+  "frozen_at": "2026-07-18",
+  "note": "Point-in-time membership log for the Sleeve C universe, frozen at WS7 registration. Any FUTURE addition must be appended here with its entry date and joins the EW-25 benchmark and the rotation universe only from that date - the OOS evidence window stays point-in-time by construction. Pre-2026-07-18 membership history is as WS3 characterised it (post-hoc adds with backfilled history; bounded, not correctable). The SHY row is the cash floor, excluded from the EW-25 risk basket.",
+  "members": [
+    {
+      "etf": "ARKK",
+      "label": "ARK Disruptive Innovation",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "CIBR",
+      "label": "First Trust Cybersecurity",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "SKYY",
+      "label": "First Trust Cloud Computing",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "BOTZ",
+      "label": "Global X Robotics & AI",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "BLOK",
+      "label": "Amplify Blockchain",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "ICLN",
+      "label": "iShares Global Clean Energy",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "TAN",
+      "label": "Invesco Solar",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "LIT",
+      "label": "Global X Lithium & Battery Tech",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "URA",
+      "label": "Global X Uranium",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "XBI",
+      "label": "SPDR S&P Biotech (eq-weight)",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "ARKG",
+      "label": "ARK Genomic Revolution",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "JETS",
+      "label": "Global X Airlines",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "GDX",
+      "label": "VanEck Gold Miners",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "COPX",
+      "label": "Global X Copper Miners",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "MOO",
+      "label": "VanEck Agribusiness",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "XME",
+      "label": "SPDR S&P Metals & Mining",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "WOOD",
+      "label": "iShares Global Timber & Forestry",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "REMX",
+      "label": "VanEck Rare Earth / Strategic Metals",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "CQQQ",
+      "label": "Invesco China Technology",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "159801.SZ",
+      "label": "Bosera CSI Chip (China A-share semis \u2014 USD-adj from CNY)",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "PAVE",
+      "label": "Global X US Infrastructure",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "ITA",
+      "label": "iShares US Aerospace & Defense",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "BTC-USD",
+      "label": "Bitcoin (CoinDesk spot \u2014 deployed via IBIT, 25bps ER)",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "PHO",
+      "label": "Invesco Water Resources",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "IHI",
+      "label": "iShares US Medical Devices",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    },
+    {
+      "etf": "SHY",
+      "label": "iShares 1-3y US Treasury (Strategy C cash floor)",
+      "member_from": "pre-2026-07-18 (see phase history)"
+    }
+  ]
+}

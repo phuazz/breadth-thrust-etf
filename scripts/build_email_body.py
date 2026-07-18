@@ -835,6 +835,34 @@ def build_html(out_path: Path):
             f'</div>'
         )
 
+    # WS7 — Sleeve C seat watch (KICKOFF_ws7-c-seat.md §7). One line from
+    # the append-only OOS tracker; absent file renders nothing (pre-
+    # registration emails). A STALE tag fires when the tracker's last week
+    # trails the email's as-of by more than a week — the workflow runs the
+    # tracker soft-fail, so staleness must surface here, never silently.
+    watch = _load_json(DATA_DIR / "c_seat_watch.json")
+    if watch and watch.get("weeks"):
+        wrow = watch["weeks"][-1]
+        wk_end = pd.Timestamp(wrow["week_end"])
+        stale_tag = (' <strong style="color:#b3261e;">(STALE &mdash; '
+                     'tracker did not run this week)</strong>'
+                     if (asof - wk_end).days > 7 else "")
+        trip_tag = ('<strong style="color:#b3261e;">TRIPWIRE BREACHED '
+                    '&mdash; review brought forward. </strong>'
+                    if wrow.get("tripwire") else "")
+        out.append(
+            f'<p style="margin:0 0 18px 0;font-size:11px;color:#7c8590;'
+            f'line-height:1.5;">{trip_tag}'
+            f'<strong>C seat watch (WS7):</strong> rotation vs EW-25 '
+            f'{wrow["cum_rotation_minus_ew_pp"]:+.2f}pp &middot; '
+            f'seat {wrow["cum_with_minus_without_pp"]:+.2f}pp '
+            f'since {watch.get("anchor_date", "2026-07-03")} '
+            f'(week {wrow["week_end"]}) &middot; '
+            f'review {watch.get("review_date", "2026-10-02")}, '
+            f'&plusmn;{watch.get("noise_band_pp", 2.0):g}pp noise band'
+            f'{stale_tag}</p>'
+        )
+
     # PDF + dashboard link
     out.append(
         '<div style="background:#f7f8fa;border:1px solid #e1e4e8;'
