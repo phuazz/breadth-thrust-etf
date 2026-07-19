@@ -163,8 +163,10 @@ class BrokerSchedule:
                        viable NAV, because it is fixed while order notional
                        scales with NAV.
     ``max_pct_value``  cap as a fraction of order notional.
-    ``fractional_min_applies`` whether ``min_order`` still bites on a
-                       fractional-share order. Verified, not assumed.
+    ``fractional_min_applies`` records whether ``min_order`` bites on a
+                       fractional-share order. Descriptive only: the fractional
+                       treatment is already encoded in that schedule's own
+                       ``min_order``, so nothing reads this field.
     """
 
     name: str
@@ -269,7 +271,7 @@ def annualised_drag_from_daily(daily_cost: pd.Series) -> float:
 def net_sharpe(gross_daily: pd.Series, daily_cost: pd.Series) -> float:
     """Annualised Sharpe of a gross return series net of a daily cost series.
 
-    Mirrors ``single_name_impl._ann_sharpe`` mechanics (zero risk-free, sqrt-252
+    Mirrors ``run_ws6_single_name._ann_sharpe`` mechanics (zero risk-free, sqrt-252
     scaling) so the output is directly comparable with the WS6 register.
     """
     net = gross_daily.sub(daily_cost.reindex(gross_daily.index).fillna(0.0),

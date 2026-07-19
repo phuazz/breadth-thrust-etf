@@ -96,8 +96,27 @@ class CostResult:
     annual_income_drag: float
 
 
+def schedule_resolver(schedules: dict[str, BrokerSchedule], lse_lines: set[str],
+                      us_schedule: str, lse_schedule: str):
+    """Map an INSTRUMENT to the schedule its venue actually charges.
+
+    Commission must follow the instrument, never the ledger. Both arms trade
+    the same LSE-listed UCITS lines for the part of the book that is not
+    basketed — I0-PARTIAL5 still holds six sector lines and three broad slices
+    as ETFs — and both may trade US-listed SOXX. Charging by ledger let the
+    same order cost 0.5 bp inside one arm and 5 bp inside the other, which
+    flattered whichever arm was assigned the cheaper schedule.
+    """
+    us, lse = schedules[us_schedule], schedules[lse_schedule]
+
+    def _for(name: str) -> BrokerSchedule:
+        return lse if name in lse_lines else us
+
+    return _for
+
+
 def trading_costs(trades: pd.DataFrame, prices: pd.DataFrame,
-                  schedule: BrokerSchedule, half_spread_bps: pd.Series,
+                  schedule, half_spread_bps: pd.Series,
                   nav: float, calendar: pd.DatetimeIndex,
                   stress: float = 1.0) -> tuple[pd.Series, dict]:
     """Commission plus half-spread on every order in the ledger.
@@ -128,7 +147,25 @@ def trading_costs(trades: pd.DataFrame, prices: pd.DataFrame,
 
     notional = (t["abs_delta"] * nav).to_numpy()
     price = t["price"].to_numpy()
-    comm = schedule.commission_usd(notional, price) * stress
+
+    # ``schedule`` is either a single BrokerSchedule or a callable resolving
+    # each instrument to its venue's schedule. The callable form is the correct
+    # one; the scalar form is retained for the unit tests.
+    if callable(schedule):
+        comm = np.zeros(len(t), dtype=float)
+        names = t["name"].to_numpy()
+        by_sched: dict[int, BrokerSchedule] = {}
+        for i, nm in enumerate(names):
+            by_sched.setdefault(id(schedule(nm)), schedule(nm))
+        for sched in by_sched.values():
+            mask = np.array([schedule(nm) is sched for nm in names])
+            if mask.any():
+                comm[mask] = sched.commission_usd(notional[mask], price[mask])
+        min_order = min(float(s.min_order) for s in by_sched.values())
+    else:
+        comm = schedule.commission_usd(notional, price)
+        min_order = float(schedule.min_order)
+    comm = comm * stress
 
     default_hs = float(half_spread_bps.get("__default__", np.nan))
     hs = t["name"].map(half_spread_bps).astype(float)
@@ -138,8 +175,7 @@ def trading_costs(trades: pd.DataFrame, prices: pd.DataFrame,
 
     t["commission"] = comm
     t["spread"] = spread
-    at_min = int(np.sum(np.isclose(comm / max(stress, 1e-12),
-                                   float(schedule.min_order))))
+    at_min = int(np.sum(np.isclose(comm / max(stress, 1e-12), min_order)))
 
     def _daily(col: str) -> pd.Series:
         return (t.groupby("date")[col].sum() / nav

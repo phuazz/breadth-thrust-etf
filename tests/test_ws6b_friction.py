@@ -311,6 +311,79 @@ def test_trading_costs_counts_names_falling_back_to_the_default_spread():
     assert detail["n_orders_default_spread"] == 1
 
 
+# --- schedule follows the instrument, not the ledger -----------------------
+
+LSE = BrokerSchedule(
+    name="test_lse",
+    per_share=Uncertain(0.0, "test"),
+    min_order=Uncertain(1.30, "test"),
+    max_pct_value=Uncertain(1.0, "test"),
+    fractional_min_applies=True,
+    pct_of_value=Uncertain(0.0005, "test"),
+    has_max=False,
+)
+
+
+def test_schedule_resolver_maps_instrument_to_venue():
+    from ws6b_costs import schedule_resolver
+    r = schedule_resolver({"us": FIXED, "lse": LSE}, {"IUES", "CSP1"}, "us", "lse")
+    assert r("IUES") is LSE and r("CSP1") is LSE
+    assert r("SOXX") is FIXED and r("XOM") is FIXED
+
+
+def test_identical_orders_cost_the_same_in_either_arms_ledger():
+    """Regression, HIGH severity. Commission was assigned per LEDGER, so the
+    same LSE-listed UCITS order cost 0.5 bp inside the I0 ledger and 5 bp
+    inside the E0 ledger. Both arms trade those lines - I0-PARTIAL5 still holds
+    six sector lines and three broad slices as ETFs - so the asymmetry flattered
+    whichever arm got the cheaper schedule."""
+    from ws6b_costs import schedule_resolver
+    cal = pd.date_range("2020-01-01", periods=10, freq="B")
+    order = pd.DataFrame({"date": [pd.Timestamp("2020-01-02")], "name": ["IUES"],
+                          "delta": [0.10], "abs_delta": [0.10],
+                          "weight_after": [0.10]})
+    px = pd.DataFrame({"IUES": np.full(len(cal), 50.0)}, index=cal)
+    r = schedule_resolver({"us": FIXED, "lse": LSE}, {"IUES"}, "us", "lse")
+    hs = pd.Series({"__default__": 0.0})
+    _d, as_i0 = trading_costs(order, px, r, hs, 1_000_000, cal)
+    _d, as_e0 = trading_costs(order, px, r, hs, 1_000_000, cal)
+    assert as_i0["commission_usd_total"] == as_e0["commission_usd_total"]
+    # and it must be the LSE percentage leg, not the US per-share leg
+    assert as_i0["commission_usd_total"] == pytest.approx(0.0005 * 0.10 * 1_000_000)
+
+
+def test_us_listed_line_is_not_charged_the_lse_schedule():
+    from ws6b_costs import schedule_resolver
+    cal = pd.date_range("2020-01-01", periods=10, freq="B")
+    order = pd.DataFrame({"date": [pd.Timestamp("2020-01-02")], "name": ["SOXX"],
+                          "delta": [0.10], "abs_delta": [0.10],
+                          "weight_after": [0.10]})
+    px = pd.DataFrame({"SOXX": np.full(len(cal), 200.0)}, index=cal)
+    r = schedule_resolver({"us": FIXED, "lse": LSE}, {"IUES"}, "us", "lse")
+    _d, det = trading_costs(order, px, r, pd.Series({"__default__": 0.0}),
+                            1_000_000, cal)
+    # 100,000 / 200 = 500 shares * $0.005 = $2.50, well under the 1% cap
+    assert det["commission_usd_total"] == pytest.approx(2.50)
+
+
+def test_lse_schedule_has_no_maximum():
+    """The LSE schedule publishes 'Maximum per order: None'. Applying the US 1%
+    cap to it would understate large ETF trades."""
+    c = LSE.commission_usd(np.array([10_000_000.0]), np.array([50.0]))
+    assert c[0] == pytest.approx(0.0005 * 10_000_000)
+
+
+def test_shipped_venue_map_covers_every_traded_line():
+    import json
+    raw = json.loads((PROJECT_ROOT / "data" / "ws6b_params.json")
+                     .read_text(encoding="utf-8"))
+    lse = set(raw["venues"]["lse_listed"])
+    all_lines = set(sni.SINGLE_NAMED_LINES) | set(sni.BROAD_SLICES)
+    # every line is assigned, and SOXX is the sole US-listed one
+    assert all_lines - lse == {"SOXX"}
+    assert lse <= all_lines
+
+
 # --- provenance ------------------------------------------------------------
 
 def test_uncertain_carries_its_source_and_flag():

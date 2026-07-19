@@ -190,8 +190,16 @@ def build_mechanics() -> dict:
     print(f"\nStage 1 — unadjusted Norgate closes for {len(names)} names ...",
           flush=True)
     unadj = fetch_unadjusted_closes(names, start, end)
+    # SOXX is the one US-listed line, so it is the one ETF whose orders meet a
+    # PER-SHARE schedule and therefore need a real traded price. Take it from
+    # Norgate unadjusted; its 2024 15:1 split would otherwise inflate pre-split
+    # share counts fifteenfold off the auto-adjusted proxy panel. The remaining
+    # thirteen lines are LSE-listed and charged on trade VALUE, where the price
+    # column never enters the commission.
+    soxx_unadj = fetch_unadjusted_closes(["SOXX"], start, end)
     etf_px = closes.reindex(columns=[c for c in sector["weights"].columns])
-    unadj = pd.concat([unadj, etf_px], axis=1)
+    etf_px = etf_px.drop(columns=[c for c in ("SOXX",) if c in etf_px.columns])
+    unadj = pd.concat([unadj, soxx_unadj, etf_px], axis=1)
     unadj = unadj.loc[:, ~unadj.columns.duplicated(keep="first")]
 
     # CAPITAL-adjusted OHLC: split/capital-adjusted but NOT dividend-adjusted.
@@ -339,7 +347,7 @@ def dividend_panel(basis: str = "capital") -> pd.DataFrame:
 
 def run_costs() -> int:
     from ws6b_costs import (income_costs, load_params, net_sharpe_pair,
-                            trading_costs)
+                            schedule_resolver, trading_costs)
 
     params = load_params()
     gross = pd.read_parquet(GROSS_PATH)
@@ -356,8 +364,14 @@ def run_costs() -> int:
                   for L in PARTIAL_5}
 
     hs = pd.Series({k: float(v) for k, v in params["spreads"].items()})
-    schedule = params["schedules"][params["raw"]["active_schedule"]]
-    etf_schedule = params["schedules"][params["raw"]["active_schedule_etf"]]
+    # Commission follows the INSTRUMENT's venue, not the ledger it appears in.
+    # Both arms trade the same LSE-listed UCITS lines for the un-basketed part
+    # of the book, and both may trade US-listed SOXX.
+    lse_lines = set(params["raw"]["venues"]["lse_listed"])
+    resolve = schedule_resolver(params["schedules"], lse_lines,
+                                params["raw"]["active_schedule"],
+                                params["raw"]["active_schedule_etf"])
+    schedule = etf_schedule = resolve
 
     income_daily, per_line = income_costs(line_books, div, params["lines"], idx)
     annual_income = float(income_daily.mean() * 252)
@@ -368,17 +382,19 @@ def run_costs() -> int:
     navs = params["raw"]["nav_grid"]
     rows = []
     for nav in navs:
-        for stress, label in ((1.0, "base"), (2.0, "2x_trading")):
+        for stress, label in ((1.0, "base"), (2.0, "2x_trading"),
+                              (2.0, "2x_all_in")):
             c_i0, d_i0 = trading_costs(tr_i0, prices, schedule, hs, nav, idx, stress)
             c_e0, d_e0 = trading_costs(tr_e0, prices, etf_schedule, hs, nav, idx, stress)
             inc = income_daily * (2.0 if label == "2x_all_in" else 1.0)
             sh = net_sharpe_pair(gross, c_e0, c_i0 + inc)
+            floor = 0.05 if label == "base" else 0.10
             rows.append({
                 "nav": nav, "stress": label,
                 "sharpe_E0": sh["E0"], "sharpe_I0": sh["I0_PARTIAL5"],
                 "drag": sh["drag"],
-                "floor": 0.05 if stress == 1.0 else 0.10,
-                "passes": sh["drag"] <= (0.05 if stress == 1.0 else 0.10),
+                "floor": floor,
+                "passes": sh["drag"] <= floor,
                 "ann_commission_drag_i0": float(d_i0["daily_commission"].mean() * 252),
                 "ann_spread_drag_i0": float(d_i0["daily_spread"].mean() * 252),
                 "ann_commission_drag_e0": float(d_e0["daily_commission"].mean() * 252),
@@ -414,6 +430,7 @@ def run_costs() -> int:
         min_viable_by_schedule[s] = (float(ok["nav"].min()) if len(ok) else None)
 
     def _min_viable(stress_label: str, floor: float) -> float | None:
+        """Lowest NAV from which the floor holds AND keeps holding above it."""
         sub = grid[grid["stress"] == stress_label].sort_values("nav")
         ok = sub[sub["drag"] <= floor]
         return float(ok["nav"].iloc[0]) if len(ok) else None
@@ -463,7 +480,8 @@ def run_costs() -> int:
         "schedule_bracket": scen_df.to_dict(orient="records"),
         "min_viable_nav_by_schedule": min_viable_by_schedule,
         "min_viable_nav": {"base_floor_0.05": _min_viable("base", 0.05),
-                           "stress_floor_0.10": _min_viable("2x_trading", 0.10)},
+                           "stress_floor_0.10": _min_viable("2x_trading", 0.10),
+                           "all_in_2x_floor_0.10": _min_viable("2x_all_in", 0.10)},
     }
     path = OUT_DIR / "t1_friction_results.json"
     path.write_text(json.dumps(out, indent=2, default=float), encoding="utf-8")

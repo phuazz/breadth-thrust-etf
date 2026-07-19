@@ -1,5 +1,5 @@
 {
-  "_README": "WS6b T1 verified friction stack. Every figure carries its source. 'uncertain': true means the T1 pulls could NOT confirm it from a published source and it is a stated assumption, NOT a verified figure \u2014 such a figure must be reported as uncertain wherever it propagates. Retrieval date for all pulls: 2026-07-19.",
+  "_README": "WS6b T1 verified friction stack. Every figure carries its source. 'uncertain': true means the T1 pulls could NOT confirm it from a published source and it is a stated assumption, NOT a verified figure \u2014 such a figure must be reported as uncertain wherever it propagates. Retrieval date for all pulls: 2026-07-19. 'active_schedule' is the US venue schedule and 'active_schedule_etf' the LSE one; they are resolved PER INSTRUMENT via 'venues', never per ledger.",
   "active_schedule": "ibkr_fixed_us_stocks",
   "active_schedule_etf": "ibkr_lse_etf",
   "nav_grid": [
@@ -378,7 +378,7 @@
     "known_gaps": [
       "iShares fund-level actual withholding suffered is not verified per-fund; the 15% treaty rate is used. Published analogue (Vanguard VUSA FY2014) computed 14.74%.",
       "NEITHER side of the spread differential is verified: no per-sector or named mega-cap bps table for US large caps, and no published spread statistic for any LSE-listed iShares S&P 500 sector UCITS line. Reported as a sweep.",
-      "Whether IBKR's $1.00/$0.35 per-order minimum applies to FRACTIONAL orders is unresolved and is the single largest driver of minimum viable NAV. Reported as a bracket across three schedules.",
+      "Whether IBKR's per-order minimum applies to FRACTIONAL orders is unresolved and is the largest driver of minimum viable NAV: $150k Fixed / $50k Tiered / $25k fractional, and $200k under the stricter all-in-2x reading.",
       "Which IBKR LSE schedule applies to the USD-denominated UCITS lines, and the USD/GBP rate for its minimum, are assumptions. The percentage leg dominates, so the minimum matters little.",
       "IBKR Tiered third-party pass-through fees are disclosed but not modelled.",
       "SOXX AUM disagrees across sources by more than 2x ($20.6bn fact sheet 2026-03-31, $45.1bn Morningstar, $47.8bn AAII). Not used in this model, but noted."
@@ -400,10 +400,33 @@
       "materiality": "The two bases differ by about 0.021%/yr on a 0.205%/yr income leg, roughly 0.0014 net Sharpe. Does not move the verdict; a T4 refinement if the margin tightens."
     },
     "dominant_parameter": {
-      "finding": "E0's OWN commission is now the largest single term in the study. On IBKR's published LSE Tiered schedule (0.05% of trade value, no maximum) the deployed ETF book pays about 0.836%/yr in commission, against 0.175%/yr if the US per-share schedule is applied. E0 turnover is 16.62x one-way per year, so 0.05% a side compounds to that figure directly.",
-      "consequence": "The verdict swings by roughly 0.035 net Sharpe on this one choice. Under the LSE schedule I0-PARTIAL5 BEATS E0 from about $250k NAV upward; under the US schedule it is roughly break-even at $500k. I0 looks good here largely because weekly rebalancing an LSE-listed UCITS book is expensive, NOT because constituent baskets are cheap.",
-      "status": "UNRESOLVED and load-bearing. Confirm from actual IBKR fills on the UCITS lines before the T4 verdict.",
-      "wider_implication": "This is also a finding about the DEPLOYED pipeline, not just about I0. The register costs E0 at a flat 2 bps. If the LSE schedule is the right one, the deployed book's true trading cost is roughly 1.55%/yr (0.84% commission plus 0.72% half-spread), and every WS-series net-Sharpe figure for E0 is optimistic. That belongs to the deployed engine, not to WS6b, and is flagged rather than acted on here."
+      "finding": "E0's own commission is a large term: on IBKR's published LSE Tiered schedule (0.05% of trade value, no maximum) the LSE-listed UCITS legs cost about 0.05% a side, and at 16.6x annual one-way turnover that compounds materially. BOTH arms bear it - I0-PARTIAL5 still holds six sector lines and three broad slices as ETFs - so it is NOT a differential in I0's favour. An earlier vintage of this file claimed it was; that claim was an artefact of assigning commission per ledger rather than per instrument, and is struck.",
+      "corrected_conclusion": "All-in frictions roughly WASH at scale. PARTIAL-5 clears the signed floors; it does not win. Drag is +0.012 at $250k, crosses zero near $350k, and settles near -0.04 to -0.05 at $1m and above - but most of what remains above the crossover is the +0.017 seen-window gross gap that the registration's seen-data caveat bars from counting as evidence. The case for adoption is book structure, not performance.",
+      "status": "Which IBKR LSE schedule applies to the USD-denominated UCITS lines remains unverified. Confirm from actual fills before the T4 verdict.",
+      "wider_implication": "Still stands, and is the larger finding: the register costs E0 at a flat 2 bps. If the LSE schedule is right, the deployed book's true trading cost is far higher, and every WS-series E0 net-Sharpe figure is optimistic. Belongs to the deployed engine, not to WS6b."
+    },
+    "fable5_check": {
+      "date": "2026-07-19",
+      "outcome": "NOT FIT AS FILED; fit after one fully-specified fix, now applied.",
+      "confirmed": [
+        "basis derivation A (both reductions re-derived from scratch, incl. the 0.30*TER SOXX result - not double-counting)",
+        "auto_adjust premise B (verified empirically: cached engine panels match Norgate TOTALRETURN at corr 1.000000, MAD 1.6e-7)",
+        "registration compliance C (inside; corr>=0.99 selection is seen-data but the shadow is the correct control)",
+        "restricted_to D (single call site, restored, non-adopted trade vectors bit-identical between arms)",
+        "dividend-basis conservatism E (direction correct: net +0.15F penalty on I0)",
+        "turnover F (16.69x/yr independently recomputed)",
+        "Sharpe mechanics comparable to WS6; index alignment; no per-line double-counting; constant-NAV conservative"
+      ],
+      "defects_found_and_fixed": [
+        "HIGH: commission assigned per LEDGER not per INSTRUMENT - I0's LSE legs charged the US per-share rate while E0 paid 0.05% on identical orders. Flattered I0 by ~0.020 Sharpe base / ~0.040 at 2x. Fixed via schedule_resolver + venues map; pinned by 5 new tests.",
+        "MEDIUM: the promised all-in-2x variant was dead code (a label the loop never produced). Now real - and it bites: $150k FAILS the 0.10 floor at 0.1028 under that reading.",
+        "MEDIUM: the 'I0 beats E0 from $250k' narrative was wrong post-fix and leaned on seen-data gross outperformance. Struck.",
+        "LOW: SOXX priced off the auto-adjusted proxy panel; its 2024 15:1 split inflated pre-split share counts. Now sourced from Norgate unadjusted."
+      ],
+      "open_low_severity": [
+        "us_situs is recorded but the axis is not priced; the T4 record should name it explicitly.",
+        "fractional_min_applies is decorative - the fractional treatment is already encoded in that schedule's min_order of 0.01."
+      ]
     }
   },
   "scenarios": {
@@ -412,6 +435,28 @@
       "ibkr_fixed_us_stocks",
       "ibkr_tiered_us_stocks",
       "ibkr_fractional_us_stocks"
+    ]
+  },
+  "venues": {
+    "_note": "Commission follows the instrument's listing venue, not the ledger. Verified from etf_registry ishares_region: SOXX is the only US-listed line; the other thirteen are LSE-listed Irish UCITS.",
+    "lse_listed": [
+      "IUES",
+      "IUUS",
+      "IUCS",
+      "IUFS",
+      "IUCD",
+      "IUCM",
+      "IUHC",
+      "IUIS",
+      "IUMS",
+      "IUSP",
+      "CSP1",
+      "CNDX",
+      "IDP6"
+    ],
+    "us_listed": [
+      "SOXX",
+      "<all single names>"
     ]
   }
 }
