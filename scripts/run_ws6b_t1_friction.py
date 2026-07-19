@@ -296,14 +296,42 @@ def main() -> int:
     return run_costs()
 
 
-def dividend_panel() -> pd.DataFrame:
-    """Daily cash-dividend contribution per name = TOTALRETURN less CAPITAL.
+def dividend_panel(basis: str = "capital") -> pd.DataFrame:
+    """Daily distribution contribution per name, from two Norgate settings.
 
-    Both legs come from the same Norgate pull under two adjustment settings, so
-    the difference isolates the cash dividend without any yield assumption.
+    ``basis="capital"``         TOTALRETURN less CAPITAL — every distribution,
+                                ordinary plus special plus stock spin-offs.
+    ``basis="capitalspecial"``  TOTALRETURN less CAPITALSPECIAL — ordinary cash
+                                dividends only.
+
+    NEITHER is exactly the withholding base, and the difference is documented
+    rather than hidden. Withholding is due on CASH dividends (ordinary and
+    special alike) but not on a stock spin-off, and no Norgate adjustment
+    setting splits cash specials from stock specials:
+
+      * "capital" over-charges, by treating spin-offs as income. The three
+        material cases in the held set are EQT/Equitrans (2018), EXC/
+        Constellation (2022) and DTE/DT Midstream (2021).
+      * "capitalspecial" under-charges, by stripping the shale variable
+        dividends (DVN, FANG, COP, EOG, PXD) which are genuine cash and do
+        bear the 30%.
+
+    Published sector yields reconcile against both and confirm the reading:
+    Utilities computes 3.60% on "capital" against a published 3.06%, and 3.15%
+    on "capitalspecial"; Energy computes 3.94% and 3.51% against a published
+    4.00%. Each basis is wrong on the line where its own artefact bites.
+
+    The default is the CONSERVATIVE one: "capital" over-states I0's withholding
+    and therefore penalises the arm under consideration. The two bases differ by
+    roughly 0.021%/yr on a 0.205%/yr income leg (about 0.0014 net Sharpe), so
+    the choice does not move the verdict. Exact treatment needs per-event
+    cash-versus-stock classification and is a T4 refinement if the margin ever
+    tightens.
     """
     tr = pd.read_parquet(OUT_DIR / "prices_totalreturn.parquet")
-    cp = pd.read_parquet(OUT_DIR / "prices_capital_close.parquet")
+    fname = {"capital": "prices_capital_close.parquet",
+             "capitalspecial": "prices_capitalspecial_close.parquet"}[basis]
+    cp = pd.read_parquet(OUT_DIR / fname)
     common = sorted(set(tr.columns) & set(cp.columns))
     div = tr[common].pct_change() - cp[common].pct_change()
     return div.where(np.isfinite(div))
@@ -333,6 +361,9 @@ def run_costs() -> int:
 
     income_daily, per_line = income_costs(line_books, div, params["lines"], idx)
     annual_income = float(income_daily.mean() * 252)
+    alt_daily, alt_per_line = income_costs(
+        line_books, dividend_panel("capitalspecial"), params["lines"], idx)
+    annual_income_alt = float(alt_daily.mean() * 252)
 
     navs = params["raw"]["nav_grid"]
     rows = []
@@ -399,7 +430,13 @@ def run_costs() -> int:
             "spread), the direct analogue of WS6's 5 -> 10 bps sweep. Verified "
             "statutory withholding rates and published TERs are NOT doubled."),
         "params_provenance": params["raw"].get("provenance", {}),
-        "income_leg": {"annual_drag_total": annual_income, "per_line": per_line},
+        "income_leg": {
+            "basis": "capital (conservative: includes stock spin-offs)",
+            "annual_drag_total": annual_income, "per_line": per_line,
+            "alt_basis": "capitalspecial (ordinary cash dividends only)",
+            "annual_drag_total_alt": annual_income_alt,
+            "alt_per_line": alt_per_line,
+            "basis_spread": annual_income - annual_income_alt},
         "nav_grid": grid.to_dict(orient="records"),
         "min_viable_nav": {"base_floor_0.05": _min_viable("base", 0.05),
                            "stress_floor_0.10": _min_viable("2x_trading", 0.10)},

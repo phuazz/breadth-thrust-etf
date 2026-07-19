@@ -69,13 +69,15 @@
         "source": "BlackRock UK product 280503 + justETF (agree), retrieved 2026-07-19"
       },
       "proxy_ter": {
-        "value": 0.0008,
-        "source": "PENDING T1 pull",
-        "uncertain": true
+        "value": 0.001066,
+        "source": "SEC Rule 497(K) summary prospectuses, Select Sector SPDR Trust CIK 1064641: 0.13% (filings 2018-01-31, 2019-01-30), 0.12% (2021-01-29), 0.10% (2022-01-28, 2023-01-30), 0.09% (2024-01-31), 0.08% (2025-01-31, current). Time-weighted over 2018-10-12..2026-06-30 = 0.1066%. Confirmed 0.08% current on ssga.com + Yahoo Finance.",
+        "uncertain": true,
+        "note": "NOT 0.08% throughout - today's rate has applied only since the 2025-01-31 filing. Exact intra-year effective dates are NOT FOUND in the filings ('restated to reflect current fees'), so filing dates are used as change points. That lags each cut and biases this TER up, which shrinks I0's fee credit and overstates its drag - conservative for the adoption decision."
       },
       "gross_yield": {
         "value": 0.0394,
-        "source": "computed: Norgate TOTALRETURN less CAPITAL on the top-15 basket, 2018-10-12..2026-06-30"
+        "source": "computed: Norgate TOTALRETURN less CAPITAL on the top-15 basket, 2018-10-12..2026-06-30",
+        "note": "Published S&P 500 Energy sector yield averages 4.00% (Siblis) against 3.94% here - consistent. On the ordinary-cash-only basis this line computes 3.51%, i.e. 49bp BELOW published, because that basis strips the shale variable dividends (DVN, FANG, COP, EOG, PXD) which are genuine cash and do bear the 30%. The conservative basis is the better fit for this line."
       },
       "fund_level_wht": {
         "value": 0.15,
@@ -99,13 +101,15 @@
         "source": "BlackRock UK product 287115 + justETF (agree), retrieved 2026-07-19"
       },
       "proxy_ter": {
-        "value": 0.0008,
-        "source": "PENDING T1 pull",
-        "uncertain": true
+        "value": 0.001066,
+        "source": "SEC Rule 497(K) summary prospectuses, Select Sector SPDR Trust CIK 1064641: 0.13% (filings 2018-01-31, 2019-01-30), 0.12% (2021-01-29), 0.10% (2022-01-28, 2023-01-30), 0.09% (2024-01-31), 0.08% (2025-01-31, current). Time-weighted over 2018-10-12..2026-06-30 = 0.1066%. Confirmed 0.08% current on ssga.com + Yahoo Finance.",
+        "uncertain": true,
+        "note": "NOT 0.08% throughout - today's rate has applied only since the 2025-01-31 filing. Exact intra-year effective dates are NOT FOUND in the filings ('restated to reflect current fees'), so filing dates are used as change points. That lags each cut and biases this TER up, which shrinks I0's fee credit and overstates its drag - conservative for the adoption decision."
       },
       "gross_yield": {
         "value": 0.036,
-        "source": "computed: Norgate TOTALRETURN less CAPITAL on the top-15 basket"
+        "source": "computed: Norgate TOTALRETURN less CAPITAL on the top-15 basket",
+        "note": "Cross-check flagged this as high: published S&P 500 Utilities sector yield averages 3.06% (Siblis, 8 year-end snapshots 2019-2025) against 3.60% here. Diagnosed: the 'capital' dividend basis counts the EXC/Constellation (2022) and DTE/DT Midstream (2021) STOCK spin-offs as income. On the ordinary-cash-only basis this line computes 3.15%, within 9bp of published. Retained on the conservative basis - see dividend_panel()."
       },
       "fund_level_wht": {
         "value": 0.15,
@@ -129,9 +133,10 @@
         "source": "BlackRock UK product 287102 + justETF (agree), retrieved 2026-07-19"
       },
       "proxy_ter": {
-        "value": 0.0008,
-        "source": "PENDING T1 pull",
-        "uncertain": true
+        "value": 0.001066,
+        "source": "SEC Rule 497(K) summary prospectuses, Select Sector SPDR Trust CIK 1064641: 0.13% (filings 2018-01-31, 2019-01-30), 0.12% (2021-01-29), 0.10% (2022-01-28, 2023-01-30), 0.09% (2024-01-31), 0.08% (2025-01-31, current). Time-weighted over 2018-10-12..2026-06-30 = 0.1066%. Confirmed 0.08% current on ssga.com + Yahoo Finance.",
+        "uncertain": true,
+        "note": "NOT 0.08% throughout - today's rate has applied only since the 2025-01-31 filing. Exact intra-year effective dates are NOT FOUND in the filings ('restated to reflect current fees'), so filing dates are used as change points. That lags each cut and biases this TER up, which shrinks I0's fee credit and overstates its drag - conservative for the adoption decision."
       },
       "gross_yield": {
         "value": 0.0275,
@@ -165,7 +170,8 @@
       },
       "gross_yield": {
         "value": 0.0131,
-        "source": "computed: Norgate TOTALRETURN less CAPITAL on the top-15 basket"
+        "source": "computed: Norgate TOTALRETURN less CAPITAL on the top-15 basket",
+        "note": "UNVERIFIED. No semiconductor-specific multi-year sector yield series could be located (Siblis does not split semis out of Information Technology). Current semis-ETF trailing yields are far lower (SOXX 0.23%, SMH 0.17% at 2026-07-17) but are not comparable to a 2018-2026 average, which includes years of much larger INTC/TXN/QCOM weight. This line's income drag is driven by its TER, not its yield, so the exposure to this figure is small."
       },
       "fund_level_wht": {
         "value": 0.0,
@@ -189,9 +195,10 @@
         "source": "BlackRock UK product 280523 + justETF (agree), retrieved 2026-07-19"
       },
       "proxy_ter": {
-        "value": 0.0008,
-        "source": "PENDING T1 pull",
-        "uncertain": true
+        "value": 0.001066,
+        "source": "SEC Rule 497(K) summary prospectuses, Select Sector SPDR Trust CIK 1064641: 0.13% (filings 2018-01-31, 2019-01-30), 0.12% (2021-01-29), 0.10% (2022-01-28, 2023-01-30), 0.09% (2024-01-31), 0.08% (2025-01-31, current). Time-weighted over 2018-10-12..2026-06-30 = 0.1066%. Confirmed 0.08% current on ssga.com + Yahoo Finance.",
+        "uncertain": true,
+        "note": "NOT 0.08% throughout - today's rate has applied only since the 2025-01-31 filing. Exact intra-year effective dates are NOT FOUND in the filings ('restated to reflect current fees'), so filing dates are used as change points. That lags each cut and biases this TER up, which shrinks I0's fee credit and overstates its drag - conservative for the adoption decision."
       },
       "gross_yield": {
         "value": 0.017,
@@ -335,7 +342,7 @@
     "known_gaps": [
       "iShares fund-level actual withholding suffered is not verified per-fund; the 15% treaty rate is used. A published analogue (Vanguard VUSA FY2014) computed 14.74%.",
       "NEITHER side of the spread differential is verified from published sources: no per-sector or named mega-cap bps table for US large caps, and no published spread statistic for any LSE-listed iShares S&P 500 sector UCITS line. The verdict is reported as a sweep over both.",
-      "SPDR proxy TERs, SOXX TER and the IBKR commission schedule were still outstanding when this file was last written - see any figure marked uncertain."
+      "SOXX TER and the IBKR commission schedule were still outstanding when this file was last written - see any figure marked uncertain. SPDR proxy TERs are now sourced."
     ],
     "rejected_estimator": {
       "estimator": "Corwin & Schultz (2012) daily high-low spread estimator",
@@ -345,6 +352,13 @@
       "mechanism_correction": "The first reading of this project's own output attributed the pattern to a LOW-VOLATILITY bias, since the high readings landed on utilities and staples. That is not the mechanism. The dominant driver is the small TRUE spread of a liquid mega-cap; volatility enters only above roughly sigma/S ~ 4.2 (Tremacoldi-Rossi & Irwin 2022, Proposition 3). The sector pattern is a liquidity artefact, not a volatility one.",
       "not_a_fix": "Abdi & Ranaldo (2017) close-high-low is the same bias family; their own Table 5 shows proxy quality is worse in the most-liquid effective-spread quintile.",
       "recommended_instead": "Holden & Jacobsen (2014) effective/quoted spreads from NBBO tick data, or - cheaper and available here - measure the book's own quoted spreads at rebalance time during the T2 shadow."
+    },
+    "dividend_basis": {
+      "default": "capital (TOTALRETURN less CAPITAL)",
+      "why": "Conservative: it over-states I0's withholding by treating stock spin-offs as income, penalising the arm under consideration.",
+      "alternative": "capitalspecial (TOTALRETURN less CAPITALSPECIAL) - ordinary cash dividends only, which under-states by stripping genuine cash variable dividends.",
+      "neither_is_exact": "Withholding is due on cash dividends ordinary and special alike, but not on stock spin-offs, and no Norgate setting splits cash specials from stock specials. Spin-offs in the held set: EQT/Equitrans 2018, DTE/DT Midstream 2021, EXC/Constellation 2022.",
+      "materiality": "The two bases differ by about 0.021%/yr on a 0.205%/yr income leg, roughly 0.0014 net Sharpe. Does not move the verdict; a T4 refinement if the margin tightens."
     }
   }
 }
