@@ -413,10 +413,15 @@ def run_costs() -> int:
     # minimum viable NAV. Report the bracket rather than pick one.
     scen = []
     for sched_name in params["raw"]["scenarios"]["schedules"]:
-        sc = params["schedules"][sched_name]
+        # Vary only the US leg. Passing a BARE schedule here would charge I0's
+        # LSE-listed legs the US per-share rate while E0 resolved them at 0.05%
+        # — the same per-ledger asymmetry the Fable-5 check found in the main
+        # grid, which survived in this loop because only the main path was fixed.
+        sc = schedule_resolver(params["schedules"], lse_lines, sched_name,
+                               params["raw"]["active_schedule_etf"])
         for nav in params["raw"]["nav_grid"]:
             c_i0, di = trading_costs(tr_i0, prices, sc, hs, nav, idx, 1.0)
-            c_e0, _ = trading_costs(tr_e0, prices, etf_schedule, hs, nav, idx, 1.0)
+            c_e0, _ = trading_costs(tr_e0, prices, sc, hs, nav, idx, 1.0)
             sh = net_sharpe_pair(gross, c_e0, c_i0 + income_daily)
             scen.append({"schedule": sched_name, "nav": nav, "drag": sh["drag"],
                          "passes_base": sh["drag"] <= 0.05,
@@ -424,6 +429,21 @@ def run_costs() -> int:
                          "ann_commission_drag_i0": float(
                              di["daily_commission"].mean() * 252)})
     scen_df = pd.DataFrame(scen)
+
+    # Self-consistency guard. The bracket and the main grid compute the same
+    # quantity at the active schedule, by different code paths. They diverged
+    # once already — the main path was fixed to resolve commission per
+    # instrument while this loop kept passing a bare schedule — and the only
+    # reason it was caught was a hand-check of the published figures. Pin it.
+    _active = scen_df[scen_df["schedule"] == params["raw"]["active_schedule"]]
+    _base = grid[grid["stress"] == "base"]
+    _merged = _active.merge(_base, on="nav", suffixes=("_scen", "_grid"))
+    _gap = float((_merged["drag_scen"] - _merged["drag_grid"]).abs().max())
+    if _gap > 1e-12:
+        raise SystemExit(
+            f"STOP: schedule bracket disagrees with the main grid by {_gap:.2e} "
+            "at the active schedule — the two paths are costing differently.")
+    print(f"  bracket-vs-grid self-consistency: maxdiff {_gap:.2e}")
     min_viable_by_schedule = {}
     for s in scen_df["schedule"].unique():
         ok = scen_df[(scen_df["schedule"] == s) & scen_df["passes_base"]]
