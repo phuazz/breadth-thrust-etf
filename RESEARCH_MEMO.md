@@ -1344,3 +1344,49 @@ EW-25 **−2.58pp**, seat **−0.84pp** — both point the same way as WS3,
 and both are inside the registered noise framing; no reading before the
 review date. Without-C algebra verified exact against the published
 series; 7 unit tests; full suite 334.
+
+## Workstream 6 — single-name implementation of Sleeve A (2026-07-19, CLOSED)
+
+**Question** (kickoff `C:\dev\KICKOFF_ws6-single-name-implementation.md`, BINDING, signed 2026-07-17): can Sleeve A's ETF positions be expressed as constituent baskets without degrading the sleeve's evidence base (Design 1 — trend-screened replication), and does within-sector top-N selection add anything beyond a momentum placebo (Design 2, WS5 bar)? Verdict set {KEEP-ETF, ADOPT-D1, ADOPT-D2}; all bars frozen pre-results; honest prior "D1 plausible, D2 null".
+
+**VERDICT: KEEP-ETF.** Both adoption designs fail their pre-registered bars. Zero deployed changes.
+
+### Gate chain (all bars unchanged throughout; full history in `data/ws6_results.json` `gate_history`)
+
+| Run | G1 coverage (97% bar) | G2 replication (0.95 bar) | Resolution |
+|---|---|---|---|
+| 1 (engine b12d0f9) | STOP: 68 line-year cells fail, worst IUCM 2018 = 0.577 (survivorship signature) | not reached | A1 — (ticker, date) → Norgate instrument: delisted -YYYYMM suffixes, life-interval disambiguation, verified rename table (commit 54f0f14) |
+| 2 (54f0f14) | STOP: 6 cells fail (IUSP 2018-2022, IUCM 2018 = 0.923) | not reached | A2 — base-ticker tenure rule for recycled tickers (HR/DOC/RPT/COR) + rename-at-death completions (FOX/FOXA, LB, PCLN, CBL, RVI, OPI→OPITQ) (dbb6543) |
+| 3 (dbb6543) | PASS in full, worst cell 0.9963 | STOP: IUCD 0.9193, IUCM 0.9468 — EW top-15 misprices mega-cap-concentrated heterogeneous lines | A3 — true-weight baskets; Step-0 weights stage parsed all 4,836 snapshots from the local raw cache, zero network (61359de); ZH sign-off 2026-07-19 |
+| 4 (61359de) | PASS, worst 0.9963 | PASS all 11 lines, 0.9588 (IUSP) – 0.9985 | Register run ONCE → status COMPLETE (commit 320a4bc) |
+
+### Register (net Sharpe; window ≈ 2018-10 → 2026-06, 1,937 trading days, 389 W-FRI rebalances; full-vector name-level costs; E0 on the deployed 2-9 bps model)
+
+| Arm | @5 bps | @10 bps (2×, binding) | MaxDD @5 | corr vs E0 | TE ann | turnover ×E0 |
+|---|---:|---:|---:|---:|---:|---:|
+| E0 deployed ETFs | 1.005 | 1.005 | 30.6% | 1.000 | 0.0% | 1.00 |
+| I0 unscreened replication (control) | 0.983 | 0.937 | 30.3% | 0.996 | 1.6% | 1.04 |
+| I1 screened replication (Design 1) | 0.921 | 0.868 | 28.0% | 0.985 | 3.2% | 1.20 |
+| I1-all (no top-M cap, report-only) | 0.928 | 0.876 | 26.8% | 0.985 | 3.2% | 1.15 |
+| I2 top-10 strength (Design 2) | 0.885 | 0.814 | 27.8% | 0.948 | 6.1% | 1.79 |
+| P2 top-10 momentum placebo | 0.882 | 0.810 | 28.8% | 0.953 | 5.9% | 1.81 |
+| I2-N15 (report-only) | 0.961 | 0.897 | 27.2% | 0.965 | 4.9% | 1.55 |
+| P2-N15 (report-only) | 0.929 | 0.863 | 27.9% | 0.965 | 5.0% | 1.60 |
+
+### Verdict application (frozen rules, §2 of kickoff)
+
+- **ADOPT-D1 requires all four**: (1) I1 ≥ E0−0.05 @5 bps → 0.921 vs 0.955 **FAIL** (drag 0.083); ≥ E0−0.10 @2× → 0.868 vs 0.905 **FAIL** (drag 0.137). (2) MaxDD ≤ E0+2pp → 28.0 vs 32.6 PASS. (3) corr ≥ 0.95 → 0.985 PASS. (4) screen-drag: I1 ≥ I0−0.03 → 0.921 vs 0.953 **FAIL** (screen costs 0.062, double the allowance, buying 2.2pp MaxDD). → REJECT.
+- **ADOPT-D2 requires D1 bars + both margins**: I2 fails D1 bars vs E0 (0.885; corr 0.948 < 0.95); margin vs P2 **+0.003** and vs I1 **−0.036** against the +0.10 bar → REJECT decisively. Jaccard I2-vs-P2 0.678 (< 0.8, formally not momentum-in-disguise) but weekly return correlation 0.988 — different names, same portfolio. N15 disclosure row beats its placebo by +0.032, still a third of the bar. WS5 prior confirmed at the implementation layer.
+
+### Split-half and disclosure
+
+- Ordering preserved in both halves (I1 drags I0 in both: −0.084 first, −0.041 second; I2−P2 = −0.034 first / +0.049 second — noise around zero). E0 0.767/1.352; I0 0.709/1.380.
+- Worst single-name weeks (contribution to sleeve week): I1 — ABBV 2020-03-20 −3.07%, XOM 2022-06-17 −1.77%, XOM 2023-10-06 −1.60%. I2 — XOM 2022-06-17 −2.95%, TSLA 2021-02-26 −1.86%. The concentration tail the screen was designed against; its MaxDD is indeed lowest, at the Sharpe price above.
+- Screened-arm fallback (<3 names passing → line to ETF): I1 12 of 2,096 line-weeks; every other screened arm 1.
+- Trial register: 8 arms × 4 cost points, register run ONCE, no post-hoc arm selection; the three amendments were data/design-layer under gate STOPs with zero results computed. Configurations searched: none beyond the pre-registered set.
+
+### Reported, not verdict-relevant
+
+**I0 — unscreened true-weight replication — passes every numeric fidelity bar it can be read against** (drag 0.022 @5 bps and 0.068 @2× vs the −0.05/−0.10 floors; corr 0.996; TE 1.6%; MaxDD 0.4pp better; turnover 1.04×). It was a frozen control, not a registered adoptable arm, so it cannot be promoted post hoc. If the book-structure motivation (single-stock content, fee de-stacking) still stands, the evidenced path is a NEW one-arm pre-registration of I0-as-deployable with explicit seen-data caveat, ops/corporate-actions scoping, and staged parallel-run after the 2026-08-07 Norgate soak closes. The A3 weights table (complete, validated, cache-only) is now a reusable data asset.
+
+**Filed**: technical record `reviews/2026-07-19_ws6_single-name-implementation.docx`; ledger row updated; kickoff §5b carries A1/A2/A3. Engine chain b12d0f9 → 54f0f14 → dbb6543 → 61359de; gate reports 24aa6d0, 05561d6, 998df92; COMPLETE 320a4bc.
