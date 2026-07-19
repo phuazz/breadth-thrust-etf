@@ -1,0 +1,329 @@
+{
+  "_README": "WS6b T1 verified friction stack. Every figure carries its source. 'uncertain': true means the T1 pulls could NOT confirm it from a published source and it is a stated assumption, NOT a verified figure \u2014 such a figure must be reported as uncertain wherever it propagates. Retrieval date for all pulls: 2026-07-19.",
+  "active_schedule": "ibkr_fixed_us_stocks",
+  "active_schedule_etf": "ibkr_fixed_us_stocks",
+  "nav_grid": [
+    25000,
+    50000,
+    75000,
+    100000,
+    150000,
+    200000,
+    250000,
+    350000,
+    500000,
+    750000,
+    1000000,
+    1500000,
+    2000000,
+    3000000,
+    5000000,
+    10000000
+  ],
+  "broker_schedules": {
+    "ibkr_fixed_us_stocks": {
+      "per_share": {
+        "value": 0.005,
+        "source": "PENDING T1 pull",
+        "uncertain": true
+      },
+      "min_order": {
+        "value": 1.0,
+        "source": "PENDING T1 pull",
+        "uncertain": true
+      },
+      "max_pct_value": {
+        "value": 0.01,
+        "source": "PENDING T1 pull",
+        "uncertain": true
+      },
+      "fractional_min_applies": true,
+      "source": "PENDING"
+    },
+    "ibkr_tiered_us_stocks": {
+      "per_share": {
+        "value": 0.0035,
+        "source": "PENDING T1 pull",
+        "uncertain": true
+      },
+      "min_order": {
+        "value": 0.35,
+        "source": "PENDING T1 pull",
+        "uncertain": true
+      },
+      "max_pct_value": {
+        "value": 0.01,
+        "source": "PENDING T1 pull",
+        "uncertain": true
+      },
+      "fractional_min_applies": true,
+      "source": "PENDING"
+    }
+  },
+  "lines": {
+    "IUES": {
+      "held_instrument": "IUES IE00B42NKQ00 iShares S&P 500 Energy Sector UCITS ETF USD (Acc)",
+      "proxy_instrument": "XLE (register's yfinance_trading_proxy)",
+      "held_ter": {
+        "value": 0.0015,
+        "source": "BlackRock UK product 280503 + justETF (agree), retrieved 2026-07-19"
+      },
+      "proxy_ter": {
+        "value": 0.0008,
+        "source": "PENDING T1 pull",
+        "uncertain": true
+      },
+      "gross_yield": {
+        "value": 0.0394,
+        "source": "computed: Norgate TOTALRETURN less CAPITAL on the top-15 basket, 2018-10-12..2026-06-30"
+      },
+      "fund_level_wht": {
+        "value": 0.15,
+        "source": "US-Ireland treaty Art.10(2)(b), IRS irs-trty/ireland.pdf"
+      },
+      "investor_wht_direct": {
+        "value": 0.3,
+        "source": "IRC s1441 statutory rate, IRS Pub 515; no US-Singapore income tax treaty (IRS treaty A-Z)"
+      },
+      "investor_wht_on_e0": {
+        "value": 0.0,
+        "source": "Accumulating share class - no distribution; Irish exit tax exempt for non-residents, TCA 1997 s739D"
+      },
+      "us_situs": false
+    },
+    "IUUS": {
+      "held_instrument": "IUUS IE00B4KBBD01 iShares S&P 500 Utilities Sector UCITS ETF USD (Acc)",
+      "proxy_instrument": "XLU",
+      "held_ter": {
+        "value": 0.0015,
+        "source": "BlackRock UK product 287115 + justETF (agree), retrieved 2026-07-19"
+      },
+      "proxy_ter": {
+        "value": 0.0008,
+        "source": "PENDING T1 pull",
+        "uncertain": true
+      },
+      "gross_yield": {
+        "value": 0.036,
+        "source": "computed: Norgate TOTALRETURN less CAPITAL on the top-15 basket"
+      },
+      "fund_level_wht": {
+        "value": 0.15,
+        "source": "US-Ireland treaty Art.10(2)(b)"
+      },
+      "investor_wht_direct": {
+        "value": 0.3,
+        "source": "IRS Pub 515; no US-SG treaty"
+      },
+      "investor_wht_on_e0": {
+        "value": 0.0,
+        "source": "Accumulating"
+      },
+      "us_situs": false
+    },
+    "IUCS": {
+      "held_instrument": "IUCS IE00B40B8R38 iShares S&P 500 Consumer Staples Sector UCITS ETF USD (Acc)",
+      "proxy_instrument": "XLP",
+      "held_ter": {
+        "value": 0.0015,
+        "source": "BlackRock UK product 287102 + justETF (agree), retrieved 2026-07-19"
+      },
+      "proxy_ter": {
+        "value": 0.0008,
+        "source": "PENDING T1 pull",
+        "uncertain": true
+      },
+      "gross_yield": {
+        "value": 0.0275,
+        "source": "computed: Norgate TOTALRETURN less CAPITAL on the top-15 basket"
+      },
+      "fund_level_wht": {
+        "value": 0.15,
+        "source": "US-Ireland treaty Art.10(2)(b)"
+      },
+      "investor_wht_direct": {
+        "value": 0.3,
+        "source": "IRS Pub 515; no US-SG treaty"
+      },
+      "investor_wht_on_e0": {
+        "value": 0.0,
+        "source": "Accumulating"
+      },
+      "us_situs": false
+    },
+    "SOXX": {
+      "held_instrument": "SOXX US-listed iShares Semiconductor ETF (register models it on itself, no proxy)",
+      "proxy_instrument": "SOXX (self)",
+      "held_ter": {
+        "value": 0.0035,
+        "source": "PENDING T1 pull",
+        "uncertain": true
+      },
+      "proxy_ter": {
+        "value": 0.0035,
+        "source": "same instrument - modelled on itself, so the fee is already in the register's E0 series"
+      },
+      "gross_yield": {
+        "value": 0.0131,
+        "source": "computed: Norgate TOTALRETURN less CAPITAL on the top-15 basket"
+      },
+      "fund_level_wht": {
+        "value": 0.0,
+        "source": "US fund holding US stocks - no fund-level withholding"
+      },
+      "investor_wht_direct": {
+        "value": 0.3,
+        "source": "IRS Pub 515; no US-SG treaty"
+      },
+      "investor_wht_on_e0": {
+        "value": 0.3,
+        "source": "US-domiciled distributing fund - the SG individual suffers 30% on the distribution, IRS Pub 515"
+      },
+      "us_situs": true
+    },
+    "IUFS": {
+      "held_instrument": "IUFS IE00B4JNQZ49 iShares S&P 500 Financials Sector UCITS ETF (Acc)",
+      "proxy_instrument": "XLF",
+      "held_ter": {
+        "value": 0.0015,
+        "source": "BlackRock UK product 280523 + justETF (agree), retrieved 2026-07-19"
+      },
+      "proxy_ter": {
+        "value": 0.0008,
+        "source": "PENDING T1 pull",
+        "uncertain": true
+      },
+      "gross_yield": {
+        "value": 0.017,
+        "source": "computed: Norgate TOTALRETURN less CAPITAL on the top-15 basket"
+      },
+      "fund_level_wht": {
+        "value": 0.15,
+        "source": "US-Ireland treaty Art.10(2)(b)"
+      },
+      "investor_wht_direct": {
+        "value": 0.3,
+        "source": "IRS Pub 515; no US-SG treaty"
+      },
+      "investor_wht_on_e0": {
+        "value": 0.0,
+        "source": "Accumulating"
+      },
+      "us_situs": false
+    }
+  },
+  "half_spread_bps": {
+    "__default__": {
+      "value": 1.5,
+      "source": "PENDING T1 pull",
+      "uncertain": true,
+      "note": "US large-cap single name. Corwin-Schultz on daily data was REJECTED as the estimator here - see t1 record."
+    },
+    "IUES": {
+      "value": 5.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "IUUS": {
+      "value": 5.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "IUCS": {
+      "value": 5.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "IUFS": {
+      "value": 5.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "SOXX": {
+      "value": 1.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "IUCD": {
+      "value": 5.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "IUCM": {
+      "value": 5.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "IUHC": {
+      "value": 5.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "IUIS": {
+      "value": 5.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "IUMS": {
+      "value": 5.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "IUSP": {
+      "value": 5.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "CSP1": {
+      "value": 2.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "CNDX": {
+      "value": 2.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    },
+    "IDP6": {
+      "value": 4.0,
+      "source": "PENDING T1 pull",
+      "uncertain": true
+    }
+  },
+  "sensitivity": {
+    "_note": "The verdict turns on the differential between the half-spread I0 pays on US mega-cap names and the half-spread E0 pays on the LSE-listed UCITS lines. Both are swept rather than assumed.",
+    "name_half_spread_bps": [
+      0.5,
+      1.0,
+      1.5,
+      2.0,
+      3.0,
+      5.0
+    ],
+    "ucits_half_spread_bps": [
+      1.0,
+      2.0,
+      3.0,
+      5.0,
+      8.0,
+      12.0
+    ],
+    "soxx_half_spread_bps": 1.0,
+    "nav_points": [
+      100000,
+      250000,
+      500000,
+      1000000,
+      2000000,
+      5000000
+    ]
+  },
+  "provenance": {
+    "retrieved": "2026-07-19",
+    "basis_note": "The register's E0 series is the deployed engine's yfinance_trading_proxy under auto_adjust=True (IUES->XLE, IUUS->XLU, IUCS->XLP, IUFS->XLF; SOXX on itself), NOT the LSE UCITS line the book holds. All income and fee figures here are DIFFERENTIAL adjustments from that register basis to the basis a Singapore-resident individual actually experiences.",
+    "known_gaps": [
+      "iShares fund-level actual withholding suffered is not verified per-fund; the 15% treaty rate is used. A published analogue (Vanguard VUSA FY2014) computed 14.74%.",
+      "Corwin-Schultz (2012) half-spread estimates computed on the cached daily OHLC were REJECTED: they returned 11.97 bps for utilities and 8.82 bps for staples mega-caps against 2.20 bps for energy and 1.83 bps for semiconductors. The high readings land on precisely the lowest-volatility sectors, which is the estimator's documented low-volatility bias signature, not a real spread ordering. Half-spreads are therefore parameters here, not estimates from this project's data."
+    ]
+  }
+}
