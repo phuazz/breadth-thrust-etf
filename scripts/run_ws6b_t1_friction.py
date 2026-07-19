@@ -338,8 +338,8 @@ def run_costs() -> int:
     rows = []
     for nav in navs:
         for stress, label in ((1.0, "base"), (2.0, "2x_trading")):
-            c_i0, d_i0 = trading_costs(tr_i0, prices, schedule, hs, nav, stress)
-            c_e0, d_e0 = trading_costs(tr_e0, prices, etf_schedule, hs, nav, stress)
+            c_i0, d_i0 = trading_costs(tr_i0, prices, schedule, hs, nav, idx, stress)
+            c_e0, d_e0 = trading_costs(tr_e0, prices, etf_schedule, hs, nav, idx, stress)
             inc = income_daily * (2.0 if label == "2x_all_in" else 1.0)
             sh = net_sharpe_pair(gross, c_e0, c_i0 + inc)
             rows.append({
@@ -380,8 +380,8 @@ def run_costs() -> int:
                 h[L] = etf_hs if L != "SOXX" else params["raw"]["sensitivity"][
                     "soxx_half_spread_bps"]
             for nav in params["raw"]["sensitivity"]["nav_points"]:
-                c_i0, _ = trading_costs(tr_i0, prices, schedule, h, nav, 1.0)
-                c_e0, _ = trading_costs(tr_e0, prices, etf_schedule, h, nav, 1.0)
+                c_i0, _ = trading_costs(tr_i0, prices, schedule, h, nav, idx, 1.0)
+                c_e0, _ = trading_costs(tr_e0, prices, etf_schedule, h, nav, idx, 1.0)
                 sh = net_sharpe_pair(gross, c_e0, c_i0 + income_daily)
                 sweep.append({"nav": nav, "name_half_spread_bps": name_hs,
                               "ucits_half_spread_bps": etf_hs,

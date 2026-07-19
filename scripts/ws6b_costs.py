@@ -96,12 +96,23 @@ class CostResult:
 
 def trading_costs(trades: pd.DataFrame, prices: pd.DataFrame,
                   schedule: BrokerSchedule, half_spread_bps: pd.Series,
-                  nav: float, stress: float = 1.0) -> tuple[pd.Series, dict]:
+                  nav: float, calendar: pd.DatetimeIndex,
+                  stress: float = 1.0) -> tuple[pd.Series, dict]:
     """Commission plus half-spread on every order in the ledger.
 
     ``half_spread_bps`` is indexed by name; a name with no entry uses the
     ledger's ``__default__`` row, and the count of names falling back is
     returned so it can never be a silent substitution.
+
+    The returned series is reindexed onto the FULL trading ``calendar`` with
+    zeros on non-rebalance days. Both reasons are load-bearing:
+      * an annualised mean taken over rebalance dates alone would treat 389
+        weekly dates as if they were 252 trading days a year, inflating every
+        drag figure by roughly five times;
+      * a rebalance-indexed series added to a daily-indexed one aligns to the
+        union and yields NaN on every non-rebalance day, which a downstream
+        fillna(0) then silently converts into "no cost" — deleting most of the
+        income leg rather than reporting it.
     """
     t = trades.copy()
     px = prices.stack().rename("price").reset_index()
@@ -128,7 +139,11 @@ def trading_costs(trades: pd.DataFrame, prices: pd.DataFrame,
     at_min = int(np.sum(np.isclose(comm / max(stress, 1e-12),
                                    float(schedule.min_order))))
 
-    daily = (t.groupby("date")[["commission", "spread"]].sum().sum(axis=1) / nav)
+    def _daily(col: str) -> pd.Series:
+        return (t.groupby("date")[col].sum() / nav
+                ).reindex(calendar).fillna(0.0)
+
+    d_comm, d_spread = _daily("commission"), _daily("spread")
     detail = {
         "commission_usd_total": float(comm.sum()),
         "spread_usd_total": float(spread.sum()),
@@ -136,10 +151,10 @@ def trading_costs(trades: pd.DataFrame, prices: pd.DataFrame,
         "n_orders_at_minimum": at_min,
         "n_orders_missing_price": missing_price,
         "n_orders_default_spread": n_default,
-        "daily_commission": t.groupby("date")["commission"].sum() / nav,
-        "daily_spread": t.groupby("date")["spread"].sum() / nav,
+        "daily_commission": d_comm,
+        "daily_spread": d_spread,
     }
-    return daily, detail
+    return d_comm + d_spread, detail
 
 
 def income_costs(line_books: dict[str, pd.DataFrame],

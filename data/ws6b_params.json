@@ -217,62 +217,73 @@
       "value": 1.5,
       "source": "PENDING T1 pull",
       "uncertain": true,
-      "note": "US large-cap single name. Corwin-Schultz on daily data was REJECTED as the estimator here - see t1 record."
+      "note": "US large-cap single name. NOT verified: no published bps figure broken out by sector or for named mega-caps could be located (SEC MIDAS / NYSE / Nasdaq market-quality data exist only as raw or interactive datasets, not indexed tables; closing this needs a TAQ/WRDS pull). Corwin-Schultz on daily OHLC was REJECTED as a substitute - see provenance.rejected_estimator. Swept, not assumed."
     },
     "IUES": {
       "value": 5.0,
-      "source": "PENDING T1 pull",
-      "uncertain": true
+      "uncertain": true,
+      "source": "NOT FOUND - no published spread statistic located for any LSE-listed iShares S&P 500 sector UCITS line",
+      "note": "Searched justETF, Trackinsight, extraETF/Borse Frankfurt, LSE, and iShares' own product pages (the last blocked automated access). Genuine gap, not a zero. Average daily volume also unverifiable. This is the least-verified parameter in the stack and the verdict is therefore reported as a sweep over it, not at this value."
     },
     "IUUS": {
       "value": 5.0,
-      "source": "PENDING T1 pull",
-      "uncertain": true
+      "uncertain": true,
+      "source": "NOT FOUND - no published spread statistic located for any LSE-listed iShares S&P 500 sector UCITS line",
+      "note": "Searched justETF, Trackinsight, extraETF/Borse Frankfurt, LSE, and iShares' own product pages (the last blocked automated access). Genuine gap, not a zero. Average daily volume also unverifiable. This is the least-verified parameter in the stack and the verdict is therefore reported as a sweep over it, not at this value."
     },
     "IUCS": {
       "value": 5.0,
-      "source": "PENDING T1 pull",
-      "uncertain": true
+      "uncertain": true,
+      "source": "NOT FOUND - no published spread statistic located for any LSE-listed iShares S&P 500 sector UCITS line",
+      "note": "Searched justETF, Trackinsight, extraETF/Borse Frankfurt, LSE, and iShares' own product pages (the last blocked automated access). Genuine gap, not a zero. Average daily volume also unverifiable. This is the least-verified parameter in the stack and the verdict is therefore reported as a sweep over it, not at this value."
     },
     "IUFS": {
       "value": 5.0,
-      "source": "PENDING T1 pull",
-      "uncertain": true
+      "uncertain": true,
+      "source": "NOT FOUND - no published spread statistic located for any LSE-listed iShares S&P 500 sector UCITS line",
+      "note": "Searched justETF, Trackinsight, extraETF/Borse Frankfurt, LSE, and iShares' own product pages (the last blocked automated access). Genuine gap, not a zero. Average daily volume also unverifiable. This is the least-verified parameter in the stack and the verdict is therefore reported as a sweep over it, not at this value."
     },
     "SOXX": {
-      "value": 1.0,
-      "source": "PENDING T1 pull",
-      "uncertain": true
+      "value": 1.5,
+      "source": "iShares published '30-Day Median Bid/Ask Spread' 0.03% full spread, ~18 Jun 2026, halved",
+      "uncertain": true,
+      "note": "Issuer-published and correct in kind, but reached via search-engine synthesis of a cached snippet rather than a clean fetch of the iShares page; spot-check before external citation."
     },
     "IUCD": {
       "value": 5.0,
-      "source": "PENDING T1 pull",
-      "uncertain": true
+      "uncertain": true,
+      "source": "NOT FOUND - no published spread statistic located for any LSE-listed iShares S&P 500 sector UCITS line",
+      "note": "Searched justETF, Trackinsight, extraETF/Borse Frankfurt, LSE, and iShares' own product pages (the last blocked automated access). Genuine gap, not a zero. Average daily volume also unverifiable. This is the least-verified parameter in the stack and the verdict is therefore reported as a sweep over it, not at this value."
     },
     "IUCM": {
       "value": 5.0,
-      "source": "PENDING T1 pull",
-      "uncertain": true
+      "uncertain": true,
+      "source": "NOT FOUND - no published spread statistic located for any LSE-listed iShares S&P 500 sector UCITS line",
+      "note": "Searched justETF, Trackinsight, extraETF/Borse Frankfurt, LSE, and iShares' own product pages (the last blocked automated access). Genuine gap, not a zero. Average daily volume also unverifiable. This is the least-verified parameter in the stack and the verdict is therefore reported as a sweep over it, not at this value."
     },
     "IUHC": {
       "value": 5.0,
-      "source": "PENDING T1 pull",
-      "uncertain": true
+      "uncertain": true,
+      "source": "NOT FOUND - no published spread statistic located for any LSE-listed iShares S&P 500 sector UCITS line",
+      "note": "Searched justETF, Trackinsight, extraETF/Borse Frankfurt, LSE, and iShares' own product pages (the last blocked automated access). Genuine gap, not a zero. Average daily volume also unverifiable. This is the least-verified parameter in the stack and the verdict is therefore reported as a sweep over it, not at this value."
     },
     "IUIS": {
       "value": 5.0,
-      "source": "PENDING T1 pull",
-      "uncertain": true
+      "uncertain": true,
+      "source": "NOT FOUND - no published spread statistic located for any LSE-listed iShares S&P 500 sector UCITS line",
+      "note": "Searched justETF, Trackinsight, extraETF/Borse Frankfurt, LSE, and iShares' own product pages (the last blocked automated access). Genuine gap, not a zero. Average daily volume also unverifiable. This is the least-verified parameter in the stack and the verdict is therefore reported as a sweep over it, not at this value."
     },
     "IUMS": {
       "value": 5.0,
-      "source": "PENDING T1 pull",
-      "uncertain": true
+      "uncertain": true,
+      "source": "NOT FOUND - no published spread statistic located for any LSE-listed iShares S&P 500 sector UCITS line",
+      "note": "Searched justETF, Trackinsight, extraETF/Borse Frankfurt, LSE, and iShares' own product pages (the last blocked automated access). Genuine gap, not a zero. Average daily volume also unverifiable. This is the least-verified parameter in the stack and the verdict is therefore reported as a sweep over it, not at this value."
     },
     "IUSP": {
       "value": 5.0,
-      "source": "PENDING T1 pull",
-      "uncertain": true
+      "uncertain": true,
+      "source": "NOT FOUND - no published spread statistic located for any LSE-listed iShares S&P 500 sector UCITS line",
+      "note": "Searched justETF, Trackinsight, extraETF/Borse Frankfurt, LSE, and iShares' own product pages (the last blocked automated access). Genuine gap, not a zero. Average daily volume also unverifiable. This is the least-verified parameter in the stack and the verdict is therefore reported as a sweep over it, not at this value."
     },
     "CSP1": {
       "value": 2.0,
@@ -323,7 +334,17 @@
     "basis_note": "The register's E0 series is the deployed engine's yfinance_trading_proxy under auto_adjust=True (IUES->XLE, IUUS->XLU, IUCS->XLP, IUFS->XLF; SOXX on itself), NOT the LSE UCITS line the book holds. All income and fee figures here are DIFFERENTIAL adjustments from that register basis to the basis a Singapore-resident individual actually experiences.",
     "known_gaps": [
       "iShares fund-level actual withholding suffered is not verified per-fund; the 15% treaty rate is used. A published analogue (Vanguard VUSA FY2014) computed 14.74%.",
-      "Corwin-Schultz (2012) half-spread estimates computed on the cached daily OHLC were REJECTED: they returned 11.97 bps for utilities and 8.82 bps for staples mega-caps against 2.20 bps for energy and 1.83 bps for semiconductors. The high readings land on precisely the lowest-volatility sectors, which is the estimator's documented low-volatility bias signature, not a real spread ordering. Half-spreads are therefore parameters here, not estimates from this project's data."
-    ]
+      "NEITHER side of the spread differential is verified from published sources: no per-sector or named mega-cap bps table for US large caps, and no published spread statistic for any LSE-listed iShares S&P 500 sector UCITS line. The verdict is reported as a sweep over both.",
+      "SPDR proxy TERs, SOXX TER and the IBKR commission schedule were still outstanding when this file was last written - see any figure marked uncertain."
+    ],
+    "rejected_estimator": {
+      "estimator": "Corwin & Schultz (2012) daily high-low spread estimator",
+      "what_it_returned": "half-spreads of 11.97 bps (utilities) and 8.82 bps (staples) against 2.20 bps (energy) and 1.83 bps (semiconductors) on the PARTIAL-5 held names",
+      "verdict": "REJECTED, not adopted and not bias-corrected",
+      "why": "The literature documents this as the estimator's principal failure mode. Corwin & Schultz's own Table 6 reports correlation with the true effective spread falling from 70% in the low-cap decile to 18% in the high-market-cap decile - close to uninformative for exactly the S&P 500 mega-caps held here. Tremacoldi-Rossi & Irwin (2022) prove the bias is DECREASING IN THE TRUE SPREAD and simulate a true 0.1% spread reading as roughly 1.3% under ideal conditions; their 2009-2013 sample shows a 1.80% average CS estimate against a 0.85% true effective spread.",
+      "mechanism_correction": "The first reading of this project's own output attributed the pattern to a LOW-VOLATILITY bias, since the high readings landed on utilities and staples. That is not the mechanism. The dominant driver is the small TRUE spread of a liquid mega-cap; volatility enters only above roughly sigma/S ~ 4.2 (Tremacoldi-Rossi & Irwin 2022, Proposition 3). The sector pattern is a liquidity artefact, not a volatility one.",
+      "not_a_fix": "Abdi & Ranaldo (2017) close-high-low is the same bias family; their own Table 5 shows proxy quality is worse in the most-liquid effective-spread quintile.",
+      "recommended_instead": "Holden & Jacobsen (2014) effective/quoted spreads from NBBO tick data, or - cheaper and available here - measure the book's own quoted spreads at rebalance time during the T2 shadow."
+    }
   }
 }

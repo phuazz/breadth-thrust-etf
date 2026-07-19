@@ -18,7 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 import single_name_impl as sni  # noqa: E402
-from ws6b_costs import income_costs  # noqa: E402
+from ws6b_costs import income_costs, trading_costs  # noqa: E402
 from ws6b_friction import (  # noqa: E402
     PARTIAL_5,
     BrokerSchedule,
@@ -246,6 +246,69 @@ def test_income_costs_withholding_leg_ignores_dividends_while_flat():
     econ = _ucits(y=0.03, held_ter=0.0015, proxy_ter=0.0008)
     _t, per_line = income_costs({"L": book}, div, {"L": econ}, idx)
     assert per_line["L"]["annual_wht_drag"] == pytest.approx(0.0, abs=1e-12)
+
+
+# --- trading-cost calendar -------------------------------------------------
+
+def _one_order_ledger(date: str) -> pd.DataFrame:
+    return pd.DataFrame({"date": [pd.Timestamp(date)], "name": ["AAA"],
+                         "delta": [0.10], "abs_delta": [0.10],
+                         "weight_after": [0.10]})
+
+
+def test_trading_costs_returns_the_full_calendar_not_just_trade_days():
+    """Regression: the cost series was indexed on rebalance dates only. An
+    annualised mean over 389 weekly dates treated as 252 trading days inflated
+    every drag figure roughly fivefold."""
+    cal = pd.date_range("2020-01-01", periods=252, freq="B")
+    led = _one_order_ledger("2020-01-02")
+    px = pd.DataFrame({"AAA": np.full(len(cal), 100.0)}, index=cal)
+    daily, _ = trading_costs(led, px, FIXED, pd.Series({"__default__": 1.5}),
+                             nav=1_000_000, calendar=cal)
+    assert daily.index.equals(cal)
+    trade_day = pd.Timestamp("2020-01-02")
+    assert daily.loc[trade_day] > 0
+    assert (daily.drop(index=trade_day) == 0).all()
+
+
+def test_trading_costs_series_adds_to_a_daily_series_without_creating_nan():
+    """Regression: adding a rebalance-indexed cost series to a daily-indexed
+    income series aligned to the union and produced NaN on every non-rebalance
+    day, which a downstream fillna(0) then converted to 'no cost' — silently
+    deleting most of the income leg."""
+    cal = pd.date_range("2020-01-01", periods=252, freq="B")
+    led = _one_order_ledger("2020-01-02")
+    px = pd.DataFrame({"AAA": np.full(len(cal), 100.0)}, index=cal)
+    daily, _ = trading_costs(led, px, FIXED, pd.Series({"__default__": 1.5}),
+                             nav=1_000_000, calendar=cal)
+    income = pd.Series(1e-5, index=cal)
+    combined = daily + income
+    assert not combined.isna().any()
+    assert combined.sum() == pytest.approx(daily.sum() + income.sum())
+
+
+def test_trading_costs_annualisation_matches_the_elapsed_window():
+    """A known total cost must annualise to total/years, whatever the mix of
+    trade and non-trade days."""
+    cal = pd.date_range("2020-01-01", periods=504, freq="B")   # ~2 years
+    led = pd.concat([_one_order_ledger(str(d.date()))
+                     for d in (cal[0], cal[100], cal[300])], ignore_index=True)
+    px = pd.DataFrame({"AAA": np.full(len(cal), 100.0)}, index=cal)
+    daily, detail = trading_costs(led, px, FIXED,
+                                  pd.Series({"__default__": 0.0}),
+                                  nav=1_000_000, calendar=cal)
+    annual = daily.mean() * 252
+    expected = detail["commission_usd_total"] / 1_000_000 / (len(cal) / 252)
+    assert annual == pytest.approx(expected, rel=1e-9)
+
+
+def test_trading_costs_counts_names_falling_back_to_the_default_spread():
+    cal = pd.date_range("2020-01-01", periods=10, freq="B")
+    led = _one_order_ledger("2020-01-02")
+    px = pd.DataFrame({"AAA": np.full(len(cal), 100.0)}, index=cal)
+    _d, detail = trading_costs(led, px, FIXED, pd.Series({"__default__": 2.0}),
+                               nav=1_000_000, calendar=cal)
+    assert detail["n_orders_default_spread"] == 1
 
 
 # --- provenance ------------------------------------------------------------
