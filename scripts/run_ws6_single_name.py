@@ -6,14 +6,17 @@ DERIVED statistics only to data/ws6_results.json. This harness computes and
 reports; it does NOT interpret results or apply the verdict rule (that is T4, on
 a different model). No configuration outside the eight-row register is computed,
 and no arm definition, cost, window or gate threshold is tunable here — all are
-frozen in the committed engine (scripts/single_name_impl.py, commit b12d0f9) and
-the kickoff.
+frozen in the committed engine (scripts/single_name_impl.py at ENGINE_COMMIT:
+T2 b12d0f9 plus the pre-results amendments A1/A2/A3, kickoff §5b) and the
+kickoff.
 
 Order of execution (STOP protocol at each gate — no design-around):
   1. Data stage — Norgate TOTALRETURN member prices for all 11 single-named
-     lines' full in-window membership union, cached under the git-ignored
-     data_local/ws6/ tree (licence guard: raw vendor series never committed).
-     NDU down or an empty fetch -> STOP.
+     lines' full in-window membership union (instrument-resolved, A1/A2),
+     cached under the git-ignored data_local/ws6/ tree (licence guard: raw
+     vendor series never committed), plus the A3 true-weight tables
+     (data_local/ws6/weights, basis-validated). NDU down, an empty fetch, or a
+     missing/stale weights table -> STOP.
   2. Gate G1 (coverage) — per line x calendar year, the share of snapshot
      member-weeks with a Norgate price must be >= 97%; unmapped names count
      against coverage. Any line-year below -> STOP (write gate report, no arms).
@@ -79,9 +82,11 @@ from single_name_impl import (  # noqa: E402  (the committed T2 engine)
     fetch_member_prices,
     line_member_universe,
     load_constituents,
+    load_member_weights,
     member_cache_path,
     precompute_member_signals,
     simulate_arm,
+    WEIGHTING_BASIS,
 )
 from run_improvements import compute_stats  # noqa: E402  (deployed stats helper)
 
@@ -89,7 +94,7 @@ from run_improvements import compute_stats  # noqa: E402  (deployed stats helper
 # Frozen run parameters (kickoff §2 [GATES] / verdict rule; nothing tunable)
 # ---------------------------------------------------------------------------
 
-ENGINE_COMMIT = "dbb6543"          # scripts/single_name_impl.py at T2 + A1 + A2
+ENGINE_COMMIT = "61359de"          # scripts/single_name_impl.py at T2 + A1 + A2 + A3
 COVERAGE_MIN = 0.97                # G1 threshold
 G2_CORR_MIN = 0.95                 # G2 threshold
 G2_MIN_WEEKS = 26                  # lines held fewer than this are not gated
@@ -277,15 +282,16 @@ def _line_book(sector_weights: pd.DataFrame, line: str, normalise: bool) -> pd.D
 
 
 def line_isolated_daily(spec, sector, membership, member_signals, member_prices,
-                        returns_panel, line, normalise, resolution):
+                        returns_panel, line, normalise, resolution, weights):
     """Daily 0-cost return series of a single line's book (E0 = the ETF line,
     else the arm's member basket). Returns (daily, invested_mask)."""
     book = _line_book(sector["weights"], line, normalise)
-    mm, ms, mp, mr = ({}, {}, {}, {}) if spec.is_etf_baseline else (
-        membership, member_signals, member_prices, resolution)
+    mm, ms, mp, mr, mw = ({}, {}, {}, {}, {}) if spec.is_etf_baseline else (
+        membership, member_signals, member_prices, resolution, weights)
     build = build_arm_name_weights(spec, book, sector["closes"],
                                    sector["rebal_dates"], sector["eligible"],
-                                   mm, ms, mp, member_resolution=mr)
+                                   mm, ms, mp, member_resolution=mr,
+                                   member_weights=mw)
     sim = simulate_arm(build.name_weights, returns_panel, cost_bps=0.0)
     invested = build.name_weights.abs().sum(axis=1) > 0
     return sim["daily"], invested
@@ -303,7 +309,7 @@ def _held_weekly(daily: pd.Series, invested: pd.Series, eligible) -> pd.Series:
 
 
 def compute_g2(lines, sector, membership, member_signals, member_prices,
-               returns_panel, resolution):
+               returns_panel, resolution, weights):
     """Per line, weekly return correlation of the I0 basket vs the E0 ETF over
     weeks the line is held. Lines held >= G2_MIN_WEEKS are gated at G2_CORR_MIN.
     Returns (table, failing_cells)."""
@@ -313,10 +319,10 @@ def compute_g2(lines, sector, membership, member_signals, member_prices,
     for line in lines:
         e_daily, e_inv = line_isolated_daily(e0, sector, membership, member_signals,
                                              member_prices, returns_panel, line,
-                                             True, resolution)
+                                             True, resolution, weights)
         i_daily, i_inv = line_isolated_daily(i0, sector, membership, member_signals,
                                              member_prices, returns_panel, line,
-                                             True, resolution)
+                                             True, resolution, weights)
         e_wk = _held_weekly(e_daily, e_inv, sector["eligible"])
         i_wk = _held_weekly(i_daily, i_inv, sector["eligible"])
         common = e_wk.index.intersection(i_wk.index)
@@ -336,14 +342,16 @@ def compute_g2(lines, sector, membership, member_signals, member_prices,
 # Register run helpers
 # ---------------------------------------------------------------------------
 
-def build_arm(spec, sector, membership, member_signals, member_prices, resolution):
+def build_arm(spec, sector, membership, member_signals, member_prices,
+              resolution, weights):
     """Build one arm's daily name-level weight panel (E0 ignores the member
     inputs)."""
-    mm, ms, mp, mr = ({}, {}, {}, {}) if spec.is_etf_baseline else (
-        membership, member_signals, member_prices, resolution)
+    mm, ms, mp, mr, mw = ({}, {}, {}, {}, {}) if spec.is_etf_baseline else (
+        membership, member_signals, member_prices, resolution, weights)
     return build_arm_name_weights(spec, sector["weights"], sector["closes"],
                                   sector["rebal_dates"], sector["eligible"],
-                                  mm, ms, mp, member_resolution=mr)
+                                  mm, ms, mp, member_resolution=mr,
+                                  member_weights=mw)
 
 
 def held_name_sets(build, rebal_dates, eligible, line_codes):
@@ -397,7 +405,7 @@ def worst_single_name_weeks(build, returns_panel, eligible, line_codes, top=10):
 
 
 def per_line_breakdown(sector, membership, member_signals, member_prices,
-                       returns_panel, resolution):
+                       returns_panel, resolution, weights):
     """Per single-named line: I1-vs-E0 weekly held-week correlation and the
     compounded + additive P&L contribution of the line under E0 (ETF) and I1
     (screened basket)."""
@@ -408,10 +416,10 @@ def per_line_breakdown(sector, membership, member_signals, member_prices,
         # Replication correlation (normalised 100%-into-line books).
         e_daily, e_inv = line_isolated_daily(e0, sector, membership, member_signals,
                                              member_prices, returns_panel, line,
-                                             True, resolution)
+                                             True, resolution, weights)
         i_daily, i_inv = line_isolated_daily(i1, sector, membership, member_signals,
                                              member_prices, returns_panel, line,
-                                             True, resolution)
+                                             True, resolution, weights)
         e_wk = _held_weekly(e_daily, e_inv, elig)
         i_wk = _held_weekly(i_daily, i_inv, elig)
         common = e_wk.index.intersection(i_wk.index)
@@ -421,10 +429,10 @@ def per_line_breakdown(sector, membership, member_signals, member_prices,
         # sleeve arithmetic return, compounded is the multiplicative growth add).
         e_con, _ = line_isolated_daily(e0, sector, membership, member_signals,
                                        member_prices, returns_panel, line,
-                                       False, resolution)
+                                       False, resolution, weights)
         i_con, _ = line_isolated_daily(i1, sector, membership, member_signals,
                                        member_prices, returns_panel, line,
-                                       False, resolution)
+                                       False, resolution, weights)
         e_con = e_con.loc[e_con.index >= elig]
         i_con = i_con.loc[i_con.index >= elig]
         out[line] = {
@@ -471,6 +479,7 @@ def main() -> int:
         "deployed_cost_bps": DEPLOYED_COST_BPS,
         "window": window_meta, "split_boundary": SPLIT_BOUNDARY.strftime("%Y-%m-%d"),
         "engine_commit": ENGINE_COMMIT,
+        "weighting_basis": WEIGHTING_BASIS,
     }
     mechanics_notes = {
         "t_minus_1_read": (
@@ -490,11 +499,14 @@ def main() -> int:
             "print; the return panel forward-fills its price so it sits flat until "
             "the next rebalance drops it (exit at final print)."),
         "renormalisation": (
-            "Baskets are equal-weight and renormalise over the names present / "
-            "passing each week; the name-level book preserves the sector line "
-            "weight exactly, so the full-vector one-way turnover the cost model "
-            "charges is the book's own churn (sector-rotation + screen + "
-            "membership)."),
+            "Baskets carry TRUE snapshot weights (amendment A3, basis "
+            f"{WEIGHTING_BASIS}) renormalised over the names present / passing "
+            "each week — the week's own snapshot weights when present, the "
+            "line's latest earlier weights carried forward otherwise, and a "
+            "counted equal-weight fallback when no usable weight exists. The "
+            "name-level book preserves the sector line weight exactly, so the "
+            "full-vector one-way turnover the cost model charges is the book's "
+            "own churn (sector-rotation + screen + membership)."),
         "coverage_definition": (
             "G1 covers snapshot member-weeks with snapshot date in "
             f"[{eligible.date()}, {WINDOW_END.date()}] grouped by calendar year; a "
@@ -536,6 +548,19 @@ def main() -> int:
                           "uncovered", "panel_shape", "panel_start", "panel_end")}
                      for L in SINGLE_NAMED_LINES}
 
+    # A3 true-weight tables (Step-0, scripts/fetch_ws6_weights.py). A missing
+    # file or basis mismatch FAILS FAST — the stale-basis guard — and is a data
+    # STOP, not something to work around.
+    try:
+        member_weights_by_line = {L: load_member_weights(L)
+                                  for L in SINGLE_NAMED_LINES}
+    except Exception as exc:  # noqa: BLE001 — missing/stale weights = STOP
+        print(f"\nSTOP_DATA: A3 weights stage failed: {type(exc).__name__}: {exc}")
+        print("Run scripts/fetch_ws6_weights.py — no gate or arm results computed.")
+        return 2
+    weights_summary = {L: {"n_snapshot_keys": len(member_weights_by_line[L])}
+                       for L in SINGLE_NAMED_LINES}
+
     # Combined member-return-side panel (dedup shared names across lines).
     combined = pd.concat([prices_by_line[L] for L in SINGLE_NAMED_LINES], axis=1)
     combined = combined.loc[:, ~combined.columns.duplicated(keep="first")]
@@ -560,7 +585,9 @@ def main() -> int:
             "gates": {"G1": {"threshold": COVERAGE_MIN, "table": g1_table,
                              "failing": g1_failing, "passed": False}},
             "data_stage": {"fetch_summary": fetch_summary,
-                           "mapping": mapping_reports}})
+                           "mapping": mapping_reports,
+                           "weighting_basis": WEIGHTING_BASIS,
+                           "weights_summary": weights_summary}})
         return 1
     print(f"  G1 PASS — all in-window line-years >= {COVERAGE_MIN}.")
 
@@ -568,7 +595,8 @@ def main() -> int:
     print("\nStage 3 — Gate G2 (I0-vs-E0 replication) ...", flush=True)
     g2_table, g2_failing = compute_g2(SINGLE_NAMED_LINES, sector, membership,
                                       member_signals, prices_by_line,
-                                      returns_panel, resolution_by_line)
+                                      returns_panel, resolution_by_line,
+                                      member_weights_by_line)
     for L in SINGLE_NAMED_LINES:
         r = g2_table[L]
         print(f"    {L:<6} n={r['n_held_weeks']:>3} corr={r['corr_i0_vs_e0']} "
@@ -584,7 +612,9 @@ def main() -> int:
                              "table": g2_table, "failing": g2_failing,
                              "passed": False}},
             "data_stage": {"fetch_summary": fetch_summary,
-                           "mapping": mapping_reports}})
+                           "mapping": mapping_reports,
+                           "weighting_basis": WEIGHTING_BASIS,
+                           "weights_summary": weights_summary}})
         return 1
     print(f"  G2 PASS — every gated line >= {G2_CORR_MIN}.")
 
@@ -595,7 +625,8 @@ def main() -> int:
     for spec in ARM_REGISTER:
         builds[spec.arm_id] = build_arm(spec, sector, membership,
                                         member_signals, prices_by_line,
-                                        resolution_by_line)
+                                        resolution_by_line,
+                                        member_weights_by_line)
         sims[spec.arm_id] = {}
         for c in COST_SWEEP_BPS:
             cost = DEPLOYED_COST_BPS if spec.is_etf_baseline else c
@@ -667,6 +698,23 @@ def main() -> int:
             "is_screened": spec.arm_id in SCREENED_ARMS,
         }
 
+    # A3 weighting provenance per non-E0 arm: line-weeks whose basket used
+    # carried-forward true weights, and line-weeks that fell back to equal
+    # weight (no usable true weight; expected zero on the real data).
+    weighting = {}
+    for spec in ARM_REGISTER:
+        if spec.is_etf_baseline:
+            continue
+        b = builds[spec.arm_id]
+        carry = {k: int(v) for k, v in getattr(b, "weight_carry_weeks", {}).items()}
+        ew = {k: int(v) for k, v in getattr(b, "weight_ew_weeks", {}).items()}
+        weighting[spec.arm_id] = {
+            "per_line_carry_weeks": carry,
+            "per_line_ew_fallback_weeks": ew,
+            "total_carry_weeks": int(sum(carry.values())),
+            "total_ew_fallback_weeks": int(sum(ew.values())),
+        }
+
     # Split-half net Sharpe at 5 bps (E0 at its deployed cost).
     split_half = {}
     for spec in ARM_REGISTER:
@@ -713,16 +761,17 @@ def main() -> int:
     print("  per-line breakdown ...", flush=True)
     per_line = per_line_breakdown(sector, membership, member_signals,
                                   prices_by_line, returns_panel,
-                                  resolution_by_line)
+                                  resolution_by_line, member_weights_by_line)
 
     finished = datetime.now(timezone.utc)
     runtime_s = (finished - started).total_seconds()
 
-    # G1 STOP history: the gate fired twice and was cleared each time by
-    # data-layer completion (amendments A1 and A2, kickoff §5b) at the
-    # UNCHANGED 97% bar — never by lowering it.
-    g1_history = {
-        "first_run": {
+    # Gate STOP history (the filed record carries every stop): the gates fired
+    # three times and were cleared each time by data-layer completion
+    # (amendments A1, A2, A3 — kickoff §5b) at UNCHANGED bars (G1 97%,
+    # G2 0.95) — never by lowering them. This run is run 4.
+    gate_history = {
+        "run_1": {
             "status": "STOP_G1", "engine_commit": "b12d0f9",
             "harness_commit": "24aa6d0",
             "n_failing_cells": 68,
@@ -738,7 +787,7 @@ def main() -> int:
                            "verified rename table. G1 re-tested in full at "
                            "the unchanged 97% bar."),
         },
-        "second_run": {
+        "run_2": {
             "status": "STOP_G1", "engine_commit": "54f0f14",
             "harness_commit": "05561d6",
             "n_failing_cells": 6,
@@ -757,21 +806,46 @@ def main() -> int:
                            "OPITQ-202606). G1 re-tested in full at the "
                            "unchanged 97% bar."),
         },
+        "run_3": {
+            "status": "G1_PASS_STOP_G2", "engine_commit": "dbb6543",
+            "harness_commit": "998df92",
+            "g1": {"passed": True, "worst_share": 0.9963},
+            "g2_failing": [
+                {"line": "IUCD", "corr_i0_vs_e0": 0.9193, "n_held_weeks": 136},
+                {"line": "IUCM", "corr_i0_vs_e0": 0.9468, "n_held_weeks": 164},
+            ],
+            "cause": ("Equal-weight baskets under-track cap-weighted sector "
+                      "ETFs on the two lines with the most concentrated "
+                      "mega-cap weight (IUCD 0.9193, IUCM 0.9468 vs the 0.95 "
+                      "bar)."),
+            "resolution": ("Amendment A3 (logged pre-results, kickoff 5b; "
+                           "engine 61359de): true-weight baskets — Step-0 "
+                           "(scripts/fetch_ws6_weights.py) parses true "
+                           "snapshot Weight (%) from the local raw iShares "
+                           "cache for all in-window snapshots; baskets "
+                           "renormalise true weights over the unchanged "
+                           "top-M=15 pool; screened arms renormalise the "
+                           "survivors. Both gates re-tested in full at the "
+                           "unchanged bars."),
+        },
     }
 
     write_payload("COMPLETE", {
         "runtime_seconds": _safe(runtime_s),
         "parity": {"e0_vs_deployed_maxdiff": _safe(parity)},
-        "g1_history": g1_history,
+        "gate_history": gate_history,
         "gates": {
             "G1": {"threshold": COVERAGE_MIN, "asof_trailing_rows": COVERAGE_ASOF_ROWS,
                    "table": g1_table, "worst_cell": worst_cell, "passed": True},
             "G2": {"threshold": G2_CORR_MIN, "min_weeks": G2_MIN_WEEKS,
                    "table": g2_table, "passed": True},
         },
-        "data_stage": {"fetch_summary": fetch_summary, "mapping": mapping_reports},
+        "data_stage": {"fetch_summary": fetch_summary, "mapping": mapping_reports,
+                       "weighting_basis": WEIGHTING_BASIS,
+                       "weights_summary": weights_summary},
         "register": register,
         "fallback": fallback,
+        "weighting": weighting,
         "split_half": split_half,
         "i2_vs_p2": i2_vs_p2,
         "worst_single_name_weeks": worst,
@@ -800,6 +874,10 @@ def main() -> int:
                   f"corr {r['corr_vs_e0_weekly'] if r['corr_vs_e0_weekly'] is None else round(r['corr_vs_e0_weekly'],4)} "
                   f"TE {r['tracking_error_ann'] if r['tracking_error_ann'] is None else round(r['tracking_error_ann'],4)} "
                   f"x{tm if tm is None else round(tm,2)}")
+    print("\nWeighting provenance per non-E0 arm (carry-forward / EW-fallback line-weeks):")
+    for arm, wsum in weighting.items():
+        print(f"  {arm:<7} carried {wsum['total_carry_weeks']:>3} | "
+              f"ew_fallback {wsum['total_ew_fallback_weeks']:>3}")
     print("\nFallback rate per non-E0 arm:")
     for arm, f in fallback.items():
         print(f"  {arm:<7} {f['total_fallback_line_weeks']}/{f['total_line_weeks_evaluated']} "

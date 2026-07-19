@@ -1,6 +1,6 @@
 {
-  "computed_at_utc": "2026-07-17T23:45:13.957730+00:00",
-  "status": "STOP_G2",
+  "computed_at_utc": "2026-07-19T08:03:52.608758+00:00",
+  "status": "COMPLETE",
   "register_meta": {
     "arms": [
       {
@@ -100,19 +100,76 @@
       "n_rebalances": 389
     },
     "split_boundary": "2022-09-08",
-    "engine_commit": "dbb6543"
+    "engine_commit": "61359de",
+    "weighting_basis": "true_weight_a3"
   },
   "mechanics_notes": {
     "t_minus_1_read": "Per-name trend state/rank AND the membership snapshot are read as of the prior trading day (t-1) of each W-FRI rebalance, identical to the deployed sector signal's shift(1); a Friday-D rebalance uses the snapshot effective <= D-1 and the price/state row on or before D-1.",
     "fallback_scope": "The <3-passing fallback applies to every SCREENED arm (I1, I2, P2, I2-N15, P2-N15, I1-all): a single-named line with fewer than MIN_PASS=3 members passing the trend state reverts to its ETF that week. I0 (unscreened) reverts only if it has no holdable name at all. E0 and the three broad slices (CSP1, CNDX, IDP6) are always their own ETF.",
     "delisting_handling": "A member delisting mid-hold earns its final Norgate TOTALRETURN print; the return panel forward-fills its price so it sits flat until the next rebalance drops it (exit at final print).",
-    "renormalisation": "Baskets are equal-weight and renormalise over the names present / passing each week; the name-level book preserves the sector line weight exactly, so the full-vector one-way turnover the cost model charges is the book's own churn (sector-rotation + screen + membership).",
+    "renormalisation": "Baskets carry TRUE snapshot weights (amendment A3, basis true_weight_a3) renormalised over the names present / passing each week \u2014 the week's own snapshot weights when present, the line's latest earlier weights carried forward otherwise, and a counted equal-weight fallback when no usable weight exists. The name-level book preserves the sector line weight exactly, so the full-vector one-way turnover the cost model charges is the book's own churn (sector-rotation + screen + membership).",
     "coverage_definition": "G1 covers snapshot member-weeks with snapshot date in [2018-10-12, 2026-06-30] grouped by calendar year; a member-week is covered iff its RESOLVED Norgate instrument (amendment A1: (ticker, snapshot date) -> instrument, delisted suffixes enumerated, recycled bases era-disambiguated by life interval, verified renames as fallback) has a non-NaN TOTALRETURN close on >= 1 of the 5 trailing rows up to the snapshot as-of date; unresolved and ambiguous names count against coverage.",
     "e0_cost": "E0 keeps the deployed cost model (2 bps on its line-level book) at every cost point; the sweep {2,5,10,20} bps applies to the constituent arms' full name-level vector."
+  },
+  "runtime_seconds": 48.996207,
+  "parity": {
+    "e0_vs_deployed_maxdiff": 8.881784197001252e-16
+  },
+  "gate_history": {
+    "run_1": {
+      "status": "STOP_G1",
+      "engine_commit": "b12d0f9",
+      "harness_commit": "24aa6d0",
+      "n_failing_cells": 68,
+      "worst_cell": {
+        "line": "IUCM",
+        "year": 2018,
+        "share": 0.5769
+      },
+      "cause": "Delisted members unresolved: Norgate stores delisted instruments under delisting-dated -YYYYMM suffixes and the b12d0f9 mapper emitted only plain tickers, so delisted/renamed members counted against coverage.",
+      "resolution": "Amendment A1 (logged pre-results, kickoff 5b; engine 54f0f14): (ticker, membership date) -> instrument resolution with delisted-suffix candidates, life-interval disambiguation and a verified rename table. G1 re-tested in full at the unchanged 97% bar."
+    },
+    "run_2": {
+      "status": "STOP_G1",
+      "engine_commit": "54f0f14",
+      "harness_commit": "05561d6",
+      "n_failing_cells": 6,
+      "worst_cell": {
+        "line": "IUCM",
+        "year": 2018,
+        "share": 0.9231
+      },
+      "cause": "Recycled-ticker ambiguity (HR, DOC, RPT, COR: dead REIT and live recycled base both contain the membership date) plus rename-at-death gaps (FOX/FOXA pre-2019, LB, PCLN, CBL, RVI, OPI).",
+      "resolution": "Amendment A2 (logged pre-results, kickoff 5b; engine dbb6543): base-ticker tenure disambiguation anchored to the predecessor's last_quoted_date + 1 (TICKER_TENURE_OVERRIDES) plus verified rename additions (FOX/FOXA -> TFCF/TFCFA-201903, LB -> BBWI, PCLN -> BKNG, CBL -> CBLAQ-202111, RVI -> RVIC-202304, OPI -> OPITQ-202606). G1 re-tested in full at the unchanged 97% bar."
+    },
+    "run_3": {
+      "status": "G1_PASS_STOP_G2",
+      "engine_commit": "dbb6543",
+      "harness_commit": "998df92",
+      "g1": {
+        "passed": true,
+        "worst_share": 0.9963
+      },
+      "g2_failing": [
+        {
+          "line": "IUCD",
+          "corr_i0_vs_e0": 0.9193,
+          "n_held_weeks": 136
+        },
+        {
+          "line": "IUCM",
+          "corr_i0_vs_e0": 0.9468,
+          "n_held_weeks": 164
+        }
+      ],
+      "cause": "Equal-weight baskets under-track cap-weighted sector ETFs on the two lines with the most concentrated mega-cap weight (IUCD 0.9193, IUCM 0.9468 vs the 0.95 bar).",
+      "resolution": "Amendment A3 (logged pre-results, kickoff 5b; engine 61359de): true-weight baskets \u2014 Step-0 (scripts/fetch_ws6_weights.py) parses true snapshot Weight (%) from the local raw iShares cache for all in-window snapshots; baskets renormalise true weights over the unchanged top-M=15 pool; screened arms renormalise the survivors. Both gates re-tested in full at the unchanged bars."
+    }
   },
   "gates": {
     "G1": {
       "threshold": 0.97,
+      "asof_trailing_rows": 5,
       "table": {
         "SOXX": {
           "2018": {
@@ -632,6 +689,11 @@
           }
         }
       },
+      "worst_cell": {
+        "covered": 1352,
+        "total": 1357,
+        "share": 0.9963154016212233
+      },
       "passed": true
     },
     "G2": {
@@ -640,73 +702,61 @@
       "table": {
         "SOXX": {
           "n_held_weeks": 256,
-          "corr_i0_vs_e0": 0.9918666455302706,
+          "corr_i0_vs_e0": 0.9943527795599645,
           "gated": true
         },
         "IUES": {
           "n_held_weeks": 183,
-          "corr_i0_vs_e0": 0.9919816877044734,
+          "corr_i0_vs_e0": 0.9984654952588521,
           "gated": true
         },
         "IUFS": {
           "n_held_weeks": 253,
-          "corr_i0_vs_e0": 0.9865179330527711,
+          "corr_i0_vs_e0": 0.9911588231719408,
           "gated": true
         },
         "IUHC": {
-          "n_held_weeks": 135,
-          "corr_i0_vs_e0": 0.9849839871636087,
+          "n_held_weeks": 136,
+          "corr_i0_vs_e0": 0.9823274912268662,
           "gated": true
         },
         "IUIS": {
           "n_held_weeks": 281,
-          "corr_i0_vs_e0": 0.9797542606560045,
+          "corr_i0_vs_e0": 0.9767176468893435,
           "gated": true
         },
         "IUCS": {
           "n_held_weeks": 178,
-          "corr_i0_vs_e0": 0.9849086183542958,
+          "corr_i0_vs_e0": 0.9946082772552237,
           "gated": true
         },
         "IUCD": {
           "n_held_weeks": 136,
-          "corr_i0_vs_e0": 0.9193396250664287,
+          "corr_i0_vs_e0": 0.9621061224022363,
           "gated": true
         },
         "IUUS": {
           "n_held_weeks": 251,
-          "corr_i0_vs_e0": 0.9919142962375607,
+          "corr_i0_vs_e0": 0.9952415815988299,
           "gated": true
         },
         "IUMS": {
           "n_held_weeks": 175,
-          "corr_i0_vs_e0": 0.9852324940487771,
+          "corr_i0_vs_e0": 0.9875470622440533,
           "gated": true
         },
         "IUCM": {
-          "n_held_weeks": 164,
-          "corr_i0_vs_e0": 0.946800188541165,
+          "n_held_weeks": 165,
+          "corr_i0_vs_e0": 0.9732543550043082,
           "gated": true
         },
         "IUSP": {
-          "n_held_weeks": 157,
-          "corr_i0_vs_e0": 0.9575207887063582,
+          "n_held_weeks": 156,
+          "corr_i0_vs_e0": 0.9587846591912639,
           "gated": true
         }
       },
-      "failing": [
-        {
-          "line": "IUCD",
-          "n_held_weeks": 136,
-          "corr_i0_vs_e0": 0.9193396250664287
-        },
-        {
-          "line": "IUCM",
-          "n_held_weeks": 164,
-          "corr_i0_vs_e0": 0.946800188541165
-        }
-      ],
-      "passed": false
+      "passed": true
     }
   },
   "data_stage": {
@@ -790,7 +840,7 @@
         "panel_end": "2026-06-30"
       },
       "IUCD": {
-        "source": "fetch",
+        "source": "cache",
         "n_requested": 105,
         "n_resolved": 105,
         "n_uncovered": 0,
@@ -829,7 +879,7 @@
         "panel_end": "2026-06-30"
       },
       "IUCM": {
-        "source": "fetch",
+        "source": "cache",
         "n_requested": 34,
         "n_resolved": 34,
         "n_uncovered": 0,
@@ -842,7 +892,7 @@
         "panel_end": "2026-06-30"
       },
       "IUSP": {
-        "source": "fetch",
+        "source": "cache",
         "n_requested": 162,
         "n_resolved": 162,
         "n_uncovered": 0,
@@ -974,6 +1024,1082 @@
           }
         }
       }
+    },
+    "weighting_basis": "true_weight_a3",
+    "weights_summary": {
+      "SOXX": {
+        "n_snapshot_keys": 443
+      },
+      "IUES": {
+        "n_snapshot_keys": 443
+      },
+      "IUFS": {
+        "n_snapshot_keys": 443
+      },
+      "IUHC": {
+        "n_snapshot_keys": 443
+      },
+      "IUIS": {
+        "n_snapshot_keys": 443
+      },
+      "IUCS": {
+        "n_snapshot_keys": 443
+      },
+      "IUCD": {
+        "n_snapshot_keys": 443
+      },
+      "IUUS": {
+        "n_snapshot_keys": 443
+      },
+      "IUMS": {
+        "n_snapshot_keys": 443
+      },
+      "IUCM": {
+        "n_snapshot_keys": 406
+      },
+      "IUSP": {
+        "n_snapshot_keys": 443
+      }
     }
-  }
+  },
+  "register": {
+    "E0": {
+      "by_cost": {
+        "2": {
+          "net_sharpe": 1.0045100459106409,
+          "net_cagr": 0.18834709736585453,
+          "max_dd": 0.3062283687724101,
+          "total_return": 2.7674920530094296,
+          "corr_vs_e0_weekly": 1.0,
+          "tracking_error_ann": 0.0,
+          "cost_bps_applied": 2
+        },
+        "5": {
+          "net_sharpe": 1.0045100459106409,
+          "net_cagr": 0.18834709736585453,
+          "max_dd": 0.3062283687724101,
+          "total_return": 2.7674920530094296,
+          "corr_vs_e0_weekly": 1.0,
+          "tracking_error_ann": 0.0,
+          "cost_bps_applied": 2
+        },
+        "10": {
+          "net_sharpe": 1.0045100459106409,
+          "net_cagr": 0.18834709736585453,
+          "max_dd": 0.3062283687724101,
+          "total_return": 2.7674920530094296,
+          "corr_vs_e0_weekly": 1.0,
+          "tracking_error_ann": 0.0,
+          "cost_bps_applied": 2
+        },
+        "20": {
+          "net_sharpe": 1.0045100459106409,
+          "net_cagr": 0.18834709736585453,
+          "max_dd": 0.3062283687724101,
+          "total_return": 2.7674920530094296,
+          "corr_vs_e0_weekly": 1.0,
+          "tracking_error_ann": 0.0,
+          "cost_bps_applied": 2
+        }
+      },
+      "total_oneway_turnover": 128.2995835882179,
+      "turnover_multiple_vs_e0": 1.0
+    },
+    "I0": {
+      "by_cost": {
+        "2": {
+          "net_sharpe": 1.0100060309387722,
+          "net_cagr": 0.18985088341786982,
+          "max_dd": 0.30197324429971795,
+          "total_return": 2.8042932594301737,
+          "corr_vs_e0_weekly": 0.9962141553684271,
+          "tracking_error_ann": 0.015951791086777745,
+          "cost_bps_applied": 2
+        },
+        "5": {
+          "net_sharpe": 0.9827488496023078,
+          "net_cagr": 0.18371178727332715,
+          "max_dd": 0.30255795832124477,
+          "total_return": 2.655996298231976,
+          "corr_vs_e0_weekly": 0.9962194678048655,
+          "tracking_error_ann": 0.015935223545967672,
+          "cost_bps_applied": 5
+        },
+        "10": {
+          "net_sharpe": 0.9372916702053751,
+          "net_cagr": 0.17354844737027997,
+          "max_dd": 0.3035316648934636,
+          "total_return": 2.421528535925229,
+          "corr_vs_e0_weekly": 0.9962158357021521,
+          "tracking_error_ann": 0.015933824874076755,
+          "cost_bps_applied": 10
+        },
+        "20": {
+          "net_sharpe": 0.8462926711885175,
+          "net_cagr": 0.15347608841261318,
+          "max_dd": 0.3054760176720529,
+          "total_return": 1.9966054524686632,
+          "corr_vs_e0_weekly": 0.9961619499937251,
+          "tracking_error_ann": 0.016029107320792615,
+          "cost_bps_applied": 20
+        }
+      },
+      "total_oneway_turnover": 133.570133168579,
+      "turnover_multiple_vs_e0": 1.041080020939718
+    },
+    "I1": {
+      "by_cost": {
+        "2": {
+          "net_sharpe": 0.9531697849742208,
+          "net_cagr": 0.1742329473208326,
+          "max_dd": 0.2792352125168346,
+          "total_return": 2.4368983510244555,
+          "corr_vs_e0_weekly": 0.9845072005407093,
+          "tracking_error_ann": 0.032219636209184506,
+          "cost_bps_applied": 2
+        },
+        "5": {
+          "net_sharpe": 0.9212349556557654,
+          "net_cagr": 0.1672516564099238,
+          "max_dd": 0.28022113754884814,
+          "total_return": 2.2829211648030787,
+          "corr_vs_e0_weekly": 0.984495080975341,
+          "tracking_error_ann": 0.03222245235372861,
+          "cost_bps_applied": 5
+        },
+        "10": {
+          "net_sharpe": 0.8679720582334939,
+          "net_cagr": 0.15570588847374367,
+          "max_dd": 0.281862145077715,
+          "total_return": 2.041420512240699,
+          "corr_vs_e0_weekly": 0.9844580924183018,
+          "tracking_error_ann": 0.032244260680481605,
+          "cost_bps_applied": 10
+        },
+        "20": {
+          "net_sharpe": 0.7613394203736761,
+          "net_cagr": 0.13294701182255797,
+          "max_dd": 0.2851359179139359,
+          "total_return": 1.6102524225602934,
+          "corr_vs_e0_weekly": 0.9843215606955924,
+          "tracking_error_ann": 0.03235184843134532,
+          "cost_bps_applied": 20
+        }
+      },
+      "total_oneway_turnover": 153.82115675561928,
+      "turnover_multiple_vs_e0": 1.1989217147369222
+    },
+    "I2": {
+      "by_cost": {
+        "2": {
+          "net_sharpe": 0.9278364306736041,
+          "net_cagr": 0.18716822052604387,
+          "max_dd": 0.27709302228269583,
+          "total_return": 2.7388590772559067,
+          "corr_vs_e0_weekly": 0.9484000135735217,
+          "tracking_error_ann": 0.06085748156207358,
+          "cost_bps_applied": 2
+        },
+        "5": {
+          "net_sharpe": 0.8850638631069229,
+          "net_cagr": 0.17664350469992418,
+          "max_dd": 0.2778901376281514,
+          "total_return": 2.4915044352815623,
+          "corr_vs_e0_weekly": 0.948344384502256,
+          "tracking_error_ann": 0.060908076258584104,
+          "cost_bps_applied": 5
+        },
+        "10": {
+          "net_sharpe": 0.8137261578740662,
+          "net_cagr": 0.1593046672803775,
+          "max_dd": 0.2792171557157469,
+          "total_return": 2.1149798472765684,
+          "corr_vs_e0_weekly": 0.9482370646876263,
+          "tracking_error_ann": 0.06100180697077614,
+          "cost_bps_applied": 10
+        },
+        "20": {
+          "net_sharpe": 0.6709352049754046,
+          "net_cagr": 0.12537304118357073,
+          "max_dd": 0.2837750400341843,
+          "total_return": 1.4790826725934756,
+          "corr_vs_e0_weekly": 0.9479678972913567,
+          "tracking_error_ann": 0.06122433877310709,
+          "cost_bps_applied": 20
+        }
+      },
+      "total_oneway_turnover": 229.22160519029137,
+      "turnover_multiple_vs_e0": 1.7866122303715832
+    },
+    "P2": {
+      "by_cost": {
+        "2": {
+          "net_sharpe": 0.9248294185025265,
+          "net_cagr": 0.18691139707686832,
+          "max_dd": 0.2872263936728039,
+          "total_return": 2.7326464328366535,
+          "corr_vs_e0_weekly": 0.9528327441074098,
+          "tracking_error_ann": 0.05860017875564859,
+          "cost_bps_applied": 2
+        },
+        "5": {
+          "net_sharpe": 0.8816612176565221,
+          "net_cagr": 0.1762482356345192,
+          "max_dd": 0.28811284380601343,
+          "total_return": 2.4824990585684725,
+          "corr_vs_e0_weekly": 0.952772671604505,
+          "tracking_error_ann": 0.0586567408504251,
+          "cost_bps_applied": 5
+        },
+        "10": {
+          "net_sharpe": 0.8096470341459278,
+          "net_cagr": 0.15868409059231192,
+          "max_dd": 0.28958834561547275,
+          "total_return": 2.1021858853528355,
+          "corr_vs_e0_weekly": 0.952658478451895,
+          "tracking_error_ann": 0.058760484044449474,
+          "cost_bps_applied": 10
+        },
+        "20": {
+          "net_sharpe": 0.6654405687388142,
+          "net_cagr": 0.12432170802051101,
+          "max_dd": 0.29253217789960373,
+          "total_return": 1.4613363733593125,
+          "corr_vs_e0_weekly": 0.9523775602752395,
+          "tracking_error_ann": 0.05900326047827116,
+          "cost_bps_applied": 20
+        }
+      },
+      "total_oneway_turnover": 232.38608792303376,
+      "turnover_multiple_vs_e0": 1.8112770238513416
+    },
+    "I2-N15": {
+      "by_cost": {
+        "2": {
+          "net_sharpe": 0.9996858361747912,
+          "net_cagr": 0.19838219904956422,
+          "max_dd": 0.2714430199542427,
+          "total_return": 3.019053398167845,
+          "corr_vs_e0_weekly": 0.9646140275290044,
+          "tracking_error_ann": 0.049062779318262195,
+          "cost_bps_applied": 2
+        },
+        "5": {
+          "net_sharpe": 0.9612567194410087,
+          "net_cagr": 0.18914975412696822,
+          "max_dd": 0.272312603428291,
+          "total_return": 2.787096240199791,
+          "corr_vs_e0_weekly": 0.9645986543056798,
+          "tracking_error_ann": 0.04908306036782818,
+          "cost_bps_applied": 5
+        },
+        "10": {
+          "net_sharpe": 0.8971562502181374,
+          "net_cagr": 0.17391652310407424,
+          "max_dd": 0.2737601292110532,
+          "total_return": 2.4297858886847927,
+          "corr_vs_e0_weekly": 0.964558246112289,
+          "tracking_error_ann": 0.04912773249511435,
+          "cost_bps_applied": 10
+        },
+        "20": {
+          "net_sharpe": 0.7688151233581393,
+          "net_cagr": 0.14401976684996698,
+          "max_dd": 0.27664851463960005,
+          "total_return": 1.8128707702295626,
+          "corr_vs_e0_weekly": 0.964422182884959,
+          "tracking_error_ann": 0.049257693410202086,
+          "cost_bps_applied": 20
+        }
+      },
+      "total_oneway_turnover": 199.2434793108684,
+      "turnover_multiple_vs_e0": 1.5529549959440825
+    },
+    "P2-N15": {
+      "by_cost": {
+        "2": {
+          "net_sharpe": 0.9685939139908069,
+          "net_cagr": 0.1904611079509273,
+          "max_dd": 0.27849954664508325,
+          "total_return": 2.8193158533238734,
+          "corr_vs_e0_weekly": 0.9644977537752382,
+          "tracking_error_ann": 0.049605475117226246,
+          "cost_bps_applied": 2
+        },
+        "5": {
+          "net_sharpe": 0.9290162221236438,
+          "net_cagr": 0.18103540851053546,
+          "max_dd": 0.2793295640639589,
+          "total_return": 2.5929361167509573,
+          "corr_vs_e0_weekly": 0.9644951198676497,
+          "tracking_error_ann": 0.04962140306762844,
+          "cost_bps_applied": 5
+        },
+        "10": {
+          "net_sharpe": 0.8629982624279999,
+          "net_cagr": 0.16548771763655346,
+          "max_dd": 0.2807112989848076,
+          "total_return": 2.2449796117696312,
+          "corr_vs_e0_weekly": 0.9644766088766944,
+          "tracking_error_ann": 0.04965851632102434,
+          "cost_bps_applied": 10
+        },
+        "20": {
+          "net_sharpe": 0.7308143697583711,
+          "net_cagr": 0.1349899892009896,
+          "max_dd": 0.28346867365723627,
+          "total_return": 1.6466510351287345,
+          "corr_vs_e0_weekly": 0.9643868507720017,
+          "tracking_error_ann": 0.04977224821998831,
+          "cost_bps_applied": 20
+        }
+      },
+      "total_oneway_turnover": 204.77514106387414,
+      "turnover_multiple_vs_e0": 1.5960701924108132
+    },
+    "I1-all": {
+      "by_cost": {
+        "2": {
+          "net_sharpe": 0.9582563831021981,
+          "net_cagr": 0.17557859929020436,
+          "max_dd": 0.26725233862928477,
+          "total_return": 2.467288903976342,
+          "corr_vs_e0_weekly": 0.9849391124095818,
+          "tracking_error_ann": 0.031719512399205264,
+          "cost_bps_applied": 2
+        },
+        "5": {
+          "net_sharpe": 0.927608731429396,
+          "net_cagr": 0.1688552549566078,
+          "max_dd": 0.26811362438120634,
+          "total_return": 2.317748162257918,
+          "corr_vs_e0_weekly": 0.9849287873999328,
+          "tracking_error_ann": 0.03172383052692077,
+          "cost_bps_applied": 5
+        },
+        "10": {
+          "net_sharpe": 0.8764884242069242,
+          "net_cagr": 0.15773280397181044,
+          "max_dd": 0.269547433418705,
+          "total_return": 2.082662667684814,
+          "corr_vs_e0_weekly": 0.9848958658030901,
+          "tracking_error_ann": 0.031747213986921645,
+          "cost_bps_applied": 10
+        },
+        "20": {
+          "net_sharpe": 0.7741266062873301,
+          "net_cagr": 0.1357962439619922,
+          "max_dd": 0.27240880679179635,
+          "total_return": 1.6611366723277419,
+          "corr_vs_e0_weekly": 0.9847713999138636,
+          "tracking_error_ann": 0.031854471596594734,
+          "cost_bps_applied": 20
+        }
+      },
+      "total_oneway_turnover": 148.02667704985743,
+      "turnover_multiple_vs_e0": 1.1537580474536404
+    }
+  },
+  "fallback": {
+    "I0": {
+      "per_line_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_weeks_evaluated": {
+        "SOXX": 244,
+        "IUES": 175,
+        "IUFS": 246,
+        "IUHC": 133,
+        "IUIS": 273,
+        "IUCS": 172,
+        "IUCD": 131,
+        "IUUS": 244,
+        "IUMS": 167,
+        "IUCM": 160,
+        "IUSP": 151
+      },
+      "total_fallback_line_weeks": 0,
+      "total_line_weeks_evaluated": 2096,
+      "fallback_rate": 0.0,
+      "is_screened": false
+    },
+    "I1": {
+      "per_line_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 2,
+        "IUHC": 2,
+        "IUIS": 2,
+        "IUCS": 4,
+        "IUCD": 0,
+        "IUUS": 1,
+        "IUMS": 1,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_weeks_evaluated": {
+        "SOXX": 244,
+        "IUES": 175,
+        "IUFS": 246,
+        "IUHC": 133,
+        "IUIS": 273,
+        "IUCS": 172,
+        "IUCD": 131,
+        "IUUS": 244,
+        "IUMS": 167,
+        "IUCM": 160,
+        "IUSP": 151
+      },
+      "total_fallback_line_weeks": 12,
+      "total_line_weeks_evaluated": 2096,
+      "fallback_rate": 0.0057251908396946565,
+      "is_screened": true
+    },
+    "I2": {
+      "per_line_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 1,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_weeks_evaluated": {
+        "SOXX": 244,
+        "IUES": 175,
+        "IUFS": 246,
+        "IUHC": 133,
+        "IUIS": 273,
+        "IUCS": 172,
+        "IUCD": 131,
+        "IUUS": 244,
+        "IUMS": 167,
+        "IUCM": 160,
+        "IUSP": 151
+      },
+      "total_fallback_line_weeks": 1,
+      "total_line_weeks_evaluated": 2096,
+      "fallback_rate": 0.00047709923664122136,
+      "is_screened": true
+    },
+    "P2": {
+      "per_line_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 1,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_weeks_evaluated": {
+        "SOXX": 244,
+        "IUES": 175,
+        "IUFS": 246,
+        "IUHC": 133,
+        "IUIS": 273,
+        "IUCS": 172,
+        "IUCD": 131,
+        "IUUS": 244,
+        "IUMS": 167,
+        "IUCM": 160,
+        "IUSP": 151
+      },
+      "total_fallback_line_weeks": 1,
+      "total_line_weeks_evaluated": 2096,
+      "fallback_rate": 0.00047709923664122136,
+      "is_screened": true
+    },
+    "I2-N15": {
+      "per_line_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 1,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_weeks_evaluated": {
+        "SOXX": 244,
+        "IUES": 175,
+        "IUFS": 246,
+        "IUHC": 133,
+        "IUIS": 273,
+        "IUCS": 172,
+        "IUCD": 131,
+        "IUUS": 244,
+        "IUMS": 167,
+        "IUCM": 160,
+        "IUSP": 151
+      },
+      "total_fallback_line_weeks": 1,
+      "total_line_weeks_evaluated": 2096,
+      "fallback_rate": 0.00047709923664122136,
+      "is_screened": true
+    },
+    "P2-N15": {
+      "per_line_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 1,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_weeks_evaluated": {
+        "SOXX": 244,
+        "IUES": 175,
+        "IUFS": 246,
+        "IUHC": 133,
+        "IUIS": 273,
+        "IUCS": 172,
+        "IUCD": 131,
+        "IUUS": 244,
+        "IUMS": 167,
+        "IUCM": 160,
+        "IUSP": 151
+      },
+      "total_fallback_line_weeks": 1,
+      "total_line_weeks_evaluated": 2096,
+      "fallback_rate": 0.00047709923664122136,
+      "is_screened": true
+    },
+    "I1-all": {
+      "per_line_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 1,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_weeks_evaluated": {
+        "SOXX": 244,
+        "IUES": 175,
+        "IUFS": 246,
+        "IUHC": 133,
+        "IUIS": 273,
+        "IUCS": 172,
+        "IUCD": 131,
+        "IUUS": 244,
+        "IUMS": 167,
+        "IUCM": 160,
+        "IUSP": 151
+      },
+      "total_fallback_line_weeks": 1,
+      "total_line_weeks_evaluated": 2096,
+      "fallback_rate": 0.00047709923664122136,
+      "is_screened": true
+    }
+  },
+  "weighting": {
+    "I0": {
+      "per_line_carry_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_ew_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "total_carry_weeks": 0,
+      "total_ew_fallback_weeks": 0
+    },
+    "I1": {
+      "per_line_carry_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_ew_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "total_carry_weeks": 0,
+      "total_ew_fallback_weeks": 0
+    },
+    "I2": {
+      "per_line_carry_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_ew_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "total_carry_weeks": 0,
+      "total_ew_fallback_weeks": 0
+    },
+    "P2": {
+      "per_line_carry_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_ew_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "total_carry_weeks": 0,
+      "total_ew_fallback_weeks": 0
+    },
+    "I2-N15": {
+      "per_line_carry_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_ew_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "total_carry_weeks": 0,
+      "total_ew_fallback_weeks": 0
+    },
+    "P2-N15": {
+      "per_line_carry_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_ew_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "total_carry_weeks": 0,
+      "total_ew_fallback_weeks": 0
+    },
+    "I1-all": {
+      "per_line_carry_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "per_line_ew_fallback_weeks": {
+        "SOXX": 0,
+        "IUES": 0,
+        "IUFS": 0,
+        "IUHC": 0,
+        "IUIS": 0,
+        "IUCS": 0,
+        "IUCD": 0,
+        "IUUS": 0,
+        "IUMS": 0,
+        "IUCM": 0,
+        "IUSP": 0
+      },
+      "total_carry_weeks": 0,
+      "total_ew_fallback_weeks": 0
+    }
+  },
+  "split_half": {
+    "E0": {
+      "cost_bps": 2,
+      "first_half_sharpe": 0.7666486896010046,
+      "second_half_sharpe": 1.3520918422994077,
+      "first_half_days": 983,
+      "second_half_days": 954
+    },
+    "I0": {
+      "cost_bps": 5,
+      "first_half_sharpe": 0.7088671472911258,
+      "second_half_sharpe": 1.3797998947466035,
+      "first_half_days": 983,
+      "second_half_days": 954
+    },
+    "I1": {
+      "cost_bps": 5,
+      "first_half_sharpe": 0.6252069854886366,
+      "second_half_sharpe": 1.3391885155206542,
+      "first_half_days": 983,
+      "second_half_days": 954
+    },
+    "I2": {
+      "cost_bps": 5,
+      "first_half_sharpe": 0.5497850028219635,
+      "second_half_sharpe": 1.3092186108891626,
+      "first_half_days": 983,
+      "second_half_days": 954
+    },
+    "P2": {
+      "cost_bps": 5,
+      "first_half_sharpe": 0.5836258802981518,
+      "second_half_sharpe": 1.260379901096494,
+      "first_half_days": 983,
+      "second_half_days": 954
+    },
+    "I2-N15": {
+      "cost_bps": 5,
+      "first_half_sharpe": 0.6344280645766948,
+      "second_half_sharpe": 1.4002647748895303,
+      "first_half_days": 983,
+      "second_half_days": 954
+    },
+    "P2-N15": {
+      "cost_bps": 5,
+      "first_half_sharpe": 0.6116184225458371,
+      "second_half_sharpe": 1.3497459569522723,
+      "first_half_days": 983,
+      "second_half_days": 954
+    },
+    "I1-all": {
+      "cost_bps": 5,
+      "first_half_sharpe": 0.6590512628400299,
+      "second_half_sharpe": 1.310503748629362,
+      "first_half_days": 983,
+      "second_half_days": 954
+    }
+  },
+  "i2_vs_p2": {
+    "weekly_selection_jaccard": 0.6781561470365624,
+    "return_corr_weekly": 0.9882830672677783,
+    "return_corr_daily": 0.9894424521979146,
+    "n_common_rebalances": 389,
+    "mean_selection_size_i2": 53.57583547557841,
+    "mean_selection_size_p2": 53.57583547557841,
+    "note": "Jaccard and sets are over single member names (line codes excluded); cost 5 bps for the return correlations."
+  },
+  "worst_single_name_weeks": {
+    "I1": [
+      {
+        "name": "ABBV",
+        "week": "2020-03-20",
+        "contribution": -0.030683833794505264
+      },
+      {
+        "name": "XOM",
+        "week": "2022-06-17",
+        "contribution": -0.01772548275881389
+      },
+      {
+        "name": "XOM",
+        "week": "2023-10-06",
+        "contribution": -0.016022575789277807
+      },
+      {
+        "name": "LLY",
+        "week": "2020-03-20",
+        "contribution": -0.015785601965618012
+      },
+      {
+        "name": "CVX",
+        "week": "2023-10-27",
+        "contribution": -0.015137657557125147
+      },
+      {
+        "name": "CVX",
+        "week": "2022-06-17",
+        "contribution": -0.01341006144840031
+      },
+      {
+        "name": "XOM",
+        "week": "2022-09-23",
+        "contribution": -0.011756287263394123
+      },
+      {
+        "name": "XOM",
+        "week": "2022-08-05",
+        "contribution": -0.010751623464317756
+      },
+      {
+        "name": "NVDA",
+        "week": "2020-03-20",
+        "contribution": -0.010579547353962764
+      },
+      {
+        "name": "COP",
+        "week": "2022-06-17",
+        "contribution": -0.009774302608249377
+      }
+    ],
+    "I2": [
+      {
+        "name": "XOM",
+        "week": "2022-06-17",
+        "contribution": -0.02947975540390444
+      },
+      {
+        "name": "TSLA",
+        "week": "2021-02-26",
+        "contribution": -0.018630524090336702
+      },
+      {
+        "name": "XOM",
+        "week": "2022-09-23",
+        "contribution": -0.0185087350579586
+      },
+      {
+        "name": "ABBV",
+        "week": "2020-03-20",
+        "contribution": -0.017614120229191708
+      },
+      {
+        "name": "COP",
+        "week": "2022-06-17",
+        "contribution": -0.01625592115349631
+      },
+      {
+        "name": "XOM",
+        "week": "2026-04-03",
+        "contribution": -0.015706319938954237
+      },
+      {
+        "name": "XOM",
+        "week": "2022-08-05",
+        "contribution": -0.01382673927452886
+      },
+      {
+        "name": "XOM",
+        "week": "2026-04-10",
+        "contribution": -0.01315700143837581
+      },
+      {
+        "name": "XOM",
+        "week": "2021-07-16",
+        "contribution": -0.011155719000420627
+      },
+      {
+        "name": "SPG",
+        "week": "2021-06-18",
+        "contribution": -0.011006652985314586
+      }
+    ]
+  },
+  "per_line": {
+    "SOXX": {
+      "n_held_weeks": 256,
+      "corr_i1_vs_e0": 0.9817778940699484,
+      "contribution_e0_compounded": 0.6335182699630368,
+      "contribution_i1_compounded": 0.6862268917870384,
+      "contribution_e0_sum": 0.5099731369641282,
+      "contribution_i1_sum": 0.5423502197796581
+    },
+    "IUES": {
+      "n_held_weeks": 183,
+      "corr_i1_vs_e0": 0.9961123773409225,
+      "contribution_e0_compounded": 0.29765694733476744,
+      "contribution_i1_compounded": 0.3054983645715903,
+      "contribution_e0_sum": 0.2802971566799427,
+      "contribution_i1_sum": 0.28657746003316453
+    },
+    "IUFS": {
+      "n_held_weeks": 253,
+      "corr_i1_vs_e0": 0.9772336647773363,
+      "contribution_e0_compounded": 0.10330935660575546,
+      "contribution_i1_compounded": 0.10083687809920217,
+      "contribution_e0_sum": 0.10075035484620772,
+      "contribution_i1_sum": 0.09861069679311199
+    },
+    "IUHC": {
+      "n_held_weeks": 136,
+      "corr_i1_vs_e0": 0.9347469186077817,
+      "contribution_e0_compounded": 0.02877441339098441,
+      "contribution_i1_compounded": 0.015640854410347904,
+      "contribution_e0_sum": 0.03196805634249551,
+      "contribution_i1_sum": 0.018667012767386516
+    },
+    "IUIS": {
+      "n_held_weeks": 281,
+      "corr_i1_vs_e0": 0.9413873309792633,
+      "contribution_e0_compounded": 0.09313641162754815,
+      "contribution_i1_compounded": 0.09580890750273574,
+      "contribution_e0_sum": 0.09022409509614833,
+      "contribution_i1_sum": 0.0927684614989494
+    },
+    "IUCS": {
+      "n_held_weeks": 178,
+      "corr_i1_vs_e0": 0.9256472116552211,
+      "contribution_e0_compounded": 0.03629925118345656,
+      "contribution_i1_compounded": -0.01398081467138379,
+      "contribution_e0_sum": 0.03800668156191733,
+      "contribution_i1_sum": -0.01219664652253805
+    },
+    "IUCD": {
+      "n_held_weeks": 136,
+      "corr_i1_vs_e0": 0.8959444554176514,
+      "contribution_e0_compounded": 0.029227544672814965,
+      "contribution_i1_compounded": 0.0041471183716415005,
+      "contribution_e0_sum": 0.029246291826298614,
+      "contribution_i1_sum": 0.004651247293518091
+    },
+    "IUUS": {
+      "n_held_weeks": 251,
+      "corr_i1_vs_e0": 0.9828885841228567,
+      "contribution_e0_compounded": 0.07047479246767341,
+      "contribution_i1_compounded": 0.011401028794105539,
+      "contribution_e0_sum": 0.07510703959543169,
+      "contribution_i1_sum": 0.018687752709415313
+    },
+    "IUMS": {
+      "n_held_weeks": 175,
+      "corr_i1_vs_e0": 0.9608015810161386,
+      "contribution_e0_compounded": -0.013465364126843737,
+      "contribution_i1_compounded": -0.01753840250015748,
+      "contribution_e0_sum": -0.012403296994539082,
+      "contribution_i1_sum": -0.01652662663129094
+    },
+    "IUCM": {
+      "n_held_weeks": 165,
+      "corr_i1_vs_e0": 0.8618293405284659,
+      "contribution_e0_compounded": 0.10015471695955047,
+      "contribution_i1_compounded": 0.11197461725739011,
+      "contribution_e0_sum": 0.09651735626349829,
+      "contribution_i1_sum": 0.1072723513209268
+    },
+    "IUSP": {
+      "n_held_weeks": 156,
+      "corr_i1_vs_e0": 0.9567950090237336,
+      "contribution_e0_compounded": 0.05636090061126375,
+      "contribution_i1_compounded": 0.06449616857288953,
+      "contribution_e0_sum": 0.055608187612201335,
+      "contribution_i1_sum": 0.06339332503889435
+    }
+  },
+  "baseline_turnover_oneway": 128.2995835882179
 }
