@@ -67,6 +67,25 @@ blends two companies' price histories in one column. G1 re-tests at the
 unchanged 97% bar; arm definitions, constants, costs, window and verdict rule
 are all unchanged by A1.
 
+Amendment A3 (2026-07-19, kickoff §5b, signed ZH — logged after the post-A2 G2
+FAIL_STOP: I0-vs-E0 weekly correlation IUCD 0.9193 / IUCM 0.9468 against the
+0.95 bar; equal-weight top-15 misprices the mega-cap-concentrated
+heterogeneous lines): TRUE-WEIGHT baskets, §6 item 4's pre-registered
+alternative. The pool rule and M=15 are UNCHANGED; inside the pool every
+non-fallback basket weights its selected members by the TRUE snapshot
+Weight (%) renormalised over the selected set (screened arms renormalise the
+survivors' weights). Weights come from the A3 Step-0 stage
+(scripts/fetch_ws6_weights.py -> data_local/ws6/weights/, basis-tagged;
+load_member_weights validates the basis so a stale equal-weight artefact can
+never be silently consumed). Weight lookup is by snapshot ticker and the
+basket key stays the RESOLVED INSTRUMENT, so recycled tickers do not blend
+eras in the weight panel either. A snapshot without weights carries the
+line's last known weights forward (counted per line); a line-week whose
+selected members lack a usable weight — including the no-weights-at-all
+degenerate case — falls back to equal weight (counted per line; expected
+zero). G1/G2 definitions and bars, the register, costs, window and verdict
+rule are unchanged.
+
 Amendment A2 (2026-07-18, kickoff §5b — logged pre-results after the post-A1 G1
 re-test narrowed to 6 failing cells): BASE-TICKER TENURE disambiguation. Where
 more than one candidate's LIFE interval contains the membership date (a dead
@@ -103,6 +122,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 # Git-ignored (licence guard); raw Norgate member series live here only.
 DATA_LOCAL_WS6 = PROJECT_ROOT / "data_local" / "ws6"
+# Amendment A3: per-line constituent Weight (%) tables built by the Step-0
+# stage (scripts/fetch_ws6_weights.py). Git-ignored with the rest of
+# data_local/. The basis tag is the cache-invalidation key: any consumer
+# validates it via load_member_weights, so panels built under a different
+# weighting basis can never be silently reused.
+WS6_WEIGHTS_DIR = DATA_LOCAL_WS6 / "weights"
+WEIGHTING_BASIS = "true_weight_a3"
 
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
@@ -661,6 +687,29 @@ def load_constituents(line: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_member_weights(line: str) -> dict[pd.Timestamp, dict[str, float]]:
+    """Load a line's A3 Step-0 weight table, validating the weighting basis.
+
+    Returns {snapshot Timestamp: {snapshot ticker: Weight (%)}} for the line,
+    or raises: a missing file means the Step-0 stage has not been run, and a
+    basis mismatch means the cached table was built under a different
+    weighting regime — both must FAIL FAST rather than let a stale basis leak
+    into the panels (the A3 cache-invalidation guarantee)."""
+    path = WS6_WEIGHTS_DIR / f"{line.lower()}.json"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"No A3 weights table at {path} — run scripts/fetch_ws6_weights.py")
+    import json
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    basis = doc.get("basis")
+    if basis != WEIGHTING_BASIS:
+        raise ValueError(
+            f"{path} carries basis {basis!r}, expected {WEIGHTING_BASIS!r} — "
+            "rebuild the Step-0 weights stage")
+    return {pd.Timestamp(k): {t: float(v) for t, v in row.items()}
+            for k, row in doc.get("weights", {}).items()}
+
+
 def snapshot_asof(snapshots: dict, asof_date: pd.Timestamp
                   ) -> tuple[pd.Timestamp | None, list[str]]:
     """Return the (snapshot_date, tickers) whose target-Friday key is the latest
@@ -788,11 +837,51 @@ class BasketResult:
     uncovered: list[str] = field(default_factory=list)   # no Norgate data
     missing_price: list[str] = field(default_factory=list)  # gap/not-listed at t-1
     dropped_no_rank: list[str] = field(default_factory=list)  # NaN rank key
+    # A3 weighting provenance for this line-week: "snapshot" (true weights from
+    # the week's own snapshot), "carried" (last known weights carried forward),
+    # "ew" (equal-weight fallback — no usable weights), or "" on fallback.
+    weight_source: str = ""
+
+
+def _true_basket_weights(candidates: list[str], sym_to_ish: dict[str, str],
+                         weights_by_key: dict[pd.Timestamp, dict[str, float]] | None,
+                         snap_date: pd.Timestamp
+                         ) -> tuple[dict[str, float], str]:
+    """A3 within-line weights for the selected members.
+
+    True snapshot Weight (%) renormalised over ``candidates`` (the selected
+    set — the whole present pool for I0, the screen survivors for I1, the
+    top-N for the selection arms). Weight lookup is by SNAPSHOT ticker
+    (``sym_to_ish``) against the week's own snapshot; a snapshot absent from
+    the weight table carries the line's latest EARLIER weights forward
+    ("carried"). A selected member without a positive weight under the
+    effective map — or no weights at all — drops the whole line-week to equal
+    weight ("ew"), never a silently mixed basis. Returns (weights, source)."""
+    n = len(candidates)
+    ew = {s: 1.0 / n for s in candidates}
+    if not weights_by_key:
+        return ew, "ew"
+    if snap_date in weights_by_key:
+        w_map, source = weights_by_key[snap_date], "snapshot"
+    else:
+        earlier = [k for k in weights_by_key if k < snap_date]
+        if not earlier:
+            return ew, "ew"
+        w_map, source = weights_by_key[max(earlier)], "carried"
+    vals = {}
+    for s in candidates:
+        v = w_map.get(sym_to_ish.get(s, s))
+        if v is None or v <= 0.0:
+            return ew, "ew"    # unusable weight -> uniform basis, counted
+        vals[s] = float(v)
+    total = sum(vals.values())
+    return {s: v / total for s, v in vals.items()}, source
 
 
 def select_basket(spec: ArmSpec, eff_date: pd.Timestamp | None,
                   snapshots: dict, prices: pd.DataFrame, sig: dict,
-                  resolution: dict[pd.Timestamp, dict[str, str | None]] | None = None
+                  resolution: dict[pd.Timestamp, dict[str, str | None]] | None = None,
+                  weights: dict[pd.Timestamp, dict[str, float]] | None = None
                   ) -> BasketResult:
     """Build one single-named line's basket for a rebalance whose effective
     (t-1) date is ``eff_date``, per the arm ``spec``.
@@ -816,7 +905,13 @@ def select_basket(spec: ArmSpec, eff_date: pd.Timestamp | None,
          than MIN_PASS passing -> FALLBACK to the ETF (frequency reported).
       6. Rank (if ``spec.rank_key`` in {strength, momentum}): sort passing names
          by the key, drop NaN-key names (counted), keep the top ``select_n``.
-      7. Equal weight inside the resulting basket.
+      7. Weights inside the resulting basket (amendment A3): TRUE snapshot
+         Weight (%) renormalised over the selected members via
+         ``_true_basket_weights`` — the week's own snapshot when present, the
+         line's last known weights carried forward otherwise, and an
+         equal-weight fallback (counted) when no usable weight exists.
+         ``weights`` None (the synthetic/degenerate path) is the equal-weight
+         case throughout.
     """
     if eff_date is None:
         return BasketResult(fallback=True, reason="no effective date (pre-window)")
@@ -834,6 +929,7 @@ def select_basket(spec: ArmSpec, eff_date: pd.Timestamp | None,
     covered: list[str] = []
     uncovered: list[str] = []
     seen: set[str] = set()
+    sym_to_ish: dict[str, str] = {}   # instrument -> snapshot ticker (A3 weights)
     for ish in pool_ish:
         if res_map is not None:
             sym = res_map.get(ish)
@@ -845,6 +941,7 @@ def select_basket(spec: ArmSpec, eff_date: pd.Timestamp | None,
         if sym in seen:
             continue          # a roster can list a name once; guard duplicates
         seen.add(sym)
+        sym_to_ish[sym] = ish
         if sym in price_cols:
             covered.append(sym)
         else:
@@ -907,14 +1004,14 @@ def select_basket(spec: ArmSpec, eff_date: pd.Timestamp | None,
             n_pass=n_pass, uncovered=uncovered, missing_price=missing_price,
             dropped_no_rank=dropped_no_rank)
 
-    w = 1.0 / len(candidates)     # equal weight inside every basket (§2)
-    weights = {s: w for s in candidates}
+    basket_weights, weight_source = _true_basket_weights(
+        candidates, sym_to_ish, weights, snap_date)
     return BasketResult(
         fallback=False, reason="",
-        weights=weights, n_pool=len(pool_ish), n_covered=len(covered),
+        weights=basket_weights, n_pool=len(pool_ish), n_covered=len(covered),
         n_present=len(present), n_pass=n_pass, n_selected=len(candidates),
         uncovered=uncovered, missing_price=missing_price,
-        dropped_no_rank=dropped_no_rank)
+        dropped_no_rank=dropped_no_rank, weight_source=weight_source)
 
 
 # ---------------------------------------------------------------------------
@@ -979,13 +1076,19 @@ def deployed_sector_layer(window_end: pd.Timestamp = WINDOW_END,
 @dataclass
 class ArmBuild:
     """Assembled arm: the daily name-level weight panel plus per-line
-    diagnostics (fallback frequency, coverage, basket sizes) for the record."""
+    diagnostics (fallback frequency, coverage, basket sizes, A3 weighting
+    provenance) for the record."""
     name_weights: pd.DataFrame
     fallback_weeks: dict[str, int]
     basket_sizes: dict[str, list[int]]
     uncovered_seen: dict[str, set]
     missing_seen: dict[str, set]
     weeks_evaluated: dict[str, int]
+    # A3: line-weeks whose basket used carried-forward weights, and line-weeks
+    # that fell back to equal weight (no usable true weights; expected zero on
+    # the real data).
+    weight_carry_weeks: dict[str, int] = field(default_factory=dict)
+    weight_ew_weeks: dict[str, int] = field(default_factory=dict)
 
 
 def _add(row: dict, name: str, w: float) -> None:
@@ -997,7 +1100,8 @@ def build_arm_name_weights(spec: ArmSpec, sector_weights: pd.DataFrame,
                            eligible: pd.Timestamp,
                            membership: dict, member_signals: dict,
                            member_prices: dict,
-                           member_resolution: dict | None = None) -> ArmBuild:
+                           member_resolution: dict | None = None,
+                           member_weights: dict | None = None) -> ArmBuild:
     """Distribute the shared per-line book into a daily name-level weight panel.
 
     ``sector_weights`` is the deployed E0 weight panel (columns = the 14 lines,
@@ -1014,9 +1118,12 @@ def build_arm_name_weights(spec: ArmSpec, sector_weights: pd.DataFrame,
     (single-named lines only). ``member_resolution`` (amendment A1) carries the
     per-line ``resolve_membership(...)['by_snapshot']`` maps so baskets are
     keyed by instrument; a line absent from it uses the identity mapping (the
-    synthetic degenerate case — see select_basket). All are dependency-injected
-    so the selftests can drive the builder on synthetic panels and T3 on the
-    Norgate caches.
+    synthetic degenerate case — see select_basket). ``member_weights``
+    (amendment A3) carries the per-line ``load_member_weights(...)`` tables;
+    a line absent from it weights its baskets equally (the pre-A3 degenerate
+    case, counted in ``weight_ew_weeks``). All are dependency-injected so the
+    selftests can drive the builder on synthetic panels and T3 on the Norgate
+    caches.
     """
     lines = list(sector_weights.columns)
     fallback_weeks = {L: 0 for L in SINGLE_NAMED_LINES if L in lines}
@@ -1024,6 +1131,8 @@ def build_arm_name_weights(spec: ArmSpec, sector_weights: pd.DataFrame,
     uncovered_seen: dict[str, set] = {L: set() for L in fallback_weeks}
     missing_seen: dict[str, set] = {L: set() for L in fallback_weeks}
     weeks_evaluated = {L: 0 for L in fallback_weeks}
+    weight_carry_weeks = {L: 0 for L in fallback_weeks}
+    weight_ew_weeks = {L: 0 for L in fallback_weeks}
 
     rb_rows: dict[pd.Timestamp, dict] = {}
     for rd in rebal_dates:
@@ -1042,15 +1151,20 @@ def build_arm_name_weights(spec: ArmSpec, sector_weights: pd.DataFrame,
             # Single-named line under a basket arm.
             weeks_evaluated[L] += 1
             resolution = (member_resolution or {}).get(L)
+            line_weights = (member_weights or {}).get(L)
             basket = select_basket(spec, eff_date, membership[L],
                                    member_prices[L], member_signals[L],
-                                   resolution=resolution)
+                                   resolution=resolution, weights=line_weights)
             uncovered_seen[L].update(basket.uncovered)
             missing_seen[L].update(basket.missing_price)
             if basket.fallback:
                 fallback_weeks[L] += 1
                 _add(row, L, w)          # revert this line to its ETF
                 continue
+            if basket.weight_source == "carried":
+                weight_carry_weeks[L] += 1
+            elif basket.weight_source == "ew":
+                weight_ew_weeks[L] += 1
             basket_sizes[L].append(basket.n_selected)
             for sym, bw in basket.weights.items():
                 _add(row, sym, w * bw)
@@ -1065,7 +1179,9 @@ def build_arm_name_weights(spec: ArmSpec, sector_weights: pd.DataFrame,
     panel.loc[panel.index < eligible] = 0.0
     return ArmBuild(name_weights=panel, fallback_weeks=fallback_weeks,
                     basket_sizes=basket_sizes, uncovered_seen=uncovered_seen,
-                    missing_seen=missing_seen, weeks_evaluated=weeks_evaluated)
+                    missing_seen=missing_seen, weeks_evaluated=weeks_evaluated,
+                    weight_carry_weeks=weight_carry_weeks,
+                    weight_ew_weeks=weight_ew_weeks)
 
 
 # ---------------------------------------------------------------------------
@@ -1120,14 +1236,15 @@ def simulate_arm(name_weights: pd.DataFrame, name_returns: pd.DataFrame,
 def run_arm(spec: ArmSpec, sector: dict, membership: dict,
             member_signals: dict, member_prices_by_line: dict,
             combined_member_prices: pd.DataFrame | None,
-            cost_bps: float, member_resolution: dict | None = None) -> dict:
+            cost_bps: float, member_resolution: dict | None = None,
+            member_weights: dict | None = None) -> dict:
     """Convenience: build an arm and simulate it at one cost. E0 ignores the
     member inputs. Provided for the T3 harness and the selftests; this module
     never invokes it across the register (that is T3's job)."""
     build = build_arm_name_weights(
         spec, sector["weights"], sector["closes"], sector["rebal_dates"],
         sector["eligible"], membership, member_signals, member_prices_by_line,
-        member_resolution=member_resolution)
+        member_resolution=member_resolution, member_weights=member_weights)
     returns = build_name_return_panel(sector["closes"], combined_member_prices)
     sim = simulate_arm(build.name_weights, returns, cost_bps)
     return {"build": build, **sim}

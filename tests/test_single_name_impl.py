@@ -58,6 +58,18 @@ Coverage maps to the WS6 pre-registration failure modes:
           information keeps the ambiguous never-guess outcome),
       test_fox_era_split (rename-at-death plus a recycled base: pre-recycle
           rows through the verified rename entry, post-recycle rows natively)
+
+  Amendment A3 (kickoff §5b) — true-weight baskets:
+      test_true_weights_renormalise_to_one (proportional to snapshot weights,
+          sum exactly 1, weight_source "snapshot"),
+      test_screened_arm_renormalises_over_survivors (survivors' true weights
+          renormalised; the screened-out name's weight redistributed),
+      test_missing_weight_snapshot_carries_forward (absent snapshot uses the
+          line's last known weights; counter increments),
+      test_ew_fallback_flag (no weights at all, and a selected member without
+          a usable weight, both drop the line-week to equal weight, counted),
+      test_true_weights_keyed_by_instrument_across_eras (a recycled ticker's
+          weight lands on the era-correct instrument column, never blended)
 """
 
 from __future__ import annotations
@@ -886,3 +898,175 @@ def test_fox_era_split():
                               renames=renames) == ("FOX", "native")
     assert resolve_instrument("FOX", pd.Timestamp("2022-05-06"), d,
                               renames=renames) == ("FOX", "native")
+
+
+# ---------------------------------------------------------------------------
+# Amendment A3 (kickoff §5b) — true-weight baskets
+# ---------------------------------------------------------------------------
+
+def _weighted_fixture(growths: dict[str, float]):
+    """Panel + signals + single-snapshot membership for a weight-arm test."""
+    mem_idx = _mem_index()
+    panel = _monotone_panel(growths, mem_idx)
+    sig = precompute_member_signals(panel)
+    snaps = _snapshots_single(list(growths))
+    return mem_idx, panel, sig, snaps
+
+
+def test_true_weights_renormalise_to_one():
+    """A3: basket weights are the TRUE snapshot weights renormalised over the
+    selected members — proportional to the snapshot Weight (%), summing to
+    exactly 1, with weight_source \"snapshot\"."""
+    g = {"AAA": 0.0015, "BBB": 0.0013, "CCC": 0.0011, "DDD": 0.0009}
+    mem_idx, panel, sig, snaps = _weighted_fixture(g)
+    weights = {pd.Timestamp("2018-01-05"):
+               {"AAA": 40.0, "BBB": 30.0, "CCC": 20.0, "DDD": 10.0}}
+    res = select_basket(ARM_BY_ID["I0"], mem_idx[600], snaps, panel, sig,
+                        weights=weights)
+    assert not res.fallback and res.weight_source == "snapshot"
+    assert abs(sum(res.weights.values()) - 1.0) < 1e-12
+    assert np.isclose(res.weights["AAA"], 0.4)
+    assert np.isclose(res.weights["BBB"], 0.3)
+    assert np.isclose(res.weights["CCC"], 0.2)
+    assert np.isclose(res.weights["DDD"], 0.1)
+
+
+def test_screened_arm_renormalises_over_survivors():
+    """A3: a screened arm renormalises the SURVIVING members' true weights —
+    the screened-out name's weight is redistributed pro rata, not spread
+    equally."""
+    g = {"AAA": 0.0015, "BBB": 0.0013, "CCC": 0.0011, "DDD": -0.0013}  # DDD fails
+    mem_idx, panel, sig, snaps = _weighted_fixture(g)
+    weights = {pd.Timestamp("2018-01-05"):
+               {"AAA": 40.0, "BBB": 30.0, "CCC": 20.0, "DDD": 10.0}}
+    res = select_basket(ARM_BY_ID["I1"], mem_idx[600], snaps, panel, sig,
+                        weights=weights)
+    assert not res.fallback and res.weight_source == "snapshot"
+    assert set(res.weights) == {"AAA", "BBB", "CCC"}
+    # Survivors' true weights 40/30/20 renormalise over 90.
+    assert np.isclose(res.weights["AAA"], 40.0 / 90.0)
+    assert np.isclose(res.weights["BBB"], 30.0 / 90.0)
+    assert np.isclose(res.weights["CCC"], 20.0 / 90.0)
+    assert abs(sum(res.weights.values()) - 1.0) < 1e-12
+
+
+def test_missing_weight_snapshot_carries_forward():
+    """A3: a snapshot absent from the weight table uses the line's last known
+    weights (weight_source \"carried\"), and the build-level counter records
+    the carried line-week."""
+    g = {"AAA": 0.0015, "BBB": 0.0013, "CCC": 0.0011}
+    mem_idx, panel, sig, _ = _weighted_fixture(g)
+    # Two membership snapshots; weights exist only for the FIRST.
+    snaps = {"2018-01-05": {"tickers": list(g)},
+             "2020-06-19": {"tickers": list(g)}}
+    weights = {pd.Timestamp("2018-01-05"):
+               {"AAA": 50.0, "BBB": 30.0, "CCC": 20.0}}
+    eff = mem_idx[mem_idx.searchsorted(pd.Timestamp("2020-08-07"))]
+    res = select_basket(ARM_BY_ID["I0"], eff, snaps, panel, sig,
+                        weights=weights)
+    assert not res.fallback and res.weight_source == "carried"
+    assert np.isclose(res.weights["AAA"], 0.5)
+    # End-to-end: the counter increments for the line using carried weights.
+    sector, mem_idx2 = _sector_fixture()
+    membership, signals, prices, _ = _member_fixtures(mem_idx2)
+    iufs_names = list(_line_member_growths("IUFS"))
+    membership["IUFS"] = {"2018-01-05": {"tickers": iufs_names}}
+    mw = {"IUFS": {pd.Timestamp("2017-01-06"):
+                   {t: float(10 + i) for i, t in enumerate(iufs_names)}}}
+    build = build_arm_name_weights(ARM_BY_ID["I0"], sector["weights"],
+                                   sector["closes"], sector["rebal_dates"],
+                                   sector["eligible"], membership, signals,
+                                   prices, member_weights=mw)
+    assert build.weight_carry_weeks["IUFS"] == build.weeks_evaluated["IUFS"]
+    assert build.weight_carry_weeks["IUFS"] > 0
+    assert build.weight_ew_weeks["IUFS"] == 0
+
+
+def test_ew_fallback_flag():
+    """A3: no weight table at all, and a selected member without a usable
+    weight (absent or non-positive), both drop the line-week to EQUAL weight
+    with weight_source \"ew\" — never a silently mixed basis — and the
+    build-level counter records it."""
+    g = {"AAA": 0.0015, "BBB": 0.0013, "CCC": 0.0011}
+    mem_idx, panel, sig, snaps = _weighted_fixture(g)
+    eff = mem_idx[600]
+    # No weights at all (the pre-A3 degenerate path).
+    res_none = select_basket(ARM_BY_ID["I0"], eff, snaps, panel, sig,
+                             weights=None)
+    assert res_none.weight_source == "ew"
+    assert all(np.isclose(v, 1.0 / 3.0) for v in res_none.weights.values())
+    # A selected member missing from the snapshot's weight map.
+    weights_gap = {pd.Timestamp("2018-01-05"): {"AAA": 60.0, "BBB": 40.0}}
+    res_gap = select_basket(ARM_BY_ID["I0"], eff, snaps, panel, sig,
+                            weights=weights_gap)
+    assert res_gap.weight_source == "ew"
+    assert all(np.isclose(v, 1.0 / 3.0) for v in res_gap.weights.values())
+    # A non-positive weight is unusable for renormalisation -> same fallback.
+    weights_zero = {pd.Timestamp("2018-01-05"):
+                    {"AAA": 60.0, "BBB": 40.0, "CCC": 0.0}}
+    res_zero = select_basket(ARM_BY_ID["I0"], eff, snaps, panel, sig,
+                             weights=weights_zero)
+    assert res_zero.weight_source == "ew"
+    # End-to-end counter: a line with no weight table counts every basket week.
+    sector, mem_idx2 = _sector_fixture()
+    membership, signals, prices, _ = _member_fixtures(mem_idx2)
+    build = build_arm_name_weights(ARM_BY_ID["I0"], sector["weights"],
+                                   sector["closes"], sector["rebal_dates"],
+                                   sector["eligible"], membership, signals,
+                                   prices, member_weights={})
+    assert build.weight_ew_weeks["IUFS"] == build.weeks_evaluated["IUFS"]
+    assert build.weight_carry_weeks["IUFS"] == 0
+
+
+def test_true_weights_keyed_by_instrument_across_eras():
+    """A3 x A1: weight lookup is by SNAPSHOT ticker, the basket key is the
+    RESOLVED instrument — so a recycled ticker's true weight lands on the
+    era-correct instrument column and the two companies' weights never blend."""
+    sector, mem_idx = _sector_fixture()
+    membership, signals, prices, _ = _member_fixtures(mem_idx)
+    old_end = pd.Timestamp("2020-01-31")
+    new_start = pd.Timestamp("2020-06-01")
+    growths = {"RCY-202001": 0.0012, "RCY": 0.0014,
+               "AAA": 0.0010, "BBB": 0.0008}
+    panel = _monotone_panel(growths, mem_idx)
+    panel.loc[panel.index > old_end, "RCY-202001"] = np.nan
+    panel.loc[panel.index < new_start, "RCY"] = np.nan
+    directory = InstrumentDirectory([
+        Instrument("RCY-202001", "RCY", mem_idx[0], suffix_month_end("202001")),
+        Instrument("RCY", "RCY", new_start, None),
+        Instrument("AAA", "AAA", mem_idx[0], None),
+        Instrument("BBB", "BBB", mem_idx[0], None),
+    ])
+    snaps = {"2018-01-05": {"tickers": ["RCY", "AAA", "BBB"]},
+             "2020-06-19": {"tickers": ["RCY", "AAA", "BBB"]}}
+    res = resolve_membership(snaps, directory)
+    membership["IUFS"] = snaps
+    prices["IUFS"] = panel
+    signals["IUFS"] = precompute_member_signals(panel)
+    # Same snapshot-ticker key "RCY" carries a DIFFERENT true weight per era.
+    mw = {"IUFS": {pd.Timestamp("2018-01-05"):
+                   {"RCY": 50.0, "AAA": 30.0, "BBB": 20.0},
+                   pd.Timestamp("2020-06-19"):
+                   {"RCY": 60.0, "AAA": 25.0, "BBB": 15.0}}}
+    build = build_arm_name_weights(
+        ARM_BY_ID["I0"], sector["weights"], sector["closes"],
+        sector["rebal_dates"], sector["eligible"],
+        membership, signals, prices,
+        member_resolution={"IUFS": res["by_snapshot"]}, member_weights=mw)
+    nw = build.name_weights
+    assert "RCY-202001" in nw.columns and "RCY" in nw.columns
+    on_rebal = nw.loc[sector["rebal_dates"]]
+    line_w = sector["weights"].loc[sector["rebal_dates"], "IUFS"]
+    old_rows = on_rebal.index[(on_rebal["RCY-202001"] > 0)]
+    new_rows = on_rebal.index[(on_rebal["RCY"] > 0)]
+    assert len(old_rows) and len(new_rows)
+    # Old era: the dead instrument carries the 50% within-line share.
+    rd_old = old_rows[0]
+    assert np.isclose(on_rebal.loc[rd_old, "RCY-202001"],
+                      0.5 * line_w.loc[rd_old])
+    # New era: the live instrument carries the 60% within-line share.
+    rd_new = new_rows[-1]
+    assert np.isclose(on_rebal.loc[rd_new, "RCY"], 0.6 * line_w.loc[rd_new])
+    # Never both eras at once, and no EW fallback anywhere.
+    assert not ((on_rebal["RCY-202001"] > 0) & (on_rebal["RCY"] > 0)).any()
+    assert build.weight_ew_weeks["IUFS"] == 0
