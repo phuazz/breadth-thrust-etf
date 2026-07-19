@@ -478,7 +478,14 @@
       background: rgba(14,116,144,0.10); color: #0e7490;
     }
     table.holdings .strategy-tag.overlay {
-      background: rgba(217,119,6,0.14); color: #b45309;
+      background: rgba(217,119,6,0.14); color: #92400e;
+      letter-spacing: 0.06em;
+    }
+    /* TILT shares the amber overlay family but keeps the tint-background /
+       saturated-text convention used by the A-D sleeve tags. Do not give it
+       an opaque fill: amber text on an amber block is unreadable. */
+    table.holdings .strategy-tag.tilt {
+      background: rgba(183,110,0,0.14); color: #92400e;
       letter-spacing: 0.06em;
     }
     table.holdings tr.overlay-fallback-row {
@@ -4261,7 +4268,7 @@ function renderMonitor() {
     if (e.in_b) stratTags.push('<span class="strategy-tag b">B</span>');
     if (e.in_c) stratTags.push('<span class="strategy-tag c">C</span>');
     if (e.in_d) stratTags.push('<span class="strategy-tag d">D</span>');
-    if (e.is_eem_tilt) stratTags.push('<span class="strategy-tag overlay" style="background:#b76e00;">TILT</span>');
+    if (e.is_eem_tilt) stratTags.push('<span class="strategy-tag tilt">TILT</span>');
     // Calculation breakdown — when RISK_OFF, weights are scaled by
     // (1-derisk) but the within-strategy weight × blend-weight algebra
     // stays the same; just the eff_* values are smaller.
