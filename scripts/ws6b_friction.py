@@ -173,16 +173,26 @@ class BrokerSchedule:
     max_pct_value: Uncertain
     fractional_min_applies: bool
     source: str = ""
+    # IBKR's Europe/LSE schedule is quoted as a PERCENTAGE OF TRADE VALUE with
+    # no maximum, not as a per-share rate. Set this and ``per_share`` is
+    # ignored. Modelling an LSE-listed UCITS trade on the US per-share schedule
+    # understates it by roughly a factor of five, and in E0's favour.
+    pct_of_value: Uncertain | None = None
+    has_max: bool = True
 
     def commission_usd(self, notional: np.ndarray, price: np.ndarray) -> np.ndarray:
         """Vectorised commission on |notional| USD traded at ``price``/share."""
         notional = np.asarray(notional, dtype=float)
         price = np.asarray(price, dtype=float)
         traded = np.abs(notional)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            shares = np.where(price > 0, traded / price, 0.0)
-        raw = float(self.per_share) * shares
-        capped = np.minimum(raw, float(self.max_pct_value) * traded)
+        if self.pct_of_value is not None:
+            raw = float(self.pct_of_value) * traded
+        else:
+            with np.errstate(divide="ignore", invalid="ignore"):
+                shares = np.where(price > 0, traded / price, 0.0)
+            raw = float(self.per_share) * shares
+        capped = (np.minimum(raw, float(self.max_pct_value) * traded)
+                  if self.has_max else raw)
         floored = np.maximum(capped, float(self.min_order))
         # A zero-size order costs nothing; the floor applies only to real orders.
         return np.where(traded > 0, floored, 0.0)

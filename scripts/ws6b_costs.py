@@ -57,6 +57,8 @@ def load_params(path: Path = PARAMS_PATH) -> dict:
             max_pct_value=_u(v["max_pct_value"]),
             fractional_min_applies=bool(v["fractional_min_applies"]),
             source=v.get("source", ""),
+            pct_of_value=(_u(v["pct_of_value"]) if v.get("pct_of_value") else None),
+            has_max=bool(v.get("has_max", True)),
         )
         for k, v in raw["broker_schedules"].items()
     }

@@ -391,6 +391,28 @@ def run_costs() -> int:
             })
     grid = pd.DataFrame(rows)
 
+    # --- Schedule bracket ---------------------------------------------------
+    # Whether IBKR's per-order minimum applies to a FRACTIONAL order is not
+    # resolved by the published wording, and it is the single largest driver of
+    # minimum viable NAV. Report the bracket rather than pick one.
+    scen = []
+    for sched_name in params["raw"]["scenarios"]["schedules"]:
+        sc = params["schedules"][sched_name]
+        for nav in params["raw"]["nav_grid"]:
+            c_i0, di = trading_costs(tr_i0, prices, sc, hs, nav, idx, 1.0)
+            c_e0, _ = trading_costs(tr_e0, prices, etf_schedule, hs, nav, idx, 1.0)
+            sh = net_sharpe_pair(gross, c_e0, c_i0 + income_daily)
+            scen.append({"schedule": sched_name, "nav": nav, "drag": sh["drag"],
+                         "passes_base": sh["drag"] <= 0.05,
+                         "orders_at_minimum": di["n_orders_at_minimum"],
+                         "ann_commission_drag_i0": float(
+                             di["daily_commission"].mean() * 252)})
+    scen_df = pd.DataFrame(scen)
+    min_viable_by_schedule = {}
+    for s in scen_df["schedule"].unique():
+        ok = scen_df[(scen_df["schedule"] == s) & scen_df["passes_base"]]
+        min_viable_by_schedule[s] = (float(ok["nav"].min()) if len(ok) else None)
+
     def _min_viable(stress_label: str, floor: float) -> float | None:
         sub = grid[grid["stress"] == stress_label].sort_values("nav")
         ok = sub[sub["drag"] <= floor]
@@ -438,6 +460,8 @@ def run_costs() -> int:
             "alt_per_line": alt_per_line,
             "basis_spread": annual_income - annual_income_alt},
         "nav_grid": grid.to_dict(orient="records"),
+        "schedule_bracket": scen_df.to_dict(orient="records"),
+        "min_viable_nav_by_schedule": min_viable_by_schedule,
         "min_viable_nav": {"base_floor_0.05": _min_viable("base", 0.05),
                            "stress_floor_0.10": _min_viable("2x_trading", 0.10)},
     }

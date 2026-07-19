@@ -1,7 +1,7 @@
 {
   "_README": "WS6b T1 verified friction stack. Every figure carries its source. 'uncertain': true means the T1 pulls could NOT confirm it from a published source and it is a stated assumption, NOT a verified figure \u2014 such a figure must be reported as uncertain wherever it propagates. Retrieval date for all pulls: 2026-07-19.",
   "active_schedule": "ibkr_fixed_us_stocks",
-  "active_schedule_etf": "ibkr_fixed_us_stocks",
+  "active_schedule_etf": "ibkr_lse_etf",
   "nav_grid": [
     25000,
     50000,
@@ -24,40 +24,77 @@
     "ibkr_fixed_us_stocks": {
       "per_share": {
         "value": 0.005,
-        "source": "PENDING T1 pull",
-        "uncertain": true
+        "source": "interactivebrokers.com/en/pricing/commissions-stocks.php, retrieved 2026-07-19; interactivebrokers.com.sg publishes IDENTICAL numeric figures for US products (IBKR Singapore Pte Ltd, CMS100917)"
       },
       "min_order": {
         "value": 1.0,
-        "source": "PENDING T1 pull",
-        "uncertain": true
+        "source": "interactivebrokers.com/en/pricing/commissions-stocks.php, retrieved 2026-07-19; interactivebrokers.com.sg publishes IDENTICAL numeric figures for US products (IBKR Singapore Pte Ltd, CMS100917)"
       },
       "max_pct_value": {
         "value": 0.01,
-        "source": "PENDING T1 pull",
-        "uncertain": true
+        "source": "interactivebrokers.com/en/pricing/commissions-stocks.php, retrieved 2026-07-19; interactivebrokers.com.sg publishes IDENTICAL numeric figures for US products (IBKR Singapore Pte Ltd, CMS100917) ('1% of Trade Value'; a footnote also states 'Maximum USD 9.79 per trade')"
       },
       "fractional_min_applies": true,
-      "source": "PENDING"
+      "source": "interactivebrokers.com/en/pricing/commissions-stocks.php, retrieved 2026-07-19; interactivebrokers.com.sg publishes IDENTICAL numeric figures for US products (IBKR Singapore Pte Ltd, CMS100917)"
     },
     "ibkr_tiered_us_stocks": {
       "per_share": {
         "value": 0.0035,
-        "source": "PENDING T1 pull",
-        "uncertain": true
+        "source": "interactivebrokers.com/en/pricing/commissions-stocks.php, retrieved 2026-07-19; interactivebrokers.com.sg publishes IDENTICAL numeric figures for US products (IBKR Singapore Pte Ltd, CMS100917) (lowest band, <=300,000 shares/month)"
       },
       "min_order": {
         "value": 0.35,
-        "source": "PENDING T1 pull",
-        "uncertain": true
+        "source": "interactivebrokers.com/en/pricing/commissions-stocks.php, retrieved 2026-07-19; interactivebrokers.com.sg publishes IDENTICAL numeric figures for US products (IBKR Singapore Pte Ltd, CMS100917)"
       },
       "max_pct_value": {
         "value": 0.01,
-        "source": "PENDING T1 pull",
-        "uncertain": true
+        "source": "interactivebrokers.com/en/pricing/commissions-stocks.php, retrieved 2026-07-19; interactivebrokers.com.sg publishes IDENTICAL numeric figures for US products (IBKR Singapore Pte Ltd, CMS100917)"
       },
       "fractional_min_applies": true,
-      "source": "PENDING"
+      "source": "interactivebrokers.com/en/pricing/commissions-stocks.php, retrieved 2026-07-19; interactivebrokers.com.sg publishes IDENTICAL numeric figures for US products (IBKR Singapore Pte Ltd, CMS100917) EXCLUDES third-party pass-throughs, which are disclosed separately: SEC 0.0000206*sales value, FINRA TAF 0.000195*qty sold, CAT 0.000003*qty, NSCC/DTC 0.00020/share, NYSE 0.000175*commissions, FINRA 0.00056*commissions. Not modelled; they add a small amount to the Tiered figure."
+    },
+    "ibkr_fractional_us_stocks": {
+      "per_share": {
+        "value": 0.005,
+        "source": "interactivebrokers.com/en/pricing/commissions-stocks.php, retrieved 2026-07-19; interactivebrokers.com.sg publishes IDENTICAL numeric figures for US products (IBKR Singapore Pte Ltd, CMS100917)"
+      },
+      "min_order": {
+        "value": 0.01,
+        "source": "interactivebrokers.com/en/trading/fractional-trading.php: 'Fractional share trades are subject to the same commission rates as whole share trades, with a minimum commission of USD 0.01.'",
+        "uncertain": true,
+        "note": "AMBIGUOUS AND MATERIAL. The same page also says 'you will be charged the greater of 1% of the trade value or USD 0.01', with worked examples only in the sub-$5 regime ($5 trade -> $0.05; $0.75 trade -> $0.01). Read literally as a CHARGE that clause would cost 100 bps on a $2,470 order, which is implausible and contradicts the 1% MAXIMUM on the main schedule; read as a reduced MINIMUM it removes the $1.00 floor entirely. This single question sets minimum viable NAV and is NOT resolved. Confirm from an actual fractional fill or IBKR's order-ticket commission preview."
+      },
+      "max_pct_value": {
+        "value": 0.01,
+        "source": "interactivebrokers.com/en/pricing/commissions-stocks.php, retrieved 2026-07-19; interactivebrokers.com.sg publishes IDENTICAL numeric figures for US products (IBKR Singapore Pte Ltd, CMS100917)"
+      },
+      "fractional_min_applies": false,
+      "source": "interactivebrokers.com/en/pricing/commissions-stocks.php, retrieved 2026-07-19; interactivebrokers.com.sg publishes IDENTICAL numeric figures for US products (IBKR Singapore Pte Ltd, CMS100917)"
+    },
+    "ibkr_lse_etf": {
+      "per_share": {
+        "value": 0.0,
+        "source": "n/a - LSE is priced on value, not per share"
+      },
+      "pct_of_value": {
+        "value": 0.0005,
+        "source": "interactivebrokers.com/en/pricing/commissions-stocks-europe.php Tiered LSE, 0.05% of trade value at <=GBP 40m/month",
+        "uncertain": true,
+        "note": "Rate is published; the UNCERTAINTY is which LSE schedule applies to the USD-denominated lines the book holds (IUES/IUUS/IUCS/IUFS quote in USD on LSE alongside GBP lines). GBP-line Fixed SmartRouting is also 0.05% with a GBP 3.00 minimum. PTM levy does not apply (IBKR's stated condition is UK/Channel Islands/IoM incorporation; these are Irish). UK SDRT: NOT FOUND on any IBKR page."
+      },
+      "min_order": {
+        "value": 1.3,
+        "source": "GBP 1.00 Tiered minimum, converted at an assumed 1.30 USD/GBP",
+        "uncertain": true,
+        "note": "FX rate is an assumption, not a retrieved figure. The minimum is immaterial here: E0's ETF orders are large enough that the percentage leg always binds."
+      },
+      "max_pct_value": {
+        "value": 1.0,
+        "source": "LSE schedule publishes Maximum per order = 'None'"
+      },
+      "has_max": false,
+      "fractional_min_applies": true,
+      "source": "interactivebrokers.com/en/pricing/commissions-stocks-europe.php, retrieved 2026-07-19"
     }
   },
   "lines": {
@@ -157,15 +194,14 @@
       "us_situs": false
     },
     "SOXX": {
-      "held_instrument": "SOXX US-listed iShares Semiconductor ETF (register models it on itself, no proxy)",
+      "held_instrument": "SOXX US-listed iShares Semiconductor ETF, ISIN US4642875235, Nasdaq, NYSE Semiconductor Index (register models it on itself, no proxy)",
       "proxy_instrument": "SOXX (self)",
       "held_ter": {
-        "value": 0.0035,
-        "source": "PENDING T1 pull",
-        "uncertain": true
+        "value": 0.0034,
+        "source": "iShares Semiconductor ETF Summary Prospectus 2025-08-01 (SEC CIK 1100663) Total Annual Fund Operating Expenses 0.34%, matched on the 2026-03-31 fact sheet and AAII; no fee waiver (BFA pays other operating expenses, so gross = net)"
       },
       "proxy_ter": {
-        "value": 0.0035,
+        "value": 0.0034,
         "source": "same instrument - modelled on itself, so the fee is already in the register's E0 series"
       },
       "gross_yield": {
@@ -252,9 +288,9 @@
     },
     "SOXX": {
       "value": 1.5,
-      "source": "iShares published '30-Day Median Bid/Ask Spread' 0.03% full spread, ~18 Jun 2026, halved",
+      "source": "iShares published 30-Day Median Bid/Ask Spread 0.03% full, halved",
       "uncertain": true,
-      "note": "Issuer-published and correct in kind, but reached via search-engine synthesis of a cached snippet rather than a clean fetch of the iShares page; spot-check before external citation."
+      "note": "Issuer-published but reached via cached snippet rather than a clean fetch; spot-check before external citation."
     },
     "IUCD": {
       "value": 5.0,
@@ -340,9 +376,12 @@
     "retrieved": "2026-07-19",
     "basis_note": "The register's E0 series is the deployed engine's yfinance_trading_proxy under auto_adjust=True (IUES->XLE, IUUS->XLU, IUCS->XLP, IUFS->XLF; SOXX on itself), NOT the LSE UCITS line the book holds. All income and fee figures here are DIFFERENTIAL adjustments from that register basis to the basis a Singapore-resident individual actually experiences.",
     "known_gaps": [
-      "iShares fund-level actual withholding suffered is not verified per-fund; the 15% treaty rate is used. A published analogue (Vanguard VUSA FY2014) computed 14.74%.",
-      "NEITHER side of the spread differential is verified from published sources: no per-sector or named mega-cap bps table for US large caps, and no published spread statistic for any LSE-listed iShares S&P 500 sector UCITS line. The verdict is reported as a sweep over both.",
-      "SOXX TER and the IBKR commission schedule were still outstanding when this file was last written - see any figure marked uncertain. SPDR proxy TERs are now sourced."
+      "iShares fund-level actual withholding suffered is not verified per-fund; the 15% treaty rate is used. Published analogue (Vanguard VUSA FY2014) computed 14.74%.",
+      "NEITHER side of the spread differential is verified: no per-sector or named mega-cap bps table for US large caps, and no published spread statistic for any LSE-listed iShares S&P 500 sector UCITS line. Reported as a sweep.",
+      "Whether IBKR's $1.00/$0.35 per-order minimum applies to FRACTIONAL orders is unresolved and is the single largest driver of minimum viable NAV. Reported as a bracket across three schedules.",
+      "Which IBKR LSE schedule applies to the USD-denominated UCITS lines, and the USD/GBP rate for its minimum, are assumptions. The percentage leg dominates, so the minimum matters little.",
+      "IBKR Tiered third-party pass-through fees are disclosed but not modelled.",
+      "SOXX AUM disagrees across sources by more than 2x ($20.6bn fact sheet 2026-03-31, $45.1bn Morningstar, $47.8bn AAII). Not used in this model, but noted."
     ],
     "rejected_estimator": {
       "estimator": "Corwin & Schultz (2012) daily high-low spread estimator",
@@ -359,6 +398,20 @@
       "alternative": "capitalspecial (TOTALRETURN less CAPITALSPECIAL) - ordinary cash dividends only, which under-states by stripping genuine cash variable dividends.",
       "neither_is_exact": "Withholding is due on cash dividends ordinary and special alike, but not on stock spin-offs, and no Norgate setting splits cash specials from stock specials. Spin-offs in the held set: EQT/Equitrans 2018, DTE/DT Midstream 2021, EXC/Constellation 2022.",
       "materiality": "The two bases differ by about 0.021%/yr on a 0.205%/yr income leg, roughly 0.0014 net Sharpe. Does not move the verdict; a T4 refinement if the margin tightens."
+    },
+    "dominant_parameter": {
+      "finding": "E0's OWN commission is now the largest single term in the study. On IBKR's published LSE Tiered schedule (0.05% of trade value, no maximum) the deployed ETF book pays about 0.836%/yr in commission, against 0.175%/yr if the US per-share schedule is applied. E0 turnover is 16.62x one-way per year, so 0.05% a side compounds to that figure directly.",
+      "consequence": "The verdict swings by roughly 0.035 net Sharpe on this one choice. Under the LSE schedule I0-PARTIAL5 BEATS E0 from about $250k NAV upward; under the US schedule it is roughly break-even at $500k. I0 looks good here largely because weekly rebalancing an LSE-listed UCITS book is expensive, NOT because constituent baskets are cheap.",
+      "status": "UNRESOLVED and load-bearing. Confirm from actual IBKR fills on the UCITS lines before the T4 verdict.",
+      "wider_implication": "This is also a finding about the DEPLOYED pipeline, not just about I0. The register costs E0 at a flat 2 bps. If the LSE schedule is the right one, the deployed book's true trading cost is roughly 1.55%/yr (0.84% commission plus 0.72% half-spread), and every WS-series net-Sharpe figure for E0 is optimistic. That belongs to the deployed engine, not to WS6b, and is flagged rather than acted on here."
     }
+  },
+  "scenarios": {
+    "_note": "Minimum viable NAV depends on which schedule the book actually trades under. Reported as a bracket, not a point.",
+    "schedules": [
+      "ibkr_fixed_us_stocks",
+      "ibkr_tiered_us_stocks",
+      "ibkr_fractional_us_stocks"
+    ]
   }
 }
