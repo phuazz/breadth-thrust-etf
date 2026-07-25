@@ -21,6 +21,15 @@ Outputs (stdout always; appended to $GITHUB_OUTPUT when set, which is
 what the conditional email step in the workflows reads):
   warn    'true' | 'false' — email trigger, true from the warn-at lag
   status  'ok' | 'warn' | 'fail'
+  tag     'OK' | 'REMINDER' | 'WARN' — email severity for the subject.
+          Under the normal weekly cadence (local refresh_all.py each
+          weekend) the panel ends every week at lag 4-5, so the Thu/Fri
+          alerts describe a healthy steady state. Those are REMINDER
+          tier: the warn band with at least one weekend day still ahead
+          of the first failing run, i.e. the routine weekend refresh
+          window can still clear it. WARN is reserved for states where
+          that window is gone (mid-week staleness), the hard stop, or a
+          checker error (fail-safe).
   lag     integer weekday lag of the panel behind the runner clock
   summary one line, used as the email subject tail
   detail  multi-line block, used as the email body
@@ -102,6 +111,37 @@ def first_failing_run_date(
     raise RuntimeError("no failing run date found within bound — logic error")
 
 
+def weekend_between(start: date, end: date) -> bool:
+    """True when at least one Saturday or Sunday lies strictly between
+    ``start`` and ``end`` (calendar days; both endpoints excluded).
+
+    Used as the tier test: a weekend day before the first failing run
+    means the operator's routine weekend refresh window is still ahead.
+    """
+    d = start + timedelta(days=1)
+    while d < end:
+        if d.weekday() >= 5:
+            return True
+        d += timedelta(days=1)
+    return False
+
+
+def email_tag(status: str, today: date, fail_day: date) -> str:
+    """Email severity tier for the subject line.
+
+    'REMINDER' = warn band with a weekend day still ahead of the first
+    failing run — the structural end-of-week state under the weekly
+    local-refresh cadence, a nudge rather than an alarm. 'WARN' = the
+    warn band with no weekend left (mid-week staleness) or the hard
+    stop itself. 'OK' = below the warn band (no email is sent).
+    """
+    if status == "ok":
+        return "OK"
+    if status == "warn" and weekend_between(today, fail_day):
+        return "REMINDER"
+    return "WARN"
+
+
 def deadline_strings(run_day: date) -> tuple[str, str]:
     """The failing run's start moment as ('%a YYYY-MM-DD HH:MM UTC',
     '%a YYYY-MM-DD HH:MM SGT'). The SGT stamp lands the next calendar
@@ -115,7 +155,7 @@ def deadline_strings(run_day: date) -> tuple[str, str]:
 
 
 def build_report(panel_path: Path, today: date, warn_at: int) -> dict:
-    """Compute lag, status, deadline and the human-readable messages."""
+    """Compute lag, status, email tier, deadline and the messages."""
     blob = json.loads(panel_path.read_text(encoding="utf-8"))
     end_iso = blob.get("end_date")
     if not end_iso:
@@ -126,6 +166,7 @@ def build_report(panel_path: Path, today: date, warn_at: int) -> dict:
     status = classify(lag, warn_at=warn_at, budget=budget)
     fail_day = first_failing_run_date(panel_end, today, budget=budget)
     utc_s, sgt_s = deadline_strings(fail_day)
+    tag = email_tag(status, today, fail_day)
 
     # Printed strings use plain ASCII only: the local dev console may not
     # be UTF-8 (Windows cp1252) and the alert path must never depend on
@@ -135,17 +176,30 @@ def build_report(panel_path: Path, today: date, warn_at: int) -> dict:
             f"breadth_csp1 lag {lag}/{budget} weekdays - the hard guard "
             f"aborts builds NOW; run refresh_all.py and commit"
         )
+    elif tag == "REMINDER":
+        summary = (
+            f"weekend panel refresh due - breadth_csp1 lag {lag}/{budget} "
+            f"weekdays; run refresh_all.py before {utc_s} ({sgt_s})"
+        )
     else:
         summary = (
             f"breadth_csp1 lag {lag}/{budget} weekdays - run refresh_all.py "
             f"before {utc_s} ({sgt_s})"
         )
 
+    if tag == "REMINDER":
+        tier_note = "routine end-of-week; the weekend refresh window is still ahead"
+    elif status == "fail":
+        tier_note = "hard stop reached - builds abort at this lag"
+    else:
+        tier_note = "no weekend left before the first failing run"
+
     detail = "\n".join([
         f"breadth_csp1.json end_date : {end_iso}",
         f"today (runner clock)       : {today.isoformat()}",
         f"weekday lag                : {lag} (warn at {warn_at}; hard stop when lag exceeds {budget})",
         f"status                     : {status.upper()}",
+        f"email tier                 : {tag} ({tier_note})",
         f"first failing run          : {utc_s} = {sgt_s}",
         "action                     : run `python scripts/refresh_all.py` locally, commit and push before that run.",
         "note                       : lag counts plain weekdays; US market holidays consume budget"
@@ -154,6 +208,7 @@ def build_report(panel_path: Path, today: date, warn_at: int) -> dict:
     return {
         "lag": lag,
         "status": status,
+        "tag": tag,
         "summary": summary,
         "detail": detail,
     }
@@ -190,8 +245,17 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:  # fail-safe: alert rather than stay silent
         summary = f"headroom check could not run: {exc}"
         print(f"WARN {summary}")
+        # status 'fail' + tag 'WARN': an unreadable panel is closer to the
+        # hard stop than to a routine reminder, and the weekly workflow
+        # (which only emails at status 'fail') must not swallow it.
         write_github_output(
-            {"warn": "true", "status": "warn", "lag": "-1", "summary": summary},
+            {
+                "warn": "true",
+                "status": "fail",
+                "tag": "WARN",
+                "lag": "-1",
+                "summary": summary,
+            },
             summary,
         )
         return 0
@@ -202,6 +266,7 @@ def main(argv: list[str] | None = None) -> int:
         {
             "warn": "true" if warn else "false",
             "status": report["status"],
+            "tag": report["tag"],
             "lag": str(report["lag"]),
             "summary": report["summary"],
         },

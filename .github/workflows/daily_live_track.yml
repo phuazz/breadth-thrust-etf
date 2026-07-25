@@ -51,14 +51,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # ----- Freshness early warning (2026-07-03) -----
+      # ----- Freshness early warning (2026-07-03; tiered 2026-07-25) -----
       # The pipeline's hard guard aborts every build once breadth_csp1.json
       # lags the run date by more than 5 weekdays — by which point the
       # dashboard is already frozen (the 26 Jun - 1 Jul outage gave no
-      # notice at all). This step emails a warning from weekday-lag 4, one
-      # to two runs BEFORE the hard stop, naming the exact run that will
-      # fail and the local remediation. It never blocks the build: the
-      # script always exits 0 and the step is continue-on-error besides.
+      # notice at all). This step emails from weekday-lag 4, one to two
+      # runs BEFORE the hard stop, naming the exact run that will fail and
+      # the local remediation. It never blocks the build: the script
+      # always exits 0 and the step is continue-on-error besides.
+      #
+      # Subject tiering (2026-07-25): under the normal weekly cadence the
+      # panel ends EVERY week at lag 4-5 by Thu/Fri, so those alerts
+      # describe a healthy steady state. The script tags them [REMINDER]
+      # (warn band with a weekend day still ahead of the first failing
+      # run — the routine weekend refresh window remains open) and
+      # reserves [WARN] for mid-week staleness, the hard stop, or a
+      # checker error. Deadlines and thresholds are unchanged.
       - name: Check breadth_csp1 freshness headroom
         id: headroom
         continue-on-error: true
@@ -74,7 +82,7 @@ jobs:
           secure: true
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[WARN] Dashboard freshness — ${{ steps.headroom.outputs.summary }}'
+          subject: '[${{ steps.headroom.outputs.tag }}] Dashboard freshness — ${{ steps.headroom.outputs.summary }}'
           # Ops alerts go to the operator only, NOT RECIPIENT_EMAIL — the
           # factsheet distribution list should not receive plumbing email.
           to: ${{ secrets.GMAIL_USER }}

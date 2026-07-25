@@ -78,17 +78,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # ----- Freshness early warning (2026-07-03) -----
-      # Same tripwire as in daily_live_track.yml: emails a warning from
-      # weekday-lag 4 on breadth_csp1.json, before the pipeline's hard
-      # guard starts aborting builds at lag > 5. Never blocks the build.
+      # ----- Freshness early warning (2026-07-03; de-duplicated 2026-07-25) -----
+      # Same tripwire as in daily_live_track.yml, but this workflow only
+      # EMAILS at status 'fail' (hard stop live, or the checker itself
+      # errored — the script reports errors as status 'fail' precisely so
+      # this condition cannot swallow them). Rationale: this job runs
+      # Friday 22:00 UTC, 30 minutes after the daily job has already sent
+      # the evening's [REMINDER]/[WARN] for the same repo state — the
+      # second identical email every Friday night was pure noise. The
+      # check itself still runs unconditionally so the log always carries
+      # the lag forecast. Never blocks the build.
       - name: Check breadth_csp1 freshness headroom
         id: headroom
         continue-on-error: true
         run: python scripts/check_freshness_headroom.py
 
-      - name: Email freshness warning (warn-early, before the hard stop)
-        if: steps.headroom.outputs.warn == 'true'
+      - name: Email freshness alert (hard stop or checker error only)
+        if: steps.headroom.outputs.status == 'fail'
         continue-on-error: true
         uses: dawidd6/action-send-mail@v18
         with:
@@ -97,7 +103,7 @@ jobs:
           secure: true
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[WARN] Dashboard freshness — ${{ steps.headroom.outputs.summary }}'
+          subject: '[${{ steps.headroom.outputs.tag }}] Dashboard freshness — ${{ steps.headroom.outputs.summary }}'
           # Ops alerts go to the operator only, NOT RECIPIENT_EMAIL — the
           # factsheet distribution list should not receive plumbing email.
           to: ${{ secrets.GMAIL_USER }}
