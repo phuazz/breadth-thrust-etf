@@ -1,0 +1,221 @@
+"""Unattended weekly refresh wrapper — the scheduled counterpart of the
+manual "run refresh_all.py, review, commit, push" Saturday ritual.
+
+Commissioned 2026-07-25 alongside the event-driven factsheet publish:
+the weekly email now fires on the push that lands the panel refresh, so
+scheduling the refresh completes the chain close -> refresh -> push ->
+gate -> email without operator involvement. Per the vault rule that no
+unattended agent runs without a guard layer, this wrapper is nothing
+BUT guard layers around refresh_all.py:
+
+  preflight   clean working tree required (a dirty automation clone
+              means a human or another process interfered — abort), then
+              git pull --rebase so the run starts from origin HEAD.
+  refresh     scripts/refresh_all.py, full run, no flags. Exit 0 there
+              already requires every step green INCLUDING pytest.
+  anchor      data/breadth_csp1.json end_date must reach
+              nyse_sessions.week_final_anchor(now) — catches the silent
+              case where every step exits 0 on quietly-stale fetches
+              (the pipeline hard guard catches a wholly-stalled panel,
+              but a panel that advanced to Thursday when Friday exists
+              would pass it and then be silently held by the CI gate).
+  gate view   scripts/check_factsheet_gate.py's own decision function,
+              run locally, previews exactly what CI will do on push.
+  push        ONLY with --push (armed mode). Soak mode (no flag — the
+              initial state) stops here and reports READY so the
+              operator reviews and pushes manually. Arm the scheduled
+              task by adding --push after two clean soak Saturdays.
+
+Failure alerting is best-effort local email (GMAIL_USER +
+GMAIL_APP_PASSWORD environment variables, same names as the CI
+secrets; silently skipped when unset) plus the dated log file under
+logs/. The guaranteed backstop needs nothing from this machine: the
+Sunday 09:00 UTC CI check emails [WARN] whenever the week's factsheet
+has not gone out, whatever the reason this wrapper failed to run.
+
+Usage:
+    python scripts/scheduled_refresh.py                  # soak: no push
+    python scripts/scheduled_refresh.py --push           # armed
+    python scripts/scheduled_refresh.py --preflight-only # smoke test
+
+Exit codes: 0 ok (ready or pushed) / 2 preflight / 3 refresh failed /
+4 anchor-gate failed / 5 push failed.
+
+Python datetime months are 1-indexed (January = 1).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import smtplib
+import subprocess
+import sys
+from datetime import date, datetime, timezone
+from email.mime.text import MIMEText
+from pathlib import Path
+
+# Allow importing sibling scripts/ modules.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_factsheet_gate import build_gate_report  # noqa: E402
+from nyse_sessions import week_final_anchor  # noqa: E402
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+PANEL = REPO_ROOT / "data" / "breadth_csp1.json"
+MARKER = REPO_ROOT / "docs" / "factsheet_published.json"
+LOG_DIR = REPO_ROOT / "logs"
+
+
+def panel_is_week_current(panel_end: date, now_utc: datetime) -> bool:
+    """True when the panel covers the most recent completed trading
+    week's final session — the condition under which the CI publish gate
+    will let the factsheet email out."""
+    return panel_end >= week_final_anchor(now_utc)
+
+
+def scheduled_commit_message(today: date, panel_end: date) -> str:
+    """House-style local-refresh commit message, marked as scheduled."""
+    return (
+        f"Local weekly refresh {today.isoformat()} (scheduled): "
+        f"panels current to {panel_end.isoformat()}, all steps OK"
+    )
+
+
+def _git(args: list[str], log) -> subprocess.CompletedProcess:
+    cp = subprocess.run(
+        ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True
+    )
+    log.write(f"\n$ git {' '.join(args)}\n{cp.stdout}{cp.stderr}")
+    log.flush()
+    return cp
+
+
+def _email(subject: str, body: str, log) -> None:
+    """Best-effort operator email; never raises. Uses the same variable
+    names as the CI secrets so one convention covers both sides."""
+    user = os.environ.get("GMAIL_USER")
+    pw = os.environ.get("GMAIL_APP_PASSWORD")
+    if not user or not pw:
+        log.write("\n[email skipped: GMAIL_USER / GMAIL_APP_PASSWORD not set]\n")
+        return
+    try:
+        msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["From"] = f"Scheduled Refresh <{user}>"
+        msg["To"] = user
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=60) as s:
+            s.login(user, pw)
+            s.send_message(msg)
+        log.write(f"\n[email sent: {subject}]\n")
+    except Exception as exc:
+        log.write(f"\n[email FAILED: {exc}]\n")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--push", action="store_true",
+                        help="Armed mode: commit and push on full green. "
+                             "Without it (soak mode) the run stops after "
+                             "validation and reports READY.")
+    parser.add_argument("--preflight-only", action="store_true",
+                        help="Run the git preflight and the gate preview "
+                             "only — no refresh. Smoke test for the "
+                             "scheduled task setup.")
+    args = parser.parse_args(argv)
+
+    LOG_DIR.mkdir(exist_ok=True)
+    now = datetime.now(timezone.utc)
+    log_path = LOG_DIR / f"scheduled_refresh_{now.date().isoformat()}.log"
+    log = open(log_path, "a", encoding="utf-8")
+    log.write(f"\n{'='*72}\nscheduled_refresh start {now.isoformat()} "
+              f"(push={args.push}, preflight_only={args.preflight_only})\n{'='*72}\n")
+
+    def fail(code: int, subject: str, body: str) -> int:
+        print(f"FAILED ({subject}) - see {log_path}")
+        log.write(f"\nFAILED exit {code}: {subject}\n{body}\n")
+        _email(f"[FAIL] Scheduled refresh - {subject}", body + f"\n\nLog: {log_path}", log)
+        log.close()
+        return code
+
+    # ----- Preflight: clean tree, then sync to origin -----
+    cp = _git(["status", "--porcelain"], log)
+    if cp.returncode != 0:
+        return fail(2, "git status failed", cp.stderr)
+    if cp.stdout.strip():
+        return fail(2, "working tree not clean",
+                    "The automation clone has local changes; a human or "
+                    "another process interfered. Not touching anything.\n"
+                    + cp.stdout)
+    cp = _git(["pull", "--rebase", "origin", "main"], log)
+    if cp.returncode != 0:
+        return fail(2, "git pull --rebase failed", cp.stderr)
+
+    # ----- Refresh (the ~4.3 hour part) -----
+    if not args.preflight_only:
+        log.write("\nrunning refresh_all.py (output follows)\n")
+        log.flush()
+        rc = subprocess.run(
+            [sys.executable, "scripts/refresh_all.py"],
+            cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT,
+        ).returncode
+        if rc != 0:
+            return fail(3, "refresh_all.py reported failed steps",
+                        "One or more refresh steps failed; nothing was "
+                        "committed or pushed. Re-run the failed steps "
+                        "manually (see the refresh summary in the log).")
+
+    # ----- Anchor + gate verdict (the silent-wrong guard) -----
+    now = datetime.now(timezone.utc)  # refresh took hours; re-read clock
+    try:
+        panel_end = date.fromisoformat(
+            json.loads(PANEL.read_text(encoding="utf-8"))["end_date"])
+        if not args.preflight_only and not panel_is_week_current(panel_end, now):
+            return fail(4, "panel did not reach the week-final anchor",
+                        f"All steps exited 0 but breadth_csp1 ends "
+                        f"{panel_end} vs anchor "
+                        f"{week_final_anchor(now)} - quietly-stale "
+                        f"fetches. Nothing pushed; investigate the "
+                        f"fetch steps in the log.")
+        gate = build_gate_report("publish", now, PANEL, MARKER)
+        log.write(f"\nCI gate preview on push:\n{gate['detail']}\n")
+    except Exception as exc:
+        return fail(4, "anchor/gate check errored", repr(exc))
+
+    if args.preflight_only:
+        print(f"PREFLIGHT OK - gate preview in {log_path}")
+        log.write("\npreflight-only run complete\n")
+        log.close()
+        return 0
+
+    # ----- Push (armed) or READY (soak) -----
+    if args.push:
+        msg = scheduled_commit_message(now.date(), panel_end)
+        for step in (["add", "data/", "docs/"], ["commit", "-m", msg]):
+            cp = _git(step, log)
+            if cp.returncode != 0:
+                return fail(5, f"git {step[0]} failed", cp.stderr or cp.stdout)
+        cp = _git(["push", "origin", "main"], log)
+        if cp.returncode != 0:
+            return fail(5, "git push failed",
+                        "Refresh is committed locally in the automation "
+                        "clone but not pushed; push manually. " + cp.stderr)
+        print(f"PUSHED - {msg}")
+        log.write(f"\npushed: {msg}\n")
+        _email("[OK] Scheduled refresh pushed - factsheet publishing",
+               f"{msg}\n\nThe push triggers the gated factsheet "
+               f"workflow.\n\nGate preview:\n{gate['detail']}", log)
+    else:
+        print(f"READY TO PUSH (soak mode) - review the clone, then: "
+              f"git add data/ docs/ && git commit && git push")
+        log.write("\nsoak mode: validated, NOT pushed\n")
+        _email("[READY] Scheduled refresh validated - review and push (soak mode)",
+               f"refresh_all.py green; panel current to {panel_end}.\n"
+               f"Review {REPO_ROOT}, then commit and push to publish "
+               f"the factsheet.\n\nGate preview:\n{gate['detail']}", log)
+    log.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -36,3 +36,5 @@ Thumbs.db
 # Norgate vendor pulls — licence: never committed (trailing comments are not
 # supported in gitignore patterns; keep this pattern on its own line)
 data_local/
+# Scheduled-refresh run logs (scripts/scheduled_refresh.py)
+logs/
