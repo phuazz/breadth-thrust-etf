@@ -32,7 +32,7 @@ The deployed strategy is the **35/35/10/20 A:B:C:D blend** with two overlays:
 
 ### Test coverage
 
-84 pytest tests across 11 files. Key suites:
+428 pytest tests across 34 files. Key suites:
 - `test_backtest_math.py` (17 tests) — structural invariants: long-only, sum-to-100%, no NaN, monotonic dates.
 - `test_weight_function_edge_cases.py` (12 tests) — direct unit tests on `top_k_breadth_weight` with synthetic stress inputs (all-positives, all-negatives, mixed, NaN, ties, single-element). Includes regression test that would have caught the Phase 20 long-only bug.
 - `test_data_integrity.py`, `test_stale_breadth.py` — freshness guards on iShares constituent caches.
