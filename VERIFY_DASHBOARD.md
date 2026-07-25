@@ -38,13 +38,21 @@ fell behind). Keep the checklist in sync with `.github/workflows/*.yml` and
   budget, so around every US holiday the guard trips one trading day earlier
   than a true market calendar would. That is deliberate fail-early
   behaviour, not a bug; mirror it when forecasting the guard.
-- Ops alerting (added 2026-07-03; tiered 2026-07-25): both workflows email
+- Ops alerting (added 2026-07-03; tiered 2026-07-25; Sunday last call
+  added 2026-07-25): both workflows email
   GMAIL_USER on any failure (if: failure() step) and run a freshness check
   from weekday-lag 4 via scripts/check_freshness_headroom.py. Routine
   end-of-week lag (weekend refresh window still ahead of the first failing
   run) is tagged [REMINDER] and sent by the daily workflow only; [WARN]
   means mid-week staleness, the hard stop, or a checker error, and is the
-  only tier the weekly workflow emails. When auditing, a recent
+  only tier the weekly workflow emails. A Sunday-only tripwire
+  (.github/workflows/sunday_last_call.yml, cron '0 9 * * 0' = 17:00 SGT)
+  covers the Friday-22:00-UTC to Monday-21:30-UTC gap, where neither
+  pipeline workflow runs, and emails only at status fail — the
+  missed-weekend signature (panel still at the previous Friday, lag 6).
+  Include it in the run-health sweep
+  (gh run list --workflow=sunday_last_call.yml); a green Sunday run that
+  sent nothing is the healthy state. When auditing, a recent
   [REMINDER]/[WARN] email plus green runs is a consistent state, not a
   contradiction.
 - Silent-wrong-data defences (added 2026-07-03): in-run,
