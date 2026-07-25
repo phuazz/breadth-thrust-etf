@@ -1,23 +1,32 @@
 name: Weekly factsheet — pipeline + email
 
-# Runs every Saturday at 02:00 UTC.
+# EVENT-DRIVEN PUBLISH (2026-07-25, Zhenghao's directive).
 #
-# DESIGN NOTE:
+# The weekly email goes out only AFTER the breadth panels have been
+# refreshed for the week just ended, so the rebalance card carries the
+# COMPLETE position changes. The old Friday 22:00 UTC cron mailed a
+# factsheet whose A/D positions and regime flag were a week stale every
+# normal week: A and D re-anchor only when the local refresh_all.py run
+# lands (per-constituent parquet caches are gitignored — CI cannot
+# compute breadth), while B and C re-run in CI. The trigger is therefore
+# the refresh itself: a push touching data/breadth_csp1.json, gated by
+# scripts/check_factsheet_gate.py (panel current to the week-final NYSE
+# session AND that week not already published per the committed
+# docs/factsheet_published.json marker). A Sunday 13:00 UTC scheduled
+# run performs a check ONLY: if the week's factsheet has still not gone
+# out, it emails the operator while there is time to refresh before
+# Monday's 21:30 UTC hard guard freezes the builds.
+#
+# DESIGN NOTE (unchanged):
 # The heavy constituent-roster + price-cache refresh runs LOCALLY (the
 # per-ETF parquet caches are gitignored because they are 1-10 MB each).
-# This CI workflow assumes those committed breadth JSONs (data/breadth_*)
-# are reasonably current — produced by the local pipeline runs whenever
-# you commit. CI just:
+# On a publishable event, CI:
 #   1. Refreshes the asset_class + thematic ETF-level price caches
 #      (lightweight — ~25 tickers each, ~30s)
 #   2. Re-runs the strategy engines + blend + overlay (~1-2 min)
 #   3. Rebuilds the dashboard + factsheet PDF (~30s)
 #   4. Commits the refreshed outputs back to main
-#   5. Emails the factsheet
-#
-# Total runtime: ~5-8 minutes. Heavy constituent-level refresh is
-# explicitly NOT in CI — runs only when the user triggers it locally
-# (typically weekly).
+#   5. Emails the factsheet, then commits the publish marker
 #
 # Required GitHub Secrets (Settings -> Secrets and variables -> Actions):
 #   GMAIL_USER          - Gmail address used to send
@@ -28,17 +37,23 @@ name: Weekly factsheet — pipeline + email
 #                          (dawidd6/action-send-mail handles splitting)
 
 on:
+  push:
+    # Fires when the local weekly refresh lands — breadth_csp1.json only
+    # changes in those commits. Bot commits made in CI with GITHUB_TOKEN
+    # cannot re-trigger this workflow (GitHub suppresses them), and CI
+    # never writes the panel anyway, so there is no loop.
+    branches: [main]
+    paths:
+      - 'data/breadth_csp1.json'
   schedule:
-    # Friday 22:00 UTC = Saturday 06:00 SGT. Sent as soon as the weekly
-    # closes are confirmed rather than waiting for the old Saturday 02:00 UTC
-    # (10:00 SGT) slot. The Friday US close finalises by 20:00 UTC (summer,
-    # EDT) / 21:00 UTC (winter, EST); the daily_live_track job already pulls
-    # the confirmed Friday close at 21:30 UTC, so 22:00 UTC inherits the same
-    # proven post-close buffer (2h summer, 1h winter) and lands 30 minutes
-    # after the daily-track commit to avoid a push race. ~4 hours earlier
-    # than before. Cron is fixed-UTC, so the SGT arrival shifts by an hour
-    # across US DST changeovers, never compromising the data buffer.
-    - cron: '0 22 * * 5'
+    # Sunday 09:00 UTC = 17:00 SGT (SGT has no DST; GitHub cron delay of
+    # up to a few hours still lands Sunday evening SGT, leaving the
+    # whole of Monday SGT for the ~4.3 h refresh before the Monday
+    # 21:30 UTC hard guard). Check-only run — it never builds or emails
+    # the factsheet itself. Subsumes the short-lived lag-based
+    # sunday_last_call.yml (2026-07-25): the marker check is a strict
+    # superset of the panel-lag check.
+    - cron: '0 9 * * 0'
   workflow_dispatch:  # manual trigger button in Actions tab
     inputs:
       trial:
@@ -49,8 +64,75 @@ on:
 permissions:
   contents: write
 
+# One factsheet flow at a time; queue rather than cancel so a second
+# refresh push cannot kill a run mid-email.
+concurrency:
+  group: weekly-factsheet
+  cancel-in-progress: false
+
 jobs:
+  # ----- Publish gate (2026-07-25) -----
+  # Decides whether this push/dispatch event may build and email. Fails
+  # CLOSED (publish=false) on any internal error — this gate guards an
+  # outward send to the distribution list — but emails the operator
+  # about the error so a broken gate is never silent.
+  gate:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+      anchor: ${{ steps.decide.outputs.anchor }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Decide whether this event publishes
+        id: decide
+        # Dispatch is operator intent: allow a re-send of an already
+        # published week (trial runs and corrected re-issues).
+        run: |
+          EXTRA=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then EXTRA="--allow-republish"; fi
+          python scripts/check_factsheet_gate.py --mode publish $EXTRA
+
+      - name: Email gate error (fail-safe — the gate itself broke)
+        if: steps.decide.outputs.gate_error == 'true'
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[WARN] Factsheet publish gate error — ${{ steps.decide.outputs.summary }}'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            ${{ steps.decide.outputs.detail }}
+
+            The factsheet was HELD (the gate fails closed). Fix the gate,
+            then re-dispatch 'Weekly factsheet' via the Run workflow button.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
   build-and-email:
+    needs: gate
+    if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
     # 2026-06-10: bumped from 20 -> 30. The Saturday 2026-06-06 run hung
     # at exactly the 20m ceiling because the SOXX fetch step (which is
@@ -82,12 +164,11 @@ jobs:
       # Same tripwire as in daily_live_track.yml, but this workflow only
       # EMAILS at status 'fail' (hard stop live, or the checker itself
       # errored — the script reports errors as status 'fail' precisely so
-      # this condition cannot swallow them). Rationale: this job runs
-      # Friday 22:00 UTC, 30 minutes after the daily job has already sent
-      # the evening's [REMINDER]/[WARN] for the same repo state — the
-      # second identical email every Friday night was pure noise. The
-      # check itself still runs unconditionally so the log always carries
-      # the lag forecast. Never blocks the build.
+      # this condition cannot swallow them). Under the event-driven
+      # publish this job runs just after a refresh landed, so the check
+      # normally reports ok; it stays as a fail-safe for dispatch runs on
+      # a stale tree, and the log always carries the lag forecast. The
+      # daily workflow owns the [REMINDER] cadence. Never blocks the build.
       - name: Check breadth_csp1 freshness headroom
         id: headroom
         continue-on-error: true
@@ -328,6 +409,23 @@ jobs:
           # re-derive the date independently.
           attachments: ${{ steps.meta.outputs.dated_path }}
 
+      # ----- Publish marker (2026-07-25) -----
+      # Records which week-final anchor was just emailed so the gate can
+      # refuse duplicate sends (a second refresh push the same weekend)
+      # and the Sunday check knows the week is covered. Written only
+      # AFTER the email step succeeded, never on trial runs. If this
+      # push fails the worst case is one duplicate email next event —
+      # fail-open by design, and loud in the log.
+      - name: Record publish marker and commit it
+        if: ${{ !inputs.trial }}
+        run: |
+          python scripts/write_factsheet_published.py --anchor "${{ needs.gate.outputs.anchor }}"
+          git config --local user.email "actions@github.com"
+          git config --local user.name "Weekly Factsheet Bot"
+          git add docs/factsheet_published.json
+          git diff --cached --quiet || git commit -m "Factsheet published for week ending ${{ needs.gate.outputs.anchor }}"
+          git push origin main || echo "WARNING: marker push failed - the gate may allow one duplicate send next event"
+
       # ----- Failure alert (2026-07-03) -----
       # The scheduled 26 Jun run failed and no factsheet went out that
       # weekend; nothing emailed about the failure itself. if: failure()
@@ -346,9 +444,10 @@ jobs:
           to: ${{ secrets.GMAIL_USER }}
           from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
           body: |
-            The scheduled weekly factsheet run failed. The dashboard was
-            not refreshed and no factsheet email went to the distribution
-            list.
+            The weekly factsheet run (triggered by the panel refresh
+            push, or a manual dispatch) failed. The dashboard was not
+            refreshed by CI and no factsheet email went to the
+            distribution list.
 
             If the log shows the breadth_csp1 freshness guard, the fix is
             local: python scripts/refresh_all.py, then commit and push,
@@ -367,3 +466,57 @@ jobs:
             jobs' is fine - same commit, same inputs, likely to pass.
 
             Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  # ----- Sunday held-factsheet check (2026-07-25) -----
+  # Check ONLY — never builds or emails the factsheet. With the Friday
+  # cron gone, a weekend where the local refresh never lands would
+  # otherwise be silent until Monday's 21:30 UTC run hits the breadth
+  # hard guard. This job emails the operator on Sunday night SGT when
+  # the week's factsheet has not gone out, with the remediation that
+  # matches the state: refresh still missing (run refresh_all.py — the
+  # push then publishes automatically) vs refresh landed but the
+  # publish run failed (inspect and re-dispatch). The gate script
+  # reports its own internal errors as warn=true, so this check fails
+  # toward alerting, never toward silence.
+  sunday-check:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Has this week's factsheet gone out?
+        id: check
+        run: python scripts/check_factsheet_gate.py --mode sunday-check
+
+      - name: Email held-factsheet warning
+        if: steps.check.outputs.warn == 'true'
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[WARN] Weekly factsheet held — ${{ steps.check.outputs.summary }}'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            ${{ steps.check.outputs.detail }}
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

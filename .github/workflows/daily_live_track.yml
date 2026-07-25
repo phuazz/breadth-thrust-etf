@@ -15,7 +15,9 @@ name: Daily live mark-to-market
 # The weekly_factsheet.yml workflow remains the source of truth for
 # the full backtest + signals + factsheet. This workflow only extends
 # the deployed blend equity through the current week — the Friday
-# anchor itself is re-established by Saturday's weekly run.
+# anchor itself is re-established when the weekend local refresh lands
+# (weekly_factsheet.yml is push-triggered by that refresh commit since
+# 2026-07-25; it no longer runs on a Friday cron).
 #
 # Typical run time: 1-2 minutes (yfinance fetch for ~17 tickers + 2 FX
 # pairs + a pipeline rebuild). The factsheet PDF is rebuilt too so the

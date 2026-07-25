@@ -22,10 +22,21 @@ fell behind). Keep the checklist in sync with `.github/workflows/*.yml` and
   1. .github/workflows/daily_live_track.yml — cron '30 21 * * 1-5'
      (Mon–Fri 21:30 UTC, after US close): mark_to_market_live.py →
      pipeline.py → pytest → commit "Daily live track refresh YYYY-MM-DD".
-  2. .github/workflows/weekly_factsheet.yml — cron '0 22 * * 5'
-     (Fri 22:00 UTC): Strategy B + C engines → blend → risk overlay →
-     mark-to-market → pipeline.py → pytest → commit
-     "Weekly refresh YYYY-MM-DD" → email factsheet PDF.
+  2. .github/workflows/weekly_factsheet.yml — EVENT-DRIVEN since
+     2026-07-25 (no Friday cron): fires on the push that lands the local
+     weekend refresh (paths filter data/breadth_csp1.json), gated by
+     scripts/check_factsheet_gate.py (panel current to
+     nyse_sessions.week_final_anchor AND week not already published per
+     the committed docs/factsheet_published.json marker): Strategy B + C
+     engines → blend → risk overlay → mark-to-market → pipeline.py →
+     pytest → commit "Weekly refresh YYYY-MM-DD" → email factsheet PDF →
+     commit "Factsheet published for week ending YYYY-MM-DD". A Sunday
+     09:00 UTC (17:00 SGT) schedule on the same workflow is CHECK-ONLY:
+     [WARN] to the operator when the week's factsheet has not gone out. When auditing:
+     no weekly run in a week where the local refresh never landed is the
+     DESIGNED hold state (the Sunday warn covers it), not a dropped cron;
+     and the publish marker, not factsheet_meta.json (re-stamped daily),
+     is the proof a factsheet was emailed.
   3. Local-only heavy refresh (scripts/refresh_all.py): constituent rosters
      + breadth panels for sleeves A and D. The per-ETF parquet price caches
      are gitignored, so CI can NEVER regenerate these — the committed
@@ -38,23 +49,22 @@ fell behind). Keep the checklist in sync with `.github/workflows/*.yml` and
   budget, so around every US holiday the guard trips one trading day earlier
   than a true market calendar would. That is deliberate fail-early
   behaviour, not a bug; mirror it when forecasting the guard.
-- Ops alerting (added 2026-07-03; tiered 2026-07-25; Sunday last call
-  added 2026-07-25): both workflows email
+- Ops alerting (added 2026-07-03; tiered 2026-07-25): both workflows email
   GMAIL_USER on any failure (if: failure() step) and run a freshness check
   from weekday-lag 4 via scripts/check_freshness_headroom.py. Routine
   end-of-week lag (weekend refresh window still ahead of the first failing
   run) is tagged [REMINDER] and sent by the daily workflow only; [WARN]
   means mid-week staleness, the hard stop, or a checker error, and is the
-  only tier the weekly workflow emails. A Sunday-only tripwire
-  (.github/workflows/sunday_last_call.yml, cron '0 9 * * 0' = 17:00 SGT)
-  covers the Friday-22:00-UTC to Monday-21:30-UTC gap, where neither
-  pipeline workflow runs, and emails only at status fail — the
-  missed-weekend signature (panel still at the previous Friday, lag 6).
-  Include it in the run-health sweep
-  (gh run list --workflow=sunday_last_call.yml); a green Sunday run that
-  sent nothing is the healthy state. When auditing, a recent
-  [REMINDER]/[WARN] email plus green runs is a consistent state, not a
-  contradiction.
+  only tier the weekly workflow's tripwire emails. Weekend coverage is the
+  Sunday 09:00 UTC (17:00 SGT) check-only schedule on weekly_factsheet.yml
+  (see layer 2 above): [WARN] when the week's factsheet has not gone out.
+  A separate lag-based sunday_last_call.yml existed for a few hours on
+  2026-07-25 before being superseded by that marker-based check (strict
+  superset — it also catches a publish run that failed after the refresh
+  landed); if an audit of that date's history sees it, that is why. A
+  green Sunday run that sent nothing is the healthy state. When auditing,
+  a recent [REMINDER]/[WARN] email plus green runs is a consistent state,
+  not a contradiction.
 - Silent-wrong-data defences (added 2026-07-03): in-run,
   scripts/check_capture_integrity.py anchors freshly-fetched series to
   the true NYSE calendar (warn at 1 session behind, job-fail at 2+ or a
@@ -66,10 +76,12 @@ fell behind). Keep the checklist in sync with `.github/workflows/*.yml` and
   in the run-health sweep (gh run list --workflow=sentinel.yml) — it is
   itself evidence for check 2, but do not substitute it for fetching the
   deployed URL directly.
-- Cadence rule (Zhenghao, 2026-07-03): the weekly factsheet runs every
-  Friday after the US close even on US market holidays, publishing the
-  latest populated close — a Friday-holiday factsheet dated Thursday is
-  correct, not stale.
+- Cadence rule (Zhenghao, 2026-07-03; carried into the event-driven model
+  2026-07-25): the weekly factsheet covers every trading week including
+  US-holiday-Friday weeks, publishing the latest populated close — a
+  Friday-holiday factsheet dated Thursday is correct, not stale. Under the
+  event-driven publish this is enforced by nyse_sessions.week_final_anchor
+  (the anchor for such a week IS the Thursday), not by a Friday cron.
 
 [TASK]
 Audit two things: (a) the DEPLOYED dashboard shows the latest datapoints it

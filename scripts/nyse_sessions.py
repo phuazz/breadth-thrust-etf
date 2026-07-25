@@ -49,6 +49,43 @@ def last_completed_session(now_utc: datetime) -> date:
     return completed.index[-1].date()
 
 
+def week_final_anchor(now_utc: datetime) -> date:
+    """Final NYSE session of the most recent COMPLETED trading week.
+
+    A trading week is completed once its last scheduled session's close
+    has passed. On a weekend (or after Friday's close) this returns the
+    Friday just ended — or Thursday when the Friday was a market holiday
+    (the cadence rule: a Friday-holiday factsheet dated Thursday is
+    correct, not stale). Mid-week it returns the PREVIOUS week's final
+    session: the current week is not yet publishable as a weekly anchor.
+
+    Weeks run Monday-Sunday (ISO). Used by the factsheet publish gate
+    (2026-07-25): the weekly email is held until the breadth panels are
+    current to this anchor.
+    """
+    lcs = last_completed_session(now_utc)
+    # Monday of the week containing the last completed session.
+    week_start = lcs - timedelta(days=lcs.isoweekday() - 1)
+    week_end = week_start + timedelta(days=6)
+    sched = _NYSE.schedule(
+        start_date=week_start.isoformat(), end_date=week_end.isoformat()
+    )
+    final_session = sched.index[-1].date()
+    if lcs == final_session:
+        return lcs
+    prev = _NYSE.schedule(
+        start_date=(week_start - timedelta(days=7)).isoformat(),
+        end_date=(week_start - timedelta(days=1)).isoformat(),
+    )
+    if prev.empty:
+        raise RuntimeError(
+            "no NYSE session in the previous ISO week — calendar data is "
+            "broken (a full-week exchange closure would need manual "
+            "handling)"
+        )
+    return prev.index[-1].date()
+
+
 def sessions_behind(series_end: date, expected: date) -> int:
     """Number of NYSE sessions strictly after ``series_end`` up to and
     including ``expected``. 0 means the series is current (or ahead,
