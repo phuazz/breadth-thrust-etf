@@ -39,9 +39,27 @@ Output layout:
   }
 }
 
+Fetch modes (2026-07-27):
+  - Incremental (default): Fridays that already have a REAL iShares-derived
+    snapshot in the existing data/constituents_{etf}.json are reused without
+    touching the network; Fridays known to be permanently missing (recorded
+    in data/fetch_negative_cache.json) are re-attempted at most every
+    NEGCACHE_RETRY_DAYS days rather than every run. Carried-forward and
+    EDGAR-sourced snapshots are never reused — those Fridays re-resolve
+    live each run, so carry-forward chains and the EDGAR freshness
+    comparison behave exactly as in a full run.
+  - Full (--full): the pre-2026-07-27 behaviour — walk every Friday from
+    start_friday, using the raw CSV cache where present. Required after a
+    registry parse-rule change (or run regenerate_constituents_from_cache.py
+    for parser-only changes); incremental mode detects changed URL /
+    ticker_overrides and falls back to full automatically.
+  Parity between the two modes is guarded by
+  scripts/verify_incremental_parity.py and tests/test_incremental_fetch.py.
+
 Run:
-    python scripts/fetch_constituents.py             # default: SOXX
+    python scripts/fetch_constituents.py             # default: SOXX, incremental
     python scripts/fetch_constituents.py --etf CSP1  # S&P 500 via iShares UK
+    python scripts/fetch_constituents.py --etf CSP1 --full   # full re-fetch
 """
 
 from __future__ import annotations
@@ -133,6 +151,23 @@ def resolve_staleness_thresholds(etf_cfg: dict) -> tuple[int, int]:
     return warn, critical
 RETRY_BACKOFFS = [5, 10, 30]  # seconds; 3 retries on transport failure or 5xx
 
+# ---------------------------------------------------------------------------
+# Incremental mode + negative cache (2026-07-27)
+# ---------------------------------------------------------------------------
+# Anti-bot HTML responses are (correctly) never written to the raw cache, so
+# every permanently-missing Friday — e.g. the 82 ICHN Fridays before/around
+# the fund's 2019 launch — used to pay the full retry backoff ladder on every
+# weekly run. That recurring cost, not cold caches, is where the measured
+# ~4-hour Step 1 went. The negative cache records those Fridays and re-probes
+# them at most every NEGCACHE_RETRY_DAYS days with a single no-backoff
+# request. Fridays younger than NEGCACHE_RECENT_EXEMPT_DAYS are always
+# attempted with the full ladder: a recently-missing Friday is usually
+# iShares publication lag, not a permanent hole.
+NEGCACHE_PATH = DATA_DIR / "fetch_negative_cache.json"
+NEGCACHE_RETRY_DAYS = 30          # re-attempt known-missing Fridays at most this often
+NEGCACHE_RECENT_EXEMPT_DAYS = 30  # Fridays younger than this always get a real attempt
+NEGCACHE_MAX_RETRIES_PER_RUN = 16  # cap due probes per ETF-run to bound the worst case
+
 # Note: Python's datetime constructor is 1-indexed for months (Jan=1), unlike
 # JavaScript's Date which is 0-indexed (Jan=0). We always use Python here.
 
@@ -170,7 +205,7 @@ def looks_like_ishares_holdings_csv(body: str) -> bool:
     return False
 
 
-def fetch_with_retry(target: date, etf_cfg: dict) -> str:
+def fetch_with_retry(target: date, etf_cfg: dict, probe: bool = False) -> str:
     """Fetch the raw iShares CSV for `target` and return the body.
 
     Caches successful 200 responses to disk so reruns do not re-hit iShares.
@@ -181,6 +216,11 @@ def fetch_with_retry(target: date, etf_cfg: dict) -> str:
     Cached bodies are re-validated against `looks_like_ishares_holdings_csv`
     on read. If a poisoned HTML body got cached by an earlier run, it is
     discarded and the network fetch retried.
+
+    probe=True makes a single attempt with no backoff ladder — used for the
+    negative cache's monthly re-checks of known-missing Fridays, where a
+    transient failure simply waits for the next monthly probe instead of
+    burning ~45s of backoff on a date that has been dead for years.
     """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = RAW_DIR / f"{etf_cfg['symbol']}_{target.strftime('%Y%m%d')}.csv"
@@ -193,7 +233,7 @@ def fetch_with_retry(target: date, etf_cfg: dict) -> str:
 
     url = f"{etf_cfg['csv_url_template']}&asOfDate={target.strftime('%Y%m%d')}"
     last_err: Exception | None = None
-    for backoff in [0, *RETRY_BACKOFFS]:
+    for backoff in ([0] if probe else [0, *RETRY_BACKOFFS]):
         if backoff:
             time.sleep(backoff)
         try:
@@ -450,6 +490,16 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
     return tickers
 
 
+def _display_path(path: Path) -> str:
+    """Return ``path`` relative to PROJECT_ROOT for display, falling back
+    to the absolute path when ``path`` is outside the project tree (e.g. a
+    tmp_path under test). Mirrors compute_breadth._display_path."""
+    try:
+        return str(path.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def fridays_between(start: date, end: date) -> list[date]:
     """All Fridays in the inclusive range [start, end].
 
@@ -474,7 +524,7 @@ def latest_completed_friday(today: date) -> date:
 
 
 def get_snapshot(
-    target_friday: date, etf_cfg: dict
+    target_friday: date, etf_cfg: dict, probe: bool = False
 ) -> tuple[list[str] | None, date | None, str]:
     """Walk back from `target_friday` looking for a populated holdings file.
 
@@ -482,12 +532,15 @@ def get_snapshot(
       - "exact"     : Friday returned data
       - "walkback"  : an earlier weekday in the same week returned data
       - "not_found" : no data within MAX_WALKBACK_DAYS days
+
+    probe=True passes single-attempt mode down to fetch_with_retry (negative
+    cache monthly re-checks). The walkback logic itself is unchanged.
     """
     overrides = etf_cfg.get("ticker_overrides", {})
     apply_suffix = etf_cfg.get("apply_exchange_suffix", False)
     for days_back in range(MAX_WALKBACK_DAYS + 1):
         try_date = target_friday - timedelta(days=days_back)
-        body = fetch_with_retry(try_date, etf_cfg)
+        body = fetch_with_retry(try_date, etf_cfg, probe=probe)
         tickers = parse_holdings(body, ticker_overrides=overrides,
                                   apply_exchange_suffix=apply_suffix)
         if tickers:
@@ -496,11 +549,228 @@ def get_snapshot(
     return None, None, "not_found"
 
 
+# =============================================================================
+# Incremental mode: negative cache + prior-output reuse
+# =============================================================================
+
+
+class NegativeCache:
+    """Persistent record of Fridays that returned no holdings data.
+
+    File layout (data/fetch_negative_cache.json, committed so the automation
+    clone and interactive clones share one memory of the known holes):
+
+        {
+          "_meta":  { ...constants documented on every save... },
+          "etfs": {
+            "ICHN": {
+              "2018-01-05": {
+                "first_seen": "2026-07-26",
+                "last_attempt": "2026-07-26",
+                "attempts": 1,
+                "seeded_from_store": true
+              }, ...
+            }, ...
+          }
+        }
+
+    Decision rules (see `decide`):
+      - Fridays within NEGCACHE_RECENT_EXEMPT_DAYS of today are NEVER
+        skipped — always attempted with the full retry ladder.
+      - A recorded Friday whose last attempt is younger than
+        NEGCACHE_RETRY_DAYS is skipped.
+      - A recorded Friday due for re-check gets a single-attempt probe,
+        capped at NEGCACHE_MAX_RETRIES_PER_RUN grants per ETF-run; entries
+        beyond the cap wait for a later run ("retry at most monthly"
+        tolerates longer gaps, never shorter ones).
+
+    Failures are recorded in BOTH incremental and full mode; entries are
+    only ever USED to skip in incremental mode. A successful fetch clears
+    the entry. Skipping the primary attempt does not touch the EDGAR
+    fallback or carry-forward logic — a skipped Friday flows into exactly
+    the same "no primary data" path a failed live attempt would.
+    """
+
+    def __init__(self, path: Path):
+        self.path = path
+        self._etfs: dict[str, dict[str, dict]] = {}
+        self._dirty_etfs: set[str] = set()
+        self._retries_granted = 0
+        if path.exists():
+            try:
+                doc = json.loads(path.read_text(encoding="utf-8"))
+                loaded = doc.get("etfs", {})
+                if isinstance(loaded, dict):
+                    self._etfs = loaded
+            except (OSError, ValueError) as e:
+                print(f"  WARNING: negative cache unreadable ({e}) — "
+                      f"starting empty", flush=True)
+
+    def entry(self, etf: str, friday: date) -> dict | None:
+        return self._etfs.get(etf, {}).get(friday.isoformat())
+
+    def decide(self, etf: str, friday: date, today: date) -> str:
+        """Return 'attempt' (full retry ladder), 'probe' (granted monthly
+        single-attempt re-check), or 'skip'."""
+        if (today - friday).days <= NEGCACHE_RECENT_EXEMPT_DAYS:
+            return "attempt"
+        e = self.entry(etf, friday)
+        if e is None:
+            return "attempt"
+        try:
+            last_attempt = date.fromisoformat(e["last_attempt"])
+        except (KeyError, TypeError, ValueError):
+            return "attempt"  # malformed entry — attempt, then rewrite it
+        if (today - last_attempt).days < NEGCACHE_RETRY_DAYS:
+            return "skip"
+        if self._retries_granted >= NEGCACHE_MAX_RETRIES_PER_RUN:
+            return "skip"
+        self._retries_granted += 1
+        return "probe"
+
+    def record_failure(self, etf: str, friday: date, today: date) -> None:
+        etf_map = self._etfs.setdefault(etf, {})
+        key = friday.isoformat()
+        e = etf_map.setdefault(key, {"first_seen": today.isoformat(),
+                                     "attempts": 0})
+        e["last_attempt"] = today.isoformat()
+        e["attempts"] = int(e.get("attempts", 0)) + 1
+        e.pop("seeded_from_store", None)  # now backed by a live attempt
+        self._dirty_etfs.add(etf)
+
+    def record_success(self, etf: str, friday: date) -> None:
+        etf_map = self._etfs.get(etf, {})
+        if etf_map.pop(friday.isoformat(), None) is not None:
+            self._dirty_etfs.add(etf)
+
+    def seed_from_store(self, etf: str, hole_fridays: list[date],
+                        store_fetch_date: date) -> int:
+        """Register store-known holes without a live attempt. Only fills
+        absent entries. last_attempt is the prior run's fetch date — the
+        run that genuinely attempted and failed those Fridays — so the
+        first incremental run does not re-pay the whole retry backlog."""
+        n_seeded = 0
+        etf_map = self._etfs.setdefault(etf, {})
+        for f in hole_fridays:
+            key = f.isoformat()
+            if key in etf_map:
+                continue
+            etf_map[key] = {
+                "first_seen": store_fetch_date.isoformat(),
+                "last_attempt": store_fetch_date.isoformat(),
+                "attempts": 1,
+                "seeded_from_store": True,
+            }
+            n_seeded += 1
+        if n_seeded:
+            self._dirty_etfs.add(etf)
+        return n_seeded
+
+    def save(self) -> None:
+        """Merge-write: re-read the file and replace only the ETF sections
+        this run touched, so sequential per-ETF runs (and an accidental
+        concurrent run on a different ETF) do not clobber each other."""
+        if not self._dirty_etfs:
+            return
+        current: dict = {}
+        if self.path.exists():
+            try:
+                current = json.loads(self.path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                current = {}
+        etfs = current.get("etfs", {})
+        if not isinstance(etfs, dict):
+            etfs = {}
+        for etf in self._dirty_etfs:
+            section = self._etfs.get(etf, {})
+            if section:
+                etfs[etf] = {k: section[k] for k in sorted(section)}
+            else:
+                etfs.pop(etf, None)
+        payload = {
+            "_meta": {
+                "description": (
+                    "Fridays that persistently return no holdings data "
+                    "(anti-bot HTML / permanent gaps). Incremental "
+                    "fetch_constituents runs skip these and re-probe each "
+                    "at most every retry_after_days days. Entries clear "
+                    "automatically on a successful fetch. Delete an entry "
+                    "(or the file) to force an immediate re-attempt."
+                ),
+                "retry_after_days": NEGCACHE_RETRY_DAYS,
+                "recent_exempt_days": NEGCACHE_RECENT_EXEMPT_DAYS,
+                "max_retries_per_run": NEGCACHE_MAX_RETRIES_PER_RUN,
+            },
+            "etfs": {k: etfs[k] for k in sorted(etfs)},
+        }
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(payload, indent=2) + "\n",
+                             encoding="utf-8")
+
+
+def load_reusable_snapshots(
+    etf_cfg: dict, out_path: Path
+) -> tuple[dict[str, dict], dict | None, str | None]:
+    """Load the prior run's parsed output for incremental reuse.
+
+    Returns (reusable, prior_payload, fallback_reason). `reusable` maps
+    Friday ISO date -> snapshot dict for REAL iShares-derived snapshots
+    only: carried-forward and EDGAR-sourced snapshots are excluded so those
+    Fridays re-resolve live each run (carry-forward chains rebuild from
+    what is fetchable today; the EDGAR roster is re-evaluated every run
+    exactly as in a full run — SOXX fallback semantics unchanged).
+
+    Falls back to a full re-fetch (empty dict + reason) when the store is
+    missing, unreadable, or was built under a different registry definition
+    (symbol, URL, or ticker_overrides changed) — parse-rule changes must
+    not be silently frozen into reused snapshots.
+    """
+    if not out_path.exists():
+        return {}, None, "no prior output — full fetch"
+    try:
+        prior = json.loads(out_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return {}, None, f"prior output unreadable ({e}) — full fetch"
+    if prior.get("etf") != etf_cfg["symbol"]:
+        return {}, None, (
+            f"prior output is for {prior.get('etf')!r}, not "
+            f"{etf_cfg['symbol']!r} — full fetch"
+        )
+    if prior.get("source") != etf_cfg["csv_url_template"]:
+        return {}, None, "registry csv_url_template changed — full re-fetch"
+    if prior.get("ticker_overrides_applied", {}) != etf_cfg.get("ticker_overrides", {}):
+        return {}, None, "registry ticker_overrides changed — full re-fetch"
+    snapshots = prior.get("snapshots", {})
+    if not isinstance(snapshots, dict):
+        return {}, None, "prior output has no snapshots dict — full fetch"
+    reusable = {
+        friday: snap for friday, snap in snapshots.items()
+        if isinstance(snap, dict)
+        and "carried_forward_from" not in snap
+        and snap.get("source") != "edgar_nport"
+        and snap.get("actual_date") and snap.get("tickers")
+    }
+    return reusable, prior, None
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--etf", default=DEFAULT_ETF,
         help=f"ETF symbol to fetch (must be in etf_registry). Default: {DEFAULT_ETF}",
+    )
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--incremental", dest="incremental", action="store_true", default=True,
+        help="Reuse real iShares-derived snapshots from the prior parsed "
+             "output and consult the negative cache for known-missing "
+             "Fridays (default).",
+    )
+    mode.add_argument(
+        "--full", dest="incremental", action="store_false",
+        help="Re-fetch the full start_friday->present history (raw CSV cache "
+             "still used). Required after registry parse-rule changes; see "
+             "also scripts/regenerate_constituents_from_cache.py.",
     )
     return p.parse_args()
 
@@ -517,9 +787,53 @@ def main() -> int:
     fridays = fridays_between(start_friday, end_friday)
     print(
         f"Fetching {symbol} point-in-time holdings for {len(fridays)} Fridays "
-        f"({start_friday} -> {end_friday})",
+        f"({start_friday} -> {end_friday}) "
+        f"[{'incremental' if args.incremental else 'full'} mode]",
         flush=True,
     )
+
+    # ----- Incremental setup: prior-output reuse + negative cache -----
+    # The negative cache is loaded (and failures recorded) in both modes;
+    # skip decisions apply only in incremental mode.
+    negcache = NegativeCache(NEGCACHE_PATH)
+    reusable: dict[str, dict] = {}
+    if args.incremental:
+        reusable, prior_payload, fallback_reason = load_reusable_snapshots(
+            etf_cfg, out_path
+        )
+        if fallback_reason:
+            print(f"  Incremental: {fallback_reason}", flush=True)
+        elif prior_payload is not None:
+            # Seed the negative cache: every Friday inside the stored range
+            # without a reusable real snapshot was attempted — and failed —
+            # by the run that produced the store.
+            store_fetch_date: date | None = None
+            try:
+                store_fetch_date = date.fromisoformat(
+                    str(prior_payload.get("fetched_at_utc", ""))[:10]
+                )
+            except ValueError:
+                pass
+            stored_end = str(prior_payload.get("end_friday", ""))
+            if store_fetch_date and stored_end:
+                holes = [
+                    f for f in fridays
+                    if f.isoformat() <= stored_end
+                    and f.isoformat() not in reusable
+                ]
+                n_seeded = negcache.seed_from_store(
+                    symbol, holes, store_fetch_date
+                )
+                if n_seeded:
+                    print(
+                        f"  Negative cache: seeded {n_seeded} known-missing "
+                        f"Friday(s) from the prior output "
+                        f"(last attempted {store_fetch_date})",
+                        flush=True,
+                    )
+    n_reused = 0
+    n_negcache_skipped = 0
+    n_live_attempts = 0
 
     snapshots: dict[str, dict] = {}
     walkbacks: list[dict] = []
@@ -586,11 +900,41 @@ def main() -> int:
     for i, friday in enumerate(fridays, start=1):
         if i == 1 or i % 25 == 0 or i == len(fridays):
             print(f"  [{i}/{len(fridays)}] {friday.isoformat()}", flush=True)
-        try:
-            tickers, actual, status = get_snapshot(friday, etf_cfg)
-        except Exception as e:
-            print(f"  ERROR on {friday}: {e}", flush=True)
-            tickers, actual, status = None, None, "not_found"
+        reused = reusable.get(friday.isoformat())
+        if reused is not None:
+            # Real iShares-derived snapshot from the prior output — reuse
+            # without any network traffic. Walkback status (and hence the
+            # walkbacks audit list) is reconstructed from actual_date, so
+            # the payload matches what a full run would produce from the
+            # same underlying data.
+            tickers = list(reused["tickers"])
+            actual = date.fromisoformat(reused["actual_date"])
+            status = "exact" if actual == friday else "walkback"
+            n_reused += 1
+        else:
+            decision = (
+                negcache.decide(symbol, friday, today)
+                if args.incremental else "attempt"
+            )
+            if decision == "skip":
+                # Known-missing Friday, not yet due for its monthly probe.
+                # Flows into the same EDGAR / carry-forward path a failed
+                # live attempt would.
+                tickers, actual, status = None, None, "not_found"
+                n_negcache_skipped += 1
+            else:
+                n_live_attempts += 1
+                try:
+                    tickers, actual, status = get_snapshot(
+                        friday, etf_cfg, probe=(decision == "probe")
+                    )
+                except Exception as e:
+                    print(f"  ERROR on {friday}: {e}", flush=True)
+                    tickers, actual, status = None, None, "not_found"
+                if tickers is None:
+                    negcache.record_failure(symbol, friday, today)
+                else:
+                    negcache.record_success(symbol, friday)
 
         # Phase 26.2 — when primary fails for this Friday and an EDGAR
         # source is registered, try EDGAR. Only USE EDGAR if its
@@ -669,6 +1013,10 @@ def main() -> int:
                 })
             prev_tickers, prev_actual, prev_target = tickers, actual, friday
 
+    # Persist any negative-cache changes (recorded in both modes) before
+    # the staleness-driven early returns below.
+    negcache.save()
+
     # Staleness check (Phase 26.1) — compute days since the most recent
     # REAL fetch (any snapshot that is not a carry-forward). The "today"
     # anchor uses calendar days from the latest target Friday so the test
@@ -740,11 +1088,17 @@ def main() -> int:
 
     print()
     print(
-        f"Wrote {out_path.relative_to(PROJECT_ROOT)} -- "
+        f"Wrote {_display_path(out_path)} -- "
         f"{len(snapshots)} snapshots, "
         f"{len(walkbacks)} walkbacks, "
         f"{len(carry_forwards)} carry-forwards, "
         f"{len(edgar_used)} EDGAR fallbacks"
+    )
+    print(
+        f"  Mode: {'incremental' if args.incremental else 'full'} -- "
+        f"{n_reused} Friday(s) reused from prior output, "
+        f"{n_live_attempts} live-attempted, "
+        f"{n_negcache_skipped} skipped via negative cache"
     )
     if edgar_used:
         print(

@@ -11,8 +11,10 @@ BUT guard layers around refresh_all.py:
   preflight   clean working tree required (a dirty automation clone
               means a human or another process interfered — abort), then
               git pull --rebase so the run starts from origin HEAD.
-  refresh     scripts/refresh_all.py, full run, no flags. Exit 0 there
-              already requires every step green INCLUDING pytest.
+  refresh     scripts/refresh_all.py, complete sequence, no flags — which
+              means incremental constituent fetches (the 2026-07-27
+              default), not --full. Exit 0 there already requires every
+              step green INCLUDING pytest.
   anchor      data/breadth_csp1.json end_date must reach
               nyse_sessions.week_final_anchor(now) — catches the silent
               case where every step exits 0 on quietly-stale fetches
@@ -151,7 +153,8 @@ def main(argv: list[str] | None = None) -> int:
     if cp.returncode != 0:
         return fail(2, "git pull --rebase failed", cp.stderr)
 
-    # ----- Refresh (the ~4.3 hour part) -----
+    # ----- Refresh (minutes since the 2026-07-27 incremental fetch;
+    #        ~4.3 hours before it, and still hours if run with --full) -----
     if not args.preflight_only:
         log.write("\nrunning refresh_all.py (output follows)\n")
         log.flush()

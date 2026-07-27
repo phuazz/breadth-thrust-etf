@@ -1,0 +1,1412 @@
+{
+  "_meta": {
+    "description": "Fridays that persistently return no holdings data (anti-bot HTML / permanent gaps). Incremental fetch_constituents runs skip these and re-probe each at most every retry_after_days days. Entries clear automatically on a successful fetch. Delete an entry (or the file) to force an immediate re-attempt.",
+    "retry_after_days": 30,
+    "recent_exempt_days": 30,
+    "max_retries_per_run": 16
+  },
+  "etfs": {
+    "CNDX": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "CSP1": {
+      "2018-09-07": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-09-13": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2020-04-10": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-27",
+        "attempts": 3,
+        "last_attempt": "2026-07-27"
+      }
+    },
+    "EXH1": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "EXH3": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "EXH9": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "EXV1": {
+      "2020-04-10": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-27",
+        "attempts": 3,
+        "last_attempt": "2026-07-27"
+      }
+    },
+    "EXV3": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "ICHN": {
+      "2018-01-05": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-01-12": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-01-19": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-01-26": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-02-02": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-02-09": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-02-16": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-02-23": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-03-02": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-03-09": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-03-16": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-03-23": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-03-30": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-04-06": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-04-13": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-04-20": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-04-27": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-05-04": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-05-11": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-05-18": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-05-25": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-06-01": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-06-08": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-06-15": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-06-22": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-06-29": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-07-06": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-07-13": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-07-20": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-07-27": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-08-03": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-08-10": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-08-17": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-08-24": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-08-31": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-09-07": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-09-14": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-09-21": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-09-28": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-10-05": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-10-12": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-10-19": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-10-26": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-11-02": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-11-09": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-11-16": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-11-23": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-11-30": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-12-07": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-12-14": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-12-21": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2018-12-28": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-01-04": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-01-11": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-01-18": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-01-25": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-02-01": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-02-08": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-02-15": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-02-22": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-03-01": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-03-08": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-03-15": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-03-22": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-03-29": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-04-05": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-04-12": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-04-19": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-04-26": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-05-03": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-05-10": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-05-17": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-05-24": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-05-31": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-06-07": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2019-06-14": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2020-04-10": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2021-08-13": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2022-10-07": {
+        "first_seen": "2026-07-27",
+        "attempts": 1,
+        "last_attempt": "2026-07-27"
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-27",
+        "attempts": 3,
+        "last_attempt": "2026-07-27"
+      }
+    },
+    "IDP6": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2022-10-07": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IJPN": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2022-10-07": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "ITWN": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IUCD": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IUCM": {
+      "2018-01-05": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-01-12": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-01-19": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-01-26": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-02-02": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-02-09": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-02-16": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-02-23": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-03-02": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-03-09": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-03-16": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-03-23": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-03-30": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-04-06": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-04-13": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-04-20": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-04-27": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-05-04": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-05-11": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-05-18": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-05-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-06-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-06-08": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-06-15": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-06-22": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-06-29": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-07-06": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-07-13": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-07-20": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-07-27": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-08-03": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-08-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-08-17": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-08-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-08-31": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-09-07": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-09-14": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IUCS": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2024-08-02": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IUES": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IUFS": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IUHC": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IUIS": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IUIT": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IUMS": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IUSP": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "IUUS": {
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2024-08-02": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "NDIA": {
+      "2018-01-05": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-01-12": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-01-19": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-01-26": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-02-02": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-02-09": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-02-16": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-02-23": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-03-02": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-03-09": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-03-16": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-03-23": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-03-30": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-04-06": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-04-13": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-04-20": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-04-27": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-05-04": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-05-11": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2018-05-18": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-04-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2020-12-25": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2021-01-01": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2024-08-02": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    },
+    "SOXX": {
+      "2026-05-15": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-05-22": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-05-29": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-06-05": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-06-12": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-06-19": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-06-26": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-26",
+        "attempts": 1,
+        "seeded_from_store": true
+      },
+      "2026-07-03": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      },
+      "2026-07-10": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      },
+      "2026-07-17": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      },
+      "2026-07-24": {
+        "first_seen": "2026-07-26",
+        "last_attempt": "2026-07-27",
+        "attempts": 2
+      }
+    }
+  }
+}

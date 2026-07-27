@@ -32,8 +32,22 @@ RESTRICTED subset: only #3 (B + C only — A and D need local price caches),
 outputs of #1, #2, #5 from the most recent local refresh are what CI
 operates on.
 
+Constituent fetches run INCREMENTALLY by default (2026-07-27): Fridays
+with a real snapshot in the committed constituents store are reused
+without network traffic, and known-permanently-missing Fridays are
+re-probed at most monthly via data/fetch_negative_cache.json. That cut
+Step 1 from the measured ~4 hours (dominated by re-attempting missing
+Fridays through the iShares anti-bot retry ladder every week) to
+minutes. Pass --full for the legacy full-history re-fetch — required
+after registry parse-rule changes (or run
+scripts/regenerate_constituents_from_cache.py for parser-only changes).
+Parity between the modes is guarded by
+scripts/verify_incremental_parity.py and tests/test_incremental_fetch.py.
+
 Usage:
-    python scripts/refresh_all.py            # full refresh
+    python scripts/refresh_all.py            # weekly refresh (incremental fetch)
+    python scripts/refresh_all.py --full     # force full-history constituent
+                                              # re-fetch (hours, not minutes)
     python scripts/refresh_all.py --skip-soxx-fetch
                                               # skip the slow iShares-US
                                               # fetch (Akamai-blocked,
@@ -64,6 +78,28 @@ ETFS_NON_SOXX = [
 ETFS_ALL = ["SOXX", *ETFS_NON_SOXX]
 
 
+def make_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--full", action="store_true",
+                    help="Force full-history constituent re-fetch (default "
+                         "is incremental: reuse the committed store + "
+                         "negative cache; see fetch_constituents.py).")
+    p.add_argument("--skip-soxx-fetch", action="store_true",
+                    help="Skip fetch_constituents.py --etf SOXX (iShares US "
+                         "is Akamai-blocked; the constituent roster "
+                         "carry-forward holds for weeks at a time).")
+    p.add_argument("--no-tests", action="store_true",
+                    help="Skip the final pytest run.")
+    return p
+
+
+def constituent_fetch_cmd(py: str, etf: str, full: bool) -> list[str]:
+    """Step-1 fetch command. Incremental is the default mode; --full forces
+    the legacy full-history re-fetch."""
+    return [py, "scripts/fetch_constituents.py", "--etf", etf,
+            "--full" if full else "--incremental"]
+
+
 def run_step(label: str, cmd: list[str], cwd: Path = REPO_ROOT) -> tuple[bool, float]:
     """Run a subprocess, stream output, return (ok, elapsed_seconds)."""
     print(f"\n{'='*72}\n{label}\n{'='*72}", flush=True)
@@ -81,14 +117,7 @@ def run_step(label: str, cmd: list[str], cwd: Path = REPO_ROOT) -> tuple[bool, f
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--skip-soxx-fetch", action="store_true",
-                    help="Skip fetch_constituents.py --etf SOXX (iShares US "
-                         "is Akamai-blocked; the constituent roster "
-                         "carry-forward holds for weeks at a time).")
-    p.add_argument("--no-tests", action="store_true",
-                    help="Skip the final pytest run.")
-    args = p.parse_args()
+    args = make_parser().parse_args()
 
     failures: list[str] = []
     timings: list[tuple[str, float]] = []
@@ -102,7 +131,7 @@ def main() -> int:
         else:
             ok, dt = run_step(
                 f"[{i}/{len(ETFS_ALL)}] {etf} fetch_constituents",
-                [py, "scripts/fetch_constituents.py", "--etf", etf],
+                constituent_fetch_cmd(py, etf, full=args.full),
             )
             timings.append((f"fetch_constituents {etf}", dt))
             if not ok:

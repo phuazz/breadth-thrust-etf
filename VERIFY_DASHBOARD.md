@@ -42,6 +42,16 @@ fell behind). Keep the checklist in sync with `.github/workflows/*.yml` and
      are gitignored, so CI can NEVER regenerate these — the committed
      breadth_*.json, europe_rotation.json and topk_robustness.json are
      canonical and only advance when the refresh is run locally and committed.
+     Since 2026-07-27 the constituent fetch is INCREMENTAL by default:
+     Fridays with a real snapshot in the committed store are reused without
+     network traffic, and known-missing Fridays live in
+     data/fetch_negative_cache.json (committed; re-probed at most monthly).
+     When auditing: "Mode: incremental — N reused ..." lines in refresh logs
+     and weekly deltas to fetch_negative_cache.json are the healthy state,
+     not evidence of a skipped fetch; the parity guard for the mode is
+     scripts/verify_incremental_parity.py (run 2026-07-27: CSP1 / EXV1 /
+     ICHN all EQUAL). A full re-fetch (refresh_all.py --full) is the
+     forensic option after registry or parser changes.
 - Hard freshness guard: pipeline.py::assert_source_panel_fresh_vs_today
   aborts EVERY build (daily and weekly) when data/breadth_csp1.json
   end_date lags the run date by MORE than 5 numpy business days.

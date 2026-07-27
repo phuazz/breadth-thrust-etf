@@ -260,11 +260,20 @@ def download_prices(
     end: str,
     cache_path: Path = PRICES_CACHE,
     force: bool = False,
+    reuse_cache_dates: bool = False,
 ) -> pd.DataFrame:
     """Download adjusted-close history. Cache to parquet so reruns are free.
 
     Cache hit policy: reuse cache when it covers the requested date range
     and all requested tickers. Any change to either invalidates and re-pulls.
+
+    reuse_cache_dates=True relaxes the date-coverage requirement: a cache
+    that covers the requested tickers is trusted even if its date range
+    falls short of the requested window. For offline reruns and the
+    incremental parity guard (scripts/verify_incremental_parity.py), where
+    two compute runs must see the identical price panel — never for a
+    production weekly refresh, which needs prices extended to the latest
+    close.
     """
     requested = set(tickers)
     start_ts = pd.Timestamp(start)
@@ -276,8 +285,18 @@ def download_prices(
                 cached.index.min() <= start_ts and cached.index.max() >= end_ts
             )
             covers_tickers = requested.issubset(set(cached.columns))
-            if covers_dates and covers_tickers:
-                print(f"  Using cached prices: {cache_path.name}", flush=True)
+            if covers_tickers and (covers_dates or reuse_cache_dates):
+                if covers_dates:
+                    print(f"  Using cached prices: {cache_path.name}", flush=True)
+                else:
+                    print(
+                        f"  Using cached prices DESPITE a date shortfall "
+                        f"(--reuse-price-cache): {cache_path.name} spans "
+                        f"{cached.index.min().date()} -> "
+                        f"{cached.index.max().date()}, requested "
+                        f"{start_ts.date()} -> {end_ts.date()}",
+                        flush=True,
+                    )
                 return cached[list(tickers)].loc[start_ts:end_ts]
         except Exception as e:
             print(f"  Cache read failed ({e}); re-downloading.", flush=True)
@@ -330,6 +349,15 @@ def parse_args() -> argparse.Namespace:
         "--etf", default=DEFAULT_ETF,
         help=f"ETF symbol to compute breadth for. Default: {DEFAULT_ETF}",
     )
+    p.add_argument(
+        "--reuse-price-cache", action="store_true",
+        help="Trust the existing parquet price cache whenever it covers the "
+             "requested tickers, even if its date range falls short of the "
+             "requested window. For offline reruns and the incremental "
+             "parity guard (scripts/verify_incremental_parity.py) — never "
+             "for a production weekly refresh, where prices must extend to "
+             "the latest close.",
+    )
     return p.parse_args()
 
 
@@ -355,7 +383,8 @@ def main() -> int:
     dl_end = (end_friday + pd.Timedelta(days=5)).strftime("%Y-%m-%d")
 
     print("Downloading prices ...", flush=True)
-    prices = download_prices(universe, dl_start, dl_end, cache_path=prices_cache)
+    prices = download_prices(universe, dl_start, dl_end, cache_path=prices_cache,
+                             reuse_cache_dates=args.reuse_price_cache)
     n_with_any_data = int((prices.notna().any(axis=0)).sum())
     print(f"  Prices shape: {prices.shape}, tickers with any data: "
           f"{n_with_any_data}/{len(universe)}")

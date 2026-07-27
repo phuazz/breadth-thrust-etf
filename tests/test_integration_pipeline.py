@@ -51,7 +51,8 @@ def test_compute_breadth_main_uses_unique_roster_without_network(tmp_path, monke
         "B": np.linspace(120.0, 80.0, len(idx)),
     }, index=idx)
 
-    def fake_download_prices(tickers, start, end, cache_path, force=False):
+    def fake_download_prices(tickers, start, end, cache_path, force=False,
+                             reuse_cache_dates=False):
         assert tickers == ["A", "B"]
         return prices.loc[pd.Timestamp(start):pd.Timestamp(end), tickers]
 
