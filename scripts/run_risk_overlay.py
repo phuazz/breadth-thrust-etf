@@ -140,6 +140,14 @@ EEM_RATIO_CACHE = "em_regime_context.parquet"
 # daily return while ON. Cap at 10 calendar days (mirroring the Sleeve C FX
 # cap); past the window the tilt is HELD FLAT (baseline 35/35/10/20 blend).
 EEM_MAX_STALE_DAYS = 10
+# Refresh trigger for the cache itself (2026-07-29). EEM_MAX_STALE_DAYS above
+# only decides how a stale feed is CONSUMED; nothing re-fetched the cache, so
+# `_load_eem_data` used any file that merely had both columns. em_regime_context
+# duly froze at 2026-07-06 and the tilt ran 17 weekdays behind for three weeks
+# while every consumer published EM_TILT_ON. export_holdings_prices.py had
+# already hit this and re-fetches EEM on the same 7-calendar-day rule; mirror
+# that here so the tilt leg cannot silently outlive its data.
+EEM_MAX_CACHE_AGE_DAYS = 7
 
 
 def _round(x, n=4):
@@ -194,7 +202,14 @@ def _compute_states(breadth: pd.Series, off: float, on: float) -> pd.Series:
 def _load_eem_data() -> tuple[pd.Series, pd.Series] | tuple[None, None]:
     """Load (EEM_close, EEM_SPY_ratio). Tries em_regime_context.parquet
     first, then falls back to yfinance. Returns (None, None) on failure
-    so Phase 22 is gracefully skipped without breaking Phase 19."""
+    so Phase 22 is gracefully skipped without breaking Phase 19.
+
+    A cache that exists but has STOPPED is re-fetched (EEM_MAX_CACHE_AGE_DAYS,
+    calendar days so a weekend + holiday cluster never trips it). If that
+    re-fetch fails we keep the stale frame rather than disabling Phase 22 —
+    the EEM_MAX_STALE_DAYS cap downstream then holds the tilt flat and stamps
+    signal_stale, which is a better outcome than losing the diagnostics.
+    """
     cache = DATA_DIR / EEM_RATIO_CACHE
     df = None
     if cache.exists():
@@ -202,9 +217,21 @@ def _load_eem_data() -> tuple[pd.Series, pd.Series] | tuple[None, None]:
             df = pd.read_parquet(cache)
         except Exception:
             df = None
-    if df is None or EEM_TICKER not in df.columns or EEM_REFERENCE_TICKER not in df.columns:
+    usable = (df is not None and EEM_TICKER in df.columns
+              and EEM_REFERENCE_TICKER in df.columns)
+    stale = False
+    if usable and len(df.index):
+        last = pd.to_datetime(df.index.max())
+        cutoff = pd.Timestamp.now("UTC").tz_localize(None) - pd.Timedelta(
+            days=EEM_MAX_CACHE_AGE_DAYS)
+        stale = bool(last < cutoff)
+        if stale:
+            print(f"  {EEM_RATIO_CACHE} stale (last {last.date()}, beyond "
+                  f"{EEM_MAX_CACHE_AGE_DAYS}d) — re-fetching", flush=True)
+    if not usable or stale:
+        reason = "stale" if stale else "not in cache"
         print(f"  Fetching {EEM_TICKER} + {EEM_REFERENCE_TICKER} from "
-              f"yfinance (not in cache)...", flush=True)
+              f"yfinance ({reason})...", flush=True)
         try:
             import yfinance as yf
             raw = yf.download([EEM_TICKER, EEM_REFERENCE_TICKER],
@@ -213,13 +240,31 @@ def _load_eem_data() -> tuple[pd.Series, pd.Series] | tuple[None, None]:
                                group_by="ticker")
             closes = {t: raw[(t, "Close")] for t in (EEM_TICKER, EEM_REFERENCE_TICKER)
                       if (t, "Close") in raw.columns}
-            df = pd.DataFrame(closes)
-            df.index = pd.to_datetime(df.index).tz_localize(None)
+            fetched = pd.DataFrame(closes)
+            fetched.index = pd.to_datetime(fetched.index).tz_localize(None)
+            # Only accept a fetch that actually carries both legs and some
+            # rows; a partial download must not overwrite a good cache.
+            if (EEM_TICKER not in fetched.columns
+                    or EEM_REFERENCE_TICKER not in fetched.columns
+                    or fetched.dropna().empty):
+                raise ValueError(
+                    f"incomplete download (cols={list(fetched.columns)}, "
+                    f"rows={len(fetched)})")
+            df = fetched
             df.to_parquet(cache)
+            print(f"  {EEM_RATIO_CACHE} refreshed to {df.index.max().date()} "
+                  f"({len(df)} rows)", flush=True)
         except Exception as exc:
-            print(f"  WARN: Phase 22 disabled (cannot fetch EEM/SPY): {exc}",
-                  file=sys.stderr)
-            return None, None
+            if usable:
+                # Keep the stale frame: EEM_MAX_STALE_DAYS holds the tilt flat
+                # and stamps signal_stale, which beats losing Phase 22 whole.
+                print(f"  WARN: cannot refresh EEM/SPY ({exc}) — continuing on "
+                      f"the stale cache; tilt will be held flat and flagged",
+                      file=sys.stderr)
+            else:
+                print(f"  WARN: Phase 22 disabled (cannot fetch EEM/SPY): "
+                      f"{exc}", file=sys.stderr)
+                return None, None
     eem = df[EEM_TICKER].dropna()
     ratio = (df[EEM_TICKER] / df[EEM_REFERENCE_TICKER]).dropna()
     return eem, ratio
