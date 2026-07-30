@@ -50,6 +50,9 @@ sys.stdout.reconfigure(encoding="utf-8")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from overlay_state import tilt_display_state  # noqa: E402
+
 DEPLOYED_KEY = "blend_35_35_10_20_gated_eem_tilted"
 
 # Europe sleeve UCITS on Xetra — need .DE suffix and EUR/USD conversion.
@@ -353,10 +356,19 @@ def main() -> int:
     anchor_equity = blend["equity"][-1]
     print(f"Deployed blend anchor: {anchor_date}  equity = {anchor_equity:.6f}")
 
-    p22_active = (overlay.get("phase22_eem_tilt", {})
-                   .get("current_state") == "EM_TILT_ON")
+    # Point-in-time AND freshness-aware (2026-07-29). Reading current_state
+    # here published a 10% EEM leg for three weeks off a feed frozen at
+    # 2026-07-06 while the blend itself ran untilted; overlay_state mirrors
+    # the money path, so a stalled feed marks the book untilted and says so.
+    tilt = tilt_display_state(overlay, anchor_date)
+    p22_active = tilt["active"]
     regime_state = overlay.get("current_state", "RISK_ON")
-    print(f"Regime: {regime_state} | EEM tilt: {'ON' if p22_active else 'OFF'}")
+    print(f"Regime: {regime_state} | EEM tilt: {tilt['label']}")
+    if tilt["stale"]:
+        print(f"  WARN: EEM/SPY tilt feed stale since "
+              f"{tilt['signal_as_of']} — marking the book UNTILTED "
+              f"(baseline sleeve B at 0.35), matching the blend.",
+              file=sys.stderr)
 
     registry = _load_registry()
 
@@ -487,6 +499,10 @@ def main() -> int:
         "anchor_equity": anchor_equity,
         "regime_state": regime_state,
         "eem_tilt_active": p22_active,
+        # Carried so every downstream surface (dashboard, digest, factsheet)
+        # can badge a stalled tilt feed instead of inferring it is live.
+        "eem_tilt_signal_as_of": tilt["signal_as_of"],
+        "eem_tilt_signal_stale": tilt["stale"],
         "effective_weights": {k: round(v, 6) for k, v in
                                 sorted(deployed_weights.items(),
                                         key=lambda x: -x[1])},

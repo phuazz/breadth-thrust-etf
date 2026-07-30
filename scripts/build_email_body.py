@@ -27,7 +27,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from regime_publish import regime_publish_status  # noqa: E402
 from overlay_state import (  # noqa: E402
-    derisk_fraction as _gate_derisk_fraction, sleeve_nav_weights)
+    derisk_fraction as _gate_derisk_fraction, sleeve_nav_weights,
+    tilt_signal_as_of, tilt_signal_stale, tilt_stale_on)
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -240,13 +241,27 @@ def _regime_state(overlay):
     return (state, since)
 
 
-def _eem_tilt_state(overlay):
+def _eem_tilt_state(overlay, asof_iso):
+    """(state, since, ratio) for the tilt card.
+
+    Freshness-aware (2026-07-29): when the EEM/SPY feed has stalled the
+    blend runs untilted, so the card must not print EM_TILT_ON off the
+    last-valid ``current_state``. Mirrors the Phase 28.5 breadth-panel
+    freshness guard below, for the other overlay leg. ``ratio`` is dropped
+    on a stale feed because ``current_ratio`` is then a frozen reading.
+    """
     if not overlay or "phase22_eem_tilt" not in overlay:
         return ("DISABLED", "&mdash;", None)
     p22 = overlay["phase22_eem_tilt"]
     state = p22.get("current_state", "UNKNOWN")
     since = p22.get("current_state_since", "&mdash;")
     ratio = p22.get("current_ratio")
+    # Fail safe, not confident: with no as-of date we cannot prove the feed
+    # is fresh, so a flagged overlay reads OFF rather than defaulting to ON.
+    if tilt_signal_stale(overlay) and (
+            not asof_iso or tilt_stale_on(overlay, asof_iso)):
+        return ("EM_TILT_OFF",
+                f"feed stale since {tilt_signal_as_of(overlay)}", None)
     return (state, since, ratio)
 
 
@@ -502,13 +517,15 @@ def build_html(out_path: Path):
 
     # Regime + tilt state
     regime_state, regime_since = _regime_state(overlay)
-    tilt_state, tilt_since, tilt_ratio = _eem_tilt_state(overlay)
 
     # Phase 28.5 — regime publish freshness guard. The 2026-06-13 email
     # printed 'RISK_ON since 2025-05-02' while the panel had stopped
     # advancing 11 trading days earlier; nothing in this path noticed.
     breadth_panel = _load_json(DATA_DIR / "breadth_csp1.json") or {}
     panel_end_iso = breadth_panel.get("end_date")
+    # Tilt card resolved against the same panel date the regime card uses,
+    # so a stalled tilt feed is caught by the same yardstick.
+    tilt_state, tilt_since, tilt_ratio = _eem_tilt_state(overlay, panel_end_iso)
     regime_publish = None
     if panel_end_iso and overlay and overlay.get("current_breadth") is not None:
         gp = (overlay.get("gate_parameters") or {})

@@ -44,13 +44,69 @@ def state_active_on(events: list[dict] | None, date_iso: str,
     return active
 
 
+def tilt_signal_as_of(overlay: dict | None) -> str | None:
+    """Last date the EEM/SPY feed was observed within the freshness cap."""
+    p22 = (overlay or {}).get("phase22_eem_tilt") or {}
+    return p22.get("signal_as_of")
+
+
+def tilt_signal_stale(overlay: dict | None) -> bool:
+    """True when run_risk_overlay flagged the EEM/SPY feed as stalled."""
+    p22 = (overlay or {}).get("phase22_eem_tilt") or {}
+    return bool(p22.get("signal_stale"))
+
+
+def tilt_stale_on(overlay: dict | None, date_iso: str) -> bool:
+    """True when ``date_iso`` sits in the stalled tail of the tilt feed,
+    i.e. past ``signal_as_of`` while ``signal_stale`` is set. Dates on or
+    before ``signal_as_of`` rest on a real observation and are not stale."""
+    if not tilt_signal_stale(overlay) or not date_iso:
+        return False
+    as_of = tilt_signal_as_of(overlay)
+    return bool(as_of) and date_iso > as_of
+
+
 def tilt_active_on(overlay: dict | None, date_iso: str) -> bool:
     """Phase 22 EEM tilt state on ``date_iso`` from the overlay's own
     event log (NOT ``current_state``, which is only valid for the latest
-    date)."""
+    date).
+
+    A stalled feed reads OFF (2026-07-29). ``run_risk_overlay``'s money
+    path already forces the tilt flat on any day the EEM/SPY feed is stale
+    beyond ``EEM_MAX_STALE_DAYS``, reverting to the baseline 35/35/10/20
+    blend; the reporting surfaces read ``current_state``, which holds the
+    LAST VALID reading for display continuity, and so kept publishing
+    EM_TILT_ON. When em_regime_context.parquet froze on 2026-07-06 the two
+    disagreed for three weeks: the blend ran untilted while the live mark,
+    factsheet and weekly email all showed a 10% EEM leg funded out of
+    sleeve B. Mirroring the money path here makes reporting agree with the
+    engine by construction. Use ``tilt_stale_on`` to badge the reason.
+    """
     p22 = (overlay or {}).get("phase22_eem_tilt") or {}
-    return bool(p22.get("enabled")) and state_active_on(
-        p22.get("events"), date_iso, "EM_TILT_ON")
+    if not p22.get("enabled"):
+        return False
+    if tilt_stale_on(overlay, date_iso):
+        return False
+    return state_active_on(p22.get("events"), date_iso, "EM_TILT_ON")
+
+
+def tilt_display_state(overlay: dict | None, date_iso: str) -> dict:
+    """Everything a reporting surface needs to render the tilt leg:
+
+      - ``active``: whether the tilt applies on ``date_iso`` (stale -> False);
+      - ``stale``: whether ``date_iso`` falls in the stalled tail;
+      - ``signal_as_of``: last real observation behind the state;
+      - ``label``: display string, badged when stale.
+    """
+    active = tilt_active_on(overlay, date_iso)
+    stale = tilt_stale_on(overlay, date_iso)
+    as_of = tilt_signal_as_of(overlay)
+    if stale:
+        label = f"EM_TILT_OFF (feed stale since {as_of})"
+    else:
+        label = "EM_TILT_ON" if active else "EM_TILT_OFF"
+    return {"active": active, "stale": stale,
+            "signal_as_of": as_of, "label": label}
 
 
 def derisk_active_on(overlay: dict | None, date_iso: str) -> bool:

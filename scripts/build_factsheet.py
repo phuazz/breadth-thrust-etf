@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from regime_publish import regime_publish_status  # noqa: E402
 from overlay_state import (  # noqa: E402
     sleeve_nav_weights, state_active_on, derisk_fraction as _derisk_fraction,
-    tilt_weight as _p22_tilt_weight)
+    tilt_weight as _p22_tilt_weight, tilt_display_state)
 
 import numpy as np
 import pandas as pd
@@ -1166,7 +1166,10 @@ def build_regime_panel(overlay, page_w, styles,
                 if since_19 else 0)
     risk_on = state_19 == "RISK_ON"
     p22 = (overlay or {}).get("phase22_eem_tilt", {})
-    p22_on = p22.get("enabled") and p22.get("current_state") == "EM_TILT_ON"
+    # Freshness-aware (2026-07-29): a stalled EEM/SPY feed reads OFF, as the
+    # blend itself does, rather than publishing a 10% leg off a frozen state.
+    _tilt = tilt_display_state(overlay, today.isoformat())
+    p22_on = _tilt["active"]
     since_22 = p22.get("current_state_since")
     days_22 = ((today - datetime.fromisoformat(since_22).date()).days
                 if since_22 else 0)
@@ -1181,10 +1184,17 @@ def build_regime_panel(overlay, page_w, styles,
          GOOD if risk_on else BAD,
          f"Active since {since_19} ({days_19}d)" if since_19 else "—",
          12),
-        ("EM TILT STATE", p22.get("current_state", "—") if p22 else "—",
-         WARN if p22_on else INK_FAINT,
-         f"Active since {since_22} ({days_22}d)" if since_22 else
-         ("Armed — awaiting golden cross" if p22 and p22.get("enabled") else "—"),
+        # Never print current_state raw: on a stalled feed it reads
+        # EM_TILT_ON while the book is marked untilted.
+        ("EM TILT STATE",
+         ("EM_TILT_OFF" if _tilt["stale"]
+          else (p22.get("current_state", "—") if p22 else "—")),
+         BAD if _tilt["stale"] else (WARN if p22_on else INK_FAINT),
+         (f"Feed stale since {_tilt['signal_as_of']} — held untilted"
+          if _tilt["stale"] else
+          (f"Active since {since_22} ({days_22}d)" if since_22 else
+           ("Armed — awaiting golden cross"
+            if p22 and p22.get("enabled") else "—"))),
          12),
         ("LIVE BLEND TODAY", blend, ACCENT, "Target allocation today", 9),
     ]
@@ -1504,7 +1514,16 @@ def build_watchlist(overlay, page_w, styles,
             fast = p22.get("current_fast_ma", 0)
             slow = p22.get("current_slow_ma", 0)
             spread_pct = ((fast - slow) / slow * 100) if slow else 0
-            if p22.get("current_state") == "EM_TILT_ON":
+            _wl_tilt = tilt_display_state(overlay, today.isoformat())
+            if _wl_tilt["stale"]:
+                items.append({
+                    "label": "EEM/SPY 50d vs 200d MA",
+                    "value": "no data",
+                    "trigger": "Deactivate on death cross (50d < 200d)",
+                    "margin": f"Feed stale since {_wl_tilt['signal_as_of']}",
+                    "status": "TILT OFF", "status_col": BAD,
+                })
+            elif _wl_tilt["active"]:
                 items.append({
                     "label": "EEM/SPY 50d vs 200d MA",
                     "value": f"+{spread_pct:.1f}%",
@@ -1645,10 +1664,16 @@ def build_parameters_footer(overlay, sleeves, breadth_end_date,
     on_thr = gp.get("on_threshold", 0.50) * 100
     derisk = gp.get("derisk_fraction", 0.50) * 100
     p22 = (overlay or {}).get("phase22_eem_tilt") or {}
-    tilt_active = p22.get("enabled") and p22.get("current_state") == "EM_TILT_ON"
+    # Compared against the breadth panel end date, which is what this footer
+    # documents; a tilt signal older than the panel is a stalled feed.
+    _ft_tilt = tilt_display_state(overlay, breadth_end_date)
+    tilt_active = _ft_tilt["active"]
     blend_line = ("35% A · 25% B · 10% C · 20% D · 10% EEM tilt"
                    if tilt_active
                    else "35% A · 35% B · 10% C · 20% D")
+    if _ft_tilt["stale"]:
+        blend_line += (f" (EEM tilt held OFF — feed stale since "
+                        f"{_ft_tilt['signal_as_of']})")
 
     def _last_rebal(key):
         th = (sleeves.get(key, {}).get("headline") or {}).get(
