@@ -2185,14 +2185,14 @@
     </section>
 
     <section>
-      <h2>Live signal — Asset class &amp; Thematic momentum (Strategy B + C universes)</h2>
-      <p class="section-sub">The live momentum signal that drives B and C rebalance decisions. This panel shows both the 13 Strategy B asset-class ETFs and the 25 Strategy C thematic ETFs together because they share the same signal definition. Default: today's Strategy B leader + SPY as reference. Y-axis is distance above 200d MA (can be negative). Use the chips to switch between B and C universe views, and the timeframe selector above the chart to switch between 3M / YTD / 1Y / 3Y / 5Y / MAX windows (drag across the plot to zoom into a custom date range, double-click to reset). The y-axis rescales to the selected window. <em>Strategy C tab has a link back to this chart.</em></p>
-      <div class="etf-chip-actions" id="detail-bc-actions"></div>
-      <div class="etf-chip-group" id="detail-bc-chips"></div>
-      <div id="detail-momentum-chart" class="chart tall"></div>
+      <h2>Live signal — Asset class momentum (Strategy B universe)</h2>
+      <p class="section-sub">The live momentum signal that drives Strategy B rebalance decisions, across the 13 asset-class ETFs. Y-axis is distance above each ETF's own 200d MA (can be negative); the dashed guide at 0% is B's eligibility line — only names above their own 200d MA are ranked. Default: today's Strategy B leader + SPY as reference. Use the chips to add or remove ETFs, and the timeframe selector above the chart to switch between 3M / YTD / 1Y / 3Y / 5Y / MAX windows (drag across the plot to zoom into a custom date range, double-click to reset). The y-axis rescales to the selected window. <em>Strategy C applies the same signal definition to its own 25-ETF thematic universe under a stricter floor — that chart now lives on the Strategy C tab.</em></p>
+      <div class="etf-chip-actions" id="detail-b-actions"></div>
+      <div class="etf-chip-group" id="detail-b-chips"></div>
+      <div id="detail-b-momentum-chart" class="chart tall"></div>
       <h3 style="margin-top:24px;">Trend snapshot</h3>
       <p class="section-sub">Current momentum signal + change over recent past. Sorted by current signal value.</p>
-      <table class="small-table" id="detail-bc-snapshot-table"><thead></thead><tbody></tbody></table>
+      <table class="small-table" id="detail-b-snapshot-table"><thead></thead><tbody></tbody></table>
     </section>
 
     <section>
@@ -2271,9 +2271,15 @@
       <p class="section-sub full" id="c-holdings-note" style="margin-top:8px;font-size:12px;"></p>
     </section>
 
-    <section style="background:var(--bg-card);border-radius:6px;padding:14px 18px;border:1px solid var(--border);">
-      <h3 style="margin:0 0 6px 0;">Live signal — Thematic momentum</h3>
-      <p style="margin:0;color:var(--ink-soft);font-size:13px;">Strategy C shares its momentum-signal definition with Strategy B; the combined live signal chart (with both B asset-class and C thematic universes selectable via the chip group) is rendered in the <a href="#" onclick="document.querySelector('[data-tab=asset]').click();return false;"><strong>Strategy B tab → Live signal section</strong></a>. Click "Strategy C today" in that chart's action row to pre-select the current C holdings.</p>
+    <section>
+      <h2>Live signal — Thematic momentum (Strategy C universe)</h2>
+      <p class="section-sub">The live momentum signal that drives Strategy C rebalance decisions, across the 25 thematic ETFs plus SHY (the cash proxy). Same signal definition as Strategy B — distance above each ETF's own 200d MA — applied to a different universe under a stricter rule, so two guides are drawn: 0% marks the 200d MA crossing, and the dotted line at <strong>+5%</strong> is C's hard signal floor. That makes the eligible set readable at a glance, and with it the distance to the 30%-of-universe sleeve-breadth gate — use the "Above +5% floor" chip action to select exactly the themes clearing it today. Default: today's Strategy C holdings + SPY as reference (SPY is not a thematic candidate; it is drawn from Strategy B's series as the sleeve's benchmark, clipped to C's own history). Drag across the plot to zoom into a custom date range, double-click to reset. <em>Series begin 2018-11 with the sleeve's backtest, except 159801.SZ which lists from 2020-11.</em></p>
+      <div class="etf-chip-actions" id="detail-c-actions"></div>
+      <div class="etf-chip-group" id="detail-c-chips"></div>
+      <div id="detail-c-momentum-chart" class="chart tall"></div>
+      <h3 style="margin-top:24px;">Trend snapshot</h3>
+      <p class="section-sub">Current momentum signal + change over recent past. Sorted by current signal value. The <em>current signal</em> column marks green at or above C's +5% floor, not at 0% — eligibility here needs the floor, not merely an uptrend.</p>
+      <table class="small-table" id="detail-c-snapshot-table"><thead></thead><tbody></tbody></table>
     </section>
 
     <div class="verdict" style="border-left-color:var(--accent);background:rgba(19,81,180,0.04);">
@@ -6311,15 +6317,72 @@ function renderDetailEuropeSection() {
   }
 }
 
-// ============= ETF Detail — Section 2 (B + C momentum) ===================
-// Strategies B and C use ETF-level momentum (distance above own 200d MA)
-// rather than constituent breadth. Different y-axis (can be negative),
-// different chip group, but same compare-multiple UX as Section 1.
+// ============= Live momentum signal — Strategies B and C =================
+// B and C share ONE signal definition — ETF-level momentum measured as
+// (close - MA200) / MA200 on weekly Friday samples — but rank it over
+// different universes under different rules. B ranks everything above its
+// own 200d MA and weights by signal share; C applies a +5% hard floor,
+// equal-weights the survivors, and exits the whole sleeve to SHY when
+// fewer than 30% of its universe clears that floor. Same chart shape over
+// two universes, so one implementation is driven by the config below.
+//
+// History: this was a single merged "B + C" chart carried in the Strategy
+// B tab, with the C tab holding only a cross-link. That was a leftover of
+// Phase 26.5, which dissolved the old ETF Detail tab and deferred the
+// per-universe split "to keep the JS surgery small". Split here (Phase
+// 29): each tab now carries its own universe, chip group, guides — the
+// +5% floor is C's rule and is drawn on C only — and snapshot table.
 
-let _detailBCSelected = null;
+const _MOM_VIEWS = {
+  b: {
+    key: 'b',
+    name: 'Strategy B',
+    primary: 'asset_class',   // window.DATA root carrying per_etf_signal
+    fallback: 'thematic',     // source for cross-universe reference lines
+    ids: {
+      chips:   'detail-b-chips',
+      actions: 'detail-b-actions',
+      chart:   'detail-b-momentum-chart',
+      table:   'detail-b-snapshot-table',
+    },
+    // B ranks every name sitting above its own 200d MA, so 0% is the only
+    // threshold that means anything on this universe. The +5% guide is
+    // Strategy C's eligibility floor and is not drawn here.
+    floorGuide: false,
+    // Seed for the y-range: floors the visible span so the 0% guide sits
+    // in a readable band instead of a quiet window filling edge-to-edge.
+    // B's asset-class signals live in a tighter range than C's thematics,
+    // hence the tighter seed (the merged chart used C's wider one for
+    // both, which pushed B's lines into the bottom third of the panel).
+    ySeed: [-15, 25],
+    extras: [],
+  },
+  c: {
+    key: 'c',
+    name: 'Strategy C',
+    primary: 'thematic',
+    fallback: 'asset_class',
+    ids: {
+      chips:   'detail-c-chips',
+      actions: 'detail-c-actions',
+      chart:   'detail-c-momentum-chart',
+      table:   'detail-c-snapshot-table',
+    },
+    floorGuide: true,
+    ySeed: [-20, 50],
+    // SPY is not a thematic candidate but it IS the sleeve's benchmark, so
+    // it is offered as a reference line drawn from B's series — identical
+    // computation on the same ticker — clipped to C's own history.
+    extras: ['SPY'],
+  },
+};
 
+const _momSelected = { b: null, c: null };
+
+// Label and colour lookups deliberately span BOTH universes: a view can
+// borrow a reference line from the other one, and the current-selection
+// tables elsewhere on the page call _bcColour for their own swatches.
 function _bcLabel(etf) {
-  // Look up label across B and C universes
   const ac = window.DATA?.asset_class?.universe || [];
   const tc = window.DATA?.thematic?.universe || [];
   const fromB = ac.find(u => u.etf === etf);
@@ -6337,134 +6400,199 @@ function _bcColour(etf) {
   return acC[etf] || tcC[etf] || ETF_COLOURS[etf] || '#999';
 }
 
-function _allBCEtfs() {
-  const bMap = window.DATA?.asset_class?.per_etf_signal || {};
-  const cMap = window.DATA?.thematic?.per_etf_signal || {};
-  return [...new Set([...Object.keys(bMap), ...Object.keys(cMap)])];
+function _momFloorPct() {
+  const v = window.DATA?.thematic?.signal_floor_pct;
+  return typeof v === 'number' ? v : 5;
 }
 
-function _initDetailBCSelection() {
-  if (_detailBCSelected !== null) return;
-  _detailBCSelected = new Set();
-  _bcSelectLeaderVsSPY();
+function _momMap(root) {
+  return window.DATA?.[root]?.per_etf_signal || {};
 }
 
-function _bcSelectLeaderVsSPY() {
-  _detailBCSelected.clear();
-  // Today's Strategy B leader + SPY as reference
-  const last = window.DATA?.asset_class?.headline?.trade_history?.slice(-1)[0];
-  const leader = last?.holdings?.[0]?.etf;
-  if (leader) _detailBCSelected.add(leader);
-  if (_allBCEtfs().includes('SPY')) _detailBCSelected.add('SPY');
-  if (_detailBCSelected.size < 2 && last?.holdings?.[1]) {
-    _detailBCSelected.add(last.holdings[1].etf);
+// Earliest date in the view's OWN universe. Reference series pulled from
+// the other universe are clipped to it, so selecting SPY (B series, from
+// 2007) on the C chart does not stretch the MAX window back eleven years
+// before the thematic sleeve existed.
+function _momViewStart(view) {
+  let start = null;
+  Object.values(_momMap(view.primary)).forEach(s => {
+    const d0 = s?.dates?.[0];
+    if (d0 && (start === null || d0 < start)) start = d0;
+  });
+  return start;
+}
+
+function _momSeries(view, etf) {
+  const own = _momMap(view.primary)[etf];
+  if (own) return own;
+  const ref = _momMap(view.fallback)[etf];
+  if (!ref?.dates?.length) return null;
+  const start = _momViewStart(view);
+  if (!start) return ref;
+  const i = ref.dates.findIndex(d => d >= start);
+  if (i <= 0) return ref;
+  return { dates: ref.dates.slice(i), signal_pct: ref.signal_pct.slice(i) };
+}
+
+// Chip order follows the engine's universe ordering (equities → intl →
+// real estate → commodities → bonds → cash for B; theme groups for C),
+// with any cross-universe reference appended at the end.
+function _momUniverse(view) {
+  const own = Object.keys(_momMap(view.primary));
+  const extras = (view.extras || [])
+    .filter(e => !own.includes(e) && _momMap(view.fallback)[e]);
+  return [...own, ...extras];
+}
+
+function _momHoldings(root) {
+  const last = window.DATA?.[root]?.headline?.trade_history?.slice(-1)[0];
+  return (last?.holdings || []).map(h => h.etf);
+}
+
+function _momLatest(view, etf) {
+  const s = _momSeries(view, etf)?.signal_pct;
+  return s?.length ? s[s.length - 1] : null;
+}
+
+function _momDefaultSelection(view) {
+  const sel = new Set();
+  if (view.key === 'b') {
+    // Today's B leader plus SPY as the market reference.
+    const held = _momHoldings('asset_class');
+    if (held[0]) sel.add(held[0]);
+    if (_momMap('asset_class').SPY) sel.add('SPY');
+    if (sel.size < 2 && held[1]) sel.add(held[1]);
+  } else {
+    // Today's C holdings plus the SPY reference. When the sleeve sits
+    // entirely in SHY — breadth gate tripped, or nothing clearing the
+    // floor — that is precisely what the reader should see, so the
+    // holdings are taken as they are.
+    _momHoldings('thematic').forEach(e => sel.add(e));
+    sel.add('SPY');
   }
+  return sel;
 }
 
-function _bcSelectStrategyB() {
-  _detailBCSelected.clear();
-  const last = window.DATA?.asset_class?.headline?.trade_history?.slice(-1)[0];
-  last?.holdings?.forEach(h => _detailBCSelected.add(h.etf));
+// Every theme currently clearing C's hard signal floor — the eligible set
+// at the next rebalance, and the population the 30% sleeve-breadth gate
+// is measured against. Cash proxy and reference lines are excluded.
+function _momAboveFloor(view) {
+  const floor = _momFloorPct();
+  const sel = new Set();
+  Object.keys(_momMap(view.primary)).forEach(etf => {
+    if (etf === 'SHY' || etf === 'IEF') return;
+    const cur = _momLatest(view, etf);
+    if (cur != null && cur >= floor) sel.add(etf);
+  });
+  return sel;
 }
 
-function _bcSelectStrategyC() {
-  _detailBCSelected.clear();
-  const last = window.DATA?.thematic?.headline?.trade_history?.slice(-1)[0];
-  last?.holdings?.forEach(h => _detailBCSelected.add(h.etf));
-}
-
-function _bcSelectAll() {
-  _detailBCSelected.clear();
-  _allBCEtfs().forEach(e => _detailBCSelected.add(e));
-}
-
-function _bcSelectClear() {
-  _detailBCSelected.clear();
-}
-
-function _renderDetailBCChips() {
-  const allEtfs = _allBCEtfs();
-  if (allEtfs.length === 0) return;
-  const chipsEl = document.getElementById('detail-bc-chips');
-  if (!chipsEl) return;
-  // Group chips by family: B universe first, then C-only, then IEF (cash)
-  const bSet = new Set(Object.keys(window.DATA?.asset_class?.per_etf_signal || {}));
-  const cSet = new Set(Object.keys(window.DATA?.thematic?.per_etf_signal || {}));
-  const ordered = [
-    ...[...bSet].filter(e => e !== 'IEF'),
-    ...[...cSet].filter(e => !bSet.has(e) && e !== 'IEF'),
-    ...(bSet.has('IEF') || cSet.has('IEF') ? ['IEF'] : []),
+function _momActions(view) {
+  const floor = _momFloorPct();
+  const common = [
+    { id: 'all',  label: 'All',   title: `All ${view.name} ETFs (busy)`,
+      fn: () => new Set(_momUniverse(view)) },
+    { id: 'none', label: 'Clear', title: 'Clear the selection',
+      fn: () => new Set() },
   ];
-  chipsEl.innerHTML = ordered.map(etf => {
-    const isSel = _detailBCSelected.has(etf);
+  if (view.key === 'b') {
+    return [
+      { id: 'default', label: 'B leader vs SPY',
+        title: "Strategy B's top holding + SPY",
+        fn: () => _momDefaultSelection(view) },
+      { id: 'held', label: 'Strategy B today',
+        title: 'All Strategy B current holdings',
+        fn: () => new Set(_momHoldings('asset_class')) },
+      ...common,
+    ];
+  }
+  return [
+    { id: 'default', label: 'C today vs SPY',
+      title: 'Strategy C current holdings + SPY as reference',
+      fn: () => _momDefaultSelection(view) },
+    { id: 'held', label: 'Strategy C today',
+      title: 'All Strategy C current holdings',
+      fn: () => new Set(_momHoldings('thematic')) },
+    { id: 'floor', label: `Above +${floor.toFixed(0)}% floor`,
+      title: `Every theme currently clearing C's +${floor.toFixed(0)}% signal floor`,
+      fn: () => _momAboveFloor(view) },
+    ...common,
+  ];
+}
+
+function _momInitSelection(view) {
+  if (_momSelected[view.key] !== null) return;
+  _momSelected[view.key] = _momDefaultSelection(view);
+}
+
+function _momRenderChips(view) {
+  const universe = _momUniverse(view);
+  if (universe.length === 0) return;
+  const chipsEl = document.getElementById(view.ids.chips);
+  if (!chipsEl) return;
+  const ownSet = new Set(Object.keys(_momMap(view.primary)));
+  const selected = _momSelected[view.key];
+  chipsEl.innerHTML = universe.map(etf => {
+    const isSel = selected.has(etf);
     const colour = _bcColour(etf);
-    // Current signal value for the meta-pill
-    const ser = window.DATA?.asset_class?.per_etf_signal?.[etf]
-      || window.DATA?.thematic?.per_etf_signal?.[etf];
-    const cur = ser?.signal_pct?.[ser.signal_pct.length - 1];
+    const cur = _momLatest(view, etf);
     const curStr = cur != null ? `${cur >= 0 ? '+' : ''}${cur.toFixed(0)}%` : '';
-    const family = bSet.has(etf) && etf !== 'IEF' ? 'B'
-                 : (cSet.has(etf) && etf !== 'IEF' ? 'C' : '∗');
+    // Only the exceptions carry a tag: the cash proxy, and any reference
+    // line borrowed from the other universe. Everything else is an
+    // ordinary candidate in this view's universe and needs no label.
+    const tag = !ownSet.has(etf) ? 'ref · '
+              : (etf === 'SHY' || etf === 'IEF') && view.key === 'c' ? 'cash · '
+              : '';
     return `<div class="etf-chip ${isSel ? 'selected' : ''}" data-etf="${etf}">
       <span class="swatch" style="background:${isSel ? colour : 'var(--border-strong)'};"></span>
       <span>${etf}</span>
-      <span class="chip-meta">${family} · ${curStr}</span>
+      <span class="chip-meta">${tag}${curStr}</span>
     </div>`;
   }).join('');
   chipsEl.querySelectorAll('.etf-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       const etf = chip.dataset.etf;
-      if (_detailBCSelected.has(etf)) _detailBCSelected.delete(etf);
-      else _detailBCSelected.add(etf);
-      renderDetailMomentumSection();
+      if (selected.has(etf)) selected.delete(etf);
+      else selected.add(etf);
+      renderMomentumView(view.key);
     });
   });
-  const actionsEl = document.getElementById('detail-bc-actions');
+  const actionsEl = document.getElementById(view.ids.actions);
   if (actionsEl) {
-    actionsEl.innerHTML = `
-      <button data-action="vs-spy" title="Strategy B's top holding + SPY">B leader vs SPY</button>
-      <button data-action="stratb" title="All Strategy B current holdings">Strategy B today</button>
-      <button data-action="stratc" title="All Strategy C current holdings">Strategy C today</button>
-      <button data-action="all" title="All B + C ETFs (busy)">All</button>
-      <button data-action="none">Clear</button>
-    `;
-    const handlers = {
-      'vs-spy': _bcSelectLeaderVsSPY,
-      'stratb': _bcSelectStrategyB,
-      'stratc': _bcSelectStrategyC,
-      'all':    _bcSelectAll,
-      'none':   _bcSelectClear,
-    };
+    const actions = _momActions(view);
+    actionsEl.innerHTML = actions.map(a =>
+      `<button data-action="${a.id}" title="${a.title}">${a.label}</button>`
+    ).join('\n');
     actionsEl.querySelectorAll('button').forEach(b => {
       b.addEventListener('click', () => {
-        handlers[b.dataset.action]?.();
-        renderDetailMomentumSection();
+        const action = actions.find(a => a.id === b.dataset.action);
+        if (action) _momSelected[view.key] = action.fn();
+        renderMomentumView(view.key);
       });
     });
   }
 }
 
-function renderDetailMomentumSection() {
-  _initDetailBCSelection();
-  _renderDetailBCChips();
+function renderMomentumView(viewKey) {
+  const view = _MOM_VIEWS[viewKey];
+  if (!view) return;
+  _momInitSelection(view);
+  _momRenderChips(view);
 
-  const bMap = window.DATA?.asset_class?.per_etf_signal || {};
-  const cMap = window.DATA?.thematic?.per_etf_signal || {};
-  const selected = [..._detailBCSelected].sort();
+  const selected = [..._momSelected[view.key]].sort();
+  const chartEl = document.getElementById(view.ids.chart);
+  if (!chartEl) return;
 
-  // For each selected ETF, prefer B's series if present, else C's. B's
-  // series goes back to 2008, C's only to 2018-11, so this gives the
-  // longest history for ETFs that exist in both (none currently except IEF).
   if (selected.length === 0) {
-    Plotly.purge('detail-momentum-chart');
-    document.getElementById('detail-momentum-chart').innerHTML =
+    Plotly.purge(view.ids.chart);
+    chartEl.innerHTML =
       '<p style="padding:40px;color:var(--ink-faint);text-align:center;">Select one or more ETFs above to compare momentum signals.</p>';
-    return _renderDetailMomentumSnapshot(bMap, cMap, selected);
+    return _momRenderSnapshot(view, selected);
   }
 
-  _initPeriodSelectorForChart('detail-momentum-chart', 'max', (period) => {
+  _initPeriodSelectorForChart(view.ids.chart, 'max', (period) => {
     const traces = selected.map(etf => {
-      const d = bMap[etf] || cMap[etf];
+      const d = _momSeries(view, etf);
       if (!d) return null;
       const s = _sliceByPeriod(d.dates, d.signal_pct, period);
       return {
@@ -6477,11 +6605,9 @@ function renderDetailMomentumSection() {
     }).filter(Boolean);
 
     // Y-axis range is computed from the VISIBLE slice, not full history,
-    // so a short window is not squashed by the 2008 extremes carried in
-    // B's series (MAX renders [-52,52]; the 1Y window [-22,52]). The
-    // -20/+50 seed floors the span so the 0% and +5% guides always sit
-    // in a readable band rather than filling a quiet window edge-to-edge.
-    let yMin = -20, yMax = 50;
+    // so a short window is not squashed by the extremes carried further
+    // back in the series. The seed floors the span (see view config).
+    let [yMin, yMax] = view.ySeed;
     traces.forEach(t => {
       t.y.forEach(v => {
         if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; }
@@ -6490,22 +6616,33 @@ function renderDetailMomentumSection() {
     yMin = Math.floor(yMin / 5) * 5 - 2;
     yMax = Math.ceil(yMax / 5) * 5 + 2;
 
-    // Zero line + +5% floor (Strategy C's signal floor) as horizontal
-    // guides, spanning the visible window so they do not stop short.
+    // Horizontal guides spanning the UNION of the visible series, not the
+    // first one — universes hold ragged start dates (159801.SZ lists from
+    // 2020, the SPY reference is clipped to the sleeve's start), and
+    // anchoring on traces[0] left the guides stopping short.
     const guides = [];
-    if (traces.length > 0 && traces[0].x.length > 0) {
-      const x0 = traces[0].x[0];
-      const xN = traces[0].x[traces[0].x.length - 1];
+    let x0 = null, xN = null;
+    traces.forEach(t => {
+      if (!t.x?.length) return;
+      const a = t.x[0], b = t.x[t.x.length - 1];
+      if (x0 === null || a < x0) x0 = a;
+      if (xN === null || b > xN) xN = b;
+    });
+    if (x0 !== null) {
       guides.push({
         x: [x0, xN], y: [0, 0], mode: 'lines', name: '0% (200d MA)',
         line: { color: '#9ca3af', width: 1, dash: 'dash' },
         hoverinfo: 'skip', showlegend: false,
       });
-      guides.push({
-        x: [x0, xN], y: [5, 5], mode: 'lines', name: 'C signal floor (+5%)',
-        line: { color: '#dc2626', width: 1, dash: 'dot' },
-        hoverinfo: 'skip', showlegend: false,
-      });
+      if (view.floorGuide) {
+        const floor = _momFloorPct();
+        guides.push({
+          x: [x0, xN], y: [floor, floor], mode: 'lines',
+          name: `C signal floor (+${floor.toFixed(0)}%)`,
+          line: { color: '#dc2626', width: 1, dash: 'dot' },
+          hoverinfo: 'skip', showlegend: false,
+        });
+      }
     }
 
     const layout = {
@@ -6527,18 +6664,18 @@ function renderDetailMomentumSection() {
       hovermode: 'x unified',
       legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 11 } },
     };
-    Plotly.react('detail-momentum-chart', [...guides, ...traces], layout,
+    Plotly.react(view.ids.chart, [...guides, ...traces], layout,
                   { displayModeBar: false, responsive: true });
   }, _WEEKLY_PERIODS);
 
-  return _renderDetailMomentumSnapshot(bMap, cMap, selected);
+  return _momRenderSnapshot(view, selected);
 }
 
-// Snapshot table for the B+C momentum comparison. Split out of
-// renderDetailMomentumSection so the chart body can early-return on an
-// empty selection and still refresh the table.
-function _renderDetailMomentumSnapshot(bMap, cMap, selected) {
-  const snap = document.getElementById('detail-bc-snapshot-table');
+// Snapshot table for a momentum view. Split out of renderMomentumView so
+// the chart body can early-return on an empty selection and still refresh
+// the table.
+function _momRenderSnapshot(view, selected) {
+  const snap = document.getElementById(view.ids.table);
   if (!snap) return;
   snap.querySelector('thead').innerHTML = `<tr>
     <th>ETF</th><th>Description / family</th>
@@ -6548,12 +6685,10 @@ function _renderDetailMomentumSnapshot(bMap, cMap, selected) {
     <th class="num">Δ 52 weeks</th>
     <th>In portfolio?</th>
   </tr>`;
-  const bLast = window.DATA?.asset_class?.headline?.trade_history?.slice(-1)[0];
-  const cLast = window.DATA?.thematic?.headline?.trade_history?.slice(-1)[0];
-  const bHeld = new Set((bLast?.holdings || []).map(h => h.etf));
-  const cHeld = new Set((cLast?.holdings || []).map(h => h.etf));
+  const bHeld = new Set(_momHoldings('asset_class'));
+  const cHeld = new Set(_momHoldings('thematic'));
   const rows = selected.map(etf => {
-    const d = bMap[etf] || cMap[etf];
+    const d = _momSeries(view, etf);
     if (!d) return null;
     const s = d.signal_pct;
     const cur = s[s.length - 1];
@@ -6566,13 +6701,16 @@ function _renderDetailMomentumSnapshot(bMap, cMap, selected) {
     (v > 0 ? `<span class="good">▲ ${v.toFixed(1)}pp</span>`
            : v < 0 ? `<span class="bad">▼ ${Math.abs(v).toFixed(1)}pp</span>`
                    : '0.0pp');
+  // The "good" threshold is C's eligibility floor on the C view and the
+  // 200d MA crossing on B's — each view marks its OWN rule.
+  const goodAt = view.floorGuide ? _momFloorPct() : 0;
   snap.querySelector('tbody').innerHTML = rows.map(r => {
     const tags = [];
     if (r.inB) tags.push('<span class="strategy-tag b">B</span>');
     if (r.inC) tags.push('<span class="strategy-tag c">C</span>');
     const tagStr = tags.join(' ') || '<span style="color:var(--ink-faint);font-size:12px;">no</span>';
     const sgn = r.cur >= 0 ? '+' : '';
-    const curCls = r.cur >= 5 ? 'good' : r.cur >= 0 ? '' : 'bad';
+    const curCls = r.cur >= goodAt ? 'good' : r.cur >= 0 ? '' : 'bad';
     return `<tr>
       <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${r.etf}</strong></td>
       <td style="color:var(--ink-faint);font-size:12px;">${_bcLabel(r.etf)}</td>
@@ -10074,9 +10212,11 @@ function activateTab(name) {
     // Phase 27.5 — the legacy 'detail' tab was removed in Phase 26.5;
     // its three signal-chart sections were distributed into Strategy
     // A / B / D tabs but the JS first-render path was never updated,
-    // so detail-breadth-chart, detail-momentum-chart, and detail-d-
+    // so detail-breadth-chart, the B+C momentum chart, and detail-d-
     // breadth-chart never rendered. Each section now fires on its
-    // new host tab's first activation below.
+    // new host tab's first activation below. Phase 29 split the merged
+    // B+C chart into per-universe views, so the C tab now renders its
+    // own chart here instead of cross-linking to B's.
     if (name === 'portfolio') {
       renderRecipeStats();
       _renderAHoldings();  // Phase 28.4 — current selection table
@@ -10098,7 +10238,7 @@ function activateTab(name) {
       renderAssetTradeTable();
       renderAssetAttribution();
       renderRightTail('asset-right-tail', 'strategy_b');
-      renderDetailMomentumSection();  // Section 2 — B+C momentum
+      renderMomentumView('b');  // Live signal — Strategy B universe
     }
     if (name === 'thematic') {
       renderThematicRecipeStats();
@@ -10109,8 +10249,7 @@ function activateTab(name) {
       renderThematicTradeTable();
       renderThematicAttribution();
       renderRightTail('thematic-right-tail', 'strategy_c');
-      // Strategy C tab cross-links to Strategy B's combined B+C chart;
-      // no per-tab chart is rendered here (see the link card in the C tab).
+      renderMomentumView('c');  // Live signal — Strategy C universe
     }
     if (name === 'europe') {
       renderEuropeRecipeStats();
@@ -10157,10 +10296,11 @@ function activateTab(name) {
     }
     if (name === 'asset') {
       try { Plotly.Plots.resize('asset-equity-chart'); Plotly.Plots.resize('asset-allocation-chart'); } catch(e){}
-      try { Plotly.Plots.resize('detail-momentum-chart'); } catch(e){}
+      try { Plotly.Plots.resize('detail-b-momentum-chart'); } catch(e){}
     }
     if (name === 'thematic') {
       try { Plotly.Plots.resize('thematic-equity-chart'); Plotly.Plots.resize('thematic-allocation-chart'); } catch(e){}
+      try { Plotly.Plots.resize('detail-c-momentum-chart'); } catch(e){}
     }
     if (name === 'europe') {
       try { Plotly.Plots.resize('europe-equity-chart'); Plotly.Plots.resize('europe-allocation-chart'); } catch(e){}
