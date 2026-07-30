@@ -6449,6 +6449,13 @@ function _momHoldings(root) {
   return (last?.holdings || []).map(h => h.etf);
 }
 
+// Date the holdings above were set. Sleeves can rebalance on different
+// dates, so a "held by" tag states its OWN sleeve's date rather than
+// borrowing the date of the tab it happens to be rendered on.
+function _momRebalDate(root) {
+  return window.DATA?.[root]?.headline?.trade_history?.slice(-1)[0]?.date || null;
+}
+
 function _momLatest(view, etf) {
   const s = _momSeries(view, etf)?.signal_pct;
   return s?.length ? s[s.length - 1] : null;
@@ -6683,10 +6690,12 @@ function _momRenderSnapshot(view, selected) {
     <th class="num">Δ 4 weeks</th>
     <th class="num">Δ 13 weeks</th>
     <th class="num">Δ 52 weeks</th>
-    <th>In portfolio?</th>
+    <th title="Which deployed sleeve holds this ETF right now. Not scoped to this tab — SPY carries a B tag on the Strategy C view because Strategy B is holding it, not because it is a thematic candidate.">Held by</th>
   </tr>`;
   const bHeld = new Set(_momHoldings('asset_class'));
   const cHeld = new Set(_momHoldings('thematic'));
+  const bAsOf = _momRebalDate('asset_class');
+  const cAsOf = _momRebalDate('thematic');
   const rows = selected.map(etf => {
     const d = _momSeries(view, etf);
     if (!d) return null;
@@ -6705,10 +6714,14 @@ function _momRenderSnapshot(view, selected) {
   // 200d MA crossing on B's — each view marks its OWN rule.
   const goodAt = view.floorGuide ? _momFloorPct() : 0;
   snap.querySelector('tbody').innerHTML = rows.map(r => {
+    // Tags name the sleeve HOLDING the ETF, which is not always the sleeve
+    // whose tab this is: SPY sits on the C view as the sleeve's benchmark
+    // reference and is held by B. Each tag carries the holding sleeve's own
+    // rebalance date, since B and C can rebalance on different dates.
     const tags = [];
-    if (r.inB) tags.push('<span class="strategy-tag b">B</span>');
-    if (r.inC) tags.push('<span class="strategy-tag c">C</span>');
-    const tagStr = tags.join(' ') || '<span style="color:var(--ink-faint);font-size:12px;">no</span>';
+    if (r.inB) tags.push(`<span class="strategy-tag b" title="Held by Strategy B${bAsOf ? ` at the ${bAsOf} rebalance` : ''}">B</span>`);
+    if (r.inC) tags.push(`<span class="strategy-tag c" title="Held by Strategy C${cAsOf ? ` at the ${cAsOf} rebalance` : ''}">C</span>`);
+    const tagStr = tags.join(' ') || '<span style="color:var(--ink-faint);font-size:12px;" title="Not held by Strategy B or Strategy C at their last rebalance">no</span>';
     const sgn = r.cur >= 0 ? '+' : '';
     const curCls = r.cur >= goodAt ? 'good' : r.cur >= 0 ? '' : 'bad';
     return `<tr>
