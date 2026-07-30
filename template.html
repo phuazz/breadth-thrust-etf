@@ -2080,7 +2080,7 @@
 
     <section>
       <h2>Live signal — US Sector Breadth (Strategy A universe)</h2>
-      <p class="section-sub">The live signal that drives every rebalance decision. Default: Leader vs Market — Strategy A's top-breadth holding plus CSP1 (S&amp;P 500) as a broad-market reference. Click any chip to add or remove sectors from the chart. Trend snapshot below the chart shows current breadth + change over recent past.</p>
+      <p class="section-sub">The live signal that drives every rebalance decision. Default: Leader vs Market — Strategy A's top-breadth holding plus CSP1 (S&amp;P 500) as a broad-market reference. Click any chip to add or remove sectors from the chart. Use the timeframe selector above the chart to switch between 3M / YTD / 1Y / 3Y / 5Y / MAX windows, or drag across the plot to zoom into a custom date range (double-click to reset). Trend snapshot below the chart shows current breadth + change over recent past.</p>
       <div class="etf-chip-actions" id="detail-actions"></div>
       <div class="etf-chip-group" id="detail-chips"></div>
       <div id="detail-breadth-chart" class="chart tall"></div>
@@ -2186,7 +2186,7 @@
 
     <section>
       <h2>Live signal — Asset class &amp; Thematic momentum (Strategy B + C universes)</h2>
-      <p class="section-sub">The live momentum signal that drives B and C rebalance decisions. This panel shows both the 13 Strategy B asset-class ETFs and the 25 Strategy C thematic ETFs together because they share the same signal definition. Default: today's Strategy B leader + SPY as reference. Y-axis is distance above 200d MA (can be negative). Use the chips to switch between B and C universe views. <em>Strategy C tab has a link back to this chart.</em></p>
+      <p class="section-sub">The live momentum signal that drives B and C rebalance decisions. This panel shows both the 13 Strategy B asset-class ETFs and the 25 Strategy C thematic ETFs together because they share the same signal definition. Default: today's Strategy B leader + SPY as reference. Y-axis is distance above 200d MA (can be negative). Use the chips to switch between B and C universe views, and the timeframe selector above the chart to switch between 3M / YTD / 1Y / 3Y / 5Y / MAX windows (drag across the plot to zoom into a custom date range, double-click to reset). The y-axis rescales to the selected window. <em>Strategy C tab has a link back to this chart.</em></p>
       <div class="etf-chip-actions" id="detail-bc-actions"></div>
       <div class="etf-chip-group" id="detail-bc-chips"></div>
       <div id="detail-momentum-chart" class="chart tall"></div>
@@ -2367,7 +2367,7 @@
 
     <section>
       <h2>Live signal — Europe Sector Breadth (Strategy D universe)</h2>
-      <p class="section-sub">The live signal that drives every Europe rebalance decision. Default: today's Strategy D leader + the universe-wide mean as reference. Same metric as Strategy A (% of an ETF's constituents above their own 200d MA, 0-100%) but for the 5 Stoxx Europe 600 sector UCITS. Click any chip to add or remove sectors from the chart.</p>
+      <p class="section-sub">The live signal that drives every Europe rebalance decision. Default: today's Strategy D leader + the universe-wide mean as reference. Same metric as Strategy A (% of an ETF's constituents above their own 200d MA, 0-100%) but for the 5 Stoxx Europe 600 sector UCITS. Click any chip to add or remove sectors from the chart. Use the timeframe selector above the chart to switch between 3M / YTD / 1Y / 3Y / 5Y / MAX windows, or drag across the plot to zoom into a custom date range (double-click to reset). <em>Note this series is daily, whereas Strategy A's breadth panel is weekly Friday — the same window holds ~5&times; the observations here.</em></p>
       <div class="etf-chip-actions" id="detail-d-actions"></div>
       <div class="etf-chip-group" id="detail-d-chips"></div>
       <div id="detail-d-breadth-chart" class="chart tall"></div>
@@ -4749,7 +4749,18 @@ const _perfNormalise = _renormaliseFromStart;
 // re-renders with the currently-selected period. The selected period is
 // stored on the selector element's dataset, so tab navigation away and
 // back preserves the user's chosen window.
-function _initPeriodSelectorForChart(chartId, defaultPeriod, renderFn) {
+//
+// `periods` defaults to the daily-equity-curve set. Charts on a WEEKLY
+// bar (the signal-comparison charts: Strategy A / D breadth, B+C
+// momentum) must pass _WEEKLY_PERIODS instead — on a weekly series the
+// 1D button slices 6 bars and labels six weeks "1D", and 1W renders a
+// one-point line. Every button in _WEEKLY_PERIODS is meaningful at both
+// daily and weekly frequency, so the two breadth charts stay visually
+// consistent even though D's series is daily and A's is weekly.
+const _EQUITY_PERIODS = ['1d', '1w', '1m', 'ytd', '1y', '3y', '5y', 'max'];
+const _WEEKLY_PERIODS = ['3m', 'ytd', '1y', '3y', '5y', 'max'];
+function _initPeriodSelectorForChart(chartId, defaultPeriod, renderFn,
+                                     periods = _EQUITY_PERIODS) {
   const chartEl = document.getElementById(chartId);
   if (!chartEl) return;
   const selectorId = chartId + '-period';
@@ -4758,7 +4769,7 @@ function _initPeriodSelectorForChart(chartId, defaultPeriod, renderFn) {
     selector = document.createElement('div');
     selector.id = selectorId;
     selector.className = 'period-selector chart-period-selector';
-    selector.innerHTML = ['1d', '1w', '1m', 'ytd', '1y', '3y', '5y', 'max']
+    selector.innerHTML = periods
       .map(p => `<button data-period="${p}"${p === defaultPeriod ? ' class="active"' : ''}>${p.toUpperCase()}</button>`)
       .join('');
     // Wrap in a right-aligned container so the selector floats above
@@ -6020,34 +6031,53 @@ function renderDetail() {
   // Build overlay breadth chart
   const detailMap = m.per_etf_detail || {};
   const selected = [..._detailSelected].sort();
-  const traces = selected.map(etf => {
-    const d = detailMap[etf];
-    if (!d) return null;
-    return {
-      x: d.breadth_dates, y: d.breadth_pct,
-      mode: 'lines',
-      name: `${etf}${ETF_DESCRIPTIONS[etf] ? ' — ' + ETF_DESCRIPTIONS[etf] : ''}`,
-      line: { color: ETF_COLOURS[etf] || '#999', width: 1.6 },
-      hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
-    };
-  }).filter(Boolean);
-  const layout = {
+  // NB: build the layout INSIDE the render callback, never once outside.
+  // Plotly writes the live zoom state back into the layout object it was
+  // handed, so a shared object would carry a user's drag-zoom x-range
+  // into the next period render — the new slice lands entirely outside
+  // the stale axis window and the chart draws blank. Same reason the
+  // Europe and B+C charts below build theirs per-render.
+  const breadthLayout = () => ({
     margin: { l: 56, r: 14, t: 14, b: 80 },
     paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
     font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    // fixedrange x=false / y=true makes drag-zoom an X-ONLY window zoom.
+    // Plotly's default is a 2D box zoom, which on a 0-100% breadth panel
+    // strands the reader on an arbitrary y-range like 43-61% and reads as
+    // a broken chart. Double-click restores the layout range below.
     xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date',
-             hoverformat: '%d %b %Y' },
+             hoverformat: '%d %b %Y', fixedrange: false, autorange: true },
     yaxis: { title: '% of constituents above own 200d MA', gridcolor: '#eef0f3',
-             zeroline: false, range: [0, 100], ticksuffix: '%' },
+             zeroline: false, range: [0, 100], ticksuffix: '%',
+             fixedrange: true },
+    dragmode: 'zoom',
     hovermode: 'x unified',
     legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 11 } },
-  };
-  if (traces.length === 0) {
+  });
+  if (selected.length === 0) {
+    // Purge before overwriting the div: Plotly keeps _fullLayout on the
+    // element, so react()-ing onto a div whose DOM we replaced by hand
+    // would update a subtree that no longer exists.
+    Plotly.purge('detail-breadth-chart');
     document.getElementById('detail-breadth-chart').innerHTML =
       '<p style="padding:40px;color:var(--ink-faint);text-align:center;">Select one or more ETFs above to compare breadth signals.</p>';
   } else {
-    Plotly.newPlot('detail-breadth-chart', traces, layout,
+    _initPeriodSelectorForChart('detail-breadth-chart', 'max', (period) => {
+      const traces = selected.map(etf => {
+        const d = detailMap[etf];
+        if (!d) return null;
+        const s = _sliceByPeriod(d.breadth_dates, d.breadth_pct, period);
+        return {
+          x: s.dates, y: s.equity,
+          mode: 'lines',
+          name: `${etf}${ETF_DESCRIPTIONS[etf] ? ' — ' + ETF_DESCRIPTIONS[etf] : ''}`,
+          line: { color: ETF_COLOURS[etf] || '#999', width: 1.6 },
+          hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
+        };
+      }).filter(Boolean);
+      Plotly.react('detail-breadth-chart', traces, breadthLayout(),
                     { displayModeBar: false, responsive: true });
+    }, _WEEKLY_PERIODS);
   }
 
   // Trend snapshot table — current breadth + change vs N weeks ago
@@ -6200,35 +6230,44 @@ function renderDetailEuropeSection() {
   const peb = eu.per_etf_breadth;
   const colours = eu.europe_colours || {};
   const selected = [..._detailDSelected].sort();
-  const traces = selected.map(etf => {
-    const d = peb[etf];
-    if (!d) return null;
-    return {
-      x: d.dates, y: d.breadth_pct,
-      mode: 'lines',
-      name: `${etf} — ${d.sector || d.label || ''}`,
-      line: { color: colours[etf] || '#999', width: 1.6 },
-      hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
-    };
-  }).filter(Boolean);
 
-  const layout = {
+  // Fresh layout per render — see renderDetail() for why this must not
+  // be hoisted out of the callback.
+  const dBreadthLayout = () => ({
     margin: { l: 56, r: 14, t: 14, b: 80 },
     paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
     font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+    // X-only drag-zoom — see renderDetail() for the rationale.
     xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date',
-             hoverformat: '%d %b %Y' },
+             hoverformat: '%d %b %Y', fixedrange: false, autorange: true },
     yaxis: { title: '% of constituents above own 200d MA',
-             gridcolor: '#eef0f3', zeroline: false, range: [0, 100], ticksuffix: '%' },
+             gridcolor: '#eef0f3', zeroline: false, range: [0, 100],
+             ticksuffix: '%', fixedrange: true },
+    dragmode: 'zoom',
     hovermode: 'x unified',
     legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 11 } },
-  };
-  if (traces.length === 0) {
+  });
+  if (selected.length === 0) {
+    Plotly.purge('detail-d-breadth-chart');
     document.getElementById('detail-d-breadth-chart').innerHTML =
       '<p style="padding:40px;color:var(--ink-faint);text-align:center;">Select one or more Europe sector ETFs above to compare breadth signals.</p>';
   } else {
-    Plotly.newPlot('detail-d-breadth-chart', traces, layout,
+    _initPeriodSelectorForChart('detail-d-breadth-chart', 'max', (period) => {
+      const traces = selected.map(etf => {
+        const d = peb[etf];
+        if (!d) return null;
+        const s = _sliceByPeriod(d.dates, d.breadth_pct, period);
+        return {
+          x: s.dates, y: s.equity,
+          mode: 'lines',
+          name: `${etf} — ${d.sector || d.label || ''}`,
+          line: { color: colours[etf] || '#999', width: 1.6 },
+          hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
+        };
+      }).filter(Boolean);
+      Plotly.react('detail-d-breadth-chart', traces, dBreadthLayout(),
                     { displayModeBar: false, responsive: true });
+    }, _WEEKLY_PERIODS);
   }
 
   // Trend snapshot table for Strategy D ETFs
@@ -6416,68 +6455,89 @@ function renderDetailMomentumSection() {
   // For each selected ETF, prefer B's series if present, else C's. B's
   // series goes back to 2008, C's only to 2018-11, so this gives the
   // longest history for ETFs that exist in both (none currently except IEF).
-  const traces = selected.map(etf => {
-    const d = bMap[etf] || cMap[etf];
-    if (!d) return null;
-    return {
-      x: d.dates, y: d.signal_pct,
-      mode: 'lines',
-      name: `${etf} — ${_bcLabel(etf)}`,
-      line: { color: _bcColour(etf), width: 1.5 },
-      hovertemplate: etf + ': %{y:+.1f}%<extra></extra>',
-    };
-  }).filter(Boolean);
-
-  // Compute sensible y-axis range from the visible data
-  let yMin = -20, yMax = 50;
-  traces.forEach(t => {
-    t.y.forEach(v => {
-      if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; }
-    });
-  });
-  yMin = Math.floor(yMin / 5) * 5 - 2;
-  yMax = Math.ceil(yMax / 5) * 5 + 2;
-
-  // Add zero line + +5% floor (Strategy C's signal floor) as horizontal guides
-  const guides = [];
-  if (traces.length > 0) {
-    const x0 = traces[0].x[0];
-    const xN = traces[0].x[traces[0].x.length - 1];
-    guides.push({
-      x: [x0, xN], y: [0, 0], mode: 'lines', name: '0% (200d MA)',
-      line: { color: '#9ca3af', width: 1, dash: 'dash' },
-      hoverinfo: 'skip', showlegend: false,
-    });
-    guides.push({
-      x: [x0, xN], y: [5, 5], mode: 'lines', name: 'C signal floor (+5%)',
-      line: { color: '#dc2626', width: 1, dash: 'dot' },
-      hoverinfo: 'skip', showlegend: false,
-    });
-  }
-
-  const layout = {
-    margin: { l: 56, r: 14, t: 14, b: 80 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
-    xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date',
-             hoverformat: '%d %b %Y' },
-    yaxis: {
-      title: 'Distance above own 200d MA (%)',
-      gridcolor: '#eef0f3', zeroline: false,
-      range: [yMin, yMax], ticksuffix: '%',
-    },
-    hovermode: 'x unified',
-    legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 11 } },
-  };
-  if (traces.length === 0) {
+  if (selected.length === 0) {
+    Plotly.purge('detail-momentum-chart');
     document.getElementById('detail-momentum-chart').innerHTML =
       '<p style="padding:40px;color:var(--ink-faint);text-align:center;">Select one or more ETFs above to compare momentum signals.</p>';
-  } else {
-    Plotly.newPlot('detail-momentum-chart', [...guides, ...traces], layout,
-                    { displayModeBar: false, responsive: true });
+    return _renderDetailMomentumSnapshot(bMap, cMap, selected);
   }
 
-  // Snapshot table
+  _initPeriodSelectorForChart('detail-momentum-chart', 'max', (period) => {
+    const traces = selected.map(etf => {
+      const d = bMap[etf] || cMap[etf];
+      if (!d) return null;
+      const s = _sliceByPeriod(d.dates, d.signal_pct, period);
+      return {
+        x: s.dates, y: s.equity,
+        mode: 'lines',
+        name: `${etf} — ${_bcLabel(etf)}`,
+        line: { color: _bcColour(etf), width: 1.5 },
+        hovertemplate: etf + ': %{y:+.1f}%<extra></extra>',
+      };
+    }).filter(Boolean);
+
+    // Y-axis range is computed from the VISIBLE slice, not full history,
+    // so a short window is not squashed by the 2008 extremes carried in
+    // B's series (MAX renders [-52,52]; the 1Y window [-22,52]). The
+    // -20/+50 seed floors the span so the 0% and +5% guides always sit
+    // in a readable band rather than filling a quiet window edge-to-edge.
+    let yMin = -20, yMax = 50;
+    traces.forEach(t => {
+      t.y.forEach(v => {
+        if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; }
+      });
+    });
+    yMin = Math.floor(yMin / 5) * 5 - 2;
+    yMax = Math.ceil(yMax / 5) * 5 + 2;
+
+    // Zero line + +5% floor (Strategy C's signal floor) as horizontal
+    // guides, spanning the visible window so they do not stop short.
+    const guides = [];
+    if (traces.length > 0 && traces[0].x.length > 0) {
+      const x0 = traces[0].x[0];
+      const xN = traces[0].x[traces[0].x.length - 1];
+      guides.push({
+        x: [x0, xN], y: [0, 0], mode: 'lines', name: '0% (200d MA)',
+        line: { color: '#9ca3af', width: 1, dash: 'dash' },
+        hoverinfo: 'skip', showlegend: false,
+      });
+      guides.push({
+        x: [x0, xN], y: [5, 5], mode: 'lines', name: 'C signal floor (+5%)',
+        line: { color: '#dc2626', width: 1, dash: 'dot' },
+        hoverinfo: 'skip', showlegend: false,
+      });
+    }
+
+    const layout = {
+      margin: { l: 56, r: 14, t: 14, b: 80 },
+      paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+      font: { family: 'Inter, sans-serif', size: 12, color: '#111418' },
+      // X-only drag-zoom — see renderDetail() for the rationale.
+      // autorange:true is explicit so a period click after a drag-zoom
+      // re-fits the axis to the new slice instead of inheriting the
+      // zoom window and drawing a blank panel.
+      xaxis: { gridcolor: '#eef0f3', zeroline: false, type: 'date',
+               hoverformat: '%d %b %Y', fixedrange: false, autorange: true },
+      yaxis: {
+        title: 'Distance above own 200d MA (%)',
+        gridcolor: '#eef0f3', zeroline: false,
+        range: [yMin, yMax], ticksuffix: '%', fixedrange: true,
+      },
+      dragmode: 'zoom',
+      hovermode: 'x unified',
+      legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 11 } },
+    };
+    Plotly.react('detail-momentum-chart', [...guides, ...traces], layout,
+                  { displayModeBar: false, responsive: true });
+  }, _WEEKLY_PERIODS);
+
+  return _renderDetailMomentumSnapshot(bMap, cMap, selected);
+}
+
+// Snapshot table for the B+C momentum comparison. Split out of
+// renderDetailMomentumSection so the chart body can early-return on an
+// empty selection and still refresh the table.
+function _renderDetailMomentumSnapshot(bMap, cMap, selected) {
   const snap = document.getElementById('detail-bc-snapshot-table');
   if (!snap) return;
   snap.querySelector('thead').innerHTML = `<tr>
