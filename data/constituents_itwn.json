@@ -1,11 +1,11 @@
 {
   "etf": "ITWN",
   "source": "https://www.ishares.com/uk/individual/en/products/251878/ishares-msci-taiwan-ucits-etf/1506575576011.ajax?fileType=csv&fileName=ITWN_holdings&dataType=fund",
-  "fetched_at_utc": "2026-07-26T23:16:41.528357+00:00",
+  "fetched_at_utc": "2026-08-01T14:05:45.526783+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-07-24",
-  "n_target_fridays": 447,
-  "n_snapshots_written": 447,
+  "end_friday": "2026-07-31",
+  "n_target_fridays": 448,
+  "n_snapshots_written": 448,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -38,12 +38,19 @@
       "carried_from_target": "2026-07-17",
       "carried_from_actual": "2026-07-17",
       "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+    },
+    {
+      "target_friday": "2026-07-31",
+      "outcome": "carried_forward",
+      "carried_from_target": "2026-07-17",
+      "carried_from_actual": "2026-07-17",
+      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
     }
   ],
   "edgar_used": [],
   "staleness": {
     "last_real_fetch_date": "2026-07-17",
-    "days_since_last_real_fetch": 7,
+    "days_since_last_real_fetch": 14,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -25197,7 +25204,7 @@
     },
     "2023-02-10": {
       "actual_date": "2023-02-10",
-      "n_tickers": 90,
+      "n_tickers": 89,
       "tickers": [
         "2330.TW",
         "2317.TW",
@@ -25287,13 +25294,12 @@
         "8046.TW",
         "2615.TW",
         "8454.TW",
-        "2219644D",
         "2418.TW"
       ]
     },
     "2023-02-17": {
       "actual_date": "2023-02-17",
-      "n_tickers": 90,
+      "n_tickers": 89,
       "tickers": [
         "2330.TW",
         "2317.TW",
@@ -25383,13 +25389,12 @@
         "8046.TW",
         "2615.TW",
         "8454.TW",
-        "2219644D",
         "2418.TW"
       ]
     },
     "2023-02-24": {
       "actual_date": "2023-02-24",
-      "n_tickers": 90,
+      "n_tickers": 89,
       "tickers": [
         "2330.TW",
         "2317.TW",
@@ -25479,13 +25484,12 @@
         "2615.TW",
         "8046.TW",
         "8454.TW",
-        "2219644D",
         "2418.TW"
       ]
     },
     "2023-03-03": {
       "actual_date": "2023-03-03",
-      "n_tickers": 90,
+      "n_tickers": 89,
       "tickers": [
         "2330.TW",
         "2317.TW",
@@ -25575,7 +25579,6 @@
         "2615.TW",
         "3105",
         "8454.TW",
-        "2219644D",
         "2418.TW"
       ]
     },
@@ -29342,7 +29345,7 @@
     },
     "2023-12-08": {
       "actual_date": "2023-12-08",
-      "n_tickers": 92,
+      "n_tickers": 91,
       "tickers": [
         "2330.TW",
         "2454.TW",
@@ -29434,13 +29437,12 @@
         "8046.TW",
         "8454.TW",
         "2615.TW",
-        "2325206D",
         "2418.TW"
       ]
     },
     "2023-12-15": {
       "actual_date": "2023-12-15",
-      "n_tickers": 92,
+      "n_tickers": 91,
       "tickers": [
         "2330.TW",
         "2454.TW",
@@ -29532,13 +29534,12 @@
         "8046.TW",
         "8454.TW",
         "2615.TW",
-        "2325206D",
         "2418.TW"
       ]
     },
     "2023-12-22": {
       "actual_date": "2023-12-22",
-      "n_tickers": 92,
+      "n_tickers": 91,
       "tickers": [
         "2330.TW",
         "2454.TW",
@@ -29630,13 +29631,12 @@
         "8046.TW",
         "8454.TW",
         "2615.TW",
-        "2325206D",
         "2418.TW"
       ]
     },
     "2023-12-29": {
       "actual_date": "2023-12-29",
-      "n_tickers": 92,
+      "n_tickers": 91,
       "tickers": [
         "2330.TW",
         "2454.TW",
@@ -29728,13 +29728,12 @@
         "8046.TW",
         "8454.TW",
         "2615.TW",
-        "2325206D",
         "2418.TW"
       ]
     },
     "2024-01-05": {
       "actual_date": "2024-01-05",
-      "n_tickers": 92,
+      "n_tickers": 91,
       "tickers": [
         "2330.TW",
         "2454.TW",
@@ -29826,13 +29825,12 @@
         "8046.TW",
         "8454.TW",
         "2615.TW",
-        "2325206D",
         "2418.TW"
       ]
     },
     "2024-01-12": {
       "actual_date": "2024-01-12",
-      "n_tickers": 92,
+      "n_tickers": 91,
       "tickers": [
         "2330.TW",
         "2454.TW",
@@ -29924,7 +29922,6 @@
         "8046.TW",
         "8454.TW",
         "2615.TW",
-        "2325206D",
         "2418.TW"
       ]
     },
@@ -33090,7 +33087,7 @@
     },
     "2024-09-06": {
       "actual_date": "2024-09-06",
-      "n_tickers": 89,
+      "n_tickers": 88,
       "tickers": [
         "2330.TW",
         "2317.TW",
@@ -33179,13 +33176,12 @@
         "2633.TW",
         "2408.TW",
         "2615.TW",
-        "2464282D",
         "2418.TW"
       ]
     },
     "2024-09-13": {
       "actual_date": "2024-09-13",
-      "n_tickers": 89,
+      "n_tickers": 88,
       "tickers": [
         "2330.TW",
         "2317.TW",
@@ -33274,13 +33270,12 @@
         "2633.TW",
         "2408.TW",
         "2615.TW",
-        "2464282D",
         "2418.TW"
       ]
     },
     "2024-09-20": {
       "actual_date": "2024-09-20",
-      "n_tickers": 89,
+      "n_tickers": 88,
       "tickers": [
         "2330.TW",
         "2317.TW",
@@ -33369,7 +33364,6 @@
         "2633.TW",
         "2615.TW",
         "2408.TW",
-        "2464282D",
         "2418.TW"
       ]
     },
@@ -42198,6 +42192,91 @@
       ]
     },
     "2026-07-24": {
+      "actual_date": "2026-07-17",
+      "carried_forward_from": "2026-07-17",
+      "n_tickers": 78,
+      "tickers": [
+        "2330.TW",
+        "2454.TW",
+        "2308.TW",
+        "2317.TW",
+        "3711.TW",
+        "2303.TW",
+        "2383.TW",
+        "2327.TW",
+        "3037.TW",
+        "2345.TW",
+        "2881.TW",
+        "2891.TW",
+        "1303.TW",
+        "2882.TW",
+        "2382.TW",
+        "2887.TW",
+        "3017.TW",
+        "2885.TW",
+        "2360.TW",
+        "2886.TW",
+        "2412.TW",
+        "2884.TW",
+        "7769.TW",
+        "6223",
+        "2890.TW",
+        "6669.TW",
+        "2357.TW",
+        "2883.TW",
+        "2059.TW",
+        "5274",
+        "3231.TW",
+        "3481.TW",
+        "2301.TW",
+        "1216.TW",
+        "4958.TW",
+        "2892.TW",
+        "6446.TW",
+        "3008.TW",
+        "2880.TW",
+        "2379.TW",
+        "3443.TW",
+        "6488",
+        "2449.TW",
+        "3665.TW",
+        "2368.TW",
+        "5880.TW",
+        "3653.TW",
+        "3661.TW",
+        "3034.TW",
+        "2395.TW",
+        "1301.TW",
+        "1326.TW",
+        "2002.TW",
+        "2603.TW",
+        "5347",
+        "3045.TW",
+        "4904.TW",
+        "5871.TW",
+        "1590.TW",
+        "2376.TW",
+        "2801.TW",
+        "5876.TW",
+        "4938.TW",
+        "3533.TW",
+        "3293",
+        "1101.TW",
+        "2356.TW",
+        "8069",
+        "3529",
+        "2207.TW",
+        "2912.TW",
+        "2834.TW",
+        "2618.TW",
+        "6919.TW",
+        "1519.TW",
+        "2609.TW",
+        "2615.TW",
+        "2418.TW"
+      ]
+    },
+    "2026-07-31": {
       "actual_date": "2026-07-17",
       "carried_forward_from": "2026-07-17",
       "n_tickers": 78,
