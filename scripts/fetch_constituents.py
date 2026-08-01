@@ -247,6 +247,8 @@ _EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
     # Continental Europe
     "Xetra":                          ".DE",
     "Deutsche Boerse Ag":             ".DE",
+    "Deutsche Boerse Xetra":          ".DE",
+    "Hanseatische Wertpapierboerse Hamburg": ".HM",
     "Frankfurt Stock Exchange":       ".F",
     "Nyse Euronext - Euronext Paris": ".PA",
     "Euronext Paris":                 ".PA",
@@ -257,6 +259,8 @@ _EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
     "Bolsa Madrid":                   ".MC",
     "Bolsas Y Mercados Espanoles":    ".MC",
     "Six Swiss Exchange":             ".SW",
+    "SIX Swiss Exchange":             ".SW",
+    "Six Swiss Exchange Ag":          ".SW",
     "Swiss Exchange":                 ".SW",
     "Nyse Euronext - Euronext Brussels": ".BR",
     "Euronext Brussels":              ".BR",
@@ -264,15 +268,22 @@ _EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
     "Nasdaq Stockholm":               ".ST",
     "Nasdaq Helsinki":                ".HE",
     "Helsinki Stock Exchange":        ".HE",
+    "Nasdaq Omx Helsinki Ltd.":       ".HE",
     "Copenhagen Stock Exchange":      ".CO",
     "Nasdaq Copenhagen":              ".CO",
+    "Omx Nordic Exchange Copenhagen A/S": ".CO",
     "Oslo Stock Exchange":            ".OL",
     "Oslo Bors":                      ".OL",
+    "Oslo Bors Asa":                  ".OL",
     "Nyse Euronext - Euronext Lisbon": ".LS",
     "Vienna Stock Exchange":          ".VI",
+    "Wiener Boerse Ag":               ".VI",
     "Warsaw Stock Exchange":          ".WA",
+    "Warsaw Stock Exchange/Equities/Main Market": ".WA",
+    "Prague Stock Exchange":          ".PR",
     "Athens Stock Exchange":          ".AT",
     "Irish Stock Exchange":           ".IR",
+    "Irish Stock Exchange - All Market": ".IR",
     # Asia
     "Tokyo Stock Exchange":           ".T",
     "Hong Kong Exchanges And Clearing Ltd": ".HK",
@@ -303,18 +314,42 @@ _EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
     "Cboe Bzx Exchange":              "",
 }
 
+# Venues that name a market group rather than a single exchange. The listing
+# venue (and hence the yfinance suffix) is disambiguated by the CSV's
+# Location column. Observed in iShares Europe-sector CSVs 2018-2026:
+# "Nasdaq Omx Nordic" rows are Stockholm listings (Location Sweden) in every
+# one of the 8,486 sampled rows; the other locations are mapped defensively.
+_AMBIGUOUS_EXCHANGE_BY_LOCATION: dict[str, dict[str, str | None]] = {
+    "Nasdaq Omx Nordic": {
+        "Sweden":  ".ST",
+        "Denmark": ".CO",
+        "Finland": ".HE",
+        "Iceland": None,   # Nasdaq Iceland has no reliable yfinance data
+        "_default": ".ST",
+    },
+}
+
+# Placeholder venue for unlisted / expired lines in iShares CSVs — these rows
+# have no tradable listing and no yfinance history by construction.
+_UNLISTED_EXCHANGE_MARKERS = {
+    "NO MARKET (E.G. UNLISTED)",
+}
+
 
 def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
-                         overrides: dict | None = None) -> str | None:
-    """Map (CSV ticker, Exchange name) to a yfinance-ready symbol.
+                         overrides: dict | None = None,
+                         location: str | None = None) -> str | None:
+    """Map (CSV ticker, Exchange name, Location) to a yfinance-ready symbol.
 
     Order of resolution:
       1. Explicit ticker_overrides (highest priority) — used for share-class
          quirks like BRK.B / BRKB → BRK-B.
-      2. Exchange-based suffix mapping.
+      2. Exchange-based suffix mapping; market-group venues (e.g. "Nasdaq
+         Omx Nordic") disambiguate the listing venue via `location`.
       3. If exchange unknown or empty → return raw ticker as-is (assume US).
 
-    Returns None when the ticker is empty / unparseable.
+    Returns None when the ticker is empty / unparseable, or when the row is
+    an unlisted placeholder with no tradable listing.
     """
     if not raw_ticker:
         return None
@@ -345,12 +380,23 @@ def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
             if root.endswith(".RE"):
                 root = root[:-3]
             return root.replace(".", "-")
-        return root
+        # Share-class spaces in local roots become dashes on yfinance:
+        # Stockholm "SEB A" → SEB-A.ST, Helsinki "NDA FI" → NDA-FI.HE,
+        # Copenhagen "MAERSK B" → MAERSK-B.CO.
+        return root.replace(" ", "-")
 
     if exchange:
         ex_key = exchange.strip()
-        if ex_key in _EXCHANGE_TO_YF_SUFFIX:
-            suffix = _EXCHANGE_TO_YF_SUFFIX[ex_key]
+        if ex_key in _UNLISTED_EXCHANGE_MARKERS:
+            return None
+        suffix: str | None = _EXCHANGE_TO_YF_SUFFIX.get(ex_key)
+        if suffix is None and ex_key in _AMBIGUOUS_EXCHANGE_BY_LOCATION:
+            by_loc = _AMBIGUOUS_EXCHANGE_BY_LOCATION[ex_key]
+            loc_key = (location or "").strip()
+            suffix = by_loc.get(loc_key, by_loc["_default"])
+            if suffix is None:
+                return None
+        if suffix is not None:
             # If the suffix is empty (US listing), apply dot→dash share-class fix.
             if suffix == "":
                 return raw_ticker.rstrip(".").replace(".", "-")
@@ -403,18 +449,23 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
     header: list[str] | None = None
     asset_class_idx: int | None = None
     exchange_idx: int | None = None
+    location_idx: int | None = None
     for ln in body.splitlines():
         if header is None:
             if "Ticker" in ln[:20] and "Asset Class" in ln:
                 header = next(csv.reader(io.StringIO(ln)))
                 asset_class_idx = header.index("Asset Class")
-                # Exchange column may or may not be present (US iShares CSVs
-                # sometimes omit it). If missing, exchange_idx stays None and
-                # we fall back to the raw ticker.
+                # Exchange / Location columns may or may not be present (US
+                # iShares CSVs sometimes omit them). If missing, the indices
+                # stay None and we fall back to the raw ticker / no location.
                 try:
                     exchange_idx = header.index("Exchange")
                 except ValueError:
                     exchange_idx = None
+                try:
+                    location_idx = header.index("Location")
+                except ValueError:
+                    location_idx = None
             continue
         if not ln.strip():
             break  # blank line terminates the holdings block
@@ -433,8 +484,12 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
         exchange = (row[exchange_idx].strip() if exchange_idx is not None
                                               and len(row) > exchange_idx
                                               else None)
+        location = (row[location_idx].strip() if location_idx is not None
+                                              and len(row) > location_idx
+                                              else None)
         if apply_exchange_suffix:
-            sym = _resolve_yf_symbol(raw, exchange, overrides)
+            sym = _resolve_yf_symbol(raw, exchange, overrides,
+                                     location=location)
         else:
             # Default US path: still apply dot → dash share-class normalisation
             # so the parser output is yfinance-ready (BRK.B → BRK-B).

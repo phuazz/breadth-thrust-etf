@@ -375,6 +375,13 @@ ETF_REGISTRY: dict[str, dict] = {
     # Exchange-to-yfinance-suffix resolver in fetch_constituents.
     # Trading proxies for deployment: the ETF itself on Xetra/LSE (EUR-priced)
     # or a US-listed equivalent where one exists.
+    #
+    # trading_calendar (2026-08-01): pandas_market_calendars name used by
+    # compute_breadth to build the breadth day-grid. Default when absent is
+    # NYSE (correct for US-constituent funds). The five Europe sector funds
+    # use XETR: sampling European constituents on a US calendar dropped
+    # European trading days (US holidays) and produced distorted thin rows
+    # on days most of Europe was shut (e.g. 1 May when only London traded).
     # ---------------------------------------------------------------------
     "EXV1": {  # Stoxx Europe 600 Banks (EUR, Xetra-listed)
         "symbol": "EXV1",
@@ -392,6 +399,7 @@ ETF_REGISTRY: dict[str, dict] = {
         "ticker_overrides": {},
         "csv_date_format": "uk",
         "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
         "yfinance_trading_proxy": "EXV1.DE",  # trade the ETF on Xetra in EUR
     },
     "EXH1": {  # Stoxx Europe 600 Oil & Gas
@@ -410,6 +418,7 @@ ETF_REGISTRY: dict[str, dict] = {
         "ticker_overrides": {},
         "csv_date_format": "uk",
         "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
         "yfinance_trading_proxy": "EXH1.DE",
     },
     "EXV3": {  # Stoxx Europe 600 Technology
@@ -428,6 +437,7 @@ ETF_REGISTRY: dict[str, dict] = {
         "ticker_overrides": {},
         "csv_date_format": "uk",
         "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
         "yfinance_trading_proxy": "EXV3.DE",
     },
     "EXH3": {  # Stoxx Europe 600 Industrial Goods & Services
@@ -447,6 +457,7 @@ ETF_REGISTRY: dict[str, dict] = {
         "ticker_overrides": {},
         "csv_date_format": "uk",
         "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
         "yfinance_trading_proxy": "EXH3.DE",
     },
     "EXH9": {  # Stoxx Europe 600 Utilities (verified product_id 251967)
@@ -465,6 +476,7 @@ ETF_REGISTRY: dict[str, dict] = {
         "ticker_overrides": {},
         "csv_date_format": "uk",
         "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
         "yfinance_trading_proxy": "EXH9.DE",
     },
     # --- Single-country UCITS ETFs ---

@@ -8,9 +8,11 @@ Pipeline:
      weekly snapshot 2018-2026.
   2. Download adjusted-close history for that universe from yfinance with
      parquet-backed disk cache.
-  3. For each NYSE trading day in [start_friday, end_friday], resolve the
-     active constituent roster (most recent Friday snapshot with date <= T)
-     and compute three breadth components on data available at T:
+  3. For each trading day in [start_friday, end_friday] on the ETF's own
+     calendar (registry `trading_calendar`, default NYSE; XETR for the
+     Europe sector funds), resolve the active constituent roster (most
+     recent Friday snapshot with date <= T) and compute three breadth
+     components on data available at T:
        - RSI breadth   : share of constituents with 14d Wilder-RSI > 70
        - MA breadth    : share above 50d simple MA
        - Highs breadth : share at a 63d closing high
@@ -36,6 +38,15 @@ Three ways this could be silently wrong (and our defences):
   - Differential missingness     -> cannot be fixed at this data source;
                                     logged per day so Step 3 can quarantine
                                     suspect periods or weight signals down.
+  - Holiday-NaN window poisoning -> indicators are computed on each ticker's
+                                    own traded sessions (per_ticker_apply),
+                                    not on the union date grid. On multi-
+                                    exchange panels a single home-venue
+                                    holiday NaN inside rolling(w,
+                                    min_periods=w) otherwise invalidates the
+                                    ticker's MA/high for the next w rows,
+                                    which erased ~40% of European ma_breadth
+                                    coverage in annual April-July blocks.
 
 Run:
     python scripts/compute_breadth.py
@@ -56,6 +67,9 @@ import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
 import yfinance as yf
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from etf_registry import get_etf  # noqa: E402
 
 # Force UTF-8 stdout for Windows console.
 sys.stdout.reconfigure(encoding="utf-8")
@@ -127,8 +141,8 @@ PRICE_WARMUP_CALENDAR_DAYS = 180
 # -> BNP.PA). Converting these dots to dashes would break the symbol.
 _YF_EXCHANGE_SUFFIXES = {
     "L", "DE", "F", "PA", "MI", "AS", "MC", "SW", "BR", "ST", "HE", "CO",
-    "OL", "LS", "VI", "WA", "AT", "IR", "T", "HK", "NS", "BO", "KS", "TW",
-    "SS", "SZ", "SI", "AX", "JO", "SA", "MX",
+    "OL", "LS", "VI", "WA", "PR", "HM", "AT", "IR", "T", "HK", "NS", "BO",
+    "KS", "TW", "SS", "SZ", "SI", "AX", "JO", "SA", "MX",
 }
 
 
@@ -219,6 +233,34 @@ def expanding_percentile(
 ) -> pd.Series:
     """`q` quantile of s's history strictly prior to each date."""
     return s.shift(1).expanding(min_periods=min_periods).quantile(q)
+
+
+def per_ticker_apply(prices: pd.DataFrame, fn) -> pd.DataFrame:
+    """Apply `fn` to each column on its own traded sessions (NaNs dropped),
+    then reindex the result back to the shared panel index.
+
+    Multi-exchange panels (Europe sectors) contain single-day NaNs wherever
+    one venue was shut while another traded (May Day, the three UK bank
+    holidays, Boxing Day, Ferragosto, ...). A plain
+    rolling(window, min_periods=window) on such a panel treats every such
+    holiday as missing data and invalidates the ticker's indicator for the
+    next `window` rows; compounded across venues this erased roughly 40% of
+    European ma_breadth coverage in recurring annual blocks (April-July,
+    late-December-February, September-October).
+
+    Computing on the ticker's own sessions makes each window "the last N
+    traded closes". Wherever the plain rolling window happened to be
+    NaN-free, both methods use the same N closes, so values are identical —
+    the fix strictly extends coverage without moving existing values.
+    """
+    out = {}
+    for c in prices.columns:
+        s = prices[c].dropna()
+        if s.empty:
+            out[c] = pd.Series(np.nan, index=prices.index)
+        else:
+            out[c] = fn(s).reindex(prices.index)
+    return pd.DataFrame(out, index=prices.index)[list(prices.columns)]
 
 
 def _display_path(path: Path) -> str:
@@ -360,20 +402,33 @@ def main() -> int:
     print(f"  Prices shape: {prices.shape}, tickers with any data: "
           f"{n_with_any_data}/{len(universe)}")
 
-    # Pre-compute per-ticker indicators on the full price panel.
+    # Pre-compute per-ticker indicators on each ticker's own traded sessions
+    # (see per_ticker_apply for why the union date grid must not be used).
     print("Computing per-ticker indicators ...", flush=True)
-    rsi = compute_rsi(prices, RSI_PERIOD)
-    ma50 = prices.rolling(MA_PERIOD, min_periods=MA_PERIOD).mean()
-    rolling_high = prices.rolling(HIGH_PERIOD, min_periods=HIGH_PERIOD).max()
+    rsi = per_ticker_apply(
+        prices, lambda s: compute_rsi(s.to_frame("_c"), RSI_PERIOD)["_c"])
+    ma50 = per_ticker_apply(
+        prices, lambda s: s.rolling(MA_PERIOD, min_periods=MA_PERIOD).mean())
+    rolling_high = per_ticker_apply(
+        prices, lambda s: s.rolling(HIGH_PERIOD, min_periods=HIGH_PERIOD).max())
     above_ma = (prices > ma50) & ma50.notna()
     at_high = (prices >= rolling_high) & rolling_high.notna()
     rsi_overbought = (rsi > RSI_OVERBOUGHT) & rsi.notna()
 
-    # NYSE trading days in the breadth window.
-    nyse = mcal.get_calendar("NYSE")
-    schedule = nyse.schedule(start_date=start_friday, end_date=end_friday)
+    # Trading days in the breadth window, on the ETF's own calendar.
+    # Registry entries may carry `trading_calendar` (a pandas_market_calendars
+    # name); the default NYSE preserves behaviour for US-constituent funds.
+    # The Europe sector funds use XETR so European trading days are sampled
+    # and US-only holidays are not.
+    try:
+        cal_name = get_etf(consts["etf"]).get("trading_calendar", "NYSE")
+    except KeyError:
+        cal_name = "NYSE"  # synthetic / test ETFs not present in the registry
+    cal = mcal.get_calendar(cal_name)
+    schedule = cal.schedule(start_date=start_friday, end_date=end_friday)
     trading_days = pd.DatetimeIndex(schedule.index.normalize().tz_localize(None))
-    print(f"  Trading days in window: {len(trading_days)}")
+    print(f"  Trading calendar: {cal_name}; trading days in window: "
+          f"{len(trading_days)}")
 
     # Walk each trading day, build the breadth panel.
     print("Building breadth series ...", flush=True)
@@ -508,10 +563,16 @@ def main() -> int:
                 out.append(v)
         return out
 
+    no_data_names = sorted(
+        t for t in universe
+        if t not in prices.columns or not prices[t].notna().any()
+    )
+
     payload = {
         "etf": consts["etf"],
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
         "constituents_source": _display_path(constituents_path),
+        "trading_calendar": cal_name,
         "start_date": df.index[0].strftime("%Y-%m-%d"),
         "end_date": df.index[-1].strftime("%Y-%m-%d"),
         "n_trading_days": int(len(df)),
@@ -544,10 +605,14 @@ def main() -> int:
                 if (missing_pct < 0.10).any() else None
             ),
             "note": (
-                "Constituents with no yfinance price history (mostly acquired or "
-                "delisted semis like XLNX, MXIM, BRCM, ALTR, LLTC, CY, IDTI) are "
-                "dropped from both numerator and denominator. This biases breadth "
-                "percentages toward survivors. Daily n_with_price vs n_constituents "
+                f"{len(no_data_names)} of {len(universe)} historical "
+                "constituents have no yfinance price history (delisted or "
+                "acquired names, plus identifiers yfinance does not resolve"
+                + (" — e.g. " + ", ".join(no_data_names[:8])
+                   if no_data_names else "")
+                + "). They are dropped from both numerator and denominator, "
+                "which biases breadth toward survivors until a delisted-price "
+                "source is integrated. Daily n_with_price vs n_constituents "
                 "lets Step 3 quarantine suspect periods."
             ),
         },
