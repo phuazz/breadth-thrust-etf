@@ -170,6 +170,15 @@ def test_resolver_skips_unlisted_placeholder_rows():
                               location="United Kingdom") is None
 
 
+def test_resolver_lse_slash_notation():
+    # iShares prints LSE codes ending in "." with a trailing slash; interior
+    # slashes are share classes. Both are FTSE heavyweights that were dead
+    # columns for the full history before this rule.
+    assert _resolve_yf_symbol("BA/", "London Stock Exchange", {}) == "BA.L"
+    assert _resolve_yf_symbol("NG/", "London Stock Exchange", {}) == "NG.L"
+    assert _resolve_yf_symbol("BT/A", "London Stock Exchange", {}) == "BT-A.L"
+
+
 def test_resolver_regressions_unchanged():
     # Pre-fix behaviour that must not move.
     assert _resolve_yf_symbol("HSBA", "London Stock Exchange", {}) == "HSBA.L"

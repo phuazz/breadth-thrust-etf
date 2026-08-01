@@ -25,6 +25,7 @@ The deployed strategy is the **35/35/10/20 A:B:C:D blend** with two overlays:
 - **Phase 19 overlay parameters tuned in-sample** — chosen from 12-variant sweep on same data the gated-vs-ungated comparison reports on.
 - **Phase 22 EEM tilt deployed on weak sample** — golden cross has produced few distinct ON-events in 7.5y. WS3 (2026-07): 6 distinct bets ever, bootstrap P(mean > 0) ≈ 0.56, placebo 82nd percentile — retained solely as the designated EM expression, not robustly-evidenced alpha. The tilt feed carries a 10-day staleness cap: if the EEM/SPY cache stalls, the tilt is held flat (baseline blend) rather than freezing the last signal.
 - **Strategy D execution-watch** — cost-fragile: the WS3 break-even is ~1.75x of the assumed 15 bps round-trip. Monitor realised Xetra UCITS spreads against the 9 bps one-way assumption; the sleeve's edge is thin if European trading costs run hotter.
+- **Strategy D data rebuilt 2026-08-01 (Phase 30)** — the five European breadth series were rebuilt after fixing holiday-NaN window poisoning, unresolved Nordic/CH/AT/PL/IE/CZ exchange strings, and the NYSE-grid sampling. Aggregate ma_breadth coverage (membership-weighted, n>=40) rose from 61.4% to 97.2% and the recurring April-July holes are gone. D-sleeve signal history therefore shifts when engines next re-run; all WS-era D statistics predate the rebuild and should be revalidated at the next scheduled review. Residual survivorship: 66 genuinely delisted constituents (2018-2026 M&A and take-privates) plus 30 old-root alias candidates still have no yfinance history — classification and recovery plan in `reviews/2026-08-01_phase30_residual-constituents.md`.
 - **Sharpe sample noise** — 7.5y × weekly gives Sharpe SE ≈ ±0.4; +1.29 sits in ~95% CI [+0.55, +2.03]. Treat as range, not point estimate.
 - **Walk-forward scope narrow** — covers within-sleeve K refit only. Weighting scheme, universe additions, cost calibration, overlay parameters all applied across entire backtest as in-sample.
 - **No live track record** — every return shown is simulated.
@@ -32,7 +33,7 @@ The deployed strategy is the **35/35/10/20 A:B:C:D blend** with two overlays:
 
 ### Test coverage
 
-428 pytest tests across 34 files. Key suites:
+468 pytest tests across 37 files. Key suites:
 - `test_backtest_math.py` (17 tests) — structural invariants: long-only, sum-to-100%, no NaN, monotonic dates.
 - `test_weight_function_edge_cases.py` (12 tests) — direct unit tests on `top_k_breadth_weight` with synthetic stress inputs (all-positives, all-negatives, mixed, NaN, ties, single-element). Includes regression test that would have caught the Phase 20 long-only bug.
 - `test_data_integrity.py`, `test_stale_breadth.py` — freshness guards on iShares constituent caches.
@@ -68,6 +69,7 @@ The current architecture evolved over ~30 phases of empirical iteration. Major m
 - **Phase 26.2/26.3**: SEC EDGAR N-PORT fallback for SOXX constituents + per-ETF staleness policy (DATA_INTEGRITY_POLICY.md)
 - **Phase 27**: Strategy C moved to K=5 equal-weight + 30% sleeve-breadth gate (exit to SHY)
 - **Phase 29** (2026-07-02): EEM moved to **overlay-only** — removed from B's rotation universe after the WS2 universe review found it double-counted against the Phase 22 tilt (see `reviews/2026-07-02_ws2_universe.docx`); EM exposure is expressed solely by the tilt
+- **Phase 30** (2026-08-01): European breadth data-integrity fix — indicators computed per traded session (a single home-venue holiday NaN no longer kills a ticker's MA50 for 50 rows), breadth sampled on XETR instead of NYSE for the five D-sleeve funds, and ten previously-unmapped exchange strings (Nasdaq Nordic/Helsinki/Copenhagen, Oslo, Vienna, Warsaw, Prague, SIX case-variants, Dublin, LSE slash notation) now resolve to yfinance symbols. Aggregate D-universe coverage 61.4% → 97.2%; series extend to the present; the recurring April-July, December-February and September-October holes are eliminated. Guard tests in `tests/test_european_breadth_fix.py`
 
 Numbers and ETFs in the historical Phase 3 README below refer to the obsolete single-strategy architecture — see the dashboard for current deployed state.
 

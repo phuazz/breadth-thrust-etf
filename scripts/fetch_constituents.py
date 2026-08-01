@@ -383,7 +383,11 @@ def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
         # Share-class spaces in local roots become dashes on yfinance:
         # Stockholm "SEB A" → SEB-A.ST, Helsinki "NDA FI" → NDA-FI.HE,
         # Copenhagen "MAERSK B" → MAERSK-B.CO.
-        return root.replace(" ", "-")
+        # LSE slash notation likewise: iShares prints "BA/" for BAE Systems
+        # and "NG/" for National Grid (trailing slash marks a trailing dot in
+        # the LSE code); an interior slash is a share class ("BT/A").
+        # yfinance drops the trailing marker and uses dashes for classes.
+        return root.replace(" ", "-").replace("/", "-").rstrip("-")
 
     if exchange:
         ex_key = exchange.strip()
