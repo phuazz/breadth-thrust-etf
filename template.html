@@ -3082,6 +3082,23 @@ const ETF_DESCRIPTIONS = {
   EXH9: 'iShares Stoxx Europe 600 Utilities',
 };
 
+// Hover labels. The legend can carry a full ETF description; a unified
+// hover box cannot — ten traces at 70 characters each is an unreadable
+// slab. Drop trailing parentheticals (repeatedly, since _bcLabel stacks
+// them), then hard-truncate. Legend text is unaffected.
+const _HOVER_DESC_MAX = 34;
+function _hoverLabel(etf, desc) {
+  if (!desc) return etf;
+  let d = String(desc).trim();
+  while (d.length > _HOVER_DESC_MAX) {
+    const stripped = d.replace(/\s*\([^()]*\)\s*$/, '').trim();
+    if (!stripped || stripped === d) break;
+    d = stripped;
+  }
+  if (d.length > _HOVER_DESC_MAX) d = d.slice(0, _HOVER_DESC_MAX - 1).trimEnd() + '…';
+  return d ? `${etf} — ${d}` : etf;
+}
+
 function fmtPct(x, signed = false) {
   if (x == null || Number.isNaN(x)) return '—';
   const v = (x * 100).toFixed(1);
@@ -6078,7 +6095,7 @@ function renderDetail() {
           mode: 'lines',
           name: `${etf}${ETF_DESCRIPTIONS[etf] ? ' — ' + ETF_DESCRIPTIONS[etf] : ''}`,
           line: { color: ETF_COLOURS[etf] || '#999', width: 1.6 },
-          hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
+          hovertemplate: _hoverLabel(etf, ETF_DESCRIPTIONS[etf]) + ': %{y:.1f}%<extra></extra>',
         };
       }).filter(Boolean);
       Plotly.react('detail-breadth-chart', traces, breadthLayout(),
@@ -6268,7 +6285,7 @@ function renderDetailEuropeSection() {
           mode: 'lines',
           name: `${etf} — ${d.sector || d.label || ''}`,
           line: { color: colours[etf] || '#999', width: 1.6 },
-          hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
+          hovertemplate: _hoverLabel(etf, d.sector || d.label) + ': %{y:.1f}%<extra></extra>',
         };
       }).filter(Boolean);
       Plotly.react('detail-d-breadth-chart', traces, dBreadthLayout(),
@@ -6607,7 +6624,7 @@ function renderMomentumView(viewKey) {
         mode: 'lines',
         name: `${etf} — ${_bcLabel(etf)}`,
         line: { color: _bcColour(etf), width: 1.5 },
-        hovertemplate: etf + ': %{y:+.1f}%<extra></extra>',
+        hovertemplate: _hoverLabel(etf, _bcLabel(etf)) + ': %{y:+.1f}%<extra></extra>',
       };
     }).filter(Boolean);
 
@@ -7764,7 +7781,7 @@ function renderTradeCharts() {
     stackgroup: 'one',
     mode: 'none',
     fillcolor: ETF_COLOURS[etf] || '#999',
-    hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
+    hovertemplate: _hoverLabel(etf, ETF_DESCRIPTIONS[etf]) + ': %{y:.1f}%<extra></extra>',
   }));
   Plotly.newPlot('trade-allocation-chart', stackedTraces, {
     margin: { t: 8, r: 16, b: 80, l: 50 },
@@ -8016,7 +8033,7 @@ function renderAssetCharts() {
       stackgroup: 'one',
       mode: 'none',
       fillcolor: colours[etf] || '#999',
-      hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
+      hovertemplate: _hoverLabel(etf, meta.label) + ': %{y:.1f}%<extra></extra>',
     };
   });
   Plotly.newPlot('asset-allocation-chart', stackedTraces, {
@@ -8312,7 +8329,7 @@ function renderThematicCharts() {
       stackgroup: 'one',
       mode: 'none',
       fillcolor: colours[etf] || '#999',
-      hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
+      hovertemplate: _hoverLabel(etf, meta.label) + ': %{y:.1f}%<extra></extra>',
     };
   });
   Plotly.newPlot('thematic-allocation-chart', stackedTraces, {
@@ -8608,7 +8625,7 @@ function renderEuropeCharts() {
       stackgroup: 'one',
       mode: 'none',
       fillcolor: colours[etf] || '#999',
-      hovertemplate: etf + ': %{y:.1f}%<extra></extra>',
+      hovertemplate: _hoverLabel(etf, meta.sector || meta.label) + ': %{y:.1f}%<extra></extra>',
     };
   });
   Plotly.newPlot('europe-allocation-chart', stackedTraces, {
