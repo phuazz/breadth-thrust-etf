@@ -46,7 +46,11 @@ Sleeve membership:
 - B = SPY IJR QQQ EFA VGK EWJ EEM VNQ GLD DBC TLT IEF TIP (+ SHY cash floor).
 - C = ARKK CIBR SKYY BOTZ BLOK ICLN TAN LIT URA XBI ARKG JETS GDX COPX MOO XME WOOD REMX
       CQQQ 159801.SZ PAVE ITA BTC-USD PHO IHI.
-- D = EXV1 EXH1 EXV3 EXH3 EXH9.
+- D = EXV1 EXH1 EXV3 EXH3 EXH9 (panel keys; traded as EXV1.DE EXH1.DE EXV3.DE
+      **EXH4.DE** EXH9.DE — EXH3's panel is Industrial Goods & Services and its
+      fund is EXH4.DE, corrected 2026-08-03. All pre-2026-08-03 D and blend
+      statistics are superseded; see
+      `reviews/2026-08-03_sleeve-d-exh3-correction.md`).
 Existing robustness harness — USE and EXTEND, do NOT reinvent:
   run_robustness.py (walk-forward L, borrow-cost, 6 sub-periods, block-bootstrap Sharpe CI,
   MA-period sweep {100,150,200,250,300}), run_topk_robustness.py, run_phase7_bootstrap.py,

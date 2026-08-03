@@ -1,5 +1,13 @@
 # Phase 30 residual constituents — classification and recovery plan (2026-08-01)
 
+> **Note added 2026-08-03.** The `EXH3` rows below refer to the **Industrial
+> Goods & Services** constituent panel (iShares product 251948), which is
+> correct and unaffected by the sleeve D correction filed the same week. What
+> was wrong was the *traded ticker*, not the constituents: the panel was priced
+> as `EXH3.DE` (the Food & Beverage fund) and now trades as `EXH4.DE`. Nothing
+> in this record's coverage analysis changes. See
+> `reviews/2026-08-03_sleeve-d-exh3-correction.md`.
+
 After the Phase 30 resolver fix, 141 of the 475 historical constituent
 identifiers across the five European sector universes still have no yfinance
 price history. They decompose as follows (classification rules are the
