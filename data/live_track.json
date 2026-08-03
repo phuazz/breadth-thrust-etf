@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-08-01 23:44 UTC",
+  "computed_at_utc": "2026-08-03 22:32 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-07-31",
   "anchor_equity": 2.860371,
@@ -32,8 +32,12 @@
     "IUIS": 0.00147,
     "SHY": 3.5e-05
   },
-  "live_dates": [],
-  "live_equity": [],
+  "live_dates": [
+    "2026-08-03"
+  ],
+  "live_equity": [
+    2.869808
+  ],
   "sleeve_extensions": {
     "strategy_a": {
       "anchor_date": "2026-07-31",
@@ -46,8 +50,12 @@
         "IUHC": 0.0483,
         "IUIS": 0.0042
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-08-03"
+      ],
+      "equity": [
+        3.543548
+      ]
     },
     "strategy_b": {
       "anchor_date": "2026-07-31",
@@ -61,8 +69,12 @@
         "EFA": 0.1269,
         "SPY": 0.0998
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-08-03"
+      ],
+      "equity": [
+        2.277905
+      ]
     },
     "strategy_c": {
       "anchor_date": "2026-07-31",
@@ -74,8 +86,12 @@
         "ARKG": 0.2,
         "JETS": 0.2
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-08-03"
+      ],
+      "equity": [
+        2.8928
+      ]
     },
     "strategy_d": {
       "anchor_date": "2026-07-31",
@@ -85,8 +101,12 @@
         "EXH1": 0.3453,
         "EXH3": 0.2699
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-08-03"
+      ],
+      "equity": [
+        2.7116
+      ]
     }
   },
   "notes": "Daily mark-to-market overlay. Deployed-blend section uses the same effective NAV weights as renderPositionsPreview (EEM tilt + breadth-gate aware). Per-sleeve extensions (strategy_a/b/c/d) use within-sleeve weights anchored at each sleeve's multi.strategies last-date, so the Performance chart lines all advance through the live week."
