@@ -169,6 +169,68 @@ jobs:
       # normally reports ok; it stays as a fail-safe for dispatch runs on
       # a stale tree, and the log always carries the lag forecast. The
       # daily workflow owns the [REMINDER] cadence. Never blocks the build.
+      # Behavioural half of the sleeve D EXH3 guard (2026-08-03). The offline
+      # half — tests/test_europe_symbol_contract.py, which asserts every
+      # surface against the registry — already runs in the regression step of
+      # both workflows. This step is the one that needs prices: it correlates
+      # each breadth-signalled member against a basket of its own
+      # constituents, which is the only check that could have caught a panel
+      # paired with the wrong fund. Weekly, not daily: a pairing changes only
+      # when the registry or a constituent roster does, and this costs a
+      # ~230-ticker fetch.
+      #
+      # Unlike the freshness check above, a breach DOES block the publish
+      # (step below): if a sleeve prices the wrong instrument, every number in
+      # the factsheet for that sleeve is meaningless, and mailing it is worse
+      # than mailing nothing. False alarms are structurally unlikely because
+      # the checker reports SKIP, never FAIL, on a thin fetch or short
+      # overlap — only a well-evidenced breach fails.
+      - name: Check signal/instrument pair integrity (sleeves A + D)
+        id: pairs
+        continue-on-error: true
+        run: python scripts/check_pair_integrity.py
+
+      - name: Email pair-integrity alert (a sleeve prices the wrong fund)
+        if: steps.pairs.outcome == 'failure'
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[PAIR-INTEGRITY] A sleeve member does not track its own constituents — publish blocked'
+          # Operator only — this is plumbing, not distribution.
+          to: ${{ secrets.GMAIL_USER }}
+          from: ${{ secrets.GMAIL_USER }}
+          body: |
+            scripts/check_pair_integrity.py failed on the weekly run.
+
+            At least one breadth-signalled member's priced instrument does not
+            move with the constituents its own signal is computed from. Either
+            the registry's yfinance_trading_proxy names the wrong fund, or the
+            constituent source does.
+
+            The factsheet build and email were BLOCKED. Do not trust any
+            signal or performance figure for the affected member until it is
+            resolved.
+
+            Precedent: sleeve D's EXH3 panel (Industrial Goods & Services) was
+            priced as EXH3.DE, the Food & Beverage fund, from Phase 4 until
+            2026-08-03 — see reviews/2026-08-03_sleeve-d-exh3-correction.md.
+
+            Run locally for the per-pair table:
+              python scripts/check_pair_integrity.py --verbose
+
+            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Stop the publish on a pair-integrity breach
+        if: steps.pairs.outcome == 'failure'
+        run: |
+          echo "::error::Pair-integrity breach — a sleeve member does not track its own constituents. Publish blocked."
+          exit 1
+
       - name: Check breadth_csp1 freshness headroom
         id: headroom
         continue-on-error: true

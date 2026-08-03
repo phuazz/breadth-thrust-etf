@@ -360,6 +360,14 @@ def main() -> int:
         walk_forward = {
             "walk_forward_sharpe": _safe(wf_sh),
             "K_grid": wf_K_grid,
+            # Persisted 2026-08-03. The per-segment K choices were printed but
+            # never written, so when the 2026-08-03 EXH3 correction re-ran the
+            # sleeve and every segment chose K=2 against the deployed K=3,
+            # there was no way to tell from the artefact whether that
+            # preference predated the fix. Storing it makes the next such
+            # question answerable from the file instead of from a lost stdout.
+            "K_sequence": K_sequence,
+            "headline_K": HEADLINE_K,
             "initial_train_end": initial_train_end.strftime("%Y-%m-%d"),
             "segments": wf_segments,
         }
