@@ -48,9 +48,10 @@
   "XBI": "State Street SPDR S&P Biotech ETF",
   "XME": "State Street SPDR S&P Metals & Mining ETF",
   "EXH1.DE": "iShares STOXX Europe 600 Oil & Gas UCITS ETF (DE)",
-  "EXH3.DE": "iShares STOXX Europe 600 Food & Beverage UCITS ETF (DE)",
+  "EXH4.DE": "iShares STOXX Europe 600 Industrial Goods & Services UCITS ETF (DE)",
   "EXH9.DE": "iShares STOXX Europe 600 Utilities UCITS ETF (DE)",
   "EXV1.DE": "iShares STOXX Europe 600 Banks UCITS ETF (DE)",
   "EXV3.DE": "iShares STOXX Europe 600 Technology UCITS ETF (DE) EUR dis",
-  "EEM": "iShares MSCI Emerging Markets ETF"
+  "EEM": "iShares MSCI Emerging Markets ETF",
+  "EXH3.DE": "iShares STOXX Europe 600 Food & Beverage UCITS ETF (DE)"
 }

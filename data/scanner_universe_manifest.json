@@ -61,7 +61,7 @@
     ],
     "D": [
       "EXH1.DE",
-      "EXH3.DE",
+      "EXH4.DE",
       "EXH9.DE",
       "EXV1.DE",
       "EXV3.DE"
@@ -76,7 +76,7 @@
   "fx": {
     "159801.SZ": "USDCNY=X",
     "EXH1.DE": "EURUSD=X",
-    "EXH3.DE": "EURUSD=X",
+    "EXH4.DE": "EURUSD=X",
     "EXH9.DE": "EURUSD=X",
     "EXV1.DE": "EURUSD=X",
     "EXV3.DE": "EURUSD=X"
