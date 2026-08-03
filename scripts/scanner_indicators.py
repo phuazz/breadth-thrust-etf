@@ -371,6 +371,37 @@ class RankResult:
     unrankable: list[str]      # tickers dropped for lacking short horizons
 
 
+def rank_from_horizon_returns(returns: pd.DataFrame) -> RankResult:
+    """Rank a cross-section from a ticker x horizon table of total returns.
+
+    This is the ranking core, separated so it can be fed two ways. The
+    scanner computes each ticker's horizon returns on its OWN trading
+    calendar and calls this directly, because forcing 54 instruments
+    across three venues onto one index would either fabricate bars or
+    drop them. ``composite_rank`` is the wide-panel convenience wrapper
+    over the same logic.
+
+    Per-horizon returns become cross-sectional percentiles before
+    averaging, so one wild horizon cannot dominate the composite the way
+    raw-return averaging would let it.
+    """
+    pctiles = returns.rank(pct=True, na_option="keep")
+
+    have_short = pctiles[list(MIN_RANK_HORIZONS)].notna().all(axis=1)
+    unrankable = sorted(pctiles.index[~have_short].tolist())
+
+    scores = pctiles.loc[have_short].mean(axis=1, skipna=True)
+    truncated = pctiles.loc[have_short].isna().any(axis=1)
+
+    ranks = scores.rank(ascending=False, method="first").astype("int64")
+    return RankResult(
+        ranks=ranks.sort_values(),
+        scores=scores,
+        truncated=truncated,
+        unrankable=unrankable,
+    )
+
+
 def composite_rank(
     closes: pd.DataFrame,
     asof: int = -1,
@@ -405,22 +436,7 @@ def composite_rank(
         ret[~np.isfinite(prior) | ~np.isfinite(latest) | (prior == 0)] = np.nan
         per_horizon[h] = ret
 
-    returns = pd.DataFrame(per_horizon)
-    pctiles = returns.rank(pct=True, na_option="keep")
-
-    have_short = pctiles[list(MIN_RANK_HORIZONS)].notna().all(axis=1)
-    unrankable = sorted(pctiles.index[~have_short].tolist())
-
-    scores = pctiles.loc[have_short].mean(axis=1, skipna=True)
-    truncated = pctiles.loc[have_short].isna().any(axis=1)
-
-    ranks = scores.rank(ascending=False, method="first").astype("int64")
-    return RankResult(
-        ranks=ranks.sort_values(),
-        scores=scores,
-        truncated=truncated,
-        unrankable=unrankable,
-    )
+    return rank_from_horizon_returns(pd.DataFrame(per_horizon))
 
 
 def rank_delta(

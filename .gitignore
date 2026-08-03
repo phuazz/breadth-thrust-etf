@@ -14,6 +14,12 @@ data/*_ohlc_cache.parquet
 data/spy_close_cache.parquet
 data/asset_class_prices_cache.parquet
 data/thematic_prices_cache.parquet
+# Scanner price cache: ~7MB of raw vendor OHLCV for 54 instruments over 10y,
+# rebuilt incrementally by run_scanner.py. The scanner's OUTPUT
+# (scanner_latest.json, ~65KB) and its accruing NAV/shares-outstanding
+# snapshots ARE committed — the latter cannot be refetched, since yfinance
+# exposes no history for those fields.
+data/scanner_prices_cache.parquet
 
 # Weekly factsheet dated archives — only factsheet_latest.pdf is committed
 # for the stable Pages link. Dated copies (factsheet_YYYY-MM-DD.pdf) are
