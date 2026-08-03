@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETF cross-sectional scanner — mockup (sample data)</title>
+<style>
+  :root{
+    --bg:#FAFAF7; --card:#FFFFFF; --border:#E4E2DA; --border-strong:#CFCDC4;
+    --text:#2C2C2A; --text2:#6B6A64; --muted:#96948C;
+    --up:#0F6E56; --down:#A32D2D; --warn:#854F0B;
+    --teal-bg:#E1F5EE; --teal-fg:#085041;
+    --purple-bg:#EEEDFE; --purple-fg:#3C3489;
+    --amber-bg:#FAEEDA; --amber-fg:#633806;
+    --red-bg:#FCEBEB; --red-fg:#791F1F;
+    --green-bg:#EAF3DE; --green-fg:#27500A;
+    --gray-bg:#F1EFE8; --gray-fg:#444441;
+  }
+  body{margin:0; background:var(--bg); color:var(--text);
+       font:14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;}
+  .wrap{max-width:1360px; margin:24px auto; padding:0 16px;}
+  .card{background:var(--card); border:0.5px solid var(--border); border-radius:12px; padding:16px 18px;}
+  .head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px;}
+  .title{font-size:16px; font-weight:600;}
+  .note{font-size:11.5px; color:var(--muted);}
+  .chiprow{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px;}
+  .chiplabel{font-size:11px; color:var(--muted); margin-right:2px;}
+  .chip{font-size:11.5px; padding:3px 9px; border-radius:8px; white-space:nowrap;}
+  .chip.teal{background:var(--teal-bg); color:var(--teal-fg);}
+  .chip.purple{background:var(--purple-bg); color:var(--purple-fg);}
+  .chip.amber{background:var(--amber-bg); color:var(--amber-fg);}
+  .chip.red{background:var(--red-bg); color:var(--red-fg);}
+  .chip.green{background:var(--green-bg); color:var(--green-fg);}
+  .chip.gray{background:var(--gray-bg); color:var(--gray-fg);}
+  .filter{font-size:11.5px; padding:3px 11px; border-radius:999px; border:0.5px solid var(--border); color:var(--text2);}
+  .filter.active{border-color:var(--border-strong); background:var(--card); color:var(--text); font-weight:600;}
+  .tblwrap{overflow-x:auto; border:0.5px solid var(--border); border-radius:8px; margin-top:6px;}
+  table{border-collapse:collapse; min-width:1280px; width:100%; font-size:12px;}
+  thead .zones th{font-size:11px; font-weight:600; text-align:center; padding:4px;}
+  thead .zones .zdir{background:var(--teal-bg); color:var(--teal-fg); border-left:0.5px solid var(--border);}
+  thead .zones .zrisk{background:var(--purple-bg); color:var(--purple-fg); border-left:0.5px solid var(--border);}
+  thead .zones .zstate{background:var(--gray-bg); color:var(--gray-fg); border-left:0.5px solid var(--border);}
+  thead .cols th{font-size:11px; font-weight:600; color:var(--text2); text-align:right;
+                 padding:5px 8px; border-bottom:0.5px solid var(--border-strong); white-space:nowrap;}
+  thead .cols th.l{text-align:left;} thead .cols th.c{text-align:center;}
+  thead .cols th.gb{border-left:0.5px solid var(--border);}
+  tbody td{padding:6px 8px; text-align:right; font-variant-numeric:tabular-nums;
+           border-bottom:0.5px solid var(--border); white-space:nowrap;}
+  tbody tr:last-child td{border-bottom:none;}
+  td.tk{text-align:left; font-weight:600;}
+  td.nm{text-align:left; font-size:11.5px; color:var(--text2); max-width:200px;
+        overflow:hidden; text-overflow:ellipsis;}
+  td.c{text-align:center;}
+  .badge{font-size:11px; padding:2px 8px; border-radius:999px; display:inline-block;}
+  .badge.up{background:var(--teal-bg); color:var(--teal-fg);}
+  .badge.range{background:var(--card); color:var(--text2); border:0.5px solid var(--border);}
+  .pos{color:var(--up);} .neg{color:var(--down);} .ext{color:var(--warn);} .dim{color:var(--muted);}
+  td.hl-amber{background:var(--amber-bg); color:var(--amber-fg); font-weight:600;}
+  td.hl-purple{background:var(--purple-bg); color:var(--purple-fg);}
+  td.hl-green{background:var(--green-bg); color:var(--green-fg);}
+  .legend{font-size:11px; color:var(--muted); line-height:1.7; margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card">
+
+  <div class="head">
+    <div class="title">ETF cross-sectional scanner</div>
+    <div class="note">Sample data · not live · sorted by Rank · v3 (English)</div>
+  </div>
+
+  <div class="chiprow"><span class="chiplabel">Overlays</span>
+    <span class="chip green">Breadth gate · RISK_ON (SPX breadth 61%)</span>
+    <span class="chip teal">EM tilt · ON (EEM/SPY 50/200 up)</span>
+  </div>
+
+  <div class="chiprow"><span class="chiplabel">Alerts</span>
+    <span class="chip teal">SOXX · 52-week high</span>
+    <span class="chip red">SOXX · RSI 78 overbought</span>
+    <span class="chip amber">CQQQ · Volume 3.1×20D</span>
+    <span class="chip gray">CQQQ · Crossed below MA200</span>
+    <span class="chip purple">TLT · Squeeze (RV &amp; BBW low)</span>
+  </div>
+
+  <div class="chiprow"><span class="chiplabel">Sleeve</span>
+    <span class="filter active">All</span><span class="filter">A · Sectors</span>
+    <span class="filter">B · Asset class</span><span class="filter">C · Thematic</span>
+    <span class="filter">D · Europe</span><span class="filter">Overlay</span>
+  </div>
+
+  <div class="tblwrap"><table>
+    <thead>
+      <tr class="zones">
+        <th colspan="2"></th>
+        <th colspan="5" class="zdir">Directional signals</th>
+        <th colspan="3" class="zrisk">Risk signals</th>
+        <th colspan="4" class="zstate">State · confirmation</th>
+        <th colspan="2" class="zstate">ETF layer</th>
+      </tr>
+      <tr class="cols">
+        <th class="l">ETF</th><th class="l">Name</th>
+        <th class="c gb">Trend</th><th>Rank ↓</th><th>ΔR 20D</th><th>12-1%</th><th>vs 52W hi</th>
+        <th class="gb">RV pctl</th><th>BBW pctl</th><th>ATR%</th>
+        <th class="gb">1D%</th><th>Vol ×20D</th><th>RS 1M</th><th>Dev 200D</th>
+        <th class="gb">P/D%</th><th>5D flow</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="tk">SOXX</td><td class="nm" title="iShares Semiconductor ETF">iShares Semiconductor ETF</td>
+        <td class="c"><span class="badge up">Strong up</span></td>
+        <td><b>1</b></td><td class="dim">—</td><td class="pos">+31.4</td><td class="hl-green">0.0</td>
+        <td>p76</td><td>p61</td><td>2.0</td>
+        <td class="pos">+1.5</td><td>1.3×</td><td class="pos">+3.1</td><td class="ext">+16.8</td>
+        <td>+0.02</td><td>+0.6</td>
+      </tr>
+      <tr>
+        <td class="tk">QQQ</td><td class="nm" title="Invesco QQQ Trust">Invesco QQQ Trust</td>
+        <td class="c"><span class="badge up">Strong up</span></td>
+        <td><b>2</b></td><td class="pos">↑1</td><td class="pos">+22.8</td><td>-0.4</td>
+        <td>p54</td><td>p42</td><td>1.1</td>
+        <td class="pos">+0.8</td><td>1.0×</td><td class="pos">+0.9</td><td>+11.2</td>
+        <td>+0.01</td><td>+0.3</td>
+      </tr>
+      <tr>
+        <td class="tk">XLE</td><td class="nm" title="Energy Select Sector SPDR Fund">Energy Select Sector SPDR Fund</td>
+        <td class="c"><span class="badge up">Up</span></td>
+        <td><b>3</b></td><td class="pos">↑2</td><td class="pos">+18.9</td><td>-2.6</td>
+        <td>p47</td><td>p38</td><td>1.3</td>
+        <td class="pos">+0.4</td><td>1.1×</td><td class="pos">+1.4</td><td>+7.9</td>
+        <td>+0.01</td><td>+0.2</td>
+      </tr>
+      <tr>
+        <td class="tk">IBIT</td><td class="nm" title="iShares Bitcoin Trust ETF">iShares Bitcoin Trust ETF</td>
+        <td class="c"><span class="badge up">Up</span></td>
+        <td><b>4</b></td><td class="neg">↓1</td><td class="pos">+26.0</td><td>-8.3</td>
+        <td>p68^</td><td>p35^</td><td>3.4</td>
+        <td class="neg">-2.1</td><td>1.9×</td><td class="neg">-0.7</td><td>+9.6</td>
+        <td>+0.05</td><td>+1.2</td>
+      </tr>
+      <tr>
+        <td class="tk">EEM</td><td class="nm" title="iShares MSCI Emerging Markets ETF">iShares MSCI Emerging Markets ETF</td>
+        <td class="c"><span class="badge up">Up</span></td>
+        <td><b>5</b></td><td class="pos">↑3</td><td class="pos">+15.6</td><td>-1.9</td>
+        <td>p41</td><td>p33</td><td>1.2</td>
+        <td class="pos">+0.6</td><td>1.4×</td><td class="pos">+1.8</td><td>+6.4</td>
+        <td>-0.12</td><td>+0.5</td>
+      </tr>
+      <tr>
+        <td class="tk">GLD</td><td class="nm" title="SPDR Gold Shares">SPDR Gold Shares</td>
+        <td class="c"><span class="badge up">Up</span></td>
+        <td><b>6</b></td><td class="pos">↑1</td><td class="pos">+20.2</td><td>-2.1</td>
+        <td>p34</td><td>p29</td><td>0.9</td>
+        <td class="pos">+0.3</td><td>0.9×</td><td class="pos">+1.2</td><td>+6.8</td>
+        <td>-0.05</td><td>+0.2</td>
+      </tr>
+      <tr>
+        <td class="tk">EXV3.DE</td><td class="nm" title="iShares STOXX Europe 600 Technology UCITS ETF (DE)">iShares STOXX Europe 600 Technology UCITS</td>
+        <td class="c"><span class="badge up">Up</span></td>
+        <td><b>7</b></td><td class="dim">—</td><td class="pos">+12.1</td><td>-4.2</td>
+        <td>p52</td><td>p40</td><td>1.5</td>
+        <td class="pos">+0.5</td><td>0.9×</td><td class="pos">+0.7</td><td>+5.3</td>
+        <td class="dim">—</td><td class="dim">—</td>
+      </tr>
+      <tr>
+        <td class="tk">CQQQ</td><td class="nm" title="Invesco China Technology ETF">Invesco China Technology ETF</td>
+        <td class="c"><span class="badge range">Range</span></td>
+        <td><b>8</b></td><td class="neg">↓2</td><td class="pos">+13.8</td><td>-10.5</td>
+        <td class="hl-amber">p81</td><td>p47</td><td>2.4</td>
+        <td class="neg">-1.2</td><td class="hl-amber">3.1×</td><td class="neg">-2.8</td><td>-1.4</td>
+        <td>+0.42</td><td class="neg">-1.1</td>
+      </tr>
+      <tr>
+        <td class="tk">TLT</td><td class="nm" title="iShares 20+ Year Treasury Bond ETF">iShares 20+ Year Treasury Bond ETF</td>
+        <td class="c"><span class="badge range">Range</span></td>
+        <td><b>9</b></td><td class="pos">↑1</td><td class="pos">+4.6</td><td>-3.8</td>
+        <td class="hl-purple">p18</td><td class="hl-purple">p8</td><td>0.8</td>
+        <td class="pos">+0.2</td><td>0.8×</td><td class="neg">-1.6</td><td>+1.9</td>
+        <td>+0.03</td><td>+0.4</td>
+      </tr>
+    </tbody>
+  </table></div>
+
+  <div class="legend">
+    Directional = documented predictive evidence · Risk = predicts volatility, not direction ·
+    State = context and confirmation, no standalone predictive power ·
+    RS 1M vs SPY for all rows (SPY row shows "—") ·
+    pctl = percentile vs own 504-day history · ^ = shortened window (short history, e.g. IBIT) ·
+    Squeeze requires RV and BBW both low · P/D and 5D flow accumulate from daily snapshots ("—" where NAV unavailable) ·
+    Full universe: 54 ETFs across sleeves A/B/C/D + overlay · Sample data, not live · Parameters are unvalidated industry defaults
+  </div>
+
+</div></div>
+</body>
+</html>

@@ -1,0 +1,84 @@
+{
+  "_comment": "Derived from the deployed sleeve engines by scripts/scanner_universe.py. Do not hand-edit: regenerate with `python scripts/scanner_universe.py --write-manifest` in the same commit as the universe change, so the diff shows what moved.",
+  "row_count": 54,
+  "sleeves": {
+    "A": [
+      "IJR",
+      "QQQ",
+      "SOXX",
+      "SPY",
+      "XLB",
+      "XLC",
+      "XLE",
+      "XLF",
+      "XLI",
+      "XLP",
+      "XLRE",
+      "XLU",
+      "XLV",
+      "XLY"
+    ],
+    "B": [
+      "DBC",
+      "EFA",
+      "EWJ",
+      "GLD",
+      "IEF",
+      "IJR",
+      "QQQ",
+      "SPY",
+      "TIP",
+      "TLT",
+      "VGK",
+      "VNQ"
+    ],
+    "C": [
+      "159801.SZ",
+      "ARKG",
+      "ARKK",
+      "BLOK",
+      "BOTZ",
+      "CIBR",
+      "COPX",
+      "CQQQ",
+      "GDX",
+      "IBIT",
+      "ICLN",
+      "IHI",
+      "ITA",
+      "JETS",
+      "LIT",
+      "MOO",
+      "PAVE",
+      "PHO",
+      "REMX",
+      "SKYY",
+      "TAN",
+      "URA",
+      "WOOD",
+      "XBI",
+      "XME"
+    ],
+    "D": [
+      "EXH1.DE",
+      "EXH3.DE",
+      "EXH9.DE",
+      "EXV1.DE",
+      "EXV3.DE"
+    ],
+    "OV": [
+      "EEM"
+    ]
+  },
+  "substitutions": {
+    "BTC-USD": "IBIT"
+  },
+  "fx": {
+    "159801.SZ": "USDCNY=X",
+    "EXH1.DE": "EURUSD=X",
+    "EXH3.DE": "EURUSD=X",
+    "EXH9.DE": "EURUSD=X",
+    "EXV1.DE": "EURUSD=X",
+    "EXV3.DE": "EURUSD=X"
+  }
+}
