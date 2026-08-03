@@ -51,7 +51,9 @@ DEPLOYED: dict[str, str] = {
     "ICLN": "C", "ITA": "C",
     # Strategy D — Europe sector UCITS (all iShares Xetra)
     "EXV1.DE": "D", "EXH1.DE": "D", "EXV3.DE": "D",
-    "EXH3.DE": "D", "EXH9.DE": "D",
+    # EXH4.DE is the Industrial Goods & Services line (registry key EXH3);
+    # EXH3.DE is a food & beverage fund and is NOT in sleeve D.
+    "EXH4.DE": "D", "EXH9.DE": "D",
 }
 
 
@@ -98,7 +100,7 @@ REFERENCE_CATALOGUE: list[tuple[str, str, str, str, str, str, str, str, float | 
     ("EXV1.DE", "iShares Stoxx Europe 600 Banks (UCITS)",   "Equity", "Europe Sector",   "DE", "Xetra",  "EUR", "L",   46.0),
     ("EXH1.DE", "iShares Stoxx Europe 600 Oil & Gas (UCITS)","Equity","Europe Sector",   "DE", "Xetra",  "EUR", "M",   46.0),
     ("EXV3.DE", "iShares Stoxx Europe 600 Technology (UCITS)","Equity","Europe Sector",  "DE", "Xetra",  "EUR", "M",   46.0),
-    ("EXH3.DE", "iShares Stoxx Europe 600 Industrials (UCITS)","Equity","Europe Sector", "DE", "Xetra",  "EUR", "M",   46.0),
+    ("EXH4.DE", "iShares Stoxx Europe 600 Industrial Goods & Services (UCITS)","Equity","Europe Sector", "DE", "Xetra",  "EUR", "M",   46.0),
     ("EXH9.DE", "iShares Stoxx Europe 600 Utilities (UCITS)","Equity","Europe Sector",   "DE", "Xetra",  "EUR", "M",   46.0),
     # ==================================================================
     # === STRATEGY D — Europe sectors NOT deployed (14 more) ===========

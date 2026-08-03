@@ -47,7 +47,8 @@ from backtest import download_spy_close  # noqa: E402
 
 # Phase 12 cost calibration: Strategy D trades 5 Stoxx Europe 600 sector
 # UCITS on Xetra in EUR (EXV1.DE banks, EXH1.DE oil & gas, EXV3.DE tech,
-# EXH3.DE industrials, EXH9.DE utilities). European UCITS bid-ask is
+# EXH4.DE industrial goods & services, EXH9.DE utilities). European UCITS
+# bid-ask is
 # typically 5-10 bps, plus an extra 2-4 bps FX cost when the investor's
 # base currency is USD (which is the most common Navigo client base).
 # Realistic blended one-way cost: ~9 bps (was uniform 5 — too tight for

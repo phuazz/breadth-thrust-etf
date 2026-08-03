@@ -56,8 +56,10 @@ INDIVIDUAL_OHLC_TICKERS = [
     "XLE", "XLF", "XLV", "XLI", "XLP", "XLY", "XLU", "XLB", "XLC", "XLRE",
     "XLK",
     "SPY", "QQQ", "IJR", "SOXX",
-    # Strategy D Xetra UCITS
-    "EXV1.DE", "EXH1.DE", "EXV3.DE", "EXH3.DE", "EXH9.DE",
+    # Strategy D Xetra UCITS. EXH4.DE, not EXH3.DE: the Industrial Goods &
+    # Services panel (registry key EXH3) trades as EXH4.DE — corrected
+    # 2026-08-03, see the EXH3 entry in etf_registry.py.
+    "EXV1.DE", "EXH1.DE", "EXV3.DE", "EXH4.DE", "EXH9.DE",
     # EM sleeve — overlay-only since Phase 29, no longer in the rotation
     # parquet, so it must be sourced explicitly (em_regime_context or yfinance).
     "EEM",
@@ -110,13 +112,17 @@ def resolve_book_symbol(etf: str) -> str:
 
     Same convention as ``mark_to_market_live._resolve_yf_symbol`` minus the
     FX handling (this exporter publishes native-currency closes; consumers
-    that need USD conversion do it themselves): Europe-sleeve UCITS gain a
-    .DE suffix, China A-shares (.SZ/.SS) pass through, Strategy A iShares
-    UCITS use their US trading proxy from the registry, everything else is
-    already a direct yfinance ticker.
+    that need USD conversion do it themselves): every ticker that has a
+    registry trading proxy uses it, China A-shares (.SZ/.SS) pass through,
+    and a Europe-sleeve key with no proxy recorded falls back to a .DE
+    suffix.
+
+    The registry lookup now precedes the Europe branch. Appending ".DE" to
+    the key assumes the Xetra ticker equals the registry key, which is
+    false for EXH3 — its panel is Industrial Goods & Services, traded as
+    EXH4.DE, while EXH3.DE is a food & beverage fund. See the EXH3 entry
+    in etf_registry.py and tests/test_europe_symbol_contract.py.
     """
-    if etf in EUROPE_TICKERS:
-        return f"{etf}.DE"
     if etf.endswith((".SZ", ".SS")):
         return etf
     try:
@@ -128,6 +134,8 @@ def resolve_book_symbol(etf: str) -> str:
             return proxy
     except Exception:
         pass
+    if etf in EUROPE_TICKERS:
+        return f"{etf}.DE"
     return etf
 
 

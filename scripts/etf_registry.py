@@ -458,7 +458,37 @@ ETF_REGISTRY: dict[str, dict] = {
         "csv_date_format": "uk",
         "apply_exchange_suffix": True,
         "trading_calendar": "XETR",
-        "yfinance_trading_proxy": "EXH3.DE",
+        # CORRECTED 2026-08-03. This was "EXH3.DE", which is a DIFFERENT
+        # FUND: the Xetra ticker EXH3.DE is the iShares STOXX Europe 600
+        # Food & Beverage UCITS ETF (DE). The product this entry fetches
+        # constituents from (251948, slug above) is Industrial Goods &
+        # Services, and its Xetra ticker is EXH4.DE. So sleeve D was
+        # signalling on industrials breadth while pricing and holding a
+        # food & beverage ETF.
+        #
+        # Evidence (daily log returns 2024-08-01..2026-08-01, 495-497 obs):
+        #   EXH3.DE vs this entry's own constituents ...... corr 0.244
+        #   EXH4.DE vs this entry's own constituents ...... corr 0.973
+        #   EXH3.DE vs Food & Beverage majors ............. corr 0.933
+        #   annualised vol: EXH3.DE 15.6%, F&B 16.9%, industrials 24.9%
+        # The other four Europe members sit at 0.935-0.987 against their
+        # own constituents, which is why this went unnoticed for so long.
+        # Guarded from here on by scripts/check_pair_integrity.py.
+        #
+        # The dict KEY stays "EXH3" deliberately: it is the identifier for
+        # the constituent and breadth panels on disk
+        # (data/constituents_exh3.json, data/breadth_exh3.json) and in the
+        # filed records, and renaming it would rewrite history for no
+        # correctness gain. Read the key as an internal panel id, not as a
+        # Xetra ticker. The traded ticker is ALWAYS this proxy field —
+        # never the key with ".DE" appended, a shortcut that is what let
+        # the two live resolvers disagree with the backtest.
+        #
+        # `filename` and `csv_url_template` keep "EXH3_holdings" because
+        # that is what the working iShares endpoint accepts for product
+        # 251948; the constituent fetch is correct and must not be
+        # disturbed.
+        "yfinance_trading_proxy": "EXH4.DE",
     },
     "EXH9": {  # Stoxx Europe 600 Utilities (verified product_id 251967)
         "symbol": "EXH9",

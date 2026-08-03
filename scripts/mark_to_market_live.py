@@ -82,12 +82,24 @@ def _resolve_yf_symbol(ticker: str, registry: dict) -> tuple[str, str]:
     how to post-process the raw yfinance series into USD.
 
     Strategy A iShares UCITS use the US-listed trading proxy from the
-    registry. Europe-sleeve UCITS get the .DE suffix + EUR/USD. China
-    A-shares get CNY/USD. Everything else is assumed to be a direct
-    USD-denominated yfinance ticker (SPY, EEM, BTC-USD, ...).
+    registry. Europe-sleeve UCITS also take their symbol from the registry
+    proxy, and get EUR/USD conversion. China A-shares get CNY/USD.
+    Everything else is assumed to be a direct USD-denominated yfinance
+    ticker (SPY, EEM, BTC-USD, ...).
+
+    The registry proxy is the ONLY source of a traded symbol. This branch
+    used to return ``f"{ticker}.DE"``, which silently assumes the Xetra
+    ticker equals the registry key — true for four of the five Europe
+    members and false for EXH3, whose panel is Industrial Goods & Services
+    (traded as EXH4.DE) while EXH3.DE is a food & beverage fund. The
+    concatenation meant the live book priced a different instrument from
+    the one the backtest used, on a surface no test compared. Keep the
+    suffix only as a fallback for a key with no proxy recorded, and see
+    tests/test_europe_symbol_contract.py.
     """
     if ticker in EUROPE_TICKERS:
-        return (f"{ticker}.DE", "eur_to_usd")
+        proxy = (registry.get(ticker) or {}).get("yfinance_trading_proxy")
+        return (proxy or f"{ticker}.DE", "eur_to_usd")
     if ticker.endswith(CN_FX_SUFFIXES):
         return (ticker, "cny_to_usd")
     if ticker in registry and registry[ticker].get("yfinance_trading_proxy"):

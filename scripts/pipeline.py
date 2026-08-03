@@ -113,7 +113,8 @@ def load_thematic() -> dict | None:
 def load_europe() -> dict | None:
     """Load data/europe_rotation.json: Strategy D (Phase 4) — Europe sector
     breadth top-K rotation across 5 Stoxx Europe 600 sector UCITS ETFs
-    (EXV1 banks / EXH1 energy / EXV3 tech / EXH3 healthcare / EXH9 utilities)."""
+    (EXV1 banks / EXH1 energy / EXV3 tech / EXH3 industrial goods & services,
+    traded as EXH4.DE / EXH9 utilities)."""
     path = DATA_DIR / "europe_rotation.json"
     if not path.exists():
         return None

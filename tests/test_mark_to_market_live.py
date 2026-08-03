@@ -33,6 +33,10 @@ FAKE_REGISTRY = {
     "IUSP": {"yfinance_trading_proxy": "VNQ"},
     "SPY":  {"yfinance_trading_proxy": "SPY"},
     "CSP1": {"yfinance_trading_proxy": "SPY"},  # CSP1 trades via SPY
+    "EXV1": {"yfinance_trading_proxy": "EXV1.DE"},
+    # EXH3's panel is Industrial Goods & Services, which trades as
+    # EXH4.DE; the Xetra ticker EXH3.DE is a different fund entirely.
+    "EXH3": {"yfinance_trading_proxy": "EXH4.DE"},
 }
 
 
@@ -60,12 +64,31 @@ def test_resolver_strategy_b_passes_through_unknown():
     assert fx == "none"
 
 
-def test_resolver_europe_appends_de_and_flags_fx():
-    """Strategy D Stoxx 600 sector UCITS need .DE suffix and EUR/USD."""
-    for ticker in ("EXV1", "EXH1", "EXV3", "EXH3", "EXH9"):
-        sym, fx = _resolve_yf_symbol(ticker, FAKE_REGISTRY)
-        assert sym == f"{ticker}.DE"
-        assert fx == "eur_to_usd"
+def test_resolver_europe_takes_the_symbol_from_the_registry_proxy():
+    """Strategy D symbols come from the registry, never from key + ".DE".
+
+    This test previously asserted ``sym == f"{ticker}.DE"`` for all five
+    members, which encoded the assumption that broke: EXH3's panel is
+    Industrial Goods & Services and trades as EXH4.DE, while EXH3.DE is a
+    food & beverage fund. The concatenation is now a fallback only, and
+    the proxy must win where one is recorded.
+    """
+    sym, fx = _resolve_yf_symbol("EXV1", FAKE_REGISTRY)
+    assert sym == "EXV1.DE"
+    assert fx == "eur_to_usd"
+
+    sym, fx = _resolve_yf_symbol("EXH3", FAKE_REGISTRY)
+    assert sym == "EXH4.DE", "EXH3's panel must price as EXH4.DE"
+    assert sym != "EXH3.DE", "EXH3.DE is a food & beverage fund"
+    assert fx == "eur_to_usd"
+
+
+def test_resolver_europe_falls_back_to_the_de_suffix_without_a_proxy():
+    """A Europe key with no proxy recorded still resolves, and still gets
+    flagged for EUR conversion — the fallback must not silently drop FX."""
+    sym, fx = _resolve_yf_symbol("EXH9", FAKE_REGISTRY)
+    assert sym == "EXH9.DE"
+    assert fx == "eur_to_usd"
 
 
 def test_resolver_china_a_share_flags_cny_fx():
