@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-08-03T22:24:56+00:00",
+  "built_at_utc": "2026-08-04T07:02:40+00:00",
   "as_of": "2026-07-31",
   "as_of_per_market": {
     "CN": "2026-07-31",
@@ -36,42 +36,6 @@
   ],
   "alerts": [
     {
-      "ticker": "BOTZ",
-      "kind": "etf_layer",
-      "label": "P/D -1.21%",
-      "value": ""
-    },
-    {
-      "ticker": "GLD",
-      "kind": "etf_layer",
-      "label": "P/D +0.58%",
-      "value": ""
-    },
-    {
-      "ticker": "ICLN",
-      "kind": "etf_layer",
-      "label": "P/D -0.37%",
-      "value": ""
-    },
-    {
-      "ticker": "LIT",
-      "kind": "etf_layer",
-      "label": "P/D -0.85%",
-      "value": ""
-    },
-    {
-      "ticker": "TIP",
-      "kind": "etf_layer",
-      "label": "P/D -0.64%",
-      "value": ""
-    },
-    {
-      "ticker": "URA",
-      "kind": "etf_layer",
-      "label": "P/D -0.61%",
-      "value": ""
-    },
-    {
       "ticker": "IBIT",
       "kind": "squeeze",
       "label": "Squeeze (RV & BBW low)",
@@ -106,9 +70,15 @@
       "kind": "sigma_move",
       "label": "2.7-sigma move",
       "value": "-2.2%"
+    },
+    {
+      "ticker": "XLY",
+      "kind": "sigma_move",
+      "label": "2.3-sigma move",
+      "value": "+3.3%"
     }
   ],
-  "alerts_truncated": 1,
+  "alerts_truncated": 0,
   "rows": [
     {
       "ticker": "EXV1.DE",
@@ -1583,7 +1553,7 @@
       "n_bars": 3163,
       "pd_pct": -0.006409895765380869,
       "flow_5d": null,
-      "pd_alert": "P/D -0.64%",
+      "pd_alert": null,
       "flow_alert": null
     },
     {
@@ -1665,7 +1635,7 @@
       "n_bars": 3163,
       "pd_pct": 0.005806084246993359,
       "flow_5d": null,
-      "pd_alert": "P/D +0.58%",
+      "pd_alert": null,
       "flow_alert": null
     },
     {
@@ -1825,7 +1795,7 @@
       "n_bars": 3163,
       "pd_pct": -0.008451511244807364,
       "flow_5d": null,
-      "pd_alert": "P/D -0.85%",
+      "pd_alert": null,
       "flow_alert": null
     },
     {
@@ -1947,7 +1917,7 @@
       "n_bars": 3163,
       "pd_pct": -0.0037296275481530916,
       "flow_5d": null,
-      "pd_alert": "P/D -0.37%",
+      "pd_alert": null,
       "flow_alert": null
     },
     {
@@ -2231,7 +2201,7 @@
       "n_bars": 2484,
       "pd_pct": -0.012061711079943915,
       "flow_5d": null,
-      "pd_alert": "P/D -1.21%",
+      "pd_alert": null,
       "flow_alert": null
     },
     {
@@ -2311,7 +2281,7 @@
       "n_bars": 3163,
       "pd_pct": -0.006105316713304498,
       "flow_5d": null,
-      "pd_alert": "P/D -0.61%",
+      "pd_alert": null,
       "flow_alert": null
     }
   ],
@@ -2319,7 +2289,7 @@
     "failures": [],
     "stale": [],
     "notes": [
-      "ETF layer observed 2026-08-03, prices as of 2026-07-31",
+      "snapshots not refreshed this run (--skip-snapshots)",
       "naive-recompute check passed on EEM, EFA, EWJ"
     ],
     "stale_threshold_sessions": 3

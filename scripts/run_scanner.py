@@ -88,12 +88,8 @@ ALERT_RSI_LOW = 25.0
 SQUEEZE_RV_PCTL = 25.0           # squeeze needs BOTH low
 SQUEEZE_BBW_PCTL = 10.0
 SQUEEZE_RELEASE_SIGMA = 1.5
-# ETF-layer alerts stay absolute until 120 sessions of snapshots exist
-PD_ABS_US = 0.003                # US broad / sector
-PD_ABS_CROSSBORDER = 0.010       # EEM, CQQQ, IBIT and friends
-PD_SIGMA_MIN_OBS = 120
+PD_SIGMA_MIN_OBS = 120           # sessions of snapshots before the P/D alert arms
 SO_FLOW_ALERT = 0.01             # |daily change in shares outstanding| > 1%
-CROSSBORDER = frozenset({"EEM", "CQQQ", "IBIT", "159801.SZ", "INDA", "MCHI"})
 
 # Chip priority when more than 12 fire (spec §4)
 ALERT_PRIORITY = {
@@ -466,14 +462,31 @@ def etf_layer(ticker: str, snapshots: pd.DataFrame) -> dict:
         out["pd_pct"] = pd_pct
         history = own["nav"].notna().sum()
         if history >= PD_SIGMA_MIN_OBS:
+            # Sound even against a stale NAV: a persistent measurement bias
+            # becomes part of this ticker's own mean, so only a genuine
+            # deviation from its usual reading fires.
             series = (own["close"] / own["nav"] - 1.0).dropna()
             mean, sd = series.mean(), series.std(ddof=1)
             if sd and np.isfinite(sd) and abs(pd_pct - mean) > 2 * sd:
                 out["pd_alert"] = f"P/D {pd_pct * 100:+.2f}% beyond 2 sigma of 1Y"
-        else:
-            limit = PD_ABS_CROSSBORDER if ticker in CROSSBORDER else PD_ABS_US
-            if abs(pd_pct) > limit:
-                out["pd_alert"] = f"P/D {pd_pct * 100:+.2f}%"
+        # No interim absolute-threshold alert. Spec §6 proposed one until 120
+        # sessions accrue, and the first live run showed it is not fit for
+        # purpose: it fired for six of twelve chips on values from -0.4% to
+        # -1.2% for BOTZ, GLD, ICLN, LIT, TIP and URA, crowding the genuine
+        # events out of the strip. Those are not real premiums. yfinance
+        # publishes navPrice with NO as-of date, and the pattern tracks fund
+        # SIZE rather than market stress: SPY reads +0.057% and QQQ +0.023%,
+        # both plausible, while the smaller funds show large "discounts" that
+        # are the price move between a stale NAV strike and a current close.
+        # SPY's NAV also arrives as a four-decimal strike (746.6043) where
+        # BOTZ's is exactly 35.65, which looks like a price, not a NAV.
+        #
+        # Since the field carries no date, staleness cannot be detected, only
+        # absorbed — which is what the sigma test above does once there is
+        # history. So the value is still published, with the footer stating
+        # that it is unverifiable, but no ALERT is raised from it. A displayed
+        # number with a caveat is data; a chip is an assertion, and this
+        # measurement cannot support one.
 
     so = own["so"].dropna()
     if len(so) >= 6:

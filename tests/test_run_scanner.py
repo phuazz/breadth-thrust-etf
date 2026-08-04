@@ -188,12 +188,39 @@ def test_missing_nav_yields_no_premium_rather_than_a_proxy():
     assert out["pd_pct"] is None and out["pd_alert"] is None
 
 
-def test_absolute_premium_alert_uses_a_wider_band_cross_border():
-    """0.5% is unremarkable for EEM and a real signal for SPY."""
-    us = rs.etf_layer("SPY", _snap("2026-08-03", "SPY", nav=100.0, close=100.5))
-    em = rs.etf_layer("EEM", _snap("2026-08-03", "EEM", nav=100.0, close=100.5))
-    assert us["pd_alert"] is not None
-    assert em["pd_alert"] is None
+def test_no_premium_alert_before_the_sigma_baseline_exists():
+    """The value publishes; the alert does not, until there is history.
+
+    Spec §6 proposed an interim absolute threshold. The first live run
+    disproved it: six of twelve chips were P/D alerts on values from -0.4%
+    to -1.2% for BOTZ, GLD, ICLN, LIT, TIP and URA, which are not real
+    premiums for those funds. yfinance publishes navPrice with no as-of
+    date, and the readings track fund SIZE rather than stress — SPY +0.057%
+    and QQQ +0.023% are plausible while the smaller funds show large
+    spurious discounts from a stale NAV against a current close. Staleness
+    cannot be detected here, only absorbed, which is what the sigma test
+    does once a baseline exists.
+    """
+    big = rs.etf_layer("SPY", _snap("2026-08-03", "SPY", nav=100.0, close=101.2))
+    assert big["pd_pct"] == pytest.approx(0.012), "the value is still published"
+    assert big["pd_alert"] is None, "one observation cannot support an assertion"
+
+
+def test_the_premium_alert_arms_once_history_reaches_the_baseline():
+    """With a baseline, a persistent bias sits in the mean and only a real
+    deviation fires — so a stale-NAV offset does not generate alerts."""
+    rows = [
+        {"date": f"2026-{2 + d // 28:02d}-{1 + d % 28:02d}", "ticker": "SPY",
+         "nav": 100.0, "so": 1e9, "close": 100.5}
+        for d in range(rs.PD_SIGMA_MIN_OBS + 5)
+    ]
+    steady = rs.etf_layer("SPY", pd.DataFrame(rows))
+    assert steady["pd_alert"] is None, "a constant 0.5% bias is this fund's normal"
+
+    rows[-1]["close"] = 108.0
+    shocked = rs.etf_layer("SPY", pd.DataFrame(rows))
+    assert shocked["pd_alert"] is not None
+    assert "sigma" in shocked["pd_alert"]
 
 
 def test_five_day_flow_needs_six_observations():
