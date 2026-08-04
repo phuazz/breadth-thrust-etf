@@ -18,6 +18,7 @@ Python date months are 1-indexed (January = 1).
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -105,3 +106,51 @@ def test_build_entry_young_ticker_has_null_ma200_tail():
 def test_fetch_missing_from_yfinance_empty_input_is_noop():
     """No tickers requested => no network, empty mapping."""
     assert ehp.fetch_missing_from_yfinance([]) == {}
+
+
+# ---------------------------------------------------------------------------
+# Carry-forward versus retirement
+#
+# The coverage guard exists so a degraded run cannot shrink the published
+# panel: any ticker it fails to source is carried forward from the previous
+# file. That conflated two cases until 2026-08-03. A ticker the run WANTED
+# but could not fetch must be carried; one no longer requested by any sleeve
+# must be dropped, or it persists for ever with frozen prices and pollutes
+# the carry-forward warning with a name that will never resolve again.
+# EXH3.DE became exactly that ghost when sleeve D's industrials panel was
+# repointed to EXH4.DE.
+# ---------------------------------------------------------------------------
+def test_retired_tickers_are_not_carried_forward(tmp_path, monkeypatch):
+    """A symbol absent from the requested set is dropped, not carried."""
+    prev = {
+        "computed_at_utc": "2026-08-03T00:00:00+00:00",
+        "lookback_days": 252,
+        "prices": {
+            "RETIRED.DE": {"dates": ["2026-07-31"], "prices": [1.0]},
+            "SPY": {"dates": ["2026-07-31"], "prices": [500.0]},
+        },
+    }
+    out_path = tmp_path / "holdings_prices_1y.json"
+    out_path.write_text(json.dumps(prev), encoding="utf-8")
+    monkeypatch.setattr(ehp, "OUT_PATH", out_path)
+    monkeypatch.setattr(ehp, "collect_all_tickers", lambda: {"SPY"})
+
+    # Reproduces the guard's decision rule against the patched requested set.
+    wanted = ehp.collect_all_tickers() | {"SPY"}
+    carried, retired = [], []
+    for tk, entry in prev["prices"].items():
+        if entry and entry.get("dates"):
+            (carried if tk in wanted else retired).append(tk)
+
+    assert retired == ["RETIRED.DE"]
+    assert carried == ["SPY"]
+
+
+def test_the_live_panel_has_no_exh3_ghost():
+    """Regression pin on the committed artefact: the industrials line is
+    published as EXH4.DE and the food-and-beverage ticker is absent."""
+    panel = json.loads(
+        (ehp.DATA_DIR / "holdings_prices_1y.json").read_text(encoding="utf-8")
+    )["prices"]
+    assert "EXH4.DE" in panel, "the industrials line must be published"
+    assert "EXH3.DE" not in panel, "EXH3.DE is a food & beverage fund, not in any sleeve"

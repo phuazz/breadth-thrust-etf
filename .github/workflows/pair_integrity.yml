@@ -1,0 +1,58 @@
+name: Signal/instrument pair integrity
+
+# Standalone runner for scripts/check_pair_integrity.py.
+#
+# The same check also gates the weekly factsheet, where a breach BLOCKS the
+# publish. That is the right severity — a sleeve pricing the wrong fund makes
+# every figure in its section meaningless — but it means the check can stop a
+# client deliverable, so it needs somewhere to be exercised on its own:
+#
+#   - on demand, to verify the check itself still works on a clean runner
+#     with no gitignored price caches present, before it can block anything;
+#   - weekly on its own cadence, so a pairing that breaks between factsheets
+#     is caught rather than waiting for the next publish attempt.
+#
+# It sends no email and commits nothing. A failure surfaces in the Actions
+# UI, and GitHub notifies the repository owner for scheduled-run failures.
+#
+# Background: registry key EXH3 paired an Industrial Goods & Services
+# constituent panel with EXH3.DE, the Food & Beverage fund, from Phase 4
+# until 2026-08-03. Every label in the repo restated the same wrong sector,
+# so only a behavioural check could catch it — see
+# reviews/2026-08-03_sleeve-d-exh3-correction.md.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Saturday 06:00 UTC — after the week's trading everywhere, and clear of
+    # both the weekday 21:30 UTC daily job and the Sunday 09:00 UTC factsheet
+    # check, so a slow run cannot collide with either.
+    - cron: '0 6 * * 6'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Verbose so the log carries the full per-pair table on a green run
+      # too. The numbers are the calibration evidence: if the healthy range
+      # ever drifts toward the 0.70 floor, that is visible here before it
+      # becomes a blocked factsheet.
+      - name: Check every breadth-signalled pair
+        run: python scripts/check_pair_integrity.py --verbose

@@ -403,14 +403,29 @@ def main() -> int:
     # panel missing ~25% of the book. Any ticker present in the existing
     # panel but absent from this run is carried forward unchanged (its own
     # dates array keeps its staleness honest) and reported loudly.
+    #
+    # The guard must distinguish two cases it originally conflated:
+    # a ticker this run WANTED but failed to source (carry it forward, the
+    # panel must not shrink), versus one that is no longer requested at all
+    # (drop it). Without that split a retired symbol is carried forward for
+    # ever with frozen prices, and it pollutes the WARN below with a name
+    # that will never resolve again. EXH3.DE became exactly that on
+    # 2026-08-03 when sleeve D's industrials panel was repointed to
+    # EXH4.DE — see reviews/2026-08-03_sleeve-d-exh3-correction.md.
+    wanted = collect_all_tickers() | set(critical)
     carried: list[str] = []
+    retired: list[str] = []
     if OUT_PATH.exists():
         try:
             prev = json.loads(OUT_PATH.read_text(encoding="utf-8"))
             for tk, entry in (prev.get("prices") or {}).items():
-                if tk not in out and entry and entry.get("dates"):
+                if tk in out or not entry or not entry.get("dates"):
+                    continue
+                if tk in wanted:
                     out[tk] = entry
                     carried.append(tk)
+                else:
+                    retired.append(tk)
         except Exception as exc:
             print(f"  WARN: could not read previous panel for the "
                   f"carry-forward guard: {exc}")
@@ -429,6 +444,9 @@ def main() -> int:
         print(f"  WARN: carried {len(carried)} ticker(s) forward from the "
               f"previous panel (this run could not source them): "
               f"{', '.join(sorted(carried))}")
+    if retired:
+        print(f"  Dropped {len(retired)} retired ticker(s) no longer "
+              f"requested by any sleeve: {', '.join(sorted(retired))}")
     still_missing = [t for t in critical if t not in out]
     if still_missing:
         print(f"  WARN: book-critical ticker(s) STILL missing after "
