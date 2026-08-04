@@ -1,0 +1,167 @@
+name: ETF scanner — daily build
+
+# Builds data/scanner_latest.json and docs/scanner.html, then commits them.
+#
+# CHAINED, NOT CRONNED. The spec proposed an independent 22:30 UTC cron, one
+# hour after the daily mark-to-market's 21:30. That would race: both jobs
+# commit to main, the daily one rebuilds the dashboard and the factsheet PDF,
+# and GitHub's scheduler delay tail is long enough to close an hour gap —
+# sentinel.yml's own comments document delays past 02:30 UTC. Triggering on
+# the daily run's COMPLETION removes the race by construction and keeps the
+# ordering honest: the scanner reads risk_overlay.json and breadth_csp1.json
+# for its overlay chips, and wants them after the daily refresh, not before.
+#
+# It runs whatever the upstream conclusion was. The scanner is a price
+# monitor; its value does not depend on the strategy pipeline having had a
+# good day, and gating on success would silently stop the scanner exactly
+# when something else is already wrong. If the upstream failed, its commit
+# never landed and the overlay chips read yesterday's state — which the page
+# labels with its own as-of dates.
+#
+# This workflow cannot disturb the book. It runs no strategy engine, writes
+# no strategy output, and commits exactly three paths. In particular it never
+# touches data/breadth_csp1.json, which is what push-triggers the weekly
+# factsheet email — a scanner build must not be able to mail a factsheet.
+#
+# Expected run time 3-6 minutes warm, longer on a cold price cache.
+
+on:
+  workflow_run:
+    workflows: ["Daily live mark-to-market"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Serialise builds. Two overlapping runs would both append today's ETF-layer
+# snapshot and then race on the push; the append is idempotent per (date,
+# ticker) but the push is not worth the retry.
+concurrency:
+  group: scanner-daily
+  cancel-in-progress: false
+
+jobs:
+  scanner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # ref: main is REQUIRED, not tidiness. A workflow_run event checks out
+      # the SHA of the run that triggered it, which for a scheduled upstream
+      # run is the tree as it stood BEFORE that job made its own commit. The
+      # default would therefore read a pre-refresh risk_overlay.json and then
+      # try to push onto a branch that has moved.
+      #
+      # fetch-depth: 0 with filter: blob:none — the rebase in the push retry
+      # needs a real merge base, which a depth-1 clone cannot give, but this
+      # repository carries ~641 MB of history (a 7 MB docs/index.html
+      # recommitted daily). The partial-clone filter fetches the full commit
+      # graph without historical blobs, so the retry works and the download
+      # stays close to a shallow one.
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # The price cache is gitignored (7 MB of raw vendor OHLCV), so without
+      # this every run re-fetches ~10 years for 54 instruments. run_scanner
+      # re-fetches a 10-day overlap regardless, so a cache a few days old is
+      # topped up rather than trusted. Rolling key: always writes a fresh
+      # entry, always restores the newest available.
+      - name: Restore the scanner price cache
+        uses: actions/cache@v4
+        with:
+          path: data/scanner_prices_cache.parquet
+          key: scanner-prices-${{ github.run_id }}
+          restore-keys: |
+            scanner-prices-
+
+      # run_scanner aborts on its own guards — universe reconciliation, the
+      # cross-sectional invariants, and the naive-recompute divergence check —
+      # and writes nothing when it does. A failure here leaves the previously
+      # published page in place, labelled with its own as-of, and fires the
+      # alert below.
+      - name: Run the scanner
+        run: python scripts/run_scanner.py
+
+      - name: Build the page
+        run: python scripts/build_scanner_page.py
+
+      - name: Run regression tests
+        run: python -m pytest tests/ -q
+
+      # Explicit paths only, never `git add data/ docs/`. Several sessions and
+      # workflows share this tree, and a broad add would sweep up whatever
+      # else happened to be dirty — including files that trigger other
+      # workflows. Rebase-then-retry because the weekly factsheet job may
+      # have pushed between our checkout and here.
+      - name: Commit the scanner outputs
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "ETF Scanner Bot"
+          git add data/scanner_latest.json data/scanner_snapshots.csv docs/scanner.html
+          if git diff --cached --quiet; then
+            echo "No scanner changes to commit."
+            exit 0
+          fi
+          git commit -m "Scanner daily build $(date -u +%Y-%m-%d)"
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "Pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected on attempt $attempt — rebasing onto origin/main."
+            git pull --rebase origin main || exit 1
+          done
+          echo "::error::Could not push scanner outputs after 3 attempts."
+          exit 1
+
+      - name: Email failure alert
+        if: failure()
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[FAIL] ETF scanner did not publish — page frozen at last as-of'
+          # Operator only. The scanner is a monitoring panel and has no
+          # distribution list.
+          to: ${{ secrets.GMAIL_USER }}
+          from: ${{ secrets.GMAIL_USER }}
+          body: |
+            The daily ETF scanner build failed. docs/scanner.html still holds
+            the previous run's data and shows its own as-of dates, so the page
+            is stale rather than wrong.
+
+            Likely causes, in the order worth checking:
+
+              - a guard fired deliberately. run_scanner aborts on universe
+                drift (a sleeve gained or lost a member without
+                data/scanner_universe_manifest.json being regenerated), on a
+                cross-sectional invariant, or on a naive-recompute divergence.
+                The log names which.
+              - five or more instruments failed to fetch, which is the
+                deliberate refusal to publish a partial panel.
+              - a missing FX series, which aborts rather than publishing a
+                EUR or CNY series labelled USD.
+
+            Reproduce locally:
+              python scripts/run_scanner.py --skip-snapshots
+              python scripts/build_scanner_page.py
+
+            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
