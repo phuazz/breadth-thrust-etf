@@ -46,6 +46,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -224,6 +225,20 @@ def fetch_prices(
         .drop_duplicates(subset=["ticker", "date"], keep="last")
         .reset_index(drop=True)
     )
+
+    # A row with no close is not a bar. The vendor emits placeholder rows for
+    # a session it has not yet populated — on 2026-08-04 every US ticker came
+    # back with a 2026-08-03 row of pure NaN — and carrying one poisons
+    # everything downstream: it becomes the ticker's as_of, and every
+    # indicator reading for the current bar goes NaN, which the percentile
+    # helper then correctly withholds and the invariant check then correctly
+    # rejected. Dropping them here fixes all of that at the source, and keeps
+    # placeholder rows out of the cache too.
+    before = len(combined)
+    combined = combined[combined["close"].notna()].reset_index(drop=True)
+    dropped = before - len(combined)
+    if dropped:
+        print(f"  dropped {dropped} placeholder row(s) with no close")
 
     missing = sorted(set(symbols) - set(combined["ticker"].unique()))
     for m in missing:
@@ -566,10 +581,27 @@ def assert_invariants(rows: list[dict], expected: int) -> None:
             f"(duplicates: {sorted(dupes) or 'none'}, max {max(ranks)})"
         )
 
+    # A withheld percentile is legitimate; an impossible one is not. The
+    # helper returns NaN by contract when history is too short to rank
+    # against, so failing on every NaN — as this did until 2026-08-04 —
+    # sets two of our own guards against each other. The strictness that
+    # matters is kept: NaN is only excused where the row genuinely lacks the
+    # observations, and any present value must still be in range.
+    minimum_bars = {
+        "rv_pctl": si.MIN_PCTL_OBS + si.RV_WINDOW,
+        "bbw_pctl": si.MIN_PCTL_OBS + si.BBW_WINDOW,
+    }
     for row in rows:
-        for key in ("rv_pctl", "bbw_pctl"):
+        for key, needed in minimum_bars.items():
             value = row.get(key)
-            if value is not None and not (0.0 <= value <= 100.0):
+            if value is None or not np.isfinite(value):
+                if (row.get("n_bars") or 0) >= needed:
+                    problems.append(
+                        f"{row['ticker']}: {key} is missing despite "
+                        f"{row.get('n_bars')} bars (needs {needed})"
+                    )
+                continue
+            if not (0.0 <= value <= 100.0):
                 problems.append(f"{row['ticker']}: {key} = {value} outside [0,100]")
 
     if problems:
@@ -785,9 +817,23 @@ def build(
         for market in sorted({_market_of(t) for t in panel})
     }
 
+    # The headline date needs care. as_of is the panel MAXIMUM, which is the
+    # right basis for measuring how far any row lags — but it is the wrong
+    # thing to print as "the" date. On 2026-08-04 the maximum was that day,
+    # set by two still-open foreign venues, while 48 of 54 rows sat at
+    # 2026-07-31 because the vendor had not yet populated the US session. A
+    # single confident label over a mixed panel is the failure this repository
+    # has already had twice, so the modal date and its share are published
+    # alongside and the page leads with those.
+    asof_counts = Counter(r["as_of"] for r in rows)
+    modal_asof, modal_count = asof_counts.most_common(1)[0]
+
     return {
         "built_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "as_of": as_of_iso,
+        "as_of_modal": modal_asof,
+        "as_of_modal_share": f"{modal_count}/{len(rows)}",
+        "as_of_mixed": len(asof_counts) > 1,
         "as_of_per_market": per_market,
         "etf_layer_observed_at": (
             None if snapshots.empty else str(snapshots["date"].max())

@@ -349,7 +349,8 @@ def test_alerts_are_priority_ordered_and_truncated_with_a_count():
 # =========================================================================
 def _ok_rows(n: int = 3) -> list[dict]:
     return [
-        {"ticker": f"T{i}", "rank": i + 1, "rv_pctl": 50.0, "bbw_pctl": 50.0}
+        {"ticker": f"T{i}", "rank": i + 1, "rv_pctl": 50.0, "bbw_pctl": 50.0,
+         "n_bars": 3000}
         for i in range(n)
     ]
 
@@ -373,8 +374,27 @@ def test_a_row_count_mismatch_aborts_the_build():
 def test_an_out_of_range_percentile_aborts_the_build():
     rows = _ok_rows()
     rows[0]["rv_pctl"] = 140.0
+    rows[0]["n_bars"] = 3000
     with pytest.raises(rs.ScannerBuildError, match=r"outside \[0,100\]"):
         rs.assert_invariants(rows, expected=3)
+
+
+def test_a_withheld_percentile_is_allowed_on_short_history():
+    """percentile_of_latest returns NaN by contract when there is too little
+    history to rank against. Failing on that set two of our own guards
+    against each other, which is how the first CI run aborted."""
+    rows = _ok_rows(1)
+    rows[0].update({"rv_pctl": None, "bbw_pctl": float("nan"), "n_bars": 60})
+    rs.assert_invariants(rows, expected=1)
+
+
+def test_a_missing_percentile_on_long_history_still_aborts():
+    """The strictness that matters is kept: with the observations present, a
+    missing percentile is a bug, not a withholding."""
+    rows = _ok_rows(1)
+    rows[0].update({"rv_pctl": float("nan"), "n_bars": 3000})
+    with pytest.raises(rs.ScannerBuildError, match="missing despite 3000 bars"):
+        rs.assert_invariants(rows, expected=1)
 
 
 def test_unranked_rows_do_not_break_the_permutation_check():

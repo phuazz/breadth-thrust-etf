@@ -428,7 +428,15 @@ function renderChrome() {
     + `equal-weight 1M/3M/6M/12M momentum composite. Every figure is USD. `
     + `<b>Parameters are unvalidated industry defaults.</b>`;
 
-  const pills = [`<span class="pill pill-date">PRICES ${esc(d.as_of)}</span>`];
+  // Lead with the date most of the panel is actually on, not the maximum:
+  // one open foreign venue must not make 48 stale rows look current.
+  const headline = d.as_of_modal || d.as_of;
+  const pills = [`<span class="pill pill-date">PRICES ${esc(headline)}`
+    + (d.as_of_mixed ? ` · ${esc(d.as_of_modal_share)}` : '') + `</span>`];
+  if (d.as_of_mixed) {
+    pills.push(`<span class="pill pill-warn" title="Rows sit on different `
+      + `sessions — see the data dates in the footer">MIXED DATES</span>`);
+  }
   const gate = (d.overlays || []).find(o => o.kind === 'breadth_gate');
   if (gate && gate.state) {
     pills.push(`<span class="pill ${gate.state === 'RISK_ON' ? 'pill-live' : 'pill-off'}">`
