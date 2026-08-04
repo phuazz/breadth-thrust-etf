@@ -19,9 +19,14 @@ name: ETF scanner — daily build
 # labels with its own as-of dates.
 #
 # This workflow cannot disturb the book. It runs no strategy engine, writes
-# no strategy output, and commits exactly three paths. In particular it never
+# no strategy output, and commits exactly four paths. In particular it never
 # touches data/breadth_csp1.json, which is what push-triggers the weekly
 # factsheet email — a scanner build must not be able to mail a factsheet.
+#
+# docs/scanner_history.json is published alongside the page rather than
+# inlined: the page fetches it lazily when a row is expanded, so the page
+# itself stays ~83 KB and a reader who never opens a chart never downloads
+# the ~200 KB of price history.
 #
 # Expected run time 3-6 minutes warm, longer on a cold price cache.
 
@@ -111,7 +116,8 @@ jobs:
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "ETF Scanner Bot"
-          git add data/scanner_latest.json data/scanner_snapshots.csv docs/scanner.html
+          git add data/scanner_latest.json data/scanner_snapshots.csv \
+                  docs/scanner.html docs/scanner_history.json
           if git diff --cached --quiet; then
             echo "No scanner changes to commit."
             exit 0

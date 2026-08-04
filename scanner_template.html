@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ETF cross-sectional scanner — breadth-thrust-etf</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Same Plotly version the main dashboard pins, so the two pages cannot
+     drift onto different chart engines. -->
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
 /* Token block copied verbatim from C:\dev\design.md — do not fork these
    values here. If a value is missing, add it to design.md first. */
@@ -187,6 +190,59 @@ tr.stale td.tk::after {
 }
 .trunc { color: var(--t3-text); font-size: 9px; vertical-align: super; }
 .px { color: var(--t3-text); font-size: 9px; vertical-align: super; cursor: help; }
+
+/* ---- expandable row chart (pattern lifted from Portfolio Command Centre) ---- */
+tbody tr.data-row { cursor: pointer; }
+tbody tr.row-selected td { background: var(--b-bg2); }
+tbody tr.chart-row td { padding: 0; background: var(--bg3); border-bottom: 2px solid var(--bd-strong); }
+tbody tr.chart-row:hover td { background: var(--bg3); }
+/* The chart lives in a td spanning a table whose min-width (1400px) exceeds
+   the wrapper at every viewport, so an unconstrained panel puts most of the
+   chart off-screen — on desktop as well as mobile. Pinning it to the left of
+   the scroll container and sizing it to the wrapper's visible width (set in
+   JS, since no CSS length resolves to "my scrolling ancestor's client width")
+   keeps the whole chart in view while the table still scrolls behind it. */
+.chart-panel {
+  padding: 14px 16px 16px;
+  position: sticky; left: 0; box-sizing: border-box;
+}
+.chart-panel-head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.chart-panel-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.chart-panel-title .tk {
+  font-family: var(--mono); font-size: 14px; font-weight: 700; letter-spacing: -0.3px;
+}
+.chart-panel-title .nm { font-size: 12px; color: var(--t2); }
+.chart-panel-stats { display: flex; gap: 6px; flex-wrap: wrap; }
+.stat {
+  font-size: 10.5px; font-family: var(--mono); padding: 2px 7px;
+  border-radius: 4px; background: var(--bg2); border: 1px solid var(--bd); color: var(--t2);
+}
+.stat b { font-weight: 600; color: var(--t1); }
+.chart-panel-close {
+  cursor: pointer; font-size: 15px; color: var(--t3-text); line-height: 1;
+  padding: 4px 8px; border-radius: 4px; user-select: none;
+}
+.chart-panel-close:hover { background: var(--bg4); color: var(--t1); }
+.chart-box { height: 320px; width: 100%; }
+.chart-note { font-size: 10.5px; color: var(--t3-text); margin-top: 8px; }
+/* Period selector — copied from design.md, trimmed to this chart's honest
+   horizon. The published history is 504 sessions, so offering 3Y/5Y/MAX
+   would promise a window the data does not contain. */
+.period-selector {
+  display: inline-flex; border: 1px solid var(--bd); border-radius: 4px;
+  overflow: hidden; background: var(--bg2);
+}
+.period-selector button {
+  padding: 5px 11px; background: var(--bg2); border: none;
+  border-right: 1px solid var(--bd); cursor: pointer;
+  font-size: 11.5px; font-weight: 600; color: var(--t2); font-family: inherit;
+}
+.period-selector button:last-child { border-right: none; }
+.period-selector button.active { background: var(--b-text); color: #fff; }
+@media (pointer: coarse) { .period-selector button { min-height: 44px; padding: 0 14px; } }
 
 .foot {
   margin-top: 18px; font-size: 11.5px; color: var(--t3-text); line-height: 1.75;
@@ -408,9 +464,11 @@ function renderBody() {
   });
 
   document.getElementById('empty').style.display = rows.length ? 'none' : 'block';
+  openTicker = null;   // the rows are being replaced; no chart survives a re-render
   document.getElementById('body').innerHTML = rows.map(r =>
-    `<tr class="${r.stale ? 'stale' : ''}"${r.stale
-      ? ` title="data ${r.sessions_behind} session(s) behind the panel"` : ''}>`
+    `<tr class="data-row${r.stale ? ' stale' : ''}" data-ticker="${esc(r.ticker)}"`
+    + ` title="${r.stale ? `data ${r.sessions_behind} session(s) behind the panel — ` : ''}`
+    + `click for the price chart">`
     + COLS.map(c => {
         const extra = [c.align === 'l' ? c.cls : (c.align === 'c' ? 'c' : ''),
                        c.gb ? 'gb' : '', c.k === 'rank' ? 'rk' : '',
@@ -483,6 +541,9 @@ function renderChrome() {
     + (d.etf_layer_observed_at ? ` ETF layer observed: ${esc(d.etf_layer_observed_at)}.` : '')
     + ` Each row carries its own as-of; rows more than `
     + `${h.stale_threshold_sessions} sessions behind are greyed and marked \u25CF.`,
+    `<b>Click any row</b> for a price chart with MA50 and MA200 over the same `
+    + `${d.percentile_window}-session window the percentile columns are measured `
+    + `against, so the chart shows the history those readings rank within.`,
     `<b>Percentile window</b> ${d.percentile_window} trading days, each indicator against `
     + `its own history. <code>^</code> marks a shortened window. <code>P</code> marks a row `
     + `scanned via its trading proxy rather than the UCITS line the sleeve holds — hover for which.`,
@@ -510,9 +571,199 @@ function renderChrome() {
 
 function render() { renderChrome(); renderHead(); renderBody(); }
 
+// =====================================================================
+// Expandable row chart
+// =====================================================================
+// Shared layout from design.md. Do not fork these values here.
+const CHART_LAYOUT = {
+  paper_bgcolor: 'transparent',
+  plot_bgcolor: '#fafaf8',
+  font: { family: 'DM Sans', size: 11, color: '#4a4a44' },
+  margin: { t: 10, b: 30, l: 10, r: 58 },
+  xaxis: {
+    gridcolor: '#eeeee8', linecolor: '#d5d3ca', linewidth: 1, showgrid: false,
+    tickformat: "%b '%y", dtick: 'M2', tickfont: { size: 11 },
+  },
+  yaxis: {
+    gridcolor: '#f0f0ea', linecolor: '#d5d3ca', linewidth: 1, showgrid: true,
+    gridwidth: 1, side: 'right',
+    tickfont: { size: 11, family: 'JetBrains Mono' },
+  },
+  showlegend: true,
+  legend: { x: 0, y: 1.02, orientation: 'h', font: { size: 11, color: '#2b2b28' },
+            bgcolor: 'transparent' },
+  hovermode: 'x unified',
+  hoverlabel: { bgcolor: '#fff', bordercolor: '#d5d3ca',
+                font: { size: 11, family: 'DM Sans' } },
+};
+
+// The published history is 504 sessions, so the window set stops at 2Y —
+// design.md says trim to the chart's honest horizon rather than offering a
+// range the data cannot fill.
+const WINDOWS = [['1M', 21], ['3M', 63], ['6M', 126], ['1Y', 252], ['2Y', 504]];
+const DEFAULT_WINDOW = 252;
+
+let HISTORY = null, historyPromise = null, openTicker = null, chartWindow = DEFAULT_WINDOW;
+
+function loadHistory() {
+  if (HISTORY) return Promise.resolve(HISTORY);
+  if (historyPromise) return historyPromise;
+  // Built page sits in docs/ beside the file; dev serves the project root.
+  const paths = ['scanner_history.json', 'docs/scanner_history.json'];
+  historyPromise = paths.reduce(
+    (chain, p) => chain.catch(() =>
+      fetch(p).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })),
+    Promise.reject()
+  ).then(j => { HISTORY = j; return j; });
+  return historyPromise;
+}
+
+// O(n) rolling mean, null until the window fills — the same shape the
+// indicator library uses server-side, so the chart cannot show a partial-window
+// average the table would refuse to publish.
+function sma(values, period) {
+  const out = new Array(values.length).fill(null);
+  let sum = 0, count = 0;
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (v != null) { sum += v; count++; }
+    if (i >= period) { const drop = values[i - period]; if (drop != null) { sum -= drop; count--; } }
+    if (i >= period - 1 && count === period) out[i] = sum / period;
+  }
+  return out;
+}
+
+function sizeChartPanel() {
+  const panel = document.querySelector('.chart-panel');
+  const wrap = document.querySelector('.tblwrap');
+  if (panel && wrap) panel.style.width = wrap.clientWidth + 'px';
+}
+
+function renderChart(boxId, ticker) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  sizeChartPanel();
+  const s = HISTORY && HISTORY.series[ticker];
+  if (!s) {
+    box.innerHTML = `<div style="padding:28px;text-align:center;color:var(--t3-text);`
+      + `font-size:12px;">No published history for ${esc(ticker)}.</div>`;
+    return;
+  }
+  const dates = HISTORY.calendars[s.calendar];
+  // MAs are computed on the FULL series then sliced, so a 1M window still
+  // shows a true MA200 rather than one restarted at the window edge.
+  const ma50 = sma(s.close, 50), ma200 = sma(s.close, 200);
+  const n = Math.min(chartWindow, dates.length);
+  const cut = dates.length - n;
+  const x = dates.slice(cut);
+
+  // MA colours and the MA200 dashdot are PCC's, so the two pages read as
+  // siblings. PCC draws price as candlesticks at 2.5 MAs; this is a line
+  // chart because only closes are published (OHLC would quadruple the
+  // payload for a cross-sectional monitor, and ATR% already carries the
+  // intraday range), so the close is weighted heavier to keep the hierarchy.
+  const traces = [
+    { x, y: s.close.slice(cut), name: 'Close', type: 'scatter', mode: 'lines',
+      line: { color: '#1a1a18', width: 3.0 }, connectgaps: true,
+      hovertemplate: '%{y}<extra>Close</extra>' },
+    { x, y: ma50.slice(cut), name: 'MA50', type: 'scatter', mode: 'lines',
+      line: { color: '#f59e0b', width: 1.8 }, connectgaps: true,
+      hovertemplate: '%{y:.2f}<extra>MA50</extra>' },
+    { x, y: ma200.slice(cut), name: 'MA200', type: 'scatter', mode: 'lines',
+      line: { color: '#e879a0', width: 1.8, dash: 'dashdot' }, connectgaps: true,
+      hovertemplate: '%{y:.2f}<extra>MA200</extra>' },
+  ];
+  Plotly.newPlot(box, traces, CHART_LAYOUT,
+    { displayModeBar: false, responsive: true, scrollZoom: true });
+}
+
+function closeChart() {
+  const row = document.querySelector('tr.chart-row');
+  if (row) { const box = row.querySelector('.chart-box'); if (box) Plotly.purge(box); row.remove(); }
+  document.querySelectorAll('.row-selected').forEach(r => r.classList.remove('row-selected'));
+  openTicker = null;
+}
+
+function toggleChart(ticker, tr) {
+  if (openTicker === ticker) { closeChart(); return; }
+  closeChart();
+  openTicker = ticker;
+  chartWindow = DEFAULT_WINDOW;
+  tr.classList.add('row-selected');
+
+  const r = DATA.rows.find(x => x.ticker === ticker) || {};
+  const boxId = 'chart-box';
+  const stat = (label, v) => v == null || v === ''
+    ? '' : `<span class="stat">${esc(label)} <b>${esc(v)}</b></span>`;
+
+  const chartRow = document.createElement('tr');
+  chartRow.className = 'chart-row';
+  chartRow.innerHTML = `<td colspan="${COLS.length}">
+    <div class="chart-panel">
+      <div class="chart-panel-head">
+        <div class="chart-panel-title">
+          <span class="tk">${esc(ticker)}</span>
+          <span class="nm">${esc(r.long_name || r.name || '')}</span>
+        </div>
+        <div class="chart-panel-stats">
+          ${stat('Rank', r.rank)}
+          ${stat('Trend', r.trend)}
+          ${stat('12-1', signed(r.mom_12_1) == null ? null : signed(r.mom_12_1) + '%')}
+          ${stat('vs 52W hi', signed(r.vs_52w_high) == null ? null : signed(r.vs_52w_high) + '%')}
+          ${stat('RV', r.rv_pctl == null ? null : 'p' + r.rv_pctl.toFixed(0))}
+          ${stat('BBW', r.bbw_pctl == null ? null : 'p' + r.bbw_pctl.toFixed(0))}
+          ${stat('As of', r.as_of)}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="period-selector" id="chart-periods">${WINDOWS.map(([lbl, n]) =>
+            `<button data-n="${n}" class="${n === DEFAULT_WINDOW ? 'active' : ''}">${lbl}</button>`
+          ).join('')}</span>
+          <span class="chart-panel-close" title="Close">&#x2715;</span>
+        </div>
+      </div>
+      <div class="chart-box" id="${boxId}"></div>
+      <div class="chart-note">Close, MA50 and MA200 in USD on this
+        instrument's own calendar. Moving averages are computed on the full
+        published history and then sliced, so a short window still shows a true
+        MA200.${r.is_proxied ? ' Scanned via a trading proxy: '
+          + esc(r.proxy_notes.join('; ')) + '.' : ''}</div>
+    </div></td>`;
+  tr.after(chartRow);
+  sizeChartPanel();
+
+  const box = document.getElementById(boxId);
+  box.innerHTML = `<div style="padding:28px;text-align:center;`
+    + `color:var(--t3-text);font-size:12px;">Loading history…</div>`;
+  loadHistory()
+    .then(() => { if (openTicker === ticker) renderChart(boxId, ticker); })
+    .catch(err => {
+      if (openTicker !== ticker) return;
+      box.innerHTML = `<div style="padding:28px;text-align:center;`
+        + `color:var(--a-text);font-size:12px;">Could not load scanner_history.json `
+        + `(${esc(err)}). Run <code>python scripts/run_scanner.py</code>.</div>`;
+    });
+}
+
 document.addEventListener('click', (e) => {
   const f = e.target.closest('.filter');
   if (f) { SLEEVE = f.dataset.s; render(); return; }
+
+  // Chart-panel controls first: they live inside a <tr>, so letting the row
+  // handler see them would collapse the very chart being adjusted.
+  if (e.target.closest('.chart-panel-close')) { closeChart(); return; }
+  const pb = e.target.closest('#chart-periods button');
+  if (pb) {
+    chartWindow = parseInt(pb.dataset.n, 10);
+    pb.parentElement.querySelectorAll('button')
+      .forEach(b => b.classList.toggle('active', b === pb));
+    if (openTicker) renderChart('chart-box', openTicker);
+    return;
+  }
+  if (e.target.closest('tr.chart-row')) return;   // clicks inside the panel do nothing
+
+  const tr = e.target.closest('tbody tr.data-row');
+  if (tr) { toggleChart(tr.dataset.ticker, tr); return; }
+
   const th = e.target.closest('thead tr.cols th');
   if (!th) return;
   if (th.dataset.toggle) {
@@ -529,6 +780,17 @@ document.addEventListener('click', (e) => {
   else { SORT.k = k; SORT.asc = (k === 'rank' || k === 'ticker' || k === 'name'); }
   render();
 });
+
+// Keep an open chart matched to its container. A window resize listener is
+// not enough: opening a chart lengthens the page, which can bring up a
+// vertical scrollbar and narrow the wrapper by ~16px AFTER the panel was
+// sized, leaving it slightly too wide. Observing the wrapper itself catches
+// that, plus window resizes and late web-font reflow, in one place.
+(function () {
+  const wrap = document.querySelector('.tblwrap');
+  if (!wrap || typeof ResizeObserver === 'undefined') return;
+  new ResizeObserver(() => { if (openTicker) sizeChartPanel(); }).observe(wrap);
+})();
 
 // Inlined at build time by scripts/build_scanner_page.py. The fetch fallback
 // keeps this file usable standalone during development (`npx serve .`), which

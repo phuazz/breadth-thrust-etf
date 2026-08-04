@@ -28,6 +28,9 @@ ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "scanner_template.html"
 DATA_PATH = ROOT / "data" / "scanner_latest.json"
 OUT_PATH = ROOT / "docs" / "scanner.html"
+# Lazily fetched by the page when a row is expanded, so it is not injected —
+# but it must exist and cover the rows, or clicking a row yields nothing.
+HISTORY_PATH = ROOT / "docs" / "scanner_history.json"
 
 PLACEHOLDER_START = "// __SCANNER_DATA_START__"
 PLACEHOLDER_END = "// __SCANNER_DATA_END__"
@@ -106,6 +109,49 @@ def assert_payload_usable(payload: dict) -> None:
         )
 
 
+def assert_history_covers(payload: dict) -> str:
+    """The chart history is fetched at click time, so a gap is invisible here.
+
+    Checked at build instead: every published row must have a series, and each
+    series must reference a calendar that exists. A row whose chart silently
+    fails to open looks like a broken page, not like missing data.
+    """
+    if not HISTORY_PATH.exists():
+        raise ScannerPageError(
+            f"missing {HISTORY_PATH.relative_to(ROOT)} — run "
+            f"`python scripts/run_scanner.py`, which writes it"
+        )
+    history = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+    series = history.get("series") or {}
+    calendars = history.get("calendars") or {}
+
+    problems: list[str] = []
+    missing = [r["ticker"] for r in payload.get("rows", []) if r["ticker"] not in series]
+    if missing:
+        problems.append(f"no chart history for: {', '.join(missing[:8])}")
+    orphan = sorted({
+        s.get("calendar") for s in series.values() if s.get("calendar") not in calendars
+    })
+    if orphan:
+        problems.append(f"series reference missing calendars: {orphan}")
+    for ticker, s in series.items():
+        axis = calendars.get(s.get("calendar")) or []
+        if len(s.get("close") or []) != len(axis):
+            problems.append(
+                f"{ticker}: {len(s.get('close') or [])} closes against a "
+                f"{len(axis)}-session calendar"
+            )
+            break
+    if problems:
+        raise ScannerPageError(
+            "chart history is not publishable:\n  - " + "\n  - ".join(problems)
+        )
+    return (
+        f"history {HISTORY_PATH.stat().st_size / 1024:.0f} KB, "
+        f"{len(series)} series x {history.get('sessions')} sessions"
+    )
+
+
 def assert_output_clean(text: str) -> None:
     """Guard against the failure that once hung the main dashboard."""
     for marker in CONFLICT_MARKERS:
@@ -141,12 +187,14 @@ def main(argv: list[str] | None = None) -> int:
 
     payload = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     assert_payload_usable(payload)
+    history_note = assert_history_covers(payload)
 
     out = inject(TEMPLATE.read_text(encoding="utf-8"), payload)
     assert_output_clean(out)
 
     print(f"template {template_bytes / 1024:.0f} KB, "
           f"{payload['n_rows']} rows as of {payload['as_of']}")
+    print(f"  {history_note}")
     if args.check:
         print(f"check only — would write {len(out) / 1024:.0f} KB")
         return 0

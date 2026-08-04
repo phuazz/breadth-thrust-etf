@@ -450,3 +450,77 @@ def test_build_columns_withholds_rs_for_the_benchmark_row():
     cols = rs.build_columns(_data(frame, rs.BENCHMARK), frame["close"])
     assert cols["rs_1m"] is None
     assert cols["ret_1m"] is not None, "the raw 1M return is still published"
+
+
+# =========================================================================
+# Chart history for the expandable row charts
+#
+# Two size decisions are load-bearing and worth pinning: dates are published
+# once per market as a shared calendar rather than repeated per ticker, and
+# only closes are published because the browser computes the moving averages.
+# Together those took the payload from over a megabyte to ~200 KB. A future
+# edit that reintroduces per-ticker dates or server-side MAs would quietly
+# quadruple what every chart-opening reader downloads.
+# =========================================================================
+def test_history_publishes_one_calendar_per_market():
+    panel = {
+        "SPY": _data(_frame(n=600), "SPY"),
+        "QQQ": _data(_frame(n=600), "QQQ"),
+        "EXH4.DE": _data(_frame(n=600), "EXH4.DE"),
+    }
+    h = rs.build_history(panel)
+    assert set(h["calendars"]) == {"US", "DE"}, "one calendar per market, not per ticker"
+    assert h["series"]["SPY"]["calendar"] == "US"
+    assert h["series"]["EXH4.DE"]["calendar"] == "DE"
+
+
+def test_history_series_align_to_their_calendar():
+    panel = {"SPY": _data(_frame(n=600), "SPY")}
+    h = rs.build_history(panel)
+    axis = h["calendars"]["US"]
+    assert len(axis) == rs.HISTORY_SESSIONS
+    assert len(h["series"]["SPY"]["close"]) == len(axis)
+
+
+def test_history_publishes_closes_only():
+    """MAs are the browser's job — publishing them would triple the payload."""
+    h = rs.build_history({"SPY": _data(_frame(n=600), "SPY")})
+    assert set(h["series"]["SPY"]) == {"calendar", "close"}
+
+
+def test_history_window_matches_the_percentile_window():
+    """The chart must show the history the RV and BBW columns rank within."""
+    assert rs.HISTORY_SESSIONS == si.PCTL_WINDOW
+
+
+def test_history_pads_a_short_series_with_nulls_not_zeros():
+    """A young listing shares the market calendar but has no early bars.
+
+    IBIT is the live case: it lists in 2024 while its neighbours run back a
+    decade. Its recent bars must sit at the RIGHT of the shared calendar with
+    nulls before them — zeros would draw a price collapse, and nulls draw
+    nothing. The young frame is sliced off the end of the long one so its
+    dates are recent, which is what makes this the real case rather than two
+    disjoint calendars.
+    """
+    long_frame = _frame(n=600)
+    panel = {
+        "SPY": _data(long_frame, "SPY"),
+        "NEW": _data(long_frame.iloc[-30:], "NEW"),
+    }
+    h = rs.build_history(panel)
+    closes = h["series"]["NEW"]["close"]
+    assert len(closes) == len(h["calendars"]["US"])
+    assert closes[0] is None, "no bars at the start of the shared window"
+    assert closes[-1] is not None, "its recent bars are at the right"
+    assert 0 not in [c for c in closes if c is not None]
+    assert sum(1 for c in closes if c is not None) == 30
+
+
+def test_round_sig_serves_both_price_scales():
+    """One rule has to cover SOXX near 500 and 159801.SZ near 0.15."""
+    assert rs._round_sig(504.8900146484375) == pytest.approx(504.89)
+    assert rs._round_sig(0.16069123) == pytest.approx(0.16069)
+    assert rs._round_sig(None) is None
+    assert rs._round_sig(float("nan")) is None
+    assert rs._round_sig(0.0) == 0.0

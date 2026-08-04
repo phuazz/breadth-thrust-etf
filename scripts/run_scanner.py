@@ -75,6 +75,12 @@ OVERLAY_PATH = DATA_DIR / "risk_overlay.json"
 BREADTH_PATH = DATA_DIR / "breadth_csp1.json"
 
 HISTORY_START = "2014-01-01"     # ~10y, comfortably over the 504d window
+# Chart history published for the expandable row charts. 504 sessions on
+# purpose: it is the same window the RV and BBW percentiles are measured
+# against, so the chart shows exactly the history those columns are ranking
+# within rather than a shorter view that would flatter or flatten them.
+HISTORY_SESSIONS = si.PCTL_WINDOW
+HISTORY_PATH = ROOT / "docs" / "scanner_history.json"
 FETCH_RETRIES = 3
 CACHE_OVERLAP_DAYS = 10          # re-fetch a little history to catch restatements
 MAX_FETCH_FAILURES = 5           # spec §7: >=5 failures abort the build
@@ -666,7 +672,13 @@ def assert_no_naive_divergence(
 # =========================================================================
 def build(
     end: str | None = None, full: bool = False, skip_snapshots: bool = False
-) -> dict:
+) -> tuple[dict, dict[str, TickerData]]:
+    """Returns (page payload, the USD-converted panel it was built from).
+
+    The panel comes back so the caller can publish chart history from the
+    same in-memory series the columns were computed on. Re-deriving it would
+    risk a chart that disagrees with the row above it.
+    """
     report = BuildReport()
 
     print("Resolving universe ...")
@@ -861,6 +873,65 @@ def build(
             "notes": report.notes,
             "stale_threshold_sessions": STALE_TRADING_DAYS,
         },
+    }, panel
+
+
+def _round_sig(value: float, digits: int = 5) -> float | None:
+    """Round to significant figures so one rule serves SOXX at ~500 and
+    159801.SZ at ~0.15. Charts do not need more precision than this, and it
+    roughly halves the payload."""
+    if value is None or not np.isfinite(value):
+        return None
+    if value == 0:
+        return 0.0
+    exponent = int(np.floor(np.log10(abs(value))))
+    return round(float(value), max(0, digits - 1 - exponent))
+
+
+def build_history(panel: dict[str, TickerData]) -> dict:
+    """Close-price history for the expandable row charts.
+
+    Two size decisions, because this file is fetched by a browser:
+
+    * Dates are published ONCE per market as a shared calendar, and each
+      ticker's closes align to it with nulls where it has no bar. Repeating
+      an ISO date string 54 times over is the single largest avoidable cost
+      here — a shared axis removes about 300 KB.
+    * Only closes are published. MA50 and MA200 are computed in the browser
+      from them, the way the Portfolio Command Centre chart does it, which
+      removes two thirds of what remains. Volume is left out for now; the
+      Vol x20D column already carries the reading.
+    """
+    calendars: dict[str, list[str]] = {}
+    for market in sorted({_market_of(t) for t in panel}):
+        dates = sorted({
+            d for t, data in panel.items() if _market_of(t) == market
+            for d in data.frame.index[-HISTORY_SESSIONS:]
+        })
+        calendars[market] = [d.strftime("%Y-%m-%d") for d in dates]
+
+    series: dict[str, dict] = {}
+    for ticker, data in panel.items():
+        market = _market_of(ticker)
+        axis = calendars[market]
+        closes = data.close.iloc[-HISTORY_SESSIONS:]
+        lookup = {d.strftime("%Y-%m-%d"): v for d, v in closes.items()}
+        series[ticker] = {
+            "calendar": market,
+            "close": [_round_sig(lookup.get(d)) if lookup.get(d) is not None
+                      else None for d in axis],
+        }
+
+    return {
+        "built_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "sessions": HISTORY_SESSIONS,
+        "note": (
+            "Close prices in USD, aligned to a shared per-market calendar. "
+            "Moving averages are computed client-side. The window matches the "
+            "percentile window on the scanner page."
+        ),
+        "calendars": calendars,
+        "series": series,
     }
 
 
@@ -882,10 +953,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default=None, help="override the output path")
     args = parser.parse_args(argv)
 
-    payload = build(end=args.end, full=args.full, skip_snapshots=args.skip_snapshots)
+    payload, panel = build(
+        end=args.end, full=args.full, skip_snapshots=args.skip_snapshots
+    )
 
     out_path = Path(args.out) if args.out else OUT_PATH
     out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    # Chart history goes to docs/ rather than data/, because the browser
+    # fetches it alongside the published page and GitHub Pages serves only
+    # docs/. Written compactly — nothing reads it by eye.
+    history = build_history(panel)
+    HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    HISTORY_PATH.write_text(
+        json.dumps(history, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
+    print(
+        f"wrote {HISTORY_PATH.relative_to(ROOT)} "
+        f"({HISTORY_PATH.stat().st_size / 1024:.0f} KB, "
+        f"{len(history['series'])} series x {history['sessions']} sessions)"
+    )
 
     health = payload["data_health"]
     print(f"\nas-of {payload['as_of']}  ({payload['as_of_per_market']})")
