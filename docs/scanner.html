@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETF cross-sectional scanner — breadth-thrust-etf</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Token block copied verbatim from C:\dev\design.md — do not fork these
+   values here. If a value is missing, add it to design.md first. */
+:root {
+  /* surfaces */
+  --bg: #fafaf8;        /* page background — warm off-white */
+  --bg2: #ffffff;       /* cards, raised surfaces */
+  --bg3: #f5f5f0;       /* table headers, inset chips */
+  --bg4: #eeeee8;       /* progress tracks, deep insets */
+  --bg-hover: #f0f0ea;  /* row / cell hover */
+  /* borders */
+  --bd: #e2e0d8;        /* default hairline */
+  --bd2: #d5d3ca;       /* medium */
+  --bd-strong: #c0beb5; /* emphasis / axis lines */
+  /* text */
+  --t1: #1a1a18;        /* primary — near-black */
+  --t2: #5c5c56;        /* secondary */
+  --t3: #8a8a82;        /* tertiary / labels */
+  --t4: #b0b0a8;        /* disabled / faint */
+  /* semantic: green = gain/long, red = loss/short */
+  --g: #1a8754;  --g2: #22a366;  --g-bg: rgba(26,135,84,0.07);  --g-bg2: rgba(26,135,84,0.14);
+  --r: #c0392b;  --r2: #e74c3c;  --r-bg: rgba(192,57,43,0.07);  --r-bg2: rgba(192,57,43,0.14);
+  /* accents: blue = neutral/benchmark, amber = caution, purple = cost, cyan = info, pink = alt */
+  --b: #2563eb;  --b2: #3b82f6;  --b-bg: rgba(37,99,235,0.06);  --b-bg2: rgba(37,99,235,0.12);
+  --a: #b45309;  --a-bg: rgba(180,83,9,0.07);
+  --p: #7c3aed;  --p-bg: rgba(124,58,237,0.06);
+  --c: #0891b2;  --c-bg: rgba(8,145,178,0.06);
+  --pk: #be185d; --pk-bg: rgba(190,24,93,0.06);
+  /* -text variants — use these for TEXT; the values above are for fills,
+     borders, chart lines and large type. */
+  --g-text: #146c43;  --r-text: #a93226;  --b-text: #1d4ed8;  --a-text: #92400e;
+  --p-text: #7c3aed;  --c-text: #0e7490;  --pk-text: #be185d;
+  --t3-text: #66665e;
+  /* type */
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'DM Sans', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+  /* elevation */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.06), 0 4px 6px rgba(0,0,0,0.04);
+  /* radius */
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--t1);
+  font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.shell { max-width: 1520px; margin: 0 auto; padding: 20px 32px 60px; }
+
+/* ---- masthead: serif title, italic muted clause, 2px --t1 underline ---- */
+.masthead {
+  padding: 28px 0 22px; border-bottom: 2px solid var(--t1);
+  display: flex; justify-content: space-between; align-items: flex-end;
+  flex-wrap: wrap; gap: 12px;
+}
+.masthead-left h1 {
+  font-family: var(--serif); font-size: 32px; font-weight: 400;
+  letter-spacing: -0.5px; margin: 0;
+}
+.masthead-left h1 em { font-style: italic; color: var(--t3); }
+.masthead-left p { margin: 6px 0 0; font-size: 13px; color: var(--t2); max-width: 70ch; }
+.pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+  padding: 4px 10px; border-radius: 999px; font-family: var(--mono);
+  border: 1px solid transparent; white-space: nowrap;
+}
+.pill-date { background: var(--bg3); color: var(--t3-text); border-color: var(--bd); }
+.pill-live { background: var(--g-bg); color: var(--g-text); border-color: rgba(26,135,84,0.2); }
+.pill-off  { background: var(--r-bg); color: var(--r-text); border-color: rgba(192,57,43,0.2); }
+.pill-warn { background: var(--a-bg); color: var(--a-text); border-color: rgba(180,83,9,0.2); }
+
+/* ---- section labels: 11px upper, --t3-text (never --t3 at this size) ---- */
+.lbl {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.9px;
+  font-weight: 700; color: var(--t3-text);
+}
+
+.striprow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 18px 0 0; }
+.striprow .lbl { min-width: 74px; }
+
+.chip {
+  font-size: 11.5px; padding: 4px 10px; border-radius: var(--radius);
+  white-space: nowrap; border: 1px solid var(--bd); background: var(--bg2);
+  color: var(--t2);
+}
+.chip b { font-weight: 600; }
+.chip.good { background: var(--g-bg); color: var(--g-text); border-color: rgba(26,135,84,0.2); }
+.chip.bad  { background: var(--r-bg); color: var(--r-text); border-color: rgba(192,57,43,0.2); }
+.chip.warn { background: var(--a-bg); color: var(--a-text); border-color: rgba(180,83,9,0.2); }
+.chip.info { background: var(--p-bg); color: var(--p-text); border-color: rgba(124,58,237,0.2); }
+.chip.alt  { background: var(--pk-bg); color: var(--pk-text); border-color: rgba(190,24,93,0.2); }
+.chip.mute { background: var(--bg3); color: var(--t3-text); }
+.chip .tk { font-family: var(--mono); font-weight: 600; }
+
+.filter {
+  font-size: 11.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--bd); background: var(--bg2); color: var(--t2);
+  cursor: pointer; font-family: inherit; min-height: 28px;
+}
+.filter:hover { background: var(--bg-hover); }
+.filter.active { background: var(--t1); color: var(--bg2); border-color: var(--t1); }
+
+/* ---- card + table ---- */
+.card {
+  background: var(--bg2); border: 1px solid var(--bd); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow); margin-top: 14px; overflow: hidden;
+}
+.tblwrap { overflow-x: auto; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1400px; }
+
+thead th { position: sticky; background: var(--bg3); }
+thead tr.zones th {
+  top: 0; z-index: 3; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1px; font-weight: 700; text-align: center; padding: 6px 8px;
+  border-bottom: 1px solid var(--bd);
+}
+thead tr.zones th.zdir   { background: var(--c-bg);  color: var(--c-text); }
+thead tr.zones th.zrisk  { background: var(--p-bg);  color: var(--p-text); }
+thead tr.zones th.zstate { background: var(--bg3);   color: var(--t3-text); }
+thead tr.zones th.zetf   { background: var(--a-bg);  color: var(--a-text); }
+thead tr.cols th {
+  top: 27px; z-index: 2; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.6px; font-weight: 700; color: var(--t3-text);
+  text-align: right; padding: 8px; white-space: nowrap;
+  border-bottom: 2px solid var(--bd-strong); cursor: pointer; user-select: none;
+}
+thead tr.cols th:hover { color: var(--t1); background: var(--bg4); }
+thead tr.cols th.l { text-align: left; }
+thead tr.cols th.c { text-align: center; }
+thead tr.cols th.gb { border-left: 1px solid var(--bd); }
+thead tr.cols th .arrow { opacity: 0.35; font-size: 9px; margin-left: 2px; }
+thead tr.cols th.sorted .arrow { opacity: 1; }
+thead tr.cols th.sorted { color: var(--t1); }
+
+tbody td {
+  padding: 7px 8px; text-align: right; font-family: var(--mono);
+  font-size: 12px; font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid var(--bd); white-space: nowrap;
+}
+tbody tr:hover td { background: var(--bg-hover); }
+tbody tr:last-child td { border-bottom: none; }
+td.gb { border-left: 1px solid var(--bd); }
+td.tk { text-align: left; font-weight: 600; letter-spacing: -0.2px; }
+td.nm {
+  text-align: left; font-family: var(--sans); font-size: 11.5px; color: var(--t2);
+  max-width: 210px; overflow: hidden; text-overflow: ellipsis;
+}
+td.c { text-align: center; }
+td.rk { font-weight: 700; }
+
+/* Cell text uses the -text variants: cells are 12px, where the base
+   --g / --r fail AA. */
+.pos { color: var(--g-text); }
+.neg { color: var(--r-text); }
+.mut { color: var(--t3-text); }
+.hl-warn  { background: var(--a-bg); color: var(--a-text); font-weight: 600; }
+.hl-info  { background: var(--p-bg); color: var(--p-text); font-weight: 600; }
+.hl-good  { background: var(--g-bg); color: var(--g-text); font-weight: 600; }
+
+.badge {
+  font-size: 10.5px; font-family: var(--sans); font-weight: 600;
+  padding: 3px 8px; border-radius: 999px; display: inline-block; white-space: nowrap;
+}
+.badge.b-up   { background: var(--g-bg2); color: var(--g-text); }
+.badge.b-up1  { background: var(--g-bg);  color: var(--g-text); }
+.badge.b-rng  { background: var(--bg3);   color: var(--t3-text); }
+.badge.b-dn1  { background: var(--r-bg);  color: var(--r-text); }
+.badge.b-dn   { background: var(--r-bg2); color: var(--r-text); }
+
+tr.stale td { background: var(--bg3); color: var(--t3-text); }
+tr.stale td.tk::after {
+  content: ' \25CF'; color: var(--a-text); font-size: 9px;
+}
+.trunc { color: var(--t3-text); font-size: 9px; vertical-align: super; }
+.px { color: var(--t3-text); font-size: 9px; vertical-align: super; cursor: help; }
+
+.foot {
+  margin-top: 18px; font-size: 11.5px; color: var(--t3-text); line-height: 1.75;
+  border-top: 1px solid var(--bd); padding-top: 14px;
+}
+.foot b { color: var(--t2); font-weight: 600; }
+.foot code { font-family: var(--mono); font-size: 11px; }
+.foot .warn { color: var(--a-text); }
+.foot a { color: var(--b-text); }
+
+.empty { padding: 40px; text-align: center; color: var(--t3-text); font-size: 13px; }
+
+@media (max-width: 1200px) { .shell { padding: 16px 20px 48px; } }
+@media (max-width: 768px) {
+  .shell { padding: 12px 14px 40px; }
+  .masthead { padding: 18px 0 14px; }
+  .masthead-left h1 { font-size: 24px; }
+  .striprow .lbl { min-width: 0; }
+}
+@media (pointer: coarse) {
+  .filter { min-height: 44px; padding: 0 16px; }
+  thead tr.cols th { padding: 12px 8px; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="masthead">
+    <div class="masthead-left">
+      <h1>ETF cross-sectional scanner <em>— monitoring, not a strategy</em></h1>
+      <p id="sub">Loading…</p>
+    </div>
+    <div class="pills" id="pills"></div>
+  </div>
+
+  <div class="striprow"><span class="lbl">Overlays</span><span id="overlays"></span></div>
+  <div class="striprow"><span class="lbl">Alerts</span><span id="alerts"></span></div>
+  <div class="striprow"><span class="lbl">Sleeve</span><span id="filters"></span></div>
+
+  <div class="card">
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr class="zones">
+            <th colspan="2"></th>
+            <th colspan="5" class="zdir">Directional signals</th>
+            <th colspan="3" class="zrisk">Risk signals</th>
+            <th colspan="4" class="zstate">State &amp; confirmation</th>
+            <th colspan="2" class="zetf">ETF layer</th>
+          </tr>
+          <tr class="cols" id="head"></tr>
+        </thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" style="display:none;">No rows match this filter.</div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+// __SCANNER_DATA_START__
+const SCANNER_DATA_INLINE = {"built_at_utc":"2026-08-04T07:02:40+00:00","as_of":"2026-07-31","as_of_per_market":{"CN":"2026-07-31","DE":"2026-07-31","US":"2026-07-31"},"etf_layer_observed_at":"2026-08-03","breadth_panel_as_of":"2026-07-31","n_rows":54,"benchmark":"SPY","percentile_window":504,"parameters_validated":false,"parameter_note":"All parameters are industry defaults (RSI 14, MA 20/50/200, ATR 14, BBW 20/2sigma, percentile window 504d, equal-weight four-horizon momentum composite) and NONE has been validated on this universe.","overlays":[{"kind":"breadth_gate","state":"RISK_ON","value":0.6267,"label":"Breadth gate · RISK_ON (SPX breadth 63%)","since":"2026-04-13","thresholds":{"off":0.2,"on":0.5},"as_of":"2026-07-31"},{"kind":"em_tilt","state":"ON","stale":false,"label":"EM tilt · EM_TILT_ON","as_of":"2026-07-31"}],"alerts":[{"ticker":"IBIT","kind":"squeeze","label":"Squeeze (RV & BBW low)","value":"RV p12 / BBW p1"},{"ticker":"IJR","kind":"squeeze","label":"Squeeze (RV & BBW low)","value":"RV p1 / BBW p0"},{"ticker":"EXV1.DE","kind":"52w","label":"52-week high","value":""},{"ticker":"TLT","kind":"52w","label":"52-week low","value":""},{"ticker":"XLU","kind":"ma200_cross","label":"Crossed below MA200","value":""},{"ticker":"MOO","kind":"sigma_move","label":"2.7-sigma move","value":"-2.2%"},{"ticker":"XLY","kind":"sigma_move","label":"2.3-sigma move","value":"+3.3%"}],"alerts_truncated":0,"rows":[{"ticker":"EXV1.DE","name":"iShares STOXX Europe 600 Banks UCITS ETF (DE)","long_name":"iShares STOXX Europe 600 Banks UCITS ETF (DE)","sleeves":["D"],"engine_tickers":["EXV1"],"proxy_notes":["registry yfinance_trading_proxy: EXV1 -> EXV1.DE (UCITS line traded / breadth computed on EXV1)"],"is_proxied":true,"currency":"EUR","fx":"EUR->USD via EURUSD=X (multiply)","as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":1,"rank_delta":6,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.43925907280913257,"vs_52w_high":0.0,"rv_pctl":66.96428571428571,"rv_truncated":false,"bbw_pctl":22.916666666666668,"bbw_truncated":false,"atr_pct":0.01751430540254356,"ret_1d":0.00827081178216349,"vol_ratio":0.876849896286092,"ret_1m":0.05480114483366094,"rs_1m":0.05165072238507122,"dev_200d":0.19539008285478188,"rsi14":64.81372050045809,"n_bars":3192,"pd_pct":0.0018586517974523709,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XLE","name":"State Street Energy Select Sector SPDR ETF","long_name":"State Street Energy Select Sector SPDR ETF","sleeves":["A"],"engine_tickers":["IUES"],"proxy_notes":["registry yfinance_trading_proxy: IUES -> XLE (UCITS line traded / breadth computed on IUES)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":2,"rank_delta":29,"rank_truncated":false,"trend":"Up","mom_12_1":0.2421428581042009,"vs_52w_high":-0.04124907376443321,"rv_pctl":55.654761904761905,"rv_truncated":false,"bbw_pctl":80.4563492063492,"bbw_truncated":false,"atr_pct":0.02009169673787757,"ret_1d":0.01000678700389046,"vol_ratio":0.7742203584500091,"ret_1m":0.12762729953607477,"rs_1m":0.1184141517988689,"dev_200d":0.1444895268001254,"rsi14":63.576969095452334,"n_bars":3163,"pd_pct":0.00026186536492089907,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"CIBR","name":"First Trust Cybersecurity","long_name":"First Trust NASDAQ Cybersecurity ETF","sleeves":["C"],"engine_tickers":["CIBR"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":3,"rank_delta":7,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.24270266760294512,"vs_52w_high":-0.03061333709608327,"rv_pctl":73.11507936507937,"rv_truncated":false,"bbw_pctl":47.916666666666664,"bbw_truncated":false,"atr_pct":0.02654801553639351,"ret_1d":0.020106701349535072,"vol_ratio":0.9268631803786309,"ret_1m":0.007902548741957949,"rs_1m":0.006169948672735963,"dev_200d":0.23063612941061318,"rsi14":58.00361699317331,"n_bars":2784,"pd_pct":0.0007628596338273841,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"SKYY","name":"First Trust Cloud Computing","long_name":"First Trust Cloud Computing ETF","sleeves":["C"],"engine_tickers":["SKYY"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":4,"rank_delta":36,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.09013840184350297,"vs_52w_high":-0.07843009803799128,"rv_pctl":46.13095238095238,"rv_truncated":false,"bbw_pctl":40.773809523809526,"bbw_truncated":false,"atr_pct":0.026611803454426444,"ret_1d":0.02120974967216971,"vol_ratio":1.732093543538295,"ret_1m":0.049156249436751454,"rs_1m":0.04628473069993608,"dev_200d":0.1291378348939176,"rsi14":63.337488235389294,"n_bars":3163,"pd_pct":0.00020983423095755072,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"EXH1.DE","name":"iShares STOXX Europe 600 Oil & Gas UCITS ETF (DE)","long_name":"iShares STOXX Europe 600 Oil & Gas UCITS ETF (DE)","sleeves":["D"],"engine_tickers":["EXH1"],"proxy_notes":["registry yfinance_trading_proxy: EXH1 -> EXH1.DE (UCITS line traded / breadth computed on EXH1)"],"is_proxied":true,"currency":"EUR","fx":"EUR->USD via EURUSD=X (multiply)","as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":5,"rank_delta":28,"rank_truncated":false,"trend":"Up","mom_12_1":0.3284196511821498,"vs_52w_high":-0.04548328526536116,"rv_pctl":81.64682539682539,"rv_truncated":false,"bbw_pctl":81.64682539682539,"bbw_truncated":false,"atr_pct":0.017478016000807523,"ret_1d":0.017175555882098514,"vol_ratio":1.1670661333659014,"ret_1m":0.10906853066809141,"rs_1m":0.10181896300332301,"dev_200d":0.13240653006783765,"rsi14":62.43235997474003,"n_bars":3192,"pd_pct":0.0003080726160560321,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"ARKG","name":"ARK Genomic Revolution","long_name":"ARK Genomic Revolution ETF","sleeves":["C"],"engine_tickers":["ARKG"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":6,"rank_delta":-4,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.7395917931381537,"vs_52w_high":-0.11498733891724933,"rv_pctl":25.297619047619047,"rv_truncated":false,"bbw_pctl":58.432539682539684,"bbw_truncated":false,"atr_pct":0.04070561677087244,"ret_1d":-0.017829775297220407,"vol_ratio":0.6968470429022783,"ret_1m":-0.09526038621170385,"rs_1m":-0.10180963471984986,"dev_200d":0.2254507075790173,"rsi14":49.03233133553064,"n_bars":2953,"pd_pct":-0.0008550773456326155,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XBI","name":"SPDR S&P Biotech (eq-weight)","long_name":"State Street SPDR S&P Biotech ETF","sleeves":["C"],"engine_tickers":["XBI"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":7,"rank_delta":-4,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.8235913868541911,"vs_52w_high":-0.10512542245427237,"rv_pctl":68.35317460317461,"rv_truncated":false,"bbw_pctl":79.06746031746032,"bbw_truncated":false,"atr_pct":0.02974836068889404,"ret_1d":-0.02938077386618665,"vol_ratio":0.9344067603591208,"ret_1m":-0.060939050520285254,"rs_1m":-0.06457643142376193,"dev_200d":0.14108967394766414,"rsi14":43.84346946967505,"n_bars":3163,"pd_pct":-0.000366643293610025,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"DBC","name":"Broad Commodities","long_name":"Invesco DB Commodity Index Tracking Fund","sleeves":["B"],"engine_tickers":["DBC"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":8,"rank_delta":29,"rank_truncated":false,"trend":"Up","mom_12_1":0.2076061130005542,"vs_52w_high":-0.0706847501851825,"rv_pctl":88.39285714285714,"rv_truncated":false,"bbw_pctl":89.18650793650794,"bbw_truncated":false,"atr_pct":0.016490616074976875,"ret_1d":0.004433870036437471,"vol_ratio":1.2658277374833102,"ret_1m":0.11342154682291983,"rs_1m":0.10573621038748036,"dev_200d":0.12867512111446056,"rsi14":56.71653230775094,"n_bars":3163,"pd_pct":0.0010197144799455327,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"SOXX","name":"iShares Semiconductor ETF","long_name":"iShares Semiconductor ETF","sleeves":["A"],"engine_tickers":["SOXX"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":9,"rank_delta":-4,"rank_truncated":false,"trend":"Range","mom_12_1":1.4299191501316666,"vs_52w_high":-0.22918732977974376,"rv_pctl":87.20238095238095,"rv_truncated":false,"bbw_pctl":81.64682539682539,"bbw_truncated":false,"atr_pct":0.0629725512060202,"ret_1d":0.0007135668245925597,"vol_ratio":1.2171884259846104,"ret_1m":-0.15809570723480826,"rs_1m":-0.17379047621747426,"dev_200d":0.2543480900615691,"rsi14":42.603940086070594,"n_bars":3163,"pd_pct":0.0015927206869970068,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"IJR","name":"S&P 600 (US small)","long_name":"iShares Core S&P Small-Cap ETF","sleeves":["A","B"],"engine_tickers":["IDP6","IJR"],"proxy_notes":["registry yfinance_trading_proxy: IDP6 -> IJR (UCITS line traded / breadth computed on IDP6)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":10,"rank_delta":-4,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.3397994176713588,"vs_52w_high":-0.019216444552907497,"rv_pctl":1.4880952380952381,"rv_truncated":false,"bbw_pctl":0.0992063492063492,"bbw_truncated":false,"atr_pct":0.013066250730523013,"ret_1d":-0.00027486794593001296,"vol_ratio":1.2490513123182838,"ret_1m":-0.014097781394308395,"rs_1m":-0.015899637535730943,"dev_200d":0.12136976763513241,"rsi14":52.603959081867224,"n_bars":3163,"pd_pct":0.0002568375696634373,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"159801.SZ","name":"Bosera CSI Chip (China A-share semis — USD-adj from CNY)","long_name":"GF CNI Semi-Conductor Chip ETF","sleeves":["C"],"engine_tickers":["159801.SZ"],"proxy_notes":[],"is_proxied":false,"currency":"CNY","fx":"CNY->USD via USDCNY=X (divide)","as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":11,"rank_delta":-10,"rank_truncated":false,"trend":"Range","mom_12_1":1.6130411333144896,"vs_52w_high":-0.3341270826088718,"rv_pctl":98.51190476190476,"rv_truncated":false,"bbw_pctl":95.93253968253968,"bbw_truncated":false,"atr_pct":0.08861702864097264,"ret_1d":0.03815160909724247,"vol_ratio":1.550389507658542,"ret_1m":-0.25138551694648914,"rs_1m":-0.2912326753142965,"dev_200d":0.10952559891950742,"rsi14":36.76546087523891,"n_bars":1571,"pd_pct":null,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XLV","name":"State Street Health Care Select Sector SPDR ETF","long_name":"State Street Health Care Select Sector SPDR ETF","sleeves":["A"],"engine_tickers":["IUHC"],"proxy_notes":["registry yfinance_trading_proxy: IUHC -> XLV (UCITS line traded / breadth computed on IUHC)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":12,"rank_delta":2,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.20967682407818033,"vs_52w_high":-0.028159701122587477,"rv_pctl":84.42460317460318,"rv_truncated":false,"bbw_pctl":54.66269841269841,"bbw_truncated":false,"atr_pct":0.017577270513774296,"ret_1d":-0.005932003396274865,"vol_ratio":0.9867095943733013,"ret_1m":0.01886680388801687,"rs_1m":0.016989494656381943,"dev_200d":0.07380600546101723,"rsi14":55.14098060185433,"n_bars":3163,"pd_pct":8.576558334194573e-05,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"EFA","name":"MSCI EAFE (Intl developed)","long_name":"iShares MSCI EAFE ETF","sleeves":["B"],"engine_tickers":["EFA"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":13,"rank_delta":17,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.20432397769201738,"vs_52w_high":-0.006212312179835977,"rv_pctl":69.5436507936508,"rv_truncated":false,"bbw_pctl":9.424603174603174,"bbw_truncated":false,"atr_pct":0.013578109012886957,"ret_1d":-0.006212312179835977,"vol_ratio":1.3367900667358952,"ret_1m":0.0248495949466776,"rs_1m":0.02284432671863156,"dev_200d":0.07407134179330499,"rsi14":57.798886993159364,"n_bars":3163,"pd_pct":0.0008546794648660594,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"JETS","name":"Global X Airlines","long_name":"U.S. Global Jets ETF","sleeves":["C"],"engine_tickers":["JETS"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":14,"rank_delta":-10,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.39302187757462237,"vs_52w_high":-0.061787626170196175,"rv_pctl":55.05952380952381,"rv_truncated":false,"bbw_pctl":46.32936507936508,"bbw_truncated":false,"atr_pct":0.02747284609527482,"ret_1d":-0.012626250463290689,"vol_ratio":1.8359431712122782,"ret_1m":-0.058681880302535405,"rs_1m":-0.062175669429673966,"dev_200d":0.13217293201022717,"rsi14":52.30802102729805,"n_bars":2830,"pd_pct":-0.0016150345030098157,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XLF","name":"State Street Financial Select Sector SPDR ETF","long_name":"State Street Financial Select Sector SPDR ETF","sleeves":["A"],"engine_tickers":["IUFS"],"proxy_notes":["registry yfinance_trading_proxy: IUFS -> XLF (UCITS line traded / breadth computed on IUFS)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":15,"rank_delta":13,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.05559989749978578,"vs_52w_high":-0.011458330987780152,"rv_pctl":36.40873015873016,"rv_truncated":false,"bbw_pctl":22.916666666666668,"bbw_truncated":false,"atr_pct":0.012543952533515144,"ret_1d":-0.0010526556717721514,"vol_ratio":0.9662591997946424,"ret_1m":0.039430447162193794,"rs_1m":0.0369713777130055,"dev_200d":0.08474948577794872,"rsi14":62.34286137382976,"n_bars":3163,"pd_pct":0.00015720771002825096,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"VGK","name":"FTSE Europe","long_name":"Vanguard FTSE Europe ETF","sleeves":["B"],"engine_tickers":["VGK"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":16,"rank_delta":10,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.1825329472484254,"vs_52w_high":-0.004396104355093966,"rv_pctl":56.6468253968254,"rv_truncated":false,"bbw_pctl":15.178571428571429,"bbw_truncated":false,"atr_pct":0.012577797738515027,"ret_1d":-0.004396104355093966,"vol_ratio":1.3243397725051405,"ret_1m":0.03212942694178622,"rs_1m":0.029922534431532612,"dev_200d":0.0764738774340048,"rsi14":60.21074846056179,"n_bars":3163,"pd_pct":0.00011039964672110436,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"EWJ","name":"MSCI Japan","long_name":"iShares MSCI Japan ETF","sleeves":["B"],"engine_tickers":["EWJ"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":17,"rank_delta":-2,"rank_truncated":false,"trend":"Range","mom_12_1":0.3119232620223642,"vs_52w_high":-0.04723112069093027,"rv_pctl":84.42460317460318,"rv_truncated":false,"bbw_pctl":52.48015873015873,"bbw_truncated":false,"atr_pct":0.020226304276048827,"ret_1d":-0.00964735252488469,"vol_ratio":1.1110726058570692,"ret_1m":-0.007092999897509444,"rs_1m":-0.008819813276302732,"dev_200d":0.07053421997968479,"rsi14":51.020645724499765,"n_bars":3163,"pd_pct":0.0015363973763409255,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"VNQ","name":"US Real Estate (REITs)","long_name":"Vanguard Real Estate Index Fund ETF Shares","sleeves":["B"],"engine_tickers":["VNQ"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":18,"rank_delta":1,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.11237333008893802,"vs_52w_high":-0.01981178861278632,"rv_pctl":54.861111111111114,"rv_truncated":false,"bbw_pctl":57.638888888888886,"bbw_truncated":false,"atr_pct":0.01385830673031055,"ret_1d":-0.005427690492734394,"vol_ratio":1.1512831095443252,"ret_1m":0.021999558563640775,"rs_1m":0.020059521380125536,"dev_200d":0.07848305594145,"rsi14":51.75265981998744,"n_bars":3163,"pd_pct":0.0008091433195105413,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"SPY","name":"S&P 500 (US large)","long_name":"State Street SPDR S&P 500 ETF Trust","sleeves":["A","B"],"engine_tickers":["CSP1","SPY"],"proxy_notes":["registry yfinance_trading_proxy: CSP1 -> SPY (UCITS line traded / breadth computed on CSP1)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":19,"rank_delta":4,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.18844887329389204,"vs_52w_high":-0.013975635023057209,"rv_pctl":44.742063492063494,"rv_truncated":false,"bbw_pctl":19.345238095238095,"bbw_truncated":false,"atr_pct":0.012099730201061955,"ret_1d":0.007199809675054292,"vol_ratio":1.2983538121865925,"ret_1m":0.0017029869054645541,"rs_1m":null,"dev_200d":0.07115095405609217,"rsi14":53.14237147077266,"n_bars":3163,"pd_pct":0.0005701815540040123,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XLRE","name":"State Street Real Estate Select Sector SPDR ETF","long_name":"State Street Real Estate Select Sector SPDR ETF","sleeves":["A"],"engine_tickers":["IUSP"],"proxy_notes":["registry yfinance_trading_proxy: IUSP -> XLRE (UCITS line traded / breadth computed on IUSP)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":20,"rank_delta":7,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.08429947823774864,"vs_52w_high":-0.02043031212781099,"rv_pctl":55.05952380952381,"rv_truncated":false,"bbw_pctl":49.70238095238095,"bbw_truncated":false,"atr_pct":0.01433688570807165,"ret_1d":-0.005077252673509114,"vol_ratio":1.4181501814238058,"ret_1m":0.020144847974212787,"rs_1m":0.018243086564401125,"dev_200d":0.07061502240290785,"rsi14":50.81375041552763,"n_bars":2718,"pd_pct":0.0007913957253973258,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"COPX","name":"Global X Copper Miners","long_name":"Global X Copper Miners ETF","sleeves":["C"],"engine_tickers":["COPX"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":21,"rank_delta":18,"rank_truncated":false,"trend":"Range","mom_12_1":0.8018460849686229,"vs_52w_high":-0.17316625054355184,"rv_pctl":72.91666666666667,"rv_truncated":false,"bbw_pctl":23.511904761904763,"bbw_truncated":false,"atr_pct":0.036843688722770954,"ret_1d":-0.008050306788030648,"vol_ratio":0.6138623129336604,"ret_1m":0.0474166509684284,"rs_1m":0.04462526169964411,"dev_200d":0.0297068520280952,"rsi14":51.850530038258036,"n_bars":3163,"pd_pct":-0.0011399620012666478,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"ITA","name":"iShares US Aerospace & Defense","long_name":"iShares U.S. Aerospace & Defense ETF","sleeves":["C"],"engine_tickers":["ITA"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":22,"rank_delta":-13,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.2338925103702547,"vs_52w_high":-0.04434163478473352,"rv_pctl":80.6547619047619,"rv_truncated":false,"bbw_pctl":65.37698412698413,"bbw_truncated":false,"atr_pct":0.022712965091397638,"ret_1d":0.006425056683007302,"vol_ratio":0.6039196141950426,"ret_1m":-0.017222984243951855,"rs_1m":-0.019074563567667346,"dev_200d":0.06287207095157799,"rsi14":53.5087218392366,"n_bars":3163,"pd_pct":0.0005705080527640405,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"EXH4.DE","name":"iShares STOXX Europe 600 Industrial Goods & Services UCITS ETF (DE)","long_name":"iShares STOXX Europe 600 Industrial Goods & Services UCITS ETF (DE)","sleeves":["D"],"engine_tickers":["EXH3"],"proxy_notes":["registry yfinance_trading_proxy: EXH3 -> EXH4.DE (UCITS line traded / breadth computed on EXH3)"],"is_proxied":true,"currency":"EUR","fx":"EUR->USD via EURUSD=X (multiply)","as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":23,"rank_delta":1,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.15762760481146532,"vs_52w_high":-0.006393140801100317,"rv_pctl":57.83730158730159,"rv_truncated":false,"bbw_pctl":24.702380952380953,"bbw_truncated":false,"atr_pct":0.01546626654361631,"ret_1d":0.007443655228747348,"vol_ratio":0.8927104832777473,"ret_1m":0.013795565044514513,"rs_1m":0.011999733992868836,"dev_200d":0.06737789978822306,"rsi14":63.5883734458137,"n_bars":3192,"pd_pct":0.0016809489927325227,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"EXV3.DE","name":"iShares STOXX Europe 600 Technology UCITS ETF (DE) EUR dis","long_name":"iShares STOXX Europe 600 Technology UCITS ETF (DE) EUR dis","sleeves":["D"],"engine_tickers":["EXV3"],"proxy_notes":["registry yfinance_trading_proxy: EXV3 -> EXV3.DE (UCITS line traded / breadth computed on EXV3)"],"is_proxied":true,"currency":"EUR","fx":"EUR->USD via EURUSD=X (multiply)","as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":24,"rank_delta":-8,"rank_truncated":false,"trend":"Range","mom_12_1":0.2454323543311745,"vs_52w_high":-0.08471960754980101,"rv_pctl":58.23412698412698,"rv_truncated":false,"bbw_pctl":34.82142857142857,"bbw_truncated":false,"atr_pct":0.02351542285164365,"ret_1d":0.008686057392409463,"vol_ratio":0.5494514282058663,"ret_1m":-0.029215633441994737,"rs_1m":-0.03135244739596823,"dev_200d":0.07705624019318624,"rsi14":47.866443326690295,"n_bars":3192,"pd_pct":0.00033712013784459316,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"EEM","name":"iShares MSCI Emerging Markets (Phase 22 EM tilt instrument)","long_name":"iShares MSCI Emerging Markets ETF","sleeves":["OV"],"engine_tickers":["EEM"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":25,"rank_delta":-14,"rank_truncated":false,"trend":"Range","mom_12_1":0.38783509837537133,"vs_52w_high":-0.09998599688417276,"rv_pctl":86.40873015873017,"rv_truncated":false,"bbw_pctl":69.94047619047619,"bbw_truncated":false,"atr_pct":0.02585253975795541,"ret_1d":0.007862811512863166,"vol_ratio":1.2809363611339581,"ret_1m":-0.035950765619113034,"rs_1m":-0.03831445113403291,"dev_200d":0.07051320775259406,"rsi14":47.27344019498438,"n_bars":3163,"pd_pct":-0.0049918081436661765,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XLI","name":"State Street Industrial Select Sector SPDR ETF","long_name":"State Street Industrial Select Sector SPDR ETF","sleeves":["A"],"engine_tickers":["IUIS"],"proxy_notes":["registry yfinance_trading_proxy: IUIS -> XLI (UCITS line traded / breadth computed on IUIS)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":26,"rank_delta":-18,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.2218623070942698,"vs_52w_high":-0.03082561595150346,"rv_pctl":64.58333333333333,"rv_truncated":false,"bbw_pctl":27.083333333333332,"bbw_truncated":false,"atr_pct":0.017552730640848953,"ret_1d":0.008128241231029065,"vol_ratio":1.096571217706562,"ret_1m":-0.01919723091592429,"rs_1m":-0.021085428980386105,"dev_200d":0.07964828807638402,"rsi14":49.8354998638062,"n_bars":3163,"pd_pct":0.0006241103561979156,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"PAVE","name":"Global X US Infrastructure","long_name":"Global X U.S. Infrastructure Development ETF","sleeves":["C"],"engine_tickers":["PAVE"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":27,"rank_delta":-15,"rank_truncated":false,"trend":"Range","mom_12_1":0.2626605374960209,"vs_52w_high":-0.05886260398293086,"rv_pctl":61.40873015873016,"rv_truncated":false,"bbw_pctl":15.972222222222221,"bbw_truncated":false,"atr_pct":0.020261293916425113,"ret_1d":0.004634619310202037,"vol_ratio":0.8650512041905968,"ret_1m":-0.022884876696260603,"rs_1m":-0.02485233887501838,"dev_200d":0.07230278934561962,"rsi14":47.51134536600885,"n_bars":2363,"pd_pct":0.0008879417510210263,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"QQQ","name":"NASDAQ-100 (US tech-heavy)","long_name":"Invesco QQQ Trust","sleeves":["A","B"],"engine_tickers":["CNDX","QQQ"],"proxy_notes":["registry yfinance_trading_proxy: CNDX -> QQQ (UCITS line traded / breadth computed on CNDX)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":28,"rank_delta":-15,"rank_truncated":false,"trend":"Range","mom_12_1":0.28281140461072884,"vs_52w_high":-0.07694585463980541,"rv_pctl":79.66269841269842,"rv_truncated":false,"bbw_pctl":75.89285714285714,"bbw_truncated":false,"atr_pct":0.02224122198974719,"ret_1d":0.00649550511403274,"vol_ratio":1.2563215934624525,"ret_1m":-0.05127072762523266,"rs_1m":-0.054333336277754635,"dev_200d":0.06858763207593488,"rsi14":45.11856334174286,"n_bars":3163,"pd_pct":0.00023261561723098012,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"WOOD","name":"iShares Global Timber & Forestry","long_name":"iShares Global Timber & Forestry ETF","sleeves":["C"],"engine_tickers":["WOOD"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":29,"rank_delta":24,"rank_truncated":false,"trend":"Up","mom_12_1":-0.07887804022974532,"vs_52w_high":-0.11921221925013825,"rv_pctl":64.18650793650794,"rv_truncated":false,"bbw_pctl":84.62301587301587,"bbw_truncated":false,"atr_pct":0.015199253218440869,"ret_1d":-0.0018036193050773308,"vol_ratio":0.4764086120018323,"ret_1m":0.09164000835286124,"rs_1m":0.08597962182401798,"dev_200d":0.02494650127167608,"rsi14":66.29417441309394,"n_bars":3163,"pd_pct":0.0012177764403416003,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XLP","name":"State Street Consumer Staples Select Sector SPDR ETF","long_name":"State Street Consumer Staples Select Sector SPDR ETF","sleeves":["A"],"engine_tickers":["IUCS"],"proxy_notes":["registry yfinance_trading_proxy: IUCS -> XLP (UCITS line traded / breadth computed on IUCS)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":30,"rank_delta":2,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.06387831232463248,"vs_52w_high":-0.043193259928512084,"rv_pctl":94.94047619047619,"rv_truncated":false,"bbw_pctl":60.01984126984127,"bbw_truncated":false,"atr_pct":0.018156492568228197,"ret_1d":-0.004913983420460899,"vol_ratio":0.9974734962654925,"ret_1m":0.021008402591685904,"rs_1m":0.019089230447773144,"dev_200d":0.043810950430327456,"rsi14":51.63404842929986,"n_bars":3163,"pd_pct":-3.4449136555370075e-05,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"EXH9.DE","name":"iShares STOXX Europe 600 Utilities UCITS ETF (DE)","long_name":"iShares STOXX Europe 600 Utilities UCITS ETF (DE)","sleeves":["D"],"engine_tickers":["EXH9"],"proxy_notes":["registry yfinance_trading_proxy: EXH9 -> EXH9.DE (UCITS line traded / breadth computed on EXH9)"],"is_proxied":true,"currency":"EUR","fx":"EUR->USD via EURUSD=X (multiply)","as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":31,"rank_delta":-14,"rank_truncated":false,"trend":"Strong up","mom_12_1":0.29779851074184127,"vs_52w_high":-0.03870187411253678,"rv_pctl":44.742063492063494,"rv_truncated":false,"bbw_pctl":17.55952380952381,"bbw_truncated":false,"atr_pct":0.013931182114313873,"ret_1d":0.009312664838600382,"vol_ratio":0.35850531663906926,"ret_1m":-0.0010283672401545374,"rs_1m":-0.002730434840016143,"dev_200d":0.04894305804302146,"rsi14":48.19994081617796,"n_bars":3192,"pd_pct":0.000733521953264038,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"MOO","name":"VanEck Agribusiness","long_name":"VanEck Agribusiness ETF","sleeves":["C"],"engine_tickers":["MOO"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":32,"rank_delta":6,"rank_truncated":false,"trend":"Up","mom_12_1":0.11025778425580324,"vs_52w_high":-0.05153205957161344,"rv_pctl":30.853174603174605,"rv_truncated":false,"bbw_pctl":28.47222222222222,"bbw_truncated":false,"atr_pct":0.012367749846896968,"ret_1d":-0.02155167019529225,"vol_ratio":1.740241981033919,"ret_1m":0.034561380310984546,"rs_1m":0.032276011287560635,"dev_200d":0.039479451609326865,"rsi14":50.25588447265311,"n_bars":3163,"pd_pct":0.0012251899044350978,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XLB","name":"State Street Materials Select Sector SPDR ETF","long_name":"State Street Materials Select Sector SPDR ETF","sleeves":["A"],"engine_tickers":["IUMS"],"proxy_notes":["registry yfinance_trading_proxy: IUMS -> XLB (UCITS line traded / breadth computed on IUMS)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":33,"rank_delta":-8,"rank_truncated":false,"trend":"Range","mom_12_1":0.16937322632298013,"vs_52w_high":-0.051777826647610325,"rv_pctl":81.25,"rv_truncated":false,"bbw_pctl":28.273809523809526,"bbw_truncated":false,"atr_pct":0.01884902512200271,"ret_1d":-0.023431431037452932,"vol_ratio":1.6235991409378376,"ret_1m":-0.0115640953997308,"rs_1m":-0.013333018013276708,"dev_200d":0.03720228263646974,"rsi14":45.62241341124781,"n_bars":3163,"pd_pct":0.000568635675162632,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"IHI","name":"iShares US Medical Devices","long_name":"iShares U.S. Medical Devices ETF","sleeves":["C"],"engine_tickers":["IHI"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":34,"rank_delta":13,"rank_truncated":false,"trend":"Range","mom_12_1":-0.182483997642661,"vs_52w_high":-0.1828280746305322,"rv_pctl":93.75,"rv_truncated":false,"bbw_pctl":80.6547619047619,"bbw_truncated":false,"atr_pct":0.023337411088487612,"ret_1d":-0.0043610798182340815,"vol_ratio":0.884702059314226,"ret_1m":0.050620224139035,"rs_1m":0.04767914096971183,"dev_200d":-0.06609918854856311,"rsi14":57.987835875508374,"n_bars":3163,"pd_pct":0.0004911952583079859,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"PHO","name":"Invesco Water Resources","long_name":"Invesco Water Resources ETF","sleeves":["C"],"engine_tickers":["PHO"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":35,"rank_delta":7,"rank_truncated":false,"trend":"Up","mom_12_1":-0.014975295933280175,"vs_52w_high":-0.05518445909380598,"rv_pctl":91.17063492063492,"rv_truncated":false,"bbw_pctl":62.59920634920635,"bbw_truncated":false,"atr_pct":0.015869464575124673,"ret_1d":0.002714987180590045,"vol_ratio":0.5212309160305344,"ret_1m":0.018728237034929984,"rs_1m":0.016853484457576465,"dev_200d":0.004850774870969854,"rsi14":57.22964249850801,"n_bars":3163,"pd_pct":0.00042771599657820403,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"TIP","name":"TIPS (inflation-linked)","long_name":"iShares TIPS Bond ETF","sleeves":["B"],"engine_tickers":["TIP"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":36,"rank_delta":9,"rank_truncated":false,"trend":"Range","mom_12_1":0.028496371006967003,"vs_52w_high":-0.013068210000547809,"rv_pctl":3.2738095238095237,"rv_truncated":false,"bbw_pctl":19.543650793650794,"bbw_truncated":false,"atr_pct":0.002777163434441944,"ret_1d":-0.001020982110011337,"vol_ratio":2.3361556672142236,"ret_1m":-0.0049921505469930905,"rs_1m":-0.006706191424645672,"dev_200d":-0.002699254161716347,"rsi14":42.35221244541185,"n_bars":3163,"pd_pct":-0.006409895765380869,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XLU","name":"State Street Utilities Select Sector SPDR ETF","long_name":"State Street Utilities Select Sector SPDR ETF","sleeves":["A"],"engine_tickers":["IUUS"],"proxy_notes":["registry yfinance_trading_proxy: IUUS -> XLU (UCITS line traded / breadth computed on IUUS)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":37,"rank_delta":-3,"rank_truncated":false,"trend":"Down","mom_12_1":0.0801193560728457,"vs_52w_high":-0.0583439335678142,"rv_pctl":35.61507936507937,"rv_truncated":false,"bbw_pctl":21.726190476190474,"bbw_truncated":false,"atr_pct":0.01643301015952154,"ret_1d":-0.006941365301168512,"vol_ratio":1.1701422656551224,"ret_1m":-0.009381326320039074,"rs_1m":-0.011127146594937725,"dev_200d":-0.0006451550253724347,"rsi14":40.72447217886471,"n_bars":3163,"pd_pct":0.0004793728674956643,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"GLD","name":"Gold","long_name":"SPDR Gold Shares","sleeves":["B"],"engine_tickers":["GLD"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":38,"rank_delta":12,"rank_truncated":false,"trend":"Down","mom_12_1":0.23139293137185013,"vs_52w_high":-0.2507763397503122,"rv_pctl":62.40079365079365,"rv_truncated":false,"bbw_pctl":17.55952380952381,"bbw_truncated":false,"atr_pct":0.019341471737600525,"ret_1d":-0.014900824749758845,"vol_ratio":1.0453629666939495,"ret_1m":0.0025364339609419417,"rs_1m":0.000831684173898023,"dev_200d":-0.09790345615509632,"rsi14":45.80336614250815,"n_bars":3163,"pd_pct":0.005806084246993359,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"GDX","name":"VanEck Gold Miners","long_name":"VanEck Gold Miners ETF","sleeves":["C"],"engine_tickers":["GDX"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":39,"rank_delta":10,"rank_truncated":false,"trend":"Down","mom_12_1":0.46031699152207817,"vs_52w_high":-0.3603245785852689,"rv_pctl":63.78968253968254,"rv_truncated":false,"bbw_pctl":13.392857142857142,"bbw_truncated":false,"atr_pct":0.04128472038815591,"ret_1d":-0.03490492768669362,"vol_ratio":1.0219394758807177,"ret_1m":-0.012921289791479773,"rs_1m":-0.014707034277290303,"dev_200d":-0.1513778310386663,"rsi14":45.95191463743209,"n_bars":3163,"pd_pct":-0.002154591974145026,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"IEF","name":"7-10y Treasury (interm)","long_name":"iShares 7-10 Year Treasury Bond ETF","sleeves":["B"],"engine_tickers":["IEF"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":40,"rank_delta":8,"rank_truncated":false,"trend":"Strong down","mom_12_1":0.030429555361959126,"vs_52w_high":-0.035982066294510284,"rv_pctl":17.16269841269841,"rv_truncated":false,"bbw_pctl":15.972222222222221,"bbw_truncated":false,"atr_pct":0.003740456189611057,"ret_1d":-0.0027894232248070194,"vol_ratio":1.6777808522412838,"ret_1m":-0.011485715676649355,"rs_1m":-0.013253724439203213,"dev_200d":-0.013969995739150476,"rsi14":40.74872525879934,"n_bars":3163,"pd_pct":0.0004633668417701742,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XME","name":"SPDR S&P Metals & Mining","long_name":"State Street SPDR S&P Metals & Mining ETF","sleeves":["C"],"engine_tickers":["XME"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":41,"rank_delta":3,"rank_truncated":false,"trend":"Range","mom_12_1":0.4221517870008964,"vs_52w_high":-0.24174619125721508,"rv_pctl":75.89285714285714,"rv_truncated":false,"bbw_pctl":11.607142857142858,"bbw_truncated":false,"atr_pct":0.03498046370360075,"ret_1d":-0.011879040616751046,"vol_ratio":0.8084445793133889,"ret_1m":-0.0355500101837356,"rs_1m":-0.03789883733847853,"dev_200d":-0.08708325369426262,"rsi14":43.12132446905741,"n_bars":3163,"pd_pct":-0.0006593761632288642,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"LIT","name":"Global X Lithium & Battery Tech","long_name":"Global X Lithium & Battery Tech ETF","sleeves":["C"],"engine_tickers":["LIT"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":42,"rank_delta":-22,"rank_truncated":false,"trend":"Down","mom_12_1":0.8699165674881899,"vs_52w_high":-0.24124041515324046,"rv_pctl":55.45634920634921,"rv_truncated":false,"bbw_pctl":60.61507936507937,"bbw_truncated":false,"atr_pct":0.026499406709523776,"ret_1d":-0.00845145908213818,"vol_ratio":0.9130654480743459,"ret_1m":-0.11222264798011372,"rs_1m":-0.12073583560272898,"dev_200d":-0.03912827936032426,"rsi14":41.89202531010537,"n_bars":3163,"pd_pct":-0.008451511244807364,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XLY","name":"State Street Consumer Discretionary Select Sector SPDR ETF","long_name":"State Street Consumer Discretionary Select Sector SPDR ETF","sleeves":["A"],"engine_tickers":["IUCD"],"proxy_notes":["registry yfinance_trading_proxy: IUCD -> XLY (UCITS line traded / breadth computed on IUCD)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":43,"rank_delta":0,"rank_truncated":false,"trend":"Range","mom_12_1":0.06637548923134706,"vs_52w_high":-0.0639656613581766,"rv_pctl":85.41666666666667,"rv_truncated":false,"bbw_pctl":64.98015873015873,"bbw_truncated":false,"atr_pct":0.01865249050073676,"ret_1d":0.032921051413253855,"vol_ratio":1.5485228541872373,"ret_1m":-0.016936235600155336,"rs_1m":-0.01878283226498527,"dev_200d":-0.005236326273656444,"rsi14":54.42602562528604,"n_bars":3163,"pd_pct":0.0003503682140717501,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"BLOK","name":"Amplify Blockchain","long_name":"Amplify Blockchain Technology ETF","sleeves":["C"],"engine_tickers":["BLOK"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":44,"rank_delta":-8,"rank_truncated":false,"trend":"Down","mom_12_1":0.06972237532318837,"vs_52w_high":-0.19364551480927616,"rv_pctl":70.13888888888889,"rv_truncated":false,"bbw_pctl":19.345238095238095,"bbw_truncated":false,"atr_pct":0.04193842536587482,"ret_1d":-0.012168750400212591,"vol_ratio":0.5456927064463086,"ret_1m":-0.0545628903476596,"rs_1m":-0.05780944700244337,"dev_200d":-0.017079879908028506,"rsi14":44.76768751241469,"n_bars":2140,"pd_pct":-0.0014878269470229855,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"ICLN","name":"iShares Global Clean Energy","long_name":"iShares Global Clean Energy ETF","sleeves":["C"],"engine_tickers":["ICLN"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":45,"rank_delta":-27,"rank_truncated":false,"trend":"Down","mom_12_1":0.5049144872882185,"vs_52w_high":-0.2590692859399857,"rv_pctl":93.1547619047619,"rv_truncated":false,"bbw_pctl":96.13095238095238,"bbw_truncated":false,"atr_pct":0.03649056141671407,"ret_1d":-0.006791218942573285,"vol_ratio":1.5987355916606414,"ret_1m":-0.13032710745007714,"rs_1m":-0.14133966207608586,"dev_200d":-0.05500744237994604,"rsi14":37.67559521561307,"n_bars":3163,"pd_pct":-0.0037296275481530916,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"TAN","name":"Invesco Solar","long_name":"Invesco Solar ETF","sleeves":["C"],"engine_tickers":["TAN"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":46,"rank_delta":-11,"rank_truncated":false,"trend":"Down","mom_12_1":0.5388710629324478,"vs_52w_high":-0.3327471712778942,"rv_pctl":72.91666666666667,"rv_truncated":false,"bbw_pctl":78.47222222222223,"bbw_truncated":false,"atr_pct":0.04202154643310128,"ret_1d":-0.010232711074875889,"vol_ratio":2.082869166976111,"ret_1m":-0.1465397494430245,"rs_1m":-0.1601578485820382,"dev_200d":-0.10176066679890194,"rsi14":35.42489707900046,"n_bars":3163,"pd_pct":0.0008115236356258659,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"XLC","name":"State Street Communication Services Select Sector SPDR ETF","long_name":"State Street Communication Services Select Sector SPDR ETF","sleeves":["A"],"engine_tickers":["IUCM"],"proxy_notes":["registry yfinance_trading_proxy: IUCM -> XLC (UCITS line traded / breadth computed on IUCM)"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":47,"rank_delta":4,"rank_truncated":false,"trend":"Strong down","mom_12_1":0.04387146189050517,"vs_52w_high":-0.09337201089111558,"rv_pctl":94.94047619047619,"rv_truncated":false,"bbw_pctl":66.17063492063492,"bbw_truncated":false,"atr_pct":0.019146443567737023,"ret_1d":0.015575117322161214,"vol_ratio":0.7696266592327322,"ret_1m":-0.01366867167121777,"rs_1m":-0.015464486505541001,"dev_200d":-0.048868430633108306,"rsi14":46.24679268698592,"n_bars":2040,"pd_pct":0.00026374286050656615,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"IBIT","name":"Bitcoin (CoinDesk spot — deployed via IBIT, 25bps ER)","long_name":"iShares Bitcoin Trust ETF","sleeves":["C"],"engine_tickers":["BTC-USD"],"proxy_notes":["run_thematic_rotation.py:180 — BTC-USD is the long-history backtest series (IBIT's 25bps expense applied as price drag); live execution is IBIT, so the scanner monitors IBIT"],"is_proxied":true,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":48,"rank_delta":6,"rank_truncated":false,"trend":"Strong down","mom_12_1":-0.4877203767819498,"vs_52w_high":-0.5000701510457428,"rv_pctl":11.805555555555555,"rv_truncated":false,"bbw_pctl":0.8928571428571429,"bbw_truncated":false,"atr_pct":0.029438714271975003,"ret_1d":-0.02888287060640693,"vol_ratio":1.521781181051905,"ret_1m":0.048235276166130436,"rs_1m":0.045406522393503644,"dev_200d":-0.20608933321975786,"rsi14":45.0365993686413,"n_bars":640,"pd_pct":-0.00044789133488731814,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"CQQQ","name":"Invesco China Technology","long_name":"Invesco China Technology ETF","sleeves":["C"],"engine_tickers":["CQQQ"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":49,"rank_delta":-27,"rank_truncated":false,"trend":"Down","mom_12_1":0.2613339135292019,"vs_52w_high":-0.14981522478164033,"rv_pctl":68.75,"rv_truncated":false,"bbw_pctl":81.0515873015873,"bbw_truncated":false,"atr_pct":0.027069502719375024,"ret_1d":0.01309159498903223,"vol_ratio":0.9871561399427201,"ret_1m":-0.11738905499864216,"rs_1m":-0.12657231982842818,"dev_200d":-0.0383277520950962,"rsi14":43.09010955409356,"n_bars":3163,"pd_pct":0.0015929908403027326,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"TLT","name":"20+y Treasury (long dur)","long_name":"iShares 20+ Year Treasury Bond ETF","sleeves":["B"],"engine_tickers":["TLT"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":50,"rank_delta":-4,"rank_truncated":false,"trend":"Strong down","mom_12_1":0.029321862709726476,"vs_52w_high":-0.07735502218360701,"rv_pctl":19.345238095238095,"rv_truncated":false,"bbw_pctl":26.091269841269842,"bbw_truncated":false,"atr_pct":0.007566081140316447,"ret_1d":-0.006642548689448802,"vol_ratio":2.073239320468415,"ret_1m":-0.03823663203255656,"rs_1m":-0.04068837628558711,"dev_200d":-0.042107146056208467,"rsi14":31.607904310473202,"n_bars":3163,"pd_pct":0.0008074599762191159,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"REMX","name":"VanEck Rare Earth / Strategic Metals","long_name":"VanEck Rare Earth and Strategic Metals ETF","sleeves":["C"],"engine_tickers":["REMX"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":51,"rank_delta":-22,"rank_truncated":false,"trend":"Range","mom_12_1":0.7657762715531946,"vs_52w_high":-0.3976992426190674,"rv_pctl":55.05952380952381,"rv_truncated":false,"bbw_pctl":90.37698412698413,"bbw_truncated":false,"atr_pct":0.039974353312523345,"ret_1d":-0.007223412333832502,"vol_ratio":0.9814618540746858,"ret_1m":-0.2474332824010781,"rs_1m":-0.2859671634957363,"dev_200d":-0.22508266641049568,"rsi14":29.2021264095809,"n_bars":3163,"pd_pct":0.0021266899589853505,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"BOTZ","name":"Global X Robotics & AI","long_name":"Global X Robotics & Artificial Intelligence ETF","sleeves":["C"],"engine_tickers":["BOTZ"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":52,"rank_delta":-11,"rank_truncated":false,"trend":"Range","mom_12_1":0.13482061562522207,"vs_52w_high":-0.15355238549268402,"rv_pctl":83.23412698412699,"rv_truncated":false,"bbw_pctl":71.72619047619048,"bbw_truncated":false,"atr_pct":0.023509739296641564,"ret_1d":0.009169045296085088,"vol_ratio":1.0763189630078476,"ret_1m":-0.07461902391261843,"rs_1m":-0.07925129869031397,"dev_200d":-0.044716958143904306,"rsi14":47.1748853508735,"n_bars":2484,"pd_pct":-0.012061711079943915,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"ARKK","name":"ARK Disruptive Innovation","long_name":"ARK Innovation ETF","sleeves":["C"],"engine_tickers":["ARKK"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":53,"rank_delta":-32,"rank_truncated":false,"trend":"Range","mom_12_1":0.0819563360632749,"vs_52w_high":-0.23008755210629994,"rv_pctl":40.97222222222222,"rv_truncated":false,"bbw_pctl":73.11507936507937,"bbw_truncated":false,"atr_pct":0.03651793459293556,"ret_1d":-0.02277096882528995,"vol_ratio":1.2598910697770014,"ret_1m":-0.12962737700851856,"rs_1m":-0.14053539520717126,"dev_200d":-0.07825995379553907,"rsi14":38.424154790077125,"n_bars":2953,"pd_pct":0.0009273049147158208,"flow_5d":null,"pd_alert":null,"flow_alert":null},{"ticker":"URA","name":"Global X Uranium","long_name":"Global X Uranium ETF","sleeves":["C"],"engine_tickers":["URA"],"proxy_notes":[],"is_proxied":false,"currency":"USD","fx":null,"as_of":"2026-07-31","sessions_behind":0,"stale":false,"rank":54,"rank_delta":-2,"rank_truncated":false,"trend":"Strong down","mom_12_1":0.12849284987718002,"vs_52w_high":-0.3679016530210445,"rv_pctl":56.051587301587304,"rv_truncated":false,"bbw_pctl":27.083333333333332,"bbw_truncated":false,"atr_pct":0.0451532754745514,"ret_1d":-0.016364589775996974,"vol_ratio":1.2396779251038093,"ret_1m":-0.09518296853413677,"rs_1m":-0.10172406936568716,"dev_200d":-0.1970290657317455,"rsi14":40.78298797254748,"n_bars":3163,"pd_pct":-0.006105316713304498,"flow_5d":null,"pd_alert":null,"flow_alert":null}],"data_health":{"failures":[],"stale":[],"notes":["snapshots not refreshed this run (--skip-snapshots)","naive-recompute check passed on EEM, EFA, EWJ"],"stale_threshold_sessions":3}};
+// __SCANNER_DATA_END__
+
+// Column spec. `k` is the JSON key, `f` the formatter, `n` true for numeric
+// sort. Zone boundaries carry `gb` so the vertical rule lands in one place
+// for both the header and every cell.
+const PCT1 = (v) => v == null || !isFinite(v) ? null : (v * 100).toFixed(1);
+const signed = (v) => { const s = PCT1(v); return s == null ? null : (v > 0 ? '+' + s : s); };
+
+const COLS = [
+  { k:'ticker',      h:'ETF',        cls:'tk', align:'l' },
+  { k:'name',        h:'Name',       cls:'nm', align:'l' },
+  { k:'trend',       h:'Trend',      cls:'c',  align:'c', gb:true },
+  { k:'rank',        h:'Rank',       n:true,   dir:1 },
+  { k:'rank_delta',  h:'\u0394R 20D', n:true },
+  { k:'mom_12_1',    h:'12-1%',      n:true },
+  { k:'vs_52w_high', h:'vs 52W hi',  n:true },
+  { k:'rv_pctl',     h:'RV pctl',    n:true,   gb:true },
+  { k:'bbw_pctl',    h:'BBW pctl',   n:true },
+  { k:'atr_pct',     h:'ATR%',       n:true },
+  { k:'ret_1d',      h:'1D%',        n:true,   gb:true },
+  { k:'vol_ratio',   h:'Vol \u00D720D', n:true },
+  { k:'rs_1m',       h:'RS 1M',      n:true,   toggle:true },
+  { k:'dev_200d',    h:'Dev 200D',   n:true },
+  { k:'pd_pct',      h:'P/D%',       n:true,   gb:true },
+  { k:'flow_5d',     h:'5D flow',    n:true },
+];
+
+const TREND_CLS = {
+  'Strong up': 'b-up', 'Up': 'b-up1', 'Range': 'b-rng',
+  'Down': 'b-dn1', 'Strong down': 'b-dn',
+};
+
+// Alert tint by kind. Green/red only where the event itself is directional;
+// caution and information use amber / purple / pink so the semantic pair is
+// not spent on decoration.
+function alertClass(a) {
+  const L = (a.label || '').toLowerCase();
+  if (a.kind === '52w')         return L.includes('high') ? 'good' : 'bad';
+  if (a.kind === 'ma200_cross') return L.includes('above') ? 'good' : 'bad';
+  if (a.kind === 'sigma_move')  return (a.value || '').startsWith('-') ? 'bad' : 'good';
+  if (a.kind === 'volume')      return 'warn';
+  if (a.kind === 'rsi')         return 'warn';
+  if (a.kind === 'etf_layer')   return 'alt';
+  return 'info';   // squeeze, squeeze_release
+}
+
+let DATA = null, SLEEVE = 'ALL', SORT = { k:'rank', asc:true }, RS_MODE = 'rs_1m';
+
+const SLEEVES = [
+  ['ALL','All'], ['A','A · Sectors'], ['B','B · Asset class'],
+  ['C','C · Thematic'], ['D','D · Europe'], ['OV','Overlay'],
+];
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function num(v, d) { return v == null || !isFinite(v) ? null : v.toLocaleString('en-US',
+  { minimumFractionDigits:d, maximumFractionDigits:d }); }
+
+// Cell rendering. Every numeric cell that can be missing renders an em dash
+// rather than a zero — a blank reading and a zero reading mean different
+// things, and the ETF-layer columns are genuinely blank for much of the panel.
+function cell(row, col) {
+  const dash = '<span class="mut">\u2014</span>';
+  const k = col.toggle ? RS_MODE : col.k;
+  const v = row[k];
+
+  switch (k) {
+    case 'ticker': {
+      const px = row.is_proxied
+        ? `<span class="px" title="${esc(row.proxy_notes.join(' \u00B7 '))}">P</span>` : '';
+      return `<span title="${esc(row.engine_tickers.join(', '))} \u00B7 as of ${esc(row.as_of)}">${esc(v)}</span>${px}`;
+    }
+    case 'name':
+      return `<span title="${esc(row.long_name || v)}">${esc(v)}</span>`;
+    case 'trend':
+      return v == null ? dash
+        : `<span class="badge ${TREND_CLS[v] || 'b-rng'}">${esc(v)}</span>`;
+    case 'rank':
+      return v == null ? dash : `<b>${v}</b>`;
+    case 'rank_delta': {
+      if (v == null) return dash;
+      if (v === 0) return `<span class="mut">\u2014</span>`;
+      const up = v > 0;
+      return `<span class="${up ? 'pos' : 'neg'}">${up ? '\u2191' : '\u2193'}${Math.abs(v)}</span>`;
+    }
+    case 'rv_pctl': case 'bbw_pctl': {
+      if (v == null) return dash;
+      const t = (k === 'rv_pctl' ? row.rv_truncated : row.bbw_truncated)
+        ? '<span class="trunc" title="shortened percentile window">^</span>' : '';
+      return `p${v.toFixed(0)}${t}`;
+    }
+    case 'atr_pct': {
+      const s = PCT1(v); return s == null ? dash : s;
+    }
+    case 'vol_ratio': {
+      const s = num(v, 1); return s == null ? dash : s + '\u00D7';
+    }
+    case 'mom_12_1': case 'vs_52w_high': case 'ret_1d':
+    case 'rs_1m': case 'ret_1m': case 'dev_200d':
+    case 'pd_pct': case 'flow_5d': {
+      const s = signed(v);
+      if (s == null) return dash;
+      const c = v > 0 ? 'pos' : (v < 0 ? 'neg' : 'mut');
+      return `<span class="${c}">${s}</span>`;
+    }
+    default:
+      return v == null ? dash : esc(v);
+  }
+}
+
+// Highlights mirror the alert rules so a chip and its cell agree.
+function cellClass(row, col) {
+  const k = col.toggle ? RS_MODE : col.k;
+  if (k === 'vs_52w_high' && row.vs_52w_high === 0) return 'hl-good';
+  if (k === 'vol_ratio' && row.vol_ratio > 3) return 'hl-warn';
+  if (k === 'rv_pctl' && row.rv_pctl != null && row.rv_pctl > 80) return 'hl-warn';
+  if ((k === 'rv_pctl' || k === 'bbw_pctl') &&
+      row.rv_pctl != null && row.bbw_pctl != null &&
+      row.rv_pctl < 25 && row.bbw_pctl < 10) return 'hl-info';
+  return '';
+}
+
+function renderHead() {
+  document.getElementById('head').innerHTML = COLS.map(c => {
+    const h = c.toggle ? (RS_MODE === 'rs_1m' ? 'RS 1M' : '1M%') : c.h;
+    const key = c.toggle ? RS_MODE : c.k;
+    const on = SORT.k === key;
+    const title = c.toggle
+      ? 'Click the label to switch between RS versus SPY and the raw 1M return'
+      : 'Click to sort';
+    return `<th class="${c.align === 'l' ? 'l' : (c.align === 'c' ? 'c' : '')}`
+      + `${c.gb ? ' gb' : ''}${on ? ' sorted' : ''}" data-k="${key}"`
+      + `${c.toggle ? ' data-toggle="1"' : ''} title="${esc(title)}">`
+      + `${esc(h)}<span class="arrow">${on ? (SORT.asc ? '\u25B2' : '\u25BC') : '\u25B4'}</span></th>`;
+  }).join('');
+}
+
+function renderBody() {
+  let rows = DATA.rows.slice();
+  if (SLEEVE !== 'ALL') rows = rows.filter(r => r.sleeves.includes(SLEEVE));
+
+  const k = SORT.k, asc = SORT.asc ? 1 : -1;
+  rows.sort((x, y) => {
+    let a = x[k], b = y[k];
+    if (typeof a === 'string' || typeof b === 'string')
+      return String(a ?? '').localeCompare(String(b ?? '')) * asc;
+    // Missing values sort last in both directions — a blank is not a low
+    // value, and floating it to the top of an ascending sort would read as one.
+    if (a == null || !isFinite(a)) return 1;
+    if (b == null || !isFinite(b)) return -1;
+    return (a - b) * asc;
+  });
+
+  document.getElementById('empty').style.display = rows.length ? 'none' : 'block';
+  document.getElementById('body').innerHTML = rows.map(r =>
+    `<tr class="${r.stale ? 'stale' : ''}"${r.stale
+      ? ` title="data ${r.sessions_behind} session(s) behind the panel"` : ''}>`
+    + COLS.map(c => {
+        const extra = [c.align === 'l' ? c.cls : (c.align === 'c' ? 'c' : ''),
+                       c.gb ? 'gb' : '', c.k === 'rank' ? 'rk' : '',
+                       cellClass(r, c)].filter(Boolean).join(' ');
+        return `<td class="${extra}">${cell(r, c)}</td>`;
+      }).join('')
+    + '</tr>'
+  ).join('');
+}
+
+function renderChrome() {
+  const d = DATA;
+  document.getElementById('sub').innerHTML =
+    `${d.n_rows} instruments across sleeves A/B/C/D and the overlay, ranked on an `
+    + `equal-weight 1M/3M/6M/12M momentum composite. Every figure is USD. `
+    + `<b>Parameters are unvalidated industry defaults.</b>`;
+
+  const pills = [`<span class="pill pill-date">PRICES ${esc(d.as_of)}</span>`];
+  const gate = (d.overlays || []).find(o => o.kind === 'breadth_gate');
+  if (gate && gate.state) {
+    pills.push(`<span class="pill ${gate.state === 'RISK_ON' ? 'pill-live' : 'pill-off'}">`
+      + `${esc(gate.state)}</span>`);
+  }
+  if ((d.data_health.failures || []).length || (d.data_health.stale || []).length) {
+    pills.push(`<span class="pill pill-warn">DATA HEALTH</span>`);
+  }
+  document.getElementById('pills').innerHTML = pills.join('');
+
+  // Overlay strip. SPY's own 1M return sits here because with a single
+  // benchmark the RS column is that row's 1M return shifted by this one
+  // constant — without it on the page, RS has no absolute anchor.
+  const spy = d.rows.find(r => r.ticker === d.benchmark);
+  const chips = (d.overlays || []).map(o => {
+    const cls = o.kind === 'breadth_gate'
+      ? (o.state === 'RISK_ON' ? 'good' : 'bad')
+      : (o.stale ? 'warn' : (o.state === 'ON' ? 'good' : 'mute'));
+    return `<span class="chip ${cls}">${esc(o.label)}</span>`;
+  });
+  if (spy && spy.ret_1m != null) {
+    chips.push(`<span class="chip mute"><span class="tk">${esc(d.benchmark)}</span> 1M `
+      + `${esc(signed(spy.ret_1m))}%</span>`);
+  }
+  document.getElementById('overlays').innerHTML = chips.join(' ');
+
+  const al = (d.alerts || []).map(a =>
+    `<span class="chip ${alertClass(a)}"><span class="tk">${esc(a.ticker)}</span> `
+    + `${esc(a.label)}${a.value ? ' ' + esc(a.value) : ''}</span>`);
+  if (d.alerts_truncated) al.push(`<span class="chip mute">+${d.alerts_truncated} more</span>`);
+  document.getElementById('alerts').innerHTML =
+    al.length ? al.join(' ') : '<span class="chip mute">No alerts today</span>';
+
+  document.getElementById('filters').innerHTML = SLEEVES.map(([k, lbl]) =>
+    `<button class="filter ${SLEEVE === k ? 'active' : ''}" data-s="${k}">${esc(lbl)}</button>`
+  ).join(' ');
+
+  const h = d.data_health || {};
+  const markets = Object.entries(d.as_of_per_market || {})
+    .map(([m, dt]) => `${m} ${dt}`).join(' \u00B7 ');
+  const parts = [
+    `<b>Data dates</b> — prices by market: ${esc(markets)}.`
+    + (d.breadth_panel_as_of ? ` Breadth panel: ${esc(d.breadth_panel_as_of)}.` : '')
+    + (d.etf_layer_observed_at ? ` ETF layer observed: ${esc(d.etf_layer_observed_at)}.` : '')
+    + ` Each row carries its own as-of; rows more than `
+    + `${h.stale_threshold_sessions} sessions behind are greyed and marked \u25CF.`,
+    `<b>Percentile window</b> ${d.percentile_window} trading days, each indicator against `
+    + `its own history. <code>^</code> marks a shortened window. <code>P</code> marks a row `
+    + `scanned via its trading proxy rather than the UCITS line the sleeve holds — hover for which.`,
+    `<b class="warn">Parameters are unvalidated.</b> ${esc(d.parameter_note)} `
+    + `Nothing here has been tested on this universe, and no threshold should be read as calibrated.`,
+    `<b>Directional</b> columns carry documented predictive evidence; <b>risk</b> columns predict `
+    + `volatility, not direction; <b>state</b> columns are context and confirmation with no `
+    + `standalone predictive power. A squeeze requires RV <em>and</em> BBW both low.`,
+    `<b class="warn">P/D is unverified.</b> The NAV feed publishes no as-of date, so a reading `
+    + `cannot be aligned to its close and staleness cannot be detected. Large funds look right `
+    + `(${esc(d.benchmark)} reads a few basis points); smaller funds can show a spurious `
+    + `discount that is really the price move between an older NAV strike and a current close. `
+    + `The figure is shown as an indication only and raises <em>no</em> alert until 120 sessions `
+    + `of snapshots let each fund be judged against its own baseline, which absorbs a persistent `
+    + `bias. 5D flow needs a share count, which the feed supplies for roughly half the panel.`,
+  ];
+  if ((h.stale || []).length) parts.push(`<b class="warn">Stale</b> — ${esc(h.stale.join('; '))}.`);
+  if ((h.failures || []).length) parts.push(`<b class="warn">Failed</b> — ${esc(h.failures.join('; '))}.`);
+  if ((h.notes || []).length) parts.push(`<b>Notes</b> — ${esc(h.notes.join('; '))}.`);
+  parts.push(`Built ${esc(d.built_at_utc)} \u00B7 `
+    + `<a href="index.html">Main dashboard</a> \u00B7 `
+    + `<a href="https://github.com/phuazz/breadth-thrust-etf">Methodology &amp; source</a>`);
+  document.getElementById('foot').innerHTML = parts.map(p => `<div>${p}</div>`).join('');
+}
+
+function render() { renderChrome(); renderHead(); renderBody(); }
+
+document.addEventListener('click', (e) => {
+  const f = e.target.closest('.filter');
+  if (f) { SLEEVE = f.dataset.s; render(); return; }
+  const th = e.target.closest('thead tr.cols th');
+  if (!th) return;
+  if (th.dataset.toggle) {
+    // The column shows RS versus SPY by default, per the recorded design
+    // decision; the toggle exposes the raw 1M return underneath it, which is
+    // the same ordering with an absolute reading.
+    RS_MODE = RS_MODE === 'rs_1m' ? 'ret_1m' : 'rs_1m';
+    if (SORT.k === 'rs_1m' || SORT.k === 'ret_1m') SORT.k = RS_MODE;
+    render();
+    return;
+  }
+  const k = th.dataset.k;
+  if (SORT.k === k) SORT.asc = !SORT.asc;
+  else { SORT.k = k; SORT.asc = (k === 'rank' || k === 'ticker' || k === 'name'); }
+  render();
+});
+
+// Inlined at build time by scripts/build_scanner_page.py. The fetch fallback
+// keeps this file usable standalone during development (`npx serve .`), which
+// is why the template is what gets edited and never the built output.
+(function () {
+  if (SCANNER_DATA_INLINE) { DATA = SCANNER_DATA_INLINE; render(); return; }
+  fetch('data/scanner_latest.json')
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(j => { DATA = j; render(); })
+    .catch(err => {
+      document.getElementById('sub').textContent =
+        'No scanner data. Run `python scripts/run_scanner.py`, then serve the '
+        + 'project root so data/scanner_latest.json resolves. (' + err + ')';
+    });
+})();
+</script>
+</body>
+</html>

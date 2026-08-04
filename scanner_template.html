@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETF cross-sectional scanner — breadth-thrust-etf</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Token block copied verbatim from C:\dev\design.md — do not fork these
+   values here. If a value is missing, add it to design.md first. */
+:root {
+  /* surfaces */
+  --bg: #fafaf8;        /* page background — warm off-white */
+  --bg2: #ffffff;       /* cards, raised surfaces */
+  --bg3: #f5f5f0;       /* table headers, inset chips */
+  --bg4: #eeeee8;       /* progress tracks, deep insets */
+  --bg-hover: #f0f0ea;  /* row / cell hover */
+  /* borders */
+  --bd: #e2e0d8;        /* default hairline */
+  --bd2: #d5d3ca;       /* medium */
+  --bd-strong: #c0beb5; /* emphasis / axis lines */
+  /* text */
+  --t1: #1a1a18;        /* primary — near-black */
+  --t2: #5c5c56;        /* secondary */
+  --t3: #8a8a82;        /* tertiary / labels */
+  --t4: #b0b0a8;        /* disabled / faint */
+  /* semantic: green = gain/long, red = loss/short */
+  --g: #1a8754;  --g2: #22a366;  --g-bg: rgba(26,135,84,0.07);  --g-bg2: rgba(26,135,84,0.14);
+  --r: #c0392b;  --r2: #e74c3c;  --r-bg: rgba(192,57,43,0.07);  --r-bg2: rgba(192,57,43,0.14);
+  /* accents: blue = neutral/benchmark, amber = caution, purple = cost, cyan = info, pink = alt */
+  --b: #2563eb;  --b2: #3b82f6;  --b-bg: rgba(37,99,235,0.06);  --b-bg2: rgba(37,99,235,0.12);
+  --a: #b45309;  --a-bg: rgba(180,83,9,0.07);
+  --p: #7c3aed;  --p-bg: rgba(124,58,237,0.06);
+  --c: #0891b2;  --c-bg: rgba(8,145,178,0.06);
+  --pk: #be185d; --pk-bg: rgba(190,24,93,0.06);
+  /* -text variants — use these for TEXT; the values above are for fills,
+     borders, chart lines and large type. */
+  --g-text: #146c43;  --r-text: #a93226;  --b-text: #1d4ed8;  --a-text: #92400e;
+  --p-text: #7c3aed;  --c-text: #0e7490;  --pk-text: #be185d;
+  --t3-text: #66665e;
+  /* type */
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'DM Sans', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+  /* elevation */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.06), 0 4px 6px rgba(0,0,0,0.04);
+  /* radius */
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--t1);
+  font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.shell { max-width: 1520px; margin: 0 auto; padding: 20px 32px 60px; }
+
+/* ---- masthead: serif title, italic muted clause, 2px --t1 underline ---- */
+.masthead {
+  padding: 28px 0 22px; border-bottom: 2px solid var(--t1);
+  display: flex; justify-content: space-between; align-items: flex-end;
+  flex-wrap: wrap; gap: 12px;
+}
+.masthead-left h1 {
+  font-family: var(--serif); font-size: 32px; font-weight: 400;
+  letter-spacing: -0.5px; margin: 0;
+}
+.masthead-left h1 em { font-style: italic; color: var(--t3); }
+.masthead-left p { margin: 6px 0 0; font-size: 13px; color: var(--t2); max-width: 70ch; }
+.pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+  padding: 4px 10px; border-radius: 999px; font-family: var(--mono);
+  border: 1px solid transparent; white-space: nowrap;
+}
+.pill-date { background: var(--bg3); color: var(--t3-text); border-color: var(--bd); }
+.pill-live { background: var(--g-bg); color: var(--g-text); border-color: rgba(26,135,84,0.2); }
+.pill-off  { background: var(--r-bg); color: var(--r-text); border-color: rgba(192,57,43,0.2); }
+.pill-warn { background: var(--a-bg); color: var(--a-text); border-color: rgba(180,83,9,0.2); }
+
+/* ---- section labels: 11px upper, --t3-text (never --t3 at this size) ---- */
+.lbl {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.9px;
+  font-weight: 700; color: var(--t3-text);
+}
+
+.striprow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 18px 0 0; }
+.striprow .lbl { min-width: 74px; }
+
+.chip {
+  font-size: 11.5px; padding: 4px 10px; border-radius: var(--radius);
+  white-space: nowrap; border: 1px solid var(--bd); background: var(--bg2);
+  color: var(--t2);
+}
+.chip b { font-weight: 600; }
+.chip.good { background: var(--g-bg); color: var(--g-text); border-color: rgba(26,135,84,0.2); }
+.chip.bad  { background: var(--r-bg); color: var(--r-text); border-color: rgba(192,57,43,0.2); }
+.chip.warn { background: var(--a-bg); color: var(--a-text); border-color: rgba(180,83,9,0.2); }
+.chip.info { background: var(--p-bg); color: var(--p-text); border-color: rgba(124,58,237,0.2); }
+.chip.alt  { background: var(--pk-bg); color: var(--pk-text); border-color: rgba(190,24,93,0.2); }
+.chip.mute { background: var(--bg3); color: var(--t3-text); }
+.chip .tk { font-family: var(--mono); font-weight: 600; }
+
+.filter {
+  font-size: 11.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--bd); background: var(--bg2); color: var(--t2);
+  cursor: pointer; font-family: inherit; min-height: 28px;
+}
+.filter:hover { background: var(--bg-hover); }
+.filter.active { background: var(--t1); color: var(--bg2); border-color: var(--t1); }
+
+/* ---- card + table ---- */
+.card {
+  background: var(--bg2); border: 1px solid var(--bd); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow); margin-top: 14px; overflow: hidden;
+}
+.tblwrap { overflow-x: auto; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1400px; }
+
+thead th { position: sticky; background: var(--bg3); }
+thead tr.zones th {
+  top: 0; z-index: 3; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1px; font-weight: 700; text-align: center; padding: 6px 8px;
+  border-bottom: 1px solid var(--bd);
+}
+thead tr.zones th.zdir   { background: var(--c-bg);  color: var(--c-text); }
+thead tr.zones th.zrisk  { background: var(--p-bg);  color: var(--p-text); }
+thead tr.zones th.zstate { background: var(--bg3);   color: var(--t3-text); }
+thead tr.zones th.zetf   { background: var(--a-bg);  color: var(--a-text); }
+thead tr.cols th {
+  top: 27px; z-index: 2; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.6px; font-weight: 700; color: var(--t3-text);
+  text-align: right; padding: 8px; white-space: nowrap;
+  border-bottom: 2px solid var(--bd-strong); cursor: pointer; user-select: none;
+}
+thead tr.cols th:hover { color: var(--t1); background: var(--bg4); }
+thead tr.cols th.l { text-align: left; }
+thead tr.cols th.c { text-align: center; }
+thead tr.cols th.gb { border-left: 1px solid var(--bd); }
+thead tr.cols th .arrow { opacity: 0.35; font-size: 9px; margin-left: 2px; }
+thead tr.cols th.sorted .arrow { opacity: 1; }
+thead tr.cols th.sorted { color: var(--t1); }
+
+tbody td {
+  padding: 7px 8px; text-align: right; font-family: var(--mono);
+  font-size: 12px; font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid var(--bd); white-space: nowrap;
+}
+tbody tr:hover td { background: var(--bg-hover); }
+tbody tr:last-child td { border-bottom: none; }
+td.gb { border-left: 1px solid var(--bd); }
+td.tk { text-align: left; font-weight: 600; letter-spacing: -0.2px; }
+td.nm {
+  text-align: left; font-family: var(--sans); font-size: 11.5px; color: var(--t2);
+  max-width: 210px; overflow: hidden; text-overflow: ellipsis;
+}
+td.c { text-align: center; }
+td.rk { font-weight: 700; }
+
+/* Cell text uses the -text variants: cells are 12px, where the base
+   --g / --r fail AA. */
+.pos { color: var(--g-text); }
+.neg { color: var(--r-text); }
+.mut { color: var(--t3-text); }
+.hl-warn  { background: var(--a-bg); color: var(--a-text); font-weight: 600; }
+.hl-info  { background: var(--p-bg); color: var(--p-text); font-weight: 600; }
+.hl-good  { background: var(--g-bg); color: var(--g-text); font-weight: 600; }
+
+.badge {
+  font-size: 10.5px; font-family: var(--sans); font-weight: 600;
+  padding: 3px 8px; border-radius: 999px; display: inline-block; white-space: nowrap;
+}
+.badge.b-up   { background: var(--g-bg2); color: var(--g-text); }
+.badge.b-up1  { background: var(--g-bg);  color: var(--g-text); }
+.badge.b-rng  { background: var(--bg3);   color: var(--t3-text); }
+.badge.b-dn1  { background: var(--r-bg);  color: var(--r-text); }
+.badge.b-dn   { background: var(--r-bg2); color: var(--r-text); }
+
+tr.stale td { background: var(--bg3); color: var(--t3-text); }
+tr.stale td.tk::after {
+  content: ' \25CF'; color: var(--a-text); font-size: 9px;
+}
+.trunc { color: var(--t3-text); font-size: 9px; vertical-align: super; }
+.px { color: var(--t3-text); font-size: 9px; vertical-align: super; cursor: help; }
+
+.foot {
+  margin-top: 18px; font-size: 11.5px; color: var(--t3-text); line-height: 1.75;
+  border-top: 1px solid var(--bd); padding-top: 14px;
+}
+.foot b { color: var(--t2); font-weight: 600; }
+.foot code { font-family: var(--mono); font-size: 11px; }
+.foot .warn { color: var(--a-text); }
+.foot a { color: var(--b-text); }
+
+.empty { padding: 40px; text-align: center; color: var(--t3-text); font-size: 13px; }
+
+@media (max-width: 1200px) { .shell { padding: 16px 20px 48px; } }
+@media (max-width: 768px) {
+  .shell { padding: 12px 14px 40px; }
+  .masthead { padding: 18px 0 14px; }
+  .masthead-left h1 { font-size: 24px; }
+  .striprow .lbl { min-width: 0; }
+}
+@media (pointer: coarse) {
+  .filter { min-height: 44px; padding: 0 16px; }
+  thead tr.cols th { padding: 12px 8px; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="masthead">
+    <div class="masthead-left">
+      <h1>ETF cross-sectional scanner <em>— monitoring, not a strategy</em></h1>
+      <p id="sub">Loading…</p>
+    </div>
+    <div class="pills" id="pills"></div>
+  </div>
+
+  <div class="striprow"><span class="lbl">Overlays</span><span id="overlays"></span></div>
+  <div class="striprow"><span class="lbl">Alerts</span><span id="alerts"></span></div>
+  <div class="striprow"><span class="lbl">Sleeve</span><span id="filters"></span></div>
+
+  <div class="card">
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr class="zones">
+            <th colspan="2"></th>
+            <th colspan="5" class="zdir">Directional signals</th>
+            <th colspan="3" class="zrisk">Risk signals</th>
+            <th colspan="4" class="zstate">State &amp; confirmation</th>
+            <th colspan="2" class="zetf">ETF layer</th>
+          </tr>
+          <tr class="cols" id="head"></tr>
+        </thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" style="display:none;">No rows match this filter.</div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+// __SCANNER_DATA_START__
+const SCANNER_DATA_INLINE = null;
+// __SCANNER_DATA_END__
+
+// Column spec. `k` is the JSON key, `f` the formatter, `n` true for numeric
+// sort. Zone boundaries carry `gb` so the vertical rule lands in one place
+// for both the header and every cell.
+const PCT1 = (v) => v == null || !isFinite(v) ? null : (v * 100).toFixed(1);
+const signed = (v) => { const s = PCT1(v); return s == null ? null : (v > 0 ? '+' + s : s); };
+
+const COLS = [
+  { k:'ticker',      h:'ETF',        cls:'tk', align:'l' },
+  { k:'name',        h:'Name',       cls:'nm', align:'l' },
+  { k:'trend',       h:'Trend',      cls:'c',  align:'c', gb:true },
+  { k:'rank',        h:'Rank',       n:true,   dir:1 },
+  { k:'rank_delta',  h:'\u0394R 20D', n:true },
+  { k:'mom_12_1',    h:'12-1%',      n:true },
+  { k:'vs_52w_high', h:'vs 52W hi',  n:true },
+  { k:'rv_pctl',     h:'RV pctl',    n:true,   gb:true },
+  { k:'bbw_pctl',    h:'BBW pctl',   n:true },
+  { k:'atr_pct',     h:'ATR%',       n:true },
+  { k:'ret_1d',      h:'1D%',        n:true,   gb:true },
+  { k:'vol_ratio',   h:'Vol \u00D720D', n:true },
+  { k:'rs_1m',       h:'RS 1M',      n:true,   toggle:true },
+  { k:'dev_200d',    h:'Dev 200D',   n:true },
+  { k:'pd_pct',      h:'P/D%',       n:true,   gb:true },
+  { k:'flow_5d',     h:'5D flow',    n:true },
+];
+
+const TREND_CLS = {
+  'Strong up': 'b-up', 'Up': 'b-up1', 'Range': 'b-rng',
+  'Down': 'b-dn1', 'Strong down': 'b-dn',
+};
+
+// Alert tint by kind. Green/red only where the event itself is directional;
+// caution and information use amber / purple / pink so the semantic pair is
+// not spent on decoration.
+function alertClass(a) {
+  const L = (a.label || '').toLowerCase();
+  if (a.kind === '52w')         return L.includes('high') ? 'good' : 'bad';
+  if (a.kind === 'ma200_cross') return L.includes('above') ? 'good' : 'bad';
+  if (a.kind === 'sigma_move')  return (a.value || '').startsWith('-') ? 'bad' : 'good';
+  if (a.kind === 'volume')      return 'warn';
+  if (a.kind === 'rsi')         return 'warn';
+  if (a.kind === 'etf_layer')   return 'alt';
+  return 'info';   // squeeze, squeeze_release
+}
+
+let DATA = null, SLEEVE = 'ALL', SORT = { k:'rank', asc:true }, RS_MODE = 'rs_1m';
+
+const SLEEVES = [
+  ['ALL','All'], ['A','A · Sectors'], ['B','B · Asset class'],
+  ['C','C · Thematic'], ['D','D · Europe'], ['OV','Overlay'],
+];
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function num(v, d) { return v == null || !isFinite(v) ? null : v.toLocaleString('en-US',
+  { minimumFractionDigits:d, maximumFractionDigits:d }); }
+
+// Cell rendering. Every numeric cell that can be missing renders an em dash
+// rather than a zero — a blank reading and a zero reading mean different
+// things, and the ETF-layer columns are genuinely blank for much of the panel.
+function cell(row, col) {
+  const dash = '<span class="mut">\u2014</span>';
+  const k = col.toggle ? RS_MODE : col.k;
+  const v = row[k];
+
+  switch (k) {
+    case 'ticker': {
+      const px = row.is_proxied
+        ? `<span class="px" title="${esc(row.proxy_notes.join(' \u00B7 '))}">P</span>` : '';
+      return `<span title="${esc(row.engine_tickers.join(', '))} \u00B7 as of ${esc(row.as_of)}">${esc(v)}</span>${px}`;
+    }
+    case 'name':
+      return `<span title="${esc(row.long_name || v)}">${esc(v)}</span>`;
+    case 'trend':
+      return v == null ? dash
+        : `<span class="badge ${TREND_CLS[v] || 'b-rng'}">${esc(v)}</span>`;
+    case 'rank':
+      return v == null ? dash : `<b>${v}</b>`;
+    case 'rank_delta': {
+      if (v == null) return dash;
+      if (v === 0) return `<span class="mut">\u2014</span>`;
+      const up = v > 0;
+      return `<span class="${up ? 'pos' : 'neg'}">${up ? '\u2191' : '\u2193'}${Math.abs(v)}</span>`;
+    }
+    case 'rv_pctl': case 'bbw_pctl': {
+      if (v == null) return dash;
+      const t = (k === 'rv_pctl' ? row.rv_truncated : row.bbw_truncated)
+        ? '<span class="trunc" title="shortened percentile window">^</span>' : '';
+      return `p${v.toFixed(0)}${t}`;
+    }
+    case 'atr_pct': {
+      const s = PCT1(v); return s == null ? dash : s;
+    }
+    case 'vol_ratio': {
+      const s = num(v, 1); return s == null ? dash : s + '\u00D7';
+    }
+    case 'mom_12_1': case 'vs_52w_high': case 'ret_1d':
+    case 'rs_1m': case 'ret_1m': case 'dev_200d':
+    case 'pd_pct': case 'flow_5d': {
+      const s = signed(v);
+      if (s == null) return dash;
+      const c = v > 0 ? 'pos' : (v < 0 ? 'neg' : 'mut');
+      return `<span class="${c}">${s}</span>`;
+    }
+    default:
+      return v == null ? dash : esc(v);
+  }
+}
+
+// Highlights mirror the alert rules so a chip and its cell agree.
+function cellClass(row, col) {
+  const k = col.toggle ? RS_MODE : col.k;
+  if (k === 'vs_52w_high' && row.vs_52w_high === 0) return 'hl-good';
+  if (k === 'vol_ratio' && row.vol_ratio > 3) return 'hl-warn';
+  if (k === 'rv_pctl' && row.rv_pctl != null && row.rv_pctl > 80) return 'hl-warn';
+  if ((k === 'rv_pctl' || k === 'bbw_pctl') &&
+      row.rv_pctl != null && row.bbw_pctl != null &&
+      row.rv_pctl < 25 && row.bbw_pctl < 10) return 'hl-info';
+  return '';
+}
+
+function renderHead() {
+  document.getElementById('head').innerHTML = COLS.map(c => {
+    const h = c.toggle ? (RS_MODE === 'rs_1m' ? 'RS 1M' : '1M%') : c.h;
+    const key = c.toggle ? RS_MODE : c.k;
+    const on = SORT.k === key;
+    const title = c.toggle
+      ? 'Click the label to switch between RS versus SPY and the raw 1M return'
+      : 'Click to sort';
+    return `<th class="${c.align === 'l' ? 'l' : (c.align === 'c' ? 'c' : '')}`
+      + `${c.gb ? ' gb' : ''}${on ? ' sorted' : ''}" data-k="${key}"`
+      + `${c.toggle ? ' data-toggle="1"' : ''} title="${esc(title)}">`
+      + `${esc(h)}<span class="arrow">${on ? (SORT.asc ? '\u25B2' : '\u25BC') : '\u25B4'}</span></th>`;
+  }).join('');
+}
+
+function renderBody() {
+  let rows = DATA.rows.slice();
+  if (SLEEVE !== 'ALL') rows = rows.filter(r => r.sleeves.includes(SLEEVE));
+
+  const k = SORT.k, asc = SORT.asc ? 1 : -1;
+  rows.sort((x, y) => {
+    let a = x[k], b = y[k];
+    if (typeof a === 'string' || typeof b === 'string')
+      return String(a ?? '').localeCompare(String(b ?? '')) * asc;
+    // Missing values sort last in both directions — a blank is not a low
+    // value, and floating it to the top of an ascending sort would read as one.
+    if (a == null || !isFinite(a)) return 1;
+    if (b == null || !isFinite(b)) return -1;
+    return (a - b) * asc;
+  });
+
+  document.getElementById('empty').style.display = rows.length ? 'none' : 'block';
+  document.getElementById('body').innerHTML = rows.map(r =>
+    `<tr class="${r.stale ? 'stale' : ''}"${r.stale
+      ? ` title="data ${r.sessions_behind} session(s) behind the panel"` : ''}>`
+    + COLS.map(c => {
+        const extra = [c.align === 'l' ? c.cls : (c.align === 'c' ? 'c' : ''),
+                       c.gb ? 'gb' : '', c.k === 'rank' ? 'rk' : '',
+                       cellClass(r, c)].filter(Boolean).join(' ');
+        return `<td class="${extra}">${cell(r, c)}</td>`;
+      }).join('')
+    + '</tr>'
+  ).join('');
+}
+
+function renderChrome() {
+  const d = DATA;
+  document.getElementById('sub').innerHTML =
+    `${d.n_rows} instruments across sleeves A/B/C/D and the overlay, ranked on an `
+    + `equal-weight 1M/3M/6M/12M momentum composite. Every figure is USD. `
+    + `<b>Parameters are unvalidated industry defaults.</b>`;
+
+  const pills = [`<span class="pill pill-date">PRICES ${esc(d.as_of)}</span>`];
+  const gate = (d.overlays || []).find(o => o.kind === 'breadth_gate');
+  if (gate && gate.state) {
+    pills.push(`<span class="pill ${gate.state === 'RISK_ON' ? 'pill-live' : 'pill-off'}">`
+      + `${esc(gate.state)}</span>`);
+  }
+  if ((d.data_health.failures || []).length || (d.data_health.stale || []).length) {
+    pills.push(`<span class="pill pill-warn">DATA HEALTH</span>`);
+  }
+  document.getElementById('pills').innerHTML = pills.join('');
+
+  // Overlay strip. SPY's own 1M return sits here because with a single
+  // benchmark the RS column is that row's 1M return shifted by this one
+  // constant — without it on the page, RS has no absolute anchor.
+  const spy = d.rows.find(r => r.ticker === d.benchmark);
+  const chips = (d.overlays || []).map(o => {
+    const cls = o.kind === 'breadth_gate'
+      ? (o.state === 'RISK_ON' ? 'good' : 'bad')
+      : (o.stale ? 'warn' : (o.state === 'ON' ? 'good' : 'mute'));
+    return `<span class="chip ${cls}">${esc(o.label)}</span>`;
+  });
+  if (spy && spy.ret_1m != null) {
+    chips.push(`<span class="chip mute"><span class="tk">${esc(d.benchmark)}</span> 1M `
+      + `${esc(signed(spy.ret_1m))}%</span>`);
+  }
+  document.getElementById('overlays').innerHTML = chips.join(' ');
+
+  const al = (d.alerts || []).map(a =>
+    `<span class="chip ${alertClass(a)}"><span class="tk">${esc(a.ticker)}</span> `
+    + `${esc(a.label)}${a.value ? ' ' + esc(a.value) : ''}</span>`);
+  if (d.alerts_truncated) al.push(`<span class="chip mute">+${d.alerts_truncated} more</span>`);
+  document.getElementById('alerts').innerHTML =
+    al.length ? al.join(' ') : '<span class="chip mute">No alerts today</span>';
+
+  document.getElementById('filters').innerHTML = SLEEVES.map(([k, lbl]) =>
+    `<button class="filter ${SLEEVE === k ? 'active' : ''}" data-s="${k}">${esc(lbl)}</button>`
+  ).join(' ');
+
+  const h = d.data_health || {};
+  const markets = Object.entries(d.as_of_per_market || {})
+    .map(([m, dt]) => `${m} ${dt}`).join(' \u00B7 ');
+  const parts = [
+    `<b>Data dates</b> — prices by market: ${esc(markets)}.`
+    + (d.breadth_panel_as_of ? ` Breadth panel: ${esc(d.breadth_panel_as_of)}.` : '')
+    + (d.etf_layer_observed_at ? ` ETF layer observed: ${esc(d.etf_layer_observed_at)}.` : '')
+    + ` Each row carries its own as-of; rows more than `
+    + `${h.stale_threshold_sessions} sessions behind are greyed and marked \u25CF.`,
+    `<b>Percentile window</b> ${d.percentile_window} trading days, each indicator against `
+    + `its own history. <code>^</code> marks a shortened window. <code>P</code> marks a row `
+    + `scanned via its trading proxy rather than the UCITS line the sleeve holds — hover for which.`,
+    `<b class="warn">Parameters are unvalidated.</b> ${esc(d.parameter_note)} `
+    + `Nothing here has been tested on this universe, and no threshold should be read as calibrated.`,
+    `<b>Directional</b> columns carry documented predictive evidence; <b>risk</b> columns predict `
+    + `volatility, not direction; <b>state</b> columns are context and confirmation with no `
+    + `standalone predictive power. A squeeze requires RV <em>and</em> BBW both low.`,
+    `<b class="warn">P/D is unverified.</b> The NAV feed publishes no as-of date, so a reading `
+    + `cannot be aligned to its close and staleness cannot be detected. Large funds look right `
+    + `(${esc(d.benchmark)} reads a few basis points); smaller funds can show a spurious `
+    + `discount that is really the price move between an older NAV strike and a current close. `
+    + `The figure is shown as an indication only and raises <em>no</em> alert until 120 sessions `
+    + `of snapshots let each fund be judged against its own baseline, which absorbs a persistent `
+    + `bias. 5D flow needs a share count, which the feed supplies for roughly half the panel.`,
+  ];
+  if ((h.stale || []).length) parts.push(`<b class="warn">Stale</b> — ${esc(h.stale.join('; '))}.`);
+  if ((h.failures || []).length) parts.push(`<b class="warn">Failed</b> — ${esc(h.failures.join('; '))}.`);
+  if ((h.notes || []).length) parts.push(`<b>Notes</b> — ${esc(h.notes.join('; '))}.`);
+  parts.push(`Built ${esc(d.built_at_utc)} \u00B7 `
+    + `<a href="index.html">Main dashboard</a> \u00B7 `
+    + `<a href="https://github.com/phuazz/breadth-thrust-etf">Methodology &amp; source</a>`);
+  document.getElementById('foot').innerHTML = parts.map(p => `<div>${p}</div>`).join('');
+}
+
+function render() { renderChrome(); renderHead(); renderBody(); }
+
+document.addEventListener('click', (e) => {
+  const f = e.target.closest('.filter');
+  if (f) { SLEEVE = f.dataset.s; render(); return; }
+  const th = e.target.closest('thead tr.cols th');
+  if (!th) return;
+  if (th.dataset.toggle) {
+    // The column shows RS versus SPY by default, per the recorded design
+    // decision; the toggle exposes the raw 1M return underneath it, which is
+    // the same ordering with an absolute reading.
+    RS_MODE = RS_MODE === 'rs_1m' ? 'ret_1m' : 'rs_1m';
+    if (SORT.k === 'rs_1m' || SORT.k === 'ret_1m') SORT.k = RS_MODE;
+    render();
+    return;
+  }
+  const k = th.dataset.k;
+  if (SORT.k === k) SORT.asc = !SORT.asc;
+  else { SORT.k = k; SORT.asc = (k === 'rank' || k === 'ticker' || k === 'name'); }
+  render();
+});
+
+// Inlined at build time by scripts/build_scanner_page.py. The fetch fallback
+// keeps this file usable standalone during development (`npx serve .`), which
+// is why the template is what gets edited and never the built output.
+(function () {
+  if (SCANNER_DATA_INLINE) { DATA = SCANNER_DATA_INLINE; render(); return; }
+  fetch('data/scanner_latest.json')
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(j => { DATA = j; render(); })
+    .catch(err => {
+      document.getElementById('sub').textContent =
+        'No scanner data. Run `python scripts/run_scanner.py`, then serve the '
+        + 'project root so data/scanner_latest.json resolves. (' + err + ')';
+    });
+})();
+</script>
+</body>
+</html>
