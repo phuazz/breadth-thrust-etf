@@ -248,7 +248,8 @@ def proxy_identity_pairs() -> set[frozenset[str]]:
 # Modes
 # ---------------------------------------------------------------------------
 
-def audit_incumbents(panel: pd.DataFrame, sleeves: dict[str, list[str]]) -> int:
+def audit_incumbents(panel: pd.DataFrame, sleeves: dict[str, list[str]],
+                     json_out: Path | None = None) -> int:
     wret = weekly_returns(panel)
     cols = list(wret.columns)
     identity = proxy_identity_pairs()
@@ -290,6 +291,27 @@ def audit_incumbents(panel: pd.DataFrame, sleeves: dict[str, list[str]]) -> int:
           "tested against it. Reported only — a drop is a strategy change "
           "and needs a pre-registered ablation "
           "(run_ws8_reit_overlap.py is the worked example).")
+
+    if json_out is not None:
+        import json
+        from datetime import datetime, timezone
+        json_out = json_out.resolve()
+        json_out.write_text(json.dumps({
+            "computed_at_utc": datetime.now(timezone.utc).isoformat(
+                timespec="seconds"),
+            "window": {"start": str(panel.index.min().date()),
+                       "end": str(panel.index.max().date())},
+            "rule": (f"weekly return correlation > {OVERLAP_RULE_MAX_CORR} "
+                     "(WS2 2026-07-02, prospective — incumbents never tested)"),
+            "n_lines": len(cols),
+            "pairs": [{"a": a, "b": b, "corr": round(c, 4),
+                       "sleeves_a": sleeves.get(a, []),
+                       "sleeves_b": sleeves.get(b, []),
+                       "cross_sleeve": cross, "proxy_identity": ident,
+                       "n_weeks": n}
+                      for c, a, b, cross, ident, n in breaches],
+        }, indent=1) + "\n", encoding="utf-8")
+        print(f"  wrote {json_out.relative_to(ROOT)}")
     return 0
 
 
@@ -371,6 +393,9 @@ def main() -> int:
     ap.add_argument("--strategy", choices=["A", "B", "C", "D"])
     ap.add_argument("--audit", action="store_true",
                     help="run Rule 2 retrospectively over the deployed book")
+    ap.add_argument("--json", type=Path, default=None,
+                    help="with --audit, also write the breach list as JSON "
+                         "so charts and monitors read committed data")
     ap.add_argument("candidates", nargs="*")
     args = ap.parse_args()
 
@@ -379,7 +404,7 @@ def main() -> int:
 
     panel, sleeves = deployed_panel()
     if args.audit:
-        return audit_incumbents(panel, sleeves)
+        return audit_incumbents(panel, sleeves, args.json)
     return gate_candidates(args.candidates, args.strategy, panel, sleeves)
 
 

@@ -1390,3 +1390,168 @@ series; 7 unit tests; full suite 334.
 **I0 — unscreened true-weight replication — passes every numeric fidelity bar it can be read against** (drag 0.022 @5 bps and 0.068 @2× vs the −0.05/−0.10 floors; corr 0.996; TE 1.6%; MaxDD 0.4pp better; turnover 1.04×). It was a frozen control, not a registered adoptable arm, so it cannot be promoted post hoc. If the book-structure motivation (single-stock content, fee de-stacking) still stands, the evidenced path is a NEW one-arm pre-registration of I0-as-deployable with explicit seen-data caveat, ops/corporate-actions scoping, and staged parallel-run after the 2026-08-07 Norgate soak closes. The A3 weights table (complete, validated, cache-only) is now a reusable data asset.
 
 **Filed**: technical record `reviews/2026-07-19_ws6_single-name-implementation.docx`; ledger row updated; kickoff §5b carries A1/A2/A3. Engine chain b12d0f9 → 54f0f14 → dbb6543 → 61359de; gate reports 24aa6d0, 05561d6, 998df92; COMPLETE 320a4bc.
+
+## Workstream 8 — REIT dual-coverage ablation and the overlap-gate repair (2026-08-05, CLOSED)
+
+Builds directly on WS2 (2026-07-02, `reviews/2026-07-02_ws2_universe.docx`). WS2
+found the XLRE/VNQ pair at 0.990 weekly return correlation, recorded it as
+"deliberate dual-signal coverage, US-only" (`run_ws2_trend_map.py:53`), and
+adopted the overlap rule "reject candidates above 0.9 versus an incumbent unless
+distinct exposure is argued in writing". It did not test the pair: the two
+pre-registered prune bundles were B-VGK and C-{TAN,SKYY,PAVE}, and the rule is
+prospective by construction, so no incumbent has ever been screened against it.
+WS2 also quantified look-through for the other deliberate duals (SPY, QQQ, IJR)
+but not for REITs.
+
+Trigger: owner question, 2026-08-05 — "why do REITs appear in both A and B, is
+it supposed to appear in only one category?"
+
+### Pre-registration (fixed before any result was inspected)
+
+Two variants, from correlation evidence alone. No K re-tuning, no floor or gate
+changes, no other combinations.
+
+- **V1** — sleeve B drops VNQ, sleeve A unchanged. K_B stays 7 of now-11.
+- **V2** — sleeve A drops IUSP, sleeve B unchanged. K_A stays 7 of now-13; the
+  cross-sectional demean is recomputed on 13 members, which is the mechanical
+  consequence of the drop, not a re-tune.
+
+Both directions were run deliberately. Testing only V1 would presuppose that the
+momentum line is the redundant one; the pair is symmetric until evidence says
+otherwise.
+
+**Keep bar** (WS2 P1/P2 convention, judged at blend level with the varied sleeve
+spliced into 35/35/10/20): test-half Sharpe not worse than the deployed blend,
+AND at least 4 of 6 full sub-periods at or above it, AND the sleeve survives 2×
+cost. The incumbent wins ties, so "no change" is a legitimate outcome.
+
+### Baseline integrity — the trap that had to be cleared first
+
+The cached WS2 baselines (`data/ws2_baseline_*.parquet`) are NOT usable as the
+comparator. Their sleeve B still holds EEM (pre-Phase-29 — EEM carries mean
+weight 5.5% and appears in 868 weeks of that frame), and their sleeve D predates
+both the Phase 30 European rebuild and the 2026-08-03 EXH3→EXH4 instrument
+correction. A VNQ-drop measured against them would have priced three changes as
+one. Baselines were therefore rebuilt on today's deployed configuration over the
+same fixed window. Drift versus the cached WS2 meta, reported rather than
+absorbed: A −0.022, B −0.007, C −0.041, D **+0.039**, blend −0.009. The D
+improvement is the EXH4 correction arriving in the blend.
+
+Window 2018-11-08 → 2026-07-17 (n = 1,929 trading days), split 2022-09-08.
+Panels read from committed parquet caches rather than through `download_prices()`
+so the run is offline and does not rewrite files shared with concurrent sessions.
+
+### Register
+
+Rebuilt baselines: A +0.9695 full / +1.2812 test, MaxDD −30.6%, turnover 16.6×.
+B +0.9994 / +0.9334, MaxDD −13.2%, turnover 12.1×. Blend +1.1867 / +1.4690.
+
+| Variant | Sleeve full | Sleeve test | 2× cost | Δ full | Δ test | cons | Blend Δ full | Blend Δ test | Blend cons | Verdict |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| V1 B drops VNQ | +1.0002 | +0.9179 | +0.980 | +0.001 | −0.015 | 3/6 | **+0.004** | **−0.005** | 3/6 | KEEP INCUMBENT |
+| V2 A drops IUSP | +0.9573 | +1.2497 | +0.940 | −0.012 | −0.032 | 2/6 | −0.007 | −0.012 | 2/6 | KEEP INCUMBENT |
+
+**Both variants fail all three legs of the bar.** V1 is the closer call — it is
+free on the full window and improves sleeve B's max drawdown from −13.2% to
+−11.7% — but it loses the test half, manages 3 of 6 sub-periods, and does not
+survive 2× cost (+0.980 against a +0.999 baseline). V2 is worse on every axis and
+does not even buy drawdown (−30.64% against −30.62%).
+
+**Verdict: KEEP BOTH.** The dual coverage survives its first actual test. It now
+rests on evidence rather than on one line of comment.
+
+### Look-through — the WS2 gap, closed
+
+Effective NAV weights on the weekly rebalance grid (473 weeks), sleeve share
+applied (A 35%, B 35%):
+
+| Line | Mean of NAV | Max of NAV | Weeks held |
+|---|---:|---:|---:|
+| IUSP (A) | 1.61% | 10.65% | 32.8% |
+| VNQ (B) | 1.96% | 12.18% | 35.9% |
+| **Combined** | **3.57%** | **20.26%** | both held 28.5% |
+
+For comparison, WS2's accepted duals: SPY mean 3.98% / max 10.36% / both 43.2%;
+QQQ 6.79% / 24.08% / 42.7%. **The REIT pair is a smaller structural double-count
+than either**, on both mean look-through and simultaneous-holding frequency.
+
+Note the live snapshot that prompted the question is an outlier, not the norm:
+at the 2026-07-31 anchor IUSP sat at 9.77% and VNQ at 3.31% of NAV, 13.07%
+combined — high against a 3.57% mean, but inside the historical 20.26% peak.
+
+### Companion finding — the overlap gate was not enforcing either rule
+
+Auditing the book to place the REIT pair in context exposed three defects in the
+candidate gates (`check_universe_candidates.py`, `check_thematic_candidates.py`),
+all of which let overlap through:
+
+1. **Basis mismatch.** Both scripts correlated weekly RETURNS and compared to
+   0.85, citing the Phase 5 threshold — but Phase 5 (`run_phase5_correlation.py:11`)
+   and the Phase 25 screen (`run_thematic_universe_screen.py:18`) both measured
+   weekly SIGNAL correlation, the quantity the sleeves rank on. Signal series are
+   slow and strongly autocorrelated, so 0.85 on returns is a looser gate than
+   specified.
+2. **Sleeve-scope asymmetry.** Sleeve C candidates were screened against sleeve
+   A's sector slate as well as C's members — that is how XOP, OIH and AMLP were
+   rejected, all three on XLE. Sleeve B candidates were screened against B
+   incumbents only. Applied to one sleeve, not the other.
+3. **Silent NaN collapse.** A whole-frame `rolling(200, min_periods=200)` over a
+   panel spanning the NYSE, Xetra, Shenzhen and 24×7 crypto calendars returns
+   all-NaN — every 200-row window of every column contains another calendar's
+   dates. Every pair is then skipped for want of overlap and every candidate
+   returns PASS having been compared against nothing. This is the failure mode
+   that looks exactly like success.
+
+Both rules now run book-wide against the deployed universe resolved through
+`scanner_universe.resolve_universe()`, so the gate, the daily scanner and the
+engines cannot disagree about what is held. Signal is computed per column.
+Regression-checked against documented figures: XOP 0.948 (Phase 5 0.947), AMLP
+0.854 (0.853), SLV vs GLD 0.780 (Phase 16 0.78), ITB passes as it did in Phase 5.
+**VNQ re-screened as a fresh B candidate now fails on both rules against IUSP
+(signal 0.984, return 0.990); under the old B-side gate its top within-B
+correlation was 0.743 and it would have passed.**
+
+### Retrospective audit (`--audit`)
+
+18 incumbent pairs sit above the 0.90 rule. Three are labelled PROXY-IDENTITY —
+sleeve A is priced through the very ticker sleeve B holds (CSP1→SPY, CNDX→QQQ,
+IDP6→IJR), so the panel carries one series under two names and the ~1.000 is
+structural, not measured. The exposure overlap is real (WS2's US-beta cluster,
+mean 46.8% / peak 83.5% of NAV) but the coefficient is not evidence about it.
+Labelling them keeps three permanent false positives off the top of the list,
+which is how a guard trains its readers to skip it.
+
+Of the 15 measured breaches, one is not covered by any prior study: **VGK (B) ~
+EXH3 (D) at 0.913 and EFA (B) ~ EXH3 (D) at 0.903** — sleeve B's Europe lines
+against sleeve D's Europe sector line, now correctly priced as EXH4.DE
+(industrials) after the 2026-08-03 correction. The others are documented (EFA/VGK
+0.984 prune-tested and rejected in WS2 P1; XLI~PAVE 0.954 prune-tested and
+rejected in WS2 P2; TLT/IEF 0.918 a deliberate duration ladder; ICLN/TAN 0.925
+inside the rejected P2 bundle).
+
+### Trial register
+
+Configurations evaluated: 2 (V1, V2), each at 1× and 2× cost, registered once,
+no post-hoc variant selection and no third direction added after seeing results.
+The look-through table and the `--audit` sweep are descriptive, carry no
+free parameters, and are not verdict-relevant.
+
+### Caveats
+
+- Both sleeves keep their REIT line on evidence of *no improvement from
+  removal*, not evidence of positive contribution. The test asked whether the
+  second line earns its place, and the answer is that removing either costs
+  more than it saves. That is a weaker claim than "REITs add alpha" and should
+  not be quoted as one.
+- V1 removes B's line while A keeps IUSP, so the blend result measures the
+  marginal value of the SECOND REIT line, not of REIT exposure.
+- Sample noise dominates the margins: the blend deltas (+0.004 / −0.007 full)
+  are far inside the ±0.4 Sharpe standard error the README already flags.
+  The honest reading is that the choice does not matter much either way, which
+  is itself the argument for leaving a working configuration alone.
+- The 15 measured audit breaches are reported, not actioned. Each would need
+  its own pre-registered ablation; WS8 is the worked example of what that costs.
+
+**Filed**: technical record `reviews/2026-08-05_ws8_reit-dual-coverage.docx`;
+evidence `data/ws8_reit_overlap.json`; engine `scripts/run_ws8_reit_overlap.py`
+(commit ede814a); gate repair + 5 guard tests (commit fc4234a); ledger row added.

@@ -1,0 +1,263 @@
+{
+ "computed_at_utc": "2026-08-05T04:42:07+00:00",
+ "window": {
+  "start": "2018-01-02",
+  "end": "2026-08-03"
+ },
+ "rule": "weekly return correlation > 0.9 (WS2 2026-07-02, prospective \u2014 incumbents never tested)",
+ "n_lines": 57,
+ "pairs": [
+  {
+   "a": "IDP6",
+   "b": "IJR",
+   "corr": 0.9999,
+   "sleeves_a": [
+    "A"
+   ],
+   "sleeves_b": [
+    "B"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": true,
+   "n_weeks": 446
+  },
+  {
+   "a": "CSP1",
+   "b": "SPY",
+   "corr": 0.9997,
+   "sleeves_a": [
+    "A"
+   ],
+   "sleeves_b": [
+    "B"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": true,
+   "n_weeks": 446
+  },
+  {
+   "a": "CNDX",
+   "b": "QQQ",
+   "corr": 0.9984,
+   "sleeves_a": [
+    "A"
+   ],
+   "sleeves_b": [
+    "B"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": true,
+   "n_weeks": 446
+  },
+  {
+   "a": "IUSP",
+   "b": "VNQ",
+   "corr": 0.9895,
+   "sleeves_a": [
+    "A"
+   ],
+   "sleeves_b": [
+    "B"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": false,
+   "n_weeks": 446
+  },
+  {
+   "a": "EFA",
+   "b": "VGK",
+   "corr": 0.9837,
+   "sleeves_a": [
+    "B"
+   ],
+   "sleeves_b": [
+    "B"
+   ],
+   "cross_sleeve": false,
+   "proxy_identity": false,
+   "n_weeks": 447
+  },
+  {
+   "a": "IUIS",
+   "b": "PAVE",
+   "corr": 0.9491,
+   "sleeves_a": [
+    "A"
+   ],
+   "sleeves_b": [
+    "C"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": false,
+   "n_weeks": 445
+  },
+  {
+   "a": "CNDX",
+   "b": "CSP1",
+   "corr": 0.9282,
+   "sleeves_a": [
+    "A"
+   ],
+   "sleeves_b": [
+    "A"
+   ],
+   "cross_sleeve": false,
+   "proxy_identity": false,
+   "n_weeks": 446
+  },
+  {
+   "a": "QQQ",
+   "b": "SPY",
+   "corr": 0.9282,
+   "sleeves_a": [
+    "B"
+   ],
+   "sleeves_b": [
+    "B"
+   ],
+   "cross_sleeve": false,
+   "proxy_identity": false,
+   "n_weeks": 447
+  },
+  {
+   "a": "QQQ",
+   "b": "CSP1",
+   "corr": 0.9277,
+   "sleeves_a": [
+    "B"
+   ],
+   "sleeves_b": [
+    "A"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": false,
+   "n_weeks": 446
+  },
+  {
+   "a": "CNDX",
+   "b": "SPY",
+   "corr": 0.9275,
+   "sleeves_a": [
+    "A"
+   ],
+   "sleeves_b": [
+    "B"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": false,
+   "n_weeks": 446
+  },
+  {
+   "a": "ICLN",
+   "b": "TAN",
+   "corr": 0.9246,
+   "sleeves_a": [
+    "C"
+   ],
+   "sleeves_b": [
+    "C"
+   ],
+   "cross_sleeve": false,
+   "proxy_identity": false,
+   "n_weeks": 445
+  },
+  {
+   "a": "IDP6",
+   "b": "PAVE",
+   "corr": 0.9197,
+   "sleeves_a": [
+    "A"
+   ],
+   "sleeves_b": [
+    "C"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": false,
+   "n_weeks": 445
+  },
+  {
+   "a": "IJR",
+   "b": "PAVE",
+   "corr": 0.9197,
+   "sleeves_a": [
+    "B"
+   ],
+   "sleeves_b": [
+    "C"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": false,
+   "n_weeks": 445
+  },
+  {
+   "a": "IEF",
+   "b": "TLT",
+   "corr": 0.9177,
+   "sleeves_a": [
+    "B"
+   ],
+   "sleeves_b": [
+    "B"
+   ],
+   "cross_sleeve": false,
+   "proxy_identity": false,
+   "n_weeks": 447
+  },
+  {
+   "a": "VGK",
+   "b": "EXH3",
+   "corr": 0.9129,
+   "sleeves_a": [
+    "B"
+   ],
+   "sleeves_b": [
+    "D"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": false,
+   "n_weeks": 447
+  },
+  {
+   "a": "SPY",
+   "b": "IUCD",
+   "corr": 0.9043,
+   "sleeves_a": [
+    "B"
+   ],
+   "sleeves_b": [
+    "A"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": false,
+   "n_weeks": 446
+  },
+  {
+   "a": "CSP1",
+   "b": "IUCD",
+   "corr": 0.9041,
+   "sleeves_a": [
+    "A"
+   ],
+   "sleeves_b": [
+    "A"
+   ],
+   "cross_sleeve": false,
+   "proxy_identity": false,
+   "n_weeks": 446
+  },
+  {
+   "a": "EFA",
+   "b": "EXH3",
+   "corr": 0.9034,
+   "sleeves_a": [
+    "B"
+   ],
+   "sleeves_b": [
+    "D"
+   ],
+   "cross_sleeve": true,
+   "proxy_identity": false,
+   "n_weeks": 447
+  }
+ ]
+}
