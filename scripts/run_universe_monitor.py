@@ -16,8 +16,16 @@ What it does, once per run:
   3. Screens each launch through the book-wide overlap gate in
      check_universe_candidates.py — the same two rules, the same deployed
      book, so the monitor and the manual gate cannot disagree.
-  4. Re-runs the incumbent overlap audit, so a pair that drifts above the
-     0.90 rule surfaces without anyone thinking to ask.
+  4. Carries forward anything it could not screen. A freshly listed ETF
+     usually has no price history on the day it appears, so a single-shot
+     screen would see the launch it exists to catch and then lose it once
+     the snapshot advanced. Unscreened lines are re-screened every run
+     until they can actually be evaluated.
+
+Scheduled monthly by .github/workflows/universe_monitor.yml (1st, 07:00
+UTC), which commits the report and the advanced snapshot. Launches do not
+move at weekly frequency, and a mostly-empty weekly report is how a
+monitor teaches its reader to stop opening it.
 
 Why a launch monitor cannot produce an addition
 -----------------------------------------------
@@ -248,21 +256,51 @@ def load_snapshot_rows() -> tuple[dict[str, dict] | None, int | None]:
 # Screening
 # ---------------------------------------------------------------------------
 
+def load_pending() -> list[str]:
+    """Symbols a previous run could not screen, carried forward.
+
+    A newly listed ETF usually has no price history on its first appearance
+    — DLCU listed and was picked up the same day, with nothing for yfinance
+    to return. Without this carry-forward such a line would be screened
+    once, produce nothing, and then fall out of the diff for good: the
+    monitor would have seen the launch it exists to catch and dropped it
+    silently. The same applies to anything cut by --max-screen.
+    """
+    if not REPORT.exists():
+        return []
+    try:
+        prior = json.loads(REPORT.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    pending = list(prior.get("pending_rescreen", []))
+    return sorted(set(pending))
+
+
 def screen_launches(symbols: list[str], panel: pd.DataFrame,
                     sleeves: dict[str, list[str]],
-                    max_screen: int) -> tuple[list[dict], int]:
-    """Run new lines through the same two rules the manual gate applies."""
+                    max_screen: int) -> tuple[list[dict], list[str]]:
+    """Run new lines through the same two rules the manual gate applies.
+
+    Returns (records, still_pending). Every symbol handed in comes back
+    with a record — a launch never disappears from the report because it
+    happened to have no data.
+    """
     if not symbols:
-        return [], 0
+        return [], []
     capped = sorted(symbols)[:max_screen]
-    dropped = len(symbols) - len(capped)
+    deferred = sorted(set(symbols) - set(capped))
     print(f"  screening {len(capped)} of {len(symbols)} launches"
-          + (f" — {dropped} NOT screened this run (--max-screen cap)"
-             if dropped else ""))
+          + (f" — {len(deferred)} deferred to next run by the --max-screen "
+             f"cap: {deferred}" if deferred else ""))
 
     px = fetch_candidates(capped)
+    no_data = [s for s in capped if s not in px.columns]
+    records: list[dict] = [
+        {"symbol": s, "verdict": "WATCH — listed, no price history yet",
+         "note": "carried forward for re-screening on the next run"}
+        for s in no_data]
     if not len(px.columns):
-        return [], dropped
+        return records, sorted(set(no_data) | set(deferred))
 
     # A symbol can appear as a launch AND already be a deployed line — a
     # recycled ticker, or a snapshot that lost a row. Screening it against
@@ -282,7 +320,7 @@ def screen_launches(symbols: list[str], panel: pd.DataFrame,
     except RuntimeError:
         wsig = None
 
-    out = []
+    out = list(records)
     for sym in px.columns:
         s = px[sym].dropna()
         if s.empty:
@@ -332,7 +370,11 @@ def screen_launches(symbols: list[str], panel: pd.DataFrame,
         else:
             rec["verdict"] = "REVIEW — clears both rules on today's data"
         out.append(rec)
-    return out, dropped
+    # A line with too little history for the ranked signal is not finished
+    # with: it comes back every run until Rule 1 can actually be evaluated.
+    short = [r["symbol"] for r in out
+             if r.get("signal_note") and not r["verdict"].startswith("REJECT")]
+    return out, sorted(set(no_data) | set(deferred) | set(short))
 
 
 # ---------------------------------------------------------------------------
@@ -347,6 +389,11 @@ def main() -> int:
                     help="cap how many launches get a history fetch")
     ap.add_argument("--today", default=None,
                     help="ISO date override for the freshness check (testing)")
+    ap.add_argument("--fail-on-alert", action="store_true",
+                    help="exit non-zero if a closed line is held by the book, "
+                         "so a scheduled run raises an alert. Report and "
+                         "snapshot are written first, so the trail lands "
+                         "either way")
     args = ap.parse_args()
 
     today = (date.fromisoformat(args.today) if args.today
@@ -383,10 +430,17 @@ def main() -> int:
         print(f"  *** {len(closed_and_held)} CLOSED LINE(S) ARE HELD BY THE "
               f"BOOK: {closed_and_held} ***")
 
-    screened, dropped = screen_launches(launches, panel, sleeves,
+    carried = load_pending()
+    if carried:
+        print(f"  carrying forward {len(carried)} unscreened line(s) from the "
+              f"last run: {carried}")
+    to_screen = sorted(set(launches) | set(carried))
+    screened, pending = screen_launches(to_screen, panel, sleeves,
                                         args.max_screen)
     for rec in sorted(screened, key=lambda r: r["verdict"]):
         print(f"  {rec['symbol']:8s} {rec['verdict']}")
+    if pending:
+        print(f"  {len(pending)} line(s) still to screen next run: {pending}")
 
     report = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(
@@ -398,8 +452,9 @@ def main() -> int:
         "launches": launches,
         "closures": closures,
         "closures_held_by_book": closed_and_held,
+        "carried_forward_from_last_run": carried,
         "screened": screened,
-        "launches_not_screened": dropped,
+        "pending_rescreen": pending,
         "advisory_only": (
             "This report changes nothing. A universe addition requires a "
             "pre-registered ablation against the deployed blend; see "
@@ -415,6 +470,15 @@ def main() -> int:
               "(commit it so the next diff is against a reviewed baseline)")
     elif baseline:
         print("  NOTE: rerun with --write-snapshot to establish the baseline")
+
+    # Alert LAST, after the report and snapshot are on disk, so a scheduled
+    # run still commits its trail on the month it raises the alarm. The one
+    # condition worth waking someone for is a line the book actually holds
+    # disappearing from the listed universe.
+    if closed_and_held and args.fail_on_alert:
+        print(f"\n::error::{len(closed_and_held)} held line(s) no longer "
+              f"listed: {closed_and_held}")
+        return 1
     return 0
 
 

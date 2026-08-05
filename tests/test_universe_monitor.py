@@ -9,6 +9,7 @@ tests exist to prove the layer actually fires rather than merely existing.
 
 from __future__ import annotations
 
+import json
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -102,6 +103,28 @@ def test_row_count_collapse_is_fatal():
         check_volume(2700, 5573)
     with pytest.raises(FeedIntegrityError, match="outside"):
         check_volume(9000, 5573)
+
+
+def test_pending_carry_forward_round_trips_through_the_report(tmp_path,
+                                                              monkeypatch):
+    """A launch with no price history must not be lost when the snapshot moves.
+
+    This is the hole a single-shot screen leaves: an ETF is listed, the
+    monitor screens it the same day, the vendor has no history for it yet,
+    the snapshot advances, and the line never appears in a diff again.
+    """
+    import run_universe_monitor as m
+
+    report = tmp_path / "universe_monitor.json"
+    monkeypatch.setattr(m, "REPORT", report)
+    assert m.load_pending() == []          # no report yet
+
+    report.write_text(json.dumps({"pending_rescreen": ["DLCU", "AAAA"]}),
+                      encoding="utf-8")
+    assert m.load_pending() == ["AAAA", "DLCU"]
+
+    report.write_text("{ not json", encoding="utf-8")
+    assert m.load_pending() == []          # unreadable report must not crash
 
 
 def test_tolerance_band_edges_behave():

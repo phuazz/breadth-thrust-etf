@@ -1,4 +1,4 @@
-# derived from nasdaqtrader.com symbol directory; file creation time 2026-08-05T03:04:00
+# derived from nasdaqtrader.com symbol directory; file creation time 2026-08-05T10:02:00
 symbol,name,exchange
 AAA,Alternative Access First Priority CLO Bond ETF,P
 AAAA,Amplius Aggressive Asset Allocation ETF,Z
@@ -1178,6 +1178,7 @@ DJUL,FT Vest U.S. Equity Deep Buffer ETF - July,Z
 DJUN,FT Vest U.S. Equity Deep Buffer ETF - June,Z
 DKNX,Defiance Daily Target 2X Long DKNG ETF,Q
 DLAG,FT Vest U.S. Equity Dual Directional Buffer ETF - August,Z
+DLCU,U.S. Large Company Portfolio: ETF Class Shares,Q
 DLFE,FT Vest U.S. Equity Dual Directional Buffer ETF - February,Z
 DLLL,GraniteShares 2x Long DELL Daily ETF,Q
 DLMY,FT Vest U.S. Equity Dual Directional Buffer ETF - May,Z

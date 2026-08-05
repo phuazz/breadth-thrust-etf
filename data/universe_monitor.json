@@ -1,17 +1,28 @@
 {
- "computed_at_utc": "2026-08-05T08:01:30+00:00",
+ "computed_at_utc": "2026-08-05T14:20:50+00:00",
  "run_date": "2026-08-05",
  "feed": {
   "url": "https://www.nasdaqtrader.com/dynamic/symdir/nasdaqtraded.txt",
-  "file_creation_time": "2026-08-05T03:04:00",
-  "etf_lines": 5574,
-  "prior_etf_lines": 5574
+  "file_creation_time": "2026-08-05T10:02:00",
+  "etf_lines": 5575,
+  "prior_etf_lines": 5575
  },
  "baseline_run": false,
  "launches": [],
  "closures": [],
  "closures_held_by_book": [],
- "screened": [],
- "launches_not_screened": 0,
+ "carried_forward_from_last_run": [
+  "DLCU"
+ ],
+ "screened": [
+  {
+   "symbol": "DLCU",
+   "verdict": "WATCH \u2014 listed, no price history yet",
+   "note": "carried forward for re-screening on the next run"
+  }
+ ],
+ "pending_rescreen": [
+  "DLCU"
+ ],
  "advisory_only": "This report changes nothing. A universe addition requires a pre-registered ablation against the deployed blend; see reviews/2026-08-05_ws8_reit-dual-coverage.docx for the format and for how rarely such a change has been worth making."
 }

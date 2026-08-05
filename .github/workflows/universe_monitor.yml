@@ -1,0 +1,149 @@
+name: Universe monitor — monthly
+
+# Diffs the listed US ETF universe against data/etf_catalogue_snapshot.csv,
+# screens any new launches through the book-wide overlap gate, and reports
+# closures. Commits the report and the advanced snapshot.
+#
+# MONTHLY, not weekly. New launches do not move at weekly frequency; a
+# weekly cadence would mostly produce empty diffs, which is how a report
+# trains its reader to stop opening it. The 1st at 07:00 UTC is clear of
+# every other job in this repo: the weekday 21:30 daily mark-to-market,
+# the 03:35 sentinel, the Saturday 06:00 pair-integrity check, and the
+# Sunday 09:00 factsheet gate.
+#
+# ADVISORY. This workflow cannot change the book. run_universe_monitor.py
+# runs no strategy engine and writes exactly two paths, neither of which
+# feeds a sleeve or triggers another workflow — in particular it never
+# touches data/breadth_csp1.json, which push-triggers the factsheet email.
+# A universe addition still requires a hand-run pre-registered ablation;
+# see reviews/2026-08-05_ws8_reit-dual-coverage.docx for the format.
+#
+# The snapshot advances automatically. That is deliberate: without it every
+# month would diff against the original 2026-08-05 baseline and re-report
+# the same launches forever. The git history of the snapshot IS the review
+# trail — each month's commit diff shows exactly which lines appeared and
+# disappeared.
+#
+# Guard layer (vault rule: no unattended agent without one). The dangerous
+# failure is not a crash but a truncated or stale catalogue that parses
+# cleanly and reports "no new launches". Three fatal checks run before any
+# diff is computed — feed schema, the vendor's own file-creation stamp
+# against a 7-day bound, and ETF row count within 15% of the prior
+# snapshot — plus a refusal to treat an unreadable snapshot as an empty
+# one. All are covered by tests/test_universe_monitor.py.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 1 * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: universe-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # fetch-depth: 0 with filter: blob:none — the push retry below rebases
+      # and needs a real merge base, but this repository carries a large
+      # blob history; the partial-clone filter fetches the commit graph
+      # without the historical blobs.
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Guard tests before the run, not after: if the integrity layer is
+      # broken then a green monitor run proves nothing, and this job's whole
+      # claim is that a silently-wrong catalogue cannot pass unnoticed.
+      - name: Verify the guard layer
+        run: python -m pytest tests/test_universe_monitor.py tests/test_overlap_gate.py -q
+
+      # --fail-on-alert exits non-zero only when a line the book HOLDS has
+      # left the listed universe. The report and snapshot are written before
+      # that check, so the trail lands on the month the alarm fires.
+      - name: Run the monitor
+        run: python scripts/run_universe_monitor.py --write-snapshot --fail-on-alert
+
+      # Explicit paths only, never `git add data/`. Several sessions and
+      # workflows share this tree and a broad add would sweep up whatever
+      # else is dirty. `always()` so the trail is committed even on the run
+      # that raises an alert.
+      - name: Commit the report and the advanced snapshot
+        if: always()
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "Universe Monitor Bot"
+          git add data/universe_monitor.json data/etf_catalogue_snapshot.csv
+          if git diff --cached --quiet; then
+            echo "No universe changes to commit."
+            exit 0
+          fi
+          git commit -m "Universe monitor $(date -u +%Y-%m)"
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "Pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected on attempt $attempt — rebasing onto origin/main."
+            git pull --rebase origin main || exit 1
+          done
+          echo "::error::Could not push universe monitor outputs after 3 attempts."
+          exit 1
+
+      - name: Email alert
+        if: failure()
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[ALERT] Universe monitor — a held line delisted, or a guard fired'
+          # Operator only. This is a research monitor with no distribution list.
+          to: ${{ secrets.GMAIL_USER }}
+          from: ${{ secrets.GMAIL_USER }}
+          body: |
+            The monthly universe monitor did not finish clean. Two very
+            different causes, and the log says which:
+
+              - A HELD LINE HAS DELISTED. The book holds an ETF that no
+                longer appears in the listed universe. This is the condition
+                the alert exists for and needs attention now: the sleeve will
+                keep ranking a ticker that has stopped trading. FM was caught
+                this way, but only after it had already been liquidated in
+                January 2025.
+
+              - A CAPTURE GUARD FIRED. The catalogue feed failed its schema,
+                freshness or row-count check, or the committed snapshot did
+                not parse. Nothing was written and nothing was committed. The
+                run is refusing to report "no new launches" from a file it
+                cannot vouch for, which is the whole point of the guard.
+
+            Neither case changes the book. This monitor is advisory: it runs
+            no strategy engine and any universe change still needs a
+            hand-run, pre-registered ablation.
+
+            Reproduce locally:
+              python scripts/run_universe_monitor.py
+
+            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
