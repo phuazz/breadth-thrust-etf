@@ -30,6 +30,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
+from fetch_ws6_weights import build_line  # noqa: E402
 from nyse_sessions import last_completed_session  # noqa: E402
 from single_name_impl import (  # noqa: E402
     ARM_BY_ID,
@@ -98,8 +99,17 @@ def compute_week(window_end: pd.Timestamp) -> dict:
     """
     sector = deployed_sector_layer(window_end=window_end)
     closes, rebal = sector["closes"], sector["rebal_dates"]
+    # The A3 weights and the member universe are frozen at the study window
+    # by default. A live shadow week needs both extended to ITS window end —
+    # otherwise every basketed line silently reverts to its ETF and the
+    # shadow measures nothing (caught by the 2026-08-05 pre-arm dry run:
+    # empty baskets, 60 unresolved names, gap exactly 0.0 bp). Weights come
+    # from the same raw snapshot cache the deployed pipeline maintains
+    # (cache-first, throttled network fallback); member prices from Norgate.
+    for L in PARTIAL_5:
+        build_line(L, force=False, window_end=window_end)
     (prices_by_line, _m, _f, resolution) = load_or_fetch_member_prices(
-        SINGLE_NAMED_LINES)
+        SINGLE_NAMED_LINES, end=window_end)
     membership = {L: load_constituents(L)["snapshots"] for L in SINGLE_NAMED_LINES}
     signals = {L: precompute_member_signals(prices_by_line[L])
                for L in SINGLE_NAMED_LINES}
@@ -135,15 +145,13 @@ def compute_week(window_end: pd.Timestamp) -> dict:
     row = sector["weights"].loc[week_ending]
     held = [L for L in row.index if float(row.get(L, 0)) > 0]
     line_w = {L: float(row[L]) for L in held}
-    basketed = [L for L in PARTIAL_5 if L in held]
-    fallbacks = [L for L in basketed if i0.fallback_weeks.get(L, 0)
-                 and L not in i0.basket_sizes]
+    basketed_eligible = [L for L in PARTIAL_5 if L in held]
 
     # Reconstruct each basketed line's within-line weights for the guard, via
     # that line's ISOLATED book. Exact, and it handles a name held by two lines
     # without double counting it into either basket.
     baskets: dict[str, dict[str, float]] = {}
-    for L in basketed:
+    for L in basketed_eligible:
         with restricted_to((L,)):
             b = build_arm_name_weights(
                 ARM_BY_ID["I0"], sector["weights"], closes, rebal,
@@ -154,6 +162,16 @@ def compute_week(window_end: pd.Timestamp) -> dict:
         w = w[w > 0]
         baskets[L] = ({n: float(v) / line_w[L] for n, v in w.items()}
                       if line_w[L] > 0 else {})
+
+    # A held, adopted line whose reconstructed basket is EMPTY did not trade
+    # as a basket this week — the builder reverted it to its ETF (the
+    # registered fallback). Classify from the baskets themselves: the old
+    # cumulative-counter test missed a week where EVERY line reverted, so the
+    # weight-integrity guard fired on empty baskets instead of the fallback
+    # being reported as the resolved, logged outcome it is registered to be.
+    fallbacks = [L for L in basketed_eligible if not baskets[L]]
+    baskets = {L: w for L, w in baskets.items() if w}
+    basketed = [L for L in basketed_eligible if L in baskets]
 
     unresolved = sorted({n for L in basketed
                          for n in i0.uncovered_seen.get(L, set())
@@ -167,7 +185,7 @@ def compute_week(window_end: pd.Timestamp) -> dict:
             fallback_lines=fallbacks, unresolved_gaps=unresolved,
             corporate_actions=[],
             snapshot_dates={L: (str(max(membership[L])) if membership[L]
-                                else "none") for L in basketed},
+                                else "none") for L in basketed_eligible},
             data_asof=str(closes.index.max().date()),
             engine_commit=_engine_commit(), params_sha=_params_sha()),
         "line_weights": line_w,

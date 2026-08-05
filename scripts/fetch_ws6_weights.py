@@ -146,14 +146,23 @@ def parse_holdings_weights(body: str, ticker_overrides: dict | None = None,
     return weights, no_weight
 
 
-def build_line(line: str, force: bool) -> dict:
-    """Build (or resume) one line's weight table. Returns the report dict."""
+def build_line(line: str, force: bool,
+               window_end: "pd.Timestamp | str | None" = None) -> dict:
+    """Build (or resume) one line's weight table. Returns the report dict.
+
+    ``window_end`` extends the snapshot window past the frozen study end —
+    required by the WS6b T3 shadow, whose live weeks need current weights.
+    Default None keeps the frozen WINDOW_END (register semantics unchanged).
+    Existing in-window snapshots are re-parsed from the same raw cache, so an
+    extension is a superset, never a rewrite, of the frozen table.
+    """
     cfg = get_etf(line)
     symbol = cfg["symbol"]
     overrides = cfg.get("ticker_overrides", {})
     apply_suffix = bool(cfg.get("apply_exchange_suffix", False))
+    we = pd.Timestamp(window_end) if window_end is not None else WINDOW_END
     snaps = load_constituents(line)["snapshots"]
-    in_window = [k for k in sorted(snaps) if pd.Timestamp(k) <= WINDOW_END]
+    in_window = [k for k in sorted(snaps) if pd.Timestamp(k) <= we]
 
     out_path = WS6_WEIGHTS_DIR / f"{line.lower()}.json"
     if out_path.exists() and not force:
@@ -242,7 +251,7 @@ def build_line(line: str, force: bool) -> dict:
         "line": line,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(
             timespec="seconds"),
-        "window_end": WINDOW_END.strftime("%Y-%m-%d"),
+        "window_end": we.strftime("%Y-%m-%d"),
         "n_snapshots": len(weights_by_key),
         "source": {"from_cache": from_cache, "from_network": from_network,
                    "fetch_failed": fetch_failed},
@@ -263,6 +272,9 @@ def main() -> int:
                     help="rebuild even when the output already covers the window")
     ap.add_argument("--lines", nargs="*", default=None,
                     help="subset of single-named lines (default: all 11)")
+    ap.add_argument("--window-end", default=None,
+                    help="ISO date; extend the snapshot window past the frozen "
+                         "study end (WS6b T3 shadow use). Default: frozen.")
     args = ap.parse_args()
     lines = tuple(args.lines) if args.lines else SINGLE_NAMED_LINES
     unknown = [L for L in lines if L not in SINGLE_NAMED_LINES]
@@ -273,7 +285,7 @@ def main() -> int:
           f"-> {WS6_WEIGHTS_DIR}")
     totals = {"from_cache": 0, "from_network": 0}
     for line in lines:
-        rep = build_line(line, force=args.force)
+        rep = build_line(line, force=args.force, window_end=args.window_end)
         if rep["status"] == "resume_skip":
             print(f"  {line:<5} resume: output already covers the window "
                   f"({rep['n_snapshots']} snapshots)")

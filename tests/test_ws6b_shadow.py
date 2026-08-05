@@ -327,3 +327,69 @@ def test_adopted_set_is_the_signed_partial_five():
 
 def test_required_weeks_matches_the_signed_bar():
     assert sh.REQUIRED_CONSECUTIVE_WEEKS == 8
+
+
+# --- 2026-08-05 pre-arm dry-run findings, pinned -----------------------------
+
+def test_all_fallback_week_publishes_with_fallback_warning_not_weight_failure():
+    """A week where EVERY basketed line reverted to its ETF must publish as a
+    logged all-fallback week (bar (b): a fired fallback is resolved), NOT fail
+    weight integrity on empty baskets. The 2026-08-05 pre-arm dry run hit the
+    unfixed form of this: stale member data reverted all four held lines, the
+    old cumulative-counter classification reported no fallback, and the guard
+    failed on baskets summing to zero."""
+    week = _week(lines_basketed=[], fallback_lines=["IUES", "SOXX", "IUFS"],
+                 gap=0.0, i0_return=0.0115)
+    guard = evaluate_week(
+        week, date(2026, 7, 17),
+        line_weights={"IUES": 0.14, "SOXX": 0.13, "IUFS": 0.10},
+        basket_weights={},          # reverted lines carry NO basket entries
+        e0_total_weight=0.37, prior_turnovers=[])
+    assert guard.publishable
+    assert guard.checks["basket_weights_sum_to_one"]["ok"]
+    assert any("fallback" in w for w in guard.warnings)
+
+
+def test_member_fetch_end_threads_to_universe_and_meta(tmp_path, monkeypatch):
+    """The T3 shadow passes a live end date; it must reach BOTH the membership
+    universe (resolution window) and the fetch window recorded in the cache
+    meta. The committed T2 called the T1 form, silently clamped to the frozen
+    2026-06-30 study end — the root cause of the all-fallback dry run."""
+    import run_ws6_single_name as R
+
+    seen = {}
+
+    def fake_universe(line, window_end):
+        seen["window_end"] = pd.Timestamp(window_end)
+        return ["AAA"], {"resolution": {}, "n_ishares_unique": 1,
+                         "n_instruments": 1, "n_member_weeks": 1,
+                         "n_resolved_weeks": 1, "unresolved": []}
+
+    def fake_fetch(symbols, start, end, report=None):
+        seen["fetch_end"] = end
+        if report is not None:
+            report["resolved"] = list(symbols)
+            report["uncovered"] = []
+        idx = pd.DatetimeIndex(["2026-07-31"])
+        return pd.DataFrame({"AAA": [1.0]}, index=idx)
+
+    monkeypatch.setattr(R, "DATA_LOCAL_WS6", tmp_path)
+    monkeypatch.setattr(R, "line_member_universe", fake_universe)
+    monkeypatch.setattr(R, "fetch_member_prices", fake_fetch)
+    monkeypatch.setattr(R, "member_cache_path",
+                        lambda line: tmp_path / f"prices_{line.lower()}.parquet")
+    monkeypatch.setattr(R, "_meta_path",
+                        lambda line: tmp_path / f"prices_{line.lower()}.meta.json")
+
+    R.load_or_fetch_member_prices(("SOXX",), end="2026-08-01")
+    assert seen["window_end"] == pd.Timestamp("2026-08-01")
+    assert seen["fetch_end"] == "2026-08-01"
+
+    import json as _json
+    meta = _json.loads((tmp_path / "prices_soxx.meta.json").read_text())
+    assert meta["fetch_end"] == "2026-08-01"
+
+    # Default keeps the frozen study end — T1 semantics byte-identical.
+    R.load_or_fetch_member_prices(("SOXX",))
+    assert seen["window_end"] == R.WINDOW_END
+    assert seen["fetch_end"] == R.WINDOW_END.strftime("%Y-%m-%d")

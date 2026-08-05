@@ -145,12 +145,18 @@ def _meta_path(line: str) -> Path:
     return DATA_LOCAL_WS6 / f"prices_{line.lower()}.meta.json"
 
 
-def load_or_fetch_member_prices(lines: tuple[str, ...]):
+def load_or_fetch_member_prices(lines: tuple[str, ...],
+                                end: "pd.Timestamp | str | None" = None):
     """For each single-named line, fetch (or reuse a cache of) Norgate
     TOTALRETURN closes for the FULL in-window membership union, delisted names
     included — requested at INSTRUMENT level (amendment A1: delisted members
     under their suffixed symbols, recycled tickers era-disambiguated). Cache +
     sidecar meta live under the git-ignored data_local/ws6/.
+
+    ``end`` extends the membership window, resolution and fetch end past the
+    frozen study window — required by the WS6b T3 shadow, whose live weeks
+    fall after WINDOW_END. Default None keeps the frozen WINDOW_END, so every
+    T1/register call site and its cache metas are byte-identical to before.
 
     A cache is reused only when its meta records the identical requested-symbol
     union and fetch window, so a stale pre-A1 cache (base-ticker union) is
@@ -158,13 +164,14 @@ def load_or_fetch_member_prices(lines: tuple[str, ...]):
     fetch_reports, resolution_by_line); the resolution maps feed select_basket
     and G1. Raises on an empty fetch (NDU down surfaces via _norgate())."""
     DATA_LOCAL_WS6.mkdir(parents=True, exist_ok=True)
-    end = WINDOW_END.strftime("%Y-%m-%d")
+    end_ts = pd.Timestamp(end) if end is not None else WINDOW_END
+    end = end_ts.strftime("%Y-%m-%d")
     prices: dict[str, pd.DataFrame] = {}
     mapping_reports: dict[str, dict] = {}
     fetch_reports: dict[str, dict] = {}
     resolution_by_line: dict[str, dict] = {}
     for line in lines:
-        symbols, mrep = line_member_universe(line, WINDOW_END)
+        symbols, mrep = line_member_universe(line, end_ts)
         resolution_by_line[line] = mrep["resolution"]
         mapping_reports[line] = {
             "n_ishares_unique": mrep["n_ishares_unique"],
