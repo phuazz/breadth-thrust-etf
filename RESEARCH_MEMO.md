@@ -1553,5 +1553,31 @@ free parameters, and are not verdict-relevant.
   its own pre-registered ablation; WS8 is the worked example of what that costs.
 
 **Filed**: technical record `reviews/2026-08-05_ws8_reit-dual-coverage.docx`;
+plain-language summary covering all four owner questions
+`reviews/2026-08-05_ws8_universe-questions_summary.docx`;
 evidence `data/ws8_reit_overlap.json`; engine `scripts/run_ws8_reit_overlap.py`
 (commit ede814a); gate repair + 5 guard tests (commit fc4234a); ledger row added.
+
+### Follow-through — the universe monitor (question 4)
+
+`scripts/run_universe_monitor.py`, scheduled monthly by
+`.github/workflows/universe_monitor.yml` (1st, 07:00 UTC). Diffs the
+Nasdaq-traded symbol directory against `data/etf_catalogue_snapshot.csv`,
+screens launches through the same book-wide gate, reports closures and alerts
+by email if a closed line is one the book holds. Advisory: it runs no engine
+and any addition still needs a pre-registered ablation.
+
+Two things worth recording because they were found the hard way. First, the
+row-count guard caught a bug in the monitor's own snapshot writer on the first
+run — a comma in the provenance line made `csv.writer` quote it, the loader's
+comment filter missed it, and the baseline parsed to zero rows; an unreadable
+snapshot is now fatal rather than being treated as empty. Second, the first
+live diff surfaced a genuine launch (DLCU) that yfinance had no history for,
+which produced no screening record at all; once the snapshot advanced the line
+would have been lost for good — the monitor would have seen the launch it
+exists to catch and dropped it silently. Unscreened lines now carry forward in
+the report and are re-screened every run until they can be evaluated.
+
+The free symbol directory carries **no AUM**, so the liquidity screen is not
+yet meaningful; whether to buy a catalogue that does is open. 10 guard tests
+in `tests/test_universe_monitor.py`; suite 678 passing.
