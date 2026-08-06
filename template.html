@@ -151,41 +151,51 @@
       background: var(--bg);
       position: sticky; top: 0; z-index: 10;
     }
-    /* overflow-x:auto unconditionally, not only under 720px as it was: the tab
-       row is wide enough that between ~720px and ~1150px an overfull nav pushed
-       the whole PAGE into horizontal scroll instead of scrolling itself. Adding
-       the Scanner entry made that obvious, but the row was already within a
-       pixel of it at 1100px, so this is the latent bug rather than the new one.
-       Harmless when the tabs fit. */
-    nav.tabs .container { display: flex; gap: 2px; overflow-x: auto; }
-    nav.tabs button {
+    /* Wrapped pill nav (2026-08-06). The previous single-row underline nav
+       relied on overflow-x:auto, which forces overflow-y to compute to auto
+       as well — so whenever the row overflowed, Windows drew BOTH scrollbars
+       around the sticky bar, and the long sleeve labels wrapped to two ragged
+       lines inside their buttons. Tabs now wrap into rows (deliberate break
+       after the sleeve group), every label stays on one line, nothing scrolls.
+       .tab is shared by the in-page <button>s and the Scanner <a> link. */
+    nav.tabs .container {
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 3px 2px; padding-top: 9px; padding-bottom: 9px;
+    }
+    nav.tabs .tab {
+      display: inline-flex; align-items: center; gap: 6px;
       background: none; border: none; cursor: pointer;
-      font: inherit; font-size: 14px;
-      padding: 12px 16px;
-      color: var(--ink-soft);
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
-      font-weight: 500;
-      transition: color 0.1s, border-color 0.1s;
+      font: inherit; font-size: 13.5px; font-weight: 500; line-height: 1.2;
+      padding: 7px 12px; border-radius: 6px;
+      color: var(--ink-soft); white-space: nowrap; text-decoration: none;
+      transition: color 0.1s, background-color 0.1s;
     }
-    nav.tabs button:hover { color: var(--ink); }
-    /* The Scanner entry is an <a>, not a <button>, because it navigates to a
-       separate page rather than switching an in-page tab. The rules above are
-       button-scoped, so without this it renders in the browser's default link
-       blue. Mirrors the button metrics exactly so the row stays even. */
-    nav.tabs a.tab {
-      font: inherit; font-size: 14px; font-weight: 500;
-      padding: 12px 16px;
-      color: var(--ink-soft);
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
-      transition: color 0.1s, border-color 0.1s;
+    nav.tabs .tab:hover { color: var(--ink); background: var(--bg-soft); }
+    nav.tabs .tab.active { background: var(--accent); color: #fff; font-weight: 600; }
+    /* Sleeve letter chips: A/B/C/D read as one family without repeating the
+       word "Strategy" four times; full names stay in each tab's title attr.
+       11px bold accent on the composited accent-soft tint measures ~6.2:1. */
+    nav.tabs .sleeve-key {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 17px; height: 17px; border-radius: 4px;
+      background: var(--accent-soft); color: var(--accent);
+      font-size: 11px; font-weight: 700;
     }
-    nav.tabs a.tab:hover { color: var(--ink); }
-    nav.tabs button.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-      font-weight: 600;
+    nav.tabs .tab.active .sleeve-key { background: #fff; color: var(--accent); }
+    nav.tabs .tab-sep { width: 1px; height: 18px; background: var(--border-strong); margin: 0 7px; }
+    nav.tabs .tab-break { flex-basis: 100%; height: 0; }
+    nav.tabs .tab-health { margin-left: auto; }
+    nav.tabs .tab .sub { font-size: 11px; font-weight: 500; color: var(--ink-faint); }
+    nav.tabs .tab.active .sub { color: rgba(255,255,255,0.85); }
+    nav.tabs .tab .ext { font-size: 9px; opacity: 0.55; }
+    @media (pointer: coarse) {
+      nav.tabs .tab { min-height: 44px; }
+    }
+    /* The sticky bar is now two rows (~82px) on desktop: hash routes and the
+       in-page scrollIntoView links must land below it, not under it. Mobile
+       (<=720px) makes the nav static, so no offset is needed there. */
+    @media (min-width: 721px) {
+      [id] { scroll-margin-top: 96px; }
     }
 
     .tab-content { display: none; }
@@ -1707,8 +1717,13 @@
     @media (max-width: 720px) {
       .container { padding: 0 14px; }
       header.top .meta { float: none; text-align: left; margin-top: 8px; }
-      nav.tabs .container { overflow-x: auto; }
-      nav.tabs button { padding: 10px 12px; font-size: 13px; }
+      /* The wrapped nav runs 4-5 rows at phone widths: keep every tab
+         visible (still no scrollbars) but let the bar scroll away with the
+         page instead of pinning a third of the viewport. */
+      nav.tabs { position: static; }
+      nav.tabs .tab { padding: 8px 10px; font-size: 13px; }
+      nav.tabs .tab-sep { display: none; }
+      nav.tabs .tab-health { margin-left: 0; }
       .chart { height: 340px; }
       .monitor-grid { grid-template-columns: 1fr; }
       /* Wide tables: allow horizontal scroll on narrow viewports so columns
@@ -1784,31 +1799,32 @@
 </header>
 
 <nav class="tabs">
-  <div class="container" style="display:flex; align-items:center;">
+  <div class="container">
     <button class="tab active" data-tab="monitor">Monitor</button>
     <button class="tab" data-tab="multi">Multi-Strategy</button>
     <button class="tab" data-tab="history">Trade History</button>
-    <button class="tab" data-tab="portfolio">Strategy A (Sectors)</button>
-    <button class="tab" data-tab="asset">Strategy B (Asset Class)</button>
-    <button class="tab" data-tab="thematic">Strategy C (Thematic)</button>
-    <button class="tab" data-tab="europe">Strategy D (Europe)</button>
+    <span class="tab-sep" aria-hidden="true"></span>
+    <button class="tab" data-tab="portfolio" title="Strategy A &mdash; Sectors"><span class="sleeve-key">A</span>Sectors</button>
+    <button class="tab" data-tab="asset" title="Strategy B &mdash; Asset Class"><span class="sleeve-key">B</span>Asset Class</button>
+    <button class="tab" data-tab="thematic" title="Strategy C &mdash; Thematic"><span class="sleeve-key">C</span>Thematic</button>
+    <button class="tab" data-tab="europe" title="Strategy D &mdash; Europe"><span class="sleeve-key">D</span>Europe</button>
+    <span class="tab-break" aria-hidden="true"></span>
     <button class="tab" data-tab="regime">Risk Overlay</button>
     <button class="tab" data-tab="eemtilt">EM Tilt</button>
     <button class="tab" data-tab="robustness">Risk &amp; Validation</button>
     <button class="tab" data-tab="method">Method</button>
+    <span class="tab-sep" aria-hidden="true"></span>
     <!-- Cross-page link, not a tab: the scanner is a separate daily-built page
          (docs/scanner.html from scanner_template.html), deliberately decoupled
-         from this weekly dashboard build. Styled inline rather than via .tab so
-         it does not depend on button-specific rules. -->
+         from this weekly dashboard build. Shares .tab styling; never .active. -->
     <a class="tab" href="scanner.html"
-       style="text-decoration:none; display:inline-flex; align-items:center; gap:5px;"
        title="Daily cross-sectional technical scanner — 54 instruments across all four sleeves">
-      Scanner <span style="font-size:9px; opacity:0.55;">&#x2197;</span>
+      Scanner <span class="ext">&#x2197;</span>
     </a>
-    <button class="tab" data-tab="health" style="margin-left:auto;" id="health-tab-btn">
+    <button class="tab tab-health" data-tab="health" id="health-tab-btn">
       <span id="health-badge-dot" class="health-dot health-dot--ok" title="Data health"></span>
       Data Health
-      <span id="health-badge-summary" style="font-size:11px; color:var(--ink-faint); margin-left:6px;"></span>
+      <span id="health-badge-summary" class="sub"></span>
     </button>
   </div>
 </nav>
