@@ -218,3 +218,124 @@ was front-loaded. All items below are Stage-1-scope or unapplied:
    by design; `current_state_since` moves 2026-04-13 → 2026-04-14
    (+1d). Stage-2 activation after approval = apply the patch + add
    `--commit-path --push` to the wrapper.
+
+## 10. Soak review — 2026-08-07 (Friday, weekday verified)
+
+**Verdict: CLEAN SOAK.** Zero state disagreements, zero misses, zero
+divergence flags, no mid-soak package change. Per the §8 gate the
+Stage-2 loader diff is now **presented for approval** (§10.5). It has
+not been applied.
+
+### 10.1 Run census
+
+`data_local/publisher.log` carries **19** `---- ` headers. Four are the
+2026-07-17 pre-soak entries (two manual validations, two on-demand
+scheduler smoke tests) and are excluded per §9 item 4. **Soak runs = 15.**
+
+Expected fires, enumerated with Python `datetime` (Tue–Sat inclusive,
+2026-07-18 → 2026-08-07, no NYSE holidays in the window): **15**. The
+observed set equals the expected set exactly.
+
+| Check | Result |
+|---|---|
+| Scheduled fires expected / observed | **15 / 15** |
+| Misses (gaps in the Tue–Sat sequence) | **0** |
+| Divergence lines not ending `-> ok` | **0 of 19** |
+| `zone=True` days (threshold zone) | **0 of 19** |
+| State pairs observed | 19 × `deployed=RISK_ON norgate=RISK_ON` |
+| `norgatedata` init on soak runs | **15 / 15 on v1.0.77** |
+
+Task Scheduler corroborates: task `breadth-thrust norgate feed
+parallel-run` — State Ready, Last Result **0**, `NumberOfMissedRuns` **0**,
+last run Fri 2026-08-07 09:55 SGT, next Sat 2026-08-08 07:15,
+`DaysOfWeek = 124` (Tue+Wed+Thu+Fri+Sat), `StartWhenAvailable = True`.
+
+The three `v1.0.74` inits in the log are the pre-upgrade 2026-07-17
+entries; the upgrade landed before the first scheduled fire, as §9 item 3
+records. No version change occurred inside the soak window.
+
+### 10.2 Deviations, all explained
+
+1. **Six late fires** — 2026-07-21 15:52, 2026-07-22 10:58, 2026-07-30
+   09:02, 2026-08-04 10:56, 2026-08-06 15:03 and 2026-08-07 09:55 SGT ran
+   after the 07:15 trigger. These are `StartWhenAvailable=True` catch-ups
+   on a machine off or asleep at trigger time (§9 item 5). All six
+   completed, wrote, and produced the correct prior-session bar. Under
+   the pre-soak `False` setting each would have been a silent skip.
+2. **One bar lag** — the Fri 2026-07-24 07:15 SGT run (Thu 2026-07-23
+   23:15 UTC) wrote `last bar 2026-07-22` rather than 2026-07-23. The
+   2026-07-23 bar is present in the vendor series today, so NDU had not
+   yet loaded Thursday's US close at that moment. Calendar gap 2 days
+   against `STALE_TRADING_DAYS = 3`: inside tolerance, so the publisher
+   correctly wrote rather than exiting. Every other run captured the
+   immediately prior session. Maximum bar age across the soak: **1
+   trading day.**
+3. **Two pypi-reachability warnings** — 2026-07-30 and 2026-08-05 logged
+   "Unable to obtain version data of norgatedata from pypi". That is the
+   package's own update check failing on a network reach, not the data
+   path; both runs initialised v1.0.77 and wrote the correct bar.
+
+### 10.3 What the soak does and does not evidence
+
+Stated plainly, because a run of 19 identical `-> ok` lines invites
+over-reading. Deployed `ma_breadth` sat at roughly **0.60–0.72** through
+the window — far above the 0.50 re-entry line and nowhere near the 0.20
+protection line. Hence `zone=False` every day and a constant RISK_ON on
+both feeds.
+
+- **Evidenced**: the scheduled job fires reliably, survives late boots,
+  runs on the pinned package, respects the licence guard (all output in
+  git-ignored `data_local/`), and agrees with the deployed feed in a calm
+  regime.
+- **Not evidenced**: agreement at a regime flip or inside the threshold
+  zone. The soak contains **n = 0 flips** and **n = 0 zone days**. That
+  claim rests entirely on §3's 2,138-day reconciliation (24/24 paired
+  flips, 8 zone-disagree days at 0.20, 60 at 0.50) — not on the soak.
+- **Not rehearsed**: zero misses means the Stage-2 staleness fallback
+  never fired in production. It is covered by the patch's ten loader
+  guard tests (10-day cap at a month boundary and a year boundary) and,
+  benignly, by the 2026-07-24 lag which exercised the freshness read.
+  Recorded as a residual, not as a pass.
+
+One control worth stating: the divergence check compares against a live
+deployed side, not a frozen file. `data/risk_overlay.json` was refreshed
+eight times inside the window (2026-07-18, 07-24, 07-27 ×2, 07-30, 08-01,
+08-02), so the constant "ok" is not an artefact of a stale comparand.
+
+### 10.4 Freshness at review
+
+Vendor preview last bar **2026-08-06**; deployed `panel_end_date`
+**2026-07-31**. The vendor feed runs **six days fresher**, unchanged from
+the July dry run (§9 item 7). Both current states RISK_ON.
+
+### 10.5 Stage-2 diff — presented for approval, NOT applied
+
+`reviews/2026-07-17_norgate-stage2-loader.patch` **re-verified today**:
+`git apply --check` passes against current main (`9d9882d`). Branch
+`norgate-stage2-loader` present locally at `16f3682`. No rebase needed.
+
+Diff: 3 files, +305 / −1 — `scripts/run_risk_overlay.py` (+83),
+`scripts/publish_norgate_breadth.py` (+50),
+`tests/test_norgate_gate_states.py` (+173, new). Tested 2026-07-17: 10
+loader guard tests; full suite **265 passed** in a worktree; dry run
+against the real preview file.
+
+**Expected cutover effects, restated from §9 item 7:**
+
+- `gate_feed` flips `csp1-scrape` → **`norgate-local`**.
+- A one-time historical-revision surfacing of **~10 event-date shifts**:
+  the §3 flip-date differences (+1 / +3 / +11 days, all ON-side crawls;
+  the −7d earlier OFF in 2026-03) plus **an added 2018-11-28 RISK_ON
+  event** — full-1957 hysteresis context resolves the 2018-Q4 episode
+  differently from the 2018-panel-start-ON assumption. Expected, by
+  design, and surfaced rather than silent.
+- `current_state_since` moves **+1 day** (2026-04-13 → 2026-04-14 as of
+  the July dry run).
+
+**Activation, only on ZH's explicit written approval**: apply the patch,
+run the full test suite, then add `--commit-path --push` to
+`scripts/run_norgate_publisher.bat`.
+
+*Dates in this addendum — 2026-08-07 Friday, 2026-07-17 Friday,
+2026-07-18 Saturday — verified with Python `datetime`. Flagged for owner
+confirmation per house rules.*
