@@ -25,7 +25,7 @@ Reuse: the existing yfinance download/cache logic; the existing USDCNY=X FX-conv
 | A (14, trade proxies) | SPY, QQQ, IJR, SOXX, XLE, XLF, XLV, XLI, XLP, XLY, XLU, XLB, XLC, XLRE | Scan the trade proxies, not the UCITS originals (official mapping CSP1→SPY, CNDX→QQQ, IDP6→IJR, sector UCITS→SPDR XLs, IUSP→XLRE); better data quality and these are the actually-traded instruments |
 | B (12) | SPY, IJR, QQQ, EFA, VGK, EWJ, VNQ, GLD, DBC, TLT, IEF, TIP | Phase 29 definition: HYG removed, EEM moved to overlay |
 | C (25) | ARKK, CIBR, SKYY, BOTZ, BLOK, ICLN, TAN, LIT, URA, XBI, ARKG, JETS, GDX, COPX, MOO, PAVE, ITA, IBIT, XME, WOOD, REMX, CQQQ, 159801.SZ, PHO, IHI | BTC exposure via IBIT (short history — §7 degradation rule); 159801.SZ converted to USD via the existing FX pipeline |
-| D (5) | EXV1.DE, EXH1.DE, EXV3.DE, EXH3.DE, EXH9.DE | Xetra, EUR-denominated; convert to USD series (§7) |
+| D (5) | EXV1.DE, EXH1.DE, EXV3.DE, **EXH4.DE**, EXH9.DE | Xetra, EUR-denominated; convert to USD series (§7). Registry key `EXH3` is the Industrial Goods & Services panel and its fund trades as **EXH4.DE** — corrected 2026-08-03; `EXH3.DE` is the Food & Beverage fund. Resolve through `etf_registry.yfinance_trading_proxy`, never by appending `.DE` to the panel key |
 | Overlay | EEM | EM-tilt instrument |
 
 Deduplicated: 54 rows. SHY excluded (cash proxy; technical signals on it are meaningless) — can be added later. ETFs belonging to multiple sleeves carry multiple tags (e.g., SPY: A, B).
