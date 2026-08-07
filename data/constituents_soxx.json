@@ -1,7 +1,7 @@
 {
   "etf": "SOXX",
   "source": "https://www.ishares.com/us/products/239705/ishares-phlx-semiconductor-etf/1467271812596.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-01T10:11:05.800326+00:00",
+  "fetched_at_utc": "2026-08-07T05:21:00.704343+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-07-31",
   "n_target_fridays": 448,

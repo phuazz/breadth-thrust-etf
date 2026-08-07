@@ -1,7 +1,7 @@
 {
   "etf": "IUUS",
   "source": "https://www.ishares.com/uk/individual/en/products/287115/ishares-s-p-500-utilities-sector-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=IUUS_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-01T11:07:47.115155+00:00",
+  "fetched_at_utc": "2026-08-07T06:32:36.203316+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-07-31",
   "n_target_fridays": 448,
@@ -40,25 +40,32 @@
       "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
     },
     {
+      "target_friday": "2026-07-17",
+      "outcome": "carried_forward",
+      "carried_from_target": "2026-07-10",
+      "carried_from_actual": "2026-07-10",
+      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+    },
+    {
       "target_friday": "2026-07-24",
       "outcome": "carried_forward",
-      "carried_from_target": "2026-07-17",
-      "carried_from_actual": "2026-07-17",
+      "carried_from_target": "2026-07-10",
+      "carried_from_actual": "2026-07-10",
       "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
     },
     {
       "target_friday": "2026-07-31",
       "outcome": "carried_forward",
-      "carried_from_target": "2026-07-17",
-      "carried_from_actual": "2026-07-17",
+      "carried_from_target": "2026-07-10",
+      "carried_from_actual": "2026-07-10",
       "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
     }
   ],
   "edgar_used": [],
   "staleness": {
-    "last_real_fetch_date": "2026-07-17",
-    "days_since_last_real_fetch": 14,
-    "status": "fresh",
+    "last_real_fetch_date": "2026-07-10",
+    "days_since_last_real_fetch": 21,
+    "status": "warning",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
     "threshold_source": "global_default",
@@ -15772,7 +15779,8 @@
       ]
     },
     "2026-07-17": {
-      "actual_date": "2026-07-17",
+      "actual_date": "2026-07-10",
+      "carried_forward_from": "2026-07-10",
       "n_tickers": 31,
       "tickers": [
         "NEE",
@@ -15790,13 +15798,13 @@
         "PEG",
         "PCG",
         "WEC",
-        "AEE",
         "DTE",
-        "EIX",
+        "AEE",
+        "NRG",
         "ATO",
+        "EIX",
         "CNP",
         "ES",
-        "NRG",
         "PPL",
         "AWK",
         "FE",
@@ -15809,8 +15817,8 @@
       ]
     },
     "2026-07-24": {
-      "actual_date": "2026-07-17",
-      "carried_forward_from": "2026-07-17",
+      "actual_date": "2026-07-10",
+      "carried_forward_from": "2026-07-10",
       "n_tickers": 31,
       "tickers": [
         "NEE",
@@ -15828,13 +15836,13 @@
         "PEG",
         "PCG",
         "WEC",
-        "AEE",
         "DTE",
-        "EIX",
+        "AEE",
+        "NRG",
         "ATO",
+        "EIX",
         "CNP",
         "ES",
-        "NRG",
         "PPL",
         "AWK",
         "FE",
@@ -15847,8 +15855,8 @@
       ]
     },
     "2026-07-31": {
-      "actual_date": "2026-07-17",
-      "carried_forward_from": "2026-07-17",
+      "actual_date": "2026-07-10",
+      "carried_forward_from": "2026-07-10",
       "n_tickers": 31,
       "tickers": [
         "NEE",
@@ -15866,13 +15874,13 @@
         "PEG",
         "PCG",
         "WEC",
-        "AEE",
         "DTE",
-        "EIX",
+        "AEE",
+        "NRG",
         "ATO",
+        "EIX",
         "CNP",
         "ES",
-        "NRG",
         "PPL",
         "AWK",
         "FE",
