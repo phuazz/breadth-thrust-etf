@@ -32,16 +32,37 @@ Output layout:
   "membership_assumption": "...",
   "asset_class_filter": "Equity",
   "walkbacks":     [ { "target_friday": ..., "fallback_date": ..., "reason": ... }, ... ],
-  "carry_forwards":[ { "target_friday": ..., "carried_from_target": ..., "reason": ... }, ... ],
+  "carry_forwards":[ { "target_friday": ..., "cause": ..., "carried_from_target": ..., "reason": ... }, ... ],
+  "endpoint_unavailable": [ { "target_friday": ..., "cause": ..., "reason": ... }, ... ],
+  "endpoint_health": { "status": "ok"|"unavailable", "detail": ..., ... },
   "snapshots": {
       "YYYY-MM-DD": { "actual_date": "...", "n_tickers": N, "tickers": [...] },
       ...
   }
 }
 
+Transport (Phase 27, 2026-08-07):
+  Holdings come from the BlackRock product-data JSON API (PRODUCT_DATA_API
+  below). The legacy `<ajax_id>.ajax?fileType=csv` route this module was
+  built on stopped serving CSV when iShares re-platformed the product pages
+  between the 2026-07-10 and 2026-07-17 refreshes; it now returns the SPA
+  product page as HTTP 200 HTML for every date. The ~10,400 CSVs already in
+  data/raw_ishares/ remain the source of truth for history and are read
+  cache-first; only new dates go to the API.
+
+  Failure taxonomy — the point of Phase 27 is that these three are no
+  longer interchangeable:
+    - walkback / carry_forward : this Friday has no holdings (holiday, data
+                                 gap). Endpoint healthy. Exit 0.
+    - endpoint_unavailable     : the transport is dead. The walk
+                                 short-circuits on the first failure, no
+                                 carry-forwards are emitted, exit 3.
+    - staleness critical       : the roster has aged past policy. Exit 2.
+
 Run:
     python scripts/fetch_constituents.py             # default: SOXX
     python scripts/fetch_constituents.py --etf CSP1  # S&P 500 via iShares UK
+    python scripts/fetch_constituents.py --etf CSP1 --carry-forward-on-outage
 """
 
 from __future__ import annotations
@@ -83,6 +104,15 @@ DEFAULT_ETF = "SOXX"
 
 MAX_WALKBACK_DAYS = 5  # how far back from a target Friday to search
 
+# A "no holdings" answer is cached only once the date is this old. Old
+# no-data dates are settled facts — a fund's pre-inception history never
+# gains holdings, and neither does a past public holiday — so re-fetching
+# them every run is pure cost. A fund that launched mid-sample would
+# otherwise pay 6 uncached requests per pre-inception Friday, forever.
+# Recent dates are deliberately NOT cached: an empty answer there usually
+# means "holdings not published yet", and caching it would freeze the gap.
+NEGATIVE_CACHE_MIN_AGE_DAYS = 30
+
 THROTTLE_BASE_SECONDS = 1.5
 THROTTLE_JITTER_SECONDS = 0.5
 
@@ -116,6 +146,11 @@ WARN_STALE_DAYS = 14
 MAX_STALE_DAYS = 30
 EXIT_OK = 0
 EXIT_STALENESS_CRITICAL = 2
+# Phase 27 (2026-08-07) — the upstream transport is gone wholesale, as
+# opposed to the roster merely ageing. Kept distinct from the staleness exit
+# so the operator can tell "the roster aged out" from "the endpoint died",
+# and takes precedence over it because it is the actionable root cause.
+EXIT_ENDPOINT_UNAVAILABLE = 3
 
 
 def resolve_staleness_thresholds(etf_cfg: dict) -> tuple[int, int]:
@@ -135,6 +170,263 @@ RETRY_BACKOFFS = [5, 10, 30]  # seconds; 3 retries on transport failure or 5xx
 
 # Note: Python's datetime constructor is 1-indexed for months (Jan=1), unlike
 # JavaScript's Date which is 0-indexed (Jan=0). We always use Python here.
+
+# =============================================================================
+# Phase 27 (2026-08-07) — product-data API transport
+# =============================================================================
+# iShares re-platformed the UK/EMEA product pages onto a new front end
+# some time between the 2026-07-10 and 2026-07-17 refreshes. The legacy
+# `<ajax_id>.ajax?fileType=csv&...` route no longer serves CSV: it falls
+# through to the single-page product shell and returns HTTP 200 with ~2.7MB
+# of HTML, for EVERY asOfDate including dates that previously worked.
+#
+# `looks_like_ishares_holdings_csv` correctly rejected that HTML and
+# `fetch_with_retry` correctly raised, so no bad data was ever cached — but
+# the carry-forward path upstream then reported a dead endpoint as an
+# ordinary holiday data gap for four consecutive weeks. Hence the new
+# failure taxonomy below.
+#
+# The replacement is the JSON component API that the new page itself calls.
+# Verified 2026-08-07 against the cached CSV ground truth: rosters are
+# identical for CSP1 (2026-07-10), SOXX (2026-05-08) and all six
+# exchange-suffix ETFs, including suffix resolution.
+PRODUCT_DATA_API = (
+    "https://www.blackrock.com/varnish-api/uk-retail01-product-data"
+    "/product-data/api/v2/get-product-data"
+)
+
+# The UK varnish host serves BOTH regions; only targetSite / locale differ.
+# This is what unblocks SOXX: the US .ajax endpoint has been Akamai-blocked
+# since ~2026-05-15, but the US fund's holdings are reachable here.
+_REGION_TO_SITE: dict[str, tuple[str, str]] = {
+    "uk": ("ishares-uk", "en_GB"),
+    "us": ("ishares-us", "en_US"),
+}
+
+# Path to the holdings rows inside the API payload.
+_HOLDINGS_PATH = ("componentsByNameMap", "holdings",
+                  "containersByNameMap", "all", "dataPointsByNameMap")
+
+# Column-major datapoints the parser consumes, mapped to the CSV column they
+# replace. The API returns each as a parallel array under `.value`.
+_JSON_TO_CSV_COLUMN = {
+    "ticker": "Ticker",
+    "assetClass": "Asset Class",
+    "exchange": "Exchange",
+    "countryOfRisk": "Location",
+}
+
+
+class EndpointUnavailable(RuntimeError):
+    """The upstream transport is dead: no response, a non-200, a non-JSON
+    body, or anti-bot HTML. Distinct from "this date legitimately has no
+    holdings", which is an empty roster and NOT an error."""
+
+
+class PayloadContractError(RuntimeError):
+    """The endpoint answered but the payload no longer has the shape we
+    parse. Treated as an outage rather than as an empty roster, because
+    silently reading zero holdings out of a changed payload is exactly the
+    failure this module exists to prevent."""
+
+
+@dataclass
+class EndpointCircuit:
+    """Short-circuit for a dead upstream.
+
+    The per-Friday walk costs ~48s per date against a dead endpoint (four
+    attempts plus 45s of retry backoff), and the walk is ~448 Fridays per
+    ETF across 24 ETFs. Before this existed, one outage burned hours
+    re-confirming the same failure and emitted only carry-forwards.
+
+    The breaker trips on the FIRST hard failure and every subsequent date
+    short-circuits for free. Note this deliberately does not pre-probe the
+    endpoint: a run whose Fridays are all served from cache must still
+    succeed even when the endpoint is down.
+    """
+
+    dead: bool = False
+    reason: str | None = None
+    first_failure_target: date | None = None
+    n_unavailable: int = 0
+
+    def trip(self, target: date, reason: str) -> None:
+        if not self.dead:
+            self.dead = True
+            self.reason = reason
+            self.first_failure_target = target
+            print(
+                f"  ENDPOINT DOWN at {target.isoformat()}: {reason}",
+                flush=True,
+            )
+            print(
+                "  Short-circuiting the remaining Fridays — no carry-forwards "
+                "will be emitted for them.",
+                flush=True,
+            )
+
+
+def product_data_params(target: date, etf_cfg: dict) -> dict[str, str]:
+    """Query parameters for one (ETF, asOfDate) holdings request."""
+    region = etf_cfg.get("ishares_region", "uk")
+    try:
+        target_site, locale = _REGION_TO_SITE[region]
+    except KeyError:
+        raise ValueError(
+            f"Unknown ishares_region {region!r} for {etf_cfg.get('symbol')}; "
+            f"expected one of {sorted(_REGION_TO_SITE)}"
+        ) from None
+    return {
+        "portfolioId": str(etf_cfg["product_id"]),
+        "portfolioType": "ISHARES_FUND_DATA",
+        "appType": "PRODUCT_PAGE",
+        "appSubType": "ISHARES",
+        "targetSite": target_site,
+        "locale": locale,
+        "userType": "individual",
+        "component": "holdings",
+        "asOfDate": target.strftime("%Y%m%d"),
+    }
+
+
+def _holdings_datapoints(payload: dict) -> dict:
+    """Descend to the holdings datapoint map, or raise PayloadContractError."""
+    node = payload
+    for key in _HOLDINGS_PATH:
+        if not isinstance(node, dict) or key not in node:
+            raise PayloadContractError(
+                f"payload missing {'.'.join(_HOLDINGS_PATH)} (stopped at "
+                f"{key!r}); the product-data API contract has changed"
+            )
+        node = node[key]
+    if not isinstance(node, dict):
+        raise PayloadContractError(
+            f"{'.'.join(_HOLDINGS_PATH)} is {type(node).__name__}, expected dict"
+        )
+    missing = [k for k in ("ticker", "assetClass", "asOfDate") if k not in node]
+    if missing:
+        raise PayloadContractError(
+            f"payload holdings datapoints missing required keys {missing}; "
+            f"present: {sorted(node)[:20]}"
+        )
+    return node
+
+
+def parse_holdings_json(
+    payload: dict,
+    target: date,
+    ticker_overrides: dict | None = None,
+    apply_exchange_suffix: bool = False,
+) -> list[str]:
+    """Parse a product-data API payload into a yfinance-ready ticker list.
+
+    Returns [] when the endpoint has no holdings for `target` — the JSON
+    equivalent of the old empty-template CSV, and the input to the walkback.
+
+    Two distinct "no data" signals, both of which MUST be honoured (verified
+    against the live endpoint 2026-08-07):
+
+      1. ``ticker.value`` is null.
+      2. ``asOfDate.value`` does not echo the requested date. For a weekend,
+         holiday, pre-inception or future date the API silently falls back to
+         the LATEST available date rather than erroring. Accepting that would
+         write today's roster into a historical Friday — a look-ahead bug in
+         a point-in-time backtest. The date-parity check is the guard.
+
+    ``hasData`` is deliberately NOT used: it is True even when the roster is
+    null, so it discriminates nothing.
+    """
+    dps = _holdings_datapoints(payload)
+
+    echoed = dps["asOfDate"].get("value")
+    if echoed is None or str(echoed) != target.strftime("%Y%m%d"):
+        return []
+
+    columns: dict[str, list] = {}
+    for json_key in _JSON_TO_CSV_COLUMN:
+        dp = dps.get(json_key)
+        columns[json_key] = (dp or {}).get("value")
+    if columns["ticker"] is None:
+        return []
+
+    n = len(columns["ticker"])
+    for key, values in columns.items():
+        if values is not None and len(values) != n:
+            raise PayloadContractError(
+                f"holdings column {key!r} has {len(values)} rows, expected {n}"
+            )
+
+    def cell(key: str, i: int):
+        values = columns[key]
+        return values[i] if values is not None else None
+
+    overrides = ticker_overrides or {}
+    tickers: list[str] = []
+    seen: set[str] = set()
+    for i in range(n):
+        if (cell("assetClass", i) or "").strip() != "Equity":
+            continue
+        raw = str(cell("ticker", i) or "").strip()
+        # Mirrors the CSV parser: iShares emits a "-" placeholder row that
+        # corresponds to no real holding.
+        if raw in {"", "-"}:
+            continue
+        exchange = cell("exchange", i)
+        location = cell("countryOfRisk", i)
+        if apply_exchange_suffix:
+            sym = _resolve_yf_symbol(
+                raw, (exchange or "").strip() or None, overrides,
+                location=(location or "").strip() or None,
+            )
+        else:
+            sym = overrides.get(raw, raw.replace(".", "-"))
+        if sym is None or sym in {"", "-"} or sym.startswith("-."):
+            continue
+        if sym in seen:
+            continue
+        seen.add(sym)
+        tickers.append(sym)
+    return tickers
+
+
+def fetch_product_data(target: date, etf_cfg: dict) -> dict:
+    """GET one holdings payload, with retries. Raises EndpointUnavailable."""
+    url = PRODUCT_DATA_API
+    params = product_data_params(target, etf_cfg)
+    last_err: Exception | None = None
+    for backoff in [0, *RETRY_BACKOFFS]:
+        if backoff:
+            time.sleep(backoff)
+        try:
+            r = requests.get(
+                url, params=params,
+                headers={"User-Agent": UA,
+                         "Accept": "application/json, text/plain, */*"},
+                timeout=30,
+            )
+        except Exception as e:  # transport-level
+            last_err = e
+            continue
+        if r.status_code != 200:
+            last_err = RuntimeError(
+                f"HTTP {r.status_code}, body {len(r.text)} bytes"
+            )
+            continue
+        try:
+            payload = r.json()
+        except Exception:
+            head = r.text.lstrip()[:80].replace("\n", " ")
+            last_err = RuntimeError(
+                f"HTTP 200 but body is not JSON ({len(r.text)} bytes) "
+                f"— likely the SPA product page or anti-bot HTML: {head!r}"
+            )
+            continue
+        time.sleep(THROTTLE_BASE_SECONDS
+                   + random.uniform(0, THROTTLE_JITTER_SECONDS))
+        return payload
+    raise EndpointUnavailable(
+        f"Failed to fetch {etf_cfg['symbol']} holdings for {target}: {last_err}"
+    )
 
 
 def looks_like_ishares_holdings_csv(body: str) -> bool:
@@ -191,7 +483,14 @@ def fetch_with_retry(target: date, etf_cfg: dict) -> str:
         # Cached body is poisoned (HTML from anti-bot) — discard and re-fetch
         cache_path.unlink()
 
-    url = f"{etf_cfg['csv_url_template']}&asOfDate={target.strftime('%Y%m%d')}"
+    template = etf_cfg.get("csv_url_template")
+    if not template:
+        raise EndpointUnavailable(
+            f"{etf_cfg['symbol']} has no csv_url_template: it was onboarded "
+            "after the legacy CSV route was retired (Phase 27) and has no "
+            "cached CSV history. Use load_snapshot_tickers instead."
+        )
+    url = f"{template}&asOfDate={target.strftime('%Y%m%d')}"
     last_err: Exception | None = None
     for backoff in [0, *RETRY_BACKOFFS]:
         if backoff:
@@ -532,23 +831,111 @@ def latest_completed_friday(today: date) -> date:
     return today - timedelta(days=days_since_friday)
 
 
+def load_snapshot_tickers(target: date, etf_cfg: dict) -> list[str]:
+    """Return the Equity roster for one calendar date, cache-first.
+
+    Resolution order:
+      1. Legacy CSV cache (`SYM_YYYYMMDD.csv`) — the ~10,400 files captured
+         before the 2026-07 re-platform. Still the source of truth for
+         history; never re-fetched.
+      2. JSON cache (`SYM_YYYYMMDD.json`) — product-data API responses.
+      3. Network, via the product-data API.
+
+    Only POSITIVE responses are cached. The old code also cached empty
+    responses on the theory that they are stable for old dates, but an empty
+    response for a RECENT date usually means "holdings are not published
+    yet", and caching that freezes the gap permanently.
+
+    Raises EndpointUnavailable / PayloadContractError when the transport is
+    dead. Returns [] when the endpoint is healthy but has no data for
+    `target` — the walkback's cue to try the previous day.
+    """
+    overrides = etf_cfg.get("ticker_overrides", {})
+    apply_suffix = etf_cfg.get("apply_exchange_suffix", False)
+    symbol = etf_cfg["symbol"]
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = target.strftime("%Y%m%d")
+
+    csv_path = RAW_DIR / f"{symbol}_{stamp}.csv"
+    if csv_path.exists():
+        cached = csv_path.read_text(encoding="utf-8")
+        if looks_like_ishares_holdings_csv(cached):
+            return parse_holdings(cached, ticker_overrides=overrides,
+                                   apply_exchange_suffix=apply_suffix)
+        # Poisoned by an earlier run's anti-bot HTML — drop and fall through.
+        csv_path.unlink()
+
+    json_path = RAW_DIR / f"{symbol}_{stamp}.json"
+    if json_path.exists():
+        try:
+            payload = json.loads(json_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            json_path.unlink()
+        else:
+            if payload.get("_no_holdings"):
+                return []
+            return parse_holdings_json(
+                payload, target, ticker_overrides=overrides,
+                apply_exchange_suffix=apply_suffix,
+            )
+
+    payload = fetch_product_data(target, etf_cfg)
+    tickers = parse_holdings_json(
+        payload, target, ticker_overrides=overrides,
+        apply_exchange_suffix=apply_suffix,
+    )
+    if tickers:
+        json_path.write_text(json.dumps(payload), encoding="utf-8")
+    elif (date.today() - target).days > NEGATIVE_CACHE_MIN_AGE_DAYS:
+        # Settled no-data date — record a marker so we never pay for it
+        # again. Storing the full payload would be pure waste: it is the
+        # latest-date fallback response, and all we need to remember is
+        # that this date has nothing.
+        json_path.write_text(
+            json.dumps({
+                "_no_holdings": True,
+                "requested_as_of": target.strftime("%Y%m%d"),
+                "captured_utc": datetime.now(timezone.utc).isoformat(),
+                "note": ("Endpoint returned no holdings for this date "
+                          "(pre-inception, holiday, or data gap)."),
+            }),
+            encoding="utf-8",
+        )
+    return tickers
+
+
 def get_snapshot(
-    target_friday: date, etf_cfg: dict
+    target_friday: date, etf_cfg: dict,
+    circuit: EndpointCircuit | None = None,
 ) -> tuple[list[str] | None, date | None, str]:
     """Walk back from `target_friday` looking for a populated holdings file.
 
     Returns (tickers, actual_date, status). `status` is one of:
       - "exact"     : Friday returned data
       - "walkback"  : an earlier weekday in the same week returned data
-      - "not_found" : no data within MAX_WALKBACK_DAYS days
+      - "not_found" : endpoint healthy, no data within MAX_WALKBACK_DAYS days
+      - "endpoint_unavailable" : the transport is dead (see EndpointCircuit)
+
+    Note on the walkback: the previous version let a transport exception
+    propagate out of this loop, so a failed fetch on the target Friday
+    aborted the walk on its first iteration and MAX_WALKBACK_DAYS never
+    applied. Transport failures now trip the breaker explicitly, and a
+    genuinely empty date continues the walk as intended.
     """
-    overrides = etf_cfg.get("ticker_overrides", {})
-    apply_suffix = etf_cfg.get("apply_exchange_suffix", False)
+    if circuit is not None and circuit.dead:
+        circuit.n_unavailable += 1
+        return None, None, "endpoint_unavailable"
+
     for days_back in range(MAX_WALKBACK_DAYS + 1):
         try_date = target_friday - timedelta(days=days_back)
-        body = fetch_with_retry(try_date, etf_cfg)
-        tickers = parse_holdings(body, ticker_overrides=overrides,
-                                  apply_exchange_suffix=apply_suffix)
+        try:
+            tickers = load_snapshot_tickers(try_date, etf_cfg)
+        except (EndpointUnavailable, PayloadContractError) as e:
+            if circuit is None:
+                raise
+            circuit.trip(target_friday, str(e))
+            circuit.n_unavailable += 1
+            return None, None, "endpoint_unavailable"
         if tickers:
             status = "exact" if days_back == 0 else "walkback"
             return tickers, try_date, status
@@ -560,6 +947,15 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--etf", default=DEFAULT_ETF,
         help=f"ETF symbol to fetch (must be in etf_registry). Default: {DEFAULT_ETF}",
+    )
+    p.add_argument(
+        "--carry-forward-on-outage", action="store_true",
+        help="Carry the last known-good roster forward across Fridays that "
+             "the endpoint could not serve. OFF by default: carrying forward "
+             "through an outage is what let a dead endpoint look like a "
+             "routine holiday gap for four weeks. Use only when a degraded "
+             "but running pipeline is explicitly wanted; the run still exits "
+             f"{EXIT_ENDPOINT_UNAVAILABLE}.",
     )
     return p.parse_args()
 
@@ -584,6 +980,8 @@ def main() -> int:
     walkbacks: list[dict] = []
     carry_forwards: list[dict] = []
     edgar_used: list[dict] = []  # Phase 26.2 — audit trail
+    unavailable: list[dict] = []  # Phase 27 — endpoint-outage audit trail
+    circuit = EndpointCircuit()
     prev_tickers: list[str] | None = None
     prev_actual: date | None = None
     prev_target: date | None = None
@@ -646,7 +1044,7 @@ def main() -> int:
         if i == 1 or i % 25 == 0 or i == len(fridays):
             print(f"  [{i}/{len(fridays)}] {friday.isoformat()}", flush=True)
         try:
-            tickers, actual, status = get_snapshot(friday, etf_cfg)
+            tickers, actual, status = get_snapshot(friday, etf_cfg, circuit)
         except Exception as e:
             print(f"  ERROR on {friday}: {e}", flush=True)
             tickers, actual, status = None, None, "not_found"
@@ -678,25 +1076,42 @@ def main() -> int:
                     })
 
         if tickers is None or actual is None:
+            # Phase 27 — separate "the endpoint is dead" from "this Friday
+            # genuinely has no holdings". Conflating them is what made a
+            # four-week outage read as a run of ordinary holiday gaps.
+            outage = status == "endpoint_unavailable"
+            if outage:
+                unavailable.append({
+                    "target_friday": friday.isoformat(),
+                    "cause": "endpoint_unavailable",
+                    "reason": circuit.reason,
+                })
+                if not args.carry_forward_on_outage:
+                    # No snapshot and no carry-forward: the honest record of
+                    # an outage is absence, not a fabricated roster.
+                    continue
+            cause = "endpoint_unavailable" if outage else "no_data_in_walkback"
+            gap = (
+                "upstream endpoint unavailable — see endpoint_health"
+                if outage else
+                f"no holdings data within {MAX_WALKBACK_DAYS} days back from "
+                "target Friday"
+            )
             if prev_tickers is None or prev_actual is None or prev_target is None:
                 carry_forwards.append({
                     "target_friday": friday.isoformat(),
                     "outcome": "skipped",
-                    "reason": (
-                        f"no holdings data within {MAX_WALKBACK_DAYS} days back "
-                        "from target Friday and no prior snapshot to carry forward"
-                    ),
+                    "cause": cause,
+                    "reason": f"{gap} and no prior snapshot to carry forward",
                 })
                 continue
             carry_forwards.append({
                 "target_friday": friday.isoformat(),
                 "outcome": "carried_forward",
+                "cause": cause,
                 "carried_from_target": prev_target.isoformat(),
                 "carried_from_actual": prev_actual.isoformat(),
-                "reason": (
-                    f"no holdings data within {MAX_WALKBACK_DAYS} days back from "
-                    "target Friday — reused most recent prior snapshot"
-                ),
+                "reason": f"{gap} — reused most recent prior snapshot",
             })
             snapshots[friday.isoformat()] = {
                 "actual_date": prev_actual.isoformat(),
@@ -758,7 +1173,13 @@ def main() -> int:
 
     payload = {
         "etf": symbol,
-        "source": etf_cfg["csv_url_template"],
+        "source": PRODUCT_DATA_API,
+        # The pre-2026-07 history in data/raw_ishares/*.csv came from this
+        # route. It stopped serving CSV when iShares re-platformed; retained
+        # for provenance of the cached snapshots only.
+        # None for funds onboarded after Phase 27 — they never had a CSV
+        # route and their history comes entirely from the product-data API.
+        "legacy_csv_source": etf_cfg.get("csv_url_template"),
         "fetched_at_utc": datetime.now(timezone.utc).isoformat(),
         "start_friday": start_friday.isoformat(),
         "end_friday": end_friday.isoformat(),
@@ -774,6 +1195,22 @@ def main() -> int:
         "walkbacks": walkbacks,
         "carry_forwards": carry_forwards,
         "edgar_used": edgar_used,
+        # Phase 27 — every Friday the transport could not serve, and why.
+        # An empty list with status "ok" is the only healthy reading.
+        "endpoint_unavailable": unavailable,
+        "endpoint_health": {
+            "status": "unavailable" if circuit.dead else "ok",
+            "transport": "product_data_api",
+            "endpoint": PRODUCT_DATA_API,
+            "detail": circuit.reason,
+            "first_failure_target_friday": (
+                circuit.first_failure_target.isoformat()
+                if circuit.first_failure_target else None
+            ),
+            "n_fridays_unavailable": circuit.n_unavailable,
+            "carry_forward_on_outage": args.carry_forward_on_outage,
+            "policy_ref": "DATA_INTEGRITY_POLICY.md",
+        },
         "staleness": {
             "last_real_fetch_date": (
                 last_real_fetch_date.isoformat()
@@ -819,6 +1256,40 @@ def main() -> int:
         for cf in carry_forwards:
             print(f"    {cf}")
 
+    # Endpoint-outage alert (Phase 27). Raised BEFORE the staleness alert
+    # because a dead transport is the cause and staleness is the symptom.
+    if circuit.dead:
+        bar = "!" * 72
+        print(file=sys.stderr)
+        print(bar, file=sys.stderr)
+        print(
+            f"ENDPOINT UNAVAILABLE: {symbol} — the holdings transport failed "
+            f"at target Friday {circuit.first_failure_target}. "
+            f"{circuit.n_unavailable} Friday(s) could not be served.",
+            file=sys.stderr,
+        )
+        print(f"  Endpoint: {PRODUCT_DATA_API}", file=sys.stderr)
+        print(f"  Detail:   {circuit.reason}", file=sys.stderr)
+        if args.carry_forward_on_outage:
+            print(
+                "  Carry-forward was ENABLED for the outage: the affected "
+                "Fridays hold a stale roster and are flagged with "
+                "cause=endpoint_unavailable.",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "  No carry-forwards were emitted for those Fridays — they "
+                "are absent from `snapshots` by design.",
+                file=sys.stderr,
+            )
+        print(
+            "  Operator action required. See DATA_INTEGRITY_POLICY.md "
+            "section 'Escalation procedure'.",
+            file=sys.stderr,
+        )
+        print(bar, file=sys.stderr)
+
     # Staleness alert (Phase 26.1, per-ETF thresholds since 26.3).
     # Loud failure on critical so CI fails.
     threshold_label = (
@@ -840,7 +1311,10 @@ def main() -> int:
             file=sys.stderr,
         )
         print(bar, file=sys.stderr)
-        return EXIT_STALENESS_CRITICAL
+        # A dead endpoint outranks stale data: it is the cause, not the
+        # symptom, and it is what the operator has to fix.
+        return (EXIT_ENDPOINT_UNAVAILABLE if circuit.dead
+                else EXIT_STALENESS_CRITICAL)
     if staleness_status == "warning":
         print(
             f"  WARNING: {symbol} roster is {days_since_real} days stale "
@@ -854,7 +1328,7 @@ def main() -> int:
             f"({days_since_real} days ago, "
             f"under {warn_days}-day warning threshold{threshold_label})."
         )
-    return EXIT_OK
+    return EXIT_ENDPOINT_UNAVAILABLE if circuit.dead else EXIT_OK
 
 
 if __name__ == "__main__":
