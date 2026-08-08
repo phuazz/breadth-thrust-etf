@@ -2154,7 +2154,7 @@
 
     <section>
       <h2>2 · Asset-class exposure over time</h2>
-      <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly Friday snapshots since 2018-Q4 (common window across all four sleeves). <strong>Strategy A's 14 US sector ETFs are decomposed into 5 macro buckets</strong> (US Tech / Comms, US Cyclicals, US Energy, US Financials, US Defensives) so A's actual sector rotation is visible. <strong>Amber-shaded vertical bands</strong> mark periods when the breadth-regime overlay was RISK_OFF — look for the corresponding swell in the pale-green <strong>Cash (SHY)</strong> band at the bottom. Note that band is the <em>sleeves' own</em> cash floors, which tend to fill up in the same weeks; the gate's separate 50% move to SHY is not drawn here, because this chart is normalised to 100% and shows composition rather than gross exposure. The teal <strong>EM tilt (EEM)</strong> band is the Phase 22 overlay at 10% of NAV, funded out of Strategy B — so B's bands thin by exactly that much for the weeks the tilt is ON. Notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic burst in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, and the rotation between US Tech / Cyclicals / Defensives within Strategy A over the full window.</p>
+      <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly Friday snapshots since 2018-Q4 (common window across all four sleeves). <strong>Strategy A's 14 US sector ETFs are decomposed into 5 macro buckets</strong> (US Tech / Comms, US Cyclicals, US Energy, US Financials, US Defensives) so A's actual sector rotation is visible. <strong>Amber-shaded vertical bands</strong> mark periods when the breadth-regime overlay was RISK_OFF — look for the corresponding swell in the pale-green <strong>Cash (SHY)</strong> band at the bottom. Both overlays are drawn as bands of their own. The palest-green <strong>De-risk gate (SHY)</strong> slab at the very bottom is the gate's forced 50% of NAV, and every sleeve band halves alongside it — keep it distinct from the <strong>Cash (SHY)</strong> band directly above, which is the <em>sleeves' own</em> cash floors and tends to fill in the same weeks for reasons of its own. The teal <strong>EM tilt (EEM)</strong> band is the Phase 22 overlay at 10% of NAV, funded out of Strategy B, so B's bands thin by exactly that much while it is ON. Every column still totals 100% of NAV. Notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic burst in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, and the rotation between US Tech / Cyclicals / Defensives within Strategy A over the full window.</p>
       <div id="blend-allocation-chart" class="chart tall"></div>
       <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every Friday. <strong>Colours grouped by exposure family</strong>: greens for cash + fixed income + real estate, blues / purples for US equities (defensives → cyclicals → tech), teals for international equities, amber for commodities, magenta for thematic optionality. <strong>Stack order bottom-up</strong>: defensive base first (cash, bonds, real estate), then US equities, then intl / commodities / thematic optionality — the "satellite" risk that moves most. <strong>Bucketing</strong>: Strategy A's sectors split into Tech / Comms (CNDX, SOXX, IUCM), Cyclicals (IUIS, IUCD, IUMS), Energy (IUES), Financials (IUFS), Defensives (IUHC, IUCS, IUUS); IUSP rolls into Real Estate; VGK aggregates with Strategy D's Stoxx 600 sectors into Europe Equity; Strategy C's commodity-equity themes (XME, GDX, COPX, WOOD, REMX, MOO) aggregate into Commodities; SHY (both sleeves' cash floor and the breadth gate's defensive parking) is its own band so the overlay engagement is visible.</p>
     </section>
@@ -9829,6 +9829,14 @@ function _historyAssetClass(etf, sleeveKey) {
 //
 const _historyAssetClassColours = {
   // Cash + Fixed income (greens, light->dark)
+  'De-risk gate (SHY)':        '#bbf7d0',  // palest green — NOT a sleeve
+                                            // holding: the breadth gate's
+                                            // forced 50% of NAV. Sits one
+                                            // step lighter than, and
+                                            // directly beneath, the sleeves'
+                                            // own cash so the two read as
+                                            // one cash base yet stay
+                                            // separable in legend + hover.
   'Cash (SHY)':                '#86efac',  // pale green — cash floor
   'Bonds':                     '#15803d',  // dark green — duration
   'Real Estate':               '#4ade80',  // mid green — yield-bearing
@@ -9864,6 +9872,7 @@ const _historyAssetClassColours = {
 // International / commodities / thematic optionality on top — the
 // "satellite" risk that moves most.
 const _historyAssetClassOrder = [
+  'De-risk gate (SHY)',
   'Cash (SHY)',
   'Bonds',
   'Real Estate',
@@ -10068,8 +10077,18 @@ function renderBlendAllocationTimeline() {
   // already mark those weeks.
   const tiltCfg = window.DATA?.risk_overlay?.phase22_eem_tilt || {};
   const tiltW = (tiltCfg.parameters && tiltCfg.parameters.tilt_weight) || 0.10;
-  const tiltOnByIdx = masterDates.map(d =>
-    !!tiltCfg.enabled && _overlayEventStateOn(tiltCfg.events, d, 'EM_TILT_ON'));
+  // Resolve BOTH overlays per week from _sleeveNavWeightsOn — the same
+  // helper the live positions card and the trade ledger use, so all three
+  // surfaces share one source of truth for overlay state.
+  //
+  // Only the STATE is taken from it (tiltOn / equityScaler / tiltNav /
+  // shyOverlay), never its absolute sleeve weights: those hardcode
+  // 35/35/10/20, whereas the base weights here come from
+  // _historySleeveWeights, which still has 45/45/10 and 50/50 fallbacks
+  // for legacy payloads without a D or C sleeve. Applying the overlays as
+  // adjustments on top of whatever base is in force keeps the stack at
+  // 100% under every one of those branches.
+  const stByIdx = masterDates.map(d => _sleeveNavWeightsOn(d));
 
   for (const s of sleeves) {
     const sleeveDates = s.dates;
@@ -10079,8 +10098,13 @@ function renderBlendAllocationTimeline() {
     masterDates.forEach((d, i) => { dateIdx[d] = i; });
     // Sleeve B funds the tilt, so its NAV weight drops by the tilt weight
     // for exactly the weeks the tilt is ON. Every other sleeve is flat.
-    const sleeveWByIdx = masterDates.map((d, i) =>
-      (s.key === 'B' && tiltOnByIdx[i]) ? s.weight - tiltW : s.weight);
+    // Then the de-risk gate scales every sleeve alike — during RISK_OFF
+    // half of NAV leaves the sleeves entirely for the fallback ticker.
+    const sleeveWByIdx = masterDates.map((d, i) => {
+      const st = stByIdx[i];
+      const base = (s.key === 'B' && st.tiltOn) ? s.weight - tiltW : s.weight;
+      return base * st.equityScaler;
+    });
     // For each ETF in the sleeve's allocation
     for (const [etf, weights] of Object.entries(alloc)) {
       const cls = _historyAssetClass(etf, s.key);
@@ -10097,11 +10121,14 @@ function renderBlendAllocationTimeline() {
     }
   }
 
-  // Emit the tilt as its own band — it is an overlay, not a sleeve
-  // holding, and labelling it separately keeps that distinction visible
-  // rather than implying sleeve B went and bought EM.
-  exposureByClass['EM tilt (EEM)'] =
-    tiltOnByIdx.map(on => (on ? tiltW * 100 : 0));
+  // Emit each overlay as its own band — they are overlays, not sleeve
+  // holdings, and labelling them separately keeps that distinction
+  // visible rather than implying sleeve B went and bought EM, or that
+  // the sleeves' own cash floors happened to fill up.
+  // tiltNav and shyOverlay already carry the gate scaling, so these two
+  // plus the scaled sleeves total 100% of NAV in every week.
+  exposureByClass['EM tilt (EEM)'] = stByIdx.map(st => st.tiltNav * 100);
+  exposureByClass['De-risk gate (SHY)'] = stByIdx.map(st => st.shyOverlay * 100);
 
   // Build traces in the canonical order (drop classes with zero exposure)
   const traces = _historyAssetClassOrder
