@@ -219,7 +219,22 @@ def _latest_holdings_detail(etf: str, actual_date: str | None,
     return out
 
 
+def _long_names() -> dict:
+    """Official fund names, keyed by panel id. data/etf_names.json is the
+    scanner's existing name store; the Phase 27 panels were backfilled into
+    it from the product-data API's fundHeader component, which is the
+    issuer's own wording rather than a vendor's guess."""
+    p = DATA_DIR / "etf_names.json"
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def build() -> dict:
+    long_names = _long_names()
     summary: list[dict] = []
     roster: dict[str, dict] = {}
     breadth: dict[str, dict] = {}
@@ -294,6 +309,10 @@ def build() -> dict:
         summary.append({
             "etf": etf,
             "role": _role(etf),
+            # The issuer's own fund name, e.g. "iShares STOXX Europe 600
+            # Banks UCITS ETF (DE)". `proxy` is the ticker actually traded,
+            # which differs from the panel id for the Europe sleeve.
+            "long_name": long_names.get(etf),
             "name": (ETF_REGISTRY.get(etf) or {}).get("yfinance_trading_proxy"),
             "end_friday": c.get("end_friday"),
             "n_snapshots": len(snaps),

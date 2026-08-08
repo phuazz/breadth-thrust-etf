@@ -3052,7 +3052,15 @@
       <p class="section-sub" id="data-detail-sub"></p>
 
       <h4 style="margin-top:24px;">Weekly history</h4>
-      <p class="section-sub">Every rebalance Friday. <strong>Roster</strong> is the membership count; <strong>priced</strong> is how many had usable prices that day; <strong>MA / RSI / Highs</strong> are the three breadth measures. Rows before the 200-day warmup completes have a roster but no breadth. Newest first.</p>
+      <p class="section-sub">Every rebalance Friday. <strong>Roster</strong> is the membership count; <strong>priced</strong> is how many had usable prices that day; <strong>MA / RSI / Highs</strong> are the three breadth measures. Early rows have a roster but no breadth: the 50-day average needs 50 sessions of history before it exists. Click any column heading to sort.</p>
+      <p style="margin:0 0 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);">
+        <label for="data-from">From</label>
+        <input type="date" id="data-from" style="font-size:13px;padding:5px 8px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:#fff;color:var(--ink);">
+        <label for="data-to">to</label>
+        <input type="date" id="data-to" style="font-size:13px;padding:5px 8px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:#fff;color:var(--ink);">
+        <button type="button" id="data-range-reset" style="font-size:12px;padding:5px 10px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:var(--bg-soft);color:var(--ink-soft);cursor:pointer;">Reset</button>
+        <span id="data-range-count" style="font-size:12px;color:var(--ink-faint);"></span>
+      </p>
       <div style="overflow-x:auto;max-height:520px;overflow-y:auto;">
         <table class="data-table" id="data-history-table"><thead></thead><tbody></tbody></table>
       </div>
@@ -10417,6 +10425,53 @@ var DATA_AUDIT = null;
 function _pct(v) { return (v === null || v === undefined) ? '—' : (100 * v).toFixed(1) + '%'; }
 function _num(v) { return (v === null || v === undefined) ? '—' : v; }
 
+// Sort state per table id, so re-rendering (panel switch, date filter) keeps
+// whatever ordering the reader chose.
+var DATA_SORT = {};
+
+// Generic click-to-sort. Each table declares its rows as objects plus a
+// column spec; the renderer stays declarative and the comparator handles
+// nulls once, in one place, rather than per table.
+//
+// Nulls always sink to the bottom regardless of direction. A missing value
+// is not "small" — sorting "no price" names to the top of an ascending
+// distance-from-MA column would read as the worst performers, which is a
+// different claim entirely.
+function _cmp(a, b, dir) {
+  if (a === null || a === undefined) return 1;
+  if (b === null || b === undefined) return -1;
+  if (typeof a === 'number' && typeof b === 'number') return (a - b) * dir;
+  return String(a).localeCompare(String(b)) * dir;
+}
+
+function _sortable(tableId, cols, rows, renderRow, defaultKey) {
+  const st = DATA_SORT[tableId] || (DATA_SORT[tableId] = { key: defaultKey, dir: 1 });
+  const t = document.getElementById(tableId);
+  if (!t) return;
+  const sorted = rows.slice().sort((x, y) => {
+    const c = cols.find((k) => k.key === st.key);
+    return c ? _cmp(c.val(x), c.val(y), st.dir) : 0;
+  });
+  t.querySelector('thead').innerHTML = '<tr>' + cols.map((c) => {
+    const on = c.key === st.key;
+    const arrow = on ? (st.dir === 1 ? ' ▲' : ' ▼') : '';
+    const align = c.right ? 'text-align:right;' : '';
+    return `<th data-sort-key="${c.key}" style="${align}cursor:pointer;user-select:none;"
+      title="Sort by ${c.label}">${c.label}<span style="color:var(--accent);">${arrow}</span></th>`;
+  }).join('') + '</tr>';
+  t.querySelector('tbody').innerHTML = sorted.map(renderRow).join('');
+  t.querySelectorAll('thead th[data-sort-key]').forEach((th) => {
+    th.addEventListener('click', () => {
+      const k = th.dataset.sortKey;
+      // Same column toggles direction; a new column starts ascending, except
+      // for numeric columns where descending is the useful first look.
+      if (st.key === k) { st.dir = -st.dir; }
+      else { st.key = k; st.dir = (cols.find((c) => c.key === k) || {}).right ? -1 : 1; }
+      _sortable(tableId, cols, rows, renderRow, defaultKey);
+    });
+  });
+}
+
 async function _fetchDataAudit() {
   const paths = ['data_audit.json', 'docs/data_audit.json'];
   let lastErr = null;
@@ -10432,18 +10487,30 @@ async function _fetchDataAudit() {
 
 function _renderDataSummary(d) {
   const order = { deployed: 0, candidate: 1, monitored: 2, registered: 2 };
-  const rows = d.summary.slice().sort((a, b) =>
-    (order[a.role] - order[b.role]) || a.etf.localeCompare(b.etf));
-  const t = document.getElementById('data-summary-table');
-  t.querySelector('thead').innerHTML = `<tr>
-    <th>Panel</th><th>Role</th><th>As-of</th><th>Roster date</th>
-    <th style="text-align:right;">Weeks</th><th style="text-align:right;">Names</th>
-    <th style="text-align:right;">No price</th><th style="text-align:right;">Walkbacks</th>
-    <th style="text-align:right;">Carried</th><th>Endpoint</th><th style="text-align:right;">Stale</th></tr>`;
-  t.querySelector('tbody').innerHTML = rows.map((r) => {
-    const cur = (d.current[r.etf] || {});
-    const wb = cur.actual && cur.actual !== cur.friday;
-    const roleLabel = (r.role === 'registered') ? 'monitored' : r.role;
+  const rows = d.summary.map((r) => {
+    const cur = d.current[r.etf] || {};
+    return Object.assign({}, r, {
+      _roster: cur.actual || null,
+      _wb: !!(cur.actual && cur.actual !== cur.friday),
+      _roleRank: order[r.role],
+      _roleLabel: (r.role === 'registered') ? 'monitored' : r.role,
+    });
+  });
+  const cols = [
+    { key: 'etf',   label: 'Panel',       val: (r) => r.etf },
+    { key: 'name',  label: 'Fund',        val: (r) => r.long_name || r.etf },
+    { key: 'role',  label: 'Role',        val: (r) => r._roleRank },
+    { key: 'asof',  label: 'As-of',       val: (r) => r.end_friday },
+    { key: 'ros',   label: 'Roster date', val: (r) => r._roster },
+    { key: 'weeks', label: 'Weeks',       val: (r) => r.n_snapshots,      right: 1 },
+    { key: 'names', label: 'Names',       val: (r) => r.latest_n,         right: 1 },
+    { key: 'nopx',  label: 'No price',    val: (r) => r.no_yf_data,       right: 1 },
+    { key: 'wb',    label: 'Walkbacks',   val: (r) => r.n_walkbacks,      right: 1 },
+    { key: 'cf',    label: 'Carried',     val: (r) => r.n_carry_forwards, right: 1 },
+    { key: 'ep',    label: 'Endpoint',    val: (r) => r.endpoint_health },
+    { key: 'stale', label: 'Stale',       val: (r) => r.stale_days,       right: 1 },
+  ];
+  _sortable('data-summary-table', cols, rows, (r) => {
     const roleColour = r.role === 'deployed' ? 'var(--accent)'
                       : (r.role === 'candidate' ? 'var(--ink-faint)' : '#b45309');
     const health = r.endpoint_health === 'ok'
@@ -10452,9 +10519,10 @@ function _renderDataSummary(d) {
     const staleColour = (r.stale_status && r.stale_status !== 'fresh') ? '#b45309' : 'var(--ink-soft)';
     return `<tr>
       <td style="font-weight:600;">${r.etf}</td>
-      <td style="font-size:12px;color:${roleColour};">${roleLabel}</td>
+      <td style="font-size:12px;color:var(--ink-soft);max-width:280px;overflow:hidden;text-overflow:ellipsis;">${r.long_name || '—'}</td>
+      <td style="font-size:12px;color:${roleColour};">${r._roleLabel}</td>
       <td style="font-size:12px;">${_num(r.end_friday)}</td>
-      <td style="font-size:12px;color:${wb ? '#b45309' : 'var(--ink-soft)'};">${_num(cur.actual)}${wb ? ' ←' : ''}</td>
+      <td style="font-size:12px;color:${r._wb ? '#b45309' : 'var(--ink-soft)'};">${_num(r._roster)}${r._wb ? ' ←' : ''}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.n_snapshots)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.latest_n)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-faint);">${_num(r.no_yf_data)}</td>
@@ -10463,7 +10531,52 @@ function _renderDataSummary(d) {
       <td style="font-size:12px;">${health}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;color:${staleColour};">${_num(r.stale_days)}d</td>
     </tr>`;
-  }).join('');
+  }, 'role');
+}
+
+var DATA_HISTORY_ROWS = [];
+
+// Dates are ISO (YYYY-MM-DD) throughout the payload and <input type="date">
+// also yields ISO, so range comparison is a plain string compare — no Date
+// parsing, and therefore no timezone to get wrong.
+function _renderDataHistory() {
+  // Default this table to newest-first. Set before the first _sortable call
+  // so it is a genuine default rather than a re-sort after rendering.
+  if (!DATA_SORT['data-history-table']) {
+    DATA_SORT['data-history-table'] = { key: 'friday', dir: -1 };
+  }
+  const from = (document.getElementById('data-from') || {}).value || '';
+  const to   = (document.getElementById('data-to')   || {}).value || '';
+  const rows = DATA_HISTORY_ROWS.filter((r) =>
+    (!from || r.friday >= from) && (!to || r.friday <= to));
+
+  const note = document.getElementById('data-range-count');
+  if (note) {
+    note.textContent = (from || to)
+      ? `${rows.length} of ${DATA_HISTORY_ROWS.length} weeks shown`
+      : `${DATA_HISTORY_ROWS.length} weeks`;
+  }
+
+  const cols = [
+    { key: 'friday', label: 'Friday',      val: (r) => r.friday },
+    { key: 'actual', label: 'Roster date', val: (r) => r.actual },
+    { key: 'roster', label: 'Roster',      val: (r) => r.roster, right: 1 },
+    { key: 'priced', label: 'Priced',      val: (r) => r.priced, right: 1 },
+    { key: 'cov',    label: 'Coverage',    val: (r) => r.cov,    right: 1 },
+    { key: 'ma',     label: 'MA',          val: (r) => r.ma,     right: 1 },
+    { key: 'rsi',    label: 'RSI',         val: (r) => r.rsi,    right: 1 },
+    { key: 'highs',  label: 'Highs',       val: (r) => r.highs,  right: 1 },
+  ];
+  _sortable('data-history-table', cols, rows, (r) => `<tr>
+      <td style="font-size:12px;">${r.friday}</td>
+      <td style="font-size:12px;color:${r.wb ? '#b45309' : 'var(--ink-faint)'};">${_num(r.actual)}${r.carried ? ' (carried)' : (r.wb ? ' ←' : '')}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.roster)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.priced)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:${(r.cov !== null && r.cov < 0.8) ? '#b45309' : 'var(--ink-soft)'};">${r.cov === null ? '—' : _pct(r.cov)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_pct(r.ma)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_pct(r.rsi)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_pct(r.highs)}</td>
+    </tr>`, 'friday');
 }
 
 function _renderDataDetail(etf) {
@@ -10488,34 +10601,26 @@ function _renderDataDetail(etf) {
   const bIdx = {};
   (br.date || []).forEach((dt, i) => { bIdx[dt] = i; });
 
-  const t = document.getElementById('data-history-table');
-  t.querySelector('thead').innerHTML = `<tr>
-    <th>Friday</th><th>Roster date</th><th style="text-align:right;">Roster</th>
-    <th style="text-align:right;">Priced</th><th style="text-align:right;">Coverage</th>
-    <th style="text-align:right;">MA</th><th style="text-align:right;">RSI</th>
-    <th style="text-align:right;">Highs</th></tr>`;
-  const out = [];
-  for (let i = ros.friday.length - 1; i >= 0; i--) {
-    const f = ros.friday[i];
-    const a = ros.actual[i];
-    const wb = ros.walkback[i] === 1;
-    const carried = ros.carried[i] === 1;
+  // Build the joined rows once; the date filter and the sorter both work
+  // off this array rather than re-deriving it.
+  DATA_HISTORY_ROWS = ros.friday.map((f, i) => {
     const j = bIdx[f];
     const nc = (j === undefined || !br.n_constituents) ? null : br.n_constituents[j];
     const np = (j === undefined || !br.n_with_price) ? null : br.n_with_price[j];
-    const cov = (nc && np !== null) ? np / nc : null;
-    out.push(`<tr>
-      <td style="font-size:12px;">${f}</td>
-      <td style="font-size:12px;color:${wb ? '#b45309' : 'var(--ink-faint)'};">${_num(a)}${carried ? ' (carried)' : (wb ? ' ←' : '')}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(ros.n[i])}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(np)}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;color:${(cov !== null && cov < 0.8) ? '#b45309' : 'var(--ink-soft)'};">${cov === null ? '—' : _pct(cov)}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;">${j === undefined || !br.ma ? '—' : _pct(br.ma[j])}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;">${j === undefined || !br.rsi ? '—' : _pct(br.rsi[j])}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;">${j === undefined || !br.highs ? '—' : _pct(br.highs[j])}</td>
-    </tr>`);
-  }
-  t.querySelector('tbody').innerHTML = out.join('');
+    return {
+      friday: f,
+      actual: ros.actual[i],
+      wb: ros.walkback[i] === 1,
+      carried: ros.carried[i] === 1,
+      roster: ros.n[i],
+      priced: np,
+      cov: (nc && np !== null) ? np / nc : null,
+      ma:    (j === undefined || !br.ma)    ? null : br.ma[j],
+      rsi:   (j === undefined || !br.rsi)   ? null : br.rsi[j],
+      highs: (j === undefined || !br.highs) ? null : br.highs[j],
+    };
+  });
+  _renderDataHistory();
 
   const wbNote = (cur.actual && cur.actual !== cur.friday)
     ? ` The target Friday was ${cur.friday}, but the roster came from ${cur.actual} — the fetch walked back a day.`
@@ -10556,17 +10661,26 @@ function _renderDataDetail(etf) {
       '<tr><td style="color:var(--ink-faint);">Weights are derived from the cached API payload, which is not available for this panel.</td></tr>';
     return;
   }
-  ht.querySelector('thead').innerHTML = `<tr>
-    <th>#</th><th>Ticker</th><th>Name</th><th>Sector</th>
-    <th style="text-align:right;">Weight</th><th style="text-align:right;">vs 50d</th><th>State</th></tr>`;
-  ht.querySelector('tbody').innerHTML = hold.map((h, i) => {
+  const hcols = [
+    { key: 'sym',    label: 'Ticker', val: (h) => h.sym },
+    { key: 'hname',  label: 'Name',   val: (h) => h.name },
+    { key: 'sector', label: 'Sector', val: (h) => h.sector },
+    { key: 'w',      label: 'Weight', val: (h) => h.w, right: 1 },
+    { key: 'd',      label: 'vs 50d', val: (h) => h.d, right: 1 },
+    // Sort state as a number so above/below/no-price group cleanly rather
+    // than alphabetically, where "above" would sort next to "below".
+    { key: 'state',  label: 'State',  val: (h) => h.above === true ? 2 : (h.above === false ? 1 : null) },
+  ];
+  if (!DATA_SORT['data-holdings-table']) {
+    DATA_SORT['data-holdings-table'] = { key: 'w', dir: -1 };
+  }
+  _sortable('data-holdings-table', hcols, hold, (h) => {
     const state = h.above === true
       ? '<span style="color:#15803d;font-weight:600;">above</span>'
       : (h.above === false ? '<span style="color:#b91c1c;font-weight:600;">below</span>'
                             : '<span style="color:var(--ink-faint);">no price</span>');
     const dCol = h.d === null || h.d === undefined ? 'var(--ink-faint)' : (h.d >= 0 ? '#15803d' : '#b91c1c');
     return `<tr>
-      <td style="color:var(--ink-faint);font-variant-numeric:tabular-nums;">${i + 1}</td>
       <td style="font-weight:600;">${h.sym}</td>
       <td style="font-size:12px;color:var(--ink-soft);max-width:230px;overflow:hidden;text-overflow:ellipsis;">${h.name || '—'}</td>
       <td style="font-size:12px;color:var(--ink-faint);">${h.sector || '—'}</td>
@@ -10574,7 +10688,7 @@ function _renderDataDetail(etf) {
       <td style="text-align:right;font-variant-numeric:tabular-nums;color:${dCol};">${h.d === null || h.d === undefined ? '—' : (h.d > 0 ? '+' : '') + h.d + '%'}</td>
       <td style="font-size:12px;">${state}</td>
     </tr>`;
-  }).join('');
+  }, 'w');
 }
 
 async function renderDataAudit() {
@@ -10601,6 +10715,17 @@ async function renderDataAudit() {
       return `<option value="${r.etf}">${r.etf} — ${lbl}</option>`;
     }).join('');
     sel.addEventListener('change', () => _renderDataDetail(sel.value));
+    ['data-from', 'data-to'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', _renderDataHistory);
+    });
+    const reset = document.getElementById('data-range-reset');
+    if (reset) reset.addEventListener('click', () => {
+      const f = document.getElementById('data-from');
+      const t = document.getElementById('data-to');
+      if (f) f.value = ''; if (t) t.value = '';
+      _renderDataHistory();
+    });
   }
   _renderDataDetail(sel.value || d.summary[0].etf);
   document.getElementById('data-audit-body').style.display = '';
