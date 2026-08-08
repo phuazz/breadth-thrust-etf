@@ -57,6 +57,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
 import warnings
 from bisect import bisect_right
@@ -140,6 +141,57 @@ RSI_OVERBOUGHT = 70.0
 Z_SCORE_MIN_PERIODS = 20
 PCT_MIN_PERIODS = 63
 SIGNAL_ELIGIBLE_AFTER = 252
+
+# ---- Coverage floor on the CURRENT roster (2026-08-09) -------------------
+#
+# Measured as n_with_ma50 / n_constituents on the latest date: of the names
+# actually IN the index today, how many did the vendor price deeply enough
+# to carry a 50-day average. This is the denominator that matters. The
+# existing data_quality ratio (tickers_with_any_yf_data / universe_size)
+# runs 70-90% on healthy panels because the universe carries every name
+# that has ever been a constituent, so it cannot separate "delisted names,
+# as expected" from "the vendor returned nothing today".
+#
+# Why a floor at all: breadth is a RATIO, so a thin fetch does not look
+# broken. It returns a plausible number computed on whatever came back. On
+# 2026-08-08 two panels were refreshed and committed on partial downloads —
+# EXH2 on 2 of 37 constituents (the display guard suppressed the bar, so
+# nothing false was shown) and IDP6, a DEPLOYED Strategy A panel, on 371 of
+# 603. IDP6 published 0.6334 where full coverage gives 0.6173. Only 1.6pp
+# out, and that was luck: nothing about a 62% sample guarantees it lands
+# close. Nothing in the pipeline objected to either.
+#
+# Calibrated against all 38 committed panels on 2026-08-09. Healthy sits at
+# 97-100% (30 of 38 at 100%), with a structural tail at ITWN 89.7% and
+# ICHN 93.6% where some Taiwanese and Chinese lines genuinely lack yfinance
+# history. Then a clean gap to the two failures at 61.5% and 5.4%. WARN
+# sits below the structural tail so ITWN does not cry wolf every week;
+# FAIL sits below anything a real roster has produced.
+MIN_ROSTER_COVERAGE_WARN = 0.85
+MIN_ROSTER_COVERAGE_FAIL = 0.50
+
+# Never set in CI. Lets a local run publish a knowingly thin panel.
+COVERAGE_OVERRIDE_ENV = "ALLOW_THIN_BREADTH"
+
+
+def coverage_verdict(n_with_ma: int, n_constituents: int) -> tuple[str, float]:
+    """Classify roster coverage as 'ok', 'warn' or 'fail'.
+
+    Pure so the floors can be tested without a network fetch. Both floors
+    are inclusive at the bottom of the better band: exactly at a floor
+    passes it, so the documented percentages read the way people expect.
+
+    A roster of zero is 'fail', not a division error — a panel with no
+    current constituents has nothing to compute breadth on.
+    """
+    if n_constituents <= 0:
+        return "fail", 0.0
+    coverage = n_with_ma / n_constituents
+    if coverage < MIN_ROSTER_COVERAGE_FAIL:
+        return "fail", coverage
+    if coverage < MIN_ROSTER_COVERAGE_WARN:
+        return "warn", coverage
+    return "ok", coverage
 
 # Zweig MA thrust parameters.
 ZWEIG_LOW = 0.50
@@ -585,6 +637,14 @@ def main() -> int:
 
     # ----- Output -----------------------------------------------------------
     missing_pct = 1.0 - (df["n_with_price"] / df["n_constituents"])
+
+    # Coverage of the CURRENT roster on the latest date — see the floors.
+    # n_with_ma50 rather than n_with_price: a name priced for three days
+    # has a price but no 50-day average, so it contributes to neither
+    # numerator nor denominator of ma_breadth and must not count as covered.
+    _last_const = int(df["n_constituents"].iloc[-1]) if len(df) else 0
+    _last_ma = int(df["n_with_ma50"].iloc[-1]) if len(df) else 0
+    coverage_status, roster_coverage = coverage_verdict(_last_ma, _last_const)
     signal_rows = df[df["signal_fires"]]
     signals_list = []
     for ts, r in signal_rows.iterrows():
@@ -652,6 +712,9 @@ def main() -> int:
             "price_warmup_calendar_days": PRICE_WARMUP_CALENDAR_DAYS,
         },
         "data_quality": {
+            "roster_coverage_latest": _safe_float(roster_coverage),
+            "roster_coverage_warn_floor": MIN_ROSTER_COVERAGE_WARN,
+            "roster_coverage_fail_floor": MIN_ROSTER_COVERAGE_FAIL,
             "universe_size": len(universe),
             "tickers_with_any_yf_data": n_with_any_data,
             "tickers_with_no_yf_data": len(universe) - n_with_any_data,
@@ -703,9 +766,47 @@ def main() -> int:
         },
     }
 
+    # ---- Coverage floor -------------------------------------------------
+    # Checked BEFORE the write, so a thin panel cannot replace a good one.
+    # Refusing to write leaves the previous breadth file in place, which is
+    # the better artefact by definition — the same reasoning as the
+    # build-time cache guards.
+    cov_pct = roster_coverage * 100
+    if coverage_status == "fail":
+        if os.environ.get(COVERAGE_OVERRIDE_ENV):
+            print(f"\n  {COVERAGE_OVERRIDE_ENV} set — writing a panel with "
+                  f"only {cov_pct:.1f}% roster coverage", flush=True)
+        else:
+            print()
+            print("!" * 72, file=sys.stderr)
+            print(f"  THIN BREADTH — {_display_path(out_path)} NOT written",
+                  file=sys.stderr)
+            print(f"  Roster coverage {cov_pct:.1f}% ({_last_ma} of "
+                  f"{_last_const} current constituents carry a "
+                  f"{MA_PERIOD}-day average) is below the "
+                  f"{MIN_ROSTER_COVERAGE_FAIL:.0%} floor.", file=sys.stderr)
+            print(f"  Breadth is a ratio, so a partial download still "
+                  f"returns a plausible number — it would just be computed "
+                  f"on {_last_ma} names. The previous file was left in "
+                  f"place.", file=sys.stderr)
+            print(f"  Fix: re-run this fetch (the usual cause is a "
+                  f"transient vendor failure); or set "
+                  f"{COVERAGE_OVERRIDE_ENV}=1 to publish it anyway.",
+                  file=sys.stderr)
+            print("!" * 72, file=sys.stderr)
+            return 2
+    elif coverage_status == "warn":
+        print(f"\n  WARN: roster coverage {cov_pct:.1f}% ({_last_ma} of "
+              f"{_last_const}) is below the "
+              f"{MIN_ROSTER_COVERAGE_WARN:.0%} floor — breadth is computed "
+              f"on a thin sample. Written, but check the vendor.",
+              flush=True)
+
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print()
     print(f"Wrote {_display_path(out_path)}")
+    print(f"  Roster coverage: {cov_pct:.1f}% "
+          f"({_last_ma}/{_last_const} carry a {MA_PERIOD}d average)")
     print(f"  Trading days   : {len(df)}")
     print(f"  Signals fired  : {int(df['signal_fires'].sum())}")
     print(f"  Max missing %  : {missing_pct.max() * 100:.1f}%")
