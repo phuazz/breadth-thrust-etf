@@ -1,249 +1,281 @@
 {
   "etf": "IUCM",
-  "source": "https://www.ishares.com/uk/individual/en/products/304659/ishares-s-p-500-communication-sector-ucits-etf-usd-acc-fund/1506575576011.ajax?fileType=csv&fileName=IUCM_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-07T07:14:03.853233+00:00",
+  "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
+  "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/304659/ishares-s-p-500-communication-sector-ucits-etf-usd-acc-fund/1506575576011.ajax?fileType=csv&fileName=IUCM_holdings&dataType=fund",
+  "fetched_at_utc": "2026-08-08T02:25:42.798217+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-07-31",
-  "n_target_fridays": 448,
-  "n_snapshots_written": 411,
+  "end_friday": "2026-08-07",
+  "n_target_fridays": 449,
+  "n_snapshots_written": 412,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
-  "walkbacks": [],
+  "walkbacks": [
+    {
+      "target_friday": "2020-04-10",
+      "fallback_date": "2020-04-09",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2020-12-25",
+      "fallback_date": "2020-12-24",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2021-01-01",
+      "fallback_date": "2020-12-31",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-08-07",
+      "fallback_date": "2026-08-06",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    }
+  ],
   "carry_forwards": [
     {
       "target_friday": "2018-01-05",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-01-12",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-01-19",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-01-26",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-02-02",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-02-09",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-02-16",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-02-23",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-03-02",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-03-09",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-03-16",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-03-23",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-03-30",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-04-06",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-04-13",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-04-20",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-04-27",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-05-04",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-05-11",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-05-18",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-05-25",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-06-01",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-06-08",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-06-15",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-06-22",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-06-29",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-07-06",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-07-13",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-07-20",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-07-27",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-08-03",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-08-10",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-08-17",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-08-24",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-08-31",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-09-07",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
     },
     {
       "target_friday": "2018-09-14",
       "outcome": "skipped",
+      "cause": "no_data_in_walkback",
       "reason": "no holdings data within 5 days back from target Friday and no prior snapshot to carry forward"
-    },
-    {
-      "target_friday": "2020-04-10",
-      "outcome": "carried_forward",
-      "carried_from_target": "2020-04-03",
-      "carried_from_actual": "2020-04-03",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
-    },
-    {
-      "target_friday": "2020-12-25",
-      "outcome": "carried_forward",
-      "carried_from_target": "2020-12-18",
-      "carried_from_actual": "2020-12-18",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
-    },
-    {
-      "target_friday": "2021-01-01",
-      "outcome": "carried_forward",
-      "carried_from_target": "2020-12-18",
-      "carried_from_actual": "2020-12-18",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
-    },
-    {
-      "target_friday": "2026-07-17",
-      "outcome": "carried_forward",
-      "carried_from_target": "2026-07-10",
-      "carried_from_actual": "2026-07-10",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
-    },
-    {
-      "target_friday": "2026-07-24",
-      "outcome": "carried_forward",
-      "carried_from_target": "2026-07-10",
-      "carried_from_actual": "2026-07-10",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
-    },
-    {
-      "target_friday": "2026-07-31",
-      "outcome": "carried_forward",
-      "carried_from_target": "2026-07-10",
-      "carried_from_actual": "2026-07-10",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
     }
   ],
   "edgar_used": [],
+  "endpoint_unavailable": [],
+  "endpoint_health": {
+    "status": "ok",
+    "transport": "product_data_api",
+    "endpoint": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
+    "detail": null,
+    "first_failure_target_friday": null,
+    "n_fridays_unavailable": 0,
+    "carry_forward_on_outage": false,
+    "policy_ref": "DATA_INTEGRITY_POLICY.md"
+  },
   "staleness": {
-    "last_real_fetch_date": "2026-07-10",
-    "days_since_last_real_fetch": 21,
-    "status": "warning",
+    "last_real_fetch_date": "2026-08-06",
+    "days_since_last_real_fetch": 1,
+    "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
     "threshold_source": "global_default",
@@ -2866,8 +2898,7 @@
       ]
     },
     "2020-04-10": {
-      "actual_date": "2020-04-03",
-      "carried_forward_from": "2020-04-03",
+      "actual_date": "2020-04-09",
       "n_tickers": 26,
       "tickers": [
         "FB",
@@ -2876,8 +2907,8 @@
         "VZ",
         "T",
         "DIS",
-        "NFLX",
         "CMCSA",
+        "NFLX",
         "CHTR",
         "ATVI",
         "TMUS",
@@ -4056,8 +4087,7 @@
       ]
     },
     "2020-12-25": {
-      "actual_date": "2020-12-18",
-      "carried_forward_from": "2020-12-18",
+      "actual_date": "2020-12-24",
       "n_tickers": 26,
       "tickers": [
         "FB",
@@ -4065,8 +4095,8 @@
         "GOOG",
         "DIS",
         "VZ",
-        "NFLX",
         "CMCSA",
+        "NFLX",
         "T",
         "CHTR",
         "TMUS",
@@ -4089,8 +4119,7 @@
       ]
     },
     "2021-01-01": {
-      "actual_date": "2020-12-18",
-      "carried_forward_from": "2020-12-18",
+      "actual_date": "2020-12-31",
       "n_tickers": 26,
       "tickers": [
         "FB",
@@ -4098,8 +4127,8 @@
         "GOOG",
         "DIS",
         "VZ",
-        "NFLX",
         "CMCSA",
+        "NFLX",
         "T",
         "CHTR",
         "TMUS",
@@ -4110,8 +4139,8 @@
         "VIAC",
         "OMC",
         "LYV",
-        "LUMN",
         "FOXA",
+        "LUMN",
         "IPG",
         "DISH",
         "DISCK",
@@ -12783,8 +12812,7 @@
       ]
     },
     "2026-07-17": {
-      "actual_date": "2026-07-10",
-      "carried_forward_from": "2026-07-10",
+      "actual_date": "2026-07-17",
       "n_tickers": 23,
       "tickers": [
         "META",
@@ -12803,8 +12831,8 @@
         "OMC",
         "ECHO",
         "TKO",
-        "CHTR",
         "FOXA",
+        "CHTR",
         "NWSA",
         "TTD",
         "FOX",
@@ -12813,8 +12841,7 @@
       ]
     },
     "2026-07-24": {
-      "actual_date": "2026-07-10",
-      "carried_forward_from": "2026-07-10",
+      "actual_date": "2026-07-24",
       "n_tickers": 23,
       "tickers": [
         "META",
@@ -12822,8 +12849,8 @@
         "GOOG",
         "NFLX",
         "VZ",
-        "DIS",
         "T",
+        "DIS",
         "TMUS",
         "CMCSA",
         "WBD",
@@ -12833,8 +12860,8 @@
         "OMC",
         "ECHO",
         "TKO",
-        "CHTR",
         "FOXA",
+        "CHTR",
         "NWSA",
         "TTD",
         "FOX",
@@ -12843,31 +12870,60 @@
       ]
     },
     "2026-07-31": {
-      "actual_date": "2026-07-10",
-      "carried_forward_from": "2026-07-10",
-      "n_tickers": 23,
+      "actual_date": "2026-07-31",
+      "n_tickers": 24,
       "tickers": [
-        "META",
         "GOOGL",
+        "META",
         "GOOG",
         "NFLX",
         "VZ",
         "DIS",
         "T",
-        "TMUS",
         "CMCSA",
+        "TMUS",
         "WBD",
         "EA",
         "TTWO",
+        "APP",
         "LYV",
         "OMC",
-        "ECHO",
-        "TKO",
         "CHTR",
         "FOXA",
+        "ECHO",
+        "TKO",
         "NWSA",
         "TTD",
         "FOX",
+        "NWS",
+        "PSKY"
+      ]
+    },
+    "2026-08-07": {
+      "actual_date": "2026-08-06",
+      "n_tickers": 23,
+      "tickers": [
+        "GOOGL",
+        "META",
+        "GOOG",
+        "NFLX",
+        "VZ",
+        "DIS",
+        "T",
+        "APP",
+        "CMCSA",
+        "TMUS",
+        "WBD",
+        "TTWO",
+        "LYV",
+        "OMC",
+        "CHTR",
+        "FOXA",
+        "ECHO",
+        "TKO",
+        "NWSA",
+        "FOX",
+        "TTD",
         "NWS",
         "PSKY"
       ]

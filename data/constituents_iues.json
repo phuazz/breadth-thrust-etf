@@ -1,11 +1,12 @@
 {
   "etf": "IUES",
-  "source": "https://www.ishares.com/uk/individual/en/products/280503/ishares-sp-500-energy-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUES_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-07T05:46:48.842712+00:00",
+  "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
+  "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/280503/ishares-sp-500-energy-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUES_holdings&dataType=fund",
+  "fetched_at_utc": "2026-08-08T02:19:47.902503+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-07-31",
-  "n_target_fridays": 448,
-  "n_snapshots_written": 448,
+  "end_friday": "2026-08-07",
+  "n_target_fridays": 449,
+  "n_snapshots_written": 449,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {
@@ -14,56 +15,49 @@
     "BFB": "BF-B",
     "BF.B": "BF-B"
   },
-  "walkbacks": [],
-  "carry_forwards": [
+  "walkbacks": [
     {
       "target_friday": "2020-04-10",
-      "outcome": "carried_forward",
-      "carried_from_target": "2020-04-03",
-      "carried_from_actual": "2020-04-03",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+      "fallback_date": "2020-04-09",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
       "target_friday": "2020-12-25",
-      "outcome": "carried_forward",
-      "carried_from_target": "2020-12-18",
-      "carried_from_actual": "2020-12-18",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+      "fallback_date": "2020-12-24",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
       "target_friday": "2021-01-01",
-      "outcome": "carried_forward",
-      "carried_from_target": "2020-12-18",
-      "carried_from_actual": "2020-12-18",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+      "fallback_date": "2020-12-31",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-07-17",
-      "outcome": "carried_forward",
-      "carried_from_target": "2026-07-10",
-      "carried_from_actual": "2026-07-10",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
-    },
-    {
-      "target_friday": "2026-07-24",
-      "outcome": "carried_forward",
-      "carried_from_target": "2026-07-10",
-      "carried_from_actual": "2026-07-10",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
-    },
-    {
-      "target_friday": "2026-07-31",
-      "outcome": "carried_forward",
-      "carried_from_target": "2026-07-10",
-      "carried_from_actual": "2026-07-10",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+      "target_friday": "2026-08-07",
+      "fallback_date": "2026-08-06",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
+  "carry_forwards": [],
   "edgar_used": [],
+  "endpoint_unavailable": [],
+  "endpoint_health": {
+    "status": "ok",
+    "transport": "product_data_api",
+    "endpoint": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
+    "detail": null,
+    "first_failure_target_friday": null,
+    "n_fridays_unavailable": 0,
+    "carry_forward_on_outage": false,
+    "policy_ref": "DATA_INTEGRITY_POLICY.md"
+  },
   "staleness": {
-    "last_real_fetch_date": "2026-07-10",
-    "days_since_last_real_fetch": 21,
-    "status": "warning",
+    "last_real_fetch_date": "2026-08-06",
+    "days_since_last_real_fetch": 1,
+    "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
     "threshold_source": "global_default",
@@ -4266,34 +4260,33 @@
       ]
     },
     "2020-04-10": {
-      "actual_date": "2020-04-03",
-      "carried_forward_from": "2020-04-03",
+      "actual_date": "2020-04-09",
       "n_tickers": 27,
       "tickers": [
         "XOM",
         "CVX",
         "COP",
         "KMI",
-        "EOG",
         "PSX",
+        "EOG",
         "SLB",
         "VLO",
         "WMB",
         "MPC",
-        "PXD",
         "OXY",
-        "CXO",
+        "PXD",
         "OKE",
+        "CXO",
         "HES",
-        "COG",
         "BKR",
+        "COG",
         "HAL",
         "FANG",
         "NOV",
         "HFC",
         "DVN",
-        "FTI",
         "NBL",
+        "FTI",
         "MRO",
         "APA",
         "HP"
@@ -5449,16 +5442,15 @@
       ]
     },
     "2020-12-25": {
-      "actual_date": "2020-12-18",
-      "carried_forward_from": "2020-12-18",
+      "actual_date": "2020-12-24",
       "n_tickers": 25,
       "tickers": [
         "XOM",
         "CVX",
         "COP",
         "SLB",
-        "EOG",
         "PSX",
+        "EOG",
         "KMI",
         "MPC",
         "WMB",
@@ -5481,18 +5473,17 @@
       ]
     },
     "2021-01-01": {
-      "actual_date": "2020-12-18",
-      "carried_forward_from": "2020-12-18",
+      "actual_date": "2020-12-31",
       "n_tickers": 25,
       "tickers": [
         "XOM",
         "CVX",
         "COP",
+        "PSX",
         "SLB",
         "EOG",
-        "PSX",
-        "KMI",
         "MPC",
+        "KMI",
         "WMB",
         "VLO",
         "PXD",
@@ -13638,23 +13629,22 @@
       ]
     },
     "2026-07-17": {
-      "actual_date": "2026-07-10",
-      "carried_forward_from": "2026-07-10",
+      "actual_date": "2026-07-17",
       "n_tickers": 21,
       "tickers": [
         "XOM",
         "CVX",
         "COP",
-        "WMB",
         "VLO",
         "MPC",
+        "WMB",
         "PSX",
         "EOG",
         "SLB",
         "KMI",
         "TRGP",
-        "BKR",
         "OKE",
+        "BKR",
         "DVN",
         "OXY",
         "FANG",
@@ -13666,23 +13656,22 @@
       ]
     },
     "2026-07-24": {
-      "actual_date": "2026-07-10",
-      "carried_forward_from": "2026-07-10",
+      "actual_date": "2026-07-24",
       "n_tickers": 21,
       "tickers": [
         "XOM",
         "CVX",
         "COP",
         "WMB",
-        "VLO",
         "MPC",
+        "VLO",
         "PSX",
-        "EOG",
         "SLB",
+        "EOG",
         "KMI",
         "TRGP",
-        "BKR",
         "OKE",
+        "BKR",
         "DVN",
         "OXY",
         "FANG",
@@ -13694,22 +13683,21 @@
       ]
     },
     "2026-07-31": {
-      "actual_date": "2026-07-10",
-      "carried_forward_from": "2026-07-10",
+      "actual_date": "2026-07-31",
       "n_tickers": 21,
       "tickers": [
         "XOM",
         "CVX",
         "COP",
-        "WMB",
         "VLO",
         "MPC",
+        "WMB",
         "PSX",
         "EOG",
         "SLB",
         "KMI",
-        "TRGP",
         "BKR",
+        "TRGP",
         "OKE",
         "DVN",
         "OXY",
@@ -13718,6 +13706,33 @@
         "HAL",
         "TPL",
         "EXE",
+        "APA"
+      ]
+    },
+    "2026-08-07": {
+      "actual_date": "2026-08-06",
+      "n_tickers": 21,
+      "tickers": [
+        "XOM",
+        "CVX",
+        "COP",
+        "VLO",
+        "WMB",
+        "MPC",
+        "PSX",
+        "SLB",
+        "EOG",
+        "BKR",
+        "KMI",
+        "TRGP",
+        "OKE",
+        "DVN",
+        "OXY",
+        "FANG",
+        "EQT",
+        "HAL",
+        "EXE",
+        "TPL",
         "APA"
       ]
     }

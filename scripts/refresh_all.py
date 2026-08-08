@@ -83,9 +83,12 @@ def run_step(label: str, cmd: list[str], cwd: Path = REPO_ROOT) -> tuple[bool, f
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--skip-soxx-fetch", action="store_true",
-                    help="Skip fetch_constituents.py --etf SOXX (iShares US "
-                         "is Akamai-blocked; the constituent roster "
-                         "carry-forward holds for weeks at a time).")
+                    help="Skip fetch_constituents.py --etf SOXX. Largely "
+                         "obsolete since Phase 27 (2026-08-07): SOXX is "
+                         "served by the product-data API via "
+                         "targetSite=ishares-us, so it no longer depends on "
+                         "the Akamai-blocked iShares US route and fetches "
+                         "as fast as any other ETF.")
     p.add_argument("--no-tests", action="store_true",
                     help="Skip the final pytest run.")
     args = p.parse_args()

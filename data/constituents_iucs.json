@@ -1,71 +1,64 @@
 {
   "etf": "IUCS",
-  "source": "https://www.ishares.com/uk/individual/en/products/287102/ishares-s-p-500-consumer-staples-sector-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=IUCS_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-07T06:20:16.162409+00:00",
+  "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
+  "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/287102/ishares-s-p-500-consumer-staples-sector-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=IUCS_holdings&dataType=fund",
+  "fetched_at_utc": "2026-08-08T02:23:10.854070+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-07-31",
-  "n_target_fridays": 448,
-  "n_snapshots_written": 448,
+  "end_friday": "2026-08-07",
+  "n_target_fridays": 449,
+  "n_snapshots_written": 449,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
-  "walkbacks": [],
-  "carry_forwards": [
+  "walkbacks": [
     {
       "target_friday": "2020-04-10",
-      "outcome": "carried_forward",
-      "carried_from_target": "2020-04-03",
-      "carried_from_actual": "2020-04-03",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+      "fallback_date": "2020-04-09",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
       "target_friday": "2020-12-25",
-      "outcome": "carried_forward",
-      "carried_from_target": "2020-12-18",
-      "carried_from_actual": "2020-12-18",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+      "fallback_date": "2020-12-24",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
       "target_friday": "2021-01-01",
-      "outcome": "carried_forward",
-      "carried_from_target": "2020-12-18",
-      "carried_from_actual": "2020-12-18",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+      "fallback_date": "2020-12-31",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
       "target_friday": "2024-08-02",
-      "outcome": "carried_forward",
-      "carried_from_target": "2024-07-26",
-      "carried_from_actual": "2024-07-26",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+      "fallback_date": "2024-08-01",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-07-17",
-      "outcome": "carried_forward",
-      "carried_from_target": "2026-07-10",
-      "carried_from_actual": "2026-07-10",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
-    },
-    {
-      "target_friday": "2026-07-24",
-      "outcome": "carried_forward",
-      "carried_from_target": "2026-07-10",
-      "carried_from_actual": "2026-07-10",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
-    },
-    {
-      "target_friday": "2026-07-31",
-      "outcome": "carried_forward",
-      "carried_from_target": "2026-07-10",
-      "carried_from_actual": "2026-07-10",
-      "reason": "no holdings data within 5 days back from target Friday \u2014 reused most recent prior snapshot"
+      "target_friday": "2026-08-07",
+      "fallback_date": "2026-08-06",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
+  "carry_forwards": [],
   "edgar_used": [],
+  "endpoint_unavailable": [],
+  "endpoint_health": {
+    "status": "ok",
+    "transport": "product_data_api",
+    "endpoint": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
+    "detail": null,
+    "first_failure_target_friday": null,
+    "n_fridays_unavailable": 0,
+    "carry_forward_on_outage": false,
+    "policy_ref": "DATA_INTEGRITY_POLICY.md"
+  },
   "staleness": {
-    "last_real_fetch_date": "2026-07-10",
-    "days_since_last_real_fetch": 21,
-    "status": "warning",
+    "last_real_fetch_date": "2026-08-06",
+    "days_since_last_real_fetch": 1,
+    "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
     "threshold_source": "global_default",
@@ -4671,42 +4664,41 @@
       ]
     },
     "2020-04-10": {
-      "actual_date": "2020-04-03",
-      "carried_forward_from": "2020-04-03",
+      "actual_date": "2020-04-09",
       "n_tickers": 33,
       "tickers": [
         "PG",
+        "KO",
         "PEP",
         "WMT",
-        "KO",
         "COST",
         "PM",
-        "MDLZ",
         "MO",
+        "MDLZ",
         "CL",
         "KMB",
-        "GIS",
         "EL",
+        "GIS",
         "WBA",
-        "KR",
-        "CLX",
         "STZ",
-        "HSY",
-        "MNST",
         "SYY",
+        "KR",
+        "MNST",
+        "CLX",
+        "HSY",
         "ADM",
         "MKC",
-        "CHD",
-        "KHC",
         "TSN",
-        "K",
+        "KHC",
+        "CHD",
         "CAG",
+        "K",
         "HRL",
         "SJM",
         "BFB",
-        "CPB",
         "TAP",
         "LW",
+        "CPB",
         "COTY"
       ]
     },
@@ -6101,8 +6093,7 @@
       ]
     },
     "2020-12-25": {
-      "actual_date": "2020-12-18",
-      "carried_forward_from": "2020-12-18",
+      "actual_date": "2020-12-24",
       "n_tickers": 32,
       "tickers": [
         "PG",
@@ -6116,8 +6107,8 @@
         "CL",
         "EL",
         "KMB",
-        "STZ",
         "SYY",
+        "STZ",
         "GIS",
         "MNST",
         "WBA",
@@ -6132,16 +6123,15 @@
         "CAG",
         "K",
         "BFB",
-        "HRL",
         "SJM",
+        "HRL",
         "LW",
         "CPB",
         "TAP"
       ]
     },
     "2021-01-01": {
-      "actual_date": "2020-12-18",
-      "carried_forward_from": "2020-12-18",
+      "actual_date": "2020-12-31",
       "n_tickers": 32,
       "tickers": [
         "PG",
@@ -6155,8 +6145,8 @@
         "CL",
         "EL",
         "KMB",
-        "STZ",
         "SYY",
+        "STZ",
         "GIS",
         "MNST",
         "WBA",
@@ -6164,15 +6154,15 @@
         "CLX",
         "KR",
         "MKC",
-        "KHC",
         "HSY",
+        "KHC",
         "CHD",
         "TSN",
         "CAG",
         "K",
         "BFB",
-        "HRL",
         "SJM",
+        "HRL",
         "LW",
         "CPB",
         "TAP"
@@ -13695,8 +13685,7 @@
       ]
     },
     "2024-08-02": {
-      "actual_date": "2024-07-26",
-      "carried_forward_from": "2024-07-26",
+      "actual_date": "2024-08-01",
       "n_tickers": 38,
       "tickers": [
         "PG",
@@ -13712,11 +13701,11 @@
         "KMB",
         "STZ",
         "GIS",
-        "KR",
         "SYY",
+        "KR",
         "MNST",
-        "KVUE",
         "KDP",
+        "KVUE",
         "ADM",
         "HSY",
         "KHC",
@@ -13727,16 +13716,16 @@
         "MKC",
         "TSN",
         "CLX",
-        "BG",
         "K",
+        "BG",
         "CAG",
         "SJM",
         "TAP",
-        "HRL",
         "CPB",
+        "HRL",
+        "LW",
         "WBA",
-        "BFB",
-        "LW"
+        "BFB"
       ]
     },
     "2024-08-09": {
@@ -18098,8 +18087,7 @@
       ]
     },
     "2026-07-17": {
-      "actual_date": "2026-07-10",
-      "carried_forward_from": "2026-07-10",
+      "actual_date": "2026-07-17",
       "n_tickers": 34,
       "tickers": [
         "WMT",
@@ -18114,8 +18102,8 @@
         "MNST",
         "TGT",
         "KDP",
-        "SYY",
         "ADM",
+        "SYY",
         "KVUE",
         "KMB",
         "KR",
@@ -18139,14 +18127,53 @@
       ]
     },
     "2026-07-24": {
-      "actual_date": "2026-07-10",
-      "carried_forward_from": "2026-07-10",
+      "actual_date": "2026-07-24",
       "n_tickers": 34,
       "tickers": [
         "WMT",
         "COST",
         "PG",
         "KO",
+        "PM",
+        "PEP",
+        "MO",
+        "MDLZ",
+        "CL",
+        "MNST",
+        "TGT",
+        "ADM",
+        "KDP",
+        "SYY",
+        "KVUE",
+        "KMB",
+        "KR",
+        "CASY",
+        "DG",
+        "HSY",
+        "CHD",
+        "KHC",
+        "DLTR",
+        "EL",
+        "GIS",
+        "STZ",
+        "BG",
+        "TSN",
+        "MKC",
+        "SJM",
+        "CLX",
+        "HRL",
+        "TAP",
+        "BFB"
+      ]
+    },
+    "2026-07-31": {
+      "actual_date": "2026-07-31",
+      "n_tickers": 34,
+      "tickers": [
+        "WMT",
+        "COST",
+        "KO",
+        "PG",
         "PM",
         "PEP",
         "MO",
@@ -18179,9 +18206,8 @@
         "BFB"
       ]
     },
-    "2026-07-31": {
-      "actual_date": "2026-07-10",
-      "carried_forward_from": "2026-07-10",
+    "2026-08-07": {
+      "actual_date": "2026-08-06",
       "n_tickers": 34,
       "tickers": [
         "WMT",
@@ -18213,8 +18239,8 @@
         "TSN",
         "BG",
         "MKC",
-        "SJM",
         "CLX",
+        "SJM",
         "HRL",
         "TAP",
         "BFB"

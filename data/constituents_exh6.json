@@ -1,0 +1,8946 @@
+{
+  "etf": "EXH6",
+  "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
+  "legacy_csv_source": null,
+  "fetched_at_utc": "2026-08-08T03:49:26.188465+00:00",
+  "start_friday": "2018-01-05",
+  "end_friday": "2026-08-07",
+  "n_target_fridays": 449,
+  "n_snapshots_written": 449,
+  "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
+  "asset_class_filter": "Equity",
+  "ticker_overrides_applied": {},
+  "walkbacks": [
+    {
+      "target_friday": "2020-04-10",
+      "fallback_date": "2020-04-09",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2020-12-25",
+      "fallback_date": "2020-12-24",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2021-01-01",
+      "fallback_date": "2020-12-31",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-08-07",
+      "fallback_date": "2026-08-06",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    }
+  ],
+  "carry_forwards": [],
+  "edgar_used": [],
+  "endpoint_unavailable": [],
+  "endpoint_health": {
+    "status": "ok",
+    "transport": "product_data_api",
+    "endpoint": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
+    "detail": null,
+    "first_failure_target_friday": null,
+    "n_fridays_unavailable": 0,
+    "carry_forward_on_outage": false,
+    "policy_ref": "DATA_INTEGRITY_POLICY.md"
+  },
+  "staleness": {
+    "last_real_fetch_date": "2026-08-06",
+    "days_since_last_real_fetch": 1,
+    "status": "fresh",
+    "warn_threshold_days": 14,
+    "critical_threshold_days": 30,
+    "threshold_source": "global_default",
+    "threshold_rationale": null,
+    "policy_ref": "DATA_INTEGRITY_POLICY.md"
+  },
+  "snapshots": {
+    "2018-01-05": {
+      "actual_date": "2018-01-05",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "WPP.L",
+        "WKL.AS",
+        "SKY.L",
+        "PUB.PA",
+        "ITV.L",
+        "PSM.DE",
+        "PSON.L",
+        "INF.L",
+        "SESG.PA",
+        "RMV.L",
+        "AUTO.L",
+        "UBM.L",
+        "SPR.DE",
+        "TNET.BR",
+        "MMB.PA",
+        "DEC.PA",
+        "RRTL.DE",
+        "ETL.PA",
+        "MONY.L",
+        "SCHA.OL",
+        "DMGT.L"
+      ]
+    },
+    "2018-01-12": {
+      "actual_date": "2018-01-12",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "WPP.L",
+        "REN.AS",
+        "WKL.AS",
+        "PUB.PA",
+        "SKY.L",
+        "ITV.L",
+        "INF.L",
+        "PSM.DE",
+        "PSON.L",
+        "SESG.PA",
+        "RMV.L",
+        "AUTO.L",
+        "SPR.DE",
+        "UBM.L",
+        "TNET.BR",
+        "MMB.PA",
+        "DEC.PA",
+        "RRTL.DE",
+        "ETL.PA",
+        "MONY.L",
+        "SCHA.OL",
+        "DMGT.L"
+      ]
+    },
+    "2018-01-19": {
+      "actual_date": "2018-01-19",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "WPP.L",
+        "REN.AS",
+        "WKL.AS",
+        "PUB.PA",
+        "SKY.L",
+        "ITV.L",
+        "PSM.DE",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "RMV.L",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE",
+        "MMB.PA",
+        "ETL.PA",
+        "MONY.L",
+        "SCHA.OL",
+        "DMGT.L"
+      ]
+    },
+    "2018-01-26": {
+      "actual_date": "2018-01-26",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "WPP.L",
+        "REN.AS",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "ITV.L",
+        "PSM.DE",
+        "INF.L",
+        "PSON.L",
+        "RMV.L",
+        "SESG.PA",
+        "AUTO.L",
+        "UBM.L",
+        "SPR.DE",
+        "TNET.BR",
+        "DEC.PA",
+        "MMB.PA",
+        "RRTL.DE",
+        "ETL.PA",
+        "MONY.L",
+        "SCHA.OL",
+        "DMGT.L"
+      ]
+    },
+    "2018-02-02": {
+      "actual_date": "2018-02-02",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "WPP.L",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "ITV.L",
+        "PSM.DE",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "RMV.L",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "TNET.BR",
+        "DEC.PA",
+        "MMB.PA",
+        "RRTL.DE",
+        "ETL.PA",
+        "MONY.L",
+        "DMGT.L",
+        "SCHA.OL"
+      ]
+    },
+    "2018-02-09": {
+      "actual_date": "2018-02-09",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "WPP.L",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "PUB.PA",
+        "WKL.AS",
+        "ITV.L",
+        "PSM.DE",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "RMV.L",
+        "AUTO.L",
+        "UBM.L",
+        "SPR.DE",
+        "TNET.BR",
+        "RRTL.DE",
+        "MMB.PA",
+        "DEC.PA",
+        "ETL.PA",
+        "DMGT.L",
+        "MONY.L",
+        "SCHA.OL"
+      ]
+    },
+    "2018-02-16": {
+      "actual_date": "2018-02-16",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "WPP.L",
+        "REL.L",
+        "REN.AS",
+        "PUB.PA",
+        "SKY.L",
+        "WKL.AS",
+        "ITV.L",
+        "PSM.DE",
+        "INF.L",
+        "PSON.L",
+        "RMV.L",
+        "SESG.PA",
+        "AUTO.L",
+        "UBM.L",
+        "SPR.DE",
+        "TNET.BR",
+        "RRTL.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "MONY.L",
+        "SCHA.OL"
+      ]
+    },
+    "2018-02-23": {
+      "actual_date": "2018-02-23",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "WPP.L",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "PUB.PA",
+        "WKL.AS",
+        "ITV.L",
+        "PSM.DE",
+        "INF.L",
+        "PSON.L",
+        "RMV.L",
+        "SESG.PA",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "TNET.BR",
+        "RRTL.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-03-02": {
+      "actual_date": "2018-03-02",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "WPP.L",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "PUB.PA",
+        "WKL.AS",
+        "PSM.DE",
+        "ITV.L",
+        "PSON.L",
+        "INF.L",
+        "SESG.PA",
+        "RMV.L",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "TNET.BR",
+        "RRTL.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-03-09": {
+      "actual_date": "2018-03-09",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "WPP.L",
+        "SKY.L",
+        "PUB.PA",
+        "WKL.AS",
+        "ITV.L",
+        "PSON.L",
+        "PSM.DE",
+        "INF.L",
+        "SESG.PA",
+        "RMV.L",
+        "AUTO.L",
+        "UBM.L",
+        "SPR.DE",
+        "TNET.BR",
+        "RRTL.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-03-16": {
+      "actual_date": "2018-03-16",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "WPP.L",
+        "REN.AS",
+        "SKY.L",
+        "PUB.PA",
+        "WKL.AS",
+        "PSON.L",
+        "INF.L",
+        "ITV.L",
+        "PSM.DE",
+        "SESG.PA",
+        "RMV.L",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "TNET.BR",
+        "RRTL.DE",
+        "MMB.PA",
+        "ETL.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-03-23": {
+      "actual_date": "2018-03-23",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "WPP.L",
+        "REN.AS",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "PSON.L",
+        "INF.L",
+        "ITV.L",
+        "PSM.DE",
+        "SESG.PA",
+        "RMV.L",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "TNET.BR",
+        "RRTL.DE",
+        "MMB.PA",
+        "ETL.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-03-30": {
+      "actual_date": "2018-03-30",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "WPP.L",
+        "REN.AS",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "RMV.L",
+        "UBM.L",
+        "SESG.PA",
+        "AUTO.L",
+        "SPR.DE",
+        "TNET.BR",
+        "RRTL.DE",
+        "MMB.PA",
+        "ETL.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-04-06": {
+      "actual_date": "2018-04-06",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "WPP.L",
+        "REN.AS",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "ITV.L",
+        "INF.L",
+        "PSM.DE",
+        "PSON.L",
+        "RMV.L",
+        "SESG.PA",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "TNET.BR",
+        "RRTL.DE",
+        "MMB.PA",
+        "ETL.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-04-13": {
+      "actual_date": "2018-04-13",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "WPP.L",
+        "REN.AS",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "PSON.L",
+        "INF.L",
+        "PSM.DE",
+        "ITV.L",
+        "RMV.L",
+        "SESG.PA",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "TNET.BR",
+        "RRTL.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-04-20": {
+      "actual_date": "2018-04-20",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "WPP.L",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "PSON.L",
+        "PSM.DE",
+        "INF.L",
+        "ITV.L",
+        "SESG.PA",
+        "RMV.L",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "RRTL.DE",
+        "TNET.BR",
+        "ETL.PA",
+        "MMB.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-04-27": {
+      "actual_date": "2018-04-27",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "WPP.L",
+        "SKY.L",
+        "PUB.PA",
+        "WKL.AS",
+        "PSON.L",
+        "PSM.DE",
+        "INF.L",
+        "ITV.L",
+        "SESG.PA",
+        "RMV.L",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "RRTL.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "DMGT.L",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-05-04": {
+      "actual_date": "2018-05-04",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "WPP.L",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "PUB.PA",
+        "WKL.AS",
+        "PSON.L",
+        "PSM.DE",
+        "INF.L",
+        "ITV.L",
+        "SESG.PA",
+        "RMV.L",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "RRTL.DE",
+        "TNET.BR",
+        "ETL.PA",
+        "MMB.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "MONY.L",
+        "SCHA.OL"
+      ]
+    },
+    "2018-05-11": {
+      "actual_date": "2018-05-11",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "WPP.L",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "INF.L",
+        "PSM.DE",
+        "SESG.PA",
+        "RMV.L",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "RRTL.DE",
+        "TNET.BR",
+        "ETL.PA",
+        "MMB.PA",
+        "DMGT.L",
+        "DEC.PA",
+        "MONY.L",
+        "SCHA.OL"
+      ]
+    },
+    "2018-05-18": {
+      "actual_date": "2018-05-18",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "WPP.L",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "INF.L",
+        "PSM.DE",
+        "RMV.L",
+        "SESG.PA",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "RRTL.DE",
+        "DMGT.L",
+        "MMB.PA",
+        "TNET.BR",
+        "ETL.PA",
+        "DEC.PA",
+        "MONY.L",
+        "SCHA.OL"
+      ]
+    },
+    "2018-05-25": {
+      "actual_date": "2018-05-25",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "WPP.L",
+        "REN.AS",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "INF.L",
+        "PSM.DE",
+        "RMV.L",
+        "SESG.PA",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "RRTL.DE",
+        "MMB.PA",
+        "TNET.BR",
+        "ETL.PA",
+        "DMGT.L",
+        "DEC.PA",
+        "MONY.L",
+        "SCHA.OL"
+      ]
+    },
+    "2018-06-01": {
+      "actual_date": "2018-06-01",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "WPP.L",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "INF.L",
+        "PSM.DE",
+        "SESG.PA",
+        "RMV.L",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "RRTL.DE",
+        "MMB.PA",
+        "ETL.PA",
+        "TNET.BR",
+        "DMGT.L",
+        "DEC.PA",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-06-08": {
+      "actual_date": "2018-06-08",
+      "n_tickers": 25,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "WPP.L",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "INF.L",
+        "SESG.PA",
+        "PSM.DE",
+        "RMV.L",
+        "UBM.L",
+        "AUTO.L",
+        "SPR.DE",
+        "MMB.PA",
+        "RRTL.DE",
+        "ETL.PA",
+        "TNET.BR",
+        "SCHA.OL",
+        "DMGT.L",
+        "DEC.PA",
+        "MONY.L",
+        "1624733D.PA"
+      ]
+    },
+    "2018-06-15": {
+      "actual_date": "2018-06-15",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "WPP.L",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "SPR.DE",
+        "RRTL.DE",
+        "MMB.PA",
+        "ETL.PA",
+        "SCHA.OL",
+        "DMGT.L",
+        "DEC.PA",
+        "TNET.BR",
+        "MONY.L",
+        "1624733D.PA"
+      ]
+    },
+    "2018-06-22": {
+      "actual_date": "2018-06-22",
+      "n_tickers": 24,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "WPP.L",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "ITV.L",
+        "PSON.L",
+        "SESG.PA",
+        "RMV.L",
+        "PSM.DE",
+        "AUTO.L",
+        "SPR.DE",
+        "RRTL.DE",
+        "MMB.PA",
+        "ETL.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "SCHA.OL",
+        "TNET.BR",
+        "MONY.L",
+        "1624733D.PA"
+      ]
+    },
+    "2018-06-29": {
+      "actual_date": "2018-06-29",
+      "n_tickers": 23,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "ITV.L",
+        "PSON.L",
+        "SESG.PA",
+        "RMV.L",
+        "PSM.DE",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "DMGT.L",
+        "RRTL.DE",
+        "DEC.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "MONY.L"
+      ]
+    },
+    "2018-07-06": {
+      "actual_date": "2018-07-06",
+      "n_tickers": 23,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "ITV.L",
+        "PSON.L",
+        "SESG.PA",
+        "RMV.L",
+        "PSM.DE",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "RRTL.DE",
+        "MMB.PA",
+        "DMGT.L",
+        "TNET.BR",
+        "DEC.PA",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2018-07-13": {
+      "actual_date": "2018-07-13",
+      "n_tickers": 23,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "RMV.L",
+        "PSM.DE",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "RRTL.DE",
+        "DMGT.L",
+        "SCHA.OL",
+        "DEC.PA",
+        "TNET.BR",
+        "MONY.L"
+      ]
+    },
+    "2018-07-20": {
+      "actual_date": "2018-07-20",
+      "n_tickers": 23,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "RMV.L",
+        "PSM.DE",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "SCHA.OL",
+        "RRTL.DE",
+        "DMGT.L",
+        "DEC.PA",
+        "TNET.BR",
+        "MONY.L"
+      ]
+    },
+    "2018-07-27": {
+      "actual_date": "2018-07-27",
+      "n_tickers": 23,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "SPR.DE",
+        "MMB.PA",
+        "ETL.PA",
+        "SCHA.OL",
+        "RRTL.DE",
+        "DMGT.L",
+        "DEC.PA",
+        "TNET.BR",
+        "MONY.L"
+      ]
+    },
+    "2018-08-03": {
+      "actual_date": "2018-08-03",
+      "n_tickers": 23,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "RRTL.DE",
+        "SCHA.OL",
+        "DMGT.L",
+        "TNET.BR",
+        "DEC.PA",
+        "MONY.L"
+      ]
+    },
+    "2018-08-10": {
+      "actual_date": "2018-08-10",
+      "n_tickers": 23,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "RRTL.DE",
+        "SCHA.OL",
+        "DMGT.L",
+        "TNET.BR",
+        "DEC.PA",
+        "MONY.L"
+      ]
+    },
+    "2018-08-17": {
+      "actual_date": "2018-08-17",
+      "n_tickers": 23,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "WPP.L",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "RRTL.DE",
+        "DMGT.L",
+        "SCHA.OL",
+        "TNET.BR",
+        "DEC.PA",
+        "MONY.L"
+      ]
+    },
+    "2018-08-24": {
+      "actual_date": "2018-08-24",
+      "n_tickers": 23,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "WPP.L",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "RRTL.DE",
+        "DMGT.L",
+        "DEC.PA",
+        "MONY.L"
+      ]
+    },
+    "2018-08-31": {
+      "actual_date": "2018-08-31",
+      "n_tickers": 23,
+      "tickers": [
+        "VIV.PA",
+        "REL.L",
+        "REN.AS",
+        "WPP.L",
+        "SKY.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "RRTL.DE",
+        "SCHA.OL",
+        "TNET.BR",
+        "DMGT.L",
+        "DEC.PA",
+        "MONY.L"
+      ]
+    },
+    "2018-09-07": {
+      "actual_date": "2018-09-07",
+      "n_tickers": 23,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "TNET.BR",
+        "SCHA.OL",
+        "RRTL.DE",
+        "DMGT.L",
+        "DEC.PA",
+        "MONY.L",
+        "RENT.AS"
+      ]
+    },
+    "2018-09-14": {
+      "actual_date": "2018-09-14",
+      "n_tickers": 22,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "SCHA.OL",
+        "RRTL.DE",
+        "TNET.BR",
+        "DMGT.L",
+        "DEC.PA",
+        "MONY.L"
+      ]
+    },
+    "2018-09-21": {
+      "actual_date": "2018-09-21",
+      "n_tickers": 23,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "AUTO.L",
+        "RMV.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "SCHA.OL",
+        "RRTL.DE",
+        "TNET.BR",
+        "DMGT.L",
+        "DEC.PA",
+        "DKSH.SW",
+        "MONY.L"
+      ]
+    },
+    "2018-09-28": {
+      "actual_date": "2018-09-28",
+      "n_tickers": 22,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE",
+        "DMGT.L",
+        "DKSH.SW"
+      ]
+    },
+    "2018-10-05": {
+      "actual_date": "2018-10-05",
+      "n_tickers": 22,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "SKY.L",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "SESG.PA",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "ETL.PA",
+        "SPR.DE",
+        "MMB.PA",
+        "SCHA.OL",
+        "RRTL.DE",
+        "DEC.PA",
+        "TNET.BR",
+        "DMGT.L",
+        "DKSH.SW"
+      ]
+    },
+    "2018-10-12": {
+      "actual_date": "2018-10-12",
+      "n_tickers": 22,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "SESG.PA",
+        "ITV.L",
+        "PSON.L",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "ETL.PA",
+        "SPR.DE",
+        "MMB.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "RRTL.DE",
+        "DEC.PA",
+        "DMGT.L",
+        "DKSH.SW",
+        "SKY.L"
+      ]
+    },
+    "2018-10-19": {
+      "actual_date": "2018-10-19",
+      "n_tickers": 22,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WPP.L",
+        "WKL.AS",
+        "PUB.PA",
+        "INF.L",
+        "SESG.PA",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "ETL.PA",
+        "SPR.DE",
+        "MMB.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "RRTL.DE",
+        "DEC.PA",
+        "DMGT.L",
+        "DKSH.SW",
+        "SKY.L"
+      ]
+    },
+    "2018-10-26": {
+      "actual_date": "2018-10-26",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "RMV.L",
+        "PSM.DE",
+        "AUTO.L",
+        "ETL.PA",
+        "SPR.DE",
+        "MMB.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "DMGT.L",
+        "DEC.PA",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2018-11-02": {
+      "actual_date": "2018-11-02",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "RMV.L",
+        "PSM.DE",
+        "AUTO.L",
+        "SPR.DE",
+        "MMB.PA",
+        "SCHA.OL",
+        "ETL.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "DMGT.L",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2018-11-09": {
+      "actual_date": "2018-11-09",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "MMB.PA",
+        "SCHA.OL",
+        "ETL.PA",
+        "DMGT.L",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2018-11-16": {
+      "actual_date": "2018-11-16",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "MMB.PA",
+        "SCHA.OL",
+        "ETL.PA",
+        "DMGT.L",
+        "DEC.PA",
+        "TNET.BR",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2018-11-23": {
+      "actual_date": "2018-11-23",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "MMB.PA",
+        "SCHA.OL",
+        "ETL.PA",
+        "DMGT.L",
+        "DEC.PA",
+        "TNET.BR",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2018-11-30": {
+      "actual_date": "2018-11-30",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "MMB.PA",
+        "ETL.PA",
+        "SCHA.OL",
+        "DEC.PA",
+        "TNET.BR",
+        "RRTL.DE",
+        "DMGT.L",
+        "DKSH.SW"
+      ]
+    },
+    "2018-12-07": {
+      "actual_date": "2018-12-07",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE",
+        "DKSH.SW",
+        "DMGT.L"
+      ]
+    },
+    "2018-12-14": {
+      "actual_date": "2018-12-14",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "ETL.PA",
+        "SPR.DE",
+        "SCHA.OL",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "DKSH.SW",
+        "RRTL.DE",
+        "DMGT.L"
+      ]
+    },
+    "2018-12-21": {
+      "actual_date": "2018-12-21",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "DKSH.SW",
+        "DEC.PA",
+        "RRTL.DE",
+        "DMGT.L"
+      ]
+    },
+    "2018-12-28": {
+      "actual_date": "2018-12-28",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "ETL.PA",
+        "SCHA.OL",
+        "MMB.PA",
+        "TNET.BR",
+        "DKSH.SW",
+        "DEC.PA",
+        "DMGT.L",
+        "RRTL.DE"
+      ]
+    },
+    "2019-01-04": {
+      "actual_date": "2019-01-04",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "SCHA.OL",
+        "ETL.PA",
+        "MMB.PA",
+        "TNET.BR",
+        "DKSH.SW",
+        "DEC.PA",
+        "DMGT.L",
+        "RRTL.DE"
+      ]
+    },
+    "2019-01-11": {
+      "actual_date": "2019-01-11",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSM.DE",
+        "SPR.DE",
+        "SCHA.OL",
+        "ETL.PA",
+        "MMB.PA",
+        "TNET.BR",
+        "DKSH.SW",
+        "DEC.PA",
+        "RRTL.DE",
+        "DMGT.L"
+      ]
+    },
+    "2019-01-18": {
+      "actual_date": "2019-01-18",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSM.DE",
+        "SCHA.OL",
+        "ETL.PA",
+        "SPR.DE",
+        "MMB.PA",
+        "DKSH.SW",
+        "TNET.BR",
+        "DEC.PA",
+        "DMGT.L",
+        "RRTL.DE"
+      ]
+    },
+    "2019-01-25": {
+      "actual_date": "2019-01-25",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSM.DE",
+        "SPR.DE",
+        "ETL.PA",
+        "SCHA.OL",
+        "MMB.PA",
+        "DKSH.SW",
+        "TNET.BR",
+        "DEC.PA",
+        "DMGT.L",
+        "RRTL.DE"
+      ]
+    },
+    "2019-02-01": {
+      "actual_date": "2019-02-01",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSM.DE",
+        "SPR.DE",
+        "ETL.PA",
+        "SCHA.OL",
+        "MMB.PA",
+        "TNET.BR",
+        "DKSH.SW",
+        "DEC.PA",
+        "DMGT.L",
+        "RRTL.DE"
+      ]
+    },
+    "2019-02-08": {
+      "actual_date": "2019-02-08",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSM.DE",
+        "SPR.DE",
+        "ETL.PA",
+        "SCHA.OL",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "DMGT.L",
+        "DKSH.SW",
+        "RRTL.DE"
+      ]
+    },
+    "2019-02-15": {
+      "actual_date": "2019-02-15",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSM.DE",
+        "SCHA.OL",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "DEC.PA",
+        "TNET.BR",
+        "DMGT.L",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2019-02-22": {
+      "actual_date": "2019-02-22",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SCHA.OL",
+        "ETL.PA",
+        "SPR.DE",
+        "MMB.PA",
+        "DEC.PA",
+        "DMGT.L",
+        "TNET.BR",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2019-03-01": {
+      "actual_date": "2019-03-01",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SCHA.OL",
+        "SPR.DE",
+        "MMB.PA",
+        "ETL.PA",
+        "DMGT.L",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2019-03-08": {
+      "actual_date": "2019-03-08",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "RMV.L",
+        "AUTO.L",
+        "PSM.DE",
+        "SCHA.OL",
+        "MMB.PA",
+        "ETL.PA",
+        "SPR.DE",
+        "DMGT.L",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2019-03-15": {
+      "actual_date": "2019-03-15",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SCHA.OL",
+        "MMB.PA",
+        "SPR.DE",
+        "ETL.PA",
+        "DMGT.L",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2019-03-22": {
+      "actual_date": "2019-03-22",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "AUTO.L",
+        "SESG.PA",
+        "RMV.L",
+        "PSM.DE",
+        "SCHA.OL",
+        "MMB.PA",
+        "SPR.DE",
+        "ETL.PA",
+        "TNET.BR",
+        "DMGT.L",
+        "DEC.PA",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2019-03-29": {
+      "actual_date": "2019-03-29",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "SCHA.OL",
+        "SPR.DE",
+        "MMB.PA",
+        "TNET.BR",
+        "ETL.PA",
+        "DMGT.L",
+        "DEC.PA",
+        "RRTL.DE",
+        "DKSH.SW"
+      ]
+    },
+    "2019-04-05": {
+      "actual_date": "2019-04-05",
+      "n_tickers": 22,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SCHA.OL",
+        "SPR.DE",
+        "MMB.PA",
+        "TNET.BR",
+        "ETL.PA",
+        "DEC.PA",
+        "RRTL.DE",
+        "DKSH.SW",
+        "DMGT.L",
+        "DGW2"
+      ]
+    },
+    "2019-04-12": {
+      "actual_date": "2019-04-12",
+      "n_tickers": 24,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "AUTO.L",
+        "SESG.PA",
+        "RMV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "MMB.PA",
+        "TNET.BR",
+        "ETL.PA",
+        "DEC.PA",
+        "SCHA.OL",
+        "RRTL.DE",
+        "DKSH.SW",
+        "DMGT.L",
+        "ADEA.OL",
+        "DGW2",
+        "ERM.L"
+      ]
+    },
+    "2019-04-19": {
+      "actual_date": "2019-04-19",
+      "n_tickers": 22,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "AUTO.L",
+        "RMV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "MMB.PA",
+        "TNET.BR",
+        "ETL.PA",
+        "DEC.PA",
+        "SCHA.OL",
+        "RRTL.DE",
+        "DKSH.SW",
+        "DMGT.L",
+        "ADEA.OL"
+      ]
+    },
+    "2019-04-26": {
+      "actual_date": "2019-04-26",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "SPR.DE",
+        "MMB.PA",
+        "TNET.BR",
+        "ETL.PA",
+        "DEC.PA",
+        "RRTL.DE",
+        "SCHA.OL",
+        "DKSH.SW",
+        "DMGT.L"
+      ]
+    },
+    "2019-05-03": {
+      "actual_date": "2019-05-03",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "PSM.DE",
+        "SPR.DE",
+        "MMB.PA",
+        "TNET.BR",
+        "ETL.PA",
+        "DEC.PA",
+        "SCHA.OL",
+        "RRTL.DE",
+        "DKSH.SW",
+        "DMGT.L"
+      ]
+    },
+    "2019-05-10": {
+      "actual_date": "2019-05-10",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "AUTO.L",
+        "SESG.PA",
+        "RMV.L",
+        "ITV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "MMB.PA",
+        "TNET.BR",
+        "ETL.PA",
+        "DEC.PA",
+        "SCHA.OL",
+        "RRTL.DE",
+        "DKSH.SW",
+        "DMGT.L"
+      ]
+    },
+    "2019-05-17": {
+      "actual_date": "2019-05-17",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "ITV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "TNET.BR",
+        "MMB.PA",
+        "ETL.PA",
+        "DEC.PA",
+        "RRTL.DE",
+        "SCHA.OL",
+        "DKSH.SW",
+        "DMGT.L"
+      ]
+    },
+    "2019-05-24": {
+      "actual_date": "2019-05-24",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "ITV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "TNET.BR",
+        "MMB.PA",
+        "ETL.PA",
+        "DEC.PA",
+        "SCHA.OL",
+        "DKSH.SW",
+        "RRTL.DE",
+        "DMGT.L"
+      ]
+    },
+    "2019-05-31": {
+      "actual_date": "2019-05-31",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "ITV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "TNET.BR",
+        "MMB.PA",
+        "ETL.PA",
+        "SCHA.OL",
+        "DEC.PA",
+        "DKSH.SW",
+        "RRTL.DE",
+        "DMGT.L"
+      ]
+    },
+    "2019-06-07": {
+      "actual_date": "2019-06-07",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "ITV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "TNET.BR",
+        "MMB.PA",
+        "ETL.PA",
+        "SCHA.OL",
+        "DEC.PA",
+        "DKSH.SW",
+        "RRTL.DE",
+        "DMGT.L"
+      ]
+    },
+    "2019-06-14": {
+      "actual_date": "2019-06-14",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "ITV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "TNET.BR",
+        "MMB.PA",
+        "ETL.PA",
+        "DEC.PA",
+        "SCHA.OL",
+        "RRTL.DE",
+        "DKSH.SW",
+        "DMGT.L"
+      ]
+    },
+    "2019-06-21": {
+      "actual_date": "2019-06-21",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "ITV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "SCHA.OL",
+        "RRTL.DE",
+        "DMGT.L",
+        "DKSH.SW"
+      ]
+    },
+    "2019-06-28": {
+      "actual_date": "2019-06-28",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "ITV.L",
+        "SPR.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "SCHA.OL",
+        "RRTL.DE"
+      ]
+    },
+    "2019-07-05": {
+      "actual_date": "2019-07-05",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "ITV.L",
+        "PSM.DE",
+        "SPR.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "SCHA.OL",
+        "RRTL.DE"
+      ]
+    },
+    "2019-07-12": {
+      "actual_date": "2019-07-12",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "AUTO.L",
+        "RMV.L",
+        "SESG.PA",
+        "ITV.L",
+        "SPR.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "SCHA.OL",
+        "RRTL.DE"
+      ]
+    },
+    "2019-07-19": {
+      "actual_date": "2019-07-19",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "AUTO.L",
+        "SESG.PA",
+        "RMV.L",
+        "ITV.L",
+        "SPR.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "MONY.L",
+        "DEC.PA",
+        "TNET.BR",
+        "SCHA.OL",
+        "RRTL.DE"
+      ]
+    },
+    "2019-07-26": {
+      "actual_date": "2019-07-26",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SESG.PA",
+        "AUTO.L",
+        "RMV.L",
+        "ITV.L",
+        "SPR.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "MONY.L",
+        "TNET.BR",
+        "SCHA.OL",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-08-02": {
+      "actual_date": "2019-08-02",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SESG.PA",
+        "AUTO.L",
+        "RMV.L",
+        "ITV.L",
+        "SPR.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "TNET.BR",
+        "SCHA.OL",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-08-09": {
+      "actual_date": "2019-08-09",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SESG.PA",
+        "AUTO.L",
+        "RMV.L",
+        "ITV.L",
+        "SPR.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "TNET.BR",
+        "MMB.PA",
+        "SCHA.OL",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-08-16": {
+      "actual_date": "2019-08-16",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SESG.PA",
+        "AUTO.L",
+        "RMV.L",
+        "ITV.L",
+        "SPR.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-08-23": {
+      "actual_date": "2019-08-23",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SESG.PA",
+        "AUTO.L",
+        "RMV.L",
+        "ITV.L",
+        "SPR.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "SCHA.OL",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-08-30": {
+      "actual_date": "2019-08-30",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SESG.PA",
+        "AUTO.L",
+        "RMV.L",
+        "ITV.L",
+        "SPR.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "SCHA.OL",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-09-06": {
+      "actual_date": "2019-09-06",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "RMV.L",
+        "ITV.L",
+        "AUTO.L",
+        "SESG.PA",
+        "SPR.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "SCHA.OL",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-09-13": {
+      "actual_date": "2019-09-13",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "SPR.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "SCHA.OL",
+        "DEC.PA",
+        "TNET.BR",
+        "RRTL.DE"
+      ]
+    },
+    "2019-09-20": {
+      "actual_date": "2019-09-20",
+      "n_tickers": 21,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "RMV.L",
+        "AUTO.L",
+        "PSM.DE",
+        "EVD.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE",
+        "SPR.DE"
+      ]
+    },
+    "2019-09-27": {
+      "actual_date": "2019-09-27",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "SCHA.OL",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-10-04": {
+      "actual_date": "2019-10-04",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SESG.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "SCHA.OL",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-10-11": {
+      "actual_date": "2019-10-11",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "SESG.PA",
+        "PSON.L",
+        "ITV.L",
+        "AUTO.L",
+        "RMV.L",
+        "EVD.DE",
+        "ETL.PA",
+        "PSM.DE",
+        "MONY.L",
+        "MMB.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-10-18": {
+      "actual_date": "2019-10-18",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "SESG.PA",
+        "ITV.L",
+        "PSON.L",
+        "RMV.L",
+        "AUTO.L",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "SCHA.OL",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-10-25": {
+      "actual_date": "2019-10-25",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "SESG.PA",
+        "ITV.L",
+        "RMV.L",
+        "PSON.L",
+        "AUTO.L",
+        "PSM.DE",
+        "EVD.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "MONY.L",
+        "SCHA.OL",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-11-01": {
+      "actual_date": "2019-11-01",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "SESG.PA",
+        "ITV.L",
+        "PSON.L",
+        "RMV.L",
+        "AUTO.L",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "DEC.PA",
+        "RRTL.DE"
+      ]
+    },
+    "2019-11-08": {
+      "actual_date": "2019-11-08",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "SESG.PA",
+        "PSON.L",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "SCHA.OL",
+        "DEC.PA",
+        "TNET.BR",
+        "RRTL.DE"
+      ]
+    },
+    "2019-11-15": {
+      "actual_date": "2019-11-15",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "ITV.L",
+        "RMV.L",
+        "PSON.L",
+        "AUTO.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "SCHA.OL",
+        "DEC.PA",
+        "TNET.BR",
+        "RRTL.DE"
+      ]
+    },
+    "2019-11-22": {
+      "actual_date": "2019-11-22",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "ITV.L",
+        "PSON.L",
+        "AUTO.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "SCHA.OL",
+        "DEC.PA",
+        "TNET.BR",
+        "RRTL.DE"
+      ]
+    },
+    "2019-11-29": {
+      "actual_date": "2019-11-29",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "SCHA.OL",
+        "DEC.PA",
+        "TNET.BR",
+        "RRTL.DE"
+      ]
+    },
+    "2019-12-06": {
+      "actual_date": "2019-12-06",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "SCHA.OL",
+        "DEC.PA",
+        "TNET.BR",
+        "RRTL.DE"
+      ]
+    },
+    "2019-12-13": {
+      "actual_date": "2019-12-13",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "PSM.DE",
+        "EVD.DE",
+        "ETL.PA",
+        "MMB.PA",
+        "SCHA.OL",
+        "DEC.PA",
+        "MONY.L",
+        "TNET.BR",
+        "RRTL.DE"
+      ]
+    },
+    "2019-12-20": {
+      "actual_date": "2019-12-20",
+      "n_tickers": 20,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "SCHA.OL",
+        "MONY.L",
+        "DEC.PA",
+        "MMB.PA",
+        "TNET.BR",
+        "RRTL.DE"
+      ]
+    },
+    "2019-12-27": {
+      "actual_date": "2019-12-27",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "SCHA.OL",
+        "MONY.L",
+        "DEC.PA",
+        "MMB.PA",
+        "TNET.BR"
+      ]
+    },
+    "2020-01-03": {
+      "actual_date": "2020-01-03",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "ETL.PA",
+        "SCHA.OL",
+        "MONY.L",
+        "DEC.PA",
+        "MMB.PA",
+        "TNET.BR"
+      ]
+    },
+    "2020-01-10": {
+      "actual_date": "2020-01-10",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "ITV.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "SCHA.OL",
+        "ETL.PA",
+        "MONY.L",
+        "DEC.PA",
+        "TNET.BR",
+        "MMB.PA"
+      ]
+    },
+    "2020-01-17": {
+      "actual_date": "2020-01-17",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "ITV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "SCHA.OL",
+        "ETL.PA",
+        "MONY.L",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA"
+      ]
+    },
+    "2020-01-24": {
+      "actual_date": "2020-01-24",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "ITV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "SCHA.OL",
+        "ETL.PA",
+        "MONY.L",
+        "TNET.BR",
+        "MMB.PA",
+        "DEC.PA"
+      ]
+    },
+    "2020-01-31": {
+      "actual_date": "2020-01-31",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "ITV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "SCHA.OL",
+        "ETL.PA",
+        "MONY.L",
+        "TNET.BR",
+        "DEC.PA",
+        "MMB.PA"
+      ]
+    },
+    "2020-02-07": {
+      "actual_date": "2020-02-07",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "ITV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "SCHA.OL",
+        "TNET.BR",
+        "MONY.L",
+        "ETL.PA",
+        "MMB.PA",
+        "DEC.PA"
+      ]
+    },
+    "2020-02-14": {
+      "actual_date": "2020-02-14",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "ITV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "SCHA.OL",
+        "MONY.L",
+        "TNET.BR",
+        "MMB.PA",
+        "ETL.PA",
+        "DEC.PA"
+      ]
+    },
+    "2020-02-21": {
+      "actual_date": "2020-02-21",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "AUTO.L",
+        "ITV.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L",
+        "SCHA.OL",
+        "ETL.PA",
+        "MMB.PA",
+        "TNET.BR",
+        "DEC.PA"
+      ]
+    },
+    "2020-02-28": {
+      "actual_date": "2020-02-28",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "AUTO.L",
+        "ITV.L",
+        "PSON.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L",
+        "ETL.PA",
+        "SCHA.OL",
+        "TNET.BR",
+        "MMB.PA",
+        "DEC.PA"
+      ]
+    },
+    "2020-03-06": {
+      "actual_date": "2020-03-06",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L",
+        "SCHA.OL",
+        "TNET.BR",
+        "ETL.PA",
+        "DEC.PA",
+        "MMB.PA"
+      ]
+    },
+    "2020-03-13": {
+      "actual_date": "2020-03-13",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "ITV.L",
+        "SESG.PA",
+        "EVD.DE",
+        "MONY.L",
+        "PSM.DE",
+        "SCHA.OL",
+        "TNET.BR",
+        "ETL.PA",
+        "DEC.PA",
+        "MMB.PA"
+      ]
+    },
+    "2020-03-20": {
+      "actual_date": "2020-03-20",
+      "n_tickers": 19,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "RMV.L",
+        "AUTO.L",
+        "ITV.L",
+        "EVD.DE",
+        "MONY.L",
+        "ETL.PA",
+        "PSM.DE",
+        "SCHA.OL",
+        "TNET.BR",
+        "DEC.PA",
+        "SESG.PA",
+        "MMB.PA"
+      ]
+    },
+    "2020-03-27": {
+      "actual_date": "2020-03-27",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "PSON.L",
+        "AUTO.L",
+        "ITV.L",
+        "EVD.DE",
+        "MONY.L",
+        "PSM.DE",
+        "ETL.PA",
+        "SCHA.OL"
+      ]
+    },
+    "2020-04-03": {
+      "actual_date": "2020-04-03",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "RMV.L",
+        "PSON.L",
+        "AUTO.L",
+        "ITV.L",
+        "EVD.DE",
+        "MONY.L",
+        "PSM.DE",
+        "ETL.PA",
+        "SCHA.OL"
+      ]
+    },
+    "2020-04-10": {
+      "actual_date": "2020-04-09",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "RMV.L",
+        "PSON.L",
+        "AUTO.L",
+        "ITV.L",
+        "EVD.DE",
+        "MONY.L",
+        "PSM.DE",
+        "ETL.PA",
+        "SCHA.OL"
+      ]
+    },
+    "2020-04-17": {
+      "actual_date": "2020-04-17",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "MONY.L",
+        "PSM.DE",
+        "ETL.PA",
+        "SCHA.OL"
+      ]
+    },
+    "2020-04-24": {
+      "actual_date": "2020-04-24",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "MONY.L",
+        "PSM.DE",
+        "ETL.PA",
+        "SCHA.OL"
+      ]
+    },
+    "2020-05-01": {
+      "actual_date": "2020-05-01",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L",
+        "ETL.PA",
+        "SCHA.OL"
+      ]
+    },
+    "2020-05-08": {
+      "actual_date": "2020-05-08",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L",
+        "SCHA.OL",
+        "ETL.PA"
+      ]
+    },
+    "2020-05-15": {
+      "actual_date": "2020-05-15",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "AUTO.L",
+        "RMV.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "MONY.L",
+        "SCHA.OL",
+        "ETL.PA"
+      ]
+    },
+    "2020-05-22": {
+      "actual_date": "2020-05-22",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "AUTO.L",
+        "RMV.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "MONY.L",
+        "SCHA.OL",
+        "ETL.PA"
+      ]
+    },
+    "2020-05-29": {
+      "actual_date": "2020-05-29",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "INF.L",
+        "RMV.L",
+        "AUTO.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "MONY.L",
+        "SCHA.OL",
+        "ETL.PA"
+      ]
+    },
+    "2020-06-05": {
+      "actual_date": "2020-06-05",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "MONY.L",
+        "SCHA.OL",
+        "ETL.PA"
+      ]
+    },
+    "2020-06-12": {
+      "actual_date": "2020-06-12",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L",
+        "SCHA.OL",
+        "ETL.PA"
+      ]
+    },
+    "2020-06-19": {
+      "actual_date": "2020-06-19",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "AUTO.L",
+        "RMV.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "MONY.L",
+        "PSM.DE",
+        "SCHA.OL",
+        "ETL.PA"
+      ]
+    },
+    "2020-06-26": {
+      "actual_date": "2020-06-26",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "AUTO.L",
+        "RMV.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "MONY.L",
+        "PSM.DE",
+        "SCHA.OL"
+      ]
+    },
+    "2020-07-03": {
+      "actual_date": "2020-07-03",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "AUTO.L",
+        "RMV.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "MONY.L",
+        "PSM.DE",
+        "SCHA.OL"
+      ]
+    },
+    "2020-07-10": {
+      "actual_date": "2020-07-10",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "AUTO.L",
+        "RMV.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "SCHA.OL",
+        "MONY.L"
+      ]
+    },
+    "2020-07-17": {
+      "actual_date": "2020-07-17",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "AUTO.L",
+        "RMV.L",
+        "PSON.L",
+        "ITV.L",
+        "SCHA.OL",
+        "PSM.DE",
+        "EVD.DE",
+        "MONY.L"
+      ]
+    },
+    "2020-07-24": {
+      "actual_date": "2020-07-24",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "AUTO.L",
+        "RMV.L",
+        "PSON.L",
+        "ITV.L",
+        "SCHA.OL",
+        "PSM.DE",
+        "EVD.DE",
+        "MONY.L"
+      ]
+    },
+    "2020-07-31": {
+      "actual_date": "2020-07-31",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "AUTO.L",
+        "INF.L",
+        "RMV.L",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "MONY.L",
+        "PSM.DE"
+      ]
+    },
+    "2020-08-07": {
+      "actual_date": "2020-08-07",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "RMV.L",
+        "INF.L",
+        "AUTO.L",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L"
+      ]
+    },
+    "2020-08-14": {
+      "actual_date": "2020-08-14",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L"
+      ]
+    },
+    "2020-08-21": {
+      "actual_date": "2020-08-21",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L"
+      ]
+    },
+    "2020-08-28": {
+      "actual_date": "2020-08-28",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L"
+      ]
+    },
+    "2020-09-04": {
+      "actual_date": "2020-09-04",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "RMV.L",
+        "AUTO.L",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L",
+        "PUB.RI20.PA"
+      ]
+    },
+    "2020-09-11": {
+      "actual_date": "2020-09-11",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "RMV.L",
+        "AUTO.L",
+        "INF.L",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "MONY.L",
+        "PUB.RI20.PA"
+      ]
+    },
+    "2020-09-18": {
+      "actual_date": "2020-09-18",
+      "n_tickers": 15,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "RMV.L",
+        "AUTO.L",
+        "MONY.L",
+        "PUB.RI20.PA"
+      ]
+    },
+    "2020-09-25": {
+      "actual_date": "2020-09-25",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE"
+      ]
+    },
+    "2020-10-02": {
+      "actual_date": "2020-10-02",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE"
+      ]
+    },
+    "2020-10-09": {
+      "actual_date": "2020-10-09",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE"
+      ]
+    },
+    "2020-10-16": {
+      "actual_date": "2020-10-16",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE"
+      ]
+    },
+    "2020-10-23": {
+      "actual_date": "2020-10-23",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "SCHA.OL",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE"
+      ]
+    },
+    "2020-10-30": {
+      "actual_date": "2020-10-30",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "SCHA.OL",
+        "EVD.DE",
+        "PSM.DE"
+      ]
+    },
+    "2020-11-06": {
+      "actual_date": "2020-11-06",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "SCHA.OL",
+        "EVD.DE",
+        "PSM.DE"
+      ]
+    },
+    "2020-11-13": {
+      "actual_date": "2020-11-13",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "SCHA.OL",
+        "EVD.DE",
+        "PSM.DE"
+      ]
+    },
+    "2020-11-20": {
+      "actual_date": "2020-11-20",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "SCHA.OL",
+        "PSM.DE"
+      ]
+    },
+    "2020-11-27": {
+      "actual_date": "2020-11-27",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "SCHA.OL",
+        "EVD.DE",
+        "PSM.DE"
+      ]
+    },
+    "2020-12-04": {
+      "actual_date": "2020-12-04",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "SCHA.OL",
+        "PSM.DE"
+      ]
+    },
+    "2020-12-11": {
+      "actual_date": "2020-12-11",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "SCHA.OL",
+        "PSM.DE"
+      ]
+    },
+    "2020-12-18": {
+      "actual_date": "2020-12-18",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE",
+        "SCHA.OL"
+      ]
+    },
+    "2020-12-25": {
+      "actual_date": "2020-12-24",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-01-01": {
+      "actual_date": "2020-12-31",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-01-08": {
+      "actual_date": "2021-01-08",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-01-15": {
+      "actual_date": "2021-01-15",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-01-22": {
+      "actual_date": "2021-01-22",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-01-29": {
+      "actual_date": "2021-01-29",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-02-05": {
+      "actual_date": "2021-02-05",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-02-12": {
+      "actual_date": "2021-02-12",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-02-19": {
+      "actual_date": "2021-02-19",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-02-26": {
+      "actual_date": "2021-02-26",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-03-05": {
+      "actual_date": "2021-03-05",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-03-12": {
+      "actual_date": "2021-03-12",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-03-19": {
+      "actual_date": "2021-03-19",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-03-26": {
+      "actual_date": "2021-03-26",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-04-02": {
+      "actual_date": "2021-04-02",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-04-09": {
+      "actual_date": "2021-04-09",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-04-16": {
+      "actual_date": "2021-04-16",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-04-23": {
+      "actual_date": "2021-04-23",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-04-30": {
+      "actual_date": "2021-04-30",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-05-07": {
+      "actual_date": "2021-05-07",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-05-14": {
+      "actual_date": "2021-05-14",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-05-21": {
+      "actual_date": "2021-05-21",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-05-28": {
+      "actual_date": "2021-05-28",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-06-04": {
+      "actual_date": "2021-06-04",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "VIV.PA",
+        "WKL.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-06-11": {
+      "actual_date": "2021-06-11",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-06-18": {
+      "actual_date": "2021-06-18",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "PSM.DE",
+        "SFOR.L",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-06-25": {
+      "actual_date": "2021-06-25",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "PSM.DE",
+        "EVD.DE",
+        "SFOR.L",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-07-02": {
+      "actual_date": "2021-07-02",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "PSM.DE",
+        "SFOR.L",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-07-09": {
+      "actual_date": "2021-07-09",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "SFOR.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-07-16": {
+      "actual_date": "2021-07-16",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "SFOR.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-07-23": {
+      "actual_date": "2021-07-23",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "SFOR.L",
+        "PSM.DE",
+        "EVD.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-07-30": {
+      "actual_date": "2021-07-30",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "SFOR.L",
+        "EVD.DE",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2021-08-06": {
+      "actual_date": "2021-08-06",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "SFOR.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-08-13": {
+      "actual_date": "2021-08-13",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "SFOR.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-08-20": {
+      "actual_date": "2021-08-20",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE",
+        "EVD.DE"
+      ]
+    },
+    "2021-08-27": {
+      "actual_date": "2021-08-27",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "SFOR.L",
+        "NENT-B.ST",
+        "EVD.DE",
+        "PSM.DE"
+      ]
+    },
+    "2021-09-03": {
+      "actual_date": "2021-09-03",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE",
+        "EVD.DE"
+      ]
+    },
+    "2021-09-10": {
+      "actual_date": "2021-09-10",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE",
+        "EVD.DE"
+      ]
+    },
+    "2021-09-17": {
+      "actual_date": "2021-09-17",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "VIV.PA",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "SFOR.L",
+        "NENT-B.ST",
+        "EVD.DE",
+        "PSM.DE"
+      ]
+    },
+    "2021-09-24": {
+      "actual_date": "2021-09-24",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UNMSG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "SFOR.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-10-01": {
+      "actual_date": "2021-10-01",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UNMSG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "SFOR.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-10-08": {
+      "actual_date": "2021-10-08",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UNMSG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "SFOR.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-10-15": {
+      "actual_date": "2021-10-15",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UNMSG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "SFOR.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-10-22": {
+      "actual_date": "2021-10-22",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UNMSG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "SFOR.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-10-29": {
+      "actual_date": "2021-10-29",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UNMSG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "SFOR.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-11-05": {
+      "actual_date": "2021-11-05",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UNMSG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-11-12": {
+      "actual_date": "2021-11-12",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UNMSG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "SFOR.L",
+        "PSM.DE"
+      ]
+    },
+    "2021-11-19": {
+      "actual_date": "2021-11-19",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-11-26": {
+      "actual_date": "2021-11-26",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "VIV.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-12-03": {
+      "actual_date": "2021-12-03",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "VIV.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-12-10": {
+      "actual_date": "2021-12-10",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "SFOR.L",
+        "PSM.DE"
+      ]
+    },
+    "2021-12-17": {
+      "actual_date": "2021-12-17",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "EVD.DE",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-12-24": {
+      "actual_date": "2021-12-24",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "VIV.PA",
+        "INF.L",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "EVD.DE",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2021-12-31": {
+      "actual_date": "2021-12-31",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "VIV.PA",
+        "INF.L",
+        "PSON.L",
+        "FUTR.L",
+        "ITV.L",
+        "EVD.DE",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-01-07": {
+      "actual_date": "2022-01-07",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-01-14": {
+      "actual_date": "2022-01-14",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "SFOR.L",
+        "NENT-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-01-21": {
+      "actual_date": "2022-01-21",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "SFOR.L",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2022-01-28": {
+      "actual_date": "2022-01-28",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "SFOR.L",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2022-02-04": {
+      "actual_date": "2022-02-04",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "WPP.L",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "SFOR.L",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2022-02-11": {
+      "actual_date": "2022-02-11",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "WPP.L",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "SFOR.L",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2022-02-18": {
+      "actual_date": "2022-02-18",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "WPP.L",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "FUTR.L",
+        "SFOR.L",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2022-02-25": {
+      "actual_date": "2022-02-25",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "WPP.L",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "FUTR.L",
+        "SFOR.L",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2022-03-04": {
+      "actual_date": "2022-03-04",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "SFOR.L",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2022-03-11": {
+      "actual_date": "2022-03-11",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "SFOR.L",
+        "PSM.DE",
+        "NENT-B.ST"
+      ]
+    },
+    "2022-03-18": {
+      "actual_date": "2022-03-18",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "SFOR.L",
+        "PSM.DE"
+      ]
+    },
+    "2022-03-25": {
+      "actual_date": "2022-03-25",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "FUTR.L",
+        "EVD.DE",
+        "NENT-B.ST",
+        "SFOR.L",
+        "PSM.DE"
+      ]
+    },
+    "2022-04-01": {
+      "actual_date": "2022-04-01",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "NENT-B.ST",
+        "PSM.DE",
+        "SFOR.L"
+      ]
+    },
+    "2022-04-08": {
+      "actual_date": "2022-04-08",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "NENT-B.ST",
+        "PSM.DE",
+        "SFOR.L"
+      ]
+    },
+    "2022-04-15": {
+      "actual_date": "2022-04-15",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "NENT-B.ST",
+        "PSM.DE",
+        "SFOR.L"
+      ]
+    },
+    "2022-04-22": {
+      "actual_date": "2022-04-22",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "NENT-B.ST",
+        "PSM.DE",
+        "SFOR.L"
+      ]
+    },
+    "2022-04-29": {
+      "actual_date": "2022-04-29",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "NENT-B.ST",
+        "PSM.DE",
+        "SFOR.L"
+      ]
+    },
+    "2022-05-06": {
+      "actual_date": "2022-05-06",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "NENT-B.ST",
+        "SFOR.L",
+        "PSM.DE"
+      ]
+    },
+    "2022-05-13": {
+      "actual_date": "2022-05-13",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "NENT-B.ST",
+        "PSM.DE",
+        "SFOR.L"
+      ]
+    },
+    "2022-05-20": {
+      "actual_date": "2022-05-20",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE",
+        "SFOR.L"
+      ]
+    },
+    "2022-05-27": {
+      "actual_date": "2022-05-27",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE",
+        "SFOR.L"
+      ]
+    },
+    "2022-06-03": {
+      "actual_date": "2022-06-03",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE",
+        "SFOR.L"
+      ]
+    },
+    "2022-06-10": {
+      "actual_date": "2022-06-10",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "WPP.L",
+        "PUB.PA",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "PSM.DE",
+        "VPLAY-B.ST",
+        "SFOR.L"
+      ]
+    },
+    "2022-06-17": {
+      "actual_date": "2022-06-17",
+      "n_tickers": 14,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "PSM.DE",
+        "VPLAY-B.ST",
+        "SFOR.L"
+      ]
+    },
+    "2022-06-24": {
+      "actual_date": "2022-06-24",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "PSM.DE",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-07-01": {
+      "actual_date": "2022-07-01",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "PSM.DE",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-07-08": {
+      "actual_date": "2022-07-08",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-07-15": {
+      "actual_date": "2022-07-15",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-07-22": {
+      "actual_date": "2022-07-22",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-07-29": {
+      "actual_date": "2022-07-29",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "ITV.L",
+        "EVD.DE",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-08-05": {
+      "actual_date": "2022-08-05",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-08-12": {
+      "actual_date": "2022-08-12",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-08-19": {
+      "actual_date": "2022-08-19",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-08-26": {
+      "actual_date": "2022-08-26",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-09-02": {
+      "actual_date": "2022-09-02",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-09-09": {
+      "actual_date": "2022-09-09",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-09-16": {
+      "actual_date": "2022-09-16",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST",
+        "PSM.DE"
+      ]
+    },
+    "2022-09-23": {
+      "actual_date": "2022-09-23",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-09-30": {
+      "actual_date": "2022-09-30",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-10-07": {
+      "actual_date": "2022-10-07",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-10-14": {
+      "actual_date": "2022-10-14",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-10-21": {
+      "actual_date": "2022-10-21",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "VPLAY-B.ST",
+        "FUTR.L"
+      ]
+    },
+    "2022-10-28": {
+      "actual_date": "2022-10-28",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-11-04": {
+      "actual_date": "2022-11-04",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "ITV.L",
+        "EVD.DE",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-11-11": {
+      "actual_date": "2022-11-11",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-11-18": {
+      "actual_date": "2022-11-18",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-11-25": {
+      "actual_date": "2022-11-25",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-12-02": {
+      "actual_date": "2022-12-02",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-12-09": {
+      "actual_date": "2022-12-09",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-12-16": {
+      "actual_date": "2022-12-16",
+      "n_tickers": 12,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L",
+        "VPLAY-B.ST"
+      ]
+    },
+    "2022-12-23": {
+      "actual_date": "2022-12-23",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2022-12-30": {
+      "actual_date": "2022-12-30",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-01-06": {
+      "actual_date": "2023-01-06",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-01-13": {
+      "actual_date": "2023-01-13",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-01-20": {
+      "actual_date": "2023-01-20",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-01-27": {
+      "actual_date": "2023-01-27",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-02-03": {
+      "actual_date": "2023-02-03",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-02-10": {
+      "actual_date": "2023-02-10",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-02-17": {
+      "actual_date": "2023-02-17",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-02-24": {
+      "actual_date": "2023-02-24",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-03-03": {
+      "actual_date": "2023-03-03",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "ITV.L",
+        "EVD.DE",
+        "FUTR.L"
+      ]
+    },
+    "2023-03-10": {
+      "actual_date": "2023-03-10",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-03-17": {
+      "actual_date": "2023-03-17",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-03-24": {
+      "actual_date": "2023-03-24",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "ITV.L",
+        "EVD.DE",
+        "FUTR.L"
+      ]
+    },
+    "2023-03-31": {
+      "actual_date": "2023-03-31",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "ITV.L",
+        "EVD.DE",
+        "FUTR.L"
+      ]
+    },
+    "2023-04-07": {
+      "actual_date": "2023-04-07",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "ITV.L",
+        "EVD.DE",
+        "FUTR.L"
+      ]
+    },
+    "2023-04-14": {
+      "actual_date": "2023-04-14",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "WPP.L",
+        "INF.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-04-21": {
+      "actual_date": "2023-04-21",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "WPP.L",
+        "INF.L",
+        "VIV.PA",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "FUTR.L"
+      ]
+    },
+    "2023-04-28": {
+      "actual_date": "2023-04-28",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-05-05": {
+      "actual_date": "2023-05-05",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-05-12": {
+      "actual_date": "2023-05-12",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "VIV.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-05-19": {
+      "actual_date": "2023-05-19",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-05-26": {
+      "actual_date": "2023-05-26",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-06-02": {
+      "actual_date": "2023-06-02",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-06-09": {
+      "actual_date": "2023-06-09",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-06-16": {
+      "actual_date": "2023-06-16",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "FUTR.L"
+      ]
+    },
+    "2023-06-23": {
+      "actual_date": "2023-06-23",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-06-30": {
+      "actual_date": "2023-06-30",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-07-07": {
+      "actual_date": "2023-07-07",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-07-14": {
+      "actual_date": "2023-07-14",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-07-21": {
+      "actual_date": "2023-07-21",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-07-28": {
+      "actual_date": "2023-07-28",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-08-04": {
+      "actual_date": "2023-08-04",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-08-11": {
+      "actual_date": "2023-08-11",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-08-18": {
+      "actual_date": "2023-08-18",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-08-25": {
+      "actual_date": "2023-08-25",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-09-01": {
+      "actual_date": "2023-09-01",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-09-08": {
+      "actual_date": "2023-09-08",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-09-15": {
+      "actual_date": "2023-09-15",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-09-22": {
+      "actual_date": "2023-09-22",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-09-29": {
+      "actual_date": "2023-09-29",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-10-06": {
+      "actual_date": "2023-10-06",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-10-13": {
+      "actual_date": "2023-10-13",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-10-20": {
+      "actual_date": "2023-10-20",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-10-27": {
+      "actual_date": "2023-10-27",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-11-03": {
+      "actual_date": "2023-11-03",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-11-10": {
+      "actual_date": "2023-11-10",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-11-17": {
+      "actual_date": "2023-11-17",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-11-24": {
+      "actual_date": "2023-11-24",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-12-01": {
+      "actual_date": "2023-12-01",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-12-08": {
+      "actual_date": "2023-12-08",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-12-15": {
+      "actual_date": "2023-12-15",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-12-22": {
+      "actual_date": "2023-12-22",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2023-12-29": {
+      "actual_date": "2023-12-29",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2024-01-05": {
+      "actual_date": "2024-01-05",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2024-01-12": {
+      "actual_date": "2024-01-12",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2024-01-19": {
+      "actual_date": "2024-01-19",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2024-01-26": {
+      "actual_date": "2024-01-26",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2024-02-02": {
+      "actual_date": "2024-02-02",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2024-02-09": {
+      "actual_date": "2024-02-09",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2024-02-16": {
+      "actual_date": "2024-02-16",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2024-02-23": {
+      "actual_date": "2024-02-23",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2024-03-01": {
+      "actual_date": "2024-03-01",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2024-03-08": {
+      "actual_date": "2024-03-08",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L"
+      ]
+    },
+    "2024-03-15": {
+      "actual_date": "2024-03-15",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-03-22": {
+      "actual_date": "2024-03-22",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-03-29": {
+      "actual_date": "2024-03-29",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-04-05": {
+      "actual_date": "2024-04-05",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-04-12": {
+      "actual_date": "2024-04-12",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "PUB.PA",
+        "WKL.AS",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-04-19": {
+      "actual_date": "2024-04-19",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-04-26": {
+      "actual_date": "2024-04-26",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "PUB.PA",
+        "WKL.AS",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-05-03": {
+      "actual_date": "2024-05-03",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "PUB.PA",
+        "WKL.AS",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-05-10": {
+      "actual_date": "2024-05-10",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "PUB.PA",
+        "WKL.AS",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-05-17": {
+      "actual_date": "2024-05-17",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "PUB.PA",
+        "WKL.AS",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-05-24": {
+      "actual_date": "2024-05-24",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-05-31": {
+      "actual_date": "2024-05-31",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-06-07": {
+      "actual_date": "2024-06-07",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-06-14": {
+      "actual_date": "2024-06-14",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-06-21": {
+      "actual_date": "2024-06-21",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-06-28": {
+      "actual_date": "2024-06-28",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-07-05": {
+      "actual_date": "2024-07-05",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-07-12": {
+      "actual_date": "2024-07-12",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-07-19": {
+      "actual_date": "2024-07-19",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-07-26": {
+      "actual_date": "2024-07-26",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-08-02": {
+      "actual_date": "2024-08-02",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-08-09": {
+      "actual_date": "2024-08-09",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-08-16": {
+      "actual_date": "2024-08-16",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-08-23": {
+      "actual_date": "2024-08-23",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-08-30": {
+      "actual_date": "2024-08-30",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-09-06": {
+      "actual_date": "2024-09-06",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-09-13": {
+      "actual_date": "2024-09-13",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-09-20": {
+      "actual_date": "2024-09-20",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-09-27": {
+      "actual_date": "2024-09-27",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-10-04": {
+      "actual_date": "2024-10-04",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-10-11": {
+      "actual_date": "2024-10-11",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-10-18": {
+      "actual_date": "2024-10-18",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-10-25": {
+      "actual_date": "2024-10-25",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-11-01": {
+      "actual_date": "2024-11-01",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-11-08": {
+      "actual_date": "2024-11-08",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-11-15": {
+      "actual_date": "2024-11-15",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-11-22": {
+      "actual_date": "2024-11-22",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-11-29": {
+      "actual_date": "2024-11-29",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-12-06": {
+      "actual_date": "2024-12-06",
+      "n_tickers": 11,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA"
+      ]
+    },
+    "2024-12-13": {
+      "actual_date": "2024-12-13",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "VIV.PA",
+        "EVD.DE",
+        "ITV.L",
+        "IPS.PA",
+        "HAVAS.AS",
+        "ALHG.PA"
+      ]
+    },
+    "2024-12-20": {
+      "actual_date": "2024-12-20",
+      "n_tickers": 13,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L",
+        "IPS.PA",
+        "ALHG.PA",
+        "HAVAS.AS"
+      ]
+    },
+    "2024-12-27": {
+      "actual_date": "2024-12-27",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-01-03": {
+      "actual_date": "2025-01-03",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "WPP.L",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-01-10": {
+      "actual_date": "2025-01-10",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-01-17": {
+      "actual_date": "2025-01-17",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-01-24": {
+      "actual_date": "2025-01-24",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-01-31": {
+      "actual_date": "2025-01-31",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-02-07": {
+      "actual_date": "2025-02-07",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-02-14": {
+      "actual_date": "2025-02-14",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-02-21": {
+      "actual_date": "2025-02-21",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-02-28": {
+      "actual_date": "2025-02-28",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-03-07": {
+      "actual_date": "2025-03-07",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "PUB.PA",
+        "WKL.AS",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-03-14": {
+      "actual_date": "2025-03-14",
+      "n_tickers": 10,
+      "tickers": [
+        "REL.L",
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "CAN.L"
+      ]
+    },
+    "2025-03-21": {
+      "actual_date": "2025-03-21",
+      "n_tickers": 11,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L",
+        "CAN.L",
+        "REL.L"
+      ]
+    },
+    "2025-03-28": {
+      "actual_date": "2025-03-28",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-04-04": {
+      "actual_date": "2025-04-04",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-04-11": {
+      "actual_date": "2025-04-11",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-04-18": {
+      "actual_date": "2025-04-18",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-04-25": {
+      "actual_date": "2025-04-25",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-05-02": {
+      "actual_date": "2025-05-02",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-05-09": {
+      "actual_date": "2025-05-09",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-05-16": {
+      "actual_date": "2025-05-16",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-05-23": {
+      "actual_date": "2025-05-23",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-05-30": {
+      "actual_date": "2025-05-30",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-06-06": {
+      "actual_date": "2025-06-06",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-06-13": {
+      "actual_date": "2025-06-13",
+      "n_tickers": 9,
+      "tickers": [
+        "WKL.AS",
+        "PUB.PA",
+        "UMG.AS",
+        "INF.L",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-06-20": {
+      "actual_date": "2025-06-20",
+      "n_tickers": 9,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L",
+        "WKL.AS"
+      ]
+    },
+    "2025-06-27": {
+      "actual_date": "2025-06-27",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-07-04": {
+      "actual_date": "2025-07-04",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-07-11": {
+      "actual_date": "2025-07-11",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-07-18": {
+      "actual_date": "2025-07-18",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-07-25": {
+      "actual_date": "2025-07-25",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-08-01": {
+      "actual_date": "2025-08-01",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-08-08": {
+      "actual_date": "2025-08-08",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-08-15": {
+      "actual_date": "2025-08-15",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-08-22": {
+      "actual_date": "2025-08-22",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-08-29": {
+      "actual_date": "2025-08-29",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-09-05": {
+      "actual_date": "2025-09-05",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-09-12": {
+      "actual_date": "2025-09-12",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-09-19": {
+      "actual_date": "2025-09-19",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-09-26": {
+      "actual_date": "2025-09-26",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-10-03": {
+      "actual_date": "2025-10-03",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-10-10": {
+      "actual_date": "2025-10-10",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-10-17": {
+      "actual_date": "2025-10-17",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-10-24": {
+      "actual_date": "2025-10-24",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-10-31": {
+      "actual_date": "2025-10-31",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-11-07": {
+      "actual_date": "2025-11-07",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-11-14": {
+      "actual_date": "2025-11-14",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA",
+        "ITV.L"
+      ]
+    },
+    "2025-11-21": {
+      "actual_date": "2025-11-21",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-11-28": {
+      "actual_date": "2025-11-28",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-12-05": {
+      "actual_date": "2025-12-05",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-12-12": {
+      "actual_date": "2025-12-12",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-12-19": {
+      "actual_date": "2025-12-19",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2025-12-26": {
+      "actual_date": "2025-12-26",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-01-02": {
+      "actual_date": "2026-01-02",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-01-09": {
+      "actual_date": "2026-01-09",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-01-16": {
+      "actual_date": "2026-01-16",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-01-23": {
+      "actual_date": "2026-01-23",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-01-30": {
+      "actual_date": "2026-01-30",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "WPP.L",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-02-06": {
+      "actual_date": "2026-02-06",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "WPP.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-02-13": {
+      "actual_date": "2026-02-13",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "WPP.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-02-20": {
+      "actual_date": "2026-02-20",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "WPP.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-02-27": {
+      "actual_date": "2026-02-27",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "WPP.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-03-06": {
+      "actual_date": "2026-03-06",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "WPP.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-03-13": {
+      "actual_date": "2026-03-13",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "WPP.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-03-20": {
+      "actual_date": "2026-03-20",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "EVD.DE",
+        "ITV.L",
+        "BOL.PA",
+        "WPP.L"
+      ]
+    },
+    "2026-03-27": {
+      "actual_date": "2026-03-27",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "BOL.PA",
+        "WPP.L",
+        "EVD.DE"
+      ]
+    },
+    "2026-04-03": {
+      "actual_date": "2026-04-03",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "BOL.PA",
+        "WPP.L",
+        "EVD.DE"
+      ]
+    },
+    "2026-04-10": {
+      "actual_date": "2026-04-10",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "BOL.PA",
+        "EVD.DE",
+        "WPP.L"
+      ]
+    },
+    "2026-04-17": {
+      "actual_date": "2026-04-17",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "INF.L",
+        "PUB.PA",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-04-24": {
+      "actual_date": "2026-04-24",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "BOL.PA",
+        "EVD.DE",
+        "WPP.L"
+      ]
+    },
+    "2026-05-01": {
+      "actual_date": "2026-05-01",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "BOL.PA",
+        "WPP.L",
+        "EVD.DE"
+      ]
+    },
+    "2026-05-08": {
+      "actual_date": "2026-05-08",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "WPP.L",
+        "BOL.PA",
+        "EVD.DE"
+      ]
+    },
+    "2026-05-15": {
+      "actual_date": "2026-05-15",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "PSON.L",
+        "INF.L",
+        "BOL.PA",
+        "ITV.L",
+        "WPP.L",
+        "EVD.DE"
+      ]
+    },
+    "2026-05-22": {
+      "actual_date": "2026-05-22",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "BOL.PA",
+        "WPP.L",
+        "EVD.DE"
+      ]
+    },
+    "2026-05-29": {
+      "actual_date": "2026-05-29",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "BOL.PA",
+        "WPP.L"
+      ]
+    },
+    "2026-06-05": {
+      "actual_date": "2026-06-05",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "PSON.L",
+        "INF.L",
+        "ITV.L",
+        "BOL.PA",
+        "WPP.L",
+        "EVD.DE"
+      ]
+    },
+    "2026-06-12": {
+      "actual_date": "2026-06-12",
+      "n_tickers": 8,
+      "tickers": [
+        "UMG.AS",
+        "PUB.PA",
+        "PSON.L",
+        "INF.L",
+        "ITV.L",
+        "BOL.PA",
+        "WPP.L",
+        "EVD.DE"
+      ]
+    },
+    "2026-06-19": {
+      "actual_date": "2026-06-19",
+      "n_tickers": 8,
+      "tickers": [
+        "PUB.PA",
+        "INF.L",
+        "UMG.AS",
+        "PSON.L",
+        "BOL.PA",
+        "ITV.L",
+        "WPP.L",
+        "EVD.DE"
+      ]
+    },
+    "2026-06-26": {
+      "actual_date": "2026-06-26",
+      "n_tickers": 8,
+      "tickers": [
+        "PUB.PA",
+        "INF.L",
+        "UMG.AS",
+        "PSON.L",
+        "ITV.L",
+        "WPP.L",
+        "EVD.DE",
+        "BOL.PA"
+      ]
+    },
+    "2026-07-03": {
+      "actual_date": "2026-07-03",
+      "n_tickers": 8,
+      "tickers": [
+        "PUB.PA",
+        "INF.L",
+        "UMG.AS",
+        "PSON.L",
+        "ITV.L",
+        "EVD.DE",
+        "WPP.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-07-10": {
+      "actual_date": "2026-07-10",
+      "n_tickers": 8,
+      "tickers": [
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "UMG.AS",
+        "WPP.L",
+        "ITV.L",
+        "EVD.DE",
+        "BOL.PA"
+      ]
+    },
+    "2026-07-17": {
+      "actual_date": "2026-07-17",
+      "n_tickers": 8,
+      "tickers": [
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "UMG.AS",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-07-24": {
+      "actual_date": "2026-07-24",
+      "n_tickers": 8,
+      "tickers": [
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "UMG.AS",
+        "WPP.L",
+        "ITV.L",
+        "EVD.DE",
+        "BOL.PA"
+      ]
+    },
+    "2026-07-31": {
+      "actual_date": "2026-07-31",
+      "n_tickers": 8,
+      "tickers": [
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "UMG.AS",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-08-07": {
+      "actual_date": "2026-08-06",
+      "n_tickers": 8,
+      "tickers": [
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "UMG.AS",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    }
+  }
+}

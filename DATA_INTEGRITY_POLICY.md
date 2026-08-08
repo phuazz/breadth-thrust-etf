@@ -1,7 +1,7 @@
 # Data Integrity Policy — USD Multi-Strategy ETF Portfolio
 
 **Owner:** Phua Zheng Hao (CIO)
-**Last reviewed:** 2026-05-31
+**Last reviewed:** 2026-08-07
 **Repository:** `breadth-thrust-etf`
 **Applies to:** signal generation, walk-forward analytics, and dashboard publication for the deployed USD multi-strategy blend.
 
@@ -29,8 +29,8 @@ This policy covers data-source identification, refresh cadence, staleness limits
 
 | Source | Used for | Endpoint pattern | Known issues |
 |--------|---------|------------------|--------------|
-| iShares UK | 13 Strategy A sectors + 5 Strategy D UCITS + country UCITS for the (deferred) Country sleeve | `https://www.ishares.com/uk/individual/en/products/<id>/<slug>/<ajax>.ajax?fileType=csv&fileName=<ETF>_holdings&dataType=fund` | Generally reliable; occasional rate-limiting handled by the 1.5s + jitter throttle in `fetch_constituents.py` |
-| iShares US | SOXX (Strategy A) — **primary** | `https://www.ishares.com/us/products/239705/<slug>/<ajax>.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund` | **Akamai-blocked from automated requests since at least 2026-05-15.** Returns a 10MB warmup HTML page instead of the CSV. Carry-forward + EDGAR fallback active. |
+| BlackRock product-data API | **All 24 ETFs** — both regions (Phase 27, since 2026-08-07) | `https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data?portfolioId=<product_id>&component=holdings&targetSite=ishares-{uk,us}&asOfDate=YYYYMMDD` (full parameter set in `fetch_constituents.product_data_params`) | Serves arbitrary historical `asOfDate` back to at least 2018-01-05. **For a date with no holdings (weekend, holiday, pre-inception, future) it does NOT error: it returns a null roster with `asOfDate` silently rewritten to the LATEST available date.** Accepting that would stamp today's roster onto a historical Friday, so the parser enforces date parity. `hasData` is `true` even for a null roster and must not be used. |
+| iShares UK / US `.ajax` CSV | **Retired.** Source of the ~10,400 cached CSVs in `data/raw_ishares/`, still read cache-first for history | `https://www.ishares.com/{uk/individual/en,us}/products/<id>/<slug>/<ajax>.ajax?fileType=csv&fileName=<ETF>_holdings&dataType=fund` | **Dead since the 2026-07 re-platform.** Returns the single-page product shell as HTTP 200 HTML for every date, including dates that previously worked. The iShares US variant was separately Akamai-blocked from ~2026-05-15; the product-data API reaches SOXX via `targetSite=ishares-us` and supersedes both problems. |
 | SEC EDGAR (N-PORT-P) | SOXX (Strategy A) — **secondary, since Phase 26.2** | `https://data.sec.gov/submissions/CIK0001100663.json` (filings index) + `https://www.sec.gov/Archives/edgar/data/1100663/<acc>/primary_doc.xml` (per-filing holdings) | Quarterly cadence (filed within 60 days of quarter-end). 28 of 33 holdings resolve to US-listed tickers via OpenFIGI; 5 are foreign primaries without ADRs + cash sweep — denominator hit ~6%, signal-direction-preserving. |
 | OpenFIGI (no-auth tier) | SOXX (Strategy A) — CUSIP → US-listed ticker mapping | `https://api.openfigi.com/v3/mapping` | Free tier: 10 mappings per request, 25 req per 6 sec. On-disk cache at `data/cusip_to_ticker_cache.json` so we only call once per new constituent. |
 
@@ -56,7 +56,7 @@ This policy covers data-source identification, refresh cadence, staleness limits
 | **Weekly factsheet** | GitHub Actions cron, Saturday 02:00 UTC (`.github/workflows/weekly_factsheet.yml`) | SOXX constituents + breadth, Strategy A top-K rotation, Strategies B / C, multi-strategy blend, risk overlay, dashboard, factsheet PDF, weekly email | ~10 min |
 | **Manual full refresh** | Operator run, ad-hoc | All constituents (all 23 ETFs), all breadth caches, all rotations, dashboard | ~10-20 min depending on cache warmth |
 
-The weekly workflow runs `fetch_constituents.py --etf SOXX` to invoke the carry-forward mechanism when iShares US is blocked. This keeps the SOXX breadth series extending against the most recent known-good roster even when fresh constituents are unavailable. **Other ETFs (iShares UK and Europe) are refreshed by the operator's manual pipeline runs, which write the breadth JSONs to the repo for CI to consume.**
+The weekly workflow runs `fetch_constituents.py --etf SOXX`. Before Phase 27 this existed to invoke the carry-forward mechanism while iShares US was Akamai-blocked; since 2026-08-07 SOXX fetches normally through the product-data API and the step returns a genuinely fresh roster. **Other ETFs (iShares UK and Europe) are refreshed by the operator's manual pipeline runs, which write the breadth JSONs to the repo for CI to consume.**
 
 ---
 
@@ -64,9 +64,22 @@ The weekly workflow runs `fetch_constituents.py --etf SOXX` to invoke the carry-
 
 When an upstream constituent source returns an empty / invalid / blocked response, `fetch_constituents.py` traverses a fallback chain to keep the breadth pipeline running:
 
-1. **Primary** (iShares UK or iShares US, per Section 2.1). Tried first for each target Friday with the existing walkback up to 5 days.
+1. **Primary** (BlackRock product-data API, per Section 2.1). Tried first for each target Friday with the existing walkback up to 5 days.
 2. **Secondary** (SEC EDGAR N-PORT-P, where registered in `etf_registry.py`). Tried when primary fails. The EDGAR roster IS used only if its `repPdEnd` date is fresher than the carry-forward alternative — otherwise carry-forward wins. Currently only SOXX has an EDGAR secondary registered.
 3. **Carry-forward** (most recent known-good snapshot). Final fallback if primary and secondary both fail or are older than what carry-forward already has.
+
+**Carry-forward applies to a DATA GAP, not to an OUTAGE (Phase 27).** The distinction was added after the 2026-07 incident, in which a dead endpoint carried forward silently for four weeks while reporting the reason as an ordinary holiday gap. The two are now separate outcomes:
+
+| Condition | What it means | Behaviour | Exit |
+|---|---|---|---|
+| `not_found` | Endpoint healthy; this Friday and the 5 walkback days genuinely have no holdings (market holiday, publication gap) | Carry-forward, `cause: "no_data_in_walkback"` | 0 |
+| `endpoint_unavailable` | The transport itself failed — no response, non-200, non-JSON, or a payload we can no longer parse | Walk short-circuits on the FIRST failure; **no carry-forwards emitted**; affected Fridays are absent from `snapshots` and listed in `endpoint_unavailable` | **3** |
+
+A run that cannot reach the endpoint therefore produces a *shorter* series rather than a longer fabricated one. The absence is the honest record, and the downstream staleness guard in `scripts/alignment.py` masks the affected ETF out of the eligible universe rather than trading on an invented roster.
+
+`--carry-forward-on-outage` restores the old behaviour for an operator who explicitly wants a degraded-but-running pipeline. The affected Fridays are then tagged `cause: "endpoint_unavailable"` and the run still exits 3.
+
+**Why the walk short-circuits.** Against a dead endpoint each date costs ~48 seconds (four attempts plus 45s of retry backoff), and the walk is ~448 Fridays per ETF across 24 ETFs. The 2026-08-07 refresh spent roughly 4 of its 4.8 hours re-confirming the same failure and produced only carry-forwards. The breaker trips once per run, so an outage now costs one request per ETF.
 
 **All three are recorded in the per-ETF audit trail:**
 
@@ -115,7 +128,9 @@ Each `data/constituents_<etf>.json` includes the actually-applied thresholds in 
 
 ## 6. Escalation procedure
 
-When `pipeline.py` aborts publication with a "PUBLISH ABORTED" message or `fetch_constituents.py` exits code 2:
+When `pipeline.py` aborts publication with a "PUBLISH ABORTED" message, or `fetch_constituents.py` exits **code 2** (roster aged past policy) or **code 3** (transport unavailable):
+
+Exit 3 takes precedence over exit 2 when both apply, because a dead endpoint is the cause and staleness is the symptom. For an exit 3, read `endpoint_health.detail` in the affected `data/constituents_<etf>.json` first — it carries the actual transport failure — and go straight to Step 2.
 
 ### Step 1 — Verify the alert
 ```bash
@@ -132,16 +147,24 @@ for p in sorted(Path('data').glob('constituents_*.json')):
 ### Step 2 — Diagnose the upstream source
 
 For SOXX (iShares US):
+Probe the live endpoint through the fetcher's own transport, so the check exercises exactly what the pipeline uses (substitute the affected ETF):
+
 ```bash
-python -c "
-import requests
-r = requests.get('https://www.ishares.com/us/products/239705/ishares-phlx-semiconductor-etf/1467271812596.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund', headers={'User-Agent': 'Mozilla/5.0'}, timeout=15)
-print('HTTP', r.status_code, '|', len(r.content), 'bytes')
-print(r.text[:200])
-"
+python -c "import sys; sys.path.insert(0,'scripts'); from datetime import date; import fetch_constituents as fc; from etf_registry import get_etf; cfg=get_etf('SOXX'); p=fc.fetch_product_data(date(2026,7,31), cfg); t=fc.parse_holdings_json(p, date(2026,7,31), ticker_overrides=cfg.get('ticker_overrides',{}), apply_exchange_suffix=cfg.get('apply_exchange_suffix',False)); print(len(t), t[:8])"
 ```
 
-If the response is the 10MB HTML page, the Akamai block is still in place.
+Read the outcome as follows:
+
+- **A ticker list** — the endpoint is healthy; the failure was transient. Re-run the fetch.
+- **`EndpointUnavailable`** — transport dead. If the body is HTML, the route has been re-platformed or bot-blocked again; find the API the current product page calls (open the page, search the markup for `get-product-data`) and update `PRODUCT_DATA_API` / `product_data_params`.
+- **`PayloadContractError`** — the endpoint answered but the payload shape changed. The message names the missing key. Fix the parser, then re-cut the fixtures per `tests/fixtures/constituents_parity/README.md`.
+- **`0` tickers** — not an outage: that date genuinely has no holdings, or the API echoed a different `asOfDate` and the date-parity guard rejected it. Try an adjacent trading day.
+
+Then confirm the offline contract still holds:
+
+```bash
+python -m pytest tests/test_constituent_api_parity.py -q
+```
 
 ### Step 3 — Refresh from an alternative source
 
@@ -186,6 +209,7 @@ For a regulatory audit, the combination of git commit history (immutable, signed
 
 | Date | ETF | Severity | Root cause | Remediation |
 |------|-----|----------|-----------|-------------|
+| 2026-08-07 | **All 24** | Warning (21 days stale; 84 for SOXX) — would have gone critical on the first run on or after 2026-08-15 | iShares re-platformed its product pages between the 2026-07-10 and 2026-07-17 refreshes. The legacy `<ajax_id>.ajax?fileType=csv` route stopped serving CSV and began returning the single-page product shell as HTTP 200 HTML for **every** `asOfDate`, including dates that had previously succeeded. Detection failed for four weeks not because the fetch was wrong — `looks_like_ishares_holdings_csv` correctly rejected the HTML, `fetch_with_retry` correctly raised, and no bad data was ever cached — but because `main()` folded the transport exception into an ordinary carry-forward whose reason read "no holdings data within 5 days back from target Friday". A dead endpoint was therefore indistinguishable from a run of public holidays. Secondary cost: ~4 of the 4.8-hour refresh was spent re-confirming the same failure at ~48s per dead date, growing ~24 dead dates per week. | Phase 27. (1) Transport swapped to the BlackRock product-data JSON API (Section 2.1), which also reaches SOXX via `targetSite=ishares-us` and so retires the separate Akamai block — SOXX went from 84 days stale to 0. (2) `EndpointCircuit` short-circuits the Friday walk on the first hard failure, so an outage costs one request per ETF instead of ~450. (3) Outage and data gap are now distinct outcomes with distinct exit codes (3 vs 0) and no carry-forward is emitted for an outage; `--carry-forward-on-outage` is the opt-in escape hatch. (4) A changed payload raises `PayloadContractError` rather than parsing to an empty roster. (5) Date parity is enforced: the API answers an unavailable date with a null roster and `asOfDate` rewritten to the latest date, which would otherwise stamp today's roster onto a historical Friday. (6) `tests/test_constituent_api_parity.py` pins both transports to an identical roster for 8 funds including all 6 exchange-suffix ones. Side effect: 5 historical holiday Fridays (e.g. 2020-04-10, 2020-12-25) that previously carried a week-stale roster now resolve to the correct prior trading day, marginally changing historical breadth inputs. |
 | 2026-05-31 | SOXX | Warning (21 days stale) | iShares US holdings endpoint Akamai-blocked since ~2026-05-15. No CI workflow was invoking `fetch_constituents.py --etf SOXX`, so the staleness guard in `scripts/alignment.py` masked SOXX out of the eligible Strategy A universe for the 2026-05-22 rebal — SOXX picks were dropped silently. | Phase 26: added SOXX-specific refresh steps to `.github/workflows/weekly_factsheet.yml`. Phase 26.1: built the staleness-alarm framework (this document, plus exit-code-2 in fetcher, plus publish-abort in `pipeline.py`) so the next occurrence fails loudly within 30 days. Phase 26.2: built SEC EDGAR N-PORT-P fallback (`scripts/edgar_nport.py`, registered as SOXX's `edgar_nport` secondary source). EDGAR is loaded once per fetch run and only used when its `repPdEnd` date is fresher than the carry-forward source — currently iShares carry-forward (2026-05-08) is fresher than the latest EDGAR filing (`repPdEnd 2026-03-31`) so EDGAR is loaded as a standby but not currently injecting snapshots. When the next quarterly N-PORT-P lands (~2026-08-29, `repPdEnd 2026-06-30`), EDGAR will automatically resume freshness if iShares US stays blocked. Phase 26.3: added per-ETF staleness overrides (Section 5b); SOXX moves to warn=60d / critical=120d so the alarm thresholds match EDGAR's quarterly cadence rather than the global default 14d / 30d (which were calibrated to daily-availability sources). The dependence on a single operator's residential IP is now structurally removed. |
 
 ---
