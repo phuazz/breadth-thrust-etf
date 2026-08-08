@@ -2056,7 +2056,7 @@
 
     <section id="combined-ledger-section">
       <h2>1 · Combined trade ledger — every rebalance across all four sleeves</h2>
-      <p class="section-sub full">Flat list of every position change across A, B, C, and D. <strong>One row per (sleeve × rebalance × ETF)</strong>. Action = entry (first appearance) / exit (last appearance) / resize (weight change within an existing position). Filter by sleeve, ETF, or date to drill into a specific moment.</p>
+      <p class="section-sub full">Flat list of every position change across A, B, C, and D. <strong>One row per (sleeve × rebalance × ETF)</strong>. Action = entry (first appearance) / exit (last appearance) / resize (weight change within an existing position). Filter by sleeve, ETF, or date to drill into a specific moment. <strong>NAV weight is priced point-in-time</strong> — each row uses the sleeve weight actually in force on its own rebalance date, so rows inside an EEM-tilt-ON stretch price sleeve B at 25% rather than 35% (the tilt is funded out of B), and rows inside a RISK_OFF stretch are halved by the de-risk gate. A resize prices its prior figure on the prior rebalance date, so an overlay flip between the two shows up rather than being hidden.</p>
       <div class="trade-controls">
         <label class="toggle" style="font-size:12px;"><input type="checkbox" id="ledger-recent-only" checked> Show last 200 only</label>
         <select id="ledger-sleeve-filter" style="padding:4px 8px;border:1px solid var(--border);border-radius:3px;font-size:12px;">
@@ -9991,11 +9991,22 @@ function _buildCombinedLedger() {
   const rows = [];
   for (const s of sleeves) {
     const history = s.src.trade_history;
+    const sKey = s.key.toLowerCase();
     for (let i = 0; i < history.length; i++) {
       const cur = history[i];
       const prev = i > 0 ? history[i - 1] : null;
       const prevMap = new Map((prev?.holdings || []).map(h => [h.etf, h.weight]));
       const curMap = new Map(cur.holdings.map(h => [h.etf, h.weight]));
+      // Price each column with the sleeve NAV weight that applied ON THAT
+      // DATE. The EEM tilt (funded out of B, so B is 25% not 35% while it
+      // is ON) and the de-risk gate (halves every sleeve) both flip
+      // mid-history, so a flat 35/35/10/20 misstates any row inside a
+      // tilt-ON or RISK_OFF stretch. A resize is priced on BOTH dates —
+      // the overlay can flip between the two rebalances, which is exactly
+      // the case a single weight would hide. Same helper the live
+      // positions card uses, so the two now agree on the same trade.
+      const wCur = _sleeveNavWeightsOn(cur.date)[sKey];
+      const wPrev = prev ? _sleeveNavWeightsOn(prev.date)[sKey] : wCur;
       // Emit row for each entry/resize in current rebalance
       for (const h of cur.holdings) {
         const prevW = prevMap.get(h.etf);
@@ -10009,9 +10020,9 @@ function _buildCombinedLedger() {
           etf: h.etf,
           action,
           withinWeight: h.weight,
-          effWeight: h.weight * s.weight,
+          effWeight: h.weight * wCur,
           prevWithinWeight: prevW ?? 0,
-          prevEffWeight: (prevW ?? 0) * s.weight,
+          prevEffWeight: (prevW ?? 0) * wPrev,
           signal: h[s.sigKey],
           signalLabel: s.sigLabel,
         });
@@ -10028,7 +10039,7 @@ function _buildCombinedLedger() {
               withinWeight: 0,
               effWeight: 0,
               prevWithinWeight: h.weight,
-              prevEffWeight: h.weight * s.weight,
+              prevEffWeight: h.weight * wPrev,
               signal: null,
               signalLabel: s.sigLabel,
             });
@@ -10077,7 +10088,7 @@ function renderCombinedTradeLedger() {
     <th>ETF &amp; name</th>
     <th>Action</th>
     <th class="num">Within-sleeve weight</th>
-    <th class="num">NAV weight (after × sleeve)</th>
+    <th class="num">NAV weight (× sleeve, overlay-aware)</th>
     <th class="num">Signal at trade</th>
   </tr>`;
   el.querySelector('tbody').innerHTML = rows.map(r => {
