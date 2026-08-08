@@ -15,13 +15,20 @@ Each entry defines:
   - ticker_overrides: dict mapping iShares-CSV ticker to yfinance ticker
                       for share-class quirks (e.g. BRKB -> BRK-B).
 
-Note on iShares US vs UK:
-  - The US endpoint pattern is /us/products/<pid>/<slug>/<ajax_id>.ajax
-  - The UK endpoint pattern is /uk/individual/en/products/<pid>/<slug>/<ajax_id>.ajax
-  - The US endpoint is currently blocked by Akamai bot defence (verified
-    2026-05-16). The UK endpoint is NOT blocked and is used for CSP1.
-  - Cached SOXX data from before the US block (~2018-2026) remains valid;
-    re-running fetch will hit the cache and not need to re-fetch.
+Note on iShares US vs UK (updated Phase 27, 2026-08-07):
+  - `ishares_region` no longer selects an endpoint. Both regions are served
+    by the single BlackRock product-data API in fetch_constituents.py; the
+    field now only picks targetSite / locale ("us" -> ishares-us / en_US,
+    "uk" -> ishares-uk / en_GB). `product_id` is the portfolioId.
+  - `csv_url_template` is RETIRED as a live source. It is the provenance of
+    the ~10,400 cached CSVs in data/raw_ishares/, which are still read
+    cache-first for history, and is kept for that record only. The route
+    stopped serving CSV when iShares re-platformed between the 2026-07-10
+    and 2026-07-17 refreshes and now returns HTML for every date.
+  - The Akamai block on the US .ajax route (verified 2026-05-16) is
+    therefore moot: SOXX is fetchable again via targetSite=ishares-us.
+    Its EDGAR secondary reverts to a true backstop rather than the
+    assumption its 60/120-day staleness override was justified on.
 """
 
 from __future__ import annotations
@@ -603,7 +610,203 @@ ETF_REGISTRY: dict[str, dict] = {
         "csv_date_format": "uk",
         "yfinance_trading_proxy": "IJR",  # iShares Core S&P Small-Cap (US-listed)
     },
+    # =====================================================================
+    # STOXX Europe 600 supersectors — remaining 14 (Phase 27, 2026-08-07)
+    # =====================================================================
+    # The STOXX Europe 600 splits into 19 supersectors. Five were already
+    # deployed (EXV1 Banks, EXH1 Oil & Gas, EXV3 Technology, the EXH3 key
+    # holding Industrials, EXH9 Utilities); these are the other 14.
+    #
+    # Enumerated by sweeping portfolioId 251900-251999 against the
+    # product-data API's fundHeader component, which returns fund name,
+    # Xetra ticker and ISIN for a given id. The family is contiguous at
+    # 251932-251967. Every id below was read from that response, not
+    # inferred — this is also what confirmed 251944=EXH3 Food & Beverage
+    # against 251948=EXH4 Industrial Goods & Services.
+    #
+    # These entries carry NO url_slug / ajax_id / filename /
+    # csv_url_template. Those describe the legacy CSV route, which was
+    # retired in Phase 27 (see fetch_constituents.py); nothing outside
+    # this file reads them, and these funds have no cached CSV history.
+    # Their entire history comes from the product-data API.
+    #
+    # Screened 2026-08-07, all 14: holdings present at the 2018-01-05
+    # start Friday and at the latest completed Friday, 100% of tickers
+    # resolving to a yfinance symbol, zero unmapped exchanges.
+    #
+    # DENOMINATOR CAUTION. Breadth is a proportion, so it needs a basket
+    # wide enough for the proportion to mean something. The deployed
+    # Europe sleeve runs 18-112 constituents (thinnest: EXH1 at min 18 /
+    # median 22). Four of these supersectors sit at or below that floor
+    # and three have roughly halved since 2018, which makes the noise
+    # characteristics of their breadth series non-stationary across the
+    # sample. Counts below are (2018 -> latest). Registered so the data
+    # is captured and testable; whether any of them should feed a signal
+    # is a separate question for the strategy work.
+    "EXV5": {  # Automobiles & Parts. THIN: 18 -> 14
+        "symbol": "EXV5",
+        "ishares_region": "uk",
+        "product_id": "251932",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXV5.DE",
+    },
+    "EXV6": {  # Basic Resources. 22 -> 21
+        "symbol": "EXV6",
+        "ishares_region": "uk",
+        "product_id": "251936",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXV6.DE",
+    },
+    "EXV7": {  # Chemicals. 24 -> 18
+        "symbol": "EXV7",
+        "ishares_region": "uk",
+        "product_id": "251938",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXV7.DE",
+    },
+    "EXV8": {  # Construction & Materials. 20 -> 32
+        "symbol": "EXV8",
+        "ishares_region": "uk",
+        "product_id": "251940",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXV8.DE",
+    },
+    "EXH2": {  # Financial Services. 28 -> 37
+        "symbol": "EXH2",
+        "ishares_region": "uk",
+        "product_id": "251942",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXH2.DE",
+    },
+    # NAMING TRAP — read before touching this entry.
+    # This fund's Xetra ticker really is EXH3, but the key "EXH3" is
+    # ALREADY TAKEN in this registry by product 251948 (Industrial Goods
+    # & Services, traded as EXH4.DE). That key is an internal panel id
+    # wired into data/constituents_exh3.json, data/breadth_exh3.json and
+    # the filed records, and the 2026-08-03 correction note above
+    # explicitly declines to rename it. So Food & Beverage is keyed
+    # "EXFB" here. Do NOT add it as "EXH3": it would silently overwrite
+    # the industrials panel.
+    "EXFB": {  # Food & Beverage (Xetra EXH3.DE). 22 -> 26
+        "symbol": "EXFB",
+        "ishares_region": "uk",
+        "product_id": "251944",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXH3.DE",
+    },
+    "EXV4": {  # Health Care. 47 -> 46
+        "symbol": "EXV4",
+        "ishares_region": "uk",
+        "product_id": "251946",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXV4.DE",
+    },
+    "EXH5": {  # Insurance. 33 -> 29
+        "symbol": "EXH5",
+        "ishares_region": "uk",
+        "product_id": "251950",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXH5.DE",
+    },
+    "EXH6": {  # Media. VERY THIN: 24 -> 8. See denominator caution above.
+        "symbol": "EXH6",
+        "ishares_region": "uk",
+        "product_id": "251952",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXH6.DE",
+    },
+    "EXH7": {  # Personal & Household Goods. 35 -> 30
+        "symbol": "EXH7",
+        "ishares_region": "uk",
+        "product_id": "251956",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXH7.DE",
+    },
+    "EXI5": {  # Real Estate. 27 -> 28
+        "symbol": "EXI5",
+        "ishares_region": "uk",
+        "product_id": "251958",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXI5.DE",
+    },
+    "EXH8": {  # Retail. VERY THIN: 29 -> 11. See denominator caution above.
+        "symbol": "EXH8",
+        "ishares_region": "uk",
+        "product_id": "251959",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXH8.DE",
+    },
+    "EXV2": {  # Telecommunications. 21 -> 21
+        "symbol": "EXV2",
+        "ishares_region": "uk",
+        "product_id": "251963",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXV2.DE",
+    },
+    "EXV9": {  # Travel & Leisure. THIN: 22 -> 12. See denominator caution.
+        "symbol": "EXV9",
+        "ishares_region": "uk",
+        "product_id": "251965",
+        "start_friday": date(2018, 1, 5),
+        "ticker_overrides": {},
+        "apply_exchange_suffix": True,
+        "trading_calendar": "XETR",
+        "yfinance_trading_proxy": "EXV9.DE",
+    },
 }
+
+# Supersectors registered above but NOT part of the deployed Europe sleeve.
+# Strategy engines iterate their own explicit lists, so adding a registry
+# entry captures the data without changing any deployed universe. Anything
+# that wants to widen a sleeve must opt in by name.
+EUROPE_SUPERSECTORS_CANDIDATE = [
+    "EXV5", "EXV6", "EXV7", "EXV8", "EXH2", "EXFB", "EXV4",
+    "EXH5", "EXH6", "EXH7", "EXI5", "EXH8", "EXV2", "EXV9",
+]
+# The deployed five live in UNIVERSE_EUROPE_SECTORS below — deliberately
+# NOT restated here. Sleeve D's membership already had four independent
+# restatements held in sync by convention, and the fifth disagreeing is
+# what let EXH3/EXH4 ship (see tests/test_europe_symbol_contract.py).
+# One list, one source of truth.
 
 
 def get_etf(symbol: str) -> dict:
