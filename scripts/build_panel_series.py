@@ -39,6 +39,13 @@ OUT_DIR = PROJECT_ROOT / "docs" / "panel"
 WEEKS = 52          # one year of weekly points
 _PRICE_DP = 2       # prices rounded to 2dp; more is noise at this resolution
 
+# Moving averages carried alongside each price series, matching the Monitor
+# tab's mini-charts so the two read the same way. The 50-day is the one the
+# breadth panel counts; the 200-day is what Strategy A's selection ranks on.
+# Each is computed on DAILY closes and then sampled to the weekly grid — a
+# 50-period average over weekly bars would be a 50-WEEK average.
+MA_WINDOWS = {"m50": 50, "m100": 100, "m200": 200}
+
 
 def _round(v):
     import pandas as pd
@@ -75,17 +82,20 @@ def build_panel(etf: str) -> dict | None:
     if px.empty:
         return None
 
-    # Daily MA first — see the module docstring. per_ticker_apply keeps each
+    # Daily MAs first — see the module docstring. per_ticker_apply keeps each
     # ticker on its own traded sessions, so a European name is not voided by
     # US-only sessions in the union grid.
-    ma = cb.per_ticker_apply(
-        px, lambda s: s.rolling(cb.MA_PERIOD, min_periods=cb.MA_PERIOD).mean())
+    mas = {
+        key: cb.per_ticker_apply(
+            px, lambda s, w=win: s.rolling(w, min_periods=w).mean())
+        for key, win in MA_WINDOWS.items()
+    }
 
     # Weekly grid: last observation on or before each Friday. `.last()` skips
     # NaN within the week, so a market closed on the Friday still reports its
     # Thursday close rather than a hole.
     pw = px.resample("W-FRI").last().tail(WEEKS)
-    mw = ma.resample("W-FRI").last().tail(WEEKS)
+    mws = {k: m.resample("W-FRI").last().tail(WEEKS) for k, m in mas.items()}
 
     # Only CURRENT constituents get a series. The price cache carries every
     # name that has ever been in the index — CSP1's holds ~700 against a
@@ -102,7 +112,15 @@ def build_panel(etf: str) -> dict | None:
         p = [_round(v) for v in pw[sym]]
         if not any(v is not None for v in p):
             continue          # never traded in the window — no chart to draw
-        series[sym] = {"p": p, "m": [_round(v) for v in mw[sym]]}
+        entry = {"p": p}
+        for key, mw in mws.items():
+            col = [_round(v) for v in mw[sym]]
+            # Omit an average with no points rather than shipping 52 nulls.
+            # A name younger than 200 sessions has no 200-day average, and
+            # that is a fact about the name, not a gap to pad.
+            if any(v is not None for v in col):
+                entry[key] = col
+        series[sym] = entry
 
     return {
         "etf": etf,
@@ -138,11 +156,12 @@ def _proxy_series(symbols: list[str]) -> dict:
         # indicator. So the download is daily, the average is taken daily,
         # and only then is the result sampled to the weekly grid.
         #
-        # Two years because a 50-day average needs 50 sessions of history
-        # BEFORE the first plotted week. Fetching one year would leave the
-        # first ~10 weeks of the average empty, which reads as a data gap
-        # rather than as a warmup.
-        raw = yf.download(list(proxies), period="2y", interval="1d",
+        # Three years, not two: the 200-day average needs 200 sessions of
+        # history BEFORE the first plotted week, and a 2-year window leaves
+        # only ~300 sessions after that warmup — enough, but with no margin
+        # for a proxy whose history starts late or has gaps. An absent
+        # average reads as a data gap rather than as a warmup, so buy room.
+        raw = yf.download(list(proxies), period="3y", interval="1d",
                           auto_adjust=True, progress=False, threads=True)
         close = raw["Close"] if "Close" in raw else raw
         if isinstance(close, pd.Series):
@@ -151,15 +170,18 @@ def _proxy_series(symbols: list[str]) -> dict:
         # per_ticker_apply, NOT a plain rolling() — for the same reason the
         # constituent path uses it. This frame spans 38 proxies across US,
         # Xetra and Asian calendars, so its union index is NaN wherever a
-        # given market was shut. With min_periods=50 a single NaN entering
-        # the window voids the next 50 rows, which showed up as an average
+        # given market was shut. With min_periods=N a single NaN entering
+        # the window voids the next N rows, which showed up as an average
         # that existed only for the first 7 weeks and then vanished — a
         # rolling mean cannot legitimately disappear at the end of a series.
-        ma = cb.per_ticker_apply(
-            close, lambda s: s.rolling(cb.MA_PERIOD,
-                                        min_periods=cb.MA_PERIOD).mean())
+        pmas = {
+            key: cb.per_ticker_apply(
+                close, lambda s, w=win: s.rolling(w, min_periods=w).mean())
+            for key, win in MA_WINDOWS.items()
+        }
         pw = close.resample("W-FRI").last().tail(WEEKS)
-        mw = ma.resample("W-FRI").last().tail(WEEKS)
+        pmws = {k: m.resample("W-FRI").last().tail(WEEKS)
+                for k, m in pmas.items()}
 
         out = {}
         for tick, etfs in proxies.items():
@@ -172,8 +194,11 @@ def _proxy_series(symbols: list[str]) -> dict:
                 "ticker": tick,
                 "dates": [d.strftime("%Y-%m-%d") for d in pw.index],
                 "p": p,
-                "m": [_round(v) for v in mw[tick]],
             }
+            for key, mw in pmws.items():
+                col = [_round(v) for v in mw[tick]]
+                if any(v is not None for v in col):
+                    payload[key] = col
             for e in etfs:
                 out[e] = payload
         return out

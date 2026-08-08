@@ -10701,7 +10701,8 @@ function _closeDataChart() {
 // distance from the average — which is the quantity breadth counts.
 // Summary statistics for the chart header. All derived from the plotted
 // series itself, so a reader can check any of them against the line.
-function _chartStats(dates, price, ma) {
+function _chartStats(dates, price, mas) {
+  mas = mas || {};
   const pairs = dates.map((d, i) => [d, price[i]]).filter((x) => x[1] !== null && x[1] !== undefined);
   if (pairs.length < 2) return null;
   const first = pairs[0][1], last = pairs[pairs.length - 1][1];
@@ -10716,12 +10717,21 @@ function _chartStats(dates, price, ma) {
   for (const [d, v] of pairs) {
     if (d.slice(0, 4) < yr) ytdBase = v; else break;
   }
-  const lastMa = (ma || []).slice().reverse().find((v) => v !== null && v !== undefined);
+  const lastOf = (key) => {
+    const v = (mas[key] || []).slice().reverse()
+      .find((x) => x !== null && x !== undefined);
+    return (v === undefined || !v) ? null : v;
+  };
+  const m50 = lastOf('m50');
+  const m200 = lastOf('m200');
 
   return {
     ret1y: (last / first) - 1,
     ytd: ytdBase === null ? null : (last / ytdBase) - 1,
-    vsMa: (lastMa === undefined || !lastMa) ? null : (last / lastMa) - 1,
+    vsMa: m50 === null ? null : (last / m50) - 1,
+    // The 200-day is what Strategy A's SELECTION ranks on, as distinct from
+    // the 50-day the breadth panel counts — both are worth reading.
+    vsMa200: m200 === null ? null : (last / m200) - 1,
     // Where the last price sits in its own 52-week range: 100% = at the
     // high, 0% = at the low.
     range: hi === lo ? null : (last - lo) / (hi - lo),
@@ -10739,30 +10749,47 @@ function _statsHtml(s) {
     <span>1Y<b class="${cls(s.ret1y)}">${f(s.ret1y)}</b></span>
     <span>YTD<b class="${cls(s.ytd)}">${f(s.ytd)}</b></span>
     <span>vs 50d<b class="${cls(s.vsMa)}">${f(s.vsMa)}</b></span>
+    <span>vs 200d<b class="${cls(s.vsMa200)}">${f(s.vsMa200)}</b></span>
     <span>52w range<b>${s.range === null ? '—' : (100 * s.range).toFixed(0) + '%'}</b></span>
     <span>52w low / high<b style="font-size:13px;">${s.lo.toFixed(2)} – ${s.hi.toFixed(2)}</b></span>
   </div>`;
 }
 
-function _drawDataChart(hostId, title, dates, price, ma, note) {
+// Moving-average traces, styled to match the Monitor tab's mini-charts so
+// the same line means the same thing wherever it is drawn.
+const _DATA_MA_TRACES = [
+  { key: 'm50',  name: '50d MA',  color: '#0891b2', width: 1.2, dash: 'dot' },
+  { key: 'm100', name: '100d MA', color: '#7c3aed', width: 1.2, dash: 'dash' },
+  { key: 'm200', name: '200d MA', color: '#ea580c', width: 1.6, dash: null },
+];
+
+function _drawDataChart(hostId, title, dates, price, mas, note) {
   const host = document.getElementById(hostId);
   if (!host) return;
   const base = price.find((v) => v !== null && v !== undefined);
   if (!base) { host.innerHTML = '<div class="section-sub">No price history for this line.</div>'; return; }
-  const stats = _chartStats(dates, price, ma);
+  mas = mas || {};
+  const stats = _chartStats(dates, price, mas);
   if (stats) host.insertAdjacentHTML('beforebegin', _statsHtml(stats));
   const rebase = (arr) => (arr || []).map((v) => (v === null || v === undefined) ? null : (v / base) - 1);
   const traces = [{
     x: dates, y: rebase(price), name: 'Price', mode: 'lines',
     line: { width: 2, color: '#1351b4' }, hovertemplate: '%{x}<br>%{y:.1%}<extra>Price</extra>',
   }];
-  if (ma && ma.some((v) => v !== null && v !== undefined)) {
+  _DATA_MA_TRACES.forEach((spec) => {
+    const arr = mas[spec.key];
+    // A series younger than the window has no average, and the builder
+    // omits the key rather than shipping 52 nulls — so absence here is a
+    // fact about the name, not a missing trace.
+    if (!arr || !arr.some((v) => v !== null && v !== undefined)) return;
     traces.push({
-      x: dates, y: rebase(ma), name: '50d MA', mode: 'lines',
-      line: { width: 1.5, color: '#b45309', dash: 'dot' },
-      hovertemplate: '%{x}<br>%{y:.1%}<extra>50d MA</extra>',
+      x: dates, y: rebase(arr), name: spec.name, mode: 'lines',
+      line: Object.assign({ width: spec.width, color: spec.color },
+                           spec.dash ? { dash: spec.dash } : {}),
+      connectgaps: false,
+      hovertemplate: `%{x}<br>%{y:.1%}<extra>${spec.name}</extra>`,
     });
-  }
+  });
   Plotly.newPlot(host, traces, {
     margin: { l: 46, r: 12, t: 30, b: 34 },
     height: 240,
@@ -10816,8 +10843,8 @@ async function _expandDataChart(row, etf, sym) {
         `<div class="section-sub">No ETF-level series for ${etf}.</div>`;
       return;
     }
-    _drawDataChart(id, `${es.ticker} — the traded ETF, 1Y weekly`, es.dates, es.p, es.m,
-      'The fund itself, not its constituents. Rebased to the first plotted week; the 50-day average is computed on daily closes and then sampled.');
+    _drawDataChart(id, `${es.ticker} — the traded ETF, 1Y weekly`, es.dates, es.p, es,
+      'The fund itself, not its constituents. Rebased to the first plotted week; each average is computed on daily closes and then sampled.');
   } else {
     const s = (panel.series || {})[sym];
     if (!s) {
@@ -10825,8 +10852,8 @@ async function _expandDataChart(row, etf, sym) {
         `<div class="section-sub">No price history for ${sym} — this name is excluded from breadth.</div>`;
       return;
     }
-    _drawDataChart(id, `${sym} — 1Y weekly vs 50-day average`, panel.dates, s.p, s.m,
-      'Weekly points; the 50-day average is computed on daily closes and then sampled, so it is the same line the breadth panel counts.');
+    _drawDataChart(id, `${sym} — 1Y weekly vs moving averages`, panel.dates, s.p, s,
+      'Weekly points. Each average is computed on daily closes and then sampled — the 50-day is the line the breadth panel counts, the 200-day is what Strategy A selection ranks on.');
   }
 }
 
