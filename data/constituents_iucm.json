@@ -2,11 +2,11 @@
   "etf": "IUCM",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/304659/ishares-s-p-500-communication-sector-ucits-etf-usd-acc-fund/1506575576011.ajax?fileType=csv&fileName=IUCM_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-07T13:07:06.891007+00:00",
+  "fetched_at_utc": "2026-08-08T00:48:51.393204+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-07-31",
-  "n_target_fridays": 448,
-  "n_snapshots_written": 411,
+  "end_friday": "2026-08-07",
+  "n_target_fridays": 449,
+  "n_snapshots_written": 412,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -26,6 +26,12 @@
     {
       "target_friday": "2021-01-01",
       "fallback_date": "2020-12-31",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-08-07",
+      "fallback_date": "2026-08-06",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
@@ -267,8 +273,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-07-31",
-    "days_since_last_real_fetch": 0,
+    "last_real_fetch_date": "2026-08-06",
+    "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -12890,6 +12896,35 @@
         "NWSA",
         "TTD",
         "FOX",
+        "NWS",
+        "PSKY"
+      ]
+    },
+    "2026-08-07": {
+      "actual_date": "2026-08-06",
+      "n_tickers": 23,
+      "tickers": [
+        "GOOGL",
+        "META",
+        "GOOG",
+        "NFLX",
+        "VZ",
+        "DIS",
+        "T",
+        "APP",
+        "CMCSA",
+        "TMUS",
+        "WBD",
+        "TTWO",
+        "LYV",
+        "OMC",
+        "CHTR",
+        "FOXA",
+        "ECHO",
+        "TKO",
+        "NWSA",
+        "FOX",
+        "TTD",
         "NWS",
         "PSKY"
       ]

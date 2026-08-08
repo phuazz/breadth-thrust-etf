@@ -1,12 +1,12 @@
 {
   "etf": "EXV8",
-  "computed_at_utc": "2026-08-07T14:43:10.187013+00:00",
+  "computed_at_utc": "2026-08-08T01:13:38.102001+00:00",
   "constituents_source": "data\\constituents_exv8.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
-  "end_date": "2026-07-31",
-  "n_trading_days": 2175,
-  "n_signals": 52,
+  "end_date": "2026-08-07",
+  "n_trading_days": 2180,
+  "n_signals": 53,
   "first_eligible_signal_date": "2019-01-08",
   "config": {
     "rsi_period": 14,
@@ -25,12 +25,12 @@
   },
   "data_quality": {
     "universe_size": 46,
-    "tickers_with_any_yf_data": 38,
-    "tickers_with_no_yf_data": 8,
-    "max_missing_constituent_pct": 0.4782608695652174,
-    "mean_missing_constituent_pct": 0.07505212861429125,
+    "tickers_with_any_yf_data": 39,
+    "tickers_with_no_yf_data": 7,
+    "max_missing_constituent_pct": 0.9375,
+    "mean_missing_constituent_pct": 0.07531003657618508,
     "first_date_below_10pct_missing": "2019-10-25",
-    "note": "8 of 46 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. ACS-D.MC, AF-B.ST, BOKA.AS, CRG.IR, CRH.L, KSP.IR, LHN.SW, SIK.SW). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
+    "note": "7 of 46 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. AF-B.ST, BOKA.AS, CRG.IR, CRH.L, KSP.IR, LHN.SW, SIK.SW). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
   "signals": [
     {
@@ -771,6 +771,20 @@
       ],
       "n_constituents": 31,
       "n_with_price": 31
+    },
+    {
+      "date": "2026-08-07",
+      "composite_z": 1.6978830352075371,
+      "composite_p90": 1.1740347483150044,
+      "rsi_breadth": 0.5,
+      "ma_breadth": 1.0,
+      "highs_breadth": 0.0,
+      "triggered_components": [
+        "rsi",
+        "ma_zweig"
+      ],
+      "n_constituents": 32,
+      "n_with_price": 2
     }
   ],
   "series": {
@@ -2949,7 +2963,12 @@
       "2026-07-28",
       "2026-07-29",
       "2026-07-30",
-      "2026-07-31"
+      "2026-07-31",
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-05",
+      "2026-08-06",
+      "2026-08-07"
     ],
     "n_constituents": [
       20,
@@ -5096,6 +5115,11 @@
       31,
       31,
       31,
+      32,
+      32,
+      32,
+      32,
+      32,
       32,
       32,
       32,
@@ -7303,7 +7327,12 @@
       32,
       32,
       32,
-      32
+      32,
+      32,
+      32,
+      32,
+      32,
+      2
     ],
     "n_with_rsi": [
       16,
@@ -9480,7 +9509,12 @@
       32,
       32,
       32,
-      32
+      32,
+      32,
+      32,
+      32,
+      32,
+      2
     ],
     "n_with_ma50": [
       16,
@@ -11657,7 +11691,12 @@
       32,
       32,
       32,
-      32
+      32,
+      32,
+      32,
+      32,
+      32,
+      2
     ],
     "n_with_high63": [
       16,
@@ -13834,7 +13873,12 @@
       32,
       32,
       32,
-      32
+      32,
+      32,
+      32,
+      32,
+      32,
+      2
     ],
     "rsi_breadth": [
       0.1875,
@@ -16011,7 +16055,12 @@
       0.03125,
       0.03125,
       0.0,
-      0.03125
+      0.03125,
+      0.0625,
+      0.09375,
+      0.15625,
+      0.125,
+      0.5
     ],
     "ma_breadth": [
       0.875,
@@ -18188,7 +18237,12 @@
       0.375,
       0.3125,
       0.46875,
-      0.4375
+      0.4375,
+      0.53125,
+      0.625,
+      0.5625,
+      0.5625,
+      1.0
     ],
     "highs_breadth": [
       0.25,
@@ -20365,7 +20419,12 @@
       0.09375,
       0.03125,
       0.03125,
-      0.03125
+      0.03125,
+      0.15625,
+      0.21875,
+      0.21875,
+      0.0625,
+      0.0
     ],
     "rsi_breadth_z": [
       null,
@@ -22542,7 +22601,12 @@
       -0.395065,
       -0.39496,
       -0.710032,
-      -0.394573
+      -0.394573,
+      -0.079195,
+      0.23617,
+      0.866941,
+      0.55116,
+      4.336791
     ],
     "ma_breadth_z": [
       null,
@@ -24719,7 +24783,12 @@
       -0.784978,
       -1.020159,
       -0.431003,
-      -0.548643
+      -0.548643,
+      -0.19515,
+      0.158303,
+      -0.077392,
+      -0.077374,
+      1.572999
     ],
     "highs_breadth_z": [
       null,
@@ -26896,7 +26965,12 @@
       -0.009037,
       -0.546444,
       -0.546281,
-      -0.546117
+      -0.546117,
+      0.529385,
+      1.066988,
+      1.066464,
+      -0.278371,
+      -0.816141
     ],
     "composite_z": [
       null,
@@ -29073,7 +29147,12 @@
       -0.39636,
       -0.653854,
       -0.562439,
-      -0.496445
+      -0.496445,
+      0.085013,
+      0.487153,
+      0.618671,
+      0.065139,
+      1.697883
     ],
     "composite_p90": [
       null,
@@ -31250,7 +31329,12 @@
       1.174492,
       1.174435,
       1.174377,
-      1.17432
+      1.17432,
+      1.174263,
+      1.174206,
+      1.174149,
+      1.174092,
+      1.174035
     ],
     "composite_p10": [
       null,
@@ -33427,7 +33511,12 @@
       -0.885415,
       -0.885321,
       -0.885227,
-      -0.885133
+      -0.885133,
+      -0.88504,
+      -0.884946,
+      -0.884852,
+      -0.884759,
+      -0.884665
     ],
     "rsi_p90": [
       null,
@@ -35604,6 +35693,11 @@
       0.206897,
       0.206897,
       0.206897,
+      0.206897,
+      0.206897,
+      0.206897,
+      0.206897,
+      0.206897,
       0.206897
     ],
     "highs_p90": [
@@ -37688,6 +37782,11 @@
       0.261556,
       0.261327,
       0.261098,
+      0.26087,
+      0.26087,
+      0.26087,
+      0.26087,
+      0.26087,
       0.26087,
       0.26087,
       0.26087,
@@ -39958,7 +40057,12 @@
       0,
       0,
       0,
-      0
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
     ],
     "ma_zweig_trigger": [
       0,
@@ -42135,7 +42239,12 @@
       0,
       0,
       0,
-      0
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
     ],
     "highs_trigger": [
       0,
@@ -44203,6 +44312,11 @@
       1,
       0,
       1,
+      0,
+      0,
+      0,
+      0,
+      0,
       0,
       0,
       0,
@@ -46489,7 +46603,12 @@
       0,
       0,
       0,
-      0
+      0,
+      0,
+      0,
+      0,
+      0,
+      2
     ],
     "composite_above_p90": [
       0,
@@ -48666,7 +48785,12 @@
       0,
       0,
       0,
-      0
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
     ],
     "composite_crosses_p90": [
       0,
@@ -50843,7 +50967,12 @@
       0,
       0,
       0,
-      0
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
     ],
     "signal_eligible": [
       0,
@@ -51098,6 +51227,11 @@
       0,
       0,
       0,
+      1,
+      1,
+      1,
+      1,
+      1,
       1,
       1,
       1,
@@ -55197,7 +55331,12 @@
       0,
       0,
       0,
-      0
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
     ]
   }
 }
