@@ -1899,7 +1899,7 @@
     <!-- ==================== PERFORMANCE (live deployment tracking) ==================== -->
     <section style="margin:18px 0 14px 0;">
       <div class="perf-header">
-        <h2 style="margin:0;">Performance</h2>
+        <h2 style="margin:0;">Performance <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint);border:1px solid var(--border);border-radius:3px;padding:2px 7px;vertical-align:middle;white-space:nowrap;">Simulated</span></h2>
         <div class="period-selector" id="perf-period-selector">
           <button data-period="1d">1D</button>
           <button data-period="1w">1W</button>
@@ -1911,7 +1911,8 @@
           <button data-period="max">MAX</button>
         </div>
       </div>
-      <p class="section-sub">Cumulative return for the deployed blend and each of the four contributing sleeves, anchored at <strong>0% at the start of the selected period</strong>. The stat strip and the attribution bars below the chart recompute live with the timeframe — switching to 1Y will show this year's return, switching to MAX will show full backtest history. Default YTD. <strong style="color:#b45309;">Amber-shaded bands</strong> mark periods when the breadth regime overlay was active (RISK_OFF — half of NAV moved to SHY, 1-3y US Treasury).</p>
+      <p class="section-sub"><strong>Every figure in this section is simulated.</strong> The stat strip, chart and attribution are computed from the backtest series sliced to the selected window, extended through the current week by a daily mark-to-market overlay. There is no realised track record — see the caveats below. Cumulative return for the deployed blend and each of the four contributing sleeves, anchored at <strong>0% at the start of the selected period</strong>. The stat strip and the attribution bars below the chart recompute live with the timeframe — switching to 1Y will show this year's return, switching to MAX will show full backtest history. Default YTD. <strong style="color:#b45309;">Amber-shaded bands</strong> mark periods when the breadth regime overlay was active (RISK_OFF — half of NAV moved to SHY, 1-3y US Treasury).</p>
+      <p class="section-sub">Benchmark-relative performance, capture ratios, risk contribution and per-ETF attribution are in the companion monitor: <a href="https://phuazz.github.io/multi-strategy-portfolio/" target="_blank" rel="noopener"><strong>Multi-Strategy Portfolio monitor &rarr;</strong></a></p>
       <div id="perf-stat-strip" class="perf-stat-strip"></div>
       <div id="perf-chart" class="chart"></div>
       <div id="perf-attribution"></div>
@@ -4124,10 +4125,21 @@ function renderMonitor() {
   // omitted here — they are already shown inline in the asof header
   // ("3 A + 7 B + 4 C + 3 D positions") and the strategy panels below.
   // Keeping the hero strip at four stats keeps it readable on mobile.
+  //
+  // Labels lead with "Backtest" (2026-08-08). blendStats resolves to
+  // multi.strategies[deployedKey] — the simulated series since Nov 2018.
+  // These three stats sat under the heading "Live Portfolio — what to own
+  // today" labelled only "<mix> blend Sharpe", which reads as a live track
+  // record. There is no live track record: live_track.json is a daily
+  // mark-to-market overlay that extends the backtest through the current
+  // week (live_dates is empty between the Friday anchor and the next
+  // session), not an independent record of realised returns. The page
+  // header strip already labels its equivalents "Backtest Sharpe" /
+  // "Backtest CAGR"; this strip now matches it.
   const heroHtml = `
-    <div class="hero-stat"><div class="v good">${fmtNum(blendStats?.sharpe, 2, true)}</div><div class="l">${blendLabel} blend Sharpe</div></div>
-    <div class="hero-stat"><div class="v good">${fmtPct(blendStats?.max_dd)}</div><div class="l">${blendLabel} max drawdown</div></div>
-    <div class="hero-stat"><div class="v">${fmtPct(blendStats?.cagr, true)}</div><div class="l">${blendLabel} CAGR</div></div>
+    <div class="hero-stat"><div class="v good">${fmtNum(blendStats?.sharpe, 2, true)}</div><div class="l">Backtest Sharpe</div></div>
+    <div class="hero-stat"><div class="v good">${fmtPct(blendStats?.max_dd)}</div><div class="l">Backtest max drawdown</div></div>
+    <div class="hero-stat"><div class="v">${fmtPct(blendStats?.cagr, true)}</div><div class="l">Backtest CAGR</div></div>
     <div class="hero-stat"><div class="v">${totalPos}</div><div class="l">Total positions today</div></div>`;
   document.getElementById('live-hero-stats').innerHTML = heroHtml;
 
