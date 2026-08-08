@@ -1,6 +1,6 @@
 {
   "etf": "EXH2",
-  "computed_at_utc": "2026-08-08T03:45:39.311013+00:00",
+  "computed_at_utc": "2026-08-08T11:31:59.837813+00:00",
   "constituents_source": "data\\constituents_exh2.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
@@ -27,8 +27,8 @@
     "universe_size": 70,
     "tickers_with_any_yf_data": 54,
     "tickers_with_no_yf_data": 16,
-    "max_missing_constituent_pct": 0.9459459459459459,
-    "mean_missing_constituent_pct": 0.14407955083534382,
+    "max_missing_constituent_pct": 0.6071428571428572,
+    "mean_missing_constituent_pct": 0.143645630676653,
     "first_date_below_10pct_missing": "2022-09-30",
     "note": "16 of 70 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. ARL.DE, BME.MC, CSGN.SW, CSGN1.SW, ENXDS.AS, ENXDS.PA, EXO.MI, HL.L). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -7527,7 +7527,7 @@
       37,
       37,
       37,
-      2
+      37
     ],
     "n_with_rsi": [
       19,
@@ -9709,7 +9709,7 @@
       37,
       37,
       37,
-      2
+      37
     ],
     "n_with_ma50": [
       19,
@@ -11891,7 +11891,7 @@
       37,
       37,
       37,
-      2
+      37
     ],
     "n_with_high63": [
       19,
@@ -14073,7 +14073,7 @@
       37,
       37,
       37,
-      2
+      37
     ],
     "rsi_breadth": [
       0.105263,
@@ -16255,7 +16255,7 @@
       0.243243,
       0.324324,
       0.189189,
-      0.0
+      0.216216
     ],
     "ma_breadth": [
       0.947368,
@@ -18437,7 +18437,7 @@
       0.837838,
       0.837838,
       0.756757,
-      1.0
+      0.756757
     ],
     "highs_breadth": [
       0.368421,
@@ -20619,7 +20619,7 @@
       0.324324,
       0.432432,
       0.108108,
-      0.0
+      0.189189
     ],
     "rsi_breadth_z": [
       null,
@@ -22801,7 +22801,7 @@
       1.795567,
       2.638742,
       1.227658,
-      -0.741597
+      1.508173
     ],
     "ma_breadth_z": [
       null,
@@ -24983,7 +24983,7 @@
       1.003109,
       1.002647,
       0.696368,
-      1.613693
+      0.69613
     ],
     "highs_breadth_z": [
       null,
@@ -27165,7 +27165,7 @@
       2.020745,
       2.974766,
       0.104081,
-      -0.850819
+      0.820213
     ],
     "composite_z": [
       null,
@@ -29347,7 +29347,7 @@
       1.606474,
       2.205385,
       0.676035,
-      0.007092
+      1.008172
     ],
     "composite_p90": [
       null,
@@ -40257,7 +40257,7 @@
       1,
       1,
       0,
-      0
+      1
     ],
     "ma_zweig_trigger": [
       0,
@@ -46803,7 +46803,7 @@
       2,
       2,
       0,
-      0
+      1
     ],
     "composite_above_p90": [
       0,

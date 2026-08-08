@@ -103,6 +103,32 @@ OUT_PATH = _paths["out"]
 RSI_PERIOD = 14
 MA_PERIOD = 50
 HIGH_PERIOD = 63
+
+# Minimum number of constituents with a usable indicator before a breadth
+# value is emitted at all. Below this the bar is NaN (null in the JSON),
+# the same representation already used for the pre-warmup rows, so
+# consumers see a shape they already handle.
+#
+# WHY THIS EXISTS. The guard used to be `if ma_valid.any()` — one single
+# name was enough. On 2026-08-07 the price vendor had not yet published
+# Friday European closes, so every Europe panel computed its breadth from
+# TWO constituents out of 26-32 and published 0.0, 0.5 or 1.0. Those are
+# not breadth readings; a proportion over two names can only take three
+# values, and Strategy D would have been reading one as a signal.
+#
+# WHY 5, AND NOT MORE. This is calibrated against how thin the deployed
+# panels legitimately get, not chosen for roundness. EXH1's historical
+# MINIMUM coverage is 8 names and its 10th percentile is 14, so a floor of
+# 10 would delete 1,270 genuine bars across 16 panels. A floor of 5 removes
+# 40 bars in the whole history (0.05%), all of them degenerate.
+#
+# Note this is deliberately an ABSOLUTE floor, not a share of the roster
+# and not a drop against recent coverage. IDP6 legitimately carries 332
+# unpriced names out of 603, so a share-of-roster rule would delete a
+# healthy panel; and ICHN once fell to 131 valid names of 540, which is a
+# collapse in relative terms but still a perfectly good sample for a
+# proportion. What makes breadth meaningless is a small denominator.
+MIN_BREADTH_NAMES = 5
 RSI_OVERBOUGHT = 70.0
 
 # Statistical window controls.
@@ -454,17 +480,22 @@ def main() -> int:
         high_at = rolling_high.loc[d, roster_in_panel]
         high_valid = high_at.notna() & has_price
 
-        if rsi_valid.any():
+        # Each component needs MIN_BREADTH_NAMES valid constituents, not
+        # merely one — see the constant's rationale. Each is tested against
+        # its own validity mask, because RSI, the 50-day average and the
+        # 63-day high have different warmup lengths and so become available
+        # at different times.
+        if rsi_valid.sum() >= MIN_BREADTH_NAMES:
             rsi_b = float(rsi_overbought.loc[d, roster_in_panel][rsi_valid].sum() /
                           rsi_valid.sum())
         else:
             rsi_b = np.nan
-        if ma_valid.any():
+        if ma_valid.sum() >= MIN_BREADTH_NAMES:
             ma_b = float(above_ma.loc[d, roster_in_panel][ma_valid].sum() /
                          ma_valid.sum())
         else:
             ma_b = np.nan
-        if high_valid.any():
+        if high_valid.sum() >= MIN_BREADTH_NAMES:
             high_b = float(at_high.loc[d, roster_in_panel][high_valid].sum() /
                            high_valid.sum())
         else:
