@@ -23,7 +23,19 @@ Runs the complete dependency chain in the right order:
         NOT regenerate itself — same silent-staleness class as #2.)
 
     6. Live / dashboard: mark_to_market_live, export_holdings_prices,
-       pipeline (builds docs/index.html + factsheet PDF), pytest
+       pipeline (builds docs/index.html + factsheet PDF)
+
+    7. Verification (guard layer, 2026-08-08): the four integrity checks
+       run against the state steps 1-6 just wrote, BEFORE the operator
+       commits — so a silently-wrong step is caught while the previous
+       committed state is still intact. check_capture_integrity (strict
+       b,c — matching the weekly factsheet CI semantics, because the
+       push this refresh produces IS the factsheet trigger),
+       check_pair_integrity, check_refresh_guard (cross-panel coherence
+       vs the committed baseline), then check_freshness_headroom
+       (informational; exits 0 by design). The first three fail the run;
+       a failed run prints in the summary and the operator must not
+       commit/push the refreshed state. Then pytest last.
 
 This is the script the user should run weekly (typically Saturday morning,
 to catch the Friday close). The CI weekly_factsheet workflow runs a
@@ -174,6 +186,42 @@ def main() -> int:
     ]
     for label, script in live_steps:
         ok, dt = run_step(label, [py, script])
+        timings.append((label, dt))
+        if not ok:
+            failures.append(label)
+
+    # ----- Step 7: verification (guard layer) -----
+    # These validate the state steps 1-6 just wrote, before the operator
+    # commits. Failure semantics:
+    #   - capture integrity: FAIL fails the run. --strict b,c mirrors the
+    #     weekly factsheet workflow — the push produced by this refresh
+    #     triggers that workflow, so a B/C series missing the newest
+    #     Friday bar must be caught HERE, not after the email went out
+    #     (2026-07-17 fencepost incident).
+    #   - pair integrity: FAIL fails the run. A priced fund that does not
+    #     move with its own constituent basket invalidates every signal
+    #     for that member (EXH3/EXH4 defect class). SKIP on thin data is
+    #     not a failure by design.
+    #   - refresh guard: FAIL fails the run. Cross-panel coherence — one
+    #     shared end_friday, healthy endpoints, no critical staleness,
+    #     breadth ending on each ETF's own calendar, and no state lost
+    #     versus the committed baseline.
+    #   - freshness headroom: informational tripwire, exits 0 by design
+    #     (it forecasts the CI hard guard; right after a refresh it
+    #     should report lag 0-1). Recorded for timing only.
+    verify_steps = [
+        ("VERIFY capture integrity (--strict b,c)",
+            [py, "scripts/check_capture_integrity.py",
+             "--targets", "all", "--strict", "b,c"]),
+        ("VERIFY pair integrity (fund vs own constituents)",
+            [py, "scripts/check_pair_integrity.py"]),
+        ("VERIFY refresh guard (cross-panel coherence)",
+            [py, "scripts/check_refresh_guard.py"]),
+        ("VERIFY freshness headroom (informational)",
+            [py, "scripts/check_freshness_headroom.py"]),
+    ]
+    for label, cmd in verify_steps:
+        ok, dt = run_step(label, cmd)
         timings.append((label, dt))
         if not ok:
             failures.append(label)
