@@ -106,6 +106,32 @@ ETFS_ALL = ["SOXX", *ETFS_NON_SOXX]
 ETFS_CANDIDATES = list(EUROPE_SUPERSECTORS_CANDIDATE)
 ETFS_REFRESH = [*ETFS_ALL, *ETFS_CANDIDATES]
 
+# Pause between ETFs in step 1, to keep the price vendor's rate limiter from
+# emptying (2026-08-08).
+#
+# WHAT HAPPENED. The first 38-ETF run lost EXV5, EXV6, EXV7 and EXV8 in a
+# row to YFRateLimitError. Nothing was damaged — compute_breadth now stops
+# before writing, so the panels kept their committed contents — but four
+# panels went unrefreshed and needed re-running by hand. The scope change
+# from 24 to 38 ETFs is what pushed the request volume over the line.
+#
+# WHY 15 SECONDS. It has to be large enough to matter against a limiter
+# measured in requests-per-window and small enough not to dominate a run
+# that is otherwise ~25-35 minutes. At 15s across the ETFs that actually
+# fetch, the ceiling is under 10 minutes added and the realistic cost is
+# well below that, because a cache-warm step is skipped entirely.
+#
+# WHAT IT DOES NOT FIX. This paces BETWEEN ETFs; it cannot help WITHIN one.
+# A cold-cache panel downloads full history for hundreds of constituents in
+# a single step and can exhaust the limiter on its own — ICHN alone carries
+# 576 names. If that becomes the failure mode, the answer is retry-with-
+# backoff inside the download, not a longer pause out here.
+THROTTLE_DEFAULT_S = 15
+
+# A step finishing faster than this served itself from the parquet cache and
+# issued few or no requests, so pausing after it buys nothing but wall clock.
+THROTTLE_SKIP_UNDER_S = 10.0
+
 
 def run_step(label: str, cmd: list[str], cwd: Path = REPO_ROOT) -> tuple[bool, float]:
     """Run a subprocess, stream output, return (ok, elapsed_seconds)."""
@@ -134,6 +160,15 @@ def main() -> int:
                          "as fast as any other ETF.")
     p.add_argument("--no-tests", action="store_true",
                     help="Skip the final pytest run.")
+    p.add_argument("--throttle", type=float, default=THROTTLE_DEFAULT_S,
+                    metavar="SECONDS",
+                    help=f"Pause between ETFs in step 1 so the price "
+                         f"vendor's rate limiter can refill (default "
+                         f"{THROTTLE_DEFAULT_S:g}s). Skipped after a step "
+                         f"that finished in under "
+                         f"{THROTTLE_SKIP_UNDER_S:g}s, which means it was "
+                         f"served from cache. Pass 0 to disable — only "
+                         f"sensible on a fully warm cache.")
     args = p.parse_args()
 
     failures: list[str] = []
@@ -142,6 +177,16 @@ def main() -> int:
     # ----- Step 1: per-ETF constituents + breadth -----
     py = sys.executable
     for i, etf in enumerate(ETFS_REFRESH, start=1):
+        # Pace the loop so the price vendor's rate limiter can refill.
+        # Skipped before the first ETF, and skipped when the previous
+        # compute_breadth was fast: a sub-THROTTLE_SKIP_UNDER_S step served
+        # itself from the parquet cache and made no meaningful number of
+        # requests, so there is nothing to pace.
+        if args.throttle and i > 1 and timings and timings[-1][1] >= THROTTLE_SKIP_UNDER_S:
+            print(f"\n  throttle {args.throttle}s before {etf} "
+                  f"(previous step took {timings[-1][1]:.0f}s)", flush=True)
+            time.sleep(args.throttle)
+
         if etf == "SOXX" and args.skip_soxx_fetch:
             print(f"\n[{i}/{len(ETFS_REFRESH)}] {etf}: SKIPPED (--skip-soxx-fetch)",
                   flush=True)
