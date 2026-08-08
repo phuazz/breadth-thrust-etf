@@ -38,6 +38,17 @@ from etf_registry import (  # noqa: E402
     EUROPE_SUPERSECTORS_CANDIDATE,
     UNIVERSE_GLOBAL,
 )
+# One staleness policy, defined next to the incident that motivated it.
+# This module reads the same gitignored prices_cache_*.parquet and reports
+# each name's last observed close as its CURRENT price, so an unrefreshed
+# cache publishes a days-old number under today's date here exactly as it
+# does in the panels.
+from build_panel_series import (  # noqa: E402
+    OVERRIDE_ENV,
+    StalePriceCacheError,
+    check_cache_freshness,
+)
+from nyse_sessions import last_completed_session  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -47,6 +58,36 @@ OUT = DOCS / "data_audit.json"
 # Round breadth ratios to 4dp. They are proportions in [0,1]; full float
 # repr would roughly double the payload for digits nobody reads.
 _ROUND = 4
+
+# Panels this run could not report faithfully. Both are populated during
+# build() and consumed by write(), which refuses to publish if either is
+# non-empty — the committed file is then better than anything this run
+# could produce, so overwriting it is strictly a regression.
+#
+#   _stale_caches  price cache too far behind to report as current.
+#   _missing_raw   the iShares payload the holdings detail is parsed from
+#                  is absent. It returns [] on a missing source by design
+#                  ("a partial payload beats a failed build"), which is
+#                  right for the page and wrong for the file: a local
+#                  rebuild without data/raw_ishares/<ETF>_<date>.json
+#                  quietly replaced 3,370 populated holdings rows across
+#                  all 38 panels with empty lists, and the result is a
+#                  well-formed file that simply asserts less.
+_stale_caches: list[str] = []
+_missing_raw: list[str] = []
+_expected_session: object = None      # memoised; the lookup hits a calendar
+
+
+def _expected() -> "object | None":
+    """Last completed NYSE session, or None when the guard is overridden."""
+    global _expected_session
+    import os
+    if os.environ.get(OVERRIDE_ENV):
+        return None
+    if _expected_session is None:
+        _expected_session = last_completed_session(
+            datetime.now(timezone.utc))
+    return _expected_session
 
 
 def _round(v):
@@ -112,6 +153,8 @@ def _latest_holdings_detail(etf: str, actual_date: str | None,
     cfg = ETF_REGISTRY.get(etf) or {}
     raw = DATA_DIR / "raw_ishares" / f"{etf}_{actual_date.replace('-', '')}.json"
     if not raw.exists():
+        if etf not in _missing_raw:
+            _missing_raw.append(etf)
         return []
     try:
         payload = json.loads(raw.read_text(encoding="utf-8"))
@@ -153,6 +196,16 @@ def _latest_holdings_detail(etf: str, actual_date: str | None,
             import pandas as pd
             import compute_breadth as cb
             px = pd.read_parquet(pq)
+            # Record, then let it fall through to the handler below, which
+            # zeroes ma_state. Reporting these names as having NO price is
+            # the honest degradation; reporting a three-day-old close as
+            # current is the failure being guarded.
+            try:
+                check_cache_freshness(etf, px.index.max().date(), _expected())
+            except StalePriceCacheError:
+                if etf not in _stale_caches:
+                    _stale_caches.append(etf)
+                raise
             ma = cb.per_ticker_apply(
                 px, lambda s: s.rolling(cb.MA_PERIOD,
                                          min_periods=cb.MA_PERIOD).mean())
@@ -234,6 +287,8 @@ def _long_names() -> dict:
 
 
 def build() -> dict:
+    _stale_caches.clear()
+    _missing_raw.clear()
     long_names = _long_names()
     summary: list[dict] = []
     roster: dict[str, dict] = {}
@@ -350,11 +405,37 @@ def write() -> Path:
     """Build and write docs/data_audit.json. Importable entry point —
     pipeline.py calls THIS, not main(), because main() parses sys.argv and
     would otherwise consume the caller's arguments."""
+    import os
+
     payload = build()
+    if not os.environ.get(OVERRIDE_ENV):
+        reasons = []
+        if _stale_caches:
+            reasons.append(
+                f"{len(_stale_caches)} panel(s) have a price cache behind "
+                f"the last completed session ({', '.join(_stale_caches)})")
+        if _missing_raw:
+            reasons.append(
+                f"{len(_missing_raw)} panel(s) have no local iShares "
+                f"payload, so their holdings detail would be written empty "
+                f"({', '.join(_missing_raw)})")
+        if reasons:
+            raise StalePriceCacheError(
+                "data_audit NOT written — " + "; ".join(reasons) + ". The "
+                "committed file was left untouched. Fix: refresh the sources "
+                "(`python scripts/refresh_all.py`) and rebuild; or set "
+                f"{OVERRIDE_ENV}=1 for a one-off local rebuild that accepts "
+                "a thinner file.",
+                list(_stale_caches) + list(_missing_raw),
+            )
     text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     DOCS.mkdir(parents=True, exist_ok=True)
     OUT.write_text(text, encoding="utf-8")
-    print(f"Wrote {OUT.relative_to(PROJECT_ROOT)} "
+    try:
+        where = OUT.relative_to(PROJECT_ROOT)
+    except ValueError:
+        where = OUT              # OUT redirected outside the repo (tests)
+    print(f"Wrote {where} "
           f"({len(text):,} bytes, {len(text)/1024:.0f} KB) — "
           f"{len(payload['summary'])} panels")
     return OUT

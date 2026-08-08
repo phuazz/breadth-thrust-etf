@@ -1251,16 +1251,39 @@ def main() -> int:
     print(f"\nBuilding Data tab payload ...")
     try:
         import build_data_audit
-        build_data_audit.write()
         # Per-panel weekly series for the Data tab's expandable charts.
         # Separate files under docs/panel/ so opening one panel does not
         # pull the other 37; weekly rather than daily to keep the committed
         # footprint at ~2.2MB instead of ~9.2MB.
         import build_panel_series
-        build_panel_series.write_all()
     except Exception as exc:
-        print(f"  WARN: data audit build failed (non-fatal): {exc}",
+        print(f"  WARN: data audit build unavailable (non-fatal): {exc}",
               file=sys.stderr)
+    else:
+        # Run the two independently. They read the same price caches, so a
+        # stale cache stops BOTH — but each must still get its own attempt,
+        # or one refusing to publish would silently suppress the other.
+        stale: list[str] = []
+        for label, fn in (("data audit", build_data_audit.write),
+                          ("panel series", build_panel_series.write_all)):
+            try:
+                fn()
+            except build_panel_series.StalePriceCacheError as exc:
+                stale.append(str(exc))
+            except Exception as exc:
+                print(f"  WARN: {label} build failed (non-fatal): {exc}",
+                      file=sys.stderr)
+        if stale:
+            # Distinct from a crash: the build worked and deliberately
+            # declined to publish. A banner rather than a one-liner because
+            # what it protects looks perfectly healthy when wrong — a
+            # correct date label sitting over a days-old price.
+            print("\n" + "!" * 72, file=sys.stderr)
+            print("  STALE PRICE CACHE — Data tab outputs NOT rewritten",
+                  file=sys.stderr)
+            for message in stale:
+                print(f"  {message}", file=sys.stderr)
+            print("!" * 72 + "\n", file=sys.stderr)
 
     # B28 — Auto-generate the monthly factsheet PDF from the same data
     # the dashboard uses. Soft-fail if matplotlib is unavailable so a

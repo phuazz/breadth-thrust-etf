@@ -16,6 +16,27 @@ that would not match the breadth panel. The daily MA is computed first,
 exactly as compute_breadth does it (per ticker, on that ticker's own traded
 sessions), and only then sampled to the weekly grid.
 
+THE STALE-CACHE GUARD. ``data/prices_cache_*.parquet`` is gitignored, so
+every machine holds its own copy and a local rebuild is only ever as fresh
+as whatever that machine last fetched. The weekly resample below takes the
+last observation WITHIN each week, which is deliberate — a market shut on
+the Friday should report its Thursday close rather than a hole — but it
+means a cache that simply stopped advancing is indistinguishable from a
+holiday: the point still gets stamped with its Friday label and carries a
+days-old price. On 2026-08-08 a local rebuild off a cache ending 08-04 was
+about to commit ADI at 380.29 under a 2026-08-07 label against a true
+389.93, across 25 panels, with nothing in the output saying so.
+
+Nothing downstream can catch this. The date label is well-formed, the
+series is complete, and ``_proxy_series`` below fetches the ETF line live —
+so the chart would show a current ETF line against stale constituent lines
+and look entirely healthy. The only place the truth exists is the cache's
+own last bar, so that is what gets checked, before anything is written.
+
+A stale panel is SKIPPED, never written: the committed file is newer than
+what this run would produce, so leaving it alone is the correct outcome.
+Set ``ALLOW_STALE_PANEL_CACHE=1`` for a one-off local rebuild — never in CI.
+
 Run:
     python scripts/build_panel_series.py
     python scripts/build_panel_series.py --etf CSP1     # single panel
@@ -25,12 +46,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import ETF_REGISTRY  # noqa: E402
+from nyse_sessions import last_completed_session, sessions_behind  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -45,6 +68,55 @@ _PRICE_DP = 2       # prices rounded to 2dp; more is noise at this resolution
 # Each is computed on DAILY closes and then sampled to the weekly grid — a
 # 50-period average over weekly bars would be a 50-WEEK average.
 MA_WINDOWS = {"m50": 50, "m100": 100, "m200": 200}
+
+# Budget, in NYSE sessions, between a cache's last bar and the last
+# completed session. Not zero, because these panels span Xetra, LSE and
+# Asian calendars against an NYSE yardstick: a Europe-only closure leaves a
+# legitimately current cache one session short, and a two-day one (26 Dec,
+# when NYSE trades and much of Europe does not) leaves it two. Three is
+# already past any real cross-calendar gap — and three is exactly what the
+# 2026-08-08 near-miss measured, so the budget has to sit below it.
+MAX_CACHE_LAG_SESSIONS = 2
+
+# Never set in CI. Lets a local rebuild proceed on caches it knows are
+# behind, matching the ALLOW_STALE_REGIME escape hatch in pipeline.py.
+OVERRIDE_ENV = "ALLOW_STALE_PANEL_CACHE"
+
+
+class StalePriceCacheError(RuntimeError):
+    """A panel's price cache is too far behind to be written safely.
+
+    Carries ``etfs`` so a caller can report every stale panel from one run
+    rather than only whichever failed first.
+    """
+
+    def __init__(self, message: str, etfs: list[str] | None = None):
+        super().__init__(message)
+        self.etfs = etfs or []
+
+
+def check_cache_freshness(etf: str, last_bar: date,
+                          expected: date | None) -> None:
+    """Raise if ``etf``'s cache is too far behind ``expected`` to publish.
+
+    Takes ``last_bar`` rather than a path so a caller that has already read
+    the frame does not pay for a second parquet read. ``expected`` of None
+    disables the check.
+
+    Shared with build_data_audit, which reads the SAME gitignored caches and
+    reports each name's last observed close as its current price — the same
+    silent staleness in a different table. One budget, one exception type,
+    so the two cannot drift apart.
+    """
+    if expected is None:
+        return
+    lag = sessions_behind(last_bar, expected)
+    if lag > MAX_CACHE_LAG_SESSIONS:
+        raise StalePriceCacheError(
+            f"{etf}: cache ends {last_bar}, {lag} NYSE sessions behind the "
+            f"last completed session ({expected}).",
+            [etf],
+        )
 
 
 def _round(v):
@@ -71,7 +143,20 @@ def _current_roster(etf: str) -> set[str] | None:
         return None
 
 
-def build_panel(etf: str) -> dict | None:
+def build_panel(etf: str, expected: date | None = None) -> dict | None:
+    """Build one panel payload, or None when there is no usable cache.
+
+    Args:
+        etf: registry key, e.g. ``CSP1``.
+        expected: last completed NYSE session to measure the cache against.
+            None disables the check — used by callers that have already
+            established freshness, and by the override path.
+
+    Raises:
+        StalePriceCacheError: the cache's last bar is more than
+            MAX_CACHE_LAG_SESSIONS behind ``expected``. Raised BEFORE any
+            resampling, so a stale bar never reaches a weekly label.
+    """
     import pandas as pd
     import compute_breadth as cb
 
@@ -81,6 +166,9 @@ def build_panel(etf: str) -> dict | None:
     px = pd.read_parquet(pq)
     if px.empty:
         return None
+
+    # Before any resampling, so a stale bar never reaches a weekly label.
+    check_cache_freshness(etf, px.index.max().date(), expected)
 
     # Daily MAs first — see the module docstring. per_ticker_apply keeps each
     # ticker on its own traded sessions, so a European name is not voided by
@@ -208,14 +296,41 @@ def _proxy_series(symbols: list[str]) -> dict:
         return {}
 
 
-def write_all(only: str | None = None) -> int:
+def write_all(only: str | None = None, expected: date | None = None) -> int:
+    """Write every panel whose cache is current enough to trust.
+
+    Args:
+        only: build a single panel instead of the whole registry.
+        expected: last completed NYSE session. Resolved from the clock when
+            omitted; forced to None (check disabled) by OVERRIDE_ENV.
+
+    Raises:
+        StalePriceCacheError: after writing the panels that were fresh, if
+            any were skipped. Raised at the END so one stale cache cannot
+            mask the state of the other 37.
+    """
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     symbols = [only.upper()] if only else sorted(ETF_REGISTRY)
+    overridden = bool(os.environ.get(OVERRIDE_ENV))
+    if expected is None and not overridden:
+        expected = last_completed_session(datetime.now(timezone.utc))
+    if overridden:
+        expected = None
+        print(f"  {OVERRIDE_ENV} set — stale-cache guard DISABLED, panel "
+              f"prices may be older than their date labels", flush=True)
     proxy = _proxy_series(symbols)
     total = 0
     written = 0
+    stale: list[str] = []
     for etf in symbols:
-        payload = build_panel(etf)
+        try:
+            payload = build_panel(etf, expected=expected)
+        except StalePriceCacheError as exc:
+            # Leave the committed file alone: it is newer than anything this
+            # run could produce, so overwriting is strictly a regression.
+            stale.append(etf)
+            print(f"  {etf:6s} SKIPPED (stale cache) — {exc}", flush=True)
+            continue
         if payload is None:
             print(f"  {etf:6s} skipped — no price cache", flush=True)
             continue
@@ -228,8 +343,23 @@ def write_all(only: str | None = None) -> int:
         print(f"  {etf:6s} {len(payload['series']):4d} names, "
               f"{len(payload['dates']):3d} weeks, {len(text)/1024:7.0f} KB",
               flush=True)
+    try:
+        where = OUT_DIR.relative_to(PROJECT_ROOT)
+    except ValueError:
+        where = OUT_DIR          # OUT_DIR redirected outside the repo (tests)
     print(f"\nWrote {written} panel files to "
-          f"{OUT_DIR.relative_to(PROJECT_ROOT)} — {total/1024/1024:.2f} MB total")
+          f"{where} — {total/1024/1024:.2f} MB total")
+    if stale:
+        raise StalePriceCacheError(
+            f"{len(stale)} panel(s) NOT written — price cache behind the "
+            f"last completed session by more than {MAX_CACHE_LAG_SESSIONS} "
+            f"session(s): {', '.join(stale)}. The committed files were left "
+            f"untouched, so nothing stale was published. Fix: refresh the "
+            f"caches (`python scripts/refresh_all.py`) and rebuild; or set "
+            f"{OVERRIDE_ENV}=1 for a one-off local rebuild that accepts "
+            f"prices older than their date labels.",
+            stale,
+        )
     return 0
 
 
