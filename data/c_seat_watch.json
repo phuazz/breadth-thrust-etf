@@ -65,15 +65,15 @@
     {
       "week_end": "2026-08-07",
       "r_rotation": 0.049988,
-      "r_ew25": 0.051481,
-      "r_blend": 0.01181,
-      "r_without_c": 0.007568,
+      "r_ew25": 0.051498,
+      "r_blend": 0.011895,
+      "r_without_c": 0.007663,
       "w_c": 0.1,
       "n_ew_names": 25,
       "fx_fallback": false,
-      "computed_at_utc": "2026-08-07 09:56 UTC",
-      "cum_rotation_minus_ew_pp": -7.068,
-      "cum_with_minus_without_pp": -0.905,
+      "computed_at_utc": "2026-08-07 14:09 UTC",
+      "cum_rotation_minus_ew_pp": -7.069,
+      "cum_with_minus_without_pp": -0.906,
       "tripwire": true
     }
   ]
