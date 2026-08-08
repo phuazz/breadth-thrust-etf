@@ -1,7 +1,7 @@
 # Data Integrity Policy — USD Multi-Strategy ETF Portfolio
 
 **Owner:** Phua Zheng Hao (CIO)
-**Last reviewed:** 2026-08-07
+**Last reviewed:** 2026-08-08
 **Repository:** `breadth-thrust-etf`
 **Applies to:** signal generation, walk-forward analytics, and dashboard publication for the deployed USD multi-strategy blend.
 
@@ -99,7 +99,7 @@ A run that cannot reach the endpoint therefore produces a *shorter* series rathe
 
 ## 5. Staleness windows
 
-Defined as global defaults in `scripts/fetch_constituents.py`, with **per-ETF overrides** in `scripts/etf_registry.py` for ETFs whose source cadence is structurally different (e.g. SOXX, whose secondary source is quarterly).
+Defined as global defaults in `scripts/fetch_constituents.py`. Per-ETF overrides in `scripts/etf_registry.py` remain supported for a source whose cadence is structurally different, but none is in use — see Section 5b.
 
 ### 5a. Global default thresholds
 
@@ -115,12 +115,22 @@ The 30-day default is calibrated to a daily-availability source (iShares UK / iS
 
 ### 5b. Per-ETF overrides (Phase 26.3)
 
-When an ETF's primary source is unavailable but a secondary source with materially different cadence is registered (currently only SOXX → SEC EDGAR N-PORT-P), the global default would either trip critical even though the secondary is keeping the roster authoritative, OR force operator intervention more often than the source cadence warrants. The registry's `staleness` block lets each ETF declare thresholds matched to its actual data-source cadence.
+The mechanism remains available: an ETF whose source cadence is structurally different from the daily-availability norm may declare a `staleness` block in `scripts/etf_registry.py` and have it override the global defaults.
+
+**No ETF currently uses it.** All 38 panels run on the global 14 / 30.
 
 | ETF | warn_days | critical_days | Rationale |
 |-----|-----------|---------------|-----------|
-| **SOXX** | 60 | 120 | EDGAR N-PORT-P is quarterly (≤ 90 days between filings) + 60-day SEC filing grace → max realistic refresh latency ~150 days. Critical set at 120 (max-realistic minus a one-month safety margin); warn at 60 (one quarter — flag for proactive investigation before EDGAR is the only thing keeping us going). With ~2-3 PHLX SOX holdings turnover per year, 120 days of staleness = ~1 stock of drift in 33 constituents (3%) — within signal tolerance. |
-| All others | 14 | 30 | Daily-availability iShares UK source; tight thresholds appropriate. |
+| All | 14 | 30 | Daily-availability source (BlackRock product-data API) for every panel; tight thresholds appropriate. |
+
+**SOXX's override was removed on 2026-08-08.** Phase 26.3 had widened it to warn 60 / critical 120 on the reasoning that the iShares US route was Akamai-blocked and EDGAR N-PORT-P was therefore the operative secondary source — quarterly filings plus 60 days of statutory grace put a ~150-day ceiling on achievable freshness, so a 30-day alarm would have fired monthly with nothing the operator could do about it.
+
+Both halves of that reasoning have since gone:
+
+- **The primary works again.** Phase 27 reaches SOXX through the product-data API with `targetSite=ishares-us`, which bypasses the Akamai block entirely. SOXX went from 84 days stale to 0 in one refresh and is now fetched weekly like every other panel.
+- **EDGAR was never actually operative.** `edgar_used` has been 0 throughout its life, because its `repPdEnd` is almost always older than the carry-forward it would replace, so the freshness rule in `fetch_constituents.py` correctly declines it. The 120-day window was calibrated to a fallback that has never once supplied a snapshot.
+
+The practical effect of the revert: if the transport breaks again, SOXX now goes critical within a month rather than four. That is the intent — the wide window existed to stop a known-unfixable condition from crying wolf, and the condition is fixed. EDGAR remains registered as a genuine backstop; its value is that it exists, not that it fires.
 
 Each `data/constituents_<etf>.json` includes the actually-applied thresholds in its `staleness` block (along with `threshold_source: "per_etf_override"` or `"global_default"` and the rationale text), so reading any single file is sufficient to understand the policy applied at that build.
 
@@ -209,6 +219,7 @@ For a regulatory audit, the combination of git commit history (immutable, signed
 
 | Date | ETF | Severity | Root cause | Remediation |
 |------|-----|----------|-----------|-------------|
+| 2026-08-08 | SOXX | None (housekeeping) | Per-ETF staleness override (warn 60d / critical 120d, Phase 26.3) had outlived its rationale. It was set because the iShares US route was Akamai-blocked and EDGAR N-PORT-P was believed to be the operative secondary source. Phase 27 restored the primary via `targetSite=ishares-us` (84 days stale to 0 in one refresh), and EDGAR turned out never to have been operative at all — `edgar_used` has been 0 throughout, because its `repPdEnd` is almost always older than the carry-forward it would replace, so the freshness rule correctly declines it. The 120-day window was calibrated to a fallback that has never supplied a snapshot. | Override removed; SOXX runs on the global 14 / 30 like every other panel. If the transport breaks again SOXX now goes critical within a month rather than four, which is the intent. EDGAR stays registered as a genuine backstop. `tests/test_edgar_nport.py` now asserts the ABSENCE of the override and asks for a current justification if anyone re-adds it. |
 | 2026-08-07 | **All 24** | Warning (21 days stale; 84 for SOXX) — would have gone critical on the first run on or after 2026-08-15 | iShares re-platformed its product pages between the 2026-07-10 and 2026-07-17 refreshes. The legacy `<ajax_id>.ajax?fileType=csv` route stopped serving CSV and began returning the single-page product shell as HTTP 200 HTML for **every** `asOfDate`, including dates that had previously succeeded. Detection failed for four weeks not because the fetch was wrong — `looks_like_ishares_holdings_csv` correctly rejected the HTML, `fetch_with_retry` correctly raised, and no bad data was ever cached — but because `main()` folded the transport exception into an ordinary carry-forward whose reason read "no holdings data within 5 days back from target Friday". A dead endpoint was therefore indistinguishable from a run of public holidays. Secondary cost: ~4 of the 4.8-hour refresh was spent re-confirming the same failure at ~48s per dead date, growing ~24 dead dates per week. | Phase 27. (1) Transport swapped to the BlackRock product-data JSON API (Section 2.1), which also reaches SOXX via `targetSite=ishares-us` and so retires the separate Akamai block — SOXX went from 84 days stale to 0. (2) `EndpointCircuit` short-circuits the Friday walk on the first hard failure, so an outage costs one request per ETF instead of ~450. (3) Outage and data gap are now distinct outcomes with distinct exit codes (3 vs 0) and no carry-forward is emitted for an outage; `--carry-forward-on-outage` is the opt-in escape hatch. (4) A changed payload raises `PayloadContractError` rather than parsing to an empty roster. (5) Date parity is enforced: the API answers an unavailable date with a null roster and `asOfDate` rewritten to the latest date, which would otherwise stamp today's roster onto a historical Friday. (6) `tests/test_constituent_api_parity.py` pins both transports to an identical roster for 8 funds including all 6 exchange-suffix ones. Side effect: 5 historical holiday Fridays (e.g. 2020-04-10, 2020-12-25) that previously carried a week-stale roster now resolve to the correct prior trading day, marginally changing historical breadth inputs. |
 | 2026-05-31 | SOXX | Warning (21 days stale) | iShares US holdings endpoint Akamai-blocked since ~2026-05-15. No CI workflow was invoking `fetch_constituents.py --etf SOXX`, so the staleness guard in `scripts/alignment.py` masked SOXX out of the eligible Strategy A universe for the 2026-05-22 rebal — SOXX picks were dropped silently. | Phase 26: added SOXX-specific refresh steps to `.github/workflows/weekly_factsheet.yml`. Phase 26.1: built the staleness-alarm framework (this document, plus exit-code-2 in fetcher, plus publish-abort in `pipeline.py`) so the next occurrence fails loudly within 30 days. Phase 26.2: built SEC EDGAR N-PORT-P fallback (`scripts/edgar_nport.py`, registered as SOXX's `edgar_nport` secondary source). EDGAR is loaded once per fetch run and only used when its `repPdEnd` date is fresher than the carry-forward source — currently iShares carry-forward (2026-05-08) is fresher than the latest EDGAR filing (`repPdEnd 2026-03-31`) so EDGAR is loaded as a standby but not currently injecting snapshots. When the next quarterly N-PORT-P lands (~2026-08-29, `repPdEnd 2026-06-30`), EDGAR will automatically resume freshness if iShares US stays blocked. Phase 26.3: added per-ETF staleness overrides (Section 5b); SOXX moves to warn=60d / critical=120d so the alarm thresholds match EDGAR's quarterly cadence rather than the global default 14d / 30d (which were calibrated to daily-availability sources). The dependence on a single operator's residential IP is now structurally removed. |
 

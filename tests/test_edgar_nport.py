@@ -386,21 +386,49 @@ def test_resolve_staleness_thresholds_rejects_inverted_thresholds():
         resolve_staleness_thresholds(cfg)
 
 
-def test_soxx_registry_carries_phase_26_3_override():
-    """SOXX must keep its per-ETF override in etf_registry.py. If
-    anyone removes it, this test fails and points at the regression
-    (without the override, SOXX would trip critical at 31 days even
-    though EDGAR N-PORT-P is still authoritative)."""
+def test_soxx_uses_the_global_staleness_thresholds():
+    """SOXX must NOT carry a per-ETF staleness override.
+
+    Phase 26.3 widened SOXX to warn 60d / critical 120d because the
+    iShares US route was Akamai-blocked and EDGAR N-PORT-P was believed to
+    be the operative secondary source: quarterly filings plus 60 days of
+    statutory grace put a ~150-day ceiling on achievable freshness, so a
+    30-day alarm would have fired monthly with nothing the operator could
+    do about it.
+
+    Removed 2026-08-08, because both halves of that reasoning went away.
+    The primary works again — Phase 27 reaches SOXX through the
+    product-data API with targetSite=ishares-us, taking it from 84 days
+    stale to 0 in one refresh. And EDGAR was never actually operative:
+    edgar_used has been 0 throughout, because its repPdEnd is almost
+    always older than the carry-forward it would replace, so the freshness
+    rule correctly declines it. The wide window was calibrated to a
+    fallback that has never supplied a snapshot.
+
+    If someone re-adds the override, this fails and asks for the current
+    justification rather than the 2026-05 one.
+    """
     from etf_registry import get_etf
+    from fetch_constituents import (resolve_staleness_thresholds,
+                                     WARN_STALE_DAYS, MAX_STALE_DAYS)
     cfg = get_etf("SOXX")
-    stale = cfg.get("staleness")
-    assert stale is not None, (
-        "SOXX must carry a per-ETF staleness override; default 30-day "
-        "critical threshold is incompatible with quarterly EDGAR cadence."
+    assert cfg.get("staleness") is None, (
+        "SOXX carries a per-ETF staleness override again. The Phase 26.3 "
+        "rationale (blocked primary, EDGAR as operative source) no longer "
+        "holds; if there is a new reason, state it here."
     )
-    assert stale.get("warn_days") == 60
-    assert stale.get("critical_days") == 120
-    assert "EDGAR" in (stale.get("rationale") or ""), (
-        "Rationale should reference EDGAR — that is the source of the "
-        "relaxed threshold; future maintainers need that link."
-    )
+    warn, critical = resolve_staleness_thresholds(cfg)
+    assert (warn, critical) == (WARN_STALE_DAYS, MAX_STALE_DAYS)
+
+
+def test_soxx_keeps_edgar_registered_as_a_backstop():
+    """Dropping the threshold override must not drop the fallback itself.
+
+    EDGAR has supplied nothing to date, but it is the only secondary
+    source SOXX has if the product-data route fails the way the .ajax one
+    did. Its value is that it exists, not that it fires.
+    """
+    from etf_registry import get_etf
+    edgar = get_etf("SOXX").get("edgar_nport")
+    assert edgar, "SOXX must keep its EDGAR N-PORT-P fallback registered"
+    assert edgar.get("cik") and edgar.get("series_id")

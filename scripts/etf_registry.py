@@ -70,34 +70,33 @@ ETF_REGISTRY: dict[str, dict] = {
             "cik": "1100663",
             "series_id": "S000004354",
         },
-        # Phase 26.3 (2026-05-31) — per-ETF staleness override.
-        # The global default (warn 14d / critical 30d, defined in
-        # fetch_constituents.py) is too tight for SOXX once EDGAR is
-        # the operative secondary source. EDGAR N-PORT-P cadence is
-        # quarterly (≤90 days between filings) + 60 days statutory
-        # filing grace = up to 150 days from a snapshot's repPdEnd
-        # to the next available filing. We set:
-        #   - warn at 60d  (one full quarter — investigate the primary
-        #                   source proactively before EDGAR is the only
-        #                   thing keeping us going)
-        #   - critical at 120d (max-realistic EDGAR refresh latency +
-        #                       a one-month safety margin — beyond this
-        #                       we should treat the data source itself
-        #                       as suspect)
-        # With ~2-3 PHLX SOX holdings turnover per year, 120 days of
-        # roster staleness is ~1 stock of drift in 33 constituents
-        # (3%), within signal tolerance. See DATA_INTEGRITY_POLICY.md
-        # section 5 "Staleness windows" for the full rationale.
-        "staleness": {
-            "warn_days": 60,
-            "critical_days": 120,
-            "rationale": (
-                "EDGAR N-PORT-P secondary source has quarterly cadence "
-                "+ 60-day filing grace, so the practical max staleness "
-                "ceiling is ~150d. Thresholds set to match: warn at 60d, "
-                "critical at 120d."
-            ),
-        },
+        # Staleness: GLOBAL defaults (warn 14d / critical 30d), same as
+        # every other ETF. No per-ETF override.
+        #
+        # Phase 26.3 (2026-05-31) had widened SOXX to warn 60d / critical
+        # 120d, on the reasoning that the iShares US route was Akamai-
+        # blocked and EDGAR N-PORT-P was therefore "the operative secondary
+        # source" — quarterly filings plus 60 days of statutory grace put a
+        # ~150-day ceiling on how fresh the roster could possibly be, so
+        # alerting at 30 days would have fired every month with nothing the
+        # operator could do about it.
+        #
+        # Removed 2026-08-08. Both halves of that reasoning are gone. The
+        # primary works again: Phase 27 reaches SOXX through the
+        # product-data API with targetSite=ishares-us, and its roster went
+        # from 84 days stale to 0 in a single refresh. And EDGAR was never
+        # actually the operative source — edgar_used has been 0 throughout,
+        # because its repPdEnd is almost always OLDER than the carry-forward
+        # it would replace, so the freshness rule correctly declines it. The
+        # 120-day window was calibrated to a fallback that has never once
+        # supplied a snapshot.
+        #
+        # SOXX is now fetched weekly like everything else, so it gets the
+        # same alarm as everything else. The practical effect: if the
+        # transport breaks again, SOXX goes critical within a month rather
+        # than four. That is the point — the wide window existed to stop a
+        # known-unfixable condition from crying wolf, and the condition is
+        # fixed. EDGAR stays registered as a genuine backstop.
     },
     "CSP1": {
         # iShares Core S&P 500 UCITS ETF (Acc) — Irish-domiciled UCITS that
