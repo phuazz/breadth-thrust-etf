@@ -2,9 +2,19 @@
 
 Runs the complete dependency chain in the right order:
 
-    1. Per-ETF refresh (24 ETFs): fetch_constituents + compute_breadth
+    1. Per-ETF refresh (38 ETFs = 24 deployed + 14 Europe supersector
+       candidates): fetch_constituents + compute_breadth
        (per-constituent price parquets live in data/prices_cache_*.parquet,
         gitignored, so this step is local-only — CI cannot run it.)
+
+       The 14 candidates joined on 2026-08-08. They were previously
+       refreshed nowhere, so their price caches existed only on whichever
+       machine last captured them by hand; everywhere else their panels
+       rebuilt as "skipped — no price cache" and silently kept whatever
+       was committed. Including them costs real time on a cold cache
+       (full history per constituent, not the incremental top-up the
+       deployed 24 get) and is the reason this step now dominates the run.
+       They are REFRESHED but not DEPLOYED — see ETFS_ALL vs ETFS_REFRESH.
 
     2. Aggregated breadth: run_ma200_sweep
        (produces ma200_sweep.json, which feeds the Live Signal chart
@@ -66,6 +76,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from etf_registry import EUROPE_SUPERSECTORS_CANDIDATE  # noqa: E402
+
 ETFS_NON_SOXX = [
     "CSP1", "CNDX",
     "IUES", "IUFS", "IUIT", "IUHC", "IUIS",
@@ -73,7 +86,25 @@ ETFS_NON_SOXX = [
     "EXV1", "EXH1", "EXV3", "EXH3", "EXH9",
     "IJPN", "NDIA", "ICHN", "ITWN", "IDP6",
 ]
+
+# The DEPLOYED set. Not merely a refresh list: check_refresh_guard.py
+# imports this as its single source of truth for which panels must share
+# an end_friday, and its scope note turns on the 14 candidates being
+# outside it. Adding a candidate here would silently put it under those
+# alignment checks. Refresh scope is ETFS_REFRESH below — change that.
 ETFS_ALL = ["SOXX", *ETFS_NON_SOXX]
+
+# What step 1 actually walks (2026-08-08). The 14 Europe supersector
+# candidates were previously refreshed nowhere, so their price caches
+# only ever existed on whichever machine last captured them by hand —
+# every other machine rebuilt their panels as "skipped, no price cache"
+# and silently kept whatever was committed.
+#
+# They are refreshed but NOT deployed, which is why this is a separate
+# name. Candidates are captured for screening; they are not held to the
+# shared end_friday, and check_refresh_guard still reads ETFS_ALL.
+ETFS_CANDIDATES = list(EUROPE_SUPERSECTORS_CANDIDATE)
+ETFS_REFRESH = [*ETFS_ALL, *ETFS_CANDIDATES]
 
 
 def run_step(label: str, cmd: list[str], cwd: Path = REPO_ROOT) -> tuple[bool, float]:
@@ -110,20 +141,20 @@ def main() -> int:
 
     # ----- Step 1: per-ETF constituents + breadth -----
     py = sys.executable
-    for i, etf in enumerate(ETFS_ALL, start=1):
+    for i, etf in enumerate(ETFS_REFRESH, start=1):
         if etf == "SOXX" and args.skip_soxx_fetch:
-            print(f"\n[{i}/{len(ETFS_ALL)}] {etf}: SKIPPED (--skip-soxx-fetch)",
+            print(f"\n[{i}/{len(ETFS_REFRESH)}] {etf}: SKIPPED (--skip-soxx-fetch)",
                   flush=True)
         else:
             ok, dt = run_step(
-                f"[{i}/{len(ETFS_ALL)}] {etf} fetch_constituents",
+                f"[{i}/{len(ETFS_REFRESH)}] {etf} fetch_constituents",
                 [py, "scripts/fetch_constituents.py", "--etf", etf],
             )
             timings.append((f"fetch_constituents {etf}", dt))
             if not ok:
                 failures.append(f"fetch_constituents {etf}")
         ok, dt = run_step(
-            f"[{i}/{len(ETFS_ALL)}] {etf} compute_breadth",
+            f"[{i}/{len(ETFS_REFRESH)}] {etf} compute_breadth",
             [py, "scripts/compute_breadth.py", "--etf", etf],
         )
         timings.append((f"compute_breadth {etf}", dt))

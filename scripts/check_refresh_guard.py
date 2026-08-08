@@ -39,8 +39,14 @@ Verdicts: FAIL -> exit 1 (the run must not be trusted or committed as-is),
 WARN -> exit 0 with a printed notice, OK -> silence beyond the summary.
 
 Scope note: the 14 EUROPE_SUPERSECTORS_CANDIDATE panels are data-only
-captures outside the weekly refresh loop, so they are deliberately NOT
-held to the shared end_friday; the deployed set is refresh_all.ETFS_ALL.
+captures, so they are deliberately NOT held to the shared end_friday; the
+deployed set is refresh_all.ETFS_ALL. Since 2026-08-08 they ARE refreshed
+by refresh_all (which walks ETFS_REFRESH = deployed + candidates), so the
+reason they sit outside this guard is no longer "nothing refreshes them"
+— it is that a screening capture carries no deployment obligation. Keep
+this reading ETFS_ALL: widening it to ETFS_REFRESH would put candidates
+under the cross-panel alignment checks and fail runs for panels no
+strategy trades.
 
 Pure verdict logic lives in the check_* functions and is unit-tested in
 tests/test_check_refresh_guard.py; only main() touches disk/git.
