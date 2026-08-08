@@ -1232,6 +1232,12 @@ def main() -> int:
     try:
         import build_data_audit
         build_data_audit.write()
+        # Per-panel weekly series for the Data tab's expandable charts.
+        # Separate files under docs/panel/ so opening one panel does not
+        # pull the other 37; weekly rather than daily to keep the committed
+        # footprint at ~2.2MB instead of ~9.2MB.
+        import build_panel_series
+        build_panel_series.write_all()
     except Exception as exc:
         print(f"  WARN: data audit build failed (non-fatal): {exc}",
               file=sys.stderr)

@@ -10517,7 +10517,7 @@ function _renderDataSummary(d) {
       ? '<span style="color:#15803d;">ok</span>'
       : `<span style="color:#b91c1c;font-weight:600;">${_num(r.endpoint_health)}</span>`;
     const staleColour = (r.stale_status && r.stale_status !== 'fresh') ? '#b45309' : 'var(--ink-soft)';
-    return `<tr>
+    return `<tr data-chart-etf="${r.etf}" style="cursor:pointer;" title="Click for the traded ETF's 1Y chart">
       <td style="font-weight:600;">${r.etf}</td>
       <td style="font-size:12px;color:var(--ink-soft);max-width:280px;overflow:hidden;text-overflow:ellipsis;">${r.long_name || '—'}</td>
       <td style="font-size:12px;color:${roleColour};">${r._roleLabel}</td>
@@ -10535,6 +10535,115 @@ function _renderDataSummary(d) {
 }
 
 var DATA_HISTORY_ROWS = [];
+var DATA_PANEL_CACHE = {};   // etf -> panel series payload
+
+// Per-panel weekly series, fetched on first use. Each file is small
+// (median ~50KB, largest ~230KB) precisely so opening a panel does not
+// pull the other 37.
+async function _panelSeries(etf) {
+  if (DATA_PANEL_CACHE[etf] !== undefined) return DATA_PANEL_CACHE[etf];
+  for (const base of ['panel/', 'docs/panel/']) {
+    try {
+      const r = await fetch(base + etf + '.json', { cache: 'no-store' });
+      if (r.ok) { DATA_PANEL_CACHE[etf] = await r.json(); return DATA_PANEL_CACHE[etf]; }
+    } catch (e) { /* try the next base */ }
+  }
+  DATA_PANEL_CACHE[etf] = null;
+  return null;
+}
+
+function _closeDataChart() {
+  document.querySelectorAll('tr.data-chart-row').forEach((r) => r.remove());
+  document.querySelectorAll('tr.data-expanded').forEach((r) => r.classList.remove('data-expanded'));
+}
+
+// Draw price against its 50-day average. Both are rebased to the first
+// plotted price, matching the convention the Monitor mini-charts use, so
+// the two lines share a y-axis and the gap between them reads directly as
+// distance from the average — which is the quantity breadth counts.
+function _drawDataChart(hostId, title, dates, price, ma, note) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const base = price.find((v) => v !== null && v !== undefined);
+  if (!base) { host.innerHTML = '<div class="section-sub">No price history for this line.</div>'; return; }
+  const rebase = (arr) => (arr || []).map((v) => (v === null || v === undefined) ? null : (v / base) - 1);
+  const traces = [{
+    x: dates, y: rebase(price), name: 'Price', mode: 'lines',
+    line: { width: 2, color: '#1351b4' }, hovertemplate: '%{x}<br>%{y:.1%}<extra>Price</extra>',
+  }];
+  if (ma && ma.some((v) => v !== null && v !== undefined)) {
+    traces.push({
+      x: dates, y: rebase(ma), name: '50d MA', mode: 'lines',
+      line: { width: 1.5, color: '#b45309', dash: 'dot' },
+      hovertemplate: '%{x}<br>%{y:.1%}<extra>50d MA</extra>',
+    });
+  }
+  Plotly.newPlot(host, traces, {
+    margin: { l: 46, r: 12, t: 30, b: 34 },
+    height: 240,
+    title: { text: title, font: { size: 13 }, x: 0, xanchor: 'left' },
+    yaxis: { tickformat: '.0%', zeroline: true, zerolinecolor: '#d6d9dd' },
+    xaxis: { showgrid: false },
+    showlegend: true,
+    legend: { orientation: 'h', y: -0.22, font: { size: 11 } },
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    font: { size: 11 },
+  }, { displayModeBar: false, responsive: true });
+  if (note) {
+    host.insertAdjacentHTML('afterend',
+      `<div class="section-sub" style="font-size:11px;margin:4px 0 0;">${note}</div>`);
+  }
+}
+
+// Insert a chart row directly beneath the clicked row.
+async function _expandDataChart(row, etf, sym) {
+  const wasOpen = row.classList.contains('data-expanded');
+  _closeDataChart();
+  if (wasOpen) return;                      // second click closes
+  row.classList.add('data-expanded');
+  const span = row.cells.length;
+  const id = 'data-chart-host';
+  const tr = document.createElement('tr');
+  tr.className = 'data-chart-row';
+  // The chart lives inside a table that is deliberately wider than the
+  // viewport and scrolls horizontally. Left to inherit, the plot took the
+  // table's full width (673px inside a 390px phone), so reading it meant
+  // scrolling sideways. Pinning the host to the SCROLL CONTAINER's visible
+  // width and sticking it to the left edge keeps the whole chart on screen
+  // while the table underneath still scrolls normally.
+  const scroller = row.closest('div[style*="overflow-x"]') || row.closest('div');
+  const visible = scroller ? scroller.clientWidth : 0;
+  const widthCss = visible ? `width:${Math.max(260, visible - 24)}px;` : 'width:100%;';
+  tr.innerHTML = `<td colspan="${span}" style="padding:12px 10px;background:var(--bg-soft);">
+    <div id="${id}" style="min-height:240px;position:sticky;left:0;${widthCss}"></div></td>`;
+  row.insertAdjacentElement('afterend', tr);
+
+  const panel = await _panelSeries(etf);
+  if (!panel) {
+    document.getElementById(id).innerHTML =
+      `<div class="section-sub">No series file for ${etf}. Run <code>python scripts/build_panel_series.py</code> after the next refresh.</div>`;
+    return;
+  }
+  if (sym === null) {
+    const es = panel.etf_series;
+    if (!es) {
+      document.getElementById(id).innerHTML =
+        `<div class="section-sub">No ETF-level series for ${etf}.</div>`;
+      return;
+    }
+    _drawDataChart(id, `${es.ticker} — the traded ETF, 1Y weekly`, es.dates, es.p, null,
+      'The fund itself, not its constituents. Rebased to the first plotted week.');
+  } else {
+    const s = (panel.series || {})[sym];
+    if (!s) {
+      document.getElementById(id).innerHTML =
+        `<div class="section-sub">No price history for ${sym} — this name is excluded from breadth.</div>`;
+      return;
+    }
+    _drawDataChart(id, `${sym} — 1Y weekly vs 50-day average`, panel.dates, s.p, s.m,
+      'Weekly points; the 50-day average is computed on daily closes and then sampled, so it is the same line the breadth panel counts.');
+  }
+}
 
 // Dates are ISO (YYYY-MM-DD) throughout the payload and <input type="date">
 // also yields ISO, so range comparison is a plain string compare — no Date
@@ -10680,7 +10789,7 @@ function _renderDataDetail(etf) {
       : (h.above === false ? '<span style="color:#b91c1c;font-weight:600;">below</span>'
                             : '<span style="color:var(--ink-faint);">no price</span>');
     const dCol = h.d === null || h.d === undefined ? 'var(--ink-faint)' : (h.d >= 0 ? '#15803d' : '#b91c1c');
-    return `<tr>
+    return `<tr data-chart-sym="${h.sym}" style="cursor:pointer;" title="Click for ${h.sym} vs its 50-day average">
       <td style="font-weight:600;">${h.sym}</td>
       <td style="font-size:12px;color:var(--ink-soft);max-width:230px;overflow:hidden;text-overflow:ellipsis;">${h.name || '—'}</td>
       <td style="font-size:12px;color:var(--ink-faint);">${h.sector || '—'}</td>
@@ -10719,6 +10828,19 @@ async function renderDataAudit() {
       const el = document.getElementById(id);
       if (el) el.addEventListener('change', _renderDataHistory);
     });
+    // Delegated so the handlers survive every re-render (sort, filter,
+    // panel switch) without being re-bound each time.
+    const summaryT = document.getElementById('data-summary-table');
+    if (summaryT) summaryT.addEventListener('click', (ev) => {
+      const tr = ev.target.closest('tr[data-chart-etf]');
+      if (tr) _expandDataChart(tr, tr.dataset.chartEtf, null);
+    });
+    const holdT = document.getElementById('data-holdings-table');
+    if (holdT) holdT.addEventListener('click', (ev) => {
+      const tr = ev.target.closest('tr[data-chart-sym]');
+      if (tr) _expandDataChart(tr, document.getElementById('data-etf-select').value, tr.dataset.chartSym);
+    });
+
     const reset = document.getElementById('data-range-reset');
     if (reset) reset.addEventListener('click', () => {
       const f = document.getElementById('data-from');
