@@ -2,7 +2,7 @@
   "etf": "IUMS",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/287104/ishares-s-p-500-materials-sector-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=IUMS_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-08T00:37:01.225499+00:00",
+  "fetched_at_utc": "2026-08-08T02:25:02.907668+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-07",
   "n_target_fridays": 449,
@@ -14865,16 +14865,15 @@
       ]
     },
     "2026-07-17": {
-      "actual_date": "2026-07-10",
-      "carried_forward_from": "2026-07-10",
+      "actual_date": "2026-07-17",
       "n_tickers": 26,
       "tickers": [
         "LIN",
         "NEM",
         "FCX",
         "SHW",
-        "CRH",
         "ECL",
+        "CRH",
         "APD",
         "CTVA",
         "NUE",
@@ -14885,14 +14884,14 @@
         "SW",
         "DOW",
         "PKG",
-        "IP",
         "AMCR",
         "IFF",
-        "DD",
+        "IP",
         "CF",
+        "DD",
         "BALL",
-        "ALB",
         "LYB",
+        "ALB",
         "AVY",
         "MOS"
       ]
@@ -14905,8 +14904,8 @@
         "NEM",
         "FCX",
         "SHW",
-        "CRH",
         "ECL",
+        "CRH",
         "APD",
         "CTVA",
         "NUE",
@@ -14922,10 +14921,9 @@
         "IFF",
         "CF",
         "DD",
-        "CF",
         "BALL",
-        "ALB",
         "LYB",
+        "ALB",
         "AVY",
         "MOS"
       ]
@@ -14955,8 +14953,8 @@
         "IFF",
         "CF",
         "BALL",
-        "ALB",
         "LYB",
+        "ALB",
         "AVY",
         "MOS"
       ]

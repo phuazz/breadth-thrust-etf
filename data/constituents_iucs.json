@@ -2,7 +2,7 @@
   "etf": "IUCS",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/287102/ishares-s-p-500-consumer-staples-sector-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=IUCS_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-08T00:34:11.510982+00:00",
+  "fetched_at_utc": "2026-08-08T02:23:10.854070+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-07",
   "n_target_fridays": 449,
@@ -18087,8 +18087,7 @@
       ]
     },
     "2026-07-17": {
-      "actual_date": "2026-07-10",
-      "carried_forward_from": "2026-07-10",
+      "actual_date": "2026-07-17",
       "n_tickers": 34,
       "tickers": [
         "WMT",
@@ -18103,8 +18102,8 @@
         "MNST",
         "TGT",
         "KDP",
-        "SYY",
         "ADM",
+        "SYY",
         "KVUE",
         "KMB",
         "KR",
@@ -18145,7 +18144,6 @@
         "ADM",
         "KDP",
         "SYY",
-        "ADM",
         "KVUE",
         "KMB",
         "KR",
