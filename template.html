@@ -3581,9 +3581,15 @@ function _bAssetClass(etf) {
 }
 
 // Trading proxy for each ETF in Strategy A. Same as the ma200_sweep.
+// Traded symbol for a panel. ma200.monitor only carries the 14 Strategy A
+// members, so it cannot answer for Europe, countries or anything else;
+// window.DATA.trading_proxies is the registry map, emitted by pipeline.py
+// for every panel. Falling back to the panel key is a last resort and is
+// wrong for at least one member — EXH3 trades as EXH4.DE — so the registry
+// map must be consulted before it, never after.
 function _proxy(etf) {
   const m = window.DATA.ma200?.monitor?.[etf];
-  return m?.trading_proxy || etf;
+  return m?.trading_proxy || window.DATA?.trading_proxies?.[etf] || etf;
 }
 
 function _trafficLightStrength(breadthPct) {
@@ -4514,7 +4520,11 @@ function renderMonitor() {
     const calcBreakdown = parts.join(' + ');
     totW += e.total;
     // Trade-as ticker is the price series we want to chart on expand.
-    const tradeAs = e.in_a ? e.a_proxy : e.etf;
+    // Resolve through _proxy for EVERY sleeve, not just A. Falling back to
+    // e.etf meant the Europe rows looked up "EXV1" when the series is keyed
+    // "EXV1.DE", so hasChart was false and they rendered with no expander
+    // at all — and EXH3 would have asked for a symbol it does not trade as.
+    const tradeAs = (e.in_a && e.a_proxy) ? e.a_proxy : _proxy(e.etf);
     const hasChart = !!holdingsPrices[tradeAs];
     const rowClass = hasChart ? 'holdings-row expandable' : 'holdings-row';
     const caret = hasChart ? '<span class="caret">▸</span>' : '<span class="caret"></span>';

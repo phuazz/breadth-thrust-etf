@@ -31,6 +31,9 @@ import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from etf_registry import ETF_REGISTRY  # noqa: E402
+
 sys.stdout.reconfigure(encoding="utf-8")
 
 
@@ -1190,6 +1193,23 @@ def main() -> int:
     data = {
         "built_at": built_at,
         "signals_asof": signals_asof,
+        # Registry-derived traded symbol per panel, for EVERY sleeve.
+        #
+        # The dashboard previously resolved a row's traded ticker from
+        # ma200.monitor, which only carries the 14 Strategy A members. For
+        # any other sleeve it fell back to the panel key, so the Europe rows
+        # asked for prices under "EXV1" when the series is keyed "EXV1.DE"
+        # and silently rendered no chart. Worse for EXH3, whose panel key is
+        # not its traded symbol at all — it trades as EXH4.DE.
+        #
+        # This is the same defect class the Europe symbol contract exists to
+        # prevent: a surface deriving the traded symbol itself rather than
+        # reading the registry. Emitting the map means the dashboard reads
+        # it like everything else.
+        "trading_proxies": {
+            etf: (cfg.get("yfinance_trading_proxy") or etf)
+            for etf, cfg in ETF_REGISTRY.items()
+        },
         "data_integrity": data_integrity,
         "data_health": data_health,
         "regime_publish": regime_publish,

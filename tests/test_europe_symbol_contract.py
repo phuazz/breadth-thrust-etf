@@ -141,3 +141,59 @@ def test_no_two_europe_members_share_a_traded_symbol():
     the failure mode a copy-paste of these entries produces."""
     traded = [_proxy(k) for k in UNIVERSE_EUROPE_SECTORS]
     assert len(traded) == len(set(traded)), f"duplicate Europe proxies: {traded}"
+
+
+# =========================================================================
+# Surface 5: the dashboard payload (2026-08-08)
+# =========================================================================
+# The Monitor tab resolved a row's traded ticker from ma200.monitor, which
+# carries only the 14 Strategy A members, and fell back to the PANEL KEY for
+# every other sleeve. So the Europe rows asked for prices under "EXV1" when
+# the series is keyed "EXV1.DE" — hasChart was false and they rendered with
+# no expander, which is how this was noticed. For EXH3 the fallback was not
+# merely suffix-less but wrong: it trades as EXH4.DE.
+#
+# pipeline.py now emits data["trading_proxies"] straight from the registry.
+# These pin that map so a sixth surface cannot drift the same way.
+
+def _payload_proxies() -> dict:
+    """The map pipeline.py emits, built the same way it builds it."""
+    return {etf: (cfg.get("yfinance_trading_proxy") or etf)
+            for etf, cfg in ETF_REGISTRY.items()}
+
+
+@pytest.mark.parametrize("key", UNIVERSE_EUROPE_SECTORS)
+def test_dashboard_payload_carries_the_registry_proxy(key):
+    assert _payload_proxies()[key] == _proxy(key)
+
+
+@pytest.mark.parametrize("key", UNIVERSE_EUROPE_SECTORS)
+def test_dashboard_payload_never_falls_back_to_the_panel_key(key):
+    """The bare key is not a tradable symbol for any Europe member. If this
+    fails, the registry lost a proxy and the payload silently reverted to
+    the convention that shipped EXH3/EXH4."""
+    assert _payload_proxies()[key] != key
+
+
+def test_dashboard_payload_prices_exh3_as_exh4():
+    """The specific trap, asserted on this surface too."""
+    assert _payload_proxies()["EXH3"] == "EXH4.DE"
+
+
+def test_dashboard_payload_covers_every_registered_panel():
+    """Every panel, not just the traded ones. A candidate supersector opened
+    from the Data tab needs a resolvable symbol as much as a deployed one."""
+    proxies = _payload_proxies()
+    missing = [e for e in ETF_REGISTRY if e not in proxies]
+    assert not missing, f"panels absent from the payload map: {missing}"
+    assert all(proxies.values()), "a panel resolved to an empty symbol"
+
+
+def test_pipeline_emits_the_proxy_map():
+    """Guard the wiring, not just the shape: if the key is renamed or the
+    emit is dropped, the dashboard silently reverts to the panel key."""
+    src = (ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
+    assert '"trading_proxies"' in src, (
+        "pipeline.py no longer emits trading_proxies; the dashboard would "
+        "fall back to the panel key for every non-Strategy-A sleeve"
+    )
