@@ -370,6 +370,52 @@
     table.data-table tbody tr:hover { background: var(--bg-soft); }
     table.data-table tbody tr:last-child td { border-bottom: none; }
 
+    /* Frozen panes. These tables are wider than the viewport and hundreds
+       of rows long, so both axes need an anchor: the header row stays put
+       when scrolling down, the identifying first column stays put when
+       scrolling right. Without the second, a reader scrolled to the "Stale"
+       column has no idea which panel a row belongs to.
+
+       Sticky cells need their own background — the default is transparent,
+       and rows would show through as they scroll underneath. The header
+       corner sits above both and so takes the higher z-index. */
+    table.data-table thead th:first-child {
+      position: sticky; left: 0; z-index: 3;
+      background: var(--bg-soft);
+      box-shadow: 1px 0 0 var(--border);
+    }
+    table.data-table tbody td:first-child {
+      position: sticky; left: 0; z-index: 1;
+      background: var(--bg-card);
+      box-shadow: 1px 0 0 var(--border);
+    }
+    /* Hover must repaint the frozen cell too, or it stays card-coloured
+       while the rest of the row highlights. */
+    table.data-table tbody tr:hover td:first-child { background: var(--bg-soft); }
+    /* The expanded chart row spans every column, so it must not inherit
+       the frozen-cell treatment. */
+    table.data-table tbody tr.data-chart-row td { position: static; background: var(--bg-soft); }
+
+    /* Filter bars above the tables. */
+    .data-filter {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+      margin: 0 0 12px; font-size: 13px; color: var(--ink-soft);
+    }
+    .data-filter input[type="text"], .data-filter select {
+      font-size: 13px; padding: 5px 8px; border: 1px solid var(--rule, #d6d9dd);
+      border-radius: 4px; background: #fff; color: var(--ink);
+    }
+    .data-filter .count { font-size: 12px; color: var(--ink-faint); }
+
+    /* Chart stat strip. */
+    .data-chart-stats {
+      display: flex; gap: 18px; flex-wrap: wrap;
+      margin: 0 0 8px; font-size: 12px; color: var(--ink-soft);
+    }
+    .data-chart-stats b { display: block; font-size: 15px; font-weight: 600; }
+    .data-chart-stats .up { color: #15803d; }
+    .data-chart-stats .dn { color: #b91c1c; }
+
     /* ----- Combined portfolio holdings table ----- */
     table.holdings {
       width: 100%; border-collapse: collapse; font-size: 13px;
@@ -3037,7 +3083,23 @@
     <section id="data-audit-body" style="display:none;">
       <h2>Panel summary</h2>
       <p class="section-sub">One row per panel. <strong>As-of</strong> is the target Friday; where <strong>roster date</strong> differs, the fetch walked back to the previous trading day — normal on a market holiday, or when the refresh ran before iShares published. <strong>No price</strong> counts constituents with no yfinance history over the panel's life; those names are dropped from both numerator and denominator, so breadth tilts toward survivors. Role: <em>deployed</em> is traded; <em>candidate</em> is captured for research only; <em>monitored</em> is refreshed but outside the traded universe.</p>
-      <div style="overflow-x:auto;">
+      <p class="data-filter">
+        <input type="text" id="data-sum-q" placeholder="Search panel or fund name" style="min-width:220px;">
+        <select id="data-sum-role">
+          <option value="">All roles</option>
+          <option value="deployed">Deployed</option>
+          <option value="candidate">Candidate</option>
+          <option value="monitored">Monitored</option>
+        </select>
+        <select id="data-sum-health">
+          <option value="">Any state</option>
+          <option value="issue">Needs attention</option>
+          <option value="walkback">Walked back</option>
+        </select>
+        <button type="button" id="data-sum-reset" style="font-size:12px;padding:5px 10px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:var(--bg-soft);color:var(--ink-soft);cursor:pointer;">Reset</button>
+        <span class="count" id="data-sum-count"></span>
+      </p>
+      <div style="overflow-x:auto;max-height:620px;overflow-y:auto;">
         <table class="data-table" id="data-summary-table"><thead></thead><tbody></tbody></table>
       </div>
 
@@ -3068,6 +3130,18 @@
       <h4 style="margin-top:28px;">Constituents and weights</h4>
       <p class="section-sub" id="data-current-sub"></p>
       <div id="data-breadth-bar" style="margin:14px 0 18px;"></div>
+      <p class="data-filter">
+        <input type="text" id="data-hold-q" placeholder="Search ticker or company" style="min-width:220px;">
+        <select id="data-hold-state">
+          <option value="">All names</option>
+          <option value="above">Above 50d</option>
+          <option value="below">Below 50d</option>
+          <option value="nopx">No price</option>
+        </select>
+        <select id="data-hold-sector"><option value="">All sectors</option></select>
+        <button type="button" id="data-hold-reset" style="font-size:12px;padding:5px 10px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:var(--bg-soft);color:var(--ink-soft);cursor:pointer;">Reset</button>
+        <span class="count" id="data-hold-count"></span>
+      </p>
       <div style="overflow-x:auto;max-height:560px;overflow-y:auto;">
         <table class="data-table" id="data-holdings-table"><thead></thead><tbody></tbody></table>
       </div>
@@ -10485,9 +10559,11 @@ async function _fetchDataAudit() {
   throw lastErr || new Error('data_audit.json not reachable');
 }
 
+var DATA_SUMMARY_ROWS = [];
+
 function _renderDataSummary(d) {
   const order = { deployed: 0, candidate: 1, monitored: 2, registered: 2 };
-  const rows = d.summary.map((r) => {
+  DATA_SUMMARY_ROWS = d.summary.map((r) => {
     const cur = d.current[r.etf] || {};
     return Object.assign({}, r, {
       _roster: cur.actual || null,
@@ -10496,6 +10572,31 @@ function _renderDataSummary(d) {
       _roleLabel: (r.role === 'registered') ? 'monitored' : r.role,
     });
   });
+  _applySummaryFilter();
+}
+
+function _applySummaryFilter() {
+  const q = ((document.getElementById('data-sum-q') || {}).value || '').trim().toLowerCase();
+  const role = (document.getElementById('data-sum-role') || {}).value || '';
+  const state = (document.getElementById('data-sum-health') || {}).value || '';
+  const rows = DATA_SUMMARY_ROWS.filter((r) => {
+    if (q && !((r.etf + ' ' + (r.long_name || '')).toLowerCase().includes(q))) return false;
+    if (role && r._roleLabel !== role) return false;
+    // "Needs attention" is anything not plainly healthy: a non-ok endpoint,
+    // a non-fresh roster, or a panel that had to carry a roster forward.
+    if (state === 'issue' && r.endpoint_health === 'ok'
+        && r.stale_status === 'fresh' && !r.n_carry_forwards) return false;
+    if (state === 'walkback' && !r._wb) return false;
+    return true;
+  });
+  const c = document.getElementById('data-sum-count');
+  if (c) c.textContent = (q || role || state)
+    ? `${rows.length} of ${DATA_SUMMARY_ROWS.length} panels shown`
+    : `${DATA_SUMMARY_ROWS.length} panels`;
+  _renderSummaryRows(rows);
+}
+
+function _renderSummaryRows(rows) {
   const cols = [
     { key: 'etf',   label: 'Panel',       val: (r) => r.etf },
     { key: 'name',  label: 'Fund',        val: (r) => r.long_name || r.etf },
@@ -10561,11 +10662,58 @@ function _closeDataChart() {
 // plotted price, matching the convention the Monitor mini-charts use, so
 // the two lines share a y-axis and the gap between them reads directly as
 // distance from the average — which is the quantity breadth counts.
+// Summary statistics for the chart header. All derived from the plotted
+// series itself, so a reader can check any of them against the line.
+function _chartStats(dates, price, ma) {
+  const pairs = dates.map((d, i) => [d, price[i]]).filter((x) => x[1] !== null && x[1] !== undefined);
+  if (pairs.length < 2) return null;
+  const first = pairs[0][1], last = pairs[pairs.length - 1][1];
+  const vals = pairs.map((x) => x[1]);
+  const hi = Math.max(...vals), lo = Math.min(...vals);
+
+  // YTD from the last point of the PREVIOUS year, not the first point of
+  // this one — a series starting mid-January would otherwise understate the
+  // move. Falls back to the series start when the window is under a year.
+  const yr = pairs[pairs.length - 1][0].slice(0, 4);
+  let ytdBase = null;
+  for (const [d, v] of pairs) {
+    if (d.slice(0, 4) < yr) ytdBase = v; else break;
+  }
+  const lastMa = (ma || []).slice().reverse().find((v) => v !== null && v !== undefined);
+
+  return {
+    ret1y: (last / first) - 1,
+    ytd: ytdBase === null ? null : (last / ytdBase) - 1,
+    vsMa: (lastMa === undefined || !lastMa) ? null : (last / lastMa) - 1,
+    // Where the last price sits in its own 52-week range: 100% = at the
+    // high, 0% = at the low.
+    range: hi === lo ? null : (last - lo) / (hi - lo),
+    hi: hi, lo: lo, last: last,
+    weeks: pairs.length,
+    partial: pairs.length < dates.length,
+  };
+}
+
+function _statsHtml(s) {
+  if (!s) return '';
+  const f = (v) => v === null ? '—' : ((v >= 0 ? '+' : '') + (100 * v).toFixed(1) + '%');
+  const cls = (v) => v === null ? '' : (v >= 0 ? 'up' : 'dn');
+  return `<div class="data-chart-stats">
+    <span>1Y<b class="${cls(s.ret1y)}">${f(s.ret1y)}</b></span>
+    <span>YTD<b class="${cls(s.ytd)}">${f(s.ytd)}</b></span>
+    <span>vs 50d<b class="${cls(s.vsMa)}">${f(s.vsMa)}</b></span>
+    <span>52w range<b>${s.range === null ? '—' : (100 * s.range).toFixed(0) + '%'}</b></span>
+    <span>52w low / high<b style="font-size:13px;">${s.lo.toFixed(2)} – ${s.hi.toFixed(2)}</b></span>
+  </div>`;
+}
+
 function _drawDataChart(hostId, title, dates, price, ma, note) {
   const host = document.getElementById(hostId);
   if (!host) return;
   const base = price.find((v) => v !== null && v !== undefined);
   if (!base) { host.innerHTML = '<div class="section-sub">No price history for this line.</div>'; return; }
+  const stats = _chartStats(dates, price, ma);
+  if (stats) host.insertAdjacentHTML('beforebegin', _statsHtml(stats));
   const rebase = (arr) => (arr || []).map((v) => (v === null || v === undefined) ? null : (v / base) - 1);
   const traces = [{
     x: dates, y: rebase(price), name: 'Price', mode: 'lines',
@@ -10783,6 +10931,45 @@ function _renderDataDetail(etf) {
   if (!DATA_SORT['data-holdings-table']) {
     DATA_SORT['data-holdings-table'] = { key: 'w', dir: -1 };
   }
+  DATA_HOLDINGS_ROWS = hold;
+  DATA_HOLDINGS_COLS = hcols;
+  // Populate the sector filter from what this panel actually holds, so it
+  // never offers a sector with no rows behind it.
+  const secSel = document.getElementById('data-hold-sector');
+  if (secSel) {
+    const cur = secSel.value;
+    const secs = [...new Set(hold.map((h) => h.sector).filter(Boolean))].sort();
+    secSel.innerHTML = '<option value="">All sectors</option>' +
+      secs.map((s) => `<option value="${s}">${s}</option>`).join('');
+    secSel.value = secs.includes(cur) ? cur : '';
+  }
+  _applyHoldingsFilter();
+}
+
+var DATA_HOLDINGS_ROWS = [];
+var DATA_HOLDINGS_COLS = [];
+
+function _applyHoldingsFilter() {
+  const q = ((document.getElementById('data-hold-q') || {}).value || '').trim().toLowerCase();
+  const st = (document.getElementById('data-hold-state') || {}).value || '';
+  const sec = (document.getElementById('data-hold-sector') || {}).value || '';
+  const rows = DATA_HOLDINGS_ROWS.filter((h) => {
+    if (q && !((h.sym + ' ' + (h.name || '')).toLowerCase().includes(q))) return false;
+    if (sec && h.sector !== sec) return false;
+    if (st === 'above' && h.above !== true) return false;
+    if (st === 'below' && h.above !== false) return false;
+    if (st === 'nopx' && h.above !== null && h.above !== undefined) return false;
+    return true;
+  });
+  const c = document.getElementById('data-hold-count');
+  if (c) c.textContent = (q || st || sec)
+    ? `${rows.length} of ${DATA_HOLDINGS_ROWS.length} names shown`
+    : `${DATA_HOLDINGS_ROWS.length} names`;
+  _renderHoldingsRows(rows);
+}
+
+function _renderHoldingsRows(hold) {
+  const hcols = DATA_HOLDINGS_COLS;
   _sortable('data-holdings-table', hcols, hold, (h) => {
     const state = h.above === true
       ? '<span style="color:#15803d;font-weight:600;">above</span>'
@@ -10819,9 +11006,19 @@ async function renderDataAudit() {
     const order = { deployed: 0, candidate: 1, monitored: 2, registered: 2 };
     const rows = d.summary.slice().sort((a, b) =>
       (order[a.role] - order[b.role]) || a.etf.localeCompare(b.etf));
-    sel.innerHTML = rows.map((r) => {
-      const lbl = (r.role === 'registered') ? 'monitored' : r.role;
-      return `<option value="${r.etf}">${r.etf} — ${lbl}</option>`;
+    // Fund name in the option, role as the group heading. The panel id
+    // alone identifies nothing — it is not even a ticker for the Europe
+    // sleeve — and repeating the role on every line just crowded out the
+    // name it should have been showing.
+    const groups = [['deployed', 'Deployed'], ['candidate', 'Candidate (research only)'],
+                     ['monitored', 'Monitored (outside the traded universe)']];
+    sel.innerHTML = groups.map(([key, label]) => {
+      const inGroup = rows.filter((r) =>
+        ((r.role === 'registered') ? 'monitored' : r.role) === key);
+      if (!inGroup.length) return '';
+      return `<optgroup label="${label}">` + inGroup.map((r) =>
+        `<option value="${r.etf}">${r.etf} — ${r.long_name || r.etf}</option>`
+      ).join('') + '</optgroup>';
     }).join('');
     sel.addEventListener('change', () => _renderDataDetail(sel.value));
     ['data-from', 'data-to'].forEach((id) => {
@@ -10839,6 +11036,33 @@ async function renderDataAudit() {
     if (holdT) holdT.addEventListener('click', (ev) => {
       const tr = ev.target.closest('tr[data-chart-sym]');
       if (tr) _expandDataChart(tr, document.getElementById('data-etf-select').value, tr.dataset.chartSym);
+    });
+
+    // Summary + holdings filters. 'input' on the text boxes so results
+    // update as you type; 'change' is enough for the selects.
+    [['data-sum-q', 'input'], ['data-sum-role', 'change'], ['data-sum-health', 'change']]
+      .forEach(([id, ev]) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(ev, _applySummaryFilter);
+      });
+    [['data-hold-q', 'input'], ['data-hold-state', 'change'], ['data-hold-sector', 'change']]
+      .forEach(([id, ev]) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(ev, _applyHoldingsFilter);
+      });
+    const sumReset = document.getElementById('data-sum-reset');
+    if (sumReset) sumReset.addEventListener('click', () => {
+      ['data-sum-q', 'data-sum-role', 'data-sum-health'].forEach((id) => {
+        const el = document.getElementById(id); if (el) el.value = '';
+      });
+      _applySummaryFilter();
+    });
+    const holdReset = document.getElementById('data-hold-reset');
+    if (holdReset) holdReset.addEventListener('click', () => {
+      ['data-hold-q', 'data-hold-state', 'data-hold-sector'].forEach((id) => {
+        const el = document.getElementById(id); if (el) el.value = '';
+      });
+      _applyHoldingsFilter();
     });
 
     const reset = document.getElementById('data-range-reset');
