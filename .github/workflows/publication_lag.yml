@@ -1,0 +1,111 @@
+name: Publication lag probe
+
+# Records when iShares actually publishes each trading day's holdings.
+#
+# WHY THIS EXISTS. The 2026-08-08 refresh found 0 of 38 panels with Friday
+# holdings — every one walked back to Thursday, because the vendor had not
+# published yet. Whether a Saturday-morning refresh can EVER capture the
+# Friday roster is unknown: the historical walkback rate says nothing about
+# it, since nearly all of that history was backfilled retrospectively and so
+# measures whether a Friday is ever published, not whether it is published
+# in time. Under the current transport there are no prior Saturday
+# observations at all. This collects them.
+#
+# WHY IN CI RATHER THAN LOCALLY. The probe needs network access and nothing
+# else — no price caches, no parquet — unlike refresh_all.py. Running it
+# here means the record accumulates on a fixed cadence whether or not a
+# laptop is on, which is the whole point of measuring a schedule.
+#
+# CADENCE. Three times daily at roughly 8-hour spacing, which brackets the
+# US Friday close (20:00 UTC) and the whole of the following weekend. GitHub
+# cron fires late under load, sometimes by an hour; 8-hour resolution
+# tolerates that, and every row carries its own probe_utc so the analysis
+# uses actual times rather than intended ones.
+#
+# GUARD (CLAUDE.md: no unattended run without one). The failure mode is not
+# a crash but a probe that exits 0 having recorded nothing usable — the log
+# grows, the workflow stays green, and the question stays unanswered.
+# check_lag_probe.py fails the job when this run appended no rows, when its
+# rows are not actually from this run, or when every ETF came back empty.
+# The commit happens only after that check passes, so the log never gains
+# rows that the guard has not endorsed.
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+    - cron: '0 10 * * *'
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+# Never let two probes interleave: both would append, and a late run could
+# commit on top of an earlier one's push.
+concurrency:
+  group: publication-lag
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Probe iShares publication state
+        run: python scripts/measure_publication_lag.py
+
+      - name: Guard — did this run record a usable observation?
+        run: python scripts/check_lag_probe.py
+
+      - name: Commit the observations
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "Publication Lag Probe"
+          git add data/publication_lag_log.jsonl
+          git diff --cached --quiet || git commit -m "Publication lag probe $(date -u +'%Y-%m-%d %H:%M') UTC"
+          git push origin main || echo "Nothing to push"
+
+      # A probe that quietly stops is the same as never having run it: the
+      # record simply has a hole where the answer was supposed to be. Three
+      # consecutive silent failures would cost a week of the measurement
+      # window, so a failure is emailed to the operator only.
+      - name: Email failure alert
+        if: failure()
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          to: ${{ secrets.GMAIL_USER }}
+          from: Breadth Thrust Bot <${{ secrets.GMAIL_USER }}>
+          subject: '[FAIL] Publication lag probe — no usable observation recorded'
+          body: |
+            The scheduled publication-lag probe failed.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Either the probe could not reach the endpoint, or it ran and
+            recorded nothing usable. Both leave a hole in the measurement
+            window rather than a wrong answer, but a run of them makes the
+            lag question unanswerable for that period.
+
+            Nothing was committed: the guard runs before the commit step.
