@@ -1,0 +1,57 @@
+name: Tests
+
+# The pre-merge gate. Until this existed, the test suite only ran AFTER
+# code reached main (daily_live_track, scanner-daily, weekly_factsheet) or
+# on a schedule, so nothing verified a change before it landed. The only
+# workflow wired to pull_request was the conflict-marker check, which does
+# not run pytest.
+#
+# Runs on push to main as well as on PRs, because direct-to-main is the
+# established pattern in this repo and the gate is worth having on both
+# paths.
+#
+# Deliberately offline. The suite passes on a bare checkout — verified
+# against `git archive HEAD` with no gitignored artefacts present: 784
+# passed, 3 skipped, 0 failed. The 65 parquet fixtures it needs are
+# tracked; data/raw_ishares/ is not, and no test requires it. The two
+# live-endpoint tests in test_constituent_api_parity.py stay skipped
+# unless BREADTH_LIVE_API_TESTS=1, which is NOT set here on purpose:
+# hitting iShares from CI would make the gate flaky and add load to an
+# upstream we do not control.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to a PR supersedes the previous run.
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          # Shallow is enough: no test walks history. Note the repo carries
+          # large committed data panels, so do not deepen this casually.
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run test suite
+        run: python -m pytest tests/ -q
