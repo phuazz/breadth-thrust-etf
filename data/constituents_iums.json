@@ -2,7 +2,7 @@
   "etf": "IUMS",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/287104/ishares-s-p-500-materials-sector-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=IUMS_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-08T13:58:56.691704+00:00",
+  "fetched_at_utc": "2026-08-08T14:54:18.799928+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-07",
   "n_target_fridays": 449,

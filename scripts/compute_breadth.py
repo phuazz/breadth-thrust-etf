@@ -428,6 +428,32 @@ def main() -> int:
     print(f"  Prices shape: {prices.shape}, tickers with any data: "
           f"{n_with_any_data}/{len(universe)}")
 
+    # Stop here when the vendor returned nothing at all.
+    #
+    # Without this the run continues into an empty breadth loop and dies at
+    # `df["date"]` with KeyError: 'date' — an error about a missing column,
+    # thirty lines from the actual problem and naming none of it. That
+    # message has now misdirected diagnosis twice: once on a DNS failure
+    # (2026-08-08) and once on a yfinance rate limit that took out EXV5-EXV8
+    # in one refresh. The cause is always the same and is already visible
+    # right here, so say it here.
+    #
+    # This raises rather than writing a degenerate panel: an empty breadth
+    # series would overwrite a good committed one with a file that is
+    # well-formed and asserts nothing. The previous panel is strictly better
+    # than anything this run can produce, so the run must fail and leave it.
+    if n_with_any_data == 0:
+        raise RuntimeError(
+            f"{args.etf}: the price vendor returned no data for any of "
+            f"{len(universe)} constituents, so no breadth can be computed. "
+            f"This is a fetch failure, not a data condition — the usual "
+            f"causes are a yfinance rate limit (YFRateLimitError above, "
+            f"most likely when many ETFs are refreshed back to back) or a "
+            f"DNS/network outage. The existing data/breadth_"
+            f"{args.etf.lower()}"
+            f".json is untouched; re-run this ETF once the vendor recovers."
+        )
+
     # Pre-compute per-ticker indicators on each ticker's own traded sessions
     # (see per_ticker_apply for why the union date grid must not be used).
     print("Computing per-ticker indicators ...", flush=True)

@@ -2,7 +2,7 @@
   "etf": "ICHN",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/308751/ishares-msci-china-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=ICHN_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-08T14:06:40.115570+00:00",
+  "fetched_at_utc": "2026-08-08T14:58:18.866132+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-07",
   "n_target_fridays": 449,

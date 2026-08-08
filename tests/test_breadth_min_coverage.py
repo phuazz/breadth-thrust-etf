@@ -110,3 +110,52 @@ def test_suppressed_bar_is_null_not_zero():
     assert cb._safe_float(np.nan) is None
     assert cb._safe_float(float("inf")) is None
     assert cb._safe_float(0.0) == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Vendor returned nothing at all
+# ---------------------------------------------------------------------------
+# Distinct from the coverage floor above. That handles "too few names to
+# compute a proportion"; this handles "the fetch failed", which is not a data
+# condition at all.
+#
+# compute_breadth used to continue into an empty breadth loop and die at
+# df["date"] with KeyError: 'date' — an error about a missing column, thirty
+# lines from the cause and naming none of it. It misdirected diagnosis twice:
+# a DNS failure on 2026-08-08, then a yfinance rate limit that took out
+# EXV5-EXV8 in a single refresh.
+
+def test_empty_price_frame_is_detected_before_the_breadth_loop():
+    """The condition is visible right after the download and must be caught
+    there, not thirty lines later as a missing DataFrame column."""
+    prices = pd.DataFrame(
+        index=pd.to_datetime(["2026-08-06", "2026-08-07"]),
+        columns=["AAA", "BBB"], dtype=float)
+    assert int(prices.notna().any(axis=0).sum()) == 0
+
+
+def test_partial_data_is_not_treated_as_total_failure():
+    """One ticker returning data is a data condition, not a fetch failure —
+    the coverage floor handles it, and the run must continue."""
+    prices = pd.DataFrame(
+        index=pd.to_datetime(["2026-08-06", "2026-08-07"]),
+        columns=["AAA", "BBB"], dtype=float)
+    prices["AAA"] = [1.0, 2.0]
+    assert int(prices.notna().any(axis=0).sum()) == 1
+
+
+def test_source_guards_the_empty_case_and_says_why():
+    """Pin the guard's presence and that its message names the real causes.
+    A bare raise would be an improvement on KeyError but still leave the
+    operator guessing between a rate limit and an outage."""
+    src = (ROOT / "scripts" / "compute_breadth.py").read_text(encoding="utf-8")
+    assert "if n_with_any_data == 0:" in src, (
+        "compute_breadth no longer stops on an empty price frame; it will "
+        "fail at df['date'] with KeyError instead"
+    )
+    guard = src.split("if n_with_any_data == 0:", 1)[1][:900]
+    assert "rate limit" in guard.lower()
+    assert "untouched" in guard.lower(), (
+        "the message should say the existing panel is preserved — otherwise "
+        "the operator cannot tell whether the failure damaged anything"
+    )
