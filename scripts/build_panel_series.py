@@ -128,22 +128,51 @@ def _proxy_series(symbols: list[str]) -> dict:
     try:
         import pandas as pd
         import yfinance as yf
-        raw = yf.download(list(proxies), period="1y", interval="1wk",
+        import compute_breadth as cb
+
+        # DAILY, not weekly, and over two years rather than one.
+        #
+        # The ETF line needs the same 50-day average the constituent lines
+        # carry, and that cannot be derived from weekly bars: a 50-period
+        # average over weekly data is a 50-WEEK average, a different
+        # indicator. So the download is daily, the average is taken daily,
+        # and only then is the result sampled to the weekly grid.
+        #
+        # Two years because a 50-day average needs 50 sessions of history
+        # BEFORE the first plotted week. Fetching one year would leave the
+        # first ~10 weeks of the average empty, which reads as a data gap
+        # rather than as a warmup.
+        raw = yf.download(list(proxies), period="2y", interval="1d",
                           auto_adjust=True, progress=False, threads=True)
         close = raw["Close"] if "Close" in raw else raw
         if isinstance(close, pd.Series):
             close = close.to_frame(list(proxies)[0])
+
+        # per_ticker_apply, NOT a plain rolling() — for the same reason the
+        # constituent path uses it. This frame spans 38 proxies across US,
+        # Xetra and Asian calendars, so its union index is NaN wherever a
+        # given market was shut. With min_periods=50 a single NaN entering
+        # the window voids the next 50 rows, which showed up as an average
+        # that existed only for the first 7 weeks and then vanished — a
+        # rolling mean cannot legitimately disappear at the end of a series.
+        ma = cb.per_ticker_apply(
+            close, lambda s: s.rolling(cb.MA_PERIOD,
+                                        min_periods=cb.MA_PERIOD).mean())
+        pw = close.resample("W-FRI").last().tail(WEEKS)
+        mw = ma.resample("W-FRI").last().tail(WEEKS)
+
         out = {}
         for tick, etfs in proxies.items():
-            if tick not in close.columns:
+            if tick not in pw.columns:
                 continue
-            s = close[tick].dropna()
-            if s.empty:
+            p = [_round(v) for v in pw[tick]]
+            if not any(v is not None for v in p):
                 continue
             payload = {
                 "ticker": tick,
-                "dates": [d.strftime("%Y-%m-%d") for d in s.index],
-                "p": [round(float(v), _PRICE_DP) for v in s],
+                "dates": [d.strftime("%Y-%m-%d") for d in pw.index],
+                "p": p,
+                "m": [_round(v) for v in mw[tick]],
             }
             for e in etfs:
                 out[e] = payload

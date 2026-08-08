@@ -10779,8 +10779,8 @@ async function _expandDataChart(row, etf, sym) {
         `<div class="section-sub">No ETF-level series for ${etf}.</div>`;
       return;
     }
-    _drawDataChart(id, `${es.ticker} — the traded ETF, 1Y weekly`, es.dates, es.p, null,
-      'The fund itself, not its constituents. Rebased to the first plotted week.');
+    _drawDataChart(id, `${es.ticker} — the traded ETF, 1Y weekly`, es.dates, es.p, es.m,
+      'The fund itself, not its constituents. Rebased to the first plotted week; the 50-day average is computed on daily closes and then sampled.');
   } else {
     const s = (panel.series || {})[sym];
     if (!s) {
