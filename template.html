@@ -10011,6 +10011,7 @@ function _buildCombinedLedger() {
           withinWeight: h.weight,
           effWeight: h.weight * s.weight,
           prevWithinWeight: prevW ?? 0,
+          prevEffWeight: (prevW ?? 0) * s.weight,
           signal: h[s.sigKey],
           signalLabel: s.sigLabel,
         });
@@ -10027,6 +10028,7 @@ function _buildCombinedLedger() {
               withinWeight: 0,
               effWeight: 0,
               prevWithinWeight: h.weight,
+              prevEffWeight: h.weight * s.weight,
               signal: null,
               signalLabel: s.sigLabel,
             });
@@ -10085,13 +10087,16 @@ function renderCombinedTradeLedger() {
     const wChange = r.action === 'resize'
       ? `<span style="color:var(--ink-faint);font-size:11px;">(was ${fmtW(r.prevWithinWeight)})</span>`
       : '';
+    const navChange = r.action === 'resize'
+      ? `<span style="color:var(--ink-faint);font-size:11px;">(was ${fmtW(r.prevEffWeight)})</span>`
+      : '';
     return `<tr>
       <td style="font-family:'JetBrains Mono',monospace;">${r.date}</td>
       <td>${sleeveTag(r.sleeve)}</td>
       <td><strong>${r.etf}</strong>${ETF_DESCRIPTIONS[r.etf] ? '<br><span style="color:var(--ink-faint);font-weight:400;font-size:11px;">' + ETF_DESCRIPTIONS[r.etf] + '</span>' : ''}</td>
       <td>${actionTag(r.action)}</td>
       <td class="num">${fmtW(r.withinWeight)} ${wChange}</td>
-      <td class="num">${fmtW(r.effWeight)}</td>
+      <td class="num">${fmtW(r.effWeight)} ${navChange}</td>
       <td class="num" style="color:var(--ink-faint);font-size:12px;">${signalDisplay}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--ink-faint);">No rebalance events match the current filters.</td></tr>';
