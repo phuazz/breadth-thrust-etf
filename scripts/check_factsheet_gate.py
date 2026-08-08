@@ -28,9 +28,21 @@ Publish rules:
               workflow only after a successful non-trial email; the
               factsheet_meta.json as-of cannot serve here because the
               daily mark-to-market runs re-stamp it every weekday.
-  publish   = current and (not published or --allow-republish).
-              --allow-republish is passed on workflow_dispatch so the
-              operator can always force a re-send (trial or corrected).
+  released  = docs/factsheet_release.json carries approved_anchor == this
+              anchor. Written by scripts/release_factsheet.py once the
+              operator has reviewed the week (2026-08-08). Absent or
+              unparseable means NOT released.
+  publish   = current and (--allow-republish or (released and not published)).
+              --allow-republish is passed on workflow_dispatch: dispatching
+              the workflow IS the operator acting deliberately, so it does
+              not additionally require the marker, and remains the way to
+              force a re-send (trial or corrected).
+
+Why the release marker exists: the gate could tell whether the panel was
+CURRENT but not whether anyone had CHECKED it, so every refresh landing on
+main emailed the distribution list automatically. Holding a send meant
+disabling the workflow by hand around the push — a manual step easiest to
+forget in exactly the week something is wrong.
 
 Fail-safe: the gate guards an OUTWARD send to the distribution list, so
 any internal error fails CLOSED (publish=false) — the opposite polarity
@@ -70,6 +82,29 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PANEL = ROOT / "data" / "breadth_csp1.json"
 DEFAULT_MARKER = ROOT / "docs" / "factsheet_published.json"
 
+# Release marker (2026-08-08). The gate above knows whether the panel is
+# CURRENT; it had no way to know whether anyone had CHECKED it. So any
+# refresh landing on main emailed the distribution list automatically, and
+# holding a send meant disabling the workflow by hand for the duration of
+# the push — a manual step that is easy to forget in exactly the week it
+# matters. This marker is the operator's countersignature: written by
+# scripts/release_factsheet.py once the week's data has been reviewed.
+DEFAULT_RELEASE = ROOT / "docs" / "factsheet_release.json"
+
+
+def read_release_anchor(release_path: Path) -> date | None:
+    """Anchor the operator has released for publication, or None.
+
+    Absent or unreadable means NOT released. This fails closed by
+    construction: the marker guards an outward send, so anything other than
+    an explicit, parseable approval must hold the email.
+    """
+    try:
+        payload = json.loads(release_path.read_text(encoding="utf-8"))
+        return date.fromisoformat(str(payload["approved_anchor"]))
+    except Exception:
+        return None
+
 
 def read_panel_end(panel_path: Path) -> date:
     blob = json.loads(panel_path.read_text(encoding="utf-8"))
@@ -99,6 +134,7 @@ def build_gate_report(
     panel_path: Path,
     marker_path: Path,
     allow_republish: bool = False,
+    release_path: Path | None = None,
 ) -> dict:
     """Pure decision core, injectable clock for tests."""
     anchor = week_final_anchor(now_utc)
@@ -106,6 +142,12 @@ def build_gate_report(
     published_anchor = read_marker_anchor(marker_path)
     current = panel_end >= anchor
     published = published_anchor == anchor
+    # No release_path means NOT released. This core is meant to be pure —
+    # defaulting it to the real repo marker would make its verdict depend on
+    # working-tree state and let a test pass or fail on which week it is run.
+    # main() passes DEFAULT_RELEASE explicitly.
+    released_anchor = read_release_anchor(release_path) if release_path else None
+    released = released_anchor == anchor
 
     base_lines = [
         f"week-final anchor          : {anchor.isoformat()}",
@@ -113,17 +155,32 @@ def build_gate_report(
         + (" (current)" if current else " (STALE - behind the anchor)"),
         f"last published anchor      : "
         + (published_anchor.isoformat() if published_anchor else "none (no marker)"),
+        f"released for this anchor   : "
+        + (released_anchor.isoformat() if released_anchor else "no (not released)"),
     ]
 
     if mode == "publish":
-        publish = current and (allow_republish or not published)
+        # `allow_republish` is set only by workflow_dispatch, which IS the
+        # operator acting deliberately — that act is itself the release, so
+        # dispatch does not additionally require the marker. An automatic
+        # push-triggered run does, which is the whole point: a refresh
+        # landing on main must never email on its own.
+        publish = current and (allow_republish or (released and not published))
         if publish:
             reason = (
                 "panel current to the anchor"
-                + ("; republish forced by dispatch" if published else "; week not yet published")
+                + ("; sent by operator dispatch" if allow_republish
+                   else "; released for this anchor and not yet published")
             )
         elif not current:
             reason = "panel behind the anchor - refresh incomplete, holding the email"
+        elif not released:
+            reason = (
+                "panel current but this anchor is NOT released - holding. "
+                "Run scripts/check_publish_readiness.py, then "
+                "scripts/release_factsheet.py to release, or dispatch the "
+                "workflow manually to send now"
+            )
         else:
             reason = "this week's factsheet was already published - not re-sending"
         summary = f"factsheet gate: publish={str(publish).lower()} ({reason})"
@@ -204,6 +261,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--panel", default=str(DEFAULT_PANEL))
     parser.add_argument("--marker", default=str(DEFAULT_MARKER))
     parser.add_argument("--allow-republish", action="store_true")
+    parser.add_argument("--release", default=str(DEFAULT_RELEASE),
+                         help="Operator release marker. Absent or not "
+                              "matching the anchor holds the email.")
     args = parser.parse_args(argv)
     try:
         report = build_gate_report(
@@ -212,6 +272,7 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.panel),
             Path(args.marker),
             allow_republish=args.allow_republish,
+            release_path=Path(args.release),
         )
     except Exception as exc:  # fail CLOSED, but never silently
         summary = f"factsheet gate could not run: {exc}"

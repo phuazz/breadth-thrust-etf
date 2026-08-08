@@ -86,12 +86,24 @@ def _no_marker(tmp_path):
     return tmp_path / "factsheet_published.json"  # never written
 
 
+def _release(tmp_path, anchor_iso):
+    """Operator release marker for `anchor_iso` (2026-08-08)."""
+    r = tmp_path / "factsheet_release.json"
+    r.write_text(json.dumps({"approved_anchor": anchor_iso}), encoding="utf-8")
+    return r
+
+
+def _no_release(tmp_path):
+    return tmp_path / "factsheet_release.json"  # never written
+
+
 def test_publish_after_weekend_refresh(tmp_path):
     # The normal flow: Saturday push after refresh_all.py, panel current
     # to Fri 24 Jul, nothing published yet -> publish.
     r = build_gate_report(
         "publish", _utc(2026, 7, 25),
         _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=_release(tmp_path, "2026-07-24"),
     )
     assert r["publish"] is True
     assert r["anchor"] == date(2026, 7, 24)
@@ -113,6 +125,7 @@ def test_publish_not_repeated_same_week(tmp_path):
     r = build_gate_report(
         "publish", _utc(2026, 7, 26),
         _panel(tmp_path, "2026-07-24"), _marker(tmp_path, "2026-07-24"),
+        release_path=_release(tmp_path, "2026-07-24"),
     )
     assert r["publish"] is False
     assert "already published" in r["summary"]
@@ -122,6 +135,7 @@ def test_publish_dispatch_can_force_republish(tmp_path):
     r = build_gate_report(
         "publish", _utc(2026, 7, 26),
         _panel(tmp_path, "2026-07-24"), _marker(tmp_path, "2026-07-24"),
+        release_path=_release(tmp_path, "2026-07-24"),
         allow_republish=True,
     )
     assert r["publish"] is True
@@ -135,6 +149,7 @@ def test_publish_late_refresh_still_friday_anchored(tmp_path):
     r = build_gate_report(
         "publish", _utc(2026, 7, 28),
         _panel(tmp_path, "2026-07-27"), _marker(tmp_path, "2026-07-17"),
+        release_path=_release(tmp_path, "2026-07-24"),
     )
     assert r["anchor"] == date(2026, 7, 24)
     assert r["publish"] is True
@@ -154,6 +169,7 @@ def test_sunday_check_quiet_when_published(tmp_path):
     r = build_gate_report(
         "sunday-check", _utc(2026, 7, 26),
         _panel(tmp_path, "2026-07-24"), _marker(tmp_path, "2026-07-24"),
+        release_path=_release(tmp_path, "2026-07-24"),
     )
     assert r["warn"] is False
 
@@ -178,3 +194,81 @@ def test_sunday_check_warns_when_refreshed_but_unpublished(tmp_path):
     )
     assert r["warn"] is True
     assert "NOT published although the panel is current" in r["summary"]
+
+
+# ---------------------------------------------------------------------------
+# Release gate (2026-08-08)
+# ---------------------------------------------------------------------------
+# The gate could tell whether the panel was CURRENT but not whether anyone
+# had CHECKED it, so every refresh landing on main emailed the distribution
+# list automatically. Holding a send meant disabling the workflow by hand
+# around the push. These pin the countersignature.
+
+def test_current_panel_does_not_publish_without_a_release(tmp_path):
+    """The default posture. A refresh landing on main must not email."""
+    r = build_gate_report(
+        "publish", datetime(2026, 7, 25, 9, 0, tzinfo=timezone.utc),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=_no_release(tmp_path),
+    )
+    assert r["publish"] is False
+    assert "NOT released" in r["summary"]
+
+
+def test_release_for_a_different_anchor_does_not_publish(tmp_path):
+    """Last week's approval must not carry into this week — otherwise one
+    release would authorise every future send."""
+    r = build_gate_report(
+        "publish", datetime(2026, 7, 25, 9, 0, tzinfo=timezone.utc),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=_release(tmp_path, "2026-07-17"),
+    )
+    assert r["publish"] is False
+
+
+def test_unparseable_release_marker_holds_the_email(tmp_path):
+    """Fails closed: the marker guards an outward send, so anything other
+    than an explicit, parseable approval holds."""
+    bad = tmp_path / "factsheet_release.json"
+    bad.write_text("{ this is not json", encoding="utf-8")
+    r = build_gate_report(
+        "publish", datetime(2026, 7, 25, 9, 0, tzinfo=timezone.utc),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=bad,
+    )
+    assert r["publish"] is False
+
+
+def test_dispatch_publishes_without_a_release_marker(tmp_path):
+    """Dispatching the workflow IS the operator acting deliberately, so it
+    does not additionally require the marker — and stays the way to force a
+    corrected or trial re-send."""
+    r = build_gate_report(
+        "publish", datetime(2026, 7, 25, 9, 0, tzinfo=timezone.utc),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        allow_republish=True, release_path=_no_release(tmp_path),
+    )
+    assert r["publish"] is True
+
+
+def test_stale_panel_still_holds_even_when_released(tmp_path):
+    """Releasing a week cannot substitute for the data actually being
+    there — the freshness condition is independent of the approval."""
+    r = build_gate_report(
+        "publish", datetime(2026, 7, 25, 9, 0, tzinfo=timezone.utc),
+        _panel(tmp_path, "2026-07-17"), _no_marker(tmp_path),
+        release_path=_release(tmp_path, "2026-07-24"),
+    )
+    assert r["publish"] is False
+    assert "behind the anchor" in r["summary"]
+
+
+def test_pure_core_ignores_the_repository_release_marker(tmp_path):
+    """No release_path means not released. If this core read the real
+    docs/factsheet_release.json by default, its verdict would depend on
+    working-tree state and tests would pass or fail by the calendar."""
+    r = build_gate_report(
+        "publish", datetime(2026, 7, 25, 9, 0, tzinfo=timezone.utc),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+    )
+    assert r["publish"] is False
