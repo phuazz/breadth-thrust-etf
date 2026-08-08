@@ -1223,6 +1223,19 @@ def main() -> int:
     # This is the post-2026-05-30 hotfix backstop.
     assert_no_conflict_markers(OUT)
 
+    # Data tab payload — built here rather than inlined between the
+    # __DASHBOARD_DATA_*__ markers because index.html is already ~7.3MB and
+    # this ~1.2MB payload serves a tab most visits never open. Built in the
+    # SAME run as the page so the two cannot drift: the Data tab always
+    # describes the panels this dashboard was built from.
+    print(f"\nBuilding Data tab payload ...")
+    try:
+        import build_data_audit
+        build_data_audit.write()
+    except Exception as exc:
+        print(f"  WARN: data audit build failed (non-fatal): {exc}",
+              file=sys.stderr)
+
     # B28 — Auto-generate the monthly factsheet PDF from the same data
     # the dashboard uses. Soft-fail if matplotlib is unavailable so a
     # broken factsheet build does not break the dashboard pipeline.

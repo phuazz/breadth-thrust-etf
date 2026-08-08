@@ -345,6 +345,31 @@
     .health-stat--warn  .n { color: #d97706; }
     .health-stat--stale .n { color: #b91c1c; }
 
+    /* ----- Data tab tables -----
+       Deliberately NOT table.holdings. That class carries a mobile media
+       query hiding thead th:nth-child(2..6) with a matching td rule scoped
+       to tr.holdings-row — tuned to that table's exact column layout. Reused
+       here, the headers hid while these rows (no .holdings-row class) did
+       not, so every column label sat over the wrong data. These tables live
+       inside overflow-x:auto wrappers and scroll intact instead. */
+    table.data-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    table.data-table thead th {
+      text-align: left; padding: 9px 11px; white-space: nowrap;
+      background: var(--bg-soft); font-weight: 600; color: var(--ink-soft);
+      border-bottom: 1px solid var(--border-strong);
+      font-size: 12px; letter-spacing: 0.02em;
+      position: sticky; top: 0; z-index: 1;
+    }
+    table.data-table tbody td {
+      padding: 7px 11px; border-bottom: 1px solid var(--border);
+      vertical-align: middle; white-space: nowrap;
+    }
+    table.data-table tbody tr:hover { background: var(--bg-soft); }
+    table.data-table tbody tr:last-child td { border-bottom: none; }
+
     /* ----- Combined portfolio holdings table ----- */
     table.holdings {
       width: 100%; border-collapse: collapse; font-size: 13px;
@@ -1821,6 +1846,7 @@
        title="Daily cross-sectional technical scanner — 54 instruments across all four sleeves">
       Scanner <span class="ext">&#x2197;</span>
     </a>
+    <button class="tab" data-tab="data" title="The raw breadth and constituent panels behind every signal">Data</button>
     <button class="tab tab-health" data-tab="health" id="health-tab-btn">
       <span id="health-badge-dot" class="health-dot health-dot--ok" title="Data health"></span>
       Data Health
@@ -2996,6 +3022,51 @@
   </div>
 
   <!-- ====================== DATA HEALTH ====================== -->
+  <!-- ====================== DATA ======================
+       Provenance and inputs, fetched from docs/data_audit.json rather than
+       inlined: index.html is already ~7.3MB, and this payload (~1.2MB)
+       serves a tab most visits never open. Built by
+       scripts/build_data_audit.py in the same pipeline run as this page,
+       so the two cannot drift. -->
+  <div class="tab-content" id="tab-data">
+    <h1 style="margin-top:8px;">Data</h1>
+    <p class="section-sub">The panels every signal is computed from. <strong>Breadth is a proportion</strong> — the share of an index's constituents above their 200-day moving average — so it is only as good as the roster underneath it and the share of that roster with usable prices. This tab exposes both, so any number on the dashboard can be traced back to its inputs.</p>
+
+    <div id="data-audit-status" class="section-sub" style="padding:10px 14px;background:var(--bg-soft);border-radius:4px;border-left:3px solid var(--accent);">Loading panel data…</div>
+
+    <section id="data-audit-body" style="display:none;">
+      <h2>Panel summary</h2>
+      <p class="section-sub">One row per panel. <strong>As-of</strong> is the target Friday; where <strong>roster date</strong> differs, the fetch walked back to the previous trading day — normal on a market holiday, or when the refresh ran before iShares published. <strong>No price</strong> counts constituents with no yfinance history over the panel's life; those names are dropped from both numerator and denominator, so breadth tilts toward survivors. Role: <em>deployed</em> is traded; <em>candidate</em> is captured for research only; <em>monitored</em> is refreshed but outside the traded universe.</p>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="data-summary-table"><thead></thead><tbody></tbody></table>
+      </div>
+
+      <h2 style="margin-top:34px;">Panel detail</h2>
+      <p class="section-sub">Pick a panel to see its full weekly history and today's constituents.</p>
+      <p style="margin:0 0 18px;">
+        <label for="data-etf-select" style="font-size:13px;color:var(--ink-soft);margin-right:8px;">Panel</label>
+        <select id="data-etf-select" style="font-size:14px;padding:6px 10px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:#fff;color:var(--ink);"></select>
+      </p>
+
+      <h3 id="data-detail-title" style="margin-bottom:4px;"></h3>
+      <p class="section-sub" id="data-detail-sub"></p>
+
+      <h4 style="margin-top:24px;">Weekly history</h4>
+      <p class="section-sub">Every rebalance Friday. <strong>Roster</strong> is the membership count; <strong>priced</strong> is how many had usable prices that day; <strong>MA / RSI / Highs</strong> are the three breadth measures. Rows before the 200-day warmup completes have a roster but no breadth. Newest first.</p>
+      <div style="overflow-x:auto;max-height:520px;overflow-y:auto;">
+        <table class="data-table" id="data-history-table"><thead></thead><tbody></tbody></table>
+      </div>
+
+      <h4 style="margin-top:28px;">Constituents and weights</h4>
+      <p class="section-sub" id="data-current-sub"></p>
+      <div id="data-breadth-bar" style="margin:14px 0 18px;"></div>
+      <div style="overflow-x:auto;max-height:560px;overflow-y:auto;">
+        <table class="data-table" id="data-holdings-table"><thead></thead><tbody></tbody></table>
+      </div>
+      <p class="section-sub" style="margin-top:14px;font-size:12px;">Weight is the fund's own published holding percentage. <strong>vs 50d</strong> is the constituent's last close against its 50-day moving average — the measure the breadth panel counts, so the green share below equals this panel's <code>ma_breadth</code>. Names marked <em>no price</em> have no usable history and are excluded from both numerator and denominator. Only the most recent roster is published; the full weekly membership history is 60&ndash;80MB and stays in the repository.</p>
+    </section>
+  </div>
+
   <div class="tab-content" id="tab-health">
     <h1 style="margin-top:8px;">Data Health</h1>
     <p class="section-sub">Every data feed the dashboard reads, with freshness status as of the last pipeline build. A red row means the signal panels that read from it could be stale — do not deploy off that signal until the row turns green. Click <code>fix command</code> on a red row to see exactly which script to run.</p>
@@ -10337,10 +10408,209 @@ function renderDataHealth() {
   }).join('');
 }
 
+// ===================== DATA TAB =====================
+// Fetched, not inlined — see the tab markup for why. Two candidate paths so
+// the tab works both from the built page (docs/index.html, sibling file) and
+// from template.html opened at the repo root during development.
+var DATA_AUDIT = null;
+
+function _pct(v) { return (v === null || v === undefined) ? '—' : (100 * v).toFixed(1) + '%'; }
+function _num(v) { return (v === null || v === undefined) ? '—' : v; }
+
+async function _fetchDataAudit() {
+  const paths = ['data_audit.json', 'docs/data_audit.json'];
+  let lastErr = null;
+  for (const p of paths) {
+    try {
+      const r = await fetch(p, { cache: 'no-store' });
+      if (r.ok) return await r.json();
+      lastErr = new Error('HTTP ' + r.status + ' for ' + p);
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('data_audit.json not reachable');
+}
+
+function _renderDataSummary(d) {
+  const order = { deployed: 0, candidate: 1, monitored: 2, registered: 2 };
+  const rows = d.summary.slice().sort((a, b) =>
+    (order[a.role] - order[b.role]) || a.etf.localeCompare(b.etf));
+  const t = document.getElementById('data-summary-table');
+  t.querySelector('thead').innerHTML = `<tr>
+    <th>Panel</th><th>Role</th><th>As-of</th><th>Roster date</th>
+    <th style="text-align:right;">Weeks</th><th style="text-align:right;">Names</th>
+    <th style="text-align:right;">No price</th><th style="text-align:right;">Walkbacks</th>
+    <th style="text-align:right;">Carried</th><th>Endpoint</th><th style="text-align:right;">Stale</th></tr>`;
+  t.querySelector('tbody').innerHTML = rows.map((r) => {
+    const cur = (d.current[r.etf] || {});
+    const wb = cur.actual && cur.actual !== cur.friday;
+    const roleLabel = (r.role === 'registered') ? 'monitored' : r.role;
+    const roleColour = r.role === 'deployed' ? 'var(--accent)'
+                      : (r.role === 'candidate' ? 'var(--ink-faint)' : '#b45309');
+    const health = r.endpoint_health === 'ok'
+      ? '<span style="color:#15803d;">ok</span>'
+      : `<span style="color:#b91c1c;font-weight:600;">${_num(r.endpoint_health)}</span>`;
+    const staleColour = (r.stale_status && r.stale_status !== 'fresh') ? '#b45309' : 'var(--ink-soft)';
+    return `<tr>
+      <td style="font-weight:600;">${r.etf}</td>
+      <td style="font-size:12px;color:${roleColour};">${roleLabel}</td>
+      <td style="font-size:12px;">${_num(r.end_friday)}</td>
+      <td style="font-size:12px;color:${wb ? '#b45309' : 'var(--ink-soft)'};">${_num(cur.actual)}${wb ? ' ←' : ''}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.n_snapshots)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.latest_n)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-faint);">${_num(r.no_yf_data)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.n_walkbacks)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.n_carry_forwards)}</td>
+      <td style="font-size:12px;">${health}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:${staleColour};">${_num(r.stale_days)}d</td>
+    </tr>`;
+  }).join('');
+}
+
+function _renderDataDetail(etf) {
+  const d = DATA_AUDIT;
+  if (!d) return;
+  const meta = d.summary.find((r) => r.etf === etf) || {};
+  const ros = d.roster[etf] || { friday: [], actual: [], n: [], walkback: [], carried: [] };
+  const br = d.breadth[etf] || {};
+  const cur = d.current[etf] || { tickers: [] };
+
+  document.getElementById('data-detail-title').textContent =
+    etf + (meta.name ? ' — traded as ' + meta.name : '');
+  const roleLabel = (meta.role === 'registered') ? 'monitored (refreshed, outside the traded universe)'
+                   : (meta.role === 'candidate' ? 'captured for research, not traded' : 'deployed');
+  document.getElementById('data-detail-sub').innerHTML =
+    `${roleLabel}. ${_num(meta.n_snapshots)} weekly snapshots to ${_num(meta.end_friday)}; ` +
+    `breadth series covers ${_num(meta.n_trading_days)} trading days to ${_num(meta.breadth_end)}. ` +
+    `${_num(meta.universe_size)} distinct constituents seen over the panel's life, of which ` +
+    `<strong>${_num(meta.no_yf_data)}</strong> never resolved to a price.`;
+
+  // Index breadth rows by date so the two series can be joined per Friday.
+  const bIdx = {};
+  (br.date || []).forEach((dt, i) => { bIdx[dt] = i; });
+
+  const t = document.getElementById('data-history-table');
+  t.querySelector('thead').innerHTML = `<tr>
+    <th>Friday</th><th>Roster date</th><th style="text-align:right;">Roster</th>
+    <th style="text-align:right;">Priced</th><th style="text-align:right;">Coverage</th>
+    <th style="text-align:right;">MA</th><th style="text-align:right;">RSI</th>
+    <th style="text-align:right;">Highs</th></tr>`;
+  const out = [];
+  for (let i = ros.friday.length - 1; i >= 0; i--) {
+    const f = ros.friday[i];
+    const a = ros.actual[i];
+    const wb = ros.walkback[i] === 1;
+    const carried = ros.carried[i] === 1;
+    const j = bIdx[f];
+    const nc = (j === undefined || !br.n_constituents) ? null : br.n_constituents[j];
+    const np = (j === undefined || !br.n_with_price) ? null : br.n_with_price[j];
+    const cov = (nc && np !== null) ? np / nc : null;
+    out.push(`<tr>
+      <td style="font-size:12px;">${f}</td>
+      <td style="font-size:12px;color:${wb ? '#b45309' : 'var(--ink-faint)'};">${_num(a)}${carried ? ' (carried)' : (wb ? ' ←' : '')}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(ros.n[i])}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(np)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:${(cov !== null && cov < 0.8) ? '#b45309' : 'var(--ink-soft)'};">${cov === null ? '—' : _pct(cov)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${j === undefined || !br.ma ? '—' : _pct(br.ma[j])}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${j === undefined || !br.rsi ? '—' : _pct(br.rsi[j])}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${j === undefined || !br.highs ? '—' : _pct(br.highs[j])}</td>
+    </tr>`);
+  }
+  t.querySelector('tbody').innerHTML = out.join('');
+
+  const wbNote = (cur.actual && cur.actual !== cur.friday)
+    ? ` The target Friday was ${cur.friday}, but the roster came from ${cur.actual} — the fetch walked back a day.`
+    : '';
+  const hold = cur.holdings || [];
+  const above = hold.filter((h) => h.above === true).length;
+  const below = hold.filter((h) => h.above === false).length;
+  const nopx  = hold.filter((h) => h.above === null || h.above === undefined).length;
+  const share = (above + below) ? above / (above + below) : null;
+
+  document.getElementById('data-current-sub').innerHTML =
+    `${cur.tickers.length} names as of ${_num(cur.actual)}.${wbNote}` +
+    (cur.as_of ? ` Moving-average state is anchored to <strong>${cur.as_of}</strong>, the last session where at least 90% of the roster had a usable 50-day average.` : '');
+
+  // Green/red share bar — this IS the breadth number, drawn from the rows below.
+  const bar = document.getElementById('data-breadth-bar');
+  if (share === null) {
+    bar.innerHTML = '<span class="section-sub">No priced constituents — breadth cannot be computed for this panel.</span>';
+  } else {
+    const g = (100 * share).toFixed(1), r = (100 * (1 - share)).toFixed(1);
+    bar.innerHTML =
+      `<div style="display:flex;height:26px;border-radius:3px;overflow:hidden;border:1px solid var(--border);">
+         <div style="width:${g}%;background:#15803d;"></div>
+         <div style="width:${r}%;background:#b91c1c;"></div>
+       </div>
+       <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">
+         <strong style="color:#15803d;">${above} above</strong> ·
+         <strong style="color:#b91c1c;">${below} below</strong>
+         ${nopx ? `· ${nopx} no price (excluded)` : ''}
+         — breadth <strong>${g}%</strong>
+       </div>`;
+  }
+
+  const ht = document.getElementById('data-holdings-table');
+  if (!hold.length) {
+    ht.querySelector('thead').innerHTML = '';
+    ht.querySelector('tbody').innerHTML =
+      '<tr><td style="color:var(--ink-faint);">Weights are derived from the cached API payload, which is not available for this panel.</td></tr>';
+    return;
+  }
+  ht.querySelector('thead').innerHTML = `<tr>
+    <th>#</th><th>Ticker</th><th>Name</th><th>Sector</th>
+    <th style="text-align:right;">Weight</th><th style="text-align:right;">vs 50d</th><th>State</th></tr>`;
+  ht.querySelector('tbody').innerHTML = hold.map((h, i) => {
+    const state = h.above === true
+      ? '<span style="color:#15803d;font-weight:600;">above</span>'
+      : (h.above === false ? '<span style="color:#b91c1c;font-weight:600;">below</span>'
+                            : '<span style="color:var(--ink-faint);">no price</span>');
+    const dCol = h.d === null || h.d === undefined ? 'var(--ink-faint)' : (h.d >= 0 ? '#15803d' : '#b91c1c');
+    return `<tr>
+      <td style="color:var(--ink-faint);font-variant-numeric:tabular-nums;">${i + 1}</td>
+      <td style="font-weight:600;">${h.sym}</td>
+      <td style="font-size:12px;color:var(--ink-soft);max-width:230px;overflow:hidden;text-overflow:ellipsis;">${h.name || '—'}</td>
+      <td style="font-size:12px;color:var(--ink-faint);">${h.sector || '—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${h.w === null || h.w === undefined ? '—' : h.w.toFixed(2) + '%'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:${dCol};">${h.d === null || h.d === undefined ? '—' : (h.d > 0 ? '+' : '') + h.d + '%'}</td>
+      <td style="font-size:12px;">${state}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function renderDataAudit() {
+  const status = document.getElementById('data-audit-status');
+  try {
+    if (!DATA_AUDIT) DATA_AUDIT = await _fetchDataAudit();
+  } catch (e) {
+    status.innerHTML = `<strong>Panel data unavailable.</strong> Could not load <code>data_audit.json</code> (${e.message}). ` +
+      `It is built by <code>python scripts/build_data_audit.py</code> alongside the dashboard — re-run the pipeline.`;
+    status.style.borderLeftColor = '#b91c1c';
+    return;
+  }
+  const d = DATA_AUDIT;
+  status.innerHTML = `<strong>${d.summary.length} panels</strong>, built ${d.built_at_utc}. ${d.note}`;
+  _renderDataSummary(d);
+
+  const sel = document.getElementById('data-etf-select');
+  if (!sel.options.length) {
+    const order = { deployed: 0, candidate: 1, monitored: 2, registered: 2 };
+    const rows = d.summary.slice().sort((a, b) =>
+      (order[a.role] - order[b.role]) || a.etf.localeCompare(b.etf));
+    sel.innerHTML = rows.map((r) => {
+      const lbl = (r.role === 'registered') ? 'monitored' : r.role;
+      return `<option value="${r.etf}">${r.etf} — ${lbl}</option>`;
+    }).join('');
+    sel.addEventListener('change', () => _renderDataDetail(sel.value));
+  }
+  _renderDataDetail(sel.value || d.summary[0].etf);
+  document.getElementById('data-audit-body').style.display = '';
+}
+
 function activateTab(name) {
   document.querySelectorAll('nav.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.tab-content').forEach((c) => c.classList.toggle('active', c.id === 'tab-' + name));
   if (!TAB_RENDERED.has(name)) {
+    if (name === 'data')      renderDataAudit();
     if (name === 'monitor')   renderMonitor();
     // Phase 27.5 — the legacy 'detail' tab was removed in Phase 26.5;
     // its three signal-chart sections were distributed into Strategy
