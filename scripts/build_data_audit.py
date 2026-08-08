@@ -105,21 +105,57 @@ def _role(etf: str) -> str:
     return "registered"
 
 
-def _reference_date(b: dict) -> str | None:
-    """Last session whose breadth was computed on a full roster.
+# How far a session's coverage may fall below the panel's own recent norm
+# before it is rejected as an anchor, and the window that norm is taken over.
+_ANCHOR_COLLAPSE_FRAC = 0.8
+_ANCHOR_LOOKBACK = 20
 
-    A panel's final bar can be built from a handful of names when the
-    price vendor has not published every close yet — on 2026-08-07 the
-    European panels had n_with_ma50 = 2. Such a bar is not a breadth
-    reading, so the constituent table anchors to the last bar where at
-    least 90% of the roster had a usable moving average."""
+
+def _reference_date(b: dict) -> str | None:
+    """Last session whose breadth is a trustworthy anchor.
+
+    The constituent table pairs TODAY's roster with the moving-average state
+    at this date, so the anchor wants to be both recent and sound.
+
+    Two conditions, guarding different failures:
+
+      1. The bar has a breadth value at all. compute_breadth nulls anything
+         computed on fewer than MIN_BREADTH_NAMES constituents, which is
+         what catches the 2026-08-07 European case of 2 names out of 26.
+      2. Its coverage has not COLLAPSED against the panel's own recent
+         median — a floor of 5 names still admits 6-of-26, which is a poor
+         anchor even though it is not a degenerate bar.
+
+    Deliberately relative, not an absolute share of the roster. The previous
+    rule demanded 90% coverage and so anchored ITWN to 2026-05-28: its
+    coverage is 89.7% (70 of 78 Taiwanese listings, 8 without yfinance
+    history), against a historical median of 90.9% and a minimum of 87.9%.
+    It had never been badly covered — it simply sits on the boundary — and
+    the result was today's roster priced at a May anchor, a 2.2pp
+    discrepancy against the panel's own number.
+
+    This is the same lesson as MIN_BREADTH_NAMES: what makes a bar
+    untrustworthy is a break from the panel's own norm, not its ratio to a
+    roster that may contain structurally unpriceable names. IDP6 carries
+    ~332 unpriced constituents out of ~603 as normal operation; a
+    share-of-roster rule would never anchor it at all.
+    """
     ser = (b or {}).get("series") or {}
-    dates, nc, nm = ser.get("dates"), ser.get("n_constituents"), ser.get("n_with_ma50")
-    if not dates or not nc or not nm:
+    dates = ser.get("dates")
+    nm, ma = ser.get("n_with_ma50"), ser.get("ma_breadth")
+    if not dates or not nm or not ma:
         return None
+
     for i in range(len(dates) - 1, -1, -1):
-        if nc[i] and nm[i] is not None and nm[i] >= 0.9 * nc[i]:
-            return dates[i]
+        if ma[i] is None or not nm[i]:
+            continue
+        prior = [v for v in nm[max(0, i - _ANCHOR_LOOKBACK):i] if v]
+        if prior:
+            prior.sort()
+            median = prior[len(prior) // 2]
+            if median and nm[i] < _ANCHOR_COLLAPSE_FRAC * median:
+                continue        # coverage collapsed here — not an anchor
+        return dates[i]
     return None
 
 

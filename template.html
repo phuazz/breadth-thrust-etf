@@ -10954,7 +10954,7 @@ function _renderDataDetail(etf) {
 
   document.getElementById('data-current-sub').innerHTML =
     `${cur.tickers.length} names as of ${_num(cur.actual)}.${wbNote}` +
-    (cur.as_of ? ` Moving-average state is anchored to <strong>${cur.as_of}</strong>, the last session where at least 90% of the roster had a usable 50-day average.` : '');
+    (cur.as_of ? ` Moving-average state is anchored to <strong>${cur.as_of}</strong> — the most recent session whose coverage held up against this panel's own recent norm, so a day the price vendor had not finished publishing is skipped.` : '');
 
   // Green/red share bar — this IS the breadth number, drawn from the rows below.
   const bar = document.getElementById('data-breadth-bar');
