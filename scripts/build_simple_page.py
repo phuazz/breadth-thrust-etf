@@ -34,7 +34,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from etf_registry import ETF_REGISTRY  # noqa: E402
+from etf_registry import display_ticker  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "simple_template.html"
@@ -81,33 +81,6 @@ DEPLOYED_KEY = "blend_35_35_10_20_gated_eem_tilted"
 
 class SimplePageError(RuntimeError):
     """Raised when the page cannot be built safely."""
-
-
-def display_ticker(panel_key: str) -> str:
-    """Resolve the ticker a reader would actually have to buy.
-
-    For the Europe sleeve the registry key is an internal panel id, not a Xetra
-    ticker, and etf_registry states that the traded ticker is ALWAYS the proxy
-    field. EXH3 is the case that matters: the key reads EXH3 but the traded
-    instrument is EXH4.DE, and EXH3.DE is a different fund entirely. On a page
-    whose only job is "what I hold", printing the panel id would be wrong.
-
-    Everywhere else the key IS the traded line (sleeve A holds the UCITS
-    tickers; the proxy there is a US-listed price source, not what is bought),
-    so the key is returned unchanged.
-    """
-    entry = ETF_REGISTRY.get(panel_key)
-    if entry is None or entry.get("trading_calendar") != "XETR":
-        return panel_key
-    proxy = entry.get("yfinance_trading_proxy")
-    if not proxy:
-        raise SimplePageError(
-            f"{panel_key} is a XETR entry with no yfinance_trading_proxy; the "
-            f"traded ticker cannot be resolved and must not be guessed"
-        )
-    # Strip the exchange suffix for display; the table carries a note saying
-    # the Europe holdings trade on Xetra in EUR.
-    return proxy.split(".")[0]
 
 
 def downsample(dates: list[str], equity: list[float], limit: int) -> tuple[list[str], list[float]]:

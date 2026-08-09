@@ -25,6 +25,7 @@ import pandas as pd
 
 # Allow importing sibling scripts/ modules.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from etf_registry import display_ticker  # noqa: E402
 from regime_publish import regime_publish_status  # noqa: E402
 from overlay_state import (  # noqa: E402
     derisk_fraction as _gate_derisk_fraction, sleeve_nav_weights,
@@ -658,10 +659,15 @@ def build_html(out_path: Path):
     # Shared cell renderer — ticker bold with the fund name as a small
     # grey secondary line. Used by both the rebalance and holdings tables.
     def _name_cell(etf: str) -> str:
+        # Names stay keyed by the panel key; the printed ticker is the traded
+        # one. Sleeve D's EXH3 is an internal panel id for a fund that trades
+        # as EXH4.DE, so an email telling the reader what moved this week must
+        # name the instrument, not the id.
+        sym = display_ticker(etf)
         nm = labels.get(etf, "")
         if not nm:
-            return f'<strong style="font-family:{MONO};">{etf}</strong>'
-        return (f'<strong style="font-family:{MONO};">{etf}</strong>'
+            return f'<strong style="font-family:{MONO};">{sym}</strong>'
+        return (f'<strong style="font-family:{MONO};">{sym}</strong>'
                 f'<br><span style="font-size:11px;color:#7c8590;">{nm}</span>')
 
     # Latest rebalance changes — placed directly after performance (owner

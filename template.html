@@ -2786,7 +2786,7 @@
           <p>The 25 themes were assembled through <strong>phased additions with explicit within-strategy and cross-strategy correlation gates</strong>: Tech &amp; Innovation (ARKK, CIBR, SKYY, BOTZ, BLOK), Energy &amp; Climate (ICLN, TAN, LIT, URA), Health &amp; Bio (XBI, ARKG + IHI added 2026-05-31 for medical devices), Cyclical thematic (JETS), Commodity-equity (GDX, COPX, MOO + XME, WOOD, REMX added 2026-05), China &amp; EM Tech (CQQQ added 2026-05, 159801.SZ added 2026-05.1 with FX-conversion pipeline), Infrastructure (PAVE + PHO added 2026-05-31 for water), Defence (ITA), Crypto (BTC-USD as the long-history proxy with IBIT-equivalent expense ratio applied; live execution in IBIT). <strong>May 2026 universe expansion</strong>: bulk screen of 27 candidates against the 23-theme universe — 5 passed Stage 1 (correlation < 0.85), 4 passed Stage 2 (walk-forward Sharpe degradation < 0.03 per candidate tested individually), 2 deployed (PHO + IHI). PRNT and BETZ passed both gates but were not deployed — too small to consistently make the K=4 cut. KRBN failed Stage 2. <em>Deployment outcome honest disclosure:</em> the screen tested each candidate alone; deploying BOTH together compounded the effect more than the per-candidate tests suggested. Strategy C standalone walk-forward Sharpe moved <strong>+0.52 → +0.45 (-0.07)</strong>, but the deployed 35/35/10/20 blend Sharpe moved only <strong>-0.004 (within noise)</strong> — the 10% sleeve cap insulates the blend from C's standalone degradation. Net rationale for deployment: water-infrastructure (PHO) and medical-devices (IHI) fill structural exposure gaps next to PAVE and XBI; the cost is a small degradation in C's standalone metrics that does not propagate to the deployed portfolio. Two earlier candidates were <strong>tested and reverted</strong> despite passing the correlation gate: SLV (silver, dragged B's Sharpe by 0.18) and KWEB (China internet, dragged C's walk-forward Sharpe by 0.13). Lesson: correlation gates are necessary but not sufficient; empirical Sharpe / drawdown test is required before deployment. <em>Honest caveat:</em> severe survivorship bias &mdash; failed thematics (cannabis, leveraged-thematic, volatility ETFs) never entered the universe at all.</p>
 
           <h4>Strategy D · Europe sectors</h4>
-          <p>The 5-ETF universe is structurally small because <strong>iShares Europe publishes a limited Stoxx Europe 600 sector UCITS slate</strong>. The five available with reliable constituent-CSV endpoints are Banks (EXV1), Oil &amp; Gas (EXH1), Technology (EXV3), Industrial Goods &amp; Services (EXH3), and Utilities (EXH9). Constituent breadth (the same signal mechanism as Strategy A) requires per-ETF holdings, which constrains the universe to issuers with reliable holdings-CSV endpoints. <strong>Single-country UCITS</strong> (IJPN Japan, NDIA India, ICHN China, ITWN Taiwan) were tested in Phase 4 as a &ldquo;Countries&rdquo; variant and <strong>deferred</strong> &mdash; insufficient single-country breadth data after the constituent-breadth pipeline fix exposed thin yfinance coverage for non-US tickers. The July 2026 WS2 review then evaluated the price-momentum version (10 country ETFs, top-K, own-200d gate) and <strong>rejected it</strong>: it beats an EEM+EFA benchmark only in EM-favoured regimes (3 of 6 sub-periods, train half negative) &mdash; a regime bet the Phase 22 tilt already expresses more cheaply. Future expansion (eg adding a 10-sector Europe set) would require iShares Europe to publish more sector UCITS or a switch to a different issuer with comparable holdings access.</p>
+          <p>The 5-ETF universe is structurally small because <strong>iShares Europe publishes a limited Stoxx Europe 600 sector UCITS slate</strong>. The five available with reliable constituent-CSV endpoints are Banks (EXV1), Oil &amp; Gas (EXH1), Technology (EXV3), Industrial Goods &amp; Services (EXH4), and Utilities (EXH9). Constituent breadth (the same signal mechanism as Strategy A) requires per-ETF holdings, which constrains the universe to issuers with reliable holdings-CSV endpoints. <strong>Single-country UCITS</strong> (IJPN Japan, NDIA India, ICHN China, ITWN Taiwan) were tested in Phase 4 as a &ldquo;Countries&rdquo; variant and <strong>deferred</strong> &mdash; insufficient single-country breadth data after the constituent-breadth pipeline fix exposed thin yfinance coverage for non-US tickers. The July 2026 WS2 review then evaluated the price-momentum version (10 country ETFs, top-K, own-200d gate) and <strong>rejected it</strong>: it beats an EEM+EFA benchmark only in EM-favoured regimes (3 of 6 sub-periods, train half negative) &mdash; a regime bet the Phase 22 tilt already expresses more cheaply. Future expansion (eg adding a 10-sector Europe set) would require iShares Europe to publish more sector UCITS or a switch to a different issuer with comparable holdings access.</p>
         </div>
       </details>
     </section>
@@ -2802,7 +2802,7 @@
           <li><strong>Strategy A</strong>: rank 14 US sector/broad ETFs by <strong>sector-relative breadth</strong> (each ETF's breadth minus the cross-sectional mean), take top K = 7, drop any below the mean (long-only), weight survivors by relative-breadth share. Holds up to 7 — fewer in narrow leadership regimes. Universe: SOXX, CSP1, CNDX, IUES, IUFS, IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, IUSP, IDP6. <em>IUIT (S&amp;P 500 Info Tech) was pruned in May 2026 because of 0.97 correlation with CNDX — see Robustness Test 12. Sector-relative signal deployed Phase 20.1 (May 2026) — lifted Sharpe +0.05 and cut SPY correlation 0.93 → 0.83 vs the prior absolute-breadth signal.</em></li>
           <li><strong>Strategy B</strong>: rank 12 broad asset-class ETFs by distance above 200d MA, drop negatives, take top K = 7, weight by signal share, cash floor in SHY (1-3y Treasury) for unfilled slots. IEF remains in the rotation universe as a duration play. Universe (HYG removed 2026-05 — equity-correlated, never defensive; EEM moved to the Phase 22 overlay 2026-07, Phase 29): SPY, IJR, QQQ, EFA, VGK, EWJ, VNQ, GLD, DBC, TLT, IEF, TIP.</li>
           <li><strong>Strategy C</strong> (10% sleeve): rank 25 thematic ETFs by distance above 200d MA, drop any below +5% (signal floor), take top K = 5, equal-weight (1/K) across the holdings, cash floor in SHY (1-3y Treasury) for unfilled slots. <strong>Sleeve-breadth gate (deployed June 2026)</strong>: if fewer than 30% of the 25-theme universe clears the +5% floor at any rebal, exit ALL positions to SHY for the week. Universe: ARKK, CIBR, SKYY, BOTZ, BLOK, ICLN, TAN, LIT, URA, XBI, ARKG, JETS, GDX, COPX, MOO, PAVE, <strong>ITA</strong> (defence/aerospace), <strong>BTC-USD</strong> (Bitcoin spot — see caveat below; live execution in IBIT), <strong>XME</strong> (broad metals &amp; mining), <strong>WOOD</strong> (timber &amp; forestry), <strong>REMX</strong> (rare earth / strategic metals), <strong>CQQQ</strong> (Invesco China Technology — broad China-tech), <strong>159801.SZ</strong> (Bosera CSI Chip ETF, CNY-denominated, USD-adjusted via spot FX — pure China A-share semiconductor hardware basket: Cambricon, AMEC, NAURA, SMIC. Deployed via IBKR Stock Connect; 588200.SS is an interchangeable Shanghai-listed alternative), <strong>PHO</strong> (Invesco Water Resources — water infrastructure, added 2026-05-31), <strong>IHI</strong> (iShares US Medical Devices — Abbott, Thermo Fisher, Medtronic, Stryker, added 2026-05-31). <em>The C sleeve uses equal-weight (1/K) across the holdings rather than signal-weighting, after an A/B test showed equal-weight dominates on every metric for this high-floor (5%) regime — see the research log below.</em></li>
-          <li><strong>Strategy D</strong> (20% sleeve): rank 5 Stoxx Europe 600 sector UCITS by constituent breadth, take top K = 3, weight by breadth share. Universe: EXV1 (Banks), EXH1 (Oil &amp; Gas), EXV3 (Technology), EXH3 (Industrial Goods &amp; Services), EXH9 (Utilities). Trade as the Xetra-listed UCITS (EXV1.DE etc.) in EUR.</li>
+          <li><strong>Strategy D</strong> (20% sleeve): rank 5 Stoxx Europe 600 sector UCITS by constituent breadth, take top K = 3, weight by breadth share. Universe: EXV1 (Banks), EXH1 (Oil &amp; Gas), EXV3 (Technology), EXH4 (Industrial Goods &amp; Services), EXH9 (Utilities). Trade as the Xetra-listed UCITS (EXV1.DE etc.) in EUR. The industrials member is keyed <code>EXH3</code> internally — that is the id of its constituent and breadth panels on disk, not a Xetra ticker, and it trades as EXH4.DE.</li>
           <li><strong>Combination</strong>: 35% A + 35% B + 10% C + 20% D, rebalanced weekly Friday.</li>
           <li>Transaction cost: 5 bps per unit of weight change (10 bps round-trip).</li>
           <li>No look-ahead: every weight is decided using the prior trading day's signal.</li>
@@ -3286,7 +3286,10 @@ const ETF_DESCRIPTIONS = {
 // them), then hard-truncate. Legend text is unaffected.
 const _HOVER_DESC_MAX = 34;
 function _hoverLabel(etf, desc) {
-  if (!desc) return etf;
+  // Callers pass the panel key; a hover box is read by a human, so resolve to
+  // the traded ticker here rather than at eight call sites.
+  const sym = _displaySym(etf);
+  if (!desc) return sym;
   let d = String(desc).trim();
   while (d.length > _HOVER_DESC_MAX) {
     const stripped = d.replace(/\s*\([^()]*\)\s*$/, '').trim();
@@ -3294,7 +3297,7 @@ function _hoverLabel(etf, desc) {
     d = stripped;
   }
   if (d.length > _HOVER_DESC_MAX) d = d.slice(0, _HOVER_DESC_MAX - 1).trimEnd() + '…';
-  return d ? `${etf} — ${d}` : etf;
+  return d ? `${sym} — ${d}` : sym;
 }
 
 function fmtPct(x, signed = false) {
@@ -3592,6 +3595,20 @@ function _proxy(etf) {
   return m?.trading_proxy || window.DATA?.trading_proxies?.[etf] || etf;
 }
 
+// Ticker to DISPLAY for a panel — a different question from _proxy above.
+// _proxy answers "what symbol do I fetch prices under" and is right to return
+// XLF for IUFS; but the book HOLDS IUFS, so XLF must never appear as a label.
+// The reverse case is EXH3, whose key is an internal panel id for a fund that
+// trades as EXH4.DE — printing the key names a fund in a different sector.
+// window.DATA.display_tickers is the registry's own answer to that, emitted by
+// pipeline.py from etf_registry.display_ticker, so the dashboard, the
+// factsheet, the weekly email and docs/portfolio.html cannot disagree. The
+// fallback is the key: correct for every member except the panel-id ones,
+// which is exactly why the map must be consulted first.
+function _displaySym(etf) {
+  return window.DATA?.display_tickers?.[etf] || etf;
+}
+
 function _trafficLightStrength(breadthPct) {
   if (breadthPct >= 70) return { word: 'leading', cls: 'good' };
   if (breadthPct >= 55) return { word: 'firm', cls: '' };
@@ -3760,7 +3777,7 @@ function renderPositionsPreview() {
           ? `<span class="tk-label">${_escapeHtml(lbl(h.etf))}</span>`
           : '';
         return `<tr>
-          <td class="tk">${h.etf}${labelHtml}</td>
+          <td class="tk">${_displaySym(h.etf)}${labelHtml}</td>
           <td class="sl">${h.sleeve}</td>
           <td class="wt">${wtStr}</td>
           <td class="cash">$${cash}</td>
@@ -3943,7 +3960,7 @@ function renderPositionsPreview() {
           <td class="dt">${a.date || '—'}</td>
           <td class="sl">${a.sl}</td>
           <td class="act ${a.action.toLowerCase()}">${a.action}</td>
-          <td class="tk">${a.etf}${labelHtml}</td>
+          <td class="tk">${_displaySym(a.etf)}${labelHtml}</td>
           <td class="delta">${prevStr} &rarr; ${newStr}${arrow}</td>
         </tr>`;
       }).join('');
@@ -4016,9 +4033,11 @@ function _currentHoldingTickers(sleeve) {
 function _renderUniCard(opts) {
   // opts: { sleeve, name, weight, universe, filter[], k, weighting,
   //         currentHoldings, cashFloor }
+  // Chips are labels, so they print the traded ticker; the cash-floor test
+  // stays on the panel key, which is what the caller passes.
   const chips = opts.universe.map(t => {
     const cashCls = (t === opts.cashFloor) ? ' cash' : '';
-    return `<span class="uni-chip${cashCls}">${t}</span>`;
+    return `<span class="uni-chip${cashCls}">${_displaySym(t)}</span>`;
   }).join('');
   const filterHtml = opts.filter.map(s => `<li>${s}</li>`).join('');
   const ksuffix = opts.kSuffix || '';
@@ -4044,7 +4063,7 @@ function _renderUniCard(opts) {
         ${opts.kNote ? `<div class="uni-result-row" style="font-size:11px;color:var(--ink-faint);margin-top:4px;font-style:italic;">${opts.kNote}</div>` : ''}
         <div class="uni-result-row" style="margin-top:6px;">Currently held: <strong>${opts.currentHoldings.length}</strong> position${opts.currentHoldings.length === 1 ? '' : 's'}</div>
         <div class="uni-chips" style="margin-top:6px;">
-          ${opts.currentHoldings.slice(0, 8).map(t => `<span class="uni-chip">${t}</span>`).join('')}
+          ${opts.currentHoldings.slice(0, 8).map(t => `<span class="uni-chip">${_displaySym(t)}</span>`).join('')}
         </div>
       </div>
     </div>
@@ -4271,7 +4290,7 @@ function renderMonitor() {
   const integrity = window.DATA?.data_integrity || [];
   if (integrity.length) {
     const items = integrity.map(d =>
-      `<strong>${d.etf}</strong> roster ${d.days_since_last_real_fetch}d stale (last real fetch ${d.last_real_fetch_date}; carry-forward active — see DATA_INTEGRITY_POLICY.md)`
+      `<strong>${_displaySym(d.etf)}</strong> roster ${d.days_since_last_real_fetch}d stale (last real fetch ${d.last_real_fetch_date}; carry-forward active — see DATA_INTEGRITY_POLICY.md)`
     ).join('; ');
     warnHtml += `<div class="stale">⚠ Data integrity — ${items}.</div>`;
   }
@@ -4473,12 +4492,12 @@ function renderMonitor() {
       totW += e.total;
       const breadthPct = (overlayGate.current_breadth * 100).toFixed(1);
       return `<tr class="holdings-row overlay-fallback-row">
-        <td><span class="caret"></span><span class="swatch" style="background:#b45309;"></span><span class="sym">${e.etf}</span></td>
+        <td><span class="caret"></span><span class="swatch" style="background:#b45309;"></span><span class="sym">${_displaySym(e.etf)}</span></td>
         <td style="font-size:13px;">${e.label || ''}</td>
         <td><span class="strategy-tag overlay">OVERLAY</span></td>
-        <td><span class="sym" style="font-size:13px;color:var(--ink-soft);">${e.etf}</span></td>
+        <td><span class="sym" style="font-size:13px;color:var(--ink-soft);">${_proxy(e.etf)}</span></td>
         <td class="why" style="color:#b45309;">Breadth gate engaged · S&amp;P 500 breadth ${breadthPct}%</td>
-        <td class="num" style="font-size:11.5px;font-family:'JetBrains Mono',monospace;text-align:left;color:#b45309;">OVERLAY: ${(e.total*100).toFixed(0)}% NAV in ${e.etf}</td>
+        <td class="num" style="font-size:11.5px;font-family:'JetBrains Mono',monospace;text-align:left;color:#b45309;">OVERLAY: ${(e.total*100).toFixed(0)}% NAV in ${_displaySym(e.etf)}</td>
         <td class="num"><strong>${(e.total*100).toFixed(1)}%</strong></td>
       </tr>`;
     }
@@ -4538,7 +4557,7 @@ function renderMonitor() {
     if (e.is_eem_tilt) sleeveLetters.push('TILT');
     const mobileTag = sleeveLetters.length ? `(${sleeveLetters.join('·')})` : '';
     return `<tr class="${rowClass}" data-etf="${e.etf}" data-trade-as="${tradeAs}">
-      <td>${caret}<span class="swatch" style="background:${colourFor(e.etf)};"></span><span class="sym" data-mobile-tag="${mobileTag}">${e.etf}</span></td>
+      <td>${caret}<span class="swatch" style="background:${colourFor(e.etf)};"></span><span class="sym" data-mobile-tag="${mobileTag}">${_displaySym(e.etf)}</span></td>
       <td style="font-size:13px;">${e.label || ''}</td>
       <td>${stratTags.join(' ')}</td>
       <td><span class="sym" style="font-size:13px;color:var(--ink-soft);">${tradeAs}</span></td>
@@ -4700,7 +4719,7 @@ function renderMonitor() {
   const aStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy A (100% = ${(W_A*100).toFixed(0)}% of NAV)</div>`;
   const aStrip = aStripLabel + `<div class="strat-alloc-strip">${aSorted.map(h => {
     const pct = h.weight * 100;
-    return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${h.etf}: ${pct.toFixed(1)}%">${pct >= 7 ? h.etf : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
+    return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${_displaySym(h.etf)}: ${pct.toFixed(1)}%">${pct >= 7 ? _displaySym(h.etf) : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
   }).join('')}</div>`;
   document.getElementById('live-a-holdings').innerHTML = aFormula + aStrip + aSorted
     .map((h, idx) => {
@@ -4708,7 +4727,7 @@ function renderMonitor() {
       const navEff = (h.weight*W_A*100).toFixed(2);
       return `<div class="holding-row">
         <div class="hrow-top">
-          <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
+          <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${_displaySym(h.etf)}</span>
           <span class="hlabel">${ETF_DESCRIPTIONS[h.etf] || ''} <span style="color:var(--ink-faint);font-weight:400;margin-left:6px;">breadth ${h.breadth_pct}%</span></span>
           <span class="hweight">${wPct}%</span>
         </div>
@@ -4762,7 +4781,7 @@ function renderMonitor() {
   const bStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy B (100% = ${(W_B*100).toFixed(0)}% of NAV${investedFrac < 1 ? `, includes SHY cash floor` : ''})</div>`;
   const bStrip = bStripLabel + `<div class="strat-alloc-strip">${bSorted.map(h => {
     const pct = h.weight * 100;
-    return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${h.etf}: ${pct.toFixed(1)}%">${pct >= 7 ? h.etf : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
+    return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${_displaySym(h.etf)}: ${pct.toFixed(1)}%">${pct >= 7 ? _displaySym(h.etf) : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
   }).join('')}</div>`;
   document.getElementById('live-b-holdings').innerHTML = bFormula + bStrip + bSorted
     .map((h, idx) => {
@@ -4773,7 +4792,7 @@ function renderMonitor() {
       const navEff = (h.weight * W_B * 100).toFixed(2);
       return `<div class="holding-row b">
         <div class="hrow-top">
-          <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
+          <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${_displaySym(h.etf)}</span>
           <span class="hlabel">${u.label || ''} <span style="color:var(--ink-faint);font-weight:400;margin-left:6px;">${sgn}${h.signal_pct}% above 200d MA</span></span>
           <span class="hweight">${actualPct.toFixed(1)}%</span>
         </div>
@@ -4819,7 +4838,7 @@ function renderMonitor() {
     const cStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy C (100% = ${(W_C*100).toFixed(0)}% of NAV${cInvested < 1 ? `, includes SHY cash floor` : ''})</div>`;
     const cStrip = cStripLabel + `<div class="strat-alloc-strip">${cSorted.map(h => {
       const pct = h.weight * 100;
-      return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${h.etf}: ${pct.toFixed(1)}%">${pct >= 7 ? h.etf : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
+      return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${_displaySym(h.etf)}: ${pct.toFixed(1)}%">${pct >= 7 ? _displaySym(h.etf) : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
     }).join('')}</div>`;
     document.getElementById('live-c-holdings').innerHTML = cFormula + cStrip + cSorted
       .map((h, idx) => {
@@ -4830,7 +4849,7 @@ function renderMonitor() {
         const navEff = (h.weight * W_C * 100).toFixed(2);
         return `<div class="holding-row b">
           <div class="hrow-top">
-            <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
+            <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${_displaySym(h.etf)}</span>
             <span class="hlabel">${u.label || ''} <span style="color:var(--ink-faint);font-weight:400;margin-left:6px;">${sgn}${h.signal_pct}% above 200d MA</span></span>
             <span class="hweight">${actualPct.toFixed(1)}%</span>
           </div>
@@ -4880,7 +4899,7 @@ function renderMonitor() {
     const dStripLabel = `<div class="strat-alloc-strip-label">Allocation within Strategy D (100% = ${(W_D*100).toFixed(0)}% of NAV)</div>`;
     const dStrip = dStripLabel + `<div class="strat-alloc-strip">${dSorted.map(h => {
       const pct = h.weight * 100;
-      return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${h.etf}: ${pct.toFixed(1)}%">${pct >= 7 ? h.etf : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
+      return `<div class="seg" style="background:${colourFor(h.etf)};flex:${pct};" title="${_displaySym(h.etf)}: ${pct.toFixed(1)}%">${pct >= 7 ? _displaySym(h.etf) : ''}${pct >= 11 ? ' ' + pct.toFixed(0) + '%' : ''}</div>`;
     }).join('')}</div>`;
     document.getElementById('live-d-holdings').innerHTML = dFormula + dStrip + dSorted
       .map((h, idx) => {
@@ -4890,7 +4909,7 @@ function renderMonitor() {
         const navEff = (h.weight*W_D*100).toFixed(2);
         return `<div class="holding-row">
           <div class="hrow-top">
-            <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${h.etf}</span>
+            <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${_displaySym(h.etf)}</span>
             <span class="hlabel">${u.sector || u.label || ''} <span style="color:var(--ink-faint);font-weight:400;margin-left:6px;">breadth ${h.breadth_pct}%</span></span>
             <span class="hweight">${wPct}%</span>
           </div>
@@ -6144,7 +6163,7 @@ function _renderDetailChips() {
     const breadth = monitor?.ma200_breadth_pct;
     return `<div class="etf-chip ${isSel ? 'selected' : ''}" data-etf="${etf}">
       <span class="swatch" style="background:${isSel ? colour : 'var(--border-strong)'};"></span>
-      <span>${etf}</span>
+      <span>${_displaySym(etf)}</span>
       <span class="chip-meta">${breadth != null ? breadth.toFixed(0) + '%' : ''}</span>
     </div>`;
   }).join('');
@@ -6312,7 +6331,7 @@ function renderDetail() {
         return {
           x: s.dates, y: s.equity,
           mode: 'lines',
-          name: `${etf}${ETF_DESCRIPTIONS[etf] ? ' — ' + ETF_DESCRIPTIONS[etf] : ''}`,
+          name: `${_displaySym(etf)}${ETF_DESCRIPTIONS[etf] ? ' — ' + ETF_DESCRIPTIONS[etf] : ''}`,
           line: { color: ETF_COLOURS[etf] || '#999', width: 1.6 },
           hovertemplate: _hoverLabel(etf, ETF_DESCRIPTIONS[etf]) + ': %{y:.1f}%<extra></extra>',
         };
@@ -6350,7 +6369,7 @@ function renderDetail() {
              : v < 0 ? `<span class="bad">▼ ${Math.abs(v).toFixed(1)}pp</span>`
                      : '0.0pp');
     snap.querySelector('tbody').innerHTML = rows.map(r => `<tr>
-      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${ETF_COLOURS[r.etf]||'#999'};margin-right:8px;vertical-align:middle;"></span><strong>${r.etf}</strong></td>
+      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${ETF_COLOURS[r.etf]||'#999'};margin-right:8px;vertical-align:middle;"></span><strong>${_displaySym(r.etf)}</strong></td>
       <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
       <td class="num"><strong>${r.cur.toFixed(1)}%</strong></td>
       <td class="num">${arrow(r.d4)}</td>
@@ -6427,7 +6446,7 @@ function _renderDetailDChips() {
     const latest = blob.breadth_pct[blob.breadth_pct.length - 1];
     return `<div class="etf-chip ${isSel ? 'selected' : ''}" data-etf="${etf}">
       <span class="swatch" style="background:${isSel ? colour : 'var(--border-strong)'};"></span>
-      <span>${etf}</span>
+      <span>${_displaySym(etf)}</span>
       <span class="chip-meta">${latest != null ? latest.toFixed(0) + '%' : ''}</span>
     </div>`;
   }).join('');
@@ -6502,7 +6521,7 @@ function renderDetailEuropeSection() {
         return {
           x: s.dates, y: s.equity,
           mode: 'lines',
-          name: `${etf} — ${d.sector || d.label || ''}`,
+          name: `${_displaySym(etf)} — ${d.sector || d.label || ''}`,
           line: { color: colours[etf] || '#999', width: 1.6 },
           hovertemplate: _hoverLabel(etf, d.sector || d.label) + ': %{y:.1f}%<extra></extra>',
         };
@@ -6542,7 +6561,7 @@ function renderDetailEuropeSection() {
              : v < 0 ? `<span class="bad">▼ ${Math.abs(v).toFixed(1)}pp</span>`
                      : '0.0pp');
     snap.querySelector('tbody').innerHTML = rows.map(r => `<tr>
-      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colours[r.etf]||'#999'};margin-right:8px;vertical-align:middle;"></span><strong>${r.etf}</strong></td>
+      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colours[r.etf]||'#999'};margin-right:8px;vertical-align:middle;"></span><strong>${_displaySym(r.etf)}</strong></td>
       <td style="color:var(--ink-faint);font-size:12px;">${r.sector}</td>
       <td class="num"><strong>${r.cur.toFixed(1)}%</strong></td>
       <td class="num">${arrow(r.d4)}</td>
@@ -6788,7 +6807,7 @@ function _momRenderChips(view) {
               : '';
     return `<div class="etf-chip ${isSel ? 'selected' : ''}" data-etf="${etf}">
       <span class="swatch" style="background:${isSel ? colour : 'var(--border-strong)'};"></span>
-      <span>${etf}</span>
+      <span>${_displaySym(etf)}</span>
       <span class="chip-meta">${tag}${curStr}</span>
     </div>`;
   }).join('');
@@ -6841,7 +6860,7 @@ function renderMomentumView(viewKey) {
       return {
         x: s.dates, y: s.equity,
         mode: 'lines',
-        name: `${etf} — ${_bcLabel(etf)}`,
+        name: `${_displaySym(etf)} — ${_bcLabel(etf)}`,
         line: { color: _bcColour(etf), width: 1.5 },
         hovertemplate: _hoverLabel(etf, _bcLabel(etf)) + ': %{y:+.1f}%<extra></extra>',
       };
@@ -6961,7 +6980,7 @@ function _momRenderSnapshot(view, selected) {
     const sgn = r.cur >= 0 ? '+' : '';
     const curCls = r.cur >= goodAt ? 'good' : r.cur >= 0 ? '' : 'bad';
     return `<tr>
-      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${r.etf}</strong></td>
+      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${_displaySym(r.etf)}</strong></td>
       <td style="color:var(--ink-faint);font-size:12px;">${_bcLabel(r.etf)}</td>
       <td class="num ${curCls}"><strong>${sgn}${r.cur.toFixed(1)}%</strong></td>
       <td class="num">${arrow(r.d4)}</td>
@@ -7031,7 +7050,7 @@ function _renderAHoldings() {
   </tr>`;
   tbl.querySelector('tbody').innerHTML = holds.map((r, i) => `<tr>
     <td class="num">${i + 1}</td>
-    <td class="row-label">${_etfSwatch(r.etf)}<strong>${r.etf}</strong></td>
+    <td class="row-label">${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
     <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
     <td class="num good"><strong>${r.breadth_pct.toFixed(1)}%</strong></td>
     <td class="num">${(r.weight * 100).toFixed(1)}%</td>
@@ -7040,7 +7059,7 @@ function _renderAHoldings() {
     const lowest = holds.length ? holds[holds.length - 1] : null;
     const dropped = (universe.length || 14) - holds.length;
     noteEl.innerHTML = lowest
-      ? `Cutoff: the lowest-ranked holding is <strong>${lowest.etf}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth, which sat above the cross-sectional mean at the ${last.date} rebalance. ${dropped} of ${universe.length || 14} sectors were below the mean and dropped to keep the sleeve long-only — Strategy A holds <strong>${holds.length} of K=${K} max</strong>${holds.length < K ? ' (narrow leadership regime: most sectors clustered near the average)' : ' (all K slots filled)'}.`
+      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth, which sat above the cross-sectional mean at the ${last.date} rebalance. ${dropped} of ${universe.length || 14} sectors were below the mean and dropped to keep the sleeve long-only — Strategy A holds <strong>${holds.length} of K=${K} max</strong>${holds.length < K ? ' (narrow leadership regime: most sectors clustered near the average)' : ' (all K slots filled)'}.`
       : '';
   }
 }
@@ -7076,7 +7095,7 @@ function _renderCHoldings() {
     const sgn = sig >= 0 ? '+' : '';
     return `<tr>
       <td class="num">${i + 1}</td>
-      <td class="row-label">${_etfSwatch(r.etf)}<strong>${r.etf}</strong></td>
+      <td class="row-label">${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
       <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
       <td class="num ${sig >= 0 ? 'good' : 'bad'}"><strong>${sgn}${sig.toFixed(1)}%</strong></td>
       <td class="num">${(r.weight * 100).toFixed(1)}%</td>
@@ -7100,7 +7119,7 @@ function _renderCHoldings() {
     if (sleeveOff) {
       txt = `<strong>Entire sleeve in SHY this week</strong> — either the V6 sleeve-breadth gate tripped (fewer than 30% of the 25-theme universe above +5%) or no themes cleared the +5% floor. The whole 10% sleeve sits in 1-3y Treasuries until the next rebal.`;
     } else if (lowest) {
-      txt = `Cutoff: the lowest-ranked holding is <strong>${lowest.etf}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day MA — well above the +5% hard floor. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in SHY because fewer than K=${K} themes cleared the floor at the ${last.date} rebalance.` : `All K=${K} slots are filled, so no cash is held.`} Any theme whose live signal has since crossed +5% (or a held one that has since fallen below) is not acted on until the next rebal.`;
+      txt = `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day MA — well above the +5% hard floor. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in SHY because fewer than K=${K} themes cleared the floor at the ${last.date} rebalance.` : `All K=${K} slots are filled, so no cash is held.`} Any theme whose live signal has since crossed +5% (or a held one that has since fallen below) is not acted on until the next rebal.`;
     }
     noteEl.innerHTML = txt;
   }
@@ -7132,7 +7151,7 @@ function _renderDHoldings() {
   </tr>`;
   tbl.querySelector('tbody').innerHTML = holds.map((r, i) => `<tr>
     <td class="num">${i + 1}</td>
-    <td class="row-label">${_etfSwatch(r.etf)}<strong>${r.etf}</strong></td>
+    <td class="row-label">${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
     <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
     <td class="num good"><strong>${r.breadth_pct.toFixed(1)}%</strong></td>
     <td class="num">${(r.weight * 100).toFixed(1)}%</td>
@@ -7140,7 +7159,7 @@ function _renderDHoldings() {
   if (noteEl) {
     const lowest = holds.length ? holds[holds.length - 1] : null;
     noteEl.innerHTML = lowest
-      ? `Cutoff: the lowest-ranked holding is <strong>${lowest.etf}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth at the ${last.date} rebalance. The 2 Europe sectors not in the table sat below this — they are excluded until the next rebal. All K=${K} slots are always filled (the 5-ETF universe is larger than K), so no cash is held.`
+      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth at the ${last.date} rebalance. The 2 Europe sectors not in the table sat below this — they are excluded until the next rebal. All K=${K} slots are always filled (the 5-ETF universe is larger than K), so no cash is held.`
       : '';
   }
 }
@@ -7174,7 +7193,7 @@ function _renderBHoldings() {
     const sgn = sig >= 0 ? '+' : '';
     return `<tr>
       <td class="num">${i + 1}</td>
-      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${r.etf}</strong></td>
+      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${_displaySym(r.etf)}</strong></td>
       <td style="color:var(--ink-faint);font-size:12px;">${_bcLabel(r.etf)}</td>
       <td class="num ${sig >= 0 ? 'good' : 'bad'}"><strong>${sgn}${sig.toFixed(1)}%</strong></td>
       <td class="num">${(r.weight * 100).toFixed(1)}%</td>
@@ -7191,7 +7210,7 @@ function _renderBHoldings() {
   if (noteEl) {
     const lowest = holds.length ? holds[holds.length - 1] : null;
     noteEl.innerHTML = lowest
-      ? `Cutoff: the lowest-ranked holding is <strong>${lowest.etf}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day average. Any positive-trend asset class ranked below it — or above the line only after ${last.date} — is excluded until the next rebalance. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in cash because fewer than K=${K} names were in an uptrend.` : `All K=${K} slots are filled, so no cash is held.`}`
+      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day average. Any positive-trend asset class ranked below it — or above the line only after ${last.date} — is excluded until the next rebalance. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in cash because fewer than K=${K} names were in an uptrend.` : `All K=${K} slots are filled, so no cash is held.`}`
       : '';
   }
 }
@@ -7996,7 +8015,7 @@ function renderTradeCharts() {
   const stackedTraces = ordered.map(etf => ({
     x: wkDates,
     y: (alloc[etf] || []).map(v => (v == null ? 0 : v * 100)),
-    name: `${etf}${ETF_DESCRIPTIONS[etf] ? ' — ' + ETF_DESCRIPTIONS[etf] : ''}`,
+    name: `${_displaySym(etf)}${ETF_DESCRIPTIONS[etf] ? ' — ' + ETF_DESCRIPTIONS[etf] : ''}`,
     stackgroup: 'one',
     mode: 'none',
     fillcolor: ETF_COLOURS[etf] || '#999',
@@ -8093,7 +8112,7 @@ function renderTimeInPortfolio() {
     // Pip mark for color of ETF (matches stacked-area)
     const swatch = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${ETF_COLOURS[etf] || '#999'};vertical-align:middle;margin-right:6px;"></span>`;
     return `<tr>
-      <td class="row-label">${swatch}${etf}</td>
+      <td class="row-label">${swatch}${_displaySym(etf)}</td>
       <td style="color:var(--ink-faint);font-size:13px;">${ETF_DESCRIPTIONS[etf] || ''}</td>
       <td class="num">${pctT.toFixed(1)}%</td>
       <td class="num">${((info.avg_weight_when_held ?? 0) * 100).toFixed(1)}%</td>
@@ -8150,10 +8169,10 @@ function renderTradeTable() {
     const chips = r.holdings.map(h => {
       const isEntered = prev && !prevSet.has(h.etf);
       const cls = isEntered ? 'holding-chip entered' : 'holding-chip';
-      return `<span class="${cls}">${h.etf} <span class="w">${(h.weight * 100).toFixed(1)}%</span><span class="b">${h.breadth_pct != null ? h.breadth_pct + '%' : ''}</span></span>`;
+      return `<span class="${cls}">${_displaySym(h.etf)} <span class="w">${(h.weight * 100).toFixed(1)}%</span><span class="b">${h.breadth_pct != null ? h.breadth_pct + '%' : ''}</span></span>`;
     }).join('');
     const exitChips = exited.map(h =>
-      `<span class="holding-chip exited">${h.etf}</span>`
+      `<span class="holding-chip exited">${_displaySym(h.etf)}</span>`
     ).join('');
     return `<tr>
       <td class="date-col">${r.date}</td>
@@ -8244,7 +8263,7 @@ function renderAssetCharts() {
   });
   const stackedTraces = ordered.map(etf => {
     const meta = (window.DATA.asset_class.universe || []).find(u => u.etf === etf) || {};
-    const label = meta.label ? `${etf} — ${meta.label}` : etf;
+    const label = meta.label ? `${_displaySym(etf)} — ${meta.label}` : _displaySym(etf);
     return {
       x: wkDates,
       y: (alloc[etf] || []).map(v => (v == null ? 0 : v * 100)),
@@ -8415,10 +8434,10 @@ function renderAssetTradeTable() {
       const isEntered = prev && !prevSet.has(h.etf);
       const cls = isEntered ? 'holding-chip entered' : 'holding-chip';
       const sigStr = h.signal_pct != null ? `${h.signal_pct >= 0 ? '+' : ''}${h.signal_pct}%` : '';
-      return `<span class="${cls}" style="border-left:3px solid ${colours[h.etf]||'#999'};">${h.etf} <span class="w">${(h.weight*100).toFixed(1)}%</span><span class="b">${sigStr}</span></span>`;
+      return `<span class="${cls}" style="border-left:3px solid ${colours[h.etf]||'#999'};">${_displaySym(h.etf)} <span class="w">${(h.weight*100).toFixed(1)}%</span><span class="b">${sigStr}</span></span>`;
     }).join('');
     const exitChips = exited.map(h =>
-      `<span class="holding-chip exited">${h.etf}</span>`).join('');
+      `<span class="holding-chip exited">${_displaySym(h.etf)}</span>`).join('');
     return `<tr>
       <td class="date-col">${r.date}</td>
       <td class="holdings-cell">${chips} ${exitChips ? '<span style="color:var(--ink-faint);font-size:11px;margin-left:6px;">— exited:</span> ' + exitChips : ''}</td>
@@ -8458,7 +8477,7 @@ function renderAssetAttribution() {
     const swatch = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colours[etf]||'#999'};vertical-align:middle;margin-right:6px;"></span>`;
     const meta = universeMeta[etf] || {};
     return `<tr>
-      <td class="row-label">${swatch}${etf}</td>
+      <td class="row-label">${swatch}${_displaySym(etf)}</td>
       <td style="color:var(--ink-faint);font-size:13px;">${meta.asset_class || ''} <span style="color:var(--ink-faint);">·</span> ${meta.label || ''}</td>
       <td class="num">${pctT.toFixed(1)}%</td>
       <td class="num">${((info.avg_weight_when_held ?? 0)*100).toFixed(1)}%</td>
@@ -8540,7 +8559,7 @@ function renderThematicCharts() {
   });
   const stackedTraces = ordered.map(etf => {
     const meta = (tc.universe || []).find(u => u.etf === etf) || {};
-    const label = meta.label ? `${etf} — ${meta.label}` : etf;
+    const label = meta.label ? `${_displaySym(etf)} — ${meta.label}` : _displaySym(etf);
     return {
       x: wkDates,
       y: (alloc[etf] || []).map(v => (v == null ? 0 : v * 100)),
@@ -8704,10 +8723,10 @@ function renderThematicTradeTable() {
       const isEntered = prev && !prevSet.has(h.etf);
       const cls = isEntered ? 'holding-chip entered' : 'holding-chip';
       const sigStr = h.signal_pct != null ? `${h.signal_pct >= 0 ? '+' : ''}${h.signal_pct}%` : '';
-      return `<span class="${cls}" style="border-left:3px solid ${colours[h.etf]||'#999'};">${h.etf} <span class="w">${(h.weight*100).toFixed(1)}%</span><span class="b">${sigStr}</span></span>`;
+      return `<span class="${cls}" style="border-left:3px solid ${colours[h.etf]||'#999'};">${_displaySym(h.etf)} <span class="w">${(h.weight*100).toFixed(1)}%</span><span class="b">${sigStr}</span></span>`;
     }).join('');
     const exitChips = exited.map(h =>
-      `<span class="holding-chip exited">${h.etf}</span>`).join('');
+      `<span class="holding-chip exited">${_displaySym(h.etf)}</span>`).join('');
     return `<tr>
       <td class="date-col">${r.date}</td>
       <td class="holdings-cell">${chips} ${exitChips ? '<span style="color:var(--ink-faint);font-size:11px;margin-left:6px;">— exited:</span> ' + exitChips : ''}</td>
@@ -8746,7 +8765,7 @@ function renderThematicAttribution() {
     const swatch = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colours[etf]||'#999'};vertical-align:middle;margin-right:6px;"></span>`;
     const meta = universeMeta[etf] || {};
     return `<tr>
-      <td class="row-label">${swatch}${etf}</td>
+      <td class="row-label">${swatch}${_displaySym(etf)}</td>
       <td style="color:var(--ink-faint);font-size:13px;">${meta.theme || ''} <span style="color:var(--ink-faint);">·</span> ${meta.label || ''}</td>
       <td class="num">${pctT.toFixed(1)}%</td>
       <td class="num">${((info.avg_weight_when_held ?? 0)*100).toFixed(1)}%</td>
@@ -8836,7 +8855,7 @@ function renderEuropeCharts() {
   });
   const stackedTraces = ordered.map(etf => {
     const meta = (eu.universe || []).find(u => u.etf === etf) || {};
-    const label = meta.label ? `${etf} — ${meta.sector || meta.label}` : etf;
+    const label = meta.label ? `${_displaySym(etf)} — ${meta.sector || meta.label}` : _displaySym(etf);
     return {
       x: wkDates,
       y: (alloc[etf] || []).map(v => (v == null ? 0 : v * 100)),
@@ -8973,10 +8992,10 @@ function renderEuropeTradeTable() {
       const isEntered = prev && !prevSet.has(h.etf);
       const cls = isEntered ? 'holding-chip entered' : 'holding-chip';
       const bStr = h.breadth_pct != null ? `${h.breadth_pct}%` : '';
-      return `<span class="${cls}" style="border-left:3px solid ${colours[h.etf]||'#999'};">${h.etf} <span class="w">${(h.weight*100).toFixed(1)}%</span><span class="b">${bStr}</span></span>`;
+      return `<span class="${cls}" style="border-left:3px solid ${colours[h.etf]||'#999'};">${_displaySym(h.etf)} <span class="w">${(h.weight*100).toFixed(1)}%</span><span class="b">${bStr}</span></span>`;
     }).join('');
     const exitChips = exited.map(h =>
-      `<span class="holding-chip exited">${h.etf}</span>`).join('');
+      `<span class="holding-chip exited">${_displaySym(h.etf)}</span>`).join('');
     return `<tr>
       <td class="date-col">${r.date}</td>
       <td class="holdings-cell">${chips} ${exitChips ? '<span style="color:var(--ink-faint);font-size:11px;margin-left:6px;">— exited:</span> ' + exitChips : ''}</td>
@@ -9016,7 +9035,7 @@ function renderEuropeAttribution() {
     const swatch = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colours[etf]||'#999'};vertical-align:middle;margin-right:6px;"></span>`;
     const meta = universeMeta[etf] || {};
     return `<tr>
-      <td class="row-label">${swatch}${etf}</td>
+      <td class="row-label">${swatch}${_displaySym(etf)}</td>
       <td style="color:var(--ink-faint);font-size:13px;">${meta.sector || ''} <span style="color:var(--ink-faint);">·</span> ${meta.label || ''}</td>
       <td class="num">${pctT.toFixed(1)}%</td>
       <td class="num">${((info.avg_weight_when_held ?? 0)*100).toFixed(1)}%</td>
@@ -10325,7 +10344,7 @@ function renderCombinedTradeLedger() {
     return `<tr>
       <td style="font-family:'JetBrains Mono',monospace;">${r.date}</td>
       <td>${sleeveTag(r.sleeve)}</td>
-      <td><strong>${r.etf}</strong>${ETF_DESCRIPTIONS[r.etf] ? '<br><span style="color:var(--ink-faint);font-weight:400;font-size:11px;">' + ETF_DESCRIPTIONS[r.etf] + '</span>' : ''}</td>
+      <td><strong>${_displaySym(r.etf)}</strong>${ETF_DESCRIPTIONS[r.etf] ? '<br><span style="color:var(--ink-faint);font-weight:400;font-size:11px;">' + ETF_DESCRIPTIONS[r.etf] + '</span>' : ''}</td>
       <td>${actionTag(r.action)}</td>
       <td class="num">${fmtW(r.withinWeight)} ${wChange}</td>
       <td class="num">${fmtW(r.effWeight)} ${navChange}</td>
@@ -10386,7 +10405,7 @@ function renderBlendAttribution() {
     const barW = Math.abs(x.totalContrib) / maxAbs * 100;
     const barColour = x.totalContrib >= 0 ? 'var(--good)' : 'var(--bad)';
     return `<tr>
-      <td class="row-label"><strong>${x.etf}</strong></td>
+      <td class="row-label"><strong>${_displaySym(x.etf)}</strong></td>
       <td>${sleeves_held}</td>
       <td class="num ${pp >= 0 ? 'good' : 'bad'}"><strong>${pp > 0 ? '+' : ''}${pp.toFixed(2)}pp</strong></td>
       <td class="num">${pctOfTotal > 0 ? '+' : ''}${pctOfTotal.toFixed(1)}%</td>
@@ -10656,7 +10675,7 @@ function _renderSummaryRows(rows) {
       : `<span style="color:#b91c1c;font-weight:600;">${_num(r.endpoint_health)}</span>`;
     const staleColour = (r.stale_status && r.stale_status !== 'fresh') ? '#b45309' : 'var(--ink-soft)';
     return `<tr data-chart-etf="${r.etf}" style="cursor:pointer;" title="Click for the traded ETF's 1Y chart">
-      <td style="font-weight:600;">${r.etf}</td>
+      <td style="font-weight:600;">${_displaySym(r.etf)}</td>
       <td style="font-size:12px;color:var(--ink-soft);max-width:280px;overflow:hidden;text-overflow:ellipsis;">${r.long_name || '—'}</td>
       <td style="font-size:12px;color:${roleColour};">${r._roleLabel}</td>
       <td style="font-size:12px;">${_num(r.end_friday)}</td>
@@ -11081,7 +11100,7 @@ async function renderDataAudit() {
         ((r.role === 'registered') ? 'monitored' : r.role) === key);
       if (!inGroup.length) return '';
       return `<optgroup label="${label}">` + inGroup.map((r) =>
-        `<option value="${r.etf}">${r.etf} — ${r.long_name || r.etf}</option>`
+        `<option value="${r.etf}">${_displaySym(r.etf)} — ${r.long_name || _displaySym(r.etf)}</option>`
       ).join('') + '</optgroup>';
     }).join('');
     sel.addEventListener('change', () => _renderDataDetail(sel.value));

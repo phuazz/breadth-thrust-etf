@@ -819,6 +819,57 @@ def get_etf(symbol: str) -> dict:
     return ETF_REGISTRY[sym]
 
 
+# The exchange whose members' registry keys are internal panel ids rather than
+# tradeable symbols. Named rather than inlined so the rule below reads as a
+# statement about Xetra, not as a magic string.
+_PANEL_ID_CALENDAR = "XETR"
+
+
+def display_ticker(panel_key: str) -> str:
+    """The ticker to PRINT for a panel — the instrument a reader would buy.
+
+    The registry key is not always the traded symbol. For the Europe sleeve it
+    is an internal panel id: the key ``EXH3`` fetches iShares product 251948
+    (Industrial Goods & Services), whose Xetra ticker is ``EXH4.DE`` — while
+    ``EXH3.DE`` is a different fund in a different sector. Printing the key on
+    a holdings table therefore names a fund the book does not own. That is the
+    reader-facing half of the defect ``check_pair_integrity.py`` guards the
+    pricing half of.
+
+    Everywhere else the key IS the traded line and the proxy is a price source,
+    not a holding: sleeve A holds the S&P 500 sector UCITS (``IUFS``) and prices
+    them off the US-listed SPDRs (``XLF``). Swapping those would be a new error,
+    so the rewrite is confined to the panel-id calendar.
+
+    Returns the symbol without its exchange suffix — surfaces that need the
+    fully-qualified symbol for a price lookup want ``yfinance_trading_proxy``
+    itself, not this.
+
+    >>> display_ticker("EXH3")
+    'EXH4'
+    >>> display_ticker("IUFS")
+    'IUFS'
+    >>> display_ticker("SPY")          # not in the registry at all
+    'SPY'
+    """
+    entry = ETF_REGISTRY.get(panel_key)
+    if entry is None or entry.get("trading_calendar") != _PANEL_ID_CALENDAR:
+        return panel_key
+    proxy = entry.get("yfinance_trading_proxy")
+    if not proxy:
+        raise KeyError(
+            f"{panel_key} is a {_PANEL_ID_CALENDAR} entry with no "
+            f"yfinance_trading_proxy; its traded ticker cannot be resolved and "
+            f"must not be guessed by appending an exchange suffix to the key"
+        )
+    return proxy.split(".")[0]
+
+
+def display_ticker_map() -> dict[str, str]:
+    """``display_ticker`` for every registry member, for injection into a page."""
+    return {key: display_ticker(key) for key in ETF_REGISTRY}
+
+
 # =========================================================================
 # Active backtest universe — single source of truth.
 # Downstream scripts import this constant rather than redeclaring the list.

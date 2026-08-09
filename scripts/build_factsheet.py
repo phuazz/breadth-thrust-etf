@@ -31,6 +31,7 @@ from pathlib import Path
 # Allow importing sibling scripts/ modules when build_factsheet is run as a
 # script (PROJECT_ROOT/scripts/build_factsheet.py).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from etf_registry import display_ticker  # noqa: E402
 from regime_publish import regime_publish_status  # noqa: E402
 from overlay_state import (  # noqa: E402
     sleeve_nav_weights, state_active_on, derisk_fraction as _derisk_fraction,
@@ -708,8 +709,8 @@ def chart_per_etf_attribution(sleeves, overlay, holdings_prices,
     # Tick labels: "TICKER (sleeve)" e.g. "SOXX (A)" — the sleeve tag
     # helps the eye associate colour with origin without a legend.
     ax.set_yticks(y_pos)
-    ax.set_yticklabels([f"{r['etf']} ({r['sleeve']})" for r in rows],
-                        fontsize=9, color="#0f1217")
+    ax.set_yticklabels([f"{display_ticker(r['etf'])} ({r['sleeve']})"
+                         for r in rows], fontsize=9, color="#0f1217")
     ax.invert_yaxis()
     ax.axvline(0, color=PALETTE_ZERO, linewidth=0.7)
     ax.grid(False, axis="y")
@@ -1253,7 +1254,11 @@ def build_holdings_table(sleeves, overlay, asof_iso, page_w, styles):
         sig = f"{h['signal']:+.1f}%" if h["signal"] is not None else "—"
         cash = h["effective"] * 1_000_000
         data.append([
-            col_p(h["etf"], INK, fontname="Courier-Bold", fontsize=9.5),
+            # Print the traded ticker, not the panel key — sleeve D's EXH3 is
+            # an internal panel id for a fund that trades as EXH4.DE, and a
+            # client-facing target-weight table must name what is held.
+            col_p(display_ticker(h["etf"]), INK, fontname="Courier-Bold",
+                   fontsize=9.5),
             col_p(h["sleeve"], INK_SOFT, fontsize=8.5),
             col_p(sig, INK_SOFT, fontname="Courier", fontsize=8.5, align=TA_RIGHT),
             col_p(fmt_pct(h["effective"], signed=False, dp=1), ACCENT,
@@ -1426,7 +1431,7 @@ def build_trades_table(sleeves, page_w, styles, overlay, as_of=None):
         data.append([
             col_p(sleeve, INK_SOFT, fontname="Helvetica-Bold", fontsize=9),
             col_p(action, action_col, fontname="Helvetica-Bold", fontsize=7.5),
-            col_p(etf, INK, fontname="Courier-Bold", fontsize=9.5),
+            col_p(display_ticker(etf), INK, fontname="Courier-Bold", fontsize=9.5),
             col_p(fmt_pct(prev_w, signed=False) if prev_w is not None else "—",
                    INK_SOFT, fontname="Courier", fontsize=8.5, align=TA_RIGHT),
             col_p(fmt_pct(new_w, signed=False) if new_w is not None else "—",

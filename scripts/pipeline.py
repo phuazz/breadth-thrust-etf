@@ -32,7 +32,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from etf_registry import ETF_REGISTRY  # noqa: E402
+from etf_registry import ETF_REGISTRY, display_ticker_map  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -1210,6 +1210,15 @@ def main() -> int:
             etf: (cfg.get("yfinance_trading_proxy") or etf)
             for etf, cfg in ETF_REGISTRY.items()
         },
+        # Registry-derived ticker to PRINT per panel — a different question
+        # from trading_proxies above, which answers "what do I fetch prices
+        # under". The two diverge in both directions: sleeve A prices IUFS off
+        # XLF but holds IUFS, so the label must stay IUFS; sleeve D's EXH3 is
+        # an internal panel id for a fund that trades as EXH4.DE, so the label
+        # must become EXH4. Resolved by etf_registry.display_ticker so the
+        # dashboard, the factsheet, the weekly email and docs/portfolio.html
+        # all print the same answer.
+        "display_tickers": display_ticker_map(),
         "data_integrity": data_integrity,
         "data_health": data_health,
         "regime_publish": regime_publish,
