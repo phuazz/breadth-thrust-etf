@@ -1,9 +1,9 @@
 """The public portfolio page must never disagree with the book it describes.
 
-docs/portfolio.html is a second published surface over the same positions as
-docs/index.html. Two surfaces over one set of numbers is how the factsheet,
-the digest email and the dashboard have drifted apart before, and this one is
-the surface strangers read. So the parity is asserted rather than assumed:
+build/portfolio.html is the page published at phuazz.github.io/portfolio/ —
+a second surface over the same positions as docs/index.html. Two surfaces over
+one set of numbers is how the factsheet, the digest email and the dashboard
+have drifted apart before, and this one is the surface strangers read. So the parity is asserted rather than assumed:
 the page's holdings, its sleeve split and its headline statistics must be
 derivable from the source JSONs and nothing else.
 
@@ -48,9 +48,9 @@ def payload():
 @pytest.fixture(scope="module")
 def built_payload():
     """The payload actually embedded in the published page."""
-    path = ROOT / "docs" / "portfolio.html"
+    path = bsp.OUT_PATH
     if not path.exists():
-        pytest.skip("docs/portfolio.html not built yet")
+        pytest.skip(f"{path.name} not built yet")
     text = path.read_text(encoding="utf-8")
     start = text.find(bsp.PLACEHOLDER_START)
     end = text.find(bsp.PLACEHOLDER_END)
@@ -202,7 +202,7 @@ def test_curve_is_downsampled_but_intact(payload, overlay):
 # --------------------------------------------------------------------------
 
 def test_built_page_matches_the_current_sources(built_payload, payload):
-    """Catches a hand-edited docs/portfolio.html and a stale build alike."""
+    """Catches a hand-edited build/portfolio.html and a stale build alike."""
     assert built_payload == json.loads(json.dumps(payload))
 
 
@@ -218,7 +218,7 @@ def _flat(path: Path) -> str:
 def test_built_page_carries_its_disclosures():
     """The simulated-record statement is a disclosure, not decoration: the page
     must not be able to ship without it."""
-    path = ROOT / "docs" / "portfolio.html"
+    path = bsp.OUT_PATH
     text = _flat(path)
     for required in ("simulated", "no live track record", "not investment advice"):
         assert required in text, f"missing disclosure: {required}"
@@ -228,7 +228,7 @@ def test_built_page_carries_its_disclosures():
 def test_built_page_discloses_no_parameters():
     """The whole point of the reduced surface. If a threshold, a lookback or a
     top-K value appears here, the page has stopped being the simple one."""
-    text = _flat(ROOT / "docs" / "portfolio.html")
+    text = _flat(bsp.OUT_PATH)
     for leak in ("200d", "200-day", "50d ", "golden cross", "top k", "top-k",
                  "breadth", "z-score", "lookback", "sharpe ratio of the sleeve"):
         assert leak not in text, f"method detail leaked onto the simple page: {leak!r}"
@@ -237,4 +237,4 @@ def test_built_page_discloses_no_parameters():
 def test_page_stays_small_enough_to_open():
     """A page a reader loads on a phone, and a source file a reviewer opens."""
     assert (ROOT / "simple_template.html").stat().st_size <= bsp.MAX_TEMPLATE_BYTES
-    assert (ROOT / "docs" / "portfolio.html").stat().st_size <= 500 * 1024
+    assert bsp.OUT_PATH.stat().st_size <= 500 * 1024

@@ -28,7 +28,9 @@ Two surfaces over the same book, from the same source JSONs:
 | Page | Built by | For |
 |---|---|---|
 | `docs/index.html` | `scripts/pipeline.py` (source: `template.html`) | The full research dashboard — method, trade history, per-sleeve tabs, risk and validation, scanner, data health. |
-| `docs/portfolio.html` | `scripts/build_simple_page.py` (source: `simple_template.html`) | A reduced plain-language view for friends and peers: current holdings, the sleeve split, one simulated equity line, and the disclosures. Nothing else. |
+| `build/portfolio.html` → **[phuazz.github.io/portfolio](https://phuazz.github.io/portfolio/)** | `scripts/build_simple_page.py` (source: `simple_template.html`) | A reduced plain-language view for friends and peers: current holdings, the sleeve split, one simulated equity line, and the disclosures. Nothing else. |
+
+The reduced page is **published from a separate repo** (`phuazz/portfolio`, 2026-08-09) and is deliberately not under `docs/` here, so it has no sibling path a reader can wander into. `build/portfolio.html` is the transport, not a served file: the portfolio repo pulls it from `raw.githubusercontent.com` daily, validates it and commits it as its own `index.html`. That direction was chosen so no cross-repo push credential has to exist — the sync runs on the target repo's own `GITHUB_TOKEN`. The cost is up to a day of lag, which is immaterial for a weekly-rebalanced book; `workflow_dispatch` there publishes immediately when it is not.
 
 The reduced page is a **presentational** reduction, not a confidentiality measure — this repo is public and MIT-licensed, and the rules table at the top of this README already states the full specification. It exists so a non-specialist reader is not handed a twelve-tab research dashboard. It deliberately omits trade history (a weekly trade log against a known universe is the fastest way to infer a ranking rule) and every parameter; `tests/test_simple_page_parity.py` fails the build if method vocabulary reappears on it.
 

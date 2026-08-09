@@ -146,7 +146,8 @@ jobs:
       - name: Rebuild dashboard + factsheet with live extension
         run: python scripts/pipeline.py
 
-      # docs/portfolio.html is the reduced public page. It reads the same
+      # build/portfolio.html is the reduced public page, published from the
+      # separate phuazz/portfolio repo, which pulls this file. It reads the same
       # live_track/risk_overlay pair the dashboard does, so it is rebuilt in the
       # same breath — a public page that silently stops refreshing is worse than
       # no public page. Deliberately NOT soft-failed: every condition that stops

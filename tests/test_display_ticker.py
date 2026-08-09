@@ -14,7 +14,7 @@ Four surfaces print holdings, and the defect class is one surface deriving the
 answer itself rather than reading the registry. So the rule lives in
 ``etf_registry.display_ticker`` and every surface is asserted to route through
 it: the dashboard (via the injected map), the factsheet PDF, the weekly email,
-and docs/portfolio.html.
+and the published portfolio page.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import build_simple_page as bsp  # noqa: E402
 from etf_registry import (  # noqa: E402
     ETF_REGISTRY,
     display_ticker,
@@ -295,9 +296,8 @@ def test_built_surfaces_agree_on_the_europe_label():
     Reads the built artefacts rather than the sources, so a stale build that
     still prints EXH3 fails here even though every source is correct.
     """
-    portfolio = ROOT / "docs" / "portfolio.html"
-    if not portfolio.exists():
-        pytest.skip("docs/portfolio.html not built yet")
+    if not bsp.OUT_PATH.exists():
+        pytest.skip(f"{bsp.OUT_PATH.name} not built yet")
     payload = json.loads((ROOT / "data" / "portfolio_simple.json")
                           .read_text(encoding="utf-8"))
     tickers = {h["ticker"] for h in payload["holdings"]}

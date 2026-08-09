@@ -1,4 +1,4 @@
-"""Build the plain-language portfolio page -> docs/portfolio.html.
+"""Build the plain-language portfolio page -> build/portfolio.html.
 
 A second, deliberately reduced public surface for friends and peers. It answers
 three questions and nothing else: what the book holds today, how it is split,
@@ -11,10 +11,13 @@ The reduction is presentational only. Nothing here is a defence of the strategy
 rules, which are stated in full in README.md on a public MIT-licensed repo.
 
 Same shape as build_scanner_page.py: the template is the source file and is what
-gets edited; the built artefact in docs/ is generated and never hand-touched.
-The payload is also written to data/portfolio_simple.json so the template's
-fetch fallback works standalone during development (`npx serve .` from the
-project root) and so the parity test has a clean artefact to assert against.
+gets edited; the built artefact is generated and never hand-touched. The payload
+is also written to data/portfolio_simple.json so the template's fetch fallback
+works standalone during development (`npx serve .` from the project root) and so
+the parity test has a clean artefact to assert against.
+
+The output is NOT under docs/ — see OUT_PATH. This repo no longer serves the
+page; phuazz/portfolio does, and pulls this file.
 
 Deliberately separate from pipeline.py. This page must not be able to fail the
 main dashboard build, and the main dashboard must not be able to publish a
@@ -38,7 +41,13 @@ from etf_registry import display_ticker  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "simple_template.html"
-OUT_PATH = ROOT / "docs" / "portfolio.html"
+# NOT under docs/. GitHub Pages serves docs/, and this page is deliberately no
+# longer published from this repo — it lives at phuazz.github.io/portfolio/,
+# away from the research dashboard, so a non-specialist reader has no sibling
+# path to wander into. This file is the transport: the portfolio repo fetches
+# it from raw.githubusercontent.com and commits it as its own index.html, which
+# is why it must stay committed even though nothing here serves it.
+OUT_PATH = ROOT / "build" / "portfolio.html"
 PAYLOAD_PATH = ROOT / "data" / "portfolio_simple.json"
 
 LIVE_TRACK = ROOT / "data" / "live_track.json"

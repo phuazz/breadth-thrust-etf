@@ -1216,7 +1216,7 @@ def main() -> int:
         # XLF but holds IUFS, so the label must stay IUFS; sleeve D's EXH3 is
         # an internal panel id for a fund that trades as EXH4.DE, so the label
         # must become EXH4. Resolved by etf_registry.display_ticker so the
-        # dashboard, the factsheet, the weekly email and docs/portfolio.html
+        # dashboard, the factsheet, the weekly email and the portfolio page
         # all print the same answer.
         "display_tickers": display_ticker_map(),
         "data_integrity": data_integrity,
