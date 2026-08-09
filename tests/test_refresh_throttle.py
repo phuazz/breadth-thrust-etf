@@ -54,11 +54,26 @@ def test_pauses_after_a_slow_step():
     assert _should_throttle(15, 2, [("compute_breadth CSP1", 42.0)]) is True
 
 
-def test_does_not_pause_after_a_cache_served_step():
-    """The reason this is conditional. A warm-cache refresh issues almost no
-    requests, so pausing after every one would add minutes of wall clock to
-    protect against a limit it is nowhere near."""
+def test_does_not_pause_after_a_step_that_did_no_fetching():
+    """The skip's logic, which is sound but currently unreachable.
+
+    Measured on the 2026-08-08 38-ETF run: the fastest compute_breadth was
+    10.7s and every one of the 38 logged a yfinance download, so nothing
+    falls under the threshold and skipping would have been wrong anyway.
+    The branch stays as a guard for a future no-fetch path; this pins its
+    behaviour if that day comes.
+    """
     assert _should_throttle(15, 2, [("compute_breadth CSP1", 1.2)]) is False
+
+
+def test_measured_reality_no_step_falls_under_the_skip_threshold():
+    """Records the measurement so a later reader does not assume the skip
+    is doing work. If compute_breadth ever gains a genuine cache-hit path
+    this stops being true, and the constant becomes live."""
+    assert ra.THROTTLE_SKIP_UNDER_S < 10.7, (
+        "the fastest observed compute_breadth step was 10.7s; a threshold at "
+        "or above that would start skipping steps that DID fetch"
+    )
 
 
 def test_zero_disables_it():

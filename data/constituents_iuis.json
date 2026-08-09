@@ -2,7 +2,7 @@
   "etf": "IUIS",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/287109/ishares-s-p-500-industrials-sector-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=IUIS_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-08T14:52:55.985338+00:00",
+  "fetched_at_utc": "2026-08-08T23:23:36.251948+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-07",
   "n_target_fridays": 449,

@@ -2,7 +2,7 @@
   "etf": "EXH2",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-08-08T15:02:54.930436+00:00",
+  "fetched_at_utc": "2026-08-08T23:45:37.231937+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-07",
   "n_target_fridays": 449,

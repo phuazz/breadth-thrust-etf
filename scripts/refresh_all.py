@@ -117,9 +117,14 @@ ETFS_REFRESH = [*ETFS_ALL, *ETFS_CANDIDATES]
 #
 # WHY 15 SECONDS. It has to be large enough to matter against a limiter
 # measured in requests-per-window and small enough not to dominate a run
-# that is otherwise ~25-35 minutes. At 15s across the ETFs that actually
-# fetch, the ceiling is under 10 minutes added and the realistic cost is
-# well below that, because a cache-warm step is skipped entirely.
+# that is otherwise ~25-40 minutes. Measured on the 2026-08-08 run: 37 of
+# 38 gaps paused, adding ~9.3 minutes to 36 minutes of step time.
+#
+# That is the real cost and it is close to the ceiling, not well under it —
+# an earlier version of this comment claimed the typical cost would be much
+# lower because cache-warm steps would skip. That was wrong on measurement
+# (see THROTTLE_SKIP_UNDER_S). The pacing is worth the 9 minutes: the run it
+# replaced lost four panels and needed manual repair.
 #
 # WHAT IT DOES NOT FIX. This paces BETWEEN ETFs; it cannot help WITHIN one.
 # A cold-cache panel downloads full history for hundreds of constituents in
@@ -128,8 +133,22 @@ ETFS_REFRESH = [*ETFS_ALL, *ETFS_CANDIDATES]
 # backoff inside the download, not a longer pause out here.
 THROTTLE_DEFAULT_S = 15
 
-# A step finishing faster than this served itself from the parquet cache and
-# issued few or no requests, so pausing after it buys nothing but wall clock.
+# Skip the pause after a step this fast, on the theory that it did no
+# fetching worth pacing.
+#
+# MEASURED: IT DOES NOT FIRE, AND SHOULD NOT. Across the 38-ETF run on
+# 2026-08-08 the fastest compute_breadth was 10.7s (median 17.1s), so
+# nothing fell under 10s — and "Downloading N tickers from yfinance"
+# appeared 38 times out of 38. Every step issues a top-up request to bring
+# its cache to the latest session, so there is no cache-warm-and-silent
+# state for this to detect. Skipping would have been wrong, not merely
+# unused.
+#
+# Kept as a guard rather than deleted: it costs nothing, and it becomes
+# live the moment compute_breadth gains a genuine no-fetch path (a
+# same-session re-run, or an explicit offline mode). Anyone tuning it should
+# know it is currently unreachable, which is why that is written here
+# instead of being rediscovered from a timing histogram.
 THROTTLE_SKIP_UNDER_S = 10.0
 
 

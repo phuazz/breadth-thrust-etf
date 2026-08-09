@@ -2,7 +2,7 @@
   "etf": "EXH9",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251967/ishares-stoxx-europe-600-utilities-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXH9_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-08T14:56:41.423212+00:00",
+  "fetched_at_utc": "2026-08-08T23:33:23.464910+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-07",
   "n_target_fridays": 449,
