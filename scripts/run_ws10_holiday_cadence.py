@@ -1,21 +1,30 @@
-"""WS10 - holiday-Friday rebalance cadence: scheduled vs last_session.
+"""WS10 - holiday-Friday rebalance cadence: scheduled vs last_session vs
+holiday_aware, per sleeve and at the deployed blend.
 
 QUESTION
-    The deployed engines take their rebalance grid from
-    ``rebalance_calendar.weekly_rebalance_dates``, which INTERSECTS calendar
-    Fridays with actual trading days. A market-holiday Friday therefore drops
-    that week's decision entirely and the book holds the prior week's
-    positions for a fortnight. Should a shut Friday instead fall back to the
-    last completed session (the Thursday close)?
+    The deployed engines intersect calendar Fridays with actual trading days,
+    so a market-holiday Friday drops that week's decision entirely and the
+    book holds the prior week's positions for a fortnight. Should a shut
+    Friday instead fall back to the last completed session (Thursday close)?
 
 METHOD
-    Run each deployed sleeve's HEADLINE configuration twice - once per mode -
-    over the identical price/signal panels, and compare Sharpe, CAGR, max
-    drawdown and turnover. The mode is injected by rebinding the name inside
-    each engine module (the engines do ``from rebalance_calendar import
-    weekly_rebalance_dates``, so the bound symbol is what they call). NO
-    engine source is modified and NO deployed artefact is written, so this
-    script cannot change deployed behaviour.
+    Run each deployed sleeve's HEADLINE configuration once per mode over the
+    identical price/signal panels, compare Sharpe, CAGR, max drawdown and
+    turnover, then blend at the deployed 35/35/10/20 A:B:C:D weights (Sharpe
+    is not additive, so the blend effect cannot be inferred from the sleeve
+    deltas). The mode is injected by rebinding ``engine_rebalance_dates``
+    inside the engine module that actually calls it. NO engine source is
+    modified and NO deployed artefact is written, so this script cannot
+    change deployed behaviour.
+
+ANSWER (2026-08-09, full history to 2026-08-07)
+    Sleeve deltas vs scheduled: A -0.0106, B -0.0057, C -0.0612, D +0.0136.
+    Blend: Sharpe 1.1861 -> 1.1738 (-0.0123), CAGR -0.17pp, maxDD flat.
+    C's -0.061 is a SINGLE event - Easter 2022 contributes -10.04pp of its
+    -11.36pp total - so the performance case is null, not favourable. The
+    reason to adopt is governance (one rule, no undocumented exception), and
+    the reason to prefer holiday_aware over last_session is that only the
+    former refuses to trade through a vendor gap.
 
 WHAT WOULD MAKE THIS SILENTLY WRONG
     1. Look-ahead. Every engine reads the signal at ``get_loc(rd) - 1``, the
