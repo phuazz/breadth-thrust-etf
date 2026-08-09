@@ -83,7 +83,9 @@ body {
   line-height: 1.65;
 }
 
-.shell { max-width: 880px; margin: 0 auto; padding: 20px 24px 64px; }
+.shell { max-width: 1080px; margin: 0 auto; padding: 20px 24px 64px; }
+/* Prose stays on --measure regardless of how wide the shell gets: the
+   container is sized for the table and the charts, not for reading. */
 .prose { max-width: var(--measure); }
 
 /* ---- masthead ---- */
@@ -461,6 +463,36 @@ function render(data) {
   drawCurve(data.curve);
 }
 
+// ---- axis helpers, shared by both charts --------------------------------
+// The left pad has to fit the widest y label. It was hardcoded at 46/54px,
+// which silently clipped the leading character once a price reached three
+// figures ("$167.30" is ~50px at 12px mono). Measure instead of guessing.
+const _AXIS_FONT = '12px "JetBrains Mono", ui-monospace, monospace';
+let _measureCtx = null;
+function textWidthPx(s) {
+  if (!_measureCtx) _measureCtx = document.createElement('canvas').getContext('2d');
+  _measureCtx.font = _AXIS_FONT;
+  return _measureCtx.measureText(String(s)).width;
+}
+// Labels are right-anchored 8px left of the axis, so the pad must cover the
+// widest label plus that gap plus a little air at the edge.
+function leftPadFor(labels) {
+  return Math.ceil(Math.max(...labels.map(textWidthPx))) + 12;
+}
+// Two x labels is right on a phone and far too sparse on a desktop chart.
+// Fit as many as the plot width allows, evenly spaced, ends always included.
+function tickIndices(n, plotWidth, labelPx) {
+  if (n <= 1) return [0];
+  const fit = Math.floor(plotWidth / (labelPx + 30));
+  const count = Math.max(2, Math.min(7, fit));
+  const idx = [];
+  for (let i = 0; i < count; i++) idx.push(Math.round((i * (n - 1)) / (count - 1)));
+  return [...new Set(idx)];
+}
+function tickAnchor(i, first, last) {
+  return i === first ? 'start' : (i === last ? 'end' : 'middle');
+}
+
 // ---- expandable holding rows -------------------------------------------
 // Accordion: at most one panel open. On a phone two open charts push the rest
 // of the table off-screen, and the point of this table is the whole book.
@@ -540,11 +572,15 @@ function drawPriceChart(tr, data, tk, rangeKey) {
   const tip = tr.querySelector('.tip');
   const W = Math.max(240, svg.clientWidth || svg.parentNode.clientWidth - 20);
   const H = W < 420 ? 190 : 240;
-  const PAD = { t: 10, r: 8, b: 24, l: W < 420 ? 46 : 54 };
   const NS = 'http://www.w3.org/2000/svg';
 
   const lo = Math.min(...ys), hi = Math.max(...ys);
   const span = (hi - lo) || 1;
+  const money = v => (chart.currency === 'EUR' ? '€' : '$') +
+    v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Pad computed from the labels this chart will actually draw.
+  const yLabels = [0, 1, 2, 3].map(i => money(lo + span * (i / 3)));
+  const PAD = { t: 10, r: 8, b: 24, l: leftPadFor(yLabels) };
   const x = i => PAD.l + (ys.length === 1 ? 0 : (i / (ys.length - 1)) * (W - PAD.l - PAD.r));
   const y = v => PAD.t + (1 - (v - lo) / span) * (H - PAD.t - PAD.b);
   const el = (n, a, t) => {
@@ -558,18 +594,18 @@ function drawPriceChart(tr, data, tk, rangeKey) {
   svg.style.height = H + 'px';
   svg.innerHTML = '';
 
-  const money = v => (chart.currency === 'EUR' ? '€' : '$') +
-    v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
   for (let i = 0; i <= 3; i++) {
     const v = lo + span * (i / 3), yy = y(v);
     svg.appendChild(el('line', { class: 'grid', x1: PAD.l, x2: W - PAD.r, y1: yy, y2: yy }));
     svg.appendChild(el('text', { class: 'axlab', x: PAD.l - 8, y: yy + 4,
       'text-anchor': 'end' }, money(v)));
   }
-  [0, ys.length - 1].forEach((i, k) => {
+  const xTicks = tickIndices(ys.length, W - PAD.l - PAD.r,
+                             textWidthPx(fmtShortDate(xs[0])));
+  xTicks.forEach(i => {
     svg.appendChild(el('text', { class: 'axlab', x: x(i), y: H - 7,
-      'text-anchor': k === 0 ? 'start' : 'end' }, fmtShortDate(xs[i])));
+      'text-anchor': tickAnchor(i, xTicks[0], xTicks[xTicks.length - 1]) },
+      fmtShortDate(xs[i])));
   });
 
   svg.appendChild(el('path', { class: 'line',
@@ -626,11 +662,15 @@ function drawCurve(curve) {
   const svg = document.getElementById('curve');
   const W = Math.max(260, svg.clientWidth || svg.parentNode.clientWidth - 28);
   const H = W < 420 ? 220 : 300;
-  const PAD = { t: 12, r: 10, b: 26, l: W < 420 ? 46 : 56 };
   const NS = 'http://www.w3.org/2000/svg';
 
   const vals = curve.equity.map(e => e * 10000);
   const lo = Math.min(...vals), hi = Math.max(...vals);
+  // Same measured pad — "30,517" overflowed the old 46px pad on a phone.
+  const TICKS = 4;
+  const yLabels = [];
+  for (let i = 0; i <= TICKS; i++) yLabels.push(fmtMoney(lo + (hi - lo) * (i / TICKS)));
+  const PAD = { t: 12, r: 10, b: 26, l: leftPadFor(yLabels) };
   const x = i => PAD.l + (i / (vals.length - 1)) * (W - PAD.l - PAD.r);
   const y = v => PAD.t + (1 - (v - lo) / (hi - lo)) * (H - PAD.t - PAD.b);
 
@@ -647,7 +687,6 @@ function drawCurve(curve) {
   svg.innerHTML = '';
 
   // recessive gridlines + y labels
-  const TICKS = 4;
   for (let i = 0; i <= TICKS; i++) {
     const v = lo + (hi - lo) * (i / TICKS), yy = y(v);
     svg.appendChild(el('line', {
@@ -657,11 +696,12 @@ function drawCurve(curve) {
       class: 'axlab', x: PAD.l - 8, y: yy + 4, 'text-anchor': 'end'
     }, fmtMoney(v)));
   }
-  // x labels — first, middle, last year
-  [0, Math.floor(vals.length / 2), vals.length - 1].forEach((i, k) => {
+  // x labels — as many years as fit, ends always included
+  const cTicks = tickIndices(vals.length, W - PAD.l - PAD.r, textWidthPx('2026'));
+  cTicks.forEach(i => {
     svg.appendChild(el('text', {
       class: 'axlab', x: x(i), y: H - 8,
-      'text-anchor': k === 0 ? 'start' : (k === 2 ? 'end' : 'middle')
+      'text-anchor': tickAnchor(i, cTicks[0], cTicks[cTicks.length - 1])
     }, curve.dates[i].slice(0, 4)));
   });
 
