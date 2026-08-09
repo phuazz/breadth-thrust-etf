@@ -227,3 +227,86 @@ def test_latest_snapshot_actual_picks_newest_key():
 
 def test_latest_snapshot_actual_empty_is_none():
     assert guard.latest_snapshot_actual({"snapshots": {}}) is None
+
+
+# ---------------------------------------------------------------------------
+# G6 — roster coverage
+#
+# The band this closes is the one compute_breadth deliberately leaves open.
+# That writer refuses to WRITE below 50% but only warns above it, on the
+# reasoning that a thin current panel beats a stale one. Committing a thin
+# panel is a different question, and 2026-08-08 answered it: IDP6 went to
+# main at 61.5% coverage and changed Strategy A's holdings — the sleeve
+# kept IDP6 at 6.3% within-sleeve and ejected IUMS entirely.
+# ---------------------------------------------------------------------------
+FLOOR = guard.MIN_ROSTER_COVERAGE_WARN
+
+
+def _statuses(results, check_prefix="G6 roster coverage"):
+    return [r["status"] for r in results if r["check"].startswith(check_prefix)]
+
+
+def test_g6_all_panels_above_floor_is_ok():
+    res = guard.check_roster_coverage({"CSP1": 1.0, "SOXX": 0.98}, FLOOR)
+    assert _statuses(res) == [guard.OK]
+
+
+def test_g6_fails_on_the_actual_incident():
+    """IDP6 at 371/603. The regression test that matters."""
+    res = guard.check_roster_coverage({"CSP1": 1.0, "IDP6": 371 / 603}, FLOOR)
+    assert guard.FAIL in _statuses(res)
+    assert "IDP6" in res[0]["evidence"]
+    assert "CSP1" not in res[0]["evidence"]
+
+
+def test_g6_does_not_trip_on_the_structural_tail():
+    """ITWN 89.7% and ICHN 93.6% are what those markets' coverage looks
+    like. Failing the weekly refresh on them would be a standing false
+    alarm, which is how a guard gets ignored."""
+    res = guard.check_roster_coverage({"ITWN": 70 / 78, "ICHN": 539 / 576},
+                                      FLOOR)
+    assert _statuses(res) == [guard.OK]
+
+
+def test_g6_names_every_thin_panel_not_just_the_first():
+    res = guard.check_roster_coverage(
+        {"IDP6": 371 / 603, "EXH2": 2 / 37, "CSP1": 1.0}, FLOOR)
+    assert "IDP6" in res[0]["evidence"] and "EXH2" in res[0]["evidence"]
+
+
+def test_g6_indeterminable_coverage_warns_rather_than_fails():
+    """An unreadable panel is not evidence of thinness. It warns so it
+    cannot pass unnoticed, but it must not fail a refresh on absence."""
+    res = guard.check_roster_coverage({"CSP1": 1.0, "MYSTERY": None}, FLOOR)
+    assert guard.FAIL not in _statuses(res)
+    assert guard.WARN in _statuses(res)
+    assert "MYSTERY" in res[-1]["evidence"]
+
+
+def test_g6_boundary_exactly_at_the_floor_passes():
+    res = guard.check_roster_coverage({"EDGE": FLOOR}, FLOOR)
+    assert _statuses(res) == [guard.OK]
+    res = guard.check_roster_coverage({"EDGE": FLOOR - 0.001}, FLOOR)
+    assert guard.FAIL in _statuses(res)
+
+
+# --- panel_roster_coverage: recorded field, with a fallback ---------------
+
+def test_coverage_prefers_the_recorded_field():
+    blob = {"data_quality": {"roster_coverage_latest": 0.42},
+            "series": {"n_with_ma50": [600], "n_constituents": [603]}}
+    assert guard.panel_roster_coverage(blob) == 0.42
+
+
+def test_coverage_falls_back_to_the_series():
+    """Every panel written before 2026-08-09 lacks the field. A check that
+    silently skipped 23 of 24 panels would be worse than no check."""
+    blob = {"data_quality": {},
+            "series": {"n_with_ma50": [371], "n_constituents": [603]}}
+    assert guard.panel_roster_coverage(blob) == 371 / 603
+
+
+def test_coverage_is_none_when_neither_source_is_usable():
+    assert guard.panel_roster_coverage({}) is None
+    assert guard.panel_roster_coverage(
+        {"series": {"n_with_ma50": [5], "n_constituents": [0]}}) is None

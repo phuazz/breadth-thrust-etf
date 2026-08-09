@@ -27,6 +27,15 @@ asserts over the whole 24-panel deployed set:
   G5  no panel lost state versus the previous COMMITTED version (HEAD):
       no constituents snapshot key disappears, breadth n_trading_days
       never decreases, breadth end_date never moves backwards;
+  G6  no panel's breadth was computed on a thin vendor download — roster
+      coverage (share of CURRENT constituents carrying a 50-day average)
+      must clear compute_breadth.MIN_ROSTER_COVERAGE_WARN. That writer
+      refuses to write below its own hard floor but only WARNS in the
+      band between, and the warn band is not safe to commit: on
+      2026-08-08 IDP6 was published at 61.5% and changed Strategy A's
+      holdings, keeping IDP6 at 6.3% and ejecting IUMS. Writing a thin
+      panel beats writing a stale one; committing one does not, so the
+      block belongs here rather than as a stricter floor in the writer;
   W1  (warn only) if EVERY deployed panel's newest snapshot walked back
       from the target Friday, the refresh almost certainly ran before
       iShares published Friday's holdings (the 2026-08-08 lesson).
@@ -77,6 +86,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import get_etf  # noqa: E402
 from fetch_constituents import latest_completed_friday  # noqa: E402
 from refresh_all import ETFS_ALL  # noqa: E402  (single source of truth)
+from compute_breadth import (  # noqa: E402  (one floor, one definition)
+    MIN_ROSTER_COVERAGE_WARN,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -187,6 +199,59 @@ def check_breadth_ends(breadth_ends: dict[str, str],
         out.append(verdict("G4 breadth end dates", OK,
                            f"{len(breadth_ends)} panels end on their own "
                            f"calendar's last session"))
+    return out
+
+
+def panel_roster_coverage(breadth: dict) -> float | None:
+    """Share of CURRENT constituents carrying a 50-day average, or None.
+
+    Prefers ``data_quality.roster_coverage_latest``, which compute_breadth
+    records from 2026-08-09. Falls back to deriving it from the series,
+    because every panel written before that date lacks the field and a
+    check that silently skipped 23 of 24 panels would be worse than none.
+    """
+    dq = breadth.get("data_quality") or {}
+    recorded = dq.get("roster_coverage_latest")
+    if isinstance(recorded, (int, float)):
+        return float(recorded)
+    ser = breadth.get("series") or {}
+    ma, const = ser.get("n_with_ma50") or [], ser.get("n_constituents") or []
+    if not ma or not const or not const[-1]:
+        return None
+    return ma[-1] / const[-1]
+
+
+def check_roster_coverage(coverages: dict[str, float | None],
+                          floor: float) -> list[dict]:
+    """G6: no DEPLOYED panel may be committed on a thin vendor download.
+
+    compute_breadth already refuses to WRITE below its own hard floor, but
+    it only warns in the band between. That band is not safe to commit: on
+    2026-08-08 IDP6 was published at 61.5% coverage, which was inside the
+    warn band, and it changed Strategy A's holdings — the sleeve kept IDP6
+    at 6.3% and ejected IUMS entirely. A warning did not stop that reaching
+    main. Writing a thin panel is tolerable because the alternative is a
+    stale one; COMMITTING one is not, which is why this lives here rather
+    than as a stricter floor in the writer.
+    """
+    out = []
+    thin = {e: f"{c:.1%}" for e, c in coverages.items()
+            if c is not None and c < floor}
+    unknown = sorted(e for e, c in coverages.items() if c is None)
+    if thin:
+        out.append(verdict("G6 roster coverage", FAIL,
+                           f"deployed panels below the {floor:.0%} floor — "
+                           f"breadth computed on a thin sample can move the "
+                           f"deployed book: {thin}"))
+    else:
+        out.append(verdict("G6 roster coverage", OK,
+                           f"{len(coverages) - len(unknown)} panels at or "
+                           f"above the {floor:.0%} floor"))
+    if unknown:
+        out.append(verdict("G6 roster coverage readable", WARN,
+                           f"coverage indeterminable for {unknown} — "
+                           f"neither the recorded field nor n_with_ma50 / "
+                           f"n_constituents was usable"))
     return out
 
 
@@ -312,6 +377,7 @@ def main(argv: list[str] | None = None) -> int:
     staleness: dict[str, str] = {}
     breadth_ends: dict[str, str] = {}
     calendars: dict[str, str] = {}
+    coverages: dict[str, float | None] = {}
     latest_actuals: dict[str, str] = {}
 
     baseline_missing: list[str] = []
@@ -334,6 +400,7 @@ def main(argv: list[str] | None = None) -> int:
         staleness[etf] = (consts.get("staleness") or {}).get(
             "status", "<absent>")
         breadth_ends[etf] = breadth.get("end_date", "<absent>")
+        coverages[etf] = panel_roster_coverage(breadth)
         try:
             calendars[etf] = get_etf(etf).get("trading_calendar", "NYSE")
         except KeyError:
@@ -361,6 +428,8 @@ def main(argv: list[str] | None = None) -> int:
     results.extend(check_shared_end_friday(end_fridays, expected_friday))
     results.extend(check_endpoint_health(health))
     results.extend(check_staleness(staleness))
+    results.extend(check_roster_coverage(coverages,
+                                         MIN_ROSTER_COVERAGE_WARN))
     results.extend(check_breadth_ends(breadth_ends, calendars,
                                       expected_friday))
     results.extend(check_universal_walkback(latest_actuals, expected_friday))

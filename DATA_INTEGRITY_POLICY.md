@@ -175,6 +175,8 @@ Unlike Section 5a/5b this does not abort the publish, and unlike 5c it is not si
 
 Guarded by `tests/test_breadth_coverage_floor.py`, which parametrises the real observed coverage of all 38 panels rather than invented numbers. Loosening a floor past a healthy panel, or tightening one onto the structural tail, fails the suite.
 
+**The WARN band is blocked at commit time, not at write time.** Writing a thin panel is tolerable because the alternative is a stale one; *committing* one is not — a 61.5% panel reached main on 2026-08-08 and changed Strategy A's holdings. So `check_refresh_guard.py` gained **G6**, which FAILS the pre-commit guard for any deployed panel below the 85% WARN floor, importing the floor from `compute_breadth` so there is one definition. It prefers `data_quality.roster_coverage_latest` and falls back to deriving `n_with_ma50 / n_constituents` from the series, because every panel written before 2026-08-09 lacks the recorded field and a check that skipped 23 of 24 panels would be worse than none. An unreadable panel warns rather than fails: absence of evidence is not evidence of thinness.
+
 ---
 
 ## 6. Escalation procedure
