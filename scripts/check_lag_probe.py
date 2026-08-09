@@ -31,8 +31,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LOG = ROOT / "data" / "publication_lag_log.jsonl"
 
-# The probe writes one row per ETF per run.
-EXPECTED_ETFS = {"CSP1", "SOXX", "EXV1", "IJPN"}
+# The probe writes one row per ETF per run. Imported rather than restated:
+# a second hardcoded list would drift the moment the probe is widened, and
+# the guard would then pass a run that had silently lost a fund.
+sys.path.insert(0, str(ROOT / "scripts"))
+from measure_publication_lag import PROBE_TARGETS  # noqa: E402
+
+EXPECTED_ETFS = set(PROBE_TARGETS)
 
 
 def load_rows(path: Path) -> list[dict]:

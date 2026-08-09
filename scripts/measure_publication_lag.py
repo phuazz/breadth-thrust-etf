@@ -9,10 +9,9 @@ week, so Fridays normally resolve exactly — the run was simply earlier
 than iShares' publication. One observation is not a lag measurement;
 this script is the instrument that produces one.
 
-What one run does: for a small representative sample of funds (default
-CSP1 UK-listed S&P 500, SOXX US-listed semis, EXV1 Europe supersector,
-IJPN Japan — spanning the three publication regimes: US underlying / UK
-listing, US/US, Europe/UK, Asia/UK), it asks the endpoint which of the
+What one run does: for a sample balanced across fund DOMICILE (three
+US-domiciled — SOXX, IVV, IWM — and four UK/Irish UCITS spanning US,
+Europe and Asia underlyings), it asks the endpoint which of the
 last N calendar days currently have holdings and appends one observation
 row per ETF to data/publication_lag_log.jsonl. Repeated a few times a
 day over one to two weeks, the rows sweep out the publication curve: for
@@ -105,12 +104,53 @@ from nyse_sessions import last_completed_session, sessions_behind  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_LOG = ROOT / "data" / "publication_lag_log.jsonl"
 
-# One fund per publication regime. CSP1: US underlying, UK listing (the
-# gating panel). SOXX: US/US via targetSite=ishares-us. EXV1: Europe
-# underlying, UK listing. IJPN: Asia underlying (Tokyo closes 06:00 UTC,
-# far ahead of NYSE), UK listing.
-DEFAULT_ETFS = ["CSP1", "SOXX", "EXV1", "IJPN"]
+# WIDENED 2026-08-09, because the original sample could not answer the
+# question it turned out to matter on.
+#
+# The first cohort was CSP1, SOXX, EXV1, IJPN — three UK-domiciled funds and
+# ONE US. Across four probe times every fund read Thursday, and I read that
+# as a uniform, fund-administrator-batched lag, noting that IJPN was still
+# absent 45 hours after Tokyo closed. Checking the endpoint directly on the
+# Sunday showed SOXX serving Friday 2026-08-07 while every UK fund was still
+# on Thursday. The split is by DOMICILE, and one US fund could not reveal it:
+# a single series cannot distinguish "US funds publish sooner" from "SOXX
+# published sooner".
+#
+# So the sample is now balanced across the dimension that separates them.
+# IVV and IWM are not in etf_registry.py — they are not panels this book
+# trades — so they carry their config inline. That is deliberate: probe
+# targets are for measurement, and adding them to the registry would imply
+# they are part of the universe.
+PROBE_TARGETS: dict[str, dict] = {
+    # US-domiciled (iShares US, targetSite=ishares-us).
+    "SOXX": {"product_id": "239705", "ishares_region": "us",
+             "trading_calendar": "NYSE"},
+    "IVV":  {"product_id": "239726", "ishares_region": "us",
+             "trading_calendar": "NYSE",
+             "note": "iShares Core S&P 500 ETF — US mirror of CSP1"},
+    "IWM":  {"product_id": "239710", "ishares_region": "us",
+             "trading_calendar": "NYSE",
+             "note": "iShares Russell 2000 ETF — US small-cap"},
+    # UK/Irish UCITS, spanning three underlying regions so a market-close
+    # effect would still be visible within the cohort if one exists.
+    "CSP1": {},   # US underlying — the panel the book actually gates on
+    "CNDX": {},   # US underlying, second UCITS to separate fund from cohort
+    "EXV1": {},   # Europe underlying (Xetra closes 15:30 UTC)
+    "IJPN": {},   # Asia underlying (Tokyo closes 06:00 UTC)
+}
+
+DEFAULT_ETFS = list(PROBE_TARGETS)
 DEFAULT_DAYS = 8
+
+
+def resolve_target(symbol: str) -> dict:
+    """Config for a probe target: registry entry, or inline for the
+    measurement-only funds that are deliberately not in the universe."""
+    spec = PROBE_TARGETS.get(symbol) or {}
+    if spec.get("product_id"):
+        return {"symbol": symbol, "ticker_overrides": {},
+                "apply_exchange_suffix": False, **spec}
+    return get_etf(symbol)
 
 
 # ---------------------------------------------------------------------------
@@ -167,7 +207,7 @@ def probe_etf(symbol: str, dates: list[date]) -> dict:
     Never raises: transport failures are recorded in the row so a dead
     endpoint is itself an observation, not a lost one.
     """
-    cfg = get_etf(symbol)
+    cfg = resolve_target(symbol)
     overrides = cfg.get("ticker_overrides", {})
     apply_suffix = cfg.get("apply_exchange_suffix", False)
     t0 = time.perf_counter()
@@ -209,6 +249,11 @@ def probe_etf(symbol: str, dates: list[date]) -> dict:
         "probe_utc": now_utc.isoformat(timespec="seconds"),
         "etf": symbol,
         "region": cfg.get("ishares_region", "uk"),
+        # Duplicated deliberately: `region` is an endpoint routing
+        # flag, `domicile` is the thing that turned out to drive
+        # publication timing. Naming it separately means a later
+        # analysis groups on the concept, not on a routing detail.
+        "domicile": "US" if cfg.get("ishares_region") == "us" else "UK",
         "trading_calendar": cfg.get("trading_calendar", "NYSE"),
         "dates_probed": [d.isoformat() for d in dates],
         "dates_with_data": [d.isoformat() for d in with_data],
