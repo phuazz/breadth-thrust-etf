@@ -110,7 +110,7 @@ h1 em { color: var(--t2); }
 
 /* ---- notice ---- */
 .notice {
-  margin: 22px 0 0; padding: 14px 16px;
+  margin: 0; padding: 14px 16px;
   background: var(--a-bg); border: 1px solid var(--bd2);
   border-left: 3px solid var(--a); border-radius: var(--radius);
   font-size: 15px; color: var(--t1);
@@ -118,6 +118,33 @@ h1 em { color: var(--t2); }
   max-width: calc(var(--measure) + 32px);
 }
 .notice strong { color: var(--a-text); }
+
+/* ---- intro pair: the notice, and orientation facts beside it ----
+   Below 1000px they stack and the card reads as a summary under the notice. */
+.intro { display: grid; gap: 18px; margin: 22px 0 0; }
+.facts {
+  background: var(--bg2); border: 1px solid var(--bd);
+  border-radius: var(--radius); padding: 14px 18px; box-shadow: var(--shadow-sm);
+}
+.facts dl {
+  margin: 0; display: grid; grid-template-columns: auto 1fr;
+  gap: 8px 18px; align-items: baseline;
+}
+.facts dt {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px;
+  font-weight: 700; color: var(--t3-text); white-space: nowrap;
+}
+.facts dd { margin: 0; font-family: var(--mono); font-size: 15px; color: var(--t1); }
+
+@media (min-width: 1000px) {
+  /* The notice keeps its reading measure; the card takes the space that was
+     empty beside it rather than the text being stretched past 75 characters. */
+  .intro { grid-template-columns: calc(var(--measure) + 32px) 1fr; align-items: start; }
+  .closing { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: start; }
+  .closing > section { margin-top: 0; }
+  .closing > footer { margin-top: 0; padding-top: 0; border-top: 0; }
+  .closing { margin-top: 48px; padding-top: 26px; border-top: 1px solid var(--bd); }
+}
 
 /* ---- sections ---- */
 section { margin-top: 40px; }
@@ -215,10 +242,24 @@ th.num { text-align: right; }
   font-size: 15px; padding-bottom: 8px; border-bottom: 1px solid var(--bd);
 }
 .legend li:last-child { border-bottom: 0; }
-.legend .lab { flex: 1 1 auto; }
+.legend .lg-head { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; }
 .legend .cnt { font-size: 13px; color: var(--t2); }
 .legend .val { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-.legend .dot { align-self: center; }
+
+@media (min-width: 1000px) {
+  /* Five keys across, under the bar they describe, each carrying its own
+     colour as a rule above it — so the legend spans the same width as the
+     bar instead of being a narrow list with the weights stranded far right. */
+  .legend { grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  .legend li {
+    display: block; padding: 10px 0 0; border-bottom: 0;
+    border-top: 3px solid var(--k, var(--bd-strong));
+  }
+  .legend .lg-head .dot { display: none; }
+  .legend .lg-head { display: block; font-size: 14px; color: var(--t2); }
+  .legend .val { display: block; font-size: 20px; font-weight: 600; margin-top: 2px; }
+  .legend .cnt { display: block; margin-top: 2px; }
+}
 
 /* ---- stats row ---- */
 .stats {
@@ -302,11 +343,16 @@ footer a { color: var(--b-text); }
     </div>
   </header>
 
-  <div class="notice">
-    <strong>Read this first.</strong> This is a personal research book, run for my
-    own account. Every performance figure on this page is <strong>simulated from
-    historical prices</strong> — there is no live track record. Nothing here is
-    investment advice, an offer, or a recommendation.
+  <div class="intro">
+    <div class="notice">
+      <strong>Read this first.</strong> This is a personal research book, run for my
+      own account. Every performance figure on this page is <strong>simulated from
+      historical prices</strong> — there is no live track record. Nothing here is
+      investment advice, an offer, or a recommendation.
+    </div>
+    <aside class="facts" aria-label="At a glance">
+      <dl id="facts"></dl>
+    </aside>
   </div>
 
   <section>
@@ -357,6 +403,7 @@ footer a { color: var(--b-text); }
       applied backwards over the whole period.</p>
   </section>
 
+  <div class="closing">
   <section class="prose">
     <h2>What this actually is</h2>
     <p>A rules-based portfolio of exchange-traded funds. It holds a spread of US
@@ -377,6 +424,7 @@ footer a { color: var(--b-text); }
       advice; you should not rely on it in making any decision.</p>
     <p id="built">—</p>
   </footer>
+  </div>
 
 </div>
 
@@ -433,10 +481,10 @@ function render(data) {
     <div class="seg" style="width:${s.weight * 100}%;background:var(--sleeve-${s.key})"
          title="${s.label} — ${fmtPct(s.weight, 0)}">${s.weight >= 0.12 ? fmtPct(s.weight, 0) : ''}</div>`).join('');
   document.getElementById('legend').innerHTML = data.sleeves.map(s => `
-    <li>
-      <span class="dot" style="background:var(--sleeve-${s.key})"></span>
-      <span class="lab">${s.label} <span class="cnt">· ${counts[s.key] || 0} holding${counts[s.key] === 1 ? '' : 's'}</span></span>
+    <li style="--k:var(--sleeve-${s.key})">
+      <span class="lg-head"><span class="dot" style="background:var(--sleeve-${s.key})"></span>${s.label}</span>
       <span class="val">${fmtPct(s.weight)}</span>
+      <span class="cnt">${counts[s.key] || 0} holding${counts[s.key] === 1 ? '' : 's'}</span>
     </li>`).join('');
 
   // ---- stats ----
@@ -451,6 +499,15 @@ function render(data) {
     <div class="stat"><span class="v">${st.sharpe.toFixed(2)}</span>
       <span class="k">Return per unit of risk</span>
       <span class="n">Higher is steadier; above 1 is good, and this is a point estimate</span></div>`;
+
+  // Orientation card beside the notice — what a reader wants before the table.
+  const nSleeves = data.sleeves.filter(s => s.key !== 'tilt').length;
+  const hasTilt = data.sleeves.some(s => s.key === 'tilt');
+  document.getElementById('facts').innerHTML = `
+    <dt>Positions</dt><dd>${data.n_positions}</dd>
+    <dt>Parts</dt><dd>${nSleeves}${hasTilt ? ' + tilt' : ''}</dd>
+    <dt>Defensive</dt><dd>${data.defensive_engaged ? 'Engaged' : 'Not engaged'}</dd>
+    <dt>Prices to</dt><dd>${fmtDate(data.as_of)}</dd>`;
 
   const regime = data.defensive_engaged
     ? 'The defensive setting is <strong>engaged</strong> at present.'
