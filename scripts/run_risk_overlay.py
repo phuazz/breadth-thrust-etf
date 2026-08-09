@@ -121,6 +121,15 @@ FALLBACK_TICKER = "SHY" # 1-3y Treasury — cleaner cash-equivalent than IEF.
 # the WS3-verified "gate holds state on NaN" degradation.
 GATE_MAX_STALE_DAYS = 10
 
+# Stage 2 — Norgate feed migration (reviews/2026-07-17_norgate-feed-
+# migration.md §4). publish_norgate_breadth.py --commit-path writes
+# vendor-DERIVED gate states (0/1 only; licence: never the series values)
+# to this file each trading morning. When the file is present and fresh
+# under the same 10-day cap, its states are consumed directly and
+# _compute_states on the scrape series is bypassed; otherwise the scrape
+# path below runs verbatim. Rollback = delete or stop refreshing the file.
+NORGATE_STATES_PATH = DATA_DIR / "gate_states_norgate.json"
+
 # ----------------------------------------------------------------------
 # Phase 22 — EEM/SPY relative-strength tilt parameters
 # Test sweep in scripts/test_phase22_eem_overlay.py + funding-source
@@ -197,6 +206,53 @@ def _compute_states(breadth: pd.Series, off: float, on: float) -> pd.Series:
             state = 1.0
         states.append(state)
     return pd.Series(states, index=breadth.index, dtype=float)
+
+
+def _load_norgate_states(
+    common: pd.DatetimeIndex,
+) -> tuple[pd.Series | None, str | None]:
+    """Load vendor-derived gate states aligned to ``common`` (Stage 2).
+
+    Returns ``(states, last_bar)`` when NORGATE_STATES_PATH exists, parses
+    cleanly, carries strictly binary states, and its last bar is within
+    GATE_MAX_STALE_DAYS calendar days of the end of ``common`` — the same
+    10-day convention as the D3 scrape cap, measured against the target
+    index (deterministic), never wall clock. Returns ``(None, None)`` on
+    absence, staleness, or any parse defect so the caller falls through to
+    the scrape path verbatim: fail-open to the incumbent feed, never
+    fail-silent on a malformed file.
+    """
+    if not NORGATE_STATES_PATH.exists():
+        return None, None
+    try:
+        doc = json.loads(NORGATE_STATES_PATH.read_text(encoding="utf-8"))
+        ser = pd.Series(
+            [float(s) for s in doc["series"]["state"]],
+            index=pd.to_datetime(doc["series"]["dates"]),
+            dtype=float,
+        ).sort_index()
+        last_bar = pd.Timestamp(doc["last_bar"])
+    except Exception as exc:
+        print(f"  WARN: {NORGATE_STATES_PATH.name} unreadable "
+              f"({type(exc).__name__}: {exc}) — scrape feed governs")
+        return None, None
+    if len(ser) == 0 or not set(pd.unique(ser.values)).issubset({0.0, 1.0}):
+        print(f"  WARN: {NORGATE_STATES_PATH.name} empty or non-binary "
+              f"states — scrape feed governs")
+        return None, None
+    gap_days = int((common[-1] - last_bar).days)
+    if gap_days > GATE_MAX_STALE_DAYS:
+        print(f"  {NORGATE_STATES_PATH.name} stale ({gap_days} calendar "
+              f"days behind blend calendar end > {GATE_MAX_STALE_DAYS}-day "
+              f"cap) — scrape feed governs")
+        return None, None
+    # ffill = hold state on days past the file's last bar — the same
+    # degradation the scrape path produces (NaN past the cap holds state
+    # inside _compute_states), bounded above by the freshness gate. Days
+    # before the file's first bar (1957) cannot occur on the blend
+    # calendar; fillna(1.0) mirrors _compute_states' RISK_ON start.
+    aligned = ser.reindex(common, method="ffill").fillna(1.0)
+    return aligned, doc.get("last_bar")
 
 
 def _load_eem_data() -> tuple[pd.Series, pd.Series] | tuple[None, None]:
@@ -483,7 +539,17 @@ def main() -> int:
     fallback_ret = fallback_aligned.pct_change().fillna(0)
 
     # ----- Compute gated equity -----
-    states = _compute_states(breadth, OFF_THRESHOLD, ON_THRESHOLD)
+    # Stage 2 feed preference (review §4): vendor-derived states when the
+    # published file is fresh, scrape-computed states otherwise —
+    # behaviour identical to the pre-Stage-2 pipeline whenever the file is
+    # absent or stale past the cap.
+    norgate_states, norgate_last_bar = _load_norgate_states(common)
+    if norgate_states is not None:
+        states = norgate_states
+        gate_feed = "norgate-local"
+    else:
+        states = _compute_states(breadth, OFF_THRESHOLD, ON_THRESHOLD)
+        gate_feed = "csp1-scrape"
     states_lagged = states.shift(1).fillna(1.0)
     state_changes = states_lagged.diff().fillna(0).abs()
     switch_cost = state_changes * (SWITCH_COST_BPS / 10_000.0)
@@ -500,6 +566,11 @@ def main() -> int:
     last_change_date = (states.index[transitions != 0][-1]
                          if (transitions != 0).any() else states.index[0])
     current_state = "RISK_ON" if states.iloc[-1] == 1.0 else "RISK_OFF"
+    # NOTE (Stage 2): event `breadth` annotations always read the SCRAPE
+    # series — the derived-states file carries no levels (licence). On the
+    # norgate feed a flip date may therefore annotate a scrape level that
+    # sits on the other side of the threshold; the annotation is
+    # diagnostic only, never an input.
     events = [
         {"date": d.strftime("%Y-%m-%d"),
          "direction": "RISK_OFF" if states.loc[d] == 0.0 else "RISK_ON",
@@ -689,6 +760,14 @@ def main() -> int:
     # CSP1-original end_date (captured pre-ffill), not breadth.index[-1]
     # which has been extended onto the blend calendar by ffill.
     payload["panel_end_date"] = panel_end_date_str
+    # Stage 2 feed provenance: which feed produced the STATES this run,
+    # and that feed's own freshness anchor. csp1-scrape keeps the CSP1
+    # panel end as its anchor (behaviour unchanged from pre-Stage-2).
+    payload["gate_feed"] = gate_feed
+    payload["gate_feed_last_bar"] = (
+        norgate_last_bar if gate_feed == "norgate-local"
+        else panel_end_date_str
+    )
 
     # FM-2 reconciliation: current_state_since must equal the most recent
     # event date matching current_state. Hard-fail at write time so the
@@ -746,6 +825,8 @@ def main() -> int:
     print(f"  Current state: {current_state} since "
           f"{last_change_date.strftime('%Y-%m-%d')}  "
           f"(S&P 500 breadth {breadth.iloc[-1]*100:.1f}%)")
+    print(f"  Gate feed: {gate_feed} "
+          f"(states last bar {payload['gate_feed_last_bar']})")
     print(f"  History: {n_switches} switches, "
           f"{pct_off:.1f}% of days RISK_OFF")
     if tilted_gated_eq is not None and tilted_gated_stats is not None:

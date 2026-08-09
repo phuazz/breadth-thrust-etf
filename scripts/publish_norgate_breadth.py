@@ -53,11 +53,55 @@ STALE_TRADING_DAYS = 3
 STATE_LABELS = {1.0: "RISK_ON", 0.0: "RISK_OFF"}
 
 
+def _git_publish(path: Path) -> None:
+    """Stage-2 publication: commit and push ONLY the states file.
+
+    Explicit single-file ``git add`` (never ``-A`` — interactive sessions
+    share this working tree), commit, rebase, push. Fail-soft throughout:
+    on any git failure the file is still written locally and the message
+    says so; CI keeps consuming the scrape path until the next successful
+    push, which is the designed degradation ladder (review §5). A refusal
+    caused by unrelated dirty files self-heals on a later run — local
+    commits accumulate and push together, always inside the 10-day cap.
+    """
+    import subprocess
+
+    rel = str(path.relative_to(ROOT)).replace("\\", "/")
+
+    def run(*cmd: str) -> subprocess.CompletedProcess:
+        return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+
+    if not run("git", "status", "--porcelain", "--", rel).stdout.strip():
+        print("git publish: states file unchanged — nothing to push")
+        return
+    for cmd in (
+        ("git", "add", "--", rel),
+        ("git", "commit", "-m",
+         f"Norgate gate-states publish (last bar per file; "
+         f"run {dt.date.today().isoformat()})"),
+        ("git", "pull", "--rebase", "origin", "main"),
+        ("git", "push", "origin", "main"),
+    ):
+        res = run(*cmd)
+        if res.returncode != 0:
+            print(f"git publish FAILED at `{' '.join(cmd[:3])}`: "
+                  f"{(res.stderr or res.stdout).strip()[:300]} — file "
+                  f"written locally; scrape fallback governs in CI")
+            if cmd[1] == "pull":
+                run("git", "rebase", "--abort")
+            return
+    print(f"git publish: pushed {rel}")
+
+
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
     ap.add_argument("--commit-path", action="store_true",
                     help="write to data/ (Stage 2, post-approval only)")
+    ap.add_argument("--push", action="store_true",
+                    help="git add/commit/push the states file after "
+                         "writing (Stage 2; single-file add, fail-soft; "
+                         "requires --commit-path)")
     args = ap.parse_args()
 
     import norgatedata as nd
@@ -126,6 +170,12 @@ def main() -> int:
 
     print(f"wrote {path.relative_to(ROOT)} (last bar {last_bar}, "
           f"state {out['current_state']})")
+    if args.push:
+        if not args.commit_path:
+            print("--push ignored: only the data/ commit path is ever "
+                  "pushed (data_local/ previews are licence-guarded)")
+        else:
+            _git_publish(path)
     return 0
 
 
