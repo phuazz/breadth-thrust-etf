@@ -15,9 +15,18 @@ Three ways that happens, each checked below:
      not actually written, and the check would otherwise pass on last
      night's data.
 
+It also carries the one read of the log that is safe to do unsupervised.
+``--summary`` stratifies by fund domicile and refuses to pool across the
+2026-08-09 sampling change, because the naive read of this record — mean
+sessions-behind over every row — is wrong in a way that looks evidenced.
+See PUBLICATION_LAG_NOTES.md; the short version is that the probe ran
+3-UCITS-to-1-US for its first 24 rows, so a pooled average tracks the
+sample's composition rather than the funds' behaviour.
+
 Run:
     python scripts/check_lag_probe.py                 # after a probe run
     python scripts/check_lag_probe.py --max-age-min 45
+    python scripts/check_lag_probe.py --summary       # stratified read of the log
 """
 
 from __future__ import annotations
@@ -25,7 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -114,8 +123,82 @@ def check(rows: list[dict], now: datetime, max_age_min: int) -> tuple[int, list[
     return (1 if any(m.startswith("FAIL") for m in msgs) else 0), msgs
 
 
+# Rows written before the probe was widened carry no "domicile" key. That
+# absence IS the vintage marker — those runs sampled three UCITS against one
+# US fund, which cannot separate "US funds publish sooner" from "SOXX
+# published sooner". Inferring domicile for them would make them look
+# comparable to the balanced rows; they are not, so they are reported apart.
+_US_PROBE_TARGETS = {
+    etf for etf, spec in PROBE_TARGETS.items()
+    if (spec or {}).get("ishares_region") == "us"
+}
+
+
+def row_domicile(row: dict) -> tuple[str, bool]:
+    """(domicile, balanced_vintage). Never guesses a row into the good cohort."""
+    stated = row.get("domicile")
+    if stated:
+        return str(stated), True
+    return ("US" if row.get("etf") in _US_PROBE_TARGETS else "UK"), False
+
+
+def summarise(rows: list[dict]) -> list[str]:
+    """Stratified read. Deliberately reports no pooled average — see
+    PUBLICATION_LAG_NOTES.md section 2."""
+    out: list[str] = []
+    balanced = [r for r in rows if row_domicile(r)[1]]
+    legacy = [r for r in rows if not row_domicile(r)[1]]
+
+    def cohort(rs: list[dict], dom: str) -> list[dict]:
+        return [r for r in rs if row_domicile(r)[0] == dom
+                and r.get("sessions_behind_nyse") is not None]
+
+    out.append(f"BALANCED SAMPLE (domicile-tagged, 2026-08-09 onward): "
+               f"{len(balanced)} rows, "
+               f"{len({r['probe_utc'][:10] for r in balanced if r.get('probe_utc')})} day(s)")
+    if not balanced:
+        out.append("  none yet — nothing here can answer the domicile question")
+    for dom in ("US", "UK"):
+        c = cohort(balanced, dom)
+        if not c:
+            continue
+        behind = sorted(r["sessions_behind_nyse"] for r in c)
+        funds = sorted({r["etf"] for r in c})
+        out.append(f"  {dom:<3} n={len(c):<3} sessions behind NYSE "
+                   f"min={behind[0]} max={behind[-1]}  funds={funds}")
+
+    if legacy:
+        days = len({r["probe_utc"][:10] for r in legacy if r.get("probe_utc")})
+        mix = {d: sum(1 for r in legacy if row_domicile(r)[0] == d)
+               for d in ("UK", "US")}
+        out.append("")
+        out.append(f"LEGACY ROWS (no domicile field, pre-widening): {len(legacy)} "
+                   f"rows over {days} day(s), mix {mix}")
+        out.append("  NOT comparable — sampled 3 UCITS : 1 US, so these cannot")
+        out.append("  separate domicile from fund. Excluded from the cohorts above.")
+        out.append("  Do NOT average them together with the balanced rows.")
+
+    fridays = {r["probe_utc"][:10] for r in balanced
+               if r.get("latest_with_data")
+               and date.fromisoformat(r["latest_with_data"]).weekday() == 4}
+    out.append("")
+    out.append(f"Friday observations in the balanced sample: {len(fridays)} "
+               f"(evidence bar is >=2, spanning two weekends)")
+    if len(fridays) < 2:
+        out.append("  BELOW BAR — this is anecdote, not a lag measurement. "
+                   "Do not set cadence from it.")
+    out.append("Binding lag for cadence is the UK/UCITS cohort: 23 of 24 "
+               "deployed panels are UCITS,")
+    out.append("and the factsheet fires on CSP1. See PUBLICATION_LAG_NOTES.md.")
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--summary", action="store_true",
+                     help="Stratified read of the whole log instead of "
+                          "checking the latest run. Never pools across the "
+                          "2026-08-09 sampling change.")
     ap.add_argument("--log", default=str(LOG))
     ap.add_argument("--max-age-min", type=int, default=45,
                      help="How recent a row must be to count as this run. "
@@ -125,6 +208,12 @@ def main() -> int:
     args = ap.parse_args()
 
     rows = load_rows(Path(args.log))
+
+    if args.summary:
+        for m in summarise([r for r in rows if not r.get("_malformed")]):
+            print(m)
+        return 0
+
     code, msgs = check(rows, datetime.now(timezone.utc), args.max_age_min)
     for m in msgs:
         print(f"  {m}")
