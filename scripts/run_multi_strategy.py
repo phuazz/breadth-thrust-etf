@@ -37,6 +37,13 @@ THEMATIC_PATH = DATA_DIR / "thematic_rotation.json"    # Strategy C
 EUROPE_PATH = DATA_DIR / "europe_rotation.json"        # Strategy D (Phase 4)
 OUT_PATH = DATA_DIR / "multi_strategy.json"
 
+# The blend's own rebalance grid. `common` is the intersection of the four
+# sleeve curves, so it is dominated by the US calendar even though D is XETR.
+BLEND_CALENDAR = "NYSE"
+
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+from rebalance_calendar import engine_rebalance_dates  # noqa: E402
+
 sys.stdout.reconfigure(encoding="utf-8")
 
 
@@ -101,8 +108,10 @@ def fixed_blend(eq_a: pd.Series, eq_b: pd.Series, w_a: float,
     eq_b = eq_b.loc[common]
     ret_a = eq_a.pct_change().fillna(0)
     ret_b = eq_b.pct_change().fillna(0)
-    rebal_dates_target = pd.date_range(common[0], common[-1], freq=rebal_freq)
-    rebal_dates = common[common.isin(rebal_dates_target)]
+    # Same cadence rule as the sleeves, so the blend cannot rebalance on a
+    # different grid from the books it holds.
+    rebal_dates = engine_rebalance_dates(common, common[0], rebal_freq,
+                                         BLEND_CALENDAR)
     blend_ret = pd.Series(0.0, index=common)
     wa = w_a
     wb = 1.0 - w_a
@@ -145,8 +154,10 @@ def fixed_blend_3way(eq_a: pd.Series, eq_b: pd.Series, eq_c: pd.Series,
     ret_b = eq_b.pct_change().fillna(0)
     ret_c = eq_c.pct_change().fillna(0)
     w_c = 1.0 - w_a - w_b
-    rebal_dates_target = pd.date_range(common[0], common[-1], freq=rebal_freq)
-    rebal_dates = common[common.isin(rebal_dates_target)]
+    # Same cadence rule as the sleeves, so the blend cannot rebalance on a
+    # different grid from the books it holds.
+    rebal_dates = engine_rebalance_dates(common, common[0], rebal_freq,
+                                         BLEND_CALENDAR)
     blend_ret = pd.Series(0.0, index=common)
     wa, wb, wc = w_a, w_b, w_c
     for i, dt in enumerate(common):
@@ -190,8 +201,10 @@ def fixed_blend_4way(eq_a: pd.Series, eq_b: pd.Series, eq_c: pd.Series,
     ret_c = eq_c.pct_change().fillna(0)
     ret_d = eq_d.pct_change().fillna(0)
     w_d = 1.0 - w_a - w_b - w_c
-    rebal_dates_target = pd.date_range(common[0], common[-1], freq=rebal_freq)
-    rebal_dates = common[common.isin(rebal_dates_target)]
+    # Same cadence rule as the sleeves, so the blend cannot rebalance on a
+    # different grid from the books it holds.
+    rebal_dates = engine_rebalance_dates(common, common[0], rebal_freq,
+                                         BLEND_CALENDAR)
     blend_ret = pd.Series(0.0, index=common)
     wa, wb, wc, wd = w_a, w_b, w_c, w_d
     for i, dt in enumerate(common):

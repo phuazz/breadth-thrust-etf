@@ -320,8 +320,11 @@ def main() -> int:
             ),
         }
 
-    # Weekly allocation snapshot (Fridays only) for stacked-area chart
-    weekly_idx = headline_weights.index[headline_weights.index.dayofweek == 4]
+    # Weekly allocation snapshot for the stacked-area chart. Sampled at the
+    # ACTUAL rebalance grid, not every Friday: under a holiday-aware cadence a
+    # decision can land on a Thursday and a dayofweek filter would drop it.
+    weekly_idx = headline_run["rebalance_dates"]
+    weekly_idx = weekly_idx[weekly_idx >= eligible]
     weekly_w = headline_weights.loc[weekly_idx]
     weekly_w = weekly_w.loc[(weekly_w.sum(axis=1) > 0.5)]  # skip warm-up
 

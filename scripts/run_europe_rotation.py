@@ -55,6 +55,8 @@ from backtest import download_spy_close  # noqa: E402
 # European sector UCITS including FX).
 COST_BPS = 9
 COST_FRAC = COST_BPS / 10_000
+# Strategy D trades Xetra, NOT the NYSE calendar the other sleeves use.
+CALENDAR = "XETR"
 
 K_GRID = [2, 3, 4]
 REBAL_FREQS = [
@@ -201,7 +203,7 @@ def main() -> int:
         for freq_name, freq_code in REBAL_FREQS:
             r = run_portfolio(closes, breadths, top_k_breadth_weight(K),
                               eligible, rebalance_freq=freq_code,
-                              cost=COST_FRAC)
+                              cost=COST_FRAC, calendar=CALENDAR)
             eq_window = r["equity"].loc[r["equity"].index >= eligible]
             if len(eq_window) > 0:
                 eq_window = eq_window / eq_window.iloc[0]
@@ -255,7 +257,10 @@ def main() -> int:
                         ),
                     }
 
-                weekly_idx = r["weights"].index[r["weights"].index.dayofweek == 4]
+                # Sample at the ACTUAL rebalance grid, not every Friday: under
+                # a holiday-aware cadence a decision can land on a Thursday,
+                # and a dayofweek filter would silently drop it.
+                weekly_idx = r["rebalance_dates"]
                 weekly_w = r["weights"].loc[weekly_idx]
                 weekly_w = weekly_w.loc[(weekly_w.sum(axis=1) > 0.5)]
 
@@ -307,7 +312,7 @@ def main() -> int:
     def _portfolio_equity(K):
         r = run_portfolio(closes, breadths, top_k_breadth_weight(K),
                           eligible, rebalance_freq=HEADLINE_FREQ,
-                          cost=COST_FRAC)
+                          cost=COST_FRAC, calendar=CALENDAR)
         return r["equity"]
 
     wf_segments = []

@@ -75,7 +75,7 @@ PRICE_CACHE = DATA_DIR / "thematic_prices_cache.parquet"
 OUT_PATH = DATA_DIR / "thematic_rotation.json"
 
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
-from rebalance_calendar import weekly_rebalance_dates  # noqa: E402
+from rebalance_calendar import engine_rebalance_dates  # noqa: E402
 from nyse_sessions import (  # noqa: E402
     cap_to_last_completed_session,
     last_completed_session,
@@ -307,6 +307,8 @@ PER_ETF_CAP = 0.35        # no single thematic > 35% of Strategy C
 # Blended one-way cost ~5 bps, kept at the prior uniform default since this
 # is genuinely where the 5 bps anchor comes from in the first place.
 COST_BPS = 5
+# Venue this sleeve trades on, for the holiday-aware rebalance rule.
+CALENDAR = "NYSE"
 COST_FRAC = COST_BPS / 10_000
 
 K_GRID = [3, 4, 5]
@@ -691,8 +693,8 @@ def run_rotation(closes: pd.DataFrame, signal: pd.DataFrame, weight_fn,
                   eligible_start: pd.Timestamp,
                   rebalance_freq: str = "W-FRI",
                   cost: float = COST_FRAC) -> dict:
-    rebalance_dates = weekly_rebalance_dates(closes.index, eligible_start,
-                                             rebalance_freq)
+    rebalance_dates = engine_rebalance_dates(closes.index, eligible_start,
+                                             rebalance_freq, CALENDAR)
     rb_weights = pd.DataFrame(index=rebalance_dates, columns=closes.columns,
                                dtype=float)
     for rd in rebalance_dates:
@@ -710,7 +712,7 @@ def run_rotation(closes: pd.DataFrame, signal: pd.DataFrame, weight_fn,
     port_ret = port_ret - turnover * cost
     equity = (1.0 + port_ret).cumprod()
     return {"equity": equity, "weights": weight_panel, "daily_ret": port_ret,
-             "turnover": turnover}
+             "turnover": turnover, "rebalance_dates": rebalance_dates}
 
 
 def compute_stats(equity: pd.Series, eligible_start: pd.Timestamp) -> dict:
@@ -958,7 +960,10 @@ def main() -> int:
                     }
 
                 # Weekly allocation snapshot (Fridays only) for stacked-area
-                weekly_idx = r["weights"].index[r["weights"].index.dayofweek == 4]
+                # Sample at the ACTUAL rebalance grid, not every Friday:
+                # under a holiday-aware cadence a decision can land on a
+                # Thursday, and a dayofweek filter would silently drop it.
+                weekly_idx = r["rebalance_dates"]
                 weekly_w = r["weights"].loc[weekly_idx]
                 weekly_w = weekly_w.loc[(weekly_w.sum(axis=1) > 0.5)]
 

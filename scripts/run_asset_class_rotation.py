@@ -69,7 +69,7 @@ PRICE_CACHE = DATA_DIR / "asset_class_prices_cache.parquet"
 OUT_PATH = DATA_DIR / "asset_class_rotation.json"
 
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
-from rebalance_calendar import weekly_rebalance_dates  # noqa: E402
+from rebalance_calendar import engine_rebalance_dates  # noqa: E402
 from nyse_sessions import (  # noqa: E402
     cap_to_last_completed_session,
     last_completed_session,
@@ -155,6 +155,8 @@ MA_PERIOD = 200
 # These are among the most liquid ETFs in the world — bid-ask typically
 # 0.5-2 bps. Realistic blended one-way cost: ~2 bps (was uniform 5).
 COST_BPS = 2
+# Venue this sleeve trades on, for the holiday-aware rebalance rule.
+CALENDAR = "NYSE"
 COST_FRAC = COST_BPS / 10_000
 
 K_GRID = [3, 4, 5, 6, 7]
@@ -325,8 +327,8 @@ def run_rotation(closes: pd.DataFrame, signal: pd.DataFrame, weight_fn,
                   cost: float = COST_FRAC) -> dict:
     """Run the rotation portfolio. Same mechanics as run_portfolio: yesterday's
     signal -> today's rebalance, yesterday's weights * today's returns."""
-    rebalance_dates = weekly_rebalance_dates(closes.index, eligible_start,
-                                             rebalance_freq)
+    rebalance_dates = engine_rebalance_dates(closes.index, eligible_start,
+                                             rebalance_freq, CALENDAR)
     rb_weights = pd.DataFrame(index=rebalance_dates, columns=closes.columns,
                                dtype=float)
     for rd in rebalance_dates:
@@ -344,15 +346,15 @@ def run_rotation(closes: pd.DataFrame, signal: pd.DataFrame, weight_fn,
     port_ret = port_ret - turnover * cost
     equity = (1.0 + port_ret).cumprod()
     return {"equity": equity, "weights": weight_panel, "daily_ret": port_ret,
-             "turnover": turnover}
+             "turnover": turnover, "rebalance_dates": rebalance_dates}
 
 
 def sixty_forty(closes: pd.DataFrame, eligible_start: pd.Timestamp,
                   rebalance_freq: str = "W-FRI") -> dict:
     """60% SPY / 40% IEF, rebalanced same cadence. The classical benchmark."""
     target = pd.Series({"SPY": 0.6, "IEF": 0.4})
-    rebalance_dates = weekly_rebalance_dates(closes.index, eligible_start,
-                                             rebalance_freq)
+    rebalance_dates = engine_rebalance_dates(closes.index, eligible_start,
+                                             rebalance_freq, CALENDAR)
     rb_weights = pd.DataFrame(index=rebalance_dates, columns=closes.columns,
                                dtype=float)
     for rd in rebalance_dates:
@@ -372,8 +374,8 @@ def equal_weight_all(closes: pd.DataFrame, eligible_start: pd.Timestamp,
     """Equal weight across all N tickers in the universe."""
     n = len(closes.columns)
     target_w = 1.0 / n
-    rebalance_dates = weekly_rebalance_dates(closes.index, eligible_start,
-                                             rebalance_freq)
+    rebalance_dates = engine_rebalance_dates(closes.index, eligible_start,
+                                             rebalance_freq, CALENDAR)
     rb_weights = pd.DataFrame(target_w, index=rebalance_dates,
                                 columns=closes.columns, dtype=float)
     weight_panel = rb_weights.reindex(closes.index, method="ffill").fillna(0.0)
@@ -613,7 +615,10 @@ def main() -> int:
                     }
 
                 # Weekly allocation snapshot for stacked-area chart
-                weekly_idx = r["weights"].index[r["weights"].index.dayofweek == 4]
+                # Sample at the ACTUAL rebalance grid, not every Friday:
+                # under a holiday-aware cadence a decision can land on a
+                # Thursday, and a dayofweek filter would silently drop it.
+                weekly_idx = r["rebalance_dates"]
                 weekly_w = r["weights"].loc[weekly_idx]
                 weekly_w = weekly_w.loc[(weekly_w.sum(axis=1) > 0.5)]
 

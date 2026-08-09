@@ -46,7 +46,7 @@ from run_ma200_sweep import (  # noqa: E402
     align_breadth_to_index, compute_ma200_breadth, load_constituent_prices,
     MA_PERIOD, COST_BPS,
 )
-from rebalance_calendar import weekly_rebalance_dates  # noqa: E402
+from rebalance_calendar import engine_rebalance_dates  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -133,16 +133,23 @@ def run_portfolio(
     eligible_start: pd.Timestamp,
     cost: float = COST_BPS / 10_000,
     rebalance_freq: str = "W-FRI",
+    calendar: str = "NYSE",
 ) -> dict:
     """Simulate a weekly-rebalanced portfolio.
 
     `weight_fn(b_row)` takes a row of ma200_breadth (Series indexed by ETF)
     and returns a Series of weights (sums to <= 1).
+
+    `calendar` is the venue this sleeve trades on. It defaults to NYSE for
+    Strategy A, but this function is ALSO the engine behind Strategy D
+    (run_europe_rotation imports it), which trades XETR — so D must pass its
+    own calendar or a holiday-aware run would judge German sessions against
+    the US calendar.
     """
     # Rebalance grid: every Friday close, build weights from yesterday's
     # breadth. Cadence rule centralised in rebalance_calendar.
-    rebalance_dates = weekly_rebalance_dates(
-        closes.index, eligible_start, rebalance_freq
+    rebalance_dates = engine_rebalance_dates(
+        closes.index, eligible_start, rebalance_freq, calendar
     )
     # Build a sparse rebalance-weights frame (rows = rebalance days),
     # then reindex to daily with ffill so the WHOLE row carries forward
@@ -168,7 +175,8 @@ def run_portfolio(
     turnover = weight_panel.diff().abs().sum(axis=1).fillna(0)
     port_ret = port_ret - turnover * cost
     equity = (1.0 + port_ret).cumprod()
-    return {"equity": equity, "weights": weight_panel}
+    return {"equity": equity, "weights": weight_panel,
+            "rebalance_dates": rebalance_dates}
 
 
 def top_k_eq_weight(K: int):
