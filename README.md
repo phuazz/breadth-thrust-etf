@@ -51,7 +51,7 @@ Both workflows that commit `docs/` rebuild both pages, so the two cannot drift a
 
 ### Test coverage
 
-468 pytest tests across 37 files. Key suites:
+1,015 pytest tests across 58 files (count as of 2026-08-09 — date it when you update it, so the next reader can see how stale it is). Key suites:
 - `test_backtest_math.py` (17 tests) — structural invariants: long-only, sum-to-100%, no NaN, monotonic dates.
 - `test_weight_function_edge_cases.py` (12 tests) — direct unit tests on `top_k_breadth_weight` with synthetic stress inputs (all-positives, all-negatives, mixed, NaN, ties, single-element). Includes regression test that would have caught the Phase 20 long-only bug.
 - `test_data_integrity.py`, `test_stale_breadth.py` — freshness guards on iShares constituent caches.
