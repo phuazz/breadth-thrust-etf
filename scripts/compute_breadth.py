@@ -157,9 +157,9 @@ SIGNAL_ELIGIBLE_AFTER = 252
 # 2026-08-08 two panels were refreshed and committed on partial downloads —
 # EXH2 on 2 of 37 constituents (the display guard suppressed the bar, so
 # nothing false was shown) and IDP6, a DEPLOYED Strategy A panel, on 371 of
-# 603. IDP6 published 0.6334 where full coverage gives 0.6173. Only 1.6pp
-# out, and that was luck: nothing about a 62% sample guarantees it lands
-# close. Nothing in the pipeline objected to either.
+# 603. IDP6 published 0.6334; recomputed at 99.5% coverage it is 0.66, so
+# the thin sample was 2.7pp out. Nothing in the pipeline objected to
+# either.
 #
 # Calibrated against all 38 committed panels on 2026-08-09. Healthy sits at
 # 97-100% (30 of 38 at 100%), with a structural tail at ITWN 89.7% and

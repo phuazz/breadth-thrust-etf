@@ -9,9 +9,8 @@ the pipeline objected:
   EXH2   2 of 37 current constituents. The display guard suppressed the
          bar, so nothing false was shown, but the panel was committed.
   IDP6   371 of 603, and DEPLOYED into Strategy A's universe. It
-         published ma_breadth 0.6334 where full coverage gives 0.6173.
-         Only 1.6pp out — and that was luck, not a property of the
-         sample.
+         published ma_breadth 0.6334; recomputed at 99.5% coverage the
+         same date reads 0.66, so the thin sample was 2.7pp out.
 
 So the floors are tested against the real observed numbers, not invented
 ones, and the calibration case below pins them to the distribution they
