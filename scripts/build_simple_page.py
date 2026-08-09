@@ -34,10 +34,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from etf_registry import display_ticker  # noqa: E402
+from etf_registry import ETF_REGISTRY, display_ticker  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "simple_template.html"
@@ -53,6 +54,13 @@ PAYLOAD_PATH = ROOT / "data" / "portfolio_simple.json"
 LIVE_TRACK = ROOT / "data" / "live_track.json"
 RISK_OVERLAY = ROOT / "data" / "risk_overlay.json"
 ETF_NAMES = ROOT / "data" / "etf_names.json"
+HOLDINGS_PRICES = ROOT / "data" / "holdings_prices_1y.json"
+
+# A holding's chart may lag the book's as-of date — the feed is captured per
+# venue and some series settle later than others. Charts carry their own date
+# rather than inheriting the page's, but a series this far behind is not a
+# lag any more, it is a broken feed, and the row loses its chart instead.
+MAX_CHART_LAG_DAYS = 14
 
 PLACEHOLDER_START = "// __PORTFOLIO_DATA_START__"
 PLACEHOLDER_END = "// __PORTFOLIO_DATA_END__"
@@ -90,6 +98,96 @@ DEPLOYED_KEY = "blend_35_35_10_20_gated_eem_tilted"
 
 class SimplePageError(RuntimeError):
     """Raised when the page cannot be built safely."""
+
+
+def price_series_key(panel_key: str) -> str:
+    """The key this holding's price series is filed under in the feed.
+
+    The feed is keyed by the symbol prices were fetched with, which is the
+    registry's trading proxy where one exists — so sleeve A's IUFS is filed
+    under XLF. That is right for fetching and wrong for labelling, which is why
+    `priced_via` below exists.
+    """
+    entry = ETF_REGISTRY.get(panel_key)
+    return (entry or {}).get("yfinance_trading_proxy") or panel_key
+
+
+def chart_meta(panel_key: str, shown_ticker: str) -> tuple[str, str | None]:
+    """(currency, the symbol actually charted if it is not the holding).
+
+    Two separate honesty problems, and they are not the same one:
+
+    * `export_holdings_prices.py` publishes NATIVE-currency closes, so a Xetra
+      series is in euros while everything else is in dollars. Charting both
+      under one "US dollars" note would be wrong.
+    * Sleeve A holds a UCITS line and prices it off the US-listed SPDR. The
+      chart is then a stand-in for the holding, not the holding, and a reader
+      comparing it against their own broker screen deserves to be told.
+
+    A Xetra proxy is the SAME fund on its home exchange, so it is not a
+    stand-in — EXH4.DE under the label EXH4 needs no note, only a currency.
+    """
+    proxy = price_series_key(panel_key)
+    currency = "EUR" if proxy.endswith(".DE") else "USD"
+    bare = proxy.split(".")[0]
+    priced_via = None if bare == shown_ticker else bare
+    return currency, priced_via
+
+
+def build_charts(holdings: list[dict], as_of: str) -> tuple[dict, dict, list[str]]:
+    """Per-holding 1Y price lines, sharing calendars to keep the page small.
+
+    Returns (calendars, charts_by_display_ticker, skipped). Mirrors the
+    scanner's series/calendars split: 23 holdings resolve to a handful of
+    distinct trading calendars, so storing dates once per calendar rather than
+    once per holding is most of the payload saved.
+    """
+    if not HOLDINGS_PRICES.exists():
+        return {}, {}, [h["ticker"] for h in holdings]
+
+    feed = json.loads(HOLDINGS_PRICES.read_text(encoding="utf-8")).get("prices") or {}
+    as_of_date = date.fromisoformat(as_of)
+
+    calendars: dict[str, list[str]] = {}
+    by_dates: dict[tuple, str] = {}
+    charts: dict[str, dict] = {}
+    skipped: list[str] = []
+
+    for h in holdings:
+        series = feed.get(price_series_key(h["panel_key"]))
+        dates = (series or {}).get("dates") or []
+        prices = (series or {}).get("prices") or []
+        if not dates or len(dates) != len(prices):
+            skipped.append(h["ticker"])
+            continue
+
+        last = date.fromisoformat(dates[-1])
+        if last > as_of_date or (as_of_date - last).days > MAX_CHART_LAG_DAYS:
+            # Ahead of the book, or so far behind it is a fault not a lag.
+            skipped.append(h["ticker"])
+            continue
+
+        key = tuple(dates)
+        if key not in by_dates:
+            name = f"c{len(by_dates)}"
+            by_dates[key] = name
+            calendars[name] = list(dates)
+
+        currency, priced_via = chart_meta(h["panel_key"], h["ticker"])
+        charts[h["ticker"]] = {
+            "cal": by_dates[key],
+            # 2dp is finer than any of these instruments' tick size and halves
+            # the payload against full float repr.
+            "px": [round(float(p), 2) for p in prices],
+            "last": dates[-1],
+            "currency": currency,
+            "priced_via": priced_via,
+            # Stated so the page never has to imply the chart is as fresh as
+            # the holdings table; some venues settle later than others.
+            "lag_days": (as_of_date - last).days,
+        }
+
+    return calendars, charts, skipped
 
 
 def downsample(dates: list[str], equity: list[float], limit: int) -> tuple[list[str], list[float]]:
@@ -152,6 +250,8 @@ def build_payload() -> dict:
         sleeve_key = membership[ticker]
         holdings.append({
             "ticker": display_ticker(ticker),
+            # The registry key, kept for price-series resolution. Never shown.
+            "panel_key": ticker,
             "name": name,
             "sleeve": sleeve_key,
             "sleeve_label": SLEEVE_LABELS[sleeve_key],
@@ -183,8 +283,14 @@ def build_payload() -> dict:
     dates, equity = downsample(variant["dates"], variant["equity"], MAX_CURVE_POINTS)
 
     as_of = live.get("anchor_date")
+    calendars, charts, skipped = build_charts(holdings, as_of)
     return {
         "as_of": as_of,
+        "calendars": calendars,
+        "charts": charts,
+        # Named, not merely absent: a row that quietly loses its chart looks
+        # identical to a row that never had one.
+        "charts_unavailable": skipped,
         "panel_end_date": overlay.get("panel_end_date"),
         "computed_at_utc": live.get("computed_at_utc"),
         "holdings": holdings,
@@ -236,6 +342,29 @@ def assert_payload_usable(payload: dict) -> None:
 
     if any(h["weight"] <= 0 for h in payload["holdings"]):
         problems.append("a holding has a non-positive weight")
+
+    # ---- charts -----------------------------------------------------------
+    shown = {h["ticker"] for h in payload["holdings"]}
+    calendars = payload.get("calendars") or {}
+    for ticker, chart in (payload.get("charts") or {}).items():
+        if ticker not in shown:
+            problems.append(f"chart for {ticker}, which is not a holding")
+            continue
+        axis = calendars.get(chart.get("cal"))
+        if axis is None:
+            problems.append(f"{ticker}: chart references missing calendar {chart.get('cal')!r}")
+            continue
+        if len(chart.get("px") or []) != len(axis):
+            problems.append(
+                f"{ticker}: {len(chart.get('px') or [])} prices against a "
+                f"{len(axis)}-session calendar"
+            )
+        if chart.get("last") != axis[-1]:
+            problems.append(f"{ticker}: stated last date disagrees with its calendar")
+        if chart.get("currency") not in ("USD", "EUR"):
+            problems.append(f"{ticker}: chart has no currency")
+        if (chart.get("last") or "") > (payload.get("as_of") or ""):
+            problems.append(f"{ticker}: chart is dated after the book's as-of")
 
     if problems:
         raise SimplePageError(
@@ -308,6 +437,15 @@ def main(argv: list[str] | None = None) -> int:
         f"{s['label']} {s['weight'] * 100:.1f}%" for s in payload["sleeves"]))
     print(f"  curve {len(payload['curve']['dates'])} points "
           f"{payload['stats']['start']} -> {payload['stats']['end']}")
+    charts, cals = payload["charts"], payload["calendars"]
+    lagging = {t: c["lag_days"] for t, c in charts.items() if c["lag_days"] > 0}
+    print(f"  charts {len(charts)}/{payload['n_positions']} holdings "
+          f"across {len(cals)} calendar(s)")
+    if lagging:
+        print("    behind the book's as-of: "
+              + ", ".join(f"{t} by {d}d" for t, d in sorted(lagging.items())))
+    if payload["charts_unavailable"]:
+        print("    NO CHART: " + ", ".join(payload["charts_unavailable"]))
     if args.check:
         print(f"check only — would write {len(out) / 1024:.0f} KB")
         return 0

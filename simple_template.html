@@ -147,6 +147,44 @@ tbody tr:hover { background: var(--bg-hover); }
 }
 th.num { text-align: right; }
 
+/* ---- expandable holding rows ---- */
+.hrow { cursor: pointer; }
+.hrow:focus-visible { outline: 2px solid var(--b); outline-offset: -2px; }
+.caret {
+  display: inline-block; width: 12px; margin-right: 6px;
+  color: var(--t3-text); font-size: 12px; transition: transform .12s ease;
+}
+.hrow[aria-expanded="true"] .caret { transform: rotate(90deg); }
+.hrow[aria-expanded="true"] { background: var(--bg3); }
+.chart-cell { padding: 0; border-bottom: 1px solid var(--bd); background: var(--bg3); }
+.chart-panel { padding: 14px 12px 12px; }
+.ranges { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.ranges button {
+  font: inherit; font-size: 13px; font-family: var(--mono);
+  padding: 6px 12px; min-height: 32px;
+  background: var(--bg2); color: var(--t2);
+  border: 1px solid var(--bd2); border-radius: 6px; cursor: pointer;
+}
+.ranges button[aria-pressed="true"] {
+  background: var(--b); border-color: var(--b); color: #fff; font-weight: 600;
+}
+.pchart-wrap { position: relative; background: var(--bg2);
+  border: 1px solid var(--bd); border-radius: var(--radius); padding: 10px 10px 4px; }
+.pchart { display: block; width: 100%; }
+.pchart .grid { stroke: var(--bd); stroke-width: 1; }
+.pchart .axlab { font-family: var(--mono); font-size: 12px; fill: var(--t3-text); }
+.pchart .line { fill: none; stroke: var(--b); stroke-width: 2;
+  stroke-linejoin: round; stroke-linecap: round; }
+.pchart .cross { stroke: var(--bd-strong); stroke-width: 1; }
+.pchart .dot { fill: var(--b); stroke: var(--bg2); stroke-width: 2; }
+.pcap { font-size: 15px; color: var(--t2); margin: 10px 0 0; line-height: 1.5;
+  /* the chart panel is full width; the caption is prose and is not */
+  max-width: var(--measure); }
+.pcap .warn { color: var(--a-text); }
+@media (pointer: coarse) {
+  .ranges button { min-height: 44px; padding: 6px 16px; }
+}
+
 /* sleeve chip — colour plus label, never colour alone */
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
@@ -244,7 +282,7 @@ footer a { color: var(--b-text); }
   /* Phone reading measure. At 390px the column is ~358px, which holds 54
      characters at 15px and 51 at 16px — both above the 40-50 band. 17px lands
      at 48. Measured at 390x844, not assumed. */
-  body, .sub, .notice, footer { font-size: 17px; }
+  body, .sub, .notice, footer, .pcap { font-size: 17px; }
 }
 @media (pointer: coarse) {
   .legend li { min-height: 44px; align-items: center; }
@@ -286,9 +324,11 @@ footer a { color: var(--b-text); }
         <tbody id="holdings"></tbody>
       </table>
     </div>
-    <p class="sub" style="margin-top:12px">The Europe holdings trade on Xetra in
-      euros; everything else trades in US dollars or in London. All figures on
-      this page are stated in US dollars.</p>
+    <p class="sub" style="margin-top:12px">Tap a holding to see its price over
+      the past year. The Europe holdings trade on Xetra in euros; everything
+      else trades in US dollars or in London. Portfolio figures — weights and
+      performance — are stated in US dollars throughout; each price chart is in
+      its own trading currency, marked on the chart.</p>
   </section>
 
   <section>
@@ -344,7 +384,13 @@ const PORTFOLIO_DATA_INLINE = null;
 // __PORTFOLIO_DATA_END__
 
 const fmtPct = (x, dp = 1) => (x * 100).toFixed(dp) + '%';
+const fmtSigned = (x, dp = 1) => (x > 0 ? '+' : '') + (x * 100).toFixed(dp) + '%';
 const fmtMoney = (x) => Math.round(x).toLocaleString('en-US');
+const fmtShortDate = (iso) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return M[m - 1] + " '" + String(y).slice(2);  // m is 1-indexed in the ISO string
+};
 const fmtDate = (iso) => {
   // ISO yyyy-mm-dd parsed as parts, never through Date(string) — that is
   // UTC-vs-local dependent and can shift the day.
@@ -359,12 +405,22 @@ function render(data) {
 
   // ---- holdings table ----
   const tbody = document.getElementById('holdings');
-  tbody.innerHTML = data.holdings.map(h => `
-    <tr>
-      <td><span class="tk">${h.ticker}</span><span class="nm">${h.name}</span></td>
+  tbody.innerHTML = data.holdings.map(h => {
+    const hasChart = !!(data.charts && data.charts[h.ticker]);
+    // A row with no price series is not clickable and says nothing about it —
+    // a caret that does nothing is worse than no caret.
+    const caret = hasChart ? '<span class="caret">▶</span>' : '<span class="caret"></span>';
+    const attrs = hasChart
+      ? ` class="hrow" role="button" tabindex="0" aria-expanded="false" data-tk="${h.ticker}"`
+      : '';
+    return `
+    <tr${attrs}>
+      <td>${caret}<span class="tk">${h.ticker}</span><span class="nm">${h.name}</span></td>
       <td><span class="chip"><span class="dot" style="background:var(--sleeve-${h.sleeve})"></span>${h.sleeve_label}</span></td>
       <td class="num">${fmtPct(h.weight)}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+  wireHoldingRows(data);
   document.getElementById('tbl-caption').textContent =
     `${data.n_positions} positions, ${fmtDate(data.as_of)}`;
 
@@ -403,6 +459,162 @@ function render(data) {
     'Prices to ' + fmtDate(data.as_of) + '. Rebuilt weekly.';
 
   drawCurve(data.curve);
+}
+
+// ---- expandable holding rows -------------------------------------------
+// Accordion: at most one panel open. On a phone two open charts push the rest
+// of the table off-screen, and the point of this table is the whole book.
+const RANGES = [
+  { key: '1M', label: '1M', sessions: 21 },
+  { key: '3M', label: '3M', sessions: 63 },
+  { key: '6M', label: '6M', sessions: 126 },
+  { key: '1Y', label: '1Y', sessions: Infinity },
+];
+let OPEN_TICKER = null;
+
+function wireHoldingRows(data) {
+  document.querySelectorAll('#holdings .hrow').forEach(row => {
+    const toggle = () => toggleRow(row, data);
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', ev => {
+      // Space scrolls the page by default; a row acting as a button must not.
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(); }
+    });
+  });
+}
+
+function closeOpenRow() {
+  const open = document.querySelector('#holdings .hrow[aria-expanded="true"]');
+  if (open) open.setAttribute('aria-expanded', 'false');
+  const panel = document.getElementById('chart-row');
+  if (panel) panel.remove();
+  OPEN_TICKER = null;
+}
+
+function toggleRow(row, data) {
+  const tk = row.dataset.tk;
+  if (OPEN_TICKER === tk) { closeOpenRow(); return; }
+  closeOpenRow();
+  row.setAttribute('aria-expanded', 'true');
+  OPEN_TICKER = tk;
+
+  const tr = document.createElement('tr');
+  tr.id = 'chart-row';
+  tr.innerHTML = `<td class="chart-cell" colspan="3">
+      <div class="chart-panel">
+        <div class="ranges" role="group" aria-label="Chart period">
+          ${RANGES.map(r => `<button type="button" data-range="${r.key}"
+             aria-pressed="${r.key === '1Y'}">${r.label}</button>`).join('')}
+        </div>
+        <div class="pchart-wrap">
+          <svg class="pchart" role="img" aria-label="Price over the selected period"></svg>
+          <div class="tip"></div>
+        </div>
+        <p class="pcap"></p>
+      </div>
+    </td>`;
+  row.after(tr);
+
+  const draw = key => {
+    tr.querySelectorAll('.ranges button').forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.range === key)));
+    drawPriceChart(tr, data, tk, key);
+  };
+  tr.querySelectorAll('.ranges button').forEach(b =>
+    b.addEventListener('click', () => draw(b.dataset.range)));
+  draw('1Y');
+  ACTIVE_REDRAW = () => drawPriceChart(tr, data, tk,
+    tr.querySelector('.ranges button[aria-pressed="true"]').dataset.range);
+}
+
+let ACTIVE_REDRAW = null;
+
+function drawPriceChart(tr, data, tk, rangeKey) {
+  const chart = data.charts[tk];
+  const dates = data.calendars[chart.cal];
+  const want = (RANGES.find(r => r.key === rangeKey) || RANGES[3]).sessions;
+  const from = Math.max(0, chart.px.length - (want === Infinity ? chart.px.length : want));
+  const xs = dates.slice(from), ys = chart.px.slice(from);
+
+  const svg = tr.querySelector('.pchart');
+  const tip = tr.querySelector('.tip');
+  const W = Math.max(240, svg.clientWidth || svg.parentNode.clientWidth - 20);
+  const H = W < 420 ? 190 : 240;
+  const PAD = { t: 10, r: 8, b: 24, l: W < 420 ? 46 : 54 };
+  const NS = 'http://www.w3.org/2000/svg';
+
+  const lo = Math.min(...ys), hi = Math.max(...ys);
+  const span = (hi - lo) || 1;
+  const x = i => PAD.l + (ys.length === 1 ? 0 : (i / (ys.length - 1)) * (W - PAD.l - PAD.r));
+  const y = v => PAD.t + (1 - (v - lo) / span) * (H - PAD.t - PAD.b);
+  const el = (n, a, t) => {
+    const e = document.createElementNS(NS, n);
+    for (const k in a) e.setAttribute(k, a[k]);
+    if (t !== undefined) e.textContent = t;
+    return e;
+  };
+
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.style.height = H + 'px';
+  svg.innerHTML = '';
+
+  const money = v => (chart.currency === 'EUR' ? '€' : '$') +
+    v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  for (let i = 0; i <= 3; i++) {
+    const v = lo + span * (i / 3), yy = y(v);
+    svg.appendChild(el('line', { class: 'grid', x1: PAD.l, x2: W - PAD.r, y1: yy, y2: yy }));
+    svg.appendChild(el('text', { class: 'axlab', x: PAD.l - 8, y: yy + 4,
+      'text-anchor': 'end' }, money(v)));
+  }
+  [0, ys.length - 1].forEach((i, k) => {
+    svg.appendChild(el('text', { class: 'axlab', x: x(i), y: H - 7,
+      'text-anchor': k === 0 ? 'start' : 'end' }, fmtShortDate(xs[i])));
+  });
+
+  svg.appendChild(el('path', { class: 'line',
+    d: ys.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ') }));
+
+  const cross = el('line', { class: 'cross', y1: PAD.t, y2: H - PAD.b, opacity: 0 });
+  const dot = el('circle', { class: 'dot', r: 4, opacity: 0 });
+  svg.appendChild(cross); svg.appendChild(dot);
+
+  const wrap = svg.parentNode;
+  const move = ev => {
+    const r = svg.getBoundingClientRect();
+    const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+    let i = Math.round(((px - PAD.l) / (W - PAD.l - PAD.r)) * (ys.length - 1));
+    i = Math.max(0, Math.min(ys.length - 1, i));
+    cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('opacity', 1);
+    dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(ys[i])); dot.setAttribute('opacity', 1);
+    tip.innerHTML = `<span class="d">${fmtDate(xs[i])}</span><span class="v">${money(ys[i])}</span>`;
+    tip.style.opacity = 1;
+    const tw = tip.offsetWidth;
+    tip.style.left = Math.max(4, Math.min(wrap.clientWidth - tw - 4, x(i) - tw / 2 + 10)) + 'px';
+    tip.style.top = Math.max(2, y(ys[i]) - 50) + 'px';
+  };
+  const leave = () => { cross.setAttribute('opacity', 0); dot.setAttribute('opacity', 0); tip.style.opacity = 0; };
+  svg.addEventListener('mousemove', move);
+  svg.addEventListener('mouseleave', leave);
+  svg.addEventListener('touchmove', move, { passive: true });
+  svg.addEventListener('touchend', leave);
+
+  // The caption is where this page stays honest: the currency is the
+  // instrument's own, the series may be a stand-in for the holding, and its
+  // last price is not necessarily the date the holdings table carries.
+  const chg = ys[0] ? (ys[ys.length - 1] / ys[0] - 1) : 0;
+  const bits = [
+    `${chart.currency} · ${rangeKey === '1Y' ? 'past year' : 'past ' + rangeKey.replace('M', ' months')} ${fmtSigned(chg, 1)}`,
+  ];
+  if (chart.priced_via) {
+    bits.push(`priced via ${chart.priced_via}, the US-listed equivalent`);
+  }
+  bits.push(`prices to ${fmtDate(chart.last)}`);
+  let cap = bits.join(' · ');
+  if (chart.lag_days > 0) {
+    cap += ` <span class="warn">(${chart.lag_days} day${chart.lag_days === 1 ? '' : 's'} behind the table above)</span>`;
+  }
+  tr.querySelector('.pcap').innerHTML = cap;
 }
 
 // The chart is drawn at true CSS pixel size — no viewBox scaling — so a
@@ -492,7 +704,10 @@ function drawCurve(curve) {
 let rt;
 window.addEventListener('resize', () => {
   clearTimeout(rt);
-  rt = setTimeout(() => { if (CURVE) drawCurve(CURVE); }, 120);
+  rt = setTimeout(() => {
+    if (CURVE) drawCurve(CURVE);
+    if (ACTIVE_REDRAW) ACTIVE_REDRAW();
+  }, 120);
 });
 
 // Inline data when built by scripts/build_simple_page.py; fetch fallback so the

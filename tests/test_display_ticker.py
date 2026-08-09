@@ -283,10 +283,19 @@ def test_email_names_stay_keyed_by_the_panel_key():
 # Surface 4 — the public portfolio page
 # --------------------------------------------------------------------------
 
+IMPORTS_RESOLVER = re.compile(
+    r"^from etf_registry import .*\bdisplay_ticker\b", re.M)
+
+
 def test_simple_page_uses_the_shared_rule():
-    """It had its own copy first; one rule, one place."""
+    """It had its own copy first; one rule, one place.
+
+    Matched as an import of the name rather than one exact line — the first
+    version of this pinned the whole statement and broke the moment the builder
+    imported a second symbol alongside it, which says nothing about the rule.
+    """
     src = (ROOT / "scripts" / "build_simple_page.py").read_text(encoding="utf-8")
-    assert "from etf_registry import display_ticker" in src
+    assert IMPORTS_RESOLVER.search(src), "display_ticker is not imported from the registry"
     assert "def display_ticker(" not in src, "local reimplementation is back"
 
 

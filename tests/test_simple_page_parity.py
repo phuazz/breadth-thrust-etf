@@ -198,6 +198,80 @@ def test_curve_is_downsampled_but_intact(payload, overlay):
 
 
 # --------------------------------------------------------------------------
+# Per-holding price charts
+# --------------------------------------------------------------------------
+
+def test_every_chart_belongs_to_a_holding(payload):
+    shown = {h["ticker"] for h in payload["holdings"]}
+    assert set(payload["charts"]) <= shown
+
+
+def test_charts_and_calendars_line_up(payload):
+    """A ragged series draws a chart that is silently wrong, not one that fails."""
+    calendars = payload["calendars"]
+    for ticker, chart in payload["charts"].items():
+        axis = calendars.get(chart["cal"])
+        assert axis is not None, f"{ticker} references calendar {chart['cal']!r}"
+        assert len(chart["px"]) == len(axis), ticker
+        assert chart["last"] == axis[-1], ticker
+        assert axis == sorted(axis), f"{ticker}: calendar out of order"
+
+
+def test_no_chart_is_dated_after_the_book(payload):
+    for ticker, chart in payload["charts"].items():
+        assert chart["last"] <= payload["as_of"], (
+            f"{ticker} chart is dated after the holdings table")
+
+
+def test_stale_series_lose_their_chart_rather_than_lying(payload):
+    """A per-ticker lag is disclosed on the chart; a big one is a broken feed.
+
+    EEM sits behind the rest of the book most weeks because its series settles
+    later, which is exactly why the page dates each chart individually instead
+    of inheriting the page's as-of — the mixed as-of failure in a new place.
+    """
+    for ticker, chart in payload["charts"].items():
+        assert 0 <= chart["lag_days"] <= bsp.MAX_CHART_LAG_DAYS, (
+            f"{ticker} is {chart['lag_days']}d behind and should have been dropped")
+
+
+def test_currency_is_the_instruments_own(payload):
+    """The feed publishes native-currency closes; Xetra series are in euros.
+
+    Labelling a euro price line "USD" would be a straightforward misstatement
+    on a page other people read.
+    """
+    by_ticker = {h["ticker"]: h["panel_key"] for h in payload["holdings"]}
+    for ticker, chart in payload["charts"].items():
+        proxy = bsp.price_series_key(by_ticker[ticker])
+        expected = "EUR" if proxy.endswith(".DE") else "USD"
+        assert chart["currency"] == expected, ticker
+
+
+def test_proxy_pricing_is_disclosed_exactly_when_it_applies(payload):
+    """Set for sleeve A (holds IUFS, priced off XLF); absent for Xetra, where
+    the proxy is the same fund on its home exchange."""
+    charts = payload["charts"]
+    if "IUFS" in charts:
+        assert charts["IUFS"]["priced_via"] == "XLF"
+    if "EXH4" in charts:
+        assert charts["EXH4"]["priced_via"] is None
+    for ticker, chart in charts.items():
+        via = chart["priced_via"]
+        assert via is None or via != ticker
+
+
+def test_unavailable_charts_are_named_not_silent(payload):
+    """A row that lost its chart must be distinguishable from one that never
+    had one — otherwise a feed outage looks like a design decision."""
+    for ticker in payload["charts_unavailable"]:
+        assert ticker not in payload["charts"]
+    shown = {h["ticker"] for h in payload["holdings"]}
+    assert set(payload["charts_unavailable"]) <= shown
+    assert set(payload["charts"]) | set(payload["charts_unavailable"]) <= shown
+
+
+# --------------------------------------------------------------------------
 # The published artefact
 # --------------------------------------------------------------------------
 
