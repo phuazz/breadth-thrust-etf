@@ -21,6 +21,19 @@ The deployed strategy is the **35/35/10/20 A:B:C:D blend** with two overlays:
 
 > **SUPERSEDED 2026-08-03 — blend and D figures above predate the sleeve D EXH3 correction.** Sleeve D was priced as `EXH3.DE` (Food & Beverage) while signalling on an Industrial Goods & Services panel; the traded ticker is now `EXH4.DE`. Sleeve D standalone moved Sharpe 0.757 → 0.879 and CAGR 12.9% → 16.2%, with max drawdown 1.4pp worse, so every blend figure on this line shifts once the engines re-run. Read the deltas as attribution, not validation — see `reviews/2026-08-03_sleeve-d-exh3-correction.md`.
 
+### Published pages
+
+Two surfaces over the same book, from the same source JSONs:
+
+| Page | Built by | For |
+|---|---|---|
+| `docs/index.html` | `scripts/pipeline.py` (source: `template.html`) | The full research dashboard — method, trade history, per-sleeve tabs, risk and validation, scanner, data health. |
+| `docs/portfolio.html` | `scripts/build_simple_page.py` (source: `simple_template.html`) | A reduced plain-language view for friends and peers: current holdings, the sleeve split, one simulated equity line, and the disclosures. Nothing else. |
+
+The reduced page is a **presentational** reduction, not a confidentiality measure — this repo is public and MIT-licensed, and the rules table at the top of this README already states the full specification. It exists so a non-specialist reader is not handed a twelve-tab research dashboard. It deliberately omits trade history (a weekly trade log against a known universe is the fastest way to infer a ranking rule) and every parameter; `tests/test_simple_page_parity.py` fails the build if method vocabulary reappears on it.
+
+Both workflows that commit `docs/` rebuild both pages, so the two cannot drift apart in cadence. `test_simple_page_parity.py` (17 tests) enforces the rest: the published holdings, sleeve split and headline statistics must be derivable from `live_track.json` and `risk_overlay.json` alone, positions and prices must share one as-of date, and the Europe rows must print the **traded** ticker resolved from `etf_registry` (`EXH4`, not the internal panel id `EXH3`) — the reduced page is the one surface where a reader might actually try to buy what it lists.
+
 ### Known caveats (acknowledged upfront)
 
 - **Survivorship bias in Strategy C** — 25 thematics all survived to 2026; failed thematics (cannabis, leveraged-thematic, volatility) never in universe. WS3 (2026-07) quantified the bias: BTC-USD alone contributes ~23% of gross sleeve return (top five names ≈ 62%), several post-hoc adds carry history backfilled to before their inclusion, and no point-in-time membership exists. Sleeve C is **KEEP, ON NOTICE** — it loses to its own equal-weight basket at realistic spreads and must justify its seat at the next scheduled review.

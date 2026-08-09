@@ -408,6 +408,11 @@ jobs:
       - name: Build dashboard + factsheet PDF
         run: python scripts/pipeline.py
 
+      # Same rebuild as the daily workflow — both commit docs/, so both must
+      # refresh the reduced public page or it drifts behind docs/index.html.
+      - name: Rebuild public portfolio page
+        run: python scripts/build_simple_page.py
+
       - name: Run regression tests
         run: python -m pytest tests/ -q
 

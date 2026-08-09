@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Portfolio — what it holds today</title>
+<meta name="description" content="A plain-language view of a personal, rules-based ETF portfolio: current holdings, how it is split, and the simulated record.">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* surfaces */
+  --bg: #fafaf8;        /* page background — warm off-white */
+  --bg2: #ffffff;       /* cards, raised surfaces */
+  --bg3: #f5f5f0;       /* table headers, inset chips */
+  --bg4: #eeeee8;       /* progress tracks, deep insets */
+  --bg-hover: #f0f0ea;  /* row / cell hover */
+  /* borders */
+  --bd: #e2e0d8;        /* default hairline */
+  --bd2: #d5d3ca;       /* medium */
+  --bd-strong: #c0beb5; /* emphasis / axis lines */
+  /* text */
+  --t1: #1a1a18;        /* primary — near-black */
+  --t2: #5c5c56;        /* secondary */
+  --t3: #8a8a82;        /* tertiary / labels */
+  --t4: #b0b0a8;        /* disabled / faint */
+  /* semantic: green = gain/long, red = loss/short */
+  --g: #1a8754;  --g2: #22a366;  --g-bg: rgba(26,135,84,0.07);  --g-bg2: rgba(26,135,84,0.14);
+  --r: #c0392b;  --r2: #e74c3c;  --r-bg: rgba(192,57,43,0.07);  --r-bg2: rgba(192,57,43,0.14);
+  /* accents: blue = neutral/benchmark, amber = caution, purple = cost, cyan = info, pink = alt */
+  --b: #2563eb;  --b2: #3b82f6;  --b-bg: rgba(37,99,235,0.06);  --b-bg2: rgba(37,99,235,0.12);
+  --a: #b45309;  --a-bg: rgba(180,83,9,0.07);
+  --p: #7c3aed;  --p-bg: rgba(124,58,237,0.06);
+  --c: #0891b2;  --c-bg: rgba(8,145,178,0.06);
+  --pk: #be185d; --pk-bg: rgba(190,24,93,0.06);
+  /* -text variants — use these for TEXT */
+  --g-text: #146c43;  --r-text: #a93226;  --b-text: #1d4ed8;  --a-text: #92400e;
+  --p-text: #7c3aed;  --c-text: #0e7490;  --pk-text: #be185d;
+  --t3-text: #66665e;
+  /* type */
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'DM Sans', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+  /* elevation */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.06), 0 4px 6px rgba(0,0,0,0.04);
+  /* radius */
+  --radius: 8px;
+  --radius-lg: 12px;
+  /* reading measure — measured, not assumed. 66ch was the first attempt and
+     it does not work here: `ch` is the width of "0", which in DM Sans is much
+     wider than the average character, so 66ch held ~100 characters per line at
+     828px. 31rem measures 66-74 characters at 15-16px, inside the 65-75 band. */
+  --measure: 31rem;
+}
+
+/* Categorical sleeve hues. Fixed order A -> B -> C -> D -> tilt; this is the
+   adjacency the palette was validated against (validate_palette.js, light,
+   all six checks pass). Reordering can break the CVD separation check. */
+:root {
+  --sleeve-strategy_a: var(--b);
+  --sleeve-strategy_b: var(--a);
+  --sleeve-strategy_c: var(--c);
+  --sleeve-strategy_d: var(--pk);
+  --sleeve-tilt: var(--p);
+  --sleeve-strategy_a-text: var(--b-text);
+  --sleeve-strategy_b-text: var(--a-text);
+  --sleeve-strategy_c-text: var(--c-text);
+  --sleeve-strategy_d-text: var(--pk-text);
+  --sleeve-tilt-text: var(--p-text);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--t1);
+  font-family: var(--sans);
+  /* Document scale, not the dashboard scale — this page is read line by line. */
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.shell { max-width: 880px; margin: 0 auto; padding: 20px 24px 64px; }
+.prose { max-width: var(--measure); }
+
+/* ---- masthead ---- */
+.masthead {
+  padding: 28px 0 20px;
+  border-bottom: 2px solid var(--t1);
+  display: flex; justify-content: space-between; align-items: flex-end;
+  flex-wrap: wrap; gap: 12px;
+}
+h1 {
+  font-family: var(--serif);
+  font-weight: 400; font-size: 34px; line-height: 1.15;
+  margin: 0; letter-spacing: -0.01em;
+}
+h1 em { color: var(--t2); }
+.masthead-meta { font-size: 12px; color: var(--t2); text-align: right; }
+.masthead-meta .k {
+  display: block; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.8px; font-weight: 700; color: var(--t3-text);
+}
+.masthead-meta .v { font-family: var(--mono); font-size: 14px; color: var(--t1); }
+
+/* ---- notice ---- */
+.notice {
+  margin: 22px 0 0; padding: 14px 16px;
+  background: var(--a-bg); border: 1px solid var(--bd2);
+  border-left: 3px solid var(--a); border-radius: var(--radius);
+  font-size: 15px; color: var(--t1);
+  /* box padding is 16px a side; cap the box so the TEXT lands on --measure */
+  max-width: calc(var(--measure) + 32px);
+}
+.notice strong { color: var(--a-text); }
+
+/* ---- sections ---- */
+section { margin-top: 40px; }
+h2 {
+  font-size: 20px; font-weight: 600; margin: 0 0 4px;
+  letter-spacing: -0.005em;
+}
+.sub { font-size: 15px; color: var(--t2); margin: 0 0 16px; max-width: var(--measure); }
+p { margin: 0 0 14px; }
+
+/* ---- scroll containers: wide content scrolls inside itself ---- */
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ---- holdings table ---- */
+table { border-collapse: collapse; width: 100%; min-width: 420px; }
+caption { text-align: left; font-size: 12px; color: var(--t3-text); padding-bottom: 8px; }
+th, td { padding: 10px 12px; border-bottom: 1px solid var(--bd); text-align: left; }
+thead th {
+  background: var(--bg3); font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.8px; font-weight: 700; color: var(--t3-text);
+  border-bottom: 1px solid var(--bd2); white-space: nowrap;
+}
+tbody tr:hover { background: var(--bg-hover); }
+.tk { font-family: var(--mono); font-weight: 600; font-size: 15px; white-space: nowrap; }
+.nm { display: block; font-size: 13px; color: var(--t2); line-height: 1.35; }
+.num {
+  font-family: var(--mono); text-align: right; font-size: 15px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+th.num { text-align: right; }
+
+/* sleeve chip — colour plus label, never colour alone */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--t2); white-space: nowrap;
+}
+.dot { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
+
+/* ---- stacked split bar ---- */
+.bar {
+  display: flex; width: 100%; height: 34px;
+  border-radius: var(--radius); overflow: hidden;
+  background: var(--bg4); margin: 4px 0 18px;
+}
+.seg {
+  position: relative; height: 100%;
+  /* 2px surface gap between adjacent fills */
+  box-shadow: inset -2px 0 0 var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-family: var(--mono); font-size: 12px; font-weight: 600;
+  cursor: default;
+}
+.seg:last-child { box-shadow: none; }
+.legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.legend li {
+  display: flex; align-items: baseline; gap: 10px;
+  font-size: 15px; padding-bottom: 8px; border-bottom: 1px solid var(--bd);
+}
+.legend li:last-child { border-bottom: 0; }
+.legend .lab { flex: 1 1 auto; }
+.legend .cnt { font-size: 13px; color: var(--t2); }
+.legend .val { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.legend .dot { align-self: center; }
+
+/* ---- stats row ---- */
+.stats {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 12px; margin: 0 0 20px;
+}
+.stat {
+  background: var(--bg2); border: 1px solid var(--bd);
+  border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow-sm);
+}
+.stat .v {
+  font-family: var(--mono); font-size: 26px; font-weight: 600;
+  line-height: 1.1; display: block;
+}
+.stat .k {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px;
+  font-weight: 700; color: var(--t3-text); display: block; margin-top: 6px;
+}
+.stat .n { font-size: 13px; color: var(--t2); display: block; margin-top: 4px; line-height: 1.4; }
+
+/* ---- chart ---- */
+.chart-wrap {
+  background: var(--bg2); border: 1px solid var(--bd);
+  border-radius: var(--radius); padding: 14px 14px 8px;
+  position: relative; box-shadow: var(--shadow-sm);
+}
+#curve { display: block; width: 100%; }
+/* Chart colours live here, not in presentation attributes: var() inside an
+   SVG attribute is not reliable across browsers, but it is ordinary CSS here. */
+#curve .grid { stroke: var(--bd); stroke-width: 1; }
+#curve .axlab { font-family: var(--mono); font-size: 12px; fill: var(--t3-text); }
+#curve .line { fill: none; stroke: var(--b); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+#curve .cross { stroke: var(--bd-strong); stroke-width: 1; }
+#curve .dot { fill: var(--b); stroke: var(--bg2); stroke-width: 2; }
+.tip {
+  position: absolute; pointer-events: none; opacity: 0;
+  transition: opacity .08s linear;
+  background: var(--t1); color: #fff; border-radius: 6px;
+  padding: 7px 10px; font-size: 13px; line-height: 1.45;
+  box-shadow: var(--shadow-md); white-space: nowrap; z-index: 5;
+}
+.tip .d { color: #d8d8d0; font-size: 12px; display: block; }
+.tip .v { font-family: var(--mono); font-weight: 600; }
+
+/* ---- footer ---- */
+footer {
+  margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--bd);
+  /* Fine print people are meant to actually read — kept at the document body
+     scale, not shrunk to 13px, which measured 54 chars/line at 390px. */
+  font-size: 15px; color: var(--t2); max-width: var(--measure);
+}
+footer a { color: var(--b-text); }
+
+@media (max-width: 768px) {
+  .shell { padding: 16px 16px 56px; }
+  h1 { font-size: 28px; }
+  .masthead { padding: 20px 0 16px; }
+  .masthead-meta { text-align: left; }
+}
+@media (max-width: 480px) {
+  .stats { grid-template-columns: 1fr; }
+  .stat .v { font-size: 24px; }
+  /* Phone reading measure. At 390px the column is ~358px, which holds 54
+     characters at 15px and 51 at 16px — both above the 40-50 band. 17px lands
+     at 48. Measured at 390x844, not assumed. */
+  body, .sub, .notice, footer { font-size: 17px; }
+}
+@media (pointer: coarse) {
+  .legend li { min-height: 44px; align-items: center; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="masthead">
+    <h1>Portfolio<br><em>what it holds today</em></h1>
+    <div class="masthead-meta">
+      <span class="k">Positions as of</span>
+      <span class="v" id="asof">—</span>
+    </div>
+  </header>
+
+  <div class="notice">
+    <strong>Read this first.</strong> This is a personal research book, run for my
+    own account. Every performance figure on this page is <strong>simulated from
+    historical prices</strong> — there is no live track record. Nothing here is
+    investment advice, an offer, or a recommendation.
+  </div>
+
+  <section>
+    <h2>What it holds today</h2>
+    <p class="sub">Target weights at the last weekly rebalance. These are the
+      intended positions, not a record of executed trades.</p>
+    <div class="scroll">
+      <table>
+        <caption id="tbl-caption">—</caption>
+        <thead>
+          <tr>
+            <th scope="col">Holding</th>
+            <th scope="col">Part of</th>
+            <th scope="col" class="num">Weight</th>
+          </tr>
+        </thead>
+        <tbody id="holdings"></tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:12px">The Europe holdings trade on Xetra in
+      euros; everything else trades in US dollars or in London. All figures on
+      this page are stated in US dollars.</p>
+  </section>
+
+  <section>
+    <h2>How it is split</h2>
+    <p class="sub">The book runs four independent parts plus one tilt. Each part
+      picks its own holdings within its own corner of the market, and the split
+      between them is fixed rather than discretionary.</p>
+    <div class="bar" id="bar" role="img"
+         aria-label="Share of the portfolio held by each part; the same figures are listed below."></div>
+    <ul class="legend" id="legend"></ul>
+  </section>
+
+  <section>
+    <h2>The simulated record</h2>
+    <p class="sub">What the rules would have produced on historical prices, after
+      dealing costs. It is a simulation, not a statement of what was earned.</p>
+    <div class="stats" id="stats"></div>
+    <div class="chart-wrap">
+      <svg id="curve" role="img" aria-labelledby="curve-desc"></svg>
+      <div class="tip" id="tip"></div>
+    </div>
+    <p id="curve-desc" class="sub" style="margin-top:10px">Growth of an initial
+      US$10,000, simulated. The line reflects the same rules the book runs today,
+      applied backwards over the whole period.</p>
+  </section>
+
+  <section class="prose">
+    <h2>What this actually is</h2>
+    <p>A rules-based portfolio of exchange-traded funds. It holds a spread of US
+      sectors, broad asset classes, a small thematic allocation, and European
+      sectors, and it reviews what it owns once a week. There is no leverage, no
+      shorting and no discretionary override: the same rules run every week
+      whatever I happen to think of the market.</p>
+    <p>It also has a defensive setting. When the broad market weakens on the
+      measure the book tracks, part of the portfolio moves into short-dated
+      government bonds until conditions recover.</p>
+    <p id="regime-line"></p>
+  </section>
+
+  <footer>
+    <p>Simulated results have inherent limitations and do not represent actual
+      trading. Past performance, real or simulated, does not indicate future
+      results. This page is published for interest only and is not investment
+      advice; you should not rely on it in making any decision.</p>
+    <p id="built">—</p>
+  </footer>
+
+</div>
+
+<script>
+// __PORTFOLIO_DATA_START__
+const PORTFOLIO_DATA_INLINE = null;
+// __PORTFOLIO_DATA_END__
+
+const fmtPct = (x, dp = 1) => (x * 100).toFixed(dp) + '%';
+const fmtMoney = (x) => Math.round(x).toLocaleString('en-US');
+const fmtDate = (iso) => {
+  // ISO yyyy-mm-dd parsed as parts, never through Date(string) — that is
+  // UTC-vs-local dependent and can shift the day.
+  const [y, m, d] = iso.split('-').map(Number);
+  const MONTHS = ['January','February','March','April','May','June','July',
+                  'August','September','October','November','December'];
+  return d + ' ' + MONTHS[m - 1] + ' ' + y;  // m is 1-indexed in the ISO string
+};
+
+function render(data) {
+  document.getElementById('asof').textContent = fmtDate(data.as_of);
+
+  // ---- holdings table ----
+  const tbody = document.getElementById('holdings');
+  tbody.innerHTML = data.holdings.map(h => `
+    <tr>
+      <td><span class="tk">${h.ticker}</span><span class="nm">${h.name}</span></td>
+      <td><span class="chip"><span class="dot" style="background:var(--sleeve-${h.sleeve})"></span>${h.sleeve_label}</span></td>
+      <td class="num">${fmtPct(h.weight)}</td>
+    </tr>`).join('');
+  document.getElementById('tbl-caption').textContent =
+    `${data.n_positions} positions, ${fmtDate(data.as_of)}`;
+
+  // ---- split bar + legend ----
+  const counts = {};
+  data.holdings.forEach(h => { counts[h.sleeve] = (counts[h.sleeve] || 0) + 1; });
+  document.getElementById('bar').innerHTML = data.sleeves.map(s => `
+    <div class="seg" style="width:${s.weight * 100}%;background:var(--sleeve-${s.key})"
+         title="${s.label} — ${fmtPct(s.weight, 0)}">${s.weight >= 0.12 ? fmtPct(s.weight, 0) : ''}</div>`).join('');
+  document.getElementById('legend').innerHTML = data.sleeves.map(s => `
+    <li>
+      <span class="dot" style="background:var(--sleeve-${s.key})"></span>
+      <span class="lab">${s.label} <span class="cnt">· ${counts[s.key] || 0} holding${counts[s.key] === 1 ? '' : 's'}</span></span>
+      <span class="val">${fmtPct(s.weight)}</span>
+    </li>`).join('');
+
+  // ---- stats ----
+  const st = data.stats;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><span class="v">${fmtPct(st.cagr)}</span>
+      <span class="k">Growth a year</span>
+      <span class="n">Simulated, ${st.start.slice(0, 4)}–${st.end.slice(0, 4)}</span></div>
+    <div class="stat"><span class="v">${fmtPct(st.max_dd)}</span>
+      <span class="k">Worst fall</span>
+      <span class="n">Largest peak-to-trough loss in the simulation</span></div>
+    <div class="stat"><span class="v">${st.sharpe.toFixed(2)}</span>
+      <span class="k">Return per unit of risk</span>
+      <span class="n">Higher is steadier; above 1 is good, and this is a point estimate</span></div>`;
+
+  const regime = data.defensive_engaged
+    ? 'The defensive setting is <strong>engaged</strong> at present.'
+    : 'The defensive setting is not engaged at present, so the book is fully invested.';
+  document.getElementById('regime-line').innerHTML = regime;
+
+  document.getElementById('built').textContent =
+    'Prices to ' + fmtDate(data.as_of) + '. Rebuilt weekly.';
+
+  drawCurve(data.curve);
+}
+
+// The chart is drawn at true CSS pixel size — no viewBox scaling — so a
+// declared 12px label is 12px on a phone rather than 12px shrunk by the
+// container ratio.
+let CURVE = null;
+function drawCurve(curve) {
+  CURVE = curve;
+  const svg = document.getElementById('curve');
+  const W = Math.max(260, svg.clientWidth || svg.parentNode.clientWidth - 28);
+  const H = W < 420 ? 220 : 300;
+  const PAD = { t: 12, r: 10, b: 26, l: W < 420 ? 46 : 56 };
+  const NS = 'http://www.w3.org/2000/svg';
+
+  const vals = curve.equity.map(e => e * 10000);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const x = i => PAD.l + (i / (vals.length - 1)) * (W - PAD.l - PAD.r);
+  const y = v => PAD.t + (1 - (v - lo) / (hi - lo)) * (H - PAD.t - PAD.b);
+
+  const el = (n, attrs, text) => {
+    const e = document.createElementNS(NS, n);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.style.height = H + 'px';
+  svg.innerHTML = '';
+
+  // recessive gridlines + y labels
+  const TICKS = 4;
+  for (let i = 0; i <= TICKS; i++) {
+    const v = lo + (hi - lo) * (i / TICKS), yy = y(v);
+    svg.appendChild(el('line', {
+      class: 'grid', x1: PAD.l, x2: W - PAD.r, y1: yy, y2: yy
+    }));
+    svg.appendChild(el('text', {
+      class: 'axlab', x: PAD.l - 8, y: yy + 4, 'text-anchor': 'end'
+    }, fmtMoney(v)));
+  }
+  // x labels — first, middle, last year
+  [0, Math.floor(vals.length / 2), vals.length - 1].forEach((i, k) => {
+    svg.appendChild(el('text', {
+      class: 'axlab', x: x(i), y: H - 8,
+      'text-anchor': k === 0 ? 'start' : (k === 2 ? 'end' : 'middle')
+    }, curve.dates[i].slice(0, 4)));
+  });
+
+  const d = vals.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+  svg.appendChild(el('path', { class: 'line', d }));
+
+  // hover layer
+  const cross = el('line', { class: 'cross', y1: PAD.t, y2: H - PAD.b, opacity: 0 });
+  const dot = el('circle', { class: 'dot', r: 4.5, opacity: 0 });
+  svg.appendChild(cross); svg.appendChild(dot);
+
+  const tip = document.getElementById('tip');
+  const wrap = svg.parentNode;
+  const move = ev => {
+    const r = svg.getBoundingClientRect();
+    const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+    let i = Math.round(((px - PAD.l) / (W - PAD.l - PAD.r)) * (vals.length - 1));
+    i = Math.max(0, Math.min(vals.length - 1, i));
+    cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i));
+    cross.setAttribute('opacity', 1);
+    dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(vals[i]));
+    dot.setAttribute('opacity', 1);
+    tip.innerHTML = `<span class="d">${fmtDate(curve.dates[i])}</span>
+      <span class="v">US$${fmtMoney(vals[i])}</span>`;
+    tip.style.opacity = 1;
+    const tw = tip.offsetWidth;
+    tip.style.left = Math.max(4, Math.min(wrap.clientWidth - tw - 4, x(i) - tw / 2 + 14)) + 'px';
+    tip.style.top = Math.max(4, y(vals[i]) - 52) + 'px';
+  };
+  const leave = () => {
+    cross.setAttribute('opacity', 0); dot.setAttribute('opacity', 0);
+    tip.style.opacity = 0;
+  };
+  svg.addEventListener('mousemove', move);
+  svg.addEventListener('mouseleave', leave);
+  svg.addEventListener('touchmove', move, { passive: true });
+  svg.addEventListener('touchend', leave);
+}
+
+let rt;
+window.addEventListener('resize', () => {
+  clearTimeout(rt);
+  rt = setTimeout(() => { if (CURVE) drawCurve(CURVE); }, 120);
+});
+
+// Inline data when built by scripts/build_simple_page.py; fetch fallback so the
+// template also works standalone from the project root during development.
+if (PORTFOLIO_DATA_INLINE) {
+  render(PORTFOLIO_DATA_INLINE);
+} else {
+  fetch('data/portfolio_simple.json')
+    .then(r => r.json())
+    .then(render)
+    .catch(() => {
+      document.getElementById('holdings').innerHTML =
+        '<tr><td colspan="3">Data not loaded. Run <code>python scripts/build_simple_page.py</code>.</td></tr>';
+    });
+}
+</script>
+</body>
+</html>

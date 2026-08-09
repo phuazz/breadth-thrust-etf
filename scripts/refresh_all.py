@@ -278,6 +278,8 @@ def main() -> int:
             "scripts/run_c_seat_watch.py"),
         ("pipeline (build docs/index.html + factsheet PDF)",
             "scripts/pipeline.py"),
+        ("simple page (build docs/portfolio.html, the reduced public view)",
+            "scripts/build_simple_page.py"),
     ]
     for label, script in live_steps:
         ok, dt = run_step(label, [py, script])

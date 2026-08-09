@@ -146,6 +146,16 @@ jobs:
       - name: Rebuild dashboard + factsheet with live extension
         run: python scripts/pipeline.py
 
+      # docs/portfolio.html is the reduced public page. It reads the same
+      # live_track/risk_overlay pair the dashboard does, so it is rebuilt in the
+      # same breath — a public page that silently stops refreshing is worse than
+      # no public page. Deliberately NOT soft-failed: every condition that stops
+      # this build (weights not summing to NAV, a holding with no sleeve, a
+      # holdings date that disagrees with the price date) is a fault in the
+      # book's own state, not a fault in the reduced view of it.
+      - name: Rebuild public portfolio page
+        run: python scripts/build_simple_page.py
+
       - name: Run regression tests
         run: python -m pytest tests/ -q
 
