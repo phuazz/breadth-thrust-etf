@@ -213,7 +213,12 @@ def test_find_regressions_allows_advancing_and_unchanged():
 def test_regressed_ticker_is_held_back_to_the_published_series(tmp_path, monkeypatch):
     """End-to-end: with the network stubbed out (the re-fetch cannot repair
     it), main() must publish the PREVIOUS EEM series rather than the shorter
-    one, and --strict must exit non-zero."""
+    one, and must exit non-zero BY DEFAULT.
+
+    The failure was originally opt-in behind --strict, but nothing passed the
+    flag — not refresh_all.py, not either workflow — so the 2026-08-08 run
+    that rewrote EEM backwards would still have exited 0 and been committed.
+    """
     monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
     out_path = tmp_path / "holdings_prices_1y.json"
     monkeypatch.setattr(ehp, "OUT_PATH", out_path)
@@ -233,14 +238,83 @@ def test_regressed_ticker_is_held_back_to_the_published_series(tmp_path, monkeyp
     pd.DataFrame({"Close": np.arange(len(stale_idx), dtype=float)},
                  index=stale_idx).to_parquet(tmp_path / "eem_ohlc_cache.parquet")
 
-    assert ehp.main(["--strict"]) == 1, "--strict must fail on an unrepaired regression"
+    # No flag: the DEFAULT invocation, which is the one every caller uses.
+    assert ehp.main([]) == ehp.REGRESSION_EXIT_CODE, (
+        "an unrepaired regression must fail the run without needing a flag")
     published = json.loads(out_path.read_text(encoding="utf-8"))["prices"]["EEM"]
     assert published["dates"][-1] == "2026-08-07", (
         "the panel went backwards: published last bar is "
         f"{published['dates'][-1]}")
-    # Default (non-strict) still publishes the held-back series and exits 0,
-    # so a degraded daily run reports loudly without breaking the pipeline.
+
+    # --strict is retained as an accepted no-op so a stray invocation from an
+    # older caller does not crash; it must not change the outcome.
+    assert ehp.main(["--strict"]) == ehp.REGRESSION_EXIT_CODE
+
+    # The exit code is distinct from 1 so the workflows can hard-fail a
+    # backwards panel while still soft-failing a transient vendor error.
+    assert ehp.REGRESSION_EXIT_CODE == 2
+
+
+def test_a_repaired_panel_exits_zero(tmp_path, monkeypatch):
+    """Control for the test above: the same path with an ADVANCING series
+    writes normally and exits 0, so the guard cannot pass by always failing."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    out_path = tmp_path / "holdings_prices_1y.json"
+    monkeypatch.setattr(ehp, "OUT_PATH", out_path)
+    monkeypatch.setattr(ehp, "collect_all_tickers", lambda: {"EEM"})
+    monkeypatch.setattr(ehp, "collect_book_symbols", lambda: {"EEM"})
+    monkeypatch.setattr(ehp, "NETWORK_FALLBACK_TICKERS", ["EEM"])
+    monkeypatch.setattr(ehp, "fetch_missing_from_yfinance", lambda tks: {})
+
+    out_path.write_text(json.dumps({
+        "computed_at_utc": "2026-08-03T00:00:00+00:00", "lookback_days": 252,
+        "prices": {"EEM": {"dates": ["2026-08-02", "2026-08-03"],
+                           "prices": [1.0, 2.0]}},
+    }), encoding="utf-8")
+
+    idx = pd.bdate_range("2026-01-01", "2026-08-07")
+    pd.DataFrame({"Close": np.arange(len(idx), dtype=float)},
+                 index=idx).to_parquet(tmp_path / "eem_ohlc_cache.parquet")
+
     assert ehp.main([]) == 0
+    published = json.loads(out_path.read_text(encoding="utf-8"))["prices"]["EEM"]
+    assert published["dates"][-1] == "2026-08-07"
+
+
+def test_yfinance_backfill_refuses_to_overwrite_a_newer_cache(tmp_path, monkeypatch):
+    """The write that manufactured the 2026-08-04 stubs. A short vendor
+    response must not be persisted over a cache that already ends later.
+
+    load_close_series' freshest-wins rule stops a stale cache WINNING; this
+    stops one being created. Without it the same 8-9 KB stub is rewritten on
+    every run that touches the backfill path.
+    """
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    cache = tmp_path / "eem_ohlc_cache.parquet"
+    good_idx = pd.bdate_range(end="2026-08-07", periods=300)
+    pd.DataFrame({"Close": 100.0 + np.arange(300) * 0.1},
+                 index=good_idx).to_parquet(cache)
+
+    short_idx = pd.bdate_range(end="2026-08-03", periods=250)
+    short = pd.DataFrame(
+        {("EEM", "Close"): 100.0 + np.arange(250) * 0.1,
+         ("SPY", "Close"): 400.0 + np.arange(250) * 0.1},
+        index=short_idx)
+    short.columns = pd.MultiIndex.from_tuples(short.columns)
+
+    fake_yf = type("_YF", (), {"download": staticmethod(lambda *a, **k: short)})
+    monkeypatch.setitem(sys.modules, "yfinance", fake_yf)
+
+    got = ehp.fetch_missing_from_yfinance(["EEM", "SPY"])
+
+    on_disk = pd.read_parquet(cache)["Close"].dropna()
+    assert str(on_disk.index[-1].date()) == "2026-08-07", (
+        "the newer cache was overwritten by a shorter vendor response")
+    assert str(got["EEM"].index[-1].date()) == "2026-08-07", (
+        "the refused write must return the newer on-disk series, not the stub")
+    # SPY had no cache to protect, so its fetched series is persisted normally.
+    assert str(got["SPY"].index[-1].date()) == "2026-08-03"
+    assert (tmp_path / "spy_ohlc_cache.parquet").exists()
 
 
 def test_the_live_panel_has_no_exh3_ghost():

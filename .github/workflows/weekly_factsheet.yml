@@ -395,8 +395,20 @@ jobs:
 
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-      - name: Run holdings price export (soft-fail)
-        run: python scripts/export_holdings_prices.py || true
+      # Soft-fail EXCEPT exit 2 (an unrepaired regression) — see the same step
+      # in daily_live_track.yml. A panel that moved backwards must never reach
+      # the factsheet or the weekly digest.
+      - name: Run holdings price export (soft-fail, except a backwards panel)
+        run: |
+          set +e
+          python scripts/export_holdings_prices.py
+          rc=$?
+          set -e
+          if [ "$rc" -eq 2 ]; then
+            echo "::error::holdings price panel went BACKWARDS — refusing to publish"
+            exit 1
+          fi
+          exit 0
 
       # WS7 evidence accumulator (KICKOFF_ws7-c-seat.md). Soft-fail is safe
       # BECAUSE the email watch line renders a STALE tag whenever the

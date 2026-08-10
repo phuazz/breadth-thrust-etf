@@ -93,6 +93,13 @@ NETWORK_FALLBACK_TICKERS = sorted(set(INDIVIDUAL_OHLC_TICKERS))
 # any weekend + holiday cluster without tolerating a genuinely stalled feed.
 MAX_CACHE_AGE_DAYS = 7
 
+# Exit code for an unrepaired regression: at least one ticker's last bar ended
+# EARLIER than the panel already on disk and the re-fetch could not restore it.
+# Deliberately distinct from 1 so the CI workflows can hard-fail a backwards
+# panel while still soft-failing a transient vendor error, which must never
+# block the live-track publish.
+REGRESSION_EXIT_CODE = 2
+
 # Sleeve holdings files that define the deployed book (same set the email,
 # factsheet and live mark-to-market read).
 SLEEVE_FILES = [
@@ -397,9 +404,34 @@ def fetch_missing_from_yfinance(tickers: list[str]) -> dict[str, pd.Series]:
             out[tk] = ser
             # Persist as an OHLC-style cache so load_close_series finds it next
             # time and local runs stay network-free.
+            #
+            # Never overwrite a cache that already ends LATER than what the
+            # vendor just returned. This is the write that manufactured the
+            # 2026-08-04 stubs: a short response was persisted over good data
+            # and then read back as authoritative on every later run. The
+            # freshest-wins rule in load_close_series stops a stale cache
+            # WINNING; this stops one being created in the first place.
             try:
-                pd.DataFrame({"Close": ser}).to_parquet(
-                    DATA_DIR / f"{tk.lower()}_ohlc_cache.parquet")
+                cache_path = DATA_DIR / f"{tk.lower()}_ohlc_cache.parquet"
+                on_disk = None
+                if cache_path.exists():
+                    try:
+                        prev = pd.read_parquet(cache_path)
+                        if "Close" in prev.columns:
+                            col = prev["Close"]
+                            if isinstance(col, pd.DataFrame):
+                                col = col.iloc[:, 0]
+                            col = col.dropna()
+                            on_disk = col if not col.empty else None
+                    except Exception:
+                        on_disk = None
+                if on_disk is not None and on_disk.index[-1] > ser.index[-1]:
+                    print(f"  REFUSED cache write for {tk}: fetched series ends "
+                          f"{ser.index[-1].date()} but {cache_path.name} already "
+                          f"ends {on_disk.index[-1].date()}")
+                    out[tk] = on_disk
+                    continue
+                pd.DataFrame({"Close": ser}).to_parquet(cache_path)
             except Exception:
                 pass
         except Exception:
@@ -421,11 +453,19 @@ def entry_is_stale(entry: dict | None, now_utc: datetime,
 def main(argv: list[str] | None = None) -> int:
     import argparse
     ap = argparse.ArgumentParser(description=__doc__)
+    # An unrepaired regression now fails by DEFAULT. It was originally opt-in
+    # behind --strict, but nothing passed the flag — not refresh_all.py, not
+    # either workflow — so the run that rewrote EEM backwards would still have
+    # exited 0 and been committed. A guard whose failure mode is off by
+    # default is documentation, not a guard. --strict is kept as an accepted
+    # no-op so any stray invocation does not crash.
     ap.add_argument("--strict", action="store_true",
-                    help="exit non-zero if any ticker's last bar is still "
-                         "behind the previously published panel after the "
-                         "re-fetch (for the weekly capture guard)")
+                    help="deprecated, now the default: an unrepaired "
+                         "regression always exits "
+                         f"{REGRESSION_EXIT_CODE}")
     args = ap.parse_args(argv)
+    if args.strict:
+        print("  NOTE: --strict is now the default and can be dropped.")
 
     now_utc = datetime.now(timezone.utc)
     print(f"Exporting holdings 1Y price series at "
@@ -564,10 +604,12 @@ def main(argv: list[str] | None = None) -> int:
     if behind:
         print(f"  Panel newest bar {newest}; {len(behind)} ticker(s) behind it: "
               + ", ".join(f"{t} ({d})" for t, d in behind))
-    if unrepaired and args.strict:
-        print(f"  FAIL (--strict): {len(unrepaired)} ticker(s) regressed and "
-              f"could not be re-sourced: {', '.join(sorted(unrepaired))}")
-        return 1
+    if unrepaired:
+        print(f"  FAIL: {len(unrepaired)} ticker(s) regressed and could not be "
+              f"re-sourced: {', '.join(sorted(unrepaired))}")
+        print("  The published series were kept, so the panel on disk is "
+              "sound. Investigate the source cache before committing it.")
+        return REGRESSION_EXIT_CODE
     return 0
 
 

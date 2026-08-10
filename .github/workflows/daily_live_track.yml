@@ -140,8 +140,25 @@ jobs:
       # yfinance for any book ticker whose (gitignored) cache is absent on the
       # runner, so it is cheap and safe to refresh daily. Soft-fail so a feed
       # hiccup never blocks the live-track publish.
-      - name: Run holdings price export (soft-fail)
-        run: python scripts/export_holdings_prices.py || true
+      # Soft-fail EXCEPT exit 2, an unrepaired regression: a ticker's series
+      # ended earlier than the published panel and the re-fetch could not
+      # restore it. That is a data-integrity fault, not a feed hiccup, and it
+      # must stop the job before the commit step — on 2026-08-08 a run wrote
+      # EEM (10.0% of NAV) four sessions backwards and committed it under a
+      # message asserting every panel was current. A bare `|| true` here would
+      # swallow that exit code, which is why the guard is not simply trusted
+      # to fail on its own.
+      - name: Run holdings price export (soft-fail, except a backwards panel)
+        run: |
+          set +e
+          python scripts/export_holdings_prices.py
+          rc=$?
+          set -e
+          if [ "$rc" -eq 2 ]; then
+            echo "::error::holdings price panel went BACKWARDS — refusing to publish"
+            exit 1
+          fi
+          exit 0
 
       - name: Rebuild dashboard + factsheet with live extension
         run: python scripts/pipeline.py
