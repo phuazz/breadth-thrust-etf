@@ -635,6 +635,26 @@ _UNLISTED_EXCHANGE_MARKERS = {
 }
 
 
+def _us_symbol(raw_ticker: str) -> str | None:
+    """Normalise a ticker being treated as a US listing, or reject it.
+
+    A US equity symbol never contains whitespace. iShares occasionally serves
+    a Bloomberg-style composite instead of a plain ticker — "VSNTV UW", where
+    UW is Bloomberg's Nasdaq code — and the US fall-through used to pass that
+    straight through. It then resolved at no vendor, sat in the roster as a
+    permanently unpriced name, and was counted in the denominator of nothing
+    while cluttering the never-resolved list.
+
+    Rejecting is right rather than salvaging the root: the composite tells us
+    the upstream field is not the field we think it is, and guessing "VSNTV"
+    would invent a security. Returning None drops the row exactly as an
+    unlisted placeholder is dropped.
+    """
+    if not raw_ticker or any(c.isspace() for c in raw_ticker):
+        return None
+    return raw_ticker.rstrip(".").replace(".", "-")
+
+
 def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
                          overrides: dict | None = None,
                          location: str | None = None) -> str | None:
@@ -702,7 +722,7 @@ def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
         if suffix is not None:
             # If the suffix is empty (US listing), apply dot→dash share-class fix.
             if suffix == "":
-                return raw_ticker.rstrip(".").replace(".", "-")
+                return _us_symbol(raw_ticker)
             # If the raw ticker already carries this exchange suffix (e.g.
             # iShares CSV ships "BP.L" with exchange "London Stock Exchange"),
             # do not double-glue — split and re-normalise the root only.
@@ -713,7 +733,7 @@ def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
                 base = yf_base(raw_ticker, suffix)
             return f"{base}{suffix}" if base else None
     # Fallback: assume US (no suffix). Apply share-class fix.
-    return raw_ticker.replace(".", "-")
+    return _us_symbol(raw_ticker)
 
 
 def parse_holdings(body: str, ticker_overrides: dict | None = None,
