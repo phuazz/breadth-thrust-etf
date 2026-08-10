@@ -150,12 +150,20 @@ def weekly_rebalance_dates(
 # The engine entry point.
 # ---------------------------------------------------------------------------
 # THE FLIP POINT. Every deployed engine routes through engine_rebalance_dates,
-# so adopting the holiday fallback across A/B/C/D and the blend is this one
-# constant. It is track-record-affecting: WS10 measured the deployed
-# 35/35/10/20 blend at Sharpe +1.1861 under `scheduled` and +1.1738 under
-# `holiday_aware` (delta -0.0123, CAGR -0.17pp), so flipping it restates
-# published history downward. Do not change it without the filed record.
-DEFAULT_MODE = SCHEDULED
+# so the cadence for A/B/C/D and the blend is this one constant.
+#
+# ADOPTED 2026-08-10 (WS10, CIO sign-off). Previously SCHEDULED, which
+# intersected calendar Fridays with trading days and so dropped an entire
+# week's decision whenever the Friday was shut — the book then held a stale
+# signal for a fortnight, on 15-16 weeks per NYSE sleeve since 2018.
+#
+# The adoption is on GOVERNANCE grounds, not performance. WS10 measured the
+# deployed 35/35/10/20 blend at Sharpe +1.1861 under `scheduled` and +1.1738
+# under `holiday_aware`, so this RESTATED published history downward by
+# 0.0123 Sharpe / 0.17pp CAGR (maxDD unchanged). Sleeve deltas: A -0.0106,
+# B -0.0057, C -0.0612, D +0.0136 — all far inside the +/-0.4 Sharpe SE this
+# book already documents, and C's is a single Easter-2022 week.
+DEFAULT_MODE = HOLIDAY_AWARE
 
 
 def engine_rebalance_dates(

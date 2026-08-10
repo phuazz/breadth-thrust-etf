@@ -112,17 +112,30 @@ def _run_mode(patch_module, mode: str, calendar: str | None, fn):
 # Per-sleeve harnesses. Each returns (module, closes, run_headline_callable).
 # ---------------------------------------------------------------------------
 def sleeve_a():
-    import run_portfolio as m
-    closes, breadths, _ = m.build_panels()
-    starts = [breadths[e].dropna().index.min() for e in breadths
+    """Deployed Strategy A, per run_topk_robustness (the engine that writes
+    topk_robustness.json).
+
+    It ranks on the RELATIVE breadth signal panel (sector minus cross-section),
+    NOT the raw breadth panel, and costs 2bps. An earlier version of this
+    harness passed `breadths` straight through; that understated A's response
+    to the cadence change by more than half (-0.0106 against a true -0.0248),
+    so the signal panel is not an incidental detail.
+    """
+    import run_topk_robustness as m
+    from run_portfolio import build_panels, run_portfolio, top_k_breadth_weight
+    import run_portfolio as pm             # where the calendar binding lives
+    closes, breadths, etfs_used = build_panels()
+    signal_panel = m._to_signal_panel(breadths)
+    starts = [breadths[e].dropna().index.min() for e in etfs_used
               if len(breadths[e].dropna())]
     eligible = pd.Timestamp(max(starts).date()) + pd.Timedelta(days=m.MA_PERIOD)
     eligible = closes.index[closes.index >= eligible][0]
-    K = 7  # deployed: top-7 breadth-weighted, weekly Friday, no leverage
+    K = m.HEADLINE_K
     def run():
-        return m.run_portfolio(closes, breadths, m.top_k_breadth_weight(K),
-                               eligible)
-    return m, m, closes, eligible, run, f"A - top-{K} US sector breadth", "NYSE"
+        return run_portfolio(closes, signal_panel, top_k_breadth_weight(K),
+                             eligible, rebalance_freq=m.HEADLINE_FREQ,
+                             cost=m.COST_FRAC)
+    return m, pm, closes, eligible, run, f"A - top-{K} US relative breadth", "NYSE"
 
 
 def sleeve_b():
