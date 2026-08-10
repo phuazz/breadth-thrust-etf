@@ -37,6 +37,7 @@ from etf_registry import (  # noqa: E402
     ETF_REGISTRY,
     EUROPE_SUPERSECTORS_CANDIDATE,
     UNIVERSE_GLOBAL,
+    get_etf,
 )
 # One staleness policy, defined next to the incident that motivated it.
 # This module reads the same gitignored prices_cache_*.parquet and reports
@@ -109,6 +110,54 @@ def _role(etf: str) -> str:
 # before it is rejected as an anchor, and the window that norm is taken over.
 _ANCHOR_COLLAPSE_FRAC = 0.8
 _ANCHOR_LOOKBACK = 20
+
+
+def _sample_at_fridays(dates: list[str], fridays: list[str],
+                        calendar: str) -> tuple[list[int], list[str], list[int]]:
+    """Pick one breadth row per rebalance Friday.
+
+    Sampling at LITERAL Fridays leaves a hole every time the market was shut:
+    16 of CNDX's 449 Fridays are exchange holidays, and the table showed a
+    roster with em-dashes across every breadth column, which reads as missing
+    data rather than as a closed market.
+
+    The rule mirrors ``rebalance_calendar.HOLIDAY_AWARE``, so the audit cannot
+    describe a different week from the one the engines traded:
+
+      * Friday present            -> use it.
+      * Friday not an exchange
+        session (a real holiday)  -> use the last session on or before it, and
+                                     flag the row as substituted.
+      * Friday WAS a session but
+        the bar is missing        -> emit nothing. That is a vendor gap, not a
+                                     closed market, and an em-dash is the
+                                     honest rendering of it (Fri 2025-10-24 on
+                                     the Europe panels).
+
+    Returns (indices into ``dates``, the target Friday per row, 1/0 per row).
+    """
+    if not dates or not fridays:
+        return [], [], []
+    from rebalance_calendar import _exchange_sessions   # local: heavy import
+
+    pos = {d: i for i, d in enumerate(dates)}
+    sessions = _exchange_sessions(calendar, min(fridays), max(fridays))
+    session_strs = {d.isoformat() for d in sessions}
+
+    idx: list[int] = []
+    row_friday: list[str] = []
+    substituted: list[int] = []
+    for f in fridays:
+        if f in pos:
+            idx.append(pos[f]); row_friday.append(f); substituted.append(0)
+            continue
+        if f in session_strs:
+            continue                      # traded but unpriced -> vendor gap
+        # Genuine holiday: walk back to the last session we hold.
+        prior = [d for d in dates if d < f]
+        if prior:
+            idx.append(pos[prior[-1]]); row_friday.append(f); substituted.append(1)
+    return idx, row_friday, substituted
 
 
 def _reference_date(b: dict) -> str | None:
@@ -377,8 +426,9 @@ def build() -> dict:
         ser = b.get("series") or {}
         dq = b.get("data_quality") or {}
         if ser.get("dates"):
-            want = set(fridays)
-            idx = [i for i, d in enumerate(ser["dates"]) if d in want]
+            idx, row_friday, substituted = _sample_at_fridays(
+                ser["dates"], fridays,
+                get_etf(etf).get("trading_calendar", "NYSE"))
 
             def col(name, rnd=False):
                 arr = ser.get(name)
@@ -387,7 +437,12 @@ def build() -> dict:
                 return [(_round(arr[i]) if rnd else arr[i]) for i in idx]
 
             breadth[etf] = {
+                # The session the reading actually comes from ...
                 "date": [ser["dates"][i] for i in idx],
+                # ... and the rebalance Friday it belongs to. The table joins
+                # on THIS, so a week whose Friday was shut still lines up.
+                "friday": row_friday,
+                "substituted": substituted,
                 "n_constituents": col("n_constituents"),
                 "n_with_price": col("n_with_price"),
                 "ma": col("ma_breadth", True),

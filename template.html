@@ -3114,7 +3114,9 @@
       <p class="section-sub" id="data-detail-sub"></p>
 
       <h4 style="margin-top:24px;">Weekly history</h4>
-      <p class="section-sub">Every rebalance Friday. <strong>Roster</strong> is the membership count; <strong>priced</strong> is how many had usable prices that day; <strong>MA / RSI / Highs</strong> are the three breadth measures. Early rows have a roster but no breadth: the 50-day average needs 50 sessions of history before it exists. Click any column heading to sort.</p>
+      <p class="section-sub">Every rebalance Friday. <strong>Roster</strong> is the membership count; <strong>priced</strong> is how many had usable prices that day; <strong>MA / RSI / Highs</strong> are the three breadth measures. Click any column heading to sort.<br>
+      Two reasons a row can be blank, and they mean different things. <strong>Early rows</strong> have a roster but no breadth: the 50-day average needs 50 sessions of history before it exists. <strong>A blank later row</strong> means the exchange traded that Friday but the price vendor never published the bar — a data gap, not a closed market, and the strategy skips that week's rebalance rather than guessing.<br>
+      Amber figures marked <span style="color:#b45309;">✦</span> are the third case: the market was <em>shut</em> that Friday, so the reading is the prior session's close — the same session the strategy rebalances on. Hover for the date.</p>
       <p style="margin:0 0 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);">
         <label for="data-from">From</label>
         <input type="date" id="data-from" style="font-size:13px;padding:5px 8px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:#fff;color:var(--ink);">
@@ -11042,9 +11044,9 @@ function _renderDataHistory() {
       <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.roster)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.priced)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;color:${(r.cov !== null && r.cov < 0.8) ? '#b45309' : 'var(--ink-soft)'};">${r.cov === null ? '—' : _pct(r.cov)}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_pct(r.ma)}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_pct(r.rsi)}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;">${_pct(r.highs)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;${r.bsub ? 'color:#b45309;' : ''}"${r.bsub ? ` title="Market shut ${r.friday} — read from the prior session, ${r.bdate}"` : ''}>${_pct(r.ma)}${r.bsub ? '<span style="font-size:10px;"> ✦</span>' : ''}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;${r.bsub ? 'color:#b45309;' : ''}">${_pct(r.rsi)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;${r.bsub ? 'color:#b45309;' : ''}">${_pct(r.highs)}</td>
     </tr>`, 'friday');
 }
 
@@ -11066,9 +11068,15 @@ function _renderDataDetail(etf) {
     `${_num(meta.universe_size)} distinct constituents seen over the panel's life, of which ` +
     `<strong>${_num(meta.no_yf_data)}</strong> never resolved to a price.`;
 
-  // Index breadth rows by date so the two series can be joined per Friday.
+  // Index breadth rows by the rebalance Friday they belong to, NOT by the
+  // session they were read from. On a market-holiday Friday the reading comes
+  // from the Thursday, and joining on the raw session date would drop it and
+  // leave the row em-dashed as if the data were missing.
+  // `friday` is emitted by build_data_audit._sample_at_fridays; older payloads
+  // only carry `date`, so fall back to it rather than blanking the table.
+  const bKeys = br.friday || br.date || [];
   const bIdx = {};
-  (br.date || []).forEach((dt, i) => { bIdx[dt] = i; });
+  bKeys.forEach((dt, i) => { bIdx[dt] = i; });
 
   // Build the joined rows once; the date filter and the sorter both work
   // off this array rather than re-deriving it.
@@ -11087,6 +11095,10 @@ function _renderDataDetail(etf) {
       ma:    (j === undefined || !br.ma)    ? null : br.ma[j],
       rsi:   (j === undefined || !br.rsi)   ? null : br.rsi[j],
       highs: (j === undefined || !br.highs) ? null : br.highs[j],
+      // Market shut that Friday: the reading is the prior session's, and the
+      // table says so rather than presenting it as a Friday close.
+      bsub:  (j === undefined || !br.substituted) ? false : br.substituted[j] === 1,
+      bdate: (j === undefined || !br.date) ? null : br.date[j],
     };
   });
   _renderDataHistory();
