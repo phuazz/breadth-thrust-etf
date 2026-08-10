@@ -57,6 +57,63 @@ RENAMED: dict[str, str] = {
     # Facebook in 2018 and the ProShares ETF that took the ticker in 2025.
     "FB":    "META",    # Facebook -> Meta Platforms (2022), history from 2012
     "PCLN":  "BKNG",    # Priceline -> Booking Holdings (2018)
+
+    # --- 2026-08-10 sweep of the remaining unpriced constituents. ---------
+    # EVERY entry below was checked against Norgate's security_name before
+    # being written here, and that check is not ceremony: proposing the
+    # obvious successor ticker produced FOURTEEN wrong answers, because the
+    # old ticker had been reused. CBS/VIAC -> PARA gives "Banzai
+    # International", DISCA -> WBD gives "Wimm-Bill-Dann Foods", ABC -> COR
+    # gives "Crystal Oil". Each of those would have attached an unrelated
+    # company's prices to an index constituent. The verified symbol is often
+    # NOT the plain successor ticker.
+    "ABC":   "COR",             # AmerisourceBergen -> Cencora (2023)
+    "ADS":   "BFH",             # Alliance Data -> Bread Financial (2022)
+    "ANTM":  "ELV",             # Anthem -> Elevance Health (2022)
+    "BHGE":  "BKR",             # Baker Hughes GE -> Baker Hughes (2019)
+    "BK":    "BNY",             # BNY Mellon changed ticker BK -> BNY
+    "BLL":   "BALL",            # Ball Corp (2023)
+    "BRKS":  "AZTA",            # Brooks Automation -> Azenta (2022)
+    "CBG":   "CBRE",            # CBRE Group (2018)
+    "CBS":   "PARAA-202508",    # CBS -> ViacomCBS -> Paramount Global A
+    "VIAC":  "PARAA-202508",    # same lineage
+    "CDAY":  "DAY-202602",      # Ceridian -> Dayforce (2024)
+    "CHK":   "EXE",             # Chesapeake -> Expand Energy (2024)
+    "CLI":   "VRE-202605",      # Mack-Cali -> Veris Residential (2022)
+    "CLNY":  "DBRG",            # Colony Capital -> DigitalBridge (2021)
+    "CREE":  "WOLF",            # Cree -> Wolfspeed (2021)
+    "CTL":   "LUMN",            # CenturyLink -> Lumen (2020)
+    "DDR":   "SITC",            # DDR Corp -> SITE Centers (2018)
+    "DISCA": "WBD",             # Discovery -> Warner Bros. Discovery (2022)
+    "DPS":   "KDP",             # Dr Pepper Snapple -> Keurig Dr Pepper (2018)
+    "FBHS":  "FBIN",            # Fortune Brands Innovations (2022)
+    "FCEA":  "FCE.A-201812",    # Forest City Realty Class A
+    "FI":    "FISV",            # Fiserv took the FI ticker in 2024
+    "FLT":   "CPAY",            # FLEETCOR -> Corpay (2024)
+    "FVE":   "ALR-202303",      # Five Star Senior Living -> AlerisLife
+    "GOV":   "OPITQ-202606",    # Government Properties -> Office Properties
+    "GPS":   "GAP",             # Gap Inc ticker change (2024)
+    "HCN":   "WELL",            # Health Care REIT -> Welltower
+    "HCP":   "DOC",             # HCP -> Healthpeak -> DOC
+    "PEAK":  "DOC",             # same lineage
+    "HFC":   "DINO",            # HollyFrontier -> HF Sinclair (2022)
+    "HPT":   "SVC",             # Hospitality Properties -> Service Properties
+    "HRS":   "LHX",             # Harris -> L3Harris (2019)
+    "IIVI":  "COHR",            # II-VI -> Coherent (2022)
+    "JEC":   "J",               # Jacobs Engineering -> Jacobs Solutions
+    "KORS":  "CPRI",            # Michael Kors -> Capri Holdings (2018)
+    "LUK":   "JEF",             # Leucadia -> Jefferies Financial (2018)
+    "MMC":   "MRSH",            # Marsh & McLennan ticker change (2025)
+    "OFC":   "CDP",             # Corporate Office -> COPT Defense
+    "PKI":   "RVTY",            # PerkinElmer -> Revvity (2023)
+    "RE":    "EG",              # Everest Re -> Everest Group (2023)
+    "SGH":   "PENG",            # SMART Global -> Penguin Solutions (2025)
+    "SNH":   "DHC",             # Senior Housing -> Diversified Healthcare
+    "TMK":   "GL",              # Torchmark -> Globe Life (2019)
+    "UTX":   "RTX",             # United Technologies -> RTX (2020)
+    "WRE":   "ELME",            # Washington REIT -> Elme Communities (2022)
+    "WYN":   "TNL",             # Wyndham Worldwide -> Travel + Leisure
+    "BPR":   "BPYU-202107",     # Brookfield Property REIT Class A
 }
 
 # Roster entries that are NOT ordinary equity and cannot be priced as one.
@@ -69,6 +126,21 @@ NOT_EQUITY: dict[str, str] = {
     # ticker field, 2026-01-09 only. Now rejected upstream by
     # fetch_constituents._us_symbol; kept here so historical rosters resolve.
     "VSNTV UW": "Bloomberg composite identifier, not a ticker",
+    # Warrants, when-issued lines, rights and Bloomberg composites that the
+    # iShares ticker field has served over the years. None is an ordinary
+    # listing, so none has a price history to attach; naming them here keeps
+    # them out of the "unresolved" list, where they would read as coverage
+    # still to be recovered rather than rows that should never be priced.
+    "DISHR":     "rights line, not an ordinary listing",
+    "MRP-W":     "warrant, not an ordinary listing",
+    "SYF-W":     "warrant, not an ordinary listing",
+    "OXY WS":    "warrant, not an ordinary listing",
+    "OXY WS WI": "warrant, when-issued, not an ordinary listing",
+    "HOLX US":   "Bloomberg composite identifier, not a ticker",
+    "RTX US":    "Bloomberg composite identifier, not a ticker",
+    "RTL US":    "Bloomberg composite identifier, not a ticker",
+    "AFIN US":   "Bloomberg composite identifier, not a ticker",
+    "1812473D":  "Bloomberg internal identifier, not a ticker",
 }
 
 

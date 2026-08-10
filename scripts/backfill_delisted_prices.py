@@ -50,7 +50,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from norgate_symbols import NorgateUnavailable, resolve  # noqa: E402
+from norgate_symbols import NOT_EQUITY, NorgateUnavailable, resolve  # noqa: E402
 
 # Panels whose CONSTITUENTS are US equities. The ETF's own trading_calendar
 # does not decide this: ICHN and NDIA are NYSE-listed funds holding Chinese
@@ -140,6 +140,7 @@ def backfill(etf: str, dry_run: bool = False) -> dict:
     start = min(snaps) if snaps else "2018-01-01"
 
     filled, unresolved, nodata, ambiguous, stale_roster = {}, [], [], [], []
+    excluded: list[str] = []
     for t in todo:
         held = sorted(_held_dates(snaps, t))
         if not held:
@@ -156,6 +157,9 @@ def backfill(etf: str, dry_run: bool = False) -> dict:
         last_sym = resolve(t, date.fromisoformat(held[-1]))
         if first_sym and last_sym and first_sym != last_sym:
             ambiguous.append(f"{t}: {first_sym} @{held[0]} vs {last_sym} @{held[-1]}")
+            continue
+        if t in NOT_EQUITY:
+            excluded.append(t)
             continue
         sym = first_sym or last_sym
         if not sym:
@@ -192,6 +196,7 @@ def backfill(etf: str, dry_run: bool = False) -> dict:
         "unpriced_before": len(todo),
         "filled": len(filled),
         "unresolved": unresolved,
+        "excluded": excluded,
         "ambiguous": ambiguous,
         "stale_roster": stale_roster,
         "no_norgate_data": nodata,
@@ -239,6 +244,9 @@ def main() -> int:
         tot_before += r["unpriced_before"]; tot_filled += r["filled"]
         print(f"{r['etf']:7s}{r['universe']:9d}{r['unpriced_before']:10d}"
               f"{r['filled']:8d}{left:7d}")
+        if r.get("excluded"):
+            print(f"         excluded by design (not ordinary listings): "
+                  f"{len(r['excluded'])}")
         if r["unresolved"]:
             print(f"         unresolved: {r['unresolved'][:8]}")
         if r.get("stale_roster"):
