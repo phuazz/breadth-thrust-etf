@@ -3147,7 +3147,7 @@
       <div style="overflow-x:auto;max-height:560px;overflow-y:auto;">
         <table class="data-table" id="data-holdings-table"><thead></thead><tbody></tbody></table>
       </div>
-      <p class="section-sub" style="margin-top:14px;font-size:12px;">Weight is the fund's own published holding percentage. <strong>vs 50d</strong> is the constituent's last close against its 50-day moving average — the measure the breadth panel counts, so the green share below equals this panel's <code>ma_breadth</code>. Names marked <em>no price</em> have no usable history and are excluded from both numerator and denominator. Only the most recent roster is published; the full weekly membership history is 60&ndash;80MB and stays in the repository.</p>
+      <p class="section-sub" style="margin-top:14px;font-size:12px;">Weight is the fund's own published holding percentage. <strong>vs 50d</strong> is the constituent's last close against its 50-day moving average — the measure this breadth panel counts, so the green share above equals its <code>ma_breadth</code>. <strong>vs 200d</strong> is the same comparison on the 200-day average, which is what <strong>Strategy A actually ranks sectors on</strong>; the two can disagree, and the 200-day is the one that moves the book. Its denominator is the smaller of the two — a name with fewer than 200 sessions of history has no 200-day average and shows <em>—</em> rather than counting as below. Names marked <em>no price</em> have no usable history at all and are excluded from both numerator and denominator. Only the most recent roster is published; the full weekly membership history is 60&ndash;80MB and stays in the repository.</p>
     </section>
   </div>
 
@@ -11111,6 +11111,12 @@ function _renderDataDetail(etf) {
   const below = hold.filter((h) => h.above === false).length;
   const nopx  = hold.filter((h) => h.above === null || h.above === undefined).length;
   const share = (above + below) ? above / (above + below) : null;
+  // Same tally on the 200-day window. Its denominator is SMALLER, not equal:
+  // a name with 120 sessions has a 50d average and no 200d one, so counting
+  // it as "below" would understate the 200d share.
+  const a200 = hold.filter((h) => h.above200 === true).length;
+  const b200 = hold.filter((h) => h.above200 === false).length;
+  const share200 = (a200 + b200) ? a200 / (a200 + b200) : null;
 
   document.getElementById('data-current-sub').innerHTML =
     `${cur.tickers.length} names as of ${_num(cur.actual)}.${wbNote}` +
@@ -11132,7 +11138,14 @@ function _renderDataDetail(etf) {
          <strong style="color:#b91c1c;">${below} below</strong>
          ${nopx ? `· ${nopx} no price (excluded)` : ''}
          — breadth <strong>${g}%</strong>
-       </div>`;
+       </div>
+       ${share200 === null ? '' : `<div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">
+         On the <strong>200-day</strong> window — the one Strategy A ranks sectors on —
+         <strong style="color:#15803d;">${a200} above</strong> ·
+         <strong style="color:#b91c1c;">${b200} below</strong>
+         ${(a200 + b200) < (above + below) ? `· ${(above + below) - (a200 + b200)} too short for a 200d average` : ''}
+         — breadth <strong>${(100 * share200).toFixed(1)}%</strong>
+       </div>`}`;
   }
 
   const ht = document.getElementById('data-holdings-table');
@@ -11148,6 +11161,11 @@ function _renderDataDetail(etf) {
     { key: 'sector', label: 'Sector', val: (h) => h.sector },
     { key: 'w',      label: 'Weight', val: (h) => h.w, right: 1 },
     { key: 'd',      label: 'vs 50d', val: (h) => h.d, right: 1 },
+    // The 200-day sits beside the 50-day because they answer different
+    // questions: the 50d is what this panel's ma_breadth counts, the 200d is
+    // what Strategy A ranks sectors on. A reader asking "why is this sector
+    // held" needs the second one.
+    { key: 'd200',   label: 'vs 200d', val: (h) => h.d200, right: 1 },
     // Sort state as a number so above/below/no-price group cleanly rather
     // than alphabetically, where "above" would sort next to "below".
     { key: 'state',  label: 'State',  val: (h) => h.above === true ? 2 : (h.above === false ? 1 : null) },
@@ -11200,12 +11218,15 @@ function _renderHoldingsRows(hold) {
       : (h.above === false ? '<span style="color:#b91c1c;font-weight:600;">below</span>'
                             : '<span style="color:var(--ink-faint);">no price</span>');
     const dCol = h.d === null || h.d === undefined ? 'var(--ink-faint)' : (h.d >= 0 ? '#15803d' : '#b91c1c');
+    const d2 = h.d200, has2 = !(d2 === null || d2 === undefined);
+    const d2Col = !has2 ? 'var(--ink-faint)' : (d2 >= 0 ? '#15803d' : '#b91c1c');
     return `<tr data-chart-sym="${h.sym}" style="cursor:pointer;" title="Click for ${h.sym} vs its 50-day average">
       <td style="font-weight:600;">${h.sym}</td>
       <td style="font-size:12px;color:var(--ink-soft);max-width:230px;overflow:hidden;text-overflow:ellipsis;">${h.name || '—'}</td>
       <td style="font-size:12px;color:var(--ink-faint);">${h.sector || '—'}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;">${h.w === null || h.w === undefined ? '—' : h.w.toFixed(2) + '%'}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;color:${dCol};">${h.d === null || h.d === undefined ? '—' : (h.d > 0 ? '+' : '') + h.d + '%'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:${d2Col};"${!has2 && h.d !== null && h.d !== undefined ? ' title="Under 200 sessions of history — no 200-day average yet"' : ''}>${!has2 ? '—' : (d2 > 0 ? '+' : '') + d2 + '%'}</td>
       <td style="font-size:12px;">${state}</td>
     </tr>`;
   }, 'w');

@@ -106,6 +106,12 @@ def _role(etf: str) -> str:
     return "registered"
 
 
+# Strategy A ranks sectors on 200-day constituent breadth, a different measure
+# from this panel's 50-day ma_breadth. The constituents table reports both, so
+# a reader can see the number that drives selection and not only the one the
+# panel headline counts.
+MA200_PERIOD = 200
+
 # How far a session's coverage may fall below the panel's own recent norm
 # before it is rejected as an anchor, and the window that norm is taken over.
 _ANCHOR_COLLAPSE_FRAC = 0.8
@@ -294,6 +300,13 @@ def _latest_holdings_detail(etf: str, actual_date: str | None,
             ma = cb.per_ticker_apply(
                 px, lambda s: s.rolling(cb.MA_PERIOD,
                                          min_periods=cb.MA_PERIOD).mean())
+            # Second window: the 200-day. This panel's ma_breadth is the
+            # 50-day share, but Strategy A SELECTS on 200-day constituent
+            # breadth, so a reader auditing why a sector was picked needs the
+            # 200-day state too. Same per_ticker_apply for the same reason.
+            ma200 = cb.per_ticker_apply(
+                px, lambda s: s.rolling(MA200_PERIOD,
+                                         min_periods=MA200_PERIOD).mean())
             # Take each ticker's LAST OBSERVED value, not the frame's last
             # row. The frame is a union date grid, so on any session a
             # market did not trade — or that its vendor has not published
@@ -314,13 +327,20 @@ def _latest_holdings_detail(etf: str, actual_date: str | None,
             if ref_date is not None:
                 px = px.loc[:ref_date]
                 ma = ma.loc[:ref_date]
+                ma200 = ma200.loc[:ref_date]
             last_px = px.ffill(limit=5).iloc[-1]
             last_ma = ma.ffill(limit=5).iloc[-1]
+            last_ma200 = ma200.ffill(limit=5).iloc[-1]
             for sym in px.columns:
                 p, m = last_px.get(sym), last_ma.get(sym)
                 if p is None or m is None or pd.isna(p) or pd.isna(m):
                     continue
-                ma_state[sym] = (float(p), float(m))
+                # 200d is allowed to be absent on its own: a name with 60
+                # sessions of history has a 50d MA and no 200d, and must
+                # show as "above" on 50d rather than vanish from the table.
+                m2 = last_ma200.get(sym)
+                m2 = None if m2 is None or pd.isna(m2) else float(m2)
+                ma_state[sym] = (float(p), float(m), m2)
         except Exception:
             ma_state = {}
 
@@ -342,7 +362,7 @@ def _latest_holdings_detail(etf: str, actual_date: str | None,
         if not sym or sym in seen:
             continue
         seen.add(sym)
-        price, mavg = ma_state.get(sym, (None, None))
+        price, mavg, mavg200 = ma_state.get(sym, (None, None, None))
         out.append({
             "sym": sym,
             "name": (nm[i] if nm else None),
@@ -352,6 +372,12 @@ def _latest_holdings_detail(etf: str, actual_date: str | None,
             "above": None if price is None else bool(price >= mavg),
             # Distance from the 50d MA, in per cent.
             "d": None if price is None else round(100 * (price / mavg - 1), 1),
+            # 200d state. None where the name is too young for a 200d
+            # window, which is NOT the same as having no price at all.
+            "above200": None if (price is None or mavg200 is None)
+                        else bool(price >= mavg200),
+            "d200": None if (price is None or mavg200 is None)
+                    else round(100 * (price / mavg200 - 1), 1),
         })
     out.sort(key=lambda r: (r["w"] is None, -(r["w"] or 0)))
     return out
