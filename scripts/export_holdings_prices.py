@@ -163,15 +163,44 @@ def collect_book_symbols() -> set[str]:
 
 
 def load_close_series(ticker: str) -> pd.Series | None:
-    """Try every known cache location for this ticker; return Close series
-    or None if not found / empty."""
+    """Return the FRESHEST Close series for this ticker across every known
+    cache location, or None if no source has it.
+
+    Freshest, not first-found. This function used to return the first cache
+    that carried the ticker, in a fixed source order. That ordering is a
+    silent data-integrity trap, because ``fetch_missing_from_yfinance``
+    WRITES ``{ticker}_ohlc_cache.parquet`` (source 3) — so a one-off backfill
+    permanently shadows a fresher committed source that sits later in the
+    order, and the shadow never expires.
+
+    EEM did exactly this. A backfill wrote data/eem_ohlc_cache.parquet
+    terminating 2026-08-03; data/em_regime_context.parquet carried EEM
+    current to 2026-08-07. First-found returned the 3 August series, so the
+    published panel went BACKWARDS four sessions for the largest holding in
+    the book (10.0% of NAV) while the header stamp still read 7 August, and
+    the digest's 200-DMA proximity for EEM was computed on the stale bar.
+    See reviews/ and tests/test_export_holdings_prices.py.
+
+    Ties on last date are broken by series length, so the 200d MA gets the
+    most history available.
+    """
+    candidates: list[tuple[pd.Timestamp, int, pd.Series]] = []
+
+    def offer(ser: "pd.Series | None") -> None:
+        if ser is None:
+            return
+        ser = ser.dropna()
+        if ser.empty:
+            return
+        candidates.append((ser.index[-1], len(ser), ser))
+
     # 1. Asset-class multi-ETF parquet
     ac = DATA_DIR / "asset_class_prices_cache.parquet"
     if ac.exists():
         try:
             df = pd.read_parquet(ac)
-            if ticker in df.columns and df[ticker].notna().any():
-                return df[ticker].dropna()
+            if ticker in df.columns:
+                offer(df[ticker])
         except Exception:
             pass
     # 2. Thematic multi-ETF parquet
@@ -179,11 +208,12 @@ def load_close_series(ticker: str) -> pd.Series | None:
     if tc.exists():
         try:
             df = pd.read_parquet(tc)
-            if ticker in df.columns and df[ticker].notna().any():
-                return df[ticker].dropna()
+            if ticker in df.columns:
+                offer(df[ticker])
         except Exception:
             pass
-    # 3. Individual ETF OHLC parquet — file naming is lowercase
+    # 3. Individual ETF OHLC parquet — file naming is lowercase. Written by
+    #    the yfinance backfill, so it can be older than a committed source.
     ohlc = DATA_DIR / f"{ticker.lower()}_ohlc_cache.parquet"
     if ohlc.exists():
         try:
@@ -193,7 +223,7 @@ def load_close_series(ticker: str) -> pd.Series | None:
                 ser = df["Close"]
                 if isinstance(ser, pd.DataFrame):
                     ser = ser.iloc[:, 0]
-                return ser.dropna()
+                offer(ser)
         except Exception:
             pass
     # 4. EM regime-context parquet — the only COMMITTED (non-gitignored)
@@ -205,11 +235,41 @@ def load_close_series(ticker: str) -> pd.Series | None:
     if em.exists():
         try:
             df = pd.read_parquet(em)
-            if ticker in df.columns and df[ticker].notna().any():
-                return df[ticker].dropna()
+            if ticker in df.columns:
+                offer(df[ticker])
         except Exception:
             pass
-    return None
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda c: (c[0], c[1]))
+    return candidates[-1][2]
+
+
+def last_date(entry: dict | None) -> str | None:
+    """Last bar date of an exported per-ticker record, or None."""
+    if not entry or not entry.get("dates"):
+        return None
+    return entry["dates"][-1]
+
+
+def find_regressions(new: dict[str, dict],
+                     prev: dict[str, dict]) -> dict[str, tuple[str, str]]:
+    """Tickers whose new last bar is EARLIER than the published one.
+
+    Returns {ticker: (previous_last_date, new_last_date)}. A published price
+    panel must never move backwards: markets do not un-print closes, so a
+    regression is always a sourcing fault, never real data. This is the
+    date-level counterpart to the coverage guard below, which only ever
+    caught a ticker vanishing ENTIRELY — EEM stayed present and merely lost
+    four sessions, so nothing fired.
+    """
+    out: dict[str, tuple[str, str]] = {}
+    for tk, prev_entry in (prev or {}).items():
+        p, n = last_date(prev_entry), last_date(new.get(tk))
+        if p and n and n < p:
+            out[tk] = (p, n)
+    return out
 
 
 def _round_sig(values: list[float], sig: int = 4) -> list[float]:
@@ -358,7 +418,15 @@ def entry_is_stale(entry: dict | None, now_utc: datetime,
     return entry["dates"][-1] < cutoff
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--strict", action="store_true",
+                    help="exit non-zero if any ticker's last bar is still "
+                         "behind the previously published panel after the "
+                         "re-fetch (for the weekly capture guard)")
+    args = ap.parse_args(argv)
+
     now_utc = datetime.now(timezone.utc)
     print(f"Exporting holdings 1Y price series at "
           f"{now_utc.isoformat(timespec='seconds')} ...")
@@ -367,6 +435,16 @@ def main() -> int:
     critical = sorted(set(NETWORK_FALLBACK_TICKERS) | book)
     print(f"  Candidate tickers: {len(tickers)} "
           f"(book-critical: {len(critical)})")
+
+    # The previously published panel, read up front: it is the baseline both
+    # for the never-go-backwards check and for the carry-forward guard.
+    prev_prices: dict[str, dict] = {}
+    if OUT_PATH.exists():
+        try:
+            prev_prices = (json.loads(OUT_PATH.read_text(encoding="utf-8"))
+                           .get("prices") or {})
+        except Exception as exc:
+            print(f"  WARN: could not read previous panel: {exc}")
 
     out: dict[str, dict] = {}
     n_skipped: list[str] = []
@@ -377,15 +455,29 @@ def main() -> int:
             continue
         out[ticker] = entry
 
-    # Second pass: any book-critical ticker that is missing OR whose only
-    # on-disk source is stale gets fetched from yfinance. Missing happens on
+    # Second pass: any book-critical ticker that is missing, whose only
+    # on-disk source is stale, OR whose last bar has gone BACKWARDS against
+    # the published panel gets fetched from yfinance. Missing happens on
     # runners whose caches are gitignored; stale happened to EEM, whose only
     # committed source (em_regime_context.parquet) froze at 2026-07-06 while
     # the panel shipped it under a current as-of stamp for two weeks.
-    refetch = [t for t in critical
-               if t not in out or entry_is_stale(out.get(t), now_utc)]
+    #
+    # Regressed is the third case, added 2026-08-10. A stale cache that is
+    # merely a few sessions old passes entry_is_stale (7 CALENDAR days is
+    # deliberately loose enough to span a weekend + holiday cluster) yet can
+    # still be older than what has already been published. EEM lost four
+    # sessions inside that tolerance and no guard fired.
+    regressed = find_regressions(out, prev_prices)
+    if regressed:
+        print("  REGRESSION: last bar moved backwards vs the published "
+              "panel for " + ", ".join(
+                  f"{t} ({p} -> {n})" for t, (p, n) in sorted(regressed.items())))
+    refetch = sorted({t for t in critical
+                      if t not in out or entry_is_stale(out.get(t), now_utc)}
+                     | set(regressed))
     if refetch:
-        stale_names = [t for t in refetch if t in out]
+        stale_names = [t for t in refetch
+                       if t in out and t not in regressed]
         if stale_names:
             print(f"  Stale beyond {MAX_CACHE_AGE_DAYS}d, re-fetching: "
                   f"{', '.join(stale_names)}")
@@ -395,6 +487,16 @@ def main() -> int:
                 out[tk] = entry
                 if tk in n_skipped:
                     n_skipped.remove(tk)
+
+    # Never-go-backwards. Any regression the re-fetch did not repair keeps the
+    # PREVIOUSLY published series: it is the more truthful of the two, and a
+    # shrinking date range under an advancing as-of stamp is precisely the
+    # failure this guard exists to stop.
+    unrepaired = find_regressions(out, prev_prices)
+    for tk, (prev_last, new_last) in sorted(unrepaired.items()):
+        out[tk] = prev_prices[tk]
+        print(f"  HELD BACK: {tk} re-fetch did not restore it "
+              f"({new_last} < {prev_last}); keeping the published series")
 
     # Coverage guard: never let one degraded run shrink the published panel.
     # The daily Actions job (no cache refresh) used to export 23 tickers and
@@ -415,20 +517,14 @@ def main() -> int:
     wanted = collect_all_tickers() | set(critical)
     carried: list[str] = []
     retired: list[str] = []
-    if OUT_PATH.exists():
-        try:
-            prev = json.loads(OUT_PATH.read_text(encoding="utf-8"))
-            for tk, entry in (prev.get("prices") or {}).items():
-                if tk in out or not entry or not entry.get("dates"):
-                    continue
-                if tk in wanted:
-                    out[tk] = entry
-                    carried.append(tk)
-                else:
-                    retired.append(tk)
-        except Exception as exc:
-            print(f"  WARN: could not read previous panel for the "
-                  f"carry-forward guard: {exc}")
+    for tk, entry in prev_prices.items():
+        if tk in out or not entry or not entry.get("dates"):
+            continue
+        if tk in wanted:
+            out[tk] = entry
+            carried.append(tk)
+        else:
+            retired.append(tk)
 
     payload = {
         "computed_at_utc": now_utc.isoformat(timespec="seconds"),
@@ -438,8 +534,11 @@ def main() -> int:
     OUT_PATH.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
 
     size_kb = OUT_PATH.stat().st_size / 1024
-    print(f"  Wrote {OUT_PATH.relative_to(ROOT)}  "
-          f"({len(out)} tickers, {size_kb:.1f} KB)")
+    try:
+        shown = OUT_PATH.relative_to(ROOT)
+    except ValueError:  # OUT_PATH redirected outside the repo (tests)
+        shown = OUT_PATH
+    print(f"  Wrote {shown}  ({len(out)} tickers, {size_kb:.1f} KB)")
     if carried:
         print(f"  WARN: carried {len(carried)} ticker(s) forward from the "
               f"previous panel (this run could not source them): "
@@ -454,6 +553,21 @@ def main() -> int:
     if n_skipped:
         print(f"  Skipped (no cache / insufficient data): "
               f"{', '.join(n_skipped)}")
+
+    # Panel currency, reported per ticker rather than as one headline date.
+    # Consumers stamp the panel with max() across series, so a single lagging
+    # line is invisible in the header — say it here instead.
+    newest = max((last_date(e) for e in out.values() if last_date(e)),
+                 default=None)
+    behind = sorted((tk, last_date(e)) for tk, e in out.items()
+                    if last_date(e) and newest and last_date(e) < newest)
+    if behind:
+        print(f"  Panel newest bar {newest}; {len(behind)} ticker(s) behind it: "
+              + ", ".join(f"{t} ({d})" for t, d in behind))
+    if unrepaired and args.strict:
+        print(f"  FAIL (--strict): {len(unrepaired)} ticker(s) regressed and "
+              f"could not be re-sourced: {', '.join(sorted(unrepaired))}")
+        return 1
     return 0
 
 

@@ -146,6 +146,103 @@ def test_retired_tickers_are_not_carried_forward(tmp_path, monkeypatch):
     assert carried == ["SPY"]
 
 
+# ---------------------------------------------------------------------------
+# Never-go-backwards
+#
+# 2026-08-10: the published panel moved BACKWARDS four sessions for EEM — the
+# largest holding in the book at 10.0% of NAV — from a 2026-08-07 last bar to
+# 2026-08-03, inside a refresh whose commit message read "all 38 panels
+# current". Two independent faults had to line up:
+#
+#   1. load_close_series returned the FIRST cache carrying the ticker, in a
+#      fixed source order. fetch_missing_from_yfinance WRITES
+#      {ticker}_ohlc_cache.parquet, which sits at position 3 — ahead of the
+#      committed em_regime_context.parquet at position 4. A backfill on
+#      2026-08-04 therefore left a short eem_ohlc_cache.parquet permanently
+#      shadowing a fresher source.
+#   2. Nothing compared the new last bar against the published one. The
+#      coverage guard only fires when a ticker vanishes ENTIRELY, and
+#      entry_is_stale tolerates 7 CALENDAR days so a four-session loss passed.
+#
+# Markets do not un-print closes, so a backwards move is always a sourcing
+# fault. Both halves are pinned below.
+# ---------------------------------------------------------------------------
+def test_load_close_series_prefers_the_freshest_source(tmp_path, monkeypatch):
+    """The exact EEM shape: a stale individual OHLC cache must NOT shadow a
+    fresher multi-ticker source that sits later in the search order."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    stale_idx = pd.bdate_range("2026-01-01", "2026-08-03")
+    fresh_idx = pd.bdate_range("2026-01-01", "2026-08-07")
+    # Source 3 — written by the yfinance backfill, ends four sessions early.
+    pd.DataFrame({"Close": np.arange(len(stale_idx), dtype=float)},
+                 index=stale_idx).to_parquet(tmp_path / "eem_ohlc_cache.parquet")
+    # Source 4 — the committed regime-context panel, current.
+    pd.DataFrame({"EEM": np.arange(len(fresh_idx), dtype=float)},
+                 index=fresh_idx).to_parquet(tmp_path / "em_regime_context.parquet")
+
+    ser = ehp.load_close_series("EEM")
+    assert ser is not None
+    assert ser.index[-1].strftime("%Y-%m-%d") == "2026-08-07", (
+        "load_close_series took the stale cache over the fresher source")
+
+
+def test_find_regressions_flags_a_backwards_last_bar():
+    prev = {
+        "EEM": {"dates": ["2026-08-06", "2026-08-07"], "prices": [1.0, 1.0]},
+        "SPY": {"dates": ["2026-08-06", "2026-08-07"], "prices": [1.0, 1.0]},
+    }
+    new = {
+        "EEM": {"dates": ["2026-08-02", "2026-08-03"], "prices": [1.0, 1.0]},
+        "SPY": {"dates": ["2026-08-06", "2026-08-07"], "prices": [1.0, 1.0]},
+    }
+    regressed = ehp.find_regressions(new, prev)
+    assert regressed == {"EEM": ("2026-08-07", "2026-08-03")}, regressed
+
+
+def test_find_regressions_allows_advancing_and_unchanged():
+    prev = {"SPY": {"dates": ["2026-08-07"], "prices": [1.0]}}
+    assert ehp.find_regressions(
+        {"SPY": {"dates": ["2026-08-10"], "prices": [1.0]}}, prev) == {}
+    assert ehp.find_regressions(
+        {"SPY": {"dates": ["2026-08-07"], "prices": [1.0]}}, prev) == {}
+    # A ticker absent from the new run is the CARRY-FORWARD guard's job, not
+    # this one — it must not be reported as a regression.
+    assert ehp.find_regressions({}, prev) == {}
+
+
+def test_regressed_ticker_is_held_back_to_the_published_series(tmp_path, monkeypatch):
+    """End-to-end: with the network stubbed out (the re-fetch cannot repair
+    it), main() must publish the PREVIOUS EEM series rather than the shorter
+    one, and --strict must exit non-zero."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    out_path = tmp_path / "holdings_prices_1y.json"
+    monkeypatch.setattr(ehp, "OUT_PATH", out_path)
+    monkeypatch.setattr(ehp, "collect_all_tickers", lambda: {"EEM"})
+    monkeypatch.setattr(ehp, "collect_book_symbols", lambda: {"EEM"})
+    monkeypatch.setattr(ehp, "NETWORK_FALLBACK_TICKERS", ["EEM"])
+    monkeypatch.setattr(ehp, "fetch_missing_from_yfinance", lambda tks: {})
+
+    good = ["2026-08-06", "2026-08-07"]
+    out_path.write_text(json.dumps({
+        "computed_at_utc": "2026-08-08T12:27:00+00:00", "lookback_days": 252,
+        "prices": {"EEM": {"dates": good, "prices": [1.0, 2.0]}},
+    }), encoding="utf-8")
+
+    # The only on-disk source now ends four sessions early.
+    stale_idx = pd.bdate_range("2026-01-01", "2026-08-03")
+    pd.DataFrame({"Close": np.arange(len(stale_idx), dtype=float)},
+                 index=stale_idx).to_parquet(tmp_path / "eem_ohlc_cache.parquet")
+
+    assert ehp.main(["--strict"]) == 1, "--strict must fail on an unrepaired regression"
+    published = json.loads(out_path.read_text(encoding="utf-8"))["prices"]["EEM"]
+    assert published["dates"][-1] == "2026-08-07", (
+        "the panel went backwards: published last bar is "
+        f"{published['dates'][-1]}")
+    # Default (non-strict) still publishes the held-back series and exits 0,
+    # so a degraded daily run reports loudly without breaking the pipeline.
+    assert ehp.main([]) == 0
+
+
 def test_the_live_panel_has_no_exh3_ghost():
     """Regression pin on the committed artefact: the industrials line is
     published as EXH4.DE and the food-and-beverage ticker is absent."""
