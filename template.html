@@ -3448,6 +3448,45 @@ function hydrateFigures(root) {
   });
 }
 
+// ----------- Plotly reflow --------------------------------------------
+// Every plot is created with `responsive: true`, which is SUPPOSED to make
+// Plotly track its container. On this page it does not: load at desktop
+// width, narrow the viewport, and #perf-chart keeps a 1152px SVG inside a
+// 781px container — 41 elements wider than the viewport and a horizontally
+// scrolling page. A phone rotated portrait-to-landscape takes exactly that
+// path. So the reflow is driven explicitly rather than trusted to the
+// config flag.
+//
+// Only VISIBLE plots are resized. Plotly measures the container, and a
+// container inside a hidden tab measures zero, which would bake a zero
+// width into the layout and produce a blank card on the next activation.
+// Hidden tabs are re-measured by activateTab when they become visible.
+function resizeVisiblePlots(root) {
+  const scope = root || document;
+  scope.querySelectorAll('.js-plotly-plot').forEach((gd) => {
+    if (!gd.offsetParent) return;              // hidden -> measures 0, skip
+    try { Plotly.Plots.resize(gd); } catch (e) { /* chart not ready yet */ }
+  });
+}
+
+// Debounced: a drag-resize on desktop fires continuously, and Plotly.resize
+// is a full relayout. rAF alone is not enough — the trailing call has to
+// land after the viewport settles, or the charts reflow to an intermediate
+// width and stay there.
+let _reflowTimer = null;
+function _scheduleReflow() {
+  if (_reflowTimer) clearTimeout(_reflowTimer);
+  _reflowTimer = setTimeout(() => {
+    _reflowTimer = null;
+    requestAnimationFrame(() => resizeVisiblePlots());
+  }, 150);
+}
+window.addEventListener('resize', _scheduleReflow);
+// iOS Safari fires orientationchange before the new viewport is readable,
+// and historically not resize at all, so both are bound and the debounce
+// collapses the duplicate.
+window.addEventListener('orientationchange', _scheduleReflow);
+
 // ----------- Deployed blend selector ----------------------------------
 // Single source of truth for "which blend key is the deployed default".
 // Phase 19 introduced the breadth-gated variant as the new default; this
@@ -11332,45 +11371,13 @@ function activateTab(name) {
       renderDataHealth();
     }
     TAB_RENDERED.add(name);
-  } else {
-    // Phase 26.5+ — per-strategy signal charts moved out of the
-    // ETF Detail tab and INTO each strategy tab; resize hooks need
-    // to fire on the NEW host tab so Plotly recomputes its width.
-    if (name === 'portfolio') {
-      try { Plotly.Plots.resize('portfolio-chart'); } catch(e){}
-      try { Plotly.Plots.resize('trade-equity-chart'); Plotly.Plots.resize('trade-allocation-chart'); } catch(e){}
-      try { Plotly.Plots.resize('detail-breadth-chart'); } catch(e){}
-    }
-    if (name === 'asset') {
-      try { Plotly.Plots.resize('asset-equity-chart'); Plotly.Plots.resize('asset-allocation-chart'); } catch(e){}
-      try { Plotly.Plots.resize('detail-b-momentum-chart'); } catch(e){}
-    }
-    if (name === 'thematic') {
-      try { Plotly.Plots.resize('thematic-equity-chart'); Plotly.Plots.resize('thematic-allocation-chart'); } catch(e){}
-      try { Plotly.Plots.resize('detail-c-momentum-chart'); } catch(e){}
-    }
-    if (name === 'europe') {
-      try { Plotly.Plots.resize('europe-equity-chart'); Plotly.Plots.resize('europe-allocation-chart'); } catch(e){}
-      try { Plotly.Plots.resize('detail-d-breadth-chart'); } catch(e){}
-    }
-    if (name === 'multi') {
-      try { Plotly.Plots.resize('multi-equity-chart'); } catch(e){}
-      try { Plotly.Plots.resize('multi-contribution-stack-chart'); } catch(e){}
-    }
-    if (name === 'history') {
-      try { Plotly.Plots.resize('blend-allocation-chart'); } catch(e){}
-    }
-    // Phase 26.7 — new overlay tabs. Charts rendered during initial
-    // page-load with the tab hidden; without an explicit resize call
-    // they stay at the small initial width and leave a wide blank
-    // band on the right side of the card. The resize fixes that.
-    if (name === 'regime') {
-      try { Plotly.Plots.resize('overlay-dd-chart'); } catch(e){}
-    }
-    if (name === 'eemtilt') {
-      try { Plotly.Plots.resize('phase22-ratio-chart'); } catch(e){}
-    }
   }
+  // A chart drawn while its tab was hidden has no width to measure, and one
+  // drawn before a viewport change keeps the old one, so every activation
+  // re-measures whatever just became visible. This replaced a hand-listed
+  // set of chart IDs per tab: the list could only cover charts someone
+  // remembered to add to it, and silently missed the rest.
+  resizeVisiblePlots(document.getElementById('tab-' + name));
 }
 
 // ====================================================================
