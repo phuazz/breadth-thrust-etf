@@ -20,11 +20,13 @@ IJPN, ITWN, NDIA, IDP6, and the XETR-listed Europe sector panels — are out of
 reach regardless of the ETF's own trading calendar, and are skipped explicitly
 rather than half-filled.
 
-PRICE BASIS. Norgate's default is total-return adjusted; this uses
-capital+special adjustment instead, which matches the split-adjusted,
-dividend-unadjusted basis of the yfinance closes already in the cache. Mixing
-the two would put a dividend-reinvested series next to a price series in the
-same panel and quietly shift every moving average computed across them.
+PRICE BASIS. compute_breadth downloads with yfinance ``auto_adjust=True``,
+so the closes already in each cache are adjusted for splits AND dividends —
+a total-return series. Norgate is therefore asked for TOTALRETURN too. Do not
+"fix" this to a capital-only adjustment: it looks more like a price series,
+but it would put a price series beside dividend-reinvested ones in the same
+panel and shift every moving average computed across them. This was written
+the wrong way round first time and caught only by reading auto_adjust.
 
 LOCAL ONLY. Norgate is a local Windows service; CI has neither it nor the
 gitignored parquet caches, which is already true of the whole constituent
@@ -109,7 +111,7 @@ def _norgate_close(symbol: str, start: str) -> pd.Series | None:
     try:
         df = nd.price_timeseries(
             symbol,
-            stock_price_adjustment_setting=nd.StockPriceAdjustmentType.CAPITALSPECIAL,
+            stock_price_adjustment_setting=nd.StockPriceAdjustmentType.TOTALRETURN,
             padding_setting=nd.PaddingType.NONE,
             start_date=start,
             format="pandas-dataframe",

@@ -434,6 +434,36 @@ def download_prices(
     close = close[list(tickers)]
     close.index = pd.to_datetime(close.index).tz_localize(None)
 
+    # PRESERVE COLUMNS YFINANCE CANNOT SERVE. The frame above is built purely
+    # from the download, so a delisted name — which yfinance has no history
+    # for under its old symbol — comes back all-NaN and would overwrite a
+    # populated column. That is how the first Norgate backfill was silently
+    # undone: scripts/backfill_delisted_prices.py filled 25 of CNDX's 27
+    # empty columns, and the next compute_breadth run wiped every one.
+    #
+    # Only ever fills where the fresh download has NOTHING. A live ticker's
+    # cached values are never preferred over a fresh close, so this cannot
+    # freeze stale prices — the failure the staleness guards exist to catch.
+    if not force and cache_path.exists():
+        try:
+            prior = pd.read_parquet(cache_path)
+        except Exception:
+            prior = None
+        if prior is not None:
+            kept = []
+            for t in tickers:
+                if t not in prior.columns:
+                    continue
+                if close[t].dropna().empty and not prior[t].dropna().empty:
+                    close = close.reindex(close.index.union(prior.index))
+                    close[t] = prior[t].reindex(close.index)
+                    kept.append(t)
+            if kept:
+                print(f"  Kept {len(kept)} externally-sourced column(s) "
+                      f"yfinance could not serve: {kept[:8]}"
+                      f"{' ...' if len(kept) > 8 else ''}", flush=True)
+            close = close.sort_index()
+
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     close.to_parquet(cache_path)
     return close
