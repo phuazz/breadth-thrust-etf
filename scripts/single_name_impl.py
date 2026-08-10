@@ -1062,7 +1062,13 @@ def deployed_sector_layer(window_end: pd.Timestamp = WINDOW_END,
     signal = demean(breadths)
     res = run_portfolio(closes, signal, top_k_breadth_weight(k), eligible,
                         cost=cost_bps / 10_000, rebalance_freq=REBAL_FREQ)
-    rebal_dates = weekly_rebalance_dates(closes.index, eligible, REBAL_FREQ)
+    # Take the grid from the run that produced these weights. Deriving it
+    # independently let the two drift apart the moment the cadence rule
+    # changed (the holiday-aware adoption, 2026-08-10): run_portfolio moved to
+    # the new rule while a separate weekly_rebalance_dates call kept the old
+    # default, and the arm builder then rebuilt weights on a grid the sector
+    # book had never used.
+    rebal_dates = res["rebalance_dates"]
     return {"closes": closes, "breadths": breadths, "used": used,
             "eligible": eligible, "signal": signal,
             "rebal_dates": rebal_dates,

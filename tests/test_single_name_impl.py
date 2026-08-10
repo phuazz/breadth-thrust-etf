@@ -205,7 +205,8 @@ def _sector_fixture():
     signal = demean(breadths)
     res = run_portfolio(closes, signal, top_k_breadth_weight(7), eligible,
                         cost=2 / 10_000, rebalance_freq="W-FRI")
-    rebal_dates = weekly_rebalance_dates(closes.index, eligible, "W-FRI")
+    # Same grid the weights were built on -- see deployed_sector_layer.
+    rebal_dates = res["rebalance_dates"]
     sector = {"closes": closes, "breadths": breadths, "used": UNIVERSE,
               "eligible": eligible, "signal": signal, "rebal_dates": rebal_dates,
               "weights": res["weights"], "equity": res["equity"]}
