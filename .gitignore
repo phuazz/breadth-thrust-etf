@@ -44,3 +44,6 @@ Thumbs.db
 data_local/
 # Scheduled-refresh run logs (scripts/scheduled_refresh.py)
 logs/
+# Test-suite capture written by the Tests workflow (and by anyone running the
+# same `pytest | tee` line locally); never an input to anything.
+pytest-output.txt

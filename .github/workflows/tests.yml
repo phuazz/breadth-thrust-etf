@@ -19,10 +19,30 @@ name: Tests
 # hitting iShares from CI would make the gate flaky and add load to an
 # upstream we do not control.
 
+# Red on main is now emailed, and main is tested daily even when nobody
+# pushes (2026-08-11). Both halves close one incident: the suite went red at
+# 02:27 UTC on 2026-08-11 and stayed red through four commits because the
+# only report was a cross in the Actions tab that nobody was watching. The
+# artefact it was failing on, build/portfolio.html, is pulled by
+# phuazz/portfolio, so a second published surface was sitting stale behind it.
+#
+# The daily run is not redundant with the push trigger. A push made with
+# GITHUB_TOKEN cannot start another workflow, so every commit the automation
+# writes — the daily live track, the scanner, the gate-state publishes — lands
+# on main without the suite ever running against it (verified: commit 0fc862d
+# has no Tests run). The push gate covers human commits; the cron covers the
+# rest of them, which is most of them.
+#
+# 04:05 UTC sits after the 21:30/22:00 UTC publishes and their delay tail, and
+# after the 03:35 UTC sentinel, so a failing night reports in one order:
+# pipeline alert, then sentinel, then this.
+
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: '5 4 * * *'
   workflow_dispatch:
 
 # A new push to a PR supersedes the previous run.
@@ -54,4 +74,68 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run test suite
-        run: python -m pytest tests/ -q
+        # `shell: bash` is load-bearing, not decoration: it runs the block
+        # under -eo pipefail, so the pipe into tee reports pytest's status
+        # rather than tee's. A piped pytest without pipefail exits 0 over a
+        # red suite, which is how a false "tests passed" gets recorded.
+        shell: bash
+        run: python -m pytest tests/ -q | tee pytest-output.txt
+
+      - name: Collect the failure summary
+        # Named tests in the email, not just a link. An alert that requires
+        # opening a browser to learn anything at all gets triaged later, and
+        # later is how the last one lasted four commits.
+        if: failure() && github.event_name != 'pull_request'
+        id: failure_summary
+        shell: bash
+        run: |
+          {
+            echo 'text<<PYTEST_SUMMARY_EOF'
+            if [ -f pytest-output.txt ]; then
+              # No match is the normal case for a collection error, and
+              # under pipefail an unmatched grep would fail the step.
+              grep -E '^(FAILED|ERROR) ' pytest-output.txt | head -20 || true
+              tail -3 pytest-output.txt
+            else
+              echo '(failed before pytest wrote any output - read the log)'
+            fi
+            echo PYTEST_SUMMARY_EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Email failure alert
+        # Not on pull requests. A red PR is already loud where the work is
+        # happening, and mailing those too is how an operator learns to skim
+        # past the subject line — which would cost exactly the alert this
+        # step exists to deliver.
+        if: failure() && github.event_name != 'pull_request'
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[FAIL] Test suite is red on main'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            The test suite failed on main. Until it is green, nothing
+            landing in this repo is verified - this suite is the only
+            gate over the engines, the reporting contracts and the
+            page-parity invariants.
+
+            Commit:  ${{ github.sha }}
+            Trigger: ${{ github.event_name }}
+
+            ${{ steps.failure_summary.outputs.text }}
+
+            A scheduled run failing on an unchanged main usually means a
+            source moved under a built artefact rather than a code fault:
+            the parity tests compare build/portfolio.html and the
+            dashboard against the current JSONs, and the daily live track
+            refreshes those JSONs without rebuilding either page.
+            build/portfolio.html is pulled by phuazz/portfolio, so it can
+            carry a stale surface onward.
+
+            Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
