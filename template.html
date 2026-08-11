@@ -1887,10 +1887,15 @@
     <span class="tab-sep" aria-hidden="true"></span>
     <!-- Cross-page link, not a tab: the scanner is a separate daily-built page
          (docs/scanner.html from scanner_template.html), deliberately decoupled
-         from this weekly dashboard build. Shares .tab styling; never .active. -->
-    <a class="tab" href="scanner.html"
-       title="Daily cross-sectional technical scanner — 54 instruments across all four sleeves">
-      Scanner <span class="ext">&#x2197;</span>
+         from this weekly dashboard build. Shares .tab styling; never .active.
+         Opens in a new tab (2026-08-11) — it cannot render as an in-page panel
+         (daily vs weekly build cadence, and its 16-column scroller would nest
+         inside this page's scroll), and same-tab navigation discarded the whole
+         dashboard: every Plotly chart re-renders and the ~7 MB document reloads
+         on the way back. The other cross-page links here already do this. -->
+    <a class="tab" href="scanner.html" target="_blank" rel="noopener"
+       title="Daily cross-sectional technical scanner — 54 instruments across all four sleeves (opens in a new tab)">
+      Scanner <span class="ext" aria-hidden="true">&#x2197;</span>
     </a>
     <button class="tab" data-tab="data" title="The raw breadth and constituent panels behind every signal">Data</button>
     <button class="tab tab-health" data-tab="health" id="health-tab-btn">
