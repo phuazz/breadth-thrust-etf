@@ -137,6 +137,10 @@ def chart_meta(panel_key: str, shown_ticker: str) -> tuple[str, str | None]:
 def build_charts(holdings: list[dict], as_of: str) -> tuple[dict, dict, list[str]]:
     """Per-holding 1Y price lines, sharing calendars to keep the page small.
 
+    Every series is cut at `as_of` first, so no chart can show price action
+    the holdings table beside it has not seen; a holding keeps its chart
+    unless the cut leaves nothing or leaves it stale beyond the lag ceiling.
+
     Returns (calendars, charts_by_display_ticker, skipped). Mirrors the
     scanner's series/calendars split: 23 holdings resolve to a handful of
     distinct trading calendars, so storing dates once per calendar rather than
@@ -161,9 +165,24 @@ def build_charts(holdings: list[dict], as_of: str) -> tuple[dict, dict, list[str
             skipped.append(h["ticker"])
             continue
 
+        # Cut the series at the book's as-of rather than dropping the whole
+        # chart for running past it. The feed is refreshed daily by the live
+        # track while the book is struck weekly, so on any day but rebalance
+        # day nearly every series is ahead of as_of — the old test dropped
+        # 21 of 23 charts on 2026-08-11 for that reason alone. Truncating
+        # keeps the honesty the drop was there for (no chart shows price
+        # action the holdings table has not seen) without emptying the page.
+        kept = [(d, p) for d, p in zip(dates, prices) if d <= as_of]
+        if not kept:
+            # The whole series postdates the book: not a lag, a wrong feed.
+            skipped.append(h["ticker"])
+            continue
+        dates = [d for d, _ in kept]
+        prices = [p for _, p in kept]
+
         last = date.fromisoformat(dates[-1])
-        if last > as_of_date or (as_of_date - last).days > MAX_CHART_LAG_DAYS:
-            # Ahead of the book, or so far behind it is a fault not a lag.
+        if (as_of_date - last).days > MAX_CHART_LAG_DAYS:
+            # So far behind it is a fault, not a lag.
             skipped.append(h["ticker"])
             continue
 

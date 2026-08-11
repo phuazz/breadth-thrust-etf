@@ -261,6 +261,75 @@ def test_proxy_pricing_is_disclosed_exactly_when_it_applies(payload):
         assert via is None or via != ticker
 
 
+def _one_holding_feed(tmp_path, monkeypatch, dates, prices):
+    """Point build_charts at a one-line synthetic feed and return the holdings.
+
+    EEM is used because it is priced under its own symbol, so the feed key is
+    the ticker and the fixture does not encode a proxy mapping that could go
+    stale beside the registry.
+    """
+    path = tmp_path / "holdings_prices_1y.json"
+    path.write_text(
+        json.dumps({"prices": {bsp.price_series_key("EEM"): {
+            "dates": dates, "prices": prices}}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(bsp, "HOLDINGS_PRICES", path)
+    return [{"ticker": "EEM", "panel_key": "EEM", "weight": 1.0}]
+
+
+# Python's datetime is 1-indexed on months; both cases below straddle a
+# boundary deliberately — 06-30/07-01 and 12-31/01-02.
+@pytest.mark.parametrize("as_of,dates,kept_last,kept_n", [
+    ("2026-06-30",
+     ["2026-06-26", "2026-06-29", "2026-06-30", "2026-07-01", "2026-07-02"],
+     "2026-06-30", 3),
+    ("2025-12-31",
+     ["2025-12-30", "2025-12-31", "2026-01-02"],
+     "2025-12-31", 2),
+])
+def test_a_series_running_past_the_book_is_cut_not_dropped(
+        tmp_path, monkeypatch, as_of, dates, kept_last, kept_n):
+    """The feed is refreshed daily, the book struck weekly, so on most days
+    every series runs past as_of. Dropping those charts emptied the page
+    (21 of 23 gone on 2026-08-11); the chart is truncated instead."""
+    holdings = _one_holding_feed(
+        tmp_path, monkeypatch, dates, [10.0 + i for i in range(len(dates))])
+    calendars, charts, skipped = bsp.build_charts(holdings, as_of)
+
+    assert skipped == []
+    chart = charts["EEM"]
+    assert chart["last"] == kept_last
+    assert len(chart["px"]) == kept_n
+    assert calendars[chart["cal"]] == dates[:kept_n]
+    assert chart["lag_days"] == 0
+
+
+def test_a_series_entirely_after_the_book_still_loses_its_chart(
+        tmp_path, monkeypatch):
+    """Nothing left after the cut is not a lag, it is the wrong feed."""
+    holdings = _one_holding_feed(
+        tmp_path, monkeypatch, ["2026-07-01", "2026-07-02"], [10.0, 11.0])
+    _, charts, skipped = bsp.build_charts(holdings, "2026-06-30")
+    assert charts == {} and skipped == ["EEM"]
+
+
+def test_the_lag_ceiling_is_applied_after_the_cut(tmp_path, monkeypatch):
+    """A stale series that only looked fresh because of post-as_of bars must
+    still be dropped — otherwise truncation smuggles a broken feed back in."""
+    holdings = _one_holding_feed(
+        tmp_path, monkeypatch,
+        ["2026-06-01", "2026-06-29", "2026-07-01"], [10.0, 11.0, 12.0])
+    _, charts, skipped = bsp.build_charts(holdings, "2026-06-30")
+    assert skipped == [] and charts["EEM"]["lag_days"] == 1
+
+    holdings = _one_holding_feed(
+        tmp_path, monkeypatch, ["2026-06-01", "2026-07-01"], [10.0, 12.0])
+    _, charts, skipped = bsp.build_charts(holdings, "2026-06-30")
+    assert charts == {} and skipped == ["EEM"], (
+        "29d behind after the cut, past the 14d ceiling")
+
+
 def test_unavailable_charts_are_named_not_silent(payload):
     """A row that lost its chart must be distinguishable from one that never
     had one — otherwise a feed outage looks like a design decision."""
