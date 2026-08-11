@@ -6,6 +6,16 @@
 ``risk_overlay.json -> gated_variants[<deployed_key>]``. The two run on
 separate schedules, and nothing asserted they agreed.
 
+This check does not invent that rule. ``mark_to_market_live`` already states
+it -- "equity in risk_overlay.json is the source of truth; ... if they
+disagree, risk_overlay.json wins" -- and reads the anchor straight off
+``overlay["gated_variants"][DEPLOYED_KEY]["equity"][-1]``. The contract was
+documented and honoured at write time; what was missing was anything that
+noticed when the curve moved afterwards. That also bounds the false-positive
+risk: the two can only diverge if the overlay is recomputed after the track,
+which is precisely the condition worth failing on. A curve merely EXTENDED
+with a new session still matches at the older anchor date and passes.
+
 That gap published a page carrying two vintages of the same number. The
 2026-08-10 survivorship restatement (``b841f77``) walked the deployed curve
 down at the 2026-08-07 anchor in three steps:
