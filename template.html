@@ -1842,7 +1842,7 @@
     <div class="hero-strip">
       <div class="item">
         <div class="number good" id="hero-sharpe">—</div>
-        <div class="label">Backtest Sharpe</div>
+        <div class="label">Backtest Sharpe (rf = 0)</div>
         <div class="desc">Point estimate has ~&plusmn;0.4 noise on 7.5y of weekly data &mdash; treat as a range</div>
       </div>
       <div class="item">
@@ -2000,7 +2000,7 @@
       <span class="rib-sep">&middot;</span>
       <span>Weights <strong>35 / 25 / 10 / 20</strong> + EEM tilt 10%</span>
       <span class="rib-sep">&middot;</span>
-      <span>Sharpe <strong id="ribbon-sharpe">+1.22</strong></span>
+      <span>Sharpe (rf&nbsp;=&nbsp;0) <strong id="ribbon-sharpe">+1.22</strong></span>
       <span class="rib-sep">&middot;</span>
       <span>CAGR <strong id="ribbon-cagr">+15.1%</strong></span>
       <span class="rib-sep">&middot;</span>
@@ -4443,10 +4443,10 @@ function renderMonitor() {
   // mark-to-market overlay that extends the backtest through the current
   // week (live_dates is empty between the Friday anchor and the next
   // session), not an independent record of realised returns. The page
-  // header strip already labels its equivalents "Backtest Sharpe" /
+  // header strip already labels its equivalents "Backtest Sharpe (rf = 0)" /
   // "Backtest CAGR"; this strip now matches it.
   const heroHtml = `
-    <div class="hero-stat"><div class="v good">${fmtNum(blendStats?.sharpe, 2, true)}</div><div class="l">Backtest Sharpe</div></div>
+    <div class="hero-stat"><div class="v good">${fmtNum(blendStats?.sharpe, 2, true)}</div><div class="l">Backtest Sharpe (rf = 0)</div></div>
     <div class="hero-stat"><div class="v good">${fmtPct(blendStats?.max_dd)}</div><div class="l">Backtest max drawdown</div></div>
     <div class="hero-stat"><div class="v">${fmtPct(blendStats?.cagr, true)}</div><div class="l">Backtest CAGR</div></div>
     <div class="hero-stat"><div class="v">${totalPos}</div><div class="l">Total positions today</div></div>`;
@@ -5367,7 +5367,7 @@ function _perfRender(period) {
       </div>
       <div class="perf-stat">
         <div class="v">${(blend.sharpe || 0).toFixed(2)}</div>
-        <div class="l">Sharpe (in window)</div>
+        <div class="l">Sharpe (in window, rf = 0)</div>
       </div>
       <div class="perf-stat">
         <div class="v ${cls(blend.maxDd || 0)}">${fmtRet(blend.maxDd)}</div>
