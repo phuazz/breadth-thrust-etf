@@ -148,6 +148,20 @@ jobs:
       # message asserting every panel was current. A bare `|| true` here would
       # swallow that exit code, which is why the guard is not simply trusted
       # to fail on its own.
+      # ----- Cross-feed anchor consistency (2026-08-10) -----
+      # Capture integrity anchors series to the calendar, so it is satisfied
+      # whenever the DATES are right. It cannot see a restatement, where the
+      # dates hold still and the VALUES move. The 2026-08-10 survivorship
+      # restatement moved the deployed curve while live_track.json kept the
+      # pre-restatement anchor for ~36h, and the page published both: 2.9177 in
+      # the strategy block against 3.0517 in the live track, the same curve on
+      # the same date, 4.6% apart. This compares the two feeds directly and
+      # fails BEFORE the dashboard rebuild below, so a split vintage is never
+      # baked into a published artefact. Placed after the capture-warning email
+      # so that alert still fires when both conditions land in one run.
+      - name: Check anchor consistency (live track vs deployed curve)
+        run: python scripts/check_anchor_consistency.py
+
       - name: Run holdings price export (soft-fail, except a backwards panel)
         run: |
           set +e
