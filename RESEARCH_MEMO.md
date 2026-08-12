@@ -1650,3 +1650,55 @@ priced on the LSE-listed UCITS actually held rather than its US proxies.
 
 **Open.** Owner decision on the Friday-open fill and the implied Friday-morning
 refresh. Nothing in the deployed automation has been changed.
+
+## WS14 — sleeve A priced on the London UCITS lines (2026-08-12)
+
+Filed record: [`reviews/2026-08-12_ws14_sleeve-a-lse-pricing.docx`](reviews/2026-08-12_ws14_sleeve-a-lse-pricing.docx).
+Engine `scripts/run_ws14_sleeve_a_lse.py`; chart `scripts/plot_ws14_summary.py`;
+record spec `scripts/build_ws14_record.js`. Commit 8766cd6. Closes the open
+item WS13 left behind.
+
+**Question.** Sleeve A signals on UCITS constituent breadth but PRICES through
+US trading proxies (CSP1→SPY, CNDX→QQQ, IUES→XLE). Does its result survive on
+the instruments actually held?
+
+**Answer: yes.** Like-for-like on 13 names from 2018-10-12:
+
+| Pricing basis | Sharpe | CAGR | Max DD |
+|---|---|---|---|
+| US proxies (deployed method) | +0.8139 | +13.55% | −29.68% |
+| London UCITS lines | +0.8107 | +12.82% | −30.19% |
+| Difference | −0.0032 | −0.72pp | −0.50pp |
+
+The venue substitution is not what drives sleeve A. The CAGR gap is the more
+real of the two and is consistent with UCITS fee and tracking drag. London-leg
+cost stress: 0.8107 / 0.7900 / 0.7693 at 1× / 2× / 3×.
+
+**Three things assumption would have got wrong.**
+
+- **CSP1.L and IUSP.L quote in GBp (pence)**; the other eleven in USD. CSP1.L
+  prints ~61,798 — as pence USD 834, as USD absurd. Currency is read per
+  ticker and an unknown one is fatal, so a mixed-currency sleeve cannot be
+  built by accident.
+- **SOXX has no London line** (`SOXX.L` 404s). Both legs therefore run the
+  same 13 so the comparison isolates venue, not universe. Dropping SOXX costs
+  ~0.10 Sharpe against the deployed 14-name sleeve — a separate, universe
+  effect.
+- **The proxies track related but different indices** — capped Select Sector
+  against plain GICS. Weekly correlations 0.883 (XLRE/IUSP) to 0.954
+  (XLE/IUES). The deployed price series differs from the held instrument by
+  index construction as well as venue.
+
+**Two guard corrections, both mine.** The pair check first ran on DAILY returns
+with a 0.55 floor and rejected the two pence lines; the LSE closes at 11:30 New
+York, so daily returns cover different windows and every pair scores 0.46–0.75
+regardless of correctness — the test belongs on weekly returns. A 0.90 weekly
+floor then rejected XLP/IUCS and XLRE/IUSP, asserting a precision the proxy
+substitution never had; the floor is 0.70, which still catches a wrong fund
+near zero.
+
+**Not addressed.** The tax dimension (Irish-domiciled UCITS at 15% treaty
+withholding against 30% on US-domiciled for a Singapore holder, and US estate
+tax on US-situs assets) is a question for a tax adviser, not a backtest. What
+would replace SOXX in a London-listed implementation is open, as is the
+realised spread on the thinner lines.

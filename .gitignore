@@ -47,3 +47,6 @@ logs/
 # Test-suite capture written by the Tests workflow (and by anyone running the
 # same `pytest | tee` line locally); never an input to anything.
 pytest-output.txt
+
+# Word lock files, created whenever a reviews/*.docx is opened or rendered
+~$*
