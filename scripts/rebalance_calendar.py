@@ -16,7 +16,13 @@ import pandas as pd
 SCHEDULED = "scheduled"
 LAST_SESSION = "last_session"
 HOLIDAY_AWARE = "holiday_aware"
-MODES = (SCHEDULED, LAST_SESSION, HOLIDAY_AWARE)
+HOLIDAY_AWARE_NEXT = "holiday_aware_next"
+MODES = (SCHEDULED, LAST_SESSION, HOLIDAY_AWARE, HOLIDAY_AWARE_NEXT)
+
+# Modes that consume `calendar=`. Passing one to a mode that ignores it is a
+# caller error rather than a silent no-op: the call would READ as holiday-aware
+# while behaving otherwise.
+CALENDAR_MODES = (HOLIDAY_AWARE, HOLIDAY_AWARE_NEXT)
 
 
 @lru_cache(maxsize=32)
@@ -98,6 +104,23 @@ def weekly_rebalance_dates(
         reported by ``scheduled_data_gaps`` so it can be alarmed rather than
         traded through.
 
+    ``holiday_aware_next`` (requires ``calendar``)
+        The FORWARD twin of ``holiday_aware``: a shut scheduled day rolls to
+        the NEXT session rather than backing up to the previous one. Vendor
+        gaps are skipped identically — the discrimination is the same, only
+        the direction of the roll differs.
+
+        This exists for grids whose scheduled day is chosen to sit one session
+        AFTER the signal bar, where backing up destroys the property the grid
+        was built for. On a ``W-MON`` grid the engines read Friday's close (the
+        session before Monday); backing a shut Monday up to the prior Friday
+        would make them read Thursday instead, silently reverting that week to
+        the ``W-FRI`` convention. Rolling forward to Tuesday keeps Friday as
+        the signal bar in every week.
+
+        A roll never crosses the next scheduled day, so two weeks cannot merge
+        into one decision; a closure that long skips the week instead.
+
     Switching the default is a track-record-affecting change; the mode is
     threaded as a parameter so variants can be measured before that call is
     made. When approved, the default changes HERE, once, and every engine
@@ -105,33 +128,48 @@ def weekly_rebalance_dates(
     """
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}, got {mode!r}")
-    if mode == HOLIDAY_AWARE and not calendar:
-        raise ValueError("mode='holiday_aware' requires calendar=, e.g. 'NYSE'")
-    if mode != HOLIDAY_AWARE and calendar:
-        raise ValueError(f"calendar= is only meaningful for {HOLIDAY_AWARE!r}")
+    if mode in CALENDAR_MODES and not calendar:
+        raise ValueError(f"mode={mode!r} requires calendar=, e.g. 'NYSE'")
+    if mode not in CALENDAR_MODES and calendar:
+        raise ValueError(f"calendar= is only meaningful for {CALENDAR_MODES}")
 
     target = pd.date_range(eligible_start, trading_index[-1], freq=freq)
 
     if mode == SCHEDULED:
         return trading_index[trading_index.isin(target)]
 
-    if mode == HOLIDAY_AWARE:
+    if mode in CALENDAR_MODES:
         if len(target) == 0:
             return trading_index[:0]
         sessions = _exchange_sessions(
             calendar, pd.Timestamp(target[0]).date().isoformat(),
             pd.Timestamp(target[-1]).date().isoformat())
         have = set(trading_index)
+        forward = mode == HOLIDAY_AWARE_NEXT
         picked = []
-        for t in target:
+        for i, t in enumerate(target):
             if t in have:
                 picked.append(t)                      # normal week
-            elif t.date() in sessions:
+                continue
+            if t.date() in sessions:
                 continue                              # data gap -> skip
-            else:                                     # true holiday -> back up
+            if not forward:                           # true holiday -> back up
                 pos = trading_index.searchsorted(t, side="right") - 1
                 if pos >= 0 and trading_index[pos] >= eligible_start:
                     picked.append(trading_index[pos])
+                continue
+            # true holiday -> roll forward to the next session, but never as
+            # far as the next scheduled day: that would merge two weeks into a
+            # single decision and silently halve the cadence.
+            pos = trading_index.searchsorted(t, side="left")
+            if pos >= len(trading_index):
+                continue                              # runs off the tail
+            nxt = trading_index[pos]
+            limit = target[i + 1] if i + 1 < len(target) else None
+            if limit is not None and nxt >= limit:
+                continue
+            if nxt >= eligible_start:
+                picked.append(nxt)
         return pd.DatetimeIndex(picked).drop_duplicates()
 
     # last_session: for each scheduled day, the last session at or before it.
@@ -182,5 +220,5 @@ def engine_rebalance_dates(
     return weekly_rebalance_dates(
         trading_index, eligible_start, freq,
         mode=DEFAULT_MODE,
-        calendar=calendar if DEFAULT_MODE == HOLIDAY_AWARE else None,
+        calendar=calendar if DEFAULT_MODE in CALENDAR_MODES else None,
     )
