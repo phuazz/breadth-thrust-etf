@@ -87,7 +87,7 @@ module.exports = {
     ['Method basis', 'Deployed engines unmodified. One weight panel per configuration produces both fill legs, so the legs cannot differ by anything except the fill moment. Blend is the 35/35/10/20 four-way, before the EEM tilt and the breadth gate.'],
     ['Repository commits', '4083fbd (forward-roll mode + WS12), 28e1a61 (Execution Timing tab + WS13), 69a2c5d (decision path + schedule), 56b8c7c (signal-bar copy corrections)'],
     ['Running memo', 'RESEARCH_MEMO.md'],
-    ['Outcome', 'REVIEWED — no configuration adopted. Deployed convention confirmed free of look-ahead. Friday-open fill recommended on operational grounds, pending sign-off; Monday open flagged against.'],
+    ['Outcome', 'REVIEWED — deployed convention confirmed free of look-ahead. FRIDAY-OPEN FILL ADOPTED 2026-08-12 on operational grounds; Monday open flagged against; weekday grid unchanged. The engines still model a close fill, deliberately — see section 4.'],
   ],
   sections: [
     { type: 'h1', text: '1. Executive summary' },
@@ -165,12 +165,13 @@ module.exports = {
     // stranded alone on an otherwise empty page; the section flows cleanly
     // without it.
     { type: 'h1', text: '4. Decisions' },
+    { type: 'callout', text: 'REVISED 2026-08-12, after the owner adopted the Friday-open fill. The version filed earlier the same day recorded it as recommended and not adopted. Two consequences were decided with it. The engines are NOT being rebuilt to model an open fill: the gap was measured at +0.0299 Sharpe, or -0.0065 at doubled cost, and restating every published number to move one that does not move is not a trade worth making — so the record continues to be computed close-to-close while execution is at the open, and that is disclosed on the dashboard rather than footnoted. The refresh moves off Saturday to a Friday morning so the instruction precedes the fill; it is operator-run, not scheduled, because the per-constituent caches are gitignored and it cannot run in CI.' },
     { type: 'table',
       headers: ['Component', 'Decision', 'Basis'],
       rows: [
         ['Signal-to-fill convention (Thu close → Fri close)', 'KEEP', 'No look-ahead; reconstruction matches engine equity to 0.0; WS10 cross-check agrees to 0.0003'],
         ['Rebalance weekday (W-FRI)', 'KEEP', 'Wednesday tests better but was selected as best of five, is uncorrected for multiplicity, has no mechanism, and the sleeves disagree'],
-        ['Fill at the Friday open', 'RECOMMENDED, not adopted', `${s4(B.FRI.open_minus_close.sharpe)} Sharpe with the interval straddling zero, ${s4(B.FRI.open_2x.sharpe - B.FRI.close.sharpe)} at doubled cost; moves the fill from 04:00 SGT Saturday to 21:30 SGT Friday`],
+        ['Fill at the Friday open', 'ADOPTED 2026-08-12', `${s4(B.FRI.open_minus_close.sharpe)} Sharpe with the interval straddling zero, ${s4(B.FRI.open_2x.sharpe - B.FRI.close.sharpe)} at doubled cost; moves the fill from 04:00 SGT Saturday to 21:30 SGT Friday`],
         ['Fill at the Monday open', 'REJECT', `${s4(T['MON: open minus close'] && T['MON: open minus close'].delta_point)} against its own close with the interval clear of zero; the Monday auction absorbs the weekend gap`],
         ['Delaying the existing decision one session', 'REJECT', 'Discards a session of information and retains the same 04:00 SGT fill problem'],
         ['holiday_aware_next calendar mode', 'ADDED, not deployed', 'Required to price a forward-offset grid honestly; DEFAULT_MODE unchanged at holiday_aware'],

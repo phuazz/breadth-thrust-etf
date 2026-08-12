@@ -2764,7 +2764,10 @@
       </div>
       <div class="step">
         <div class="step-n">3</div>
-        <div class="step-body"><strong>Fill</strong> — the deployed backtest assumes the rebalance date's close. The tables below price the alternatives.</div>
+        <div class="step-body"><strong>Fill</strong> — execution is at the rebalance date’s <strong>open</strong> (adopted 2026-08-12), which on the US session is 21:30 Singapore time on the Friday rather than 04:00 on the Saturday. The tables below price every alternative that was considered.</div>
+      </div>
+      <div style="margin-top:16px;padding:14px 18px;background:var(--bg-soft);border:1px solid var(--border);border-radius:4px;font-size:14px;line-height:1.65;">
+        <strong>The backtest still models a close fill, and that is deliberate.</strong> Every published figure on this dashboard — the factsheet, the blend, the sleeve curves — is computed close-to-close, while execution is at the open. The two were measured against each other before the convention changed: filling at the Friday open is worth <strong>+0.0299</strong> Sharpe against the Friday close at the blend, with a paired 90% interval straddling zero, and <strong>−0.0065</strong> once the assumed cost is doubled to price a wider opening auction. The gap is inside noise in both directions, so the engines were left as they are rather than rebuilt to carry opening prices for all four sleeves — a change that would restate every published number in order to move one that does not move. The consequence is stated rather than hidden: the record models a fill about six and a half hours later than the one actually taken.
       </div>
     </section>
 
@@ -2816,7 +2819,7 @@
       <div style="overflow-x:auto;">
         <table class="small-table" id="exec-schedule"><thead></thead><tbody></tbody></table>
       </div>
-      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;">Rows marked <strong>proposed</strong> are not implemented. The refresh currently runs on Saturday, which places the rebalance card after the fill moment it assumes.</p>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;"><strong>Adopted 2026-08-12.</strong> The refresh is operator-run rather than scheduled &mdash; the per-constituent caches are gitignored, so it cannot run in CI &mdash; and it moves off Saturday to a Friday morning so the instruction exists before the fill rather than after it. The weekly factsheet keeps its completed-week anchor and continues to publish over the weekend: it explains a rebalance, it does not gate one.</p>
     </section>
 
     <div class="methodbox" id="exec-caveats"></div>
@@ -7652,41 +7655,30 @@ function renderExecutionTiming() {
   const blend = D.blend || {};
   const dep = blend['FRI'] ? blend['FRI'].close : null;
 
-  // --- Verdict line. States the deployed convention and the one alternative
-  //     that is both cheaper on the clock and free on the numbers.
+  // --- Verdict line. States the ADOPTED convention (2026-08-12) and, in the
+  //     same breath, that the record still models the close. Burying that in
+  //     a footnote would be the dishonest option.
   if (vEl) {
     const fo = blend['FRI'] ? blend['FRI'].open : null;
     const fo2 = blend['FRI'] ? blend['FRI'].open_2x : null;
     const us = (D.sessions_sgt || {}).US || {};
+    const dash = '—';
     vEl.innerHTML =
-      'The deployed convention ranks on <strong>Thursday\'s close</strong> and fills at '
-      + '<strong>Friday\'s close</strong> — which lands at <strong>' + (us.sgt_close_summer || '—')
-      + ' SGT Saturday</strong> in summer and ' + (us.sgt_close_winter || '—') + ' SGT in winter. '
-      + 'Filling instead at <strong>Friday\'s open</strong> (' + (us.sgt_open_summer || '—')
-      + ' SGT Friday) uses the identical decision, executed earlier in the session: blend Sharpe '
-      + (dep !== null ? _execFmt(dep.sharpe, 4) : '—') + ' &rarr; '
-      + (fo !== null ? _execFmt(fo.sharpe, 4) : '—')
-      + ', and ' + (fo2 !== null ? _execFmt(fo2.sharpe, 4) : '—')
-      + ' once the assumed cost is doubled to price a wider opening auction. '
-      + 'As at ' + (D.as_of || '—') + '.';
-  }
-
-  // --- Venue clocks
-  const st = document.getElementById('exec-sessions');
-  if (st && D.sessions_sgt) {
-    st.querySelector('thead').innerHTML =
-      '<tr><th>Venue</th><th>Local session</th><th>SGT open (summer)</th>'
-      + '<th>SGT close (summer)</th><th>SGT open (winter)</th>'
-      + '<th>SGT close (winter)</th></tr>';
-    st.querySelector('tbody').innerHTML = Object.keys(D.sessions_sgt).map((v) => {
-      const r = D.sessions_sgt[v];
-      const mark = (t, rolls) => t + (rolls ? ' <span style="color:var(--negative)">(next day)</span>' : '');
-      return '<tr><td><strong>' + v + '</strong></td><td>' + r.local_open + '–'
-        + r.local_close + ' ' + r.timezone + '</td><td>' + r.sgt_open_summer
-        + '</td><td>' + mark(r.sgt_close_summer, r.sgt_close_rolls_summer)
-        + '</td><td>' + r.sgt_open_winter + '</td><td>'
-        + mark(r.sgt_close_winter, r.sgt_close_rolls_winter) + '</td></tr>';
-    }).join('');
+      'The book ranks on <strong>Thursday&rsquo;s close</strong> and, since '
+      + '<strong>12 August 2026</strong>, fills at <strong>Friday&rsquo;s open</strong> '
+      + dash + ' ' + (us.sgt_open_summer || dash) + ' SGT Friday in summer, '
+      + (us.sgt_open_winter || dash) + ' SGT in winter. It previously filled at '
+      + 'Friday&rsquo;s close, which lands at ' + (us.sgt_close_summer || dash)
+      + ' SGT on the Saturday and is not a trade a Singapore-based operator can '
+      + 'reliably make. The decision itself is unchanged; only the moment of '
+      + 'execution moved. Measured beforehand at the blend: '
+      + (dep !== null ? _execFmt(dep.sharpe, 4) : dash) + ' filling at the close '
+      + 'against ' + (fo !== null ? _execFmt(fo.sharpe, 4) : dash) + ' at the open, '
+      + 'and ' + (fo2 !== null ? _execFmt(fo2.sharpe, 4) : dash)
+      + ' at doubled cost ' + dash + ' inside noise either way. '
+      + '<strong>The figures on this dashboard are still computed '
+      + 'close-to-close</strong>, deliberately; see the note under the sequence '
+      + 'below. As at ' + (D.as_of || dash) + '.';
   }
 
   // --- Decision path. The narrative (what was tried, why it was kept or
@@ -7726,7 +7718,7 @@ function renderExecutionTiming() {
     pt2.querySelector('tbody').innerHTML = path.map((r) => {
       const col = r.verdict === 'adopt' ? 'var(--positive)'
                 : r.verdict === 'reject' ? 'var(--negative)' : 'var(--ink-faint)';
-      const label = r.verdict === 'adopt' ? 'RECOMMENDED'
+      const label = r.verdict === 'adopt' ? 'ADOPTED 2026-08-12'
                   : r.verdict === 'reject' ? 'rejected' : 'in use';
       return '<tr><td>' + r.n + '</td><td><strong>' + r.name + '</strong><br>'
         + '<span style="color:var(--ink-faint);font-size:12px">' + r.note + '</span></td>'
@@ -7754,17 +7746,17 @@ function renderExecutionTiming() {
     const rows = [
       ['Thu ' + (xe.sgt_close_summer || '—'), 'Sleeve D signal bar — Xetra close', 'in use'],
       ['Fri ' + (us.sgt_close_summer || '—'), 'Sleeves A/B/C signal bar — US close (Thursday\'s session)', 'in use'],
-      ['Fri morning', 'Run <code>refresh_all.py</code> locally; rosters and per-constituent caches are gitignored, so CI cannot compute sleeve A or D breadth', 'proposed — currently Saturday'],
-      ['Fri midday', 'Position-change instruction in hand, ahead of both fills', 'proposed'],
-      ['Fri ' + (xe.sgt_open_summer || '—'), 'Sleeve D fills at the Xetra open', 'proposed'],
-      ['Fri ' + (us.sgt_open_summer || '—'), 'Sleeves A/B/C fill at the US open', 'proposed'],
+      ['Fri morning', 'Run <code>refresh_all.py</code> locally; rosters and per-constituent caches are gitignored, so CI cannot compute sleeve A or D breadth', 'adopted — operator-run, moved off Saturday'],
+      ['Fri midday', 'Position-change instruction in hand, ahead of both fills', 'adopted'],
+      ['Fri ' + (xe.sgt_open_summer || '—'), 'Sleeve D fills at the Xetra open', 'adopted'],
+      ['Fri ' + (us.sgt_open_summer || '—'), 'Sleeves A/B/C fill at the US open', 'adopted'],
       ['Sat ' + (us.sgt_close_summer || '—'), 'Friday US close — the completed trading week the factsheet anchors on', 'in use'],
       ['Weekend', 'Weekly factsheet publishes on the completed week. It explains the rebalance; it does not gate it', 'in use']
     ];
     sc.querySelector('thead').innerHTML =
       '<tr><th>When (SGT)</th><th>What happens</th><th>Status</th></tr>';
     sc.querySelector('tbody').innerHTML = rows.map((r) => {
-      const prop = r[2].indexOf('proposed') === 0;
+      const prop = r[2].indexOf('proposed') === 0 || r[2].indexOf('open') === 0;
       return '<tr><td style="white-space:nowrap"><strong>' + r[0] + '</strong></td><td>'
         + r[1] + '</td><td style="color:' + (prop ? 'var(--ink-faint)' : 'var(--positive)')
         + '">' + r[2] + '</td></tr>';

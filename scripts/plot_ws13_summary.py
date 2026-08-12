@@ -190,7 +190,7 @@ def fig2_decision_path(D: dict) -> Path:
          21.5, "Fri 21:30", "WS13", "adopt"),
     ]
     colour = {"use": NAVY, "rej": FAINT, "adopt": TEAL}
-    label = {"use": "in use", "rej": "rejected", "adopt": "RECOMMENDED"}
+    label = {"use": "in use", "rej": "rejected", "adopt": "ADOPTED"}
 
     fig, ax = plt.subplots(figsize=(10.4, 4.3))
     ax.axvspan(7.0, 23.0, color=GREEN_FILL, zorder=0)

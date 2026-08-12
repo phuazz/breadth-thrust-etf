@@ -1702,3 +1702,35 @@ withholding against 30% on US-domiciled for a Singapore holder, and US estate
 tax on US-situs assets) is a question for a tax adviser, not a backtest. What
 would replace SOXX in a London-listed implementation is open, as is the
 realised spread on the thinner lines.
+
+### WS12/WS13 — DECISION: Friday-open fill ADOPTED (2026-08-12)
+
+Owner approved the Friday-open fill. Three things were settled with it.
+
+**Execution.** The book now fills at the rebalance date's OPEN, not its close.
+The decision is unchanged — a W-FRI grid still ranks on Thursday's close — so
+only the moment of execution moved: 21:30 SGT Friday (22:30 winter) for
+sleeves A/B/C on the US session, 15:00 SGT for sleeve D on Xetra, instead of
+04:00 SGT Saturday.
+
+**The engines are NOT being rebuilt to model it, deliberately.** Every
+published figure remains close-to-close. The gap was measured before the
+decision: +0.0299 Sharpe at the blend, −0.0065 once the assumed cost is
+doubled, paired interval straddling zero. Rebuilding four sleeve data paths to
+carry opening prices — including sleeve C's crypto-calendar / FX /
+expense-ratio chain — would restate every published number in order to move
+one that does not move. So the record models a fill about six and a half hours
+later than the one actually taken, and that is disclosed in the Execution
+Timing tab's opening verdict and in a callout under the sequence, not
+footnoted.
+
+**Refresh moves off Saturday to Friday morning SGT**, so the instruction exists
+before the fill rather than after it. It is operator-run, not scheduled: the
+per-constituent caches are gitignored, so CI cannot compute sleeve A or D
+breadth. No cron, no gate and no alarm was changed — the weekly factsheet keeps
+its completed-week anchor and continues to publish over the weekend, because it
+explains a rebalance rather than gating one.
+
+Filed record `reviews/2026-08-12_ws12-ws13_execution-timing.docx` revised the
+same day to carry the decision; the version filed earlier recorded it as
+recommended and not adopted.
