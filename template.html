@@ -2851,9 +2851,10 @@
         <div class="step-n">5</div>
         <div class="step-body"><strong>Re-check next Friday.</strong> Some sectors will have weakened and dropped below the mean; others will have strengthened and entered. Sell what dropped out, buy what came in, adjust the rest. Costs are about 5 basis points (0.05%) per unit of weight change — a typical retail ETF brokerage fee. The Trade Explorer tab shows every single rebalance.</div>
       </div>
-      <p style="margin-top:18px;"><strong>What this strategy is NOT doing.</strong> It is not trying to time the market — there is no "stay in cash if everything looks bad" rule. It is always 100% invested. It is also not trying to predict which individual sector will go up next. It is doing something simpler: <em>own whatever is leading, trim whatever is lagging</em>. Markets reward this pattern more often than they punish it, because trends in market breadth tend to persist for weeks-to-months at a time.</p>
+      <p style="margin-top:18px;"><strong>What this strategy is NOT doing.</strong> It is not trying to predict which individual sector will go up next. It is doing something simpler: <em>own whatever is leading, trim whatever is lagging</em>. Markets reward this pattern more often than they punish it, because trends in market breadth tend to persist for weeks-to-months at a time. Within Strategy A there is no cash view: the sleeve stays fully invested in whichever sectors sit above the cross-sectional mean, however few that turns out to be.</p>
+      <p><strong>The deployed portfolio, however, does step aside.</strong> Strategy A is one sleeve of a blend that sits under a breadth gate: when the share of S&amp;P 500 constituents above their own 200-day average falls below <span data-fig="gate.off_thresh">20%</span>, <span data-fig="gate.derisk_frac">50%</span> of the portfolio moves into short-dated Treasuries, and it re-engages once breadth recovers above <span data-fig="gate.on_thresh">50%</span>. That is a market-timing rule, it is switched on, and it is inside the headline numbers — the deployed series is the <em>gated</em> blend. It has held the book partly defensive on <span data-fig="gate.pct_days_off">13%</span> of all days since 2018, including December 2018, February 2020 and the 2022 drawdown. The Risk Overlay tab shows every switch.</p>
       <p><strong>Why we trust it.</strong> The "Robustness" tab shows the strategy holds up when we apply the standard quant-research stress tests: walk-forward validation (refitting the only free parameter, K = the number of sectors to own, each year on out-of-sample data), bootstrap confidence intervals, sub-period decomposition through bear markets, sensitivity to the moving-average lookback and the rebalance frequency. The walk-forward Sharpe ratio is approximately 1.05 with no degradation from the in-sample number — that is unusual and is the main reason we picked this paradigm over per-ETF threshold tuning or fixed-threshold timing.</p>
-      <p style="font-size:13px;color:var(--ink-faint);margin-top:14px;"><em>Caveats and what would kill it:</em> a regime where all 14 sectors fall together (2008-style systemic crisis) hurts the strategy because owning the "strongest" of a falling universe is still owning falling stuff. We do not currently hedge or shift to cash. A modest improvement on the to-do list is to add a "if median breadth across all sectors is below 40%, reduce gross exposure to 50%" overlay — but we have not yet validated it OOS so it is not in the headline numbers.</p>
+      <p style="font-size:13px;color:var(--ink-faint);margin-top:14px;"><em>Caveats and what would kill it:</em> a regime where all 14 sectors fall together (2008-style systemic crisis) hurts the sleeve, because owning the "strongest" of a falling universe is still owning falling stuff. Strategy A on its own does not hedge that. The deployed blend does: the breadth gate described above moves <span data-fig="gate.derisk_frac">50%</span> of the portfolio into short Treasuries below <span data-fig="gate.off_thresh">20%</span> breadth. It is a partial de-risk, not a full exit, so a systemic decline still hurts — it is dampened, not neutralised.</p>
     </div>
 
     <section>
@@ -3485,6 +3486,10 @@ const FIGURE_SPEC = {
   "spy.sharpe":        {"path": "topk.benchmarks.spy_buy_hold.sharpe", "fmt": "sharpe"},
   "overlay.lift":      {"sub": ["risk_overlay.gated_variants.blend_35_35_10_20_gated_eem_tilted.sharpe", "multi.strategies.blend_35_35_10_20.sharpe"], "fmt": "sharpe"},
   "gate.sharpe_add":   {"sub": ["risk_overlay.gated_variants.blend_35_35_10_20_gated.sharpe", "risk_overlay.ungated_reference.sharpe"], "fmt": "sharpe"},
+  "gate.off_thresh":   {"path": "risk_overlay.gate_parameters.off_threshold", "fmt": "pct0"},
+  "gate.on_thresh":    {"path": "risk_overlay.gate_parameters.on_threshold", "fmt": "pct0"},
+  "gate.derisk_frac":  {"path": "risk_overlay.gate_parameters.derisk_fraction", "fmt": "pct0"},
+  "gate.pct_days_off": {"path": "risk_overlay.pct_days_risk_off", "fmt": "pctraw"},
   "gate.dd_cut_pp":    {"abs_sub": ["risk_overlay.gated_variants.blend_35_35_10_20_gated.max_dd", "risk_overlay.ungated_reference.max_dd"], "fmt": "pp1"},
   "blend4v3.lift":     {"sub": ["multi.strategies.blend_35_35_10_20.sharpe", "multi.strategies.blend_45_45_10.sharpe"], "fmt": "sharpe"},
   "blend4v3.dd_pp":    {"abs_sub": ["multi.strategies.blend_35_35_10_20.max_dd", "multi.strategies.blend_45_45_10.max_dd"], "fmt": "pp1"},
@@ -3510,6 +3515,9 @@ function _figFormat(v, fmt) {
     case 'pct1':    return fmtPct(v, false);
     case 'pp1':     return (v * 100).toFixed(1) + 'pp';
     case 'pct0':    return (v * 100).toFixed(0) + '%';
+    // Already-a-percentage source values (risk_overlay.pct_days_risk_off is
+    // 13.04, not 0.1304). Multiplying those by 100 gives 1304%.
+    case 'pctraw':  return v.toFixed(0) + '%';
     default:        return null;
   }
 }

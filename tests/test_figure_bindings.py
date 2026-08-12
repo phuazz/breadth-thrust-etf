@@ -95,6 +95,9 @@ def _fmt(v, fmt: str) -> str:
         return f"{v * 100:.1f}pp"
     if fmt == "pct0":
         return f"{v * 100:.0f}%"
+    if fmt == "pctraw":
+        # Source value is already a percentage (pct_days_risk_off = 13.04).
+        return f"{v:.0f}%"
     raise AssertionError(f"unknown fmt {fmt!r} — mirror it from _figFormat()")
 
 
