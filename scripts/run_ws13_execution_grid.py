@@ -341,14 +341,46 @@ def compare(key: str, days: list[str]) -> tuple[dict, dict]:
     # rejects that as a data difference when it is a rounding vintage; a
     # genuinely wrong series - unadjusted, wrong ticker, wrong currency -
     # differs by orders of magnitude more than the 1e-5 used here.
-    err = float((close_mirror - closes).abs().max().max())
-    rel = float(((close_mirror - closes).abs() / closes.abs()).max().max())
-    if not np.allclose(close_mirror.values, closes.values,
-                       rtol=1e-5, atol=0, equal_nan=True):
+    # TWO vintage effects, tested separately. A single np.allclose conflated
+    # them and then hid one: its verdict was driven by a NaN mismatch while the
+    # relative-error number printed beside it (a .max() that skips NaN) said
+    # everything was fine. Loosening the tolerance would never have fixed that.
+    #
+    #   1. VALUE drift where both panels have a price. yfinance recomputes
+    #      auto_adjust factors between fetches, and sleeve C additionally
+    #      applies a CUMULATIVE expense-ratio drag derived from elapsed days,
+    #      so a cached panel and a freshly built mirror diverge a little more
+    #      with every day since the cache was written. Observed at 3.6e-5 for
+    #      C against ~2e-6 for the others. A genuinely wrong series - wrong
+    #      ticker, unadjusted, wrong currency - differs by percent, so 2e-4
+    #      still catches one by three orders of magnitude.
+    #
+    #   2. COVERAGE drift at the tail. The cache may predate a bar the fresh
+    #      fetch now has; BTC-USD on the final row is the live case. Tolerated
+    #      only in the last few rows, because a coverage difference in the body
+    #      of the panel would mean the two are not the same series.
+    both = closes.notna() & close_mirror.notna()
+    diff = (close_mirror - closes).abs()
+    err = float(diff.where(both).max().max())
+    rel = float((diff / closes.abs()).where(both).max().max())
+    if not np.isfinite(rel) or rel > 2e-4:
         raise RuntimeError(
             f"sleeve {key.upper()}: mirrored close panel differs from the "
-            f"engine's by {rel:.3e} relative ({err:.3e} absolute) - the open "
-            "panel cannot be trusted")
+            f"engine's by {rel:.3e} relative ({err:.3e} absolute) where both "
+            "have prices - the open panel cannot be trusted")
+
+    asym = (closes.isna() ^ close_mirror.isna())
+    n_asym = int(asym.sum().sum())
+    if n_asym:
+        rows = asym.any(axis=1)
+        last_rows = closes.index[-3:]
+        offenders = [d for d in closes.index[rows] if d not in last_rows]
+        if offenders:
+            raise RuntimeError(
+                f"sleeve {key.upper()}: {n_asym} cells present in one panel "
+                f"and absent in the other, {len(offenders)} of them away from "
+                f"the tail (e.g. {offenders[0].date()}) - that is a coverage "
+                "difference, not a vintage one")
 
     missing = int(opens.isna().sum().sum() - closes.isna().sum().sum())
     if missing > 0:
@@ -453,7 +485,40 @@ def blend_grid(curves_by_sleeve: dict, days: list[str]) -> dict:
         rows[day]["open_minus_close"] = {
             k: rows[day][FILL_OPEN][k] - rows[day][FILL_CLOSE][k]
             for k in ("sharpe", "cagr", "max_dd")}
+
+        # The execution choice expressed the way an allocator reads a decision
+        # to deviate: what active return does filling at the open add over
+        # filling at the close, what tracking error is taken to get it, and the
+        # ratio of the two. This is a genuine information ratio - active return
+        # over the tracking error of the SAME book under two fill conventions -
+        # and it is NOT the Sharpe reported elsewhere on this page, which is an
+        # absolute risk-adjusted return against a zero cash rate.
+        r_o = _blend_daily(curves_by_sleeve, day, FILL_OPEN)
+        r_c = _blend_daily(curves_by_sleeve, day, FILL_CLOSE)
+        common = r_o.index.intersection(r_c.index)
+        d = (r_o.loc[common] - r_c.loc[common]).dropna()
+        te = float(d.std() * math.sqrt(252))
+        ar = float(d.mean() * 252)
+        rows[day]["execution_choice"] = {
+            "active_return_ann": ar,
+            "tracking_error_ann": te,
+            "information_ratio": (ar / te) if te > 0 else None,
+            "n_days": int(len(d)),
+        }
     return rows
+
+
+def _blend_daily(curves_by_sleeve: dict, day: str, fill: str) -> pd.Series:
+    """Daily return series of the 35/35/10/20 blend for one (day, fill) cell."""
+    import run_multi_strategy as ms
+    eq = {s: curves_by_sleeve[s][(day, fill)] for s in ("a", "b", "c", "d")}
+    common = eq["a"].index
+    for s in ("b", "c", "d"):
+        common = common.intersection(eq[s].index)
+    norm = {s: eq[s].loc[common] / eq[s].loc[common].iloc[0] for s in eq}
+    blend = ms.fixed_blend_4way(norm["a"], norm["b"], norm["c"], norm["d"],
+                                0.35, 0.35, 0.10)
+    return blend.pct_change().fillna(0.0)
 
 
 def paired_tests(curves_by_sleeve: dict, days: list[str]) -> dict:

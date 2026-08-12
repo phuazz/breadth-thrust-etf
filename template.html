@@ -2739,91 +2739,104 @@
   </div>
 
   <!-- ====================== EXECUTION TIMING ====================== -->
-  <!-- WS13. A DECISION AID, not a dossier: it exists to support one choice —
-       when to execute — so every panel below either states the sequence or
-       prices an alternative to it. Numbers are read from
-       window.DATA.execution_timing, which is a projection of
-       data_local/ws13_execution_grid.json, so this tab cannot drift from the
-       study it reports. -->
-  <div class="tab-content" id="tab-execution">
-    <div class="verdict">
-      <h2>Execution timing — when the decision is made, and when it is filled</h2>
-      <p id="exec-verdict">Loading…</p>
-    </div>
+<!-- ARCHETYPE: EXPLAINER (VISUAL_DESIGN.md s1). The job is to convey a
+     process — when we decide, when we trade, and why then — in sequential
+     steps, one idea per step.
 
-    <section>
-      <h2>The sequence</h2>
-      <p class="section-sub">Each weekly decision runs in three steps, and they happen at three different times. The engine reads the <strong>session before</strong> the rebalance date, so a Friday rebalance ranks on <strong>Thursday's</strong> close — the one-session lag that keeps the backtest free of look-ahead. The book is then assumed to turn over at the rebalance date's close. The gap between "signal observed" and "position filled" is where an implementation shortfall lives.</p>
+     It was built as a DECISION AID while the owner was choosing between fill
+     conventions, and left that way after the choice was made on 2026-08-12.
+     That is the "dossier grammar applied to an argument" failure the design
+     standard names: six-row comparison tables and bootstrap intervals are the
+     right form for choosing and the wrong form for explaining a settled
+     process. The comparison evidence still exists, one disclosure below.
+
+     AUDIENCE: institutional allocator (s5) — cost and risk before return. -->
+<div class="tab-content" id="tab-execution">
+  <div class="verdict">
+    <h2>When this portfolio trades, and why then</h2>
+    <p id="exec-verdict">Loading…</p>
+  </div>
+
+  <section>
+    <h2>The weekly cycle</h2>
+    <p class="section-sub">One decision a week, in three steps. The gap between deciding and trading is deliberate and is what keeps the strategy honest: the ranking can only ever use prices that had already printed when it was made.</p>
+    <div id="exec-cycle-diagram" style="overflow-x:auto;"></div>
+  </section>
+
+  <section>
+    <h2>Why the Friday open</h2>
+    <p class="section-sub">Three reasons, in the order they mattered.</p>
+    <div class="two-col" style="gap:18px;margin-top:6px;">
       <div class="step">
         <div class="step-n">1</div>
-        <div class="step-body"><strong>Signal bar</strong> — the close of the session before the rebalance date. Breadth for that date is computed from constituent prices plus the most recent roster snapshot dated on or before it.</div>
+        <div class="step-body"><strong>It can actually be traded.</strong> The US close lands at <span data-x="us_close_s">04:00</span> Singapore time on a Saturday. The US open is <span data-x="us_open_s">21:30</span> on the Friday — an ordinary evening rather than a trade nobody can reliably make.</div>
       </div>
       <div class="step">
         <div class="step-n">2</div>
-        <div class="step-body"><strong>Decision</strong> — the refresh runs locally (per-constituent caches are gitignored, so CI cannot compute sleeve A or D breadth) and the push triggers the factsheet publish.</div>
+        <div class="step-body"><strong>It costs nothing measurable.</strong> Trading the open instead of the close is a decision worth <span id="exec-ar">—</span> a year of active return against <span id="exec-te">—</span> of tracking error. That is an information ratio of <span id="exec-ir">—</span>, with a standard error of about <span id="exec-irse">—</span> on this length of history — indistinguishable from zero.</div>
       </div>
       <div class="step">
         <div class="step-n">3</div>
-        <div class="step-body"><strong>Fill</strong> — execution is at the rebalance date’s <strong>open</strong> (adopted 2026-08-12), which on the US session is 21:30 Singapore time on the Friday rather than 04:00 on the Saturday. The tables below price every alternative that was considered.</div>
+        <div class="step-body"><strong>Nothing about the strategy changed.</strong> The engine already ranked on Thursday's close. Only the moment of execution moved, roughly six and a half hours earlier in the same session.</div>
       </div>
-      <div style="margin-top:16px;padding:14px 18px;background:var(--bg-soft);border:1px solid var(--border);border-radius:4px;font-size:14px;line-height:1.65;">
-        <strong>The backtest still models a close fill, and that is deliberate.</strong> Every published figure on this dashboard — the factsheet, the blend, the sleeve curves — is computed close-to-close, while execution is at the open. The two were measured against each other before the convention changed: filling at the Friday open is worth <strong>+0.0299</strong> Sharpe against the Friday close at the blend, with a paired 90% interval straddling zero, and <strong>−0.0065</strong> once the assumed cost is doubled to price a wider opening auction. The gap is inside noise in both directions, so the engines were left as they are rather than rebuilt to carry opening prices for all four sleeves — a change that would restate every published number in order to move one that does not move. The consequence is stated rather than hidden: the record models a fill about six and a half hours later than the one actually taken.
-      </div>
-    </section>
+    </div>
+  </section>
 
-    <section>
-      <h2>Venue clocks, on a Singapore day</h2>
-      <p class="section-sub">"The close" is not one moment. Each sleeve prices on its own venue, and daylight saving moves the US and Europe on different dates — so both the summer and winter offsets are shown rather than a single figure that is wrong for part of the year. A row where the close rolls past midnight is marked, because that is the trade a Singapore-based operator cannot realistically make.</p>
-      <div style="overflow-x:auto;">
-        <table class="small-table" id="exec-sessions"><thead></thead><tbody></tbody></table>
-      </div>
-    </section>
+  <section>
+    <h2>The cost of choosing a different day</h2>
+    <p class="section-sub">Each row is the same portfolio, rebalanced on a different weekday, filled at the open rather than the close. Read the tracking error first: this decision moves the book by well under one per cent a year whichever day is chosen, which is why it was settled on whether it can be executed rather than on what it returns.</p>
+    <div style="overflow-x:auto;">
+      <table class="small-table" id="exec-ir-table"><thead></thead><tbody></tbody></table>
+    </div>
+    <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="exec-ir-note"></p>
+  </section>
 
-    <section>
-      <h2>How this workflow was arrived at</h2>
-      <p class="section-sub">Six variants were priced, in this order. Each row states the session the decision reads, the moment the book turns over, and what that moment is on a Singapore clock. <strong>The Sharpe column is not comparable down the whole table</strong> — the two studies behind it end on different dates, so a row's figure is only comparable with others sharing its basis, and no delta is taken across bases.</p>
-      <div style="overflow-x:auto;">
-        <table class="small-table" id="exec-path"><thead></thead><tbody></tbody></table>
-      </div>
-      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="exec-path-note"></p>
-    </section>
+  <section>
+    <h2>Where the trading day sits on a Singapore clock</h2>
+    <p class="section-sub">The portfolio holds instruments on two exchanges. They do not open together, so a single weekly rebalance is executed in two parts on the same Friday.</p>
+    <div id="exec-clock-diagram" style="overflow-x:auto;"></div>
+  </section>
 
-    <section>
-      <h2>What each fill choice does to the record</h2>
-      <p class="section-sub">Deployed-blend Sharpe (35/35/10/20 A:B:C:D, before the EEM tilt and the breadth gate) under every weekday rebalance grid, filled at the close and at the open. The signal is untouched in every cell — an open fill uses the <em>same</em> decision as the close fill on that date and merely executes it earlier in the session. The 2× column doubles the assumed trading cost, because an opening auction is a wider book than a closing one.</p>
+  <div class="methodbox" id="exec-disclosure"></div>
+
+  <details style="margin-top:22px;">
+    <summary style="cursor:pointer;font-weight:600;color:var(--ink-soft);padding:10px 0;">The full evidence behind this choice — every variant priced, the statistical tests, and the venue detail</summary>
+    <div style="padding-top:10px;">
+      <p class="section-sub">Retained in full so the decision can be audited. This is research material: it was the basis for choosing, and it is not needed to understand what the portfolio does.</p>
+
+      <h3>Every fill choice that was priced</h3>
+      <p class="section-sub">Deployed-blend Sharpe (35/35/10/20 A:B:C:D, before the EEM tilt and the breadth gate) under each weekday grid, filled at the close and at the open. The signal is untouched in every cell. The 2× column doubles the assumed trading cost, because an opening auction is a wider book than a closing one.</p>
       <div style="overflow-x:auto;">
         <table class="small-table" id="exec-grid"><thead></thead><tbody></tbody></table>
       </div>
       <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="exec-grid-note"></p>
-    </section>
 
-    <section>
-      <h2>Is the difference real? Paired tests</h2>
-      <p class="section-sub">These comparisons run on the <strong>same</strong> history and are heavily correlated, so the standard error of their <em>difference</em> is much smaller than the ~0.36 standard error of an absolute Sharpe quoted elsewhere on this dashboard. Judging a paired difference against an unpaired standard error would wave a real effect through as noise. Moving-block bootstrap, 60-day blocks, 2000 samples, fixed seed. An interval that excludes zero is distinguishable from sampling noise <em>within this history</em>; it does not establish that the effect persists out of sample, and where a cell was chosen as the best of several the interval is optimistic by construction.</p>
+      <h3 style="margin-top:24px;">Is the difference real? Paired tests</h3>
+      <p class="section-sub">These comparisons run on the <strong>same</strong> history and are heavily correlated, so the standard error of their <em>difference</em> is much smaller than the ~0.36 standard error of an absolute Sharpe quoted elsewhere on this dashboard. Judging a paired difference against an unpaired standard error would wave a real effect through as noise. Moving-block bootstrap, 60-day blocks, 2000 samples, fixed seed. An interval clear of zero is distinguishable from sampling noise <em>within this history</em>; where a cell was chosen as the best of several, the interval is optimistic by construction.</p>
       <div style="overflow-x:auto;">
         <table class="small-table" id="exec-paired"><thead></thead><tbody></tbody></table>
       </div>
-    </section>
 
-    <section>
-      <h2>Can a rebalance be crossed at one moment?</h2>
-      <p class="section-sub">A rotation sells one ETF and buys another in the same decision. If both legs sit on one venue they cross at a single moment and the sleeve is never unintentionally long or flat. If they sit on different venues the legs are hours apart and the sleeve carries an unhedged gap in between — a real execution risk that no backtest on daily closes can see.</p>
+      <h3 style="margin-top:24px;">Can a rebalance be crossed at one moment?</h3>
+      <p class="section-sub">A rotation sells one holding and buys another in the same decision. If both legs sit on one venue they cross at a single moment. If they sit on different venues the legs are hours apart and the book carries an unhedged gap in between — an execution risk no backtest on daily closes can see.</p>
       <div style="overflow-x:auto;">
         <table class="small-table" id="exec-venues"><thead></thead><tbody></tbody></table>
       </div>
-    </section>
 
-    <section>
-      <h2>The operating schedule this implies</h2>
-      <p class="section-sub">The weekly factsheet is an aid to <em>understanding</em> a rebalance, not a gate on executing one. Keeping it on its completed-week anchor and letting the trade instruction run on its own clock is what removes the conflict: a decision taken on Thursday's close cannot wait for a Friday close that has not happened. Times are Singapore, summer offsets; the winter column of the venue table above applies from roughly November to March.</p>
+      <h3 style="margin-top:24px;">Venue sessions in full</h3>
       <div style="overflow-x:auto;">
-        <table class="small-table" id="exec-schedule"><thead></thead><tbody></tbody></table>
+        <table class="small-table" id="exec-sessions"><thead></thead><tbody></tbody></table>
       </div>
-      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;"><strong>Adopted 2026-08-12.</strong> The refresh is operator-run rather than scheduled &mdash; the per-constituent caches are gitignored, so it cannot run in CI &mdash; and it moves off Saturday to a Friday morning so the instruction exists before the fill rather than after it. The weekly factsheet keeps its completed-week anchor and continues to publish over the weekend: it explains a rebalance, it does not gate one.</p>
-    </section>
 
-    <div class="methodbox" id="exec-caveats"></div>
-  </div>
+      <h3 style="margin-top:24px;">How the choice was arrived at</h3>
+      <p class="section-sub">Six variants, in the order they were priced. <strong>The Sharpe column is not comparable down the whole table</strong> — the two studies behind it end on different dates, so a row's figure is only comparable with others sharing its basis, and no delta is taken across bases.</p>
+      <div style="overflow-x:auto;">
+        <table class="small-table" id="exec-path"><thead></thead><tbody></tbody></table>
+      </div>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="exec-path-note"></p>
+    </div>
+  </details>
+</div>
 
   <!-- ====================== METHOD ====================== -->
   <div class="tab-content" id="tab-method">
@@ -7628,12 +7641,17 @@ function renderPortfolio() {
 
 // ----------- Risk & Validation tab -------------------------------------
 // ---------------------------------------------------------------------------
-// Execution timing (WS13)
+// Execution timing (WS13) — EXPLAINER
 // ---------------------------------------------------------------------------
-// Every figure here is READ from window.DATA.execution_timing. Nothing is
-// recomputed in the browser and nothing is hard-coded, so the tab cannot
-// quietly disagree with the study that produced it. If the feed is absent the
-// panels say so rather than rendering an empty grid that reads as "no effect".
+// Every figure is READ from window.DATA.execution_timing. Nothing is recomputed
+// in the browser and nothing is hard-coded, so the tab cannot quietly disagree
+// with the study behind it. If the feed is absent the panels say so rather than
+// rendering empty tables that read as "no effect".
+//
+// No apostrophe appears inside a single-quoted JS string in this file. One did
+// once, lost its escaping in an edit, terminated the literal and left the whole
+// tab showing "Loading..." with a SyntaxError in the console. &rsquo; renders
+// identically through innerHTML and cannot break the parser.
 function _execFmt(x, dp, pct) {
   if (x === null || x === undefined || !isFinite(x)) return '—';
   return (pct ? (x * 100).toFixed(dp) + '%' : x.toFixed(dp));
@@ -7643,140 +7661,252 @@ function _execSigned(x, dp, pct) {
   const v = pct ? x * 100 : x;
   return (v >= 0 ? '+' : '') + v.toFixed(dp) + (pct ? 'pp' : '');
 }
+function _execBp(x, dp) {
+  if (x === null || x === undefined || !isFinite(x)) return '—';
+  const v = x * 10000;
+  return (v >= 0 ? '+' : '') + v.toFixed(dp === undefined ? 0 : dp) + ' bp';
+}
+
+// --- Diagram 1: the weekly cycle -------------------------------------------
+// A process needs a process drawing. Sequential, left to right, one idea per
+// node, with the Singapore clock under each — which is the whole point, since
+// the choice was made on when a person can actually place the order.
+function _execCycleSVG(D) {
+  const us = (D.sessions_sgt || {}).US || {};
+  const xe = (D.sessions_sgt || {}).XETR || {};
+  const steps = [
+    { t: 'Thursday close', s: 'Rankings are computed from these prices',
+      c: us.sgt_close_summer + ' SGT Fri', kind: 'signal' },
+    { t: 'Friday morning', s: 'Refresh runs; position changes produced',
+      c: 'from 08:00 SGT', kind: 'decide' },
+    { t: 'Friday open — Europe', s: 'Europe sleeve trades on Xetra',
+      c: xe.sgt_open_summer + ' SGT Fri', kind: 'fill' },
+    { t: 'Friday open — US', s: 'The other three sleeves trade',
+      c: us.sgt_open_summer + ' SGT Fri', kind: 'fill' }
+  ];
+  const W = 940, H = 200, bw = 200, gap = 46, y = 46, bh = 96;
+  const fill = { signal: 'var(--bg-soft)', decide: 'var(--bg-soft)', fill: '#e0f2fe' };
+  const stroke = { signal: 'var(--border)', decide: 'var(--border)', fill: '#0891b2' };
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" '
+        + 'style="min-width:820px;height:auto;display:block" '
+        + 'role="img" aria-label="The weekly decision and execution cycle">';
+  s += '<text x="0" y="18" font-size="13" fill="var(--ink-faint)">'
+     + 'One decision a week. Times are Singapore, summer offsets.</text>';
+  steps.forEach(function (st, i) {
+    const x = i * (bw + gap);
+    s += '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh
+       + '" rx="5" fill="' + fill[st.kind] + '" stroke="' + stroke[st.kind] + '"/>';
+    s += '<text x="' + (x + 14) + '" y="' + (y + 26)
+       + '" font-size="14" font-weight="600" fill="var(--ink)">' + st.t + '</text>';
+    s += '<text x="' + (x + 14) + '" y="' + (y + 48)
+       + '" font-size="11.5" fill="var(--ink-faint)">' + st.s + '</text>';
+    s += '<text x="' + (x + 14) + '" y="' + (y + 76)
+       + '" font-size="13" font-weight="600" fill="'
+       + (st.kind === 'fill' ? '#0369a1' : 'var(--ink-soft)') + '">' + st.c + '</text>';
+    if (i < steps.length - 1) {
+      const ax = x + bw + 8, ay = y + bh / 2;
+      s += '<line x1="' + ax + '" y1="' + ay + '" x2="' + (ax + gap - 18)
+         + '" y2="' + ay + '" stroke="var(--ink-faint)" stroke-width="1.5"/>';
+      s += '<path d="M' + (ax + gap - 18) + ' ' + (ay - 4) + ' l6 4 l-6 4 z" '
+         + 'fill="var(--ink-faint)"/>';
+    }
+  });
+  const braceY = y + bh + 22;
+  s += '<line x1="0" y1="' + braceY + '" x2="' + bw + '" y2="' + braceY
+     + '" stroke="var(--ink-faint)" stroke-width="1"/>';
+  s += '<line x1="' + (bw + gap) + '" y1="' + braceY + '" x2="' + W + '" y2="'
+     + braceY + '" stroke="#0891b2" stroke-width="1.5"/>';
+  s += '<text x="0" y="' + (braceY + 17)
+     + '" font-size="11.5" fill="var(--ink-faint)">what the decision knows</text>';
+  s += '<text x="' + (bw + gap) + '" y="' + (braceY + 17)
+     + '" font-size="11.5" fill="#0369a1">everything after it is already public when the order is placed</text>';
+  return s + '</svg>';
+}
+
+// --- Diagram 2: the trading day on a Singapore clock ------------------------
+// Two venues, one Friday. Drawn because "15:00 and 21:30" is a sentence a
+// reader has to assemble; a bar showing both sessions against the same axis is
+// one glance. The overnight band is what made the old convention unworkable.
+function _execClockSVG(D) {
+  const us = (D.sessions_sgt || {}).US || {};
+  const xe = (D.sessions_sgt || {}).XETR || {};
+  const W = 940, H = 178, L = 96, R = W - 24, span = R - L;
+  const hx = function (h) { return L + (h / 30) * span; };
+  const rows = [
+    { name: 'Xetra', o: 15, c: 23.5, fill: xe.sgt_open_summer, y: 52 },
+    { name: 'US', o: 21.5, c: 28, fill: us.sgt_open_summer, y: 100 }
+  ];
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" '
+        + 'style="min-width:820px;height:auto;display:block" role="img" '
+        + 'aria-label="Venue sessions and fill times on a Singapore clock">';
+  // civilised / overnight bands
+  s += '<rect x="' + hx(7) + '" y="34" width="' + (hx(23) - hx(7))
+     + '" height="120" fill="#dcfce7" opacity="0.5"/>';
+  s += '<rect x="' + hx(23) + '" y="34" width="' + (hx(30) - hx(23))
+     + '" height="120" fill="#fee2e2" opacity="0.55"/>';
+  s += '<text x="' + hx(15) + '" y="30" font-size="11.5" fill="#15803d" '
+     + 'text-anchor="middle">Singapore waking hours</text>';
+  s += '<text x="' + hx(26.5) + '" y="30" font-size="11.5" fill="#dc2626" '
+     + 'text-anchor="middle">overnight</text>';
+  rows.forEach(function (r) {
+    s += '<text x="0" y="' + (r.y + 15) + '" font-size="13" font-weight="600" '
+       + 'fill="var(--ink)">' + r.name + '</text>';
+    s += '<rect x="' + hx(r.o) + '" y="' + r.y + '" width="' + (hx(r.c) - hx(r.o))
+       + '" height="22" rx="3" fill="var(--bg-soft)" stroke="var(--border)"/>';
+    s += '<text x="' + (hx(r.o) + 8) + '" y="' + (r.y + 16)
+       + '" font-size="12" fill="var(--ink-faint)">market open</text>';
+    // the fill marker
+    s += '<circle cx="' + hx(r.o) + '" cy="' + (r.y + 11) + '" r="6" '
+       + 'fill="#0891b2" stroke="white" stroke-width="1.5"/>';
+    s += '<text x="' + hx(r.o) + '" y="' + (r.y - 6) + '" font-size="12" '
+       + 'font-weight="600" fill="#0369a1" text-anchor="middle">we trade '
+       + r.fill + '</text>';
+    // the old close-fill marker
+    s += '<circle cx="' + hx(r.c) + '" cy="' + (r.y + 11) + '" r="5" '
+       + 'fill="none" stroke="#dc2626" stroke-width="1.6"/>';
+  });
+  // Right-aligned to the plot edge: centred on hx(28) it ran 55px past the
+  // viewBox and was clipped. It sits under both red markers either way.
+  s += '<text x="' + R + '" y="' + (100 + 46) + '" font-size="11.5" '
+     + 'fill="#dc2626" text-anchor="end">market close &mdash; where this '
+     + 'portfolio used to trade</text>';
+  // axis
+  s += '<line x1="' + L + '" y1="154" x2="' + R + '" y2="154" '
+     + 'stroke="var(--border)"/>';
+  [8, 12, 16, 20, 24, 28].forEach(function (h) {
+    const lab = h < 24 ? (h < 10 ? '0' + h + ':00' : h + ':00')
+                       : ((h - 24) < 10 ? '0' + (h - 24) : (h - 24)) + ':00 +1d';
+    s += '<line x1="' + hx(h) + '" y1="154" x2="' + hx(h) + '" y2="159" '
+       + 'stroke="var(--border)"/>';
+    s += '<text x="' + hx(h) + '" y="172" font-size="12" fill="var(--ink-faint)" '
+       + 'text-anchor="middle">' + lab + '</text>';
+  });
+  return s + '</svg>';
+}
 
 function renderExecutionTiming() {
   const D = (window.DATA || {}).execution_timing;
-  const miss = 'Execution-timing study not present in this build — run '
-             + '<code>python scripts/run_ws13_execution_grid.py</code>.';
   const vEl = document.getElementById('exec-verdict');
-  if (!D) { if (vEl) vEl.innerHTML = miss; return; }
-
+  if (!D) {
+    if (vEl) vEl.innerHTML = 'Execution-timing study not present in this build '
+      + '&mdash; run <code>python scripts/run_ws13_execution_grid.py</code>.';
+    return;
+  }
   const days = D.days || [];
   const blend = D.blend || {};
-  const dep = blend['FRI'] ? blend['FRI'].close : null;
+  const us = (D.sessions_sgt || {}).US || {};
+  const fri = blend['FRI'] || {};
+  const ec = fri.execution_choice || {};
 
-  // --- Verdict line. States the ADOPTED convention (2026-08-12) and, in the
-  //     same breath, that the record still models the close. Burying that in
-  //     a footnote would be the dishonest option.
+  // --- Verdict: one sentence, then the caveat that matters most.
   if (vEl) {
-    const fo = blend['FRI'] ? blend['FRI'].open : null;
-    const fo2 = blend['FRI'] ? blend['FRI'].open_2x : null;
-    const us = (D.sessions_sgt || {}).US || {};
-    const dash = '—';
     vEl.innerHTML =
-      'The book ranks on <strong>Thursday&rsquo;s close</strong> and, since '
-      + '<strong>12 August 2026</strong>, fills at <strong>Friday&rsquo;s open</strong> '
-      + dash + ' ' + (us.sgt_open_summer || dash) + ' SGT Friday in summer, '
-      + (us.sgt_open_winter || dash) + ' SGT in winter. It previously filled at '
-      + 'Friday&rsquo;s close, which lands at ' + (us.sgt_close_summer || dash)
-      + ' SGT on the Saturday and is not a trade a Singapore-based operator can '
-      + 'reliably make. The decision itself is unchanged; only the moment of '
-      + 'execution moved. Measured beforehand at the blend: '
-      + (dep !== null ? _execFmt(dep.sharpe, 4) : dash) + ' filling at the close '
-      + 'against ' + (fo !== null ? _execFmt(fo.sharpe, 4) : dash) + ' at the open, '
-      + 'and ' + (fo2 !== null ? _execFmt(fo2.sharpe, 4) : dash)
-      + ' at doubled cost ' + dash + ' inside noise either way. '
-      + '<strong>The figures on this dashboard are still computed '
-      + 'close-to-close</strong>, deliberately; see the note under the sequence '
-      + 'below. As at ' + (D.as_of || dash) + '.';
+      'This portfolio rebalances <strong>once a week</strong>. It ranks on '
+      + '<strong>Thursday&rsquo;s closing prices</strong> and places the orders at '
+      + '<strong>Friday&rsquo;s market open</strong> &mdash; '
+      + (us.sgt_open_summer || '—') + ' Singapore time, or '
+      + (us.sgt_open_winter || '—') + ' in the northern winter. Adopted '
+      + '12 August 2026, replacing a convention that assumed trading at the '
+      + 'US close, which falls at ' + (us.sgt_close_summer || '—')
+      + ' SGT on a Saturday. As at ' + (D.as_of || '—') + '.';
   }
 
-  // --- Decision path. The narrative (what was tried, why it was kept or
-  //     dropped) lives here; every NUMBER is looked up from the feed, so the
-  //     story cannot quietly disagree with the studies. A row whose figure is
-  //     missing renders an em dash rather than vanishing, because a silently
-  //     dropped variant would misrepresent the search as narrower than it was.
-  const fl = D.fill_lag || null;
-  const flLeg = (k) => (fl && fl.legs && fl.legs[k]) ? fl.legs[k].sharpe : null;
-  const gridLeg = (d, f) => (blend[d] && blend[d][f]) ? blend[d][f].sharpe : null;
-  const W11 = fl ? 'WS12' : 'WS12 (absent)';
-  const path = [
-    {n: 1, name: 'Deployed today', sig: 'Thu close', fill: 'Fri close',
-     sgt: '04:00 Sat', v: flLeg('friday_close'), basis: W11,
-     verdict: 'keep', note: 'Verified free of look-ahead. The fill is a 4am Singapore trade.'},
-    {n: 2, name: 'Same decision, one session later', sig: 'Thu close', fill: 'Mon close',
-     sgt: '04:00 Tue', v: flLeg('monday_close'), basis: W11,
-     verdict: 'reject', note: 'Discards a day of information and keeps the same clock problem.'},
-    {n: 3, name: 'Weekly-close grid', sig: 'Fri close', fill: 'Mon close',
-     sgt: '04:00 Tue', v: flLeg('monday_grid'), basis: W11,
-     verdict: 'reject', note: 'Coherent — the signal is a real weekly close — and needed a new forward-roll calendar mode. Still a 4am fill.'},
-    {n: 4, name: 'Monday open', sig: 'Fri close', fill: 'Mon open',
-     sgt: '21:30 Mon', v: gridLeg('MON', 'open'), basis: 'WS13',
-     verdict: 'reject', note: 'The only fill point measurably worse than its own close; the Monday auction absorbs the whole weekend gap.'},
-    {n: 5, name: 'Best-testing grid (Wednesday)', sig: 'Tue close', fill: 'Wed close',
-     sgt: '04:00 Thu', v: gridLeg('WED', 'close'), basis: 'WS13',
-     verdict: 'reject', note: 'Tests best, and is rejected anyway: selected as the best of five, no mechanism, sleeves disagree on the best day.'},
-    {n: 6, name: 'Friday open', sig: 'Thu close', fill: 'Fri open',
-     sgt: '21:30 Fri', v: gridLeg('FRI', 'open'), basis: 'WS13',
-     verdict: 'adopt', note: 'The deployed decision, executed earlier in the same session. Free even at doubled cost.'}
-  ];
-  const pt2 = document.getElementById('exec-path');
-  if (pt2) {
-    pt2.querySelector('thead').innerHTML =
-      '<tr><th>#</th><th>Variant</th><th>Signal bar</th><th>Fill</th>'
-      + '<th>SGT</th><th>Blend Sharpe</th><th>Basis</th><th>Verdict</th></tr>';
-    pt2.querySelector('tbody').innerHTML = path.map((r) => {
-      const col = r.verdict === 'adopt' ? 'var(--positive)'
-                : r.verdict === 'reject' ? 'var(--negative)' : 'var(--ink-faint)';
-      const label = r.verdict === 'adopt' ? 'ADOPTED 2026-08-12'
-                  : r.verdict === 'reject' ? 'rejected' : 'in use';
-      return '<tr><td>' + r.n + '</td><td><strong>' + r.name + '</strong><br>'
-        + '<span style="color:var(--ink-faint);font-size:12px">' + r.note + '</span></td>'
-        + '<td>' + r.sig + '</td><td>' + r.fill + '</td><td>' + r.sgt + '</td>'
-        + '<td>' + _execFmt(r.v, 4) + '</td>'
-        + '<td style="font-size:12px;color:var(--ink-faint)">' + r.basis + '</td>'
-        + '<td style="color:' + col + '"><strong>' + label + '</strong></td></tr>';
+  // --- Diagrams
+  const cy = document.getElementById('exec-cycle-diagram');
+  if (cy) cy.innerHTML = _execCycleSVG(D);
+  const ck = document.getElementById('exec-clock-diagram');
+  if (ck) ck.innerHTML = _execClockSVG(D);
+
+  // --- Inline figures in the three reasons
+  const setX = function (name, val) {
+    document.querySelectorAll('[data-x="' + name + '"]').forEach(function (e) {
+      e.textContent = val || '—';
+    });
+  };
+  setX('us_close_s', us.sgt_close_summer);
+  setX('us_open_s', us.sgt_open_summer);
+  const put = function (id, txt) {
+    const e = document.getElementById(id); if (e) e.textContent = txt;
+  };
+  put('exec-ar', _execBp(ec.active_return_ann, 0));
+  put('exec-te', _execBp(Math.abs(ec.tracking_error_ann || 0), 0).replace('+', ''));
+  put('exec-ir', _execFmt(ec.information_ratio, 2));
+  // SE of an information ratio over T years is approximately 1/sqrt(T).
+  const yrs = ec.n_days ? ec.n_days / 252 : null;
+  put('exec-irse', yrs ? '±' + (1 / Math.sqrt(yrs)).toFixed(2) : '—');
+
+  // --- The IR table: risk first, per the allocator register.
+  const irT = document.getElementById('exec-ir-table');
+  if (irT && days.length) {
+    irT.querySelector('thead').innerHTML =
+      '<tr><th>Rebalance day</th><th>Tracking error</th>'
+      + '<th>Active return</th><th>Information ratio</th><th></th></tr>';
+    irT.querySelector('tbody').innerHTML = days.map(function (d) {
+      const e = (blend[d] || {}).execution_choice; if (!e) return '';
+      const isDep = d === 'FRI';
+      const worst = d === 'MON';
+      const note = isDep ? '<strong>in use</strong>'
+                 : worst ? 'avoided &mdash; the Monday auction absorbs the weekend gap'
+                 : '';
+      const col = e.information_ratio >= 0 ? 'var(--positive)' : 'var(--negative)';
+      return '<tr' + (isDep ? ' style="background:var(--bg-soft)"' : '') + '>'
+        + '<td>' + (isDep ? '<strong>Friday</strong>' :
+            ({ MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday' })[d])
+        + '</td><td>' + _execBp(e.tracking_error_ann, 0).replace('+', '')
+        + '</td><td>' + _execBp(e.active_return_ann, 0)
+        + '</td><td style="color:' + col + '"><strong>'
+        + _execFmt(e.information_ratio, 2) + '</strong></td>'
+        + '<td style="font-size:12px;color:var(--ink-faint)">' + note + '</td></tr>';
     }).join('');
   }
-  const pn = document.getElementById('exec-path-note');
-  if (pn) {
-    pn.innerHTML = 'Rows 1–3 are priced by WS12'
-      + (fl ? '' : ' — <strong>not present in this build</strong>, so those figures show as dashes')
-      + '; rows 4–6 by WS13, whose panel runs one session later. Comparisons are '
-      + 'valid within a basis, never across one. The adopted row changes nothing '
-      + 'about the strategy: on the deployed W-FRI grid the engine already reads '
-      + 'Thursday\'s close, so it is the same decision filled earlier in the session.';
+  const irN = document.getElementById('exec-ir-note');
+  if (irN) {
+    irN.innerHTML = 'Active return and tracking error are annualised from the '
+      + 'daily difference between filling at the open and filling at the close, '
+      + 'on the identical book. <strong>This is an information ratio, not the '
+      + 'Sharpe ratio quoted elsewhere on this dashboard</strong> &mdash; Sharpe '
+      + 'measures absolute return against a cash rate, this measures the value '
+      + 'of one execution choice against another. On '
+      + (yrs ? yrs.toFixed(1) : '—') + ' years the standard error on such a '
+      + 'ratio is roughly ' + (yrs ? (1 / Math.sqrt(yrs)).toFixed(2) : '—')
+      + ', so none of these rows is distinguishable from zero and the day was '
+      + 'not chosen on them.';
   }
 
-  // --- Operating schedule
-  const sc = document.getElementById('exec-schedule');
-  if (sc) {
-    const us = (D.sessions_sgt || {}).US || {};
-    const xe = (D.sessions_sgt || {}).XETR || {};
-    const rows = [
-      ['Thu ' + (xe.sgt_close_summer || '—'), 'Sleeve D signal bar — Xetra close', 'in use'],
-      ['Fri ' + (us.sgt_close_summer || '—'), 'Sleeves A/B/C signal bar — US close (Thursday\'s session)', 'in use'],
-      ['Fri morning', 'Run <code>refresh_all.py</code> locally; rosters and per-constituent caches are gitignored, so CI cannot compute sleeve A or D breadth', 'adopted — operator-run, moved off Saturday'],
-      ['Fri midday', 'Position-change instruction in hand, ahead of both fills', 'adopted'],
-      ['Fri ' + (xe.sgt_open_summer || '—'), 'Sleeve D fills at the Xetra open', 'adopted'],
-      ['Fri ' + (us.sgt_open_summer || '—'), 'Sleeves A/B/C fill at the US open', 'adopted'],
-      ['Sat ' + (us.sgt_close_summer || '—'), 'Friday US close — the completed trading week the factsheet anchors on', 'in use'],
-      ['Weekend', 'Weekly factsheet publishes on the completed week. It explains the rebalance; it does not gate it', 'in use']
-    ];
-    sc.querySelector('thead').innerHTML =
-      '<tr><th>When (SGT)</th><th>What happens</th><th>Status</th></tr>';
-    sc.querySelector('tbody').innerHTML = rows.map((r) => {
-      const prop = r[2].indexOf('proposed') === 0 || r[2].indexOf('open') === 0;
-      return '<tr><td style="white-space:nowrap"><strong>' + r[0] + '</strong></td><td>'
-        + r[1] + '</td><td style="color:' + (prop ? 'var(--ink-faint)' : 'var(--positive)')
-        + '">' + r[2] + '</td></tr>';
-    }).join('');
+  // --- Disclosure. Stated on the face of the tab, not footnoted.
+  const dis = document.getElementById('exec-disclosure');
+  if (dis) {
+    dis.innerHTML =
+      '<p><strong>One difference between what is traded and what is measured.</strong></p>'
+      + '<p>Every performance figure published on this dashboard &mdash; the '
+      + 'factsheet, the blend, the sleeve curves &mdash; is computed on closing '
+      + 'prices, while the portfolio is executed at the open. The two were '
+      + 'measured against each other before the convention changed: the '
+      + 'difference is ' + _execBp(ec.active_return_ann, 0) + ' a year against '
+      + _execBp(Math.abs(ec.tracking_error_ann || 0), 0).replace('+', '')
+      + ' of tracking error, and it remains inside noise once the assumed '
+      + 'trading cost is doubled to price a wider opening auction.</p>'
+      + '<p>The engines were deliberately left alone rather than rebuilt to '
+      + 'carry opening prices for all four sleeves, which would restate every '
+      + 'published number in order to move one that does not move. The '
+      + 'consequence is stated here rather than hidden: <strong>the record '
+      + 'models a fill about six and a half hours later than the one actually '
+      + 'taken</strong>.</p>';
   }
 
-  // --- Weekday x fill grid, blend level
+  // --- Everything below is inside the collapsed evidence disclosure. ---
   const gt = document.getElementById('exec-grid');
   if (gt && days.length) {
     gt.querySelector('thead').innerHTML =
       '<tr><th>Rebalance grid</th><th>Close fill</th><th>Open fill</th>'
       + '<th>Open − close</th><th>Open @2× cost</th><th>Max drawdown (open)</th></tr>';
-    gt.querySelector('tbody').innerHTML = days.map((d) => {
+    gt.querySelector('tbody').innerHTML = days.map(function (d) {
       const b = blend[d]; if (!b) return '';
       const delta = b.open_minus_close ? b.open_minus_close.sharpe : null;
       const col = delta === null ? '' :
         ' style="color:' + (delta >= 0 ? 'var(--positive)' : 'var(--negative)') + '"';
-      const isDep = (d === 'FRI');
       return '<tr><td><strong>W-' + d + '</strong>'
-        + (isDep ? ' <span style="color:var(--ink-faint)">(deployed grid)</span>' : '')
+        + (d === 'FRI' ? ' <span style="color:var(--ink-faint)">(in use)</span>' : '')
         + '</td><td>' + _execFmt(b.close.sharpe, 4)
         + '</td><td>' + _execFmt(b.open.sharpe, 4)
         + '</td><td' + col + '>' + _execSigned(delta, 4)
@@ -7786,24 +7916,22 @@ function renderExecutionTiming() {
   }
   const gn = document.getElementById('exec-grid-note');
   if (gn) {
-    const pt = D.paired_tests || {};
-    gn.innerHTML = 'The weekday column is <strong>not</strong> a menu to pick from. '
-      + 'The best-looking grid here was selected as the maximum of ' + days.length
-      + ', so its margin is optimistic by construction, the sleeves disagree on which '
-      + 'day is best, and no mechanism distinguishes a mid-week rebalance from any other. '
-      + 'The deployed W-FRI grid is the only one with a structural story — it is the '
-      + 'weekly close. Cost stress multipliers applied: '
+    gn.innerHTML = 'The weekday column is <strong>not</strong> a menu to pick '
+      + 'from. The best-looking grid was selected as the maximum of ' + days.length
+      + ', so its margin is optimistic by construction, the four sleeves '
+      + 'disagree on which day is best, and no mechanism distinguishes a '
+      + 'mid-week rebalance from any other. Friday is the only grid with a '
+      + 'structural story &mdash; it is the weekly close. Cost stress applied: '
       + (D.cost_stress_multipliers || []).join('×, ') + '×.';
   }
 
-  // --- Paired bootstrap
   const pt = document.getElementById('exec-paired');
   if (pt && D.paired_tests && D.paired_tests.tests) {
     const T = D.paired_tests.tests;
     pt.querySelector('thead').innerHTML =
       '<tr><th>Comparison</th><th>Δ Sharpe</th><th>90% CI</th>'
       + '<th>P(first is better)</th><th>Excludes zero?</th></tr>';
-    pt.querySelector('tbody').innerHTML = Object.keys(T).map((k) => {
+    pt.querySelector('tbody').innerHTML = Object.keys(T).map(function (k) {
       const r = T[k];
       if (r.delta_point === null || r.delta_point === undefined) {
         return '<tr><td>' + k + '</td><td colspan="4">no valid samples</td></tr>';
@@ -7817,49 +7945,90 @@ function renderExecutionTiming() {
     }).join('');
   }
 
-  // --- Venue / cross-trade feasibility
   const vt = document.getElementById('exec-venues');
   if (vt && D.sleeves) {
     vt.querySelector('thead').innerHTML =
-      '<tr><th>Sleeve</th><th>Venues</th><th>Crosses at one moment?</th>'
-      + '<th>Cost assumption</th><th>Traded symbols</th></tr>';
-    vt.querySelector('tbody').innerHTML = D.sleeves.map((s) => {
+      '<tr><th>Sleeve</th><th>Venues</th><th>Crosses at one moment</th>'
+      + '<th>Cost assumption</th></tr>';
+    vt.querySelector('tbody').innerHTML = D.sleeves.map(function (s) {
       const ok = s.crosses_at_one_moment;
-      const syms = Object.keys(s.traded_symbols || {})
-        .map((k) => s.traded_symbols[k]).join(', ');
       return '<tr><td><strong>' + s.sleeve + '</strong></td><td>'
         + (s.venues || []).join(' + ') + '</td><td style="color:'
         + (ok ? 'var(--positive)' : 'var(--negative)') + '"><strong>'
         + (ok ? 'yes' : 'NO') + '</strong></td><td>' + s.cost_bps
-        + ' bps</td><td style="font-size:12px;color:var(--ink-faint)">'
-        + syms + '</td></tr>';
+        + ' bps</td></tr>';
     }).join('');
   }
 
-  // --- Caveats. These travel with the numbers rather than sitting in a
-  //     footnote, because each one bounds what the table above can claim.
-  const cv = document.getElementById('exec-caveats');
-  if (cv) {
-    const split = (D.sleeves || []).filter((s) => !s.crosses_at_one_moment)
-      .map((s) => s.sleeve);
-    cv.innerHTML =
-      '<p><strong>What this tab does and does not establish.</strong></p>'
-      + '<p><strong>Basis.</strong> The blend is the 35/35/10/20 four-way blend '
-      + '<em>before</em> the EEM tilt and the breadth gate, which sit above this '
-      + 'layer and are not re-run. Sleeve A is priced through its US trading '
-      + 'proxies, so its open is the proxy\'s session, not that of the '
-      + 'London-listed UCITS fund actually held.</p>'
-      + (split.length ? '<p><strong>Sleeve ' + split.join(' and ')
-        + ' cannot cross a rebalance at a single moment.</strong> Its legs span '
-        + 'different venues, so the open and close figures above describe a fill '
-        + 'that would in practice be spread across several hours. Treat that '
-        + 'sleeve\'s execution numbers as indicative.</p>' : '')
-      + '<p><strong>Selection.</strong> Where a weekday was chosen as the best of '
-      + (days.length ? days.length : 'several') + ', its bootstrap interval is '
-      + 'conditional on that choice and is not corrected for multiplicity.</p>'
-      + '<p><strong>Not a live signal.</strong> This is a study output as at '
-      + (D.as_of || '—') + '. It does not update weekly and must not be read as '
-      + 'a current instruction.</p>';
+  const st = document.getElementById('exec-sessions');
+  if (st && D.sessions_sgt) {
+    st.querySelector('thead').innerHTML =
+      '<tr><th>Venue</th><th>Local session</th><th>SGT open (S)</th>'
+      + '<th>SGT close (S)</th><th>SGT open (W)</th><th>SGT close (W)</th></tr>';
+    st.querySelector('tbody').innerHTML = Object.keys(D.sessions_sgt).map(function (v) {
+      const r = D.sessions_sgt[v];
+      const mark = function (t, rolls) {
+        return t + (rolls ? ' <span style="color:var(--negative)">(+1d)</span>' : '');
+      };
+      return '<tr><td><strong>' + v + '</strong></td><td>' + r.local_open + '–'
+        + r.local_close + ' ' + r.timezone + '</td><td>' + r.sgt_open_summer
+        + '</td><td>' + mark(r.sgt_close_summer, r.sgt_close_rolls_summer)
+        + '</td><td>' + r.sgt_open_winter + '</td><td>'
+        + mark(r.sgt_close_winter, r.sgt_close_rolls_winter) + '</td></tr>';
+    }).join('');
+  }
+
+  const fl = D.fill_lag || null;
+  const flLeg = function (k) {
+    return (fl && fl.legs && fl.legs[k]) ? fl.legs[k].sharpe : null;
+  };
+  const gridLeg = function (d, f) {
+    return (blend[d] && blend[d][f]) ? blend[d][f].sharpe : null;
+  };
+  const W11 = fl ? 'WS12' : 'WS12 (absent)';
+  const path = [
+    { n: 1, name: 'Deployed until 2026-08-12', sig: 'Thu close', fill: 'Fri close',
+      sgt: '04:00 Sat', v: flLeg('friday_close'), basis: W11, verdict: 'was in use',
+      note: 'Verified free of look-ahead. The fill is a 4am Singapore trade.' },
+    { n: 2, name: 'Same decision, one session later', sig: 'Thu close', fill: 'Mon close',
+      sgt: '04:00 Tue', v: flLeg('monday_close'), basis: W11, verdict: 'rejected',
+      note: 'Discards a day of information and keeps the same clock problem.' },
+    { n: 3, name: 'Weekly-close grid', sig: 'Fri close', fill: 'Mon close',
+      sgt: '04:00 Tue', v: flLeg('monday_grid'), basis: W11, verdict: 'rejected',
+      note: 'Coherent, and needed a new forward-roll calendar mode. Still a 4am fill.' },
+    { n: 4, name: 'Monday open', sig: 'Fri close', fill: 'Mon open',
+      sgt: '21:30 Mon', v: gridLeg('MON', 'open'), basis: 'WS13', verdict: 'rejected',
+      note: 'The only fill point measurably worse than its own close.' },
+    { n: 5, name: 'Best-testing grid (Wednesday)', sig: 'Tue close', fill: 'Wed close',
+      sgt: '04:00 Thu', v: gridLeg('WED', 'close'), basis: 'WS13', verdict: 'rejected',
+      note: 'Tests best and is rejected anyway: best of five, no mechanism.' },
+    { n: 6, name: 'Friday open', sig: 'Thu close', fill: 'Fri open',
+      sgt: '21:30 Fri', v: gridLeg('FRI', 'open'), basis: 'WS13', verdict: 'adopted',
+      note: 'The same decision, executed earlier in the session.' }
+  ];
+  const pTab = document.getElementById('exec-path');
+  if (pTab) {
+    pTab.querySelector('thead').innerHTML =
+      '<tr><th>#</th><th>Variant</th><th>Signal bar</th><th>Fill</th>'
+      + '<th>SGT</th><th>Blend Sharpe</th><th>Basis</th><th>Verdict</th></tr>';
+    pTab.querySelector('tbody').innerHTML = path.map(function (r) {
+      const col = r.verdict === 'adopted' ? 'var(--positive)'
+                : r.verdict === 'rejected' ? 'var(--negative)' : 'var(--ink-faint)';
+      const lab = r.verdict === 'adopted' ? 'ADOPTED 2026-08-12' : r.verdict;
+      return '<tr><td>' + r.n + '</td><td><strong>' + r.name + '</strong><br>'
+        + '<span style="color:var(--ink-faint);font-size:12px">' + r.note + '</span></td>'
+        + '<td>' + r.sig + '</td><td>' + r.fill + '</td><td>' + r.sgt + '</td>'
+        + '<td>' + _execFmt(r.v, 4) + '</td>'
+        + '<td style="font-size:12px;color:var(--ink-faint)">' + r.basis + '</td>'
+        + '<td style="color:' + col + '"><strong>' + lab + '</strong></td></tr>';
+    }).join('');
+  }
+  const pn = document.getElementById('exec-path-note');
+  if (pn) {
+    pn.innerHTML = 'Rows 1&ndash;3 are priced by WS12'
+      + (fl ? '' : ' &mdash; <strong>not present in this build</strong>, so those figures show as dashes')
+      + '; rows 4&ndash;6 by WS13, whose panel runs one session later. '
+      + 'Comparisons are valid within a basis, never across one.';
   }
 }
 
