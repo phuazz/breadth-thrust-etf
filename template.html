@@ -2739,11 +2739,11 @@
   </div>
 
   <!-- ====================== EXECUTION TIMING ====================== -->
-  <!-- WS12. A DECISION AID, not a dossier: it exists to support one choice —
+  <!-- WS13. A DECISION AID, not a dossier: it exists to support one choice —
        when to execute — so every panel below either states the sequence or
        prices an alternative to it. Numbers are read from
        window.DATA.execution_timing, which is a projection of
-       data_local/ws12_execution_grid.json, so this tab cannot drift from the
+       data_local/ws13_execution_grid.json, so this tab cannot drift from the
        study it reports. -->
   <div class="tab-content" id="tab-execution">
     <div class="verdict">
@@ -7617,7 +7617,7 @@ function renderPortfolio() {
 
 // ----------- Risk & Validation tab -------------------------------------
 // ---------------------------------------------------------------------------
-// Execution timing (WS12)
+// Execution timing (WS13)
 // ---------------------------------------------------------------------------
 // Every figure here is READ from window.DATA.execution_timing. Nothing is
 // recomputed in the browser and nothing is hard-coded, so the tab cannot
@@ -7636,7 +7636,7 @@ function _execSigned(x, dp, pct) {
 function renderExecutionTiming() {
   const D = (window.DATA || {}).execution_timing;
   const miss = 'Execution-timing study not present in this build — run '
-             + '<code>python scripts/run_ws12_execution_grid.py</code>.';
+             + '<code>python scripts/run_ws13_execution_grid.py</code>.';
   const vEl = document.getElementById('exec-verdict');
   if (!D) { if (vEl) vEl.innerHTML = miss; return; }
 
@@ -7689,7 +7689,7 @@ function renderExecutionTiming() {
   const fl = D.fill_lag || null;
   const flLeg = (k) => (fl && fl.legs && fl.legs[k]) ? fl.legs[k].sharpe : null;
   const gridLeg = (d, f) => (blend[d] && blend[d][f]) ? blend[d][f].sharpe : null;
-  const W11 = fl ? 'WS11' : 'WS11 (absent)';
+  const W11 = fl ? 'WS12' : 'WS12 (absent)';
   const path = [
     {n: 1, name: 'Deployed today', sig: 'Thu close', fill: 'Fri close',
      sgt: '04:00 Sat', v: flLeg('friday_close'), basis: W11,
@@ -7701,13 +7701,13 @@ function renderExecutionTiming() {
      sgt: '04:00 Tue', v: flLeg('monday_grid'), basis: W11,
      verdict: 'reject', note: 'Coherent — the signal is a real weekly close — and needed a new forward-roll calendar mode. Still a 4am fill.'},
     {n: 4, name: 'Monday open', sig: 'Fri close', fill: 'Mon open',
-     sgt: '21:30 Mon', v: gridLeg('MON', 'open'), basis: 'WS12',
+     sgt: '21:30 Mon', v: gridLeg('MON', 'open'), basis: 'WS13',
      verdict: 'reject', note: 'The only fill point measurably worse than its own close; the Monday auction absorbs the whole weekend gap.'},
     {n: 5, name: 'Best-testing grid (Wednesday)', sig: 'Tue close', fill: 'Wed close',
-     sgt: '04:00 Thu', v: gridLeg('WED', 'close'), basis: 'WS12',
+     sgt: '04:00 Thu', v: gridLeg('WED', 'close'), basis: 'WS13',
      verdict: 'reject', note: 'Tests best, and is rejected anyway: selected as the best of five, no mechanism, sleeves disagree on the best day.'},
     {n: 6, name: 'Friday open', sig: 'Thu close', fill: 'Fri open',
-     sgt: '21:30 Fri', v: gridLeg('FRI', 'open'), basis: 'WS12',
+     sgt: '21:30 Fri', v: gridLeg('FRI', 'open'), basis: 'WS13',
      verdict: 'adopt', note: 'The deployed decision, executed earlier in the same session. Free even at doubled cost.'}
   ];
   const pt2 = document.getElementById('exec-path');
@@ -7730,9 +7730,9 @@ function renderExecutionTiming() {
   }
   const pn = document.getElementById('exec-path-note');
   if (pn) {
-    pn.innerHTML = 'Rows 1–3 are priced by WS11'
+    pn.innerHTML = 'Rows 1–3 are priced by WS12'
       + (fl ? '' : ' — <strong>not present in this build</strong>, so those figures show as dashes')
-      + '; rows 4–6 by WS12, whose panel runs one session later. Comparisons are '
+      + '; rows 4–6 by WS13, whose panel runs one session later. Comparisons are '
       + 'valid within a basis, never across one. The adopted row changes nothing '
       + 'about the strategy: on the deployed W-FRI grid the engine already reads '
       + 'Thursday\'s close, so it is the same decision filled earlier in the session.';

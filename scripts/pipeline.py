@@ -154,12 +154,12 @@ def load_right_tail() -> dict | None:
 
 
 def load_execution_timing() -> dict | None:
-    """Load data/execution_timing.json — WS12's execution grid.
+    """Load data/execution_timing.json — WS13's execution grid.
 
     What each fill choice (weekday x open/close) does to the record, the
     Singapore wall-clock time of every venue's open and close, and whether
     each sleeve's rebalance can be crossed at a single moment. Built by
-    scripts/run_ws12_execution_grid.py; it is a STUDY output, not a live
+    scripts/run_ws13_execution_grid.py; it is a STUDY output, not a live
     signal, so it does not move week to week and carries its own as_of.
     """
     path = DATA_DIR / "execution_timing.json"
@@ -878,7 +878,7 @@ def main() -> int:
               f"({bootstrap.get('n_bootstrap_samples', 0)} samples, "
               f"block size {bootstrap.get('block_size_days', 0)}d)")
 
-    print("Loading execution-timing grid (WS12) ...", flush=True)
+    print("Loading execution-timing grid (WS13) ...", flush=True)
     execution_timing = load_execution_timing()
     if execution_timing:
         sl = execution_timing.get("sleeves", [])

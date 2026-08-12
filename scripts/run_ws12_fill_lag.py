@@ -1,4 +1,4 @@
-"""WS11 - execution fill lag: Friday close (deployed) vs Monday close.
+"""WS12 - execution fill lag: Friday close (deployed) vs Monday close.
 
 QUESTION
     Every deployed engine reads the signal at the session BEFORE the rebalance
@@ -50,8 +50,8 @@ WHAT WOULD MAKE THIS SILENTLY WRONG
        drag can be told apart from weekend noise.
 
 USAGE
-    python scripts/run_ws11_fill_lag.py             # all sleeves + blend
-    python scripts/run_ws11_fill_lag.py --sleeve a  # one sleeve (repeatable)
+    python scripts/run_ws12_fill_lag.py             # all sleeves + blend
+    python scripts/run_ws12_fill_lag.py --sleeve a  # one sleeve (repeatable)
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ sys.path.insert(0, str(SCRIPTS))
 import rebalance_calendar  # noqa: E402
 from run_ws10_holiday_cadence import SLEEVES  # noqa: E402
 
-OUT_PATH = SCRIPTS.parent / "data_local" / "ws11_fill_lag.json"
+OUT_PATH = SCRIPTS.parent / "data_local" / "ws12_fill_lag.json"
 
 BASELINE = "friday_close"       # deployed: Thu signal -> Fri fill
 LAGGED = "monday_close"         # same decision, one session later

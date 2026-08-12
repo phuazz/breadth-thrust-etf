@@ -1581,3 +1581,72 @@ the report and are re-screened every run until they can be evaluated.
 The free symbol directory carries **no AUM**, so the liquidity screen is not
 yet meaningful; whether to buy a catalogue that does is open. 10 guard tests
 in `tests/test_universe_monitor.py`; suite 678 passing.
+
+## WS12 / WS13 — execution timing (2026-08-12)
+
+Filed record: [`reviews/2026-08-12_ws12-ws13_execution-timing.docx`](reviews/2026-08-12_ws12-ws13_execution-timing.docx).
+Engines `scripts/run_ws12_fill_lag.py`, `scripts/run_ws13_execution_grid.py`;
+charts `scripts/plot_ws13_summary.py`; record spec `scripts/build_ws13_record.js`.
+Commits 4083fbd, 28e1a61, 69a2c5d, 56b8c7c.
+
+**Numbering note.** These two workstreams were begun and committed as "WS11"
+and "WS12" before the ledger was read. WS11 was already taken by the
+constituent-price survivorship study filed 2026-08-10, so both were renumbered
+to WS12 and WS13 at filing. The pushed commit messages 4083fbd and 28e1a61
+still say WS11/WS12 in their bodies; the scripts, data, dashboard and this
+record carry the corrected numbers. Read the ledger first — that rule exists
+for exactly this.
+
+**Question.** Does the deployed Thursday-signal / Friday-close convention carry
+look-ahead; what does a later fill cost; and does the weekday or the
+open-versus-close choice matter?
+
+**Answers.**
+
+- **No look-ahead.** Every engine reads `get_loc(rd) - 1`, so a Friday
+  rebalance ranks on Thursday's close and the position first earns the
+  Friday→Monday return — arithmetically a fill at Friday's close. The external
+  reconstruction reproduces each engine's own equity to 0.0 absolute error, and
+  re-running WS10 on the same panel gives blend Sharpe 1.1533 against WS12's
+  1.1530 baseline.
+- **Filling the same decision one session later** costs the blend −0.0222
+  Sharpe / −0.15pp CAGR. Pessimistic bound: it also leaves the signal a session
+  staler than the live workflow would.
+- **A W-MON grid** (weekly-close signal, Monday fill) returns +0.0336 Sharpe.
+  It required the new `holiday_aware_next` forward-roll mode, and it does not
+  solve the operational problem — the Monday close is 04:00 SGT Tuesday.
+- **Open versus close ties on four of five grids.** Monday is the exception:
+  −0.0508 with a 90% paired interval clear of zero. Its opening auction prices
+  the whole weekend in one print.
+- **Friday open is the recommendation** (not adopted): +0.0299 against the
+  Friday close with the interval straddling zero, −0.0065 at doubled cost, and
+  it moves the fill from 04:00 SGT Saturday to 21:30 SGT Friday. It is the
+  deployed decision executed earlier in the same session.
+- **Wednesday tests best and is rejected** — 1.2958 against the deployed
+  1.1623, interval clear of zero, but selected as the best of five, uncorrected
+  for multiplicity, sleeves disagree on the best day, and no mechanism.
+- **Sleeve C cannot cross a rebalance at one moment** (US + Shenzhen + crypto).
+  A, B and D each sit on one venue.
+
+**Method notes worth carrying forward.**
+
+- The ~0.36 unpaired Sharpe SE used elsewhere in this book is the WRONG
+  yardstick for these comparisons. Weekday grids and fill points run on one
+  history and are heavily correlated, so the SE of the *difference* is far
+  smaller. All inference here uses the paired moving-block bootstrap from
+  `run_phase7_bootstrap` (60d blocks, 2000 samples, seed 42).
+- Guards that earned their place: the mirrored open-panel builder must
+  reproduce the engine's Close panel (RELATIVE tolerance — yfinance recomputes
+  `auto_adjust` factors between fetches, so a cached and a fresh panel differ
+  by ~2e-6 relative); the two-stage open-fill formula must collapse to the
+  close fill when O = C; a forward roll must keep one decision per ISO week.
+- A guard that was wrong: an early direction test asserted no rebalance later
+  than Wednesday, which rejected correct behaviour when Xetra shut Mon 24 to
+  Wed 26 December 2018 and the roll correctly landed on Thursday 27th.
+
+**Not run, and therefore not claimed:** split-half or sub-period consistency on
+the weekday surface; any out-of-sample test of the Wednesday result; sleeve A
+priced on the LSE-listed UCITS actually held rather than its US proxies.
+
+**Open.** Owner decision on the Friday-open fill and the implied Friday-morning
+refresh. Nothing in the deployed automation has been changed.

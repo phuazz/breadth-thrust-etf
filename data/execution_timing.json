@@ -583,7 +583,7 @@
     }
   },
   "fill_lag": {
-    "source": "ws11_fill_lag.json",
+    "source": "ws12_fill_lag.json",
     "legs": {
       "friday_close": {
         "sharpe": 1.1529991360792793,
