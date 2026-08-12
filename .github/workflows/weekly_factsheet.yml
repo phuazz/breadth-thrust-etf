@@ -12,7 +12,7 @@ name: Weekly factsheet — pipeline + email
 # the refresh itself: a push touching data/breadth_csp1.json, gated by
 # scripts/check_factsheet_gate.py (panel current to the week-final NYSE
 # session AND that week not already published per the committed
-# docs/factsheet_published.json marker). A Sunday 13:00 UTC scheduled
+# docs/factsheet_published.json marker). A Sunday 09:00 UTC scheduled
 # run performs a check ONLY: if the week's factsheet has still not gone
 # out, it emails the operator while there is time to refresh before
 # Monday's 21:30 UTC hard guard freezes the builds.

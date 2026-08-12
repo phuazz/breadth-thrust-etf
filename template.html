@@ -2094,7 +2094,7 @@
         </div>
         <div class="step">
           <div class="step-n">2</div>
-          <div class="step-body"><strong>Every Friday close</strong>, refresh all four strategies' rankings (the dashboard does this when the pipeline runs).</div>
+          <div class="step-body"><strong>Every Friday close</strong>, rebalance all four strategies on rankings computed from the <strong>previous session's close</strong> — Thursday's (the dashboard does this when the pipeline runs). The one-session lag is deliberate: it is what keeps the decision free of look-ahead.</div>
         </div>
         <div class="step">
           <div class="step-n">3</div>
@@ -2179,10 +2179,10 @@
     <div class="recipe">
       <h3>Strategy A — US sector breadth rotation</h3>
       <div class="recipe-title">Top-K-by-breadth sector rotation (35% sleeve in the deployed 4-way blend)</div>
-      <p style="margin:0;color:var(--ink-soft);"><em style="color:var(--ink-faint);">Sector-relative breadth rotation, up to K = 7, long-only.</em> Each Friday close, compute % above 200d MA for each of the 14 sector ETFs. Convert to <strong>sector-relative breadth</strong> by subtracting the cross-sectional mean. Rank by relative breadth, take the top K = 7, then drop any with negative relative breadth (those below the mean) to keep the sleeve long-only. Weight survivors by their share of total positive relative breadth. <strong>K is the cap, not a target</strong> — in narrow leadership regimes only a handful of sectors sit above the mean and the sleeve concentrates to those; in broad rallies all top 7 are above mean and the sleeve fans out. Refit K only annually on expanding-window Sharpe — the choice has been stable at K = 7 throughout the backtest. Strategy A is the largest single sleeve (35%) in the deployed multi-strategy blend; see the Multi-Strategy tab for how it combines with B, C, and D.</p>
+      <p style="margin:0;color:var(--ink-soft);"><em style="color:var(--ink-faint);">Sector-relative breadth rotation, up to K = 7, long-only.</em> Each Friday close, rebalance on the % above 200d MA computed for each of the 14 sector ETFs as at the previous session's close (Thursday's). Convert to <strong>sector-relative breadth</strong> by subtracting the cross-sectional mean. Rank by relative breadth, take the top K = 7, then drop any with negative relative breadth (those below the mean) to keep the sleeve long-only. Weight survivors by their share of total positive relative breadth. <strong>K is the cap, not a target</strong> — in narrow leadership regimes only a handful of sectors sit above the mean and the sleeve concentrates to those; in broad rallies all top 7 are above mean and the sleeve fans out. Refit K only annually on expanding-window Sharpe — the choice has been stable at K = 7 throughout the backtest. Strategy A is the largest single sleeve (35%) in the deployed multi-strategy blend; see the Multi-Strategy tab for how it combines with B, C, and D.</p>
       <div class="recipe-stats" id="recipe-stats"></div>
       <ol class="recipe-steps">
-        <li><strong>Every Friday close</strong>: pull the 14 ETF rosters, compute % of constituents above their own 200d simple MA (absolute breadth, 0-100%).</li>
+        <li><strong>Every Friday close, ranking on the previous session's data</strong>: pull the 14 ETF rosters, compute % of constituents above their own 200d simple MA as at Thursday's close (absolute breadth, 0-100%).</li>
         <li><strong>Convert to sector-relative breadth</strong>: for each ETF, subtract the cross-sectional mean breadth across all 14 sectors. The signal is now "how much is this sector leading or lagging the others" (positive = leading, negative = lagging).</li>
         <li><strong>Rank by relative breadth and take the top K = 7</strong>, then <strong>drop any with negative relative breadth</strong> (sectors below the mean). The sleeve holds <strong>up to K</strong> survivors — often fewer when the cross-section is narrow.</li>
         <li><strong>Weight by positive relative-breadth share</strong>: weight_i = rel_breadth_i / Σ(positive rel_breadths). Survivors with the largest excess over the mean get the largest slices.</li>
@@ -2833,7 +2833,7 @@
       <p><strong>What is "leading on breadth"?</strong> A sector at 75% breadth sounds strong in absolute terms, but if every other sector is also above 75% then this one is not standing out — it is just riding the broader rally. To distinguish leaders from market beneficiaries, we compute the average breadth across all 14 sectors, then subtract that average from each sector's own breadth. The result is <em>sector-relative breadth</em> — positive when the sector is leading the pack, negative when it is lagging. This is the signal we actually rank on.</p>
       <div class="step">
         <div class="step-n">1</div>
-        <div class="step-body"><strong>Every Friday after market close</strong>, look up the constituents of each of the 14 ETFs and compute the breadth (% above 200d MA) for each one.</div>
+        <div class="step-body"><strong>The rebalance lands at Friday's close, and it ranks on Thursday's.</strong> Look up the constituents of each of the 14 ETFs and compute the breadth (% above 200d MA) for each one, measured at the <strong>previous session's close</strong>. The one-session lag is deliberate: it guarantees the decision only ever uses information that was already public when it was taken. The Execution Timing tab sets out the full sequence and what the delay costs.</div>
       </div>
       <div class="step">
         <div class="step-n">2</div>
