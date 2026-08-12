@@ -678,6 +678,27 @@ def write_dashboard_payload(payload: dict) -> None:
         feed["blend"] = payload["blend"]
     if "paired_tests" in payload:
         feed["paired_tests"] = payload["paired_tests"]
+
+    # WS11's legs, folded in so the dashboard can show the WHOLE decision path
+    # rather than WS12's slice of it. Read from data_local, which is
+    # gitignored - so the numbers are captured into this COMMITTED feed once
+    # and survive on a machine that has never run WS11. Provenance is recorded
+    # rather than implied, and absence is stated rather than rendered as a gap.
+    ws11 = OUT_PATH.parent / "ws11_fill_lag.json"
+    if ws11.exists():
+        try:
+            w = json.loads(ws11.read_text(encoding="utf-8"))
+            if "blend" in w:
+                feed["fill_lag"] = {
+                    "source": "ws11_fill_lag.json",
+                    "legs": w["blend"]["legs"],
+                    "delta": w["blend"]["delta"],
+                    "convention": w.get("convention", {}),
+                }
+        except Exception as exc:  # noqa: BLE001
+            print(f"  (ws11 feed skipped: {type(exc).__name__}: {exc})")
+    if "fill_lag" not in feed:
+        print("  (no WS11 output found - decision-path panel will say so)")
     DASH_PATH.parent.mkdir(parents=True, exist_ok=True)
     DASH_PATH.write_text(json.dumps(feed, indent=2), encoding="utf-8")
     print(f"Wrote {DASH_PATH}")

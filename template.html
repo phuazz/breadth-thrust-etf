@@ -2777,6 +2777,15 @@
     </section>
 
     <section>
+      <h2>How this workflow was arrived at</h2>
+      <p class="section-sub">Six variants were priced, in this order. Each row states the session the decision reads, the moment the book turns over, and what that moment is on a Singapore clock. <strong>The Sharpe column is not comparable down the whole table</strong> — the two studies behind it end on different dates, so a row's figure is only comparable with others sharing its basis, and no delta is taken across bases.</p>
+      <div style="overflow-x:auto;">
+        <table class="small-table" id="exec-path"><thead></thead><tbody></tbody></table>
+      </div>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="exec-path-note"></p>
+    </section>
+
+    <section>
       <h2>What each fill choice does to the record</h2>
       <p class="section-sub">Deployed-blend Sharpe (35/35/10/20 A:B:C:D, before the EEM tilt and the breadth gate) under every weekday rebalance grid, filled at the close and at the open. The signal is untouched in every cell — an open fill uses the <em>same</em> decision as the close fill on that date and merely executes it earlier in the session. The 2× column doubles the assumed trading cost, because an opening auction is a wider book than a closing one.</p>
       <div style="overflow-x:auto;">
@@ -2799,6 +2808,15 @@
       <div style="overflow-x:auto;">
         <table class="small-table" id="exec-venues"><thead></thead><tbody></tbody></table>
       </div>
+    </section>
+
+    <section>
+      <h2>The operating schedule this implies</h2>
+      <p class="section-sub">The weekly factsheet is an aid to <em>understanding</em> a rebalance, not a gate on executing one. Keeping it on its completed-week anchor and letting the trade instruction run on its own clock is what removes the conflict: a decision taken on Thursday's close cannot wait for a Friday close that has not happened. Times are Singapore, summer offsets; the winter column of the venue table above applies from roughly November to March.</p>
+      <div style="overflow-x:auto;">
+        <table class="small-table" id="exec-schedule"><thead></thead><tbody></tbody></table>
+      </div>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;">Rows marked <strong>proposed</strong> are not implemented. The refresh currently runs on Saturday, which places the rebalance card after the fill moment it assumes.</p>
     </section>
 
     <div class="methodbox" id="exec-caveats"></div>
@@ -7660,6 +7678,88 @@ function renderExecutionTiming() {
         + '</td><td>' + mark(r.sgt_close_summer, r.sgt_close_rolls_summer)
         + '</td><td>' + r.sgt_open_winter + '</td><td>'
         + mark(r.sgt_close_winter, r.sgt_close_rolls_winter) + '</td></tr>';
+    }).join('');
+  }
+
+  // --- Decision path. The narrative (what was tried, why it was kept or
+  //     dropped) lives here; every NUMBER is looked up from the feed, so the
+  //     story cannot quietly disagree with the studies. A row whose figure is
+  //     missing renders an em dash rather than vanishing, because a silently
+  //     dropped variant would misrepresent the search as narrower than it was.
+  const fl = D.fill_lag || null;
+  const flLeg = (k) => (fl && fl.legs && fl.legs[k]) ? fl.legs[k].sharpe : null;
+  const gridLeg = (d, f) => (blend[d] && blend[d][f]) ? blend[d][f].sharpe : null;
+  const W11 = fl ? 'WS11' : 'WS11 (absent)';
+  const path = [
+    {n: 1, name: 'Deployed today', sig: 'Thu close', fill: 'Fri close',
+     sgt: '04:00 Sat', v: flLeg('friday_close'), basis: W11,
+     verdict: 'keep', note: 'Verified free of look-ahead. The fill is a 4am Singapore trade.'},
+    {n: 2, name: 'Same decision, one session later', sig: 'Thu close', fill: 'Mon close',
+     sgt: '04:00 Tue', v: flLeg('monday_close'), basis: W11,
+     verdict: 'reject', note: 'Discards a day of information and keeps the same clock problem.'},
+    {n: 3, name: 'Weekly-close grid', sig: 'Fri close', fill: 'Mon close',
+     sgt: '04:00 Tue', v: flLeg('monday_grid'), basis: W11,
+     verdict: 'reject', note: 'Coherent — the signal is a real weekly close — and needed a new forward-roll calendar mode. Still a 4am fill.'},
+    {n: 4, name: 'Monday open', sig: 'Fri close', fill: 'Mon open',
+     sgt: '21:30 Mon', v: gridLeg('MON', 'open'), basis: 'WS12',
+     verdict: 'reject', note: 'The only fill point measurably worse than its own close; the Monday auction absorbs the whole weekend gap.'},
+    {n: 5, name: 'Best-testing grid (Wednesday)', sig: 'Tue close', fill: 'Wed close',
+     sgt: '04:00 Thu', v: gridLeg('WED', 'close'), basis: 'WS12',
+     verdict: 'reject', note: 'Tests best, and is rejected anyway: selected as the best of five, no mechanism, sleeves disagree on the best day.'},
+    {n: 6, name: 'Friday open', sig: 'Thu close', fill: 'Fri open',
+     sgt: '21:30 Fri', v: gridLeg('FRI', 'open'), basis: 'WS12',
+     verdict: 'adopt', note: 'The deployed decision, executed earlier in the same session. Free even at doubled cost.'}
+  ];
+  const pt2 = document.getElementById('exec-path');
+  if (pt2) {
+    pt2.querySelector('thead').innerHTML =
+      '<tr><th>#</th><th>Variant</th><th>Signal bar</th><th>Fill</th>'
+      + '<th>SGT</th><th>Blend Sharpe</th><th>Basis</th><th>Verdict</th></tr>';
+    pt2.querySelector('tbody').innerHTML = path.map((r) => {
+      const col = r.verdict === 'adopt' ? 'var(--positive)'
+                : r.verdict === 'reject' ? 'var(--negative)' : 'var(--ink-faint)';
+      const label = r.verdict === 'adopt' ? 'RECOMMENDED'
+                  : r.verdict === 'reject' ? 'rejected' : 'in use';
+      return '<tr><td>' + r.n + '</td><td><strong>' + r.name + '</strong><br>'
+        + '<span style="color:var(--ink-faint);font-size:12px">' + r.note + '</span></td>'
+        + '<td>' + r.sig + '</td><td>' + r.fill + '</td><td>' + r.sgt + '</td>'
+        + '<td>' + _execFmt(r.v, 4) + '</td>'
+        + '<td style="font-size:12px;color:var(--ink-faint)">' + r.basis + '</td>'
+        + '<td style="color:' + col + '"><strong>' + label + '</strong></td></tr>';
+    }).join('');
+  }
+  const pn = document.getElementById('exec-path-note');
+  if (pn) {
+    pn.innerHTML = 'Rows 1–3 are priced by WS11'
+      + (fl ? '' : ' — <strong>not present in this build</strong>, so those figures show as dashes')
+      + '; rows 4–6 by WS12, whose panel runs one session later. Comparisons are '
+      + 'valid within a basis, never across one. The adopted row changes nothing '
+      + 'about the strategy: on the deployed W-FRI grid the engine already reads '
+      + 'Thursday\'s close, so it is the same decision filled earlier in the session.';
+  }
+
+  // --- Operating schedule
+  const sc = document.getElementById('exec-schedule');
+  if (sc) {
+    const us = (D.sessions_sgt || {}).US || {};
+    const xe = (D.sessions_sgt || {}).XETR || {};
+    const rows = [
+      ['Thu ' + (xe.sgt_close_summer || '—'), 'Sleeve D signal bar — Xetra close', 'in use'],
+      ['Fri ' + (us.sgt_close_summer || '—'), 'Sleeves A/B/C signal bar — US close (Thursday\'s session)', 'in use'],
+      ['Fri morning', 'Run <code>refresh_all.py</code> locally; rosters and per-constituent caches are gitignored, so CI cannot compute sleeve A or D breadth', 'proposed — currently Saturday'],
+      ['Fri midday', 'Position-change instruction in hand, ahead of both fills', 'proposed'],
+      ['Fri ' + (xe.sgt_open_summer || '—'), 'Sleeve D fills at the Xetra open', 'proposed'],
+      ['Fri ' + (us.sgt_open_summer || '—'), 'Sleeves A/B/C fill at the US open', 'proposed'],
+      ['Sat ' + (us.sgt_close_summer || '—'), 'Friday US close — the completed trading week the factsheet anchors on', 'in use'],
+      ['Weekend', 'Weekly factsheet publishes on the completed week. It explains the rebalance; it does not gate it', 'in use']
+    ];
+    sc.querySelector('thead').innerHTML =
+      '<tr><th>When (SGT)</th><th>What happens</th><th>Status</th></tr>';
+    sc.querySelector('tbody').innerHTML = rows.map((r) => {
+      const prop = r[2].indexOf('proposed') === 0;
+      return '<tr><td style="white-space:nowrap"><strong>' + r[0] + '</strong></td><td>'
+        + r[1] + '</td><td style="color:' + (prop ? 'var(--ink-faint)' : 'var(--positive)')
+        + '">' + r[2] + '</td></tr>';
     }).join('');
   }
 

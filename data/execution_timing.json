@@ -581,5 +581,62 @@
       "THU": 1.1750672862195353,
       "FRI": 1.1622806187412857
     }
+  },
+  "fill_lag": {
+    "source": "ws11_fill_lag.json",
+    "legs": {
+      "friday_close": {
+        "sharpe": 1.1529991360792793,
+        "cagr": 0.15258535065854018,
+        "total_return": 2.0073786155759277,
+        "max_dd": -0.2444115750385212,
+        "years": 7.75,
+        "window": [
+          "2018-11-08",
+          "2026-08-10"
+        ]
+      },
+      "monday_close": {
+        "sharpe": 1.130827265582574,
+        "cagr": 0.15109720031381868,
+        "total_return": 1.977402737188847,
+        "max_dd": -0.24111568187282248,
+        "years": 7.75,
+        "window": [
+          "2018-11-08",
+          "2026-08-10"
+        ]
+      },
+      "monday_grid": {
+        "sharpe": 1.1865527509896265,
+        "cagr": 0.15499835197261325,
+        "total_return": 2.0565426273467518,
+        "max_dd": -0.2181621847425792,
+        "years": 7.75,
+        "window": [
+          "2018-11-08",
+          "2026-08-10"
+        ]
+      }
+    },
+    "delta": {
+      "monday_close": {
+        "sharpe": -0.022171870496705326,
+        "cagr": -0.001488150344721495,
+        "max_dd": 0.0032958931656987267,
+        "total_return": -0.029975878387080712
+      },
+      "monday_grid": {
+        "sharpe": 0.03355361491034725,
+        "cagr": 0.002413001314073071,
+        "max_dd": 0.026249390295942004,
+        "total_return": 0.04916401177082408
+      }
+    },
+    "convention": {
+      "friday_close": "deployed: Thu-close signal -> Fri-close fill",
+      "monday_close": "same decision, filled one session later (Thu signal -> Mon fill; two sessions stale)",
+      "monday_grid": "live schedule: W-MON grid under holiday_aware_next, so the weekly close signals and the next session fills (one session stale, same as deployed)"
+    }
   }
 }
