@@ -103,7 +103,7 @@ module.exports = {
       `RECOMMENDED: fill at the Friday open. ${s4(B.FRI.open_minus_close.sharpe)} against the Friday close with the interval straddling zero, ${s4(B.FRI.open_2x.sharpe - B.FRI.close.sharpe)} at doubled cost. Same decision, executed earlier \u2014 21:30 SGT Friday, not 04:00 SGT Saturday.`,
       `The Wednesday grid tests best (${f4(B.WED.close.sharpe)} against ${f4(B.FRI.close.sharpe)}) and is REJECTED \u2014 best of five, uncorrected for multiplicity, sleeves disagree, no mechanism. Friday alone has a structural story.`,
       `Sleeve ${splitSleeves.join(' and ')} cannot cross a rebalance at one moment (${D.sleeves.filter((s) => !s.crosses_at_one_moment).map((s) => s.venues.join(', ')).join('; ')}). A, B and D each sit on one venue.`,
-      '13 configurations evaluated, 0 adopted, 1 flagged against.',
+      '13 configurations evaluated. One adopted — the Friday-open fill, a change to the moment of execution rather than to the strategy. One flagged against.',
     ] },
 
     { type: 'h1', text: '2. Verified architecture' },
@@ -181,9 +181,9 @@ module.exports = {
       widths: [3026, 2000, 4000] },
 
     { type: 'h1', text: '5. Trial register' },
-    { type: 'p', text: 'Stated explicitly so a later deflated-Sharpe or Harvey-Liu-Zhu haircut can charge for the search. Thirteen execution configurations were evaluated across the two workstreams. None was adopted, so no selection has yet been made that would require a haircut; the count is recorded against the possibility that one is made later.' },
+    { type: 'p', text: 'Stated explicitly so a later deflated-Sharpe or Harvey-Liu-Zhu haircut can charge for the search. Thirteen execution configurations were evaluated across the two workstreams and ONE was adopted — the Friday-open fill. A selection was therefore made from a set, which in principle attracts a multiple-testing haircut. In practice the question is close to moot here: the choice was made on the clock rather than on the number, its measured advantage sits inside noise in both directions, and no performance claim rests on it. The published record is unchanged by the adoption, so there is no headline figure for a haircut to deflate. The twelve unadopted configurations are recorded against the possibility that a future decision does rest on one of them.' },
     { type: 'chart', file: 'ws13_fig3_scope.png',
-      caption: 'Configurations evaluated by category. The funnel is 13 tested, 0 adopted, 1 flagged against.' },
+      caption: 'Configurations evaluated by category. The funnel is 13 tested, 1 adopted (the Friday-open fill) and 1 flagged against (the Monday open).' },
     { type: 'bullets', items: [
       'WS12 — 3 fill conventions (deployed close, one session later, W-MON grid), each across four sleeves and the blend.',
       'WS13 — 10 configurations: 5 weekday grids x 2 fill points, each across four sleeves and the blend.',

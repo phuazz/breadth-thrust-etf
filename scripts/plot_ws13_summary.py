@@ -250,8 +250,11 @@ def fig3_scope(D: dict) -> Path:
     ax.set_xlim(0, max(vals) * 1.25)
     ax.grid(axis="y", visible=False)
     ax.set_xlabel("count")
-    ax.set_title("13 execution configurations evaluated  →  0 adopted  →  "
-                 "1 flagged (Monday open)", fontsize=11, color=INK, pad=10)
+    # Two lines: the single-line form runs past the figure edge and clips.
+    title = ("13 execution configurations evaluated  →  1 adopted  →  "
+             "1 flagged against")
+    subtitle = "adopted: the Friday-open fill   ·   flagged: the Monday open"
+    ax.set_title(title + "\n" + subtitle, fontsize=10.5, color=INK, pad=10)
     fig.tight_layout()
     out = ASSETS / "ws13_fig3_scope.png"
     fig.savefig(out, dpi=150)
