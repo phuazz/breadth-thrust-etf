@@ -1883,6 +1883,7 @@
     <button class="tab" data-tab="regime">Risk Overlay</button>
     <button class="tab" data-tab="eemtilt">EM Tilt</button>
     <button class="tab" data-tab="robustness">Risk &amp; Validation</button>
+    <button class="tab" data-tab="execution" title="When the decision is made, when it is filled, and what the delay costs">Execution Timing</button>
     <button class="tab" data-tab="method">Method</button>
     <span class="tab-sep" aria-hidden="true"></span>
     <!-- Cross-page link, not a tab: the scanner is a separate daily-built page
@@ -2735,6 +2736,72 @@
 
       <div class="methodbox" style="margin-top:18px;" id="corr-verdict"></div>
     </section>
+  </div>
+
+  <!-- ====================== EXECUTION TIMING ====================== -->
+  <!-- WS12. A DECISION AID, not a dossier: it exists to support one choice —
+       when to execute — so every panel below either states the sequence or
+       prices an alternative to it. Numbers are read from
+       window.DATA.execution_timing, which is a projection of
+       data_local/ws12_execution_grid.json, so this tab cannot drift from the
+       study it reports. -->
+  <div class="tab-content" id="tab-execution">
+    <div class="verdict">
+      <h2>Execution timing — when the decision is made, and when it is filled</h2>
+      <p id="exec-verdict">Loading…</p>
+    </div>
+
+    <section>
+      <h2>The sequence</h2>
+      <p class="section-sub">Each weekly decision runs in three steps, and they happen at three different times. The engine reads the <strong>session before</strong> the rebalance date, so a Friday rebalance ranks on <strong>Thursday's</strong> close — the one-session lag that keeps the backtest free of look-ahead. The book is then assumed to turn over at the rebalance date's close. The gap between "signal observed" and "position filled" is where an implementation shortfall lives.</p>
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body"><strong>Signal bar</strong> — the close of the session before the rebalance date. Breadth for that date is computed from constituent prices plus the most recent roster snapshot dated on or before it.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body"><strong>Decision</strong> — the refresh runs locally (per-constituent caches are gitignored, so CI cannot compute sleeve A or D breadth) and the push triggers the factsheet publish.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body"><strong>Fill</strong> — the deployed backtest assumes the rebalance date's close. The tables below price the alternatives.</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Venue clocks, on a Singapore day</h2>
+      <p class="section-sub">"The close" is not one moment. Each sleeve prices on its own venue, and daylight saving moves the US and Europe on different dates — so both the summer and winter offsets are shown rather than a single figure that is wrong for part of the year. A row where the close rolls past midnight is marked, because that is the trade a Singapore-based operator cannot realistically make.</p>
+      <div style="overflow-x:auto;">
+        <table class="small-table" id="exec-sessions"><thead></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <section>
+      <h2>What each fill choice does to the record</h2>
+      <p class="section-sub">Deployed-blend Sharpe (35/35/10/20 A:B:C:D, before the EEM tilt and the breadth gate) under every weekday rebalance grid, filled at the close and at the open. The signal is untouched in every cell — an open fill uses the <em>same</em> decision as the close fill on that date and merely executes it earlier in the session. The 2× column doubles the assumed trading cost, because an opening auction is a wider book than a closing one.</p>
+      <div style="overflow-x:auto;">
+        <table class="small-table" id="exec-grid"><thead></thead><tbody></tbody></table>
+      </div>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="exec-grid-note"></p>
+    </section>
+
+    <section>
+      <h2>Is the difference real? Paired tests</h2>
+      <p class="section-sub">These comparisons run on the <strong>same</strong> history and are heavily correlated, so the standard error of their <em>difference</em> is much smaller than the ~0.36 standard error of an absolute Sharpe quoted elsewhere on this dashboard. Judging a paired difference against an unpaired standard error would wave a real effect through as noise. Moving-block bootstrap, 60-day blocks, 2000 samples, fixed seed. An interval that excludes zero is distinguishable from sampling noise <em>within this history</em>; it does not establish that the effect persists out of sample, and where a cell was chosen as the best of several the interval is optimistic by construction.</p>
+      <div style="overflow-x:auto;">
+        <table class="small-table" id="exec-paired"><thead></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Can a rebalance be crossed at one moment?</h2>
+      <p class="section-sub">A rotation sells one ETF and buys another in the same decision. If both legs sit on one venue they cross at a single moment and the sleeve is never unintentionally long or flat. If they sit on different venues the legs are hours apart and the sleeve carries an unhedged gap in between — a real execution risk that no backtest on daily closes can see.</p>
+      <div style="overflow-x:auto;">
+        <table class="small-table" id="exec-venues"><thead></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <div class="methodbox" id="exec-caveats"></div>
   </div>
 
   <!-- ====================== METHOD ====================== -->
@@ -7531,6 +7598,171 @@ function renderPortfolio() {
 }
 
 // ----------- Risk & Validation tab -------------------------------------
+// ---------------------------------------------------------------------------
+// Execution timing (WS12)
+// ---------------------------------------------------------------------------
+// Every figure here is READ from window.DATA.execution_timing. Nothing is
+// recomputed in the browser and nothing is hard-coded, so the tab cannot
+// quietly disagree with the study that produced it. If the feed is absent the
+// panels say so rather than rendering an empty grid that reads as "no effect".
+function _execFmt(x, dp, pct) {
+  if (x === null || x === undefined || !isFinite(x)) return '—';
+  return (pct ? (x * 100).toFixed(dp) + '%' : x.toFixed(dp));
+}
+function _execSigned(x, dp, pct) {
+  if (x === null || x === undefined || !isFinite(x)) return '—';
+  const v = pct ? x * 100 : x;
+  return (v >= 0 ? '+' : '') + v.toFixed(dp) + (pct ? 'pp' : '');
+}
+
+function renderExecutionTiming() {
+  const D = (window.DATA || {}).execution_timing;
+  const miss = 'Execution-timing study not present in this build — run '
+             + '<code>python scripts/run_ws12_execution_grid.py</code>.';
+  const vEl = document.getElementById('exec-verdict');
+  if (!D) { if (vEl) vEl.innerHTML = miss; return; }
+
+  const days = D.days || [];
+  const blend = D.blend || {};
+  const dep = blend['FRI'] ? blend['FRI'].close : null;
+
+  // --- Verdict line. States the deployed convention and the one alternative
+  //     that is both cheaper on the clock and free on the numbers.
+  if (vEl) {
+    const fo = blend['FRI'] ? blend['FRI'].open : null;
+    const fo2 = blend['FRI'] ? blend['FRI'].open_2x : null;
+    const us = (D.sessions_sgt || {}).US || {};
+    vEl.innerHTML =
+      'The deployed convention ranks on <strong>Thursday\'s close</strong> and fills at '
+      + '<strong>Friday\'s close</strong> — which lands at <strong>' + (us.sgt_close_summer || '—')
+      + ' SGT Saturday</strong> in summer and ' + (us.sgt_close_winter || '—') + ' SGT in winter. '
+      + 'Filling instead at <strong>Friday\'s open</strong> (' + (us.sgt_open_summer || '—')
+      + ' SGT Friday) uses the identical decision, executed earlier in the session: blend Sharpe '
+      + (dep !== null ? _execFmt(dep.sharpe, 4) : '—') + ' &rarr; '
+      + (fo !== null ? _execFmt(fo.sharpe, 4) : '—')
+      + ', and ' + (fo2 !== null ? _execFmt(fo2.sharpe, 4) : '—')
+      + ' once the assumed cost is doubled to price a wider opening auction. '
+      + 'As at ' + (D.as_of || '—') + '.';
+  }
+
+  // --- Venue clocks
+  const st = document.getElementById('exec-sessions');
+  if (st && D.sessions_sgt) {
+    st.querySelector('thead').innerHTML =
+      '<tr><th>Venue</th><th>Local session</th><th>SGT open (summer)</th>'
+      + '<th>SGT close (summer)</th><th>SGT open (winter)</th>'
+      + '<th>SGT close (winter)</th></tr>';
+    st.querySelector('tbody').innerHTML = Object.keys(D.sessions_sgt).map((v) => {
+      const r = D.sessions_sgt[v];
+      const mark = (t, rolls) => t + (rolls ? ' <span style="color:var(--negative)">(next day)</span>' : '');
+      return '<tr><td><strong>' + v + '</strong></td><td>' + r.local_open + '–'
+        + r.local_close + ' ' + r.timezone + '</td><td>' + r.sgt_open_summer
+        + '</td><td>' + mark(r.sgt_close_summer, r.sgt_close_rolls_summer)
+        + '</td><td>' + r.sgt_open_winter + '</td><td>'
+        + mark(r.sgt_close_winter, r.sgt_close_rolls_winter) + '</td></tr>';
+    }).join('');
+  }
+
+  // --- Weekday x fill grid, blend level
+  const gt = document.getElementById('exec-grid');
+  if (gt && days.length) {
+    gt.querySelector('thead').innerHTML =
+      '<tr><th>Rebalance grid</th><th>Close fill</th><th>Open fill</th>'
+      + '<th>Open − close</th><th>Open @2× cost</th><th>Max drawdown (open)</th></tr>';
+    gt.querySelector('tbody').innerHTML = days.map((d) => {
+      const b = blend[d]; if (!b) return '';
+      const delta = b.open_minus_close ? b.open_minus_close.sharpe : null;
+      const col = delta === null ? '' :
+        ' style="color:' + (delta >= 0 ? 'var(--positive)' : 'var(--negative)') + '"';
+      const isDep = (d === 'FRI');
+      return '<tr><td><strong>W-' + d + '</strong>'
+        + (isDep ? ' <span style="color:var(--ink-faint)">(deployed grid)</span>' : '')
+        + '</td><td>' + _execFmt(b.close.sharpe, 4)
+        + '</td><td>' + _execFmt(b.open.sharpe, 4)
+        + '</td><td' + col + '>' + _execSigned(delta, 4)
+        + '</td><td>' + _execFmt(b.open_2x.sharpe, 4)
+        + '</td><td>' + _execFmt(b.open.max_dd, 2, true) + '</td></tr>';
+    }).join('');
+  }
+  const gn = document.getElementById('exec-grid-note');
+  if (gn) {
+    const pt = D.paired_tests || {};
+    gn.innerHTML = 'The weekday column is <strong>not</strong> a menu to pick from. '
+      + 'The best-looking grid here was selected as the maximum of ' + days.length
+      + ', so its margin is optimistic by construction, the sleeves disagree on which '
+      + 'day is best, and no mechanism distinguishes a mid-week rebalance from any other. '
+      + 'The deployed W-FRI grid is the only one with a structural story — it is the '
+      + 'weekly close. Cost stress multipliers applied: '
+      + (D.cost_stress_multipliers || []).join('×, ') + '×.';
+  }
+
+  // --- Paired bootstrap
+  const pt = document.getElementById('exec-paired');
+  if (pt && D.paired_tests && D.paired_tests.tests) {
+    const T = D.paired_tests.tests;
+    pt.querySelector('thead').innerHTML =
+      '<tr><th>Comparison</th><th>Δ Sharpe</th><th>90% CI</th>'
+      + '<th>P(first is better)</th><th>Excludes zero?</th></tr>';
+    pt.querySelector('tbody').innerHTML = Object.keys(T).map((k) => {
+      const r = T[k];
+      if (r.delta_point === null || r.delta_point === undefined) {
+        return '<tr><td>' + k + '</td><td colspan="4">no valid samples</td></tr>';
+      }
+      const excl = (r.delta_p5 > 0 && r.delta_p95 > 0) || (r.delta_p5 < 0 && r.delta_p95 < 0);
+      return '<tr><td>' + k + '</td><td>' + _execSigned(r.delta_point, 4)
+        + '</td><td>[' + _execSigned(r.delta_p5, 4) + ', '
+        + _execSigned(r.delta_p95, 4) + ']</td><td>'
+        + _execFmt(r.p_better, 2) + '</td><td>'
+        + (excl ? '<strong>yes</strong>' : 'no') + '</td></tr>';
+    }).join('');
+  }
+
+  // --- Venue / cross-trade feasibility
+  const vt = document.getElementById('exec-venues');
+  if (vt && D.sleeves) {
+    vt.querySelector('thead').innerHTML =
+      '<tr><th>Sleeve</th><th>Venues</th><th>Crosses at one moment?</th>'
+      + '<th>Cost assumption</th><th>Traded symbols</th></tr>';
+    vt.querySelector('tbody').innerHTML = D.sleeves.map((s) => {
+      const ok = s.crosses_at_one_moment;
+      const syms = Object.keys(s.traded_symbols || {})
+        .map((k) => s.traded_symbols[k]).join(', ');
+      return '<tr><td><strong>' + s.sleeve + '</strong></td><td>'
+        + (s.venues || []).join(' + ') + '</td><td style="color:'
+        + (ok ? 'var(--positive)' : 'var(--negative)') + '"><strong>'
+        + (ok ? 'yes' : 'NO') + '</strong></td><td>' + s.cost_bps
+        + ' bps</td><td style="font-size:12px;color:var(--ink-faint)">'
+        + syms + '</td></tr>';
+    }).join('');
+  }
+
+  // --- Caveats. These travel with the numbers rather than sitting in a
+  //     footnote, because each one bounds what the table above can claim.
+  const cv = document.getElementById('exec-caveats');
+  if (cv) {
+    const split = (D.sleeves || []).filter((s) => !s.crosses_at_one_moment)
+      .map((s) => s.sleeve);
+    cv.innerHTML =
+      '<p><strong>What this tab does and does not establish.</strong></p>'
+      + '<p><strong>Basis.</strong> The blend is the 35/35/10/20 four-way blend '
+      + '<em>before</em> the EEM tilt and the breadth gate, which sit above this '
+      + 'layer and are not re-run. Sleeve A is priced through its US trading '
+      + 'proxies, so its open is the proxy\'s session, not that of the '
+      + 'London-listed UCITS fund actually held.</p>'
+      + (split.length ? '<p><strong>Sleeve ' + split.join(' and ')
+        + ' cannot cross a rebalance at a single moment.</strong> Its legs span '
+        + 'different venues, so the open and close figures above describe a fill '
+        + 'that would in practice be spread across several hours. Treat that '
+        + 'sleeve\'s execution numbers as indicative.</p>' : '')
+      + '<p><strong>Selection.</strong> Where a weekday was chosen as the best of '
+      + (days.length ? days.length : 'several') + ', its bootstrap interval is '
+      + 'conditional on that choice and is not corrected for multiplicity.</p>'
+      + '<p><strong>Not a live signal.</strong> This is a study output as at '
+      + (D.as_of || '—') + '. It does not update weekly and must not be read as '
+      + 'a current instruction.</p>';
+  }
+}
+
 function renderRobustnessVerdict() {
   const data = window.DATA;
   const r = data.robustness;
@@ -11333,6 +11565,7 @@ function activateTab(name) {
   if (!TAB_RENDERED.has(name)) {
     if (name === 'data')      renderDataAudit();
     if (name === 'monitor')   renderMonitor();
+    if (name === 'execution') renderExecutionTiming();
     // Phase 27.5 — the legacy 'detail' tab was removed in Phase 26.5;
     // its three signal-chart sections were distributed into Strategy
     // A / B / D tabs but the JS first-render path was never updated,

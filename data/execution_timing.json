@@ -1,0 +1,585 @@
+{
+  "as_of": "2026-08-11",
+  "days": [
+    "MON",
+    "TUE",
+    "WED",
+    "THU",
+    "FRI"
+  ],
+  "cost_stress_multipliers": [
+    1.0,
+    1.5,
+    2.0
+  ],
+  "sessions_sgt": {
+    "US": {
+      "timezone": "America/New_York",
+      "local_open": "09:30",
+      "local_close": "16:00",
+      "sgt_open_summer": "21:30",
+      "sgt_close_summer": "04:00",
+      "sgt_close_rolls_summer": true,
+      "sgt_open_winter": "22:30",
+      "sgt_close_winter": "05:00",
+      "sgt_close_rolls_winter": true
+    },
+    "XETR": {
+      "timezone": "Europe/Berlin",
+      "local_open": "09:00",
+      "local_close": "17:30",
+      "sgt_open_summer": "15:00",
+      "sgt_close_summer": "23:30",
+      "sgt_close_rolls_summer": false,
+      "sgt_open_winter": "16:00",
+      "sgt_close_winter": "00:30",
+      "sgt_close_rolls_winter": true
+    },
+    "LSE": {
+      "timezone": "Europe/London",
+      "local_open": "08:00",
+      "local_close": "16:30",
+      "sgt_open_summer": "15:00",
+      "sgt_close_summer": "23:30",
+      "sgt_close_rolls_summer": false,
+      "sgt_open_winter": "16:00",
+      "sgt_close_winter": "00:30",
+      "sgt_close_rolls_winter": true
+    },
+    "SZSE": {
+      "timezone": "Asia/Shanghai",
+      "local_open": "09:30",
+      "local_close": "15:00",
+      "sgt_open_summer": "09:30",
+      "sgt_close_summer": "15:00",
+      "sgt_close_rolls_summer": false,
+      "sgt_open_winter": "09:30",
+      "sgt_close_winter": "15:00",
+      "sgt_close_rolls_winter": false
+    }
+  },
+  "sleeves": [
+    {
+      "sleeve": "A",
+      "label": "A - top-7 US relative breadth",
+      "cost_bps": 2.0,
+      "window": [
+        "2018-10-12",
+        "2026-08-11"
+      ],
+      "venues": [
+        "US"
+      ],
+      "crosses_at_one_moment": true,
+      "venue_note": "all legs on one venue, so a rotation crosses at a single moment",
+      "traded_symbols": {
+        "SOXX": "SOXX",
+        "CSP1": "SPY",
+        "CNDX": "QQQ",
+        "IUES": "XLE",
+        "IUFS": "XLF",
+        "IUHC": "XLV",
+        "IUIS": "XLI",
+        "IUCS": "XLP",
+        "IUCD": "XLY",
+        "IUUS": "XLU",
+        "IUMS": "XLB",
+        "IUCM": "XLC",
+        "IUSP": "XLRE",
+        "IDP6": "IJR"
+      },
+      "grid": {
+        "MON": {
+          "close_sharpe": 0.9207268232942296,
+          "open_sharpe": 0.8581711337025005,
+          "open_minus_close_sharpe": -0.06255568959172908,
+          "open_minus_close_cagr": -0.013849185713430856,
+          "open_sharpe_2x_cost": 0.8392374323479656
+        },
+        "TUE": {
+          "close_sharpe": 0.8976423773785791,
+          "open_sharpe": 0.9252584491308781,
+          "open_minus_close_sharpe": 0.027616071752298965,
+          "open_minus_close_cagr": 0.00473649764306594,
+          "open_sharpe_2x_cost": 0.9069425094023389
+        },
+        "WED": {
+          "close_sharpe": 0.8628708563649298,
+          "open_sharpe": 0.8328686545241305,
+          "open_minus_close_sharpe": -0.03000220184079927,
+          "open_minus_close_cagr": -0.007428082053467566,
+          "open_sharpe_2x_cost": 0.8144577901884956
+        },
+        "THU": {
+          "close_sharpe": 0.8650976000362884,
+          "open_sharpe": 0.865143404330964,
+          "open_minus_close_sharpe": 4.580429467559988e-05,
+          "open_minus_close_cagr": -0.00038999168285358543,
+          "open_sharpe_2x_cost": 0.8468234653438511
+        },
+        "FRI": {
+          "close_sharpe": 0.9150461774617263,
+          "open_sharpe": 0.901849290623373,
+          "open_minus_close_sharpe": -0.013196886838353294,
+          "open_minus_close_cagr": -0.0018840836377349568,
+          "open_sharpe_2x_cost": 0.8836036265849473
+        }
+      }
+    },
+    {
+      "sleeve": "B",
+      "label": "B - top-7 asset-class momentum",
+      "cost_bps": 2.0,
+      "window": [
+        "2007-10-18",
+        "2026-08-11"
+      ],
+      "venues": [
+        "US"
+      ],
+      "crosses_at_one_moment": true,
+      "venue_note": "all legs on one venue, so a rotation crosses at a single moment",
+      "traded_symbols": {
+        "SPY": "SPY",
+        "IJR": "IJR",
+        "QQQ": "QQQ",
+        "EFA": "EFA",
+        "VGK": "VGK",
+        "EWJ": "EWJ",
+        "VNQ": "VNQ",
+        "GLD": "GLD",
+        "DBC": "DBC",
+        "TLT": "TLT",
+        "IEF": "IEF",
+        "TIP": "TIP",
+        "SHY": "SHY"
+      },
+      "grid": {
+        "MON": {
+          "close_sharpe": 0.773032337189462,
+          "open_sharpe": 0.7524364105753669,
+          "open_minus_close_sharpe": -0.02059592661409504,
+          "open_minus_close_cagr": -0.0024298087299781113,
+          "open_sharpe_2x_cost": 0.7300276615115656
+        },
+        "TUE": {
+          "close_sharpe": 0.8537229903099082,
+          "open_sharpe": 0.844704100993514,
+          "open_minus_close_sharpe": -0.009018889316394163,
+          "open_minus_close_cagr": -0.001031862860083832,
+          "open_sharpe_2x_cost": 0.8230149283284212
+        },
+        "WED": {
+          "close_sharpe": 0.9039148528380474,
+          "open_sharpe": 0.9068976849307451,
+          "open_minus_close_sharpe": 0.0029828320926976737,
+          "open_minus_close_cagr": -0.0003546593553007682,
+          "open_sharpe_2x_cost": 0.8852014126500531
+        },
+        "THU": {
+          "close_sharpe": 0.8254758412337199,
+          "open_sharpe": 0.8546816192655938,
+          "open_minus_close_sharpe": 0.029205778031873963,
+          "open_minus_close_cagr": 0.002902422349454037,
+          "open_sharpe_2x_cost": 0.8328812127519002
+        },
+        "FRI": {
+          "close_sharpe": 0.8059130251843296,
+          "open_sharpe": 0.8187102341699859,
+          "open_minus_close_sharpe": 0.012797208985656283,
+          "open_minus_close_cagr": 0.0011538151076846415,
+          "open_sharpe_2x_cost": 0.7959649449618064
+        }
+      }
+    },
+    {
+      "sleeve": "C",
+      "label": "C - top-5 thematic momentum",
+      "cost_bps": 5.0,
+      "window": [
+        "2018-11-08",
+        "2026-08-11"
+      ],
+      "venues": [
+        "CRYPTO",
+        "SZSE",
+        "US"
+      ],
+      "crosses_at_one_moment": false,
+      "venue_note": "legs span CRYPTO, SZSE, US - a rotation cannot cross at a single moment and carries an intraday gap",
+      "traded_symbols": {
+        "ARKK": "ARKK",
+        "CIBR": "CIBR",
+        "SKYY": "SKYY",
+        "BOTZ": "BOTZ",
+        "BLOK": "BLOK",
+        "ICLN": "ICLN",
+        "TAN": "TAN",
+        "LIT": "LIT",
+        "URA": "URA",
+        "XBI": "XBI",
+        "ARKG": "ARKG",
+        "JETS": "JETS",
+        "GDX": "GDX",
+        "COPX": "COPX",
+        "MOO": "MOO",
+        "XME": "XME",
+        "WOOD": "WOOD",
+        "REMX": "REMX",
+        "CQQQ": "CQQQ",
+        "159801.SZ": "159801.SZ",
+        "PAVE": "PAVE",
+        "ITA": "ITA",
+        "BTC-USD": "BTC-USD",
+        "PHO": "PHO",
+        "IHI": "IHI",
+        "SHY": "SHY"
+      },
+      "grid": {
+        "MON": {
+          "close_sharpe": 0.6961985909696523,
+          "open_sharpe": 0.7113765194115619,
+          "open_minus_close_sharpe": 0.015177928441909572,
+          "open_minus_close_cagr": 0.003700794849967881,
+          "open_sharpe_2x_cost": 0.6656576700123925
+        },
+        "TUE": {
+          "close_sharpe": 0.7552103316261766,
+          "open_sharpe": 0.7126459758341148,
+          "open_minus_close_sharpe": -0.04256435579206175,
+          "open_minus_close_cagr": -0.011503094079204468,
+          "open_sharpe_2x_cost": 0.666187627303561
+        },
+        "WED": {
+          "close_sharpe": 1.0574656852512163,
+          "open_sharpe": 1.0326279828874012,
+          "open_minus_close_sharpe": -0.024837702363815106,
+          "open_minus_close_cagr": -0.007462457244224119,
+          "open_sharpe_2x_cost": 0.9949653765497419
+        },
+        "THU": {
+          "close_sharpe": 0.7981866963142662,
+          "open_sharpe": 0.8066949958726853,
+          "open_minus_close_sharpe": 0.008508299558419141,
+          "open_minus_close_cagr": 3.5508582770349406e-05,
+          "open_sharpe_2x_cost": 0.7636432029817947
+        },
+        "FRI": {
+          "close_sharpe": 0.7099978936122009,
+          "open_sharpe": 0.7717620825952466,
+          "open_minus_close_sharpe": 0.0617641889830457,
+          "open_minus_close_cagr": 0.01881541291737765,
+          "open_sharpe_2x_cost": 0.7310112929955498
+        }
+      }
+    },
+    {
+      "sleeve": "D",
+      "label": "D - top-3 Europe sector breadth",
+      "cost_bps": 9.0,
+      "window": [
+        "2018-10-02",
+        "2026-08-11"
+      ],
+      "venues": [
+        "XETR"
+      ],
+      "crosses_at_one_moment": true,
+      "venue_note": "all legs on one venue, so a rotation crosses at a single moment",
+      "traded_symbols": {
+        "EXV1": "EXV1.DE",
+        "EXH1": "EXH1.DE",
+        "EXV3": "EXV3.DE",
+        "EXH3": "EXH4.DE",
+        "EXH9": "EXH9.DE"
+      },
+      "grid": {
+        "MON": {
+          "close_sharpe": 0.935260195856004,
+          "open_sharpe": 0.91511336703912,
+          "open_minus_close_sharpe": -0.0201468288168839,
+          "open_minus_close_cagr": -0.0039445052699806915,
+          "open_sharpe_2x_cost": 0.8704143711188584
+        },
+        "TUE": {
+          "close_sharpe": 0.9457997853028471,
+          "open_sharpe": 0.9467929106931566,
+          "open_minus_close_sharpe": 0.0009931253903094905,
+          "open_minus_close_cagr": 0.0003581835007762102,
+          "open_sharpe_2x_cost": 0.9030377272177867
+        },
+        "WED": {
+          "close_sharpe": 0.975055297353866,
+          "open_sharpe": 0.9723311576955515,
+          "open_minus_close_sharpe": -0.0027241396583145283,
+          "open_minus_close_cagr": -0.0008724918409666049,
+          "open_sharpe_2x_cost": 0.9337028696202184
+        },
+        "THU": {
+          "close_sharpe": 0.9360247084096468,
+          "open_sharpe": 0.9194534136122576,
+          "open_minus_close_sharpe": -0.01657129479738917,
+          "open_minus_close_cagr": -0.0027211366854738017,
+          "open_sharpe_2x_cost": 0.8771905487976034
+        },
+        "FRI": {
+          "close_sharpe": 0.8860699342054579,
+          "open_sharpe": 0.9112524241097497,
+          "open_minus_close_sharpe": 0.025182489904291838,
+          "open_minus_close_cagr": 0.005508617416748907,
+          "open_sharpe_2x_cost": 0.8669768959230136
+        }
+      }
+    }
+  ],
+  "blend": {
+    "MON": {
+      "close": {
+        "sharpe": 1.1874567557774314,
+        "cagr": 0.1551200452459356,
+        "total_return": 2.060248494347254,
+        "max_dd": -0.21816213327788536,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open": {
+        "sharpe": 1.136683913482758,
+        "cagr": 0.14740132682951046,
+        "total_return": 1.9051731365326372,
+        "max_dd": -0.23439502061764275,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open_2x": {
+        "sharpe": 1.098652358221937,
+        "cagr": 0.14180919640070266,
+        "total_return": 1.797142225710489,
+        "max_dd": -0.23496604004747587,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open_minus_close": {
+        "sharpe": -0.05077284229467338,
+        "cagr": -0.00771871841642513,
+        "max_dd": -0.01623288733975739
+      }
+    },
+    "TUE": {
+      "close": {
+        "sharpe": 1.2472414841372854,
+        "cagr": 0.16400562462599844,
+        "total_return": 2.247651662827097,
+        "max_dd": -0.20759658973816772,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open": {
+        "sharpe": 1.2455173405879578,
+        "cagr": 0.16347461401223673,
+        "total_return": 2.2361779309758325,
+        "max_dd": -0.2121773415769568,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open_2x": {
+        "sharpe": 1.2078429669341308,
+        "cagr": 0.15785308944229692,
+        "total_return": 2.116860129248797,
+        "max_dd": -0.2128120373002899,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open_minus_close": {
+        "sharpe": -0.0017241435493275947,
+        "cagr": -0.0005310106137617066,
+        "max_dd": -0.004580751838789088
+      }
+    },
+    "WED": {
+      "close": {
+        "sharpe": 1.2957666038032036,
+        "cagr": 0.1717339169098726,
+        "total_return": 2.4186963998280238,
+        "max_dd": -0.22052240601638434,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open": {
+        "sharpe": 1.2743106290271944,
+        "cagr": 0.16752632156002156,
+        "total_return": 2.3246249309101277,
+        "max_dd": -0.21928966659651442,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open_2x": {
+        "sharpe": 1.2398018355336724,
+        "cagr": 0.16238753845890908,
+        "total_return": 2.212799192492741,
+        "max_dd": -0.21973156511096734,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open_minus_close": {
+        "sharpe": -0.021455974776009246,
+        "cagr": -0.0042075953498510454,
+        "max_dd": 0.001232739419869927
+      }
+    },
+    "THU": {
+      "close": {
+        "sharpe": 1.1750672862195353,
+        "cagr": 0.15825334998595952,
+        "total_return": 2.1252271374948326,
+        "max_dd": -0.2611971289327616,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open": {
+        "sharpe": 1.1885909501624456,
+        "cagr": 0.15898155073028786,
+        "total_return": 2.1404995627918484,
+        "max_dd": -0.25831590940046606,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open_2x": {
+        "sharpe": 1.1525152081000036,
+        "cagr": 0.15351497087700916,
+        "total_return": 2.027420592341451,
+        "max_dd": -0.2588537228224458,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open_minus_close": {
+        "sharpe": 0.01352366394291038,
+        "cagr": 0.0007282007443283334,
+        "max_dd": 0.0028812195322955314
+      }
+    },
+    "FRI": {
+      "close": {
+        "sharpe": 1.1622806187412857,
+        "cagr": 0.15367151061749973,
+        "total_return": 2.030608675116007,
+        "max_dd": -0.24441148810507135,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open": {
+        "sharpe": 1.1921450156605484,
+        "cagr": 0.15841179756605972,
+        "total_return": 2.128544712029633,
+        "max_dd": -0.25018060032612316,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open_2x": {
+        "sharpe": 1.1558151259162739,
+        "cagr": 0.1529112430424746,
+        "total_return": 2.0151524359188935,
+        "max_dd": -0.2508842004222815,
+        "window": [
+          "2018-11-08",
+          "2026-08-11"
+        ]
+      },
+      "open_minus_close": {
+        "sharpe": 0.02986439691926268,
+        "cagr": 0.004740286948559991,
+        "max_dd": -0.005769112221051809
+      }
+    }
+  },
+  "paired_tests": {
+    "block_size_days": 60,
+    "n_samples": 2000,
+    "seed": 42,
+    "tests": {
+      "MON: open minus close": {
+        "delta_point": -0.05078612492205381,
+        "delta_p5": -0.09977438069018407,
+        "delta_p50": -0.055359686669049224,
+        "delta_p95": -0.0083752146734587,
+        "p_better": 0.0255,
+        "n_valid": 2000
+      },
+      "TUE: open minus close": {
+        "delta_point": -0.0017245946006232415,
+        "delta_p5": -0.037526130684848245,
+        "delta_p50": 0.0023184807632510296,
+        "delta_p95": 0.04323286718522353,
+        "p_better": 0.529,
+        "n_valid": 2000
+      },
+      "WED: open minus close": {
+        "delta_point": -0.021461587849951114,
+        "delta_p5": -0.06317678030737675,
+        "delta_p50": -0.021651436318782025,
+        "delta_p95": 0.019607217449571356,
+        "p_better": 0.184,
+        "n_valid": 2000
+      },
+      "THU: open minus close": {
+        "delta_point": 0.01352720185374734,
+        "delta_p5": -0.019267471687445626,
+        "delta_p50": 0.01534521564715896,
+        "delta_p95": 0.05231660817058707,
+        "p_better": 0.7585,
+        "n_valid": 2000
+      },
+      "FRI: open minus close": {
+        "delta_point": 0.029872209711265363,
+        "delta_p5": -0.01205392158622734,
+        "delta_p50": 0.02784699447455624,
+        "delta_p95": 0.07536212326996372,
+        "p_better": 0.8735,
+        "n_valid": 2000
+      },
+      "WED minus FRI (close, best weekday vs deployed)": {
+        "delta_point": 0.13352090618352563,
+        "delta_p5": 0.043678263260212846,
+        "delta_p50": 0.13535630494816542,
+        "delta_p95": 0.22349333319186906,
+        "p_better": 0.9945,
+        "n_valid": 2000
+      }
+    },
+    "best_close_weekday": "WED",
+    "close_sharpe_by_day": {
+      "MON": 1.1874567557774314,
+      "TUE": 1.2472414841372854,
+      "WED": 1.2957666038032036,
+      "THU": 1.1750672862195353,
+      "FRI": 1.1622806187412857
+    }
+  }
+}

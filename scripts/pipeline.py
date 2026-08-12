@@ -153,6 +153,21 @@ def load_right_tail() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_execution_timing() -> dict | None:
+    """Load data/execution_timing.json — WS12's execution grid.
+
+    What each fill choice (weekday x open/close) does to the record, the
+    Singapore wall-clock time of every venue's open and close, and whether
+    each sleeve's rebalance can be crossed at a single moment. Built by
+    scripts/run_ws12_execution_grid.py; it is a STUDY output, not a live
+    signal, so it does not move week to week and carries its own as_of.
+    """
+    path = DATA_DIR / "execution_timing.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_risk_overlay() -> dict | None:
     """Load data/risk_overlay.json — Phase 19 breadth regime gate
     diagnostics + gated equity variants. Built by
@@ -863,6 +878,16 @@ def main() -> int:
               f"({bootstrap.get('n_bootstrap_samples', 0)} samples, "
               f"block size {bootstrap.get('block_size_days', 0)}d)")
 
+    print("Loading execution-timing grid (WS12) ...", flush=True)
+    execution_timing = load_execution_timing()
+    if execution_timing:
+        sl = execution_timing.get("sleeves", [])
+        split = [s["sleeve"] for s in sl if not s.get("crosses_at_one_moment")]
+        print(f"  execution timing: {len(sl)} sleeves x "
+              f"{len(execution_timing.get('days', []))} weekday grids, "
+              f"as of {execution_timing.get('as_of')}"
+              + (f"; SPLIT-VENUE sleeves: {', '.join(split)}" if split else ""))
+
     print("Loading right-tail / regime metrics (Phase 8) ...", flush=True)
     right_tail = load_right_tail()
     if right_tail:
@@ -1236,6 +1261,7 @@ def main() -> int:
         "right_tail": right_tail,
         "holdings_prices": holdings_prices,
         "risk_overlay": risk_overlay,
+        "execution_timing": execution_timing,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")
