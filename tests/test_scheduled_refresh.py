@@ -116,3 +116,53 @@ def test_year_boundary_friday_run():
     now = _utc(2027, 1, 8, 0)
     assert panel_is_current(date(2027, 1, 7), now) is True
     assert panel_is_current(date(2026, 12, 31), now) is False
+
+
+# --------------------------------------------------------------------------
+# log_path_for — named by LOCAL date.
+#
+# The defect these pin: the task is scheduled in local time, but the log was
+# named from the UTC date. Under the old Saturday 06:00 SGT cadence that is
+# 22:00 UTC on the Friday, so every run was filed under the previous day and
+# the 8 Aug 2026 run appeared not to exist. tz is injected so these assert the
+# behaviour regardless of the machine or CI runner's own zone.
+# --------------------------------------------------------------------------
+
+from datetime import timedelta  # noqa: E402
+
+from scripts.scheduled_refresh import log_path_for  # noqa: E402
+
+SGT = timezone(timedelta(hours=8))
+
+
+def test_saturday_0600_sgt_run_is_filed_under_saturday():
+    """The exact case that misled: 2026-08-07T22:00Z IS Sat 8 Aug 06:00 SGT."""
+    run = datetime(2026, 8, 7, 22, 0, tzinfo=timezone.utc)
+    assert run.astimezone(SGT).strftime("%A") == "Saturday"
+    assert log_path_for(run, SGT).name == "scheduled_refresh_2026-08-08.log"
+    # ...whereas naming by UTC date produced the previous day, the old bug.
+    assert log_path_for(run, timezone.utc).name == "scheduled_refresh_2026-08-07.log"
+
+
+def test_new_friday_0800_sgt_cadence_files_under_friday():
+    """Friday 08:00 SGT is 00:00 UTC the same day, so both conventions agree
+    here — the fix matters for the catch-up window, not the happy path."""
+    run = datetime(2026, 8, 14, 0, 0, tzinfo=timezone.utc)
+    assert run.astimezone(SGT).strftime("%A") == "Friday"
+    assert log_path_for(run, SGT).name == "scheduled_refresh_2026-08-14.log"
+
+
+def test_catch_up_run_before_0800_sgt_still_files_locally():
+    """A StartWhenAvailable catch-up at 02:00 SGT Saturday is 18:00 UTC Friday;
+    it must be filed under the Saturday the operator saw it run."""
+    run = datetime(2026, 8, 14, 18, 0, tzinfo=timezone.utc)
+    assert log_path_for(run, SGT).name == "scheduled_refresh_2026-08-15.log"
+
+
+def test_log_name_month_and_year_boundaries():
+    # Month: 2026-08-31T22:00Z is 1 Sep 06:00 SGT.
+    assert log_path_for(datetime(2026, 8, 31, 22, 0, tzinfo=timezone.utc),
+                        SGT).name == "scheduled_refresh_2026-09-01.log"
+    # Year: 2026-12-31T22:00Z is 1 Jan 2027 06:00 SGT.
+    assert log_path_for(datetime(2026, 12, 31, 22, 0, tzinfo=timezone.utc),
+                        SGT).name == "scheduled_refresh_2027-01-01.log"

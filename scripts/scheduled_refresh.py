@@ -115,6 +115,25 @@ def panel_is_week_current(panel_end: date, now_utc: datetime) -> bool:
     return panel_end >= week_final_anchor(now_utc)
 
 
+def log_path_for(now_utc: datetime, tz=None) -> Path:
+    """Log file for a run, named by LOCAL date.
+
+    Named by UTC date until 2026-08-12, which answered a different question
+    from the one anyone asks of it. The task is scheduled in local time and
+    the operator asks "did Friday's run happen"; under the old Saturday 06:00
+    SGT cadence, 06:00 SGT is 22:00 UTC on the FRIDAY, so every scheduled run
+    was filed under the previous day's name and appended to that file. The
+    8 August 2026 run consequently looked like it had never happened — it is
+    in scheduled_refresh_2026-08-07.log, and reading the filename rather than
+    the timestamps inside cost an investigation and produced a wrong soak
+    count.
+
+    ``tz`` exists so this is testable off a machine's own zone: the default
+    None means the machine's local zone, which is what production uses.
+    """
+    return LOG_DIR / f"scheduled_refresh_{now_utc.astimezone(tz).date().isoformat()}.log"
+
+
 def scheduled_commit_message(today: date, panel_end: date) -> str:
     """House-style local-refresh commit message, marked as scheduled."""
     return (
@@ -167,9 +186,13 @@ def main(argv: list[str] | None = None) -> int:
 
     LOG_DIR.mkdir(exist_ok=True)
     now = datetime.now(timezone.utc)
-    log_path = LOG_DIR / f"scheduled_refresh_{now.date().isoformat()}.log"
+    log_path = log_path_for(now)
     log = open(log_path, "a", encoding="utf-8")
-    log.write(f"\n{'='*72}\nscheduled_refresh start {now.isoformat()} "
+    # Both stamps on the header line: the local one is how the schedule and the
+    # operator think, the UTC one is unambiguous across any future change of
+    # machine or zone. Reading only one of them is what went wrong before.
+    log.write(f"\n{'='*72}\nscheduled_refresh start "
+              f"{now.astimezone():%Y-%m-%d %H:%M %Z} (= {now.isoformat()}) "
               f"(push={args.push}, preflight_only={args.preflight_only})\n{'='*72}\n")
 
     def fail(code: int, subject: str, body: str) -> int:
