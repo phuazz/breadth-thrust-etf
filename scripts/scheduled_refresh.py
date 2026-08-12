@@ -14,7 +14,7 @@ BUT guard layers around refresh_all.py:
   refresh     scripts/refresh_all.py, full run, no flags. Exit 0 there
               already requires every step green INCLUDING pytest.
   anchor      data/breadth_csp1.json end_date must reach
-              nyse_sessions.week_final_anchor(now) — catches the silent
+              nyse_sessions.last_completed_session(now) — catches the silent
               case where every step exits 0 on quietly-stale fetches
               (the pipeline hard guard catches a wholly-stalled panel,
               but a panel that advanced to Thursday when Friday exists
@@ -24,14 +24,26 @@ BUT guard layers around refresh_all.py:
   push        ONLY with --push (armed mode). Soak mode (no flag — the
               initial state) stops here and reports READY so the
               operator reviews and pushes manually. Arm the scheduled
-              task by adding --push after two clean soak Saturdays.
+              task by adding --push after two clean soak runs.
 
 Failure alerting is best-effort local email (GMAIL_USER +
 GMAIL_APP_PASSWORD environment variables, same names as the CI
 secrets; silently skipped when unset) plus the dated log file under
-logs/. The guaranteed backstop needs nothing from this machine: the
-Sunday 09:00 UTC CI check emails [WARN] whenever the week's factsheet
-has not gone out, whatever the reason this wrapper failed to run.
+logs/. The CI backstop needs nothing from this machine: the Sunday
+09:00 UTC check emails [WARN] whenever the week's factsheet has not gone
+out, whatever the reason this wrapper failed to run.
+
+CADENCE, changed 2026-08-12. The task now runs FRIDAY 08:00 SGT, not
+Saturday, because the book fills at the Friday open (21:30 SGT for the
+US sleeves, 15:00 SGT for Xetra) and the instruction has to exist before
+the fill rather than after it. 08:00 SGT sits after Thursday's US close
+(04:00 SGT summer, 05:00 winter) with hours of vendor-settle margin, and
+7 hours before the earliest fill.
+
+Note what the Sunday CI backstop can and cannot do under that cadence:
+it still catches a week where nothing was published, but it fires AFTER
+the Friday fill, so it is a reconciliation check rather than a pre-trade
+one. A miss is detected, not prevented.
 
 Usage:
     python scripts/scheduled_refresh.py                  # soak: no push
@@ -59,7 +71,7 @@ from pathlib import Path
 # Allow importing sibling scripts/ modules.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_factsheet_gate import build_gate_report  # noqa: E402
-from nyse_sessions import week_final_anchor  # noqa: E402
+from nyse_sessions import last_completed_session, week_final_anchor  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PANEL = REPO_ROOT / "data" / "breadth_csp1.json"
@@ -67,6 +79,35 @@ MARKER = REPO_ROOT / "docs" / "factsheet_published.json"
 LOG_DIR = REPO_ROOT / "logs"
 
 
+def panel_is_current(panel_end: date, now_utc: datetime) -> bool:
+    """True when the panel reaches the last COMPLETED trading session.
+
+    This is the session the decision reads: the engines rank on the close
+    before the rebalance, so a Friday-morning refresh feeding a Friday fill
+    must have Thursday's close in the panel.
+
+    CHANGED 2026-08-12, with the move to a Friday-morning refresh. The guard
+    previously anchored on ``week_final_anchor`` — the final session of the
+    most recent COMPLETED week — which is correct only when the run happens
+    after that week has closed, i.e. on a Saturday. Run on a Friday morning it
+    goes blind: mid-week, week_final_anchor returns the PREVIOUS week's Friday
+    by design, so on Fri 14 Aug 2026 it would demand only that the panel reach
+    7 August while the decision that morning reads Thursday 13 August. A panel
+    that had not refreshed at all since the previous week would pass, and then
+    be handed to a live trade.
+
+    ``last_completed_session`` is both correct for the new cadence and
+    strictly tighter than the old anchor on the old one: on a Saturday the two
+    agree exactly, because that week's final session IS the last completed
+    session.
+    """
+    return panel_end >= last_completed_session(now_utc)
+
+
+# Retained so the factsheet-publishability question can still be asked
+# separately. It is a DIFFERENT question from "is the panel fresh enough to
+# trade on", and conflating the two is what made the guard re-timable by
+# accident.
 def panel_is_week_current(panel_end: date, now_utc: datetime) -> bool:
     """True when the panel covers the most recent completed trading
     week's final session — the condition under which the CI publish gate
@@ -170,13 +211,14 @@ def main(argv: list[str] | None = None) -> int:
     try:
         panel_end = date.fromisoformat(
             json.loads(PANEL.read_text(encoding="utf-8"))["end_date"])
-        if not args.preflight_only and not panel_is_week_current(panel_end, now):
-            return fail(4, "panel did not reach the week-final anchor",
+        if not args.preflight_only and not panel_is_current(panel_end, now):
+            return fail(4, "panel did not reach the last completed session",
                         f"All steps exited 0 but breadth_csp1 ends "
-                        f"{panel_end} vs anchor "
-                        f"{week_final_anchor(now)} - quietly-stale "
-                        f"fetches. Nothing pushed; investigate the "
-                        f"fetch steps in the log.")
+                        f"{panel_end} vs the last completed session "
+                        f"{last_completed_session(now)} - quietly-stale "
+                        f"fetches. This is the session the decision reads, "
+                        f"so nothing was pushed; investigate the fetch "
+                        f"steps in the log.")
         gate = build_gate_report("publish", now, PANEL, MARKER)
         log.write(f"\nCI gate preview on push:\n{gate['detail']}\n")
     except Exception as exc:

@@ -62,3 +62,57 @@ def test_commit_message_contract():
     # not the message, but the "Local weekly refresh" prefix is the
     # commit-heartbeat convention VERIFY_DASHBOARD greps for.
     assert msg.startswith("Local weekly refresh ")
+
+
+# --------------------------------------------------------------------------
+# panel_is_current — the guard the Friday-morning cadence actually needs.
+#
+# The distinction these pin down: week_final_anchor asks "has the completed
+# WEEK been captured", which mid-week points at the PREVIOUS week and so goes
+# blind on a Friday-morning run. last_completed_session asks "has the session
+# the decision reads been captured", which is the question that matters when
+# the refresh feeds a fill the same day.
+# --------------------------------------------------------------------------
+
+from scripts.scheduled_refresh import panel_is_current  # noqa: E402
+
+
+def test_friday_morning_requires_thursday_not_last_week():
+    """The defect that prompted the change. Fri 14 Aug 2026 08:00 SGT is
+    2026-08-14 00:00 UTC; the decision that morning reads Thu 13 Aug."""
+    now = _utc(2026, 8, 14, 0)
+    assert panel_is_current(date(2026, 8, 13), now) is True
+    # A panel still at the previous week's Friday must FAIL...
+    assert panel_is_current(date(2026, 8, 7), now) is False
+    # ...even though the old week-anchored guard waves it through.
+    assert panel_is_week_current(date(2026, 8, 7), now) is True
+
+
+def test_agrees_with_the_week_anchor_on_a_saturday():
+    """On the old cadence the two are the same test, so the change cannot
+    have loosened anything for a Saturday run."""
+    for panel in (date(2026, 8, 7), date(2026, 8, 6), date(2026, 7, 31)):
+        now = _utc(2026, 8, 8, 22)
+        assert panel_is_current(panel, now) == panel_is_week_current(panel, now)
+
+
+def test_holiday_friday_week_thursday_panel_is_current():
+    """Fri 3 Jul 2026 was the Independence Day observance. On Sat 4 Jul the
+    last completed session is Thu 2 Jul, so a Thursday panel is current."""
+    assert panel_is_current(date(2026, 7, 2), _utc(2026, 7, 4)) is True
+
+
+def test_month_boundary_friday_run():
+    """Fri 4 Sep 2026 morning: the decision reads Thu 3 Sep, which is a
+    different month from the Monday that follows. Panel at 31 Aug fails."""
+    now = _utc(2026, 9, 4, 0)
+    assert panel_is_current(date(2026, 9, 3), now) is True
+    assert panel_is_current(date(2026, 8, 31), now) is False
+
+
+def test_year_boundary_friday_run():
+    """Fri 8 Jan 2027 morning reads Thu 7 Jan; a panel left at 31 Dec 2026
+    is stale across the year boundary and must fail."""
+    now = _utc(2027, 1, 8, 0)
+    assert panel_is_current(date(2027, 1, 7), now) is True
+    assert panel_is_current(date(2026, 12, 31), now) is False
