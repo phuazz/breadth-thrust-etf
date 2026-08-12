@@ -192,6 +192,28 @@ def main(argv: list[str] | None = None) -> int:
     if cp.returncode != 0:
         return fail(2, "git pull --rebase failed", cp.stderr)
 
+    # ----- Already done? -----
+    # The scheduled task retries hourly and starts as soon as the machine is
+    # available, so that a Friday with the laptop shut still gets its refresh
+    # when it opens. Without this exit every one of those retries would re-run
+    # the whole ~1-4 hour refresh over a panel that is already current, and a
+    # long run could still be going when the next hour fired. Checked AFTER the
+    # pull, so the answer reflects origin rather than a stale local clone.
+    if not args.preflight_only:
+        try:
+            panel_end_now = date.fromisoformat(
+                json.loads(PANEL.read_text(encoding="utf-8"))["end_date"])
+        except Exception:  # noqa: BLE001
+            panel_end_now = None          # unreadable -> fall through and run
+        if panel_end_now and panel_is_current(panel_end_now, now):
+            msg = (f"ALREADY CURRENT - panel ends {panel_end_now}, which "
+                   f"reaches the last completed session "
+                   f"{last_completed_session(now)}. Nothing to do.")
+            print(msg)
+            log.write(f"\n{msg}\n")
+            log.close()
+            return 0
+
     # ----- Refresh (the ~4.3 hour part) -----
     if not args.preflight_only:
         log.write("\nrunning refresh_all.py (output follows)\n")

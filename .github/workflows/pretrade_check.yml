@@ -1,0 +1,79 @@
+name: Pre-trade readiness check
+
+# WHY A SEPARATE WORKFLOW FROM weekly_factsheet.yml.
+#
+# Since 2026-08-12 the book fills at the Friday OPEN — 15:00 SGT for the Xetra
+# sleeve, 21:30 SGT for the US sleeves. The instruction is built by the local
+# Friday 08:00 SGT refresh, which cannot run in CI because the per-constituent
+# parquet caches are gitignored. If that machine is off, nothing is built.
+#
+# weekly_factsheet.yml's Sunday check cannot cover this. It asks whether the
+# WEEK's factsheet went out, which is a reconciliation question answered two
+# days AFTER the fill, and it is built on week_final_anchor, which mid-week
+# points at the previous week by design — so on a Friday morning it would pass
+# while the panel sat six days stale. Detecting a miss and preventing one are
+# different jobs and need different questions.
+#
+# This one asks: does the committed panel reach the session today's decision
+# reads? The test is imported from scheduled_refresh.panel_is_current, the same
+# function the local wrapper uses to decide whether to push, so the two cannot
+# drift apart.
+
+on:
+  schedule:
+    # Friday 04:00 UTC = 12:00 SGT. The local refresh is scheduled 08:00 SGT
+    # and takes ~1h normally, ~4h on a full run, so this lands after it should
+    # have finished. It sits 3h before the Xetra fill (15:00 SGT) and 9.5h
+    # before the US fill (21:30 SGT), leaving room to act. GitHub crons can
+    # fire a few hours late under load; even 2h late still precedes the US
+    # fill, which is 80% of the blend by weight.
+    - cron: '0 4 * * 5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pretrade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas pandas_market_calendars
+
+      # continue-on-error so a checker fault cannot fail the job silently and
+      # suppress the email; the script itself always exits 0 and sets
+      # warn=true on any internal error, failing toward alerting.
+      - name: Check pre-trade readiness
+        id: pretrade
+        continue-on-error: true
+        run: python scripts/check_pretrade_ready.py
+
+      - name: Email the operator when no instruction has been built
+        if: steps.pretrade.outputs.warn == 'true'
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[${{ steps.pretrade.outputs.tag }}] Friday fill — ${{ steps.pretrade.outputs.summary }}'
+          # Operator only, NOT RECIPIENT_EMAIL — the factsheet distribution
+          # list must not receive plumbing email.
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            ${{ steps.pretrade.outputs.detail }}
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
