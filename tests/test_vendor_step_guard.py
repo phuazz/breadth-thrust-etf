@@ -84,6 +84,17 @@ def test_constant_rebasing_is_accepted(monkeypatch):
     assert cb._vendor_step_defect(s, "X") is None
 
 
+def test_historical_step_outside_recent_window_is_ignored(monkeypatch):
+    # A split-sized move 60 sessions back (PTON-style crash history) must
+    # not even consult the split calendar — it is baked into prior and
+    # fresh alike and is not an ingestion hazard.
+    s = _series([100.0] * 40 + [50.0] * 60)
+    monkeypatch.setattr(
+        cb, "_splits_for",
+        lambda t: (_ for _ in ()).throw(AssertionError("must not be called")))
+    assert cb._vendor_step_defect(s, "X") is None
+
+
 def test_revert_swaps_in_prior_column(monkeypatch):
     fresh_col = _flat_then_halved()
     prior_col = _series([90.0] * 42)          # clean cached history

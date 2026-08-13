@@ -313,9 +313,36 @@ def expanding_percentile(
     return s.shift(1).expanding(min_periods=min_periods).quantile(q)
 
 
-def per_ticker_apply(prices: pd.DataFrame, fn) -> pd.DataFrame:
+# ---- Era barriers (WS15 adoption, 2026-08-13) -----------------------------
+#
+# A reused ticker can leave one COLUMN holding two different securities'
+# bars: the roster-era security (recovered from Norgate) before the barrier,
+# and the unrelated later occupant of the ticker after it. Indicator windows
+# must never span the boundary — a 50-day average mixing Facebook's 2022
+# closes with a 2025 ETF's is not an indicator of anything. Splitting at the
+# barrier also exactly preserves the previous treatment of the later era,
+# which warmed up as a fresh listing when the column held nothing else.
+#
+# Ticker-level facts, not panel-level: FB's barrier applies in every panel
+# that ever held FB. On a column that has no pre-barrier bars (the sector
+# panels until their own fills are adopted) the split is a no-op.
+# Dates are the FIRST BAR of the LATER security, verified against Norgate
+# security_name in WS15 (reviews/ws15_gate.json).
+ERA_BARRIERS = {
+    "FB":   "2025-06-26",   # Meta era (from META) | ProShares ETF took FB
+    "PCLN": "2025-10-16",   # Priceline era (from BKNG) | Pictet ETF
+    "FOXA": "2019-03-12",   # 21st Century Fox A (TFCFA-201903) | Fox Corp A
+    "FOX":  "2019-03-13",   # 21st Century Fox B (TFCF-201903) | Fox Corp B
+}
+
+
+def per_ticker_apply(prices: pd.DataFrame, fn,
+                     barriers: dict[str, str] | None = None) -> pd.DataFrame:
     """Apply `fn` to each column on its own traded sessions (NaNs dropped),
-    then reindex the result back to the shared panel index.
+    then reindex the result back to the shared panel index. Columns named in
+    ``barriers`` are computed per security era — `fn` runs separately on the
+    bars before and from the barrier date, so no window spans two
+    securities.
 
     Multi-exchange panels (Europe sectors) contain single-day NaNs wherever
     one venue was shut while another traded (May Day, the three UK bank
@@ -331,11 +358,17 @@ def per_ticker_apply(prices: pd.DataFrame, fn) -> pd.DataFrame:
     NaN-free, both methods use the same N closes, so values are identical —
     the fix strictly extends coverage without moving existing values.
     """
+    barriers = barriers or {}
     out = {}
     for c in prices.columns:
         s = prices[c].dropna()
         if s.empty:
             out[c] = pd.Series(np.nan, index=prices.index)
+        elif c in barriers:
+            cut = pd.Timestamp(barriers[c])
+            parts = [p for p in (s.loc[: cut - pd.Timedelta(days=1)],
+                                 s.loc[cut:]) if not p.empty]
+            out[c] = pd.concat([fn(p) for p in parts]).reindex(prices.index)
         else:
             out[c] = fn(s).reindex(prices.index)
     return pd.DataFrame(out, index=prices.index)[list(prices.columns)]
@@ -394,6 +427,14 @@ def active_roster_at(snapshot_dates: list[str], snapshot_map: dict, d: str) -> l
 VENDOR_STEP_LOG_RETURN = 0.20      # |ln r| >= 0.20 — a 5:4 split or larger
 VENDOR_STEP_MATCH_TOL = 0.10      # |ln step| within this of |ln split ratio|
 VENDOR_STEP_WINDOW_SESSIONS = 5
+# Only the TAIL of the fresh series is examined. A mis-adjustment manifests
+# at the split date, which on any sane refresh cadence is within the last
+# few sessions; historical crash days (PTON, ZM and friends carry many
+# split-sized moves) are baked into prior and fresh alike and are not an
+# ingestion hazard. Scanning them all burned one split-calendar lookup per
+# name per refresh and rate-limited into noise. 40 sessions ≈ two months
+# of margin for a machine left off.
+VENDOR_STEP_RECENT_SESSIONS = 40
 
 
 def _splits_for(ticker: str):
@@ -415,7 +456,8 @@ def _vendor_step_defect(fresh: pd.Series, ticker: str) -> str | None:
     if len(s) < 2:
         return None
     logret = np.log(s / s.shift(1)).dropna()
-    steps = logret[logret.abs() >= VENDOR_STEP_LOG_RETURN]
+    recent = logret.iloc[-VENDOR_STEP_RECENT_SESSIONS:]
+    steps = recent[recent.abs() >= VENDOR_STEP_LOG_RETURN]
     if steps.empty:
         return None
     splits = _splits_for(ticker)
@@ -531,14 +573,17 @@ def download_prices(
     close = close[list(tickers)]
     close.index = pd.to_datetime(close.index).tz_localize(None)
 
-    # PRESERVE COLUMNS YFINANCE CANNOT SERVE. The frame above is built purely
-    # from the download, so a delisted name — which yfinance has no history
-    # for under its old symbol — comes back all-NaN and would overwrite a
-    # populated column. That is how the first Norgate backfill was silently
-    # undone: scripts/backfill_delisted_prices.py filled 25 of CNDX's 27
-    # empty columns, and the next compute_breadth run wiped every one.
-    #
-    # Only ever fills where the fresh download has NOTHING. A live ticker's
+    # PRESERVE CELLS YFINANCE CANNOT SERVE. The frame above is built purely
+    # from the download, so anything the vendor no longer serves would be
+    # silently deleted from the cache. That failure has now occurred at BOTH
+    # granularities: column-level — a delisted name comes back all-NaN, and
+    # the first Norgate backfill (25 of CNDX's 27 empty columns) was wiped by
+    # the next run; and cell-level — a REUSED ticker comes back with only the
+    # new occupant's bars, so a column-level keep judged FB "served" on the
+    # strength of a 2025 ETF's prices and would have deleted Facebook's
+    # 2018-2022 fill (WS15 adoption). The merge is therefore per CELL,
+    # date-aligned: a fresh close always wins where it exists, and prior
+    # values fill only the dates the download left NaN. A live ticker's
     # cached values are never preferred over a fresh close, so this cannot
     # freeze stale prices — the failure the staleness guards exist to catch.
     if not force and cache_path.exists():
@@ -554,18 +599,24 @@ def download_prices(
             if _reverted:
                 print(f"  Vendor step-defect guard reverted "
                       f"{len(_reverted)} column(s): {_reverted}", flush=True)
-            kept = []
-            for t in tickers:
-                if t not in prior.columns:
-                    continue
-                if close[t].dropna().empty and not prior[t].dropna().empty:
-                    close = close.reindex(close.index.union(prior.index))
-                    close[t] = prior[t].reindex(close.index)
-                    kept.append(t)
-            if kept:
-                print(f"  Kept {len(kept)} externally-sourced column(s) "
-                      f"yfinance could not serve: {kept[:8]}"
-                      f"{' ...' if len(kept) > 8 else ''}", flush=True)
+            preservable = [t for t in tickers
+                           if t in prior.columns and prior[t].notna().any()]
+            if preservable:
+                close = close.reindex(close.index.union(prior.index))
+            merged: dict[str, int] = {}
+            for t in preservable:
+                pcol = prior[t].reindex(close.index)
+                fill_mask = close[t].isna() & pcol.notna()
+                if fill_mask.any():
+                    close.loc[fill_mask, t] = pcol[fill_mask]
+                    merged[t] = int(fill_mask.sum())
+            if merged:
+                whole = [t for t in merged if close[t].notna().sum() == merged[t]]
+                print(f"  Preserved {sum(merged.values())} externally-sourced "
+                      f"cell(s) across {len(merged)} column(s) the download "
+                      f"could not serve"
+                      + (f"; {len(whole)} column(s) wholly from cache: "
+                         f"{whole[:8]}" if whole else ""), flush=True)
             close = close.sort_index()
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -643,12 +694,19 @@ def main() -> int:
     # Pre-compute per-ticker indicators on each ticker's own traded sessions
     # (see per_ticker_apply for why the union date grid must not be used).
     print("Computing per-ticker indicators ...", flush=True)
+    barriers = {t: d for t, d in ERA_BARRIERS.items() if t in prices.columns}
+    if barriers:
+        print(f"  Era barriers active on {sorted(barriers)} — indicators "
+              f"computed per security era", flush=True)
     rsi = per_ticker_apply(
-        prices, lambda s: compute_rsi(s.to_frame("_c"), RSI_PERIOD)["_c"])
+        prices, lambda s: compute_rsi(s.to_frame("_c"), RSI_PERIOD)["_c"],
+        barriers)
     ma50 = per_ticker_apply(
-        prices, lambda s: s.rolling(MA_PERIOD, min_periods=MA_PERIOD).mean())
+        prices, lambda s: s.rolling(MA_PERIOD, min_periods=MA_PERIOD).mean(),
+        barriers)
     rolling_high = per_ticker_apply(
-        prices, lambda s: s.rolling(HIGH_PERIOD, min_periods=HIGH_PERIOD).max())
+        prices, lambda s: s.rolling(HIGH_PERIOD, min_periods=HIGH_PERIOD).max(),
+        barriers)
     above_ma = (prices > ma50) & ma50.notna()
     at_high = (prices >= rolling_high) & rolling_high.notna()
     rsi_overbought = (rsi > RSI_OVERBOUGHT) & rsi.notna()

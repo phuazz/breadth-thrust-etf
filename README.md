@@ -117,6 +117,8 @@ Numbers and ETFs in the historical Phase 3 README below refer to the obsolete si
 | IUCD | Cons Discretionary | 50 | +0.68 | +0.59 | +0.09 |
 | IUUS | Utilities | 60 | +0.51 | +0.59 | -0.08 |
 
+> *Note, 2026-08-13 (WS15): this phase-history table was computed on the pre-correction constituent panels (survivor prices, pre-rebuild rosters). It is retained as project history under the obsolete banner above, not as a current record; the CNDX out-of-sample row below has been restated on the corrected panel.*
+
 The three losing ETFs (IUHC, IUCS, IUUS) are the classic defensive sectors. Their constituents tend to rally during risk-off rotation, so a "buy when regime is healthy" filter actively works against them. The signal is therefore best applied to cyclical / growth / broad-market exposure, not defensives.
 
 **Portfolio construction**: rank the 11 ETFs by current ma200_breadth each week; equal-weight (or breadth-weight) the top K; rebalance weekly with 10bps round-trip.
@@ -451,15 +453,17 @@ Three additional iShares UK funds added to the registry and run through the same
 
 Three configs run on each: `baseline_2xATR`, `regime_time_only` (SOXX exit-logic winner), `regime_time_only_delay5_trend` (SOXX split-half winner).
 
-### Cross-ETF result matrix (Sharpe / MC %ile, 2019-01-08 to 2026-05-15)
+### Cross-ETF result matrix (Sharpe / MC %ile; 2019-01-08 to 2026-05-15, except CNDX — restated to 2026-08-07, see note)
 
 | ETF | Universe | baseline_2xATR | regime_time_only | regime+delay5+trend |
 |---|---:|---|---|---|
 | **SOXX** (semis) | 30 | 0.06 / 10 | 0.61 / 47 | **0.74 / 65** |
 | **IUES** (energy) | 22-32 | **0.23 / 46** | 0.11 / 28 | 0.09 / 30 |
 | **IUFS** (financials) | 67-71 | **0.09 / 23** | 0.06 / 16 | 0.01 / 15 |
-| **CNDX** (NDX-100) | 101 | 0.19 / 22 | 0.29 / 19 | **0.51 / 39** |
+| **CNDX** (NDX-100) | 101 | -0.32 / 2 | 0.10 / 6 | **0.27 / 18** |
 | **CSP1** (S&P 500) | 503 | -0.19 / 5 | 0.44 / 28 | **0.59 / 43** |
+
+> **Correction, 2026-08-13 (WS15).** The CNDX row is restated on the survivorship-corrected, reuse-repaired constituent panel (2019-01-08 to 2026-08-07, `data/backtest_cndx_oos.json` regenerated same day). The previously published row — 0.19 / 22 · 0.29 / 19 · **0.51 / 39** — rested on a May-2026 roster and price vintage of which only 35 of 87 signal-fire days survive today's data; the fall decomposes as roughly three-quarters data-vintage (roster rebuild, vendor re-basing) and the remainder net panel corrections, with survivorship alone pushing the result *up*, not down. Every restated CNDX variant sits below its random-entry null median, which strengthens findings 1 and 5 below. The SOXX / IUES / IUFS / CSP1 rows keep their 2026-05-15 vintage and carry the same defect classes, not yet re-measured. Full decomposition: `reviews/2026-08-13_ws15_cndx-survivorship-restatement.docx`.
 
 ### Five honest findings
 

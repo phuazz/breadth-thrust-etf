@@ -62,11 +62,35 @@ US_CONSTITUENT_PANELS = {
 }
 
 
-def _unpriced(px: pd.DataFrame, universe: set[str]) -> set[str]:
-    """Constituents with no usable close: absent, or present but all-NaN."""
+def _unpriced(px: pd.DataFrame, universe: set[str],
+              snapshots: dict | None = None,
+              min_held_coverage: float = 0.5) -> set[str]:
+    """Constituents with no usable close over the window they were HELD.
+
+    Absent and all-NaN columns, as before — plus (WS15) columns that look
+    priced only because an unrelated reuse of the ticker put bars OUTSIDE
+    the held window. FB held 2018-2022 with bars only from the 2025 ETF that
+    took the ticker is unpriced where it matters; the original all-NaN test
+    judged it served and skipped it. A name is therefore also unpriced when
+    fewer than ``min_held_coverage`` of its held snapshot dates carry a bar.
+    The threshold is deliberately loose: a genuinely priced name covers
+    ~100% of its held dates and a reuse-masked one ~0%, so anything near
+    the line deserves the resolver's attention rather than silence.
+    """
     absent = universe - set(px.columns)
     empty = {t for t in universe & set(px.columns) if px[t].dropna().empty}
-    return absent | empty
+    masked: set[str] = set()
+    if snapshots:
+        idx = set(px.index)
+        for t in universe & set(px.columns) - empty:
+            held = [pd.Timestamp(d) for d in _held_dates(snapshots, t)]
+            if not held:
+                continue
+            col = px[t]
+            covered = sum(1 for d in held if d in idx and pd.notna(col.loc[d]))
+            if covered / len(held) < min_held_coverage:
+                masked.add(t)
+    return absent | empty | masked
 
 
 def _held_dates(snapshots: dict, ticker: str) -> list[str]:
@@ -136,7 +160,7 @@ def backfill(etf: str, dry_run: bool = False) -> dict:
     for v in snaps.values():
         universe |= set(v.get("tickers") or [])
     px = pd.read_parquet(ppath)
-    todo = sorted(_unpriced(px, universe))
+    todo = sorted(_unpriced(px, universe, snaps))
     start = min(snaps) if snaps else "2018-01-01"
 
     filled, unresolved, nodata, ambiguous, stale_roster = {}, [], [], [], []
@@ -182,11 +206,19 @@ def backfill(etf: str, dry_run: bool = False) -> dict:
         filled[t] = (sym, s)
 
     if not dry_run and filled:
+        # NaN-only cell writes (WS15): a fill must never overwrite an
+        # existing bar — neither a live era sharing the column with the
+        # recovered security, nor an earlier fill. Replacing the whole
+        # column was how a Fox Corporation era could be deleted by filling
+        # the 21st Century Fox era beneath it.
         out = px.copy()
         for t, (_sym, s) in filled.items():
-            aligned = s.reindex(out.index.union(s.index)).sort_index()
-            out = out.reindex(aligned.index)
-            out[t] = aligned
+            out = out.reindex(out.index.union(s.index)).sort_index()
+            if t not in out.columns:
+                out[t] = float("nan")
+            aligned = s.reindex(out.index)
+            mask = out[t].isna() & aligned.notna()
+            out.loc[mask, t] = aligned[mask]
         out = out.sort_index()
         out.to_parquet(ppath)
 
