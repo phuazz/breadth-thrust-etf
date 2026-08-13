@@ -48,7 +48,10 @@ def test_not_ready_when_the_refresh_did_not_run(tmp_path):
     assert "2026-08-13" in r["summary"]
     # The body has to be actionable, not just an alarm.
     assert "scheduled_refresh.py" in r["detail"]
-    assert "15:00 SGT" in r["detail"] and "21:30 SGT" in r["detail"]
+    # The CLOSING auction times, not the opens. This assertion caught the
+    # stale times when execution moved back to the close on 2026-08-12.
+    assert "23:30 SGT" in r["detail"] and "04:00 SGT" in r["detail"]
+    assert "15:50 New York" in r["detail"]
 
 
 def test_a_panel_ahead_of_the_session_is_ready(tmp_path):

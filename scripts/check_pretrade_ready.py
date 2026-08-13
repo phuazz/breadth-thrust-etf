@@ -2,10 +2,12 @@
 
 WHY THIS EXISTS, and why it is not check_factsheet_gate.py.
 
-Since 2026-08-12 the book fills at the Friday OPEN: 15:00 SGT for the Xetra
-sleeve and 21:30 SGT for the US sleeves. The instruction is produced by the
-local Friday-morning refresh, which cannot run in CI because the
-per-constituent parquet caches are gitignored. If that machine is off, nothing
+Since 2026-08-12 the book fills in the Friday CLOSING auctions: Xetra at 23:30
+SGT that evening and the US at 04:00 SGT on the Saturday, via market-on-close
+orders submitted on Friday evening. (An earlier same-day revision used the
+Friday OPEN; it was reversed once the thinner opening auction was costed as
+one.) The instruction is produced by the local Friday-morning refresh, which
+cannot run in CI because the per-constituent parquet caches are gitignored. If that machine is off, nothing
 is built, and until now nothing would say so before the trade: the existing
 Sunday 09:00 UTC check asks whether the WEEK's factsheet went out, which is a
 reconciliation question answered two days after the fill.
@@ -110,9 +112,10 @@ def build_report(panel_path: Path, now_utc: datetime) -> dict:
             "To act manually:\n"
             "  python scripts/scheduled_refresh.py     (soak: validates, no push)\n"
             "  then review and push, which triggers the rest of the chain.\n\n"
-            "Fills today: 15:00 SGT Xetra (sleeve D), 21:30 SGT US "
-            "(sleeves A/B/C) in summer; one hour later in winter. Do not "
-            "trade on the stale card."),
+            "Fills today are the CLOSING auctions: Xetra 23:30 SGT this "
+            "evening (sleeve D), US 04:00 SGT tomorrow (sleeves A/B/C), "
+            "one hour later in winter. Market-on-close orders must be in "
+            "before 15:50 New York time. Do not trade on the stale card."),
     }
 
 
