@@ -73,13 +73,29 @@ jobs:
       - name: Guard — did this run record a usable observation?
         run: python scripts/check_lag_probe.py
 
+      # Hard-fail the push (2026-08-13, external review F1): a swallowed push
+      # rejection is exactly the silent hole the alert below exists to
+      # prevent — the observation would sit on the runner and be lost.
       - name: Commit the observations
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "Publication Lag Probe"
           git add data/publication_lag_log.jsonl
-          git diff --cached --quiet || git commit -m "Publication lag probe $(date -u +'%Y-%m-%d %H:%M') UTC"
-          git push origin main || echo "Nothing to push"
+          if git diff --cached --quiet; then
+            echo "No new observations to commit."
+            exit 0
+          fi
+          git commit -m "Publication lag probe $(date -u +'%Y-%m-%d %H:%M') UTC"
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "Pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected on attempt $attempt — rebasing onto origin/main."
+            git pull --rebase --autostash origin main || exit 1
+          done
+          echo "::error::Could not push lag observations after 3 attempts."
+          exit 1
 
       # A probe that quietly stops is the same as never having run it: the
       # record simply has a hole where the answer was supposed to be. Three

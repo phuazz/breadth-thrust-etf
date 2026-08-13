@@ -191,13 +191,34 @@ jobs:
       - name: Run regression tests
         run: python -m pytest tests/ -q
 
+      # ----- Hard-fail publish push (2026-08-13, external review F1) -----
+      # A rejected push previously fell through a soft fallback and left the
+      # job green, so the failure alert below never fired while the live
+      # track froze — and the sentinel only watches factsheet_meta.json, not
+      # this surface. Rebase-then-retry (same pattern as scanner-daily and
+      # universe_monitor; --autostash because tracked build outputs may be
+      # dirty mid-job) since another workflow may push between checkout and
+      # here; exhaustion goes loudly red so the alert fires.
       - name: Commit refreshed outputs
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "Daily Live Track Bot"
-          git add data/live_track.json data/ docs/ || true
-          git diff --cached --quiet || git commit -m "Daily live track refresh $(date -u +%Y-%m-%d)"
-          git push origin main || echo "Nothing to push"
+          git add data/live_track.json data/ docs/
+          if git diff --cached --quiet; then
+            echo "No refreshed outputs to commit."
+            exit 0
+          fi
+          git commit -m "Daily live track refresh $(date -u +%Y-%m-%d)"
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "Pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected on attempt $attempt — rebasing onto origin/main."
+            git pull --rebase --autostash origin main || exit 1
+          done
+          echo "::error::Could not push refreshed outputs after 3 attempts."
+          exit 1
 
       # ----- Failure alert (2026-07-03) -----
       # Four consecutive scheduled failures (26 Jun - 1 Jul) went unseen

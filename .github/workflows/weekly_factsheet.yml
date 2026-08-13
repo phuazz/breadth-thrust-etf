@@ -431,13 +431,30 @@ jobs:
       - name: Commit refreshed outputs
         # Trial runs publish nothing — the rebuilt artefacts stay on the
         # runner so a styling experiment never reaches the live site.
+        # Hard-fail the push (2026-08-13, external review F1): if these
+        # commits cannot land, the email step below must not run — the
+        # recipients would get a factsheet the live site never shows.
+        # Failing here routes to the failure alert instead.
         if: ${{ !inputs.trial }}
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "Weekly Factsheet Bot"
-          git add data/ docs/ || true
-          git diff --cached --quiet || git commit -m "Weekly refresh $(date -u +%Y-%m-%d)"
-          git push origin main || echo "Nothing to push"
+          git add data/ docs/
+          if git diff --cached --quiet; then
+            echo "No refreshed outputs to commit."
+            exit 0
+          fi
+          git commit -m "Weekly refresh $(date -u +%Y-%m-%d)"
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "Pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected on attempt $attempt — rebasing onto origin/main."
+            git pull --rebase --autostash origin main || exit 1
+          done
+          echo "::error::Could not push refreshed data and docs after 3 attempts — not emailing a factsheet the site does not show."
+          exit 1
 
       - name: Read factsheet meta for email subject and attachment path
         id: meta
@@ -488,13 +505,18 @@ jobs:
           # re-derive the date independently.
           attachments: ${{ steps.meta.outputs.dated_path }}
 
-      # ----- Publish marker (2026-07-25) -----
+      # ----- Publish marker (2026-07-25; hard-fail 2026-08-13) -----
       # Records which week-final anchor was just emailed so the gate can
       # refuse duplicate sends (a second refresh push the same weekend)
       # and the Sunday check knows the week is covered. Written only
-      # AFTER the email step succeeded, never on trial runs. If this
-      # push fails the worst case is one duplicate email next event —
-      # fail-open by design, and loud in the log.
+      # AFTER the email step succeeded, never on trial runs. The push
+      # retries over a rebase (the daily live-track job may land in
+      # between; --autostash for the tracked email-body file the earlier
+      # steps leave dirty) and then fails RED. By then the email has
+      # already gone out, so a red job here is a false alarm about the
+      # send itself — accepted, because a loud false alarm beats the
+      # silent duplicate-send window the old soft fallback left open
+      # (external review F1).
       - name: Record publish marker and commit it
         if: ${{ !inputs.trial }}
         run: |
@@ -502,8 +524,21 @@ jobs:
           git config --local user.email "actions@github.com"
           git config --local user.name "Weekly Factsheet Bot"
           git add docs/factsheet_published.json
-          git diff --cached --quiet || git commit -m "Factsheet published for week ending ${{ needs.gate.outputs.anchor }}"
-          git push origin main || echo "WARNING: marker push failed - the gate may allow one duplicate send next event"
+          if git diff --cached --quiet; then
+            echo "Marker unchanged — nothing to commit."
+            exit 0
+          fi
+          git commit -m "Factsheet published for week ending ${{ needs.gate.outputs.anchor }}"
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "Marker pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected on attempt $attempt — rebasing onto origin/main."
+            git pull --rebase --autostash origin main || exit 1
+          done
+          echo "::error::Marker push failed after 3 attempts. The factsheet email HAS been sent; until docs/factsheet_published.json lands, the gate may allow one duplicate send on the next refresh event. Commit the marker manually."
+          exit 1
 
       # ----- Failure alert (2026-07-03) -----
       # The scheduled 26 Jun run failed and no factsheet went out that

@@ -129,7 +129,7 @@ jobs:
               exit 0
             fi
             echo "Push rejected on attempt $attempt — rebasing onto origin/main."
-            git pull --rebase origin main || exit 1
+            git pull --rebase --autostash origin main || exit 1
           done
           echo "::error::Could not push scanner outputs after 3 attempts."
           exit 1
