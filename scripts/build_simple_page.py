@@ -299,9 +299,28 @@ def build_payload() -> dict:
             f"risk_overlay.json has no {DEPLOYED_KEY} — the page would have to "
             f"show a variant the book does not run"
         )
-    dates, equity = downsample(variant["dates"], variant["equity"], MAX_CURVE_POINTS)
 
-    as_of = live.get("anchor_date")
+    # WS16 (2026-08-13). The page pins its ENTIRE view to the last completed
+    # weekly anchor. Under the WS13 Friday-morning refresh cadence the record
+    # curves legitimately end on Thursday's close while roster panels end on
+    # the last completed Friday — every week, by construction, not by
+    # staleness. The old behaviour (take the curve as-is, demand the dates
+    # agree) refused to build on that cadence. Trimming the page's own view
+    # to the weekly anchor restores exactly what the page showed under the
+    # old Saturday cadence, keeps the one-date contract, and leaves the
+    # record artefacts untouched. Stats are recomputed from the trimmed
+    # weekly series so every number on the page shares the as-of date.
+    panel_end = overlay.get("panel_end_date")
+    live_anchor = live.get("anchor_date")
+    as_of = min(d for d in (panel_end, live_anchor) if d) if (panel_end or live_anchor) else None
+    full_dates, full_equity = variant["dates"], variant["equity"]
+    cut = len([d for d in full_dates if d <= as_of]) if as_of else len(full_dates)
+    if cut == 0:
+        raise SimplePageError(
+            f"no curve points on or before the weekly anchor {as_of}")
+    trimmed_dates, trimmed_equity = full_dates[:cut], full_equity[:cut]
+    dates, equity = downsample(trimmed_dates, trimmed_equity, MAX_CURVE_POINTS)
+    stats = weekly_stats(trimmed_dates, trimmed_equity)
     calendars, charts, skipped = build_charts(holdings, as_of)
     return {
         "as_of": as_of,
@@ -318,13 +337,38 @@ def build_payload() -> dict:
         "defensive_engaged": overlay.get("current_state") != "RISK_ON",
         "curve": {"dates": dates, "equity": [round(e, 6) for e in equity]},
         "stats": {
-            "sharpe": round(variant["sharpe"], 4),
-            "cagr": round(variant["cagr"], 6),
-            "max_dd": round(variant["max_dd"], 6),
-            "start": variant["dates"][0],
-            "end": variant["dates"][-1],
+            "sharpe": round(stats["sharpe"], 4),
+            "cagr": round(stats["cagr"], 6),
+            "max_dd": round(stats["max_dd"], 6),
+            "start": trimmed_dates[0],
+            "end": trimmed_dates[-1],
         },
     }
+
+
+def weekly_stats(dates: list[str], equity: list[float]) -> dict:
+    """Sharpe (rf = 0, annualised from daily returns), CAGR and max drawdown
+    of an equity series — so the page's numbers are computed on exactly the
+    trimmed window it displays, sharing one as-of date with everything else.
+    Matches the record's official figures at every weekly boundary."""
+    import math
+    from datetime import date as _date
+
+    if len(equity) < 2:
+        raise SimplePageError("cannot compute stats on fewer than two points")
+    rets = [b / a - 1.0 for a, b in zip(equity, equity[1:])]
+    mean = sum(rets) / len(rets)
+    var = sum((r - mean) ** 2 for r in rets) / (len(rets) - 1)
+    sharpe = (mean / math.sqrt(var) * math.sqrt(252)) if var > 0 else 0.0
+    # datetime.date arithmetic (Python months are 1-indexed in fromisoformat)
+    years = (_date.fromisoformat(dates[-1])
+             - _date.fromisoformat(dates[0])).days / 365.25
+    cagr = (equity[-1] / equity[0]) ** (1.0 / years) - 1.0 if years > 0 else 0.0
+    peak, max_dd = equity[0], 0.0
+    for e in equity:
+        peak = max(peak, e)
+        max_dd = min(max_dd, e / peak - 1.0)
+    return {"sharpe": sharpe, "cagr": cagr, "max_dd": max_dd}
 
 
 def assert_payload_usable(payload: dict) -> None:

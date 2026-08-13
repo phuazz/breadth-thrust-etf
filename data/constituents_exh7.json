@@ -2,7 +2,7 @@
   "etf": "EXH7",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-08-08T23:49:28.961122+00:00",
+  "fetched_at_utc": "2026-08-13T04:18:10.232580+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-07",
   "n_target_fridays": 449,
@@ -28,12 +28,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-08-07",
-      "fallback_date": "2026-08-06",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -50,8 +44,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-08-06",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-08-07",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -18392,7 +18386,7 @@
       ]
     },
     "2026-08-07": {
-      "actual_date": "2026-08-06",
+      "actual_date": "2026-08-07",
       "n_tickers": 30,
       "tickers": [
         "ULVR.L",
@@ -18408,8 +18402,8 @@
         "ESSITY-B.ST",
         "MONC.MI",
         "PNDORA.CO",
-        "BEI.DE",
         "GAW.L",
+        "BEI.DE",
         "LPP.WA",
         "UHR.SW",
         "BTRW.L",
@@ -18420,9 +18414,9 @@
         "TW.L",
         "RAA.DE",
         "BC.MI",
+        "BWY.L",
         "DLG.MI",
         "PUM.DE",
-        "BWY.L",
         "PUIG.MC",
         "THULE.ST"
       ]

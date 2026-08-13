@@ -1,6 +1,6 @@
 {
   "etf": "EXV5",
-  "computed_at_utc": "2026-08-08T23:43:05.078275+00:00",
+  "computed_at_utc": "2026-08-13T04:13:46.758903+00:00",
   "constituents_source": "data\\constituents_exv5.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
@@ -24,6 +24,9 @@
     "price_warmup_calendar_days": 180
   },
   "data_quality": {
+    "roster_coverage_latest": 1.0,
+    "roster_coverage_warn_floor": 0.85,
+    "roster_coverage_fail_floor": 0.5,
     "universe_size": 35,
     "tickers_with_any_yf_data": 23,
     "tickers_with_no_yf_data": 12,

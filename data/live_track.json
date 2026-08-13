@@ -1,74 +1,58 @@
 {
-  "computed_at_utc": "2026-08-12 22:09 UTC",
+  "computed_at_utc": "2026-08-13 04:25 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
-  "anchor_date": "2026-08-07",
-  "anchor_equity": 2.917657,
+  "anchor_date": "2026-08-12",
+  "anchor_equity": 2.947704,
   "regime_state": "RISK_ON",
   "eem_tilt_active": true,
-  "eem_tilt_signal_as_of": "2026-08-07",
+  "eem_tilt_signal_as_of": "2026-08-12",
   "eem_tilt_signal_stale": false,
   "effective_weights": {
     "EEM": 0.1,
-    "IUFS": 0.07665,
     "EXV1": 0.07572,
-    "IUES": 0.06762,
+    "IUFS": 0.072905,
+    "IUES": 0.06846,
     "EXH1": 0.06544,
     "EXH3": 0.05884,
-    "IUSP": 0.05705,
-    "IUHC": 0.055125,
+    "IUHC": 0.05579,
+    "IUSP": 0.05369,
     "IJR": 0.046975,
-    "SOXX": 0.043855,
+    "SOXX": 0.044345,
     "QQQ": 0.037175,
     "DBC": 0.03505,
     "SPY": 0.03455,
     "EWJ": 0.03445,
-    "IUIS": 0.03395,
+    "IUIS": 0.0343,
     "EFA": 0.03105,
     "VGK": 0.03075,
+    "IUMS": 0.02051,
     "CIBR": 0.02,
     "SKYY": 0.02,
     "XBI": 0.02,
     "ARKG": 0.02,
-    "JETS": 0.02,
-    "IUMS": 0.01575
+    "JETS": 0.02
   },
-  "live_dates": [
-    "2026-08-10",
-    "2026-08-11",
-    "2026-08-12"
-  ],
-  "live_equity": [
-    2.931352,
-    2.939226,
-    2.953615
-  ],
+  "live_dates": [],
+  "live_equity": [],
   "sleeve_extensions": {
     "strategy_a": {
-      "anchor_date": "2026-08-07",
-      "anchor_equity": 3.2335,
+      "anchor_date": "2026-08-12",
+      "anchor_equity": 3.2793,
       "weights": {
-        "IUFS": 0.219,
-        "IUES": 0.1932,
-        "IUSP": 0.163,
-        "IUHC": 0.1575,
-        "SOXX": 0.1253,
-        "IUIS": 0.097,
-        "IUMS": 0.045
+        "IUFS": 0.2083,
+        "IUES": 0.1956,
+        "IUHC": 0.1594,
+        "IUSP": 0.1534,
+        "SOXX": 0.1267,
+        "IUIS": 0.098,
+        "IUMS": 0.0586
       },
-      "dates": [
-        "2026-08-10",
-        "2026-08-11",
-        "2026-08-12"
-      ],
-      "equity": [
-        3.256434,
-        3.268753,
-        3.281434
-      ]
+      "dates": [],
+      "equity": []
     },
     "strategy_b": {
-      "anchor_date": "2026-08-07",
-      "anchor_equity": 2.3148,
+      "anchor_date": "2026-08-12",
+      "anchor_equity": 2.3303,
       "weights": {
         "IJR": 0.1879,
         "QQQ": 0.1487,
@@ -78,20 +62,12 @@
         "EFA": 0.1242,
         "VGK": 0.123
       },
-      "dates": [
-        "2026-08-10",
-        "2026-08-11",
-        "2026-08-12"
-      ],
-      "equity": [
-        2.317312,
-        2.317701,
-        2.330314
-      ]
+      "dates": [],
+      "equity": []
     },
     "strategy_c": {
-      "anchor_date": "2026-08-07",
-      "anchor_equity": 2.7043,
+      "anchor_date": "2026-08-12",
+      "anchor_equity": 2.7529,
       "weights": {
         "CIBR": 0.2,
         "SKYY": 0.2,
@@ -99,35 +75,19 @@
         "ARKG": 0.2,
         "JETS": 0.2
       },
-      "dates": [
-        "2026-08-10",
-        "2026-08-11",
-        "2026-08-12"
-      ],
-      "equity": [
-        2.73541,
-        2.735879,
-        2.752855
-      ]
+      "dates": [],
+      "equity": []
     },
     "strategy_d": {
-      "anchor_date": "2026-08-07",
-      "anchor_equity": 3.4863,
+      "anchor_date": "2026-08-12",
+      "anchor_equity": 3.5282,
       "weights": {
         "EXV1": 0.3786,
         "EXH1": 0.3272,
         "EXH3": 0.2942
       },
-      "dates": [
-        "2026-08-10",
-        "2026-08-11",
-        "2026-08-12"
-      ],
-      "equity": [
-        3.512546,
-        3.528405,
-        3.528405
-      ]
+      "dates": [],
+      "equity": []
     }
   },
   "notes": "Daily mark-to-market overlay. Deployed-blend section uses the same effective NAV weights as renderPositionsPreview (EEM tilt + breadth-gate aware). Per-sleeve extensions (strategy_a/b/c/d) use within-sleeve weights anchored at each sleeve's multi.strategies last-date, so the Performance chart lines all advance through the live week."

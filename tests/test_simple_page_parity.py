@@ -170,14 +170,27 @@ def test_sleeve_order_is_the_validated_palette_order(payload):
 # Statistics and dating
 # --------------------------------------------------------------------------
 
-def test_stats_are_the_deployed_variant(payload, overlay):
+def _anchored(variant, payload):
+    """The deployed variant's series trimmed to the page's as-of date.
+
+    WS16 (2026-08-13): under the Friday-morning refresh cadence the record
+    curves legitimately end on Thursday's close while the page pins its whole
+    view to the last completed weekly anchor. The page's contract is the
+    TRIMMED window; these tests compare against exactly that."""
+    cut = len([d for d in variant["dates"] if d <= payload["as_of"]])
+    return variant["dates"][:cut], variant["equity"][:cut]
+
+
+def test_stats_are_the_deployed_variant_on_the_anchored_window(payload, overlay):
     variant = overlay["gated_variants"][bsp.DEPLOYED_KEY]
+    dates, equity = _anchored(variant, payload)
+    expected = bsp.weekly_stats(dates, equity)
     st = payload["stats"]
-    assert st["sharpe"] == pytest.approx(variant["sharpe"], abs=5e-5)
-    assert st["cagr"] == pytest.approx(variant["cagr"], abs=5e-7)
-    assert st["max_dd"] == pytest.approx(variant["max_dd"], abs=5e-7)
-    assert st["start"] == variant["dates"][0]
-    assert st["end"] == variant["dates"][-1]
+    assert st["sharpe"] == pytest.approx(expected["sharpe"], abs=5e-5)
+    assert st["cagr"] == pytest.approx(expected["cagr"], abs=5e-7)
+    assert st["max_dd"] == pytest.approx(expected["max_dd"], abs=5e-7)
+    assert st["start"] == dates[0]
+    assert st["end"] == dates[-1] == payload["as_of"]
 
 
 def test_positions_and_prices_share_one_date(payload):
@@ -189,11 +202,12 @@ def test_positions_and_prices_share_one_date(payload):
 
 def test_curve_is_downsampled_but_intact(payload, overlay):
     variant = overlay["gated_variants"][bsp.DEPLOYED_KEY]
+    dates, _ = _anchored(variant, payload)
     curve = payload["curve"]
     assert len(curve["dates"]) == len(curve["equity"])
     assert len(curve["dates"]) <= bsp.MAX_CURVE_POINTS + 1
-    assert curve["dates"][0] == variant["dates"][0]
-    assert curve["dates"][-1] == variant["dates"][-1]
+    assert curve["dates"][0] == dates[0]
+    assert curve["dates"][-1] == dates[-1] == payload["as_of"]
     assert curve["dates"] == sorted(curve["dates"])
 
 

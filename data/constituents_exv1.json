@@ -2,7 +2,7 @@
   "etf": "EXV1",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251934/ishares-stoxx-europe-600-banks-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-08T23:29:28.518356+00:00",
+  "fetched_at_utc": "2026-08-13T04:00:58.283127+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-07",
   "n_target_fridays": 449,
@@ -28,12 +28,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-08-07",
-      "fallback_date": "2026-08-06",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -50,8 +44,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-08-06",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-08-07",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -23069,7 +23063,7 @@
       ]
     },
     "2026-08-07": {
-      "actual_date": "2026-08-06",
+      "actual_date": "2026-08-07",
       "n_tickers": 57,
       "tickers": [
         "HSBA.L",
@@ -23082,8 +23076,8 @@
         "BARC.L",
         "LLOY.L",
         "NWG.L",
-        "GLE.PA",
         "DBK.DE",
+        "GLE.PA",
         "NDA-FI.HE",
         "STAN.L",
         "CABK.MC",
@@ -23102,8 +23096,8 @@
         "SHB-A.ST",
         "BAMI.MI",
         "BIRG.IR",
-        "SAB.MC",
         "CBK.DE",
+        "SAB.MC",
         "FBK.MI",
         "BG.VI",
         "BKT.MC",
@@ -23111,24 +23105,24 @@
         "BCP.LS",
         "RBI.VI",
         "EBP.WA",
-        "ALSYDB.CO",
         "RILBA.CO",
+        "ALSYDB.CO",
         "JYSK.CO",
         "BGEO.L",
         "SB1NO.OL",
         "AZA.ST",
-        "MBK.WA",
         "INVP.L",
+        "MBK.WA",
         "UNI.MC",
         "BGN.MI",
         "BCVN.SW",
-        "ING.WA",
         "KBCA.BR",
+        "ING.WA",
         "MIL.WA",
         "CMBN.SW",
         "TBCG.L",
-        "VATN.SW",
-        "SBNOR.OL"
+        "SBNOR.OL",
+        "VATN.SW"
       ]
     }
   }
