@@ -1705,6 +1705,10 @@ realised spread on the thinner lines.
 
 ### WS12/WS13 — DECISION: Friday-open fill ADOPTED (2026-08-12)
 
+> **SUPERSEDED the same evening.** This section is kept as the record of
+> what was decided at the time; see the reversal section below. Execution
+> is the Friday CLOSING auction via market-on-close orders.
+
 Owner approved the Friday-open fill. Three things were settled with it.
 
 **Execution.** The book now fills at the rebalance date's OPEN, not its close.

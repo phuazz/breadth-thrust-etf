@@ -2,8 +2,11 @@ name: Pre-trade readiness check
 
 # WHY A SEPARATE WORKFLOW FROM weekly_factsheet.yml.
 #
-# Since 2026-08-12 the book fills at the Friday OPEN — 15:00 SGT for the Xetra
-# sleeve, 21:30 SGT for the US sleeves. The instruction is built by the local
+# Since 2026-08-12 the book executes in the Friday CLOSING auctions — Xetra at
+# 23:30 SGT that evening, the US at 04:00 SGT on the Saturday — via
+# market-on-close orders submitted Friday evening. (An earlier revision the same
+# day used the Friday OPEN and was reversed once the thinner opening auction was
+# costed as one.) The instruction is built by the local
 # Friday 08:00 SGT refresh, which cannot run in CI because the per-constituent
 # parquet caches are gitignored. If that machine is off, nothing is built.
 #
@@ -23,10 +26,11 @@ on:
   schedule:
     # Friday 04:00 UTC = 12:00 SGT. The local refresh is scheduled 08:00 SGT
     # and takes ~1h normally, ~4h on a full run, so this lands after it should
-    # have finished. It sits 3h before the Xetra fill (15:00 SGT) and 9.5h
-    # before the US fill (21:30 SGT), leaving room to act. GitHub crons can
-    # fire a few hours late under load; even 2h late still precedes the US
-    # fill, which is 80% of the blend by weight.
+    # have finished. It sits 11.5h before the Xetra auction (23:30 SGT) and 16h
+    # before the US one (04:00 SGT Saturday), and well before the ~22:00 SGT
+    # moment the orders are submitted, which is the deadline that actually
+    # matters. GitHub crons can fire a few hours late under load; even several
+    # hours late still precedes submission.
     - cron: '0 4 * * 5'
   workflow_dispatch:
 

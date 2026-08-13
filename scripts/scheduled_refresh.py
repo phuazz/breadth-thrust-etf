@@ -34,11 +34,14 @@ logs/. The CI backstop needs nothing from this machine: the Sunday
 out, whatever the reason this wrapper failed to run.
 
 CADENCE, changed 2026-08-12. The task now runs FRIDAY 08:00 SGT, not
-Saturday, because the book fills at the Friday open (21:30 SGT for the
-US sleeves, 15:00 SGT for Xetra) and the instruction has to exist before
-the fill rather than after it. 08:00 SGT sits after Thursday's US close
+Saturday, because the instruction has to exist before the fill rather
+than after it. The book executes in the Friday CLOSING auctions - Xetra
+23:30 SGT that evening, the US 04:00 SGT on the Saturday - via
+market-on-close orders submitted Friday evening. (An earlier revision the
+same day used the Friday OPEN and was reversed; ignore any lingering
+reference to open fills.) 08:00 SGT sits after Thursday's US close
 (04:00 SGT summer, 05:00 winter) with hours of vendor-settle margin, and
-7 hours before the earliest fill.
+roughly fifteen hours before the earliest auction.
 
 Note what the Sunday CI backstop can and cannot do under that cadence:
 it still catches a week where nothing was published, but it fires AFTER
