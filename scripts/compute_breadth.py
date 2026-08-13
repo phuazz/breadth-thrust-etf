@@ -373,6 +373,103 @@ def active_roster_at(snapshot_dates: list[str], snapshot_map: dict, d: str) -> l
 # Price download with cache
 # ---------------------------------------------------------------------------
 
+# ---- Vendor step-defect guard (WS15, 2026-08-13) --------------------------
+#
+# Around its 2026-08-11 two-for-one split, yfinance served MNST with the
+# split factor UNAPPLIED: pre-split bars unhalved beside post-split bars —
+# byte-identical output under auto_adjust=True and False — while the
+# vendor's OWN split calendar carried the split. Ingested, that column
+# fabricates a −49.6% day and reads "below trend" for ~50 sessions of MA
+# breadth (~200 sessions of Strategy A's 200-day panel). The coverage
+# floors count names, not levels, so nothing else would have objected.
+#
+# The guard inspects each freshly-downloaded column for a one-day move of
+# split magnitude, then asks the vendor's own split calendar whether a
+# split sits within a few sessions at a matching ratio. A match means the
+# series is mis-adjusted: that ticker REVERTS to the prior cached column
+# and the refresh says so loudly. A genuine crash has no matching split
+# and passes untouched. The referee fails OPEN (accept, with a warning):
+# a frozen column is also wrong, so only a CONFIRMED vendor artefact
+# justifies refusing fresh data.
+VENDOR_STEP_LOG_RETURN = 0.20      # |ln r| >= 0.20 — a 5:4 split or larger
+VENDOR_STEP_MATCH_TOL = 0.10      # |ln step| within this of |ln split ratio|
+VENDOR_STEP_WINDOW_SESSIONS = 5
+
+
+def _splits_for(ticker: str):
+    """The vendor's own split calendar for ``ticker``; None when it cannot
+    be fetched. Isolated so tests can stub it and so the network call is
+    made only for tickers that actually show a split-sized step."""
+    try:
+        s = yf.Ticker(ticker).splits
+        return s if s is not None and len(s) else None
+    except Exception:
+        return None
+
+
+def _vendor_step_defect(fresh: pd.Series, ticker: str) -> str | None:
+    """Reason string when ``fresh`` carries a split-sized one-day step that
+    the vendor's own split calendar attributes to a split — i.e. the series
+    was served with the split unapplied — else None."""
+    s = fresh.dropna()
+    if len(s) < 2:
+        return None
+    logret = np.log(s / s.shift(1)).dropna()
+    steps = logret[logret.abs() >= VENDOR_STEP_LOG_RETURN]
+    if steps.empty:
+        return None
+    splits = _splits_for(ticker)
+    if splits is None:
+        print(f"  WARN {ticker}: {len(steps)} split-sized move(s), largest "
+              f"{steps.abs().max():.2f} log-return, and the split calendar "
+              f"is unavailable — accepting the fresh series unverified.",
+              flush=True)
+        return None
+    events = []
+    for d, ratio in splits.items():
+        ts = pd.Timestamp(d)
+        if ts.tzinfo is not None:
+            ts = ts.tz_localize(None)
+        if float(ratio) > 0:
+            events.append((ts.normalize(), float(ratio)))
+    for d, lr in steps.items():
+        pos = s.index.get_loc(d)
+        lo = s.index[max(0, pos - VENDOR_STEP_WINDOW_SESSIONS)]
+        hi = s.index[min(len(s) - 1, pos + VENDOR_STEP_WINDOW_SESSIONS)]
+        for sd, ratio in events:
+            if lo <= sd <= hi and (abs(abs(lr) - abs(np.log(ratio)))
+                                   <= VENDOR_STEP_MATCH_TOL):
+                return (f"{d.date()} move of {lr:+.2f} log-return matches "
+                        f"the {ratio:g}-for-1 split of {sd.date()} — the "
+                        f"vendor served the split unapplied")
+    return None
+
+
+def _revert_vendor_step_defects(close: pd.DataFrame, prior: pd.DataFrame,
+                                tickers: list[str]) -> tuple[pd.DataFrame, list[str]]:
+    """Revert any confirmed mis-adjusted column to its prior cached values.
+
+    Pure given ``_splits_for`` (stubbed in tests). Only tickers that HAVE a
+    usable prior column can revert — with nothing to fall back on, the
+    fresh series is accepted and the defect merely reported."""
+    reverted = []
+    for t in tickers:
+        if t not in close.columns or close[t].dropna().empty:
+            continue
+        has_prior = t in prior.columns and not prior[t].dropna().empty
+        reason = _vendor_step_defect(close[t], t)
+        if reason and has_prior:
+            close = close.reindex(close.index.union(prior.index))
+            close[t] = prior[t].reindex(close.index)
+            reverted.append(t)
+            print(f"  REFUSED {t}: {reason}. The prior cached column is "
+                  f"kept; re-run once the vendor repairs the series.",
+                  flush=True)
+        elif reason:
+            print(f"  WARN {t}: {reason}, and there is no prior column to "
+                  f"fall back on — fresh series accepted.", flush=True)
+    return close, reverted
+
 
 def download_prices(
     tickers: list[str],
@@ -450,6 +547,13 @@ def download_prices(
         except Exception:
             prior = None
         if prior is not None:
+            # WS15 guard first: a mis-adjusted vendor series must not reach
+            # the cache; a confirmed defect reverts to the prior column.
+            close, _reverted = _revert_vendor_step_defects(
+                close, prior, list(tickers))
+            if _reverted:
+                print(f"  Vendor step-defect guard reverted "
+                      f"{len(_reverted)} column(s): {_reverted}", flush=True)
             kept = []
             for t in tickers:
                 if t not in prior.columns:
