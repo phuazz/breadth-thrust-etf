@@ -209,8 +209,38 @@
       font-size: 15px; font-weight: 600; margin: 22px 0 6px 0; color: var(--ink-soft);
       letter-spacing: 0.01em;
     }
-    section .section-sub { color: var(--ink-faint); font-size: 14px; margin: 0 0 18px 0; max-width: 800px; }
-    section .section-sub.full { max-width: none; }
+    /* Line length. Prose is capped by MEASURE (ch) rather than a pixel
+       width, so it holds regardless of font size: 800px is a comfortable
+       65 characters at 18px and an unreadable 106 at 14px, which is what
+       this was. Tables, charts and diagrams are deliberately NOT capped -
+       they need the full column width. */
+    section .section-sub { color: var(--ink-faint); font-size: 14px; margin: 0 0 18px 0; max-width: 66ch; }
+    /* `.full` used to mean max-width:none, which is how sixteen captions came
+       to run at 126-174 characters. At 78ch a dozen of them still sat at
+       91-102, so it now takes the SAME measure as every other prose run: a
+       caption may sit above a full-width chart, but its text wraps where text
+       should wrap.
+
+       The class therefore no longer changes width. It is retained so the
+       existing markup does not have to be touched, and is a candidate for
+       removal in a later tidy - it should not be used on the assumption that
+       it widens anything. */
+    section .section-sub.full { max-width: 66ch; }
+    /* Same measure for every other prose run in a tab. Scoped to .tab-content
+       paragraphs and list items rather than a hand-listed set of selectors:
+       the first attempt named four selectors and still left a 166-character
+       line in the Multi-Strategy tab that none of them reached.
+
+       66ch, not 80ch. A ch is the width of "0", which in this face is wider
+       than the average lowercase letter, so 80ch rendered at 96-102 actual
+       characters. Measured, not assumed. */
+    .tab-content p, .tab-content li { max-width: 66ch; }
+    /* `.full` existed to lift the old 800px pixel cap so a caption could sit
+       above a full-width chart. It is not exempt from the MEASURE: seven
+       captions were running at 126-166 characters, and a block can span the
+       column without its text doing so. Only paragraphs inside table cells
+       stay uncapped, where the cell already constrains them. */
+    .tab-content table p { max-width: none; }
 
     .verdict {
       margin: 28px 0 24px 0; padding: 22px 26px;
