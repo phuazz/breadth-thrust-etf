@@ -1845,3 +1845,51 @@ charts `scripts/plot_ws15_summary.py` → `reviews/charts/ws15_*.png`; evidence
 `reviews/ws15/*.json`; MC fix `scripts/backtest.py` +
 `tests/test_mc_nonoverlap_sampler.py`; record
 `reviews/2026-08-13_ws15_cndx-survivorship-restatement.docx`.
+
+### WS12/WS13 — DECISION REVERSED the same day: Friday CLOSE, market-on-close (2026-08-12)
+
+The Friday-open fill adopted earlier on 2026-08-12 was reversed the same
+evening. Execution is the **Friday closing auction**, via market-on-close
+orders submitted Friday evening SGT: Xetra clears 23:30 SGT, the US 04:00 SGT
+Saturday, both unattended.
+
+**Two findings drove it, neither in the original work.**
+
+1. **The cost stress did not go far enough.** Widening it from 2× to 4× put
+   the break-even at **1.82×**: the open fill stops being an improvement once
+   executing there costs about 80% more than executing at the close. An
+   opening auction being 80% dearer than a closing one is unremarkable,
+   particularly for sleeve D's Xetra lines and sleeve C's thin thematics. The
+   tab said "costs nothing measurable"; that was too strong.
+
+2. **The premise was wrong.** The whole change rested on a Singapore operator
+   being unable to trade a 04:00 SGT close. A **market-on-close order** is
+   submitted during the session and executes in the closing auction with
+   nobody awake — NYSE cut-off 15:50 ET, Nasdaq 15:55 ET, so an order entered
+   ~22:00 SGT Friday fills hours later. The operational objection had a
+   standard order type as its answer and I did not consider it.
+
+**What the close buys beyond cost.** The deepest and best-discovered print of
+the day, no spread crossed, and — the reason that does not depend on any
+number above — the record is computed on closing prices, so executing at the
+close makes the published figure and the fill the same number. The engines
+were deliberately not rebuilt for opening prices, so the open would have left
+that wedge open permanently.
+
+**The performance case for the open, for the record.** +42bp active return on
+80bp tracking error, IR +0.53 against an SE near 0.36, paired 90% CI
+[−0.0121, +0.0754] straddling zero, and a sign that reverses across
+neighbouring weekdays (MON −0.051, TUE −0.002, WED −0.022, THU +0.014,
+FRI +0.030). It survives only while both auctions are charged the same cost.
+
+**Unchanged by the reversal:** the Friday-morning refresh cadence (it precedes
+both auctions comfortably), the `holiday_aware_next` mode, the pre-trade CI
+check, and the weekday grid.
+
+**Open.** Sleeve D's Xetra MOC support on IBKR is unverified — IBKR may
+*simulate* order types where an exchange lacks them, and a simulated MOC is a
+market order near the close, not an auction order. Not a blocker: the Xetra
+close is 23:30 SGT Friday, an attendable hour, so D can be traded into the
+close directly. The higher-value open item remains realised per-sleeve costs
+from broker fills, which would settle both this and the 2/2/5/9 bps
+assumptions that now do all the work.

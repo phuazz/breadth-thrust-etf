@@ -187,7 +187,9 @@ def fig2_decision_path(D: dict) -> Path:
         ("Monday open  Fri → Mon open", blend["MON"]["open"]["sharpe"],
          21.5, "Mon 21:30", "WS13", "rej"),
         ("Friday open  Thu → Fri open", blend["FRI"]["open"]["sharpe"],
-         21.5, "Fri 21:30", "WS13", "adopt"),
+         21.5, "Fri 21:30", "WS13", "rej"),
+        ("Friday close, MOC  Thu → Fri close", blend["FRI"]["close"]["sharpe"],
+         28.0, "Sat 04:00", "WS13", "adopt"),
     ]
     colour = {"use": NAVY, "rej": FAINT, "adopt": TEAL}
     label = {"use": "in use", "rej": "rejected", "adopt": "ADOPTED"}
@@ -199,8 +201,13 @@ def fig2_decision_path(D: dict) -> Path:
     # title, which is how the first draft rendered.
     ax.text(15.0, len(rows) - 0.35, "workable Singapore hours", ha="center",
             fontsize=9, color="#15803d")
-    ax.text(26.5, len(rows) - 0.35, "overnight — not reliably tradeable",
-            ha="center", fontsize=9, color=RED)
+    # The adopted row sits in this band, so the caption cannot say the band
+    # is untradeable — that is the chart contradicting its own conclusion.
+    # An overnight auction is unattendable, not untradeable: a
+    # market-on-close order is submitted hours earlier.
+    ax.text(26.5, len(rows) - 0.35,
+            "overnight — order already placed",
+            ha="center", fontsize=9, color=FAINT)
 
     for i, (name, sh, hour, clock, basis, verdict) in enumerate(rows):
         c = colour[verdict]
@@ -220,8 +227,8 @@ def fig2_decision_path(D: dict) -> Path:
     ax.set_xlabel("Singapore time the book would actually turn over "
                   "(summer offsets)")
     ax.grid(axis="y", visible=False)
-    ax.set_title("What decided this was the clock, not the Sharpe — the "
-                 "figures span 1.13 to 1.30 and mostly tie",
+    ax.set_title("The Sharpe figures mostly tie — what settled it was an "
+                 "order type, not a number",
                  fontsize=11.5, color=INK, pad=12)
     fig.tight_layout()
     out = ASSETS / "ws13_fig2_decision_path.png"
