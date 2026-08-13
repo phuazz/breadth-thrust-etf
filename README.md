@@ -19,7 +19,9 @@ The deployed strategy is the **35/35/10/20 A:B:C:D blend** with two overlays:
 
 **Backtest stats (gated + EEM-tilted, 2018-Q4 to 2026-Q2, post-Phase 29)**: Sharpe +1.30, CAGR +15.5%, max DD -16.2%. All return figures USD-denominated. Walk-forward Sharpe (annual K refit) for A is +1.00, B is +0.77, C is +0.51 (largest IS-vs-OOS gap), D is ~+0.85.
 
-> **SUPERSEDED 2026-08-03 — blend and D figures above predate the sleeve D EXH3 correction.** Sleeve D was priced as `EXH3.DE` (Food & Beverage) while signalling on an Industrial Goods & Services panel; the traded ticker is now `EXH4.DE`. Sleeve D standalone moved Sharpe 0.757 → 0.879 and CAGR 12.9% → 16.2%, with max drawdown 1.4pp worse, so every blend figure on this line shifts once the engines re-run. Read the deltas as attribution, not validation — see `reviews/2026-08-03_sleeve-d-exh3-correction.md`.
+> **SUPERSEDED 2026-08-03 — blend and D figures above predate the sleeve D EXH3 correction.** Sleeve D was priced as `EXH3.DE` (Food & Beverage) while signalling on an Industrial Goods & Services panel; the traded ticker is now `EXH4.DE`. Sleeve D standalone moved Sharpe 0.757 → 0.879 and CAGR 12.9% → 16.2%, with max drawdown 1.4pp worse. Read the deltas as attribution, not validation — see `reviews/2026-08-03_sleeve-d-exh3-correction.md`.
+>
+> **The engines have since re-run three times** — the EXH3 correction, the 2026-08-10 US delisted-archive restatement (which *lowered* the record) and the WS16 cross-panel restatement. As at **2026-08-13** the deployed blend publishes **Sharpe +1.24, CAGR +14.9%, max DD −16.5%** (`data/risk_overlay.json`, variant `blend_35_35_10_20_gated_eem_tilted`). Do not quote the line above; the live figures on the dashboard's configuration ribbon are the ones under test guard.
 
 ### Published pages
 

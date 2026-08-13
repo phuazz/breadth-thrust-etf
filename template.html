@@ -34,7 +34,18 @@
       color: var(--ink); background: var(--bg);
       line-height: 1.55; font-size: 15px;
       -webkit-font-smoothing: antialiased;
+      /* iOS Safari inflates text in rotated / narrow layouts unless the
+         auto-adjust is pinned, which silently breaks the measured type
+         scale. MOBILE_CHECK requires it (2026-08-13 audit, S3-1). */
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
+    /* The UA default for sub/sup is `smaller` (~0.83em), which puts a
+       subscript under the 11px floor on any parent at 13px or below —
+       every declared size can be compliant while the rendered subscript
+       is not. The floor is enforced here rather than per-callsite so a
+       future formula inherits it (2026-08-13 audit, S3-1). */
+    sub, sup { font-size: max(11px, 0.85em); }
     .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 
     header.top {
@@ -136,7 +147,7 @@
     header.top .hero-strip .number.good { color: var(--good); }
     header.top .hero-strip .number.bad  { color: var(--bad); }
     header.top .hero-strip .label {
-      font-size: 10.5px; text-transform: uppercase;
+      font-size: 11px; text-transform: uppercase;
       letter-spacing: 0.08em; color: var(--ink-soft);
       margin-top: 5px; font-weight: 600;
     }
@@ -187,7 +198,7 @@
     nav.tabs .tab-health { margin-left: auto; }
     nav.tabs .tab .sub { font-size: 11px; font-weight: 500; color: var(--ink-faint); }
     nav.tabs .tab.active .sub { color: rgba(255,255,255,0.85); }
-    nav.tabs .tab .ext { font-size: 9px; opacity: 0.55; }
+    nav.tabs .tab .ext { font-size: 11px; opacity: 0.55; }
     @media (pointer: coarse) {
       nav.tabs .tab { min-height: 44px; }
     }
@@ -360,7 +371,12 @@
       background: var(--bg-card); margin-bottom: 14px;
     }
     .health-stat-strip {
-      display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+      /* auto-fit/minmax, matching every other stat grid on this page
+         (:294, :1092, :1173, :1691). The old `repeat(5, 1fr)` could not
+         reflow — 1fr floors at min-content, so five cards forced 293px of
+         body h-scroll at 390px, the same hard MOBILE_CHECK failure the
+         2026-08-13 audit raised as S1-2 against another page. */
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;
       margin-bottom: 18px;
     }
     .health-stat {
@@ -470,7 +486,7 @@
     }
     table.holdings tbody tr.holdings-row .caret {
       display: inline-block; width: 12px; color: var(--ink-faint);
-      font-size: 10px; margin-right: 2px; user-select: none;
+      font-size: 11px; margin-right: 2px; user-select: none;
       transition: transform 0.15s;
     }
     table.holdings tbody tr.holdings-row.is-expanded .caret {
@@ -518,7 +534,7 @@
          so users still see which sleeve a position came from. */
       table.holdings tbody tr.holdings-row td:nth-child(1) .sym::after {
         content: attr(data-mobile-tag);
-        font-size: 9px; color: var(--ink-faint);
+        font-size: 11px; color: var(--ink-faint);
         margin-left: 6px; font-weight: 500;
       }
       /* Total-deployed row is now a single full-width cell with flex
@@ -730,7 +746,7 @@
       font-variant-numeric: tabular-nums;
     }
     .strat-panel .panel-stat .l {
-      font-size: 10px; color: var(--ink-faint);
+      font-size: 11px; color: var(--ink-faint);
       letter-spacing: 0.05em; text-transform: uppercase;
     }
     .formula-box {
@@ -752,7 +768,12 @@
       border: 1px solid var(--border);
       border-radius: 3px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 12px; color: var(--ink);
+      /* 13px, not 12px, because the UA default shrinks <sub> to 0.83em:
+         at 12px the subscripts in weight_i / breadth_i computed to 10px,
+         under the 11px floor. Raising the base keeps the notation's size
+         hierarchy instead of flattening the subscript to match its base
+         (2026-08-13 audit, S3-1). */
+      font-size: 13px; color: var(--ink);
     }
     .formula-box .eq .num { color: var(--good); font-weight: 600; }
     .formula-box code {
@@ -819,7 +840,7 @@
       border-left: 2px solid var(--border);
       border-radius: 2px;
       font-family: 'JetBrains Mono', ui-monospace, monospace;
-      font-size: 10.5px; color: var(--ink-faint);
+      font-size: 11px; color: var(--ink-faint);
       font-variant-numeric: tabular-nums;
       letter-spacing: 0.01em; line-height: 1.55;
       display: flex; flex-wrap: wrap; align-items: baseline;
@@ -832,11 +853,11 @@
       margin-left: auto; padding: 1px 6px;
       background: transparent; color: var(--good);
       border: 1px solid rgba(29,122,58,0.30);
-      border-radius: 3px; font-size: 10px; font-weight: 600;
+      border-radius: 3px; font-size: 11px; font-weight: 600;
       letter-spacing: 0.02em;
     }
     .holding-row .hcalc .approx {
-      color: var(--warn); font-style: italic; font-size: 10px;
+      color: var(--warn); font-style: italic; font-size: 11px;
       margin-left: 4px;
     }
 
@@ -1063,13 +1084,13 @@
       transform: translateX(-50%); white-space: nowrap;
     }
     .gauge-tick {
-      position: absolute; top: 44px; font-size: 10.5px;
+      position: absolute; top: 44px; font-size: 11px;
       color: var(--ink-faint); transform: translateX(-50%);
       font-variant-numeric: tabular-nums;
     }
     .gauge-zone-labels {
       display: flex; justify-content: space-between;
-      font-size: 10.5px; color: var(--ink-faint);
+      font-size: 11px; color: var(--ink-faint);
       margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em;
     }
     .overlay-impact-strip {
@@ -1087,7 +1108,7 @@
     .overlay-impact-stat .v.good { color: var(--good); }
     .overlay-impact-stat .v.neutral { color: var(--ink-soft); }
     .overlay-impact-stat .l {
-      font-size: 10.5px; color: var(--ink-faint);
+      font-size: 11px; color: var(--ink-faint);
       text-transform: uppercase; letter-spacing: 0.04em;
       margin-top: 2px;
     }
@@ -1168,7 +1189,7 @@
     .perf-stat .v.good { color: var(--good); }
     .perf-stat .v.bad  { color: var(--bad); }
     .perf-stat .l {
-      font-size: 10.5px; color: var(--ink-faint);
+      font-size: 11px; color: var(--ink-faint);
       text-transform: uppercase; letter-spacing: 0.04em;
       margin-top: 2px;
     }
@@ -1275,7 +1296,7 @@
       .uni-stage:last-child { border-bottom: none; }
     }
     .uni-stage-h {
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.6px;
@@ -1420,7 +1441,7 @@
       color: var(--ink-soft, #3a4148);
     }
     .prev-card-h-asof {
-      font-size: 10.5px;
+      font-size: 11px;
       color: var(--ink-faint);
     }
     .prev-card-ctrls {
@@ -1446,7 +1467,7 @@
       font-size: 12.5px;
     }
     table.prev-table thead th {
-      font-size: 9.5px;
+      font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.6px;
@@ -1473,14 +1494,14 @@
       display: block;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-weight: 400;
-      font-size: 10.5px;
+      font-size: 11px;
       color: var(--ink-faint);
       margin-top: 1px;
       white-space: normal;
       line-height: 1.3;
     }
     table.prev-table td.sl {
-      font-size: 10.5px;
+      font-size: 11px;
       color: var(--ink-faint);
       letter-spacing: 0.3px;
     }
@@ -1499,7 +1520,7 @@
     }
     table.prev-table td.act {
       font-weight: 700;
-      font-size: 10.5px;
+      font-size: 11px;
       letter-spacing: 0.4px;
       white-space: nowrap;
     }
@@ -1543,7 +1564,7 @@
       line-height: 1.7;
     }
     #config-ribbon .rib-lbl {
-      font-size: 10.5px;
+      font-size: 11px;
       letter-spacing: 0.4px;
       text-transform: uppercase;
       color: var(--ink-faint);
@@ -1579,7 +1600,7 @@
     details.caveats-collapsible > summary::-webkit-details-marker { display: none; }
     details.caveats-collapsible > summary::after {
       content: 'Show \25BC';
-      font-size: 10.5px;
+      font-size: 11px;
       color: var(--ink-faint);
       font-weight: 500;
       letter-spacing: 0.4px;
@@ -1769,7 +1790,7 @@
       font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
       font-weight: 600; font-size: 14px;
     }
-    table.heat .v .sub { display: block; font-size: 10px; font-weight: 400;
+    table.heat .v .sub { display: block; font-size: 11px; font-weight: 400;
       color: var(--ink-faint); margin-top: 2px;
       letter-spacing: 0.02em;
     }
@@ -1832,12 +1853,13 @@
          Multi-Strategy regime/bootstrap tables, Trade History ledger,
          Strategy A trade history, etc. */
       section { overflow-x: auto; }
-      table.heat, table.small-table, table.trade-table {
+      table.heat, table.small-table, table.trade-table, table.health-table {
         font-size: 12px; min-width: 480px;
       }
       table.heat thead th, table.heat tbody td,
       table.small-table thead th, table.small-table tbody td,
-      table.trade-table thead th, table.trade-table tbody td {
+      table.trade-table thead th, table.trade-table tbody td,
+      table.health-table thead th, table.health-table tbody td {
         padding: 6px 8px;
       }
       /* Trade controls (filter rows): tighter spacing + full-width inputs */
@@ -2036,11 +2058,11 @@
       <span class="rib-sep">&middot;</span>
       <span>Weights <strong>35 / 25 / 10 / 20</strong> + EEM tilt 10%</span>
       <span class="rib-sep">&middot;</span>
-      <span>Sharpe (rf&nbsp;=&nbsp;0) <strong id="ribbon-sharpe">+1.22</strong></span>
+      <span>Sharpe (rf&nbsp;=&nbsp;0) <strong id="ribbon-sharpe"><span data-fig="deployed.sharpe">+1.24</span></strong></span>
       <span class="rib-sep">&middot;</span>
-      <span>CAGR <strong id="ribbon-cagr">+15.1%</strong></span>
+      <span>CAGR <strong id="ribbon-cagr"><span data-fig="deployed.cagr">+14.9%</span></strong></span>
       <span class="rib-sep">&middot;</span>
-      <span>Max DD <strong id="ribbon-mdd">&minus;16.6%</strong></span>
+      <span>Max DD <strong id="ribbon-mdd"><span data-fig="deployed.mdd">-16.5%</span></strong></span>
     </div>
 
     <!-- Collapsible caveats — keeps epistemic-honesty signalling default-closed. -->
@@ -2049,6 +2071,7 @@
       <div class="caveats-body">
         <ul>
           <li><strong>Survivorship bias in Strategy C</strong> (thematic): the 25 ETFs all survived to 2026. Failed thematics (cannabis, leveraged-thematic, volatility) never entered the universe. C standalone Sharpe is on a survivor-selected basket.</li>
+          <li><strong>Survivorship in Strategy D &mdash; not corrected</strong> (Europe): the US constituent panels were corrected from the delisted archive on <strong>2026-08-10</strong>, and that correction <em>lowered</em> the record (deployed blend 1.164 &rarr; 1.148). Europe and Asia were not corrected &mdash; 141 of sleeve D&rsquo;s 475 historical constituents (30%) still never price, with 2018 coverage as low as 65%. A residual upward bias of <strong>unmeasured size</strong> therefore remains through sleeve D&rsquo;s 20% weight. Correcting it needs a European delisted-equity source this book does not have. <a href="#" onclick="document.querySelector('[data-tab=method]').click();document.getElementById('caveat-survivorship')?.scrollIntoView({behavior:'smooth',block:'start'});return false;">Full disclosure in Method &rarr;</a></li>
           <li><strong>Breadth regime gate parameters — partial OOS evidence</strong>: thresholds (off=20% / on=50% / derisk=50%) were chosen from a 12-variant in-sample sweep. June 2026 walk-forward validation (annual refit, same grid, 5y train + 1y test) confirmed the parameter surface is stable — refit picks similar thresholds (off=0.25, on=0.50) and matches the fixed deployed config almost exactly. <strong>However, on the 2024-2026 OOS test windows specifically the gate cost -0.13 Sharpe vs the un-gated blend</strong>, because those years didn't contain the major drawdowns (2020 COVID, 2022 inflation) the gate is designed to catch. The deployed <span data-fig="gate.sharpe_add">+0.08</span> Sharpe contribution at the full-window level is therefore "insurance" economics — pays off rarely, bleeds slightly in between — not walk-forward-validated alpha. Treat the gate as drawdown protection conditional on future crashes resembling past ones, not as a Sharpe-lifting signal. See <code>data/risk_overlay_validation.json</code> for the per-segment numbers.</li>
           <li><strong>EM tilt — small-sample caveat partially closed by OOS test</strong>: the 50d/200d golden cross has 14 distinct ON-events in 7.5 years (~2/year). Earlier caveat was "deployed on weak sample"; June 2026 walk-forward validation showed the fixed deployed (50/200) thresholds contribute +0.06 Sharpe on the 2024-2026 OOS test windows vs the un-tilted blend, and annual refit picks slightly different windows (50/150) that perform marginally worse. The deployed thresholds are near-optimal — the OOS evidence is supportive, not conclusive, given the modest sample size. See <code>data/em_tilt_validation.json</code>.</li>
           <li><strong>Sharpe sample noise</strong>: 7.5y &times; weekly observations gives Sharpe SE &asymp; &plusmn;0.4. A reported Sharpe of +1.22 sits in a ~95% CI of roughly [+0.48, +1.96]. Treat headline ratios as ranges.</li>
@@ -3149,7 +3172,7 @@
         <ul>
           <li><strong>Slippage on rebalances</strong>: rebalances assume mid-spread fills. Worst-case slippage may add another 5-10 bps per rebalance on top of the 5 bps transaction cost already modelled.</li>
           <li><strong>Per-sleeve cost calibration</strong>: replaced the uniform 5 bps with sleeve-specific costs that reflect the actual liquidity of each universe. Strategy A = <strong>2 bps</strong> (very liquid SPDR Select Sector + SPY/QQQ). Strategy B = <strong>2 bps</strong> (SPY/IEF/GLD/TLT — among the most liquid ETFs in the world). Strategy C = <strong>5 bps</strong> (mid-liquidity thematics, mixed: ARKK/XBI are 1-3 bps but BLOK/PAVE/BOTZ are 5-10 bps). Strategy D = <strong>9 bps</strong> (European UCITS on Xetra at 5-10 bps bid-ask plus 2-4 bps FX cost for USD-base investors). Net effect: deployed blend Sharpe lifted from +1.16 to <strong>+1.18</strong> (~+0.015), with A and B benefiting from tighter realistic costs more than D loses from wider European spreads.</li>
-          <li><strong>Survivorship in the price series &mdash; PARTIALLY corrected, and the correction LOWERED the record</strong>: price history is served only under a security&rsquo;s current symbol, so every constituent later acquired, taken private or renamed had no history under the ticker it carried while in the index, and was dropped from both numerator and denominator. Early breadth was therefore computed on survivors. On <strong>2026-08-10</strong> the US panels were corrected from Norgate&rsquo;s delisted archive &mdash; 285 of 327 missing constituents restored, CNDX median 2018 coverage 81.6% &rarr; 97.1%, CSP1 82.6% &rarr; 97.6%. Survivorship had been <em>flattering</em> the record: Strategy A fell 0.950 &rarr; 0.913 and the deployed blend 1.164 &rarr; 1.148 once the acquired names were priced. <strong>The Europe sleeve (D) and the Asia panels are NOT corrected</strong> &mdash; delisted coverage here is US-only, and 141 of sleeve D&rsquo;s 475 historical constituents (30%) still never price, with 2018 coverage as low as 65%. The published figure is therefore partially corrected, not clean: a residual upward bias of unmeasured size remains through sleeve D&rsquo;s 20% weight. Correcting it needs a European delisted-equity source this book does not have. An earlier fix to <code>compute_ma200_breadth</code> resolved a separate latent issue for non-US constituents (see research log below).</li>
+          <li id="caveat-survivorship"><strong>Survivorship in the price series &mdash; PARTIALLY corrected, and the correction LOWERED the record</strong>: price history is served only under a security&rsquo;s current symbol, so every constituent later acquired, taken private or renamed had no history under the ticker it carried while in the index, and was dropped from both numerator and denominator. Early breadth was therefore computed on survivors. On <strong>2026-08-10</strong> the US panels were corrected from Norgate&rsquo;s delisted archive &mdash; 285 of 327 missing constituents restored, CNDX median 2018 coverage 81.6% &rarr; 97.1%, CSP1 82.6% &rarr; 97.6%. Survivorship had been <em>flattering</em> the record: Strategy A fell 0.950 &rarr; 0.913 and the deployed blend 1.164 &rarr; 1.148 once the acquired names were priced. <strong>The Europe sleeve (D) and the Asia panels are NOT corrected</strong> &mdash; delisted coverage here is US-only, and 141 of sleeve D&rsquo;s 475 historical constituents (30%) still never price, with 2018 coverage as low as 65%. The published figure is therefore partially corrected, not clean: a residual upward bias of unmeasured size remains through sleeve D&rsquo;s 20% weight. Correcting it needs a European delisted-equity source this book does not have. An earlier fix to <code>compute_ma200_breadth</code> resolved a separate latent issue for non-US constituents (see research log below).</li>
           <li><strong>Common window for the deployed blend is 2018-11 → 2026-05</strong> (~7.5 years), constrained by Strategy C's data start date. Strategy B's 18-year history (2008-2026, covering GFC + COVID + 2022) cushions the blend through real crises in the per-strategy comparison, but the blend-level statistics only see 2020/2022.</li>
           <li><strong>Concentration risk in Strategy A</strong>: even at K = 7 the top breadth tilts toward 1-2 dominant sectors, so a semis or energy reversal can move 10-20% of NAV within the sleeve in a week. The 35% sleeve weight in the 4-way blend caps blend-level exposure but does not eliminate this.</li>
           <li><strong>Strategy B cash-floor mechanic</strong>: when fewer than K asset classes are positive-trend, the deficit sits in SHY (1-3y Treasury, duration-neutral). Earns short-end Treasury carry with minimal duration risk; IEF (7-10y) stays in the rotation universe as a long-duration play but is no longer the cash proxy.</li>
@@ -3296,6 +3319,11 @@
 
     <div id="health-overall-card" class="health-card" style="display:none;"></div>
 
+    <!-- The mobile `section { overflow-x: auto }` rule (~:1850) gives every
+         other wide table a scrolling ancestor, but this tab has no <section>
+         wrapper, so the 669px table scrolled the body instead. Same wrapper
+         pattern as the Data tab's tables (2026-08-13 audit sweep). -->
+    <div style="overflow-x:auto;">
     <table class="health-table" id="health-table">
       <thead>
         <tr>
@@ -3309,6 +3337,7 @@
       </thead>
       <tbody></tbody>
     </table>
+    </div>
 
     <p style="margin-top:14px; font-size:12px; color:var(--ink-faint);">
       <strong>Thresholds:</strong> live feeds warn at 3d, stale at 7d. Strategy / blend / overlay outputs warn at 8d, stale at 14d (weekly cadence). Per-ETF breadth panels warn at 8d, stale at 14d. Constituent rosters warn at 14d, stale at 60d. SOXX uses wider thresholds (breadth 21d/60d, roster 30d/90d) because the iShares-US holdings endpoint is Akamai-blocked from most IPs and the script automatically carries the most recent good roster forward.<br>
@@ -3516,6 +3545,8 @@ function fmtNum(x, digits = 2, signed = false) {
 // __FIGURE_SPEC_START__
 const FIGURE_SPEC = {
   "deployed.sharpe":   {"path": "risk_overlay.gated_variants.blend_35_35_10_20_gated_eem_tilted.sharpe", "fmt": "sharpe"},
+  "deployed.cagr":     {"path": "risk_overlay.gated_variants.blend_35_35_10_20_gated_eem_tilted.cagr", "fmt": "pct1s"},
+  "deployed.mdd":      {"path": "risk_overlay.gated_variants.blend_35_35_10_20_gated_eem_tilted.max_dd", "fmt": "pct1"},
   "blend4.sharpe":     {"path": "multi.strategies.blend_35_35_10_20.sharpe", "fmt": "sharpe"},
   "blend4.cagr":       {"path": "multi.strategies.blend_35_35_10_20.cagr", "fmt": "pct1s"},
   "blend4.mdd":        {"path": "multi.strategies.blend_35_35_10_20.max_dd", "fmt": "pct1"},
@@ -3755,6 +3786,15 @@ function renderHeroStrip() {
 
   // Compact 1-line config ribbon — bind to the same deployed-blend
   // numbers so the ribbon stays in sync with each pipeline run.
+  //
+  // The static fallbacks inside these three elements are data-fig spans
+  // (deployed.sharpe/.cagr/.mdd) so that test_figure_bindings.py guards
+  // them. Before 2026-08-13 they were bare literals outside the guard and
+  // sat one restatement stale (+1.22 / +15.1% / -16.6% against a rendered
+  // +1.24 / +14.9% / -16.5%) — invisible to a JS render, wrong for curl,
+  // archivers and reader modes. set() below replaces the span's parent
+  // text at runtime; both paths resolve the same numbers because
+  // pipeline.py merges risk_overlay.gated_variants into multi.strategies.
   set('ribbon-sharpe', sharpe != null ? fmtNum(sharpe, 2, true) : '—');
   set('ribbon-cagr',   cagr != null ? fmtPct(cagr, true) : '—');
   set('ribbon-mdd',    maxDd != null ? fmtPct(maxDd) : '—');
@@ -4229,7 +4269,7 @@ function renderPositionsPreview() {
         // changed but not which way; ENTER/EXIT already carry direction.
         const up = a.newNav > a.prevNav;
         const arrow = (a.action === 'RESIZE' && a.prevNav != null && a.newNav != null)
-          ? ` <span style="color:${up ? '#1a8754' : '#dc2626'};font-size:10px;">${up ? '&#9650;' : '&#9660;'}</span>`
+          ? ` <span style="color:${up ? '#1a8754' : '#dc2626'};font-size:11px;">${up ? '&#9650;' : '&#9660;'}</span>`
           : '';
         return `<tr>
           <td class="dt">${a.date || '—'}</td>
@@ -4471,8 +4511,11 @@ function renderMonitor() {
   const tc = data.thematic;
   const multi = data.multi;
   if (!topk?.headline?.trade_history || !ac?.headline?.trade_history) {
+    // Reader-facing wording; the operator instruction goes to the console
+    // rather than into the public hero line (2026-08-13 audit, S2-5).
     document.getElementById('live-asof').innerHTML =
-      '<span style="color:var(--bad);">Missing Strategy A or B data. Run the pipeline.</span>';
+      '<span style="color:var(--bad);">Live positioning is unavailable &mdash; this build is missing its Strategy A or B data.</span>';
+    console.warn('live-asof: topk/asset_class trade_history missing — re-run scripts/pipeline.py');
     return;
   }
 
@@ -4541,7 +4584,7 @@ function renderMonitor() {
   asofHtml += `. ${aLatest.holdings.length} A + ${bLatest.holdings.length} B`;
   if (hasC) asofHtml += ` + ${cLatest.holdings.length} C`;
   if (hasD) asofHtml += ` + ${dLatest.holdings.length} D`;
-  asofHtml += ` positions. <em>Refresh by re-running the pipeline.</em>`;
+  asofHtml += ` positions.`;
   document.getElementById('live-asof').innerHTML = asofHtml;
 
   // Stale-data check
@@ -5451,7 +5494,7 @@ function _perfRender(period) {
       x: lastBand.end, y: 1, xref: 'x', yref: 'paper',
       xanchor: 'right', yanchor: 'top',
       text: 'RISK_OFF (overlay engaged)',
-      font: { size: 10, color: '#b45309' },
+      font: { size: 11, color: '#b45309' },
       showarrow: false,
       bgcolor: 'rgba(255,255,255,0.85)',
       borderpad: 3,
@@ -5492,7 +5535,7 @@ function _perfRender(period) {
     : null;
   const wtdHtml = wtdObj
     ? `<div class="v ${cls(wtdObj.pct)}">${fmtRet(wtdObj.pct)}</div>
-       <div class="l">Week-to-date<br><span style="font-size:9.5px;color:var(--ink-faint);">${wtdObj.fromDate} &rarr; ${wtdObj.toDate}</span></div>`
+       <div class="l">Week-to-date<br><span style="font-size:11px;color:var(--ink-faint);">${wtdObj.fromDate} &rarr; ${wtdObj.toDate}</span></div>`
     : `<div class="v">—</div><div class="l">Week-to-date</div>`;
 
   const strip = document.getElementById('perf-stat-strip');
@@ -5752,16 +5795,16 @@ function _renderHoldingsMiniChart(chartDivId, tradeAs, etfLabel) {
 
   const layout = {
     margin: { t: 6, r: 12, b: 40, l: 56 },
-    xaxis: { showgrid: false, color: '#4a5159', tickfont: { size: 10 },
+    xaxis: { showgrid: false, color: '#4a5159', tickfont: { size: 11 },
               hoverformat: '%d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               tickformat: '.1%', zeroline: true,
               zerolinecolor: '#9ca3af', zerolinewidth: 1,
-              tickfont: { size: 10 } },
+              tickfont: { size: 11 } },
     paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
     hovermode: 'x unified',
     showlegend: true,
-    legend: { orientation: 'h', y: -0.18, font: { size: 10 } },
+    legend: { orientation: 'h', y: -0.18, font: { size: 11 } },
     font: { family: 'Inter', size: 11 },
   };
   if (typeof Plotly !== 'undefined') {
@@ -8362,7 +8405,7 @@ function _renderCorrHeatmap(divId, corrData) {
     z, x: sorted, y: sorted,
     type: 'heatmap',
     text, texttemplate: '%{text}',
-    textfont: { size: 9, family: 'JetBrains Mono, monospace' },
+    textfont: { size: 11, family: 'JetBrains Mono, monospace' },
     colorscale: [
       [0,    '#1351b4'],  // strong negative — blue
       [0.5,  '#ffffff'],  // zero — white
@@ -8546,15 +8589,15 @@ function renderRightTail(containerId, strategyKey) {
   // you the depth; longest_dd_duration tells you the duration.
   const hitRate = m.hit_rate_12m_pct;
   const hitNote = m.hit_rate_12m_n_positive != null && m.hit_rate_12m_n_windows
-    ? `<span style="color:var(--ink-faint);font-weight:400;font-size:9.5px;">${m.hit_rate_12m_n_positive} of ${m.hit_rate_12m_n_windows} rolling 12m windows</span>`
+    ? `<span style="color:var(--ink-faint);font-weight:400;font-size:11px;">${m.hit_rate_12m_n_positive} of ${m.hit_rate_12m_n_windows} rolling 12m windows</span>`
     : '';
   const hitColour = hitRate != null && hitRate >= 80 ? 'good'
                        : (hitRate != null && hitRate < 60 ? 'bad' : '');
   const longDdMonths = m.longest_dd_duration_months;
   const longDdNote = m.longest_dd_peak_date && m.longest_dd_recovery_date
-    ? `<span style="color:var(--ink-faint);font-weight:400;font-size:9.5px;">${m.longest_dd_peak_date} → ${m.longest_dd_recovery_date}</span>`
+    ? `<span style="color:var(--ink-faint);font-weight:400;font-size:11px;">${m.longest_dd_peak_date} → ${m.longest_dd_recovery_date}</span>`
     : (m.longest_dd_peak_date && !m.longest_dd_is_recovered
-        ? `<span class="bad" style="font-weight:400;font-size:9.5px;">unrecovered since ${m.longest_dd_peak_date}</span>`
+        ? `<span class="bad" style="font-weight:400;font-size:11px;">unrecovered since ${m.longest_dd_peak_date}</span>`
         : '');
   el.innerHTML = `
     <div class="recipe-stats">
@@ -8583,8 +8626,8 @@ function _recipeStatCards(wfSharpe, isSharpe, cagr, maxDd, annual_turnover) {
   const ahd = _avgHoldDays(annual_turnover);
   const wfDisplay = wfSharpe != null ? fmtNum(wfSharpe, 2, true) : '—';
   return `
-    <div class="recipe-stat"><div class="v good">${wfDisplay}</div><div class="l">Sharpe<br><span style="color:var(--ink-faint);font-weight:400;font-size:9.5px;">out-of-sample (annual refit)</span></div></div>
-    <div class="recipe-stat"><div class="v">${fmtNum(isSharpe, 2, true)}</div><div class="l">Sharpe<br><span style="color:var(--ink-faint);font-weight:400;font-size:9.5px;">in-sample backtest</span></div></div>
+    <div class="recipe-stat"><div class="v good">${wfDisplay}</div><div class="l">Sharpe<br><span style="color:var(--ink-faint);font-weight:400;font-size:11px;">out-of-sample (annual refit)</span></div></div>
+    <div class="recipe-stat"><div class="v">${fmtNum(isSharpe, 2, true)}</div><div class="l">Sharpe<br><span style="color:var(--ink-faint);font-weight:400;font-size:11px;">in-sample backtest</span></div></div>
     <div class="recipe-stat"><div class="v">${fmtPct(cagr, true)}</div><div class="l">CAGR</div></div>
     <div class="recipe-stat"><div class="v good">${fmtPct(maxDd)}</div><div class="l">Max drawdown</div></div>
     <div class="recipe-stat"><div class="v">${calmar != null ? calmar.toFixed(2) : '—'}</div><div class="l">Calmar (CAGR / |DD|)</div></div>
@@ -8975,7 +9018,7 @@ function renderAssetCharts() {
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
-    legend: { orientation: 'h', y: -0.26, x: 0, font: { size: 10 } },
+    legend: { orientation: 'h', y: -0.26, x: 0, font: { size: 11 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
   }, { displayModeBar: false, responsive: true });
@@ -9271,7 +9314,7 @@ function renderThematicCharts() {
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
-    legend: { orientation: 'h', y: -0.26, x: 0, font: { size: 10 } },
+    legend: { orientation: 'h', y: -0.26, x: 0, font: { size: 11 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
   }, { displayModeBar: false, responsive: true });
@@ -9567,7 +9610,7 @@ function renderEuropeCharts() {
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
-    legend: { orientation: 'h', y: -0.26, x: 0, font: { size: 10 } },
+    legend: { orientation: 'h', y: -0.26, x: 0, font: { size: 11 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
   }, { displayModeBar: false, responsive: true });
@@ -9862,7 +9905,7 @@ function renderMultiCharts() {
               title: { text: 'Cumulative return (0% at period start)',
                        font: { size: 11 } } },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
-    legend: { orientation: 'h', y: -0.22, x: 0, font: { size: 10 } },
+    legend: { orientation: 'h', y: -0.22, x: 0, font: { size: 11 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
   };
@@ -11607,7 +11650,7 @@ function _renderDataHistory() {
       <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.roster)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;">${_num(r.priced)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;color:${(r.cov !== null && r.cov < 0.8) ? '#b45309' : 'var(--ink-soft)'};">${r.cov === null ? '—' : _pct(r.cov)}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;${r.bsub ? 'color:#b45309;' : ''}"${r.bsub ? ` title="Market shut ${r.friday} — read from the prior session, ${r.bdate}"` : ''}>${_pct(r.ma)}${r.bsub ? '<span style="font-size:10px;"> ✦</span>' : ''}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;${r.bsub ? 'color:#b45309;' : ''}"${r.bsub ? ` title="Market shut ${r.friday} — read from the prior session, ${r.bdate}"` : ''}>${_pct(r.ma)}${r.bsub ? '<span style="font-size:11px;"> ✦</span>' : ''}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;${r.bsub ? 'color:#b45309;' : ''}">${_pct(r.rsi)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;${r.bsub ? 'color:#b45309;' : ''}">${_pct(r.highs)}</td>
     </tr>`, 'friday');
@@ -12051,8 +12094,10 @@ function _runLoadingWatchdog() {
 (function init() {
   const data = DASHBOARD_DATA_INLINE;
   if (!data) {
+    // Reader-facing wording; operator instruction to the console (S2-5).
     document.getElementById('live-asof').innerHTML =
-      '<p>Build artefact missing. Run <code>python scripts/pipeline.py</code>.</p>';
+      '<p>This page could not load its data. The published build is incomplete.</p>';
+    console.warn('init: DASHBOARD_DATA_INLINE missing — re-run scripts/pipeline.py');
     _runLoadingWatchdog();
     return;
   }
