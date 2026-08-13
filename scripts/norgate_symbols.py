@@ -114,6 +114,47 @@ RENAMED: dict[str, str] = {
     "WRE":   "ELME",            # Washington REIT -> Elme Communities (2022)
     "WYN":   "TNL",             # Wyndham Worldwide -> Travel + Leisure
     "BPR":   "BPYU-202107",     # Brookfield Property REIT Class A
+
+    # --- 2026-08-13 WS16 sweep of the held-window-aware residuals. -------
+    # Same discipline as above: every entry verified against Norgate's
+    # security_name AND quotation window before being written. The window
+    # matters as much as the name — HR's live line starts 2012-06-06, which
+    # is HTA's IPO date, proving it carries the HTA side of the 2022 merger
+    # rather than the absorbed old Healthcare Realty (HR-202207).
+    "SIVB":  "SIVBQ-202411",    # SVB Financial (failed 2023-03; OTC line
+                                #   carries the lineage to 2024-11)
+    "FRC":   "FRCB",            # First Republic Bank (failed 2023-05; the
+                                #   FRCB line carries the lineage)
+    "LB":    "BBWI",            # L Brands -> Bath & Body Works (2021);
+                                #   LB reused by LandBridge from 2024-06
+    "COG":   "CTRA-202605",     # Cabot -> Coterra (2021), which itself
+                                #   stopped quoting 2026-05-06
+    "DWDP":  "DD",              # DowDuPont era lives under DuPont de
+                                #   Nemours; DD's history starts 2017-09-01,
+                                #   the merger date
+    "APY":   "CHX-202507",      # Apergy -> ChampionX (2020), acquired 2025
+    "SATS":  "ECHO",            # EchoStar ticker change SATS -> ECHO (2026)
+    "VSCO":  "VSXY",            # Victoria's Secret ticker change (2026)
+    "MPW":   "MPT",             # Medical Properties Trust ticker change
+                                #   (2026); MPT starts 2005-07-08, its IPO
+    "AHH":   "AHRT",            # Armada Hoffler -> AH Realty Trust (2026);
+                                #   AHRT starts 2013-05-08, the AHH IPO
+    "PEI":   "PRETQ-202404",    # Pennsylvania REIT (delisted via OTC 2024)
+    "AFIN":  "RTL-202309",      # American Finance Trust -> Necessity
+                                #   Retail REIT, acquired 2023-09
+    "HTA":   "HR",              # Healthcare Trust of America -> Healthcare
+                                #   Realty Class A (2022 merger, HTA side)
+    "IRET":  "CSR",             # Investors Real Estate Trust -> Centerspace
+    "OPI":   "OPITQ-202606",    # Office Properties Income Trust, old line
+                                #   to 2026-06-17 (a NEW OPI line quotes
+                                #   from 2026-06-22 — era barrier applies)
+    "BFB":   "BF.B",            # Brown-Forman Class B: iShares prints
+                                #   "BFB", Norgate "BF.B", yfinance "BF-B"
+    "WPG":   "WPGGQ-202110",    # Washington Prime Group (bankruptcy OTC
+                                #   line to 2021-10)
+    "RVI":   "RVIC-202304",     # Retail Value Inc (SITE Centers spin,
+                                #   wound down 2023; RVI reused by a 2026
+                                #   CEF, which the dated check keeps out)
 }
 
 # Roster entries that are NOT ordinary equity and cannot be priced as one.

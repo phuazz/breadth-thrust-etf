@@ -234,6 +234,8 @@ def normalise_for_yfinance(ticker: str) -> str:
     the ticker untouched. Otherwise (e.g. BRK.B share class) convert dot to
     dash. Tickers without dots are returned as-is.
     """
+    if ticker in YF_TICKER_OVERRIDES:
+        return YF_TICKER_OVERRIDES[ticker]
     if "." not in ticker:
         return ticker
     base, _, suffix = ticker.rpartition(".")
@@ -333,6 +335,23 @@ ERA_BARRIERS = {
     "PCLN": "2025-10-16",   # Priceline era (from BKNG) | Pictet ETF
     "FOXA": "2019-03-12",   # 21st Century Fox A (TFCFA-201903) | Fox Corp A
     "FOX":  "2019-03-13",   # 21st Century Fox B (TFCF-201903) | Fox Corp B
+    # WS16 (2026-08-13):
+    "LB":   "2024-06-28",   # L Brands era (from BBWI) | LandBridge took LB
+    "CHK":  "2021-02-10",   # old Chesapeake (CHKAQ-202102) | relisted
+                            #   Chesapeake, whose lineage lives under EXE
+    "OPI":  "2026-06-22",   # old Office Properties (OPITQ-202606) | the
+                            #   post-restructuring OPI line
+    "ARNC": "2020-04-01",   # old Arconic (lineage under HWM) | the new
+                            #   Arconic Corp spun out of Howmet
+}
+
+# Roster tickers whose yfinance symbol is not derivable by the share-class
+# dot rule. iShares prints Brown-Forman Class B as "BFB" — no separator —
+# so normalise_for_yfinance passed it through unchanged, it resolved at no
+# vendor, and a live mega-cap staple sat unpriced for the panel's entire
+# history (WS16 finding, IUCS).
+YF_TICKER_OVERRIDES = {
+    "BFB": "BF-B",
 }
 
 
