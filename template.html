@@ -2793,7 +2793,7 @@
 
   <section>
     <h2>Where the trading day sits on a Singapore clock</h2>
-    <p class="section-sub">The portfolio holds instruments on two exchanges. They do not open together, so a single weekly rebalance is executed in two parts on the same Friday.</p>
+    <p class="section-sub">The portfolio holds instruments on two exchanges. They do not open together, so a single weekly rebalance is executed in two parts on the same Friday &mdash; a fifth of the book in Europe, four fifths in the United States. The bars below carry that share, because the Xetra session is the longer of the two and would otherwise read as the more important. One caveat on the 80%: the thematic sleeve may hold a Shenzhen-listed or crypto line in a given week, which trades on neither of these clocks and is worth up to about four per cent of the portfolio when it does.</p>
     <div id="exec-clock-diagram" style="overflow-x:auto;"></div>
   </section>
 
@@ -7675,13 +7675,13 @@ function _execCycleSVG(D) {
   const us = (D.sessions_sgt || {}).US || {};
   const xe = (D.sessions_sgt || {}).XETR || {};
   const steps = [
-    { t: 'Thursday close', s: 'Rankings are computed from these prices',
+    { t: 'Thursday close', s: 'Rankings use these prices',
       c: us.sgt_close_summer + ' SGT Fri', kind: 'signal' },
-    { t: 'Friday morning', s: 'Refresh runs; position changes produced',
+    { t: 'Friday morning', s: 'Position changes are produced',
       c: 'from 08:00 SGT', kind: 'decide' },
-    { t: 'Friday open — Europe', s: 'Europe sleeve trades on Xetra',
+    { t: 'Friday open — Europe', s: 'Sleeve D · 20% of NAV',
       c: xe.sgt_open_summer + ' SGT Fri', kind: 'fill' },
-    { t: 'Friday open — US', s: 'The other three sleeves trade',
+    { t: 'Friday open — US', s: 'Sleeves A, B, C · 80% of NAV',
       c: us.sgt_open_summer + ' SGT Fri', kind: 'fill' }
   ];
   const W = 940, H = 200, bw = 200, gap = 46, y = 46, bh = 96;
@@ -7732,9 +7732,14 @@ function _execClockSVG(D) {
   const xe = (D.sessions_sgt || {}).XETR || {};
   const W = 940, H = 178, L = 96, R = W - 24, span = R - L;
   const hx = function (h) { return L + (h / 30) * span; };
+  // Weight is carried explicitly. Without it the Xetra bar reads as the more
+  // important of the two purely because its session is longer, when it is a
+  // fifth of the book.
   const rows = [
-    { name: 'Xetra', o: 15, c: 23.5, fill: xe.sgt_open_summer, y: 52 },
-    { name: 'US', o: 21.5, c: 28, fill: us.sgt_open_summer, y: 100 }
+    { name: 'Xetra', o: 15, c: 23.5, fill: xe.sgt_open_summer, y: 52,
+      w: 0.20, who: 'sleeve D' },
+    { name: 'US', o: 21.5, c: 28, fill: us.sgt_open_summer, y: 100,
+      w: 0.80, who: 'sleeves A, B, C' }
   ];
   let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" '
         + 'style="min-width:820px;height:auto;display:block" role="img" '
@@ -7749,8 +7754,18 @@ function _execClockSVG(D) {
   s += '<text x="' + hx(26.5) + '" y="30" font-size="11.5" fill="#dc2626" '
      + 'text-anchor="middle">overnight</text>';
   rows.forEach(function (r) {
-    s += '<text x="0" y="' + (r.y + 15) + '" font-size="13" font-weight="600" '
+    s += '<text x="0" y="' + (r.y + 4) + '" font-size="13" font-weight="600" '
        + 'fill="var(--ink)">' + r.name + '</text>';
+    s += '<text x="0" y="' + (r.y + 20) + '" font-size="11.5" '
+       + 'fill="var(--ink-faint)">' + r.who + '</text>';
+    // Proportional share bar: 78px wide, filled to the sleeve weight.
+    s += '<rect x="0" y="' + (r.y + 27) + '" width="78" height="7" rx="2" '
+       + 'fill="var(--bg-soft)" stroke="var(--border)"/>';
+    s += '<rect x="0" y="' + (r.y + 27) + '" width="' + (78 * r.w) + '" '
+       + 'height="7" rx="2" fill="#0891b2"/>';
+    s += '<text x="82" y="' + (r.y + 34) + '" font-size="11.5" '
+       + 'font-weight="600" fill="var(--ink-soft)">'
+       + Math.round(r.w * 100) + '%</text>';
     s += '<rect x="' + hx(r.o) + '" y="' + r.y + '" width="' + (hx(r.c) - hx(r.o))
        + '" height="22" rx="3" fill="var(--bg-soft)" stroke="var(--border)"/>';
     s += '<text x="' + (hx(r.o) + 8) + '" y="' + (r.y + 16)
