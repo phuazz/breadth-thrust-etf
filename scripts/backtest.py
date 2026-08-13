@@ -553,34 +553,49 @@ def _sample_non_overlapping_random_trades(
     strategy, biasing the percentile ranking.
 
     This sampler enforces: trade k+1 entry index > trade k exit index.
-    Tries up to 100 random restarts to fit n_trades into the eligible
-    window; returns the best partial path if no full fit is found.
+    WS15 fix (2026-08-13). The original placed each entry uniformly over
+    ALL remaining feasible positions, reserving room for later trades at
+    only the MINIMUM holding (1 session here). Early entries therefore
+    scattered deep into the window and stranded the rest: on the CNDX OOS
+    re-run (13 trades, 596 total holding sessions, a ~1,750-session
+    window) every one of 1,000 restart-bounded paths came back partial,
+    monte_carlo_null discarded them all, and every percentile field was
+    None. No committed artefact carries the damage — nothing was
+    regenerated between the Phase 10.2 commit and this fix — but any
+    regeneration would have shipped an empty null.
+
+    Construction: bootstrap the n holding lengths first, then place all n
+    entries at once through the classic gap transform — draw n iid
+    integers on the exact feasible box, sort ascending, and shift the
+    k-th by the space the first k-1 trades occupy. Every draw satisfies
+    entry order, the one-session separation, the entry ceiling and the
+    exit ceiling by construction, so a feasible configuration is never
+    dead-ended; [] is returned only when the window genuinely cannot hold
+    the drawn holdings, and a redraw of holdings is attempted first.
     """
-    min_holding = int(holdings.min())
-    best: list[tuple[int, int]] = []
+    if n_trades == 0 or len(eligible_indices) == 0:
+        return []
+    e0 = int(eligible_indices[0])
+    e1 = int(eligible_indices[-1])
+    if len(eligible_indices) != e1 - e0 + 1:
+        raise ValueError(
+            "the gap-transform placement assumes a contiguous eligible "
+            "window; got a gapped eligible_indices")
     for _attempt in range(100):
-        sampled: list[tuple[int, int]] = []
-        last_exit_i = int(eligible_indices[0]) - 1
-        for trade_num in range(n_trades):
-            h = int(rng.choice(holdings))
-            remaining_after = n_trades - trade_num - 1
-            max_entry_i = end_idx - h - remaining_after * (min_holding + 1)
-            possible_entries = eligible_indices[
-                (eligible_indices > last_exit_i)
-                & (eligible_indices + h <= end_idx)
-                & (eligible_indices <= max_entry_i)
-            ]
-            if len(possible_entries) == 0:
-                break
-            entry_i = int(rng.choice(possible_entries))
-            exit_i = entry_i + h
-            sampled.append((entry_i, exit_i))
-            last_exit_i = exit_i
-        if len(sampled) == n_trades:
-            return sampled
-        if len(sampled) > len(best):
-            best = sampled
-    return best
+        hs = rng.choice(holdings, size=n_trades, replace=True).astype(int)
+        # S_k = sessions occupied by trades 1..k plus one separator each.
+        s_cum = np.cumsum(hs + 1)
+        # u_k = entry_k - S_{k-1} must be non-decreasing on [e0, hi]:
+        #   entry ceiling  e_k <= e1      -> u_n <= e1 - S_{n-1}
+        #   exit ceiling   exit_n <= end  -> u_n <= end_idx - S_n + 1
+        hi = min(e1 - int(s_cum[-2]) if n_trades > 1 else e1,
+                 end_idx - int(s_cum[-1]) + 1)
+        if hi < e0:
+            continue  # this holding draw does not fit; redraw
+        u = np.sort(rng.integers(e0, hi + 1, size=n_trades))
+        entries = u + np.concatenate(([0], s_cum[:-1]))
+        return [(int(e), int(e + h)) for e, h in zip(entries, hs)]
+    return []
 
 
 def monte_carlo_null(

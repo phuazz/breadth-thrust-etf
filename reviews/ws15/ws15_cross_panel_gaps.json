@@ -1,0 +1,428 @@
+{
+  "CSP1": {
+    "total_roster_day_gaps": 9789,
+    "names": 76,
+    "top": [
+      [
+        "SIVB",
+        1269
+      ],
+      [
+        "FB",
+        1115
+      ],
+      [
+        "FRC",
+        1091
+      ],
+      [
+        "INFO",
+        1047
+      ],
+      [
+        "COG",
+        946
+      ],
+      [
+        "LB",
+        902
+      ],
+      [
+        "ARNC",
+        562
+      ],
+      [
+        "STI",
+        488
+      ]
+    ]
+  },
+  "SOXX": {
+    "total_roster_day_gaps": 750,
+    "names": 5,
+    "top": [
+      [
+        "WOLF",
+        741
+      ],
+      [
+        "XLNX",
+        4
+      ],
+      [
+        "MSCC",
+        2
+      ],
+      [
+        "IPHI",
+        2
+      ],
+      [
+        "MXIM",
+        1
+      ]
+    ]
+  },
+  "IUCD": {
+    "total_roster_day_gaps": 1347,
+    "names": 10,
+    "top": [
+      [
+        "LB",
+        902
+      ],
+      [
+        "FOXA",
+        184
+      ],
+      [
+        "FOX",
+        179
+      ],
+      [
+        "PCLN",
+        38
+      ],
+      [
+        "VSCO",
+        29
+      ],
+      [
+        "MRP-W",
+        10
+      ],
+      [
+        "SNI",
+        2
+      ],
+      [
+        "CBS",
+        1
+      ]
+    ]
+  },
+  "IUCM": {
+    "total_roster_day_gaps": 1286,
+    "names": 10,
+    "top": [
+      [
+        "FB",
+        936
+      ],
+      [
+        "FOX",
+        117
+      ],
+      [
+        "FOXA",
+        116
+      ],
+      [
+        "SATS",
+        67
+      ],
+      [
+        "TMUSR",
+        24
+      ],
+      [
+        "EA",
+        11
+      ],
+      [
+        "CBS",
+        5
+      ],
+      [
+        "DISHR",
+        5
+      ]
+    ]
+  },
+  "IUCS": {
+    "total_roster_day_gaps": 2175,
+    "names": 4,
+    "top": [
+      [
+        "BFB",
+        2158
+      ],
+      [
+        "MNST",
+        15
+      ],
+      [
+        "WBA",
+        1
+      ],
+      [
+        "K",
+        1
+      ]
+    ]
+  },
+  "IUES": {
+    "total_roster_day_gaps": 1691,
+    "names": 10,
+    "top": [
+      [
+        "COG",
+        941
+      ],
+      [
+        "APC",
+        400
+      ],
+      [
+        "NFX",
+        279
+      ],
+      [
+        "CHK",
+        48
+      ],
+      [
+        "1812473D",
+        5
+      ],
+      [
+        "OXY WS WI",
+        5
+      ],
+      [
+        "OXY WS",
+        5
+      ],
+      [
+        "NBL",
+        4
+      ]
+    ]
+  },
+  "IUFS": {
+    "total_roster_day_gaps": 3185,
+    "names": 8,
+    "top": [
+      [
+        "SIVB",
+        1269
+      ],
+      [
+        "FRC",
+        1091
+      ],
+      [
+        "STI",
+        488
+      ],
+      [
+        "SBNY",
+        322
+      ],
+      [
+        "ETFC",
+        5
+      ],
+      [
+        "PBCT",
+        4
+      ],
+      [
+        "DFS",
+        4
+      ],
+      [
+        "XL",
+        2
+      ]
+    ]
+  },
+  "IUHC": {
+    "total_roster_day_gaps": 48,
+    "names": 10,
+    "top": [
+      [
+        "HOLX",
+        33
+      ],
+      [
+        "HOLX US",
+        4
+      ],
+      [
+        "ALXN",
+        2
+      ],
+      [
+        "CERN",
+        2
+      ],
+      [
+        "CTLT",
+        2
+      ],
+      [
+        "EVHC",
+        1
+      ],
+      [
+        "AET",
+        1
+      ],
+      [
+        "CELG",
+        1
+      ]
+    ]
+  },
+  "IUIS": {
+    "total_roster_day_gaps": 1633,
+    "names": 9,
+    "top": [
+      [
+        "INFO",
+        1047
+      ],
+      [
+        "ARNC",
+        562
+      ],
+      [
+        "APY",
+        5
+      ],
+      [
+        "RTX US",
+        5
+      ],
+      [
+        "COL",
+        4
+      ],
+      [
+        "LLL",
+        3
+      ],
+      [
+        "KSU",
+        3
+      ],
+      [
+        "NLSN",
+        2
+      ]
+    ]
+  },
+  "IUIT": {
+    "total_roster_day_gaps": 203,
+    "names": 10,
+    "top": [
+      [
+        "FB",
+        179
+      ],
+      [
+        "CTXS",
+        5
+      ],
+      [
+        "CA",
+        4
+      ],
+      [
+        "XLNX",
+        4
+      ],
+      [
+        "RHT",
+        3
+      ],
+      [
+        "CSRA",
+        2
+      ],
+      [
+        "TSS",
+        2
+      ],
+      [
+        "JNPR",
+        2
+      ]
+    ]
+  },
+  "IUMS": {
+    "total_roster_day_gaps": 366,
+    "names": 5,
+    "top": [
+      [
+        "DWDP",
+        356
+      ],
+      [
+        "WRK",
+        4
+      ],
+      [
+        "BMS",
+        3
+      ],
+      [
+        "PX",
+        2
+      ],
+      [
+        "MON",
+        1
+      ]
+    ]
+  },
+  "IUSP": {
+    "total_roster_day_gaps": 14387,
+    "names": 41,
+    "top": [
+      [
+        "NSA",
+        2146
+      ],
+      [
+        "MPW",
+        2032
+      ],
+      [
+        "KW",
+        1944
+      ],
+      [
+        "AHH",
+        1193
+      ],
+      [
+        "HTA",
+        1143
+      ],
+      [
+        "OPI",
+        1120
+      ],
+      [
+        "MNR",
+        1047
+      ],
+      [
+        "IRET",
+        749
+      ]
+    ]
+  },
+  "IUUS": {
+    "total_roster_day_gaps": 2,
+    "names": 1,
+    "top": [
+      [
+        "SCG",
+        2
+      ]
+    ]
+  }
+}

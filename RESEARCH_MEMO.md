@@ -1734,3 +1734,114 @@ explains a rebalance rather than gating one.
 Filed record `reviews/2026-08-12_ws12-ws13_execution-timing.docx` revised the
 same day to carry the decision; the version filed earlier recorded it as
 recommended and not adopted.
+
+## WS15 — survivorship on the published CNDX record, and the residual WS11 missed (2026-08-13)
+
+**Question.** WS11 corrected the constituent-price panels and restated the deployed
+blend, but the CNDX-specific published surfaces were never re-measured: the
+cross-ETF OOS backtest (`data/backtest_cndx_oos.json`, computed 2026-05-17 on the
+survivor panel, 87 signal-fire days) still carries the pre-correction figures, and
+the README's cross-ETF OOS table cites them (`0.19/22 · 0.29/19 · 0.51/39`). What
+was survivorship worth on that record, and is the WS11 correction itself complete?
+
+**Method.** Five legs, each isolating one change, all trading one freshly-pulled
+QQQ/SPY basis: T1 May code x May panel (must reproduce the published file — it
+does: trade counts and win rates exact, return/Sharpe to ~3e-4 relative, seeded
+MC within ±2pp); T2 today's code x May panel; T3 today's code x the last survivor
+panel (git `1ada87b`, end 2026-08-07); T4 x the committed WS11-corrected panel
+(same window, roster file and breadth code as T3 — the clean survivorship pair);
+T5 x the WS15 residual-fixed panel. Breadth legs computed by a driver that first
+reproduced the committed corrected series EXACTLY (2,158 days, 43 signals, every
+6dp value and signal identical) before being trusted on the patched cache. The
+Norgate coverage gate (em-rotation-lab step0 pattern) PASSED before any pull:
+NDU same-day, delisted archive 21,099 symbols back to 1990, all 27 fill/evidence
+symbols name-verified with held windows covered.
+
+**Finding 1 — the WS11 "corrected" panel still dropped Facebook for 4.4 years.**
+The backfill only treated absent or all-NaN columns, so a column holding
+unrelated ticker-reuse bars counted as priced: FB (1,115 roster-days missing,
+2018-01-05 to 2022-06-09; the column held only the 2025+ ProShares ETF), FOXA/FOX
+(295/296 days, 21st Century Fox era; columns held only post-split Fox Corp),
+PCLN (38 days). Plus two 2026 defects: EA's final 11 tradable sessions (yfinance
+stopped serving it three weeks before its 2026-08-04 delisting; Norgate
+`EA-202608` has them) and MNST's 14-session hole around its 2-for-1 split of
+2026-08-11. WS15 filled all of these on a working COPY (point-in-time resolution,
+every mapping verified against `security_name`, same-security splices rescaled
+onto the column's own basis — MNST's ratio came out at exactly 2.000000, the
+split factor — and era barriers so no indicator window spans two securities).
+Residual roster-day gaps: 1,805 → 35, all stale-roster tails or by-design
+exclusions. The 24 WS11 fill columns were also extended through the 2017-07
+warmup they lacked. 2018 median coverage: survivor 81.6% → WS11 97.1% → WS15
+100.0%.
+
+**Finding 2 — the published OOS row was three-quarters data-vintage artefact.**
+Headline variant (`regime_time_only_delay5_trend`): published +44.5% / Sharpe
+0.51 / MC 39.6. Code evolution since May: nil on deterministic stats. The August
+roster rebuild + vendor re-basing + 3 more months (T2→T3): −26.2pp total return,
+Sharpe 0.51 → 0.25, and only 35 of the 87 published signal-fire days survive the
+refresh at all. Survivorship (T3→T4, the clean pair): +4.5pp / +0.04 Sharpe —
+correction IMPROVES the OOS stats (8 fire days suppressed, 1 fabricated), the
+OPPOSITE sign to the sleeve-A blend effect WS11 measured, which is why direction
+is measured and never assumed. The WS15 residual (T4→T5): −2.8pp / −0.02. Net:
+the current-truth row is +20.0% / 0.27 / MC 18.3, and the other variants are
+worse (baseline_2xATR −18.6% / −0.32 / MC 1.9; regime_time_only +4.4% / 0.10 /
+MC 5.7). Every variant sits well below its random-entry null median; the
+published row already did (MC 39.6), and the restatement makes it starker. The
+CNDX thrust edge, as published, does not survive its own data corrections.
+
+**Finding 3 — a latent Monte Carlo defect in `backtest.py`, fixed.** The Phase
+10.2 non-overlap sampler (2026-05-25) placed each random entry uniformly over
+all remaining feasible positions, reserving room at only the MINIMUM holding:
+on the CNDX re-run (13 trades, 596 holding sessions, ~1,750-session window) all
+1,000 paths came back partial, every one was discarded, and every MC field was
+None. No committed artefact carries the damage — nothing was regenerated between
+that commit and today — but any regeneration would have shipped an empty null.
+Replaced with a gap-transform placement (bootstrap holdings, sort iid draws on
+the exact feasible box, shift by occupied space) that cannot dead-end a feasible
+configuration; pinned by `tests/test_mc_nonoverlap_sampler.py` (35 backtest
+tests pass). MC percentiles are comparable within T2–T5 (one definition, one
+seed); T1's MC is the published (pre-non-overlap) definition.
+
+**Finding 4 — classifications, from evidence.** MNST: LIVE in Norgate; the
+yfinance series is currently MIS-ADJUSTED (pre-split bars unhalved beside
+post-split bars, Monday 2026-08-10 missing entirely) — an ingestion hazard for
+the next refresh, flagged as urgent-operational below. EA: delisted 2026-08-04
+(`EA-202608`). SPCX (SpaceX Class A) and HONA (Honeywell Aerospace): live young
+listings inside their 50-session warmup, no defect. HOLX/WBA/ANSS — the queue
+entry called them "live listings yet empty": all three were genuine delistings
+(2026-04-06 / 2025-08-27 / 2025-07-16), correctly filled by WS11; the claim was
+stale when written. `VSNTV UW` was already rejected at the parser by WS11
+(`fetch_constituents._us_symbol`).
+
+**Finding 5 — the class is far larger outside CNDX (inventory only, per scope).**
+The same held-window sweep across the other 13 US panels: 36,862 residual
+roster-days across 199 names. CSP1 9,789 (SIVB 1,269, FB 1,115, FRC 1,091, INFO
+1,047, COG 946, LB 902 — the 2023 bank failures are still absent from financials
+breadth during the crisis they defined, IUFS carries SIVB/FRC/SBNY too); IUSP
+14,387 across 41 names (structural, needs its own diagnosis); IUCS: BFB
+(Brown-Forman B) unpriced for the ENTIRE history — an iShares "BFB" vs yfinance
+"BF-B" normalisation gap in a live mega-cap. Any fix moves sleeve A's restated
+0.9132 again; unmeasured here, queued as a follow-on decision.
+
+**Trial register.** No parameters were tuned and nothing was selected: 5 legs ×
+3 pre-existing fixed variants re-priced, 0 new configurations searched.
+
+**Restatement package — STOPPED for sign-off, nothing published touched.**
+(1) regenerate `data/backtest_cndx_oos.json` on the corrected (T4) or
+residual-fixed (T5) panel with the repaired MC; (2) correct the README cross-ETF
+OOS CNDX row and annotate the early-phase per-ETF table (same vintage class);
+(3) adopt or decline the WS15 residual fill into the live cache + a
+held-window-aware `backfill_delisted_prices` (moves sleeve A a third time);
+(4) the MNST basis guard / refetch before Friday's refresh (urgent-operational,
+separate from the restatement); (5) the cross-panel residual follow-on. The live
+cache, `data/breadth_cndx.json`, `backtest_cndx_oos.json`, README, docs/ and the
+factsheet are all UNTOUCHED by WS15.
+
+**Artefacts.** Gate `scripts/run_ws15_gate.py` → `reviews/ws15_gate.json`; fill
+`scripts/run_ws15_residual_fill.py` (workdir copy only); breadth driver
+`scripts/run_ws15_breadth_legs.py` (exact-reproduction guard); OOS legs
+`scripts/run_ws15_oos_legs.py`; compare `scripts/build_ws15_breadth_compare.py`;
+charts `scripts/plot_ws15_summary.py` → `reviews/charts/ws15_*.png`; evidence
+`reviews/ws15/*.json`; MC fix `scripts/backtest.py` +
+`tests/test_mc_nonoverlap_sampler.py`; record
+`reviews/2026-08-13_ws15_cndx-survivorship-restatement.docx`.

@@ -1,0 +1,458 @@
+{
+  "computed_at_utc": "2026-08-13T00:45:10+00:00",
+  "ndu_last_update": {
+    "US Equities": "2026-08-13 08:30:22+08:00",
+    "US Equities Delisted": "2026-08-13 08:30:22+08:00"
+  },
+  "ndu_age_days": 0,
+  "delisted_archive": {
+    "n_symbols": 21099,
+    "earliest_delist_year": "1990",
+    "reach_2018_ok": true
+  },
+  "tolerance_cal_days": 45,
+  "ws11_fill_probes": [
+    {
+      "ticker": "ALXN",
+      "held_first": "2018-01-05",
+      "held_last": "2021-07-16",
+      "symbol": "ALXN-202107",
+      "security_name": "Alexion Pharmaceuticals Inc Common",
+      "first_quoted": "1996-02-28",
+      "last_quoted": "2021-07-20",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "ANSS",
+      "held_first": "2019-12-20",
+      "held_last": "2025-07-11",
+      "symbol": "ANSS-202507",
+      "security_name": "ANSYS Inc Common",
+      "first_quoted": "1996-06-20",
+      "last_quoted": "2025-07-16",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "ATVI",
+      "held_first": "2018-01-05",
+      "held_last": "2023-07-07",
+      "symbol": "ATVI-202310",
+      "security_name": "Activision Blizzard Inc Common",
+      "first_quoted": "1990-01-02",
+      "last_quoted": "2023-10-12",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "CA",
+      "held_first": "2018-01-05",
+      "held_last": "2018-10-26",
+      "symbol": "CA-201811",
+      "security_name": "CA Inc Common",
+      "first_quoted": "1990-01-02",
+      "last_quoted": "2018-11-02",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "CELG",
+      "held_first": "2018-01-05",
+      "held_last": "2019-11-15",
+      "symbol": "CELG-201911",
+      "security_name": "Celgene Corp Common",
+      "first_quoted": "1990-01-02",
+      "last_quoted": "2019-11-20",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "CERN",
+      "held_first": "2018-01-05",
+      "held_last": "2021-12-10",
+      "symbol": "CERN-202206",
+      "security_name": "Cerner Corp Common",
+      "first_quoted": "1990-01-02",
+      "last_quoted": "2022-06-07",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "CTRP",
+      "held_first": "2018-01-05",
+      "held_last": "2019-11-01",
+      "symbol": "TCOM",
+      "security_name": "Trip.com Group Ltd ADR",
+      "first_quoted": "2003-12-09",
+      "last_quoted": null,
+      "held_window_covered": true
+    },
+    {
+      "ticker": "CTXS",
+      "held_first": "2018-01-05",
+      "held_last": "2020-12-11",
+      "symbol": "CTXS-202209",
+      "security_name": "Citrix Systems Inc Common",
+      "first_quoted": "1995-12-08",
+      "last_quoted": "2022-09-29",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "DISH",
+      "held_first": "2018-01-05",
+      "held_last": "2018-07-13",
+      "symbol": "DISH-202312",
+      "security_name": "DISH Network Corp Class A Common",
+      "first_quoted": "1995-06-21",
+      "last_quoted": "2023-12-29",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "HOLX",
+      "held_first": "2018-01-05",
+      "held_last": "2018-12-14",
+      "symbol": "HOLX-202604",
+      "security_name": "Hologic Inc Common",
+      "first_quoted": "1990-03-01",
+      "last_quoted": "2026-04-06",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "LVNTA",
+      "held_first": "2018-01-05",
+      "held_last": "2018-03-02",
+      "symbol": "LVNTA-201803",
+      "security_name": "Liberty Ventures Series A Common",
+      "first_quoted": "2012-08-10",
+      "last_quoted": "2018-03-09",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "MXIM",
+      "held_first": "2018-01-05",
+      "held_last": "2021-08-20",
+      "symbol": "MXIM-202108",
+      "security_name": "Maxim Integrated Products Inc Common",
+      "first_quoted": "1990-01-02",
+      "last_quoted": "2021-08-25",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "MYL",
+      "held_first": "2018-01-05",
+      "held_last": "2019-12-13",
+      "symbol": "VTRS",
+      "security_name": "Viatris Inc Common",
+      "first_quoted": "1990-01-02",
+      "last_quoted": null,
+      "held_window_covered": true
+    },
+    {
+      "ticker": "NLOK",
+      "held_first": "2019-11-08",
+      "held_last": "2019-12-13",
+      "symbol": "GEN",
+      "security_name": "Gen Digital Inc Common",
+      "first_quoted": "1990-01-02",
+      "last_quoted": null,
+      "held_window_covered": true
+    },
+    {
+      "ticker": "QRTEA",
+      "held_first": "2018-03-16",
+      "held_last": "2018-12-14",
+      "symbol": "QVCAQ-202608",
+      "security_name": "Qurate Retail Group Series A Common",
+      "first_quoted": "2006-05-04",
+      "last_quoted": "2026-08-06",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "QVCA",
+      "held_first": "2018-01-05",
+      "held_last": "2018-03-09",
+      "symbol": "QVCAQ-202608",
+      "security_name": "Qurate Retail Group Series A Common",
+      "first_quoted": "2006-05-04",
+      "last_quoted": "2026-08-06",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "SGEN",
+      "held_first": "2019-12-20",
+      "held_last": "2023-12-08",
+      "symbol": "SGEN-202312",
+      "security_name": "Seagen Inc Common",
+      "first_quoted": "2001-03-07",
+      "last_quoted": "2023-12-13",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "SHPG",
+      "held_first": "2018-01-05",
+      "held_last": "2018-12-14",
+      "symbol": "SHPG-201901",
+      "security_name": "Shire PLC ADR",
+      "first_quoted": "1998-03-25",
+      "last_quoted": "2019-01-04",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "SPLK",
+      "held_first": "2019-12-20",
+      "held_last": "2024-03-08",
+      "symbol": "SPLK-202403",
+      "security_name": "Splunk Inc Common",
+      "first_quoted": "2012-04-19",
+      "last_quoted": "2024-03-15",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "SYMC",
+      "held_first": "2018-01-05",
+      "held_last": "2019-11-01",
+      "symbol": "GEN",
+      "security_name": "Gen Digital Inc Common",
+      "first_quoted": "1990-01-02",
+      "last_quoted": null,
+      "held_window_covered": true
+    },
+    {
+      "ticker": "TFCFA",
+      "held_first": "2019-03-29",
+      "held_last": "2019-04-12",
+      "via": "sole_candidate",
+      "symbol": "TFCFA-201903",
+      "security_name": "Twenty-First Century Fox Inc Class A Common",
+      "first_quoted": "1994-11-03",
+      "last_quoted": "2019-03-19",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "WBA",
+      "held_first": "2018-01-05",
+      "held_last": "2024-07-12",
+      "symbol": "WBA-202508",
+      "security_name": "Walgreens Boots Alliance Inc Common",
+      "first_quoted": "1990-01-02",
+      "last_quoted": "2025-08-27",
+      "held_window_covered": true
+    },
+    {
+      "ticker": "WLTW",
+      "held_first": "2018-12-21",
+      "held_last": "2020-04-24",
+      "symbol": "WTW",
+      "security_name": "Willis Towers Watson Public Ltd Co Common",
+      "first_quoted": "2001-06-12",
+      "last_quoted": null,
+      "held_window_covered": true
+    },
+    {
+      "ticker": "XLNX",
+      "held_first": "2018-01-05",
+      "held_last": "2022-02-11",
+      "symbol": "XLNX-202202",
+      "security_name": "Xilinx Inc Common",
+      "first_quoted": "1990-06-12",
+      "last_quoted": "2022-02-11",
+      "held_window_covered": true
+    }
+  ],
+  "stale_roster_tails": [
+    "TFCFA: roster outlived TFCFA-201903 by 24d"
+  ],
+  "coverage_failures": [],
+  "residual_targets": [
+    {
+      "ticker": "FB",
+      "held_first": "2018-01-05",
+      "held_last": "2022-06-03",
+      "at_first_held": {
+        "symbol": "META",
+        "security_name": "Meta Platforms Inc Class A Common",
+        "first_quoted": "2012-05-18",
+        "last_quoted": null
+      },
+      "at_last_held": {
+        "symbol": "META",
+        "security_name": "Meta Platforms Inc Class A Common",
+        "first_quoted": "2012-05-18",
+        "last_quoted": null
+      },
+      "all_candidates": [
+        {
+          "symbol": "FB",
+          "security_name": "ProShares S&P 500 Dynamic Buffer ETF",
+          "first_quoted": "2025-06-26",
+          "last_quoted": null
+        },
+        {
+          "symbol": "FB-199706",
+          "security_name": "Falcon Building Products Inc Class A Common",
+          "first_quoted": "1994-11-03",
+          "last_quoted": "1997-06-17"
+        },
+        {
+          "symbol": "FB-200303",
+          "security_name": "FBR Asset Investment Corp Common",
+          "first_quoted": "1999-09-29",
+          "last_quoted": "2003-03-28"
+        }
+      ]
+    },
+    {
+      "ticker": "PCLN",
+      "held_first": "2018-01-05",
+      "held_last": "2018-02-23",
+      "at_first_held": {
+        "symbol": "BKNG",
+        "security_name": "Booking Holdings Inc Common",
+        "first_quoted": "1999-03-30",
+        "last_quoted": null
+      },
+      "at_last_held": {
+        "symbol": "BKNG",
+        "security_name": "Booking Holdings Inc Common",
+        "first_quoted": "1999-03-30",
+        "last_quoted": null
+      },
+      "all_candidates": [
+        {
+          "symbol": "PCLN",
+          "security_name": "Pictet Cleaner Planet ETF",
+          "first_quoted": "2025-10-16",
+          "last_quoted": null
+        }
+      ]
+    },
+    {
+      "ticker": "FOXA",
+      "held_first": "2018-01-05",
+      "held_last": "2021-12-10",
+      "at_first_held": null,
+      "at_last_held": {
+        "symbol": "FOXA",
+        "security_name": "Fox Corporation Class A Common",
+        "first_quoted": "2019-03-12",
+        "last_quoted": null
+      },
+      "all_candidates": [
+        {
+          "symbol": "FOXA",
+          "security_name": "Fox Corporation Class A Common",
+          "first_quoted": "2019-03-12",
+          "last_quoted": null
+        }
+      ]
+    },
+    {
+      "ticker": "FOX",
+      "held_first": "2018-01-05",
+      "held_last": "2021-12-10",
+      "at_first_held": null,
+      "at_last_held": {
+        "symbol": "FOX",
+        "security_name": "Fox Corporation Class B Common",
+        "first_quoted": "2019-03-13",
+        "last_quoted": null
+      },
+      "all_candidates": [
+        {
+          "symbol": "FOX",
+          "security_name": "Fox Corporation Class B Common",
+          "first_quoted": "2019-03-13",
+          "last_quoted": null
+        },
+        {
+          "symbol": "FOX-199007",
+          "security_name": "Foxboro Co Common",
+          "first_quoted": "1990-01-02",
+          "last_quoted": "1990-07-27"
+        },
+        {
+          "symbol": "FOX-199410",
+          "security_name": "Foxmeyer Corp Common",
+          "first_quoted": "1991-08-29",
+          "last_quoted": "1994-10-12"
+        },
+        {
+          "symbol": "FOX-200503",
+          "security_name": "Fox Entertainment Group Common",
+          "first_quoted": "1998-11-11",
+          "last_quoted": "2005-03-21"
+        }
+      ]
+    }
+  ],
+  "tcf_lineage_candidates": {
+    "TFCFA": [
+      {
+        "symbol": "TFCFA-201903",
+        "security_name": "Twenty-First Century Fox Inc Class A Common",
+        "first_quoted": "1994-11-03",
+        "last_quoted": "2019-03-19"
+      }
+    ],
+    "TFCF": [
+      {
+        "symbol": "TFCF-201903",
+        "security_name": "Twenty-First Century Fox Inc Class B Common",
+        "first_quoted": "1990-01-02",
+        "last_quoted": "2019-03-19"
+      }
+    ]
+  },
+  "live_anomalies": [
+    {
+      "ticker": "MNST",
+      "candidates": [
+        {
+          "symbol": "MNST",
+          "security_name": "Monster Beverage Corp Common",
+          "first_quoted": "1990-01-02",
+          "last_quoted": null
+        }
+      ],
+      "classification": "LIVE (MNST: Monster Beverage Corp Common)"
+    },
+    {
+      "ticker": "EA",
+      "candidates": [
+        {
+          "symbol": "EA-199808",
+          "security_name": "EA Industries Inc Common",
+          "first_quoted": "1990-01-02",
+          "last_quoted": "1998-08-18"
+        },
+        {
+          "symbol": "EA-202608",
+          "security_name": "Electronic Arts Inc Common",
+          "first_quoted": "1990-01-02",
+          "last_quoted": "2026-08-04"
+        }
+      ],
+      "classification": "DELISTED 2026-08-04 (EA-202608: Electronic Arts Inc Common)"
+    },
+    {
+      "ticker": "SPCX",
+      "candidates": [
+        {
+          "symbol": "SPCX",
+          "security_name": "Space Exploration Technologies Corp Class A Common",
+          "first_quoted": "2026-06-12",
+          "last_quoted": null
+        }
+      ],
+      "classification": "LIVE (SPCX: Space Exploration Technologies Corp Class A Common)"
+    },
+    {
+      "ticker": "HONA",
+      "candidates": [
+        {
+          "symbol": "HONA",
+          "security_name": "Honeywell Aerospace Inc Common",
+          "first_quoted": "2026-06-16",
+          "last_quoted": null
+        }
+      ],
+      "classification": "LIVE (HONA: Honeywell Aerospace Inc Common)"
+    }
+  ],
+  "verdict": "PASS"
+}

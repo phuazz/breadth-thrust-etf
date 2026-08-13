@@ -1,0 +1,394 @@
+{
+  "computed_at_utc": "2026-08-13T01:06:52+00:00",
+  "published_computed_at": "2026-05-17T13:18:52.731274+00:00",
+  "published_n_signal_fire_days": 87,
+  "reproduction_check": {
+    "baseline_2xATR": {
+      "mean_trade_return": {
+        "published": 0.0054260003067154875,
+        "reproduced": 0.005426029442180135
+      },
+      "equity_curve_total_return": {
+        "published": 0.10341488973454638,
+        "reproduced": 0.10341561659986587
+      },
+      "equity_curve_max_dd": {
+        "published": 0.20566657865608595,
+        "reproduced": 0.20566563579205843
+      },
+      "sharpe_annualised": {
+        "published": 0.1913329851687046,
+        "reproduced": 0.19120009734751367
+      },
+      "sortino_annualised": {
+        "published": 0.11490884744936236,
+        "reproduced": 0.11474848525738089
+      },
+      "mc_strategy_total_return_percentile": {
+        "published": 22.400000000000002,
+        "reproduced": 22.6
+      },
+      "mc_strategy_win_rate_percentile": {
+        "published": 1.2,
+        "reproduced": 0.8999999999999999
+      },
+      "mc_strategy_mean_trade_return_percentile": {
+        "published": 20.7,
+        "reproduced": 20.9
+      },
+      "mc_null_total_return_p50": {
+        "published": 0.3757132852931663,
+        "reproduced": 0.3586507411640325
+      }
+    },
+    "regime_time_only": {
+      "mean_trade_return": {
+        "published": 0.017810996633343925,
+        "reproduced": 0.01781095243444417
+      },
+      "equity_curve_total_return": {
+        "published": 0.23375867103109793,
+        "reproduced": 0.23375793944809997
+      },
+      "equity_curve_max_dd": {
+        "published": 0.3319540474917537,
+        "reproduced": 0.33195471115007424
+      },
+      "sharpe_annualised": {
+        "published": 0.2928354590061388,
+        "reproduced": 0.29262986546990616
+      },
+      "sortino_annualised": {
+        "published": 0.21276176030529145,
+        "reproduced": 0.2124635510988011
+      },
+      "mc_strategy_total_return_percentile": {
+        "published": 19.2,
+        "reproduced": 18.9
+      },
+      "mc_strategy_win_rate_percentile": {
+        "published": 35.699999999999996,
+        "reproduced": 35.6
+      },
+      "mc_strategy_mean_trade_return_percentile": {
+        "published": 18.0,
+        "reproduced": 17.9
+      },
+      "mc_null_total_return_p50": {
+        "published": 0.6999182638840983,
+        "reproduced": 0.6929373432019788
+      }
+    },
+    "regime_time_only_delay5_trend": {
+      "mean_trade_return": {
+        "published": 0.03096200682365981,
+        "reproduced": 0.030961837830913254
+      },
+      "equity_curve_total_return": {
+        "published": 0.4454103445838331,
+        "reproduced": 0.4454072652823149
+      },
+      "equity_curve_max_dd": {
+        "published": 0.19421419446965638,
+        "reproduced": 0.19421530535034714
+      },
+      "sharpe_annualised": {
+        "published": 0.5086798765114753,
+        "reproduced": 0.5083210610841981
+      },
+      "sortino_annualised": {
+        "published": 0.3459318429104794,
+        "reproduced": 0.34544574287759705
+      },
+      "mc_strategy_total_return_percentile": {
+        "published": 39.4,
+        "reproduced": 39.6
+      },
+      "mc_strategy_win_rate_percentile": {
+        "published": 32.0,
+        "reproduced": 29.7
+      },
+      "mc_null_total_return_p50": {
+        "published": 0.552650782009835,
+        "reproduced": 0.5628286934511437
+      }
+    }
+  },
+  "legs": {
+    "T1_published_repro": {
+      "breadth_file": "breadth_may_survivor.json",
+      "n_signal_fire_days": 87,
+      "window": [
+        "2018-01-05",
+        "2026-05-15"
+      ],
+      "summary_table": [
+        {
+          "variant": "baseline_2xATR",
+          "n_trades": 22,
+          "win_rate": 0.36363636363636365,
+          "mean_trade_return": 0.005426029442180135,
+          "median_holding_days": 12.0,
+          "equity_curve_total_return": 0.10341561659986587,
+          "equity_curve_max_dd": 0.20566563579205843,
+          "sharpe_annualised": 0.19120009734751367,
+          "sortino_annualised": 0.11474848525738089,
+          "mc_strategy_total_return_percentile": 22.6,
+          "mc_strategy_win_rate_percentile": 0.8999999999999999,
+          "mc_strategy_mean_trade_return_percentile": 20.9,
+          "mc_null_total_return_p50": 0.3586507411640325
+        },
+        {
+          "variant": "regime_time_only",
+          "n_trades": 14,
+          "win_rate": 0.6428571428571429,
+          "mean_trade_return": 0.01781095243444417,
+          "median_holding_days": 59.5,
+          "equity_curve_total_return": 0.23375793944809997,
+          "equity_curve_max_dd": 0.33195471115007424,
+          "sharpe_annualised": 0.29262986546990616,
+          "sortino_annualised": 0.2124635510988011,
+          "mc_strategy_total_return_percentile": 18.9,
+          "mc_strategy_win_rate_percentile": 35.6,
+          "mc_strategy_mean_trade_return_percentile": 17.9,
+          "mc_null_total_return_p50": 0.6929373432019788
+        },
+        {
+          "variant": "regime_time_only_delay5_trend",
+          "n_trades": 13,
+          "win_rate": 0.6153846153846154,
+          "mean_trade_return": 0.030961837830913254,
+          "median_holding_days": 55.0,
+          "equity_curve_total_return": 0.4454072652823149,
+          "equity_curve_max_dd": 0.19421530535034714,
+          "sharpe_annualised": 0.5083210610841981,
+          "sortino_annualised": 0.34544574287759705,
+          "mc_strategy_total_return_percentile": 39.6,
+          "mc_strategy_win_rate_percentile": 29.7,
+          "mc_strategy_mean_trade_return_percentile": 38.5,
+          "mc_null_total_return_p50": 0.5628286934511437
+        }
+      ]
+    },
+    "T2_code_today": {
+      "breadth_file": "breadth_may_survivor.json",
+      "n_signal_fire_days": 87,
+      "window": [
+        "2018-01-05",
+        "2026-05-15"
+      ],
+      "summary_table": [
+        {
+          "variant": "baseline_2xATR",
+          "n_trades": 22,
+          "win_rate": 0.36363636363636365,
+          "mean_trade_return": 0.005426029442180135,
+          "median_holding_days": 12.0,
+          "equity_curve_total_return": 0.10341561659986587,
+          "equity_curve_max_dd": 0.20566563579205843,
+          "sharpe_annualised": 0.19120009734751367,
+          "sortino_annualised": 0.11474848525738089,
+          "mc_strategy_total_return_percentile": 17.8,
+          "mc_strategy_win_rate_percentile": 0.0,
+          "mc_strategy_mean_trade_return_percentile": 15.5,
+          "mc_null_total_return_p50": 0.39840422130167796
+        },
+        {
+          "variant": "regime_time_only",
+          "n_trades": 14,
+          "win_rate": 0.6428571428571429,
+          "mean_trade_return": 0.01781095243444417,
+          "median_holding_days": 59.5,
+          "equity_curve_total_return": 0.23375793944809997,
+          "equity_curve_max_dd": 0.33195471115007424,
+          "sharpe_annualised": 0.29262986546990616,
+          "sortino_annualised": 0.2124635510988011,
+          "mc_strategy_total_return_percentile": 13.3,
+          "mc_strategy_win_rate_percentile": 34.4,
+          "mc_strategy_mean_trade_return_percentile": 12.5,
+          "mc_null_total_return_p50": 0.6820078262799654
+        },
+        {
+          "variant": "regime_time_only_delay5_trend",
+          "n_trades": 13,
+          "win_rate": 0.6153846153846154,
+          "mean_trade_return": 0.030961837830913254,
+          "median_holding_days": 55.0,
+          "equity_curve_total_return": 0.4454072652823149,
+          "equity_curve_max_dd": 0.19421530535034714,
+          "sharpe_annualised": 0.5083210610841981,
+          "sortino_annualised": 0.34544574287759705,
+          "mc_strategy_total_return_percentile": 37.5,
+          "mc_strategy_win_rate_percentile": 28.1,
+          "mc_strategy_mean_trade_return_percentile": 35.199999999999996,
+          "mc_null_total_return_p50": 0.5778036251472549
+        }
+      ]
+    },
+    "T3_aug_survivor": {
+      "breadth_file": "breadth_aug_survivor.json",
+      "n_signal_fire_days": 36,
+      "window": [
+        "2018-01-05",
+        "2026-08-07"
+      ],
+      "summary_table": [
+        {
+          "variant": "baseline_2xATR",
+          "n_trades": 20,
+          "win_rate": 0.3,
+          "mean_trade_return": -0.009719267618913697,
+          "median_holding_days": 12.0,
+          "equity_curve_total_return": -0.18715535441089737,
+          "equity_curve_max_dd": 0.24275030541665876,
+          "sharpe_annualised": -0.3214789943744374,
+          "sortino_annualised": -0.14646777667670505,
+          "mc_strategy_total_return_percentile": 2.5,
+          "mc_strategy_win_rate_percentile": 0.1,
+          "mc_strategy_mean_trade_return_percentile": 1.9,
+          "mc_null_total_return_p50": 0.2729150206223826
+        },
+        {
+          "variant": "regime_time_only",
+          "n_trades": 14,
+          "win_rate": 0.5714285714285714,
+          "mean_trade_return": 0.0015613056735954384,
+          "median_holding_days": 37.0,
+          "equity_curve_total_return": -0.01334823565531107,
+          "equity_curve_max_dd": 0.3319541023960849,
+          "sharpe_annualised": 0.0375427175384345,
+          "sortino_annualised": 0.026037155802363016,
+          "mc_strategy_total_return_percentile": 3.1,
+          "mc_strategy_win_rate_percentile": 16.7,
+          "mc_strategy_mean_trade_return_percentile": 2.9000000000000004,
+          "mc_null_total_return_p50": 0.6477428200411334
+        },
+        {
+          "variant": "regime_time_only_delay5_trend",
+          "n_trades": 13,
+          "win_rate": 0.5384615384615384,
+          "mean_trade_return": 0.014990253199394484,
+          "median_holding_days": 34.0,
+          "equity_curve_total_return": 0.18294717487261392,
+          "equity_curve_max_dd": 0.19421510882298365,
+          "sharpe_annualised": 0.2506729950426511,
+          "sortino_annualised": 0.16493609604005732,
+          "mc_strategy_total_return_percentile": 14.399999999999999,
+          "mc_strategy_win_rate_percentile": 13.4,
+          "mc_strategy_mean_trade_return_percentile": 13.8,
+          "mc_null_total_return_p50": 0.5338446026621912
+        }
+      ]
+    },
+    "T4_aug_corrected": {
+      "breadth_file": "breadth_cndx.json",
+      "n_signal_fire_days": 43,
+      "window": [
+        "2018-01-05",
+        "2026-08-07"
+      ],
+      "summary_table": [
+        {
+          "variant": "baseline_2xATR",
+          "n_trades": 21,
+          "win_rate": 0.42857142857142855,
+          "mean_trade_return": -0.00499473328876203,
+          "median_holding_days": 14.0,
+          "equity_curve_total_return": -0.10981400000024688,
+          "equity_curve_max_dd": 0.22564260059895436,
+          "sharpe_annualised": -0.15785357351977689,
+          "sortino_annualised": -0.0762487340686969,
+          "mc_strategy_total_return_percentile": 6.0,
+          "mc_strategy_win_rate_percentile": 2.1,
+          "mc_strategy_mean_trade_return_percentile": 4.7,
+          "mc_null_total_return_p50": 0.3372846204951998
+        },
+        {
+          "variant": "regime_time_only",
+          "n_trades": 15,
+          "win_rate": 0.6,
+          "mean_trade_return": 0.01122053247096555,
+          "median_holding_days": 41.0,
+          "equity_curve_total_return": 0.14249142941492288,
+          "equity_curve_max_dd": 0.302583534538457,
+          "sharpe_annualised": 0.19959275110780397,
+          "sortino_annualised": 0.13928160099606676,
+          "mc_strategy_total_return_percentile": 9.0,
+          "mc_strategy_win_rate_percentile": 20.5,
+          "mc_strategy_mean_trade_return_percentile": 7.5,
+          "mc_null_total_return_p50": 0.6631708255778676
+        },
+        {
+          "variant": "regime_time_only_delay5_trend",
+          "n_trades": 15,
+          "win_rate": 0.5333333333333333,
+          "mean_trade_return": 0.015602367984930695,
+          "median_holding_days": 36.0,
+          "equity_curve_total_return": 0.22831819704909706,
+          "equity_curve_max_dd": 0.20483371829452846,
+          "sharpe_annualised": 0.2947588840867588,
+          "sortino_annualised": 0.19151979168756514,
+          "mc_strategy_total_return_percentile": 19.5,
+          "mc_strategy_win_rate_percentile": 12.3,
+          "mc_strategy_mean_trade_return_percentile": 16.6,
+          "mc_null_total_return_p50": 0.5769305128603361
+        }
+      ]
+    },
+    "T5_ws15_residual": {
+      "breadth_file": "breadth_ws15.json",
+      "n_signal_fire_days": 42,
+      "window": [
+        "2018-01-05",
+        "2026-08-07"
+      ],
+      "summary_table": [
+        {
+          "variant": "baseline_2xATR",
+          "n_trades": 21,
+          "win_rate": 0.38095238095238093,
+          "mean_trade_return": -0.009249565806475084,
+          "median_holding_days": 13.0,
+          "equity_curve_total_return": -0.186388280445011,
+          "equity_curve_max_dd": 0.22797775853003088,
+          "sharpe_annualised": -0.3166862172815874,
+          "sortino_annualised": -0.14816983577433707,
+          "mc_strategy_total_return_percentile": 1.9,
+          "mc_strategy_win_rate_percentile": 0.8,
+          "mc_strategy_mean_trade_return_percentile": 1.7000000000000002,
+          "mc_null_total_return_p50": 0.30337786475727146
+        },
+        {
+          "variant": "regime_time_only",
+          "n_trades": 15,
+          "win_rate": 0.5333333333333333,
+          "mean_trade_return": 0.005354034692306767,
+          "median_holding_days": 35.0,
+          "equity_curve_total_return": 0.04421369968003375,
+          "equity_curve_max_dd": 0.30258353453845754,
+          "sharpe_annualised": 0.09987285022699514,
+          "sortino_annualised": 0.0686960598835192,
+          "mc_strategy_total_return_percentile": 5.7,
+          "mc_strategy_win_rate_percentile": 7.9,
+          "mc_strategy_mean_trade_return_percentile": 4.8,
+          "mc_null_total_return_p50": 0.6380084137364102
+        },
+        {
+          "variant": "regime_time_only_delay5_trend",
+          "n_trades": 15,
+          "win_rate": 0.4666666666666667,
+          "mean_trade_return": 0.014094586216766233,
+          "median_holding_days": 30.0,
+          "equity_curve_total_return": 0.2003741798728198,
+          "equity_curve_max_dd": 0.2048337182945279,
+          "sharpe_annualised": 0.27112645872238633,
+          "sortino_annualised": 0.1756866114160294,
+          "mc_strategy_total_return_percentile": 18.3,
+          "mc_strategy_win_rate_percentile": 3.5999999999999996,
+          "mc_strategy_mean_trade_return_percentile": 17.5,
+          "mc_null_total_return_p50": 0.5583762366352544
+        }
+      ]
+    }
+  }
+}

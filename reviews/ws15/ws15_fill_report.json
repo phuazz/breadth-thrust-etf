@@ -1,0 +1,211 @@
+{
+  "computed_at_utc": "2026-08-13T00:50:52+00:00",
+  "residual_fills": {
+    "FB": {
+      "source": "META",
+      "security_name": "Meta Platforms Inc Class A Common",
+      "mode": "raw",
+      "span": [
+        "2017-07-10",
+        "2022-07-18"
+      ],
+      "bars_added": 1265
+    },
+    "PCLN": {
+      "source": "BKNG",
+      "security_name": "Booking Holdings Inc Common",
+      "mode": "raw",
+      "span": [
+        "2017-07-10",
+        "2018-04-09"
+      ],
+      "bars_added": 189
+    },
+    "FOXA": {
+      "source": "TFCFA-201903",
+      "security_name": "Twenty-First Century Fox Inc Class A Common",
+      "mode": "raw",
+      "span": [
+        "2017-07-10",
+        "2019-03-11"
+      ],
+      "bars_added": 420
+    },
+    "FOX": {
+      "source": "TFCF-201903",
+      "security_name": "Twenty-First Century Fox Inc Class B Common",
+      "mode": "raw",
+      "span": [
+        "2017-07-10",
+        "2019-03-12"
+      ],
+      "bars_added": 421
+    },
+    "EA": {
+      "source": "EA-202608",
+      "security_name": "Electronic Arts Inc Common",
+      "mode": "rescaled x1.000000",
+      "overlap_sessions": 75,
+      "ratio_rel_std": 0.0,
+      "bars_added": 11
+    },
+    "MNST": {
+      "source": "MNST",
+      "security_name": "Monster Beverage Corp Common",
+      "mode": "rescaled x2.000000",
+      "overlap_sessions": 74,
+      "ratio_rel_std": 0.0,
+      "bars_added": 15
+    }
+  },
+  "warmup_extension": {
+    "ALXN": {
+      "source": "ALXN-202107",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "ANSS": {
+      "source": "ANSS-202507",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "ATVI": {
+      "source": "ATVI-202310",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "CA": {
+      "source": "CA-201811",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "CELG": {
+      "source": "CELG-201911",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "CERN": {
+      "source": "CERN-202206",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "CTRP": {
+      "source": "TCOM",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "CTXS": {
+      "source": "CTXS-202209",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "DISH": {
+      "source": "DISH-202312",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "HOLX": {
+      "source": "HOLX-202604",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "LVNTA": {
+      "source": "LVNTA-201803",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "MXIM": {
+      "source": "MXIM-202108",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "MYL": {
+      "source": "VTRS",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "NLOK": {
+      "source": "GEN",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "QRTEA": {
+      "source": "QVCAQ-202608",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "QVCA": {
+      "source": "QVCAQ-202608",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "SGEN": {
+      "source": "SGEN-202312",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "SHPG": {
+      "source": "SHPG-201901",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "SPLK": {
+      "source": "SPLK-202403",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "SYMC": {
+      "source": "GEN",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "TFCFA": {
+      "source": "TFCFA-201903",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "WBA": {
+      "source": "WBA-202508",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "WLTW": {
+      "source": "WTW",
+      "bars_added": 125,
+      "ratio": 1.0
+    },
+    "XLNX": {
+      "source": "XLNX-202202",
+      "bars_added": 125,
+      "ratio": 1.0
+    }
+  },
+  "roster_day_gaps_before": {
+    "FB": 1115,
+    "FOX": 296,
+    "FOXA": 295,
+    "PCLN": 38,
+    "TFCFA": 15,
+    "MNST": 15,
+    "EA": 11,
+    "TMUSR": 5,
+    "VSNTV UW": 5,
+    "XLNX": 4,
+    "ALXN": 2,
+    "CELG": 1,
+    "MXIM": 1,
+    "SGEN": 1,
+    "ANSS": 1
+  },
+  "roster_day_gaps_after": {
+    "TFCFA": 15,
+    "TMUSR": 5,
+    "VSNTV UW": 5,
+    "XLNX": 4,
+    "ALXN": 2,
+    "CELG": 1,
+    "MXIM": 1,
+    "SGEN": 1,
+    "ANSS": 1
+  }
+}

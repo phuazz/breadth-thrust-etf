@@ -1,0 +1,131 @@
+{
+  "survivor_commit": "1ada87b",
+  "n_signals": {
+    "survivor": 36,
+    "corrected": 43,
+    "ws15": 42
+  },
+  "signals_lost_on_correction": [
+    "2019-07-15"
+  ],
+  "signals_gained_on_correction": [
+    "2019-07-12",
+    "2019-07-24",
+    "2019-11-08",
+    "2020-12-17",
+    "2021-06-28",
+    "2021-07-07",
+    "2025-07-03",
+    "2026-05-06"
+  ],
+  "signals_lost_on_ws15": [
+    "2019-03-15",
+    "2019-11-08",
+    "2026-05-06"
+  ],
+  "signals_gained_on_ws15": [
+    "2023-12-01",
+    "2025-06-30"
+  ],
+  "by_year": {
+    "2018": {
+      "coverage_median_pct": {
+        "survivor": 81.6,
+        "corrected": 97.1,
+        "ws15": 100.0
+      },
+      "ma_breadth_mean_abs_delta_pp": {
+        "surv_to_corr": 1.24,
+        "corr_to_ws15": 1.2
+      }
+    },
+    "2019": {
+      "coverage_median_pct": {
+        "survivor": 87.4,
+        "corrected": 99.0,
+        "ws15": 100.0
+      },
+      "ma_breadth_mean_abs_delta_pp": {
+        "surv_to_corr": 1.26,
+        "corr_to_ws15": 0.39
+      }
+    },
+    "2020": {
+      "coverage_median_pct": {
+        "survivor": 89.3,
+        "corrected": 99.0,
+        "ws15": 100.0
+      },
+      "ma_breadth_mean_abs_delta_pp": {
+        "surv_to_corr": 1.04,
+        "corr_to_ws15": 0.27
+      }
+    },
+    "2021": {
+      "coverage_median_pct": {
+        "survivor": 90.2,
+        "corrected": 99.0,
+        "ws15": 100.0
+      },
+      "ma_breadth_mean_abs_delta_pp": {
+        "surv_to_corr": 0.99,
+        "corr_to_ws15": 0.43
+      }
+    },
+    "2022": {
+      "coverage_median_pct": {
+        "survivor": 95.1,
+        "corrected": 100.0,
+        "ws15": 100.0
+      },
+      "ma_breadth_mean_abs_delta_pp": {
+        "surv_to_corr": 0.83,
+        "corr_to_ws15": 0.14
+      }
+    },
+    "2023": {
+      "coverage_median_pct": {
+        "survivor": 96.0,
+        "corrected": 100.0,
+        "ws15": 100.0
+      },
+      "ma_breadth_mean_abs_delta_pp": {
+        "surv_to_corr": 0.82,
+        "corr_to_ws15": 0.0
+      }
+    },
+    "2024": {
+      "coverage_median_pct": {
+        "survivor": 98.0,
+        "corrected": 100.0,
+        "ws15": 100.0
+      },
+      "ma_breadth_mean_abs_delta_pp": {
+        "surv_to_corr": 0.52,
+        "corr_to_ws15": 0.0
+      }
+    },
+    "2025": {
+      "coverage_median_pct": {
+        "survivor": 99.0,
+        "corrected": 100.0,
+        "ws15": 100.0
+      },
+      "ma_breadth_mean_abs_delta_pp": {
+        "surv_to_corr": 0.18,
+        "corr_to_ws15": 0.0
+      }
+    },
+    "2026": {
+      "coverage_median_pct": {
+        "survivor": 100.0,
+        "corrected": 100.0,
+        "ws15": 100.0
+      },
+      "ma_breadth_mean_abs_delta_pp": {
+        "surv_to_corr": 0.05,
+        "corr_to_ws15": 0.09
+      }
+    }
+  }
+}
