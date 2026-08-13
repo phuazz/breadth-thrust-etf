@@ -1893,3 +1893,36 @@ close is 23:30 SGT Friday, an attendable hour, so D can be traded into the
 close directly. The higher-value open item remains realised per-sleeve costs
 from broker fills, which would settle both this and the 2/2/5/9 bps
 assumptions that now do all the work.
+
+## WS16 — cross-panel survivorship closure and the blend restatement (2026-08-13)
+
+Owner-commissioned follow-on to WS15 ("rerun (1)"). The held-window sweep found 84
+unpriced names across the 14 US panels; twenty new RENAMED entries (each verified
+against Norgate security_name AND quotation window), explicit era fills for the
+two-lives tickers (old Chesapeake ← CHKAQ-202102, old Arconic ← HWM, the 21CF
+classes in IUCD/IUCM), and a "BFB"→"BF-B" vendor-symbol override cut the residual
+from 36,897 to 2,360 roster-days — stale tails, composite roster rows, and old
+CBL & Associates (absent from every archive, documented). The 2023 bank failures
+(SIVBQ-202411, FRCB, SBNY) now price through their crisis; four 2026 vendor
+ticker changes were recovered (MPW→MPT, SATS→ECHO, VSCO→VSXY, AHH→AHRT). Basis
+audit: every filled era on one adjustment basis.
+
+RESTATED (owner reviewed the rebuilt dashboard and instructed the push; commits
+e4f8eeb machinery, 45bdc92/f201d50 record): A 0.9132→0.9258, B 1.0254→1.0322,
+C 0.6447→0.6534, D 0.9440→0.9513, blend 1.1481→1.1613 (CAGR 15.20%→15.34%),
+deployed 1.2224→1.2363. Direction UP — opposite WS11 for the third time. B/C/D
+carry no constituent exposure, so their ~+0.007 moves are the vendor-drift
+controls: roughly half the blend lift is routine re-basing, the remainder the
+survivorship fix through sleeve A and the gate's corrected CSP1 breadth feed.
+Sleeve D remains survivor-biased (European delisted prices; procurement).
+
+Also shipped: the reduced public page now pins its ENTIRE view (curve, stats
+recomputed on the trimmed series, holdings) to the last completed weekly anchor —
+under the WS13 Friday-morning cadence the record curves legitimately end on
+Thursday's close, so the old build-time date-equality could never hold again
+(latest_completed_friday returns LAST Friday on a Friday); parity tests updated
+to the anchored-window contract; twelve bound template literals updated and
+verified by the figure guard. Date erratum: earlier WS15/WS16 notes said
+"Friday 2026-08-15"; Friday is 2026-08-14 (2026-08-13 is a Thursday, verified).
+Technical record docx: to follow in a filing session; this memo section and the
+ledger row are the interim record.
