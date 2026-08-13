@@ -2794,27 +2794,27 @@
   </section>
 
   <section>
-    <h2>Why the Friday open</h2>
-    <p class="section-sub">Three reasons, in the order they mattered.</p>
+    <h2>Why the Friday close</h2>
+    <p class="section-sub">Three reasons, in the order they mattered. Performance is deliberately not one of them.</p>
     <div class="two-col" style="gap:18px;margin-top:6px;">
       <div class="step">
         <div class="step-n">1</div>
-        <div class="step-body"><strong>It can actually be traded.</strong> The US close lands at <span data-x="us_close_s">04:00</span> Singapore time on a Saturday. The US open is <span data-x="us_open_s">21:30</span> on the Friday — an ordinary evening rather than a trade nobody can reliably make.</div>
+        <div class="step-body"><strong>It is the best-priced moment of the day.</strong> A closing auction matches every participant at a single price after the day&rsquo;s fullest price discovery &mdash; no spread to cross, and no reliance on the depth of a thinner book. The opening auction is the thinner one.</div>
       </div>
       <div class="step">
         <div class="step-n">2</div>
-        <div class="step-body"><strong>It costs nothing measurable.</strong> Trading the open instead of the close is a decision worth <span id="exec-ar">—</span> a year of active return against <span id="exec-te">—</span> of tracking error. That is an information ratio of <span id="exec-ir">—</span>, with a standard error of about <span id="exec-irse">—</span> on this length of history — indistinguishable from zero.</div>
+        <div class="step-body"><strong>It is the price this dashboard reports.</strong> Every figure published here is computed on closing prices. Executing in the closing auction makes the record and the fills the same number, week after week, with no drift to reconcile.</div>
       </div>
       <div class="step">
         <div class="step-n">3</div>
-        <div class="step-body"><strong>Nothing about the strategy changed.</strong> The engine already ranked on Thursday's close. Only the moment of execution moved, roughly six and a half hours earlier in the same session.</div>
+        <div class="step-body"><strong>It needs nobody awake.</strong> A market-on-close order is submitted on Friday evening Singapore time and executes hours later unsupervised. The US deadline is 15:50 New York time; the order goes in roughly six hours before it.</div>
       </div>
     </div>
   </section>
 
   <section>
-    <h2>The cost of choosing a different day</h2>
-    <p class="section-sub">Each row is the same portfolio, rebalanced on a different weekday, filled at the open rather than the close. Read the tracking error first: this decision moves the book by well under one per cent a year whichever day is chosen, which is why it was settled on whether it can be executed rather than on what it returns.</p>
+    <h2>What the execution moment is worth</h2>
+    <p class="section-sub">The alternative to the closing auction is the opening one. Measured as an active decision &mdash; filling at the open rather than the close, on the identical book &mdash; here is what that is worth on each weekday grid. Read the tracking error first: the choice moves the book by well under one per cent a year whichever way it goes, and the sign is not stable across neighbouring weekdays. That is why it was settled on execution quality rather than on return.</p>
     <div style="overflow-x:auto;">
       <table class="small-table" id="exec-ir-table"><thead></thead><tbody></tbody></table>
     </div>
@@ -7709,10 +7709,10 @@ function _execCycleSVG(D) {
       c: us.sgt_close_summer + ' SGT Fri', kind: 'signal' },
     { t: 'Friday morning', s: 'Position changes are produced',
       c: 'from 08:00 SGT', kind: 'decide' },
-    { t: 'Friday open — Europe', s: 'Sleeve D · 20% of NAV',
-      c: xe.sgt_open_summer + ' SGT Fri', kind: 'fill' },
-    { t: 'Friday open — US', s: 'Sleeves A, B, C · 80% of NAV',
-      c: us.sgt_open_summer + ' SGT Fri', kind: 'fill' }
+    { t: 'Friday evening', s: 'Orders submitted, then left alone',
+      c: '21:00–23:00 SGT', kind: 'decide' },
+    { t: 'Friday closing auctions', s: 'Europe 23:30, US 04:00 Sat',
+      c: 'unattended', kind: 'fill' }
   ];
   const W = 940, H = 200, bw = 200, gap = 46, y = 46, bh = 96;
   const fill = { signal: 'var(--bg-soft)', decide: 'var(--bg-soft)', fill: '#e0f2fe' };
@@ -7766,9 +7766,9 @@ function _execClockSVG(D) {
   // important of the two purely because its session is longer, when it is a
   // fifth of the book.
   const rows = [
-    { name: 'Xetra', o: 15, c: 23.5, fill: xe.sgt_open_summer, y: 52,
+    { name: 'Xetra', o: 15, c: 23.5, fill: xe.sgt_close_summer, y: 52,
       w: 0.20, who: 'sleeve D' },
-    { name: 'US', o: 21.5, c: 28, fill: us.sgt_open_summer, y: 100,
+    { name: 'US', o: 21.5, c: 28, fill: us.sgt_close_summer + ' Sat', y: 100,
       w: 0.80, who: 'sleeves A, B, C' }
   ];
   let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" '
@@ -7800,21 +7800,21 @@ function _execClockSVG(D) {
        + '" height="22" rx="3" fill="var(--bg-soft)" stroke="var(--border)"/>';
     s += '<text x="' + (hx(r.o) + 8) + '" y="' + (r.y + 16)
        + '" font-size="12" fill="var(--ink-faint)">market open</text>';
-    // the fill marker
-    s += '<circle cx="' + hx(r.o) + '" cy="' + (r.y + 11) + '" r="6" '
+    // The fill is the CLOSING AUCTION. Marked at the close, not the open.
+    s += '<circle cx="' + hx(r.c) + '" cy="' + (r.y + 11) + '" r="6" '
        + 'fill="#0891b2" stroke="white" stroke-width="1.5"/>';
-    s += '<text x="' + hx(r.o) + '" y="' + (r.y - 6) + '" font-size="12" '
-       + 'font-weight="600" fill="#0369a1" text-anchor="middle">we trade '
-       + r.fill + '</text>';
-    // the old close-fill marker
-    s += '<circle cx="' + hx(r.c) + '" cy="' + (r.y + 11) + '" r="5" '
-       + 'fill="none" stroke="#dc2626" stroke-width="1.6"/>';
+    s += '<text x="' + hx(r.c) + '" y="' + (r.y - 6) + '" font-size="12" '
+       + 'font-weight="600" fill="#0369a1" text-anchor="end">fills at the '
+       + 'close ' + r.fill + '</text>';
   });
   // Right-aligned to the plot edge: centred on hx(28) it ran 55px past the
   // viewBox and was clipped. It sits under both red markers either way.
-  s += '<text x="' + R + '" y="' + (100 + 46) + '" font-size="11.5" '
-     + 'fill="#dc2626" text-anchor="end">market close &mdash; where this '
-     + 'portfolio used to trade</text>';
+  // The window in which a person is involved at all. Everything after it is
+  // an order sitting on an exchange.
+  s += '<rect x="' + hx(21) + '" y="34" width="' + (hx(23) - hx(21))
+     + '" height="120" fill="none" stroke="#0891b2" stroke-dasharray="4 3"/>';
+  s += '<text x="' + hx(22) + '" y="' + (100 + 46) + '" font-size="11.5" '
+     + 'fill="#0369a1" text-anchor="middle">orders submitted here</text>';
   // axis
   s += '<line x1="' + L + '" y1="154" x2="' + R + '" y2="154" '
      + 'stroke="var(--border)"/>';
@@ -7843,17 +7843,22 @@ function renderExecutionTiming() {
   const fri = blend['FRI'] || {};
   const ec = fri.execution_choice || {};
 
-  // --- Verdict: one sentence, then the caveat that matters most.
+  // --- Verdict: one sentence. The close times come from the feed, so they
+  //     stay right through daylight saving rather than being written down.
   if (vEl) {
+    const usC = ((D.sessions_sgt || {}).US || {}).sgt_close_summer;
+    const xeC = ((D.sessions_sgt || {}).XETR || {}).sgt_close_summer;
     vEl.innerHTML =
       'This portfolio rebalances <strong>once a week</strong>. It ranks on '
-      + '<strong>Thursday&rsquo;s closing prices</strong> and places the orders at '
-      + '<strong>Friday&rsquo;s market open</strong> &mdash; '
-      + (us.sgt_open_summer || '—') + ' Singapore time, or '
-      + (us.sgt_open_winter || '—') + ' in the northern winter. Adopted '
-      + '12 August 2026, replacing a convention that assumed trading at the '
-      + 'US close, which falls at ' + (us.sgt_close_summer || '—')
-      + ' SGT on a Saturday. As at ' + (D.as_of || '—') + '.';
+      + '<strong>Thursday&rsquo;s closing prices</strong> and executes in '
+      + '<strong>Friday&rsquo;s closing auctions</strong> using market-on-close '
+      + 'orders submitted on Friday evening Singapore time. Nobody needs to be '
+      + 'awake when they fill: Europe clears at '
+      + (xeC || '—') + ' SGT and the United States at ' + (usC || '—')
+      + ' SGT on the Saturday. The closing auction is the deepest and '
+      + 'best-priced moment of the trading day, and it is the same price this '
+      + 'dashboard reports, so what is executed and what is published are one '
+      + 'number. As at ' + (D.as_of || '—') + '.';
   }
 
   // --- Diagrams
@@ -7922,21 +7927,23 @@ function renderExecutionTiming() {
   const dis = document.getElementById('exec-disclosure');
   if (dis) {
     dis.innerHTML =
-      '<p><strong>One difference between what is traded and what is measured.</strong></p>'
+      '<p><strong>What is executed and what is measured are the same price.</strong></p>'
       + '<p>Every performance figure published on this dashboard &mdash; the '
       + 'factsheet, the blend, the sleeve curves &mdash; is computed on closing '
-      + 'prices, while the portfolio is executed at the open. The two were '
-      + 'measured against each other before the convention changed: the '
-      + 'difference is ' + _execBp(ec.active_return_ann, 0) + ' a year against '
-      + _execBp(Math.abs(ec.tracking_error_ann || 0), 0).replace('+', '')
-      + ' of tracking error, and it remains inside noise once the assumed '
-      + 'trading cost is doubled to price a wider opening auction.</p>'
-      + '<p>The engines were deliberately left alone rather than rebuilt to '
-      + 'carry opening prices for all four sleeves, which would restate every '
-      + 'published number in order to move one that does not move. The '
-      + 'consequence is stated here rather than hidden: <strong>the record '
-      + 'models a fill about six and a half hours later than the one actually '
-      + 'taken</strong>.</p>';
+      + 'prices, and the portfolio is executed in the closing auction. There is '
+      + 'no wedge between the record and the fills to explain, which is a '
+      + 'property worth more than the alternative was worth in return.</p>'
+      + '<p>The alternative was priced before it was rejected. Filling at the '
+      + 'open instead was worth ' + _execBp(ec.active_return_ann, 0) + ' a year '
+      + 'against ' + _execBp(Math.abs(ec.tracking_error_ann || 0), 0).replace('+', '')
+      + ' of tracking error, an information ratio of '
+      + _execFmt(ec.information_ratio, 2) + ' with a standard error near '
+      + (yrs ? (1 / Math.sqrt(yrs)).toFixed(2) : '—') + '. Its 90% paired '
+      + 'interval straddles zero, its sign reverses across neighbouring '
+      + 'weekdays, and it survives only while both auctions are charged the '
+      + 'same trading cost &mdash; price the thinner opening auction honestly '
+      + 'and the advantage is gone by about 1.8 times the assumed cost. It was '
+      + 'not a real edge to give up.</p>';
   }
 
   // --- Everything below is inside the collapsed evidence disclosure. ---
@@ -8048,8 +8055,13 @@ function renderExecutionTiming() {
       sgt: '04:00 Thu', v: gridLeg('WED', 'close'), basis: 'WS13', verdict: 'rejected',
       note: 'Tests best and is rejected anyway: best of five, no mechanism.' },
     { n: 6, name: 'Friday open', sig: 'Thu close', fill: 'Fri open',
-      sgt: '21:30 Fri', v: gridLeg('FRI', 'open'), basis: 'WS13', verdict: 'adopted',
-      note: 'The same decision, executed earlier in the session.' }
+      sgt: '21:30 Fri', v: gridLeg('FRI', 'open'), basis: 'WS13',
+      verdict: 'superseded',
+      note: 'Adopted 12 Aug and reversed the same day: the thinner opening auction is not free once costed as one, and a market-on-close order removes the 4am objection it was solving.' },
+    { n: 7, name: 'Friday close, market-on-close', sig: 'Thu close',
+      fill: 'Fri close', sgt: '04:00 Sat (unattended)',
+      v: gridLeg('FRI', 'close'), basis: 'WS13', verdict: 'adopted',
+      note: 'Deepest and best-priced auction of the day, and the same price the record is computed on.' }
   ];
   const pTab = document.getElementById('exec-path');
   if (pTab) {

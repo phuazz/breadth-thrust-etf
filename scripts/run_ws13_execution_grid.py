@@ -87,7 +87,11 @@ DASH_PATH = SCRIPTS.parent / "data" / "execution_timing.json"
 
 GRID_DAYS = ["MON", "TUE", "WED", "THU", "FRI"]
 FILL_CLOSE, FILL_OPEN = "close", "open"
-COST_STRESS = [1.0, 1.5, 2.0]
+# Widened 2026-08-12. The opening auction is a thinner book than the closing
+# one, so the question is not 'does the open survive 2x' but 'at what
+# multiple does its advantage disappear'. The break-even is the number
+# that decides whether an open fill is defensible on execution grounds.
+COST_STRESS = [1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0]
 
 
 # ---------------------------------------------------------------------------
@@ -449,9 +453,13 @@ def compare(key: str, days: list[str]) -> tuple[dict, dict]:
         # whole operational case for an open fill turns on whether the wider
         # opening auction eats the benefit, and that cannot be answered from
         # sleeve-level stress numbers because Sharpe is not additive.
-        eq_open_2x = equity_from_gross(gross, turn, cost * 2.0)
-        for fill, eq in ((FILL_CLOSE, eq_close), (FILL_OPEN, eq_open),
-                         (f"{FILL_OPEN}_2x", eq_open_2x)):
+        legs_for_blend = [(FILL_CLOSE, eq_close), (FILL_OPEN, eq_open)]
+        for m in COST_STRESS:
+            if m == 1.0:
+                continue
+            legs_for_blend.append((f"{FILL_OPEN}_{m:g}x",
+                                   equity_from_gross(gross, turn, cost * m)))
+        for fill, eq in legs_for_blend:
             w = eq.loc[eq.index >= eligible]
             curves[(day, fill)] = w / w.iloc[0]
 
@@ -466,7 +474,9 @@ def blend_grid(curves_by_sleeve: dict, days: list[str]) -> dict:
     rows = {}
     for day in days:
         rows[day] = {}
-        for fill in (FILL_CLOSE, FILL_OPEN, f"{FILL_OPEN}_2x"):
+        fills = [FILL_CLOSE, FILL_OPEN] + [f"{FILL_OPEN}_{m:g}x"
+                                        for m in COST_STRESS if m != 1.0]
+        for fill in fills:
             eq = {s: curves_by_sleeve[s][(day, fill)]
                   for s in ("a", "b", "c", "d")}
             common = eq["a"].index
