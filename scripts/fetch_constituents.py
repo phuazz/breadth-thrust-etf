@@ -83,6 +83,7 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import get_etf  # noqa: E402
+from stall_guard import EndpointDegraded, LatencyCircuit  # noqa: E402
 
 # Force UTF-8 stdout so the BOM in iShares CSVs and any non-ASCII names do
 # not crash on the Windows cp1252 console.
@@ -151,6 +152,12 @@ EXIT_STALENESS_CRITICAL = 2
 # so the operator can tell "the roster aged out" from "the endpoint died",
 # and takes precedence over it because it is the actionable root cause.
 EXIT_ENDPOINT_UNAVAILABLE = 3
+# 2026-08-14 — the endpoint answers, but each date pays a 30s timeout before
+# succeeding. NDIA ran 228 minutes and exited 0 with a clean roster while the
+# Friday it was feeding went unfilled. Distinct from UNAVAILABLE because the
+# data is fine and the operator's action is different: wait for the network,
+# then re-run. Nothing needs repairing.
+EXIT_ENDPOINT_DEGRADED = 5
 
 
 def resolve_staleness_thresholds(etf_cfg: dict) -> tuple[int, int]:
@@ -851,7 +858,8 @@ def latest_completed_friday(today: date) -> date:
     return today - timedelta(days=days_since_friday)
 
 
-def load_snapshot_tickers(target: date, etf_cfg: dict) -> list[str]:
+def load_snapshot_tickers(target: date, etf_cfg: dict,
+                          latency: LatencyCircuit | None = None) -> list[str]:
     """Return the Equity roster for one calendar date, cache-first.
 
     Resolution order:
@@ -869,6 +877,12 @@ def load_snapshot_tickers(target: date, etf_cfg: dict) -> list[str]:
     Raises EndpointUnavailable / PayloadContractError when the transport is
     dead. Returns [] when the endpoint is healthy but has no data for
     `target` — the walkback's cue to try the previous day.
+
+    `latency`, when supplied, is fed ONLY the network path below. Every return
+    above it is a cache read of a few milliseconds, and mixing those into the
+    mean is what would let a warm cache hide a stalled endpoint: an ETF whose
+    dates are 95% cached would show a healthy average no matter how slow the
+    remaining 5% ran.
     """
     overrides = etf_cfg.get("ticker_overrides", {})
     apply_suffix = etf_cfg.get("apply_exchange_suffix", False)
@@ -880,6 +894,8 @@ def load_snapshot_tickers(target: date, etf_cfg: dict) -> list[str]:
     if csv_path.exists():
         cached = csv_path.read_text(encoding="utf-8")
         if looks_like_ishares_holdings_csv(cached):
+            if latency is not None:
+                latency.record_cache_hit()
             return parse_holdings(cached, ticker_overrides=overrides,
                                    apply_exchange_suffix=apply_suffix)
         # Poisoned by an earlier run's anti-bot HTML — drop and fall through.
@@ -892,6 +908,8 @@ def load_snapshot_tickers(target: date, etf_cfg: dict) -> list[str]:
         except json.JSONDecodeError:
             json_path.unlink()
         else:
+            if latency is not None:
+                latency.record_cache_hit()
             if payload.get("_no_holdings"):
                 return []
             return parse_holdings_json(
@@ -899,7 +917,18 @@ def load_snapshot_tickers(target: date, etf_cfg: dict) -> list[str]:
                 apply_exchange_suffix=apply_suffix,
             )
 
-    payload = fetch_product_data(target, etf_cfg)
+    if latency is None:
+        payload = fetch_product_data(target, etf_cfg)
+    else:
+        t0 = time.monotonic()
+        try:
+            payload = fetch_product_data(target, etf_cfg)
+        finally:
+            # Timed in a finally so a date that dies on the full retry ladder
+            # still counts. A run where every date fails is EndpointCircuit's
+            # job, but a run that mixes failures and slow successes is nobody
+            # else's, and dropping the failures would flatter the mean.
+            latency.record_served(time.monotonic() - t0, item=target)
     tickers = parse_holdings_json(
         payload, target, ticker_overrides=overrides,
         apply_exchange_suffix=apply_suffix,
@@ -927,6 +956,7 @@ def load_snapshot_tickers(target: date, etf_cfg: dict) -> list[str]:
 def get_snapshot(
     target_friday: date, etf_cfg: dict,
     circuit: EndpointCircuit | None = None,
+    latency: LatencyCircuit | None = None,
 ) -> tuple[list[str] | None, date | None, str]:
     """Walk back from `target_friday` looking for a populated holdings file.
 
@@ -949,7 +979,7 @@ def get_snapshot(
     for days_back in range(MAX_WALKBACK_DAYS + 1):
         try_date = target_friday - timedelta(days=days_back)
         try:
-            tickers = load_snapshot_tickers(try_date, etf_cfg)
+            tickers = load_snapshot_tickers(try_date, etf_cfg, latency=latency)
         except (EndpointUnavailable, PayloadContractError) as e:
             if circuit is None:
                 raise
@@ -1002,6 +1032,7 @@ def main() -> int:
     edgar_used: list[dict] = []  # Phase 26.2 — audit trail
     unavailable: list[dict] = []  # Phase 27 — endpoint-outage audit trail
     circuit = EndpointCircuit()
+    latency = LatencyCircuit(label=f"{etf_cfg['symbol']} holdings endpoint")
     prev_tickers: list[str] | None = None
     prev_actual: date | None = None
     prev_target: date | None = None
@@ -1063,8 +1094,15 @@ def main() -> int:
     for i, friday in enumerate(fridays, start=1):
         if i == 1 or i % 25 == 0 or i == len(fridays):
             print(f"  [{i}/{len(fridays)}] {friday.isoformat()}", flush=True)
+        # Checked at the TOP of the date, not the bottom: tripping mid-walk
+        # and then serving one more date would write a roster whose last entry
+        # was fetched after the run had already decided it could not trust the
+        # endpoint's timing. Abort before, not after.
+        if latency.dead:
+            raise EndpointDegraded(latency.reason or "endpoint degraded")
         try:
-            tickers, actual, status = get_snapshot(friday, etf_cfg, circuit)
+            tickers, actual, status = get_snapshot(friday, etf_cfg, circuit,
+                                                   latency=latency)
         except Exception as e:
             print(f"  ERROR on {friday}: {e}", flush=True)
             tickers, actual, status = None, None, "not_found"
@@ -1351,5 +1389,28 @@ def main() -> int:
     return EXIT_ENDPOINT_UNAVAILABLE if circuit.dead else EXIT_OK
 
 
+def cli() -> int:
+    """Entry point. Turns a degraded endpoint into an exit code, not a stack.
+
+    EndpointDegraded is deliberately allowed to unwind out of the walk rather
+    than being handled where it is raised: everything between the walk and
+    here writes the roster, and unwinding past all of it is what guarantees
+    the committed roster survives untouched. A handler at the raise site would
+    have to remember not to write, and remembering is what failed here in the
+    first place.
+    """
+    try:
+        return main()
+    except EndpointDegraded as e:
+        bar = "!" * 72
+        print(file=sys.stderr)
+        print(bar, file=sys.stderr)
+        print(f"ENDPOINT DEGRADED: {e}", file=sys.stderr)
+        print("  No roster was written. The committed one is untouched and "
+              "is strictly better than a partial walk.", file=sys.stderr)
+        print(bar, file=sys.stderr)
+        return EXIT_ENDPOINT_DEGRADED
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(cli())

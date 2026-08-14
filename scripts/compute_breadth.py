@@ -71,6 +71,10 @@ import yfinance as yf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import get_etf  # noqa: E402
+from stall_guard import (  # noqa: E402
+    DEFAULT_DOWNLOAD_DEADLINE_S,
+    run_with_deadline,
+)
 
 # Force UTF-8 stdout for Windows console.
 sys.stdout.reconfigure(encoding="utf-8")
@@ -538,6 +542,7 @@ def download_prices(
     end: str,
     cache_path: Path = PRICES_CACHE,
     force: bool = False,
+    deadline_s: float | None = None,
 ) -> pd.DataFrame:
     """Download adjusted-close history. Cache to parquet so reruns are free.
 
@@ -563,14 +568,33 @@ def download_prices(
     yf_syms = [normalise_for_yfinance(t) for t in tickers]
     print(f"  Downloading {len(yf_syms)} tickers from yfinance "
           f"({start} -> {end}) ...", flush=True)
-    raw = yf.download(
-        yf_syms,
-        start=start,
-        end=end,
-        auto_adjust=True,
-        threads=True,
-        progress=False,
-        group_by="column",
+    # Deadline, not a circuit. yf.download is one opaque call over the whole
+    # universe — there is no per-item boundary to time from out here, so the
+    # only available instrument is a wall clock. Placed AFTER the cache-hit
+    # return above, so a run whose prices are entirely cached still succeeds
+    # with the vendor unreachable; that is the same rule EndpointCircuit
+    # follows in declining to pre-probe.
+    #
+    # This has not yet been the failure. On 2026-08-14 the DNS outage cost
+    # compute_breadth 91s on a 373-ticker universe — yfinance's own timeouts
+    # bounded it, and the n_with_any_data == 0 guard below would have caught
+    # the total case. The four hours went to fetch_constituents. The deadline
+    # is here because the download is the one step in this file whose runtime
+    # is set by someone else's infrastructure, and an unbounded call in a
+    # Friday-morning pipeline is a schedule risk whether or not it has fired.
+    raw = run_with_deadline(
+        lambda: yf.download(
+            yf_syms,
+            start=start,
+            end=end,
+            auto_adjust=True,
+            threads=True,
+            progress=False,
+            group_by="column",
+        ),
+        seconds=(deadline_s if deadline_s is not None
+                 else DEFAULT_DOWNLOAD_DEADLINE_S),
+        label=f"yfinance download of {len(yf_syms)} tickers",
     )
     if isinstance(raw.columns, pd.MultiIndex):
         if "Close" not in raw.columns.get_level_values(0):
