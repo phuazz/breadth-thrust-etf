@@ -19,6 +19,15 @@ BUT guard layers around refresh_all.py:
               (the pipeline hard guard catches a wholly-stalled panel,
               but a panel that advanced to Thursday when Friday exists
               would pass it and then be silently held by the CI gate).
+  rosters     no constituent roster gained an endpoint_unavailable entry.
+              A mid-run network drop leaves honest holes in the rosters
+              fetched after it, and the anchor check cannot see them: it
+              asks whether the PANEL reaches the decision session, not
+              whether every ROSTER was complete. breadth_csp1 is written
+              early, so it can pass while later sleeves are computed on
+              holed rosters. Compares against the committed state rather
+              than demanding zero, since past outages leave permanent,
+              already-recorded gaps.
   gate view   scripts/check_factsheet_gate.py's own decision function,
               run locally, previews exactly what CI will do on push.
   push        ONLY with --push (armed mode). Soak mode (no flag — the
@@ -54,7 +63,7 @@ Usage:
     python scripts/scheduled_refresh.py --preflight-only # smoke test
 
 Exit codes: 0 ok (ready or pushed) / 2 preflight / 3 refresh failed /
-4 anchor-gate failed / 5 push failed.
+4 anchor / roster / gate failed / 5 push failed.
 
 Python datetime months are 1-indexed (January = 1).
 """
@@ -74,6 +83,7 @@ from pathlib import Path
 # Allow importing sibling scripts/ modules.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_factsheet_gate import build_gate_report  # noqa: E402
+from check_roster_integrity import evaluate as roster_integrity  # noqa: E402
 from nyse_sessions import last_completed_session, week_final_anchor  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -267,6 +277,20 @@ def main(argv: list[str] | None = None) -> int:
                         f"fetches. This is the session the decision reads, "
                         f"so nothing was pushed; investigate the fetch "
                         f"steps in the log.")
+        if not args.preflight_only:
+            ri = roster_integrity(REPO_ROOT)
+            if ri.get("undetermined"):
+                return fail(4, "roster integrity undetermined", ri["summary"])
+            if not ri["ok"]:
+                holed = ", ".join(f"{x['etf']} +{x['new']}"
+                                  for x in ri["rows"] if x.get("new", 0) > 0)
+                return fail(4, "a roster gained outage holes this run",
+                            f"{ri['summary']}: {holed}. An upstream drop "
+                            f"mid-run leaves those Fridays absent, and breadth "
+                            f"for those ETFs is computed on an incomplete "
+                            f"roster. Nothing pushed; re-run once the endpoint "
+                            f"is healthy - the raw responses are cached, so "
+                            f"only the missing dates refetch.")
         gate = build_gate_report("publish", now, PANEL, MARKER)
         log.write(f"\nCI gate preview on push:\n{gate['detail']}\n")
     except Exception as exc:
