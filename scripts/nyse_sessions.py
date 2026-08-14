@@ -142,10 +142,29 @@ def cap_to_last_completed_session(frame, now_utc: datetime | None = None):
     safe: a run during US market hours would otherwise ingest today's
     in-progress bar as if it were a close, and a weekly engine could
     stamp a rebalance on it.
+
+    NYSE-ONLY, AND THAT IS THE POINT OF THE NAME. This guard existed and
+    worked; what it could not do was express a non-US venue. Strategies B and
+    C called it, Strategy D could not — it trades Xetra, and an NYSE cutoff is
+    the wrong question there. On a US-holiday Friday it would truncate a
+    completed European session; on 2026-08-14 it would have been right only by
+    coincidence, both venues sharing the same last completed session.
+
+    Strategy D therefore had NO partial-bar guard, ingested an in-progress
+    Xetra bar stamped 2026-08-14, and stamped a rebalance on it — precisely
+    the failure the docstring above describes, on the one venue this function
+    cannot cover.
+
+    Venue-aware callers use session_bounds.trim_to_completed(frame, cal, now).
+    This remains as the NYSE convenience wrapper and now delegates to that one
+    implementation, so the two cannot drift. Verified identical across 320
+    timestamps spanning 40 days before the change.
     """
     if now_utc is None:
         now_utc = datetime.now(timezone.utc)
-    cutoff = last_completed_session(now_utc)
     if len(frame) == 0:
         return frame
-    return frame[frame.index.date <= cutoff]
+    from session_bounds import trim_to_completed  # local: avoids import cycle
+    capped, _dropped = trim_to_completed(
+        frame, mcal.get_calendar("NYSE"), now_utc, label="NYSE frame")
+    return capped

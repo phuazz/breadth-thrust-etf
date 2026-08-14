@@ -488,12 +488,28 @@ def _collect_deployed_holdings(sleeves, overlay, asof_iso):
     st = sleeve_nav_weights(overlay, asof_iso)
     sleeve_letter = {"a": "A", "b": "B", "c": "C", "d": "D"}
     holdings = []
+    vintages: dict[str, dict] = {}
     for key, letter in sleeve_letter.items():
         s = sleeves.get(key, {})
         trades = s.get("headline", {}).get("trade_history", [])
         if not trades:
             continue
-        latest = trades[-1]
+        # AS-OF, NOT trades[-1]. Taking the last trade regardless of date
+        # composes a book from whatever vintage each sleeve happened to reach,
+        # and on 2026-08-14 that produced a book NOBODY EVER HELD: Strategy D
+        # had emitted a 14 Aug rebalance (on a partial bar, since fixed) while
+        # A and B still sat on 7 Aug. Four sleeves, three dates, presented as
+        # one portfolio. The as-of argument was already being passed in and
+        # used for the NAV weights — only the trade selection ignored it.
+        eligible = [t for t in trades
+                    if not asof_iso or (t.get("date") or "") <= asof_iso]
+        if not eligible:
+            continue
+        latest = eligible[-1]
+        vintages[letter] = {
+            "rebalance": latest.get("date"),
+            "decided_on": latest.get("decision_date"),
+        }
         for h in latest.get("holdings", []):
             eff = h.get("weight", 0) * st[key]
             holdings.append({
@@ -509,7 +525,24 @@ def _collect_deployed_holdings(sleeves, overlay, asof_iso):
             "fallback_ticker", "SHY")
         holdings.append({"etf": fb, "sleeve": "GATE", "within": 1.0,
                          "effective": st["shy_overlay"], "signal": None})
+    # Say so when the sleeves do not share a rebalance date. Divergence is
+    # NORMAL — sleeve C only trades when its basket changes, so it legitimately
+    # sits weeks behind A and B. What is not normal is a sleeve running AHEAD,
+    # which is what a partial bar looks like from here, and printing the spread
+    # is what makes the difference visible without having to guess.
+    dates = {v["rebalance"] for v in vintages.values() if v.get("rebalance")}
+    if len(dates) > 1:
+        spread = ", ".join(f"{k}={v['rebalance']}"
+                           for k, v in sorted(vintages.items()))
+        print(f"  [book vintage] as-of {asof_iso}: sleeves rebalanced on "
+              f"different dates ({spread}). Each is the last trade AT OR "
+              f"BEFORE the as-of date.", flush=True)
     holdings.sort(key=lambda x: -x["effective"])
+    for h in holdings:
+        v = vintages.get(h["sleeve"])
+        if v:
+            h["rebalance_date"] = v["rebalance"]
+            h["decided_on"] = v["decided_on"]
     return holdings
 
 

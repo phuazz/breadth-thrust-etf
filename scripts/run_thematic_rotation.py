@@ -771,7 +771,17 @@ def build_trade_history(weight_panel: pd.DataFrame, signal: pd.DataFrame,
                     "signal_pct": (round(float(s_val) * 100, 1)
                                     if s_val == s_val else None),
                 })
-            out.append({"date": dt.strftime("%Y-%m-%d"), "holdings": holdings})
+  # decision_date is the session this rebalance actually RANKED on.
+            # All four engines computed it and threw it away, so a
+            # rebalance could not say which session decided it. On
+            # 2026-08-14 a vendor hole at Thu 13 Aug in the .DE lines
+            # moved Strategy D's decision to Wed 12 Aug and flipped
+            # EXH3/EXV3 on a 1.3pp margin, invisibly. Recorded now so a
+            # stale or divergent decision session is readable, not
+            # inferred.
+            out.append({"date": dt.strftime("%Y-%m-%d"),
+                        "decision_date": decision_date.strftime("%Y-%m-%d"),
+                        "holdings": holdings})
             prev = row
     return out
 

@@ -71,6 +71,10 @@ import yfinance as yf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import get_etf  # noqa: E402
+# last_completed_session_on moved to session_bounds when the strategy
+# engines needed it too; re-exported here so existing callers and tests
+# keep working against the same single implementation.
+from session_bounds import last_completed_session_on  # noqa: E402,F401
 from stall_guard import (  # noqa: E402
     DEFAULT_DOWNLOAD_DEADLINE_S,
     run_with_deadline,
@@ -534,41 +538,6 @@ def _revert_vendor_step_defects(close: pd.DataFrame, prior: pd.DataFrame,
             print(f"  WARN {t}: {reason}, and there is no prior column to "
                   f"fall back on — fresh series accepted.", flush=True)
     return close, reverted
-
-
-def last_completed_session_on(cal, now_utc: datetime,
-                              horizon_days: int = 14) -> pd.Timestamp | None:
-    """Most recent session on `cal` whose CLOSE has already passed.
-
-    Deliberately not "today", and deliberately not "the last row the vendor
-    returned". Both admit a PARTIAL BAR: yfinance serves an intraday quote for
-    a session still in progress, and a breadth reading built on one would move
-    after it was published — the same defect as rebalancing on an unfinished
-    bar, which the rebalance calendar already refuses to do.
-
-    Venue-aware because the answer differs by venue and the difference is not
-    cosmetic: on a US-holiday Friday, Xetra has closed for the day and NYSE
-    never opened, so a single NYSE-derived cap would either truncate the
-    European funds by a session or admit a partial US one.
-
-    Returns None when the calendar yields nothing in the horizon, which the
-    caller treats as "keep the previous bound" rather than as an error.
-    """
-    now = pd.Timestamp(now_utc)
-    if now.tz is None:
-        now = now.tz_localize("UTC")
-    end = now.tz_convert("UTC").normalize() + pd.Timedelta(days=1)
-    sched = cal.schedule(start_date=end - pd.Timedelta(days=horizon_days),
-                         end_date=end)
-    if sched.empty or "market_close" not in sched.columns:
-        return None
-    closed = sched[sched["market_close"] <= now]
-    if closed.empty:
-        return None
-    last = pd.Timestamp(closed.index[-1])
-    if last.tz is not None:
-        last = last.tz_convert("UTC").tz_localize(None)
-    return last.normalize()
 
 
 def download_prices(

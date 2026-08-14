@@ -36,6 +36,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pandas_market_calendars as mcal
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -47,6 +48,10 @@ from run_ma200_sweep import (  # noqa: E402
     MA_PERIOD, COST_BPS,
 )
 from rebalance_calendar import engine_rebalance_dates  # noqa: E402
+from session_bounds import (  # noqa: E402
+    decision_session_report,
+    trim_to_completed,
+)
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -108,6 +113,14 @@ def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, 
         dl_end = (cp.index.max() + pd.Timedelta(days=5)).strftime("%Y-%m-%d")
         ohlc = download_soxx_ohlc(dl_start, dl_end, etf=proxy, yf_symbol=proxy)
         ohlc = ohlc[~ohlc.index.duplicated(keep="first")]
+        # Drop any bar from a session that has not closed. On 2026-08-14 at
+        # 13:15 UTC yfinance served a bar stamped that day for the .DE lines
+        # while Xetra still had two hours to run, and Strategy D ranked on it.
+        # Historically a no-op — every bar in a finished session is complete —
+        # so this removes a tail and cannot move a backtest.
+        ohlc, _dropped = trim_to_completed(
+            ohlc, mcal.get_calendar(cfg.get("trading_calendar", "NYSE")),
+            datetime.now(timezone.utc), label=f"{etf} ({proxy}) closes")
         closes[etf] = ohlc["Close"].astype(float)
         breadths[etf] = ma200_b
         used.append(etf)
@@ -123,6 +136,20 @@ def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, 
         etf: align_breadth_to_index(b, closes_df.index)
         for etf, b in breadths.items()
     })
+    # Say out loud whether the panel reaches the session a decision would rank
+    # on. It is reindexed onto the EXECUTION calendar above, so a hole in the
+    # traded line deletes a signal that exists: on 2026-08-14 the constituent
+    # prices for EXV1/EXH3/EXV3 all carried Thursday 13 Aug while the .DE
+    # lines did not, and the ranking silently fell back to Wednesday. This
+    # does not repair the hole — that would change which session historical
+    # rebalances ranked on — it refuses to let the fallback happen quietly.
+    if used:
+        cal_names = {get_etf(e).get("trading_calendar", "NYSE") for e in used}
+        for cn in sorted(cal_names):
+            decision_session_report(
+                closes_df, mcal.get_calendar(cn), datetime.now(timezone.utc),
+                label=f"{'/'.join(used[:3])}{'...' if len(used) > 3 else ''} "
+                      f"closes [{cn}]")
     return closes_df, breadths_df, used
 
 
