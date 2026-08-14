@@ -536,6 +536,41 @@ def _revert_vendor_step_defects(close: pd.DataFrame, prior: pd.DataFrame,
     return close, reverted
 
 
+def last_completed_session_on(cal, now_utc: datetime,
+                              horizon_days: int = 14) -> pd.Timestamp | None:
+    """Most recent session on `cal` whose CLOSE has already passed.
+
+    Deliberately not "today", and deliberately not "the last row the vendor
+    returned". Both admit a PARTIAL BAR: yfinance serves an intraday quote for
+    a session still in progress, and a breadth reading built on one would move
+    after it was published — the same defect as rebalancing on an unfinished
+    bar, which the rebalance calendar already refuses to do.
+
+    Venue-aware because the answer differs by venue and the difference is not
+    cosmetic: on a US-holiday Friday, Xetra has closed for the day and NYSE
+    never opened, so a single NYSE-derived cap would either truncate the
+    European funds by a session or admit a partial US one.
+
+    Returns None when the calendar yields nothing in the horizon, which the
+    caller treats as "keep the previous bound" rather than as an error.
+    """
+    now = pd.Timestamp(now_utc)
+    if now.tz is None:
+        now = now.tz_localize("UTC")
+    end = now.tz_convert("UTC").normalize() + pd.Timedelta(days=1)
+    sched = cal.schedule(start_date=end - pd.Timedelta(days=horizon_days),
+                         end_date=end)
+    if sched.empty or "market_close" not in sched.columns:
+        return None
+    closed = sched[sched["market_close"] <= now]
+    if closed.empty:
+        return None
+    last = pd.Timestamp(closed.index[-1])
+    if last.tz is not None:
+        last = last.tz_convert("UTC").tz_localize(None)
+    return last.normalize()
+
+
 def download_prices(
     tickers: list[str],
     start: str,
@@ -699,8 +734,47 @@ def main() -> int:
 
     start_friday = pd.Timestamp(consts["start_friday"])
     end_friday = pd.Timestamp(consts["end_friday"])
+
+    # Resolve the venue calendar HERE rather than at the schedule call below,
+    # because the download bound now depends on it too.
+    try:
+        cal_name = get_etf(consts["etf"]).get("trading_calendar", "NYSE")
+    except KeyError:
+        cal_name = "NYSE"  # synthetic / test ETFs not present in the registry
+    cal = mcal.get_calendar(cal_name)
+
+    # WHY THE PANEL NO LONGER STOPS AT THE ROSTER'S LAST FRIDAY.
+    #
+    # It used to end at `end_friday`, the last PUBLISHED roster Friday. That is
+    # a bound on when the constituent LIST was last refreshed, and it was being
+    # used as a bound on how far breadth could be computed. Those are different
+    # questions, and conflating them cost four sessions every Friday morning:
+    # on Fri 14 Aug 2026 the newest roster was 7 Aug, so the panel ended 7 Aug
+    # while the decision that morning reads Thursday 13 Aug. The refresh was
+    # re-timed to Friday mornings precisely so it could feed a Friday fill, and
+    # this bound made that impossible — the wrapper's anchor guard could not
+    # pass, because the data it demanded was never computed.
+    #
+    # The roster being a week old is not a defect and never was. Rosters
+    # publish weekly, so EVERY mid-week day already resolves against the most
+    # recent snapshot <= T (see active_roster_at). Thursday 13 Aug is an
+    # ordinary mid-week day under the 7 Aug roster, exactly as Wednesday 12 Aug
+    # is.
+    #
+    # This is therefore value-preserving, not a new approximation: next week's
+    # run computes 13 Aug against the 7 Aug roster too, because 14 Aug is not
+    # <= 13 Aug. Extending the tail produces the identical numbers, earlier.
+    # tools/verify_tail_extension.py asserts that by exact equality.
+    #
+    # Both bounds take a max() against the old value so this can only ever
+    # lengthen the window. A change that could shorten it would silently drop
+    # breadth days, which is the failure this is fixing.
+    panel_end = last_completed_session_on(cal, datetime.now(timezone.utc))
+    schedule_end = max(end_friday, panel_end) if panel_end is not None else end_friday
+
     dl_start = (start_friday - pd.Timedelta(days=PRICE_WARMUP_CALENDAR_DAYS)).strftime("%Y-%m-%d")
-    dl_end = (end_friday + pd.Timedelta(days=5)).strftime("%Y-%m-%d")
+    dl_end = max(end_friday + pd.Timedelta(days=5),
+                 schedule_end + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     print("Downloading prices ...", flush=True)
     prices = download_prices(universe, dl_start, dl_end, cache_path=prices_cache)
@@ -759,15 +833,15 @@ def main() -> int:
     # name); the default NYSE preserves behaviour for US-constituent funds.
     # The Europe sector funds use XETR so European trading days are sampled
     # and US-only holidays are not.
-    try:
-        cal_name = get_etf(consts["etf"]).get("trading_calendar", "NYSE")
-    except KeyError:
-        cal_name = "NYSE"  # synthetic / test ETFs not present in the registry
-    cal = mcal.get_calendar(cal_name)
-    schedule = cal.schedule(start_date=start_friday, end_date=end_friday)
+    schedule = cal.schedule(start_date=start_friday, end_date=schedule_end)
     trading_days = pd.DatetimeIndex(schedule.index.normalize().tz_localize(None))
     print(f"  Trading calendar: {cal_name}; trading days in window: "
           f"{len(trading_days)}")
+    if panel_end is not None and schedule_end > end_friday:
+        print(f"  Panel extends past the roster's last Friday "
+              f"({end_friday.date()}) to the last completed {cal_name} "
+              f"session ({schedule_end.date()}), on the carried-forward "
+              f"roster.", flush=True)
 
     # Walk each trading day, build the breadth panel.
     print("Building breadth series ...", flush=True)
