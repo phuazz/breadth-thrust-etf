@@ -33,6 +33,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import display_ticker  # noqa: E402
 from regime_publish import regime_publish_status  # noqa: E402
+from sleeve_asof import last_rebalance, last_traded  # noqa: E402
 from overlay_state import (  # noqa: E402
     sleeve_nav_weights, state_active_on, derisk_fraction as _derisk_fraction,
     tilt_weight as _p22_tilt_weight, tilt_display_state)
@@ -534,9 +535,17 @@ def _collect_deployed_holdings(sleeves, overlay, asof_iso):
     if len(dates) > 1:
         spread = ", ".join(f"{k}={v['rebalance']}"
                            for k, v in sorted(vintages.items()))
-        print(f"  [book vintage] as-of {asof_iso}: sleeves rebalanced on "
-              f"different dates ({spread}). Each is the last trade AT OR "
-              f"BEFORE the as-of date.", flush=True)
+        # "last traded", not "rebalanced". These are trade dates by design
+        # — composing the book needs the holdings actually held — but an
+        # operator reading "C rebalanced 2026-07-31" concludes C's grid
+        # has stalled, which is the false positive that reached the
+        # deployed page on 2026-08-15. The dict key stays `rebalance` for
+        # the guard test in tests/test_session_bounds.py; the sentence a
+        # human reads must say what the value is.
+        print(f"  [book vintage] as-of {asof_iso}: sleeves last TRADED on "
+              f"different dates ({spread}) — normal; a sleeve that reranks "
+              f"to the same book trades nothing. Each is the last trade AT "
+              f"OR BEFORE the as-of date.", flush=True)
     holdings.sort(key=lambda x: -x["effective"])
     for h in holdings:
         v = vintages.get(h["sleeve"])
@@ -1493,7 +1502,9 @@ def build_trades_table(sleeves, page_w, styles, overlay, as_of=None):
     flows: list = [t]
     if stale_sleeves:
         note = " &middot; ".join(
-            f"Sleeve {sl} unchanged this week (last rebalanced {d})"
+            # "last traded", not "last rebalanced" — these dates come from
+            # activity rows, which exist only where holdings CHANGED.
+            f"Sleeve {sl} unchanged this week (last traded {d})"
             for sl, d in sorted(set(stale_sleeves)))
         flows.append(Spacer(1, 2))
         flows.append(Paragraph(f"<i>{note}.</i>", styles["body_small"]))
@@ -1713,10 +1724,11 @@ def build_parameters_footer(overlay, sleeves, breadth_end_date,
         blend_line += (f" (EEM tilt held OFF — feed stale since "
                         f"{_ft_tilt['signal_as_of']})")
 
-    def _last_rebal(key):
-        th = (sleeves.get(key, {}).get("headline") or {}).get(
-            "trade_history") or []
-        return th[-1].get("date") if th else "—"
+    def _rebal(key):
+        return last_rebalance(sleeves.get(key)) or "—"
+
+    def _traded(key):
+        return last_traded(sleeves.get(key)) or "—"
 
     parameters_data = [
         ["BLEND",       blend_line],
@@ -1749,11 +1761,25 @@ def build_parameters_footer(overlay, sleeves, breadth_end_date,
         ]),
     )
 
-    sigs = {k: _last_rebal(k) for k in ("a", "b", "c", "d")}
+    # Two dates, two rows, because they are two different questions and
+    # printing the trade date under a rebalance label aged Strategy C at
+    # 15 days on 2026-08-15 when its grid had run 8 days earlier (see
+    # scripts/sleeve_asof.py). The LAST TRADED row is where a sleeve that
+    # reranked to the same book legitimately shows an older date.
+    rebals = {k: _rebal(k) for k in ("a", "b", "c", "d")}
+    trades = {k: _traded(k) for k in ("a", "b", "c", "d")}
     built_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    # Bare dates in the value column: at Courier 8 the four sleeves fill
+    # 302 of the 421pt available, so a trailing gloss wraps to a second
+    # line. The distinction between the two rows is stated once, in the
+    # section subtitle below.
     provenance_data = [
-        ["SIGNALS AS OF",
-         f"A {sigs['a']}  ·  B {sigs['b']}  ·  C {sigs['c']}  ·  D {sigs['d']}"],
+        ["LAST REBALANCE",
+         f"A {rebals['a']}  ·  B {rebals['b']}  ·  C {rebals['c']}  "
+         f"·  D {rebals['d']}"],
+        ["LAST TRADED",
+         f"A {trades['a']}  ·  B {trades['b']}  ·  C {trades['c']}  "
+         f"·  D {trades['d']}"],
         ["BREADTH PANEL", f"{breadth_end_date or '—'} (drives the Risk Overlay regime gate)"],
         ["BUILT",         built_iso],
     ]
@@ -1780,7 +1806,9 @@ def build_parameters_footer(overlay, sleeves, breadth_end_date,
         pt,
         Spacer(1, 4 * mm),
         *section_header("DATA PROVENANCE",
-                         "Every published number's source date",
+                         "Every published number's source date. A sleeve "
+                         "rebalances on schedule whether or not it trades, "
+                         "so LAST TRADED is legitimately the older date.",
                          styles),
         pv,
     ]

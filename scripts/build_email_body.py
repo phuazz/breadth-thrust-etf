@@ -762,7 +762,11 @@ def build_html(out_path: Path):
         out.append('</table>')
         if stale_sleeves:
             unchanged = " &middot; ".join(
-                f"Sleeve {s} unchanged this week (last rebalanced {d})"
+                # "last traded", not "last rebalanced": these dates come
+                # from activity rows, which exist only where holdings
+                # CHANGED. A sleeve absent from this week's rows still
+                # rebalanced — it reranked to the same book.
+                f"Sleeve {s} unchanged this week (last traded {d})"
                 for s, d in stale_sleeves)
             out.append('<p style="color:#7c8590;font-size:11px;'
                        'margin:6px 0 0 0;line-height:1.5;">'

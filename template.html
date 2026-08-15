@@ -3939,6 +3939,44 @@ function _asofPrefix(sleeveKey) {
   return dt ? ('Signals as of ' + dt + ' · ') : '';
 }
 
+// ---------------------------------------------------------------------
+// Sleeve as-of dates. JS port of scripts/sleeve_asof.py — read the WHY
+// block there before changing either side; test_sleeve_asof.py pins the
+// threshold literal and the field this reads.
+//
+// A sleeve carries TWO dates and they are not interchangeable.
+// trade_history only gains an entry when the weight vector moves, so its
+// last date is when the HOLDINGS changed. weekly_allocation_dates is
+// every date the rebalance grid RAN. Ageing the first and calling it
+// "last rebalance" put Strategy C on the amber banner at 15 days on
+// 2026-08-15 — it had rebalanced 8 days earlier and simply held.
+const SLEEVE_STALE_AFTER_DAYS = 14;
+
+function _lastRebalance(sleeve) {
+  const hl = sleeve?.headline || {};
+  const grid = hl.weekly_allocation_dates || [];
+  if (grid.length) return grid[grid.length - 1];
+  return _lastTraded(sleeve);   // pre-Phase-10.1 JSONs carry no grid
+}
+
+function _lastTraded(sleeve) {
+  const th = sleeve?.headline?.trade_history || [];
+  return th.length ? th[th.length - 1].date : null;
+}
+
+// Whole days from an ISO date to today, BOTH taken at UTC midnight.
+// `new Date('2026-08-07')` parses as UTC while `new Date()` is local, so
+// the previous mixed comparison moved the rounded age by a day either
+// side of the threshold depending on the reader's timezone — which is
+// precisely where a 14-day cutoff is decided.
+function _ageDays(iso) {
+  if (!iso) return null;
+  const [y, m, d] = iso.split('-').map(Number);   // months 0-indexed in Date.UTC
+  const now = new Date();
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.round((today - Date.UTC(y, m - 1, d)) / 86400000);
+}
+
 // =====================================================================
 // Above-the-fold positions + this-week activity preview.
 // Pulls from the same trade_history data the Monitor tab uses, so the
@@ -4304,7 +4342,7 @@ function renderPositionsPreview() {
       const sign = netPct >= -0.05 ? '+' : '−';  // values that round to 0 show as +0.0%, never −0.0%
       const staleNote = staleSleeves.length
         ? ' ' + staleSleeves.map(([sl, d]) =>
-            `Sleeve ${sl} unchanged this week (last rebalanced ${d}).`).join(' ')
+            `Sleeve ${sl} unchanged this week (last traded ${d}).`).join(' ')
         : '';
       netEl.innerHTML = `Buys minus sells net to <b>${sign}${Math.abs(netPct).toFixed(1)}% NAV</b> across this week's moves (remainder is unchanged holdings or cash).${staleNote}`;
     }
@@ -4556,16 +4594,23 @@ function renderMonitor() {
   }
 
   // ===== Latest rebalances =====
+  // *Latest holds the current book (trade_history's last entry is the
+  // live weight vector regardless of when it was last changed); *Date is
+  // when the grid last RAN and *Traded when the book last MOVED. The two
+  // are separate quantities — see _lastRebalance above.
   const aHist = topk.headline.trade_history;
   const bHist = ac.headline.trade_history;
   const aLatest = aHist[aHist.length - 1];
   const bLatest = bHist[bHist.length - 1];
-  const aDate = aLatest.date;
-  const bDate = bLatest.date;
+  const aDate = _lastRebalance(topk);
+  const bDate = _lastRebalance(ac);
   const cLatest = hasC ? tc.headline.trade_history[tc.headline.trade_history.length - 1] : null;
-  const cDate = cLatest?.date;
+  const cDate = hasC ? _lastRebalance(tc) : null;
   const dLatest = hasD ? eu.headline.trade_history[eu.headline.trade_history.length - 1] : null;
-  const dDate = dLatest?.date;
+  const dDate = hasD ? _lastRebalance(eu) : null;
+  const traded = { A: _lastTraded(topk), B: _lastTraded(ac),
+                   C: hasC ? _lastTraded(tc) : null,
+                   D: hasD ? _lastTraded(eu) : null };
 
   // Use the blend stats that match the actual deployment. Phase 19:
   // getDeployedBlendKey() returns the gated variant when available so
@@ -4585,17 +4630,32 @@ function renderMonitor() {
   if (hasC) asofHtml += ` + ${cLatest.holdings.length} C`;
   if (hasD) asofHtml += ` + ${dLatest.holdings.length} D`;
   asofHtml += ` positions.`;
+  // "Last traded" as its own field, and only where it differs — a sleeve
+  // that reranked to the same book is holding by choice, not stalling,
+  // and the reader needs to be able to tell those apart at a glance.
+  // `<`, not `!==`: a trade date AFTER the grid date is a contract
+  // violation, not a hold, and must not be narrated as one.
+  const held = Object.entries(traded)
+    .filter(([sl, td]) => td && td < { A: aDate, B: bDate, C: cDate, D: dDate }[sl]);
+  if (held.length) {
+    asofHtml += ` Holdings unchanged since ${held.map(([sl, td]) =>
+      `<strong>${td}</strong> (${sl})`).join(' · ')} — rebalanced, no trades.`;
+  }
   document.getElementById('live-asof').innerHTML = asofHtml;
 
-  // Stale-data check
-  const today = new Date();
-  const aAge = Math.round((today - new Date(aDate)) / (24*3600*1000));
-  const bAge = Math.round((today - new Date(bDate)) / (24*3600*1000));
-  const cAge = cDate ? Math.round((today - new Date(cDate)) / (24*3600*1000)) : 0;
-  const dAge = dDate ? Math.round((today - new Date(dDate)) / (24*3600*1000)) : 0;
+  // Stale-data check. Ages the REBALANCE GRID, not the last trade: a
+  // sleeve holding every position still rebalanced, and ageing its trade
+  // date tripped this banner on a healthy Strategy C (2026-08-15, 15d
+  // against a 14d threshold, while its grid had run 8 days earlier).
+  // The banner exists to catch a pipeline that has stopped running.
+  const aAge = _ageDays(aDate);
+  const bAge = _ageDays(bDate);
+  const cAge = cDate ? _ageDays(cDate) : 0;
+  const dAge = dDate ? _ageDays(dDate) : 0;
   let warnHtml = '';
-  if (aAge > 14 || bAge > 14 || cAge > 14 || dAge > 14) {
-    warnHtml += `<div class="stale">⚠ Some signal data is more than 14 days old (A: ${aAge}d, B: ${bAge}d${hasC ? ', C: ' + cAge + 'd' : ''}${hasD ? ', D: ' + dAge + 'd' : ''}). Re-run the pipeline before deploying.</div>`;
+  if (aAge > SLEEVE_STALE_AFTER_DAYS || bAge > SLEEVE_STALE_AFTER_DAYS
+      || cAge > SLEEVE_STALE_AFTER_DAYS || dAge > SLEEVE_STALE_AFTER_DAYS) {
+    warnHtml += `<div class="stale">⚠ Some sleeve has not rebalanced in more than ${SLEEVE_STALE_AFTER_DAYS} days (A: ${aAge}d, B: ${bAge}d${hasC ? ', C: ' + cAge + 'd' : ''}${hasD ? ', D: ' + dAge + 'd' : ''}). Re-run the pipeline before deploying.</div>`;
   }
   // Phase 26.1 — data integrity surface. Constituent-roster staleness
   // is a separate concern from signal-data staleness (which the block
@@ -7022,11 +7082,14 @@ function _momHoldings(root) {
   return (last?.holdings || []).map(h => h.etf);
 }
 
-// Date the holdings above were set. Sleeves can rebalance on different
-// dates, so a "held by" tag states its OWN sleeve's date rather than
-// borrowing the date of the tab it happens to be rendered on.
+// Date as at which the holdings above are the sleeve's book. Sleeves can
+// rebalance on different dates, so a "held by" tag states its OWN
+// sleeve's date rather than borrowing the date of the tab it happens to
+// be rendered on. Reads the rebalance grid, not the trade history: the
+// book is current as at the last RERANK, which for a sleeve that held
+// everything is later than the last trade.
 function _momRebalDate(root) {
-  return window.DATA?.[root]?.headline?.trade_history?.slice(-1)[0]?.date || null;
+  return _lastRebalance(window.DATA?.[root]);
 }
 
 function _momLatest(view, etf) {
@@ -7358,7 +7421,10 @@ function _renderAHoldings() {
   const holds = (last.holdings || []).slice().sort(
     (a, b) => (b.breadth_pct ?? -1e9) - (a.breadth_pct ?? -1e9),
   );
-  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (up to K=${K} above the mean)`;
+  // The rebalance date, not last.date. `last` is the current book; the
+  // date it is current AS AT is the last grid run, which is later than
+  // last.date whenever the sleeve reranked to the same holdings.
+  if (asOfEl) asOfEl.textContent = ` — as of the ${_lastRebalance(window.DATA?.topk)} rebalance (up to K=${K} above the mean)`;
   tbl.querySelector('thead').innerHTML = `<tr>
     <th class="num">#</th>
     <th>ETF</th>
@@ -7400,7 +7466,7 @@ function _renderCHoldings() {
   );
   const invested = holds.reduce((s, x) => s + (x.weight || 0), 0);
   const cash = Math.max(0, 1 - invested);
-  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (top K=${K} above the +5% floor, equal-weighted)`;
+  if (asOfEl) asOfEl.textContent = ` — as of the ${_lastRebalance(window.DATA?.thematic)} rebalance (top K=${K} above the +5% floor, equal-weighted)`;
   tbl.querySelector('thead').innerHTML = `<tr>
     <th class="num">#</th>
     <th>ETF</th>
@@ -7459,7 +7525,7 @@ function _renderDHoldings() {
   const holds = (last.holdings || []).slice().sort(
     (a, b) => (b.breadth_pct ?? -1e9) - (a.breadth_pct ?? -1e9),
   );
-  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (top K=${K} by breadth)`;
+  if (asOfEl) asOfEl.textContent = ` — as of the ${_lastRebalance(window.DATA?.europe)} rebalance (top K=${K} by breadth)`;
   tbl.querySelector('thead').innerHTML = `<tr>
     <th class="num">#</th>
     <th>ETF</th>
@@ -7498,7 +7564,7 @@ function _renderBHoldings() {
   const holds = (last.holdings || []).slice().sort((a, b) => (b.signal_pct ?? -1e9) - (a.signal_pct ?? -1e9));
   const invested = holds.reduce((s, x) => s + (x.weight || 0), 0);
   const cash = Math.max(0, 1 - invested);
-  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (top K=${K} by trend)`;
+  if (asOfEl) asOfEl.textContent = ` — as of the ${_lastRebalance(window.DATA?.asset_class)} rebalance (top K=${K} by trend)`;
   tbl.querySelector('thead').innerHTML = `<tr>
     <th class="num">#</th>
     <th>ETF</th>
