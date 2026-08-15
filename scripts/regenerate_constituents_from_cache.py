@@ -23,7 +23,11 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from etf_registry import get_etf  # noqa: E402
-from fetch_constituents import RAW_DIR, parse_holdings  # noqa: E402
+from fetch_constituents import (  # noqa: E402
+    RAW_DIR,
+    parse_holdings,
+    parse_holdings_json,
+)
 
 DATA_DIR = ROOT / "data"
 
@@ -50,19 +54,45 @@ def regenerate(etf: str) -> dict:
     n_changed = 0
     n_unchanged = 0
     n_no_cache = 0
+    n_csv = 0
+    n_json = 0
     before_total = 0
     after_total = 0
 
     for friday, snap in snapshots.items():
         actual = snap.get("actual_date") or friday
         actual_dt = datetime.strptime(actual, "%Y-%m-%d").date()
-        cache_path = RAW_DIR / f"{symbol}_{actual_dt.strftime('%Y%m%d')}.csv"
-        if not cache_path.exists():
+        stamp = actual_dt.strftime("%Y%m%d")
+        csv_path = RAW_DIR / f"{symbol}_{stamp}.csv"
+        json_cache = RAW_DIR / f"{symbol}_{stamp}.json"
+        # CSV first — it is the pre-2026-07 source of truth — then the
+        # product-data JSON the re-platform replaced it with. Reparsing only
+        # CSVs would silently leave the newest snapshots on the old logic,
+        # which for a resolver fix means the CURRENT roster keeps the very
+        # symbols the fix exists to repair.
+        if csv_path.exists():
+            body = csv_path.read_text(encoding="utf-8", errors="replace")
+            new_tickers = parse_holdings(body, ticker_overrides=overrides,
+                                         apply_exchange_suffix=apply_suffix,
+                                         symbol=symbol, strict_exchanges=False)
+            n_csv += 1
+        elif json_cache.exists():
+            try:
+                payload = json.loads(json_cache.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                n_no_cache += 1
+                continue
+            if payload.get("_no_holdings"):
+                n_no_cache += 1
+                continue
+            new_tickers = parse_holdings_json(
+                payload, actual_dt, ticker_overrides=overrides,
+                apply_exchange_suffix=apply_suffix,
+                symbol=symbol, strict_exchanges=False)
+            n_json += 1
+        else:
             n_no_cache += 1
             continue
-        body = cache_path.read_text(encoding="utf-8", errors="replace")
-        new_tickers = parse_holdings(body, ticker_overrides=overrides,
-                                     apply_exchange_suffix=apply_suffix)
         old_tickers = snap.get("tickers", [])
         before_total += len(old_tickers)
         after_total += len(new_tickers)
@@ -82,6 +112,8 @@ def regenerate(etf: str) -> dict:
         "changed": n_changed,
         "unchanged": n_unchanged,
         "no_cache": n_no_cache,
+        "from_csv": n_csv,
+        "from_json": n_json,
         "tickers_before": before_total,
         "tickers_after": after_total,
         "delta": after_total - before_total,

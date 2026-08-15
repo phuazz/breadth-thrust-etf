@@ -228,7 +228,11 @@ PRICE_WARMUP_CALENDAR_DAYS = 180
 _YF_EXCHANGE_SUFFIXES = {
     "L", "DE", "F", "PA", "MI", "AS", "MC", "SW", "BR", "ST", "HE", "CO",
     "OL", "LS", "VI", "WA", "PR", "HM", "AT", "IR", "T", "HK", "NS", "BO",
-    "KS", "TW", "SS", "SZ", "SI", "AX", "JO", "SA", "MX",
+    # TWO is the Taipei Exchange (ITWN's second-board names). It must be
+    # listed here or the last-dot rule reads "TWO" as a share class and
+    # rewrites 6488.TWO to 6488-TWO, which resolves at no vendor — the same
+    # silent loss the suffix was added to fix.
+    "KS", "TW", "TWO", "SS", "SZ", "SI", "AX", "JO", "SA", "MX", "DU", "MU",
 }
 
 
@@ -376,16 +380,43 @@ YF_TICKER_OVERRIDES = {
     # recognise (it carries "Bombay Stock Exchange"), so they fell through to
     # the assume-US branch and emerged as bare scrip codes.
     #
-    # Mapped to the NSE listings rather than repairing the suffix: yfinance
-    # serves neither 534091.BO nor 532483.BO, so .BO would swap one dead
-    # symbol for another. Both names are dual-listed and the NSE line is the
-    # liquid one. This is a venue substitution — the fund holds the BSE
-    # listing and the panel prices the NSE listing — which is sound for
-    # breadth, where the input is a 50-day average of the same security's
-    # economics, but it is a substitution and not a like-for-like quote.
+    # Mapped to the NSE listings rather than repairing the suffix. The
+    # original note here said yfinance serves neither .BO line; probing on
+    # 2026-08-15 showed that is not quite the failure. 534091.BO returns
+    # correct prices out to one year and 532483.BO out to one month, then
+    # both raise TypeError inside yfinance, because Yahoo serves those lines
+    # with malformed metadata (exchangeName "YHD", instrumentType
+    # "MUTUALFUND", currency null). Separately, Yahoo 404s outright on 4 of
+    # 10 BSE scrip codes tested, TCS and HDFC Bank among them.
+    #
+    # The conclusion is unchanged and now better evidenced: .BO is unusable
+    # here, not because the data is absent but because the route dies well
+    # short of the history a 200-day panel needs, and its coverage is
+    # arbitrary. See _EXCHANGE_ROUTE_UNAVAILABLE in fetch_constituents.py.
+    #
+    # Both names are dual-listed and the NSE line is the liquid one. This is
+    # a venue substitution — the fund holds the BSE listing and the panel
+    # prices the NSE listing — which is sound for breadth, where the input
+    # is a 50-day average of the same security's economics, but it is a
+    # substitution and not a like-for-like quote.
     "SHFL.NS": "SHRIRAMFIN.NS",
     "534091": "MCX.NS",
     "532483": "CANBK.NS",
+    # ITWN, 2026-08-15. The "Gretai Securities Market" map entry added in
+    # fetch_constituents.py resolves 12 of the 14 Taipei Exchange names that
+    # had sat in this roster as bare numeric codes since 2018-01-05. This is
+    # the 13th. PharmaEssentia moved from the Taipei Exchange to the TWSE
+    # main board, and Yahoo consolidated the whole history under the main
+    # board line: 6446.TWO 404s, 6446.TW returns 1,215 bars (probed
+    # 2026-08-15). The payload still stamped the row "Gretai Securities
+    # Market" for its 60 roster-days (2022-12-02 .. 2024-01-19), so no
+    # exchange map keyed on the venue name can get this right — a venue
+    # migration is a per-name fact.
+    #
+    # The 14th, 2888, is a Shin Kong Financial preferred-share line that
+    # appears for a single roster-day and has no ordinary listing at either
+    # suffix. Left unresolved deliberately.
+    "6446.TWO": "6446.TW",
 }
 
 

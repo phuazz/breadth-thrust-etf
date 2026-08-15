@@ -324,6 +324,8 @@ def parse_holdings_json(
     target: date,
     ticker_overrides: dict | None = None,
     apply_exchange_suffix: bool = False,
+    symbol: str | None = None,
+    strict_exchanges: bool = True,
 ) -> list[str]:
     """Parse a product-data API payload into a yfinance-ready ticker list.
 
@@ -370,6 +372,8 @@ def parse_holdings_json(
     overrides = ticker_overrides or {}
     tickers: list[str] = []
     seen: set[str] = set()
+    unmapped: dict[str, list[str]] = {}
+    n_equity = 0
     for i in range(n):
         if (cell("assetClass", i) or "").strip() != "Equity":
             continue
@@ -378,12 +382,14 @@ def parse_holdings_json(
         # corresponds to no real holding.
         if raw in {"", "-"}:
             continue
+        n_equity += 1
         exchange = cell("exchange", i)
         location = cell("countryOfRisk", i)
         if apply_exchange_suffix:
             sym = _resolve_yf_symbol(
                 raw, (exchange or "").strip() or None, overrides,
                 location=(location or "").strip() or None,
+                unmapped=unmapped,
             )
         else:
             sym = overrides.get(raw, raw.replace(".", "-"))
@@ -393,6 +399,8 @@ def parse_holdings_json(
             continue
         seen.add(sym)
         tickers.append(sym)
+    report_unmapped_exchanges(unmapped, symbol or "?", n_equity,
+                              as_of=target, strict=strict_exchanges)
     return tickers
 
 
@@ -555,6 +563,8 @@ _EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
     "Deutsche Boerse Ag":             ".DE",
     "Deutsche Boerse Xetra":          ".DE",
     "Hanseatische Wertpapierboerse Hamburg": ".HM",
+    "Boerse Duesseldorf":             ".DU",
+    "Boerse Muenchen":                ".MU",
     "Frankfurt Stock Exchange":       ".F",
     "Nyse Euronext - Euronext Paris": ".PA",
     "Euronext Paris":                 ".PA",
@@ -564,6 +574,7 @@ _EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
     "Bolsa De Madrid":                ".MC",
     "Bolsa Madrid":                   ".MC",
     "Bolsas Y Mercados Espanoles":    ".MC",
+    "Bme Bolsas Y Mercados Espanoles": ".MC",
     "Six Swiss Exchange":             ".SW",
     "SIX Swiss Exchange":             ".SW",
     "Six Swiss Exchange Ag":          ".SW",
@@ -600,6 +611,11 @@ _EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
     "Korea Exchange":                 ".KS",
     "Korea Stock Exchange":           ".KS",
     "Taiwan Stock Exchange":          ".TW",
+    # Taipei Exchange, Taiwan's second board — iShares still prints its
+    # pre-2015 name. yfinance uses .TWO, NOT .TW: every one of the 12
+    # currently-listed ITWN names carrying this venue resolves under .TWO
+    # with full history and 404s under .TW (probed 2026-08-15).
+    "Gretai Securities Market":       ".TWO",
     "Shanghai Stock Exchange":        ".SS",
     "Shenzhen Stock Exchange":        ".SZ",
     "Singapore Exchange":             ".SI",
@@ -612,12 +628,46 @@ _EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
     "Bolsa Mexicana De Valores":      ".MX",
     # US (no suffix)
     "Nasdaq":                         "",
+    "NASDAQ":                         "",
     "Nasdaq Stock Market":            "",
     "Nasdaq/Ngs (Global Select Market)": "",
     "New York Stock Exchange Inc.":   "",
     "Nyse":                           "",
     "Nyse Arca":                      "",
     "Cboe Bzx Exchange":              "",
+    # US OTC. ICHN routes a handful of China ADRs here when they drop off a
+    # listed venue; the bare ticker is the right symbol form even though a
+    # given pink-sheet name may not be carried by the vendor.
+    "Non-Nms Quotation Service (Nnqs)": "",
+}
+
+# Venues we recognise but deliberately do NOT route by suffix, because the
+# vendor's symbol space for them is unusable. Rows keep the raw local code
+# (the historical behaviour) so a per-name override downstream can repair
+# them; the point of naming them here is that they are a KNOWN gap and are
+# excluded from the unmapped-exchange alarm rather than re-reported weekly.
+#
+# "Bse Ltd" (India, BSE). Appending .BO is not a fix — probed 2026-08-15
+# against yfinance 1.1.0 and Yahoo's chart endpoint directly:
+#   - Yahoo 404s outright on 4 of 10 BSE scrip codes tested, including TCS
+#     (532540), HDFC Bank (500180), ICICI Bank (532174) and Hindustan
+#     Aeronautics (541154). Coverage is arbitrary, not systematic.
+#   - Where Yahoo does serve the line the payload is malformed —
+#     exchangeName "YHD", instrumentType "MUTUALFUND", currency null —
+#     and yfinance raises TypeError parsing it at every horizon of three
+#     months or more for most names (532483, 500325, 500790). Even the
+#     best-behaved code, 534091, breaks at two years. A 200-day breadth
+#     panel needs far more history than the route survives.
+# The prices themselves are correct when they do come through, so this is a
+# broken vendor path and not an absent security: the right resolution is the
+# NSE line of the same issuer, which is what YF_TICKER_OVERRIDES in
+# compute_breadth.py does for the two names NDIA actually holds.
+_EXCHANGE_ROUTE_UNAVAILABLE: dict[str, str] = {
+    "Bse Ltd": (
+        "yfinance/Yahoo .BO coverage is partial and its metadata breaks the "
+        "client at the history lengths breadth needs; route the issuer's NSE "
+        "line via YF_TICKER_OVERRIDES instead"
+    ),
 }
 
 # Venues that name a market group rather than a single exchange. The listing
@@ -662,9 +712,85 @@ def _us_symbol(raw_ticker: str) -> str | None:
     return raw_ticker.rstrip(".").replace(".", "-")
 
 
+class UnmappedExchangeError(RuntimeError):
+    """Too much of a roster resolved through the assume-US fall-through.
+
+    Raised rather than warned once the share crosses
+    ``UNMAPPED_EXCHANGE_MAX_SHARE``, on the same reasoning as
+    PayloadContractError: a roster that silently lost a tenth of its names
+    is worse than a roster that failed to build, because breadth is a ratio
+    and a dropped name leaves BOTH the numerator and the denominator, so
+    the figure stays plausible while measuring a different universe.
+    """
+
+
+# An unrecognised exchange is only visible as a coverage figure someone
+# happens to audit, so the fall-through is bounded. The threshold is a
+# share of the fund's own equity roster, not an absolute count, because the
+# rosters run from ~30 to ~600 names.
+#
+# Calibrated against the full 2018-2026 cache (10,927 non-US roster-days):
+# the Taipei Exchange gap would have tripped it on day one at 9.0% of ITWN
+# (7 of 78 names, 3.05% by weight), while every genuine one-off — the
+# Bloomberg placeholder rows and corporate-action artefacts that appear for
+# one or two Fridays and vanish — sits at or below 0.3% of its roster and
+# only warns. MIN_ROWS keeps a small roster from tripping on a single name.
+UNMAPPED_EXCHANGE_MAX_SHARE = 0.02
+UNMAPPED_EXCHANGE_MIN_ROWS = 3
+
+
+def report_unmapped_exchanges(
+    sink: dict[str, list[str]],
+    symbol: str,
+    n_equity_rows: int,
+    as_of: date | None = None,
+    strict: bool = True,
+) -> None:
+    """Announce every exchange string that fell through to the US branch.
+
+    `sink` is the mapping filled by `_resolve_yf_symbol`: exchange name →
+    tickers that carried it. Always prints; raises UnmappedExchangeError
+    when the affected share crosses the threshold and `strict` is set.
+
+    A caller that legitimately wants the roster anyway (a historical
+    re-parse, an audit) passes strict=False and reads the printed report.
+    """
+    if not sink:
+        return
+    n_affected = sum(len(v) for v in sink.values())
+    share = n_affected / n_equity_rows if n_equity_rows else 1.0
+    stamp = f" {as_of.isoformat()}" if as_of else ""
+    print(
+        f"  UNMAPPED EXCHANGE in {symbol}{stamp}: {n_affected} of "
+        f"{n_equity_rows} equity rows ({share:.1%}) fell through to the "
+        f"assume-US branch and will resolve at no vendor.",
+        flush=True,
+    )
+    for ex, tickers in sorted(sink.items(), key=lambda kv: -len(kv[1])):
+        shown = ", ".join(sorted(tickers)[:12])
+        more = f" (+{len(tickers) - 12} more)" if len(tickers) > 12 else ""
+        print(f"      {ex!r}: {len(tickers)} — {shown}{more}", flush=True)
+    print(
+        "      Add the venue to _EXCHANGE_TO_YF_SUFFIX once its yfinance "
+        "suffix is verified, or to _EXCHANGE_ROUTE_UNAVAILABLE if there "
+        "is no usable vendor route.",
+        flush=True,
+    )
+    if strict and n_affected >= UNMAPPED_EXCHANGE_MIN_ROWS and (
+            share > UNMAPPED_EXCHANGE_MAX_SHARE):
+        raise UnmappedExchangeError(
+            f"{symbol}{stamp}: {n_affected} of {n_equity_rows} equity rows "
+            f"({share:.1%}) carry an unrecognised exchange "
+            f"({', '.join(sorted(sink))}), above the "
+            f"{UNMAPPED_EXCHANGE_MAX_SHARE:.0%} bound. Breadth computed on "
+            f"this roster would silently measure a smaller universe."
+        )
+
+
 def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
                          overrides: dict | None = None,
-                         location: str | None = None) -> str | None:
+                         location: str | None = None,
+                         unmapped: dict[str, list[str]] | None = None) -> str | None:
     """Map (CSV ticker, Exchange name, Location) to a yfinance-ready symbol.
 
     Order of resolution:
@@ -673,6 +799,13 @@ def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
       2. Exchange-based suffix mapping; market-group venues (e.g. "Nasdaq
          Omx Nordic") disambiguate the listing venue via `location`.
       3. If exchange unknown or empty → return raw ticker as-is (assume US).
+
+    Step 3 is the hazard this signature exists to expose. A non-US holding
+    whose venue is not in the map keeps its bare local code, is treated as a
+    US ticker, resolves at no vendor, and drops out of both the numerator
+    and the denominator of breadth — a silent coverage loss rather than an
+    error. Pass `unmapped` to collect exchange → [tickers] for every row
+    that takes it, then hand the result to `report_unmapped_exchanges`.
 
     Returns None when the ticker is empty / unparseable, or when the row is
     an unlisted placeholder with no tradable listing.
@@ -719,6 +852,11 @@ def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
         ex_key = exchange.strip()
         if ex_key in _UNLISTED_EXCHANGE_MARKERS:
             return None
+        if ex_key in _EXCHANGE_ROUTE_UNAVAILABLE:
+            # Known venue, known-bad vendor route. Fall through to the raw
+            # local code exactly as before so a downstream per-name override
+            # can still repair it, but do not report it as a discovery.
+            return _us_symbol(raw_ticker)
         suffix: str | None = _EXCHANGE_TO_YF_SUFFIX.get(ex_key)
         if suffix is None and ex_key in _AMBIGUOUS_EXCHANGE_BY_LOCATION:
             by_loc = _AMBIGUOUS_EXCHANGE_BY_LOCATION[ex_key]
@@ -739,12 +877,18 @@ def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
             else:
                 base = yf_base(raw_ticker, suffix)
             return f"{base}{suffix}" if base else None
+        # Non-empty exchange we do not recognise. This is the silent-loss
+        # path: record it so the caller can announce it.
+        if unmapped is not None:
+            unmapped.setdefault(ex_key, []).append(raw_ticker)
     # Fallback: assume US (no suffix). Apply share-class fix.
     return _us_symbol(raw_ticker)
 
 
 def parse_holdings(body: str, ticker_overrides: dict | None = None,
-                     apply_exchange_suffix: bool = False) -> list[str]:
+                     apply_exchange_suffix: bool = False,
+                     symbol: str | None = None,
+                     strict_exchanges: bool = True) -> list[str]:
     """Parse iShares CSV body and return Equity-only yfinance-ready ticker list,
     or [] if the file is empty.
 
@@ -776,6 +920,8 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
     overrides = ticker_overrides or {}
     tickers: list[str] = []
     seen: set[str] = set()
+    unmapped: dict[str, list[str]] = {}
+    n_equity = 0
     header: list[str] | None = None
     asset_class_idx: int | None = None
     exchange_idx: int | None = None
@@ -811,6 +957,7 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
         # cannot glue a dash to an exchange suffix (e.g. "-.PA").
         if raw in {"", "-"}:
             continue
+        n_equity += 1
         exchange = (row[exchange_idx].strip() if exchange_idx is not None
                                               and len(row) > exchange_idx
                                               else None)
@@ -819,7 +966,7 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
                                               else None)
         if apply_exchange_suffix:
             sym = _resolve_yf_symbol(raw, exchange, overrides,
-                                     location=location)
+                                     location=location, unmapped=unmapped)
         else:
             # Default US path: still apply dot → dash share-class normalisation
             # so the parser output is yfinance-ready (BRK.B → BRK-B).
@@ -832,6 +979,8 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
             continue
         seen.add(sym)
         tickers.append(sym)
+    report_unmapped_exchanges(unmapped, symbol or "?", n_equity,
+                              strict=strict_exchanges)
     return tickers
 
 
@@ -897,7 +1046,8 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
             if latency is not None:
                 latency.record_cache_hit()
             return parse_holdings(cached, ticker_overrides=overrides,
-                                   apply_exchange_suffix=apply_suffix)
+                                   apply_exchange_suffix=apply_suffix,
+                                   symbol=symbol)
         # Poisoned by an earlier run's anti-bot HTML — drop and fall through.
         csv_path.unlink()
 
@@ -914,7 +1064,7 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
                 return []
             return parse_holdings_json(
                 payload, target, ticker_overrides=overrides,
-                apply_exchange_suffix=apply_suffix,
+                apply_exchange_suffix=apply_suffix, symbol=symbol,
             )
 
     if latency is None:
@@ -931,7 +1081,7 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
             latency.record_served(time.monotonic() - t0, item=target)
     tickers = parse_holdings_json(
         payload, target, ticker_overrides=overrides,
-        apply_exchange_suffix=apply_suffix,
+        apply_exchange_suffix=apply_suffix, symbol=symbol,
     )
     if tickers:
         json_path.write_text(json.dumps(payload), encoding="utf-8")
