@@ -93,6 +93,27 @@ TILT_TICKER = "EEM"
 # The last point is always kept — it is the one figure a reader checks.
 MAX_CURVE_POINTS = 420
 
+# How far the breadth panel may legitimately run ahead of the NAV curve before
+# the pair is treated as broken rather than merely out of step. One session is
+# the routine case (the Xetra .DE lines publish about a session late, and
+# Strategy D's price line caps the blend); a full trading week is generous.
+MAX_PANEL_LEAD_SESSIONS = 5
+
+
+def _sessions_between(start_iso: str | None, end_iso: str | None) -> int | None:
+    """NYSE sessions from `start` to `end`, negative when end precedes start.
+
+    Counted in SESSIONS, not calendar days, so a long weekend or a holiday
+    week does not read as a staleness breach.
+    """
+    if not start_iso or not end_iso:
+        return None
+    import pandas_market_calendars as mcal
+    lo, hi = sorted((start_iso, end_iso))
+    sched = mcal.get_calendar("NYSE").schedule(start_date=lo, end_date=hi)
+    n = max(len(sched) - 1, 0)
+    return n if end_iso >= start_iso else -n
+
 DEPLOYED_KEY = "blend_35_35_10_20_gated_eem_tilted"
 
 
@@ -389,10 +410,43 @@ def assert_payload_usable(payload: dict) -> None:
     # The two sources are refreshed by different steps. If they disagree, one of
     # them is stale, and the page would date a holdings table against a curve
     # that ends somewhere else.
-    if payload.get("as_of") != payload.get("panel_end_date"):
+    # THIS USED TO ASSERT as_of == panel_end_date, AND HAD IT BACKWARDS.
+    #
+    # as_of is min(panel_end, live_anchor) and every series on the page is
+    # trimmed to it, so the one-date contract already holds in BOTH directions
+    # — the equality added nothing to it. What the equality actually tested was
+    # "the panel is not fresher than the NAV curve", which is true only when the
+    # PANEL is the staler of the two. So it PERMITTED the dangerous direction
+    # and REFUSED the benign one.
+    #
+    # The committed data shows the cost: panel_end 2026-08-07 against
+    # live_anchor 2026-08-12 gave as_of = 2026-08-07 = panel_end, and passed —
+    # publishing a regime panel five sessions stale. That is the shape of the
+    # failure that left the 2026-03-27 de-risk invisible for eleven weeks.
+    #
+    # Meanwhile the benign direction is now ROUTINE, not exceptional. The Xetra
+    # .DE lines publish about a session late (Thursday 13 Aug was absent at
+    # Friday decision time and had backfilled by Saturday), and Strategy D's
+    # price line caps the blend, so the NAV curve trails the US breadth panel
+    # by a session most weeks. Refusing to publish on that is refusing to
+    # publish at all.
+    #
+    # A fresher panel is bounded rather than forbidden: beyond a week the two
+    # sources are not merely out of step, something is broken.
+    lead = _sessions_between(payload.get("as_of"), payload.get("panel_end_date"))
+    if lead is None:
+        problems.append("cannot compare as_of with the panel end date")
+    elif lead < 0:
         problems.append(
-            f"live_track anchor {payload.get('as_of')} != risk_overlay panel end "
-            f"{payload.get('panel_end_date')} — one source is stale"
+            f"risk_overlay panel end {payload.get('panel_end_date')} is BEHIND "
+            f"the page as-of {payload.get('as_of')} — the regime headline "
+            f"would be older than the book it sits beside"
+        )
+    elif lead > MAX_PANEL_LEAD_SESSIONS:
+        problems.append(
+            f"risk_overlay panel end {payload.get('panel_end_date')} leads the "
+            f"page as-of {payload.get('as_of')} by {lead} sessions (limit "
+            f"{MAX_PANEL_LEAD_SESSIONS}) — one source is stale"
         )
     if payload["curve"]["dates"] and payload["curve"]["dates"][-1] != payload.get("as_of"):
         problems.append(

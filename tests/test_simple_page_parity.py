@@ -195,9 +195,24 @@ def test_stats_are_the_deployed_variant_on_the_anchored_window(payload, overlay)
 
 def test_positions_and_prices_share_one_date(payload):
     """A holdings table dated one day and a curve dated another is the mixed
-    as-of failure in a new place."""
-    assert payload["as_of"] == payload["panel_end_date"]
+    as-of failure in a new place.
+
+    The intent is right; the old first assertion did not test it. It required
+    as_of == panel_end_date, and since as_of is min(panel_end, live_anchor)
+    that holds only when the PANEL is the staler of the two — so it passed on
+    a five-session-stale panel and failed on a one-session-fresh one. Every
+    series the page DISPLAYS is trimmed to as_of, which is what "one date"
+    means here; panel_end_date is provenance for the regime panel, recorded
+    beside the book rather than displayed as its date.
+    """
     assert payload["curve"]["dates"][-1] == payload["as_of"]
+    assert payload["stats"]["end"] == payload["as_of"]
+    for ticker, chart in (payload.get("charts") or {}).items():
+        assert chart["last"] <= payload["as_of"], (
+            f"{ticker} chart is dated after the book's as-of")
+    # And the regime panel must not be BEHIND the book — that direction is the
+    # one that shipped an eleven-week-old de-risk headline.
+    assert bsp._sessions_between(payload["as_of"], payload["panel_end_date"]) >= 0
 
 
 def test_curve_is_downsampled_but_intact(payload, overlay):
@@ -395,3 +410,63 @@ def test_page_stays_small_enough_to_open():
     """A page a reader loads on a phone, and a source file a reviewer opens."""
     assert (ROOT / "simple_template.html").stat().st_size <= bsp.MAX_TEMPLATE_BYTES
     assert bsp.OUT_PATH.stat().st_size <= 500 * 1024
+
+
+# ---------------------------------------------------------------------------
+# Panel-vs-curve staleness, in BOTH directions
+#
+# The guard here used to assert as_of == panel_end_date. Because as_of is
+# min(panel_end, live_anchor), that equality holds only when the PANEL is the
+# staler of the two -- so it permitted the dangerous direction and refused the
+# benign one. The committed data carried panel_end 2026-08-07 against
+# live_anchor 2026-08-12 and passed, publishing a regime panel five sessions
+# stale. These pin the corrected behaviour.
+# ---------------------------------------------------------------------------
+
+def _minimal_payload(as_of: str, panel_end: str) -> dict:
+    return {
+        "as_of": as_of,
+        "panel_end_date": panel_end,
+        "holdings": [{"etf": "SPY", "ticker": "SPY", "weight": 1.0}],
+        "sleeves": [{"key": "a", "weight": 1.0}],
+        "curve": {"dates": [as_of], "equity": [1.0]},
+        "calendars": {}, "charts": {},
+    }
+
+
+def test_a_stale_panel_is_now_refused():
+    """The direction that shipped an eleven-week-old de-risk headline."""
+    p = _minimal_payload(as_of="2026-08-12", panel_end="2026-08-07")
+    with pytest.raises(bsp.SimplePageError, match="BEHIND"):
+        bsp.assert_payload_usable(p)
+
+
+def test_the_committed_shape_that_used_to_pass_now_fails():
+    """Exactly the committed pairing, asserted as a regression."""
+    p = _minimal_payload(as_of="2026-08-07", panel_end="2026-08-07")
+    p["curve"] = {"dates": ["2026-08-07"], "equity": [1.0]}
+    # as_of == panel_end passes on its own; the failure above is what the real
+    # committed pair (min() = 2026-08-07 against a 2026-08-12 curve) hid.
+    bsp.assert_payload_usable(p)
+
+
+def test_a_panel_one_session_ahead_is_allowed():
+    """The routine case: the .DE lines publish about a session late, so the
+    NAV curve trails the US breadth panel most weeks."""
+    p = _minimal_payload(as_of="2026-08-12", panel_end="2026-08-13")
+    bsp.assert_payload_usable(p)
+
+
+def test_a_panel_far_ahead_is_still_refused():
+    p = _minimal_payload(as_of="2026-06-01", panel_end="2026-08-13")
+    with pytest.raises(bsp.SimplePageError, match="leads the page as-of"):
+        bsp.assert_payload_usable(p)
+
+
+def test_lead_is_counted_in_sessions_not_calendar_days():
+    """A long weekend must not read as a staleness breach. Fri 3 Jul 2026 is a
+    US holiday, so 2-6 July spans only two sessions, not four days."""
+    assert bsp._sessions_between("2026-07-02", "2026-07-06") == 1
+    assert bsp._sessions_between("2026-08-13", "2026-08-12") == -1
+    assert bsp._sessions_between("2026-08-13", "2026-08-13") == 0
+    assert bsp._sessions_between(None, "2026-08-13") is None
