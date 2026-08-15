@@ -1,0 +1,132 @@
+name: Vendor availability probe
+
+# Records how far behind each venue's price bars are, at fixed hours.
+#
+# WHY THIS EXISTS. On 2026-08-14 the Xetra .DE lines had not published Thursday
+# 13 August at Friday decision time, and had by Saturday. Strategy D duly
+# ranked on Wednesday and produced an EXH3 -> EXV3 switch that reversed on the
+# correct session — a 1.3pp call decided by the wrong day, on 20% of NAV.
+#
+# The session guard now refuses to let that happen silently, but refusing is
+# not the same as knowing. Whether the Friday cadence is viable at all turns on
+# a question nobody has measured: at Friday 00:00 UTC — the decision hour — has
+# the vendor published Thursday for the European lines? Two observations
+# suggested a one-session lag. Two observations are an anecdote, and a rebalance
+# day is not worth moving on an anecdote.
+#
+# WHY A SEPARATE WORKFLOW FROM publication_lag.yml. That probe measures when
+# iShares publishes HOLDINGS; this one measures when the vendor publishes PRICE
+# BARS. Different series, different question. Folding this in would also have
+# meant adding a 00:00 UTC cron to that workflow, and its log already changed
+# sampling once (2026-08-09) with a standing instruction never to pool across
+# the change. Changing its cadence again to answer an unrelated question would
+# cost the series its comparability for no gain.
+#
+# CADENCE. Four times daily at 6-hour spacing. 00:00 UTC is the decision hour
+# itself and the reason for the schedule; 18:00 sits between the Xetra close
+# (15:30) and the NYSE close (20:00), which is where the European bar is
+# expected to arrive; 06:00 and 12:00 bracket the rest. GitHub cron fires late
+# under load, so every row carries its own probed_at_utc and the analysis uses
+# actual times, not intended ones.
+#
+# GUARD (CLAUDE.md: no unattended run without one). The failure mode is a probe
+# that exits 0 having recorded nothing — empty frames, null bars, green tick,
+# unanswered question. check_vendor_probe.py fails the job when this run
+# appended no row, when the newest row is not from this run, or when every line
+# came back empty. A PARTIAL result passes deliberately: one venue answering
+# while the other does not IS the asymmetry being measured. The commit runs
+# only after the guard passes.
+
+on:
+  schedule:
+    - cron: '0 0,6,12,18 * * *'
+  workflow_dispatch:
+
+# Never let two probes interleave: both append, and a late run could commit
+# over an earlier one's push.
+concurrency:
+  group: vendor-availability-probe
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Probe vendor bar availability
+        run: python scripts/probe_vendor_availability.py
+
+      - name: Guard — did this run record a usable observation?
+        run: python scripts/check_vendor_probe.py
+
+      # Hard-fail the push (2026-08-13, external review F1): a swallowed push
+      # rejection loses the observation on the runner, which is the silent hole
+      # the guard above exists to prevent.
+      - name: Commit the observation
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "Vendor Availability Probe"
+          git add data/vendor_availability_log.jsonl
+          if git diff --cached --quiet; then
+            echo "No new observation to commit."
+            exit 0
+          fi
+          git commit -m "Vendor availability probe $(date -u +'%Y-%m-%d %H:%M') UTC"
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "Pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected on attempt $attempt — rebasing onto origin/main."
+            git pull --rebase --autostash origin main || exit 1
+          done
+          echo "::error::Could not push vendor observations after 3 attempts."
+          exit 1
+
+      # A probe that quietly stops leaves a hole exactly where the answer was
+      # meant to be, and a hole reads as "nothing to report" afterwards. Alert
+      # the operator only — this is measurement, not a trading signal.
+      - name: Email failure alert
+        if: failure()
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          to: ${{ secrets.GMAIL_USER }}
+          from: Breadth Thrust Bot <${{ secrets.GMAIL_USER }}>
+          subject: '[FAIL] Vendor availability probe — nothing usable recorded'
+          body: |
+            The scheduled vendor-availability probe failed.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Either it could not reach the vendor, or it ran and every probed
+            line came back empty. Both leave a hole in the measurement window
+            rather than a wrong answer — but the window is what decides whether
+            the Friday rebalance cadence is viable, and holes in it push that
+            decision further out.
+
+            Nothing was committed: the guard runs before the commit step.

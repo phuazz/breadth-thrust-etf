@@ -137,3 +137,64 @@ def test_probe_is_not_a_guard():
     src = inspect.getsource(probe)
     assert "raise SystemExit(1)" not in src
     assert "sys.exit(1)" not in src
+
+
+# ---------------------------------------------------------------------------
+# The probe's guard — the failure mode is a green run that measured nothing
+# ---------------------------------------------------------------------------
+
+def _write_log(tmp_path, rows, stamp):
+    import json
+    p = tmp_path / "log.jsonl"
+    p.write_text(json.dumps({"probed_at_utc": stamp, "rows": rows}) + "\n",
+                 encoding="utf-8")
+    return p
+
+
+def test_guard_passes_when_lines_were_served(tmp_path):
+    import check_vendor_probe as g
+    now = _utc(2026, 8, 15, 2, 45)
+    p = _write_log(tmp_path, [{"ticker": "SPY", "last_bar": "2026-08-14"}],
+                   "2026-08-15T02:41:07+00:00")
+    r = g.evaluate(p, now_utc=now)
+    assert r["ok"] is True
+
+
+def test_guard_fails_when_every_line_came_back_empty(tmp_path):
+    """A green run that measured nothing is the whole reason this exists."""
+    import check_vendor_probe as g
+    p = _write_log(tmp_path, [{"ticker": "SPY", "last_bar": None},
+                              {"ticker": "EXV1.DE", "last_bar": None}],
+                   "2026-08-15T02:41:07+00:00")
+    r = g.evaluate(p, now_utc=_utc(2026, 8, 15, 2, 45))
+    assert r["ok"] is False and "empty" in r["summary"]
+
+
+def test_a_partial_result_passes_because_it_is_the_measurement(tmp_path):
+    """One venue answering while the other does not IS the asymmetry the probe
+    is for. Refusing it would discard the finding."""
+    import check_vendor_probe as g
+    p = _write_log(tmp_path, [{"ticker": "SPY", "last_bar": "2026-08-14"},
+                              {"ticker": "EXV1.DE", "last_bar": None}],
+                   "2026-08-15T02:41:07+00:00")
+    r = g.evaluate(p, now_utc=_utc(2026, 8, 15, 2, 45))
+    assert r["ok"] is True
+    assert "EXV1.DE" in r["empty"]
+
+
+def test_guard_fails_when_this_run_appended_nothing(tmp_path):
+    """A stale file re-read looks identical to a fresh observation unless the
+    timestamp is checked."""
+    import check_vendor_probe as g
+    p = _write_log(tmp_path, [{"ticker": "SPY", "last_bar": "2026-08-14"}],
+                   "2026-08-14T02:41:07+00:00")          # a day old
+    r = g.evaluate(p, now_utc=_utc(2026, 8, 15, 2, 45))
+    assert r["ok"] is False and "appended nothing" in r["summary"]
+
+
+def test_missing_or_unreadable_log_is_undetermined_not_pass(tmp_path):
+    import check_vendor_probe as g
+    assert g.evaluate(tmp_path / "nope.jsonl")["undetermined"] is True
+    bad = tmp_path / "bad.jsonl"
+    bad.write_text("{not json\n", encoding="utf-8")
+    assert g.evaluate(bad)["undetermined"] is True
