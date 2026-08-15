@@ -1930,3 +1930,134 @@ verified by the figure guard. Date erratum: earlier WS15/WS16 notes said
 "Friday 2026-08-15"; Friday is 2026-08-14 (2026-08-13 is a Thursday, verified).
 Technical record docx: to follow in a filing session; this memo section and the
 ledger row are the interim record.
+
+## Execution integrity — the Friday cadence meets the vendor (2026-08-14/15)
+
+CORRECTION AND DEFECT RECORD, not a pre-registered study. Follow-on to WS12/WS13
+(execution timing, 2026-08-12), which ADOPTED the Friday-morning cadence, and to
+WS16 (2026-08-13), which anchored the reduced page. Neither tested the
+precondition the cadence rests on: that the data a Thursday ranking needs is
+actually AVAILABLE on Friday morning. It is not, for sleeve D.
+
+### How it surfaced
+
+A Friday 21:15 SGT run — six hours after Xetra opened — emitted a Strategy D
+rebalance dated 14 August switching EXH3 (traded EXH4.DE) out for EXV3, 5.9% of
+NAV. It was wrong twice over.
+
+yfinance served a bar stamped 2026-08-14 while Xetra was still two hours from
+its 15:30 UTC close. A live quote, taken as a close. Separately, Thursday
+13 August — a real Xetra session — was absent from the .DE series entirely:
+verified against the calendar, still absent when today's bar was excluded, so a
+genuine gap rather than displacement. Because build_trade_history takes
+`decision_date = full_idx[i - 1]`, the hole moved the decision to WEDNESDAY.
+
+On Wednesday EXV3 breadth 73.6 beat EXH3 71.6. By Thursday that had reversed:
+EXH3 73.0 against EXV3 71.7. A 1.3pp call decided by the wrong session, with no
+error raised anywhere. Caught in preparation; nothing was traded on it.
+
+### Five defects, all fixed
+
+1. **No partial-bar guard on sleeves A and D.** `cap_to_last_completed_session`
+   has existed for weeks and its docstring names this exact failure — "a weekly
+   engine could stamp a rebalance on it". B and C call it. A and D do not: both
+   are served by `run_portfolio`, which never did. And D could not have used it
+   anyway — it is NYSE-only, and D trades Xetra. The one sleeve that broke is
+   the one the existing guard cannot express. Fixed by `session_bounds.py`
+   (venue-aware `trim_to_completed`); `cap_to_last_completed_session` now
+   DELEGATES to it, verified identical across 320 timestamps spanning 40 days.
+
+2. **The panel stopped at the last published roster Friday.** A bound on when
+   the constituent LIST refreshed, used as a bound on how far breadth could be
+   computed. Cost four sessions every Friday: the panel ended 7 August while the
+   decision read 13 August, so the wrapper's anchor guard could not pass on data
+   that was never produced. It stayed hidden because the 2026-08-12 run meant to
+   validate the re-timed guard ran `preflight_only=True`, under which the check
+   is skipped — it had never once executed.
+
+3. **The decision session was unrecorded.** All four engines computed
+   `decision_date` and discarded it, so a rebalance could not say which session
+   decided it. That is why the 12-versus-13 August substitution was unreadable
+   from the output. Now emitted in every trade record.
+
+4. **Mixed-vintage book.** `_collect_deployed_holdings` took `trades[-1]` per
+   sleeve regardless of date, composing a book NOBODY EVER HELD: D on 14 August
+   beside A and B on 7 August and C on 31 July. The as-of argument was already
+   passed and used for NAV weights; only the trade selection ignored it.
+
+5. **The publish guard had its comparison inverted.** `assert_payload_usable`
+   required `as_of == panel_end_date`. Since `as_of = min(panel_end,
+   live_anchor)` and the page trims every displayed series to it, the one-date
+   contract already held in both directions and the equality added nothing to
+   it. What it actually tested was "the panel is not FRESHER than the NAV
+   curve", true only when the panel is the staler of the two. It therefore
+   PERMITTED the dangerous direction and REFUSED the benign one. The committed
+   data proves the cost: panel_end 2026-08-07 against live_anchor 2026-08-12
+   gave as_of = 2026-08-07 = panel_end, and passed — publishing a regime
+   headline five sessions stale. Same shape as the failure that left the
+   2026-03-27 de-risk invisible for eleven weeks.
+
+### The one thing that was tested rather than fixed
+
+Defect 2's repair extends the panel tail, and the claim it rests on is that
+this is VALUE-PRESERVING: rosters publish weekly, so every mid-week day already
+resolves against the most recent snapshot <= T, and next week's run computes
+13 August against the 7 August roster too, because 14 August is not <= 13 August.
+
+`tools/verify_tail_extension.py` runs the real pipeline twice per ETF and
+compares every shared date. Its first IUUS run FAILED — 2 discrete
+highs_breadth values moved in 2022 and ~1,100 z-scores downstream of them. Two
+weaker controls then cleared it for the WRONG REASON: old-bound-twice let both
+runs hit a cache an earlier wide run had left, so the download asymmetry never
+occurred; old-bound-twice-with-the-cache-deleted removed the `prior` that
+`_revert_vendor_step_defects` compares against, disarming a guard that can
+revert a whole column. A control must hold the download STILL, not merely
+repeat it. With one price frame pinned for both runs, IUUS, EXH9 and CSP1 are
+BIT-IDENTICAL on every shared date — both venues, widest universe, 4 days
+gained, signals unchanged on the shared window.
+
+SEPARATE FINDING, not introduced here and not fixed here: that first IUUS
+result means recomputing a panel against a re-fetched price frame can move
+historical breadth. Pre-existing; deserves its own investigation.
+
+### The open question
+
+The Xetra price lines appear to publish about a session late. If systematic,
+sleeve D is STRUCTURALLY short on a Friday decision rather than occasionally
+short, which is a materially stronger objection to the cadence than the "2
+missing sessions in 516 over two years" the historical sweep showed — history
+is essentially complete because it backfills; only the live edge lags.
+
+A CORRECTION TO MY OWN FIRST DIAGNOSIS. I recorded that sleeve D's signal "was
+never late" and only the ETF wrapper lagged. That was one observation taken on
+Friday afternoon and it does not generalise. The first probe sample has the
+European CONSTITUENTS one session behind as well (SAP.DE, SIE.DE), against zero
+for the US proxies. What survives is narrower: the constituents lead the wrapper
+by roughly a session, but both trail the live session. Whether the constituents
+carry Thursday at Friday 08:00 SGT — the only moment the cadence question turns
+on — is UNMEASURED.
+
+`scripts/probe_vendor_availability.py` measures it; `.github/workflows/vendor_probe.yml`
+runs it four times daily at 00/06/12/18 UTC, the 00:00 slot being the decision
+hour itself. Deliberately separate from `publication_lag.yml`, which measures
+HOLDINGS publication — different series, never to be pooled, and folding this in
+would have re-timed a probe whose log already changed sampling once. Guarded by
+`check_vendor_probe.py` (fails on nothing appended, a stale row, or every line
+empty; a PARTIAL result passes, because one venue answering while another does
+not IS the asymmetry). Two fleet_watch rows, git and run.
+
+DO NOT MOVE A REBALANCE DAY on fewer than two or three weeks of those samples.
+
+### Deployed position, unchanged
+
+Rank on Thursday's close, fill Friday at the close, market-on-close. That is
+what the engines backtest (`get_loc(rd)-1`), and WS12/WS13 settled it. Nothing
+in this week's work reopens that decision; it repairs the machinery that was
+supposed to implement it. `scripts/live_targets.py` is the Friday-morning
+artefact — it ranks each sleeve on its own signal at the last completed session
+on its own venue and reports HOLD rather than ranking a session early.
+
+Commits: 466646b (degraded-endpoint circuit), 9c03cbb (roster integrity),
+e710bc5 (panel tail), ea884c7 (session bounds), 1237546 (publish guard),
+b4bfd13 (live targets + probe), 79a7b2c (probe schedule), 5225b59 (README).
+Suite 1,154 -> 1,239.
