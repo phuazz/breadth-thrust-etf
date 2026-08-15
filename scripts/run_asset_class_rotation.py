@@ -75,6 +75,9 @@ from nyse_sessions import (  # noqa: E402
     last_completed_session,
     yf_fetch_end,
 )
+from price_panel_guard import (  # noqa: E402
+    assert_attribution_sane, assert_panel_usable,
+)
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -563,6 +566,12 @@ def main() -> int:
     eligible = closes.index[MA_PERIOD]
     print(f"  Eligible start: {eligible.date()} (200d warm-up)")
 
+    # The dropna() above makes coverage trivially complete, so what this
+    # catches for B is the other shapes: a flat column, a member trailing the
+    # panel tail, or a series whose history was truncated to a vendor
+    # fallback window. See the 2026-08-15 note in price_panel_guard.py.
+    assert_panel_usable(closes, "Strategy B closes", window_start=eligible)
+
     print("\nComputing signal (distance above 200d MA) ...")
     signal = compute_signal(closes)
 
@@ -623,6 +632,12 @@ def main() -> int:
                             if total_all != 0 else 0.0
                         ),
                     }
+
+                # Last gate before anything is written — a large days_held
+                # beside an exactly zero return is a price-cache fault, never
+                # a market outcome.
+                assert_attribution_sane(attribution,
+                                        "Strategy B attribution")
 
                 # Weekly allocation snapshot for stacked-area chart
                 # Sample at the ACTUAL rebalance grid, not every Friday:

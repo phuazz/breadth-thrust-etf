@@ -21,6 +21,15 @@ Runs the complete dependency chain in the right order:
         and several Method-tab tables. Easy to forget — the original
         ma200_sweep silent-staleness bug was a missed manual step here.)
 
+    2b. Engine price caches: export_holdings_prices --refresh-caches-only
+       (repairs data/{ticker}_ohlc_cache.parquet for every sleeve A and D
+        proxy. It MUST precede step 3: on 2026-08-15 Strategy A ran at
+        16:17 against a broken SOXX series that this repaired at 16:36,
+        publishing sleeve A at 0.76 / 11.2% / +130% against committed
+        0.93 / 16.9% / +238% and dragging the blend from 1.24 / +15.0% to
+        1.20 / +13.0%. Only the CACHE half moved; the panel export at
+        step 6 reads the sleeve JSONs the engines write and stays there.)
+
     3. Strategy engines: topk, asset_class, thematic, europe
        (Strategy A/B/C/D headline equity, walk-forward stats, allocations.)
 
@@ -232,6 +241,27 @@ def main() -> int:
     if not ok:
         failures.append("run_ma200_sweep")
 
+    # ----- Step 2b: engine-facing price caches (MUST precede step 3) -----
+    # Added 2026-08-15. Strategy A ran at 16:17 against a broken SOXX series
+    # that export_holdings_prices repaired at 16:36 — three steps too late.
+    # The sleeve published Sharpe 0.76 / CAGR 11.2% / +130% against committed
+    # 0.93 / 16.9% / +238% and dragged the blend from 1.24 / +15.0% to
+    # 1.20 / +13.0%; multi_strategy, portfolio_construction, phase7, phase8,
+    # docs/index.html and the factsheet PDF all inherited it silently.
+    #
+    # This is the half of export_holdings_prices with no dependency on engine
+    # output: it takes its symbols from etf_registry and its fetch window from
+    # the constituent caches step 1 just wrote. The PANEL half stays at step 6
+    # because collect_book_symbols reads the sleeve JSONs the engines write —
+    # that is the circular dependency, and splitting the script is what
+    # resolves it.
+    ok, dt = run_step("engine price caches (repair before the engines read them)",
+                       [py, "scripts/export_holdings_prices.py",
+                        "--refresh-caches-only"])
+    timings.append(("export_holdings_prices --refresh-caches-only", dt))
+    if not ok:
+        failures.append("export_holdings_prices --refresh-caches-only")
+
     # ----- Step 3: strategy engines -----
     strategy_steps = [
         ("Strategy A (topk_robustness)", "scripts/run_topk_robustness.py"),
@@ -303,6 +333,13 @@ def main() -> int:
     #     shared end_friday, healthy endpoints, no critical staleness,
     #     breadth ending on each ETF's own calendar, and no state lost
     #     versus the committed baseline.
+    #   - engine price panels: FAIL fails the run. Added 2026-08-15, when
+    #     all four checks above passed a sleeve A backtested on a broken
+    #     SOXX series. The other four ask whether the panels are fresh,
+    #     coherent and correctly paired; this one asks whether the close
+    #     series an engine actually priced its universe off exists across
+    #     the window it backtested, and it reads the tell directly — a
+    #     large days_held beside an annualised return of exactly 0.0.
     #   - freshness headroom: informational tripwire, exits 0 by design
     #     (it forecasts the CI hard guard; right after a refresh it
     #     should report lag 0-1). Recorded for timing only.
@@ -314,6 +351,8 @@ def main() -> int:
             [py, "scripts/check_pair_integrity.py"]),
         ("VERIFY refresh guard (cross-panel coherence)",
             [py, "scripts/check_refresh_guard.py"]),
+        ("VERIFY engine price panels (sleeve vs the prices it backtested on)",
+            [py, "scripts/check_engine_price_panels.py"]),
         ("VERIFY freshness headroom (informational)",
             [py, "scripts/check_freshness_headroom.py"]),
     ]

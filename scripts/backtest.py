@@ -151,6 +151,39 @@ def load_breadth(etf: str = DEFAULT_ETF) -> tuple[pd.DataFrame, list[dict]]:
     return df, blob["signals"]
 
 
+def _degenerate_ohlc_reason(frame: "pd.DataFrame | None",
+                            require_ohlc: bool = False) -> str | None:
+    """Why ``frame`` cannot be priced off, or None when it can.
+
+    Deliberately weak: it asks only whether the frame is a price series at
+    all, not whether it is the RIGHT one. Window-relative questions —
+    coverage, holes, a truncated start — belong to price_panel_guard, which
+    sees the whole panel and knows the backtest window.
+
+    ``require_ohlc`` is set for a fresh FETCH, which is about to be sliced to
+    all four columns and would otherwise raise KeyError on a Close-only
+    response. It is NOT set for a cached frame: the yfinance backfill in
+    export_holdings_prices wrote Close-only caches for the non-engine
+    tickers, and those are perfectly usable as a fallback.
+    """
+    if frame is None or len(frame) == 0:
+        return "empty response"
+    columns = list(getattr(frame, "columns", []))
+    if "Close" not in columns:
+        return f"no Close column (got {columns})"
+    if require_ohlc:
+        missing = [c for c in ("Open", "High", "Low", "Close")
+                   if c not in columns]
+        if missing:
+            return f"missing {', '.join(missing)} (got {columns})"
+    close = pd.to_numeric(frame["Close"], errors="coerce").dropna()
+    if len(close) < 2:
+        return f"{len(close)} usable close(s)"
+    if close.nunique() < 2:
+        return f"flat across {len(close)} sessions"
+    return None
+
+
 def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
                        yf_symbol: str | None = None) -> pd.DataFrame:
     """Download the parent ETF's OHLC + Close, with parquet cache.
@@ -160,22 +193,61 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
     Pass etf="CSP1" to fetch S&P 500 (cache at data/csp1_ohlc_cache.parquet).
     yf_symbol overrides the yfinance ticker; useful when the parent ETF and
     the yfinance ticker differ (e.g. CSP1 trades in London as CSP1.L).
+
+    A DEGENERATE RESPONSE IS NEVER WRITTEN AND NEVER RETURNED (2026-08-15).
+    Note first that the cache-reuse branch below almost never fires for the
+    sleeve panels: ``run_portfolio._build_panels_for`` asks for
+    ``[constituent_start - 10d, constituent_end + 5d]``, and no cache can
+    reach five days past the last session, so the engines re-fetch every run
+    and the old code wrote whatever came back straight over a good file. That
+    is how SOXX's cache came to be broken at 16:17 on 2026-08-15 and repaired
+    only at 16:36, after sleeve A had already published Sharpe 0.76 against a
+    true 0.93. Now an empty, one-bar or flat response leaves the cache alone
+    and the cached series is used instead; if there is no usable cache either,
+    this raises rather than handing an engine something it will silently
+    backtest.
     """
+    from price_panel_guard import DegeneratePriceError  # noqa: PLC0415
+
     cache_path = paths_for(etf)["ohlc_cache"]
+    cached = None
     if cache_path.exists():
-        cached = pd.read_parquet(cache_path)
-        if (cached.index.min() <= pd.Timestamp(start)
-                and cached.index.max() >= pd.Timestamp(end)):
-            return cached.loc[start:end]
+        try:
+            cached = pd.read_parquet(cache_path)
+        except Exception:
+            cached = None
+        if cached is not None and len(cached):
+            if (cached.index.min() <= pd.Timestamp(start)
+                    and cached.index.max() >= pd.Timestamp(end)):
+                return cached.loc[start:end]
     sym = yf_symbol or etf
     raw = yf.download(sym, start=start, end=end, auto_adjust=True,
                       progress=False, threads=False)
     if isinstance(raw.columns, pd.MultiIndex):
         raw.columns = raw.columns.get_level_values(0)
-    raw = raw[["Open", "High", "Low", "Close"]].copy()
-    raw.index = pd.to_datetime(raw.index).tz_localize(None)
-    raw.to_parquet(cache_path)
-    return raw
+    why = _degenerate_ohlc_reason(raw, require_ohlc=True)
+    if why is None:
+        raw = raw[["Open", "High", "Low", "Close"]].copy()
+        raw.index = pd.to_datetime(raw.index).tz_localize(None)
+        raw.to_parquet(cache_path)
+        return raw
+
+    print(f"  REFUSED cache write for {sym}: the fetch is unusable ({why}). "
+          f"{cache_path.name} is left as it was.", flush=True)
+    if cached is not None:
+        window = cached.loc[start:end]
+        if _degenerate_ohlc_reason(window) is None:
+            print(f"  Falling back to the cached {sym} series "
+                  f"({window.index.min().date()} -> {window.index.max().date()}, "
+                  f"{len(window)} bars).", flush=True)
+            return window
+    raise DegeneratePriceError(
+        f"{sym}: the vendor returned an unusable series ({why}) and "
+        f"{cache_path.name} has nothing usable for {start} -> {end}. Refusing to "
+        f"return a price series an engine would backtest on — that is the "
+        f"2026-08-15 SOXX defect. Run `python scripts/export_holdings_prices."
+        f"py --refresh-caches-only` and retry."
+    )
 
 
 def download_spy_close(start: str, end: str) -> pd.Series:

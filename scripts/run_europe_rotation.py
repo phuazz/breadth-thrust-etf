@@ -44,6 +44,9 @@ from run_portfolio import _build_panels_for, run_portfolio, top_k_breadth_weight
 from run_improvements import compute_stats  # noqa: E402
 from run_ma200_sweep import MA_PERIOD  # noqa: E402
 from backtest import download_spy_close  # noqa: E402
+from price_panel_guard import (  # noqa: E402
+    assert_attribution_sane, assert_panel_usable,
+)
 
 # Phase 12 cost calibration: Strategy D trades 5 Stoxx Europe 600 sector
 # UCITS on Xetra in EUR (EXV1.DE banks, EXH1.DE oil & gas, EXV3.DE tech,
@@ -203,6 +206,11 @@ def main() -> int:
                 if (closes.index >= eligible).any() else closes.index[MA_PERIOD])
     print(f"  Eligible start: {eligible.date()}")
 
+    # Judged on the USD panel, which is what the engine ranks and marks on.
+    # Checking the EUR side would pass a member whose FX leg holed the series
+    # after conversion. See the 2026-08-15 note in price_panel_guard.py.
+    assert_panel_usable(closes, "Strategy D closes (USD)", window_start=eligible)
+
     # K x cadence grid
     print(f"\n=== K × cadence sensitivity (Strategy D: Europe sectors) ===")
     grid: dict[str, dict[str, dict]] = {}
@@ -266,6 +274,12 @@ def main() -> int:
                             if total_all != 0 else 0.0
                         ),
                     }
+
+                # Last gate before anything is written — a large days_held
+                # beside an exactly zero return is a price-cache fault, never
+                # a market outcome.
+                assert_attribution_sane(attribution,
+                                        "Strategy D attribution")
 
                 # Sample at the ACTUAL rebalance grid, not every Friday: under
                 # a holiday-aware cadence a decision can land on a Thursday,

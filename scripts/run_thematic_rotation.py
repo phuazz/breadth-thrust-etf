@@ -81,6 +81,9 @@ from nyse_sessions import (  # noqa: E402
     last_completed_session,
     yf_fetch_end,
 )
+from price_panel_guard import (  # noqa: E402
+    assert_attribution_sane, assert_panel_usable,
+)
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -909,6 +912,14 @@ def main() -> int:
         print(f"  Late-inception tickers (not constraining window): "
               f"{ {t: d.date() for t, d in late_starts.items() if d} }")
 
+    # The declared late-inception members are exempted from the "starts too
+    # far into the window" rule and from nothing else — they are still held
+    # to coverage, interior gaps and the panel tail. Exempting them wholesale
+    # would blind the guard to exactly the sleeve member most likely to have
+    # a thin vendor history. See the 2026-08-15 note in price_panel_guard.py.
+    assert_panel_usable(closes, "Strategy C closes", window_start=eligible,
+                        allow_late=set(late_inception_tickers))
+
     print("\nComputing signal (distance above 200d MA) ...")
     signal = compute_signal(closes)
 
@@ -968,6 +979,12 @@ def main() -> int:
                             if total_all != 0 else 0.0
                         ),
                     }
+
+                # Last gate before anything is written — a large days_held
+                # beside an exactly zero return is a price-cache fault, never
+                # a market outcome.
+                assert_attribution_sane(attribution,
+                                        "Strategy C attribution")
 
                 # Weekly allocation snapshot (Fridays only) for stacked-area
                 # Sample at the ACTUAL rebalance grid, not every Friday:
