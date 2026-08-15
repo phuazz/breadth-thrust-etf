@@ -2061,3 +2061,48 @@ Commits: 466646b (degraded-endpoint circuit), 9c03cbb (roster integrity),
 e710bc5 (panel tail), ea884c7 (session bounds), 1237546 (publish guard),
 b4bfd13 (live targets + probe), 79a7b2c (probe schedule), 5225b59 (README).
 Suite 1,154 -> 1,239.
+
+### Addendum, same day — the fix above shipped with its own bound defect
+
+Found while investigating why the 14 candidate Europe supersectors would not
+recompute. There were no broken tickers: current-roster coverage is 100% on 13
+of the 14 and exactly ONE ticker is unresolved across all of them (BT.A.L).
+The 404s in the logs — 1624733D.PA, KYGA.IR, SPSN1.SW — are long-delisted
+historical constituents, not holdings.
+
+The panels reported "0 of 8 current constituents carry a 50-day average"
+because the file-level coverage floor reads the FINAL ROW, and the tail
+extension had pushed that row one session past the data: EXH6's roster priced
+to 2026-08-13 against a last completed XETR session of 2026-08-14.
+
+`schedule_end` took the last completed session on the VENUE CALENDAR — a fact
+about the exchange — where it needed whether the vendor had published the
+CONSTITUENT prices for it. THE SAME CONFLATION AS THE SLEEVE D DEFECT, third
+occurrence this week.
+
+NOT confined to the research panels. Verified before fixing: EXV1, EXH1 and
+EXH9 all carried prices only to 2026-08-13, so every DEPLOYED Europe panel
+would have failed identically on its next run — 20% of NAV, surfacing next
+Friday as "the European sleeve stopped updating".
+
+THE FIX NEEDED A SECOND PASS, which is the part worth carrying. The first cap
+used MIN_BREADTH_NAMES — the ROW-level floor of 5 — while the guard that
+refuses the write is the FILE-level 50% coverage floor. For small panels they
+agree; EXH3 had 8 of 107 priced on 2026-08-14, above 5 and far below 50%, so
+the cap admitted a session the guard then rejected. 17 of 19 wrote, the two
+largest refused, one a deployed sleeve member. A CAP THAT DOES NOT SHARE THE
+GUARD'S CRITERION IS A SECOND OPINION, NOT A BOUND. It now derives its
+threshold from MIN_ROSTER_COVERAGE_FAIL.
+
+Does not disturb the value-preservation result: that concerns historical values
+under the extension and still holds bit-identical. This is a bound defect at
+the tail, a different failure.
+
+Also corrected the same day: the Data tab labelled ICHN, IJPN, ITWN and NDIA
+`deployed` when they are research-only against a sleeve rejected in record
+2026-07-02-breadth-thrust-etf-2, and emitted `registered` for pruned IUIT — a
+value the page's own legend and filter do not carry, so Monitored matched
+nothing and IUIT was unreachable by any filter. Now 19 / 14 / 5.
+
+All 38 panels current: 33 end 2026-08-13, 5 end 2026-08-14 where constituents
+price a session further. Commits 72ff181, 9a78a6d. Suite 1,239 -> 1,256.
