@@ -802,14 +802,68 @@ def main() -> int:
     # name); the default NYSE preserves behaviour for US-constituent funds.
     # The Europe sector funds use XETR so European trading days are sampled
     # and US-only holidays are not.
+    # DO NOT EXTEND PAST THE DATA. Bug introduced by the tail extension itself
+    # (e710bc5) and caught 2026-08-15 on the candidate supersectors.
+    #
+    # schedule_end was the last COMPLETED session on the venue calendar, which
+    # asks a question about the exchange. Whether the vendor has published the
+    # CONSTITUENT prices for that session is a different question, and on the
+    # European lines the answer lags by about a session. Run after Xetra closes
+    # but before the constituents publish — the whole Saturday morning, and
+    # possibly Friday morning too — the panel gained a final row on which NO
+    # current constituent had a price. The file-level coverage floor reads that
+    # last row, saw "0 of 8 carry a 50-day average", and refused to write.
+    #
+    # It looked like fourteen broken research panels. Coverage was in fact 100%
+    # on thirteen of them and the tickers were fine; the panel was simply
+    # reaching one session further than the data. EVERY DEPLOYED EUROPE PANEL
+    # would have failed identically on the next run — verified: EXV1, EXH1 and
+    # EXH9 all carry constituent prices only to 2026-08-13 against a last
+    # completed XETR session of 2026-08-14.
+    #
+    # So cap at the last session the roster in force actually has priced,
+    # against the SAME threshold the file-level guard applies, and never below
+    # the roster Friday.
+    #
+    # Calibrating this to MIN_BREADTH_NAMES was the first attempt and it was
+    # wrong for large rosters: EXH3 had 8 of 107 names priced on 2026-08-14,
+    # which clears an absolute floor of 5 and fails a 50% one, so the cap
+    # admitted a session the guard then rejected — 17 of 19 panels written and
+    # the two biggest refused. A cap that does not share the guard's criterion
+    # is a second opinion, not a bound.
+    if snapshot_dates:
+        roster_now = active_roster_at(snapshot_dates, snapshot_map, snapshot_dates[-1])
+        held = [t for t in roster_now if t in prices.columns]
+        if held:
+            need = max(MIN_BREADTH_NAMES,
+                       int(MIN_ROSTER_COVERAGE_FAIL * len(roster_now)) + 1)
+            covered = prices[held].notna().sum(axis=1)
+            ok = covered.index[covered >= need]
+            if len(ok):
+                capped = max(end_friday, min(schedule_end, pd.Timestamp(ok.max())))
+                if capped < schedule_end:
+                    print(f"  Panel capped at {capped.date()}: the venue's last "
+                          f"completed session is {schedule_end.date()}, but the "
+                          f"constituents are only priced to {pd.Timestamp(ok.max()).date()}.",
+                          flush=True)
+                schedule_end = capped
+
     schedule = cal.schedule(start_date=start_friday, end_date=schedule_end)
     trading_days = pd.DatetimeIndex(schedule.index.normalize().tz_localize(None))
     print(f"  Trading calendar: {cal_name}; trading days in window: "
           f"{len(trading_days)}")
     if panel_end is not None and schedule_end > end_friday:
+        # Say which bound actually bit. Before the cap existed these were always
+        # the same date, so naming the venue session was harmless; now they can
+        # differ, and a line that says "the last completed session" when it is
+        # reporting the price cap is the kind of confident-and-wrong statement
+        # this session has spent its time removing.
+        reached = ("the last completed {} session".format(cal_name)
+                   if schedule_end == panel_end
+                   else "the last session the constituents are priced for")
         print(f"  Panel extends past the roster's last Friday "
-              f"({end_friday.date()}) to the last completed {cal_name} "
-              f"session ({schedule_end.date()}), on the carried-forward "
+              f"({end_friday.date()}) to {reached} "
+              f"({schedule_end.date()}), on the carried-forward "
               f"roster.", flush=True)
 
     # Walk each trading day, build the breadth panel.
