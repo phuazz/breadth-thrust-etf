@@ -215,6 +215,12 @@ def _reference_date(b: dict) -> str | None:
     the result was today's roster priced at a May anchor, a 2.2pp
     discrepancy against the panel's own number.
 
+    (Those ITWN figures are the historical motivation and no longer describe
+    the panel. 7 of the 8 unpriced names were Taipei Exchange listings lost
+    to an unmapped venue string, fixed 2026-08-16; ITWN now runs at 98.7%.
+    The design argument stands on IDP6 regardless — it carries ~332 unpriced
+    constituents out of ~603 as normal operation.)
+
     This is the same lesson as MIN_BREADTH_NAMES: what makes a bar
     untrustworthy is a break from the panel's own norm, not its ratio to a
     roster that may contain structurally unpriceable names. IDP6 carries

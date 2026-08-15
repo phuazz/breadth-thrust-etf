@@ -175,6 +175,16 @@ SIGNAL_ELIGIBLE_AFTER = 252
 # history. Then a clean gap to the two failures at 61.5% and 5.4%. WARN
 # sits below the structural tail so ITWN does not cry wolf every week;
 # FAIL sits below anything a real roster has produced.
+#
+# 2026-08-16: ITWN's half of that tail was NOT structural. Its 89.7% was the
+# unmapped "Gretai Securities Market" venue dropping 7 Taipei Exchange names
+# into the roster as unpriceable bare codes; with the venue mapped it now
+# runs at 98.7% and the panel sits inside the healthy band. So this floor is
+# looser than the evidence now supports — the remaining tail is ICHN at
+# 93.6% alone. Left at 0.85 deliberately: tightening a guard threshold
+# changes the behaviour of all 38 panels and is a separate decision from
+# fixing the resolver, and a floor that is too loose still catches the
+# failures it was built for (61.5% and 5.4%). Revisit with the owner.
 MIN_ROSTER_COVERAGE_WARN = 0.85
 MIN_ROSTER_COVERAGE_FAIL = 0.50
 
