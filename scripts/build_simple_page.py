@@ -80,14 +80,30 @@ SLEEVE_LABELS = {
     "strategy_c": "Thematic",
     "strategy_d": "Europe sectors",
     "tilt": "Emerging markets tilt",
+    "reserve": "Cash reserve",
 }
 # Fixed display order. It is also the adjacency order the categorical palette
 # in simple_template.html was validated against, so do not reorder without
 # re-running the palette validator.
-SLEEVE_ORDER = ["strategy_a", "strategy_b", "strategy_c", "strategy_d", "tilt"]
+SLEEVE_ORDER = ["strategy_a", "strategy_b", "strategy_c", "strategy_d", "tilt",
+                "reserve"]
 
 # EEM is held solely via the overlay and so appears in no sleeve's own weights.
 TILT_TICKER = "EEM"
+
+# The overlay's de-risk instrument is the OTHER position held purely by the
+# overlay, and it is read from risk_overlay.json rather than named here so a
+# parameter change cannot silently break the page.
+#
+# It gets its own bucket rather than being folded into the tilt or dropped as
+# a rounding residual. Those were the two tempting shortcuts on 2026-08-15,
+# when it first appeared holding one basis point, and both are wrong for the
+# same reason: the weight is not always small. Under a de-risk the gate parks
+# derisk_fraction of NAV here — half the book on current parameters — and a
+# page that had learned to hide it, or to file it under an emerging-markets
+# tilt, would misstate the portfolio at precisely the moment the reader most
+# needs it right.
+RESERVE_KEY = "reserve"
 
 # The page is read line by line, so the curve is downsampled to roughly weekly.
 # The last point is always kept — it is the one figure a reader checks.
@@ -272,6 +288,10 @@ def build_payload() -> dict:
         )
     if TILT_TICKER in effective:
         membership.setdefault(TILT_TICKER, "tilt")
+
+    fallback_ticker = (overlay.get("gate_parameters") or {}).get("fallback_ticker")
+    if fallback_ticker and fallback_ticker in effective:
+        membership.setdefault(fallback_ticker, RESERVE_KEY)
 
     unassigned = sorted(set(effective) - set(membership))
     if unassigned:

@@ -138,13 +138,19 @@ def test_non_europe_tickers_are_not_rewritten():
 # Sleeve split
 # --------------------------------------------------------------------------
 
-def test_sleeve_split_matches_sleeve_membership(payload, live):
+def test_sleeve_split_matches_sleeve_membership(payload, live, overlay):
     expected: dict[str, float] = {}
     membership = {}
     for key, sleeve in live["sleeve_extensions"].items():
         for ticker in sleeve["weights"]:
             membership[ticker] = key
     membership[bsp.TILT_TICKER] = "tilt"
+    # The overlay holds two positions that belong to no strategy sleeve: the
+    # EEM tilt and the de-risk instrument. Resolved from config here, as the
+    # builder does, so a parameter change breaks both together or neither.
+    fallback = (overlay.get("gate_parameters") or {}).get("fallback_ticker")
+    if fallback:
+        membership[fallback] = bsp.RESERVE_KEY
     for ticker, weight in live["effective_weights"].items():
         k = membership[ticker]
         expected[k] = expected.get(k, 0.0) + weight
@@ -157,6 +163,56 @@ def test_sleeve_split_matches_sleeve_membership(payload, live):
 
 def test_sleeve_split_sums_to_nav(payload):
     assert sum(s["weight"] for s in payload["sleeves"]) == pytest.approx(1.0, abs=TOL)
+
+
+def _rebuild_with_weights(tmp_path, monkeypatch, live, overlay, weights):
+    """Build the payload against a synthetic book, leaving the repo untouched."""
+    names = json.loads((ROOT / "data" / "etf_names.json").read_text(encoding="utf-8"))
+    live = {**live, "effective_weights": weights}
+    for src, obj in (("live_track.json", live),
+                     ("risk_overlay.json", overlay),
+                     ("etf_names.json", names)):
+        (tmp_path / src).write_text(json.dumps(obj), encoding="utf-8")
+    monkeypatch.setattr(bsp, "LIVE_TRACK", tmp_path / "live_track.json")
+    monkeypatch.setattr(bsp, "RISK_OVERLAY", tmp_path / "risk_overlay.json")
+    monkeypatch.setattr(bsp, "ETF_NAMES", tmp_path / "etf_names.json")
+    return bsp.build_payload()
+
+
+def test_derisk_reserve_is_shown_at_both_ends_of_its_range(
+        tmp_path, monkeypatch, live, overlay):
+    """The overlay's de-risk instrument must reach the page whether it holds
+    one basis point or half the book.
+
+    Both failure modes were live options on 2026-08-15. Folding it into the
+    tilt bucket would have made a 50% cash position read as an emerging-market
+    tilt; dropping it as a sub-threshold residual would have made the split
+    stop summing to NAV the moment the gate fired. The residual case is the
+    one that occurs in calm markets and the large case is the one that occurs
+    when a reader most needs the page to be right, so both are pinned.
+    """
+    fallback = (overlay.get("gate_parameters") or {}).get("fallback_ticker")
+    assert fallback, "risk_overlay.json carries no gate_parameters.fallback_ticker"
+
+    sleeve_only = {t: w for t, w in live["effective_weights"].items()
+                   if t != fallback}
+    scale = sum(sleeve_only.values())
+
+    for reserve_w in (0.0001, 0.5):
+        weights = {t: w / scale * (1 - reserve_w) for t, w in sleeve_only.items()}
+        weights[fallback] = reserve_w
+        payload = _rebuild_with_weights(tmp_path, monkeypatch, live, overlay, weights)
+
+        split = {s["key"]: s["weight"] for s in payload["sleeves"]}
+        assert bsp.RESERVE_KEY in split, (
+            f"reserve bucket vanished at {reserve_w:.2%} of NAV")
+        assert split[bsp.RESERVE_KEY] == pytest.approx(reserve_w, abs=TOL)
+        assert sum(split.values()) == pytest.approx(1.0, abs=TOL)
+        # It must not be quietly filed under the tilt: that bucket carries the
+        # tilt's own weight and nothing else.
+        assert split.get("tilt") == pytest.approx(weights[bsp.TILT_TICKER], abs=TOL)
+        held = {h["panel_key"] for h in payload["holdings"]}
+        assert fallback in held, f"{fallback} dropped from holdings at {reserve_w:.2%}"
 
 
 def test_sleeve_order_is_the_validated_palette_order(payload):

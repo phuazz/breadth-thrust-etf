@@ -55,20 +55,32 @@
   --measure: 31rem;
 }
 
-/* Categorical sleeve hues. Fixed order A -> B -> C -> D -> tilt; this is the
-   adjacency the palette was validated against (validate_palette.js, light,
-   all six checks pass). Reordering can break the CVD separation check. */
+/* Categorical sleeve hues. Fixed order A -> B -> C -> D -> tilt -> reserve;
+   this is the adjacency the palette was validated against (validate_palette.js,
+   light, all six checks pass). Reordering can break the CVD separation check.
+
+   CAVEAT ON THE SIXTH HUE (reserve, 2026-08-15). The first five were validated
+   by validate_palette.js, but that script is NOT in this repository, so the
+   reserve hue could not be put through the same checks and this comment must
+   not be read as saying it was. What IS established: green was free — neither
+   --g nor --r was referenced anywhere in this template, so it carries no
+   gain/loss meaning here and reusing it introduces no semantic clash; and it
+   was picked over red because a cash reserve reading as danger would be worse
+   than one reading as safety. Re-run the validator against all six before
+   treating the CVD separation as proven. */
 :root {
   --sleeve-strategy_a: var(--b);
   --sleeve-strategy_b: var(--a);
   --sleeve-strategy_c: var(--c);
   --sleeve-strategy_d: var(--pk);
   --sleeve-tilt: var(--p);
+  --sleeve-reserve: var(--g);
   --sleeve-strategy_a-text: var(--b-text);
   --sleeve-strategy_b-text: var(--a-text);
   --sleeve-strategy_c-text: var(--c-text);
   --sleeve-strategy_d-text: var(--pk-text);
   --sleeve-tilt-text: var(--p-text);
+  --sleeve-reserve-text: var(--g-text);
 }
 
 * { box-sizing: border-box; }

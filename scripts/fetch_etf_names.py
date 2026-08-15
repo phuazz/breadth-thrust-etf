@@ -29,8 +29,32 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from scanner_universe import resolve_universe  # noqa: E402
 
 NAMES_PATH = ROOT / "data" / "etf_names.json"
+RISK_OVERLAY_PATH = ROOT / "data" / "risk_overlay.json"
 RETRIES = 3
 RETRY_PAUSE_SECONDS = 2.0
+
+
+def overlay_fallback_ticker() -> str | None:
+    """The risk overlay's de-risk instrument, read from its own config.
+
+    It is not a scanner instrument, so resolve_universe() does not return it,
+    but it CAN appear in the book: when the regime gate de-risks, NAV is
+    parked in it. build_simple_page refuses to print a bare ticker to a
+    non-specialist reader, so a name missing here fails the public page —
+    which is exactly what happened on 2026-08-15, when SHY turned up holding
+    one basis point and the page would not build.
+
+    Read from config rather than hardcoded so that changing the parameter
+    cannot silently reintroduce the gap.
+    """
+    if not RISK_OVERLAY_PATH.exists():
+        return None
+    try:
+        overlay = json.loads(RISK_OVERLAY_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    ticker = (overlay.get("gate_parameters") or {}).get("fallback_ticker")
+    return str(ticker).strip() or None if ticker else None
 
 # Fields yfinance may carry the fund name under, in preference order.
 NAME_FIELDS = ("longName", "shortName")
@@ -69,6 +93,9 @@ def main(argv: list[str] | None = None) -> int:
         existing = json.loads(NAMES_PATH.read_text(encoding="utf-8"))
 
     tickers = [row.scan_ticker for row in resolve_universe()]
+    fallback = overlay_fallback_ticker()
+    if fallback and fallback not in tickers:
+        tickers.append(fallback)
     todo = tickers if args.refresh else [t for t in tickers if not existing.get(t)]
     print(f"{len(tickers)} tickers in the universe, {len(todo)} to fetch")
 
