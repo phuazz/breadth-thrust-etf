@@ -2106,3 +2106,59 @@ nothing and IUIT was unreachable by any filter. Now 19 / 14 / 5.
 
 All 38 panels current: 33 end 2026-08-13, 5 end 2026-08-14 where constituents
 price a session further. Commits 72ff181, 9a78a6d. Suite 1,239 -> 1,256.
+
+## The public page refused to build over the overlay's cash reserve (2026-08-15/16)
+
+CORRECTION, not a study — nothing pre-registered. Third correction of the
+2026-08-14/15 refresh cluster, and the last of the open items the refresh
+commit (b897774) filed as separate work.
+
+The 2026-08-14 book left SHY in `effective_weights` at 6e-05 of NAV, and
+`build_simple_page` raised "held but in no sleeve: ['SHY'] — the split would
+not sum to NAV", taking all 19 page-parity tests down with it. The suite was
+red on main from the refresh (Sat 2026-08-15 21:27 SGT, committed over the
+failure on explicit instruction) until the fix pushed on Sunday morning
+(2026-08-16 07:30 SGT; red run 31889823354, green run 31914895758).
+
+THE RESIDUAL IS ROUNDING DUST MADE POSITION. Sleeves A and B store
+within-sleeve weights at 4dp, each summing to 0.9999; the NAV composition in
+`mark_to_market_live._build_effective_weights` leaves 0.35 x 0.0001 +
+0.25 x 0.0001 = 6e-05 unallocated, and its cash-residual rule parks anything
+above 1e-6 in SHY, the overlay's `fallback_ticker`. Sixty dollars of
+Treasuries per million of NAV, under RISK_ON. (The fix commit's "one basis
+point" is a display-side round-up; the measured weight is 6e-05.)
+
+THE GUARD WAS RIGHT, AND THE REFUSAL WAS THE MESSENGER. Refusing beats hiding
+a position the sleeve split cannot place. The real finding is structural: the
+builder special-cased exactly one overlay-held position (EEM, the tilt), so
+the page could never have rendered a RISK_OFF book — the state in which the
+gate parks derisk_fraction of NAV, half the book on current parameters, in
+precisely this instrument. The dust surfaced in calm conditions a failure
+that would otherwise have first appeared mid-de-risk.
+
+THREE GAPS IN THE SAME CHAIN (commit f51c21d), so fixing the first alone
+would have swapped one build failure for another: the sleeve map had no
+bucket; `data/etf_names.json` had no display name, and the page refuses to
+print a bare ticker to a non-specialist reader; and `fetch_etf_names.py`
+could not have supplied the name, its universe being `resolve_universe()` —
+the scanner's 54 instruments, which exclude the fallback.
+
+IT GETS ITS OWN BUCKET, labelled "Cash reserve" — naming the exposure without
+disclosing the mechanism, per the SLEEVE_LABELS constraint. Both shortcuts —
+folding it into the tilt, dropping it as sub-threshold dust — die on the same
+fact: the weight is not always small. The fallback ticker is read from
+`risk_overlay.json` at all three sites, so a parameter change cannot silently
+reopen any of the gaps. The new parity test pins both ends of the range — the
+6e-05 residual and a 50% de-risk — and fails when the reserve is folded into
+the tilt, the specific tempting mistake; the module now collects 34 tests.
+
+PALETTE CAVEAT, STANDING. The sixth sleeve hue (green) is NOT CVD-validated:
+`validate_palette.js` validated the first five and is not in this repository.
+Green was chosen on two established grounds — neither --g nor --r is
+referenced in the template, so it carries no gain/loss meaning; and a cash
+reserve reading as safety beats one reading as danger. Nothing should be read
+as saying it passed the separation checks the first five did.
+
+Commit f51c21d (pushed with e68ab8f). Suite: red 1,251 passed / 27 skipped /
+19 errors at bf60f49 -> green 1,346 passed / 27 skipped at the push head (the
+count spans the ITWN resolver work landed in the same push).
