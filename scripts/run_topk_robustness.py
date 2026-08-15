@@ -44,6 +44,9 @@ from run_portfolio import (  # noqa: E402
 from run_improvements import compute_stats  # noqa: E402
 from run_ma200_sweep import MA_PERIOD  # noqa: E402
 from backtest import download_spy_close  # noqa: E402
+from price_panel_guard import (  # noqa: E402
+    assert_attribution_sane, assert_panel_usable,
+)
 
 # Phase 12 cost calibration: Strategy A trades 14 US sector / broad ETFs
 # via SPDR Select Sector proxies (XLE, XLF, XLV, XLI, XLP, XLY, XLU, XLB,
@@ -208,6 +211,14 @@ def main() -> int:
                 if (closes.index >= eligible).any() else closes.index[MA_PERIOD])
     print(f"  Eligible start: {eligible.date()}")
 
+    # Every member must carry a usable close series across the window the
+    # backtest actually runs over. The breadth panel allocates to a member
+    # whatever its price column looks like, so a missing column does not stop
+    # the sleeve holding it — it just scores every held day at zero. That is
+    # the 2026-08-15 SOXX defect, and it costs sleeve A 17 points of total
+    # return without a single error being raised.
+    assert_panel_usable(closes, "Strategy A closes", window_start=eligible)
+
     # =====================================================================
     # 1. Rebalance-frequency sensitivity grid
     # =====================================================================
@@ -328,6 +339,11 @@ def main() -> int:
                 round(pnl / total_all * 100, 1) if total_all != 0 else 0.0
             ),
         }
+
+    # Last gate before anything is written. The panel guard above should have
+    # caught the cause; this catches the symptom, by any route into a dead
+    # return column that the panel guard has not been taught about.
+    assert_attribution_sane(attribution, "Strategy A attribution")
 
     # Weekly allocation snapshot for the stacked-area chart. Sampled at the
     # ACTUAL rebalance grid, not every Friday: under a holiday-aware cadence a

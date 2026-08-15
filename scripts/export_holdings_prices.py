@@ -6,6 +6,40 @@ Used by the Monitor tab's holdings click-to-expand mini-chart. Reads
 from existing parquet caches (no network calls) so it is cheap to
 re-run as part of the pipeline.
 
+TWO HALVES, TWO SLOTS IN THE REFRESH (2026-08-15)
+-------------------------------------------------
+This script does two separable things, and until 2026-08-15 both ran at
+step 6 of ``refresh_all.py`` — AFTER the strategy engines at step 3.
+
+  * ``--refresh-caches-only`` repairs the per-ETF ``{ticker}_ohlc_cache.
+    parquet`` files that Strategy A and D price their universes off. It
+    reads the REGISTRY and the constituent caches from step 1, so it needs
+    nothing the engines produce and now runs BEFORE them.
+  * The default run exports ``holdings_prices_1y.json``. It resolves its
+    ticker set partly from the deployed book — ``collect_book_symbols``
+    reads the four sleeve JSONs the engines write at step 3 — so it must
+    stay downstream of them. That is the circular dependency, and it lives
+    entirely in this half.
+
+WHAT WENT WRONG. On 2026-08-15 SOXX's cache was broken when Strategy A ran
+at 16:17 local, and was repaired here at 16:36. Sleeve A published Sharpe
+0.76 / CAGR 11.2% / total return +130% against committed values of 0.93 /
+16.9% / +238%, dragging the deployed blend from 1.24 / +15.0% to 1.20 /
++13.0%. Re-running the engine afterwards, with nothing else changed,
+restored it. Every downstream artefact had already inherited the corrupted
+sleeve.
+
+WHAT THE ORDERING FIX DOES AND DOES NOT DO. Strategy A and D do not read
+these caches on the happy path: ``backtest.download_soxx_ohlc`` reuses a
+cache only when it spans the whole requested window, and the window is
+``[constituent_start - 10d, constituent_end + 5d]``, and no cache can reach
+five days past the last session, so the end bound always fails and the
+reuse branch never fires. The engines therefore re-fetch every run. Refreshing
+the caches first is what gives that fetch something sound to FALL BACK ON
+when it comes back degenerate — see the validation in
+``download_soxx_ohlc`` and the panel guard in ``price_panel_guard.py``.
+Ordering alone would not have stopped this; ordering plus those two does.
+
 Sources tapped:
   * data/asset_class_prices_cache.parquet — Strategy B (14 ETFs)
   * data/thematic_prices_cache.parquet    — Strategy C (24 ETFs)
@@ -112,6 +146,22 @@ SLEEVE_FILES = [
 # Xetra-listed Europe sleeve tickers (trade with a .DE suffix). Mirrors
 # mark_to_market_live.EUROPE_TICKERS.
 EUROPE_TICKERS = {"EXV1", "EXH1", "EXV3", "EXH3", "EXH9"}
+
+# Fallback fetch start for a per-ETF OHLC cache with no constituent panel to
+# take its window from. Comfortably before the earliest existing cache
+# (2017-06-30 across every sleeve A and D proxy on 2026-08-15), so a repair
+# never restores less history than the file it replaces.
+DEFAULT_OHLC_START = "2015-01-01"
+
+# Columns a per-ETF OHLC cache carries. The engines only read Close, but
+# backtest.py's ATR path reads High/Low, so a repair that wrote Close alone
+# would quietly strip a column set that nothing rebuilds.
+OHLC_COLUMNS = ["Open", "High", "Low", "Close"]
+
+# Exit code for a cache refresh that finished with at least one engine-facing
+# series still unusable. Distinct from 1 (transient vendor error) and from
+# REGRESSION_EXIT_CODE so refresh_all can say which of the three happened.
+UNUSABLE_CACHE_EXIT_CODE = 3
 
 
 def resolve_book_symbol(etf: str) -> str:
@@ -431,12 +481,263 @@ def fetch_missing_from_yfinance(tickers: list[str]) -> dict[str, pd.Series]:
                           f"ends {on_disk.index[-1].date()}")
                     out[tk] = on_disk
                     continue
-                pd.DataFrame({"Close": ser}).to_parquet(cache_path)
+                # Keep Open/High/Low when the vendor served them. Writing
+                # Close alone used to be harmless because this ran after the
+                # engines and they re-fetched anyway; now that a repaired
+                # cache is what a degenerate engine fetch falls back on,
+                # stripping three columns would silently disarm backtest.py's
+                # ATR path for that ticker.
+                frame = {"Close": ser}
+                for field_name in ("Open", "High", "Low"):
+                    col = None
+                    if len(tickers) == 1:
+                        col = raw[field_name] if field_name in raw.columns else None
+                    elif (tk, field_name) in raw.columns:
+                        col = raw[(tk, field_name)]
+                    if col is not None:
+                        col = col.copy()
+                        col.index = pd.to_datetime(col.index).tz_localize(None)
+                        frame[field_name] = col.reindex(ser.index)
+                pd.DataFrame(frame)[
+                    [c for c in OHLC_COLUMNS if c in frame]
+                ].to_parquet(cache_path)
             except Exception:
                 pass
         except Exception:
             continue
     return out
+
+
+# --------------------------------------------------------------------------
+# Cache-refresh half — runs BEFORE the strategy engines (refresh_all step 2b)
+# --------------------------------------------------------------------------
+def engine_ohlc_tickers() -> dict[str, str]:
+    """``{trading symbol: registry key}`` for the sleeve A and D universes.
+
+    These are the per-ETF OHLC caches the strategy engines price off, and
+    this mapping is derived from ``etf_registry`` alone. That is the point:
+    it reads nothing the engines write, so it can run ahead of them.
+    Contrast ``collect_book_symbols``, which reads last run's sleeve JSONs
+    and therefore pins the export half downstream of step 3.
+    """
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from etf_registry import (  # noqa: PLC0415
+        ETF_REGISTRY, UNIVERSE_ETFS, UNIVERSE_EUROPE_SECTORS,
+    )
+    out: dict[str, str] = {}
+    for key in list(UNIVERSE_ETFS) + list(UNIVERSE_EUROPE_SECTORS):
+        proxy = (ETF_REGISTRY.get(key) or {}).get("yfinance_trading_proxy")
+        out[proxy or key] = key
+    return out
+
+
+def engine_cache_window(registry_key: str) -> tuple[str, str | None]:
+    """The fetch window ``run_portfolio._build_panels_for`` uses for a member.
+
+    Taken from the member's own constituent price cache — refreshed at step 1,
+    so it is available before the engines run — which is what makes the
+    repaired cache a drop-in fallback for the engine's own fetch rather than
+    a differently-shaped file that happens to share a name.
+
+    Returns ``(start, end)`` as YYYY-MM-DD, with ``end`` None when there is no
+    constituent panel to bound it.
+    """
+    cache = DATA_DIR / f"prices_cache_{registry_key.lower()}.parquet"
+    if not cache.exists():
+        return DEFAULT_OHLC_START, None
+    try:
+        cp = pd.read_parquet(cache)
+    except Exception:
+        return DEFAULT_OHLC_START, None
+    if len(cp) == 0:
+        return DEFAULT_OHLC_START, None
+    # The constituent span, not the existing cache's span. A cache truncated
+    # to a two-year vendor fallback would otherwise be "repaired" back to its
+    # own truncated start and stay broken.
+    start = (cp.index.min() - timedelta(days=10)).strftime("%Y-%m-%d")
+    end = (cp.index.max() + timedelta(days=5)).strftime("%Y-%m-%d")
+    return start, end
+
+
+def _read_ohlc_cache(symbol: str) -> pd.DataFrame | None:
+    path = DATA_DIR / f"{symbol.lower()}_ohlc_cache.parquet"
+    if not path.exists():
+        return None
+    try:
+        df = pd.read_parquet(path)
+    except Exception:
+        return None
+    return df if len(df) else None
+
+
+def _fetched_frame_is_worse(fetched: pd.DataFrame,
+                            on_disk: pd.DataFrame | None) -> str | None:
+    """Reason to REFUSE writing ``fetched`` over ``on_disk``, or None.
+
+    Same rule ``fetch_missing_from_yfinance`` already applies to the panel,
+    stated once for OHLC frames: a vendor never un-prints a close, so a
+    shorter or earlier-ending response is a sourcing fault and must not
+    become the file the engines fall back on.
+    """
+    if fetched is None or len(fetched) == 0 or "Close" not in fetched.columns:
+        return "the fetch returned nothing usable"
+    close = pd.to_numeric(fetched["Close"], errors="coerce").dropna()
+    if len(close) < 2:
+        return f"the fetch returned {len(close)} usable close(s)"
+    if close.nunique() < 2:
+        return "the fetch returned a flat close series"
+    if on_disk is None or "Close" not in on_disk.columns:
+        return None
+    prev = pd.to_numeric(on_disk["Close"], errors="coerce").dropna()
+    if prev.empty:
+        return None
+    if close.index[-1] < prev.index[-1]:
+        return (f"the fetch ends {close.index[-1].date()} but the cache "
+                f"already ends {prev.index[-1].date()}")
+    if close.index[0] > prev.index[0]:
+        return (f"the fetch starts {close.index[0].date()} but the cache "
+                f"already starts {prev.index[0].date()}")
+    return None
+
+
+def _download_ohlc(symbols: list[str], start: str,
+                   end: str | None) -> dict[str, pd.DataFrame]:
+    """Batched OHLC download, one frame per symbol. Never raises."""
+    if not symbols:
+        return {}
+    try:
+        import yfinance as yf
+    except Exception as exc:  # pragma: no cover - env without yfinance
+        print(f"  WARN: yfinance unavailable, cannot refresh caches: {exc}")
+        return {}
+    kwargs = {"start": start, "auto_adjust": True, "progress": False,
+              "threads": True, "group_by": "ticker"}
+    if end:
+        kwargs["end"] = end
+    try:
+        raw = yf.download(symbols, **kwargs)
+    except Exception as exc:
+        print(f"  WARN: yfinance batch download failed: {exc}")
+        return {}
+    out: dict[str, pd.DataFrame] = {}
+    multi = isinstance(raw.columns, pd.MultiIndex)
+    for sym in symbols:
+        try:
+            if multi and sym in raw.columns.get_level_values(0):
+                frame = raw[sym]
+            elif multi and len(symbols) == 1:
+                # A single-symbol request can still come back MultiIndexed;
+                # the ticker level is then redundant, not missing.
+                frame = raw.copy()
+                frame.columns = frame.columns.get_level_values(0)
+            elif not multi and len(symbols) == 1:
+                frame = raw
+            else:
+                continue
+            cols = [c for c in OHLC_COLUMNS if c in frame.columns]
+            if "Close" not in cols:
+                continue
+            frame = frame[cols].copy()
+            frame.index = pd.to_datetime(frame.index).tz_localize(None)
+            frame = frame.dropna(how="all").sort_index()
+            if len(frame):
+                out[sym] = frame
+        except Exception:
+            continue
+    return out
+
+
+def refresh_ohlc_caches(symbols: dict[str, str] | None = None) -> int:
+    """Repair the per-ETF OHLC caches the strategy engines read.
+
+    Fetches each engine-facing symbol over the window its own constituent
+    panel implies, refuses any response that is degenerate or worse than what
+    is already on disk, and then judges what the caches actually hold. Returns
+    0 when every engine-facing series is usable, ``UNUSABLE_CACHE_EXIT_CODE``
+    otherwise — so the operator sees the fault before step 3 rather than in a
+    published Sharpe.
+    """
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from price_panel_guard import (  # noqa: PLC0415
+        FAIL, SKIP, assess_close_series,
+    )
+
+    mapping = symbols if symbols is not None else engine_ohlc_tickers()
+    if not mapping:
+        print("  No engine-facing symbols resolved; nothing to refresh.")
+        return 0
+
+    windows = {sym: engine_cache_window(key) for sym, key in mapping.items()}
+    # One batched call over the union window. The per-member windows differ
+    # only where a constituent panel starts later, and a cache that spans MORE
+    # than the engine asks for is sliced correctly on read.
+    start = min(w[0] for w in windows.values())
+    ends = [w[1] for w in windows.values() if w[1]]
+    end = max(ends) if ends else None
+    ordered = sorted(mapping)
+    print(f"Refreshing {len(ordered)} engine-facing OHLC cache(s) "
+          f"({start} -> {end or 'today'}) ...", flush=True)
+
+    fetched = _download_ohlc(ordered, start, end)
+    written, refused, unfetched = [], [], []
+    for sym in ordered:
+        path = DATA_DIR / f"{sym.lower()}_ohlc_cache.parquet"
+        on_disk = _read_ohlc_cache(sym)
+        frame = fetched.get(sym)
+        if frame is None:
+            unfetched.append(sym)
+            continue
+        why = _fetched_frame_is_worse(frame, on_disk)
+        if why:
+            refused.append(f"{sym} ({why})")
+            continue
+        try:
+            frame.to_parquet(path)
+            written.append(sym)
+        except Exception as exc:
+            refused.append(f"{sym} (write failed: {exc})")
+
+    if written:
+        print(f"  Refreshed {len(written)}: {', '.join(written)}")
+    if refused:
+        print(f"  REFUSED {len(refused)} write(s), keeping the cache on disk:")
+        for r in refused:
+            print(f"    - {r}")
+    if unfetched:
+        print(f"  Not returned by the vendor, keeping the cache on disk: "
+              f"{', '.join(unfetched)}")
+
+    # Judge what is on disk NOW, which is what the engines will read. The
+    # window is the member's own constituent span, so a cache that lost its
+    # history reads as truncated here rather than as merely short.
+    bad: list[str] = []
+    for sym in ordered:
+        frame = _read_ohlc_cache(sym)
+        close = None
+        if frame is not None and "Close" in frame.columns:
+            close = frame["Close"]
+            if isinstance(close, pd.DataFrame):
+                close = close.iloc[:, 0]
+        w_start = windows[sym][0]
+        verdict = assess_close_series(close, sym, window_start=pd.Timestamp(w_start))
+        if verdict.status == FAIL:
+            bad.append(f"{sym}: {verdict.note}")
+        elif verdict.status == SKIP:
+            print(f"  {sym}: SKIP — {verdict.note}")
+
+    if bad:
+        print(f"\n  FAIL: {len(bad)} engine-facing cache(s) are still unusable:")
+        for b in bad:
+            print(f"    - {b}")
+        print("  Do NOT run the strategy engines against these. A sleeve "
+              "backtested on a missing close column allocates to the member "
+              "anyway and scores it at exactly zero — the 2026-08-15 SOXX "
+              "defect. Re-run this step, or fetch the symbol by hand.")
+        return UNUSABLE_CACHE_EXIT_CODE
+    print(f"  All {len(ordered)} engine-facing cache(s) usable.")
+    return 0
 
 
 def entry_is_stale(entry: dict | None, now_utc: datetime,
@@ -463,9 +764,19 @@ def main(argv: list[str] | None = None) -> int:
                     help="deprecated, now the default: an unrepaired "
                          "regression always exits "
                          f"{REGRESSION_EXIT_CODE}")
+    ap.add_argument("--refresh-caches-only", action="store_true",
+                    help="repair the per-ETF OHLC caches the strategy "
+                         "engines read, and write NO panel. This is the half "
+                         "with no dependency on engine output, so it runs "
+                         "before them (refresh_all step 2b). Exits "
+                         f"{UNUSABLE_CACHE_EXIT_CODE} if any engine-facing "
+                         "series is still unusable afterwards.")
     args = ap.parse_args(argv)
     if args.strict:
         print("  NOTE: --strict is now the default and can be dropped.")
+
+    if args.refresh_caches_only:
+        return refresh_ohlc_caches()
 
     now_utc = datetime.now(timezone.utc)
     print(f"Exporting holdings 1Y price series at "
