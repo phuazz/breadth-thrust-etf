@@ -2,11 +2,11 @@
   "etf": "EXFB",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-08-13T04:16:06.414697+00:00",
+  "fetched_at_utc": "2026-08-15T08:05:19.437465+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-08-07",
-  "n_target_fridays": 449,
-  "n_snapshots_written": 449,
+  "end_friday": "2026-08-14",
+  "n_target_fridays": 450,
+  "n_snapshots_written": 450,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -28,6 +28,12 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-08-14",
+      "fallback_date": "2026-08-13",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -44,8 +50,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-08-07",
-    "days_since_last_real_fetch": 0,
+    "last_real_fetch_date": "2026-08-13",
+    "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -14516,6 +14522,38 @@
         "RBREW.CO",
         "VIS.MC",
         "BAKKA.OL"
+      ]
+    },
+    "2026-08-14": {
+      "actual_date": "2026-08-13",
+      "n_tickers": 26,
+      "tickers": [
+        "NESN.SW",
+        "ABI.BR",
+        "DGE.L",
+        "BN.PA",
+        "HEIA.AS",
+        "DSFIR.AS",
+        "RI.PA",
+        "KRZ.IR",
+        "CCH.L",
+        "CARL-B.CO",
+        "LISP.SW",
+        "MICC.AS",
+        "MOWI.OL",
+        "HEIO.AS",
+        "ORK.OL",
+        "ABF.L",
+        "LOTB.BR",
+        "GL9.IR",
+        "BARN.SW",
+        "CPR.MI",
+        "SALM.OL",
+        "CWK.L",
+        "AAK.ST",
+        "RBREW.CO",
+        "BAKKA.OL",
+        "VIS.MC"
       ]
     }
   }
