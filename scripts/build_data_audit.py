@@ -36,7 +36,8 @@ import fetch_constituents as fc  # noqa: E402
 from etf_registry import (  # noqa: E402
     ETF_REGISTRY,
     EUROPE_SUPERSECTORS_CANDIDATE,
-    UNIVERSE_GLOBAL,
+    UNIVERSE_ETFS,
+    UNIVERSE_EUROPE_SECTORS,
     get_etf,
 )
 # One staleness policy, defined next to the incident that motivated it.
@@ -95,15 +96,40 @@ def _round(v):
     return None if v is None else round(float(v), _ROUND)
 
 
+# The traded book, and nothing else. NOT UNIVERSE_GLOBAL, which folds in
+# UNIVERSE_COUNTRIES — a research universe consumed only by build_data_audit
+# and run_phase4_experiment, and one whose sleeve was REJECTED (ledger record
+# 2026-07-02-breadth-thrust-etf-2: "survives only 3 of 6 sub-periods, with a
+# negative train half").
+_TRADED = frozenset(UNIVERSE_ETFS) | frozenset(UNIVERSE_EUROPE_SECTORS)
+
+
 def _role(etf: str) -> str:
     """How this panel relates to the deployed book — the first thing a
     reader needs, because the 14 Europe supersectors are captured for
-    research and are NOT traded."""
-    if etf in UNIVERSE_GLOBAL:
+    research and are NOT traded.
+
+    THE DOCSTRING ABOVE WAS RIGHT AND THE CODE DID NOT FOLLOW IT. Keying on
+    UNIVERSE_GLOBAL labelled ICHN, IJPN, ITWN and NDIA `deployed` on a public
+    page — four research panels presented as part of the traded book, against
+    a rejected sleeve. The exact concern the docstring raises, applied to one
+    research group and missed for the other.
+
+    `registered` was also emitted for IUIT (pruned 2026-05-23) and is not in
+    the vocabulary the page documents — its legend reads "deployed is traded;
+    candidate is captured for research only; monitored is refreshed but
+    outside the traded universe", and its filter offers exactly those three.
+    So the Monitored filter matched nothing and IUIT was unreachable by any
+    filter. `monitored` is the honest label for both it and the countries:
+    still refreshed, not traded.
+
+    Split is now 19 deployed / 14 candidate / 5 monitored = 38 panels.
+    """
+    if etf in _TRADED:
         return "deployed"
     if etf in EUROPE_SUPERSECTORS_CANDIDATE:
         return "candidate"
-    return "registered"
+    return "monitored"
 
 
 # Strategy A ranks sectors on 200-day constituent breadth, a different measure
