@@ -40,6 +40,27 @@ Both workflows that commit `docs/` rebuild both pages, so the two cannot drift a
 
 **Displayed tickers (2026-08-09).** Every reader-facing surface — dashboard, factsheet PDF, weekly email, portfolio page — prints the **traded** ticker, resolved by `etf_registry.display_ticker`. The rule is narrow in both directions: sleeve D's `EXH3` is an internal panel id for a fund that trades as `EXH4.DE`, so it displays as `EXH4`; sleeve A holds the S&P 500 sector UCITS and merely prices them off the US-listed SPDRs, so `IUFS` must **not** become `XLF`. `pipeline.py` injects the map as `window.DATA.display_tickers` and the dashboard reads it through `_displaySym()`; lookup keys (`data-etf`, the colour and name maps, `--etf` arguments in the Data tab, the Data Health panel rows) deliberately keep the panel id, because those identify a file on disk rather than a holding. `tests/test_display_ticker.py` (20 tests) guards it, including three separate label idioms that each survived an earlier, narrower version of the sweep.
 
+### Weekly operating workflow (2026-08-15)
+
+**The rule in one line: rank on Thursday's close, fill on Friday at the close.** That is not a convention chosen for convenience — it is what the engines backtest. They rank at `get_loc(rd) - 1`, the session before the rebalance, so with a Friday rebalance the decision session is Thursday. A Friday-close decision filled on Monday is a *different* strategy and would need its own validation.
+
+| When (SGT) | What happens |
+|---|---|
+| Thu 23:30 / Fri 04:00 | Xetra closes, then NYSE. This is the information the decision reads. |
+| **Fri 08:00–14:00** | `BreadthThrust-WeeklyRefresh` runs `scripts/scheduled_refresh.py` in the automation clone. Hourly repetition plus `StartWhenAvailable`, so a machine that is off at 08:00 fires the missed trigger on power-on — 09:00 or 10:00 is fine. |
+| Fri, after the refresh | `python scripts/live_targets.py` — the target book for tonight's fill, with the decision session named per sleeve. |
+| Fri 21:50 (Xetra) / Sat 03:50 (US) | Submit market-on-close orders. NYSE MOC cut-off is 15:50 ET, Nasdaq 15:55 ET. |
+
+**Never refresh after 15:00 SGT.** That is when Xetra opens; before it, both venues are shut and a partial bar cannot exist. The 2026-08-14 wrong sleeve-D trade came from a 21:15 SGT run that ingested an in-progress Xetra bar. `session_bounds.trim_to_completed` now strips those, but the clock settles it for free.
+
+**The one check before dealing: every sleeve must say it decided on Thursday.** `live_targets.py` prints `READY` or `HOLD` per sleeve. A sleeve whose signal does not reach its venue's last completed session is reported `HOLD` and must be left as held for the week — never ranked on whatever came before. That single line is the whole safety gate, and it is printed rather than inferred.
+
+Why it can matter: on 2026-08-14 the Xetra `.DE` lines had not published Thursday by Friday decision time, so Strategy D ranked on Wednesday and produced an EXH3 → EXV3 switch that **reversed** on the correct session (Wed: EXV3 73.6 > EXH3 71.6; Thu: EXH3 73.0 > EXV3 71.7). A 1.3pp call decided by the wrong day, on 20% of NAV, with no error anywhere.
+
+`live_targets.py` is deliberately **not** an engine. The engines are backtests and emit a rebalance only where an execution *bar* exists — correct for a backtest, useless on a Friday morning when the fill has not happened. It ranks each sleeve on its own signal at the last completed session on its own venue, using the engines' own weight functions, and never collapses the signal onto the execution calendar (`run_portfolio._build_panels_for` does collapse it, which is exactly how Thursday goes missing).
+
+**Open question — is Friday the right day at all?** The Xetra price lines appear to publish about a session late, which if systematic would leave sleeve D structurally short on a Friday decision. `.github/workflows/vendor_probe.yml` measures it four times daily (00/06/12/18 UTC; the 00:00 slot *is* the decision hour) and `python scripts/probe_vendor_availability.py --summary` reports the distribution. **Do not move a rebalance day on fewer than two or three weeks of those samples** — the current evidence is a handful of observations, which was enough to prove the old publish guard had its comparison backwards and is nowhere near enough to restructure a cadence.
+
 ### Known caveats (acknowledged upfront)
 
 - **Survivorship bias in Strategy C** — 25 thematics all survived to 2026; failed thematics (cannabis, leveraged-thematic, volatility) never in universe. WS3 (2026-07) quantified the bias: BTC-USD alone contributes ~23% of gross sleeve return (top five names ≈ 62%), several post-hoc adds carry history backfilled to before their inclusion, and no point-in-time membership exists. Sleeve C is **KEEP, ON NOTICE** — it loses to its own equal-weight basket at realistic spreads and must justify its seat at the next scheduled review.
@@ -55,19 +76,24 @@ Both workflows that commit `docs/` rebuild both pages, so the two cannot drift a
 
 ### Test coverage
 
-1,154 pytest tests across 68 files (count as of 2026-08-13 — date it when you update it, so the next reader can see how stale it is). Key suites:
+1,239 pytest tests across 72 files (count as of 2026-08-15 — date it when you update it, so the next reader can see how stale it is). Key suites:
 - `test_backtest_math.py` (17 tests) — structural invariants: long-only, sum-to-100%, no NaN, monotonic dates.
 - `test_weight_function_edge_cases.py` (12 tests) — direct unit tests on `top_k_breadth_weight` with synthetic stress inputs (all-positives, all-negatives, mixed, NaN, ties, single-element). Includes regression test that would have caught the Phase 20 long-only bug.
 - `test_data_integrity.py`, `test_stale_breadth.py` — freshness guards on iShares constituent caches.
 - `test_no_lookahead.py` — verifies signals use `.shift(1)` before weight assignment.
+- `test_session_bounds.py` (19 tests) — no engine may rank on a bar from a session that has not closed. Pins the partial bar at the exact timestamp it was observed, the minute either side of a close, venue disagreement an NYSE-only cap cannot express, history left untouched, and every engine recording the session it ranked on.
+- `test_panel_tail_bound.py` (12 tests) — the breadth panel runs to the last completed session, not the last published roster Friday, with both required date boundaries (month and year).
+- `test_live_targets.py` (14 tests) — the Friday-morning target step ranks on the signal or reports HOLD, never a session early; plus the vendor probe's guard.
 
 ### CI / weekly publish
 
 `.github/workflows/weekly_factsheet.yml` is **event-driven (2026-07-25)**: it fires on the push that lands the local weekend refresh (any commit touching `data/breadth_csp1.json`), gated by `scripts/check_factsheet_gate.py` — the panel must be current to the week-final NYSE session (Thursday in a Friday-holiday week; the cadence rule "a Friday-holiday factsheet dated Thursday is correct, not stale" is preserved through `nyse_sessions.week_final_anchor`) and the week must not already be published (committed `docs/factsheet_published.json` marker, written only after a successful non-trial email). On a publishable event it refreshes strategy engines + blend + overlay, rebuilds dashboard + factsheet PDF, commits refreshed data + docs to main, emails the factsheet via Gmail SMTP, then commits the marker. This replaced the old Friday 22:00 UTC cron, which every normal week mailed a factsheet whose A/D positions and regime flag were a week stale — A and D re-anchor only when the local refresh lands, so the email now waits for it and always carries the complete position changes. A Sunday 09:00 UTC (17:00 SGT) scheduled run is **check-only**: it emails the operator when the week's factsheet has not gone out, distinguishing refresh-missing (run `refresh_all.py`; the push then publishes automatically) from refresh-landed-but-publish-failed (inspect the run, re-dispatch). `workflow_dispatch` remains for trial sends and forced re-issues. `.github/workflows/daily_live_track.yml` (Mon-Fri 21:30 UTC) extends the deployed blend through the latest daily close.
 
+`.github/workflows/vendor_probe.yml` (00/06/12/18 UTC, added 2026-08-15) records how many sessions behind each venue's **price bars** are, per line, so the Friday-versus-Monday cadence question can be settled on measurement rather than anecdote. Deliberately separate from `publication_lag.yml`, which measures when iShares publishes **holdings** — different series, never to be pooled, and folding this in would have meant re-timing that probe's cron after its log already changed sampling once. `scripts/check_vendor_probe.py` runs before the commit and fails the job when the run appended nothing, when the newest row is not from this run, or when every line came back empty; a *partial* result passes on purpose, because one venue answering while the other does not is the asymmetry being measured. Two `fleet_watch.json` rows (git + run), per the rule that anything which publishes carries both.
+
 **Ops alerting (2026-07-03; tiered 2026-07-25)**: both workflows email the operator (GMAIL_USER, not the factsheet distribution list) on any failure, and run an early freshness check from weekday-lag 4 on `breadth_csp1.json` via `scripts/check_freshness_headroom.py` — the pipeline's hard guard aborts publishes once that lag exceeds 5, so the alert arrives one to two runs before the dashboard would freeze. Because the weekly local-refresh cadence lands every normal week at lag 4–5 by Thursday/Friday, those routine states are tagged `[REMINDER]` (weekend refresh window still ahead); `[WARN]` is reserved for mid-week staleness, the hard stop, or a checker error. The daily workflow sends the reminder; the weekly workflow's tripwire only emails at the hard stop (running post-refresh, it normally reports ok). Weekend coverage is the Sunday check-only schedule on `weekly_factsheet.yml` described above — it briefly existed as a separate lag-based `sunday_last_call.yml` (2026-07-25, same day), which was superseded within hours because the marker-based check is a strict superset: panel lag can only detect a missing refresh, while the marker also catches a refresh that landed whose publish run then failed.
 
-**Scheduled local refresh (2026-07-25)**: the weekly `refresh_all.py` run is automated on the operator's machine via `scripts/scheduled_refresh.py`, registered as Windows scheduled task `BreadthThrust-WeeklyRefresh` (Saturday 06:00 SGT, catch-up on next power-on if the machine is off, runs when logged on — locked is fine). It operates in a dedicated automation clone (`C:\dev\breadth-thrust-etf-sched`) so it never collides with interactive sessions in the main tree. Guard layers per the vault's unattended-agent rule: clean-tree preflight + `git pull --rebase`; `refresh_all.py` exit 0 (every step green including pytest); the panel must reach `nyse_sessions.week_final_anchor` (catches quietly-stale fetches that exit 0); a local preview of the CI publish-gate decision; and in soak mode it stops before pushing and reports READY for manual review. Arming (`--push` on the task action) is scheduled after two clean soak Saturdays; even then the push only triggers the gated CI flow, which re-verifies everything before any email. Failure alerting: best-effort local email using `GMAIL_USER`/`GMAIL_APP_PASSWORD` environment variables (optional) plus a dated log under `logs/` (gitignored); the guaranteed backstop is the Sunday CI held-factsheet check, which needs nothing from this machine.
+**Scheduled local refresh (2026-07-25; re-timed to Friday 2026-08-12)**: the weekly `refresh_all.py` run is automated on the operator's machine via `scripts/scheduled_refresh.py`, registered as Windows scheduled task `BreadthThrust-WeeklyRefresh` (**Friday 08:00 SGT**, repeating hourly for six hours to 14:00, catch-up on next power-on if the machine is off, runs when logged on — locked is fine). The Friday cadence exists so the refresh can feed a Friday market-on-close fill; the old Saturday slot put the card *after* the fill. The window closes at 14:00 because Xetra opens at 15:00 SGT and a run during market hours can be served an in-progress bar. Two settings are load-bearing and were each broken once: `AllowStartIfOnBatteries` (a `Set-ScheduledTask -Settings` call replaced the whole settings object and silently re-enabled battery restrictions, leaving the task queued forever) and `StartWhenAvailable` (without it, a machine off at 08:00 simply skips the week). It operates in a dedicated automation clone (`C:\dev\breadth-thrust-etf-sched`) so it never collides with interactive sessions in the main tree. Guard layers per the vault's unattended-agent rule: clean-tree preflight + `git pull --rebase`; `refresh_all.py` exit 0 (every step green including pytest); the panel must reach `nyse_sessions.week_final_anchor` (catches quietly-stale fetches that exit 0); a local preview of the CI publish-gate decision; and in soak mode it stops before pushing and reports READY for manual review. Arming (`--push` on the task action) is scheduled after two clean soak Saturdays; even then the push only triggers the gated CI flow, which re-verifies everything before any email. Failure alerting: best-effort local email using `GMAIL_USER`/`GMAIL_APP_PASSWORD` environment variables (optional) plus a dated log under `logs/` (gitignored); the guaranteed backstop is the Sunday CI held-factsheet check, which needs nothing from this machine.
 
 **Silent-wrong-data defences (2026-07-03)**: process status alone cannot prove the data is right, so two outcome-level checks exist. In-run, `scripts/check_capture_integrity.py` anchors the series each job just fetched (B, C, live track in the weekly; live track in the daily) to the true NYSE calendar (`scripts/nyse_sessions.py`, holiday- and early-close-aware): 1 session behind warns and still publishes for the live track, while the weekly run treats a B/C 1-behind as a hard fail (`--strict b,c`, added 2026-07-18 after the 2026-07-17 factsheet shipped without the Friday rebalance — the engines' exclusive-end yfinance fetch fencepost that caused it is fixed in the same change); 2+ behind or a corrupt/implausible tail fails the job before anything is built or emailed. Outside-in, `.github/workflows/sentinel.yml` (daily 03:35 UTC = 11:35 SGT — sized to GitHub's cron-delay tail, which this repo has measured at up to ~4h) fetches the LIVE site's `factsheet_meta.json` and emails `[SENTINEL]` if the deployed as-of does not match the calendar — it shares no state with the pipeline, so it catches a green run that published wrong artefacts. Remaining judgement-level checks (Data Health panel consistency, regime/tilt cross-file agreement) live in the `VERIFY_DASHBOARD.md` audit prompt.
 
@@ -492,12 +518,30 @@ This is the kind of result CLAUDE.md anticipates: "narrow the universe to where 
 
 ## Run order
 
+Single-ETF path (the original SOXX pipeline, kept for reference):
+
 ```
 python -m pip install -r requirements.txt
 python scripts/fetch_constituents.py       # writes data/constituents_soxx.json
 python scripts/compute_breadth.py          # writes data/breadth_soxx.json
 python scripts/backtest.py                 # writes data/backtest_soxx.json
 pytest tests/
+```
+
+**Weekly operating path** (what actually runs on a Friday — see "Weekly operating workflow" above):
+
+```
+python scripts/refresh_all.py              # or let BreadthThrust-WeeklyRefresh do it
+python scripts/live_targets.py             # the target book for tonight's fill
+```
+
+`live_targets.py` is the one to read before dealing. Every sleeve must print `READY`; a sleeve printing `HOLD` has a signal that does not reach its venue's last completed session and must be left as held for the week.
+
+Diagnostics, none of which gate anything:
+
+```
+python scripts/probe_vendor_availability.py --summary   # how late is each venue
+python scripts/check_roster_integrity.py                # did a fetch punch holes
 ```
 
 ## Open questions / known limitations
