@@ -22,13 +22,19 @@ module.exports = {
     ['Evaluation window', 'Live data 2026-08-12 to 2026-08-15; value-preservation control on full panel history 2018-01-05 to 2026-08-13.'],
     ['Data basis', 'yfinance daily closes (auto-adjusted); iShares point-in-time rosters; NYSE and XETR calendars via pandas_market_calendars.'],
     ['Method basis', 'Defect reproduction against live vendor responses; exact-equality control with the price frame pinned; 320-timestamp cross-check on the session helpers.'],
-    ['Repository commits', '466646b, 9c03cbb, e710bc5, ea884c7, 1237546, c090f76, b4bfd13, 79a7b2c, 5225b59'],
-    ['Running memo', 'RESEARCH_MEMO.md — "Execution integrity — the Friday cadence meets the vendor (2026-08-14/15)"'],
-    ['Outcome', 'Five defects fixed; deployed convention UNCHANGED (rank Thursday, fill Friday close). Nothing was traded on the defective signal. Cadence viability now under measurement, not decided.'],
+    ['Repository commits', '466646b, 9c03cbb, e710bc5, ea884c7, 1237546, c090f76, b4bfd13, 79a7b2c, 5225b59; revision 1 adds 72ff181, 9a78a6d, 140ad26'],
+    ['Running memo', 'RESEARCH_MEMO.md — "Execution integrity — the Friday cadence meets the vendor (2026-08-14/15)", plus the same-day addendum'],
+    ['Revisions', 'Rev 1, 2026-08-15 (same day) — the tail-extension repair described in F2 shipped with its own bound defect. See the revision note overleaf. F3 stands unchanged.'],
+    ['Outcome', 'Five defects fixed; deployed convention UNCHANGED (rank Thursday, fill Friday close). Nothing was traded on the defective signal. Cadence viability now under measurement, not decided. Rev 1: a sixth defect, inside the fix for the second.'],
   ],
 
   sections: [
-    { type: 'h1', text: 'Executive summary' },
+    // Kept whole on one page ON PURPOSE. report_builder.js restarts a numbered
+    // list that splits across a page — its own comment records the 2026-07-03
+    // fix for this and the symptom has only moved (item 8 then, 7 and now 6).
+    // Breaking here costs a little whitespace; trimming the summary to fit
+    // would cost a claim, and renumbering from 1 mid-list misleads.
+    { type: 'h1', text: 'Executive summary', pageBreakBefore: true },
     { type: 'numbers', items: [
       'A Strategy D rebalance dated 14 August — EXH3 (traded EXH4.DE) out, EXV3 in, 5.9 per cent of NAV — was decided on the WRONG SESSION and reverses on the right one: Wednesday EXV3 73.6 against EXH3 71.6, Thursday EXH3 73.0 against EXV3 71.7. Two compounding causes: a bar stamped 14 August served while Xetra was two hours from its close, and Thursday 13 August absent from the .DE series, so the engine fell back to Wednesday silently. Caught in preparation; nothing traded.',
       'The partial-bar guard already existed. Sleeves B and C called it; A and D did not, both served by run_portfolio — and D could not have, it being NYSE-only. The sleeve that broke is the one the guard cannot express.',
@@ -37,6 +43,16 @@ module.exports = {
       'The tail extension is VALUE-PRESERVING (exact equality, IUUS/EXH9/CSP1, price frame pinned). Two earlier controls passed it for the wrong reason and are recorded so the error is not repeated.',
       'Deployed convention UNCHANGED. Whether the Xetra lag makes the Friday cadence unworkable for sleeve D is OPEN, now sampled four times daily, and the present evidence is explicitly too thin to move a rebalance day.',
     ]},
+
+    { type: 'h1', text: 'Revision note 1 — 2026-08-15, same day' },
+    { type: 'p', text: 'The repair described in F2 — extending the panel from the last published roster Friday to the last completed session — SHIPPED WITH ITS OWN BOUND DEFECT, found the same day and fixed. The record is issued with this note rather than rewritten, because the sequence is the point: a fix that removes one conflation reintroduced it one layer down.' },
+    { type: 'p', text: 'It surfaced as fourteen candidate Europe supersector panels refusing to recompute, which looked like the unresolved-ticker problem Phase 30 fixed for the deployed five. It was not. Current-roster coverage is 100 per cent on thirteen of the fourteen and exactly one ticker is unresolved across all of them; the 404s in the logs are long-delisted historical constituents, not holdings.' },
+    { type: 'p', text: 'The panels failed because the file-level coverage floor reads the FINAL ROW, and the extended tail had pushed that row one session past the data — EXH6 priced to 13 August against a last completed Xetra session of the 14th. `schedule_end` took the last completed session on the VENUE CALENDAR, a fact about the exchange, where it needed whether the vendor had published the CONSTITUENT prices for it. On the European lines that lags by about a session. The same conflation as the defect this record is about, one layer down and three days later.' },
+    { type: 'callout', text: 'NOT confined to the research panels. Verified before fixing: EXV1, EXH1 and EXH9 all carried constituent prices only to 13 August, so EVERY DEPLOYED EUROPE PANEL — 20 per cent of NAV — would have failed identically on its next run, and would have surfaced as "the European sleeve stopped updating" rather than as a one-session bound error.' },
+    { type: 'p', text: 'The fix caps the tail at the last session the roster in force is actually priced for, never below the roster Friday. And it needed a second pass, which is the part that generalises: the first cap used MIN_BREADTH_NAMES, the ROW-level floor of five names, while the guard that refuses the write is the FILE-level 50 per cent coverage floor. For small panels the two agree. EXH3 had 8 of 107 names priced on 14 August — above five, far below half — so the cap admitted a session the guard then rejected, and seventeen of nineteen panels wrote while the two largest refused, one of them a deployed sleeve member.' },
+    { type: 'callout', text: 'A cap that does not share the guard’s criterion is a second opinion, not a bound. It now derives its threshold from MIN_ROSTER_COVERAGE_FAIL, so the two cannot disagree by construction.' },
+    { type: 'p', text: 'F3 STANDS UNCHANGED. The value-preservation result concerns historical values under the extension and still holds bit-identical; this is a bound defect at the tail. Two different failures of one change, and marking the confirmed result superseded would misrepresent it. Filed as a second ledger row dated 2026-08-15, in non_hypothesis_rows — it is a repair and proposes nothing.' },
+    { type: 'p', text: 'Also corrected the same day, on the published page rather than in the engines: the Data tab labelled ICHN, IJPN, ITWN and NDIA `deployed` when they are research-only, against a sleeve rejected in register record 2026-07-02-breadth-thrust-etf-2, and emitted `registered` for the pruned IUIT — a value the page’s own legend and filter do not carry, so the Monitored filter matched nothing and IUIT was unreachable. Now 19 deployed / 14 candidate / 5 monitored. All 38 panels are current: 33 ending 13 August, 5 ending the 14th where the constituents price a session further. Suite 1,239 to 1,256.' },
 
     { type: 'h1', text: 'The defect, in one exhibit' },
     { type: 'p', text: 'Strategy D holds the top three of five European sector funds by constituent breadth. The vendor hole moved the ranking session back one day, and across that single day ranks three and four exchange places. Nothing else in the sleeve moves.' },
@@ -73,6 +89,7 @@ module.exports = {
     { type: 'h2', text: 'F2 — A roster bound was being used as a computation bound' },
     { type: 'p', text: 'compute_breadth ended its daily loop at end_friday, the last published roster Friday. That is a fact about when the constituent LIST refreshed. It was serving as a bound on how far breadth could be computed, which is a different question. On 14 August the newest roster was 7 August, so the panel ended 7 August while the decision that morning reads 13 August — the wrapper anchor guard demanded data the pipeline declined to produce.' },
     { type: 'p', text: 'The roster being a week old is not a defect and never was: rosters publish weekly, so every mid-week day already resolves against the most recent snapshot at or before T. Thursday 13 August is an ordinary mid-week day under the 7 August roster, exactly as Wednesday 12 August is.' },
+    { type: 'p', runs: [{text: 'Revision 1: ', bold: true}, {text: 'the repair for this finding shipped with a bound defect of its own — it extended to the last completed session on the venue calendar without checking that the constituents were priced for it. See the revision note above.'}] },
 
     { type: 'h2', text: 'F3 — The tail extension is value-preserving, and two controls said so for the wrong reason' },
     { type: 'p', text: 'The claim under test: extending the panel produces the identical numbers earlier, because next week\u2019s run computes 13 August against the 7 August roster too — 14 August is not at or before 13 August. This is the one part of the week\u2019s work that is a test rather than a repair, and it did not pass first time.' },
@@ -110,7 +127,7 @@ module.exports = {
       rows: [
         ['Rank Thursday, fill Friday close (MOC)', 'KEEP', 'Unchanged. It is what the engines backtest (get_loc(rd)-1) and what WS12/WS13 settled. Nothing here reopens it'],
         ['Venue-aware partial-bar trim in all four sleeves', 'ADOPTED', 'F1. Historically a no-op — every bar in a finished session is complete — so it removes a tail and cannot move a backtest'],
-        ['Panel runs to the last completed session', 'ADOPTED', 'F2, F3. Value-preserving under the pinned control; both bounds take max() against the old value so the window can only lengthen'],
+        ['Panel runs to the last completed session', 'ADOPTED, then AMENDED same day', 'F2, F3. Value-preserving under the pinned control. Rev 1 caps it at the last session the roster in force is priced for — the venue calendar alone reached past the data and would have failed every deployed Europe panel'],
         ['decision_date recorded in every trade', 'ADOPTED', 'F1. All four engines computed it and discarded it, which is why the substitution was unreadable from the output'],
         ['Book assembled at or before the as-of date', 'ADOPTED', 'Mixed-vintage defect. Divergence between sleeves is reported, not refused — sleeve C legitimately lags, trading only when its basket changes'],
         ['Publish guard bounded lead, hard-fail on a stale panel', 'ADOPTED', 'F5. Not a weakening: it refuses the direction the old assertion permitted'],
@@ -151,6 +168,7 @@ module.exports = {
     { type: 'bullets', items: [
       'Collect two to three weeks of decision-hour probe samples, then answer the Friday-versus-Monday question on that evidence. Do not move a rebalance day before it.',
       'Open a separate study on historical breadth moving when a panel is recomputed against a re-fetched price frame (F4).',
+      'Rev 1 leaves one thing unmeasured: how often the constituent price lag actually bites at the decision hour. The vendor probe answers it; until it has weeks of samples, the cap is a correctness fix, not evidence about cadence.',
       'IJPN breadth remains unwritten after its roster repair — the thin-breadth floor refused a panel with zero roster coverage. Research universe only, not deployed, and unchased.',
       'Confirm Xetra market-on-close support in the broker before the next European rebalance; the sleeve is priced on a 9 bps one-way assumption whose break-even is superseded.',
     ]},
