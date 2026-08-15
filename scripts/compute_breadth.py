@@ -360,6 +360,32 @@ ERA_BARRIERS = {
 # history (WS16 finding, IUCS).
 YF_TICKER_OVERRIDES = {
     "BFB": "BF-B",
+    # NDIA, 2026-08-15. Three current constituents carried no price history
+    # at all — zero observations, not merely thin. Identified from the
+    # iShares holdings payload (issueName + ISIN + exchange) and confirmed
+    # against yfinance longName; both sources agree on all three.
+    #
+    #   SHFL.NS  Shriram Finance Ltd            INE721A01047  NSE
+    #   534091   Multi Commodity Exchange Ltd   INE745G01043  Bse Ltd
+    #   532483   Canara Bank Ltd                INE476A01022  Bse Ltd
+    #
+    # Two distinct causes. SHFL is a symbol-form mismatch: iShares prints the
+    # issuer's short code, the NSE trading symbol is SHRIRAMFIN, and .NS was
+    # appended to the wrong root. The other two are BSE lines whose exchange
+    # reads "Bse Ltd", which the suffix map in fetch_constituents.py does not
+    # recognise (it carries "Bombay Stock Exchange"), so they fell through to
+    # the assume-US branch and emerged as bare scrip codes.
+    #
+    # Mapped to the NSE listings rather than repairing the suffix: yfinance
+    # serves neither 534091.BO nor 532483.BO, so .BO would swap one dead
+    # symbol for another. Both names are dual-listed and the NSE line is the
+    # liquid one. This is a venue substitution — the fund holds the BSE
+    # listing and the panel prices the NSE listing — which is sound for
+    # breadth, where the input is a 50-day average of the same security's
+    # economics, but it is a substitution and not a like-for-like quote.
+    "SHFL.NS": "SHRIRAMFIN.NS",
+    "534091": "MCX.NS",
+    "532483": "CANBK.NS",
 }
 
 

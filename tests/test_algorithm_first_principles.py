@@ -16,7 +16,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from compute_breadth import active_roster_at, normalise_for_yfinance  # noqa: E402
+from compute_breadth import (  # noqa: E402
+    YF_TICKER_OVERRIDES, active_roster_at, normalise_for_yfinance,
+)
 from run_ma200_sweep import compute_ma200_breadth, run_strategy  # noqa: E402
 from run_portfolio import run_portfolio, top_k_eq_weight  # noqa: E402
 
@@ -63,6 +65,37 @@ def test_yfinance_normalisation_distinguishes_share_classes_from_exchanges():
     assert normalise_for_yfinance("REP.D.MC") == "REP.MC"
     # Trailing dot on the local root must be stripped
     assert normalise_for_yfinance("BP..L") == "BP.L"
+
+
+def test_ndia_unresolvable_roster_tickers_are_overridden():
+    """Three NDIA constituents resolved at no vendor and sat at zero
+    observations, holding the panel's roster coverage at 77.0% against an
+    85% floor and failing the refresh guard's G6.
+
+    Two failure shapes, both silent. SHFL is a symbol-form mismatch: iShares
+    prints the issuer short code for Shriram Finance, whose NSE trading
+    symbol is SHRIRAMFIN, so the suffix rule appended .NS to a root that
+    does not trade. 534091 and 532483 are BSE lines whose exchange field
+    reads "Bse Ltd", which the suffix map does not carry, so they fell
+    through to the assume-US branch and survived as bare scrip codes.
+
+    The override must win over the suffix logic — it is consulted first —
+    otherwise SHFL.NS would pass through unchanged as a recognised suffix.
+    """
+    assert normalise_for_yfinance("SHFL.NS") == "SHRIRAMFIN.NS"
+    assert normalise_for_yfinance("534091") == "MCX.NS"
+    assert normalise_for_yfinance("532483") == "CANBK.NS"
+
+    # A bare numeric scrip code must never survive normalisation as-is: that
+    # is the shape that reached yfinance and returned nothing at all.
+    for code in ("534091", "532483"):
+        assert normalise_for_yfinance(code) != code
+
+    # The override table is keyed on the ROSTER form, which is what
+    # constituents_*.json stores and what the caller passes in. Keying on the
+    # pre-suffix root would silently never fire.
+    assert "SHFL.NS" in YF_TICKER_OVERRIDES
+    assert "SHFL" not in YF_TICKER_OVERRIDES
 
 
 def test_ma_breadth_excludes_invalid_constituents_from_denominator():
