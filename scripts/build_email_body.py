@@ -503,67 +503,184 @@ SLEEVE_HUES = {
 }
 
 
-def _equity_sparkline(dates, equity, points: int = 60) -> str:
-    """A one-year equity column chart, drawn in table cells.
 
-    Same constraint as the allocation bar: no SVG, no external image. Each
-    column is a bottom-aligned cell holding a coloured block whose pixel
-    height encodes the value. Heights are absolute px because percentage
-    heights inside table cells are unreliable in Outlook.
+def _alerts_strip(alerts: list[tuple[str, str]]) -> str:
+    """Exceptions, at the top, or nothing at all.
 
-    Downsampled to ~60 columns rather than plotting every session. Gmail
-    clips a message body at around 102KB and this one already runs to 40KB,
-    so 252 daily cells would spend roughly 23KB to say what 60 say — and a
-    clipped email hides the disclaimer at the foot of it.
+    WHY THIS EXISTS. Measured on the 2026-08-14 build, "TRIPWIRE BREACHED —
+    review brought forward" sat 88.5% of the way down the body, below 23
+    rows of holdings, and the "REGIME STALE — DO NOT TRADE OFF THIS PANEL"
+    warning renders into that same buried position. The one line that can
+    change what the reader does that week was the last thing they reached,
+    while a chart restating the headline tiles held the top of the page.
 
-    SCALED MIN-TO-MAX, NOT FROM ZERO, which is the usual sparkline
-    convention and does exaggerate the shape. The floor and ceiling are
-    therefore printed beside the chart, so the reader can see what the
-    height actually spans instead of inferring a zero baseline that is not
-    there.
+    RENDERS NOTHING WHEN NOTHING IS WRONG, which is the whole design. A
+    status block that appears every week saying "all clear" is wallpaper
+    within a month and is skipped exactly when it finally carries something.
+    An empty week should look empty.
+
+    This does not undo the earlier decision to keep regime STATE out of the
+    lead — normal operating state still belongs in the footer line with the
+    tilt and the allocation. Only the abnormal is promoted.
     """
-    if not dates or not equity or len(equity) < 3:
+    if not alerts:
         return ""
-    s = pd.Series(equity, index=pd.to_datetime(dates)).dropna()
-    window = s.loc[s.index[-1] - pd.DateOffset(years=1):]
-    if len(window) < 3:
-        return ""
-    step = max(1, len(window) // points)
-    pts = window.iloc[::step]
-    if pts.index[-1] != window.index[-1]:            # never drop the last close
-        pts = pd.concat([pts, window.iloc[[-1]]])
-
-    lo, hi = float(pts.min()), float(pts.max())
-    span = (hi - lo) or 1.0
-    height = 44
-    cells = []
-    for v in pts:
-        h = max(1, round((float(v) - lo) / span * height))
-        cells.append(
-            f'<td style="vertical-align:bottom;padding:0 1px;font-size:0;'
-            f'line-height:0;">'
-            f'<div style="height:{h}px;background:#1a2333;font-size:0;'
-            f'line-height:0;">&nbsp;</div></td>'
+    rows = []
+    for level, text in alerts:
+        hue = "#b3261e" if level == "critical" else "#b76e00"
+        rows.append(
+            f'<tr><td style="padding:5px 0 5px 12px;border-left:3px solid {hue};'
+            f'font-size:12px;color:#3a4148;line-height:1.5;">{text}</td></tr>'
         )
-    ret = (float(window.iloc[-1]) / float(window.iloc[0]) - 1.0) * 100
-    ret_col = "#1d7a3a" if ret >= 0 else "#b3261e"
     return (
-        '<div style="margin:0 0 16px 0;">'
+        '<div style="background:#fdf7f6;border:1px solid #f0d9d6;'
+        'border-radius:6px;padding:12px 16px;margin-bottom:18px;">'
+        '<div style="font-size:11px;letter-spacing:0.06em;color:#7c8590;'
+        'text-transform:uppercase;margin-bottom:6px;">Needs attention</div>'
+        '<table role="presentation" cellpadding="0" cellspacing="0" '
+        f'style="width:100%;border-collapse:collapse;">{"".join(rows)}</table>'
+        '</div>'
+    )
+
+
+def _sleeve_series(d) -> pd.Series | None:
+    """Equity series out of a sleeve JSON, whichever shape it uses."""
+    if not d:
+        return None
+    h = d.get("headline", d)
+    dates = (h.get("headline_equity_dates") or h.get("dates") or d.get("dates"))
+    eq = (h.get("headline_equity") or h.get("equity") or d.get("equity"))
+    if not dates or not eq:
+        return None
+    return pd.Series(eq, index=pd.to_datetime(dates)).dropna()
+
+
+def _window_return(s: pd.Series | None, start_iso: str, end_iso: str):
+    if s is None or s.empty:
+        return None
+    w = s.loc[start_iso:end_iso]
+    if len(w) < 2:
+        return None
+    return float(w.iloc[-1]) / float(w.iloc[0]) - 1.0
+
+
+def _weekly_attribution(sleeves, st_now, wtd, eem_series=None):
+    """Decompose the week's blend return into per-sleeve contributions.
+
+    contribution = sleeve weight x sleeve return, over EXACTLY the window
+    the headline WTD tile uses, so the parts and the total are measured on
+    the same days.
+
+    This is exact only because the blend holds fixed 35/25/10/20 weights
+    reset each week; there is no intra-week drift to account for. That is an
+    assumption about the product, not a general truth about attribution, so
+    the residual against the blend's own return is COMPUTED AND SHOWN rather
+    than assumed to vanish. It came to -0.002pp on 2026-08-14. If it ever
+    grows, the decomposition has stopped describing the portfolio and the
+    line under the chart will say so before anyone acts on the split.
+    """
+    if not wtd:
+        return None
+    _, start_iso, end_iso = wtd
+    plan = [("a", "a", "Sleeve A"), ("b", "b", "Sleeve B"),
+            ("c", "c", "Sleeve C"), ("d", "d", "Sleeve D")]
+    rows = []
+    for skey, wkey, label in plan:
+        r = _window_return(_sleeve_series(sleeves.get(skey)), start_iso, end_iso)
+        w = st_now.get(wkey) or 0.0
+        if r is None or w <= 0:
+            continue
+        hue = SLEEVE_HUES[wkey][0]
+        rows.append({"label": label, "hue": hue, "w": w, "ret": r,
+                     "contrib": w * r})
+    tilt_w = st_now.get("tilt_nav") or 0.0
+    tilt_r = _window_return(eem_series, start_iso, end_iso)
+    if tilt_w > 0 and tilt_r is not None:
+        rows.append({"label": "EEM tilt", "hue": SLEEVE_HUES["tilt_nav"][0],
+                     "w": tilt_w, "ret": tilt_r, "contrib": tilt_w * tilt_r})
+    if not rows:
+        return None
+    return {"rows": rows, "start": start_iso, "end": end_iso,
+            "sum": sum(r["contrib"] for r in rows)}
+
+
+def _attribution_chart(att, blend_wtd) -> str:
+    """Diverging contribution bars, one row per sleeve.
+
+    SIGN IS CARRIED BY DIRECTION, not by colour. A bar sitting left of the
+    zero rule is a detractor and that reads without any colour at all, which
+    frees the hue to say WHICH SLEEVE — the same blue/amber/cyan/pink/purple
+    the reader has already met on the allocation bar, the dashboard and the
+    public page. Colouring these green and red instead would have spent the
+    palette restating what position already says, and lost the sleeve.
+
+    The negative track is only allocated when something is actually negative.
+    In a week where every sleeve contributed, half the width would otherwise
+    sit empty to hold a column for nothing.
+    """
+    if not att:
+        return ""
+    rows, total = att["rows"], att["sum"]
+    max_abs = max(abs(r["contrib"]) for r in rows) or 1.0
+    any_neg = any(r["contrib"] < 0 for r in rows)
+    pos_w, neg_w = (150, 90) if any_neg else (240, 0)
+
+    body = []
+    for r in rows:
+        c = r["contrib"] * 100
+        px = max(2, round(abs(r["contrib"]) / max_abs * (neg_w if c < 0 else pos_w)))
+        if c < 0:
+            track = (
+                f'<td style="width:{neg_w}px;padding:0;" align="right">'
+                f'<table role="presentation" cellpadding="0" cellspacing="0" '
+                f'style="border-collapse:collapse;margin-left:auto;"><tr>'
+                f'<td style="width:{px}px;background:{r["hue"]};height:9px;'
+                f'font-size:0;line-height:0;border-radius:2px;">&nbsp;</td>'
+                f'</tr></table></td>'
+                f'<td style="width:{pos_w}px;padding:0;">&nbsp;</td>'
+            )
+        else:
+            track = (
+                (f'<td style="width:{neg_w}px;padding:0;">&nbsp;</td>' if any_neg else "")
+                + f'<td style="width:{pos_w}px;padding:0;">'
+                f'<table role="presentation" cellpadding="0" cellspacing="0" '
+                f'style="border-collapse:collapse;"><tr>'
+                f'<td style="width:{px}px;background:{r["hue"]};height:9px;'
+                f'font-size:0;line-height:0;border-radius:2px;">&nbsp;</td>'
+                f'<td style="font-size:0;line-height:0;">&nbsp;</td>'
+                f'</tr></table></td>'
+            )
+        body.append(
+            f'<tr><td style="padding:3px 8px 3px 0;font-size:11px;'
+            f'color:#3a4148;white-space:nowrap;">{r["label"]}</td>'
+            f'{track}'
+            f'<td style="padding:3px 0 3px 8px;font-size:11px;text-align:right;'
+            f'font-family:{MONO};color:#0f1217;white-space:nowrap;">'
+            f'{c:+.2f}pp</td></tr>'
+        )
+
+    resid = (total - blend_wtd) * 100 if blend_wtd is not None else None
+    resid_txt = ""
+    if resid is not None:
+        # A residual that rounds to zero is reported as "under 0.01pp", not as
+        # "-0.00pp" — a signed zero invites the reader to wonder which way it
+        # went when the honest answer is that it is too small to matter.
+        shown = ("under 0.01pp" if abs(resid) < 0.005 else f"{resid:+.2f}pp")
+        resid_txt = (f' &nbsp;&middot;&nbsp; sleeves sum {total * 100:+.2f}pp '
+                     f'vs blend {blend_wtd * 100:+.2f}pp '
+                     f'(residual {shown})')
+    return (
+        '<div style="margin:0 0 18px 0;">'
         '<div style="font-size:11px;letter-spacing:0.06em;color:#7c8590;'
         'text-transform:uppercase;margin-bottom:6px;">'
-        'Deployed blend &mdash; trailing year</div>'
+        'Where the week came from</div>'
         '<table role="presentation" cellpadding="0" cellspacing="0" '
-        f'style="width:100%;border-collapse:collapse;table-layout:fixed;'
-        f'height:{height}px;">'
-        f'<tr>{"".join(cells)}</tr></table>'
-        '<div style="border-top:1px solid #e1e4e8;margin-top:2px;padding-top:5px;'
+        'style="width:100%;border-collapse:collapse;">'
+        f'{"".join(body)}</table>'
+        '<div style="border-top:1px solid #e1e4e8;margin-top:6px;padding-top:5px;'
         'font-size:11px;color:#7c8590;">'
-        f'{window.index[0].date().isoformat()} &rarr; '
-        f'{window.index[-1].date().isoformat()} &nbsp;&middot;&nbsp; '
-        f'<span style="color:{ret_col};font-weight:600;">{ret:+.1f}%</span>'
-        f' over the window &nbsp;&middot;&nbsp; '
-        f'columns span NAV {lo:.3f}&ndash;{hi:.3f}, not zero-based'
-        '</div></div>'
+        f'{att["start"]} &rarr; {att["end"]}, weight &times; sleeve return'
+        f'{resid_txt}</div></div>'
     )
 
 
@@ -723,6 +840,32 @@ def build_html(out_path: Path):
 
     # (Regime state moved to a compact footer line below — holdings and
     # activity are what readers want to see first.)
+    #
+    # Exceptions are the one thing that outranks them, so a slot is reserved
+    # here and filled once every check has run. Reserved rather than appended
+    # because the C-seat tripwire is not known until much further down the
+    # build, and it must print above everything, not where it is discovered.
+    alerts: list[tuple[str, str]] = []
+    alert_slot = len(out)
+    out.append("")
+
+    if regime_publish and regime_publish.status == "stale":
+        alerts.append(("critical",
+                       "<strong>Regime panel is stale — do not trade off it.</strong> "
+                       f"{regime_publish.message}"))
+    elif regime_publish and regime_publish.status == "near":
+        alerts.append(("warn",
+                       f"Regime <strong>{regime_state}</strong> is near its "
+                       f"threshold — a flip is live this week."))
+    # Same compound condition _eem_tilt_state uses to force the tilt OFF, so
+    # the alert fires exactly when the state below has been degraded — never
+    # on a stale flag the tilt logic itself decided to ignore.
+    if overlay and tilt_signal_stale(overlay) and (
+            not panel_end_iso or tilt_stale_on(overlay, panel_end_iso)):
+        alerts.append(("warn",
+                       f"EEM tilt feed is stale since "
+                       f"{tilt_signal_as_of(overlay)} — the tilt is forced OFF "
+                       f"rather than trusted."))
 
     # Headline stats — adds Week-to-date as the leading card (live
     # deployment tracking) alongside the longer-window backtest stats.
@@ -741,7 +884,10 @@ def build_html(out_path: Path):
     # PDF answer "did we beat the index?" the same way and in one place.
     # Sharpe and max drawdown show SPY as bare context: a signed "vs" delta
     # on a ratio, or on two negative drawdowns, reads ambiguously.
-    spy_m = _spy_metrics(_load_spy(), series, wtd)
+    # One load, shared by the headline tiles and the relative chart, so the
+    # benchmark quoted in the numbers is the one drawn in the picture.
+    spy = _load_spy()
+    spy_m = _spy_metrics(spy, series, wtd)
 
     def _bench(spy_val, strat_val, dp=1, ratio=False):
         base = ('<div style="font-size:11px;color:#7c8590;'
@@ -798,9 +944,26 @@ def build_html(out_path: Path):
             f'history.{bench_note}</p>'
         )
 
-    # The trailing-year curve sits directly under the 1Y figure it draws, on
-    # the same window, so the number and the shape cannot disagree.
-    out.append(_equity_sparkline(dates, equity))
+    # No trailing-year chart here. Three versions were built — columns from
+    # a false floor, a position trace, then strategy against SPY — and none
+    # earned its place: the five tiles above already carry WTD, YTD, 1Y,
+    # Sharpe and max drawdown against the same benchmark, and the dashboard
+    # draws the curve properly. A picture that restates the numbers beside
+    # it is decoration, and it was holding the most valuable space on the
+    # page while a breached tripwire sat at 88% depth.
+
+    # ...and the attribution sits under the WTD figure, on the WTD window,
+    # for the same reason. EEM is the one leg with no sleeve JSON of its own,
+    # so its return comes from the holdings price panel the dashboard uses.
+    eem_series = None
+    _hp = _load_json(DATA_DIR / "holdings_prices_1y.json") or {}
+    _eem = (_hp.get("prices") or {}).get("EEM")
+    if _eem and _eem.get("dates") and _eem.get("prices"):
+        eem_series = pd.Series(
+            _eem["prices"], index=pd.to_datetime(_eem["dates"])).dropna()
+    out.append(_attribution_chart(
+        _weekly_attribution(sleeves, st_now, wtd, eem_series),
+        wtd[0] if wtd else None))
 
     # Shared cell renderer — ticker bold with the fund name as a small
     # grey secondary line. Used by both the rebalance and holdings tables.
@@ -1036,6 +1199,81 @@ def build_html(out_path: Path):
         trip_tag = ('<strong style="color:#b3261e;">TRIPWIRE BREACHED '
                     '&mdash; review brought forward. </strong>'
                     if wrow.get("tripwire") else "")
+        # The detail stays here with its context; the fact goes to the top.
+        #
+        # A TRIPWIRE IS A TRANSITION, NOT A STATE. This first shipped
+        # re-announcing "TRIPWIRE BREACHED" in identical words every week.
+        # The breach happened on 2026-07-31 and was still being announced as
+        # news three weeks later, which is how an alarm becomes wallpaper —
+        # the exact failure the alerts strip exists to avoid.
+        #
+        # What is actually true after the first week is that an action is
+        # outstanding: §6 brings the review forward to the NEXT scheduled
+        # weekly, and that date has passed. So the alert reports the overdue
+        # action and ages, rather than restating the measurement.
+        weeks = watch["weeks"]
+        breaches = [i for i, w in enumerate(weeks) if w.get("tripwire")]
+        # An acknowledged breach is no longer an outstanding action. The log
+        # lives in its OWN file because run_c_seat_watch.py rebuilds
+        # c_seat_watch.json from scratch weekly and would wipe a field added
+        # there. Matched on the breach week so a LATER breach, after a fresh
+        # recovery and re-trip, is not silently covered by an old signature.
+        ack = None
+        _log = _load_json(DATA_DIR / "c_seat_tripwire_log.json") or {}
+        for e in (_log.get("entries") or []):
+            if (e.get("event") == "tripwire_breach_acknowledged"
+                    and breaches
+                    and e.get("first_breach_week_end")
+                    == weeks[breaches[0]]["week_end"]):
+                ack = e
+        if breaches:
+            first_i = breaches[0]
+            first_on = weeks[first_i]["week_end"]
+            # "next scheduled weekly" — the following observation if the
+            # tracker has one, else one week on from the breach.
+            due = (weeks[first_i + 1]["week_end"] if first_i + 1 < len(weeks)
+                   else (pd.Timestamp(first_on) + pd.Timedelta(days=7))
+                   .date().isoformat())
+            overdue_weeks = max(0, len(weeks) - (first_i + 2))
+            gap = wrow["cum_rotation_minus_ew_pp"]
+            if ack and not ack.get("acts_early", False):
+                # Logged and deliberately held. Reported as a standing state,
+                # not an alarm — the owner has seen it and decided. It stays
+                # visible at warn level rather than disappearing, because the
+                # sleeve is still on notice until the review actually happens.
+                alerts.append((
+                    "warn",
+                    f"<strong>Sleeve C on notice &mdash; review held to "
+                    f"{ack.get('review_date', '2026-10-02')}.</strong> "
+                    f"The rotation passed its "
+                    f"{abs(watch.get('tripwire_pp', -5.0)):.1f}pp limit on "
+                    f"{first_on}; the early review was logged and declined on "
+                    f"{str(ack.get('logged_utc', ''))[:10]} in favour of the "
+                    f"full quarter. Currently {gap:+.1f}pp against a plain "
+                    f"equal-weight basket of the same names."))
+            elif overdue_weeks > 0:
+                alerts.append((
+                    "critical",
+                    f"<strong>Sleeve C review is overdue by "
+                    f"{overdue_weeks} week{'s' if overdue_weeks != 1 else ''}."
+                    f"</strong> The rotation passed its "
+                    f"{abs(watch.get('tripwire_pp', -5.0)):.1f}pp limit on "
+                    f"{first_on}, which brought the review forward to "
+                    f"{due}. It is currently {gap:+.1f}pp against a plain "
+                    f"equal-weight basket of the same names."))
+            else:
+                alerts.append((
+                    "critical",
+                    f"<strong>Sleeve C review brought forward to {due}.</strong> "
+                    f"The rotation passed its "
+                    f"{abs(watch.get('tripwire_pp', -5.0)):.1f}pp limit on "
+                    f"{first_on}, currently {gap:+.1f}pp against a plain "
+                    f"equal-weight basket of the same names."))
+        if (asof - wk_end).days > 7:
+            alerts.append((
+                "warn",
+                f"C seat tracker did not run this week — last recorded "
+                f"{wrow['week_end']}, email as of {asof_iso}."))
         out.append(
             f'<p style="margin:0 0 18px 0;font-size:11px;color:#7c8590;'
             f'line-height:1.5;">{trip_tag}'
@@ -1094,6 +1332,10 @@ def build_html(out_path: Path):
     )
 
     out.append('</div>')
+
+    # Every check has now run, so the reserved slot can be filled. Empty
+    # string when nothing is wrong, which is most weeks.
+    out[alert_slot] = _alerts_strip(alerts)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     # Trailing newline is REQUIRED — the GitHub Actions workflow loads
