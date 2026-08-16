@@ -159,3 +159,54 @@ haircut beyond the two named comparisons.
 *Registered 2026-07-18 (Saturday — weekday verified). Owner: Zhenghao
 Phua. Amendments before 2026-10-02 are permitted only to gates not yet
 touched by accumulated evidence; the definitions in §4 are frozen.*
+
+## 11. Event log (append-only — records events, amends nothing)
+
+**2026-08-16 (Sunday — weekday verified). Tripwire fired; early review
+declined; scheduled review held.**
+
+The §6 tripwire breached on week ending **2026-07-31** at −6.60pp and has
+held past the limit for three consecutive weeks (−6.60, −7.07, −5.82).
+Under §6 that brought the review forward to the next scheduled weekly,
+2026-08-07. **The owner has declined the early review and held the review
+at 2026-10-02**, so the full 13-week quarter runs as originally specified.
+
+Reasoning, recorded now rather than reconstructed at review:
+
+- The accumulated evidence indicts the **rotation machinery**, and mostly
+  not from these six weeks: WS3's 7.5-year internal test already had the
+  rotation losing to its own same-universe equal-weight basket at a 1.0x
+  break-even cost multiple. The OOS window confirms the direction —
+  −5.82pp, outside the §5a band, losing in 5 of 6 weeks, still outside the
+  band with the worst week removed — which is the confirm-or-veto role §5a
+  assigns it. It has not vetoed.
+- It does **not** evidence the EW-25 basket as the destination, which is
+  why §5 rule 2 was not exercised early. §4 defines that basket with the
+  SHY cash floor excluded, so it carries none of the sleeve's risk
+  machinery, and the entire OOS window sits inside a RISK_ON regime
+  running since 2026-04-14 — no stress, and therefore no test of the
+  machinery whose purpose is stress.
+- Survivorship (§2) contaminates **both** legs of the 7.5-year comparison
+  and cuts against the benchmark: EW-25 holds all twenty-five names
+  permanently, including those admitted with backfilled history, while the
+  rotation at least selects among them.
+- The **seat** question remains unevidenced in both directions: the OOS
+  seat gap of −0.84pp of NAV is inside the §5a band, and WS3's 7.5-year
+  margin was +0.004 Sharpe. Nothing here supports rule 3.
+
+**No gate was amended and no definition changed.** The §6 tripwire remains
+at −5.0pp. This is not a matter of preference: the sign-off note above
+permits amendment "only to gates not yet touched by accumulated evidence",
+and the tripwire gate has now been touched by exactly that. Moving it
+after it has fired is closed off by the specification's own rule, which is
+the point of having written it down in advance.
+
+**Carried to the review.** The reviewer must record that the early trigger
+was exercised and declined, so the full-quarter window is not read as one
+that never breached. Machine-readable record:
+`data/c_seat_tripwire_log.json`, which the weekly email reads so that an
+acknowledged breach is reported as a standing notice rather than an
+outstanding action.
+
+*Deployed configuration unchanged throughout: Sleeve C remains at 10% of
+NAV running its rotation.*

@@ -1,0 +1,31 @@
+{
+  "registered_by": "KICKOFF_ws7-c-seat.md",
+  "note": "Append-only decision log for the WS7 sleeve C tripwire. Kept SEPARATE from data/c_seat_watch.json because run_c_seat_watch.py rebuilds that payload from scratch every week and would silently wipe any field added to it. Read by scripts/build_email_body.py so an acknowledged breach stops being reported as an outstanding action.",
+  "entries": [
+    {
+      "logged_utc": "2026-08-16T07:41:00Z",
+      "event": "tripwire_breach_acknowledged",
+      "decided_by": "Zhenghao",
+      "first_breach_week_end": "2026-07-31",
+      "first_breach_pp": -6.6,
+      "tripwire_pp": -5.0,
+      "decision": "hold_scheduled_review",
+      "review_date": "2026-10-02",
+      "acts_early": false,
+      "rationale": [
+        "The 7.5-year WS3 evidence indicts the ROTATION MACHINERY: C's rotation Sharpe +0.684 against its own same-universe equal-weight basket +0.759, drawdown matched, break-even cost multiple 1.0x — the only sleeve that fails at its own cost assumption. Six weeks out-of-sample confirm the direction at -5.82pp, outside the registered +/-2.0pp band, losing in 5 of 6 weeks and still outside the band with the worst week removed.",
+        "It does NOT evidence EW-25 as the destination, which is why no switch was made. The benchmark is defined with the SHY cash floor excluded, so it carries none of C's risk machinery — no cash floor, no +5% signal floor, no 30% sleeve-breadth gate.",
+        "The entire out-of-sample window sits inside a RISK_ON regime running since 2026-04-14, so it contains no stress and cannot test machinery whose purpose is stress. Judging it here repeats the insurance-economics error already documented for the regime gate.",
+        "Survivorship contaminates BOTH legs of the 7.5-year comparison, and cuts against the benchmark: BTC-USD alone is 23% of gross sleeve contribution with backfilled history, top five names ~62%, and EW-25 holds all twenty-five permanently while the rotation at least selects among them.",
+        "Operationally a switch is worse: 10% of NAV across 25 lines is ~0.4% each, rebalanced weekly at 8-25bps per line, against five lines at 2% today.",
+        "Seat question remains unevidenced either way: the out-of-sample seat gap of -0.84pp of NAV is INSIDE the +/-2.0pp band, and WS3's 7.5-year seat margin was +0.004 Sharpe across 4 of 6 sub-periods, kept then precisely because dropping on that margin is tuning on noise."
+      ],
+      "what_did_not_change": [
+        "The 5.0pp tripwire level is untouched. It was fixed 2026-07-18 before any data was seen and it has now fired; moving it after the fact is the failure pre-registration exists to prevent.",
+        "The decision rule in section 5 is untouched and remains PROPOSED pending countersign.",
+        "No deployed configuration changed. Sleeve C stays at 10% of NAV running its rotation."
+      ],
+      "review_must_note": "The tripwire fired on 2026-07-31 and the review was held to its scheduled date rather than brought forward. The reviewer should record that the early trigger was exercised and declined, so the full-quarter window is not mistaken for one that never breached."
+    }
+  ]
+}
