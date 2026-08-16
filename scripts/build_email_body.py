@@ -490,6 +490,157 @@ def _compute_wtd(series: pd.Series):
             last_dt.strftime("%Y-%m-%d"))
 
 
+# Sleeve hues, taken from the dashboard's validated categorical palette so the
+# same six colours mean the same six things wherever the reader meets them —
+# dashboard, public portfolio page, and this email. Do not re-pick them here.
+SLEEVE_HUES = {
+    "a": ("#2563eb", "Sleeve A"),
+    "b": ("#b45309", "Sleeve B"),
+    "c": ("#0891b2", "Sleeve C"),
+    "d": ("#be185d", "Sleeve D"),
+    "tilt_nav": ("#7c3aed", "EEM tilt"),
+    "shy_overlay": ("#1a8754", "Cash reserve"),
+}
+
+
+def _equity_sparkline(dates, equity, points: int = 60) -> str:
+    """A one-year equity column chart, drawn in table cells.
+
+    Same constraint as the allocation bar: no SVG, no external image. Each
+    column is a bottom-aligned cell holding a coloured block whose pixel
+    height encodes the value. Heights are absolute px because percentage
+    heights inside table cells are unreliable in Outlook.
+
+    Downsampled to ~60 columns rather than plotting every session. Gmail
+    clips a message body at around 102KB and this one already runs to 40KB,
+    so 252 daily cells would spend roughly 23KB to say what 60 say — and a
+    clipped email hides the disclaimer at the foot of it.
+
+    SCALED MIN-TO-MAX, NOT FROM ZERO, which is the usual sparkline
+    convention and does exaggerate the shape. The floor and ceiling are
+    therefore printed beside the chart, so the reader can see what the
+    height actually spans instead of inferring a zero baseline that is not
+    there.
+    """
+    if not dates or not equity or len(equity) < 3:
+        return ""
+    s = pd.Series(equity, index=pd.to_datetime(dates)).dropna()
+    window = s.loc[s.index[-1] - pd.DateOffset(years=1):]
+    if len(window) < 3:
+        return ""
+    step = max(1, len(window) // points)
+    pts = window.iloc[::step]
+    if pts.index[-1] != window.index[-1]:            # never drop the last close
+        pts = pd.concat([pts, window.iloc[[-1]]])
+
+    lo, hi = float(pts.min()), float(pts.max())
+    span = (hi - lo) or 1.0
+    height = 44
+    cells = []
+    for v in pts:
+        h = max(1, round((float(v) - lo) / span * height))
+        cells.append(
+            f'<td style="vertical-align:bottom;padding:0 1px;font-size:0;'
+            f'line-height:0;">'
+            f'<div style="height:{h}px;background:#1a2333;font-size:0;'
+            f'line-height:0;">&nbsp;</div></td>'
+        )
+    ret = (float(window.iloc[-1]) / float(window.iloc[0]) - 1.0) * 100
+    ret_col = "#1d7a3a" if ret >= 0 else "#b3261e"
+    return (
+        '<div style="margin:0 0 16px 0;">'
+        '<div style="font-size:11px;letter-spacing:0.06em;color:#7c8590;'
+        'text-transform:uppercase;margin-bottom:6px;">'
+        'Deployed blend &mdash; trailing year</div>'
+        '<table role="presentation" cellpadding="0" cellspacing="0" '
+        f'style="width:100%;border-collapse:collapse;table-layout:fixed;'
+        f'height:{height}px;">'
+        f'<tr>{"".join(cells)}</tr></table>'
+        '<div style="border-top:1px solid #e1e4e8;margin-top:2px;padding-top:5px;'
+        'font-size:11px;color:#7c8590;">'
+        f'{window.index[0].date().isoformat()} &rarr; '
+        f'{window.index[-1].date().isoformat()} &nbsp;&middot;&nbsp; '
+        f'<span style="color:{ret_col};font-weight:600;">{ret:+.1f}%</span>'
+        f' over the window &nbsp;&middot;&nbsp; '
+        f'columns span NAV {lo:.3f}&ndash;{hi:.3f}, not zero-based'
+        '</div></div>'
+    )
+
+
+def _move_bar(delta: float, max_abs: float, width: int = 54) -> str:
+    """Magnitude bar for one rebalance move, scaled to the largest move shown.
+
+    Direction is carried by the arrow that sits beside this, NOT by colour
+    alone — the arrow is what a colour-blind reader has, and the palette's
+    green/red pair is the one that fails most often. Colour here reinforces
+    direction; it does not encode it.
+    """
+    if not max_abs or delta is None:
+        return "&nbsp;"
+    w = max(1, round(abs(delta) / max_abs * width))
+    hue = "#1d7a3a" if delta >= 0 else "#b3261e"
+    return (
+        '<table role="presentation" cellpadding="0" cellspacing="0" '
+        f'style="border-collapse:collapse;width:{width}px;"><tr>'
+        f'<td style="width:{w}px;background:{hue};height:6px;font-size:0;'
+        f'line-height:0;border-radius:2px;">&nbsp;</td>'
+        f'<td style="font-size:0;line-height:0;">&nbsp;</td>'
+        '</tr></table>'
+    )
+
+
+def _allocation_bar(st_now: dict) -> str:
+    """A stacked allocation bar, built from table cells rather than SVG.
+
+    Email clients are the constraint, not taste. Gmail strips <svg> and
+    Outlook renders CSS flex unpredictably, so the only encoding that survives
+    everywhere is a fixed-layout table whose cells carry a background colour
+    and a percentage width. font-size:0/line-height:0 stops the cell inheriting
+    a text line box, which is what otherwise makes these bars 18px tall in
+    Outlook and 12px everywhere else.
+
+    Every segment is drawn at its true width, including ones too small to see.
+    A 1bp cash reserve renders as nothing, which is honest — the legend beneath
+    still names it and carries the number, and the same segment becomes the
+    second largest on the bar the moment the gate de-risks.
+    """
+    segs, legend = [], []
+    for key, (hue, label) in SLEEVE_HUES.items():
+        w = st_now.get(key) or 0.0
+        if w <= 0:
+            continue
+        segs.append(
+            f'<td style="width:{w * 100:.4f}%;background:{hue};'
+            f'height:12px;font-size:0;line-height:0;">&nbsp;</td>'
+        )
+        # The de-risk flag rides with the segment, not in a caption elsewhere.
+        # The plain-text line this replaced said "(DE-RISKED)" and that signal
+        # is the single most consequential thing the allocation can say.
+        flag = ""
+        if key == "shy_overlay" and st_now.get("derisk_on"):
+            flag = (' <strong style="color:#b3261e;">DE-RISKED</strong>')
+        legend.append(
+            f'<span style="white-space:nowrap;margin-right:14px;">'
+            f'<span style="display:inline-block;width:9px;height:9px;'
+            f'background:{hue};border-radius:2px;"></span>'
+            f'<span style="font-size:11px;color:#3a4148;">&nbsp;{label} '
+            f'<strong>{w * 100:g}%</strong>{flag}</span></span>'
+        )
+    if not segs:
+        return ""
+    return (
+        '<div style="margin-bottom:18px;">'
+        '<div style="font-size:11px;letter-spacing:0.06em;color:#7c8590;'
+        'text-transform:uppercase;margin-bottom:6px;">Allocation by sleeve</div>'
+        '<table role="presentation" cellpadding="0" cellspacing="0" '
+        'style="width:100%;border-collapse:collapse;table-layout:fixed;'
+        'border-radius:3px;overflow:hidden;">'
+        f'<tr>{"".join(segs)}</tr></table>'
+        f'<div style="margin-top:8px;line-height:1.9;">{"".join(legend)}</div>'
+        '</div>'
+    )
+
+
 def build_html(out_path: Path):
     multi = _load_json(DATA_DIR / "multi_strategy.json")
     overlay = _load_json(DATA_DIR / "risk_overlay.json")
@@ -545,19 +696,10 @@ def build_html(out_path: Path):
     labels = _build_label_map(sleeves)
 
     # Allocation summary from the same per-date weights the tables use.
+    # Rendered by _allocation_bar; the mono run-on string it replaced carried
+    # the same four-to-six figures with no shape and no colour tying them to
+    # anything else the reader had already seen.
     st_now = sleeve_nav_weights(overlay, asof_iso)
-
-    def _wfmt(x):
-        return f"{x * 100:g}%"
-
-    alloc_parts = [f"A {_wfmt(st_now['a'])}", f"B {_wfmt(st_now['b'])}",
-                   f"C {_wfmt(st_now['c'])}", f"D {_wfmt(st_now['d'])}"]
-    if st_now["tilt_nav"] > 0:
-        alloc_parts.append(f"EEM tilt {_wfmt(st_now['tilt_nav'])}")
-    if st_now["shy_overlay"] > 0:
-        alloc_parts.append(
-            f"SHY overlay {_wfmt(st_now['shy_overlay'])} (DE-RISKED)")
-    alloc = " &middot; ".join(alloc_parts)
 
     # ----- HTML assembly --------------------------------------------------
     css = (
@@ -602,7 +744,7 @@ def build_html(out_path: Path):
     spy_m = _spy_metrics(_load_spy(), series, wtd)
 
     def _bench(spy_val, strat_val, dp=1, ratio=False):
-        base = ('<div style="font-size:10px;color:#7c8590;'
+        base = ('<div style="font-size:11px;color:#7c8590;'
                 'margin-top:3px;line-height:1.35;">')
         if spy_val is None:
             return ""
@@ -638,7 +780,7 @@ def build_html(out_path: Path):
             f'<td style="padding:8px 10px;background:{bg};'
             f'border:1px solid {border};width:20%;text-align:center;'
             f'vertical-align:top;">'
-            f'<div style="color:{lbl_colour};font-size:10px;'
+            f'<div style="color:{lbl_colour};font-size:11px;'
             f'text-transform:uppercase;letter-spacing:0.5px;">{label}</div>'
             f'<div style="font-weight:{weight};font-size:{size}px;'
             f'color:{colour};">{val}</div>{bench}</td>'
@@ -655,6 +797,10 @@ def build_html(out_path: Path):
             f'calendar year; Sharpe and Max DD span the full deployed-blend '
             f'history.{bench_note}</p>'
         )
+
+    # The trailing-year curve sits directly under the 1Y figure it draws, on
+    # the same window, so the number and the shape cannot disagree.
+    out.append(_equity_sparkline(dates, equity))
 
     # Shared cell renderer — ticker bold with the fund name as a small
     # grey secondary line. Used by both the rebalance and holdings tables.
@@ -714,7 +860,7 @@ def build_html(out_path: Path):
         out.append('<table style="width:100%;border-collapse:collapse;'
                    'margin-bottom:6px;font-size:13px;">')
         out.append(
-            '<tr style="color:#7c8590;font-size:10px;text-transform:uppercase;'
+            '<tr style="color:#7c8590;font-size:11px;text-transform:uppercase;'
             'letter-spacing:0.5px;">'
             '<th style="text-align:left;padding:4px 10px;'
             'border-bottom:1px solid #c8ccd2;">Sleeve</th>'
@@ -729,6 +875,20 @@ def build_html(out_path: Path):
         )
         action_colour = {"ENTER": "#1d7a3a", "EXIT": "#b3261e",
                           "RESIZE": "#b76e00"}
+
+        # Every row carries a signed change in NAV: an ENTER is a move up
+        # from nothing, an EXIT a move down to nothing. Bars are scaled to
+        # the largest move IN THIS WEEK'S SET, so the column answers "which
+        # of these mattered most" and never implies a fixed scale across
+        # weeks — a 2% move looks the same as a 6% one if the week's biggest
+        # differs, which is why the prior/new percentages stay beside it.
+        def _delta(a):
+            prev = a["prev"] or 0.0
+            new = a["new"] or 0.0
+            return new - prev
+
+        max_abs_move = max((abs(_delta(a)) for a in shown), default=0.0)
+
         for a in shown:
             prev_str = f"{a['prev'] * 100:.1f}%" if a["prev"] is not None else "&mdash;"
             new_str = f"{a['new'] * 100:.1f}%" if a["new"] is not None else "&mdash;"
@@ -739,9 +899,12 @@ def build_html(out_path: Path):
                     and a["new"] is not None):
                 up = a["new"] > a["prev"]
                 arrow = (f'<span style="color:{"#1d7a3a" if up else "#b3261e"};'
-                         f'font-size:10px;">{"&#9650;" if up else "&#9660;"}</span>')
+                         f'font-size:11px;">{"&#9650;" if up else "&#9660;"}</span>')
             else:
                 arrow = "&nbsp;"
+            # Arrow first (direction, non-chromatic), bar second (magnitude).
+            arrow = (f'<div style="text-align:right;">{arrow}</div>'
+                     f'{_move_bar(_delta(a), max_abs_move)}')
             out.append(
                 f'<tr><td style="padding:6px 10px;color:#3a4148;vertical-align:top;'
                 f'border-bottom:1px solid #f0f2f4;">{a["sleeve"]}</td>'
@@ -794,7 +957,7 @@ def build_html(out_path: Path):
     out.append('<table style="width:100%;border-collapse:collapse;'
                'margin-bottom:18px;font-size:13px;">')
     out.append(
-        '<tr style="color:#7c8590;font-size:10px;text-transform:uppercase;'
+        '<tr style="color:#7c8590;font-size:11px;text-transform:uppercase;'
         'letter-spacing:0.5px;">'
         '<th style="text-align:left;padding:4px 10px;'
         'border-bottom:1px solid #c8ccd2;">Ticker &amp; name</th>'
@@ -851,12 +1014,12 @@ def build_html(out_path: Path):
             f'{regime_label}</span> since {regime_since} &nbsp;&middot;&nbsp; '
             f'<strong>EEM tilt:</strong> '
             f'<span style="color:{_regime_colour(tilt_state)};font-weight:600;">'
-            f'{tilt_state}</span> since {tilt_since}{tilt_ratio_str} &nbsp;&middot;&nbsp; '
-            f'<strong>Allocation:</strong> '
-            f'<span style="font-family:{MONO};font-size:11px;">'
-            f'{alloc}</span>'
+            f'{tilt_state}</span> since {tilt_since}{tilt_ratio_str}'
             f'</div>'
         )
+        # The allocation was a run-on mono string at the end of the same line.
+        # It is the one figure on the page with a shape, so it is drawn.
+        out.append(_allocation_bar(st_now))
 
     # WS7 — Sleeve C seat watch (KICKOFF_ws7-c-seat.md §7). One line from
     # the append-only OOS tracker; absent file renders nothing (pre-
@@ -887,11 +1050,26 @@ def build_html(out_path: Path):
         )
 
     # PDF + dashboard link
+    #
+    # The page count is READ FROM THE PDF, never asserted. It was hardcoded as
+    # "2-page" and the factsheet had since grown to five, so the email spent an
+    # unknown number of weeks telling the reader the wrong length of the thing
+    # attached to it. A quantity word in prose is a number in disguise: derive
+    # it from the artefact or leave it out. If the file cannot be read, the
+    # phrase degrades to "Full PDF factsheet" rather than guessing.
+    pages_phrase = "Full PDF factsheet"
+    try:
+        from pypdf import PdfReader  # noqa: PLC0415 — optional, only for prose
+        n_pages = len(PdfReader(str(ROOT / "docs" / "factsheet_latest.pdf")).pages)
+        if n_pages:
+            pages_phrase = f"Full {n_pages}-page PDF factsheet"
+    except Exception:  # noqa: BLE001 — a missing count must not fail the email
+        pass
     out.append(
         '<div style="background:#f7f8fa;border:1px solid #e1e4e8;'
         'padding:14px 18px;border-radius:4px;margin-bottom:18px;">'
         '<p style="margin:0 0 6px 0;font-size:13px;">'
-        f'Full 2-page PDF factsheet attached: '
+        f'{pages_phrase} attached: '
         f'<strong>factsheet_{asof_iso}.pdf</strong></p>'
         '<p style="margin:0;font-size:12px;color:#3a4148;">'
         'Live dashboard with charts, signal traces, and per-sleeve detail: '
@@ -911,7 +1089,7 @@ def build_html(out_path: Path):
         'survivorship bias, look-ahead risk, and ~&pm;0.4 Sharpe sample '
         'noise. Deployed key: '
         f'<code style="background:#f0f2f4;padding:1px 4px;border-radius:2px;'
-        f'font-family:{MONO};font-size:10px;">{deployed_key}</code>.'
+        f'font-family:{MONO};font-size:11px;">{deployed_key}</code>.'
         '</p>'
     )
 
