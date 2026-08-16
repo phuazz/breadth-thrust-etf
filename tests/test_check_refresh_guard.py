@@ -260,12 +260,30 @@ def test_g6_fails_on_the_actual_incident():
 
 
 def test_g6_does_not_trip_on_the_structural_tail():
-    """ITWN 89.7% and ICHN 93.6% are what those markets' coverage looks
-    like. Failing the weekly refresh on them would be a standing false
-    alarm, which is how a guard gets ignored."""
-    res = guard.check_roster_coverage({"ITWN": 70 / 78, "ICHN": 539 / 576},
+    """ICHN 93.6% is what that market's coverage looks like, and ITWN now
+    runs at 98.7%. Failing the weekly refresh on either would be a standing
+    false alarm, which is how a guard gets ignored.
+
+    ITWN sat in this test at 89.7% and was the reason the floor stayed at
+    0.85. That number was a resolver bug — an unmapped Taipei Exchange
+    venue — not a fact about Taiwanese listings, so it no longer belongs
+    among the panels a floor must tolerate. See
+    test_g6_fails_on_the_gap_the_old_floor_excused.
+    """
+    res = guard.check_roster_coverage({"ITWN": 77 / 78, "ICHN": 539 / 576},
                                       FLOOR)
     assert _statuses(res) == [guard.OK]
+
+
+def test_g6_fails_on_the_gap_the_old_floor_excused():
+    """ITWN's pre-fix 89.7% must now block a commit.
+
+    It published a plausible breadth number on a universe 9% smaller than
+    the fund for 451 roster-days, and the 0.85 floor was explicitly set
+    beneath it. At 0.90 the guard catches that class of loss."""
+    res = guard.check_roster_coverage({"ITWN": 70 / 78, "CSP1": 1.0}, FLOOR)
+    assert guard.FAIL in _statuses(res)
+    assert "ITWN" in res[0]["evidence"]
 
 
 def test_g6_names_every_thin_panel_not_just_the_first():
