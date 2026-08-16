@@ -121,7 +121,33 @@ Inert until countersigned. The build items in §4 may be built beforehand but mu
 alert or log live until the countersign lands. On countersign: ledger row appended
 (shadow-start), activation date recorded here, first evaluator run verified manually.
 
-**Countersign (owner):** ______________  **Date:** ______________
+## Amendment 1 (2026-08-16, at countersign) — 4-week venue-qualification horizon
 
-*Dates in this draft: drafted 2026-08-16; all activation-dependent dates are set at
-countersign. Flag any date for correction before signing.*
+Owner instruction at countersign: micro-live US$300, and completion within 3–4
+weeks. A 4-week window has only ~13% odds of catching a live thrust fire (~2 fires
+per year historically), so the completion rule in §8 is REPLACED by a design that
+completes on schedule without depending on a fire:
+
+- **Probes.** Two scheduled micro probe trades per week (Tuesday and Friday, executed
+  in the §6 window; first pair 2026-08-18 and 2026-08-21): enter US$300 at 1×, exit
+  in the next session's window. Target 8 probes, minimum 6. Probe slippage versus the
+  modelled prior-close fill feeds the FAIL-EXECUTION trigger (§7a, unchanged 15bp
+  median bar), measured on probes and any live-fire trades pooled.
+- **Funding verification.** One probe in week 2 is held five sessions instead of one;
+  its realised hourly funding accrual is reconciled against the published rates and
+  the §7b band. The daily quote rows accrue the venue funding series regardless.
+- **Ops soak.** The daily evaluator runs the full window; §7c unchanged.
+- **Live fire.** If a signal fires inside the window it is executed per the original
+  protocol and pooled into the same triggers.
+- **Completion: 2026-09-13** (activation + 28 days). Graduation gate as §8, with
+  "completed trades" read as "probes plus any live-fire trades".
+- **Residual carried, stated plainly:** probe fills in whatever market the window
+  provides do not measure fill quality on an actual event day (thrust entries cluster
+  in high-volatility moments). A pass here qualifies the VENUE, not event-day
+  execution; the sizing proposal must carry that residual explicitly.
+
+**Countersign (owner):** Zhenghao — instructed in session, micro-live US$300, 4-week
+horizon. **Date:** 2026-08-16. **Activation:** 2026-08-16; first evaluator run
+verified manually the same day; first probe pair due 2026-08-18 (Tuesday) and
+2026-08-21 (Friday), completion 2026-09-13 (Sunday). Dates computed with Python
+`datetime` and flagged in the session summary for owner confirmation.
