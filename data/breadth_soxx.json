@@ -1,6 +1,6 @@
 {
   "etf": "SOXX",
-  "computed_at_utc": "2026-08-15T07:31:40.078254+00:00",
+  "computed_at_utc": "2026-08-16T11:16:54.500732+00:00",
   "constituents_source": "data\\constituents_soxx.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
@@ -25,7 +25,7 @@
   },
   "data_quality": {
     "roster_coverage_latest": 1.0,
-    "roster_coverage_warn_floor": 0.85,
+    "roster_coverage_warn_floor": 0.9,
     "roster_coverage_fail_floor": 0.5,
     "universe_size": 57,
     "tickers_with_any_yf_data": 57,

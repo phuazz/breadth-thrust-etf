@@ -12,5 +12,269 @@
   "event": "MISSED-EVALUATION",
   "reason": "git pull --rebase failed",
   "detail": "error: cannot pull with rebase: You have unstaged changes.\nerror: Please commit or stash them.\n"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2019-03-27",
+  "modelled_entry": 59.29359666952515,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2019-05-13",
+  "modelled_exit": 59.80498245239258,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2019-07-30",
+  "modelled_entry": 67.42288189861449,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2019-08-23",
+  "modelled_exit": 61.622512716293336,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2019-11-05",
+  "modelled_entry": 74.08434797035702,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2020-01-31",
+  "modelled_exit": 76.71504888534547,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2020-08-11",
+  "modelled_entry": 93.99644295178236,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2020-09-08",
+  "modelled_exit": 91.15066041564941,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2020-10-19",
+  "modelled_entry": 104.69946256361716,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2021-03-04",
+  "modelled_exit": 122.90932453155519,
+  "exit_reason": "regime_exit_composite"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2021-08-12",
+  "modelled_entry": 146.06121586768882,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2021-08-18",
+  "modelled_exit": 140.49780067443848,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2021-11-10",
+  "modelled_entry": 164.9626667280056,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2021-12-20",
+  "modelled_exit": 164.48962871551515,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2023-01-31",
+  "modelled_entry": 128.8047896499685,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2023-04-05",
+  "modelled_exit": 138.64765199279785,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2023-06-06",
+  "modelled_entry": 154.39176298925454,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2023-08-09",
+  "modelled_exit": 163.55448860931398,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2023-11-22",
+  "modelled_entry": 169.57012794381797,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2024-04-12",
+  "modelled_exit": 215.05924092864993,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2024-06-21",
+  "modelled_entry": 247.2480522905992,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2024-07-19",
+  "modelled_exit": 233.47285056304932,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2025-05-21",
+  "modelled_entry": 208.42356070320076,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2025-08-05",
+  "modelled_exit": 237.50237471008302,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2025-09-26",
+  "modelled_entry": 267.9787735303729,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2025-11-17",
+  "modelled_exit": 282.6950990753174,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2025-12-18",
+  "modelled_entry": 295.54535993568584,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2026-03-06",
+  "modelled_exit": 322.9958004608155,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "ENTRY",
+  "entry_date": "2026-04-20",
+  "modelled_entry": 417.44048441078627,
+  "open": false
+ },
+ {
+  "type": "signal",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "EXIT",
+  "exit_date": "2026-07-13",
+  "modelled_exit": 553.3331803588867,
+  "exit_reason": "regime_exit_ma_floor"
+ },
+ {
+  "type": "quote",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "coin": "xyz:SMH",
+  "mark": 589.29,
+  "mid": 589.705,
+  "oracle": 587.48,
+  "impact_bid": 586.981,
+  "impact_ask": 591.251,
+  "funding_hourly": 7.04568e-05,
+  "funding_ann_pct": 61.72,
+  "open_interest": 2668.962,
+  "day_ntl_vlm_m": 0.077,
+  "bid_usd_25bp": 663.0,
+  "ask_usd_25bp": 1163.0
+ },
+ {
+  "type": "ops",
+  "ts_utc": "2026-08-16T11:16:39.704324+00:00",
+  "event": "OK",
+  "panel_end": "2026-08-14",
+  "sessions_behind": 0,
+  "n_trades_engine": 15
  }
 ]
