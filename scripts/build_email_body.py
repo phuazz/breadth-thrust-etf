@@ -1196,79 +1196,39 @@ def build_html(out_path: Path):
         stale_tag = (' <strong style="color:#b3261e;">(STALE &mdash; '
                      'tracker did not run this week)</strong>'
                      if (asof - wk_end).days > 7 else "")
-        trip_tag = ('<strong style="color:#b3261e;">TRIPWIRE BREACHED '
-                    '&mdash; review brought forward. </strong>'
+        # States the breach, and no longer asserts its consequence. The clause
+        # "review brought forward" was true of section 6's default and became
+        # false on 2026-08-16 when the early review was declined and the
+        # quarter held — leaving the line claiming a review had been advanced
+        # while printing the original 2026-10-02 date two clauses later. The
+        # date the watch line already carries is the honest statement of where
+        # the review stands; the flag only needs to record that the limit was
+        # crossed.
+        trip_tag = ('<strong style="color:#b3261e;">TRIPWIRE BREACHED. </strong>'
                     if wrow.get("tripwire") else "")
-        # The detail stays here with its context; the fact goes to the top.
+        # NO TRIPWIRE ALERT, DELIBERATELY. The breach was raised to the
+        # attention strip and then removed on 2026-08-16, and the reasoning
+        # matters more than the removal.
         #
-        # A TRIPWIRE IS A TRANSITION, NOT A STATE. This first shipped
-        # re-announcing "TRIPWIRE BREACHED" in identical words every week.
-        # The breach happened on 2026-07-31 and was still being announced as
-        # news three weeks later, which is how an alarm becomes wallpaper —
-        # the exact failure the alerts strip exists to avoid.
+        # The finding behind it is substantiated — WS3 measured 7.5 years and
+        # the rotation lost to its own same-universe equal-weight basket at a
+        # 1.0x break-even cost multiple. What fails is the VEHICLE. The review
+        # is deliberately held to 2026-10-02, so nothing about this is
+        # actionable for the reader for seven more weeks, and a permanent
+        # entry in a box headed "needs attention" is precisely the wallpaper
+        # that box exists to avoid. A strip that always has something in it
+        # teaches the reader to skip it, and it will then be skipped on the
+        # week it finally carries a regime flip.
         #
-        # What is actually true after the first week is that an action is
-        # outstanding: §6 brings the review forward to the NEXT scheduled
-        # weekly, and that date has passed. So the alert reports the overdue
-        # action and ages, rather than restating the measurement.
-        weeks = watch["weeks"]
-        breaches = [i for i, w in enumerate(weeks) if w.get("tripwire")]
-        # An acknowledged breach is no longer an outstanding action. The log
-        # lives in its OWN file because run_c_seat_watch.py rebuilds
-        # c_seat_watch.json from scratch weekly and would wipe a field added
-        # there. Matched on the breach week so a LATER breach, after a fresh
-        # recovery and re-trip, is not silently covered by an old signature.
-        ack = None
-        _log = _load_json(DATA_DIR / "c_seat_tripwire_log.json") or {}
-        for e in (_log.get("entries") or []):
-            if (e.get("event") == "tripwire_breach_acknowledged"
-                    and breaches
-                    and e.get("first_breach_week_end")
-                    == weeks[breaches[0]]["week_end"]):
-                ack = e
-        if breaches:
-            first_i = breaches[0]
-            first_on = weeks[first_i]["week_end"]
-            # "next scheduled weekly" — the following observation if the
-            # tracker has one, else one week on from the breach.
-            due = (weeks[first_i + 1]["week_end"] if first_i + 1 < len(weeks)
-                   else (pd.Timestamp(first_on) + pd.Timedelta(days=7))
-                   .date().isoformat())
-            overdue_weeks = max(0, len(weeks) - (first_i + 2))
-            gap = wrow["cum_rotation_minus_ew_pp"]
-            if ack and not ack.get("acts_early", False):
-                # Logged and deliberately held. Reported as a standing state,
-                # not an alarm — the owner has seen it and decided. It stays
-                # visible at warn level rather than disappearing, because the
-                # sleeve is still on notice until the review actually happens.
-                alerts.append((
-                    "warn",
-                    f"<strong>Sleeve C on notice &mdash; review held to "
-                    f"{ack.get('review_date', '2026-10-02')}.</strong> "
-                    f"The rotation passed its "
-                    f"{abs(watch.get('tripwire_pp', -5.0)):.1f}pp limit on "
-                    f"{first_on}; the early review was logged and declined on "
-                    f"{str(ack.get('logged_utc', ''))[:10]} in favour of the "
-                    f"full quarter. Currently {gap:+.1f}pp against a plain "
-                    f"equal-weight basket of the same names."))
-            elif overdue_weeks > 0:
-                alerts.append((
-                    "critical",
-                    f"<strong>Sleeve C review is overdue by "
-                    f"{overdue_weeks} week{'s' if overdue_weeks != 1 else ''}."
-                    f"</strong> The rotation passed its "
-                    f"{abs(watch.get('tripwire_pp', -5.0)):.1f}pp limit on "
-                    f"{first_on}, which brought the review forward to "
-                    f"{due}. It is currently {gap:+.1f}pp against a plain "
-                    f"equal-weight basket of the same names."))
-            else:
-                alerts.append((
-                    "critical",
-                    f"<strong>Sleeve C review brought forward to {due}.</strong> "
-                    f"The rotation passed its "
-                    f"{abs(watch.get('tripwire_pp', -5.0)):.1f}pp limit on "
-                    f"{first_on}, currently {gap:+.1f}pp against a plain "
-                    f"equal-weight basket of the same names."))
+        # Nothing is lost by the removal: the watch line below still prints
+        # the gap, the seat number, the review date and the noise band every
+        # week, which is monitoring where it belongs. The decision itself is
+        # recorded in data/c_seat_tripwire_log.json and section 11 of
+        # KICKOFF_ws7-c-seat.md, neither of which depends on the email.
+        #
+        # Tracker STALENESS is a different thing and stays an alert: that is
+        # a plumbing fault, it is actionable the day it appears, and it is
+        # silent unless something is genuinely broken.
         if (asof - wk_end).days > 7:
             alerts.append((
                 "warn",
