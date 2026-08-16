@@ -466,11 +466,17 @@ jobs:
         # commits cannot land, the email step below must not run — the
         # recipients would get a factsheet the live site never shows.
         # Failing here routes to the failure alert instead.
+        #
+        # build/portfolio.html is staged EXPLICITLY (2026-08-16) — see the
+        # matching note in daily_live_track.yml. This run is the one that
+        # exposed the gap: it refreshed data/, rebuilt the page, committed
+        # only data/ and docs/, and left main carrying a page one vintage
+        # behind its own sources.
         if: ${{ !inputs.trial }}
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "Weekly Factsheet Bot"
-          git add data/ docs/
+          git add data/ docs/ build/portfolio.html
           if git diff --cached --quiet; then
             echo "No refreshed outputs to commit."
             exit 0

@@ -199,11 +199,20 @@ jobs:
       # universe_monitor; --autostash because tracked build outputs may be
       # dirty mid-job) since another workflow may push between checkout and
       # here; exhaustion goes loudly red so the alert fires.
+      #
+      # build/portfolio.html is staged EXPLICITLY (2026-08-16). The step above
+      # rebuilt it, the pytest step above passed against it, and then this add
+      # threw it away — build/ was in neither this list nor the weekly one, so
+      # the reduced public page had only ever reached main by hand. It went
+      # unseen because both workflows rebuild before they test: the runner's
+      # copy is always fresh, and only the standalone Tests workflow, which
+      # checks out committed state, can see the drift. It caught it on 759eb6c.
+      # Explicit path rather than `build/`, for the reason scanner-daily gives.
       - name: Commit refreshed outputs
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "Daily Live Track Bot"
-          git add data/live_track.json data/ docs/
+          git add data/live_track.json data/ docs/ build/portfolio.html
           if git diff --cached --quiet; then
             echo "No refreshed outputs to commit."
             exit 0
