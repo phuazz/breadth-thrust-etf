@@ -136,11 +136,15 @@ def main() -> int:
     stamp = now_utc().isoformat()
     rows: list[dict] = []
 
-    # 1. Shared-tree preflight.
-    pull = git("pull", "--rebase", "origin", "main")
+    # 1. Shared-tree preflight. --autostash: concurrent sessions leave tracked
+    # files dirty; their work-in-progress is stashed and reapplied, never
+    # clobbered. This job commits only its own three files.
+    pull = git("pull", "--rebase", "--autostash", "origin", "main")
     if pull.returncode != 0:
         append_rows([{"type": "ops", "ts_utc": stamp, "event": "MISSED-EVALUATION",
-                      "reason": "git pull --rebase failed", "detail": pull.stderr[-400:]}])
+                      "reason": "git pull --rebase --autostash failed",
+                      "detail": pull.stderr[-400:]},
+                     hl_quote_row(stamp)])
         send_alert("[WS17 shadow] MISSED — git preflight", pull.stderr[-1000:])
         return 2
 

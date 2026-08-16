@@ -5,5 +5,12 @@
   "event": "MISSED-EVALUATION",
   "reason": "git pull --rebase failed",
   "detail": "error: cannot pull with rebase: You have unstaged changes.\nerror: Please commit or stash them.\n"
+ },
+ {
+  "type": "ops",
+  "ts_utc": "2026-08-16T11:16:00.693040+00:00",
+  "event": "MISSED-EVALUATION",
+  "reason": "git pull --rebase failed",
+  "detail": "error: cannot pull with rebase: You have unstaged changes.\nerror: Please commit or stash them.\n"
  }
 ]
