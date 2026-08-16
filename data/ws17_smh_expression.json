@@ -1,0 +1,38 @@
+{
+  "computed_at_utc": "2026-08-16T09:10:49.705140+00:00",
+  "source_run": "data/ws17_soxx_smh.json",
+  "focus_variant": "regime_time_only_delay5_trend",
+  "n_trades": 15,
+  "n_in_trade_days": 652,
+  "n_total_days": 1911,
+  "smh_div_yield_ttm": 0.00188,
+  "smh_div_yield_note": "measured: TTM dividends 1.1050 / close 587.82",
+  "gross_mc_percentile": 57.3,
+  "gross": {
+    "total_return": 1.5334,
+    "max_dd": -0.2491,
+    "sharpe": 0.747
+  },
+  "bands": {
+    "0%": {
+      "total_return": 1.5249,
+      "max_dd": -0.2496,
+      "sharpe": 0.744,
+      "annual_drag_pct": 0.19
+    },
+    "3%": {
+      "total_return": 1.3933,
+      "max_dd": -0.2567,
+      "sharpe": 0.707,
+      "annual_drag_pct": 3.19
+    },
+    "6%": {
+      "total_return": 1.2686,
+      "max_dd": -0.2638,
+      "sharpe": 0.669,
+      "annual_drag_pct": 6.19
+    }
+  },
+  "verdict_rule": "KEEP-for-shadow if net Sharpe >= 0.4 and net total return > 0 across the ENTIRE band; INCONCLUSIVE if 0-3% only; else REJECT",
+  "verdict": "KEEP-for-shadow"
+}
