@@ -276,5 +276,42 @@
   "panel_end": "2026-08-14",
   "sessions_behind": 0,
   "n_trades_engine": 15
+ },
+ {
+  "type": "ops",
+  "ts_utc": "2026-08-16T23:54:56.710288+00:00",
+  "event": "MISSED-EVALUATION",
+  "reason": "git pull --rebase --autostash failed",
+  "detail": "fatal: unable to access 'https://github.com/phuazz/breadth-thrust-etf.git/': Could not resolve host: github.com\n"
+ },
+ {
+  "type": "quote",
+  "ts_utc": "2026-08-16T23:54:56.710288+00:00",
+  "coin": "xyz:SMH",
+  "error": "ConnectionError: HTTPSConnectionPool(host='api.hyperliquid.xyz', port=443): Max retries exceeded with url: /info (Caused by NameResolutionError(\"HTTPSConnection(host='api.hyperliquid.xyz', port=443): Failed to resolve 'api.hyperliquid.xyz' ([Errno 11001] getaddrinfo failed)\"))"
+ },
+ {
+  "type": "quote",
+  "ts_utc": "2026-08-18T03:16:22.266392+00:00",
+  "coin": "xyz:SMH",
+  "mark": 585.09,
+  "mid": 584.975,
+  "oracle": 585.62,
+  "impact_bid": 584.115,
+  "impact_ask": 585.355,
+  "funding_hourly": -4.64023e-05,
+  "funding_ann_pct": -40.65,
+  "open_interest": 3173.916,
+  "day_ntl_vlm_m": 0.921,
+  "bid_usd_25bp": 20273.0,
+  "ask_usd_25bp": 32718.0
+ },
+ {
+  "type": "ops",
+  "ts_utc": "2026-08-18T03:16:22.266392+00:00",
+  "event": "OK",
+  "panel_end": "2026-08-17",
+  "sessions_behind": 0,
+  "n_trades_engine": 15
  }
 ]
