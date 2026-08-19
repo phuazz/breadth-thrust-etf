@@ -167,6 +167,46 @@ def longest_nan_run(series: pd.Series) -> int:
     return int(isna.groupby((~isna).cumsum()).sum().max())
 
 
+def fetched_frame_is_worse(fetched: pd.DataFrame | None,
+                           on_disk: pd.DataFrame | None) -> str | None:
+    """Reason to REFUSE writing ``fetched`` over ``on_disk``, or None.
+
+    The one rule for every ``{ticker}_ohlc_cache.parquet`` write site —
+    ``backtest.download_soxx_ohlc``, ``export_holdings_prices.
+    fetch_missing_from_yfinance`` and ``refresh_ohlc_caches``: a vendor never
+    un-prints a close, so a response that is degenerate, ends earlier or
+    STARTS LATER than the file it would replace is a sourcing fault and must
+    not become the series the engines fall back on.
+
+    The start half is the 2026-08-19 lesson. The daily two-year backfill
+    (``period="2y"``) passes the end rule — it is perfectly fresh — and it
+    overwrote the five sleeve-D Xetra caches' 2017 history on 2026-08-13/14;
+    the next cold rebuild read the surviving stubs back as authoritative and
+    collapsed a blend onto a two-year window (Sharpe +1.99 against a
+    committed +1.29). Only the write sites can stop that: to every later
+    reader the truncated file simply IS the past.
+    """
+    if fetched is None or len(fetched) == 0 or "Close" not in fetched.columns:
+        return "the fetch returned nothing usable"
+    close = pd.to_numeric(fetched["Close"], errors="coerce").dropna()
+    if len(close) < 2:
+        return f"the fetch returned {len(close)} usable close(s)"
+    if close.nunique() < 2:
+        return "the fetch returned a flat close series"
+    if on_disk is None or "Close" not in on_disk.columns:
+        return None
+    prev = pd.to_numeric(on_disk["Close"], errors="coerce").dropna()
+    if prev.empty:
+        return None
+    if close.index[-1] < prev.index[-1]:
+        return (f"the fetch ends {close.index[-1].date()} but the cache "
+                f"already ends {prev.index[-1].date()}")
+    if close.index[0] > prev.index[0]:
+        return (f"the fetch starts {close.index[0].date()} but the cache "
+                f"already starts {prev.index[0].date()}")
+    return None
+
+
 def assess_close_series(
     close: pd.Series | None,
     member: str,

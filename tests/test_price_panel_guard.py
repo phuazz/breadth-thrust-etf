@@ -419,6 +419,67 @@ def test_a_healthy_fetch_still_refreshes_the_cache(ohlc_cache, monkeypatch):
     assert len(pd.read_parquet(path)) == 300
 
 
+def test_a_healthy_short_span_fetch_never_truncates_the_cache(ohlc_cache,
+                                                              monkeypatch):
+    """2026-08-19, sleeve D. The daily two-year backfill is dense, unflat
+    and flush at the tail — every degeneracy rule passes — and it used to
+    land on top of nine years of history; the next cold rebuild then
+    collapsed onto the surviving stub (blend Sharpe +1.99 against a
+    committed +1.29). The write is refused; the caller still gets exactly
+    the window the vendor served."""
+    backtest, path = ohlc_cache
+    good = _ohlc()
+    good.to_parquet(path)
+    short = good.iloc[150:]              # starts 150 sessions later, same end
+    monkeypatch.setattr(backtest.yf, "download",
+                        lambda *a, **k: short, raising=False)
+    out = backtest.download_soxx_ohlc("2020-01-01", "2099-01-01", etf="SOXX")
+
+    on_disk = pd.read_parquet(path)
+    assert on_disk.index.min() == good.index.min(), (
+        "a short-span fetch truncated the cache's first bar")
+    assert len(on_disk) == len(good)
+    assert len(out) == len(short), "the caller must still get the fetch"
+
+
+def test_a_healthy_earlier_ending_fetch_never_shears_the_cache_tail(
+        ohlc_cache, monkeypatch):
+    """The mirror image: an extended-history request that comes back healthy
+    but ends before the cache's last bar must not delete the newer bars."""
+    backtest, path = ohlc_cache
+    good = _ohlc()
+    good.to_parquet(path)
+    early = good.iloc[:150]              # same first bar, ends 150 sessions early
+    monkeypatch.setattr(backtest.yf, "download",
+                        lambda *a, **k: early, raising=False)
+    out = backtest.download_soxx_ohlc("2020-01-01", "2099-01-01", etf="SOXX")
+
+    on_disk = pd.read_parquet(path)
+    assert on_disk.index.max() == good.index.max(), (
+        "an earlier-ending fetch sheared the cache's newest bars")
+    assert len(on_disk) == len(good)
+    assert len(out) == len(early)
+
+
+def test_spy_close_cache_is_never_truncated_by_a_short_fetch(tmp_path,
+                                                             monkeypatch):
+    """download_spy_close shares the write pattern, so it shares the rule."""
+    import backtest
+
+    spy_path = tmp_path / "spy_close_cache.parquet"
+    monkeypatch.setattr(backtest, "SPY_CACHE", spy_path)
+    full = _ohlc()[["Close"]]
+    full.to_parquet(spy_path)
+    short = full.iloc[150:]
+    monkeypatch.setattr(backtest.yf, "download",
+                        lambda *a, **k: short, raising=False)
+    out = backtest.download_spy_close("2020-01-01", "2099-01-01")
+
+    assert pd.read_parquet(spy_path).index.min() == full.index.min(), (
+        "a short-span SPY fetch truncated the close cache")
+    assert out.index[0] == short.index[0]
+
+
 # =========================================================================
 # The step-2b repair — what it may and may not write over
 # =========================================================================
@@ -460,6 +521,31 @@ def test_the_repair_writes_a_genuinely_better_response():
     longer = _ohlc_frame(150)
     assert ehp._fetched_frame_is_worse(longer, cache) is None
     assert ehp._fetched_frame_is_worse(longer, None) is None
+
+
+def test_the_write_rule_refuses_a_first_bar_that_slips_across_a_year_boundary():
+    """Date edge case (year boundary): the cache opens 2019-12-24, the fetch
+    opens 2020-01-01. A one-week shrink across the year end is still a
+    refusal — pandas Timestamps compare; nothing is computed by hand."""
+    idx = pd.bdate_range("2019-12-24", "2020-01-31")
+    cache = pd.DataFrame(
+        {"Close": pd.Series(np.linspace(100.0, 120.0, len(idx)), index=idx)})
+    fetched = cache.loc["2020-01-01":]
+    assert "already starts" in g.fetched_frame_is_worse(fetched, cache)
+    # The same pair the other way round extends the start, and writes.
+    assert g.fetched_frame_is_worse(cache, fetched) is None
+
+
+def test_the_write_rule_refuses_a_last_bar_that_slips_across_a_month_boundary():
+    """Date edge case (month boundary, leap February): the cache ends
+    2020-03-05, the fetch ends 2020-02-28 — the last business day of a leap
+    February. Ending a few sessions earlier across the month end is refused."""
+    idx = pd.bdate_range("2020-01-15", "2020-03-05")
+    cache = pd.DataFrame(
+        {"Close": pd.Series(np.linspace(100.0, 120.0, len(idx)), index=idx)})
+    fetched = cache.loc[:"2020-02-28"]
+    assert "already ends" in g.fetched_frame_is_worse(fetched, cache)
+    assert g.fetched_frame_is_worse(cache, fetched) is None
 
 
 def test_the_repair_takes_its_window_from_the_constituent_panel_not_the_cache():

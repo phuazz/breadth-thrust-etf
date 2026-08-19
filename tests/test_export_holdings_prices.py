@@ -317,6 +317,44 @@ def test_yfinance_backfill_refuses_to_overwrite_a_newer_cache(tmp_path, monkeypa
     assert (tmp_path / "spy_ohlc_cache.parquet").exists()
 
 
+def test_yfinance_backfill_refuses_to_truncate_history(tmp_path, monkeypatch):
+    """2026-08-13/14: the ``period="2y"`` backfill is always FRESH at the
+    tail, so the newer-cache rule above cannot catch it — and it overwrote
+    the five sleeve-D Xetra caches' 2017 history with two-year stubs. The
+    next cold rebuild read a stub back as authoritative and collapsed a
+    blend onto the surviving window (Sharpe +1.99 against a committed
+    +1.29). A cache write must never move the first bar later: the fetched
+    series may still feed the export, but the FILE keeps its history."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    cache = tmp_path / "exv1.de_ohlc_cache.parquet"
+    full_idx = pd.bdate_range("2017-06-30", "2026-08-14")
+    pd.DataFrame({"Close": 100.0 + np.arange(len(full_idx)) * 0.01},
+                 index=full_idx).to_parquet(cache)
+
+    fresh_idx = pd.bdate_range("2024-08-14", "2026-08-18")   # the 2y shape
+    fresh = pd.DataFrame(
+        {("EXV1.DE", "Close"): 50.0 + np.arange(len(fresh_idx)) * 0.01,
+         ("EXH1.DE", "Close"): 40.0 + np.arange(len(fresh_idx)) * 0.01},
+        index=fresh_idx)
+    fresh.columns = pd.MultiIndex.from_tuples(fresh.columns)
+
+    fake_yf = type("_YF", (), {"download": staticmethod(lambda *a, **k: fresh)})
+    monkeypatch.setitem(sys.modules, "yfinance", fake_yf)
+
+    got = ehp.fetch_missing_from_yfinance(["EXV1.DE", "EXH1.DE"])
+
+    on_disk = pd.read_parquet(cache)["Close"].dropna()
+    assert str(on_disk.index[0].date()) == "2017-06-30", (
+        "a fresh two-year response truncated nine years of cache history")
+    assert str(on_disk.index[-1].date()) == "2026-08-14", (
+        "the refused write must leave the cache exactly as it was")
+    # The export still uses the fetched series — freshest wins for the panel.
+    assert str(got["EXV1.DE"].index[0].date()) == "2024-08-14"
+    assert str(got["EXV1.DE"].index[-1].date()) == "2026-08-18"
+    # A ticker with no cache to protect is persisted normally.
+    assert (tmp_path / "exh1.de_ohlc_cache.parquet").exists()
+
+
 def test_the_live_panel_has_no_exh3_ghost():
     """Regression pin on the committed artefact: the industrials line is
     published as EXH4.DE and the food-and-beverage ticker is absent."""
