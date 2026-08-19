@@ -313,5 +313,29 @@
   "panel_end": "2026-08-17",
   "sessions_behind": 0,
   "n_trades_engine": 15
+ },
+ {
+  "type": "quote",
+  "ts_utc": "2026-08-19T23:30:04.242176+00:00",
+  "coin": "xyz:SMH",
+  "mark": 565.37,
+  "mid": 565.375,
+  "oracle": 564.87,
+  "impact_bid": 565.088,
+  "impact_ask": 565.997,
+  "funding_hourly": 4.93829e-05,
+  "funding_ann_pct": 43.26,
+  "open_interest": 2445.47,
+  "day_ntl_vlm_m": 1.329,
+  "bid_usd_25bp": 55267.0,
+  "ask_usd_25bp": 91166.0
+ },
+ {
+  "type": "ops",
+  "ts_utc": "2026-08-19T23:30:04.242176+00:00",
+  "event": "OK",
+  "panel_end": "2026-08-19",
+  "sessions_behind": 0,
+  "n_trades_engine": 15
  }
 ]
