@@ -100,6 +100,8 @@ def _proxy_close_from_cache(etf: str) -> pd.Series:
     Deliberately does NOT call backtest.download_soxx_ohlc: its range check
     would trigger a needless network refetch for a 2-day gap. The caches are
     the exact series the deployed track was built from."""
+    from price_panel_guard import DegeneratePriceError  # noqa: PLC0415
+
     cfg = get_etf(etf)
     proxy = (cfg.get("yfinance_trading_proxy") or etf)
     cache = DATA / f"{proxy.lower()}_ohlc_cache.parquet"
@@ -107,7 +109,28 @@ def _proxy_close_from_cache(etf: str) -> pd.Series:
         raise FileNotFoundError(f"missing OHLC cache for {etf} proxy {proxy}")
     ohlc = pd.read_parquet(cache)
     close = ohlc["Close"].astype(float)
-    return close[~close.index.duplicated(keep="first")].sort_index()
+    close = close[~close.index.duplicated(keep="first")].sort_index()
+    # Span guard (2026-08-19). The daily 2y backfill overwrote the five
+    # sleeve-D Xetra caches' 2017 history, and this loader read the surviving
+    # 2024- stubs back as authoritative: the WS2 baseline force-rebuild
+    # collapsed onto a two-year window and reported blend Sharpe +1.99
+    # against a committed +1.29. Every consumer of this loader evaluates the
+    # fixed window from COMMON_START, so a cache that cannot reach
+    # COMMON_START is truncated, never merely late-listed — the latest
+    # legitimate proxy inception in either universe is XLC's 2018-06-19
+    # (measured 2026-08-19 against the repaired full-depth vintage), five
+    # months before COMMON_START; a two-year fallback stub starts years
+    # after it, and only ever later as time passes.
+    if close.empty or close.index.min() > COMMON_START:
+        first = "empty" if close.empty else str(close.index.min().date())
+        raise DegeneratePriceError(
+            f"{cache.name} starts {first}, after the fixed evaluation start "
+            f"{COMMON_START.date()} — the 2y-backfill truncation shape "
+            f"(2026-08-19: a blend rebuilt on such a stub collapsed onto two "
+            f"years and reported Sharpe +1.99). Repair with `python scripts/"
+            f"export_holdings_prices.py --refresh-caches-only` and re-run."
+        )
+    return close
 
 
 def load_sleeve_a() -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:

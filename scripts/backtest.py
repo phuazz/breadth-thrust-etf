@@ -195,6 +195,13 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
     the yfinance ticker differ (e.g. CSP1 trades in London as CSP1.L).
 
     A DEGENERATE RESPONSE IS NEVER WRITTEN AND NEVER RETURNED (2026-08-15).
+    A SPAN-SHRINKING RESPONSE IS NEVER WRITTEN, ONLY RETURNED (2026-08-19):
+    a healthy fetch over a SHORT window — the WS17 shadow evaluator asks from
+    its breadth start, the two-year backfill asks ``period="2y"`` — used to
+    land on top of nine years of history, and a cold rebuild then read the
+    stub back as authoritative (the sleeve-D Xetra caches lost 2017-2024 and
+    a blend rebuild collapsed onto the surviving two years). The caller still
+    gets exactly the window it fetched; the cache keeps its longer span.
     Note first that the cache-reuse branch below almost never fires for the
     sleeve panels: ``run_portfolio._build_panels_for`` asks for
     ``[constituent_start - 10d, constituent_end + 5d]``, and no cache can
@@ -207,7 +214,9 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
     this raises rather than handing an engine something it will silently
     backtest.
     """
-    from price_panel_guard import DegeneratePriceError  # noqa: PLC0415
+    from price_panel_guard import (  # noqa: PLC0415
+        DegeneratePriceError, fetched_frame_is_worse,
+    )
 
     cache_path = paths_for(etf)["ohlc_cache"]
     cached = None
@@ -229,7 +238,13 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
     if why is None:
         raw = raw[["Open", "High", "Low", "Close"]].copy()
         raw.index = pd.to_datetime(raw.index).tz_localize(None)
-        raw.to_parquet(cache_path)
+        shrink = fetched_frame_is_worse(raw, cached)
+        if shrink is None:
+            raw.to_parquet(cache_path)
+        else:
+            print(f"  REFUSED cache write for {sym}: {shrink}. The fetched "
+                  f"window is returned to the caller; {cache_path.name} "
+                  f"keeps its longer span.", flush=True)
         return raw
 
     print(f"  REFUSED cache write for {sym}: the fetch is unusable ({why}). "
@@ -251,19 +266,36 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
 
 
 def download_spy_close(start: str, end: str) -> pd.Series:
-    """Download SPY adjusted close with parquet cache."""
+    """Download SPY adjusted close with parquet cache.
+
+    Same span rule as ``download_soxx_ohlc`` (2026-08-19): a healthy fetch
+    over a short window is returned but never written over a longer cache.
+    """
+    from price_panel_guard import fetched_frame_is_worse  # noqa: PLC0415
+
+    cached = None
     if SPY_CACHE.exists():
-        cached = pd.read_parquet(SPY_CACHE)
-        if (cached.index.min() <= pd.Timestamp(start)
-                and cached.index.max() >= pd.Timestamp(end)):
-            return cached["Close"].loc[start:end]
+        try:
+            cached = pd.read_parquet(SPY_CACHE)
+        except Exception:
+            cached = None
+        if cached is not None and len(cached):
+            if (cached.index.min() <= pd.Timestamp(start)
+                    and cached.index.max() >= pd.Timestamp(end)):
+                return cached["Close"].loc[start:end]
     raw = yf.download("SPY", start=start, end=end, auto_adjust=True,
                       progress=False, threads=False)
     if isinstance(raw.columns, pd.MultiIndex):
         raw.columns = raw.columns.get_level_values(0)
     out = raw[["Close"]].copy()
     out.index = pd.to_datetime(out.index).tz_localize(None)
-    out.to_parquet(SPY_CACHE)
+    shrink = fetched_frame_is_worse(out, cached)
+    if shrink is None:
+        out.to_parquet(SPY_CACHE)
+    else:
+        print(f"  REFUSED cache write for SPY: {shrink}. The fetched window "
+              f"is returned to the caller; {SPY_CACHE.name} keeps its longer "
+              f"span.", flush=True)
     return out["Close"]
 
 

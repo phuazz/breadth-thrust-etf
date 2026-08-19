@@ -481,6 +481,20 @@ def fetch_missing_from_yfinance(tickers: list[str]) -> dict[str, pd.Series]:
                           f"ends {on_disk.index[-1].date()}")
                     out[tk] = on_disk
                     continue
+                # ... and never overwrite one that already starts EARLIER.
+                # The 2y fetch above is always fresh at the tail, so the end
+                # rule cannot catch it; on 2026-08-13/14 it overwrote the five
+                # sleeve-D Xetra caches' 2017 history, and the next cold
+                # rebuild collapsed onto the surviving two years (blend Sharpe
+                # +1.99). The fetched series still feeds the export — freshest
+                # wins for the panel — only the FILE keeps its longer span.
+                # Canonical rule: price_panel_guard.fetched_frame_is_worse,
+                # applied at every OHLC cache write site.
+                if on_disk is not None and on_disk.index[0] < ser.index[0]:
+                    print(f"  REFUSED cache write for {tk}: fetched series starts "
+                          f"{ser.index[0].date()} but {cache_path.name} already "
+                          f"starts {on_disk.index[0].date()}")
+                    continue
                 # Keep Open/High/Low when the vendor served them. Writing
                 # Close alone used to be harmless because this ran after the
                 # engines and they re-fetched anyway; now that a repaired
@@ -575,30 +589,16 @@ def _fetched_frame_is_worse(fetched: pd.DataFrame,
                             on_disk: pd.DataFrame | None) -> str | None:
     """Reason to REFUSE writing ``fetched`` over ``on_disk``, or None.
 
-    Same rule ``fetch_missing_from_yfinance`` already applies to the panel,
-    stated once for OHLC frames: a vendor never un-prints a close, so a
-    shorter or earlier-ending response is a sourcing fault and must not
-    become the file the engines fall back on.
+    The canonical statement moved to ``price_panel_guard.
+    fetched_frame_is_worse`` on 2026-08-19 so that ``backtest.py``'s write
+    sites share it — the daily two-year backfill had truncated the five
+    sleeve-D Xetra caches through a site this rule did not cover. This name
+    stays for its callers and the tests that pin the rule.
     """
-    if fetched is None or len(fetched) == 0 or "Close" not in fetched.columns:
-        return "the fetch returned nothing usable"
-    close = pd.to_numeric(fetched["Close"], errors="coerce").dropna()
-    if len(close) < 2:
-        return f"the fetch returned {len(close)} usable close(s)"
-    if close.nunique() < 2:
-        return "the fetch returned a flat close series"
-    if on_disk is None or "Close" not in on_disk.columns:
-        return None
-    prev = pd.to_numeric(on_disk["Close"], errors="coerce").dropna()
-    if prev.empty:
-        return None
-    if close.index[-1] < prev.index[-1]:
-        return (f"the fetch ends {close.index[-1].date()} but the cache "
-                f"already ends {prev.index[-1].date()}")
-    if close.index[0] > prev.index[0]:
-        return (f"the fetch starts {close.index[0].date()} but the cache "
-                f"already starts {prev.index[0].date()}")
-    return None
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from price_panel_guard import fetched_frame_is_worse  # noqa: PLC0415
+    return fetched_frame_is_worse(fetched, on_disk)
 
 
 def _download_ohlc(symbols: list[str], start: str,
