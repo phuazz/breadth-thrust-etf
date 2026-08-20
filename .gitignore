@@ -14,6 +14,7 @@ data/*_ohlc_cache.parquet
 data/spy_close_cache.parquet
 data/asset_class_prices_cache.parquet
 data/thematic_prices_cache.parquet
+data/holdings_monitor_prices.parquet
 # Scanner price cache: ~7MB of raw vendor OHLCV for 54 instruments over 10y,
 # rebuilt incrementally by run_scanner.py. The scanner's OUTPUT
 # (scanner_latest.json, ~65KB) and its accruing NAV/shares-outstanding

@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theme constituent monitor — breadth-thrust-etf</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Same Plotly the dashboard and scanner pin, so the three pages cannot
+     drift onto different chart engines. -->
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+/* Token block copied verbatim from C:\dev\design.md — do not fork these
+   values here. If a value is missing, add it to design.md first. */
+:root {
+  --bg: #fafaf8; --bg2: #ffffff; --bg3: #f5f5f0; --bg4: #eeeee8; --bg-hover: #f0f0ea;
+  --bd: #e2e0d8; --bd2: #d5d3ca; --bd-strong: #c0beb5;
+  --t1: #1a1a18; --t2: #5c5c56; --t3: #8a8a82; --t4: #b0b0a8;
+  --g: #1a8754; --g2: #22a366; --g-bg: rgba(26,135,84,0.07); --g-bg2: rgba(26,135,84,0.14);
+  --r: #c0392b; --r2: #e74c3c; --r-bg: rgba(192,57,43,0.07); --r-bg2: rgba(192,57,43,0.14);
+  --b: #2563eb; --b2: #3b82f6; --b-bg: rgba(37,99,235,0.06); --b-bg2: rgba(37,99,235,0.12);
+  --a: #b45309; --a-bg: rgba(180,83,9,0.07);
+  --p: #7c3aed; --p-bg: rgba(124,58,237,0.06);
+  --c: #0891b2; --c-bg: rgba(8,145,178,0.06);
+  --pk: #be185d; --pk-bg: rgba(190,24,93,0.06);
+  --g-text: #146c43; --r-text: #a93226; --b-text: #1d4ed8; --a-text: #92400e;
+  --p-text: #7c3aed; --c-text: #0e7490; --pk-text: #be185d; --t3-text: #66665e;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'DM Sans', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --radius: 8px; --radius-lg: 12px;
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--t1); font-family:var(--sans);
+       font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+       /* iOS Safari inflates body text on rotation to landscape without this. */
+       -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+.shell { max-width:1520px; margin:0 auto; padding:20px 20px 60px; }
+
+.masthead { padding:24px 0 20px; border-bottom:2px solid var(--t1);
+  display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px; }
+.masthead h1 { font-family:var(--serif); font-size:32px; font-weight:400;
+  letter-spacing:-0.5px; margin:0; }
+.masthead h1 em { font-style:italic; color:var(--t3); }
+.masthead p { margin:6px 0 0; font-size:13px; color:var(--t2); max-width:54ch; }
+.pills { display:flex; gap:6px; flex-wrap:wrap; }
+.pill { font-size:11px; font-weight:600; letter-spacing:0.4px; padding:4px 10px;
+  border-radius:999px; font-family:var(--mono); border:1px solid transparent; white-space:nowrap; }
+.pill-date { background:var(--bg3); color:var(--t3-text); border-color:var(--bd); }
+.pill-live { background:var(--g-bg); color:var(--g-text); border-color:rgba(26,135,84,0.2); }
+.pill-warn { background:var(--a-bg); color:var(--a-text); border-color:rgba(180,83,9,0.2); }
+
+.lbl { font-size:11px; text-transform:uppercase; letter-spacing:0.9px;
+  font-weight:700; color:var(--t3-text); }
+
+.fundbar { display:flex; gap:8px; flex-wrap:wrap; margin:20px 0 4px; }
+.fundbtn { font-family:var(--sans); font-size:13px; font-weight:600; cursor:pointer;
+  padding:8px 16px; border-radius:var(--radius); border:1px solid var(--bd2);
+  background:var(--bg2); color:var(--t2); }
+.fundbtn.on { background:var(--t1); color:var(--bg2); border-color:var(--t1); }
+.fundbtn:hover:not(.on) { background:var(--bg-hover); }
+
+.provenance { margin:10px 0 0; font-size:12px; color:var(--t2); }
+.provenance code { font-family:var(--mono); font-size:11px; color:var(--t3-text); }
+
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px; margin:16px 0 0; }
+.card { background:var(--bg2); border:1px solid var(--bd); border-radius:var(--radius);
+  padding:12px 14px; box-shadow:var(--shadow-sm); }
+.card .k { font-size:11px; text-transform:uppercase; letter-spacing:0.7px;
+  color:var(--t3-text); font-weight:700; }
+.card .v { font-size:22px; font-weight:600; margin-top:4px; font-family:var(--mono);
+  letter-spacing:-0.5px; }
+.card .s { font-size:11px; color:var(--t3-text); margin-top:2px; }
+
+section { margin:30px 0 0; }
+section > h2 { font-family:var(--serif); font-size:22px; font-weight:400; margin:0 0 2px; }
+section > p.sub { margin:0 0 12px; font-size:12.5px; color:var(--t2); max-width:56ch; }
+
+.movers { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; }
+.movbox { background:var(--bg2); border:1px solid var(--bd); border-radius:var(--radius); overflow:hidden; }
+.movbox h3 { margin:0; padding:9px 12px; font-size:11px; text-transform:uppercase;
+  letter-spacing:0.8px; font-weight:700; color:var(--t3-text);
+  background:var(--bg3); border-bottom:1px solid var(--bd); }
+.movrow { display:flex; justify-content:space-between; gap:8px; align-items:baseline;
+  padding:6px 12px; border-bottom:1px solid var(--bd); font-size:12.5px; cursor:pointer; }
+.movrow:last-child { border-bottom:none; }
+.movrow:hover { background:var(--bg-hover); }
+.movrow .tk { font-family:var(--mono); font-weight:600; font-size:12px; }
+.movrow .nm { color:var(--t3-text); font-size:11.5px; flex:1; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.movrow .vv { font-family:var(--mono); font-weight:600; font-size:12px; }
+
+.controls { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:0 0 10px; }
+.controls input, .controls select { font-family:var(--sans); font-size:13px;
+  padding:7px 10px; border:1px solid var(--bd2); border-radius:6px;
+  background:var(--bg2); color:var(--t1); }
+.controls input { min-width:200px; }
+.controls .count { font-size:12px; color:var(--t3-text); font-family:var(--mono); }
+.btn { font-family:var(--sans); font-size:12.5px; padding:7px 12px; cursor:pointer;
+  border:1px solid var(--bd2); border-radius:6px; background:var(--bg2); color:var(--t2); }
+.btn:hover { background:var(--bg-hover); }
+
+.tablewrap { overflow-x:auto; -webkit-overflow-scrolling:touch;
+  border:1px solid var(--bd); border-radius:var(--radius); background:var(--bg2); }
+table { border-collapse:collapse; width:100%; min-width:820px; }
+thead th { position:sticky; top:0; background:var(--bg3); z-index:2;
+  font-size:11px; text-transform:uppercase; letter-spacing:0.6px; font-weight:700;
+  color:var(--t3-text); text-align:left; padding:9px 10px;
+  border-bottom:1px solid var(--bd2); cursor:pointer; white-space:nowrap; }
+thead th:hover { background:var(--bg4); }
+thead th.num, td.num { text-align:right; }
+tbody td { padding:8px 10px; border-bottom:1px solid var(--bd); font-size:13px;
+  white-space:nowrap; }
+tbody tr.main { cursor:pointer; }
+tbody tr.main:hover { background:var(--bg-hover); }
+td.tk { font-family:var(--mono); font-weight:600; font-size:12.5px; }
+td.nm { color:var(--t2); font-size:12.5px; max-width:290px; overflow:hidden;
+  text-overflow:ellipsis; }
+td.num { font-family:var(--mono); font-size:12.5px; }
+.up { color:var(--g-text); font-weight:600; }
+.dn { color:var(--r-text); font-weight:600; }
+.mut { color:var(--t4); }
+.state-above { color:var(--g-text); font-weight:600; font-size:12px; }
+.state-below { color:var(--r-text); font-weight:600; font-size:12px; }
+.chip { font-family:var(--mono); font-size:10.5px; font-weight:600; padding:2px 7px;
+  border-radius:999px; border:1px solid transparent; }
+.chip-new { background:var(--b-bg2); color:var(--b-text); border-color:rgba(37,99,235,0.25); }
+.chip-added { background:var(--g-bg); color:var(--g-text); border-color:rgba(26,135,84,0.2); }
+.chip-trimmed { background:var(--r-bg); color:var(--r-text); border-color:rgba(192,57,43,0.2); }
+.chip-exited { background:var(--r-bg2); color:var(--r-text); border-color:rgba(192,57,43,0.3); }
+.chip-held { background:var(--bg3); color:var(--t3-text); border-color:var(--bd); }
+.chip-unpriced { background:var(--a-bg); color:var(--a-text); border-color:rgba(180,83,9,0.2); }
+
+tr.detail td { background:var(--bg3); padding:14px 16px; }
+.chartstats { display:flex; gap:18px; flex-wrap:wrap; margin:0 0 10px; font-size:12px; }
+.chartstats span { display:flex; flex-direction:column; color:var(--t3-text);
+  font-size:10.5px; text-transform:uppercase; letter-spacing:0.6px; font-weight:700; }
+.chartstats b { font-family:var(--mono); font-size:14px; font-weight:600;
+  color:var(--t1); text-transform:none; letter-spacing:0; margin-top:2px; }
+.chartbox { width:100%; height:280px; }
+.note { font-size:11.5px; color:var(--t3-text); margin-top:8px; }
+
+footer { margin-top:44px; padding-top:16px; border-top:1px solid var(--bd);
+  font-size:11.5px; color:var(--t3-text); }
+footer code { font-family:var(--mono); font-size:11px; }
+footer p { margin:5px 0; max-width:56ch; }
+
+@media (max-width:640px) {
+  .shell { padding:14px 12px 44px; }
+  .masthead h1 { font-size:25px; }
+  .card .v { font-size:19px; }
+  section > h2 { font-size:19px; }
+  .controls input { min-width:150px; flex:1; }
+  /* Nothing below 11px on a phone. The two 10.5px labels are legible on a
+     desktop at arm's length and are not on a small screen. */
+  .chip { font-size:11px; }
+  .chartstats span { font-size:11px; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="masthead">
+    <div>
+      <h1>Theme constituent monitor <em>— what is moving inside the fund</em></h1>
+      <p>Current published holdings of selected theme ETFs, priced and ranked for
+         idea generation. This is a monitoring surface for discretionary reading:
+         it drives no strategy, feeds no sleeve, and carries no point-in-time
+         history, so nothing here is a backtestable signal.</p>
+    </div>
+    <div class="pills" id="pills"></div>
+  </div>
+
+  <div class="fundbar" id="fundbar"></div>
+  <div class="provenance" id="provenance"></div>
+
+  <div class="cards" id="cards"></div>
+
+  <section id="flow-section">
+    <h2 id="flow-title">Position changes</h2>
+    <p class="sub" id="flow-sub"></p>
+    <div class="movers" id="flow"></div>
+  </section>
+
+  <section>
+    <h2>Movers</h2>
+    <p class="sub">Ranked on the constituent's own price history, not on its weight.
+       A large weight that has not moved is not news; a small weight that has moved
+       a long way is where an idea usually starts.</p>
+    <div class="movers" id="movers"></div>
+  </section>
+
+  <section>
+    <h2>All holdings</h2>
+    <p class="sub" id="table-sub"></p>
+    <div class="controls">
+      <input type="text" id="q" placeholder="Search ticker or company">
+      <select id="fstate">
+        <option value="">All trend states</option>
+        <option value="above">Above 200d</option>
+        <option value="below">Below 200d</option>
+        <option value="none">No 200d average</option>
+      </select>
+      <select id="fflow">
+        <option value="">All position changes</option>
+        <option value="new">New</option>
+        <option value="added">Added</option>
+        <option value="trimmed">Trimmed</option>
+        <option value="held">Held</option>
+      </select>
+      <button class="btn" id="reset">Reset</button>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="tablewrap">
+      <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table>
+    </div>
+  </section>
+
+  <footer id="footer"></footer>
+</div>
+
+<script>
+// __MONITOR_DATA_START__
+var MONITOR = null;
+// __MONITOR_DATA_END__
+
+// Standalone development fallback: `npx serve .` from the project root and
+// open this template directly. The built page in docs/ has the payload
+// injected above, so this fetch never fires there.
+async function boot() {
+  if (!MONITOR) {
+    try {
+      const r = await fetch('data/holdings_monitor_latest.json');
+      MONITOR = await r.json();
+    } catch (e) {
+      document.getElementById('cards').innerHTML =
+        '<div class="card"><div class="k">No data</div><div class="s">Run ' +
+        '<code>python scripts/run_holdings_monitor.py</code> first.</div></div>';
+      return;
+    }
+  }
+  render();
+}
+
+var SERIES = null;          // lazily fetched chart series
+var CUR = null;             // current fund key
+var SORT = { key: 'w', dir: -1 };
+var OPEN = null;            // ticker whose detail row is open
+
+const pc = (v, dp) => v === null || v === undefined
+  ? '<span class="mut">—</span>'
+  : '<span class="' + (v >= 0 ? 'up' : 'dn') + '">' +
+    (v >= 0 ? '+' : '') + (100 * v).toFixed(dp === undefined ? 1 : dp) + '%</span>';
+const raw = (v, dp) => v === null || v === undefined
+  ? '<span class="mut">—</span>' : v.toFixed(dp === undefined ? 2 : dp);
+
+function fundList() { return Object.keys(MONITOR.funds); }
+function cur() { return MONITOR.funds[CUR]; }
+
+function render() {
+  if (!CUR) CUR = fundList()[0];
+  renderPills(); renderFundBar(); renderProvenance();
+  renderCards(); renderFlow(); renderMovers(); renderTable(); renderFooter();
+}
+
+function renderPills() {
+  const f = cur();
+  const stale = f.roster_age_days > 5;
+  document.getElementById('pills').innerHTML =
+    '<span class="pill ' + (stale ? 'pill-warn' : 'pill-live') + '">ROSTER ' +
+      f.as_of + '</span>' +
+    '<span class="pill pill-date">PRICES ' + priceAsOf(f) + '</span>' +
+    '<span class="pill pill-date">' + f.n_holdings + ' NAMES</span>';
+}
+
+// The roster date and the price date are different vintages and must never
+// be collapsed into one "as of". XBI's roster publishes a session behind
+// ARK's, and both trail the last close on some days.
+function priceAsOf(f) {
+  const ds = f.rows.map(r => r.pxd).filter(Boolean).sort();
+  return ds.length ? ds[ds.length - 1] : '—';
+}
+
+function renderFundBar() {
+  document.getElementById('fundbar').innerHTML = fundList().map(k =>
+    '<button class="fundbtn' + (k === CUR ? ' on' : '') + '" data-f="' + k + '">' +
+    k + ' <span style="opacity:.65;font-weight:400">' +
+    MONITOR.funds[k].label + '</span></button>').join('');
+  document.querySelectorAll('.fundbtn').forEach(b =>
+    b.onclick = () => { CUR = b.dataset.f; OPEN = null;
+      SORT = { key: 'w', dir: -1 }; render(); });
+}
+
+function renderProvenance() {
+  const f = cur();
+  const nd = (f.dropped || []).length;
+  document.getElementById('provenance').innerHTML =
+    '<strong>' + f.label + '</strong> · roster published by ' + f.issuer +
+    ' as of <strong>' + f.as_of + '</strong> (' + f.roster_age_days +
+    'd old) · prices to ' + priceAsOf(f) + ' · ' + f.n_holdings +
+    ' holdings summing to ' + f.weight_sum_pct.toFixed(2) + '%' +
+    (nd ? ' · <span title="rows in the published file not admitted">' + nd +
+      ' non-equity or unresolvable rows excluded</span>' : '') +
+    ' · price coverage ' + (100 * f.price_coverage).toFixed(0) + '%';
+}
+
+function renderCards() {
+  const f = cur(), rows = f.rows;
+  const withMa = rows.filter(r => r.m200 !== null && r.m200 !== undefined);
+  const above = withMa.filter(r => r.m200 >= 0).length;
+  const med = (arr) => {
+    const v = arr.filter(x => x !== null && x !== undefined).sort((a, b) => a - b);
+    return v.length ? v[Math.floor(v.length / 2)] : null;
+  };
+  const nearHigh = rows.filter(r => r.oh !== null && r.oh > -0.10).length;
+  document.getElementById('cards').innerHTML =
+    card('Above 200d', withMa.length ? (100 * above / withMa.length).toFixed(0) + '%' : '—',
+         above + ' of ' + withMa.length + ' with a 200d average') +
+    card('Median 1M', fmtCard(med(rows.map(r => r.r1m))), 'constituent median') +
+    card('Median 3M', fmtCard(med(rows.map(r => r.r3m))), 'constituent median') +
+    card('Within 10% of 52w high', nearHigh + '', 'of ' + rows.length + ' names') +
+    card('Median off high', fmtCard(med(rows.map(r => r.oh))), 'distance from 52w high');
+}
+function card(k, v, s) {
+  return '<div class="card"><div class="k">' + k + '</div><div class="v">' + v +
+         '</div><div class="s">' + s + '</div></div>';
+}
+function fmtCard(v) {
+  if (v === null || v === undefined) return '—';
+  const c = v >= 0 ? 'up' : 'dn';
+  return '<span class="' + c + '">' + (v >= 0 ? '+' : '') +
+         (100 * v).toFixed(1) + '%</span>';
+}
+
+function renderFlow() {
+  const f = cur();
+  const sec = document.getElementById('flow-section');
+  // Flow is arithmetic that always returns numbers. In an index fund those
+  // numbers are the index committee rebalancing, not conviction, so the
+  // section is hidden rather than shown with a caveat nobody reads.
+  if (!f.active) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  document.getElementById('flow-title').textContent =
+    'Position changes — what the manager actually traded';
+  if (!f.flow_basis) {
+    document.getElementById('flow-sub').innerHTML =
+      'No prior snapshot yet, so no comparison is possible. Flow appears once ' +
+      'a second daily capture has run.';
+    document.getElementById('flow').innerHTML = '';
+    return;
+  }
+  document.getElementById('flow-sub').innerHTML =
+    'Change in <strong>active weight</strong> against the roster of ' + f.flow_basis +
+    ', in basis points. Yesterday\'s share counts are marked at today\'s closes and ' +
+    'renormalised, then subtracted from today\'s actual weight — so what remains is ' +
+    'the part only a trade could have produced. A price move alone reports zero.';
+  const moved = f.rows.filter(r => r.fbp !== null && r.fbp !== undefined &&
+                                   r.fs !== 'held');
+  const adds = moved.filter(r => r.fbp > 0).sort((a, b) => b.fbp - a.fbp).slice(0, 8);
+  const cuts = moved.filter(r => r.fbp < 0).sort((a, b) => a.fbp - b.fbp).slice(0, 8);
+  const exits = (f.exits || []).slice(0, 8);
+  document.getElementById('flow').innerHTML =
+    movbox('Added / new', adds, r => bp(r.fbp), r => r.fs) +
+    movbox('Trimmed', cuts, r => bp(r.fbp), r => r.fs) +
+    (exits.length ? movbox('Exited entirely', exits, r => bp(r.fbp), () => 'exited') : '');
+}
+function bp(v) {
+  if (v === null || v === undefined) return '<span class="mut">—</span>';
+  return '<span class="' + (v >= 0 ? 'up' : 'dn') + '">' +
+         (v >= 0 ? '+' : '') + v.toFixed(0) + 'bp</span>';
+}
+
+function renderMovers() {
+  const rows = cur().rows;
+  const top = (key, n) => rows.filter(r => r[key] !== null && r[key] !== undefined)
+    .sort((a, b) => b[key] - a[key]).slice(0, n);
+  const bot = (key, n) => rows.filter(r => r[key] !== null && r[key] !== undefined)
+    .sort((a, b) => a[key] - b[key]).slice(0, n);
+  document.getElementById('movers').innerHTML =
+    movbox('Best 1 month', top('r1m', 8), r => pc(r.r1m)) +
+    movbox('Worst 1 month', bot('r1m', 8), r => pc(r.r1m)) +
+    movbox('Best 5 days', top('r5d', 8), r => pc(r.r5d)) +
+    movbox('Furthest below 200d', bot('m200', 8), r => pc(r.m200));
+}
+
+function movbox(title, rows, valFn, chipFn) {
+  if (!rows.length) return '';
+  return '<div class="movbox"><h3>' + title + '</h3>' + rows.map(r =>
+    '<div class="movrow" data-jump="' + r.t + '">' +
+      '<span class="tk">' + r.t + '</span>' +
+      '<span class="nm">' + (r.n || '') + '</span>' +
+      (chipFn ? '<span class="chip chip-' + chipFn(r) + '">' + chipFn(r) + '</span>' : '') +
+      '<span class="vv">' + valFn(r) + '</span>' +
+    '</div>').join('') + '</div>';
+}
+
+const COLS = [
+  { k: 't',    lbl: 'Ticker', cls: 'tk' },
+  { k: 'n',    lbl: 'Name',   cls: 'nm' },
+  { k: 'w',    lbl: 'Weight', num: 1, fmt: r => raw(r.w, 2) + '%' },
+  { k: 'r1m',  lbl: '1M',     num: 1, fmt: r => pc(r.r1m) },
+  { k: 'r3m',  lbl: '3M',     num: 1, fmt: r => pc(r.r3m) },
+  { k: 'm50',  lbl: 'vs 50d', num: 1, fmt: r => pc(r.m50) },
+  { k: 'm200', lbl: 'vs 200d',num: 1, fmt: r => pc(r.m200) },
+  { k: 'oh',   lbl: 'Off high',num: 1, fmt: r => pc(r.oh) },
+  { k: 'st',   lbl: 'State',  fmt: r => r.st
+      ? '<span class="state-' + r.st + '">' + r.st + '</span>'
+      : '<span class="mut">—</span>',
+    sort: r => r.st === 'above' ? 2 : (r.st === 'below' ? 1 : 0) },
+  { k: 'fs',   lbl: 'Change', flowOnly: 1, fmt: r => r.fs
+      ? '<span class="chip chip-' + r.fs + '">' + r.fs + '</span>'
+      : '<span class="mut">—</span>',
+    sort: r => r.fbp === null || r.fbp === undefined ? 0 : r.fbp },
+];
+
+function activeCols() {
+  const f = cur();
+  return COLS.filter(c => !c.flowOnly || (f.active && f.flow_basis));
+}
+
+function renderTable() {
+  const f = cur();
+  document.getElementById('table-sub').innerHTML =
+    '<strong>vs 200d</strong> is the constituent\'s last close against its 200-day ' +
+    'moving average. A name with fewer than 200 sessions of history has no such ' +
+    'average and shows <em>—</em> rather than counting as below — a missing average ' +
+    'is not a bearish reading. Click any row for its one-year chart.';
+  document.getElementById('thead').innerHTML = activeCols().map(c =>
+    '<th class="' + (c.num ? 'num' : '') + '" data-k="' + c.k + '">' + c.lbl +
+    (SORT.key === c.k ? (SORT.dir === -1 ? ' ▼' : ' ▲') : '') + '</th>').join('');
+  document.querySelectorAll('#thead th').forEach(th => th.onclick = () => {
+    const k = th.dataset.k;
+    SORT = { key: k, dir: SORT.key === k ? -SORT.dir : -1 };
+    renderTable();
+  });
+  paint();
+}
+
+function paint() {
+  const f = cur();
+  const q = (document.getElementById('q').value || '').trim().toUpperCase();
+  const fs = document.getElementById('fstate').value;
+  const ff = document.getElementById('fflow').value;
+  let rows = f.rows.slice();
+  if (q) rows = rows.filter(r => (r.t + ' ' + (r.n || '')).toUpperCase().includes(q));
+  if (fs) rows = rows.filter(r => fs === 'none' ? !r.st : r.st === fs);
+  if (ff) rows = rows.filter(r => r.fs === ff);
+
+  const col = activeCols().find(c => c.k === SORT.key) || activeCols()[0];
+  const key = col.sort || (r => r[col.k]);
+  rows.sort((a, b) => {
+    const x = key(a), y = key(b);
+    const xn = x === null || x === undefined, yn = y === null || y === undefined;
+    if (xn && yn) return 0;
+    if (xn) return 1;          // nulls always sink, in both directions
+    if (yn) return -1;
+    if (typeof x === 'string') return SORT.dir * x.localeCompare(y);
+    return SORT.dir * (x - y);
+  });
+
+  document.getElementById('count').textContent =
+    rows.length + ' of ' + f.rows.length + ' names';
+  const cols = activeCols();
+  document.getElementById('tbody').innerHTML = rows.map(r =>
+    '<tr class="main" data-t="' + r.t + '">' + cols.map(c =>
+      '<td class="' + (c.cls || '') + (c.num ? ' num' : '') + '">' +
+      (c.fmt ? c.fmt(r) : (r[c.k] === null || r[c.k] === undefined
+        ? '<span class="mut">—</span>' : r[c.k])) + '</td>').join('') + '</tr>' +
+    (OPEN === r.t ? detailRow(r, cols.length) : '')).join('');
+  document.querySelectorAll('tr.main').forEach(tr => tr.onclick = () => {
+    OPEN = OPEN === tr.dataset.t ? null : tr.dataset.t;
+    paint();
+    if (OPEN) drawChart(OPEN);
+  });
+}
+
+function detailRow(r, span) {
+  return '<tr class="detail"><td colspan="' + span + '">' +
+    '<div class="chartstats">' +
+      st('1Y', pc(r.r1y)) + st('6M', pc(r.r6m)) + st('3M', pc(r.r3m)) +
+      st('1M', pc(r.r1m)) + st('5D', pc(r.r5d)) +
+      st('vs 50d', pc(r.m50)) + st('vs 200d', pc(r.m200)) +
+      st('52w range', r.rng === null || r.rng === undefined
+          ? '—' : (100 * r.rng).toFixed(0) + '%') +
+      st('52w low / high', raw(r.lo) + ' – ' + raw(r.hi)) +
+    '</div>' +
+    '<div class="chartbox" id="chart-' + r.t + '"></div>' +
+    '<div class="note">Weekly points. Each average is computed on daily closes and ' +
+    'then sampled — computing it on weekly bars would make the 50-day a 50-WEEK ' +
+    'average, a different indicator.</div></td></tr>';
+}
+function st(k, v) { return '<span>' + k + '<b>' + v + '</b></span>'; }
+
+const MA_TRACES = [
+  { k: 'm50',  name: '50d MA',  color: '#0891b2', width: 1.2, dash: 'dot' },
+  { k: 'm100', name: '100d MA', color: '#7c3aed', width: 1.2, dash: 'dash' },
+  { k: 'm200', name: '200d MA', color: '#ea580c', width: 1.6, dash: null },
+];
+
+async function drawChart(tk) {
+  const host = document.getElementById('chart-' + tk);
+  if (!host) return;
+  if (!SERIES) {
+    try {
+      const r = await fetch('holdings-monitor-series.json');
+      SERIES = await r.json();
+    } catch (e) { SERIES = {}; }
+  }
+  const s = SERIES[tk];
+  if (!s) { host.innerHTML = '<div class="note">No price history for this line.</div>'; return; }
+  const base = s.px.find(v => v !== null && v !== undefined);
+  if (!base) { host.innerHTML = '<div class="note">No price history for this line.</div>'; return; }
+  const rb = a => (a || []).map(v => (v === null || v === undefined) ? null : (v / base) - 1);
+  const traces = [{
+    x: s.dates, y: rb(s.px), name: 'Price', type: 'scatter', mode: 'lines',
+    line: { color: '#1e3a8a', width: 2 }, hovertemplate: '%{x}<br>%{y:+.1%}<extra>Price</extra>',
+  }].concat(MA_TRACES.filter(t => s[t.k]).map(t => ({
+    x: s.dates, y: rb(s[t.k]), name: t.name, type: 'scatter', mode: 'lines',
+    line: { color: t.color, width: t.width, dash: t.dash || undefined },
+    hovertemplate: '%{x}<br>%{y:+.1%}<extra>' + t.name + '</extra>',
+  })));
+  Plotly.newPlot(host, traces, {
+    margin: { l: 46, r: 12, t: 28, b: 34 },
+    title: { text: tk + ' — 1Y weekly vs moving averages', font: { size: 13 }, x: 0 },
+    xaxis: { gridcolor: '#eeeee8', tickfont: { size: 11 } },
+    yaxis: { tickformat: '+.0%', gridcolor: '#eeeee8', tickfont: { size: 11 },
+             zeroline: true, zerolinecolor: '#d5d3ca' },
+    hovermode: 'x unified', showlegend: true,
+    legend: { orientation: 'h', y: -0.18, font: { size: 11 } },
+    paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+    font: { family: 'DM Sans, sans-serif', color: '#5c5c56' },
+  }, { displayModeBar: false, responsive: true });
+}
+
+function renderFooter() {
+  const f = cur();
+  const dropped = (f.dropped || []);
+  document.getElementById('footer').innerHTML =
+    '<p><strong>Source.</strong> ' + f.issuer + "'s own published daily holdings file, " +
+      'as of ' + f.as_of + ' — <code>' + f.url + '</code>. Prices from the ' +
+      'shared vendor cache to ' + priceAsOf(f) + '. The two dates are different ' +
+      'vintages and are shown separately throughout.</p>' +
+    (dropped.length ? '<p><strong>Excluded rows (' + dropped.length + ').</strong> ' +
+      dropped.map(d => '<code>' + d.raw + '</code> — ' + d.reason).join('; ') +
+      '. Rejected rows are counted rather than dropped silently: a roster that ' +
+      'quietly lost names still looks healthy.</p>' : '') +
+    '<p><strong>What this is not.</strong> A current roster carries no point-in-time ' +
+      'history, so nothing here can be backtested and no figure on this page is a ' +
+      'strategy input. The monitor exists to surface candidates for human reading. ' +
+      'Position-change figures are published only for actively managed funds, ' +
+      'because in an index fund the same arithmetic measures the index committee.</p>' +
+    '<p>Built ' + MONITOR.built_at_utc + ' · ' + MONITOR.universe_size +
+      ' distinct names priced across ' + fundList().length + ' funds.</p>';
+}
+
+document.getElementById('q').addEventListener('input', paint);
+document.getElementById('fstate').addEventListener('change', paint);
+document.getElementById('fflow').addEventListener('change', paint);
+document.getElementById('reset').onclick = () => {
+  document.getElementById('q').value = '';
+  document.getElementById('fstate').value = '';
+  document.getElementById('fflow').value = '';
+  paint();
+};
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-jump]');
+  if (!el) return;
+  const tk = el.dataset.jump;
+  document.getElementById('q').value = tk;
+  OPEN = tk;
+  paint();
+  drawChart(tk);
+  document.getElementById('tbl').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+boot();
+</script>
+</body>
+</html>

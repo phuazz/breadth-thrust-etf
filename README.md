@@ -2,6 +2,8 @@
 
 USD-denominated 4-sleeve breadth + momentum ETF rotation strategy with a CSP1 breadth regime overlay and an EEM/SPY relative-strength tilt. **Personal research artefact** — not investment advice, not affiliated with any regulated fund. **Live dashboard**: [phuazz.github.io/breadth-thrust-etf](https://phuazz.github.io/breadth-thrust-etf/)
 
+**Companion pages** (separate builds, neither feeds the strategy): the cross-sectional [scanner](https://phuazz.github.io/breadth-thrust-etf/scanner.html), and the [theme constituent monitor](https://phuazz.github.io/breadth-thrust-etf/holdings-monitor.html) — current holdings of selected theme ETFs, priced and ranked for idea generation. See [HOLDINGS_MONITOR.md](HOLDINGS_MONITOR.md).
+
 ## Current state (Phase 29 — July 2026)
 
 The deployed strategy is the **35/35/10/20 A:B:C:D blend** with two overlays:
