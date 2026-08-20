@@ -375,19 +375,32 @@ function bp(v) {
 
 function renderMovers() {
   const rows = cur().rows;
-  const top = (key, n) => rows.filter(r => r[key] !== null && r[key] !== undefined)
-    .sort((a, b) => b[key] - a[key]).slice(0, n);
-  const bot = (key, n) => rows.filter(r => r[key] !== null && r[key] !== undefined)
+  const has = (key) => rows.filter(r => r[key] !== null && r[key] !== undefined);
+  const top = (key, n) => has(key).sort((a, b) => b[key] - a[key]).slice(0, n);
+  // The downside boxes are filtered to NEGATIVE values, not simply cut at the
+  // bottom N. On a 33-name fund in a strong tape only four holdings fell, so a
+  // plain bottom-8 ran past zero and listed names up 6% under a heading that
+  // said "worst" — a label contradicting its own numbers. Showing fewer rows,
+  // or none, is the honest answer, and an empty box is itself a reading.
+  const down = (key, n) => has(key).filter(r => r[key] < 0)
     .sort((a, b) => a[key] - b[key]).slice(0, n);
+  const nUp = (key) => has(key).length - has(key).filter(r => r[key] < 0).length;
   document.getElementById('movers').innerHTML =
     movbox('Best 1 month', top('r1m', 8), r => pc(r.r1m)) +
-    movbox('Worst 1 month', bot('r1m', 8), r => pc(r.r1m)) +
+    movbox('Fell over 1 month', down('r1m', 8), r => pc(r.r1m), null,
+           'Every one of the ' + nUp('r1m') + ' priced holdings is higher than a month ago.') +
     movbox('Best 5 days', top('r5d', 8), r => pc(r.r5d)) +
-    movbox('Furthest below 200d', bot('m200', 8), r => pc(r.m200));
+    movbox('Below the 200d average', down('m200', 8), r => pc(r.m200), null,
+           'No holding with a 200-day average is trading below it.');
 }
 
-function movbox(title, rows, valFn, chipFn) {
-  if (!rows.length) return '';
+function movbox(title, rows, valFn, chipFn, emptyMsg) {
+  if (!rows.length) {
+    return emptyMsg
+      ? '<div class="movbox"><h3>' + title + '</h3><div class="movrow" ' +
+        'style="cursor:default;color:var(--t3-text)">' + emptyMsg + '</div></div>'
+      : '';
+  }
   return '<div class="movbox"><h3>' + title + '</h3>' + rows.map(r =>
     '<div class="movrow" data-jump="' + r.t + '">' +
       '<span class="tk">' + r.t + '</span>' +
