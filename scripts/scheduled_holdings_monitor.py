@@ -83,7 +83,19 @@ def preflight(log) -> None:
         raise StepFailed(
             "monitor-owned paths are dirty before the run — a manual run may "
             "be in flight:\n  " + "\n  ".join(dirty))
-    run(["git", "pull", "--rebase", "origin", "main"], "git pull", log)
+
+    # BEST EFFORT, deliberately. This working tree is shared with interactive
+    # sessions, so `pull --rebase` routinely refuses on somebody else's
+    # unstaged work. Aborting the capture for that would mean the monitor
+    # goes dark whenever a human happens to be mid-edit — a daily job that
+    # fails for reasons unrelated to its own health is a daily job that gets
+    # ignored. Nothing in the capture depends on being at origin HEAD; only
+    # the push does, and publish() rebases again with failure fatal there.
+    try:
+        run(["git", "pull", "--rebase", "origin", "main"], "git pull", log)
+    except StepFailed as exc:
+        log(f"  WARN: {exc} — continuing. The capture does not depend on "
+            f"origin HEAD; an armed push would still fail loudly.")
 
 
 def publish(log) -> None:
@@ -97,6 +109,12 @@ def publish(log) -> None:
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     run(["git", "commit", "-m", f"monitor: holdings capture {stamp}"],
         "git commit", log)
+    # Fatal here, unlike in preflight: the commit exists now, so a diverged
+    # branch must be reconciled before it can be published rather than
+    # papered over. Autostash is safe at this point because the monitor's
+    # own work is already committed.
+    run(["git", "pull", "--rebase", "--autostash", "origin", "main"],
+        "git pull before push", log)
     run(["git", "push", "origin", "main"], "git push", log)
 
 
