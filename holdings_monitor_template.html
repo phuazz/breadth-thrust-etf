@@ -157,6 +157,18 @@ footer p { margin:5px 0; max-width:56ch; }
      desktop at arm's length and are not on a small screen. */
   .chip { font-size:11px; }
   .chartstats span { font-size:11px; }
+  /* The expanded chart lives in a table row, so it inherits the table's
+     820px+ min-width and measured 1312px on a 390px viewport — readable
+     only by scrolling sideways, which is fine for a dense data table and
+     wrong for a chart. Pinning it to the scroll container's left edge keeps
+     the whole plot in view while the table itself still scrolls. Mobile
+     only: on desktop the container does not scroll and this would just
+     narrow the plot. */
+  tr.detail td { padding:12px 10px; }
+  .chartbox, .chartstats {
+    position:sticky; left:0; max-width:calc(100vw - 44px);
+  }
+  .chartbox { height:240px; }
 }
 </style>
 </head>
@@ -501,9 +513,10 @@ function detailRow(r, span) {
       st('52w low / high', raw(r.lo) + ' – ' + raw(r.hi)) +
     '</div>' +
     '<div class="chartbox" id="chart-' + r.t + '"></div>' +
-    '<div class="note">Weekly points. Each average is computed on daily closes and ' +
-    'then sampled — computing it on weekly bars would make the 50-day a 50-WEEK ' +
-    'average, a different indicator.</div></td></tr>';
+    '<div class="note">Daily closes over one year. Moving averages are computed on ' +
+    'those same daily closes, over the sessions this name actually traded, using ' +
+    'extra history before the window so the 200-day line is valid at the left ' +
+    'edge rather than starting part-way in.</div></td></tr>';
 }
 function st(k, v) { return '<span>' + k + '<b>' + v + '</b></span>'; }
 
@@ -513,6 +526,24 @@ const MA_TRACES = [
   { k: 'm200', name: '200d MA', color: '#ea580c', width: 1.6, dash: null },
 ];
 
+// Trailing mean of the last `win` OBSERVED closes. Nulls are sessions the
+// name did not trade and are skipped, not averaged in as gaps — which is
+// what makes this identical to the server's rolling mean over the ticker's
+// own traded sessions, so the chart and the table cannot disagree.
+function rollingMean(arr, win) {
+  const out = new Array(arr.length).fill(null);
+  const buf = [];
+  let sum = 0;
+  for (let i = 0; i < arr.length; i++) {
+    const v = arr[i];
+    if (v === null || v === undefined) continue;   // no bar, no MA point
+    buf.push(v); sum += v;
+    if (buf.length > win) sum -= buf.shift();
+    if (buf.length === win) out[i] = sum / win;
+  }
+  return out;
+}
+
 async function drawChart(tk) {
   const host = document.getElementById('chart-' + tk);
   if (!host) return;
@@ -520,24 +551,37 @@ async function drawChart(tk) {
     try {
       const r = await fetch('holdings-monitor-series.json');
       SERIES = await r.json();
-    } catch (e) { SERIES = {}; }
+    } catch (e) { SERIES = { dates: [], series: {} }; }
   }
-  const s = SERIES[tk];
-  if (!s) { host.innerHTML = '<div class="note">No price history for this line.</div>'; return; }
-  const base = s.px.find(v => v !== null && v !== undefined);
+  const closes = (SERIES.series || {})[tk];
+  if (!closes) { host.innerHTML = '<div class="note">No price history for this line.</div>'; return; }
+
+  // Moving averages are computed over the FULL shipped array — including the
+  // lead-in the chart does not display — so the 200-day line is already
+  // valid at the left edge instead of starting 200 sessions in.
+  const mas = {};
+  for (const t of MA_TRACES) mas[t.k] = rollingMean(closes, SERIES.ma_windows[t.k]);
+
+  const n = SERIES.dates.length;
+  const cut = Math.max(0, n - (SERIES.chart_sessions || 252));
+  const dates = SERIES.dates.slice(cut);
+  const px = closes.slice(cut);
+  const base = px.find(v => v !== null && v !== undefined);
   if (!base) { host.innerHTML = '<div class="note">No price history for this line.</div>'; return; }
-  const rb = a => (a || []).map(v => (v === null || v === undefined) ? null : (v / base) - 1);
+  const rb = a => (a || []).slice(cut).map(v => (v === null || v === undefined) ? null : (v / base) - 1);
   const traces = [{
-    x: s.dates, y: rb(s.px), name: 'Price', type: 'scatter', mode: 'lines',
-    line: { color: '#1e3a8a', width: 2 }, hovertemplate: '%{x}<br>%{y:+.1%}<extra>Price</extra>',
-  }].concat(MA_TRACES.filter(t => s[t.k]).map(t => ({
-    x: s.dates, y: rb(s[t.k]), name: t.name, type: 'scatter', mode: 'lines',
+    x: dates, y: rb(closes), name: 'Price', type: 'scatter', mode: 'lines',
+    line: { color: '#1e3a8a', width: 2 }, connectgaps: true,
+    hovertemplate: '%{x}<br>%{y:+.1%}<extra>Price</extra>',
+  }].concat(MA_TRACES.filter(t => mas[t.k].some(v => v !== null)).map(t => ({
+    x: dates, y: rb(mas[t.k]), name: t.name, type: 'scatter', mode: 'lines',
     line: { color: t.color, width: t.width, dash: t.dash || undefined },
+    connectgaps: true,
     hovertemplate: '%{x}<br>%{y:+.1%}<extra>' + t.name + '</extra>',
   })));
   Plotly.newPlot(host, traces, {
     margin: { l: 46, r: 12, t: 28, b: 34 },
-    title: { text: tk + ' — 1Y weekly vs moving averages', font: { size: 13 }, x: 0 },
+    title: { text: tk + ' — 1Y daily vs moving averages', font: { size: 13 }, x: 0 },
     xaxis: { gridcolor: '#eeeee8', tickfont: { size: 11 } },
     yaxis: { tickformat: '+.0%', gridcolor: '#eeeee8', tickfont: { size: 11 },
              zeroline: true, zerolinecolor: '#d5d3ca' },

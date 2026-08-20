@@ -63,8 +63,32 @@ SERIES_PATH = PROJECT_ROOT / "docs" / "holdings-monitor-series.json"
 PRICE_PERIOD = "2y"
 
 MA_WINDOWS = {"m50": 50, "m100": 100, "m200": 200}
-CHART_WEEKS = 52
 _PRICE_DP = 2
+
+# Chart series are DAILY, on a shared date axis, price-only.
+#
+# The weekly grid this replaced was inherited from build_panel_series.py,
+# whose reason was git history across 38 panels of constituents. It does not
+# transfer: this page carries 168 names, and weekly sampling flattens exactly
+# what the page exists to show — a name that gapped and then broke down reads
+# as a gentle drift once you only keep Fridays.
+#
+# Three choices keep daily affordable, since this file is committed daily:
+#   1. ONE shared date axis instead of one per ticker. Every holding is a US
+#      listing on the same calendar, and per-ticker date arrays were 117KB of
+#      the 307KB weekly file — 38% of it spent restating the same dates 168
+#      times.
+#   2. PRICE ONLY. The moving averages are recomputed in the browser from
+#      these same daily closes, which is not an approximation: it is the same
+#      arithmetic on the same inputs, so the chart and the table agree by
+#      construction. Shipping three MA arrays as well would have cost 1.16MB
+#      against 533KB.
+#   3. Ship MA_LEAD_SESSIONS more history than the chart displays, so the
+#      200-day average is defined at the LEFT edge of the visible window
+#      rather than appearing 200 sessions in.
+CHART_SESSIONS = 252        # displayed — one year
+MA_LEAD_SESSIONS = 208      # extra runway so the 200d MA is valid from bar 1
+SERIES_SESSIONS = CHART_SESSIONS + MA_LEAD_SESSIONS
 
 # Trailing windows in TRADING sessions, not calendar days, so a holiday
 # does not quietly shift the lookback.
@@ -223,29 +247,51 @@ def name_metrics(series: pd.Series) -> dict:
     return out
 
 
-def weekly_series(series: pd.Series) -> dict | None:
-    """52 weekly points plus moving averages, matching build_panel_series.
+def _round_sig(v: float) -> float:
+    """Round to ~5 significant figures rather than to 2 decimal places.
 
-    The averages are computed on DAILY closes and only then sampled to the
-    weekly grid. A 50-period average over weekly bars would be a 50-WEEK
-    average — a different indicator that would not agree with the table.
+    Flat 2dp is fine for a $400 stock and not fine for a $4 one, where it is
+    a 0.1% error on every close. Averaged into a 100-day mean that error
+    does not wash out, and it put the browser-computed moving average 0.14
+    percentage points away from the server-computed figure in the table
+    beside it — measured on MNKD, 2026-08-19. Two numbers describing the
+    same thing on the same screen should not disagree in a digit the reader
+    can see. Biotech rosters are full of low-priced names, so this is the
+    common case here rather than an edge one.
     """
-    s = series.dropna()
-    if len(s) < 10:
-        return None
-    frame = pd.DataFrame({"px": s})
-    for key, win in MA_WINDOWS.items():
-        frame[key] = s.rolling(win).mean() if len(s) >= win else pd.NA
-    wk = frame.resample("W-FRI").last().tail(CHART_WEEKS)
+    if v == 0 or v != v:
+        return 0.0
+    from math import floor, log10
+    digits = max(_PRICE_DP, min(4, 4 - int(floor(log10(abs(v))))))
+    return round(v, digits)
 
-    def col(c):
-        return [None if pd.isna(v) else round(float(v), _PRICE_DP) for v in wk[c]]
 
-    return {
-        "dates": [d.date().isoformat() for d in wk.index],
-        "px": col("px"),
-        **{k: col(k) for k in MA_WINDOWS},
-    }
+def daily_panel(px: pd.DataFrame, tickers: list[str]) -> dict:
+    """Daily closes for every name on ONE shared date axis.
+
+    Returns ``{"dates": [...], "series": {ticker: [close|null, ...]}}`` with
+    every array the same length as ``dates``. A null means the name did not
+    trade that session (a mid-window listing, or a halt), which the browser
+    must treat as "no observation" rather than as a zero — and which the
+    moving average must skip rather than average in.
+
+    Only the last SERIES_SESSIONS sessions are shipped. The chart displays
+    the last CHART_SESSIONS of those; the remainder is lead-in so the
+    200-day average is defined at the left edge of what the reader sees.
+    """
+    frame = px.tail(SERIES_SESSIONS)
+    dates = [d.date().isoformat() for d in frame.index]
+    out: dict[str, list] = {}
+    for tk in tickers:
+        if tk not in frame.columns:
+            continue
+        col = frame[tk]
+        if col.notna().sum() < 10:
+            continue
+        out[tk] = [None if pd.isna(v) else _round_sig(float(v)) for v in col]
+    return {"dates": dates, "series": out,
+            "chart_sessions": CHART_SESSIONS,
+            "ma_windows": MA_WINDOWS}
 
 
 # ---------------------------------------------------------------------------
@@ -339,7 +385,7 @@ def build(etfs: list[str], use_cache_only: bool) -> dict:
     print(f"[prices] union of {len(universe)} names")
     px = fetch_prices(universe, use_cache_only)
 
-    metrics, series, px_now = {}, {}, {}
+    metrics, px_now = {}, {}
     for tk in universe:
         if tk not in px.columns:
             metrics[tk] = {"n_sessions": 0, "px": None, "px_date": None,
@@ -349,9 +395,7 @@ def build(etfs: list[str], use_cache_only: bool) -> dict:
         metrics[tk] = m
         if m["px"] is not None:
             px_now[tk] = m["px"]
-        ws = weekly_series(px[tk])
-        if ws:
-            series[tk] = ws
+    series = daily_panel(px, universe)
 
     priced = sum(1 for tk in universe if metrics[tk].get("px") is not None)
     with_ma200 = sum(1 for tk in universe

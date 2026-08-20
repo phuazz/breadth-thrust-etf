@@ -200,13 +200,81 @@ def test_empty_series_is_handled():
     assert m["px"] is None and m["state"] is None
 
 
-def test_weekly_series_moving_average_is_daily_then_sampled():
-    """A 50-period average on weekly bars would be a 50-WEEK average."""
-    s = _series(400)
-    ws = rhm.weekly_series(s)
-    assert len(ws["dates"]) <= rhm.CHART_WEEKS
-    daily_ma50_last = float(s.rolling(50).mean().iloc[-1])
-    assert ws["m50"][-1] == pytest.approx(daily_ma50_last, abs=0.02)
+def test_daily_panel_shares_one_axis_and_is_not_ragged():
+    """Every array must align to the shared date axis, or charts misread.
+
+    A short array does not fail loudly — it shifts a name's entire history
+    against the date axis and renders a plausible, wrong chart.
+    """
+    px = pd.DataFrame({"A": _series(400), "B": _series(400, 50.0, -0.05)})
+    panel = rhm.daily_panel(px, ["A", "B"])
+    n = len(panel["dates"])
+    assert n == min(400, rhm.SERIES_SESSIONS)
+    for tk, arr in panel["series"].items():
+        assert len(arr) == n, f"{tk} is ragged against the shared axis"
+    assert panel["chart_sessions"] == rhm.CHART_SESSIONS
+    assert panel["ma_windows"]["m200"] == 200
+
+
+def test_daily_panel_ships_lead_in_beyond_the_visible_window():
+    """The 200d average must be valid at the LEFT edge of what is shown."""
+    assert rhm.SERIES_SESSIONS >= rhm.CHART_SESSIONS + 200, (
+        "not enough lead-in: the 200-day line would start part-way into the "
+        "visible window instead of at its left edge")
+
+
+def test_daily_panel_skips_names_with_almost_no_history():
+    px = pd.DataFrame({"A": _series(400)})
+    px["B"] = float("nan")
+    px.iloc[-3:, px.columns.get_loc("B")] = 10.0
+    panel = rhm.daily_panel(px, ["A", "B"])
+    assert "A" in panel["series"]
+    assert "B" not in panel["series"], "3 sessions is not a chartable series"
+
+
+def test_daily_panel_preserves_non_traded_sessions_as_null():
+    """A gap must stay null, not be forward-filled into a fake flat bar."""
+    s = _series(300)
+    s.iloc[100] = float("nan")
+    panel = rhm.daily_panel(pd.DataFrame({"A": s}), ["A"])
+    arr = panel["series"]["A"]
+    assert arr.count(None) == 1, "the untraded session must survive as null"
+
+
+def test_client_side_ma_contract_matches_server_metrics():
+    """The browser recomputes the MAs from these closes; both must agree.
+
+    This pins the CONTRACT the chart relies on: a trailing mean over the
+    last N observed closes equals what name_metrics reports as vs_m200. If
+    they diverged, the chart and the table beside it would tell a reader
+    two different things about the same name.
+    """
+    # A LOW-PRICED series, deliberately. At 2dp rounding a $4 stock carries
+    # a 0.1% error per close that does not wash out of a 100-day mean; this
+    # case is what exposed it (worst real divergence 0.14pp on MNKD). A test
+    # built only on a $100+ series passes while the shipped page disagrees
+    # with itself, which is worse than no test.
+    for start, step in ((400.0, 1.0), (4.2, 0.011), (0.85, 0.002)):
+        s = _series(400, start, step)
+        panel = rhm.daily_panel(pd.DataFrame({"A": s}), ["A"])
+        arr = [v for v in panel["series"]["A"] if v is not None]
+        for key, win in rhm.MA_WINDOWS.items():
+            client_ma = sum(arr[-win:]) / win       # what rollingMean() does
+            client_vs = (arr[-1] / client_ma) - 1
+            server_vs = rhm.name_metrics(s)[f"vs_{key}"]
+            assert client_vs == pytest.approx(server_vs, abs=1e-4), (
+                f"price~{start}: {key} chart would show {client_vs:.4%}, "
+                f"table {server_vs:.4%}")
+
+
+@pytest.mark.parametrize("v,expect_dp", [
+    (412.5678, 2), (41.5678, 3), (4.15678, 4), (0.415678, 4),
+])
+def test_price_precision_scales_with_magnitude(v, expect_dp):
+    """Flat 2dp is a 0.1% error on a $4 stock and fine on a $400 one."""
+    r = rhm._round_sig(v)
+    assert r == pytest.approx(round(v, expect_dp), abs=1e-9)
+    assert abs(r - v) / v < 1.5e-4, "relative rounding error too large"
 
 
 # ---------------------------------------------------------------------------

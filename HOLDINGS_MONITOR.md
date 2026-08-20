@@ -90,6 +90,45 @@ can be reconstructed — issuer files are today-only.
 
 ---
 
+## Chart series: daily, shared axis, price only
+
+`docs/holdings-monitor-series.json` is fetched lazily when a row is expanded.
+It is **daily**, not the weekly grid `build_panel_series.py` uses. That grid
+exists to bound git history across 38 panels of constituents and does not
+transfer here: weekly sampling flattens exactly what this page is for — a name
+that gapped and then broke down reads as a gentle drift once only Fridays
+survive.
+
+Three choices keep daily affordable at ~430KB committed daily, against
+~1.16MB for a naive conversion:
+
+1. **One shared date axis.** Every holding is a US listing on the same
+   calendar. Per-ticker date arrays were 117KB of the old 307KB file — 38% of
+   it spent restating the same dates 168 times.
+2. **Price only.** The browser recomputes the moving averages from these same
+   closes. Not an approximation: same arithmetic, same inputs, so the chart
+   and the table cannot disagree. `rollingMean()` skips nulls rather than
+   averaging them in, which is what makes it identical to the server's rolling
+   mean over the ticker's own traded sessions.
+3. **208 sessions of lead-in** beyond the 252 displayed, so the 200-day
+   average is valid at the left edge instead of appearing part-way in.
+
+Prices are stored to ~5 significant figures, not 2 decimal places. Flat 2dp is
+a 0.1% error on a $4 stock, it does not wash out of a 100-day mean, and it put
+the chart 0.14 percentage points from the table on MNKD. Biotech rosters are
+full of low-priced names, so that is the common case here. After the fix the
+worst divergence across 531 live comparisons is 0.0006pp.
+
+**The build parses the page.** `check_inline_script()` runs `node --check`
+over the built artefact's inline script. A syntax error aborts the whole
+script before any global is defined, so the page still returns 200, still has
+the right title, still passes the static mobile check — and renders an empty
+table. That happened on 2026-08-19 (a bare apostrophe in a single-quoted
+string). Every other check looked at the file rather than at whether the file
+runs.
+
+---
+
 ## Running it
 
 ```bash

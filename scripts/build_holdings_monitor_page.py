@@ -20,7 +20,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -58,6 +62,43 @@ def inject(template_text: str, payload: dict) -> str:
             body + ";\n" + template_text[end:])
 
 
+def check_inline_script(html: str) -> str:
+    """Parse the page's own inline script with node, or explain why not.
+
+    THIS EXISTS BECAUSE OF A REAL FAILURE. On 2026-08-19 an edit left a bare
+    apostrophe inside a single-quoted JS string. A syntax error aborts the
+    WHOLE script before any global is defined, so the page still returned
+    HTTP 200, still had the right title, still passed the static mobile
+    check — and rendered an empty table. Nothing in the build noticed, and
+    nothing downstream could: every check was on the file, not on whether
+    the file runs.
+
+    A parse check is cheap and catches the entire class. It is skipped, with
+    a printed note, when node is unavailable — a missing tool must not block
+    a build, but its absence must not be silent either.
+    """
+    node = shutil.which("node")
+    if not node:
+        return "SKIPPED (node not on PATH — the page is unparsed)"
+    # The inline script is the one without a src attribute.
+    blocks = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>",
+                        html, re.DOTALL)
+    if not blocks:
+        raise MonitorPageError("no inline script found in the built page")
+    body = "\n".join(blocks)
+    with tempfile.TemporaryDirectory() as td:
+        f = Path(td) / "page.js"
+        f.write_text(body, encoding="utf-8")
+        p = subprocess.run([node, "--check", str(f)],
+                           capture_output=True, text=True)
+    if p.returncode != 0:
+        detail = (p.stderr or p.stdout or "").strip().splitlines()
+        raise MonitorPageError(
+            "the page's inline script does not parse — it would render blank:\n  "
+            + "\n  ".join(detail[:6]))
+    return f"OK ({len(body)/1024:.0f}KB parsed)"
+
+
 def build(check_only: bool = False) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     if not TEMPLATE.exists():
@@ -90,14 +131,33 @@ def build(check_only: bool = False) -> int:
     if not SERIES_PATH.exists():
         raise MonitorPageError(f"{SERIES_PATH.name} missing; charts would be dead")
     series = json.loads(SERIES_PATH.read_text(encoding="utf-8"))
+    if "dates" not in series or "series" not in series:
+        raise MonitorPageError(
+            "series file is not the shared-axis shape {dates, series}; the "
+            "page would read every chart as empty")
+    n_dates = len(series["dates"])
+    # Every array must match the shared axis. A short array would silently
+    # misalign a name's whole price history against the date axis — the
+    # chart would render, look plausible, and be wrong by however many
+    # sessions it was short.
+    ragged = {tk: len(v) for tk, v in series["series"].items()
+              if len(v) != n_dates}
+    if ragged:
+        raise MonitorPageError(
+            f"{len(ragged)} series do not match the {n_dates}-session shared "
+            f"axis: {dict(list(ragged.items())[:5])}")
     wanted = {r["t"] for f in funds.values() for r in f["rows"]}
-    missing = wanted - set(series)
+    missing = wanted - set(series["series"])
     if missing:
         cover = 1 - len(missing) / max(1, len(wanted))
         print(f"  NOTE: {len(missing)} of {len(wanted)} names have no chart series "
               f"({cover:.1%} covered): {sorted(missing)[:8]}")
 
     out = inject(tpl, payload)
+    # Parse the built artefact, not the template: the injected payload sits
+    # inside the same script, so a payload that broke it would be invisible
+    # to any check on the source.
+    print(f"  script parse: {check_inline_script(out)}")
     if check_only:
         print(f"OK  template {size/1024:.0f}KB, payload "
               f"{DATA_PATH.stat().st_size/1024:.0f}KB, would write "
