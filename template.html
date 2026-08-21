@@ -3264,7 +3264,7 @@
       </div>
 
       <h2 style="margin-top:34px;">Panel detail</h2>
-      <p class="section-sub">Pick a panel to see its full weekly history and today's constituents.</p>
+      <p class="section-sub">Pick a panel to see today's constituents and its full weekly history.</p>
       <p style="margin:0 0 18px;">
         <label for="data-etf-select" style="font-size:13px;color:var(--ink-soft);margin-right:8px;">Panel</label>
         <select id="data-etf-select" style="font-size:14px;padding:6px 10px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:#fff;color:var(--ink);"></select>
@@ -3273,23 +3273,7 @@
       <h3 id="data-detail-title" style="margin-bottom:4px;"></h3>
       <p class="section-sub" id="data-detail-sub"></p>
 
-      <h4 style="margin-top:24px;">Weekly history</h4>
-      <p class="section-sub">Every rebalance Friday. <strong>Roster</strong> is the membership count; <strong>priced</strong> is how many had usable prices that day; <strong>MA / RSI / Highs</strong> are the three breadth measures. Click any column heading to sort.<br>
-      Two reasons a row can be blank, and they mean different things. <strong>Early rows</strong> have a roster but no breadth: the 50-day average needs 50 sessions of history before it exists. <strong>A blank later row</strong> means the exchange traded that Friday but the price vendor never published the bar — a data gap, not a closed market, and the strategy skips that week's rebalance rather than guessing.<br>
-      Amber figures marked <span style="color:#b45309;">✦</span> are the third case: the market was <em>shut</em> that Friday, so the reading is the prior session's close — the same session the strategy rebalances on. Hover for the date.</p>
-      <p style="margin:0 0 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);">
-        <label for="data-from">From</label>
-        <input type="date" id="data-from" style="font-size:13px;padding:5px 8px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:#fff;color:var(--ink);">
-        <label for="data-to">to</label>
-        <input type="date" id="data-to" style="font-size:13px;padding:5px 8px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:#fff;color:var(--ink);">
-        <button type="button" id="data-range-reset" style="font-size:12px;padding:5px 10px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:var(--bg-soft);color:var(--ink-soft);cursor:pointer;">Reset</button>
-        <span id="data-range-count" style="font-size:12px;color:var(--ink-faint);"></span>
-      </p>
-      <div style="overflow-x:auto;max-height:520px;overflow-y:auto;">
-        <table class="data-table" id="data-history-table"><thead></thead><tbody></tbody></table>
-      </div>
-
-      <h4 style="margin-top:28px;">Constituents and weights</h4>
+      <h4 style="margin-top:24px;">Constituents and weights</h4>
       <p class="section-sub" id="data-current-sub"></p>
       <div id="data-breadth-bar" style="margin:14px 0 18px;"></div>
       <p class="data-filter">
@@ -3308,6 +3292,23 @@
         <table class="data-table" id="data-holdings-table"><thead></thead><tbody></tbody></table>
       </div>
       <p class="section-sub" style="margin-top:14px;font-size:12px;">Weight is the fund's own published holding percentage. <strong>vs 50d</strong> is the constituent's last close against its 50-day moving average — the measure this breadth panel counts, so the green share above equals its <code>ma_breadth</code>. <strong>vs 200d</strong> is the same comparison on the 200-day average, which is what <strong>Strategy A actually ranks sectors on</strong>; the two can disagree, and the 200-day is the one that moves the book. Its denominator is the smaller of the two — a name with fewer than 200 sessions of history has no 200-day average and shows <em>—</em> rather than counting as below. Names marked <em>no price</em> have no usable history at all and are excluded from both numerator and denominator. Only the most recent roster is published; the full weekly membership history is 60&ndash;80MB and stays in the repository.</p>
+
+      <h4 style="margin-top:28px;">Weekly history</h4>
+      <p class="section-sub">Every rebalance Friday. <strong>Roster</strong> is the membership count; <strong>priced</strong> is how many had usable prices that day; <strong>MA / RSI / Highs</strong> are the three breadth measures. Click any column heading to sort.<br>
+      Two reasons a row can be blank, and they mean different things. <strong>Early rows</strong> have a roster but no breadth: the 50-day average needs 50 sessions of history before it exists. <strong>A blank later row</strong> means the exchange traded that Friday but the price vendor never published the bar — a data gap, not a closed market, and the strategy skips that week's rebalance rather than guessing.<br>
+      Amber figures marked <span style="color:#b45309;">✦</span> are the third case: the market was <em>shut</em> that Friday, so the reading is the prior session's close — the same session the strategy rebalances on. Hover for the date.</p>
+      <p style="margin:0 0 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);">
+        <label for="data-from">From</label>
+        <input type="date" id="data-from" style="font-size:13px;padding:5px 8px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:#fff;color:var(--ink);">
+        <label for="data-to">to</label>
+        <input type="date" id="data-to" style="font-size:13px;padding:5px 8px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:#fff;color:var(--ink);">
+        <button type="button" id="data-range-reset" style="font-size:12px;padding:5px 10px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:var(--bg-soft);color:var(--ink-soft);cursor:pointer;">Reset</button>
+        <span id="data-range-count" style="font-size:12px;color:var(--ink-faint);"></span>
+      </p>
+      <div style="overflow-x:auto;max-height:520px;overflow-y:auto;">
+        <table class="data-table" id="data-history-table"><thead></thead><tbody></tbody></table>
+      </div>
+
     </section>
   </div>
 
