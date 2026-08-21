@@ -130,19 +130,20 @@ def test_never_returns_a_future_session(cal):
 # in fact 100%, and every deployed Europe panel would have failed identically.
 # ---------------------------------------------------------------------------
 
-def _cap(schedule_end, end_friday, prices, held, floor=5, cov_fail=0.50,
+def _cap(schedule_end, end_friday, prices, held, floor=5, cov_warn=0.90,
          roster_n=None):
     """The rule as implemented in compute_breadth.main.
 
-    The threshold is the FILE guard's own: a share of the roster, floored at
-    MIN_BREADTH_NAMES. Calibrating it to the absolute floor alone let EXH3
-    through at 8 of 107 priced names on 2026-08-14 — above 5, far below 50% —
-    so the cap admitted a session the guard then refused.
+    Keyed on the TIGHTEST floor any downstream consumer enforces —
+    MIN_ROSTER_COVERAGE_WARN, which the refresh guard's G6 imports — floored at
+    MIN_BREADTH_NAMES. It took two recalibrations to get here: an absolute 5
+    let EXH3 through at 8 of 107, and the file guard's 50% then let NDIA
+    through at 70.3% for G6 to reject.
     """
     if not held:
         return schedule_end
     n = roster_n if roster_n is not None else len(held)
-    need = max(floor, int(cov_fail * n) + 1)
+    need = max(floor, int(cov_warn * n) + 1)
     covered = prices[held].notna().sum(axis=1)
     ok = covered.index[covered >= need]
     if not len(ok):
@@ -220,7 +221,39 @@ def test_cap_uses_the_file_guards_threshold_not_just_a_name_count():
 def test_cap_admits_a_session_that_clears_the_coverage_floor():
     cols = [f"T{i}" for i in range(107)]
     px = _px(["2026-08-12", "2026-08-13", "2026-08-14"], cols, last_full="2026-08-13")
-    for t in cols[:70]:                             # 70/107 = 65%, clears 50%
+    # Recalibrated with the cap: 70/107 = 65% cleared the old 50% floor and
+    # does not clear the 90% one the refresh guard actually enforces.
+    for t in cols[:101]:                            # 101/107 = 94.4%
         px.loc[pd.Timestamp("2026-08-14"), t] = 1.0
     out = _cap(pd.Timestamp("2026-08-14"), pd.Timestamp("2026-08-07"), px, cols)
     assert out == pd.Timestamp("2026-08-14")
+
+
+def test_cap_keys_on_the_tightest_floor_not_the_file_guards():
+    """NDIA, 2026-08-20: 116 of 165 priced = 70.3%. Clears the file guard's
+    50% and fails the refresh guard's G6 at 90%, so a cap keyed on the file
+    floor admits a row G6 then rejects — the second miscalibration of this
+    same cap."""
+    cols = [f"T{i}" for i in range(165)]
+    px = _px(["2026-08-18", "2026-08-19", "2026-08-20"], cols, last_full="2026-08-19")
+    for t in cols[:116]:
+        px.loc[pd.Timestamp("2026-08-20"), t] = 1.0
+    out = _cap(pd.Timestamp("2026-08-20"), pd.Timestamp("2026-08-14"), px, cols)
+    assert out == pd.Timestamp("2026-08-19"), "70.3% must not hold the panel open"
+
+
+def test_cap_admits_a_session_clearing_the_warn_floor():
+    cols = [f"T{i}" for i in range(165)]
+    px = _px(["2026-08-18", "2026-08-19", "2026-08-20"], cols, last_full="2026-08-19")
+    for t in cols[:164]:                       # 99.4%, the healthy NDIA case
+        px.loc[pd.Timestamp("2026-08-20"), t] = 1.0
+    out = _cap(pd.Timestamp("2026-08-20"), pd.Timestamp("2026-08-14"), px, cols)
+    assert out == pd.Timestamp("2026-08-20")
+
+
+def test_the_cap_threshold_is_the_one_g6_enforces():
+    """Sourced from one constant, not re-derived. The cap has drifted from a
+    guard twice; a test that pins the SHARED constant is what stops a third."""
+    import compute_breadth as cb
+    from check_refresh_guard import MIN_ROSTER_COVERAGE_WARN as guard_floor
+    assert cb.MIN_ROSTER_COVERAGE_WARN is guard_floor

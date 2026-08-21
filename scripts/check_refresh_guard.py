@@ -20,10 +20,32 @@ asserts over the whole 24-panel deployed set:
   G2  no panel reports endpoint_health.status != "ok";
   G3  no panel is critically stale (staleness.status == "critical" or
       "no_real_fetches" fails; "warning" warns);
-  G4  every breadth panel's end_date equals the last session of that
-      ETF's OWN trading calendar on or before the shared end_friday
+  G4  every breadth panel's end_date is a real session on that ETF's OWN
+      trading calendar, and lands in the band the writer is allowed to
+      produce: at least the last session on or before the shared
+      end_friday, and at most that calendar's last COMPLETED session
       (XETR panels legitimately end on a US-holiday Friday that NYSE
-      panels do not, and vice versa — see the 2026-07-03 boundary);
+      panels do not, and vice versa — see the 2026-07-03 boundary).
+
+      A BAND, NOT AN EQUALITY, SINCE 2026-08-21. This was an equality
+      against the end_friday bound until the 2026-08-15 tail-extension
+      landed (register 2026-08-15-breadth-thrust-etf-1, CONFIRMED):
+      compute_breadth now takes schedule_end = max(end_friday,
+      last_completed_session), optionally capped back down by price
+      coverage but never below end_friday. The guard was not updated with
+      the writer, so from 2026-08-15 it failed EVERY panel on EVERY run —
+      24 of 24 on 2026-08-21, all in the same direction, which is the
+      signature of a rule change rather than corruption. A guard that
+      fires on every run is a guard nobody reads, which is worse than no
+      guard at all.
+
+      The band keeps both failures the equality caught. Below the lower
+      bound is a TRUNCATED panel — the silent-data-loss case, and still
+      the one that matters most. Above the upper bound is a bar whose
+      close has not happened — the partial-bar / look-ahead case. And the
+      session-membership test keeps the phantom-bar case (a NYSE-calendar
+      panel dated a US holiday) that the old equality caught only as a
+      side effect of comparing against a session-derived date;
   G5  no panel lost state versus the previous COMMITTED version (HEAD):
       no constituents snapshot key disappears, breadth n_trading_days
       never decreases, breadth end_date never moves backwards;
@@ -86,6 +108,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import get_etf  # noqa: E402
 from fetch_constituents import latest_completed_friday  # noqa: E402
 from refresh_all import ETFS_ALL  # noqa: E402  (single source of truth)
+from session_bounds import last_completed_session_on  # noqa: E402
 from compute_breadth import (  # noqa: E402  (one floor, one definition)
     MIN_ROSTER_COVERAGE_WARN,
 )
@@ -181,24 +204,69 @@ def expected_panel_end(cal_name: str, end_friday: date) -> date:
     return sched.index[-1].date()
 
 
+def latest_admissible_panel_end(cal_name: str, now_utc: datetime) -> date | None:
+    """Upper G4 bound: the last session on ``cal_name`` that has CLOSED.
+
+    Shares compute_breadth's own definition rather than re-deriving one, so
+    the guard and the writer cannot drift apart again — which is exactly how
+    G4 came to fail every panel between 2026-08-15 and 2026-08-21.
+
+    None when the calendar yields nothing in the horizon; the caller then
+    drops the upper bound rather than failing, matching every other
+    last_completed_session_on caller.
+    """
+    ts = last_completed_session_on(mcal.get_calendar(cal_name), now_utc)
+    return None if ts is None else ts.date()
+
+
+def is_session(cal_name: str, day: date) -> bool:
+    """Is ``day`` an actual trading session on ``cal_name``?"""
+    sched = mcal.get_calendar(cal_name).schedule(
+        start_date=day.isoformat(), end_date=day.isoformat())
+    return not sched.empty
+
+
 def check_breadth_ends(breadth_ends: dict[str, str],
                        calendars: dict[str, str],
-                       end_friday: date) -> list[dict]:
-    """G4: each breadth panel ends on its own calendar's last session."""
+                       end_friday: date,
+                       now_utc: datetime | None = None) -> list[dict]:
+    """G4: each breadth panel ends inside the band the writer may produce.
+
+    ``now_utc`` is injectable so the band is testable; it defaults to the
+    wall clock. A guard running after midnight UTC sees a later upper bound
+    than the writer did, which can only LOOSEN the check — it cannot
+    manufacture a false failure.
+    """
+    now = now_utc or datetime.now(timezone.utc)
     out = []
-    mismatched = {}
+    bad = {}
     for etf, got in breadth_ends.items():
-        expected = expected_panel_end(calendars.get(etf, "NYSE"), end_friday)
-        if got != expected.isoformat():
-            mismatched[etf] = f"ends {got}, expected {expected.isoformat()}"
-    if mismatched:
+        cal_name = calendars.get(etf, "NYSE")
+        floor = expected_panel_end(cal_name, end_friday)
+        ceiling = latest_admissible_panel_end(cal_name, now)
+        try:
+            got_date = date.fromisoformat(got)
+        except (TypeError, ValueError):
+            bad[etf] = f"end_date {got!r} is not an ISO date"
+            continue
+        if not is_session(cal_name, got_date):
+            bad[etf] = f"ends {got}, which is not a {cal_name} session"
+        elif got_date < floor:
+            bad[etf] = (f"ends {got}, TRUNCATED — must reach at least "
+                        f"{floor.isoformat()}")
+        elif ceiling is not None and got_date > ceiling:
+            bad[etf] = (f"ends {got}, past the last completed {cal_name} "
+                        f"session {ceiling.isoformat()} — partial bar")
+    if bad:
         out.append(verdict("G4 breadth end dates", FAIL,
-                           f"panels not at their calendar's last session "
-                           f"on/before {end_friday.isoformat()}: {mismatched}"))
+                           f"panels outside the admissible band "
+                           f"[{end_friday.isoformat()} session .. last "
+                           f"completed session]: {bad}"))
     else:
         out.append(verdict("G4 breadth end dates", OK,
-                           f"{len(breadth_ends)} panels end on their own "
-                           f"calendar's last session"))
+                           f"{len(breadth_ends)} panels end on a real session "
+                           f"at or after their {end_friday.isoformat()} bound "
+                           f"and no later than their last completed session"))
     return out
 
 

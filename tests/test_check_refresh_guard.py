@@ -21,7 +21,7 @@ Python datetime months are 1-indexed (January = 1).
 from __future__ import annotations
 
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -115,27 +115,102 @@ def test_expected_panel_end_month_boundary_europe_holiday():
     assert guard.expected_panel_end("XETR", date(2026, 5, 1)) == date(2026, 4, 30)
 
 
+# The band's upper bound is "now"-dependent, so every case below pins a clock.
+# Fri 2026-07-10 22:00 UTC: both NYSE (20:00 UTC) and XETR (15:30 UTC) have closed.
+_NOW_0710 = datetime(2026, 7, 10, 22, 0, tzinfo=timezone.utc)
+# ...and 18:00 UTC on the same day, when XETR has closed but NYSE has not.
+_NOW_0710_MIDCLOSE = datetime(2026, 7, 10, 18, 0, tzinfo=timezone.utc)
+
+
 def test_g4_ok_when_each_panel_ends_on_its_own_calendar():
     ends = {"CSP1": "2026-07-02", "EXV1": "2026-07-03"}
     cals = {"CSP1": "NYSE", "EXV1": "XETR"}
-    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 7, 3))
+    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 7, 3),
+                                    now_utc=datetime(2026, 7, 3, 22, 0,
+                                                     tzinfo=timezone.utc))
     assert r["status"] == guard.OK
 
 
 def test_g4_fails_when_a_panel_stops_a_session_short():
     ends = {"CSP1": "2026-08-06", "EXV1": "2026-08-07"}
     cals = {"CSP1": "NYSE", "EXV1": "XETR"}
-    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 8, 7))
+    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 8, 7),
+                                    now_utc=datetime(2026, 8, 7, 22, 0,
+                                                     tzinfo=timezone.utc))
     assert r["status"] == guard.FAIL
     assert "CSP1" in r["evidence"]
+    assert "TRUNCATED" in r["evidence"]
 
 
 def test_g4_fails_when_us_panel_carries_a_europe_only_phantom_bar():
     # A NYSE-calendar panel dated the US-holiday Friday itself would mean
-    # a phantom bar leaked in (the 2026-06-22 / 2026-07-06 class).
+    # a phantom bar leaked in (the 2026-06-22 / 2026-07-06 class). Caught by
+    # the session-membership test now, not by the old equality.
     ends = {"CSP1": "2026-07-03"}
     cals = {"CSP1": "NYSE"}
-    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 7, 3))
+    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 7, 3),
+                                    now_utc=_NOW_0710)
+    assert r["status"] == guard.FAIL
+    assert "not a NYSE session" in r["evidence"]
+
+
+# --- the 2026-08-15 tail extension: the band's whole reason for existing ----
+def test_g4_admits_a_panel_extended_past_the_target_friday():
+    # THE REGRESSION THIS FIXES. compute_breadth extends to the last
+    # completed session (register 2026-08-15-breadth-thrust-etf-1); the old
+    # equality failed all 24 panels every run from 2026-08-15.
+    ends = {"CSP1": "2026-07-10", "EXV1": "2026-07-10"}
+    cals = {"CSP1": "NYSE", "EXV1": "XETR"}
+    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 7, 3),
+                                    now_utc=_NOW_0710)
+    assert r["status"] == guard.OK
+
+
+def test_g4_admits_a_partial_extension_from_the_price_cap():
+    # The writer may cap the tail back down on thin price coverage, to any
+    # session at or above the end_friday bound. Mid-band must pass.
+    ends = {"CSP1": "2026-07-08"}
+    cals = {"CSP1": "NYSE"}
+    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 7, 3),
+                                    now_utc=_NOW_0710)
+    assert r["status"] == guard.OK
+
+
+def test_g4_still_fails_a_bar_whose_close_has_not_happened():
+    # Upper bound: 2026-07-13 is a Monday NYSE session, but at Friday
+    # 18:00 UTC it has not opened, let alone closed.
+    ends = {"CSP1": "2026-07-13"}
+    cals = {"CSP1": "NYSE"}
+    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 7, 3),
+                                    now_utc=_NOW_0710)
+    assert r["status"] == guard.FAIL
+    assert "partial bar" in r["evidence"]
+
+
+def test_g4_upper_bound_is_venue_aware_mid_close():
+    # 18:00 UTC Friday: Xetra shut at 15:30 so its Friday bar is final, but
+    # NYSE trades until 20:00 so the same date is still a partial bar there.
+    # A single US-derived ceiling would truncate Europe by a session; a single
+    # European one would admit a live US quote. Both directions, one clock.
+    ends = {"EXV1": "2026-07-10"}
+    cals = {"EXV1": "XETR"}
+    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 7, 3),
+                                    now_utc=_NOW_0710_MIDCLOSE)
+    assert r["status"] == guard.OK
+
+    ends = {"CSP1": "2026-07-10"}
+    cals = {"CSP1": "NYSE"}
+    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 7, 3),
+                                    now_utc=_NOW_0710_MIDCLOSE)
+    assert r["status"] == guard.FAIL
+    assert "partial bar" in r["evidence"]
+
+
+def test_g4_fails_a_malformed_end_date_rather_than_raising():
+    ends = {"CSP1": "not-a-date"}
+    cals = {"CSP1": "NYSE"}
+    (r,) = guard.check_breadth_ends(ends, cals, date(2026, 7, 3),
+                                    now_utc=_NOW_0710)
     assert r["status"] == guard.FAIL
 
 

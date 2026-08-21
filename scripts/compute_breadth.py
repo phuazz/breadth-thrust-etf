@@ -902,18 +902,27 @@ def main() -> int:
     # against the SAME threshold the file-level guard applies, and never below
     # the roster Friday.
     #
-    # Calibrating this to MIN_BREADTH_NAMES was the first attempt and it was
-    # wrong for large rosters: EXH3 had 8 of 107 names priced on 2026-08-14,
-    # which clears an absolute floor of 5 and fails a 50% one, so the cap
-    # admitted a session the guard then rejected — 17 of 19 panels written and
-    # the two biggest refused. A cap that does not share the guard's criterion
-    # is a second opinion, not a bound.
+    # RECALIBRATED TWICE, AND THE LESSON IS THE SAME BOTH TIMES: find EVERY
+    # floor the tail must clear, not the nearest one.
+    #
+    #   1st cut, MIN_BREADTH_NAMES (5 names). Wrong for large rosters — EXH3
+    #     had 8 of 107 priced on 2026-08-14, clearing an absolute 5 and failing
+    #     the file guard's 50%. 17 of 19 panels wrote, the two biggest refused.
+    #   2nd cut, MIN_ROSTER_COVERAGE_FAIL (50%). Still wrong, because the
+    #     REFRESH GUARD's G6 imports MIN_ROSTER_COVERAGE_WARN (90%) — a third
+    #     floor I had not looked for. NDIA ran 99.4% to 2026-08-19 and 70.3% on
+    #     the 20th; the cap admitted that row and G6 duly failed the run.
+    #
+    # So key on the TIGHTEST floor any downstream consumer enforces, which is
+    # the WARN one. Sourcing the number from the same constant G6 imports is
+    # the point: a cap that re-derives a threshold can drift from the guard,
+    # and this has now drifted twice.
     if snapshot_dates:
         roster_now = active_roster_at(snapshot_dates, snapshot_map, snapshot_dates[-1])
         held = [t for t in roster_now if t in prices.columns]
         if held:
             need = max(MIN_BREADTH_NAMES,
-                       int(MIN_ROSTER_COVERAGE_FAIL * len(roster_now)) + 1)
+                       int(MIN_ROSTER_COVERAGE_WARN * len(roster_now)) + 1)
             covered = prices[held].notna().sum(axis=1)
             ok = covered.index[covered >= need]
             if len(ok):
