@@ -1,4 +1,14 @@
-# WS17 shadow protocol — xyz:SMH fill-versus-model log (DRAFT, pending countersign)
+# WS17 shadow protocol — xyz:SMH fill-versus-model log (DESCOPED 2026-08-20)
+
+**CLOSED EARLY, NOT-STARTED (owner decision, 2026-08-20).** Zero fills and zero
+probes were logged between activation (2026-08-16) and descope; the Tuesday
+probe was missed and is recorded as an ops fact, not a FAIL (the FAIL-OPS
+trigger counted missed SIGNAL fires, and none fired). The evaluator task
+`BreadthThrust-WS17Shadow` is disabled and its fleet-watch row removed. The
+WS17 H2b verdict (KEEP-for-shadow) stands FILED BUT UNEXERCISED — the register
+record's reopen condition is unchanged: adoption still requires a
+fill-versus-model shadow, whenever one is actually run. The daily evaluator's
+signal replays stop with the task; the append-only log remains as the record.
 
 **Date drafted:** 2026-08-16 · **Context:** Personal · **Status:** DRAFT — inert until
 the owner countersigns at the foot of this file. Follows from the WS17 H2b verdict

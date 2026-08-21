@@ -2,7 +2,7 @@
   "etf": "SOXX",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/us/products/239705/ishares-phlx-semiconductor-etf/1467271812596.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-15T07:31:25.592859+00:00",
+  "fetched_at_utc": "2026-08-21T00:42:21.549670+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-14",
   "n_target_fridays": 450,
@@ -94,12 +94,6 @@
       "fallback_date": "2026-07-02",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-08-14",
-      "fallback_date": "2026-08-13",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -116,8 +110,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-08-13",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-08-14",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -16293,7 +16287,7 @@
       ]
     },
     "2026-08-14": {
-      "actual_date": "2026-08-13",
+      "actual_date": "2026-08-14",
       "n_tickers": 30,
       "tickers": [
         "NVDA",
@@ -16302,8 +16296,8 @@
         "AVGO",
         "INTC",
         "AMAT",
-        "KLAC",
         "MRVL",
+        "KLAC",
         "TSM",
         "LRCX",
         "ADI",

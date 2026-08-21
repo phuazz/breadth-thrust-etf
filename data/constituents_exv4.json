@@ -2,7 +2,7 @@
   "etf": "EXV4",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-08-15T08:06:03.916083+00:00",
+  "fetched_at_utc": "2026-08-21T01:17:19.339580+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-14",
   "n_target_fridays": 450,
@@ -28,12 +28,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-08-14",
-      "fallback_date": "2026-08-13",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -50,8 +44,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-08-13",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-08-14",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -1427,7 +1421,7 @@
         "MDC.L",
         "BTG.L",
         "GETI-B.ST",
-        "BAYR"
+        "BAYR.MU"
       ]
     },
     "2018-06-29": {
@@ -27152,7 +27146,7 @@
       ]
     },
     "2026-08-14": {
-      "actual_date": "2026-08-13",
+      "actual_date": "2026-08-14",
       "n_tickers": 46,
       "tickers": [
         "ROP.SW",
@@ -27170,8 +27164,8 @@
         "SDZ.SW",
         "ALC.SW",
         "UCB.BR",
-        "FRE.DE",
         "NSIS-B.CO",
+        "FRE.DE",
         "PHIA.AS",
         "MRK.DE",
         "GMAB.CO",
@@ -27182,8 +27176,8 @@
         "SOBI.ST",
         "COLO-B.CO",
         "ORNBV.HE",
-        "FME.DE",
         "ERF.PA",
+        "FME.DE",
         "QIA.DE",
         "ABVX.PA",
         "SRT3.DE",
@@ -27198,8 +27192,8 @@
         "BIM.PA",
         "DEMANT.CO",
         "SFZN.SW",
-        "GRF.MC",
         "HIK.L",
+        "GRF.MC",
         "ZEAL.CO"
       ]
     }

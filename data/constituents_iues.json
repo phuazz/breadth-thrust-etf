@@ -2,7 +2,7 @@
   "etf": "IUES",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/280503/ishares-sp-500-energy-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUES_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-15T07:36:26.917818+00:00",
+  "fetched_at_utc": "2026-08-21T00:46:01.697518+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-14",
   "n_target_fridays": 450,
@@ -33,12 +33,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-08-14",
-      "fallback_date": "2026-08-13",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -55,8 +49,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-08-13",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-08-14",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -13737,7 +13731,7 @@
       ]
     },
     "2026-08-14": {
-      "actual_date": "2026-08-13",
+      "actual_date": "2026-08-14",
       "n_tickers": 21,
       "tickers": [
         "XOM",

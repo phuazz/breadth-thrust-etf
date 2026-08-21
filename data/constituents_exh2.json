@@ -2,7 +2,7 @@
   "etf": "EXH2",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-08-15T08:04:35.090672+00:00",
+  "fetched_at_utc": "2026-08-21T01:15:46.254165+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-14",
   "n_target_fridays": 450,
@@ -28,12 +28,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-08-14",
-      "fallback_date": "2026-08-13",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -50,8 +44,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-08-13",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-08-14",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -17302,7 +17296,7 @@
       ]
     },
     "2026-08-14": {
-      "actual_date": "2026-08-13",
+      "actual_date": "2026-08-14",
       "n_tickers": 37,
       "tickers": [
         "UBSG.SW",
@@ -17322,25 +17316,25 @@
         "SDR.L",
         "EXO.AS",
         "AMUN.PA",
-        "GBLB.BR",
         "SAVE.ST",
+        "GBLB.BR",
         "BMED.MI",
-        "ABDN.L",
         "IGG.L",
+        "ABDN.L",
         "SQN.SW",
         "AZM.MI",
         "EMG.L",
         "SOF.BR",
-        "LUND-B.ST",
         "CVC.AS",
+        "LUND-B.ST",
         "MANTA.HE",
         "FTK.DE",
         "AKER.OL",
         "PLUS.L",
+        "VZN.SW",
         "BPT.L",
         "QLT.L",
         "TCAP.L",
-        "VZN.SW",
         "ALLFG.AS"
       ]
     }
