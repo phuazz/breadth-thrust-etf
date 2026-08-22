@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import statistics
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -54,6 +55,12 @@ from holdings_sources import (  # noqa: E402
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 SNAP_DIR = DATA_DIR / "holdings_monitor"
+# A share count must move more than this, NET of the fund's own creation or
+# redemption, before it is called a trade. The deadband absorbs the rounding
+# in a published share count; the netting is what stops a creation reading as
+# a portfolio-wide trade (see compute_flow).
+FLOW_DEADBAND = 0.005
+FLOW_SCALE_MIN_NAMES = 5
 PRICE_CACHE = DATA_DIR / "holdings_monitor_prices.parquet"
 LATEST_PATH = DATA_DIR / "holdings_monitor_latest.json"
 SERIES_PATH = PROJECT_ROOT / "docs" / "holdings-monitor-series.json"
@@ -300,8 +307,11 @@ def daily_panel(px: pd.DataFrame, tickers: list[str]) -> dict:
 
 
 def compute_flow(snap: RosterSnapshot, prev: dict | None,
-                 px_now: dict[str, float]) -> dict[str, dict]:
+                 px_now: dict[str, float]) -> tuple[dict[str, dict], float]:
     """Active weight change per name between ``prev`` and ``snap``.
+
+    Returns the per-name flow and the fund's own share-count scale factor
+    for the day — 1.0 when there was no creation or redemption.
 
     Counterfactual: hold yesterday's share counts, mark them at today's
     closes, renormalise to 100%. Subtracting that from today's actual
@@ -313,11 +323,11 @@ def compute_flow(snap: RosterSnapshot, prev: dict | None,
     given a flow of zero. Zero would read as "held", which is a claim.
     """
     if not prev:
-        return {}
+        return {}, 1.0
     prev_shares = {h["ticker"]: h.get("shares") for h in prev.get("holdings", [])
                    if h.get("shares") is not None}
     if not prev_shares:
-        return {}
+        return {}, 1.0
 
     cf_value, unpriced = {}, set()
     for tk, sh in prev_shares.items():
@@ -328,11 +338,27 @@ def compute_flow(snap: RosterSnapshot, prev: dict | None,
         cf_value[tk] = sh * p
     total_cf = sum(cf_value.values())
     if total_cf <= 0:
-        return {}
+        return {}, 1.0
     cf_weight = {tk: 100.0 * v / total_cf for tk, v in cf_value.items()}
 
     now_weight = {h.ticker: h.weight_pct for h in snap.holdings}
     now_shares = {h.ticker: h.shares for h in snap.holdings}
+
+    # Creations and redemptions scale EVERY position by the same factor, so a
+    # raw share ratio reports a flow day as a complete portfolio turnover: XBI
+    # moved all 147 names between +2.08% and +2.10% on 2026-08-19, which is
+    # one creation, not 147 decisions. For any fund whose manager did not
+    # trade most of the book that day, the MEDIAN ratio is that factor, so
+    # dividing it out leaves the active change. The raw ratio is still
+    # published beside it and the factor itself is reported, so nothing is
+    # hidden — the flow simply stops being smeared across every row.
+    ratios = sorted(
+        now_shares[tk] / prev_shares[tk]
+        for tk in set(now_shares) & set(prev_shares)
+        if prev_shares.get(tk) and now_shares.get(tk) is not None
+    )
+    scale = (statistics.median(ratios)
+             if len(ratios) >= FLOW_SCALE_MIN_NAMES else 1.0)
 
     flow: dict[str, dict] = {}
     for tk in set(now_weight) | set(prev_shares):
@@ -346,21 +372,24 @@ def compute_flow(snap: RosterSnapshot, prev: dict | None,
         sh_now, sh_prev = now_shares.get(tk), prev_shares.get(tk)
         d_sh = (round((sh_now / sh_prev) - 1, 5)
                 if sh_now is not None and sh_prev not in (None, 0) else None)
+        d_net = (round((sh_now / sh_prev) / scale - 1, 5)
+                 if d_sh is not None else None)
 
         if tk not in prev_shares:
             status = "new"
         elif tk not in now_weight:
             status = "exited"
-        elif d_sh is None:
+        elif d_net is None:
             status = "held"
-        elif d_sh > 0.005:
+        elif d_net > FLOW_DEADBAND:
             status = "added"
-        elif d_sh < -0.005:
+        elif d_net < -FLOW_DEADBAND:
             status = "trimmed"
         else:
             status = "held"
-        flow[tk] = {"status": status, "active_bp": active_bp, "d_shares_pct": d_sh}
-    return flow
+        flow[tk] = {"status": status, "active_bp": active_bp,
+                    "d_shares_pct": d_sh, "d_shares_net_pct": d_net}
+    return flow, scale
 
 
 # ---------------------------------------------------------------------------
@@ -408,7 +437,7 @@ def build(etfs: list[str], use_cache_only: bool) -> dict:
     for etf, snap in snaps.items():
         cfg = MONITOR_FUNDS[etf]
         prev = previous_snapshot(etf, snap.as_of)
-        flow = compute_flow(snap, prev, px_now)
+        flow, fund_scale = compute_flow(snap, prev, px_now)
         rows = []
         for h in snap.holdings:
             m = metrics.get(h.ticker, {})
@@ -424,7 +453,7 @@ def build(etfs: list[str], use_cache_only: bool) -> dict:
                 "rng": m.get("range52"), "oh": m.get("off_high"),
                 "lo": m.get("lo52"), "hi": m.get("hi52"),
                 "fs": f.get("status"), "fbp": f.get("active_bp"),
-                "fsh": f.get("d_shares_pct"),
+                "fsh": f.get("d_shares_pct"), "fshn": f.get("d_shares_net_pct"),
             })
         # Exited names carry no current weight but are the loudest signal in
         # an active fund, so they ride along flagged rather than vanishing.
@@ -447,6 +476,11 @@ def build(etfs: list[str], use_cache_only: bool) -> dict:
             "dropped": snap.dropped,
             "price_coverage": round(n_priced / max(1, len(rows)), 4),
             "flow_basis": (prev.get("as_of") if prev else None),
+            # The fund's own creation / redemption for the day, as a percent
+            # of shares outstanding. Reported rather than netted away
+            # silently: it is the difference between "the manager traded"
+            # and "somebody bought the fund".
+            "fund_flow_pct": round((fund_scale - 1.0) * 100.0, 3),
             "rows": rows,
             "exits": exits,
         }

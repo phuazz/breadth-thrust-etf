@@ -23,7 +23,10 @@ invisible on the rendered page:
   G6 dropped share   a spike in rejected rows is an upstream format change
                      announcing itself
   G7 flow turnover   if most of a fund's names change status overnight, the
-                     comparison basis is wrong, not the portfolio
+                     comparison basis is wrong, not the portfolio. Statuses
+                     are netted of the fund's own creation or redemption
+                     before they get here, so this counts MANAGER activity;
+                     a creation moves every share count and is not turnover
   G8 payload age     the page is only as good as its last successful build
 
 Usage:
@@ -164,9 +167,11 @@ def run_checks(today: date | None = None) -> Result:
                         if r.get("fs") in ("new", "added", "trimmed"))
             moved += len(f.get("exits", []))
             frac = moved / max(1, len(rows))
+            ff = f.get("fund_flow_pct")
             res.add("G7", etf, "FAIL" if frac > FLOW_TURNOVER_MAX else "OK",
                     f"{frac:.1%} of names moved vs {basis} "
-                    f"(cap {FLOW_TURNOVER_MAX:.0%})")
+                    f"(cap {FLOW_TURNOVER_MAX:.0%})"
+                    + ("" if ff is None else f", fund flow {ff:+.2f}%"))
     return res
 
 

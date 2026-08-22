@@ -119,7 +119,7 @@ def test_pure_price_move_produces_no_flow():
     prev = _prev(date(2026, 8, 18), [("A", 50.0, 100), ("B", 50.0, 100)])
     now = _snap("T", date(2026, 8, 19),
                 [("A", 66.667, 100), ("B", 33.333, 100)])
-    flow = rhm.compute_flow(now, prev, {"A": 20.0, "B": 10.0})
+    flow, _ = rhm.compute_flow(now, prev, {"A": 20.0, "B": 10.0})
     assert abs(flow["A"]["active_bp"]) < 1.0
     assert abs(flow["B"]["active_bp"]) < 1.0
     assert flow["A"]["status"] == "held"
@@ -131,7 +131,7 @@ def test_real_buy_is_detected_through_a_price_move():
     prev = _prev(date(2026, 8, 18), [("A", 50.0, 100), ("B", 50.0, 100)])
     # A doubles in price AND the manager doubles the position.
     now = _snap("T", date(2026, 8, 19), [("A", 80.0, 200), ("B", 20.0, 100)])
-    flow = rhm.compute_flow(now, prev, {"A": 20.0, "B": 10.0})
+    flow, _ = rhm.compute_flow(now, prev, {"A": 20.0, "B": 10.0})
     assert flow["A"]["status"] == "added"
     assert flow["A"]["active_bp"] > 100      # more than 1pp of genuine adding
     assert flow["B"]["status"] == "held"
@@ -142,15 +142,51 @@ def test_creations_do_not_register_as_buying():
     """A 10% creation lifts every share count and must net to zero flow."""
     prev = _prev(date(2026, 8, 18), [("A", 50.0, 100), ("B", 50.0, 100)])
     now = _snap("T", date(2026, 8, 19), [("A", 50.0, 110), ("B", 50.0, 110)])
-    flow = rhm.compute_flow(now, prev, {"A": 10.0, "B": 10.0})
+    flow, _ = rhm.compute_flow(now, prev, {"A": 10.0, "B": 10.0})
     assert abs(flow["A"]["active_bp"]) < 1.0
     assert abs(flow["B"]["active_bp"]) < 1.0
+
+
+# The two tests below are the ones the guard actually reads. The test above
+# checked active_bp, which was immune to the fault by construction, so a
+# creation still flipped every STATUS to "added" and G7 called it a 100%
+# turnover: XBI, 2026-08-19, all 147 names between +2.08% and +2.10%.
+_FIVE = [("A", 20.0, 100), ("B", 20.0, 200), ("C", 20.0, 300),
+         ("D", 20.0, 400), ("E", 20.0, 500)]
+_PX = {t: 10.0 for t, _, _ in _FIVE}
+
+
+def test_a_creation_is_not_reported_as_portfolio_turnover():
+    prev = _prev(date(2026, 8, 18), _FIVE)
+    # Every position scaled by +2.09%, which is one creation, not five trades.
+    now = _snap("T", date(2026, 8, 19),
+                [(t, w, round(sh * 1.0209)) for t, w, sh in _FIVE])
+
+    flow, scale = rhm.compute_flow(now, prev, _PX)
+    assert all(flow[t]["status"] == "held" for t, _, _ in _FIVE)
+    assert scale == pytest.approx(1.0209, abs=1e-3), "the day's creation, reported"
+
+
+def test_a_real_trade_still_shows_through_a_creation():
+    prev = _prev(date(2026, 8, 18), _FIVE)
+    rows = [(t, w, round(sh * 1.0209)) for t, w, sh in _FIVE]
+    rows[0] = ("A", 20.0, round(100 * 1.0209 * 1.5))    # and A is bought 50%
+    rows[1] = ("B", 20.0, round(200 * 1.0209 * 0.8))    # and B is cut 20%
+    now = _snap("T", date(2026, 8, 19), rows)
+
+    flow, _ = rhm.compute_flow(now, prev, _PX)
+    assert flow["A"]["status"] == "added"
+    assert flow["B"]["status"] == "trimmed"
+    assert [flow[t]["status"] for t in ("C", "D", "E")] == ["held"] * 3
+    # The raw ratio stays on the row: netting is a reading, not a rewrite.
+    assert flow["C"]["d_shares_pct"] == pytest.approx(0.0209, abs=1e-3)
+    assert flow["C"]["d_shares_net_pct"] == pytest.approx(0.0, abs=1e-3)
 
 
 def test_new_and_exited_positions_are_flagged():
     prev = _prev(date(2026, 8, 18), [("A", 100.0, 100)])
     now = _snap("T", date(2026, 8, 19), [("B", 100.0, 50)])
-    flow = rhm.compute_flow(now, prev, {"A": 10.0, "B": 20.0})
+    flow, _ = rhm.compute_flow(now, prev, {"A": 10.0, "B": 20.0})
     assert flow["B"]["status"] == "new"
     assert flow["A"]["status"] == "exited"
     assert flow["A"]["active_bp"] < 0
@@ -160,14 +196,14 @@ def test_unpriced_name_reports_unavailable_not_zero():
     """Zero would read as 'held', which is a claim we cannot make."""
     prev = _prev(date(2026, 8, 18), [("A", 50.0, 100), ("B", 50.0, 100)])
     now = _snap("T", date(2026, 8, 19), [("A", 50.0, 100), ("B", 50.0, 100)])
-    flow = rhm.compute_flow(now, prev, {"A": 10.0})     # B has no price
+    flow, _ = rhm.compute_flow(now, prev, {"A": 10.0})  # B has no price
     assert flow["B"]["status"] == "unpriced"
     assert flow["B"]["active_bp"] is None
 
 
 def test_no_previous_snapshot_yields_no_flow():
     now = _snap("T", date(2026, 8, 19), [("A", 100.0, 100)])
-    assert rhm.compute_flow(now, None, {"A": 10.0}) == {}
+    assert rhm.compute_flow(now, None, {"A": 10.0}) == ({}, 1.0)
 
 
 # ---------------------------------------------------------------------------
