@@ -472,8 +472,16 @@ tbody tr.chart-row:hover td { background: var(--bg3); }
             for the RS column.</li>
             <li><b>Alerts</b> are events on the latest session: 52-week highs and
             lows, MA200 crossings, daily moves beyond 2 standard deviations, volume
-            above 3× normal, squeezes and their releases, and RSI at or beyond
-            75 / 25.</li>
+            above 3× normal, squeezes and their releases, RSI at or beyond
+            75 / 25, and rows crossing into or out of the top 10 of the
+            ranking.</li>
+            <li>A <b>rank crossing</b> is a statement about the table, not a
+            judgement about the fund: the row is inside the top 10 today and was
+            outside it on each of the 5 sessions before, or the mirror. That
+            confirmation window stops a row hovering at the boundary from firing
+            every other day. Because the cut is fixed, a row entering usually
+            displaces one leaving — and a rank can improve because peers fell, so
+            read the crossing with 12-1% and Trend, which are absolute.</li>
             <li>A <b>sigma move</b> is one session, not a run: the last session's
             return against the standard deviation of the 20 daily returns before it.
             <span class="gk">IBIT 3.3-sigma move +6.2%</span> reads as "+6.2% in a
@@ -608,6 +616,7 @@ function alertClass(a) {
   const L = (a.label || '').toLowerCase();
   if (a.kind === '52w')         return L.includes('high') ? 'good' : 'bad';
   if (a.kind === 'ma200_cross') return L.includes('above') ? 'good' : 'bad';
+  if (a.kind === 'rank_cross')  return L.includes('entered') ? 'good' : 'bad';
   if (a.kind === 'sigma_move')  return (a.value || '').startsWith('-') ? 'bad' : 'good';
   if (a.kind === 'volume')      return 'warn';
   if (a.kind === 'rsi')         return 'warn';

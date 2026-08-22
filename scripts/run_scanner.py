@@ -97,11 +97,14 @@ SQUEEZE_BBW_PCTL = 10.0
 SQUEEZE_RELEASE_SIGMA = 1.5
 PD_SIGMA_MIN_OBS = 120           # sessions of snapshots before the P/D alert arms
 SO_FLOW_ALERT = 0.01             # |daily change in shares outstanding| > 1%
+RANK_CROSS_CUT = 10              # "the top 10" is how the table is read
+RANK_CROSS_CONFIRM = 5           # sessions on the other side before a cross fires
 
 # Chip priority when more than 12 fire (spec §4)
 ALERT_PRIORITY = {
     "etf_layer": 0, "squeeze": 1, "squeeze_release": 1,
-    "ma200_cross": 2, "52w": 2, "sigma_move": 3, "rsi": 4, "volume": 5,
+    "ma200_cross": 2, "52w": 2, "rank_cross": 3, "sigma_move": 4,
+    "rsi": 5, "volume": 6,
 }
 MAX_CHIPS = 12
 
@@ -396,6 +399,64 @@ def build_alerts(data: TickerData, cols: dict) -> list[Alert]:
             out.append(Alert(t, "rsi", f"RSI {rsi:.0f} overbought"))
         elif rsi <= ALERT_RSI_LOW:
             out.append(Alert(t, "rsi", f"RSI {rsi:.0f} oversold"))
+    return out
+
+
+def rank_crossings(
+    panel: dict[str, TickerData],
+    rank_now: si.RankResult,
+    exclude: set[str] | None = None,
+    cut: int = RANK_CROSS_CUT,
+    confirm: int = RANK_CROSS_CONFIRM,
+) -> list[Alert]:
+    """Chips for rows that crossed the top-``cut`` boundary this session.
+
+    The strip otherwise carries no event about the one quantity the page
+    exists to compute. A magnitude chip on delta-R would have been the
+    obvious move and is deliberately not what this is: delta-R is already a
+    visible column, twenty sessions is not a latest-session event, and a
+    chip is an assertion — one built on a rank magnitude would credit this
+    row for a move that may have happened entirely in its peers.
+
+    A crossing is a discrete state change instead: inside the cut today and
+    outside it on each of the previous ``confirm`` sessions, or the mirror.
+    The confirmation is what stops a row oscillating either side of the
+    boundary from firing every other day, and it is also why entries and
+    exits need not arrive in pairs even though the cut is fixed — one side
+    of a swap can be suppressed by its own recent history.
+
+    Ranks at each offset are recomputed from the same horizon returns the
+    delta-R column uses, so ``offset`` counts each ticker's OWN sessions and
+    a closed foreign venue cannot manufacture a crossing.
+    """
+    excluded = exclude or set()
+    history: list[pd.Series] = []
+    for offset in range(1, confirm + 1):
+        returns = pd.DataFrame({
+            t: horizon_returns(d, offset=offset)
+            for t, d in panel.items()
+            if len(d.close) > offset + max(si.RANK_HORIZONS)
+        }).T
+        if returns.empty:
+            return []
+        history.append(si.rank_from_horizon_returns(returns).ranks)
+
+    out: list[Alert] = []
+    for ticker, rank in rank_now.ranks.items():
+        if ticker in excluded:
+            continue
+        priors = [h.get(ticker) for h in history]
+        # No crossing is asserted on partial evidence: a row that was
+        # unrankable at any point in the confirmation window is silent.
+        if any(p is None for p in priors):
+            continue
+        inside_now = int(rank) <= cut
+        if all((int(p) <= cut) != inside_now for p in priors):
+            out.append(Alert(
+                ticker, "rank_cross",
+                f"{'Entered' if inside_now else 'Left'} the top {cut}",
+                f"rank {int(rank)}",
+            ))
     return out
 
 
@@ -768,6 +829,7 @@ def build(
 
     rows: list[dict] = []
     alerts: list[Alert] = []
+    stale_tickers: set[str] = set()
     for row in universe:
         data = panel.get(row.scan_ticker)
         if data is None:
@@ -783,6 +845,7 @@ def build(
         lag = int(np.busday_count(data.as_of.date(), panel_as_of.date()))
         if lag > STALE_TRADING_DAYS:
             report.stale.append(f"{row.scan_ticker}: {lag} sessions behind")
+            stale_tickers.add(row.scan_ticker)
 
         rank = rank_now.ranks.get(row.scan_ticker)
         prior = rank_prior.ranks.get(row.scan_ticker) if rank_prior else None
@@ -810,6 +873,11 @@ def build(
             **cols,
             **layer,
         })
+
+    # Cross-sectional, so computed once over the finished ranking rather than
+    # inside the per-row loop. Stale rows are excluded: a boundary crossing
+    # driven by a row whose data stopped days ago is an artefact of the gap.
+    alerts.extend(rank_crossings(panel, rank_now, exclude=stale_tickers))
 
     rows.sort(key=lambda r: (r["rank"] is None, r["rank"] or 0))
     assert_invariants(rows, expected=len(panel))

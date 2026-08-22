@@ -74,6 +74,7 @@ Check all 54 daily; each trigger produces a chip (ticker + event + value):
 5. Squeeze: RV pctl < 25 AND BBW pctl < 10 (both-low requirement); squeeze release = in squeeze state and today's |return| > 1.5σ
 6. RSI14 ≥ 75 or ≤ 25 (Wilder smoothing)
 7. ETF layer (enable once data is available): |P/D − 1Y mean| > 2 × 1Y std; daily |ΔSO/SO| > 1%
+8. **Rank crossing** (added 2026-08-22 on owner instruction): rank ≤ 10 today and > 10 on each of the previous 5 sessions, or the mirror. Ranks at each offset are recomputed from the same per-ticker horizon returns as ΔR, so the offset counts the ticker's own sessions; stale rows (§7) are excluded. Deliberately NOT a |ΔR| magnitude chip: ΔR is already a visible column, 20 sessions is not a latest-session event, and a magnitude chip would credit a row for a move that may have occurred entirely in its peers. Priority sits below the MA200 / 52-week crossings and above the statistical alerts. Cut and confirmation window are placeholder defaults under §8 like every other threshold here.
 
 Chips are color-coded by category; when more than 12 fire, truncate by priority (ETF layer > squeeze > cross/52W events > statistical > RSI > volume) and show "+n more".
 

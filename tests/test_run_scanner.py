@@ -333,6 +333,69 @@ def test_rsi_extremes_alert_in_both_directions():
                for a in rs.build_alerts(_data(down), _cols(down)))
 
 
+# --- rank crossings ------------------------------------------------------
+# The panel is five clean ramps, so the ranking is the ordering of their
+# slopes and nothing else. A crossing is then produced by moving ONE bar:
+# multiply the weakest ramp's last close, and all four horizon returns lift
+# together, which is exactly the "strengthened today, not before" case the
+# rule is meant to catch.
+def _ranked_panel(steps: dict[str, float]) -> dict[str, rs.TickerData]:
+    return {t: _data(_frame(step=s), t) for t, s in steps.items()}
+
+
+def _rank_of(panel: dict[str, rs.TickerData]) -> "pd.Series":
+    returns = pd.DataFrame({t: rs.horizon_returns(d) for t, d in panel.items()}).T
+    return rs.si.rank_from_horizon_returns(returns)
+
+
+STEPS = {"A": 0.5, "B": 0.4, "C": 0.3, "D": 0.2, "E": 0.1}
+
+
+def test_a_row_that_climbs_into_the_cut_today_fires_a_crossing():
+    panel = _ranked_panel(STEPS)
+    panel["E"].frame.iloc[-1, panel["E"].frame.columns.get_loc("close")] *= 3.0
+
+    alerts = rs.rank_crossings(panel, _rank_of(panel), cut=2, confirm=2)
+    by_ticker = {a.ticker: a.label for a in alerts}
+    assert by_ticker.get("E") == "Entered the top 2"
+    # B held rank 2 for the confirmation window and was displaced today. The
+    # exit is a real crossing and is reported as one — the fixed cut means a
+    # row entering pushes a row out, which the guide states.
+    assert by_ticker.get("B") == "Left the top 2"
+    assert set(by_ticker) == {"E", "B"}, "no other row changed side"
+
+
+def test_no_crossing_fires_when_nothing_changed_side():
+    panel = _ranked_panel(STEPS)
+    assert rs.rank_crossings(panel, _rank_of(panel), cut=2, confirm=2) == []
+
+
+def test_the_confirmation_window_suppresses_a_row_that_was_recently_inside():
+    """A row oscillating either side of the cut must not fire every day."""
+    panel = _ranked_panel(STEPS)
+    close = panel["E"].frame.columns.get_loc("close")
+    panel["E"].frame.iloc[-1, close] *= 3.0
+    panel["E"].frame.iloc[-2, close] *= 3.0   # it was already inside yesterday
+
+    fired = {a.ticker for a in rs.rank_crossings(panel, _rank_of(panel),
+                                                 cut=2, confirm=2)}
+    assert "E" not in fired
+
+
+def test_stale_rows_cannot_manufacture_a_crossing():
+    panel = _ranked_panel(STEPS)
+    panel["E"].frame.iloc[-1, panel["E"].frame.columns.get_loc("close")] *= 3.0
+
+    fired = {a.ticker for a in rs.rank_crossings(panel, _rank_of(panel),
+                                                 exclude={"E"}, cut=2, confirm=2)}
+    assert "E" not in fired
+
+
+def test_crossings_outrank_statistical_noise_but_not_the_state_changes():
+    order = rs.ALERT_PRIORITY
+    assert order["ma200_cross"] < order["rank_cross"] < order["sigma_move"]
+
+
 def test_alerts_are_priority_ordered_and_truncated_with_a_count():
     alerts = (
         [rs.Alert(f"T{i}", "rsi", "RSI") for i in range(20)]
