@@ -2089,7 +2089,21 @@
         <strong>How "Total weight" is built</strong>, with one row as a worked example. Say IUES sits in Strategy A only with a within-strategy weight of 19.3%. Strategy A allocates 35% of total NAV, so IUES gets <code>0.35 × 19.3% = 6.76%</code> of the combined portfolio. On $100k, that is $6,755 in XLE (the trade proxy for IUES). The four-strategy panels below show how each within-strategy weight is computed from the underlying breadth or momentum signal — hover any row for the exact arithmetic.
       </p>
       <div id="overlay-active-banner" style="display:none;"></div>
-      <table class="holdings" id="live-holdings-table"><thead></thead><tbody></tbody></table>
+      <!-- Scroll container (2026-08-22). table.holdings sheds columns below
+           720px via its own media query, so it fits a phone. Between 721px
+           and ~800px it shows all seven columns at 773px wide with nothing
+           to scroll inside: `section { overflow-x: auto }` is itself inside
+           @media (max-width: 720px), so it is not in force there. The result
+           was 44px of BODY-level horizontal scroll at 768px — iPad portrait,
+           one of the four widths MOBILE_CHECK requires. Wrapping is the
+           pattern already used for table.data-table ("These tables live
+           inside overflow-x:auto wrappers and scroll intact instead");
+           widening the media query instead would put overflow-x on every
+           section at every width, and the note at the top of this file
+           records what that costs (overflow-y computes to auto with it). -->
+      <div style="overflow-x:auto;">
+        <table class="holdings" id="live-holdings-table"><thead></thead><tbody></tbody></table>
+      </div>
     </section>
 
     <section>
@@ -3077,7 +3091,7 @@
         <p><strong>The honest finding from the bootstrap CIs</strong>:</p>
         <ul>
           <li><strong>The 4-way deployed blend Sharpe (<span data-fig="blend4.sharpe">+1.19</span>) is NOT statistically distinguishable from the 3-way baseline (<span data-fig="blend3.sharpe">+1.10</span>) at 5% significance.</strong> The 95% CI on the differential is [-0.04, +0.17] — straddles zero. But the bootstrap gives the deployed blend a <strong>83% probability of being a real improvement</strong>, which combined with the mechanistic rationale (Europe orthogonality, Phase 4 retrospective) is meaningful but not conclusive evidence.</li>
-          <li><strong>Strategy C's 10% sleeve contributes essentially zero at the blend level vs just 50/50 A:B.</strong> The 3-way 45/45/10 vs 2-way 50/50 differential is <span data-fig="bootC.delta">+0.001</span> Sharpe with p(better) = <span data-fig="bootC.p_better">44.4%</span> — coin-flip. C earns its inclusion only as <em>optionality on the next thematic bull run</em>, not as a Sharpe lifter. This is now stated explicitly in the Multi-Strategy tab "How to choose your blend" section.</li>
+          <li><strong>Strategy C's 10% sleeve contributes essentially zero at the blend level vs just 50/50 A:B.</strong> The 3-way 45/45/10 vs 2-way 50/50 differential is <span data-fig="bootC.delta">+0.015</span> Sharpe with p(better) = <span data-fig="bootC.p_better">53.0%</span> — coin-flip. C earns its inclusion only as <em>optionality on the next thematic bull run</em>, not as a Sharpe lifter. This is now stated explicitly in the Multi-Strategy tab "How to choose your blend" section.</li>
           <li><strong>The Phase 4-6 cumulative Sharpe improvement (<span data-fig="blend3.sharpe">+1.10</span> → <span data-fig="blend4.sharpe">+1.19</span>, delta <span data-fig="blend4v3.lift">+0.09</span> before rounding) is consistent with real improvement</strong> but within the noise floor of 7.5 years of data. Confidence will grow with more OOS years. The point estimates are all positive, the directions are consistent across multiple comparison points, and the mechanistic stories (Europe orthogonality for Phase 4, equal-weighting in high-floor regime for Phase 6) suggest the improvements are structurally motivated rather than data-snooped.</li>
         </ul>
 
@@ -3186,7 +3200,7 @@
             <em>Lesson recorded</em>: the correlation gate is necessary but not sufficient for momentum universes — an asset's signal-to-noise character and crisis-period behaviour matter independently. Future candidates should be empirically tested at the standalone Sharpe + DD level, not just gate-validated.</li>
           <li><strong>Bitcoin (BTC-USD) is included via a spot-index proxy with IBIT-equivalent cost</strong>. IBIT (iShares Bitcoin Trust) only launched 2024-01-11, too short for the 5-year walk-forward methodology. The strategy therefore backtests using the CoinDesk Bitcoin Reference Price (BTC-USD, 8.4y of history) with IBIT's 25 bps annual expense ratio applied as a per-calendar-day compounded price drag, so the historical return path matches what an IBIT holder would have paid. <strong>Live execution remains in IBIT</strong>, which tracks BTC-USD with negligible error post-launch. GBTC (Grayscale Bitcoin Trust) was considered as the backfill but rejected: its market price traded at a 10-50% premium to NAV 2015-2021 and a 20-50% discount 2022-2023 (collapsing only on the Jan 2024 ETF conversion), so GBTC-price momentum would have captured the GBTC-discount narrative rather than BTC momentum. BTC-USD has none of that fund-structure noise. Per-ETF cap (PER_ETF_CAP = 35%, but equal-weight allocator gives 1/K = 25%) × 10% sleeve weight = <strong>max ~2.5% of NAV in BTC at any one time</strong>.</li>
           <li><strong>Strategy D constituent breadth depends on a pipeline fix</strong>: <code>compute_ma200_breadth</code> originally used <code>min_periods=200</code> which silently dropped the MA200 for any non-US constituent with sparse missing days. Without the fix (relaxed to 90% of window), D's signal froze on a 2023-04-06 ffill'd value. Documented in the research log below.</li>
-          <li><strong>The <span data-fig="boot43.delta">+0.08</span> deployed-vs-baseline Sharpe improvement is not statistically significant at 5%</strong> (block-bootstrap 95% CI [<span data-fig="boot43.ci_low">-0.06</span>, <span data-fig="boot43.ci_high">+0.22</span>], p(better) <span data-fig="boot43.p_better">81%</span>). Directionally supported by mechanistic rationale + consistent across multiple comparison points, but await more OOS data for statistical confirmation.</li>
+          <li><strong>The <span data-fig="boot43.delta">+0.09</span> deployed-vs-baseline Sharpe improvement is not statistically significant at 5%</strong> (block-bootstrap 95% CI [<span data-fig="boot43.ci_low">-0.05</span>, <span data-fig="boot43.ci_high">+0.24</span>], p(better) <span data-fig="boot43.p_better">85%</span>). Directionally supported by mechanistic rationale + consistent across multiple comparison points, but await more OOS data for statistical confirmation.</li>
         </ul>
       </div>
     </section>

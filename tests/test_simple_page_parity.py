@@ -532,3 +532,42 @@ def test_lead_is_counted_in_sessions_not_calendar_days():
     assert bsp._sessions_between("2026-08-13", "2026-08-12") == -1
     assert bsp._sessions_between("2026-08-13", "2026-08-13") == 0
     assert bsp._sessions_between(None, "2026-08-13") is None
+
+
+# ---------------------------------------------------------------------------
+# The tolerance itself (2026-08-22)
+#
+# The flat 1e-6 that stood here was justified in a comment as "far looser
+# than float noise over that many terms". It was in fact TIGHTER than the
+# 6dp storage rounding it had to survive: 22 weights stored at 6dp can sum
+# 1.1e-5 away from 1.0 with every weight correct. It passed for months
+# because most weeks' roundings cancelled, then failed on 2026-08-22 on a
+# week where they did not — masking a real 3.5e-5 engine defect underneath.
+#
+# A tolerance that fails on correct data is as bad as one that passes wrong
+# data, so pin both directions: wide enough for the storage format, and
+# still narrow enough to catch an error a human would care about.
+# ---------------------------------------------------------------------------
+def test_tolerance_admits_worst_case_storage_rounding():
+    """Every weight correct, every one rounded the same way — must pass."""
+    for n in (5, 22, 24, 40):
+        worst = n * 0.5 * 10 ** -bsp.WEIGHT_DECIMALS
+        assert worst <= bsp.weight_tolerance(n), n
+
+
+def test_tolerance_still_catches_an_error_worth_catching():
+    """One basis point is the smallest weight error that means anything on
+    a real book. It must fail at any plausible position count."""
+    for n in (5, 22, 24, 40):
+        assert bsp.weight_tolerance(n) < 1e-4, n
+
+
+def test_tolerance_would_have_caught_the_2026_08_22_defect():
+    """The engine defect the old flat tolerance nearly let through: sleeve
+    A's 4dp weights summed to 1.0001, putting the book at 100.0035% of NAV
+    across 22 positions."""
+    assert abs(1.000035 - 1.0) > bsp.weight_tolerance(22)
+
+
+def test_tolerance_grows_with_the_book():
+    assert bsp.weight_tolerance(40) > bsp.weight_tolerance(22)

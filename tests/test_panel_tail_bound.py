@@ -257,3 +257,60 @@ def test_the_cap_threshold_is_the_one_g6_enforces():
     import compute_breadth as cb
     from check_refresh_guard import MIN_ROSTER_COVERAGE_WARN as guard_floor
     assert cb.MIN_ROSTER_COVERAGE_WARN is guard_floor
+
+
+def _cap2(schedule_end, prev_end, start_friday, prices, held, floor=5,
+          cov_warn=0.90, roster_n=None):
+    """The rule as implemented after the 2026-08-22 floor fix.
+
+    Floors on the panel's own LAST PUBLISHED END, not on the roster Friday.
+    """
+    if not held:
+        return schedule_end
+    n = roster_n if roster_n is not None else len(held)
+    need = max(floor, int(cov_warn * n) + 1)
+    covered = prices[held].notna().sum(axis=1)
+    ok = covered.index[covered >= need]
+    if not len(ok):
+        return schedule_end
+    base = prev_end if prev_end is not None else start_friday
+    return max(base, min(schedule_end, pd.Timestamp(ok.max())))
+
+
+def test_a_roster_that_leads_the_prices_does_not_pin_the_panel_onto_an_empty_row():
+    """The 2026-08-22 failure. The 21 August roster published while the
+    European constituents were priced only to the 20th. Flooring on end_friday
+    forced the panel onto 21 August with ZERO priced names, and all five
+    deployed Europe panels plus fourteen candidates refused to write at 0.0%.
+    """
+    cols = [f"T{i}" for i in range(28)]
+    px = _px(["2026-08-19", "2026-08-20", "2026-08-21"], cols, last_full="2026-08-20")
+    end_friday = pd.Timestamp("2026-08-21")          # roster HAS Friday
+    prev_end = pd.Timestamp("2026-08-20")            # panel on disk
+
+    # The old rule: floor on end_friday -> pinned to an unpriced session.
+    old = max(end_friday, min(pd.Timestamp("2026-08-21"), pd.Timestamp("2026-08-20")))
+    assert old == pd.Timestamp("2026-08-21"), "fixture must reproduce the old pin"
+
+    got = _cap2(pd.Timestamp("2026-08-21"), prev_end,
+                pd.Timestamp("2018-01-05"), px, cols)
+    assert got == pd.Timestamp("2026-08-20"), (
+        "must decline to add an unpriced session even when the roster has it")
+
+
+def test_the_floor_still_refuses_to_shorten_a_published_panel():
+    """Declining to ADD an unpriced session is fine; DELETING history is not.
+    A vendor retraction must not silently shorten what is already on disk."""
+    cols = [f"T{i}" for i in range(28)]
+    px = _px(["2026-08-18", "2026-08-19", "2026-08-20"], cols, last_full="2026-08-19")
+    got = _cap2(pd.Timestamp("2026-08-20"), pd.Timestamp("2026-08-20"),
+                pd.Timestamp("2018-01-05"), px, cols)
+    assert got == pd.Timestamp("2026-08-20"), "must not shorten below the published end"
+
+
+def test_with_no_panel_on_disk_the_floor_is_the_start():
+    cols = [f"T{i}" for i in range(28)]
+    px = _px(["2026-08-19", "2026-08-20", "2026-08-21"], cols, last_full="2026-08-20")
+    got = _cap2(pd.Timestamp("2026-08-21"), None,
+                pd.Timestamp("2018-01-05"), px, cols)
+    assert got == pd.Timestamp("2026-08-20")

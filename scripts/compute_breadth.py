@@ -917,6 +917,7 @@ def main() -> int:
     # the WARN one. Sourcing the number from the same constant G6 imports is
     # the point: a cap that re-derives a threshold can drift from the guard,
     # and this has now drifted twice.
+    tail_cap = None
     if snapshot_dates:
         roster_now = active_roster_at(snapshot_dates, snapshot_map, snapshot_dates[-1])
         held = [t for t in roster_now if t in prices.columns]
@@ -926,12 +927,52 @@ def main() -> int:
             covered = prices[held].notna().sum(axis=1)
             ok = covered.index[covered >= need]
             if len(ok):
-                capped = max(end_friday, min(schedule_end, pd.Timestamp(ok.max())))
+                # FLOOR ON WHAT WAS PUBLISHED, NOT ON THE ROSTER FRIDAY.
+                #
+                # This floored on end_friday until 2026-08-22, which assumed the
+                # roster never leads the prices. On 2026-08-22 it did: the
+                # 21 August roster published while the European constituents
+                # were still priced only to the 20th. max(end_friday, ...) then
+                # PINNED the panel onto a session with zero prices, and all five
+                # deployed Europe panels plus fourteen candidates refused to
+                # write at 0.0% coverage. The cap meant to stop the tail
+                # outrunning the data was itself forcing it to.
+                #
+                # Declining to ADD an unpriced session is not the same as
+                # DELETING history, and only the second needs a floor. So the
+                # floor is the panel's own last published end: never shorter
+                # than what is already on disk, never longer than the data.
+                prev_end = None
+                try:
+                    prev_end = pd.Timestamp(json.loads(
+                        out_path.read_text(encoding="utf-8"))["end_date"])
+                except Exception:  # noqa: BLE001 - absent or unreadable: no floor
+                    prev_end = None
+                floor = prev_end if prev_end is not None else start_friday
+                capped = max(floor, min(schedule_end, pd.Timestamp(ok.max())))
                 if capped < schedule_end:
+                    # RECORD IT IN THE PANEL, so the refresh guard honours the
+                    # bound the writer computed instead of re-deriving one from
+                    # the roster. G4's floor is the last session on or before
+                    # end_friday; when the roster leads the prices that floor is
+                    # unreachable, and G4 called five deployed panels TRUNCATED
+                    # on 2026-08-22 for ending where the data ends. One
+                    # definition, stated once, honoured downstream — the same
+                    # rule that stopped the cap and the coverage guard drifting.
+                    tail_cap = {
+                        "capped_at": str(capped.date()),
+                        "venue_last_completed": str(schedule_end.date()),
+                        "constituents_priced_to": str(pd.Timestamp(ok.max()).date()),
+                        "roster_end_friday": str(end_friday.date()),
+                    }
+                    why = ("the constituents are only priced to "
+                           f"{pd.Timestamp(ok.max()).date()}")
+                    if end_friday > capped:
+                        why += (f", while the roster already reaches "
+                                f"{end_friday.date()}")
                     print(f"  Panel capped at {capped.date()}: the venue's last "
-                          f"completed session is {schedule_end.date()}, but the "
-                          f"constituents are only priced to {pd.Timestamp(ok.max()).date()}.",
-                          flush=True)
+                          f"completed session is {schedule_end.date()}, but "
+                          f"{why}.", flush=True)
                 schedule_end = capped
 
     schedule = cal.schedule(start_date=start_friday, end_date=schedule_end)
@@ -1110,6 +1151,11 @@ def main() -> int:
         "trading_calendar": cal_name,
         "start_date": df.index[0].strftime("%Y-%m-%d"),
         "end_date": df.index[-1].strftime("%Y-%m-%d"),
+        # Present ONLY when the tail was pulled back because the constituents
+        # are not priced as far as the venue has traded. Absent means the panel
+        # reaches as far as it should, so a consumer that ignores this field
+        # keeps the strict behaviour.
+        "tail_cap": tail_cap,
         "n_trading_days": int(len(df)),
         "n_signals": int(df["signal_fires"].sum()),
         "first_eligible_signal_date": df.index[SIGNAL_ELIGIBLE_AFTER].strftime("%Y-%m-%d")

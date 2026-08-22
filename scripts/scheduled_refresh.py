@@ -30,6 +30,8 @@ BUT guard layers around refresh_all.py:
               already-recorded gaps.
   gate view   scripts/check_factsheet_gate.py's own decision function,
               run locally, previews exactly what CI will do on push.
+  commit      --commit commits data/ and docs/ LOCALLY and pushes nothing,
+              so a second scheduled run that day starts on a clean tree.
   push        ONLY with --push (armed mode). Soak mode (no flag — the
               initial state) stops here and reports READY so the
               operator reviews and pushes manually. Arm the scheduled
@@ -42,20 +44,32 @@ logs/. The CI backstop needs nothing from this machine: the Sunday
 09:00 UTC check emails [WARN] whenever the week's factsheet has not gone
 out, whatever the reason this wrapper failed to run.
 
-CADENCE, changed 2026-08-12. The task now runs FRIDAY 08:00 SGT, not
-Saturday, because the instruction has to exist before the fill rather
-than after it. The book executes in the Friday CLOSING auctions - Xetra
-23:30 SGT that evening, the US 04:00 SGT on the Saturday - via
-market-on-close orders submitted Friday evening. (An earlier revision the
-same day used the Friday OPEN and was reversed; ignore any lingering
-reference to open fills.) 08:00 SGT sits after Thursday's US close
-(04:00 SGT summer, 05:00 winter) with hours of vendor-settle margin, and
-roughly fifteen hours before the earliest auction.
+CADENCE, changed 2026-08-22 by WS18 (supersedes the 2026-08-12 Friday move,
+whose description this replaces rather than annotates - a stale cadence
+paragraph is the most quotable wrong line in an operations module).
 
-Note what the Sunday CI backstop can and cannot do under that cadence:
-it still catches a week where nothing was published, but it fires AFTER
-the Friday fill, so it is a reconciliation check rather than a pre-trade
-one. A miss is detected, not prevented.
+The book rebalances MONDAY at the close, ranking on FRIDAY's close, so every
+sleeve ranks at rd-1. Under the Friday cadence sleeve D could only reach rd-2:
+the vendor-availability probe found the European data a session behind at every
+hour of the Friday decision window.
+
+TWO RUNS PER WEEKEND, and the second is not redundant. The probe showed the
+European close is served about three hours after the bell, RETRACTED overnight,
+and settled permanently only the following day - observed on four consecutive
+day-boundaries. So on Saturday morning the US sleeves have Friday's close and
+sleeve D does not; by Sunday morning all four do.
+
+  Saturday 09:00 SGT  sleeves A/B/C ready to review and plan; D reports HOLD
+  Sunday   09:00 SGT  D's European close has settled; the full book is ready
+
+Both fire hourly for six hours, with StartWhenAvailable, so a machine off at
+09:00 catches up on power-on.
+
+--commit EXISTS BECAUSE OF THAT SECOND RUN. Soak mode never commits, so
+Saturday would leave a dirty tree and Sunday's clean-tree preflight would
+refuse - the weekend silently collapsing to one run. That failure is not
+hypothetical: six consecutive catch-up firings were consumed exactly that way
+on 2026-08-14, each refusing in turn while the window closed.
 
 Usage:
     python scripts/scheduled_refresh.py                  # soak: no push
@@ -187,6 +201,11 @@ def _email(subject: str, body: str, log) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--commit", action="store_true",
+                        help="commit data/ and docs/ locally and push NOTHING. "
+                             "Required for a multi-run weekend: soak mode never "
+                             "commits, so the first run leaves a dirty tree and "
+                             "the second refuses on the clean-tree preflight.")
     parser.add_argument("--push", action="store_true",
                         help="Armed mode: commit and push on full green. "
                              "Without it (soak mode) the run stops after "
@@ -319,6 +338,35 @@ def main(argv: list[str] | None = None) -> int:
         _email("[OK] Scheduled refresh pushed - factsheet publishing",
                f"{msg}\n\nThe push triggers the gated factsheet "
                f"workflow.\n\nGate preview:\n{gate['detail']}", log)
+    elif args.commit:
+        # COMMIT LOCALLY, PUSH NOTHING. Added 2026-08-22 with the two-run
+        # weekend (Saturday for sleeves A/B/C, Sunday once the European close
+        # has settled).
+        #
+        # Without this the weekend silently collapses to ONE run. Soak mode
+        # never commits, so Saturday leaves the tree dirty; the preflight above
+        # refuses any dirty tree; Sunday therefore exits 2 having done nothing.
+        # That is not hypothetical — it is exactly how six consecutive
+        # catch-up firings were consumed on 2026-08-14, each refusing in turn
+        # while the window closed.
+        #
+        # A local commit leaves the tree clean for the next run and publishes
+        # nothing: the factsheet still waits for a human push and the CI gate.
+        msg = scheduled_commit_message(now.date(), panel_end)
+        for step in (["add", "data/", "docs/"], ["commit", "-m", msg]):
+            cp = _git(step, log)
+            if cp.returncode != 0:
+                if step[0] == "commit" and "nothing to commit" in (
+                        cp.stdout + cp.stderr).lower():
+                    break          # a no-change run is a clean run, not a fail
+                return fail(5, f"git {step[0]} failed", cp.stderr or cp.stdout)
+        print(f"COMMITTED LOCALLY (not pushed) - {msg}")
+        log.write(f"\ncommitted locally, NOT pushed: {msg}\n")
+        _email("[OK] Scheduled refresh committed locally - not published",
+               f"refresh_all.py green; panel current to {panel_end}.\n"
+               f"Committed in {REPO_ROOT} so the next scheduled run starts on a "
+               f"clean tree. NOTHING PUBLISHED - push manually to release the "
+               f"factsheet.\n\nGate preview:\n{gate['detail']}", log)
     else:
         print(f"READY TO PUSH (soak mode) - review the clone, then: "
               f"git add data/ docs/ && git commit && git push")

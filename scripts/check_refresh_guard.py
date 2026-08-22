@@ -45,7 +45,21 @@ asserts over the whole 24-panel deployed set:
       close has not happened — the partial-bar / look-ahead case. And the
       session-membership test keeps the phantom-bar case (a NYSE-calendar
       panel dated a US holiday) that the old equality caught only as a
-      side effect of comparing against a session-derived date;
+      side effect of comparing against a session-derived date.
+
+      THE LOWER BOUND HONOURS A DECLARED CAP, SINCE 2026-08-22. The floor
+      above asks the ROSTER how far the panel should reach. On 2026-08-22
+      the iShares roster for the European panels published Friday's
+      holdings while the vendor had the constituents priced only to
+      Thursday, so the floor was unreachable and G4 called five DEPLOYED
+      panels TRUNCATED for ending exactly where their data ends. When a
+      panel records a ``tail_cap`` — compute_breadth writes one whenever it
+      pulls the tail back for price coverage — the floor drops to the
+      session its constituents were actually priced for. A panel shorter
+      than its OWN declared cap is still TRUNCATED, so the silent-loss case
+      is unaffected; and a panel with no cap keeps the strict bound. One
+      definition, stated by the writer, checked by the guard — rather than
+      both re-deriving it and drifting apart;
   G5  no panel lost state versus the previous COMMITTED version (HEAD):
       no constituents snapshot key disappears, breadth n_trading_days
       never decreases, breadth end_date never moves backwards;
@@ -105,7 +119,11 @@ import pandas_market_calendars as mcal
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from etf_registry import get_etf  # noqa: E402
+from etf_registry import (  # noqa: E402
+    UNIVERSE_ETFS,
+    UNIVERSE_EUROPE_SECTORS,
+    get_etf,
+)
 from fetch_constituents import latest_completed_friday  # noqa: E402
 from refresh_all import ETFS_ALL  # noqa: E402  (single source of truth)
 from session_bounds import last_completed_session_on  # noqa: E402
@@ -229,7 +247,9 @@ def is_session(cal_name: str, day: date) -> bool:
 def check_breadth_ends(breadth_ends: dict[str, str],
                        calendars: dict[str, str],
                        end_friday: date,
-                       now_utc: datetime | None = None) -> list[dict]:
+                       now_utc: datetime | None = None,
+                       tail_caps: dict[str, dict | None] | None = None,
+                       ) -> list[dict]:
     """G4: each breadth panel ends inside the band the writer may produce.
 
     ``now_utc`` is injectable so the band is testable; it defaults to the
@@ -244,6 +264,28 @@ def check_breadth_ends(breadth_ends: dict[str, str],
         cal_name = calendars.get(etf, "NYSE")
         floor = expected_panel_end(cal_name, end_friday)
         ceiling = latest_admissible_panel_end(cal_name, now)
+        # HONOUR A DECLARED CAP instead of re-deriving the floor.
+        #
+        # The floor above asks the ROSTER how far the panel should reach. When
+        # the roster leads the prices — the 21 August roster published while
+        # the European constituents were priced only to the 20th — that floor
+        # is unreachable, and G4 called five DEPLOYED panels TRUNCATED for
+        # ending exactly where their data ends. compute_breadth now records
+        # why it stopped; this reads that rather than guessing.
+        #
+        # Narrow on purpose: the floor drops only as far as the sessions the
+        # writer says its constituents were priced for, and only when the
+        # panel actually ends there. A panel shorter than its own declared cap
+        # is still TRUNCATED, so genuine data loss is still caught.
+        cap = (tail_caps or {}).get(etf) or {}
+        priced_to = cap.get("constituents_priced_to")
+        if priced_to:
+            try:
+                pd_date = date.fromisoformat(priced_to)
+                if pd_date < floor:
+                    floor = pd_date
+            except (TypeError, ValueError):
+                pass
         try:
             got_date = date.fromisoformat(got)
         except (TypeError, ValueError):
@@ -302,15 +344,39 @@ def check_roster_coverage(coverages: dict[str, float | None],
     stale one; COMMITTING one is not, which is why this lives here rather
     than as a stricter floor in the writer.
     """
+    # FAIL ONLY ON THE TRADED BOOK; WARN ON THE REST.
+    #
+    # The docstring says DEPLOYED and means it — the 2026-08-08 incident it
+    # records was IDP6, a sleeve A member, changing Strategy A's holdings. But
+    # ETFS_ALL carries 24 panels, five of which are not traded: the four
+    # countries, whose sleeve was REJECTED (register record
+    # 2026-07-02-breadth-thrust-etf-2), and IUIT, pruned 2026-05-23. A thin
+    # panel outside the book cannot move the book, and on 2026-08-22 NDIA at
+    # 72.7% failed the whole refresh on exactly that basis.
+    #
+    # The same over-broad "deployed" also mislabelled those four panels on the
+    # published Data tab until it was corrected earlier the same day. One
+    # definition, two places, and this is the second.
+    #
+    # They are still MEASURED and still reported — silence would be a
+    # different error — but they cannot block a refresh of a book they are
+    # not in.
+    traded = frozenset(UNIVERSE_ETFS) | frozenset(UNIVERSE_EUROPE_SECTORS)
     out = []
     thin = {e: f"{c:.1%}" for e, c in coverages.items()
-            if c is not None and c < floor}
+            if c is not None and c < floor and e in traded}
+    thin_other = {e: f"{c:.1%}" for e, c in coverages.items()
+                  if c is not None and c < floor and e not in traded}
     unknown = sorted(e for e, c in coverages.items() if c is None)
     if thin:
         out.append(verdict("G6 roster coverage", FAIL,
                            f"deployed panels below the {floor:.0%} floor — "
                            f"breadth computed on a thin sample can move the "
                            f"deployed book: {thin}"))
+    elif thin_other:
+        out.append(verdict("G6 roster coverage", WARN,
+                           f"thin, but OUTSIDE the traded book so it cannot "
+                           f"move it: {thin_other}"))
     else:
         out.append(verdict("G6 roster coverage", OK,
                            f"{len(coverages) - len(unknown)} panels at or "
@@ -443,6 +509,7 @@ def main(argv: list[str] | None = None) -> int:
     end_fridays: dict[str, str] = {}
     health: dict[str, str] = {}
     staleness: dict[str, str] = {}
+    tail_caps: dict[str, dict | None] = {}
     breadth_ends: dict[str, str] = {}
     calendars: dict[str, str] = {}
     coverages: dict[str, float | None] = {}
@@ -468,6 +535,7 @@ def main(argv: list[str] | None = None) -> int:
         staleness[etf] = (consts.get("staleness") or {}).get(
             "status", "<absent>")
         breadth_ends[etf] = breadth.get("end_date", "<absent>")
+        tail_caps[etf] = breadth.get("tail_cap")
         coverages[etf] = panel_roster_coverage(breadth)
         try:
             calendars[etf] = get_etf(etf).get("trading_calendar", "NYSE")
@@ -499,7 +567,8 @@ def main(argv: list[str] | None = None) -> int:
     results.extend(check_roster_coverage(coverages,
                                          MIN_ROSTER_COVERAGE_WARN))
     results.extend(check_breadth_ends(breadth_ends, calendars,
-                                      expected_friday))
+                                      expected_friday,
+                                      tail_caps=tail_caps))
     results.extend(check_universal_walkback(latest_actuals, expected_friday))
     if n_loss_failures == 0 and n_baseline_checked:
         results.append(verdict(

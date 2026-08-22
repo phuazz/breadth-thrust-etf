@@ -324,3 +324,132 @@ def test_projection_cap_across_year_boundary():
         {"SPY": 1.0}, 1.0, prices, pd.Timestamp("2025-12-30"),
         session_cap=pd.Timestamp("2025-12-31"))
     assert dates == ["2025-12-31"]
+
+
+# ---------------------------------------------------------------------------
+# Within-sleeve normalisation (2026-08-22)
+#
+# The engines round their within-sleeve weights to 4dp and never
+# renormalise, so a sleeve's own weights sum to 0.9999-1.0001 depending on
+# which week's holdings land where. Scaled to NAV, that put the published
+# book at 100.0035% of NAV on 2026-08-22 — strategy A's six holdings summed
+# to 1.0001 — and the page's sum-to-NAV assertions failed.
+#
+# What made it survive so long is worth pinning: the three preceding
+# commits summed to exactly 1.0 by LUCK of that week's rounding, so a
+# real defect looked like a passing invariant. The tests below do not
+# depend on a week's rounding landing well.
+# ---------------------------------------------------------------------------
+def test_weights_sum_to_nav_when_a_sleeve_rounds_over_one():
+    """The 2026-08-22 case: strategy A's six 4dp weights summed to 1.0001."""
+    sleeves = {
+        "a": _fake_sleeve("2026-08-17", [("IUES", 0.2928), ("IUFS", 0.2352),
+                                         ("SOXX", 0.1718), ("IUSP", 0.1525),
+                                         ("IUHC", 0.1247), ("IUIS", 0.0231)]),
+        "b": _fake_sleeve("2026-08-17", [("SPY", 1.0)]),
+        "c": _fake_sleeve("2026-08-17", [("ICLN", 1.0)]),
+        "d": _fake_sleeve("2026-08-17", [("EXH1", 1.0)]),
+    }
+    w = _build_effective_weights(sleeves, p22_active=False,
+                                 regime_state="RISK_ON")
+    assert sum(w.values()) == pytest.approx(1.0, abs=1e-9)
+    # And the sleeve is held at its mandated share, not 0.350035.
+    a = sum(w[t] for t in ("IUES", "IUFS", "SOXX", "IUSP", "IUHC", "IUIS"))
+    assert a == pytest.approx(0.35, abs=1e-9)
+
+
+def test_weights_sum_to_nav_when_a_sleeve_rounds_under_one():
+    """The opposite sign. This one the old code handled — by dumping the
+    shortfall into SHY, which quietly turned a rounding error into a cash
+    position. It must now be absorbed inside the sleeve instead."""
+    sleeves = {
+        "a": _fake_sleeve("2026-07-27", [("IUES", 0.5000), ("IUSP", 0.4999)]),
+        "b": _fake_sleeve("2026-07-27", [("SPY", 1.0)]),
+        "c": _fake_sleeve("2026-07-27", [("ICLN", 1.0)]),
+        "d": _fake_sleeve("2026-07-27", [("EXH1", 1.0)]),
+    }
+    w = _build_effective_weights(sleeves, p22_active=False,
+                                 regime_state="RISK_ON")
+    assert sum(w.values()) == pytest.approx(1.0, abs=1e-9)
+    assert "SHY" not in w, "a 1bp rounding gap must not become a cash holding"
+
+
+def test_one_sleeve_rounding_does_not_land_on_another():
+    """Sleeve A's rounding is A's. A pro-rata renormalisation of the whole
+    book would silently move B, C and D off their mandated shares."""
+    sleeves = {
+        "a": _fake_sleeve("2026-08-17", [("IUES", 0.6001), ("IUSP", 0.4000)]),
+        "b": _fake_sleeve("2026-08-17", [("SPY", 1.0)]),
+        "c": _fake_sleeve("2026-08-17", [("ICLN", 1.0)]),
+        "d": _fake_sleeve("2026-08-17", [("EXH1", 1.0)]),
+    }
+    w = _build_effective_weights(sleeves, p22_active=False,
+                                 regime_state="RISK_ON")
+    assert w["SPY"] == pytest.approx(0.35, abs=1e-12)
+    assert w["ICLN"] == pytest.approx(0.10, abs=1e-12)
+    assert w["EXH1"] == pytest.approx(0.20, abs=1e-12)
+
+
+def test_weights_sum_to_nav_under_the_tilt_and_the_gate():
+    """The invariant must hold on the overlay paths too, not just the
+    plain one — those are the states that reallocate NAV."""
+    sleeves = {
+        "a": _fake_sleeve("2026-08-17", [("IUES", 0.2928), ("IUFS", 0.2352),
+                                         ("SOXX", 0.1718), ("IUSP", 0.1525),
+                                         ("IUHC", 0.1247), ("IUIS", 0.0231)]),
+        "b": _fake_sleeve("2026-08-17", [("SPY", 1.0)]),
+        "c": _fake_sleeve("2026-08-17", [("ICLN", 1.0)]),
+        "d": _fake_sleeve("2026-08-17", [("EXH1", 1.0)]),
+    }
+    for tilt in (False, True):
+        for regime in ("RISK_ON", "RISK_OFF"):
+            w = _build_effective_weights(sleeves, p22_active=tilt,
+                                         regime_state=regime)
+            assert sum(w.values()) == pytest.approx(1.0, abs=1e-9), (tilt, regime)
+
+
+def test_a_materially_wrong_sleeve_is_refused_not_scaled():
+    """Normalisation is for rounding. A sleeve that is genuinely OVER 1.0
+    must fail loudly — nothing can be more than fully invested, and scaling
+    it would make a construction defect look right."""
+    sleeves = {
+        "a": _fake_sleeve("2026-08-17", [("IUES", 0.6), ("IUSP", 0.6)]),
+        "b": _fake_sleeve("2026-08-17", [("SPY", 1.0)]),
+        "c": _fake_sleeve("2026-08-17", [("ICLN", 1.0)]),
+        "d": _fake_sleeve("2026-08-17", [("EXH1", 1.0)]),
+    }
+    with pytest.raises(ValueError, match="more than fully invested"):
+        _build_effective_weights(sleeves, p22_active=False,
+                                 regime_state="RISK_ON")
+
+
+def test_a_genuinely_uninvested_sleeve_still_reaches_cash():
+    """The SHY residual must survive: a sleeve with NO holdings leaves its
+    share uninvested, and that is a real cash position, not rounding."""
+    sleeves = {
+        "a": _fake_sleeve("2026-08-17", [("IUES", 1.0)]),
+        "b": _fake_sleeve("2026-08-17", [("SPY", 1.0)]),
+        "c": {"headline": {"trade_history": []}},        # nothing held
+        "d": _fake_sleeve("2026-08-17", [("EXH1", 1.0)]),
+    }
+    w = _build_effective_weights(sleeves, p22_active=False,
+                                 regime_state="RISK_ON")
+    assert w["SHY"] == pytest.approx(0.10, abs=1e-9)
+    assert sum(w.values()) == pytest.approx(1.0, abs=1e-9)
+
+
+def test_an_under_filled_sleeve_is_left_alone_not_normalised():
+    """The other side of the asymmetry, and the reason it exists: a cash
+    floor is a real state. Normalising it would erase the cash position by
+    scaling the invested part up to fill the sleeve."""
+    sleeves = {
+        "a": _fake_sleeve("2026-08-17", [("IUES", 1.0)]),
+        "b": _fake_sleeve("2026-08-17", [("SPY", 0.3)]),   # 70% cash floor
+        "c": _fake_sleeve("2026-08-17", [("ICLN", 1.0)]),
+        "d": _fake_sleeve("2026-08-17", [("EXH1", 1.0)]),
+    }
+    w = _build_effective_weights(sleeves, p22_active=False,
+                                 regime_state="RISK_ON")
+    assert w["SPY"] == pytest.approx(0.35 * 0.3)
+    assert w["SHY"] == pytest.approx(0.35 * 0.7)
+    assert sum(w.values()) == pytest.approx(1.0, abs=1e-9)

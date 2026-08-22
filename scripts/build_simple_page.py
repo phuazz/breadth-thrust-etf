@@ -68,9 +68,29 @@ PLACEHOLDER_END = "// __PORTFOLIO_DATA_END__"
 MAX_TEMPLATE_BYTES = 200 * 1024
 CONFLICT_MARKERS = ("<<<<<<<", ">>>>>>>")
 
-# Weights are floats summed over 23 positions; 1e-6 is far tighter than any
-# real error and far looser than float noise over that many terms.
-WEIGHT_TOLERANCE = 1e-6
+# Weights are STORED at 6 decimal places (live_track.json rounds them on
+# write), so each carries up to 5e-7 of rounding and a sum of n of them
+# carries up to n * 5e-7. The flat 1e-6 that stood here was justified as
+# "far looser than float noise over that many terms" — it is not; it is
+# TIGHTER than the storage rounding it has to survive, and over 22 holdings
+# the true bound is 1.1e-5. It passed only because most weeks' roundings
+# happened to cancel.
+#
+# Deriving it from the precision keeps the check honest as the book grows:
+# the tolerance is exactly the arithmetic that the storage format admits and
+# not a digit more, so a real weight error of even 1bp (1e-4) still fails.
+WEIGHT_DECIMALS = 6
+_FLOAT_SLACK = 1e-9
+
+
+def weight_tolerance(n_terms: int) -> float:
+    """Largest deviation from 1.0 that summing ``n_terms`` weights stored at
+    ``WEIGHT_DECIMALS`` places can produce without any weight being wrong."""
+    return n_terms * 0.5 * 10 ** -WEIGHT_DECIMALS + _FLOAT_SLACK
+
+
+# Kept for callers that want a single scalar; sized for the deployed book.
+WEIGHT_TOLERANCE = weight_tolerance(24)
 
 # Plain-English sleeve labels. The mechanism behind each is not disclosed here
 # and must not be added — that is the whole point of this page.
@@ -416,13 +436,21 @@ def assert_payload_usable(payload: dict) -> None:
     """Refuse to publish a page the build already knows is wrong."""
     problems: list[str] = []
 
-    total = sum(h["weight"] for h in payload["holdings"])
-    if abs(total - 1.0) > WEIGHT_TOLERANCE:
-        problems.append(f"holdings sum to {total:.8f}, not 1.0")
+    holdings = payload["holdings"]
+    total = sum(h["weight"] for h in holdings)
+    tol = weight_tolerance(len(holdings))
+    if abs(total - 1.0) > tol:
+        problems.append(
+            f"holdings sum to {total:.8f}, not 1.0 "
+            f"(off by {total - 1.0:+.2e}, tolerance {tol:.2e} over "
+            f"{len(holdings)} positions)")
 
     sleeve_total = sum(s["weight"] for s in payload["sleeves"])
-    if abs(sleeve_total - 1.0) > WEIGHT_TOLERANCE:
-        problems.append(f"sleeve split sums to {sleeve_total:.8f}, not 1.0")
+    sleeve_tol = weight_tolerance(len(payload["sleeves"]))
+    if abs(sleeve_total - 1.0) > sleeve_tol:
+        problems.append(
+            f"sleeve split sums to {sleeve_total:.8f}, not 1.0 "
+            f"(off by {sleeve_total - 1.0:+.2e}, tolerance {sleeve_tol:.2e})")
 
     if not payload.get("as_of"):
         problems.append("no as_of date")

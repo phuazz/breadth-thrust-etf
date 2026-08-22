@@ -166,3 +166,51 @@ def test_log_name_month_and_year_boundaries():
     # Year: 2026-12-31T22:00Z is 1 Jan 2027 06:00 SGT.
     assert log_path_for(datetime(2026, 12, 31, 22, 0, tzinfo=timezone.utc),
                         SGT).name == "scheduled_refresh_2027-01-01.log"
+
+
+
+# ---------------------------------------------------------------------------
+# The two-run weekend must not silently collapse to one
+#
+# WS18 put the book on a Monday fill, and the vendor probe showed the European
+# close settles only the day AFTER its session. So the weekend runs twice:
+# Saturday for sleeves A/B/C, Sunday once sleeve D's data has settled.
+#
+# Soak mode never commits. Without --commit, Saturday leaves a dirty tree,
+# Sunday's clean-tree preflight refuses, and the second run never happens —
+# with the schedule looking healthy throughout. Six consecutive catch-up
+# firings were consumed in exactly that way on 2026-08-14.
+# ---------------------------------------------------------------------------
+
+import inspect  # noqa: E402
+
+from scripts import scheduled_refresh as _sr  # noqa: E402
+
+
+def _commit_branch() -> str:
+    src = inspect.getsource(_sr.main)
+    start = src.index("elif args.commit")
+    return src[start:src.index("else:", start)]
+
+
+def test_commit_mode_exists_and_publishes_nothing():
+    """--commit must not imply --push: the Saturday run publishes nothing,
+    because sleeve D is knowingly incomplete at that hour."""
+    assert "--commit" in inspect.getsource(_sr), "--commit flag missing"
+    assert "args.commit" in inspect.getsource(_sr.main)
+    body = _commit_branch()
+    assert '"push"' not in body and "'push'" not in body, (
+        "the commit branch pushes — it must publish nothing")
+
+
+def test_commit_mode_stages_what_the_preflight_would_call_dirty():
+    assert '"add", "data/", "docs/"' in _commit_branch(), (
+        "commit mode must stage the same paths the preflight sees as dirty, "
+        "or the next run still refuses")
+
+
+def test_a_no_change_commit_is_not_a_failure():
+    """A run with nothing new to write is a CLEAN run. Treating 'nothing to
+    commit' as an error would fail every quiet Sunday and train the operator
+    to ignore the alert."""
+    assert "nothing to commit" in _commit_branch()

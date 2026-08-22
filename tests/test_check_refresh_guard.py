@@ -356,15 +356,15 @@ def test_g6_fails_on_the_gap_the_old_floor_excused():
     It published a plausible breadth number on a universe 9% smaller than
     the fund for 451 roster-days, and the 0.85 floor was explicitly set
     beneath it. At 0.90 the guard catches that class of loss."""
-    res = guard.check_roster_coverage({"ITWN": 70 / 78, "CSP1": 1.0}, FLOOR)
+    res = guard.check_roster_coverage({"IUSP": 70 / 78, "CSP1": 1.0}, FLOOR)
     assert guard.FAIL in _statuses(res)
-    assert "ITWN" in res[0]["evidence"]
+    assert "IUSP" in res[0]["evidence"]
 
 
 def test_g6_names_every_thin_panel_not_just_the_first():
     res = guard.check_roster_coverage(
-        {"IDP6": 371 / 603, "EXH2": 2 / 37, "CSP1": 1.0}, FLOOR)
-    assert "IDP6" in res[0]["evidence"] and "EXH2" in res[0]["evidence"]
+        {"IDP6": 371 / 603, "IUSP": 2 / 37, "CSP1": 1.0}, FLOOR)
+    assert "IDP6" in res[0]["evidence"] and "IUSP" in res[0]["evidence"]
 
 
 def test_g6_indeterminable_coverage_warns_rather_than_fails():
@@ -377,10 +377,48 @@ def test_g6_indeterminable_coverage_warns_rather_than_fails():
 
 
 def test_g6_boundary_exactly_at_the_floor_passes():
-    res = guard.check_roster_coverage({"EDGE": FLOOR}, FLOOR)
+    res = guard.check_roster_coverage({"CSP1": FLOOR}, FLOOR)
     assert _statuses(res) == [guard.OK]
-    res = guard.check_roster_coverage({"EDGE": FLOOR - 0.001}, FLOOR)
+    res = guard.check_roster_coverage({"CSP1": FLOOR - 0.001}, FLOOR)
     assert guard.FAIL in _statuses(res)
+
+
+# ---------------------------------------------------------------------------
+# G6 splits on the TRADED book (2026-08-22)
+#
+# The incident G6 exists for — IDP6 published at 61.5% on 2026-08-08 —
+# changed Strategy A's holdings. That is what makes thinness a FAIL: the
+# panel moved money. NDIA at 72.7% cannot, because no engine reads it, and
+# failing the refresh on it blocks a commit that is correct for every panel
+# the book actually trades.
+#
+# The split is deliberate and it is a real loosening: a thin MONITORED panel
+# now gets committed with a warning rather than blocking. It still shows on
+# the dashboard, so the WARN has to name it. These pin both halves — if the
+# traded set is ever widened or the split removed, the pair below is the
+# evidence of what the verdict used to be.
+# ---------------------------------------------------------------------------
+def test_g6_same_thinness_fails_deployed_but_warns_monitored():
+    thin = 70 / 78                                  # 89.7%, under the floor
+
+    deployed = guard.check_roster_coverage({"IUSP": thin, "CSP1": 1.0}, FLOOR)
+    assert guard.FAIL in _statuses(deployed)
+    assert "IUSP" in deployed[0]["evidence"]
+
+    monitored = guard.check_roster_coverage({"NDIA": thin, "CSP1": 1.0}, FLOOR)
+    assert guard.FAIL not in _statuses(monitored)
+    assert guard.WARN in _statuses(monitored)
+    # A warning nobody can act on is not a warning: name the panel.
+    assert "NDIA" in " ".join(r["evidence"] for r in monitored)
+
+
+def test_g6_a_thin_monitored_panel_does_not_mask_a_thin_deployed_one():
+    res = guard.check_roster_coverage(
+        {"NDIA": 0.60, "IUSP": 0.60, "CSP1": 1.0}, FLOOR)
+    assert guard.FAIL in _statuses(res)
+    fail = next(r for r in res if r["status"] == guard.FAIL)
+    assert "IUSP" in fail["evidence"]
+    assert "NDIA" not in fail["evidence"]      # reported, but not as the block
 
 
 # --- panel_roster_coverage: recorded field, with a fallback ---------------
@@ -403,3 +441,109 @@ def test_coverage_is_none_when_neither_source_is_usable():
     assert guard.panel_roster_coverage({}) is None
     assert guard.panel_roster_coverage(
         {"series": {"n_with_ma50": [5], "n_constituents": [0]}}) is None
+
+
+# ---------------------------------------------------------------------------
+# G4 honours a declared tail cap (2026-08-22)
+#
+# The roster can legitimately lead the prices: on 2026-08-22 iShares had
+# published Friday's holdings for the European panels while the vendor had
+# the constituents priced only to Thursday. G4's floor is derived from the
+# roster, so it was unreachable, and five DEPLOYED panels were called
+# TRUNCATED for ending exactly where their data ends.
+#
+# compute_breadth now records WHY it stopped. These pin that the guard reads
+# that rather than re-deriving a second bound — and, importantly, that the
+# relaxation is narrow: a panel shorter than its own declared cap still
+# fails, and a panel with no cap keeps the strict bound.
+# ---------------------------------------------------------------------------
+def _europe_cap(priced_to: str) -> dict:
+    return {"capped_at": priced_to,
+            "venue_last_completed": "2026-08-21",
+            "constituents_priced_to": priced_to,
+            "roster_end_friday": "2026-08-21"}
+
+
+def test_g4_accepts_a_panel_that_ends_where_its_declared_cap_says():
+    ends = {"EXV1": "2026-08-20"}
+    cals = {"EXV1": "XETR"}
+    (r,) = guard.check_breadth_ends(
+        ends, cals, date(2026, 8, 21),
+        now_utc=datetime(2026, 8, 22, 4, 0, tzinfo=timezone.utc),
+        tail_caps={"EXV1": _europe_cap("2026-08-20")})
+    assert r["status"] == guard.OK
+
+
+def test_g4_still_fails_that_same_panel_when_it_declares_no_cap():
+    """The relaxation must come from the panel, not from the date."""
+    ends = {"EXV1": "2026-08-20"}
+    cals = {"EXV1": "XETR"}
+    (r,) = guard.check_breadth_ends(
+        ends, cals, date(2026, 8, 21),
+        now_utc=datetime(2026, 8, 22, 4, 0, tzinfo=timezone.utc),
+        tail_caps=None)
+    assert r["status"] == guard.FAIL
+    assert "TRUNCATED" in r["evidence"]
+
+
+def test_g4_still_fails_a_panel_shorter_than_its_own_declared_cap():
+    """Silent data loss is still caught: the cap is a floor, not an amnesty."""
+    ends = {"EXV1": "2026-08-19"}          # cap says it reaches the 20th
+    cals = {"EXV1": "XETR"}
+    (r,) = guard.check_breadth_ends(
+        ends, cals, date(2026, 8, 21),
+        now_utc=datetime(2026, 8, 22, 4, 0, tzinfo=timezone.utc),
+        tail_caps={"EXV1": _europe_cap("2026-08-20")})
+    assert r["status"] == guard.FAIL
+    assert "TRUNCATED" in r["evidence"]
+
+
+def test_g4_cap_cannot_raise_the_floor_only_lower_it():
+    """A cap claiming MORE than the roster bound must not tighten the check.
+
+    Otherwise a malformed or future-dated cap could start failing panels
+    that the roster-derived bound accepts.
+    """
+    ends = {"CSP1": "2026-08-21"}
+    cals = {"CSP1": "NYSE"}
+    (r,) = guard.check_breadth_ends(
+        ends, cals, date(2026, 8, 21),
+        now_utc=datetime(2026, 8, 22, 4, 0, tzinfo=timezone.utc),
+        tail_caps={"CSP1": {"constituents_priced_to": "2026-09-30"}})
+    assert r["status"] == guard.OK
+
+
+def test_g4_ignores_a_malformed_cap_and_keeps_the_strict_bound():
+    ends = {"EXV1": "2026-08-20"}
+    cals = {"EXV1": "XETR"}
+    for bad in ({"constituents_priced_to": "not-a-date"},
+                {"constituents_priced_to": None},
+                {}):
+        (r,) = guard.check_breadth_ends(
+            ends, cals, date(2026, 8, 21),
+            now_utc=datetime(2026, 8, 22, 4, 0, tzinfo=timezone.utc),
+            tail_caps={"EXV1": bad})
+        assert r["status"] == guard.FAIL, bad
+
+
+def test_g4_cap_on_one_panel_does_not_excuse_another():
+    ends = {"EXV1": "2026-08-20", "EXH1": "2026-08-20"}
+    cals = {"EXV1": "XETR", "EXH1": "XETR"}
+    (r,) = guard.check_breadth_ends(
+        ends, cals, date(2026, 8, 21),
+        now_utc=datetime(2026, 8, 22, 4, 0, tzinfo=timezone.utc),
+        tail_caps={"EXV1": _europe_cap("2026-08-20")})
+    assert r["status"] == guard.FAIL
+    assert "EXH1" in r["evidence"]
+    assert "EXV1" not in r["evidence"]
+
+
+def test_g4_cap_does_not_loosen_the_upper_bound():
+    """A cap is a floor. It must never admit a bar that has not closed."""
+    ends = {"CSP1": "2026-08-24"}          # a session that has not happened
+    cals = {"CSP1": "NYSE"}
+    (r,) = guard.check_breadth_ends(
+        ends, cals, date(2026, 8, 21),
+        now_utc=datetime(2026, 8, 22, 4, 0, tzinfo=timezone.utc),
+        tail_caps={"CSP1": _europe_cap("2026-08-24")})
+    assert r["status"] == guard.FAIL

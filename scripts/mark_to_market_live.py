@@ -139,6 +139,13 @@ def _yf_close_series(symbols: list[str], start: str, end: str) -> pd.DataFrame:
     return df.sort_index()
 
 
+# Largest deviation from 1.0 a sleeve's own weights may show and still be
+# treated as 4dp rounding rather than a defect. Six holdings rounded to 4dp
+# can drift 3e-4; 1e-3 leaves headroom for a larger sleeve without admitting
+# anything a human would call a wrong weight.
+SLEEVE_ROUNDING_TOLERANCE = 1e-3
+
+
 def _build_effective_weights(
     sleeves: dict, p22_active: bool, regime_state: str
 ) -> dict[str, float]:
@@ -167,11 +174,48 @@ def _build_effective_weights(
         trades = (sleeve.get("headline", {}) or {}).get("trade_history", [])
         if not trades:
             continue
-        for h in trades[-1].get("holdings", []):
-            etf = h.get("etf")
-            wt = h.get("weight", 0)
-            if etf and wt > 0:
-                weights[etf] = weights.get(etf, 0) + wt * sw
+        held = {h["etf"]: h["weight"]
+                for h in trades[-1].get("holdings", [])
+                if h.get("etf") and h.get("weight", 0) > 0}
+        if not held:
+            continue
+
+        # NORMALISE WITHIN THE SLEEVE BEFORE SCALING TO NAV.
+        #
+        # The engines round their within-sleeve weights to 4dp and do not
+        # renormalise, so a sleeve's own weights sum to 0.9999-1.0001
+        # depending on the week. Scaled to NAV and summed across sleeves,
+        # that leaves the book at 100.0035% of NAV, as it was on
+        # 2026-08-22 (strategy A's six holdings summed to 1.0001). The
+        # cash residual below cannot absorb it: a NEGATIVE residual fails
+        # the `> 1e-6` test and is silently dropped, so an overweight book
+        # has no absorber at all while an underweight one does.
+        #
+        # Normalising HERE, per sleeve, keeps each sleeve at exactly its
+        # mandated share — sleeve A's rounding is absorbed by sleeve A and
+        # never lands on B, C, D or the tilt, which is what a pro-rata
+        # renormalisation of the whole book would do.
+        #
+        # The treatment is ASYMMETRIC, because the two signs mean different
+        # things. A sleeve UNDER 1.0 by more than rounding is a deliberate
+        # cash floor — sleeve B holding 30% with 70% in cash is a real
+        # state, and its residual belongs in SHY, so leave it untouched.
+        # A sleeve OVER 1.0 by more than rounding cannot be a state at all:
+        # nothing can be more than fully invested, so that is a defect and
+        # must fail rather than be quietly scaled into looking correct.
+        held_sum = sum(held.values())
+        if held_sum > 1.0 + SLEEVE_ROUNDING_TOLERANCE:
+            raise ValueError(
+                f"sleeve {key} holdings sum to {held_sum:.6f}, over 1.0 by "
+                f"more than the {SLEEVE_ROUNDING_TOLERANCE:g} rounding band — "
+                f"a sleeve cannot be more than fully invested, so this is a "
+                f"weight-construction defect, not 4dp rounding"
+            )
+        divisor = (held_sum
+                   if abs(held_sum - 1.0) <= SLEEVE_ROUNDING_TOLERANCE
+                   else 1.0)
+        for etf, wt in held.items():
+            weights[etf] = weights.get(etf, 0) + (wt / divisor) * sw
 
     # EEM tilt — 10% NAV (also scaled by RISK_OFF)
     if p22_active:
