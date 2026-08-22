@@ -312,6 +312,13 @@ def main() -> int:
         # operator step for one reason: live_targets.json is an operator step
         # and sat a week stale on disk, and a freshness widget that is itself
         # stale is worse than none at all.
+        # REPORT ONLY, by design. It surfaces isolated vendor holes so the
+        # operator sees them; it does NOT fill them, because writing a
+        # price the book ranks on is a state-changing action and the vault
+        # rule puts a human in front of those. Fill with
+        # `python scripts/repair_price_gaps.py --apply` after looking.
+        ("price gap probe (isolated vendor holes, report only)",
+            "scripts/repair_price_gaps.py"),
         ("strategy_freshness (per-sleeve data reach)",
             "scripts/strategy_freshness.py"),
         ("pipeline (build docs/index.html + factsheet PDF)",

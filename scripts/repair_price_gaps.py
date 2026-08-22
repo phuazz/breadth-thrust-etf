@@ -1,0 +1,307 @@
+"""Repair isolated holes in a price cache, without changing its basis.
+
+WHY THIS EXISTS.
+
+The vendor served no BTC-USD bar for Fri 2026-08-21 -- the 17th to 20th and
+the 22nd are all present, and it had not backfilled a day later. BTC-USD is
+held in 95 of 212 sleeve-C rebalances at a 20% within-sleeve weight, and a
+missing close on a ranking date drops the name from candidacy for that
+rebalance (correctly: you cannot rank on a price that does not exist).
+
+The 200-session amplification of that gap was fixed separately, in
+price_panel_guard. This module addresses the remaining, bounded cost: the one
+decision the gap can still spoil.
+
+RETURNS, NEVER LEVELS -- THE WHOLE DESIGN.
+
+The obvious repair is to drop the secondary source's close into the cache.
+That would be badly wrong here, and the reason generalises. These caches are
+NOT raw vendor prices: run_thematic_rotation reindexes crypto onto the equity
+calendar, FX-converts non-USD lines, and compounds a modelled expense ratio
+onto synthetic proxies (BTC-USD carries 25bps/yr since inception). By
+2026-08-20 the cached BTC-USD series therefore sat 2.19% BELOW raw spot --
+deliberately, and growing. A raw Binance close spliced in at level would have
+read as a +2.2% jump, on a sleeve whose eligibility floor is +5%.
+
+So a repair borrows only the secondary's RETURN across the gap and applies it
+to the last good CACHED value. Whatever basis the cache carries -- fee drag,
+FX, calendar -- is inherited untouched, and any constant offset between the
+sources (exchange spread, USDT peg) cancels.
+
+Measured before trusting it: over 157 overlapping sessions in 2026, Binance
+BTCUSDT and the cached series had daily-return correlation 0.9998, mean
+difference -0.00000, median absolute difference 3.2bp and worst 33bp.
+
+WHAT IT REFUSES TO DO.
+
+  - It will not fill a RUN of missing bars. A single absent print is a vendor
+    hiccup; a run is an outage or a delisting, and inventing a week of prices
+    from a second venue is a different and much worse decision.
+  - It will not fill a gap at the very start of a series, where there is no
+    prior cached value to splice onto.
+  - It will not accept an implausible move. A repair that can print any number
+    is a repair that can print a wrong one.
+  - It writes NOTHING without --apply. Filling a price the book ranks on is a
+    state-changing action, so the vault rule (CLAUDE.md, session discipline)
+    puts a human in front of it. refresh_all runs this in report mode.
+  - Every filled bar is recorded in a sidecar with its source, its method and
+    the return used. A silent fill would be indistinguishable from vendor data.
+
+Python datetime months are 1-indexed (January = 1). Binance kline open times
+are epoch milliseconds UTC and are derived, never typed as literals.
+
+Usage:
+    python scripts/repair_price_gaps.py                 # report only
+    python scripts/repair_price_gaps.py --apply         # write the repairs
+    python scripts/repair_price_gaps.py --cache thematic --ticker BTC-USD
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+LEDGER = DATA_DIR / "price_gap_repairs.jsonl"
+
+# The largest single-session move a repair may print. Bitcoin has moved more
+# than this intraday, so this is not "impossible" -- it is the line past which
+# a machine should stop and a human should look.
+MAX_PLAUSIBLE_MOVE = 0.25
+
+# How far back to bother looking. Older gaps are already baked into a
+# published record; repairing them would restate history silently.
+LOOKBACK_SESSIONS = 30
+
+# Secondary sources, declared per ticker. Absence is meaningful: a ticker with
+# no entry here is never filled from anywhere but its primary vendor.
+SECONDARY = {
+    "BTC-USD": {"venue": "binance", "symbol": "BTCUSDT"},
+}
+
+
+class RepairError(RuntimeError):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Gap detection — pure, unit-tested
+# ---------------------------------------------------------------------------
+def find_gaps(frame: pd.DataFrame, ticker: str,
+              lookback: int = LOOKBACK_SESSIONS,
+              min_peers: int = 5) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    """Sessions where the rest of the panel priced and ``ticker`` did not.
+
+    Returns (gap, previous_session) PAIRS rather than bare dates. That is
+    deliberate: the caller needs a previous bar to splice onto, and if it
+    derived one itself there would be two definitions of "previous" -- this
+    one on the peer-filtered session index, the caller's on the raw frame
+    index -- which are not the same whenever the frame carries a row that
+    almost nothing priced on. One definition, returned with the gap.
+
+    ISOLATED gaps only. A run of two or more consecutive holes is returned as
+    nothing at all, because a run is an outage rather than a hiccup and must
+    be looked at rather than papered over.
+    """
+    if ticker not in frame.columns:
+        return []
+    peers = frame.drop(columns=[ticker])
+    traded = frame.index[peers.notna().sum(axis=1) >= min_peers]
+    if len(traded) == 0:
+        return []
+    window = traded[-lookback:] if lookback else traded
+    col = frame[ticker]
+    missing = [d for d in window if pd.isna(col.loc[d])]
+    if not missing:
+        return []
+
+    # Reject runs. Adjacency is measured on the panel's own session index, so
+    # a weekend between two holes still counts as consecutive.
+    pos = {d: i for i, d in enumerate(traded)}
+    idx = sorted(pos[d] for d in missing)
+    isolated = [i for i in idx if (i - 1) not in idx and (i + 1) not in idx]
+    # And a gap needs a prior cached value to splice onto.
+    return [(traded[i], traded[i - 1]) for i in isolated
+            if i > 0 and not pd.isna(col.loc[traded[i - 1]])]
+
+
+def splice_value(prev_value: float, sec_prev: float, sec_now: float,
+                 max_move: float = MAX_PLAUSIBLE_MOVE) -> float:
+    """Carry the secondary source's RETURN onto the cached level.
+
+    Never the secondary's level: see the module docstring on the 2.19% fee
+    basis. Any constant offset between the two sources cancels in the ratio.
+    """
+    if not (prev_value > 0 and sec_prev > 0 and sec_now > 0):
+        raise RepairError("non-positive price in the splice inputs")
+    ret = sec_now / sec_prev - 1.0
+    if abs(ret) > max_move:
+        raise RepairError(
+            f"implied move {ret:+.1%} exceeds the {max_move:.0%} plausibility "
+            f"bound — refusing to print it; look at the source by hand")
+    return prev_value * (1.0 + ret)
+
+
+# ---------------------------------------------------------------------------
+# Sources
+# ---------------------------------------------------------------------------
+def fetch_primary(ticker: str, start: str, end: str) -> pd.Series:
+    """Re-query the primary vendor. Most holes simply backfill."""
+    import yfinance as yf
+    d = yf.download(ticker, start=start, end=end, progress=False,
+                    auto_adjust=True)
+    if d is None or not len(d):
+        return pd.Series(dtype=float)
+    if isinstance(d.columns, pd.MultiIndex):
+        d.columns = d.columns.get_level_values(0)
+    s = d["Close"].dropna()
+    s.index = pd.to_datetime(s.index).tz_localize(None).normalize()
+    return s
+
+
+def fetch_binance(symbol: str, start: pd.Timestamp,
+                  end: pd.Timestamp) -> pd.Series:
+    """Daily closes from Binance spot. Read-only public market data."""
+    start_ms = int(pd.Timestamp(start).tz_localize(timezone.utc).timestamp() * 1000)
+    url = ("https://api.binance.com/api/v3/klines"
+           f"?symbol={symbol}&interval=1d&startTime={start_ms}&limit=200")
+    with urllib.request.urlopen(url, timeout=30) as r:
+        raw = json.load(r)
+    out = {pd.to_datetime(k[0], unit="ms", utc=True).tz_localize(None).normalize():
+           float(k[4]) for k in raw}
+    s = pd.Series(out).sort_index()
+    return s[s.index <= pd.Timestamp(end)]
+
+
+def fetch_secondary(ticker: str, start: pd.Timestamp,
+                    end: pd.Timestamp) -> tuple[pd.Series, str]:
+    meta = SECONDARY.get(ticker)
+    if not meta:
+        return pd.Series(dtype=float), ""
+    if meta["venue"] == "binance":
+        return fetch_binance(meta["symbol"], start, end), \
+            f"binance:{meta['symbol']}"
+    raise RepairError(f"unknown secondary venue {meta['venue']!r}")
+
+
+# ---------------------------------------------------------------------------
+# Driver
+# ---------------------------------------------------------------------------
+CACHES = {
+    "thematic": ("thematic_prices_cache.parquet", "run_thematic_rotation"),
+    "asset_class": ("asset_class_prices_cache.parquet", "run_asset_class_rotation"),
+}
+
+
+def repair_cache(key: str, only_ticker: str | None = None,
+                 apply: bool = False) -> list[dict]:
+    fname, _ = CACHES[key]
+    path = DATA_DIR / fname
+    if not path.exists():
+        raise RepairError(f"no cache at {path}")
+    frame = pd.read_parquet(path)
+    tickers = [only_ticker] if only_ticker else list(frame.columns)
+    repairs: list[dict] = []
+
+    for t in tickers:
+        gaps = find_gaps(frame, t)
+        if not gaps:
+            continue
+        lo = min(g for g, _ in gaps) - pd.Timedelta(days=10)
+        hi = max(g for g, _ in gaps) + pd.Timedelta(days=2)
+
+        primary = fetch_primary(t, lo.strftime("%Y-%m-%d"), hi.strftime("%Y-%m-%d"))
+        sec, sec_label = fetch_secondary(t, lo, hi)
+
+        for g, prev in gaps:
+            prev_val = float(frame.loc[prev, t])
+            rec = {"cache": key, "ticker": t, "date": str(g.date()),
+                   "prev_date": str(prev.date()), "prev_value": prev_val}
+
+            # 1. The primary may simply have backfilled.
+            if g in primary.index:
+                rec.update(source="primary:yfinance", method="direct",
+                           value=float(primary.loc[g]))
+                repairs.append(rec)
+                continue
+
+            # 2. Otherwise a declared secondary, spliced by RETURN.
+            if len(sec) and g in sec.index and prev in sec.index:
+                try:
+                    v = splice_value(prev_val, float(sec.loc[prev]),
+                                     float(sec.loc[g]))
+                except RepairError as e:
+                    rec.update(source=sec_label, method="return_splice",
+                               refused=str(e))
+                    repairs.append(rec)
+                    continue
+                rec.update(source=sec_label, method="return_splice",
+                           value=v,
+                           implied_return=float(sec.loc[g] / sec.loc[prev] - 1))
+                repairs.append(rec)
+                continue
+
+            rec.update(source=None, method=None,
+                       refused="no primary backfill and no usable secondary")
+            repairs.append(rec)
+
+    usable = [r for r in repairs if r.get("value") is not None
+              and "refused" not in r]
+    if apply and usable:
+        for r in usable:
+            frame.loc[pd.Timestamp(r["date"]), r["ticker"]] = r["value"]
+        frame = frame.sort_index()
+        frame.to_parquet(path)
+        stamp = datetime.now(timezone.utc).isoformat()
+        with LEDGER.open("a", encoding="utf-8") as fh:
+            for r in usable:
+                fh.write(json.dumps({**r, "applied_at_utc": stamp}) + "\n")
+    return repairs
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--cache", choices=sorted(CACHES) + ["all"], default="all")
+    ap.add_argument("--ticker", default=None)
+    ap.add_argument("--apply", action="store_true",
+                    help="write the repairs (default is report only)")
+    args = ap.parse_args(argv)
+
+    keys = sorted(CACHES) if args.cache == "all" else [args.cache]
+    all_reps: list[dict] = []
+    for k in keys:
+        all_reps.extend(repair_cache(k, args.ticker, apply=args.apply))
+
+    if not all_reps:
+        print("\nNo isolated price gaps in the last "
+              f"{LOOKBACK_SESSIONS} sessions.")
+        return 0
+
+    print(f"\nPRICE GAP REPAIR — {'APPLIED' if args.apply else 'REPORT ONLY'}\n")
+    for r in all_reps:
+        head = f"  {r['ticker']:10s} {r['date']}  ({r['cache']})"
+        if "refused" in r:
+            print(f"{head}  NOT REPAIRED — {r['refused']}")
+            continue
+        extra = (f"  implied {r['implied_return']:+.2%}"
+                 if "implied_return" in r else "")
+        print(f"{head}  {r['prev_value']:,.2f} -> {r['value']:,.2f}"
+              f"  via {r['source']} ({r['method']}){extra}")
+    if not args.apply:
+        print("\n  Nothing written. Re-run with --apply to commit these.")
+    else:
+        print(f"\n  Recorded in {LEDGER.name}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

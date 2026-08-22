@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-08-22T05:22:53.221162+00:00",
+ "computed_at_utc": "2026-08-22T06:09:13.159972+00:00",
  "strategies": [
   {
    "sleeve": "A",
@@ -31,13 +31,11 @@
    "sleeve": "C",
    "label": "Thematic",
    "venue": "NYSE",
-   "data_through": "2026-08-20",
+   "data_through": "2026-08-21",
    "venue_last_session": "2026-08-21",
-   "sessions_behind": 1,
-   "status": "behind",
-   "laggards": [
-    "BTC-USD"
-   ],
+   "sessions_behind": 0,
+   "status": "current",
+   "laggards": [],
    "source": "price cache (thematic ETFs)",
    "why": null,
    "why_plain": null
@@ -58,5 +56,5 @@
  ],
  "all_current": false,
  "stalest": "2026-08-20",
- "n_behind": 2
+ "n_behind": 1
 }

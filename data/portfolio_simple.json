@@ -6719,7 +6719,7 @@
  "n_positions": 22,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-08-22T05:22:53.221162+00:00",
+  "computed_at_utc": "2026-08-22T06:09:13.159972+00:00",
   "all_current": false,
   "strategies": [
    {
@@ -6745,13 +6745,11 @@
    {
     "sleeve": "C",
     "label": "Thematic",
-    "data_through": "2026-08-20",
+    "data_through": "2026-08-21",
     "venue_last_session": "2026-08-21",
-    "sessions_behind": 1,
-    "status": "behind",
-    "laggards": [
-     "BTC-USD"
-    ],
+    "sessions_behind": 0,
+    "status": "current",
+    "laggards": [],
     "why_plain": null
    },
    {
