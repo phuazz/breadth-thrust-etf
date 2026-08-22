@@ -71,6 +71,8 @@ def test_guide_block_present(page: str) -> None:
         # The sigma yardstick reuses RV_WINDOW and stops at the previous
         # session (run_scanner: daily.iloc[-RV_WINDOW - 1:-1]).
         (f"the {si.RV_WINDOW} daily returns before it", "sigma window"),
+        (f"exceeded {rs.SQUEEZE_RELEASE_SIGMA} standard deviations",
+         "SQUEEZE_RELEASE_SIGMA"),
         (f"top {rs.RANK_CROSS_CUT} of the ranking", "RANK_CROSS_CUT"),
         (f"outside it on each of the {rs.RANK_CROSS_CONFIRM} sessions before",
          "RANK_CROSS_CONFIRM"),
