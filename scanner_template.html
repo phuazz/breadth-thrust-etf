@@ -108,6 +108,33 @@ body {
 .chip.alt  { background: var(--pk-bg); color: var(--pk-text); border-color: rgba(190,24,93,0.2); }
 .chip.mute { background: var(--bg3); color: var(--t3-text); }
 .chip .tk { font-family: var(--mono); font-weight: 600; }
+/* Clamped in CSS rather than by counting characters: the sector word that
+   separates one iShares STOXX Europe 600 line from the next sits around
+   character 26-35, and a fixed character cut either loses it or overflows a
+   phone. The full name is in the DOM and in the chip's tooltip. */
+.chip .fund {
+  font-weight: 600; color: var(--t1);
+  display: inline-block; max-width: 30ch; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;
+}
+/* On a phone the chip wraps and the name is shown in FULL rather than
+   clipped: there is no hover on touch, so an ellipsis there hides the name
+   permanently instead of deferring it to a tooltip. A nowrap chip carrying a
+   fund name plus a label also overflowed the viewport by ~19px at 390px. */
+@media (max-width: 768px) {
+  .chip { white-space: normal; max-width: 100%; }
+  .chip .fund { max-width: 100%; white-space: normal; }
+}
+.chip.good .fund, .chip.bad .fund, .chip.warn .fund,
+.chip.info .fund, .chip.alt .fund { color: inherit; }
+/* The expander is a real button: it changes what the strip shows, and a
+   span would be unreachable by keyboard. */
+.chip-btn {
+  cursor: pointer; font-family: inherit; font-size: 11.5px; font-weight: 600;
+  background: var(--bg3); color: var(--t2); border: 1px solid var(--bd);
+}
+.chip-btn:hover { background: var(--bg-hover); color: var(--t1); }
+@media (pointer: coarse) { .chip-btn { min-height: 44px; } }
 
 .filter {
   font-size: 11.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
@@ -483,7 +510,9 @@ tbody tr.chart-row:hover td { background: var(--bg3); }
             lows, MA200 crossings, daily moves beyond 2 standard deviations, volume
             above 3× normal, squeezes and their releases, RSI at or beyond
             75 / 25, and rows crossing into or out of the top 10 of the
-            ranking.</li>
+            ranking. Chips name the fund and carry its ticker in the tooltip; the
+            twelve highest-priority fire first and <span class="gk">+n more</span>
+            reveals the rest.</li>
             <li>A <b>rank crossing</b> is a statement about the table, not a
             judgement about the fund: the row is inside the top 10 today and was
             outside it on each of the 5 sessions before, or the mirror. That
@@ -634,6 +663,11 @@ function alertClass(a) {
 }
 
 let DATA = null, SLEEVE = 'ALL', SORT = { k:'rank', asc:true }, RS_MODE = 'rs_1m';
+let ALERTS_EXPANDED = false;
+
+// Chips name the fund rather than the ticker: the strip is read for what
+// happened, and "ARK Genomic Revolution" answers that without a lookup the
+// way "ARKG" does not. The ticker stays in the tooltip.
 
 const SLEEVES = [
   ['ALL','All'], ['A','A · Sectors'], ['B','B · Asset class'],
@@ -829,12 +863,7 @@ function renderChrome() {
   }
   document.getElementById('overlays').innerHTML = chips.join(' ');
 
-  const al = (d.alerts || []).map(a =>
-    `<span class="chip ${alertClass(a)}"><span class="tk">${esc(a.ticker)}</span> `
-    + `${esc(a.label)}${a.value ? ' ' + esc(a.value) : ''}</span>`);
-  if (d.alerts_truncated) al.push(`<span class="chip mute">+${d.alerts_truncated} more</span>`);
-  document.getElementById('alerts').innerHTML =
-    al.length ? al.join(' ') : '<span class="chip mute">No alerts today</span>';
+  renderAlerts();
 
   document.getElementById('filters').innerHTML = SLEEVES.map(([k, lbl]) =>
     `<button class="filter ${SLEEVE === k ? 'active' : ''}" data-s="${k}">${esc(lbl)}</button>`
@@ -875,6 +904,31 @@ function renderChrome() {
     + `<a href="index.html">Main dashboard</a> \u00B7 `
     + `<a href="https://github.com/phuazz/breadth-thrust-etf">Methodology &amp; source</a>`);
   document.getElementById('foot').innerHTML = parts.map(p => `<div>${p}</div>`).join('');
+}
+
+function alertChip(a) {
+  const r = (DATA.rows || []).find(x => x.ticker === a.ticker) || {};
+  const full = r.long_name || r.name || a.ticker;
+  const name = r.name || a.ticker;
+  return `<span class="chip ${alertClass(a)}" title="${esc(a.ticker)} · ${esc(full)}">`
+    + `<span class="fund">${esc(name)}</span> ${esc(a.label)}`
+    + `${a.value ? ' ' + esc(a.value) : ''}</span>`;
+}
+
+// The payload carries EVERY alert in priority order and states the default
+// cap, so the overflow is one click away rather than a dead "+11 more" for
+// events the reader could not reach.
+function renderAlerts() {
+  const all = DATA.alerts || [];
+  const cap = DATA.alerts_display_cap || all.length;
+  const hidden = Math.max(0, all.length - cap);
+  const chips = (ALERTS_EXPANDED ? all : all.slice(0, cap)).map(alertChip);
+  if (hidden) {
+    chips.push(`<button class="chip chip-btn" id="alerts-toggle">`
+      + (ALERTS_EXPANDED ? 'Show fewer' : `+${hidden} more`) + `</button>`);
+  }
+  document.getElementById('alerts').innerHTML =
+    chips.length ? chips.join(' ') : '<span class="chip mute">No alerts today</span>';
 }
 
 function render() { renderChrome(); renderHead(); renderBody(); }
@@ -1053,6 +1107,11 @@ function toggleChart(ticker, tr) {
 }
 
 document.addEventListener('click', (e) => {
+  if (e.target.closest('#alerts-toggle')) {
+    ALERTS_EXPANDED = !ALERTS_EXPANDED;
+    renderAlerts();
+    return;
+  }
   const f = e.target.closest('.filter');
   if (f) { SLEEVE = f.dataset.s; render(); return; }
 

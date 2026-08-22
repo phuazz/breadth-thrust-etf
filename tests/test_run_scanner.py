@@ -333,6 +333,50 @@ def test_rsi_extremes_alert_in_both_directions():
                for a in rs.build_alerts(_data(down), _cols(down)))
 
 
+# --- cache merge ---------------------------------------------------------
+# The failure this pins has no symptom: the ticker simply loses its most
+# recent close, every indicator quietly recomputes a session earlier, and
+# nothing raises. It became reachable the moment a catch-up build was added,
+# because the Xetra placeholder window (roughly 22:00-06:00 UTC) is exactly
+# when a second run of the day fires.
+def _bar(ticker: str, date: str, close: float) -> pd.DataFrame:
+    return pd.DataFrame({
+        "ticker": [ticker], "date": pd.to_datetime([date]),
+        "open": [close], "high": [close], "low": [close],
+        "close": [close], "volume": [1_000_000.0],
+    })
+
+
+def test_a_placeholder_cannot_evict_a_cached_close():
+    cached = pd.concat([_bar("EXV1.DE", "2026-08-20", 41.77),
+                        _bar("EXV1.DE", "2026-08-21", 42.10)])
+    fresh = _bar("EXV1.DE", "2026-08-21", float("nan"))
+
+    merged, shadowed = rs.merge_price_frames(cached, fresh)
+    kept = merged[merged["date"] == pd.Timestamp("2026-08-21")]["close"]
+    assert float(kept.iloc[0]) == 42.10, "the real bar must survive the placeholder"
+    assert shadowed == 1, "and the build must be able to say it happened"
+
+
+def test_a_restated_close_still_wins():
+    """The placeholder rule must not cost us vendor restatements."""
+    cached = _bar("SPY", "2026-08-21", 765.72)
+    fresh = _bar("SPY", "2026-08-21", 765.99)
+
+    merged, shadowed = rs.merge_price_frames(cached, fresh)
+    assert float(merged["close"].iloc[0]) == 765.99
+    assert shadowed == 0
+
+
+def test_a_placeholder_on_an_uncached_date_is_not_counted_as_shadowing():
+    cached = _bar("SPY", "2026-08-20", 762.60)
+    fresh = _bar("SPY", "2026-08-21", float("nan"))
+
+    merged, shadowed = rs.merge_price_frames(cached, fresh)
+    assert list(merged["date"]) == [pd.Timestamp("2026-08-20")]
+    assert shadowed == 0, "nothing was displaced — there was no bar to displace"
+
+
 # --- rank crossings ------------------------------------------------------
 # The panel is five clean ramps, so the ranking is the ordering of their
 # slopes and nothing else. A crossing is then produced by moving ONE bar:

@@ -195,6 +195,51 @@ def _download(symbols: list[str], start: str, end: str | None) -> pd.DataFrame:
     return out
 
 
+def merge_price_frames(
+    cached: pd.DataFrame, fresh: pd.DataFrame
+) -> tuple[pd.DataFrame, int]:
+    """Combine cache and fetch so a placeholder can never evict a real bar.
+
+    Fresh rows win on a duplicate date, which is how vendor restatements
+    land. That rule is right for a restated close and wrong for a row with
+    NO close: the vendor emits one for a session it has not populated yet,
+    and inside the ten-day overlap window that row falls on dates the cache
+    already holds real closes for. Under a plain "fresh wins" the good bar
+    was replaced by the placeholder and then dropped as unusable, so a
+    re-run at the wrong hour silently shortened the ticker's history — the
+    Xetra lines lose their most recent close between roughly 22:00 and
+    06:00 UTC, which is exactly when a catch-up build would run.
+
+    Placeholders are therefore removed from the fresh frame BEFORE the
+    duplicate resolution. The second pass over the combined frame stays: it
+    clears any placeholder a previous version of this function wrote into
+    the cache.
+
+    Returns the merged frame and the number of placeholder rows that would
+    have shadowed a cached close.
+    """
+    shadowed = 0
+    if not fresh.empty:
+        placeholder = fresh["close"].isna()
+        if placeholder.any() and not cached.empty:
+            have = set(zip(cached["ticker"], cached["date"]))
+            shadowed = sum(
+                1 for t, d in zip(fresh.loc[placeholder, "ticker"],
+                                  fresh.loc[placeholder, "date"])
+                if (t, d) in have
+            )
+        fresh = fresh[~placeholder]
+
+    combined = pd.concat([cached, fresh]) if not cached.empty else fresh
+    if combined.empty:
+        return combined, shadowed
+    return (
+        combined.sort_values(["ticker", "date"])
+        .drop_duplicates(subset=["ticker", "date"], keep="last")
+        .reset_index(drop=True)
+    ), shadowed
+
+
 def fetch_prices(
     symbols: list[str], end: str | None, full: bool, report: BuildReport
 ) -> pd.DataFrame:
@@ -223,17 +268,13 @@ def fetch_prices(
             break
         print(f"  fetch attempt {attempt}/{FETCH_RETRIES} returned nothing")
 
-    combined = pd.concat([cached, fresh]) if not cached.empty else fresh
+    combined, shadowed = merge_price_frames(cached, fresh)
     if combined.empty:
         raise ScannerBuildError(
             "no price data at all — refusing to build a page from nothing"
         )
-    # Fresh rows win on a duplicate date, which is how restatements land.
-    combined = (
-        combined.sort_values(["ticker", "date"])
-        .drop_duplicates(subset=["ticker", "date"], keep="last")
-        .reset_index(drop=True)
-    )
+    if shadowed:
+        print(f"  ignored {shadowed} placeholder row(s) over a cached close")
 
     # A row with no close is not a bar. The vendor emits placeholder rows for
     # a session it has not yet populated — on 2026-08-04 every US ticker came
@@ -889,7 +930,11 @@ def build(
             f"unrankable (insufficient history): {', '.join(rank_now.unrankable)}"
         )
 
+    # Every alert reaches the payload, ordered by priority; the page shows
+    # the first MAX_CHIPS and expands on request. Truncating here made the
+    # rest unreachable — "+11 more" named events the reader could not get to.
     chips, truncated = rank_alerts(alerts)
+    ordered = sorted(alerts, key=lambda a: (a.priority, a.ticker))
     per_market = {
         market: max(
             d.as_of for t, d in panel.items() if _market_of(t) == market
@@ -931,9 +976,9 @@ def build(
         "overlays": overlay_chips(),
         "alerts": [
             {"ticker": a.ticker, "kind": a.kind, "label": a.label, "value": a.value}
-            for a in chips
+            for a in ordered
         ],
-        "alerts_truncated": truncated,
+        "alerts_display_cap": MAX_CHIPS,
         "rows": rows,
         "data_health": {
             "failures": report.failures,
@@ -1044,9 +1089,11 @@ def main(argv: list[str] | None = None) -> int:
 
     health = payload["data_health"]
     print(f"\nas-of {payload['as_of']}  ({payload['as_of_per_market']})")
-    print(f"rows {payload['n_rows']}, alerts shown {len(payload['alerts'])}")
-    if payload["alerts_truncated"]:
-        print(f"  {payload['alerts_truncated']} further alerts truncated by priority")
+    n_alerts = len(payload["alerts"])
+    print(f"rows {payload['n_rows']}, alerts {n_alerts}")
+    if n_alerts > payload["alerts_display_cap"]:
+        print(f"  {payload['alerts_display_cap']} shown by default, "
+              f"{n_alerts - payload['alerts_display_cap']} behind the expander")
     for note in health["notes"]:
         print(f"  note: {note}")
     for s in health["stale"]:

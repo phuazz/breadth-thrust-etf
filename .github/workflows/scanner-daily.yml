@@ -30,10 +30,24 @@ name: ETF scanner — daily build
 #
 # Expected run time 3-6 minutes warm, longer on a cold price cache.
 
+# A catch-up run was added 2026-08-22 after a chained build failed on a
+# Friday and the page sat a session behind all weekend. Its HOUR is set from
+# the vendor probe, not from convenience: data/vendor_availability_log.jsonl
+# says the Xetra lines read 0 sessions behind at 18:00 UTC in 6 of 7 samples
+# and 1 session behind at 00:00, 02:00 and 06:00 UTC in 12 of 14. A morning
+# catch-up would therefore have fetched a panel MISSING the European close it
+# was meant to recover, so it runs late the same evening instead — an hour
+# after the chained build, inside the window where all three venues have
+# published. It is a retry, not a second build: the commit step is a no-op
+# when nothing changed, and it skips the ETF-layer snapshot append because
+# 5D flow indexes snapshot rows positionally and a second row per day would
+# silently redefine "five sessions".
 on:
   workflow_run:
     workflows: ["Daily live mark-to-market"]
     types: [completed]
+  schedule:
+    - cron: '40 23 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -98,8 +112,12 @@ jobs:
       # and writes nothing when it does. A failure here leaves the previously
       # published page in place, labelled with its own as-of, and fires the
       # alert below.
+      # --skip-snapshots on the scheduled catch-up: see the trigger comment.
+      # The chained run is the one that owns the daily snapshot append.
       - name: Run the scanner
-        run: python scripts/run_scanner.py
+        run: >-
+          python scripts/run_scanner.py
+          ${{ github.event_name == 'schedule' && '--skip-snapshots' || '' }}
 
       - name: Build the page
         run: python scripts/build_scanner_page.py

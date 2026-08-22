@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-08-22T05:07:27+00:00",
+  "built_at_utc": "2026-08-22T05:45:59+00:00",
   "as_of": "2026-08-21",
   "as_of_modal": "2026-08-21",
   "as_of_modal_share": "48/54",
@@ -109,9 +109,75 @@
       "kind": "rank_cross",
       "label": "Left the top 10",
       "value": "rank 11"
+    },
+    {
+      "ticker": "COPX",
+      "kind": "sigma_move",
+      "label": "2.3-sigma move",
+      "value": "+5.2%"
+    },
+    {
+      "ticker": "IBIT",
+      "kind": "sigma_move",
+      "label": "2.7-sigma move",
+      "value": "+6.0%"
+    },
+    {
+      "ticker": "MOO",
+      "kind": "sigma_move",
+      "label": "2.4-sigma move",
+      "value": "+2.0%"
+    },
+    {
+      "ticker": "REMX",
+      "kind": "sigma_move",
+      "label": "2.5-sigma move",
+      "value": "+6.7%"
+    },
+    {
+      "ticker": "TIP",
+      "kind": "sigma_move",
+      "label": "2.1-sigma move",
+      "value": "-0.4%"
+    },
+    {
+      "ticker": "XLU",
+      "kind": "sigma_move",
+      "label": "3.3-sigma move",
+      "value": "-2.3%"
+    },
+    {
+      "ticker": "GDX",
+      "kind": "rsi",
+      "label": "RSI 75 overbought",
+      "value": ""
+    },
+    {
+      "ticker": "IBIT",
+      "kind": "rsi",
+      "label": "RSI 80 overbought",
+      "value": ""
+    },
+    {
+      "ticker": "ARKG",
+      "kind": "volume",
+      "label": "Volume 3.5x 20D",
+      "value": ""
+    },
+    {
+      "ticker": "MOO",
+      "kind": "volume",
+      "label": "Volume 3.2x 20D",
+      "value": ""
+    },
+    {
+      "ticker": "TAN",
+      "kind": "volume",
+      "label": "Volume 3.3x 20D",
+      "value": ""
     }
   ],
-  "alerts_truncated": 11,
+  "alerts_display_cap": 12,
   "rows": [
     {
       "ticker": "ARKG",
