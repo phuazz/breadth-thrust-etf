@@ -68,6 +68,9 @@ def test_guide_block_present(page: str) -> None:
         # Alert thresholds
         (f"above {rs.ALERT_VOLUME_MULTIPLE:.0f}×", "ALERT_VOLUME_MULTIPLE"),
         (f"beyond {rs.ALERT_SIGMA_MOVE:.0f} standard deviations", "ALERT_SIGMA_MOVE"),
+        # The sigma yardstick reuses RV_WINDOW and stops at the previous
+        # session (run_scanner: daily.iloc[-RV_WINDOW - 1:-1]).
+        (f"the {si.RV_WINDOW} daily returns before it", "sigma window"),
         (f"{rs.ALERT_RSI_HIGH:.0f} / {rs.ALERT_RSI_LOW:.0f}", "ALERT_RSI_HIGH / LOW"),
     ],
 )

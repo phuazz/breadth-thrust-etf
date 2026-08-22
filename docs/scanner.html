@@ -474,6 +474,12 @@ tbody tr.chart-row:hover td { background: var(--bg3); }
             lows, MA200 crossings, daily moves beyond 2 standard deviations, volume
             above 3× normal, squeezes and their releases, and RSI at or beyond
             75 / 25.</li>
+            <li>A <b>sigma move</b> is one session, not a run: the last session's
+            return against the standard deviation of the 20 daily returns before it.
+            <span class="gk">IBIT 3.3-sigma move +6.2%</span> reads as "+6.2% in a
+            day, 3.3 times its own recent daily variation". The window stops at the
+            previous session, so a large move cannot inflate the yardstick it is
+            measured against.</li>
             <li>Every column header sorts, and the <b>sleeve buttons</b> filter to
             A sectors, B asset classes, C thematics, D Europe or the overlay.</li>
           </ul>
