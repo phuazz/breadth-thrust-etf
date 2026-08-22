@@ -2194,3 +2194,39 @@ directions are reconciled BEFORE any performance number is read.
 
 Both legs must run in ONE process against ONE pinned price frame. A diff across two
 downloads is inadmissible — that failure has already cost this repo two wrong verdicts.
+
+### WS18 result (2026-08-22, same day as the registration)
+
+**ADOPT on correctness. Performance evidence NULL, filed as null.**
+
+Three arms, one pinned frame per sleeve, ungated 35/35/10/20 blend, 2018-01-02 to
+2026-08-21 (2,133 sessions):
+
+| Arm | Cadence · mode | Sharpe | CAGR | MaxDD | Turnover |
+|---|---|---|---|---|---|
+| 1 | W-FRI · holiday_aware (incumbent) | +1.0770 | +13.74% | −24.24% | 6.49× |
+| 2 | W-FRI · holiday_aware_next | +1.0839 | +13.82% | −24.24% | 6.48× |
+| 3 | W-MON · holiday_aware_next | +1.1006 | +13.87% | −21.63% | 6.58× |
+
+Bar met: A1 +0.0236 vs −0.05 PASS; A2 2.61pp BETTER vs −2.0pp PASS; A3 +1.3% vs +25%
+not triggered. Every paired 90% CI straddles zero — which is what a non-inferiority bar
+asks. **The +0.0236 is not improvement and must not be quoted as one.**
+
+THE GATE FIRED, AND IT IS THE REASON THIS WAS WORTH RUNNING. Reconciliation ran first by
+pre-registration. No week is dropped — holiday_aware ROLLS rather than skips, so the
+"trades fewer weeks" risk did not materialise. It found something worse: **a holiday Monday
+rolls BACK three days onto the previous Friday, 39/406 on NYSE.** The new cadence decides
+Saturday from Friday's close, so that fill precedes the decision producing it — the
+backtest would credit fills the operator could not place, on 9.6% of weeks for 70% of NAV.
+That is the exact live-vs-backtest divergence WS18 exists to remove, reintroduced by the
+fix. Forced Amendment 1: three arms, and `holiday_aware_next` for W-MON.
+
+Reading the Sharpe first would have shown a passing number and shipped the defect inside
+the adoption.
+
+Sleeve D — the reason for the study — is the largest gainer, +0.8351 → +0.8701.
+
+OUTSTANDING, and adoption is conditional on it: the gated-and-tilted comparison
+(Amendment 2). A common exposure overlay is not a monotone transform of a Sharpe
+difference, so this ordering is not guaranteed to carry to the deployed variant. NO CODE
+HAS CHANGED.

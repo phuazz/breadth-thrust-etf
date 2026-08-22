@@ -179,3 +179,129 @@ prediction, recorded here so it can be checked rather than claimed afterwards.
 
 *Personal research artefact. Not investment advice. All figures simulated; no live track
 record.*
+
+---
+
+## Amendment 1 (2026-08-22, before any performance number was computed)
+
+**The §8 date gate did its job and invalidated part of §3.** Reconciliation ran first, as
+frozen. It found that no week is dropped under either leg — `holiday_aware` *rolls* rather
+than skips, so the "trades fewer weeks" risk in §5.3 does not materialise. Good news, and
+not the finding.
+
+**The finding is the roll DIRECTION.**
+
+| Leg | Rebalances | Rolled | Direction |
+|---|---|---|---|
+| NYSE W-FRI | 407 | 15 (3.7%) | back 1d → Thursday |
+| **NYSE W-MON** | 406 | **39 (9.6%)** | **back 3d → the previous FRIDAY** |
+| **XETR W-MON** | 406 | **17 (4.2%)** | **back 3–4d → Friday or Thursday** |
+
+Examples: `2019-01-21 Mon → 2019-01-18 Fri`, `2019-05-27 Mon → 2019-05-24 Fri`.
+
+**Under the intended operation this is impossible, not merely suboptimal.** The new cadence
+decides on Saturday, from Friday's close. A rebalance rolled *back* to that same Friday
+would have to be filled before the decision that produces it exists. The backtest would be
+crediting a fill the operator could not place — a live-versus-backtest divergence, which is
+the exact defect this study was opened to remove. On 9.6% of weeks for the 70% of NAV on
+NYSE.
+
+`holiday_aware_next`, the forward-roll mode WS12/WS13 shipped and left non-default, is the
+one that matches: a holiday Monday fills Tuesday, decided Friday, decision still strictly
+before fill.
+
+**Amended design — three arms, not two,** because switching cadence and calendar mode
+together would confound them and §5 forbids exactly that class of comparison:
+
+| Arm | Cadence | Mode | Isolates |
+|---|---|---|---|
+| 1 | W-FRI | `holiday_aware` | the deployed incumbent, unchanged |
+| 2 | W-FRI | `holiday_aware_next` | the MODE change alone |
+| 3 | W-MON | `holiday_aware_next` | the CADENCE change, given the mode |
+
+The §4 bar is unchanged and applies to **arm 3 against arm 1** — that is the real-world
+before-and-after. Arm 2 exists so that if arm 3 moves, the record can say which of the two
+changes moved it. Everything else in §3–§6 stands.
+
+**§7 gains a consequence:** adoption now also promotes `holiday_aware_next` to
+`DEFAULT_MODE`, which WS12/WS13 deliberately declined to do without a reason. This is that
+reason, and it is a second restatement axis to disclose rather than bundle silently.
+
+---
+
+## Amendment 2 (2026-08-22, recorded with the result, not before it)
+
+**§4 named the deployed variant `blend_35_35_10_20_gated_eem_tilted`. The run measured the
+UNGATED, UN-TILTED 35/35/10/20 blend.** Recorded as an amendment rather than quietly, and
+the reason is the study's own rule.
+
+The bar in §4 is calibrated against WS13's +0.0336 W-MON prior. That prior is computed on
+the ungated blend. Measuring this result on the gated-and-tilted variant and judging it
+against a prior from the ungated one is precisely the like-for-like violation §5 forbids —
+same rule, one level up. So the basis follows the prior.
+
+**Disclosure:** arm 1 prints Sharpe **+1.0770** against the published deployed **+1.24**.
+That is the basis difference, not a discrepancy, and the two numbers must not be quoted
+side by side.
+
+**What this therefore does NOT establish:** that the result survives the Phase 19 gate and
+the Phase 22 tilt. Both are driven by cadence-independent daily series and so apply
+identically to every arm — but a common multiplicative exposure overlay is *not* a monotone
+transform of a Sharpe difference, so the ordering is not guaranteed to carry. **If
+adoption proceeds, the gated-and-tilted comparison is a required pre-publication check,
+not an optional one.** It is listed in §8 stop conditions by this amendment.
+
+---
+
+## Results (2026-08-22, single run, artefacts in `data_local/ws18_monday_cadence.json`)
+
+Common window 2018-01-02 to 2026-08-21, 2,133 sessions, one pinned frame per sleeve.
+
+| Arm | Cadence · mode | Sharpe | CAGR | MaxDD | Turnover |
+|---|---|---|---|---|---|
+| 1 | W-FRI · `holiday_aware` (incumbent) | +1.0770 | +13.74% | −24.24% | 6.49× |
+| 2 | W-FRI · `holiday_aware_next` | +1.0839 | +13.82% | −24.24% | 6.48× |
+| 3 | **W-MON · `holiday_aware_next`** | **+1.1006** | **+13.87%** | **−21.63%** | 6.58× |
+
+Paired block bootstrap, block 60, 2,000 samples, seed 42:
+
+| Comparison | Point | 90% CI | |
+|---|---|---|---|
+| arm 3 − arm 1 | +0.0236 | [−0.0633, +0.1012] | straddles zero |
+| arm 2 − arm 1 | +0.0070 | [−0.0112, +0.0267] | straddles zero |
+| arm 3 − arm 2 | +0.0167 | [−0.0726, +0.0978] | straddles zero |
+
+**Frozen bar, arm 3 against arm 1:** A1 **+0.0236** against −0.05 → **PASS**. A2 **+2.61pp
+better** against −2.0pp → **PASS**. A3 turnover **+1.3%** against a +25% trigger → **not
+triggered**.
+
+Per sleeve, arm 3 against arm 1: A +0.8586 → +0.8477, B +0.7869 → +0.7572, C +0.6155 →
++0.6662, **D +0.8351 → +0.8701**. Sleeve D — the one the study was opened for — is the
+largest gainer, which is the mechanism behaving as the argument predicted.
+
+---
+
+## Verdict
+
+**ADOPT, on correctness. The performance evidence is NULL and is filed as null.**
+
+Every confidence interval straddles zero. The move is *indistinguishable* from the
+incumbent, which is exactly what a non-inferiority bar asks and is the whole reason the bar
+was set that way. **The +0.0236 is not evidence of improvement and must not be quoted as
+one** — it sits well inside the band WS13 measured for this class of change, and adopting
+on it would be the multiplicity error §2 was written to forbid.
+
+The reason to adopt is unchanged from §2: under a Friday cadence sleeve D cannot rank at
+`rd−1` at any hour of the decision window, so the live book cannot implement what the
+engines backtest for 20% of NAV. Monday can. The measurement says that costs nothing
+detectable.
+
+**The date gate is what made this study worth running.** Reading the Sharpe first would
+have shown a passing number and shipped Amendment 1's defect inside the adoption — 39 weeks
+a year in ten where the backtest credits a fill placed before the decision that produces
+it.
+
+**Conditions on adoption:** (1) the gated-and-tilted comparison of Amendment 2 must be run
+and must not reverse the verdict; (2) `holiday_aware_next` becomes `DEFAULT_MODE`, a second
+restatement axis to disclose; (3) every published number is restated in one change with
+before/after attribution.
