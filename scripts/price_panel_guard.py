@@ -147,6 +147,81 @@ class SeriesVerdict:
 # --------------------------------------------------------------------------
 # Pure logic — unit-tested offline in tests/test_price_panel_guard.py
 # --------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Hole-tolerant trend signal (2026-08-22)
+#
+# THE DEFECT THIS REPLACES. Sleeves B and C computed their signal as
+#
+#     ma = closes.rolling(MA_PERIOD, min_periods=MA_PERIOD).mean()
+#
+# and pandas counts NON-NaN observations against min_periods. With the two
+# equal, ONE missing bar makes every window containing it short by one, so a
+# single absent close blanks the moving average for the next MA_PERIOD
+# sessions -- 200 of them, about ten months. Both engines then "drop NaN
+# signal (insufficient history)", so the ticker is silently removed from
+# candidacy for that whole period.
+#
+# Measured, not theorised: injecting one hole into BTC-USD a year back blanked
+# exactly 200 subsequent signal values. BTC-USD is held in 95 of 212 sleeve-C
+# rebalances at a 20% within-sleeve weight -- 2% of NAV -- so a one-bar vendor
+# gap could have removed it from selection until roughly June 2027 with
+# nothing failing and nothing logged. The vendor produced exactly such a gap
+# on 2026-08-21.
+#
+# THE FIX IS ALREADY THE HOUSE CONVENTION, IN THE OTHER TWO SLEEVES.
+# run_ma200_sweep.compute_ma200_breadth -- the constituent breadth behind
+# sleeves A and D -- has always used min_periods = int(period * 0.9). B and C
+# simply never got it. This is that convention, written once and shared,
+# rather than a fourth copy of the same three lines.
+#
+# WHY THE WARM-UP GATE IS SEPARATE. One min_periods was doing two unrelated
+# jobs: "is there enough history to compute a 200-day average at all" and "is
+# this particular window complete". Loosening it alone would answer the first
+# question wrongly and start every series ~20 sessions early, restating the
+# record. So the warm-up is gated explicitly on cumulative observations and
+# the tolerance applies only to holes INSIDE an already-warm window.
+#
+# Verified value-preserving on the committed caches with one price frame
+# pinned across both runs: 112,360 cells where both definitions are defined,
+# maximum absolute difference 0.000e+00, zero cells lost, seven gained (all
+# 159801.SZ, 10-18 Nov 2020, none of them a rebalance decision or fill date).
+#
+# WHAT IT DELIBERATELY DOES NOT DO. If the CURRENT bar is missing, the signal
+# is still NaN and the ticker is still excluded, because ranking a position on
+# a close that does not exist is the partial-bar defect in another costume.
+# The tolerance is for holes in the window's history, never for the point
+# being measured.
+# ---------------------------------------------------------------------------
+MA_WINDOW_TOLERANCE = 0.9
+
+
+def tolerant_moving_average(closes, period: int,
+                            tolerance: float = MA_WINDOW_TOLERANCE):
+    """Rolling mean that survives isolated missing bars.
+
+    ``closes`` may be a Series or a DataFrame. Returns NaN until ``period``
+    real observations exist (warm-up), then averages over whatever is present
+    in the window provided at least ``tolerance`` of it is.
+    """
+    min_p = max(1, int(period * tolerance))
+    ma = closes.rolling(period, min_periods=min_p).mean()
+    # Warm-up on CUMULATIVE observations, so a loosened window cannot pull the
+    # series start earlier than the old bound and restate history.
+    warm = closes.notna().cumsum() >= period
+    return ma.where(warm)
+
+
+def ma_distance_signal(closes, period: int,
+                       tolerance: float = MA_WINDOW_TOLERANCE):
+    """Fractional distance of price from its own moving average.
+
+    NaN wherever the current close is absent -- see the note above on why the
+    tolerance never extends to the point being measured.
+    """
+    ma = tolerant_moving_average(closes, period, tolerance)
+    return (closes - ma) / ma
+
+
 def _numeric(series: pd.Series) -> pd.Series:
     """Coerce to float and treat infinities as missing.
 

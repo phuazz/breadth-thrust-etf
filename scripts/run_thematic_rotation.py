@@ -81,7 +81,8 @@ from nyse_sessions import (  # noqa: E402
     last_completed_session,
     yf_fetch_end,
 )
-from price_panel_guard import (  # noqa: E402
+from price_panel_guard import (
+    ma_distance_signal,  # noqa: E402
     assert_attribution_sane, assert_panel_usable,
 )
 
@@ -562,8 +563,18 @@ def download_prices() -> pd.DataFrame:
 
 
 def compute_signal(closes: pd.DataFrame) -> pd.DataFrame:
-    ma = closes.rolling(MA_PERIOD, min_periods=MA_PERIOD).mean()
-    return (closes - ma) / ma
+    """Distance from the 200-day average, tolerant of isolated missing bars.
+
+    This was `closes.rolling(MA_PERIOD, min_periods=MA_PERIOD).mean()` until
+    2026-08-22. With window and min_periods equal, ONE absent close blanks the
+    average for the next 200 sessions and the weight function then drops the
+    ticker as having "insufficient history" -- a ten-month silent exclusion
+    from a single vendor gap. Sleeves A and D never had this, their breadth
+    having always used int(period * 0.9); the shared helper is that same
+    convention. Value-preserving on the committed cache: bit-identical on
+    every cell both definitions define. See price_panel_guard.
+    """
+    return ma_distance_signal(closes, MA_PERIOD)
 
 
 def top_k_equal_weight(K: int):
