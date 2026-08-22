@@ -153,6 +153,22 @@ def load_right_tail() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_strategy_freshness() -> dict | None:
+    """Per-sleeve data reach, written by scripts/strategy_freshness.py.
+
+    Kept as a READ rather than an in-process call so the dashboard renders
+    the same artefact the operator CLI prints and the reduced public page
+    shows — three surfaces, one file, no chance of them disagreeing about
+    how fresh a sleeve is. The mtime guard in main() is what stops a stale
+    one being published; a freshness widget that is itself stale would be
+    worse than none.
+    """
+    path = DATA_DIR / "strategy_freshness.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_execution_timing() -> dict | None:
     """Load data/execution_timing.json — WS13's execution grid.
 
@@ -785,6 +801,14 @@ def main() -> int:
     assert_derived_not_stale_vs_source(
         DATA_DIR / "portfolio_construction.json", [multi], max_lag_days=7,
     )
+    # ONE day, not seven. The others are analytics that tolerate a week; this
+    # one's entire content is "how fresh is the data", so a stale copy makes a
+    # confident false claim rather than an out-of-date chart. refresh_all runs
+    # it immediately before the page builds, so 1 day is generous even for a
+    # long refresh that straddles midnight.
+    assert_derived_not_stale_vs_source(
+        DATA_DIR / "strategy_freshness.json", breadth_sources, max_lag_days=1,
+    )
 
     # Phase 28.5 P3 — source-panel freshness anchor. The Phase 28 derived-
     # vs-source mtime check above only catches "derived forgot to refresh
@@ -877,6 +901,14 @@ def main() -> int:
         print(f"  bootstrap: {len(ps)} per-strategy + {len(ds)} paired diffs "
               f"({bootstrap.get('n_bootstrap_samples', 0)} samples, "
               f"block size {bootstrap.get('block_size_days', 0)}d)")
+
+    print("Loading per-strategy data freshness ...", flush=True)
+    strategy_freshness = load_strategy_freshness()
+    if strategy_freshness:
+        beh = [r["sleeve"] for r in strategy_freshness["strategies"]
+               if r["status"] == "behind"]
+        print(f"  freshness: {len(strategy_freshness['strategies'])} sleeves, "
+              f"{'all current' if not beh else 'behind: ' + ', '.join(beh)}")
 
     print("Loading execution-timing grid (WS13) ...", flush=True)
     execution_timing = load_execution_timing()
@@ -1262,6 +1294,7 @@ def main() -> int:
         "holdings_prices": holdings_prices,
         "risk_overlay": risk_overlay,
         "execution_timing": execution_timing,
+        "strategy_freshness": strategy_freshness,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")

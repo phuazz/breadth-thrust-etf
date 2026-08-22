@@ -6718,6 +6718,54 @@
  ],
  "n_positions": 22,
  "defensive_engaged": false,
+ "freshness": {
+  "computed_at_utc": "2026-08-22T05:22:53.221162+00:00",
+  "all_current": false,
+  "strategies": [
+   {
+    "sleeve": "A",
+    "label": "US sectors",
+    "data_through": "2026-08-21",
+    "venue_last_session": "2026-08-21",
+    "sessions_behind": 0,
+    "status": "current",
+    "laggards": [],
+    "why_plain": null
+   },
+   {
+    "sleeve": "B",
+    "label": "Asset classes",
+    "data_through": "2026-08-21",
+    "venue_last_session": "2026-08-21",
+    "sessions_behind": 0,
+    "status": "current",
+    "laggards": [],
+    "why_plain": null
+   },
+   {
+    "sleeve": "C",
+    "label": "Thematic",
+    "data_through": "2026-08-20",
+    "venue_last_session": "2026-08-21",
+    "sessions_behind": 1,
+    "status": "behind",
+    "laggards": [
+     "BTC-USD"
+    ],
+    "why_plain": null
+   },
+   {
+    "sleeve": "D",
+    "label": "Europe sectors",
+    "data_through": "2026-08-20",
+    "venue_last_session": "2026-08-21",
+    "sessions_behind": 1,
+    "status": "behind",
+    "laggards": [],
+    "why_plain": "the shares held inside these funds are priced up to 2026-08-20, while the exchange itself has traded to 2026-08-21 — the data provider publishes European prices about a day late."
+   }
+  ]
+ },
  "curve": {
   "dates": [
    "2018-11-08",

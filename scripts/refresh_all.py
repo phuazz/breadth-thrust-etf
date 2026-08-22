@@ -306,6 +306,14 @@ def main() -> int:
             "scripts/export_holdings_prices.py"),
         ("c_seat_watch (WS7 OOS evidence accumulator)",
             "scripts/run_c_seat_watch.py"),
+        # BEFORE the page builds, because both pages render its output. It
+        # reads artefacts off disk and fetches nothing, so it describes the
+        # state this refresh just produced. It runs here rather than being an
+        # operator step for one reason: live_targets.json is an operator step
+        # and sat a week stale on disk, and a freshness widget that is itself
+        # stale is worse than none at all.
+        ("strategy_freshness (per-sleeve data reach)",
+            "scripts/strategy_freshness.py"),
         ("pipeline (build docs/index.html + factsheet PDF)",
             "scripts/pipeline.py"),
         ("simple page (build build/portfolio.html, the reduced public view)",

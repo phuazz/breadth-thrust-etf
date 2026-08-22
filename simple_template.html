@@ -342,6 +342,47 @@ footer a { color: var(--b-text); }
 @media (pointer: coarse) {
   .legend li { min-height: 44px; align-items: center; }
 }
+/* Per-part data currency. Deliberately a compact status strip and NOT a
+   chart: the reader's question is a lookup ("is the part I care about
+   current?"), and a lookup wants a table. */
+.fresh { margin: 22px 0 0; }
+.fresh h2 { font-size: 15px; margin: 0 0 4px; }
+.fresh-rows {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 0;
+  border: 1px solid var(--bd); border-radius: 8px; overflow: hidden;
+  background: var(--bg2); margin-top: 10px;
+}
+.fresh-rows > div {
+  padding: 9px 12px; border-top: 1px solid var(--bd); font-size: 14px;
+  display: flex; align-items: center;
+}
+.fresh-rows > div:nth-child(-n+3) { border-top: 0; background: var(--bg3); }
+.fresh-rows .fr-h { font-size: 12px; color: var(--t3-text); font-weight: 600;
+  letter-spacing: .02em; text-transform: uppercase; }
+.fresh-rows .fr-d { font-family: var(--mono); font-size: 13px; justify-content: flex-end; }
+.fresh-rows .fr-s { justify-content: flex-end; }
+.fresh-chip {
+  font-size: 12px; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  background: var(--g-bg); color: var(--g-text); border: 1px solid transparent;
+}
+.fresh-chip.behind { background: var(--a-bg); color: var(--a-text); }
+.fresh-why {
+  font-size: 13px; color: var(--t2); margin: 8px 2px 0; line-height: 1.5;
+}
+.fresh-rows .fr-dm { display: none; }
+@media (max-width: 480px) {
+  /* Three columns will not fit a phone, but the DATE MUST NOT BE THE CASUALTY
+     -- "current to when" is half of what this strip exists to answer, and a
+     bare "One session behind" leaves the reader asking behind what. So the
+     date moves UNDER the label rather than being dropped. */
+  .fresh-rows { grid-template-columns: 1fr auto; }
+  .fresh-rows .fr-d { display: none; }
+  .fresh-rows > div:nth-child(2) { display: none; }
+  .fresh-rows .fr-l { flex-direction: column; align-items: flex-start; gap: 1px; }
+  .fresh-rows .fr-dm {
+    display: block; font-family: var(--mono); font-size: 12px; color: var(--t2);
+  }
+}
 </style>
 </head>
 <body>
@@ -366,6 +407,13 @@ footer a { color: var(--b-text); }
       <dl id="facts"></dl>
     </aside>
   </div>
+
+  <section class="fresh" id="fresh" hidden aria-label="Data currency by part">
+    <h2>How current is each part</h2>
+    <p class="pcap" id="fresh-lead"></p>
+    <div class="fresh-rows" id="fresh-rows"></div>
+    <p class="fresh-why" id="fresh-why" hidden></p>
+  </section>
 
   <section>
     <h2>What it holds today</h2>
@@ -526,10 +574,86 @@ function render(data) {
     : 'The defensive setting is not engaged at present, so the book is fully invested.';
   document.getElementById('regime-line').innerHTML = regime;
 
+  renderFreshness(data.freshness);
+
   document.getElementById('built').textContent =
     'Prices to ' + fmtDate(data.as_of) + '. Rebuilt weekly.';
 
   drawCurve(data.curve);
+}
+
+// Minimal HTML escape. The strings below are our own artefacts, not user
+// input, so this is belt-and-braces rather than a security boundary -- but a
+// ticker or label with an ampersand in it would otherwise break the markup.
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// The reason strings arrive with ISO dates so that ONE renderer decides how a
+// date looks. Without this the page showed "20 August 2026" in the table and
+// "2026-08-20" in the sentence beneath it, two formats for the same day.
+function datesToProse(text) {
+  return text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, (m) => fmtDate(m));
+}
+
+// ---- per-part data currency ---------------------------------------------
+// The single as-of above is one date over four strategies on two exchanges.
+// On a Saturday the European part is routinely a session behind the US parts
+// because the vendor publishes European constituent prices about a day late,
+// and a reader deciding whether to act needs to see which half is which.
+//
+// Renders NOTHING when the payload carries no freshness block. Silence is the
+// right failure here: an empty strip says "not measured", whereas a strip
+// defaulting to "current" would assert exactly the thing it does not know.
+function renderFreshness(f) {
+  const sec = document.getElementById('fresh');
+  if (!f || !Array.isArray(f.strategies) || !f.strategies.length) return;
+  sec.hidden = false;
+
+  const behind = f.strategies.filter(s => s.status === 'behind');
+  document.getElementById('fresh-lead').textContent = behind.length
+    ? 'Not every part is equally up to date. The parts marked below are '
+      + 'waiting on data and should not be read as refreshed.'
+    : 'Every part is current to the last close on its own exchange.';
+
+  const rows = ['<div class="fr-h">Part</div>',
+                '<div class="fr-h fr-d">Data to</div>',
+                '<div class="fr-h fr-s">Status</div>'];
+  for (const s of f.strategies) {
+    const late = s.status === 'behind';
+    // Sessions, not calendar days: a Friday-to-Monday gap is ONE session and
+    // calling it three days would overstate the staleness every weekend.
+    const n = s.sessions_behind;
+    const chip = late
+      ? `${n === 1 ? 'One session' : n + ' sessions'} behind`
+      : (s.status === 'current' ? 'Current' : 'Not measured');
+    const shown = s.data_through ? fmtDate(s.data_through) : '—';
+    rows.push(`<div class="fr-l">${esc(s.label)}`
+              + `<span class="fr-dm">${shown}</span></div>`);
+    rows.push(`<div class="fr-d">${shown}</div>`);
+    rows.push(`<div class="fr-s"><span class="fresh-chip${late ? ' behind' : ''}">`
+              + `${esc(chip)}</span></div>`);
+  }
+  document.getElementById('fresh-rows').innerHTML = rows.join('');
+
+  // One plain sentence on WHY, taken from the panel's own declared reason
+  // rather than written here, so the page cannot drift from the data.
+  const why = document.getElementById('fresh-why');
+  const reasons = [];
+  for (const s of behind) {
+    // why_plain, not why: the technical register says "constituents" and
+    // "venue", which is the same failure as printing a bare ticker on a page
+    // written for a non-specialist.
+    const text = s.why_plain || s.why;
+    if (text) reasons.push(esc(s.label) + ': ' + datesToProse(esc(text)));
+    else if (s.laggards && s.laggards.length) {
+      reasons.push(esc(s.label) + ': waiting on the latest price for '
+                   + s.laggards.map(esc).join(', ') + '.');
+    }
+  }
+  if (reasons.length) { why.innerHTML = reasons.join('<br>'); why.hidden = false; }
+  else { why.hidden = true; }
 }
 
 // ---- axis helpers, shared by both charts --------------------------------

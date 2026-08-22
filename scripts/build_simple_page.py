@@ -396,6 +396,12 @@ def build_payload() -> dict:
         "sleeves": sleeves,
         "n_positions": len(holdings),
         "defensive_engaged": overlay.get("current_state") != "RISK_ON",
+        # PER-SLEEVE DATA REACH. The one `as_of` above is a single date over
+        # four strategies on two venues, and it hides the case that matters:
+        # on Sat 22 Aug 2026 A and B carried Friday's data while C and D
+        # carried Thursday's. A reader deciding whether to act on this page
+        # needs to know which parts are current, not one headline date.
+        "freshness": _load_freshness(),
         "curve": {"dates": dates, "equity": [round(e, 6) for e in equity]},
         "stats": {
             "sharpe": round(stats["sharpe"], 4),
@@ -432,6 +438,43 @@ def weekly_stats(dates: list[str], equity: list[float]) -> dict:
     return {"sharpe": sharpe, "cagr": cagr, "max_dd": max_dd}
 
 
+def _load_freshness() -> dict | None:
+    """Read data/strategy_freshness.json, or None if it is not usable.
+
+    Returns None rather than raising: a missing freshness report should not
+    stop the portfolio page publishing, and the template renders nothing when
+    the key is absent. What it must NEVER do is print a stale report as a
+    current one, so the caller checks age in assert_payload_usable.
+    """
+    path = ROOT / "data" / "strategy_freshness.json"
+    if not path.exists():
+        return None
+    try:
+        blob = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return None
+    rows = blob.get("strategies")
+    if not rows:
+        return None
+
+    # ALLOW-LIST, NOT A DENY-LIST. The freshness report is written for three
+    # audiences and its full row names the method -- `source` reads "breadth
+    # panels (constituents above their 200-day average)" and the technical
+    # `why` says "constituents" and "venue". This page exists to disclose the
+    # book WITHOUT the method, and test_built_page_discloses_no_parameters
+    # caught exactly that leak when this copied the row wholesale.
+    #
+    # Listing what MAY pass rather than what may not means a field added
+    # upstream later is excluded by default. A deny-list would ship it.
+    keep = ("sleeve", "label", "data_through", "venue_last_session",
+            "sessions_behind", "status", "laggards", "why_plain")
+    return {
+        "computed_at_utc": blob.get("computed_at_utc"),
+        "all_current": blob.get("all_current"),
+        "strategies": [{k: r.get(k) for k in keep} for r in rows],
+    }
+
+
 def assert_payload_usable(payload: dict) -> None:
     """Refuse to publish a page the build already knows is wrong."""
     problems: list[str] = []
@@ -454,6 +497,20 @@ def assert_payload_usable(payload: dict) -> None:
 
     if not payload.get("as_of"):
         problems.append("no as_of date")
+
+    # A FRESHNESS REPORT THAT IS ITSELF STALE IS WORSE THAN NONE, because it
+    # makes a confident claim about currency using yesterday's evidence. The
+    # cheap, content-based check: no sleeve may report data reaching FURTHER
+    # than the book's own as-of. If it does, the report was computed against a
+    # later refresh than the one being published here.
+    fresh = payload.get("freshness") or {}
+    for row in fresh.get("strategies", []):
+        through = row.get("data_through")
+        if through and payload.get("as_of") and through > payload["as_of"]:
+            problems.append(
+                f"freshness says sleeve {row.get('sleeve')} reaches {through}, "
+                f"past the book's as-of {payload['as_of']} — the freshness "
+                f"report is from a later refresh than this page")
 
     # The two sources are refreshed by different steps. If they disagree, one of
     # them is stale, and the page would date a holdings table against a curve

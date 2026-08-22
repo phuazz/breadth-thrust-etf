@@ -571,3 +571,48 @@ def test_tolerance_would_have_caught_the_2026_08_22_defect():
 
 def test_tolerance_grows_with_the_book():
     assert bsp.weight_tolerance(40) > bsp.weight_tolerance(22)
+
+
+# ---------------------------------------------------------------------------
+# The freshness block is filtered, not copied (2026-08-22)
+#
+# The per-strategy freshness report is written for three audiences and its full
+# row names the method: `source` reads "breadth panels (constituents above
+# their 200-day average)" and the technical `why` says "constituents" and
+# "venue". Copied wholesale onto this page it tripped
+# test_built_page_discloses_no_parameters, which is the guard working.
+#
+# The fix was an ALLOW-list. These pin that it stays one, because a deny-list
+# would silently ship whatever field is added upstream next.
+# ---------------------------------------------------------------------------
+def test_freshness_block_carries_no_method_fields(payload):
+    fresh = payload.get("freshness")
+    if not fresh:
+        pytest.skip("no freshness block in this payload")
+    permitted = {"sleeve", "label", "data_through", "venue_last_session",
+                 "sessions_behind", "status", "laggards", "why_plain"}
+    for row in fresh["strategies"]:
+        extra = set(row) - permitted
+        assert not extra, f"method fields reached the reduced page: {extra}"
+
+
+def test_freshness_block_still_answers_the_question_it_exists_for(payload):
+    """Filtering must not strip it down to uselessness: every row still has to
+    say WHICH strategy, THROUGH WHAT DATE, and whether that is current."""
+    fresh = payload.get("freshness")
+    if not fresh:
+        pytest.skip("no freshness block in this payload")
+    assert len(fresh["strategies"]) == 4
+    for row in fresh["strategies"]:
+        assert row["label"]
+        assert row["data_through"]
+        assert row["status"] in {"current", "behind", "unknown"}
+
+
+def test_a_behind_row_keeps_a_plain_reason_or_names_its_laggard(payload):
+    fresh = payload.get("freshness")
+    if not fresh:
+        pytest.skip("no freshness block in this payload")
+    for row in fresh["strategies"]:
+        if row["status"] == "behind":
+            assert row.get("why_plain") or row.get("laggards"), row

@@ -27,6 +27,31 @@
       --warn: #b76e00;
       --neutral: #4a5159;
     }
+    /* Per-sleeve data-currency strip (2026-08-22). A lookup, not a chart:
+       the reader asks "is the sleeve I care about current?", and a lookup
+       wants a compact row of chips. */
+    .fresh-strip {
+      display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0;
+      align-items: center;
+    }
+    .fresh-strip .fs-item {
+      display: inline-flex; align-items: baseline; gap: 6px;
+      font-size: 12px; padding: 3px 9px; border-radius: 999px;
+      background: var(--good-soft); color: var(--good);
+      border: 1px solid rgba(29, 122, 58, 0.25); white-space: nowrap;
+    }
+    .fresh-strip .fs-item.behind {
+      background: rgba(183, 110, 0, 0.10); color: var(--warn);
+      border-color: rgba(183, 110, 0, 0.30);
+    }
+    .fresh-strip .fs-item .fs-k { font-weight: 700; }
+    .fresh-strip .fs-item .fs-d {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px; opacity: .85;
+    }
+    .fresh-note {
+      font-size: 12px; color: var(--neutral); margin: 6px 0 0; line-height: 1.5;
+    }
     * { box-sizing: border-box; }
     html, body {
       margin: 0; padding: 0;
@@ -1970,6 +1995,11 @@
       <div id="live-regime-badge"></div>
       <div class="hero-stats" id="live-hero-stats"></div>
       <div id="live-stale-warning"></div>
+      <!-- Per-sleeve data reach. The as-of line above is ONE date over
+           four sleeves on two exchanges; on a Saturday the European
+           sleeve is routinely a session behind the US ones and nothing
+           on this page said so. Fed by data/strategy_freshness.json. -->
+      <div id="live-freshness"></div>
     </div>
 
     <!-- ==================== POSITIONS PREVIEW ==================== -->
@@ -4519,6 +4549,59 @@ function renderUniverseSelection() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Per-sleeve data currency (2026-08-22)
+//
+// The as-of line above is one date over four sleeves on two exchanges. On
+// Sat 22 Aug 2026 sleeves A and B carried Friday's data while C and D carried
+// Thursday's -- 30% of NAV -- and nothing published distinguished them.
+//
+// Reads data/strategy_freshness.json, which measures each sleeve at its
+// UNDERLYING data bound (breadth panels for A and D, price caches for B and
+// C) rather than at the engines' chart series. Those series are resampled
+// weekly and forward-filled onto the price calendar, so they read current
+// exactly when the data is not -- see that module's docstring.
+//
+// Renders NOTHING when the payload has no freshness block: an empty strip
+// says "not measured", where a strip defaulting to "current" would assert
+// precisely what it does not know.
+// ---------------------------------------------------------------------------
+function renderStrategyFreshness() {
+  const el = document.getElementById('live-freshness');
+  if (!el) return;
+  const f = (window.DATA || {}).strategy_freshness;
+  if (!f || !Array.isArray(f.strategies) || !f.strategies.length) {
+    el.innerHTML = ''; return;
+  }
+  const chips = f.strategies.map(s => {
+    const late = s.status === 'behind';
+    const n = s.sessions_behind;
+    // Sessions, not calendar days: Friday to Monday is ONE session, and
+    // calling it three days would overstate every weekend.
+    const tail = late
+      ? (n === 1 ? '1 session behind' : n + ' sessions behind')
+      : (s.status === 'current' ? 'current' : 'not measured');
+    return `<span class="fs-item${late ? ' behind' : ''}" title="${s.venue}`
+         + ` — ${s.source}"><span class="fs-k">${s.sleeve}</span>`
+         + `<span>${s.label}</span>`
+         + `<span class="fs-d">${s.data_through || '—'}</span>`
+         + `<span>· ${tail}</span></span>`;
+  }).join('');
+
+  const behind = f.strategies.filter(s => s.status === 'behind');
+  const notes = behind.map(s => {
+    if (s.why) return `<strong>${s.label}:</strong> ${s.why}`;
+    if (s.laggards && s.laggards.length) {
+      return `<strong>${s.label}:</strong> waiting on `
+           + s.laggards.join(', ') + '.';
+    }
+    return '';
+  }).filter(Boolean);
+
+  el.innerHTML = `<div class="fresh-strip">${chips}</div>`
+    + (notes.length ? `<p class="fresh-note">${notes.join('<br>')}</p>` : '');
+}
+
 function renderMonitor() {
   const data = window.DATA;
   const topk = data.topk;
@@ -4628,6 +4711,7 @@ function renderMonitor() {
     warnHtml += `<div class="stale">⚠ Data integrity — ${items}.</div>`;
   }
   document.getElementById('live-stale-warning').innerHTML = warnHtml;
+  renderStrategyFreshness();
 
   const totalPos = aLatest.holdings.length + bLatest.holdings.length
                     + (hasC ? cLatest.holdings.length : 0)
