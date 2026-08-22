@@ -245,6 +245,11 @@ tr.stale td.tk::after {
 }
 .trunc { color: var(--t3-text); font-size: 9px; vertical-align: super; }
 .px { color: var(--t3-text); font-size: 9px; vertical-align: super; cursor: help; }
+/* Same 9px superscript slot as .px, in the caution tone: a row that is
+   behind the panel but inside the staleness threshold keeps its normal
+   styling, so without this the only signal is the global MIXED DATES pill. */
+.lag { color: var(--a-text); font-size: 9px; vertical-align: super; cursor: help;
+       font-weight: 600; margin-left: 1px; }
 
 /* ---- expandable row chart (pattern lifted from Portfolio Command Centre) ---- */
 tbody tr.data-row { cursor: pointer; }
@@ -459,7 +464,11 @@ tbody tr.chart-row:hover td { background: var(--bg3); }
             20-day average. <b>Purple</b> marks a squeeze.</li>
             <li>A <b>grey row ending in ●</b> is more than
             <span class="g-stale">3</span> sessions behind the rest of the panel:
-            read its figures as stale.</li>
+            read its figures as stale. A row inside that threshold but still
+            behind carries a <span class="gk">T-1</span> marker beside the ticker —
+            its venue has not published a later close, so its returns stop a
+            session earlier than the rest of the table and the ranking is that far
+            from like-for-like.</li>
             <li><span class="gk">^</span> means the percentile used a shorter window
             than the full one, so it is not strictly comparable with its neighbours.
             A superscript <span class="gk">P</span> means the row was scanned through
@@ -650,7 +659,17 @@ function cell(row, col) {
     case 'ticker': {
       const px = row.is_proxied
         ? `<span class="px" title="${esc(row.proxy_notes.join(' \u00B7 '))}">P</span>` : '';
-      return `<span title="${esc(row.engine_tickers.join(', '))} \u00B7 as of ${esc(row.as_of)}">${esc(v)}</span>${px}`;
+      // A row one or two sessions behind the panel is not stale by the health
+      // threshold, and until this marker existed it was indistinguishable
+      // from a current one: on 2026-08-21 six European and Chinese rows sat a
+      // day back under one headline date, disclosed only by the global pill.
+      const lag = row.sessions_behind;
+      const lagMark = (!row.stale && lag > 0)
+        ? `<span class="lag" title="this row is as of ${esc(row.as_of)}, `
+          + `${lag} session${lag > 1 ? 's' : ''} behind the panel \u2014 its venue `
+          + `has not published a later close">T-${lag}</span>`
+        : '';
+      return `<span title="${esc(row.engine_tickers.join(', '))} \u00B7 as of ${esc(row.as_of)}">${esc(v)}</span>${px}${lagMark}`;
     }
     case 'name':
       return `<span title="${esc(row.long_name || v)}">${esc(v)}</span>`;
@@ -775,8 +794,14 @@ function renderChrome() {
   const pills = [`<span class="pill pill-date">PRICES ${esc(headline)}`
     + (d.as_of_mixed ? ` · ${esc(d.as_of_modal_share)}` : '') + `</span>`];
   if (d.as_of_mixed) {
-    pills.push(`<span class="pill pill-warn" title="Rows sit on different `
-      + `sessions — see the data dates in the footer">MIXED DATES</span>`);
+    // The tooltip carries the dates themselves: "see the footer" made the
+    // reader hunt for the one fact the pill exists to raise.
+    const markets = Object.entries(d.as_of_per_market || {})
+      .map(([m, dt]) => `${m} ${dt}`).join(' · ');
+    const behind = d.rows.filter(r => r.sessions_behind > 0).length;
+    pills.push(`<span class="pill pill-warn" title="${esc(markets)} — ${behind} row`
+      + `${behind === 1 ? '' : 's'} behind the panel, marked T-n in the table">`
+      + `MIXED DATES</span>`);
   }
   const gate = (d.overlays || []).find(o => o.kind === 'breadth_gate');
   if (gate && gate.state) {
