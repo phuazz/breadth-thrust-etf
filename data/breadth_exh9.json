@@ -1,10 +1,16 @@
 {
   "etf": "EXH9",
-  "computed_at_utc": "2026-08-21T23:02:10.519523+00:00",
+  "computed_at_utc": "2026-08-22T04:12:50.642398+00:00",
   "constituents_source": "data\\constituents_exh9.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
   "end_date": "2026-08-20",
+  "tail_cap": {
+    "capped_at": "2026-08-20",
+    "venue_last_completed": "2026-08-21",
+    "constituents_priced_to": "2026-08-20",
+    "roster_end_friday": "2026-08-21"
+  },
   "n_trading_days": 2189,
   "n_signals": 60,
   "first_eligible_signal_date": "2019-01-08",
@@ -24,14 +30,14 @@
     "price_warmup_calendar_days": 180
   },
   "data_quality": {
-    "roster_coverage_latest": 0.9285714285714286,
+    "roster_coverage_latest": 1.0,
     "roster_coverage_warn_floor": 0.9,
     "roster_coverage_fail_floor": 0.5,
     "universe_size": 58,
     "tickers_with_any_yf_data": 33,
     "tickers_with_no_yf_data": 25,
     "max_missing_constituent_pct": 0.4137931034482759,
-    "mean_missing_constituent_pct": 0.10293065166067553,
+    "mean_missing_constituent_pct": 0.10289802097477851,
     "first_date_below_10pct_missing": "2022-06-17",
     "note": "25 of 58 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. 1767756D, DIEDR.LS, DIEDS.LS, DIEDT.LS, DIEDU.LS, ECV.DE, EDF.PA, EDFDS.PA). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -7464,7 +7470,7 @@
       28,
       28,
       28,
-      26
+      28
     ],
     "n_with_rsi": [
       23,
@@ -9655,7 +9661,7 @@
       28,
       28,
       28,
-      26
+      28
     ],
     "n_with_ma50": [
       23,
@@ -11846,7 +11852,7 @@
       28,
       28,
       28,
-      26
+      28
     ],
     "n_with_high63": [
       23,
@@ -14037,7 +14043,7 @@
       28,
       28,
       28,
-      26
+      28
     ],
     "rsi_breadth": [
       0.043478,
@@ -18419,7 +18425,7 @@
       0.285714,
       0.357143,
       0.321429,
-      0.307692
+      0.321429
     ],
     "highs_breadth": [
       0.086957,
@@ -24992,7 +24998,7 @@
       -1.145005,
       -0.871749,
       -1.007731,
-      -1.059703
+      -1.007267
     ],
     "highs_breadth_z": [
       null,
@@ -29374,7 +29380,7 @@
       -0.83489,
       -0.743652,
       -0.788826,
-      -0.805997
+      -0.788518
     ],
     "composite_p90": [
       null,

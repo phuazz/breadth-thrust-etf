@@ -1,10 +1,16 @@
 {
   "etf": "EXV3",
-  "computed_at_utc": "2026-08-21T23:01:08.304604+00:00",
+  "computed_at_utc": "2026-08-22T04:16:48.217204+00:00",
   "constituents_source": "data\\constituents_exv3.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
   "end_date": "2026-08-20",
+  "tail_cap": {
+    "capped_at": "2026-08-20",
+    "venue_last_completed": "2026-08-21",
+    "constituents_priced_to": "2026-08-20",
+    "roster_end_friday": "2026-08-21"
+  },
   "n_trading_days": 2189,
   "n_signals": 52,
   "first_eligible_signal_date": "2019-01-08",

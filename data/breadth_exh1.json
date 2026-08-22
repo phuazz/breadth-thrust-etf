@@ -1,10 +1,16 @@
 {
   "etf": "EXH1",
-  "computed_at_utc": "2026-08-21T23:00:45.429760+00:00",
+  "computed_at_utc": "2026-08-22T04:16:33.214221+00:00",
   "constituents_source": "data\\constituents_exh1.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
   "end_date": "2026-08-20",
+  "tail_cap": {
+    "capped_at": "2026-08-20",
+    "venue_last_completed": "2026-08-21",
+    "constituents_priced_to": "2026-08-20",
+    "roster_end_friday": "2026-08-21"
+  },
   "n_trading_days": 2189,
   "n_signals": 44,
   "first_eligible_signal_date": "2019-01-08",

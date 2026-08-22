@@ -1,23 +1,23 @@
 {
-  "computed_at_utc": "2026-08-22 02:02 UTC",
+  "computed_at_utc": "2026-08-22 04:25 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-08-21",
-  "anchor_equity": 2.967465,
+  "anchor_equity": 2.965711,
   "regime_state": "RISK_ON",
   "eem_tilt_active": true,
   "eem_tilt_signal_as_of": "2026-08-21",
   "eem_tilt_signal_stale": false,
   "effective_weights": {
-    "IUES": 0.102165,
+    "IUES": 0.10247,
     "EEM": 0.1,
-    "IUFS": 0.082215,
+    "IUFS": 0.082312,
     "EXV1": 0.075,
     "EXH1": 0.0648,
-    "SOXX": 0.06027,
     "EXV3": 0.0602,
-    "IUSP": 0.0525,
+    "SOXX": 0.060124,
+    "IUSP": 0.05337,
     "IJR": 0.0445,
-    "IUHC": 0.04396,
+    "IUHC": 0.043641,
     "DBC": 0.040525,
     "EWJ": 0.03855,
     "QQQ": 0.038225,
@@ -29,22 +29,21 @@
     "XBI": 0.02,
     "ARKG": 0.02,
     "159801.SZ": 0.02,
-    "IUIS": 0.008855,
-    "SHY": 3.5e-05
+    "IUIS": 0.008084
   },
   "live_dates": [],
   "live_equity": [],
   "sleeve_extensions": {
     "strategy_a": {
       "anchor_date": "2026-08-21",
-      "anchor_equity": 3.2483,
+      "anchor_equity": 3.2428,
       "weights": {
-        "IUES": 0.2919,
-        "IUFS": 0.2349,
-        "SOXX": 0.1722,
-        "IUSP": 0.15,
-        "IUHC": 0.1256,
-        "IUIS": 0.0253
+        "IUES": 0.2928,
+        "IUFS": 0.2352,
+        "SOXX": 0.1718,
+        "IUSP": 0.1525,
+        "IUHC": 0.1247,
+        "IUIS": 0.0231
       },
       "dates": [],
       "equity": []
