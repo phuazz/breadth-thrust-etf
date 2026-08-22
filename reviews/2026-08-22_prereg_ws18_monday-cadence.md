@@ -305,3 +305,43 @@ it.
 and must not reverse the verdict; (2) `holiday_aware_next` becomes `DEFAULT_MODE`, a second
 restatement axis to disclose; (3) every published number is restated in one change with
 before/after attribution.
+
+---
+
+## Amendment 2 discharged — the gated-and-tilted check (2026-08-22)
+
+Run per the condition. Same three arms, same pinned frames; the tilt from
+`run_risk_overlay._build_eem_tilted_blend` and the gate from that module's own formula and
+constants, so this check cannot diverge from the deployed overlay.
+
+| Arm | Cadence · mode | Sharpe | CAGR | MaxDD |
+|---|---|---|---|---|
+| 1 | W-FRI · `holiday_aware` (incumbent) | +1.1665 | +13.73% | −16.54% |
+| 2 | W-FRI · `holiday_aware_next` | **+1.1797** | +13.88% | −16.54% |
+| 3 | W-MON · `holiday_aware_next` | +1.1763 | +13.78% | **−15.13%** |
+
+**Frozen bar on the deployed variant, arm 3 against arm 1: A1 +0.0098 → PASS. A2 1.41pp
+better → PASS.** Both paired 90% CIs straddle zero (arm3−arm1 [−0.0588, +0.0761];
+arm2−arm1 [−0.0076, +0.0361]).
+
+**VERDICT HOLDS. The adoption condition is discharged.**
+
+**And the check earned its place, which is worth recording because I nearly argued it was
+unnecessary.** The decomposition REVERSES between bases. Ungated, the cadence looked like
+the larger contributor (arm3 − arm2 = **+0.0167**). Gated and tilted, the mode change
+carries it and the cadence is marginally *negative* against arm 2 (**−0.0034**). Everything
+is inside noise and the arm-3-against-arm-1 bar passes on both bases, so nothing about the
+decision changes — but the ordering did not carry, exactly as Amendment 2 warned it might
+not. "The overlay is common to all arms, so it cannot change the ordering" was the
+plausible argument, and it was wrong.
+
+**Data caveat, checked rather than assumed.** The SHY fallback cache ends 2026-05-26, and
+`reindex(method="ffill")` would make its returns zero after that date — which would matter
+on any RISK_OFF day. There are **0 RISK_OFF sessions in the 61 after that date** (the gate
+has been RISK_ON since the 2025-05-02 flip), so the stale tail touches no gated day and the
+result is unaffected. Worth refreshing before the restatement regardless.
+
+**Basis note, again:** arm 1 here prints +1.1665 against the published deployed +1.24. Same
+book, freshly recomputed sleeve curves against the committed vintage. Paired comparisons are
+unaffected; the levels are not comparable to the published record and must not be quoted as
+if they were.
