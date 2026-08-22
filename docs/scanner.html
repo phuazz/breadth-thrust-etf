@@ -117,6 +117,61 @@ body {
 .filter:hover { background: var(--bg-hover); }
 .filter.active { background: var(--t1); color: var(--bg2); border-color: var(--t1); }
 
+/* ---- reader's guide ----
+   Collapsed by default so the page still opens on the table; the summary is
+   a 44px touch target. Every threshold quoted inside it is pinned to the
+   engine constants by tests/test_scanner_guide.py — change the constant and
+   the prose together, or the test fails. */
+.guide {
+  margin-top: 16px; border: 1px solid var(--bd); border-radius: var(--radius-lg);
+  background: var(--bg2); box-shadow: var(--shadow-sm);
+}
+.guide > summary {
+  cursor: pointer; padding: 11px 16px; font-size: 13px; color: var(--t2);
+  list-style: none; display: flex; gap: 8px; flex-wrap: wrap;
+  align-items: center; min-height: 44px;
+}
+.guide > summary::-webkit-details-marker { display: none; }
+.guide > summary::before { content: '\25B8'; color: var(--t3-text); font-size: 11px; }
+.guide[open] > summary::before { content: '\25BE'; }
+.guide > summary:hover { background: var(--bg-hover); border-radius: var(--radius-lg); }
+.guide > summary b { color: var(--t1); font-weight: 600; }
+.guide-body { padding: 2px 16px 18px; border-top: 1px solid var(--bd); }
+/* 62ch measures ~75 characters per line in DM Sans at 13px — the `ch` unit
+   is the width of "0", which is wider than this face's average glyph, so a
+   90ch cap read as 108 characters when measured at 768px. */
+.guide-body > p { margin: 12px 0; font-size: 13px; color: var(--t2); max-width: 62ch; }
+.guide-body b { color: var(--t1); font-weight: 600; }
+.guide-grid {
+  display: grid; gap: 12px; margin-top: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(285px, 1fr));
+}
+.gcard {
+  border: 1px solid var(--bd); border-left: 3px solid var(--bd2);
+  border-radius: var(--radius); background: var(--bg); padding: 12px 14px;
+}
+.gcard h4 {
+  margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.9px;
+  font-weight: 700; color: var(--t3-text);
+}
+.gcard .gnote { margin: 4px 0 0; font-size: 12px; color: var(--t3-text); }
+.gcard.gdir   { border-left-color: var(--c); }
+.gcard.grisk  { border-left-color: var(--p); }
+.gcard.gstate { border-left-color: var(--bd-strong); }
+.gcard.getf   { border-left-color: var(--a); }
+.gcard.gwarn  { border-left-color: var(--r); }
+.gcard dl { margin: 4px 0 0; font-size: 12.5px; }
+.gcard dt {
+  font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+  color: var(--t1); margin-top: 9px;
+}
+.gcard dd { margin: 2px 0 0; color: var(--t2); }
+.gcard ul, .gcard ol { margin: 7px 0 0; padding-left: 17px; font-size: 12.5px; color: var(--t2); }
+.gcard li { margin-bottom: 5px; }
+.gcard li:last-child { margin-bottom: 0; }
+.gcard b { color: var(--t1); font-weight: 600; }
+.gk { font-family: var(--mono); font-size: 11.5px; color: var(--t1); }
+
 /* ---- card + table ---- */
 .card {
   background: var(--bg2); border: 1px solid var(--bd); border-radius: var(--radius-lg);
@@ -279,6 +334,189 @@ tbody tr.chart-row:hover td { background: var(--bg3); }
     <div class="pills" id="pills"></div>
   </div>
 
+  <!-- Reader's guide. Static markup rather than a JS render: it must be
+       readable in the source file, and it must survive a page that failed to
+       load its data. The five figures that come from the build are spans
+       filled in renderChrome() so the prose cannot drift from the payload;
+       the text between the tags is the fallback for a data-less load. -->
+  <details class="guide">
+    <summary><b>How to read this page</b>
+      <span>— how the ranking is scored, what every column measures, and what the page cannot tell you</span>
+    </summary>
+    <div class="guide-body">
+
+      <p><b>The rank is a relative momentum score and nothing else.</b> For each
+      instrument the scanner measures total return over four windows — 1, 3, 6 and
+      12 months. Each window is scored against the other <span class="g-n">53</span>
+      instruments on the page (a percentile from 0 to 100), the four percentiles are
+      averaged with equal weight, and the table is sorted on that average. Rank 1 is
+      the strongest, rank <span class="g-n1">54</span> the weakest. No valuation,
+      fundamental, income or risk measure enters the score, and a rank improves
+      either because the instrument rose or because its peers fell.</p>
+
+      <p><b>Percentile columns, written p0 to p100, compare an instrument with its
+      own past</b> — <span class="g-pctl">504</span> sessions of its own history,
+      roughly <span class="g-pctl-y">2</span> years — never with the other rows.
+      <span class="gk">RV p85</span> means today is more volatile than 85% of that
+      instrument's own past two years.</p>
+
+      <div class="guide-grid">
+
+        <section class="gcard gdir">
+          <h4>Directional signals</h4>
+          <p class="gnote">Columns with documented predictive evidence behind them.
+          Read these first.</p>
+          <dl>
+            <dt>Trend</dt>
+            <dd>Where price sits against its 50- and 200-day averages.
+            <b>Strong up</b> = price above MA50 above MA200 with both averages
+            rising; <b>Up</b> = above MA200 but the alignment is incomplete;
+            <b>Range</b> = price between the two averages, or the two within 1% of
+            each other; <b>Down</b> and <b>Strong down</b> mirror the two upward
+            states.</dd>
+            <dt>Rank</dt>
+            <dd>The four-horizon momentum rank described above. 1 is strongest.</dd>
+            <dt>ΔR 20D</dt>
+            <dd>Change in that rank over the past 20 sessions, about one month.
+            ↑ is climbing the table. A high rank that is falling and a middling rank
+            that is climbing are different situations.</dd>
+            <dt>12-1%</dt>
+            <dd>The twelve-month return with the most recent month left out. The
+            skipped month is the standard convention: very recent moves tend to
+            reverse, so dropping it gives a cleaner read of the longer trend.</dd>
+            <dt>vs 52W hi</dt>
+            <dd>Distance below the highest close of the past year. 0.0 is a fresh
+            one-year closing high, −13.8 is 13.8% below it. The figure can never be
+            positive.</dd>
+          </dl>
+        </section>
+
+        <section class="gcard grisk">
+          <h4>Risk signals</h4>
+          <p class="gnote">These describe how large the moves are, not which way
+          they go. A high reading is not bearish.</p>
+          <dl>
+            <dt>RV pctl</dt>
+            <dd>Realised volatility — 20 days of daily returns, annualised — ranked
+            against its own history. High means the instrument is moving more than
+            usual, which is a reason to size smaller rather than a direction.</dd>
+            <dt>BBW pctl</dt>
+            <dd>Bollinger bandwidth: how wide the 20-day price band is, ranked the
+            same way. Low RV <em>and</em> low BBW together is a <b>squeeze</b> — a
+            compressed range that often precedes a larger move of unknown
+            direction.</dd>
+            <dt>ATR%</dt>
+            <dd>The average daily trading range over 14 days as a percentage of
+            price. 3.5 means the instrument typically covers 3.5% of its price
+            between the day's high and low — a sizing and stop-distance input.</dd>
+          </dl>
+        </section>
+
+        <section class="gcard gstate">
+          <h4>State &amp; confirmation</h4>
+          <p class="gnote">Today's context. None of these carries standalone
+          predictive power; they confirm or contradict the directional zone.</p>
+          <dl>
+            <dt>1D%</dt>
+            <dd>The last session's return.</dd>
+            <dt>Vol ×20D</dt>
+            <dd>The session's share volume against its own 20-day average. 1.0× is
+            normal; above 3× is flagged as an alert chip.</dd>
+            <dt>RS 1M</dt>
+            <dd>The past month's return minus <span class="g-bench">SPY</span>'s over
+            the same month, in percentage points; positive means it outpaced US
+            equities. For bonds and commodities read it as distance from equity
+            beta, not leadership within the group. Click the header to switch to the
+            raw one-month return.</dd>
+            <dt>Dev 200D</dt>
+            <dd>How far price sits above or below its 200-day average. A large
+            positive number means price is extended; near zero means the long-term
+            average is close by.</dd>
+          </dl>
+        </section>
+
+        <section class="gcard getf">
+          <h4>ETF layer</h4>
+          <p class="gnote">Properties of the fund wrapper, not of the market it
+          holds.</p>
+          <dl>
+            <dt>P/D%</dt>
+            <dd>Premium or discount of the market price to the fund's stated net
+            asset value. Indicative only: the NAV feed carries no date, so a reading
+            cannot be aligned to its close and raises no alert — see the footer.</dd>
+            <dt>5D flow</dt>
+            <dd>Change in shares outstanding over five sessions, a proxy for money
+            entering or leaving the fund. Blank where the feed supplies no share
+            count, which is roughly half the panel.</dd>
+          </dl>
+        </section>
+
+        <section class="gcard">
+          <h4>Marks, colours and the strips above the table</h4>
+          <ul>
+            <li>Green is above zero, red below. An <b>amber</b> cell is an unusual
+            risk reading — realised volatility above p80, or volume above 3× its
+            20-day average. <b>Purple</b> marks a squeeze.</li>
+            <li>A <b>grey row ending in ●</b> is more than
+            <span class="g-stale">3</span> sessions behind the rest of the panel:
+            read its figures as stale.</li>
+            <li><span class="gk">^</span> means the percentile used a shorter window
+            than the full one, so it is not strictly comparable with its neighbours.
+            A superscript <span class="gk">P</span> means the row was scanned through
+            a trading proxy rather than the line the sleeve holds — hover for
+            which.</li>
+            <li><b>Overlays</b> are the deployed risk state, read from the strategy
+            rather than recomputed here: the breadth gate (RISK_ON / RISK_OFF on the
+            share of S&amp;P 500 constituents above trend), the emerging-market tilt,
+            and <span class="g-bench">SPY</span>'s own one-month return as the anchor
+            for the RS column.</li>
+            <li><b>Alerts</b> are events on the latest session: 52-week highs and
+            lows, MA200 crossings, daily moves beyond 2 standard deviations, volume
+            above 3× normal, squeezes and their releases, and RSI at or beyond
+            75 / 25.</li>
+            <li>Every column header sorts, and the <b>sleeve buttons</b> filter to
+            A sectors, B asset classes, C thematics, D Europe or the overlay.</li>
+          </ul>
+        </section>
+
+        <section class="gcard">
+          <h4>Reading the page in 30 seconds</h4>
+          <ol>
+            <li>Read the pills top right: the price date, whether the panel is on
+            mixed dates, and the deployed gate state.</li>
+            <li>Scan the alert strip — that is what actually changed today.</li>
+            <li>The table opens sorted by rank. The top rows are the strongest
+            momentum across all four horizons at once.</li>
+            <li>Read ΔR beside the rank: climbing ranks are emerging leadership,
+            falling ranks are leadership fading.</li>
+            <li>Check the risk zone before treating a strong rank as an entry. A p90
+            realised volatility means the move is already large by that instrument's
+            own standards.</li>
+            <li>Filter by sleeve to compare like with like — a sector against
+            sectors, not against gold.</li>
+            <li>Click any row for its price chart with MA50 and MA200.</li>
+          </ol>
+        </section>
+
+        <section class="gcard gwarn">
+          <h4>What this page is not</h4>
+          <ul>
+            <li>Monitoring, not a strategy: no buy list, no position sizes, no
+            transaction costs, and no backtest behind any threshold shown.</li>
+            <li>Every parameter is an unvalidated industry default. None has been
+            tested on this universe, so no number here is a calibrated
+            threshold.</li>
+            <li>Ranks are relative. Rank 1 in a falling market is still losing
+            money — read it alongside 12-1% and Trend, which are absolute.</li>
+            <li>A momentum rank says nothing about what an instrument holds, what it
+            costs, or whether it suits a portfolio.</li>
+          </ul>
+        </section>
+
+      </div>
+    </div>
+  </details>
+
   <div class="striprow"><span class="lbl">Overlays</span><span id="overlays"></span></div>
   <div class="striprow"><span class="lbl">Alerts</span><span id="alerts"></span></div>
   <div class="striprow"><span class="lbl">Sleeve</span><span id="filters"></span></div>
@@ -316,23 +554,40 @@ const SCANNER_DATA_INLINE = {"built_at_utc":"2026-08-20T21:53:37+00:00","as_of":
 const PCT1 = (v) => v == null || !isFinite(v) ? null : (v * 100).toFixed(1);
 const signed = (v) => { const s = PCT1(v); return s == null ? null : (v > 0 ? '+' + s : s); };
 
+// `t` is the one-line definition shown on header hover. It is the short form
+// of the reader's guide above the table; the guide is the full statement and
+// wins on any disagreement.
 const COLS = [
   { k:'ticker',      h:'ETF',        cls:'tk', align:'l' },
   { k:'name',        h:'Name',       cls:'nm', align:'l' },
-  { k:'trend',       h:'Trend',      cls:'c',  align:'c', gb:true },
-  { k:'rank',        h:'Rank',       n:true,   dir:1 },
-  { k:'rank_delta',  h:'\u0394R 20D', n:true },
-  { k:'mom_12_1',    h:'12-1%',      n:true },
-  { k:'vs_52w_high', h:'vs 52W hi',  n:true },
-  { k:'rv_pctl',     h:'RV pctl',    n:true,   gb:true },
-  { k:'bbw_pctl',    h:'BBW pctl',   n:true },
-  { k:'atr_pct',     h:'ATR%',       n:true },
-  { k:'ret_1d',      h:'1D%',        n:true,   gb:true },
-  { k:'vol_ratio',   h:'Vol \u00D720D', n:true },
-  { k:'rs_1m',       h:'RS 1M',      n:true,   toggle:true },
-  { k:'dev_200d',    h:'Dev 200D',   n:true },
-  { k:'pd_pct',      h:'P/D%',       n:true,   gb:true },
-  { k:'flow_5d',     h:'5D flow',    n:true },
+  { k:'trend',       h:'Trend',      cls:'c',  align:'c', gb:true,
+    t:'Price against its own 50- and 200-day averages' },
+  { k:'rank',        h:'Rank',       n:true,   dir:1,
+    t:'Equal-weight 1M/3M/6M/12M momentum rank across the panel; 1 = strongest' },
+  { k:'rank_delta',  h:'\u0394R 20D', n:true,
+    t:'Change in that rank over the past 20 sessions; \u2191 = climbing' },
+  { k:'mom_12_1',    h:'12-1%',      n:true,
+    t:'Twelve-month return with the most recent month skipped' },
+  { k:'vs_52w_high', h:'vs 52W hi',  n:true,
+    t:'Distance below the highest close of the past year; 0.0 = a fresh high' },
+  { k:'rv_pctl',     h:'RV pctl',    n:true,   gb:true,
+    t:'Realised volatility (20D, annualised) ranked against its own history' },
+  { k:'bbw_pctl',    h:'BBW pctl',   n:true,
+    t:'Bollinger bandwidth (20D) ranked the same way; low with a low RV is a squeeze' },
+  { k:'atr_pct',     h:'ATR%',       n:true,
+    t:'Average 14-day daily trading range as a percentage of price' },
+  { k:'ret_1d',      h:'1D%',        n:true,   gb:true,
+    t:'The last session\u2019s return' },
+  { k:'vol_ratio',   h:'Vol \u00D720D', n:true,
+    t:'Session volume against its own 20-day average' },
+  { k:'rs_1m',       h:'RS 1M',      n:true,   toggle:true,
+    t:'One-month return minus the benchmark\u2019s over the same month' },
+  { k:'dev_200d',    h:'Dev 200D',   n:true,
+    t:'How far price sits above or below its 200-day average' },
+  { k:'pd_pct',      h:'P/D%',       n:true,   gb:true,
+    t:'Market price against the fund\u2019s stated NAV \u2014 indicative, unverified' },
+  { k:'flow_5d',     h:'5D flow',    n:true,
+    t:'Change in shares outstanding over five sessions' },
 ];
 
 const TREND_CLS = {
@@ -437,9 +692,10 @@ function renderHead() {
     const h = c.toggle ? (RS_MODE === 'rs_1m' ? 'RS 1M' : '1M%') : c.h;
     const key = c.toggle ? RS_MODE : c.k;
     const on = SORT.k === key;
-    const title = c.toggle
+    const action = c.toggle
       ? 'Click the label to switch between RS versus SPY and the raw 1M return'
       : 'Click to sort';
+    const title = c.t ? `${c.t} · ${action}` : action;
     return `<th class="${c.align === 'l' ? 'l' : (c.align === 'c' ? 'c' : '')}`
       + `${c.gb ? ' gb' : ''}${on ? ' sorted' : ''}" data-k="${key}"`
       + `${c.toggle ? ' data-toggle="1"' : ''} title="${esc(title)}">`
@@ -485,6 +741,18 @@ function renderChrome() {
     `${d.n_rows} instruments across sleeves A/B/C/D and the overlay, ranked on an `
     + `equal-weight 1M/3M/6M/12M momentum composite. Every figure is USD. `
     + `<b>Parameters are unvalidated industry defaults.</b>`;
+
+  // Guide figures come from the payload, never from prose typed twice. The
+  // markup carries the same values as fallback text for a data-less load, so
+  // a mismatch here is a build drift and not a blank page.
+  const fill = (cls, v) => document.querySelectorAll('.' + cls)
+    .forEach(el => { el.textContent = v; });
+  fill('g-n', d.n_rows - 1);           // "the other N instruments"
+  fill('g-n1', d.n_rows);
+  fill('g-pctl', d.percentile_window);
+  fill('g-pctl-y', (d.percentile_window / 252).toFixed(1).replace(/\.0$/, ''));
+  fill('g-bench', d.benchmark);
+  fill('g-stale', (d.data_health || {}).stale_threshold_sessions);
 
   // Lead with the date most of the panel is actually on, not the maximum:
   // one open foreign venue must not make 48 stale rows look current.
