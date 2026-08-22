@@ -381,13 +381,39 @@ def test_holiday_aware_next_month_boundary():
     assert len(out) == len(pd.date_range(idx[0], idx[-1], freq="W-MON"))
 
 
-def test_new_mode_does_not_change_the_deployed_default():
-    """Adding a mode must not move deployed behaviour. DEFAULT_MODE stays the
-    backward holiday_aware adopted by WS10 on 2026-08-10."""
+def test_adding_a_mode_does_not_change_the_deployed_default():
+    """Adding a mode must not move deployed behaviour — only a decision may.
+
+    REWRITTEN 2026-08-22. It asserted DEFAULT_MODE == HOLIDAY_AWARE, which was
+    right when WS12/WS13 added the forward-roll mode and deliberately did NOT
+    deploy it. WS18 then deployed it on evidence, so the old assertion is
+    superseded rather than wrong.
+
+    Kept, not deleted, because the guard it provides is still needed: the next
+    mode added must not move the default either. Only the expected value moves,
+    and it now carries its provenance — register record
+    2026-08-22-breadth-thrust-etf-2, where HOLIDAY_AWARE was rejected for a
+    Monday cadence because a holiday Monday rolls BACK onto the previous
+    Friday, landing a fill before the decision that produces it.
+    """
     import rebalance_calendar as rc
-    assert rc.DEFAULT_MODE == rc.HOLIDAY_AWARE
+    assert rc.DEFAULT_MODE == rc.HOLIDAY_AWARE_NEXT
     idx = pd.bdate_range("2026-06-01", "2026-07-10")
     idx = idx[idx != pd.Timestamp("2026-07-03")]
     assert list(rc.engine_rebalance_dates(idx, idx[0])) == \
-           list(weekly_rebalance_dates(idx, idx[0], mode="holiday_aware",
+           list(weekly_rebalance_dates(idx, idx[0], mode="holiday_aware_next",
                                        calendar="NYSE"))
+
+
+def test_the_two_holiday_modes_still_differ_where_it_matters():
+    """The rewrite above would pass vacuously if the modes had converged, so
+    pin that they genuinely disagree on a holiday — otherwise the WS18
+    decision would be untestable and the record misleading."""
+    import rebalance_calendar as rc
+    idx = pd.bdate_range("2026-06-01", "2026-07-10")
+    idx = idx[idx != pd.Timestamp("2026-07-03")]      # US Independence Day
+    back = list(weekly_rebalance_dates(idx, idx[0], mode="holiday_aware",
+                                       calendar="NYSE"))
+    fwd = list(weekly_rebalance_dates(idx, idx[0], mode="holiday_aware_next",
+                                      calendar="NYSE"))
+    assert back != fwd, "the two modes must not have converged"

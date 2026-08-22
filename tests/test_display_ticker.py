@@ -311,8 +311,14 @@ def test_built_surfaces_agree_on_the_europe_label():
                           .read_text(encoding="utf-8"))
     tickers = {h["ticker"] for h in payload["holdings"]}
     assert "EXH3" not in tickers
-    if any(t.startswith("EX") for t in tickers):
-        assert "EXH4" in tickers or not any(
-            h["sleeve"] == "strategy_d" and h["ticker"].startswith("EXH")
-            for h in payload["holdings"]
-        )
+    # KEY ON THE PANEL ID, NOT ON A PREFIX. The previous form asserted that if
+    # any strategy_d holding started with "EXH" then EXH4 must be displayed —
+    # which treats EXH1 (Oil & Gas, whose panel id and traded ticker are both
+    # EXH1) as evidence that the industrials fund is held. It passed only while
+    # the basket happened to contain EXH3, and failed the moment sleeve D held
+    # EXH1 without it. The rule being guarded is narrow and exact: the fund
+    # whose PANEL ID is EXH3 trades as EXH4 and must display that way.
+    for h in payload["holdings"]:
+        if h.get("panel_key") == "EXH3":
+            assert h["ticker"] == "EXH4", (
+                f"industrials panel EXH3 displayed as {h['ticker']!r}")

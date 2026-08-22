@@ -159,7 +159,7 @@ def run_portfolio(
     weight_fn,
     eligible_start: pd.Timestamp,
     cost: float = COST_BPS / 10_000,
-    rebalance_freq: str = "W-FRI",
+    rebalance_freq: str = "W-MON",
     calendar: str = "NYSE",
 ) -> dict:
     """Simulate a weekly-rebalanced portfolio.

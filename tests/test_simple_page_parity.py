@@ -207,7 +207,13 @@ def test_derisk_reserve_is_shown_at_both_ends_of_its_range(
         assert bsp.RESERVE_KEY in split, (
             f"reserve bucket vanished at {reserve_w:.2%} of NAV")
         assert split[bsp.RESERVE_KEY] == pytest.approx(reserve_w, abs=TOL)
-        assert sum(split.values()) == pytest.approx(1.0, abs=TOL)
+        # SCALE THE TOLERANCE TO THE NUMBER OF ROUNDED TERMS. Each sleeve
+        # weight is rounded to 6dp independently, so their SUM can sit up to
+        # len(split) half-ulps from 1.0 — with six buckets, ~3e-6. A flat TOL
+        # of 1e-6 on the sum was always too tight and passed by luck; the WS18
+        # restatement moved the weights enough to expose it. The per-bucket
+        # assertions above still use TOL, which is where it belongs.
+        assert sum(split.values()) == pytest.approx(1.0, abs=TOL * len(split))
         # It must not be quietly filed under the tilt: that bucket carries the
         # tilt's own weight and nothing else.
         assert split.get("tilt") == pytest.approx(weights[bsp.TILT_TICKER], abs=TOL)

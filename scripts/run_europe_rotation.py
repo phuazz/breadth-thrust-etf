@@ -62,15 +62,28 @@ COST_FRAC = COST_BPS / 10_000
 CALENDAR = "XETR"
 
 K_GRID = [2, 3, 4]
+# WS18 (2026-08-22): "Weekly Mon" is the DEPLOYED cell and must be present,
+# because main() captures headline_payload by matching HEADLINE_FREQ_NAME
+# against this grid. Changing the constant without adding the cell left the
+# payload None and every engine died on it — loudly, which was the right
+# failure, but the grid is the other half of the same decision.
+# "Weekly Fri" is KEPT as a comparison rather than replaced: after a cadence
+# move the incumbent is the single most useful row in this table.
 REBAL_FREQS = [
     ("Daily",         "D"),
+    ("Weekly Mon",    "W-MON"),
     ("Weekly Fri",    "W-FRI"),
     ("Bi-weekly Fri", "2W-FRI"),
     ("Month-end",     "BME"),
 ]
 HEADLINE_K = 3
-HEADLINE_FREQ_NAME = "Weekly Fri"
-HEADLINE_FREQ = "W-FRI"
+HEADLINE_FREQ_NAME = "Weekly Mon"
+# WS18 (2026-08-22): the whole book moved to a Monday rebalance so
+# every sleeve ranks at rd-1. Under the Friday cadence sleeve D could
+# only reach rd-2 - the European data is a session late at every hour
+# of the decision window - so the live book could not implement what
+# this engine backtests, for 20% of NAV, weekly.
+HEADLINE_FREQ = "W-MON"
 
 
 def _safe(v):

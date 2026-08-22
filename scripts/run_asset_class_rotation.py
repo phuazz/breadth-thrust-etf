@@ -163,15 +163,28 @@ CALENDAR = "NYSE"
 COST_FRAC = COST_BPS / 10_000
 
 K_GRID = [3, 4, 5, 6, 7]
+# WS18 (2026-08-22): "Weekly Mon" is the DEPLOYED cell and must be present,
+# because main() captures headline_payload by matching HEADLINE_FREQ_NAME
+# against this grid. Changing the constant without adding the cell left the
+# payload None and every engine died on it — loudly, which was the right
+# failure, but the grid is the other half of the same decision.
+# "Weekly Fri" is KEPT as a comparison rather than replaced: after a cadence
+# move the incumbent is the single most useful row in this table.
 REBAL_FREQS = [
     ("Daily",         "D"),
+    ("Weekly Mon",    "W-MON"),
     ("Weekly Fri",    "W-FRI"),
     ("Bi-weekly Fri", "2W-FRI"),
     ("Month-end",     "BME"),
 ]
 HEADLINE_K = 7
-HEADLINE_FREQ_NAME = "Weekly Fri"
-HEADLINE_FREQ = "W-FRI"
+HEADLINE_FREQ_NAME = "Weekly Mon"
+# WS18 (2026-08-22): the whole book moved to a Monday rebalance so
+# every sleeve ranks at rd-1. Under the Friday cadence sleeve D could
+# only reach rd-2 - the European data is a session late at every hour
+# of the decision window - so the live book could not implement what
+# this engine backtests, for 20% of NAV, weekly.
+HEADLINE_FREQ = "W-MON"
 
 # ETF used as a cash proxy when fewer than K ETFs have positive signal.
 # Phase 19.1 (2026-05-27): switched from IEF (7-10y, ~7y duration) to SHY
@@ -326,7 +339,7 @@ def top_k_by_signal(K: int, exclude_negative: bool = True):
 
 def run_rotation(closes: pd.DataFrame, signal: pd.DataFrame, weight_fn,
                   eligible_start: pd.Timestamp,
-                  rebalance_freq: str = "W-FRI",
+                  rebalance_freq: str = "W-MON",
                   cost: float = COST_FRAC) -> dict:
     """Run the rotation portfolio. Same mechanics as run_portfolio: yesterday's
     signal -> today's rebalance, yesterday's weights * today's returns."""
@@ -353,7 +366,7 @@ def run_rotation(closes: pd.DataFrame, signal: pd.DataFrame, weight_fn,
 
 
 def sixty_forty(closes: pd.DataFrame, eligible_start: pd.Timestamp,
-                  rebalance_freq: str = "W-FRI") -> dict:
+                  rebalance_freq: str = "W-MON") -> dict:
     """60% SPY / 40% IEF, rebalanced same cadence. The classical benchmark."""
     target = pd.Series({"SPY": 0.6, "IEF": 0.4})
     rebalance_dates = engine_rebalance_dates(closes.index, eligible_start,
@@ -373,7 +386,7 @@ def sixty_forty(closes: pd.DataFrame, eligible_start: pd.Timestamp,
 
 
 def equal_weight_all(closes: pd.DataFrame, eligible_start: pd.Timestamp,
-                      rebalance_freq: str = "W-FRI") -> dict:
+                      rebalance_freq: str = "W-MON") -> dict:
     """Equal weight across all N tickers in the universe."""
     n = len(closes.columns)
     target_w = 1.0 / n

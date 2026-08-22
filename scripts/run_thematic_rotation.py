@@ -315,8 +315,16 @@ CALENDAR = "NYSE"
 COST_FRAC = COST_BPS / 10_000
 
 K_GRID = [3, 4, 5]
+# WS18 (2026-08-22): "Weekly Mon" is the DEPLOYED cell and must be present,
+# because main() captures headline_payload by matching HEADLINE_FREQ_NAME
+# against this grid. Changing the constant without adding the cell left the
+# payload None and every engine died on it — loudly, which was the right
+# failure, but the grid is the other half of the same decision.
+# "Weekly Fri" is KEPT as a comparison rather than replaced: after a cadence
+# move the incumbent is the single most useful row in this table.
 REBAL_FREQS = [
     ("Daily",         "D"),
+    ("Weekly Mon",    "W-MON"),
     ("Weekly Fri",    "W-FRI"),
     ("Bi-weekly Fri", "2W-FRI"),
     ("Month-end",     "BME"),
@@ -329,8 +337,13 @@ REBAL_FREQS = [
 # K=3-4, so the in-sample concentration choice (K=5) becomes safe to
 # deploy.
 HEADLINE_K = 5
-HEADLINE_FREQ_NAME = "Weekly Fri"
-HEADLINE_FREQ = "W-FRI"
+HEADLINE_FREQ_NAME = "Weekly Mon"
+# WS18 (2026-08-22): the whole book moved to a Monday rebalance so
+# every sleeve ranks at rd-1. Under the Friday cadence sleeve D could
+# only reach rd-2 - the European data is a session late at every hour
+# of the decision window - so the live book could not implement what
+# this engine backtests, for 20% of NAV, weekly.
+HEADLINE_FREQ = "W-MON"
 
 # Phase 27 (2026-06-01) — sleeve-breadth gate ("V6"). If fewer than
 # SLEEVE_GATE_THRESHOLD of the thematic universe is above SIGNAL_FLOOR
@@ -694,7 +707,7 @@ WEIGHTER_FACTORY = top_k_equal_weight
 
 def run_rotation(closes: pd.DataFrame, signal: pd.DataFrame, weight_fn,
                   eligible_start: pd.Timestamp,
-                  rebalance_freq: str = "W-FRI",
+                  rebalance_freq: str = "W-MON",
                   cost: float = COST_FRAC) -> dict:
     rebalance_dates = engine_rebalance_dates(closes.index, eligible_start,
                                              rebalance_freq, CALENDAR)

@@ -201,7 +201,14 @@ def weekly_rebalance_dates(
 # 0.0123 Sharpe / 0.17pp CAGR (maxDD unchanged). Sleeve deltas: A -0.0106,
 # B -0.0057, C -0.0612, D +0.0136 — all far inside the +/-0.4 Sharpe SE this
 # book already documents, and C's is a single Easter-2022 week.
-DEFAULT_MODE = HOLIDAY_AWARE
+# ADOPTED 2026-08-22 (WS18). Was HOLIDAY_AWARE until the whole book moved to
+# a Monday rebalance. Under HOLIDAY_AWARE a holiday Monday rolls BACK three
+# days onto the previous Friday - 39 of 406 on NYSE - and the Monday cadence
+# decides on Saturday from Friday's close, so that fill would precede the
+# decision producing it. The backtest would credit trades nobody could place on
+# 9.6% of weeks for 70% of NAV. HOLIDAY_AWARE_NEXT rolls forward instead.
+# Register record 2026-08-22-breadth-thrust-etf-2 (rejected, structural).
+DEFAULT_MODE = HOLIDAY_AWARE_NEXT
 
 
 def engine_rebalance_dates(
