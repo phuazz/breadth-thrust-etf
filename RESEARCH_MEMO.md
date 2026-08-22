@@ -2162,3 +2162,35 @@ as saying it passed the separation checks the first five did.
 Commit f51c21d (pushed with e68ab8f). Suite: red 1,251 passed / 27 skipped /
 19 errors at bf60f49 -> green 1,346 passed / 27 skipped at the push head (the
 count spans the ITWN resolver work landed in the same push).
+
+## WS18 — whole-book Monday rebalance (PRE-REGISTERED 2026-08-22, nothing run)
+
+Design frozen in `reviews/2026-08-22_prereg_ws18_monday-cadence.md`. This section is a
+pointer, not a duplicate; the registration is the record and nothing in it may be edited
+now that it is filed.
+
+WHY. Thirty probe samples (2026-08-15 to 2026-08-21) show the European data is a session
+behind at EVERY hour of the Friday decision window — 00:00 UTC 9/9 late on the ETF lines
+and 6/6 late on the constituents, against 6/6 current for the US proxies, and still late
+at 14:38 SGT. So under the Friday cadence sleeve D can only rank at rd-2 while A/B/C rank
+at rd-1. The live book cannot implement the convention the engines backtest, for 20% of
+NAV, every week.
+
+THE JUSTIFICATION IS CORRECTNESS, NOT PERFORMANCE — and the registration says so in terms.
+WS13's W-MON grid measured +0.0336 Sharpe, but WS13 REJECTED its Wednesday cell (+0.1335,
+CI clear of zero) as best-of-five uncorrected for multiplicity. W-MON is in the same grid.
+Adopting it on its Sharpe would be that error with a smaller number, so the +0.0336 enters
+only as a non-inferiority prior.
+
+FROZEN BAR: non-inferiority at 0.05 Sharpe (paired block bootstrap, 60d blocks, 2000
+samples, seed 42), max drawdown not worse by 2.0pp, and a turnover trigger that re-tests
+at 2x costs. 0.05 is the noise band WS13 measured for this class of change.
+
+THE RISK I WOULD NOT HAVE GUESSED: Monday holidays. NYSE Mondays are closed 39/406 = 9.6%
+against Friday's 15/407 = 3.7% — 2.6x as many holiday rebalances for the 70% of NAV that
+trades there. WS10 adopted holiday_aware precisely because a holiday rebalance silently
+skipped a whole week; W-MON exercises that path 2.6x more. Rebalance-date counts and roll
+directions are reconciled BEFORE any performance number is read.
+
+Both legs must run in ONE process against ONE pinned price frame. A diff across two
+downloads is inadmissible — that failure has already cost this repo two wrong verdicts.
