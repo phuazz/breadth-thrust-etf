@@ -650,6 +650,80 @@ _SLEEVE_PALETTE = {"A": PALETTE_A, "B": PALETTE_B, "C": PALETTE_C,
                     "D": PALETTE_D, "TILT": "#b45309"}
 
 
+def _honest_tick_locator(ax, decimals: int, nbins: int = 7) -> None:
+    """Ticks whose positions are exactly representable at ``decimals``.
+
+    THE DEFECT THIS FIXES. The attribution charts format their x axis with
+    one decimal, but matplotlib's default locator is free to choose 0.25
+    steps -- so ticks sat at -0.75 and -0.25 and printed "-0.8pp" and
+    "-0.2pp". Four of nine labels on the 2026-08-21 factsheet misstated
+    their own position, and 0.25 shown as 0.2 is a 20% error on a chart a
+    reader measures bars against. Restricting the step to 1/2/5 x 10^k
+    makes every tick land where its label says it does.
+    """
+    from matplotlib.ticker import MaxNLocator
+    ax.xaxis.set_major_locator(
+        MaxNLocator(nbins=nbins, steps=[1, 2, 5, 10]))
+
+
+def _fit_bar_labels(fig, ax, texts, values, *, gap_frac=0.02,
+                    margin_frac=0.03, iterations=12) -> None:
+    """Expand the x limits so no bar annotation clips, and no further.
+
+    THE DEFECT THIS FIXES. The annotation offset was a FIXED 0.5 in data
+    units and the axis padding was a fraction of the data range -- but a
+    label's width is fixed in POINTS, not data units, so neither could know
+    how much room a label actually needs. On the 2026-08-21 factsheet the
+    SOXX label ran 0.095 units past the axis and collided with the y tick
+    label, printing "SOXX (A3pp (-5.5%)". The same heuristic over-reserved
+    elsewhere: the bars occupied 28% of the plot width, which is why they
+    looked so small.
+
+    Both come from guessing in the wrong unit. This measures what actually
+    rendered and solves for the span that fits it.
+
+    A label's width as a FRACTION of the axes is fixed, so widening the
+    span widens the label in data units too -- the requirement is implicit
+    and solved by iteration, which converges geometrically while the label
+    fractions sum to less than one. Twelve passes is far more than needed;
+    the loop exits as soon as the span stops moving.
+    """
+    fig.canvas.draw()
+    r = fig.canvas.get_renderer()
+    ax_px = ax.get_window_extent(renderer=r).width or 1.0
+    fracs = [t.get_window_extent(renderer=r).width / ax_px for t in texts]
+
+    data_lo = min(list(values) + [0.0])
+    data_hi = max(list(values) + [0.0])
+    lo, hi = data_lo, data_hi
+    span = max(hi - lo, 1e-9)
+
+    for _ in range(iterations):
+        gap = span * gap_frac
+        need_lo, need_hi = min(data_lo, 0.0), max(data_hi, 0.0)
+        for v, f in zip(values, fracs):
+            if v >= 0:
+                need_hi = max(need_hi, v + gap + f * span)
+            else:
+                need_lo = min(need_lo, v - gap - f * span)
+        m = (need_hi - need_lo) * margin_frac
+        lo, hi = need_lo - m, need_hi + m
+        new_span = hi - lo
+        if abs(new_span - span) < 1e-9:
+            span = new_span
+            break
+        span = new_span
+
+    ax.set_xlim(lo, hi)
+    # Re-seat the annotations on the settled span. The gap is a fraction of
+    # the span rather than a constant, because a constant 0.5 was roughly
+    # the WHOLE data range on a week where the largest contribution was
+    # 0.29pp -- the gap dwarfed the thing it was separating.
+    gap = span * gap_frac
+    for t, v in zip(texts, values):
+        t.set_x(v + gap if v >= 0 else v - gap)
+
+
 def chart_per_etf_attribution(sleeves, overlay, holdings_prices,
                                 width_pts, *, days_back=None, ytd_start=None,
                                 top_n=12, asof=None):
@@ -729,16 +803,16 @@ def chart_per_etf_attribution(sleeves, overlay, holdings_prices,
     colours = [_SLEEVE_PALETTE.get(r["sleeve"], "#7c8590") for r in rows]
     ax.barh(y_pos, bars_pct, color=colours, edgecolor="white",
              linewidth=0.8, height=0.62)
+    label_artists = []
     for i, r in enumerate(rows):
         x = r["contrib"] * 100
         # Each bar's label: "+0.45pp" plus a faint suffix showing the
         # raw ETF return so the reader can separate "big weight × small
         # move" from "small weight × big move".
-        offset = 0.5 if x >= 0 else -0.5
         ha = "left" if x >= 0 else "right"
-        ax.text(x + offset, i,
-                 f"{x:+.2f}pp  ({r['ret']*100:+.1f}%)",
-                 fontsize=8, color="#3a4148", va="center", ha=ha)
+        label_artists.append(ax.text(
+            x, i, f"{x:+.2f}pp  ({r['ret']*100:+.1f}%)",
+            fontsize=8, color="#3a4148", va="center", ha=ha))
     # Tick labels: "TICKER (sleeve)" e.g. "SOXX (A)" — the sleeve tag
     # helps the eye associate colour with origin without a legend.
     ax.set_yticks(y_pos)
@@ -748,10 +822,8 @@ def chart_per_etf_attribution(sleeves, overlay, holdings_prices,
     ax.axvline(0, color=PALETTE_ZERO, linewidth=0.7)
     ax.grid(False, axis="y")
     ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:+.1f}pp"))
-    xmin, xmax = ax.get_xlim()
-    pad = max(abs(xmin), abs(xmax)) * 0.45 + 0.5
-    ax.set_xlim(xmin - pad if xmin < 0 else -pad * 0.4,
-                  xmax + pad if xmax > 0 else pad * 0.4)
+    _honest_tick_locator(ax, decimals=1)
+    _fit_bar_labels(fig, ax, label_artists, bars_pct)
     # Coverage note — printed on the chart whenever any held position is
     # missing from the bars, so truncation is visible to the reader, not
     # only to whoever tails the build log.
@@ -817,12 +889,13 @@ def chart_sleeve_attribution(sleeves, deployed_series, p22_active, width_pts,
     bars_pct = [c * 100 for c in contribs]
     ax.barh(y_pos, bars_pct, color=colours, edgecolor="white",
              linewidth=1, height=0.62)
+    label_artists = []
     for i, x in enumerate(bars_pct):
-        offset = 0.5 if x >= 0 else -0.5
         ha = "left" if x >= 0 else "right"
-        ax.text(x + offset, i, f"{x:+.1f}pp",
-                 fontsize=8.5, color="#3a4148", fontweight="600",
-                 va="center", ha=ha)
+        label_artists.append(ax.text(
+            x, i, f"{x:+.1f}pp",
+            fontsize=8.5, color="#3a4148", fontweight="600",
+            va="center", ha=ha))
     ax.set_yticks(y_pos)
     ax.set_yticklabels(names, fontsize=9, color="#0f1217")
     ax.invert_yaxis()
@@ -830,10 +903,11 @@ def chart_sleeve_attribution(sleeves, deployed_series, p22_active, width_pts,
     # Only x-gridlines for a horizontal-bar chart.
     ax.grid(False, axis="y")
     ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:+.0f}pp"))
-    xmin, xmax = ax.get_xlim()
-    pad = max(abs(xmin), abs(xmax)) * 0.35 + 1
-    ax.set_xlim(xmin - pad if xmin < 0 else -pad * 0.3,
-                  xmax + pad if xmax > 0 else pad * 0.3)
+    # Same two defects as the per-ETF chart, same fix: ticks that state their
+    # own position, and limits measured from what the labels actually render
+    # at rather than guessed in the wrong unit.
+    _honest_tick_locator(ax, decimals=0)
+    _fit_bar_labels(fig, ax, label_artists, bars_pct)
     return _chart_to_image(fig, width_pts)
 
 
