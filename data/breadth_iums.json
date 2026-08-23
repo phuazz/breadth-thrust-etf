@@ -1,10 +1,11 @@
 {
   "etf": "IUMS",
-  "computed_at_utc": "2026-08-22T03:18:22.168008+00:00",
+  "computed_at_utc": "2026-08-23T06:22:11.071288+00:00",
   "constituents_source": "data\\constituents_iums.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
   "end_date": "2026-08-21",
+  "tail_cap": null,
   "n_trading_days": 2168,
   "n_signals": 51,
   "first_eligible_signal_date": "2019-01-08",

@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-08-22T06:09:13.159972+00:00",
+ "computed_at_utc": "2026-08-23T07:11:36.128478+00:00",
  "strategies": [
   {
    "sleeve": "A",
@@ -44,17 +44,17 @@
    "sleeve": "D",
    "label": "Europe sectors",
    "venue": "XETR",
-   "data_through": "2026-08-20",
+   "data_through": "2026-08-21",
    "venue_last_session": "2026-08-21",
-   "sessions_behind": 1,
-   "status": "behind",
+   "sessions_behind": 0,
+   "status": "current",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
-   "why": "the constituents are priced to 2026-08-20 while the venue has traded to 2026-08-21 \u2014 the vendor publishes these prices about a session late.",
-   "why_plain": "the shares held inside these funds are priced up to 2026-08-20, while the exchange itself has traded to 2026-08-21 \u2014 the data provider publishes European prices about a day late."
+   "why": null,
+   "why_plain": null
   }
  ],
- "all_current": false,
- "stalest": "2026-08-20",
- "n_behind": 1
+ "all_current": true,
+ "stalest": "2026-08-21",
+ "n_behind": 0
 }

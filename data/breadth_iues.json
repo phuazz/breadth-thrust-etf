@@ -1,10 +1,11 @@
 {
   "etf": "IUES",
-  "computed_at_utc": "2026-08-22T03:06:50.984561+00:00",
+  "computed_at_utc": "2026-08-23T06:15:52.151872+00:00",
   "constituents_source": "data\\constituents_iues.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
   "end_date": "2026-08-21",
+  "tail_cap": null,
   "n_trading_days": 2168,
   "n_signals": 47,
   "first_eligible_signal_date": "2019-01-08",

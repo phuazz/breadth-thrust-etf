@@ -1,10 +1,11 @@
 {
   "etf": "IUCM",
-  "computed_at_utc": "2026-08-22T03:19:33.152118+00:00",
+  "computed_at_utc": "2026-08-23T06:22:53.768411+00:00",
   "constituents_source": "data\\constituents_iucm.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-09-21",
   "end_date": "2026-08-21",
+  "tail_cap": null,
   "n_trading_days": 1989,
   "n_signals": 56,
   "first_eligible_signal_date": "2019-09-24",
