@@ -1092,8 +1092,8 @@ def main(argv: list[str] | None = None) -> int:
     n_alerts = len(payload["alerts"])
     print(f"rows {payload['n_rows']}, alerts {n_alerts}")
     if n_alerts > payload["alerts_display_cap"]:
-        print(f"  {payload['alerts_display_cap']} shown by default, "
-              f"{n_alerts - payload['alerts_display_cap']} behind the expander")
+        print(f"  all shown; collapsed view keeps the top "
+              f"{payload['alerts_display_cap']} by priority")
     for note in health["notes"]:
         print(f"  note: {note}")
     for s in health["stale"]:

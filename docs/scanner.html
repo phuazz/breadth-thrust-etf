@@ -536,9 +536,10 @@ tbody tr.chart-row:hover td { background: var(--bg3); }
             lows, MA200 crossings, daily moves beyond 2 standard deviations, volume
             above 3× normal, squeezes and their releases, RSI at or beyond
             75 / 25, and rows crossing into or out of the top 10 of the
-            ranking. Chips name the fund and carry its ticker in the tooltip; the
-            twelve highest-priority fire first and <span class="gk">+n more</span>
-            reveals the rest. <b>Click any chip</b> to jump to that instrument's row
+            ranking. Chips name the fund and carry its ticker in the tooltip, and
+            every alert is shown — <span class="gk">Show fewer</span> collapses a
+            noisy day to the 12 highest-priority chips.
+            <b>Click any chip</b> to jump to that instrument's row
             and open its chart. If your sleeve filter is hiding that row, the page
             says which sleeve the instrument sits in and leaves the filter alone
             until you ask for it.</li>
@@ -697,7 +698,7 @@ function alertClass(a) {
 }
 
 let DATA = null, SLEEVE = 'ALL', SORT = { k:'rank', asc:true }, RS_MODE = 'rs_1m';
-let ALERTS_EXPANDED = false;
+let ALERTS_EXPANDED = true;   // every alert on load; the button collapses
 
 // Chips name the fund rather than the ticker: the strip is read for what
 // happened, and "ARK Genomic Revolution" answers that without a lookup the
@@ -995,9 +996,11 @@ function jumpToRow(ticker) {
   tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-// The payload carries EVERY alert in priority order and states the default
-// cap, so the overflow is one click away rather than a dead "+11 more" for
-// events the reader could not reach.
+// The payload carries EVERY alert in priority order, and every one of them
+// is shown on load: the strip is the "what changed today" view, and a hidden
+// tail made the reader trust a count rather than read the events. The cap
+// survives as a COLLAPSE — one click compresses a noisy day back to the
+// highest-priority chips.
 function renderAlerts() {
   const all = DATA.alerts || [];
   const cap = DATA.alerts_display_cap || all.length;
