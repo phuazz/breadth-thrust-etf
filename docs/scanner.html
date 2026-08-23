@@ -134,7 +134,15 @@ body {
   background: var(--bg3); color: var(--t2); border: 1px solid var(--bd);
 }
 .chip-btn:hover { background: var(--bg-hover); color: var(--t1); }
-@media (pointer: coarse) { .chip-btn { min-height: 44px; } }
+/* Alert chips are buttons too, but they keep their semantic colour: only the
+   affordance is added, so the strip still reads as events rather than as a
+   row of controls. */
+.chip-jump {
+  cursor: pointer; font-family: inherit; font-size: 11.5px; text-align: left;
+}
+.chip-jump:hover { filter: brightness(0.97); border-color: var(--bd-strong); }
+.chip-jump:focus-visible { outline: 2px solid var(--b-text); outline-offset: 1px; }
+@media (pointer: coarse) { .chip-btn, .chip-jump { min-height: 44px; } }
 
 .filter {
   font-size: 11.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
@@ -520,7 +528,9 @@ tbody tr.chart-row:hover td { background: var(--bg3); }
             75 / 25, and rows crossing into or out of the top 10 of the
             ranking. Chips name the fund and carry its ticker in the tooltip; the
             twelve highest-priority fire first and <span class="gk">+n more</span>
-            reveals the rest.</li>
+            reveals the rest. <b>Click any chip</b> to jump to that instrument's row
+            and open its chart — the sleeve filter is cleared if it was hiding
+            the row.</li>
             <li>A <b>rank crossing</b> is a statement about the table, not a
             judgement about the fund: the row is inside the top 10 today and was
             outside it on each of the 5 sessions before, or the mirror. That
@@ -918,9 +928,30 @@ function alertChip(a) {
   const r = (DATA.rows || []).find(x => x.ticker === a.ticker) || {};
   const full = r.long_name || r.name || a.ticker;
   const name = r.name || a.ticker;
-  return `<span class="chip ${alertClass(a)}" title="${esc(a.ticker)} · ${esc(full)}">`
+  // A chip names an event and used to end there: the reader had to find the
+  // row by hand to see anything about it. It is a button now, and a real one
+  // rather than a span with a handler, so it is reachable by keyboard.
+  return `<button class="chip chip-jump ${alertClass(a)}" data-jump="${esc(a.ticker)}"`
+    + ` title="${esc(a.ticker)} · ${esc(full)} · click for its row and chart">`
     + `<span class="fund">${esc(name)}</span> ${esc(a.label)}`
-    + `${a.value ? ' ' + esc(a.value) : ''}</span>`;
+    + `${a.value ? ' ' + esc(a.value) : ''}</button>`;
+}
+
+// Jump from a chip to the row it is about, and open the chart there. Two
+// things have to happen first or the click lands on nothing: a sleeve filter
+// may be hiding the row, and a re-render drops any open chart.
+function jumpToRow(ticker) {
+  const row = (DATA.rows || []).find(x => x.ticker === ticker);
+  if (row && SLEEVE !== 'ALL' && !row.sleeves.includes(SLEEVE)) {
+    SLEEVE = 'ALL';
+    render();
+  }
+  const tr = document.querySelector(`tbody tr.data-row[data-ticker="${ticker}"]`);
+  if (!tr) return;
+  // Already open: scroll to it rather than toggling it shut, which is what a
+  // second click on the same chip would otherwise do.
+  if (openTicker !== ticker) toggleChart(ticker, tr);
+  tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // The payload carries EVERY alert in priority order and states the default
@@ -1120,6 +1151,8 @@ document.addEventListener('click', (e) => {
     renderAlerts();
     return;
   }
+  const jump = e.target.closest('#alerts .chip-jump');
+  if (jump) { jumpToRow(jump.dataset.jump); return; }
   const f = e.target.closest('.filter');
   if (f) { SLEEVE = f.dataset.s; render(); return; }
 
