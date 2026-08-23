@@ -1442,6 +1442,37 @@
     @media (max-width: 720px) {
       #positions-preview { grid-template-columns: 1fr; }
     }
+    /* NEXT FILL card (2026-08-23). Full width and leading, because "what is
+       coming" is the question the Monitor tab is opened to answer. It is the
+       ONLY forward-looking block on the page, so it is styled apart from the
+       record-of-what-happened cards either side of it -- an amber rule and a
+       PLANNED pill, so it cannot be skim-read as a trade log. */
+    .prev-card.next-fill {
+      grid-column: 1 / -1;
+      border-left: 4px solid var(--warn);
+      background: linear-gradient(to right, rgba(183,110,0,0.04), transparent 60%);
+    }
+    .nf-pill {
+      display: inline-block; font-size: 11px; font-weight: 700;
+      letter-spacing: .04em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 999px; margin-left: 8px;
+      background: rgba(183,110,0,0.12); color: var(--warn);
+      border: 1px solid rgba(183,110,0,0.30); vertical-align: 2px;
+    }
+    .nf-note {
+      font-size: 12.5px; color: var(--neutral); margin: 2px 0 10px;
+      line-height: 1.5;
+    }
+    .nf-note strong { color: var(--warn); }
+    .nf-hold {
+      font-size: 12.5px; margin: 8px 0 0; padding: 7px 10px; border-radius: 6px;
+      background: rgba(179,38,30,0.06); color: var(--bad);
+      border: 1px solid rgba(179,38,30,0.20);
+    }
+    #preview-nextfill-table td.nf-act { font-weight: 700; font-size: 12px; }
+    #preview-nextfill-table td.nf-buy  { color: var(--good); }
+    #preview-nextfill-table td.nf-sell { color: var(--bad); }
+    #preview-nextfill-table td.nf-trim { color: var(--neutral); }
     .prev-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -2009,6 +2040,30 @@
          the week's trades are the actionable payload and read first; the
          standing book follows). -->
     <div id="positions-preview">
+      <!-- The only FORWARD-LOOKING block on this page. Everything else here
+           records what happened; this is an intention, so the renderer is
+           required to print the fill date and the not-yet-executed notice.
+           Fed by data/live_targets.json (executed:false by construction). -->
+      <div class="prev-card next-fill" id="nextfill-card" style="display:none">
+        <div class="prev-card-h">
+          <span class="prev-card-h-title">Next fill<span class="nf-pill" id="nf-pill">planned</span></span>
+          <span class="prev-card-h-asof" id="preview-nextfill-asof">—</span>
+        </div>
+        <p class="nf-note" id="nf-note"></p>
+        <table class="prev-table" id="preview-nextfill-table">
+          <thead>
+            <tr>
+              <th class="th-sl">Sleeve</th>
+              <th class="th-tk">Ticker &amp; name</th>
+              <th class="th-act">Action</th>
+              <th class="th-delta">Held &rarr; Target (% NAV)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="prev-card-net" id="preview-nextfill-net"></div>
+        <div id="nf-hold-note"></div>
+      </div>
       <div class="prev-card">
         <div class="prev-card-h">
           <span class="prev-card-h-title">Latest rebalance changes</span>
@@ -4099,6 +4154,7 @@ function renderPositionsPreview() {
   const wts = { a: stNow.a, b: stNow.b, c: stNow.c, d: stNow.d };
   const labelMap = _buildEtfLabelMap(data);
   const lbl = (etf) => labelMap[etf] || '';
+  renderNextFill(labelMap);
 
   // ---- holdings ----
   const holdings = [];
@@ -4566,6 +4622,116 @@ function renderUniverseSelection() {
 // says "not measured", where a strip defaulting to "current" would assert
 // precisely what it does not know.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// NEXT FILL (2026-08-23)
+//
+// The only forward-looking block on this page. Every other card records what
+// HAPPENED; this one is an intention, and the single way it could mislead is
+// by being read as a trade log. So three things are non-negotiable here: the
+// PLANNED pill, the explicit "nothing here has been traded" sentence, and the
+// fill date it is for.
+//
+// Renders NOTHING when live_targets.json is absent -- an empty card says "not
+// computed", where a card defaulting to the current book would assert that no
+// trade is coming, which is a different and much worse claim.
+//
+// A sleeve reporting HOLD (its signal does not reach the venue's last close)
+// is listed but called out separately: those lines must NOT be traded, and
+// showing them silently beside the actionable ones is how a HOLD gets filled.
+// ---------------------------------------------------------------------------
+function renderNextFill(labelMap) {
+  const card = document.getElementById('nextfill-card');
+  if (!card) return;
+  const lt = (window.DATA || {}).live_targets;
+  if (!lt || !Array.isArray(lt.lines) || !lt.lines.length) return;
+
+  const lbl = (etf) => (labelMap || {})[etf] || '';
+  const nf = lt.next_fill || {};
+  const fillDate = nf.date;
+  const byVenue = nf.by_venue || {};
+
+  // The fill date is per venue and they can genuinely differ -- 2026-09-07 is
+  // a NYSE holiday that rolls the US sleeves forward while Xetra trades it.
+  // Say so rather than printing one date over both.
+  const whenText = fillDate
+    ? fmtDateLongSafe(fillDate)
+    : Object.entries(byVenue).map(([v, d]) => `${v} ${fmtDateLongSafe(d)}`).join(', ');
+
+  document.getElementById('preview-nextfill-asof').textContent =
+    fillDate ? `for ${fmtDateLongSafe(fillDate)}` : whenText;
+
+  document.getElementById('nf-note').innerHTML =
+    `<strong>Nothing here has been traded.</strong> These are the target `
+    + `weights for the next scheduled fill, ranked on the `
+    + `${fmtDateLongSafe(lt.as_of)} close and intended for ${whenText}. `
+    + `The book below the fold is what is actually held today.`;
+
+  const held = new Map();
+  for (const ln of lt.lines) held.set(ln.sleeve + '|' + ln.etf, ln);
+
+  // Only lines that MOVE, and only by enough to be a trade. At 5e-5 the card
+  // printed rows reading "6.5% -> 6.5% (+0.0pp)", which is drift from the
+  // weighting arithmetic rather than an instruction. 5bp of NAV is $500 on
+  // $1M -- below that nobody places an order.
+  //
+  // The omitted count is PRINTED, never silently dropped: a card that shows
+  // 17 of 20 moves without saying so reads as the complete list.
+  const NF_MIN_MOVE = 5e-4;
+  const moves = lt.lines.filter(l => Math.abs(l.delta) >= NF_MIN_MOVE)
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  const nDrift = lt.lines.filter(
+    l => Math.abs(l.delta) >= 5e-5 && Math.abs(l.delta) < NF_MIN_MOVE).length;
+
+  const rows = moves.map(l => {
+    const isBuy = l.held === 0 && l.target > 0;
+    const isSell = l.target === 0 && l.held > 0;
+    const action = isBuy ? 'BUY' : isSell ? 'SELL ALL' : (l.delta > 0 ? 'ADD' : 'TRIM');
+    const cls = isBuy || l.delta > 0 ? 'nf-buy' : (isSell ? 'nf-sell' : 'nf-trim');
+    const labelHtml = lbl(l.etf)
+      ? `<span class="tk-label">${_escapeHtml(lbl(l.etf))}</span>` : '';
+    const holdTag = l.status !== 'READY'
+      ? ' <span class="nf-pill" style="margin-left:4px">hold</span>' : '';
+    return `<tr>
+      <td class="sl">${_escapeHtml(l.sleeve)}</td>
+      <td class="tk">${_displaySym(l.etf)}${labelHtml}${holdTag}</td>
+      <td class="nf-act ${cls}">${action}</td>
+      <td class="num">${(l.held * 100).toFixed(1)}% &rarr; ${(l.target * 100).toFixed(1)}%
+          <span class="${cls}">(${l.delta >= 0 ? '+' : ''}${(l.delta * 100).toFixed(1)}pp)</span></td>
+    </tr>`;
+  }).join('');
+
+  document.querySelector('#preview-nextfill-table tbody').innerHTML = rows
+    || `<tr><td colspan="4" style="color:var(--neutral)">No position changes
+        due at the next fill — the book is already at its targets.</td></tr>`;
+
+  document.getElementById('preview-nextfill-net').textContent =
+    `${moves.length} move${moves.length === 1 ? '' : 's'}, `
+    + `one-way turnover ${(lt.one_way_turnover * 100).toFixed(2)}% of NAV`
+    + (nDrift ? `. ${nDrift} further line${nDrift === 1 ? '' : 's'} `
+                + `move${nDrift === 1 ? 's' : ''} by under 0.05pp of NAV `
+                + `(drift, not shown).` : '.');
+
+  const holds = (lt.sleeves || []).filter(x => x.status !== 'READY');
+  document.getElementById('nf-hold-note').innerHTML = holds.length
+    ? `<p class="nf-hold"><strong>Do not trade ${holds.map(h => h.sleeve).join(', ')}.</strong> `
+      + holds.map(h => _escapeHtml(h.reason || 'signal short of the last close')).join(' ')
+      + ` Leave those sleeves as held.</p>`
+    : '';
+
+  card.style.display = '';
+}
+
+// Long date without inventing a weekday: parsed as UTC so a local timezone
+// cannot shift the day, which is exactly how a Monday fill would print Sunday.
+function fmtDateLongSafe(iso) {
+  if (!iso) return '\u2014';
+  const d = new Date(iso + 'T00:00:00Z');
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric',
+                                         month: 'short', year: 'numeric',
+                                         timeZone: 'UTC' });
+}
+
 function renderStrategyFreshness() {
   const el = document.getElementById('live-freshness');
   if (!el) return;

@@ -181,9 +181,55 @@ def build(now_utc: datetime | None = None) -> dict:
     for ln in lines:
         ln["delta"] = ln["target"] - ln["held"]
     lines.sort(key=lambda x: (x["sleeve"], -abs(x["delta"])))
+    # WHICH fill is this, and has it happened? Both stated explicitly, because
+    # a target book that does not say either is indistinguishable from a record
+    # of trades already done -- which is the one way this artefact could
+    # mislead. `executed` is a constant here by construction: this module only
+    # ever describes an INTENDED book.
+    fills = {}
+    for sl in sleeves:
+        fd = next_fill_date(sl["venue"], now)
+        sl["fill_date"] = fd
+        fills[sl["venue"]] = fd
+    distinct = sorted({v for v in fills.values() if v})
+
     return {"computed_at_utc": now.isoformat(), "as_of": asof,
+            "executed": False,
+            "next_fill": {
+                "by_venue": fills,
+                "date": distinct[0] if len(distinct) == 1 else None,
+                "venues_agree": len(distinct) == 1,
+            },
             "sleeves": sleeves, "lines": lines,
             "one_way_turnover": sum(abs(x["delta"]) for x in lines) / 2}
+
+
+def next_fill_date(venue: str, now_utc: datetime,
+                   horizon_days: int = 30) -> str | None:
+    """The next session on which this venue's sleeves are scheduled to trade.
+
+    Derived from the SAME function the engines use (engine_rebalance_dates
+    under the active DEFAULT_MODE), not from "the next Monday". Those are not
+    the same thing: a holiday Monday rolls FORWARD under holiday_aware_next,
+    and the venues diverge when they do -- 2026-09-07 is a NYSE holiday that
+    rolls the US sleeves to the 8th while Xetra trades the 7th. Computing it
+    per venue is the only way that stays right.
+
+    Python datetime months are 1-indexed; the weekday is never derived by hand.
+    """
+    import rebalance_calendar as rc
+    import run_topk_robustness as tk
+    start = (now_utc - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+    end = (now_utc + pd.Timedelta(days=horizon_days)).strftime("%Y-%m-%d")
+    sched = mcal.get_calendar(venue).schedule(start_date=start, end_date=end)
+    if not len(sched):
+        return None
+    idx = pd.DatetimeIndex(sched.index)
+    dates = rc.engine_rebalance_dates(idx, idx[0], freq=tk.HEADLINE_FREQ,
+                                      calendar=venue)
+    today = pd.Timestamp(now_utc.date())
+    upcoming = [d for d in dates if d > today]
+    return str(upcoming[0].date()) if upcoming else None
 
 
 def _traded(etf: str) -> str:
@@ -199,7 +245,12 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     r = build()
 
-    print(f"\nTARGETS for the next fill — computed {r['computed_at_utc'][:16]}Z\n")
+    nf = r.get("next_fill", {})
+    when = nf.get("date") or "/".join(
+        f"{k} {v}" for k, v in (nf.get("by_venue") or {}).items())
+    print(f"\nTARGETS for the next fill — NOT YET EXECUTED, intended for "
+          f"{when}\n  computed {r['computed_at_utc'][:16]}Z from the "
+          f"{r.get('as_of')} close\n")
     print(f"  {'sleeve':7s} {'venue':6s} {'decided on':12s} {'vs last close':13s} status")
     for s in r["sleeves"]:
         print(f"  {s['sleeve']:7s} {s['venue']:6s} "

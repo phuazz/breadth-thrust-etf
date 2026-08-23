@@ -153,6 +153,22 @@ def load_right_tail() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_live_targets() -> dict | None:
+    """The NEXT fill, written by scripts/live_targets.py.
+
+    A FORWARD-LOOKING artefact, and the only one on the page. Everything else
+    the dashboard renders is a record of what happened; this is an intention,
+    so it carries `executed: False` and a `next_fill` date and the template is
+    required to say both. A projection that does not announce itself is
+    indistinguishable from a trade log.
+    """
+    path = DATA_DIR / "live_targets.json"
+    if not path.exists():
+        return None
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    return blob if blob.get("lines") else None
+
+
 def load_strategy_freshness() -> dict | None:
     """Per-sleeve data reach, written by scripts/strategy_freshness.py.
 
@@ -809,6 +825,12 @@ def main() -> int:
     assert_derived_not_stale_vs_source(
         DATA_DIR / "strategy_freshness.json", breadth_sources, max_lag_days=1,
     )
+    # ONE day, same reasoning as freshness and for a sharper reason: a stale
+    # target book shows LAST week's intended trade under this week's heading.
+    # That is worse than a stale chart, because a reader could act on it.
+    assert_derived_not_stale_vs_source(
+        DATA_DIR / "live_targets.json", breadth_sources, max_lag_days=1,
+    )
 
     # Phase 28.5 P3 — source-panel freshness anchor. The Phase 28 derived-
     # vs-source mtime check above only catches "derived forgot to refresh
@@ -901,6 +923,16 @@ def main() -> int:
         print(f"  bootstrap: {len(ps)} per-strategy + {len(ds)} paired diffs "
               f"({bootstrap.get('n_bootstrap_samples', 0)} samples, "
               f"block size {bootstrap.get('block_size_days', 0)}d)")
+
+    print("Loading next-fill targets ...", flush=True)
+    live_targets = load_live_targets()
+    if live_targets:
+        nf = (live_targets.get("next_fill") or {}).get("date")
+        holds = [s["sleeve"] for s in live_targets["sleeves"]
+                 if s["status"] != "READY"]
+        print(f"  next fill {nf}: {len(live_targets['lines'])} lines, "
+              f"turnover {live_targets['one_way_turnover']*100:.2f}% of NAV"
+              + (f", HOLD: {', '.join(holds)}" if holds else ""))
 
     print("Loading per-strategy data freshness ...", flush=True)
     strategy_freshness = load_strategy_freshness()
@@ -1295,6 +1327,7 @@ def main() -> int:
         "risk_overlay": risk_overlay,
         "execution_timing": execution_timing,
         "strategy_freshness": strategy_freshness,
+        "live_targets": live_targets,
     }
 
     template_text = TEMPLATE.read_text(encoding="utf-8")

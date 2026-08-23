@@ -321,6 +321,13 @@ def main() -> int:
             "scripts/repair_price_gaps.py"),
         ("strategy_freshness (per-sleeve data reach)",
             "scripts/strategy_freshness.py"),
+        # The NEXT fill, ranked on the last close. It was an operator-only
+        # step and its JSON sat a WEEK stale on disk, which is exactly the
+        # state in which a forward-looking panel misleads worst -- it would
+        # show last week's intended trade as this week's. Runs before the
+        # page builds so the dashboard renders what this refresh computed.
+        ("live_targets (next fill, not yet executed)",
+            "scripts/live_targets.py"),
         ("pipeline (build docs/index.html + factsheet PDF)",
             "scripts/pipeline.py"),
         ("simple page (build build/portfolio.html, the reduced public view)",
