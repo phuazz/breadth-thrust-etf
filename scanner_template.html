@@ -144,6 +144,16 @@ body {
 .chip-jump:focus-visible { outline: 2px solid var(--b-text); outline-offset: 1px; }
 @media (pointer: coarse) { .chip-btn, .chip-jump { min-height: 44px; } }
 
+.jumpnote {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 10px 0 0; padding: 8px 12px; font-size: 12px;
+  border: 1px solid rgba(180,83,9,0.25); border-radius: var(--radius);
+  background: var(--a-bg); color: var(--a-text);
+}
+.jumpnote .tk { font-family: var(--mono); font-weight: 600; }
+.jumpnote button { background: var(--bg2); }
+[hidden] { display: none !important; }
+
 .filter {
   font-size: 11.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
   border: 1px solid var(--bd); background: var(--bg2); color: var(--t2);
@@ -529,8 +539,9 @@ tbody tr.chart-row:hover td { background: var(--bg3); }
             ranking. Chips name the fund and carry its ticker in the tooltip; the
             twelve highest-priority fire first and <span class="gk">+n more</span>
             reveals the rest. <b>Click any chip</b> to jump to that instrument's row
-            and open its chart — the sleeve filter is cleared if it was hiding
-            the row.</li>
+            and open its chart. If your sleeve filter is hiding that row, the page
+            says which sleeve the instrument sits in and leaves the filter alone
+            until you ask for it.</li>
             <li>A <b>rank crossing</b> is a statement about the table, not a
             judgement about the fund: the row is inside the top 10 today and was
             outside it on each of the 5 sessions before, or the mirror. That
@@ -590,6 +601,11 @@ tbody tr.chart-row:hover td { background: var(--bg3); }
   <div class="striprow"><span class="lbl">Overlays</span><span id="overlays"></span></div>
   <div class="striprow"><span class="lbl">Alerts</span><span id="alerts"></span></div>
   <div class="striprow"><span class="lbl">Sleeve</span><span id="filters"></span></div>
+
+  <!-- Says why a chip did not go anywhere. Sits beside the sleeve buttons
+       because they are what resolves it. aria-live so a screen reader hears
+       the refusal rather than silence. -->
+  <div class="jumpnote" id="jumpnote" role="status" aria-live="polite" hidden></div>
 
   <div class="card">
     <div class="tblwrap">
@@ -937,15 +953,40 @@ function alertChip(a) {
     + `${a.value ? ' ' + esc(a.value) : ''}</button>`;
 }
 
-// Jump from a chip to the row it is about, and open the chart there. Two
-// things have to happen first or the click lands on nothing: a sleeve filter
-// may be hiding the row, and a re-render drops any open chart.
+function sleeveLabel(code) {
+  const s = SLEEVES.find(([k]) => k === code);
+  return s ? s[1] : code;
+}
+
+// A chip can address a row the sleeve filter is hiding. The filter is the
+// reader's setting, so the page says so and offers the change rather than
+// making it: silently widening the scope would answer one click by undoing
+// an instruction.
+function showJumpNote(row) {
+  const el = document.getElementById('jumpnote');
+  const where = row.sleeves.map(sleeveLabel).join(', ') || 'no sleeve';
+  el.innerHTML =
+    `<span><b>${esc(row.name)}</b> (<span class="tk">${esc(row.ticker)}</span>) is not in `
+    + `${esc(sleeveLabel(SLEEVE))} — it sits in ${esc(where)}. Filter unchanged.</span>`
+    + `<button class="chip chip-btn" data-showjump="${esc(row.ticker)}">Show it anyway</button>`;
+  el.hidden = false;
+}
+
+function clearJumpNote() {
+  const el = document.getElementById('jumpnote');
+  if (el) { el.hidden = true; el.innerHTML = ''; }
+}
+
+// Jump from a chip to the row it is about, and open the chart there. A
+// re-render drops any open chart, so the chart is opened after any filter
+// change rather than before.
 function jumpToRow(ticker) {
   const row = (DATA.rows || []).find(x => x.ticker === ticker);
   if (row && SLEEVE !== 'ALL' && !row.sleeves.includes(SLEEVE)) {
-    SLEEVE = 'ALL';
-    render();
+    showJumpNote(row);
+    return;
   }
+  clearJumpNote();
   const tr = document.querySelector(`tbody tr.data-row[data-ticker="${ticker}"]`);
   if (!tr) return;
   // Already open: scroll to it rather than toggling it shut, which is what a
@@ -1151,10 +1192,18 @@ document.addEventListener('click', (e) => {
     renderAlerts();
     return;
   }
+  const show = e.target.closest('[data-showjump]');
+  if (show) {
+    const t = show.dataset.showjump;
+    SLEEVE = 'ALL';
+    render();
+    jumpToRow(t);
+    return;
+  }
   const jump = e.target.closest('#alerts .chip-jump');
   if (jump) { jumpToRow(jump.dataset.jump); return; }
   const f = e.target.closest('.filter');
-  if (f) { SLEEVE = f.dataset.s; render(); return; }
+  if (f) { SLEEVE = f.dataset.s; clearJumpNote(); render(); return; }
 
   // Chart-panel controls first: they live inside a <tr>, so letting the row
   // handler see them would collapse the very chart being adjusted.
