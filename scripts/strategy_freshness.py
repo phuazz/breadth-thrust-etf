@@ -40,6 +40,19 @@ STALEST INPUT WINS. A strategy is only as fresh as its stalest ranking input,
 because one lagging name can change the selection. The laggards are NAMED, or
 the reader has a warning they cannot act on.
 
+THREE REASONS A SLEEVE STOPS SHORT, and each needs its own sentence:
+
+  1. One input lags the rest. `laggards` names it. Deliberately EMPTY when the
+     whole sleeve shares one date, because listing every member is noise.
+  2. The vendor has yet to publish. The panel declares a `tail_cap` and
+     `_cap_reason` reads it out. A UCITS artefact -- no US panel carries one.
+  3. Nothing has been rebuilt since. Every input stops at the same date and no
+     cap applies, so BOTH channels above are empty BY CONSTRUCTION and the row
+     said "behind" with nothing attached -- on 2026-08-24 all four sleeves did.
+     `_uniform_stale_reason` is the third sentence, and it also covers the
+     inverse fault: data dated PAST the venue's last close, which is a partial
+     bar and must not be described as "not refreshed yet".
+
 Python datetime months are 1-indexed (January = 1). Session arithmetic goes
 through pandas_market_calendars via session_bounds -- never a manual weekday.
 
@@ -194,11 +207,17 @@ def build(now_utc: datetime | None = None) -> dict:
 
     def add(key: str, venue: str, reach: str | None, laggards: list[str],
             source: str, why: str | None = None,
-            why_plain: str | None = None) -> None:
+            why_plain: str | None = None, *, inputs: str = "inputs") -> None:
         cal = mcal.get_calendar(venue)
         lcs = last_completed_session_on(cal, now)
         venue_last = str(lcs.date()) if lcs is not None else None
         status, gap = classify(reach, venue_last, venue)
+        # Reason 3 (see the module docstring). Reached only when the two
+        # specific channels have nothing to say, so a named laggard or a
+        # declared tail_cap always wins over the generic sentence.
+        if status == BEHIND and not laggards and not why:
+            why, why_plain = _uniform_stale_reason(
+                reach, venue_last, gap, venue, inputs)
         rows.append({
             "sleeve": key,
             "label": SLEEVE_LABELS[key],
@@ -217,23 +236,25 @@ def build(now_utc: datetime | None = None) -> dict:
     a_reach, a_lag, a_caps = panel_reach(list(UNIVERSE_ETFS))
     add("A", _venue_for(list(UNIVERSE_ETFS)), a_reach, a_lag,
         "breadth panels (constituents above their 200-day average)",
-        *_cap_reason(a_caps, a_reach))
+        *_cap_reason(a_caps, a_reach), inputs="breadth panels")
 
     # --- B: asset-class prices -------------------------------------------
     import run_asset_class_rotation as ac
     b_reach, b_lag = cache_reach(ac.PRICE_CACHE, list(ac.TICKERS))
-    add("B", "NYSE", b_reach, b_lag, "price cache (asset-class ETFs)", None)
+    add("B", "NYSE", b_reach, b_lag, "price cache (asset-class ETFs)", None,
+        inputs="cached price series")
 
     # --- C: thematic prices ----------------------------------------------
     import run_thematic_rotation as th
     c_reach, c_lag = cache_reach(th.PRICE_CACHE, list(th.TICKERS))
-    add("C", "NYSE", c_reach, c_lag, "price cache (thematic ETFs)", None)
+    add("C", "NYSE", c_reach, c_lag, "price cache (thematic ETFs)", None,
+        inputs="cached price series")
 
     # --- D: European sector breadth panels --------------------------------
     d_reach, d_lag, d_caps = panel_reach(list(UNIVERSE_EUROPE_SECTORS))
     add("D", _venue_for(list(UNIVERSE_EUROPE_SECTORS)), d_reach, d_lag,
         "breadth panels (constituents above their 200-day average)",
-        *_cap_reason(d_caps, d_reach))
+        *_cap_reason(d_caps, d_reach), inputs="breadth panels")
 
     behind = [r for r in rows if r["status"] == BEHIND]
     return {
@@ -272,6 +293,55 @@ def _cap_reason(caps: dict, reach: str | None) -> tuple[str | None, str | None]:
     plain = (f"the shares held inside these funds are priced up to {priced}, "
              f"while the exchange itself has traded to {traded} — the data "
              f"provider publishes European prices about a day late.")
+    return technical, plain
+
+
+def _uniform_stale_reason(reach: str | None, venue_last: str | None,
+                          gap: int | None, venue: str,
+                          inputs: str) -> tuple[str | None, str | None]:
+    """Explain a BEHIND row whose inputs are ALL stale at the same date.
+
+    Reason 3 of the three in the module docstring, and the one that had no
+    voice until 2026-08-25. The other two channels cannot speak here BY
+    CONSTRUCTION: `laggards` is deliberately emptied when the whole sleeve
+    shares one date, and `_cap_reason` fires only on a declared `tail_cap`,
+    which none of the US panels and neither price cache carries. So the most
+    ordinary cause of all -- the pipeline has not been run since -- produced a
+    row that said "behind" and stopped. Both the dashboard note and the public
+    page render `why`/`why_plain` or nothing, so on 2026-08-24 all four sleeves
+    printed a gap with no explanation beside it.
+
+    TWO BRANCHES, because they are not the same fault and must not share a
+    sentence:
+
+      gap > 0  the data stops short of the venue. Nothing has been rebuilt.
+               The reader's action is to run the refresh.
+      gap < 0  the data runs PAST the last completed session, which is a
+               partial bar -- a defect, not a staleness. Calling that "not
+               refreshed yet" would point the reader at the wrong action and
+               hide the case classify() goes out of its way to keep visible.
+
+    TWO REGISTERS, matching `_cap_reason`: the technical string names the venue
+    and goes to the dashboard and the operator CLI; the plain one goes to the
+    reduced public page, which is written for a non-specialist and refuses the
+    method vocabulary. Dates stay ISO in both -- the renderer formats them.
+    """
+    if not reach or not venue_last or gap is None or gap == 0:
+        return None, None
+    if gap > 0:
+        technical = (f"every one of the {inputs} stops at {reach} while "
+                     f"{venue} has completed {venue_last} — none lags the "
+                     f"others, so they have not been rebuilt since.")
+        plain = (f"the data behind this strategy stops on {reach}, while the "
+                 f"market has traded to {venue_last} — it has not been "
+                 f"rebuilt since.")
+        return technical, plain
+    technical = (f"the {inputs} carry {reach}, past {venue}'s last completed "
+                 f"session {venue_last} — that session has not closed, so this "
+                 f"is a partial bar rather than a refresh.")
+    plain = (f"the data behind this strategy is dated {reach}, later than the "
+             f"last full trading day, {venue_last} — that day has not "
+             f"finished, so the figure is incomplete.")
     return technical, plain
 
 

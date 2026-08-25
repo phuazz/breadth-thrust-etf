@@ -26,6 +26,7 @@ from scripts.strategy_freshness import (
     CURRENT,
     UNKNOWN,
     _cap_reason,
+    _uniform_stale_reason,
     build,
     cache_reach,
     classify,
@@ -261,11 +262,142 @@ def test_all_current_agrees_with_the_rows():
 
 def test_a_behind_strategy_carries_something_actionable():
     """A warning the reader cannot act on is not a warning: every behind row
-    must name its laggard inputs or explain why it stops where it does."""
-    r = build()
+    must name its laggard inputs or explain why it stops where it does.
+
+    PINNED TO A FIXED HOUR, deliberately. This test used to call ``build()``
+    on the wall clock, which made it a data-staleness alarm wearing a unit
+    test's clothing: green while the book was current, red the moment it fell
+    one session behind, green again after a refresh. On 2026-08-24 that took
+    the scanner and the mark-to-market publish down for a condition that is
+    not a code defect, and pointed the failure email at three causes that did
+    not apply. Staleness IS alarmed, where it belongs and against real time:
+    ``pipeline.assert_source_panel_fresh_vs_today`` on a five-trading-day
+    budget, which names refresh_all.py as the fix.
+
+    What belongs here is the invariant. The hour is far past every committed
+    date so that every row IS behind and the explanation path is exercised on
+    the real artefacts — the case that used to fail silently.
+    """
+    r = build(now_utc=datetime(2026, 12, 31, 6, 0, tzinfo=timezone.utc))
+    assert [s for s in r["strategies"] if s["status"] == BEHIND], (
+        "pin the hour later — this test proves nothing if nothing is behind")
     for s in r["strategies"]:
         if s["status"] == BEHIND:
             assert s["laggards"] or s["why"], s
+
+
+# ---------------------------------------------------------------------------
+# The third reason — uniform staleness, which had no channel until 2026-08-25
+# ---------------------------------------------------------------------------
+def _hermetic_world(tmp_path, monkeypatch, *, panel_end: str, cache_end: str,
+                    straggler: str | None = None) -> None:
+    """Every input build() reads, synthesised, so the verdict is ours to set.
+
+    build() otherwise reads fourteen committed panels and two committed price
+    caches, which move under the test. Point DATA_DIR and both PRICE_CACHE
+    module attributes at tmp_path and the sleeves say exactly what we chose.
+    """
+    import pandas as pd
+
+    import run_asset_class_rotation as ac
+    import run_thematic_rotation as th
+    import scripts.strategy_freshness as sf
+    from scripts.etf_registry import UNIVERSE_ETFS, UNIVERSE_EUROPE_SECTORS
+
+    monkeypatch.setattr(sf, "DATA_DIR", tmp_path)
+    members = list(UNIVERSE_ETFS) + list(UNIVERSE_EUROPE_SECTORS)
+    for etf in members:
+        _write_panel(tmp_path, etf, panel_end)
+    if straggler:
+        _write_panel(tmp_path, straggler, "2026-08-19")
+
+    # Two rows so a straggler can be expressed as a trailing NaN rather than a
+    # shorter frame — the BTC-USD shape cache_reach already handles.
+    idx = pd.to_datetime(["2026-08-18", cache_end])
+    for mod, name in ((ac, "ac.parquet"), (th, "th.parquet")):
+        frame = pd.DataFrame({t: [1.0, 1.0] for t in mod.TICKERS}, index=idx)
+        p = tmp_path / name
+        frame.to_parquet(p)
+        monkeypatch.setattr(mod, "PRICE_CACHE", p)
+
+
+# Tue 25 Aug 2026, 06:00 UTC. Both NYSE and Xetra last completed Mon 24 Aug:
+# NYSE closes 20:00 UTC and Xetra 15:30 UTC, so neither has closed on the 25th.
+# Python datetime months are 1-indexed (August = 8).
+_TUE_25_AUG = datetime(2026, 8, 25, 6, 0, tzinfo=timezone.utc)
+
+
+def test_a_uniformly_stale_sleeve_still_says_why(tmp_path, monkeypatch):
+    """THE REGRESSION, reproduced. Every panel and both caches stop at Friday
+    2026-08-21 and the venues have completed Monday 2026-08-24. No member lags
+    another, so `laggards` is empty by design; no panel declares a tail_cap, so
+    `_cap_reason` is silent. Before the fix all four sleeves published `behind`
+    with `why: null`, the dashboard note rendered blank, and this suite failed
+    on a condition no code change could clear."""
+    _hermetic_world(tmp_path, monkeypatch, panel_end="2026-08-21",
+                    cache_end="2026-08-21")
+    r = build(now_utc=_TUE_25_AUG)
+    behind = [s for s in r["strategies"] if s["status"] == BEHIND]
+    assert [s["sleeve"] for s in behind] == ["A", "B", "C", "D"], r
+    for s in behind:
+        assert s["sessions_behind"] == 1, s
+        assert s["laggards"] == [], s
+        assert s["why"] and s["why_plain"], s
+        # The two dates the reader needs to act must both be IN the sentence,
+        # not merely implied by the row around it.
+        assert "2026-08-21" in s["why"] and "2026-08-24" in s["why"], s
+        assert "2026-08-21" in s["why_plain"], s
+
+
+def test_a_named_laggard_still_wins_over_the_generic_reason(tmp_path,
+                                                            monkeypatch):
+    """The fallback must be last, not first. When one member IS stalest the
+    row names it, and the generic sentence stays out of the way — otherwise
+    the specific channel would be papered over by the vague one."""
+    _hermetic_world(tmp_path, monkeypatch, panel_end="2026-08-21",
+                    cache_end="2026-08-21", straggler="SOXX")
+    r = build(now_utc=_TUE_25_AUG)
+    a = next(s for s in r["strategies"] if s["sleeve"] == "A")
+    assert a["status"] == BEHIND
+    assert a["laggards"] == ["SOXX"], a
+    assert a["why"] is None, a
+
+
+def test_data_past_the_last_close_is_a_partial_bar_not_staleness(tmp_path,
+                                                                 monkeypatch):
+    """The inverse fault gets its OWN sentence. A panel dated past the venue's
+    last completed session is an unfinished bar; describing it as "not rebuilt
+    since" would point the reader at a refresh, which is the one action that
+    cannot help and would overwrite the evidence."""
+    _hermetic_world(tmp_path, monkeypatch, panel_end="2026-08-25",
+                    cache_end="2026-08-25")
+    r = build(now_utc=_TUE_25_AUG)
+    a = next(s for s in r["strategies"] if s["sleeve"] == "A")
+    assert a["status"] == BEHIND and a["sessions_behind"] == -1, a
+    assert "partial bar" in a["why"], a
+    assert "rebuilt" not in a["why"], a
+    assert "incomplete" in a["why_plain"], a
+
+
+def test_the_generic_reason_has_a_plain_register_too():
+    """Same two-audience rule `_cap_reason` follows: the public page is written
+    for a non-specialist and already refuses to print the method to one, so the
+    plain string must carry the same facts without the technical vocabulary."""
+    technical, plain = _uniform_stale_reason(
+        "2026-08-21", "2026-08-24", 1, "NYSE", "breadth panels")
+    assert technical and plain
+    for jargon in ("constituent", "venue", "vendor", "panel", "nyse"):
+        assert jargon not in plain.lower(), jargon
+    for d in ("2026-08-21", "2026-08-24"):
+        assert d in technical and d in plain, d
+
+
+def test_a_current_sleeve_gets_no_generic_reason():
+    """A zero gap is not a fault and must not acquire an explanation."""
+    assert _uniform_stale_reason("2026-08-21", "2026-08-21", 0, "NYSE",
+                                 "breadth panels") == (None, None)
+    assert _uniform_stale_reason(None, "2026-08-21", None, "NYSE",
+                                 "breadth panels") == (None, None)
 
 
 def test_the_report_is_injectable_so_it_can_be_tested_at_a_fixed_hour():
