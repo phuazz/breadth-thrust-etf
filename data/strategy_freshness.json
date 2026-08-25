@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-08-25T02:13:16.116631+00:00",
+ "computed_at_utc": "2026-08-25T08:24:41.713738+00:00",
  "strategies": [
   {
    "sleeve": "A",
@@ -11,6 +11,7 @@
    "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
+   "carried": false,
    "why": "every one of the breadth panels stops at 2026-08-21 while NYSE has completed 2026-08-24 \u2014 none lags the others, so they have not been rebuilt since.",
    "why_plain": "the data behind this strategy stops on 2026-08-21, while the market has traded to 2026-08-24 \u2014 it has not been rebuilt since."
   },
@@ -23,7 +24,8 @@
    "sessions_behind": 1,
    "status": "behind",
    "laggards": [],
-   "source": "price cache (asset-class ETFs)",
+   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-08-25T02:13Z; the cache is not present on this checkout",
+   "carried": true,
    "why": "every one of the cached price series stops at 2026-08-21 while NYSE has completed 2026-08-24 \u2014 none lags the others, so they have not been rebuilt since.",
    "why_plain": "the data behind this strategy stops on 2026-08-21, while the market has traded to 2026-08-24 \u2014 it has not been rebuilt since."
   },
@@ -36,7 +38,8 @@
    "sessions_behind": 1,
    "status": "behind",
    "laggards": [],
-   "source": "price cache (thematic ETFs)",
+   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-08-25T02:13Z; the cache is not present on this checkout",
+   "carried": true,
    "why": "every one of the cached price series stops at 2026-08-21 while NYSE has completed 2026-08-24 \u2014 none lags the others, so they have not been rebuilt since.",
    "why_plain": "the data behind this strategy stops on 2026-08-21, while the market has traded to 2026-08-24 \u2014 it has not been rebuilt since."
   },
@@ -50,6 +53,7 @@
    "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
+   "carried": false,
    "why": "every one of the breadth panels stops at 2026-08-21 while XETR has completed 2026-08-24 \u2014 none lags the others, so they have not been rebuilt since.",
    "why_plain": "the data behind this strategy stops on 2026-08-21, while the market has traded to 2026-08-24 \u2014 it has not been rebuilt since."
   }
