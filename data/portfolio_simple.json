@@ -6719,48 +6719,48 @@
  "n_positions": 22,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-08-23T07:11:36.128478+00:00",
-  "all_current": true,
+  "computed_at_utc": "2026-08-25T02:13:16.116631+00:00",
+  "all_current": false,
   "strategies": [
    {
     "sleeve": "A",
     "label": "US sectors",
     "data_through": "2026-08-21",
-    "venue_last_session": "2026-08-21",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-08-24",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-08-21, while the market has traded to 2026-08-24 — it has not been rebuilt since."
    },
    {
     "sleeve": "B",
     "label": "Asset classes",
     "data_through": "2026-08-21",
-    "venue_last_session": "2026-08-21",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-08-24",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-08-21, while the market has traded to 2026-08-24 — it has not been rebuilt since."
    },
    {
     "sleeve": "C",
     "label": "Thematic",
     "data_through": "2026-08-21",
-    "venue_last_session": "2026-08-21",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-08-24",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-08-21, while the market has traded to 2026-08-24 — it has not been rebuilt since."
    },
    {
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-08-21",
-    "venue_last_session": "2026-08-21",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-08-24",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-08-21, while the market has traded to 2026-08-24 — it has not been rebuilt since."
    }
   ]
  },
