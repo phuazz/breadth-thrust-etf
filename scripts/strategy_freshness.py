@@ -36,6 +36,19 @@ for A and D (whose `tail_cap` field states why a panel stops where it does),
 and the price caches for B and C. Read from disk, never fetched -- a freshness
 report that goes to the network would describe the vendor, not the artefacts.
 
+ONE ASYMMETRY IN WHAT A CHECKOUT CONTAINS. The breadth panels are committed;
+the two price caches are gitignored bulk vendor downloads, so on a fresh
+checkout -- the CI runner that recomputes this report daily -- B and C's
+inputs are simply not there. Absent is not unknown: those caches move only
+when a local refresh writes them, and the bound they reached when last
+measured is recorded in the committed copy of this very report. A missing
+cache therefore CARRIES that bound forward and re-judges it against today's
+clock -- the verdict refreshes daily, the measurement refreshes when the
+caches do, and the row's `source` says which of the two happened. A cache
+that EXISTS but yields nothing stays unknown (that is a fault to surface,
+not to paper over), and so does a missing prior report: the module never
+invents a date.
+
 STALEST INPUT WINS. A strategy is only as fresh as its stalest ranking input,
 because one lagging name can change the selection. The laggards are NAMED, or
 the reader has a warning they cannot act on.
@@ -201,13 +214,67 @@ def cache_reach(cache_path: Path,
     return stalest, laggards
 
 
+def _last_measured(sleeve: str) -> tuple[str | None, list[str], str | None]:
+    """``(data_through, laggards, computed_at_utc)`` as last measured on disk.
+
+    Reads the committed copy of this module's own report. Only a row with a
+    real ``data_through`` counts -- carrying a None forward would launder
+    "unknown" into "known", which is the one thing the fallback must not do.
+    """
+    path = DATA_DIR / "strategy_freshness.json"
+    if not path.exists():
+        return None, [], None
+    try:
+        blob = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return None, [], None
+    for row in blob.get("strategies") or []:
+        if row.get("sleeve") == sleeve and row.get("data_through"):
+            return (row["data_through"], list(row.get("laggards") or []),
+                    blob.get("computed_at_utc"))
+    return None, [], None
+
+
+def cache_reach_or_carried(
+        cache_path: Path, tickers: list[str], sleeve: str,
+        source: str) -> tuple[str | None, list[str], str, bool]:
+    """Measure the cache, or carry the last measured bound when it is ABSENT.
+
+    The two engine price caches are gitignored (bulk vendor downloads), so a
+    fresh checkout -- the CI runner recomputing this report daily since
+    2026-08-25 -- does not have them, while every breadth panel, being
+    committed, is present. The first such recompute wrote
+    ``data_through: null`` for B and C and the reduced page failed its own
+    parity gate on rows that answered nothing -- while the bound it needed,
+    2026-08-21, sat in the committed report it had just overwritten.
+
+    Absence of the FILE is the trigger, not emptiness of the frame: a cache
+    that exists but yields no dates has lost its columns, a fault this report
+    must surface rather than smooth over. The carried bound errs only on the
+    stale side -- nothing but a local refresh writes these caches, and if one
+    ran without committing, the carried date understates, which is the safe
+    direction for a freshness claim.
+    """
+    reach, laggards = cache_reach(cache_path, tickers)
+    if reach is not None or cache_path.exists():
+        return reach, laggards, source, False
+    carried, laggards, measured_at = _last_measured(sleeve)
+    if carried is None:
+        return None, [], source, False
+    stamp = f" of {measured_at[:16]}Z" if measured_at else ""
+    return carried, laggards, (
+        f"{source} — bound carried from the committed report{stamp}; the "
+        f"cache is not present on this checkout"), True
+
+
 def build(now_utc: datetime | None = None) -> dict:
     now = now_utc or datetime.now(timezone.utc)
     rows: list[dict] = []
 
     def add(key: str, venue: str, reach: str | None, laggards: list[str],
             source: str, why: str | None = None,
-            why_plain: str | None = None, *, inputs: str = "inputs") -> None:
+            why_plain: str | None = None, *, inputs: str = "inputs",
+            carried: bool = False) -> None:
         cal = mcal.get_calendar(venue)
         lcs = last_completed_session_on(cal, now)
         venue_last = str(lcs.date()) if lcs is not None else None
@@ -228,6 +295,10 @@ def build(now_utc: datetime | None = None) -> dict:
             "status": status,
             "laggards": laggards,
             "source": source,
+            # True when `data_through` is the last MEASURED bound rather than
+            # a measurement made now — the gitignored-cache case above. The
+            # verdict beside it is still judged against today's clock.
+            "carried": carried,
             "why": why,
             "why_plain": why_plain,
         })
@@ -240,15 +311,17 @@ def build(now_utc: datetime | None = None) -> dict:
 
     # --- B: asset-class prices -------------------------------------------
     import run_asset_class_rotation as ac
-    b_reach, b_lag = cache_reach(ac.PRICE_CACHE, list(ac.TICKERS))
-    add("B", "NYSE", b_reach, b_lag, "price cache (asset-class ETFs)", None,
-        inputs="cached price series")
+    b_reach, b_lag, b_source, b_carried = cache_reach_or_carried(
+        ac.PRICE_CACHE, list(ac.TICKERS), "B", "price cache (asset-class ETFs)")
+    add("B", "NYSE", b_reach, b_lag, b_source, None,
+        inputs="cached price series", carried=b_carried)
 
     # --- C: thematic prices ----------------------------------------------
     import run_thematic_rotation as th
-    c_reach, c_lag = cache_reach(th.PRICE_CACHE, list(th.TICKERS))
-    add("C", "NYSE", c_reach, c_lag, "price cache (thematic ETFs)", None,
-        inputs="cached price series")
+    c_reach, c_lag, c_source, c_carried = cache_reach_or_carried(
+        th.PRICE_CACHE, list(th.TICKERS), "C", "price cache (thematic ETFs)")
+    add("C", "NYSE", c_reach, c_lag, c_source, None,
+        inputs="cached price series", carried=c_carried)
 
     # --- D: European sector breadth panels --------------------------------
     d_reach, d_lag, d_caps = panel_reach(list(UNIVERSE_EUROPE_SECTORS))
@@ -404,6 +477,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"     stalest input: {', '.join(s['laggards'])}")
         if s["why"] and s["status"] != CURRENT:
             print(f"     {s['why']}")
+        if s.get("carried"):
+            # The one state a reader of this log cannot infer from the table:
+            # the bound above was not measured on this checkout.
+            print(f"     {s['source']}")
 
     if r["all_current"]:
         print("\n  All four strategies are current to their own venue's last close.")

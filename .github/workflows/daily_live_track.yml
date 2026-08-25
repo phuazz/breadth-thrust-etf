@@ -183,7 +183,13 @@ jobs:
       # behind from Monday's close until Tuesday. Recomputing it here, in the
       # unattended path, is what keeps it true between local refreshes. It
       # reads artefacts off disk and fetches nothing, so it describes the state
-      # THIS run is about to publish. Must precede the two page builds below.
+      # THIS run is about to publish. One asymmetry: sleeves B and C measure
+      # gitignored price caches, which a runner checkout does not have — the
+      # first recompute here (2026-08-25) wrote data_through: null for both and
+      # failed the reduced page's parity gate. The module now carries their
+      # last committed measurement forward and re-judges it against the clock,
+      # with the carry disclosed in the row. Must precede the two page builds
+      # below.
       #
       # Soft-failed on purpose: this is one strip on the dashboard, not the
       # book, and _load_freshness is explicit that a missing report should not

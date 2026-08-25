@@ -30,6 +30,7 @@ from scripts.strategy_freshness import (
     build,
     verdict_has_lapsed,
     cache_reach,
+    cache_reach_or_carried,
     classify,
     panel_reach,
     sessions_between,
@@ -391,6 +392,130 @@ def test_the_generic_reason_has_a_plain_register_too():
         assert jargon not in plain.lower(), jargon
     for d in ("2026-08-21", "2026-08-24"):
         assert d in technical and d in plain, d
+
+
+# ---------------------------------------------------------------------------
+# A fresh checkout has no price caches (2026-08-25)
+#
+# The breadth panels are committed; the two engine price caches are gitignored
+# bulk downloads. The daily workflow recomputes the report on exactly such a
+# checkout, and its first recompute wrote `data_through: null` for B and C --
+# rows that answer nothing -- while the bound it needed sat in the committed
+# report it had just overwritten. These pin the carry-forward rule: an absent
+# cache carries the last MEASURED bound, re-judged against today's clock; a
+# present cache is always believed over it; and nothing is ever invented.
+# ---------------------------------------------------------------------------
+def _runner_world(tmp_path, monkeypatch, *, prior_report: dict | None,
+                  panel_end: str = "2026-08-21") -> None:
+    """A fresh checkout: committed panels present, gitignored caches absent."""
+    import run_asset_class_rotation as ac
+    import run_thematic_rotation as th
+    import scripts.strategy_freshness as sf
+    from scripts.etf_registry import UNIVERSE_ETFS, UNIVERSE_EUROPE_SECTORS
+
+    monkeypatch.setattr(sf, "DATA_DIR", tmp_path)
+    for etf in list(UNIVERSE_ETFS) + list(UNIVERSE_EUROPE_SECTORS):
+        _write_panel(tmp_path, etf, panel_end)
+    monkeypatch.setattr(ac, "PRICE_CACHE", tmp_path / "absent-ac.parquet")
+    monkeypatch.setattr(th, "PRICE_CACHE", tmp_path / "absent-th.parquet")
+    if prior_report is not None:
+        (tmp_path / "strategy_freshness.json").write_text(
+            json.dumps(prior_report), encoding="utf-8")
+
+
+def _prior(b_through: str | None = "2026-08-21",
+           c_through: str | None = "2026-08-21",
+           b_laggards: tuple = ()) -> dict:
+    return {"computed_at_utc": "2026-08-25T02:13:16+00:00",
+            "strategies": [
+                {"sleeve": "B", "data_through": b_through,
+                 "laggards": list(b_laggards)},
+                {"sleeve": "C", "data_through": c_through, "laggards": []},
+            ]}
+
+
+def test_an_absent_cache_carries_the_last_measured_bound(tmp_path, monkeypatch):
+    """THE REGRESSION. On the runner every panel answers and both caches are
+    absent; with a committed report to hand, no row may answer None."""
+    _runner_world(tmp_path, monkeypatch, prior_report=_prior())
+    r = build(now_utc=_TUE_25_AUG)
+    for s in r["strategies"]:
+        assert s["data_through"], s
+    for key in ("B", "C"):
+        row = next(s for s in r["strategies"] if s["sleeve"] == key)
+        assert row["data_through"] == "2026-08-21", row
+        # The verdict is re-judged against today's clock, not copied: the
+        # prior report never said "behind by 1", this run derives it.
+        assert row["status"] == BEHIND and row["sessions_behind"] == 1, row
+        assert row["carried"] is True
+        assert "carried" in row["source"]
+        # A behind row still explains itself through the ordinary channel.
+        assert row["why"] and row["why_plain"], row
+
+
+def test_a_measured_cache_always_beats_the_carried_bound(tmp_path, monkeypatch):
+    """Fallback means LAST. A cache on disk is the truth even when the prior
+    report disagrees -- otherwise a stale report could pin the row forever."""
+    _hermetic_world(tmp_path, monkeypatch, panel_end="2026-08-21",
+                    cache_end="2026-08-21")
+    (tmp_path / "strategy_freshness.json").write_text(
+        json.dumps(_prior(b_through="2026-08-14", c_through="2026-08-14")),
+        encoding="utf-8")
+    r = build(now_utc=_TUE_25_AUG)
+    b = next(s for s in r["strategies"] if s["sleeve"] == "B")
+    assert b["data_through"] == "2026-08-21", b
+    assert b["carried"] is False
+    assert "carried" not in b["source"]
+
+
+def test_no_prior_report_stays_unknown_rather_than_invented(tmp_path,
+                                                            monkeypatch):
+    """Bootstrap honesty: with no committed measurement the module must not
+    conjure a date. Unknown is the truthful answer there."""
+    _runner_world(tmp_path, monkeypatch, prior_report=None)
+    r = build(now_utc=_TUE_25_AUG)
+    b = next(s for s in r["strategies"] if s["sleeve"] == "B")
+    assert b["data_through"] is None and b["status"] == UNKNOWN
+    assert b["carried"] is False
+
+
+def test_a_prior_unknown_is_not_carried(tmp_path, monkeypatch):
+    """Carrying a None forward would launder "unknown" into "known": only a
+    row that actually measured a bound may feed the fallback."""
+    _runner_world(tmp_path, monkeypatch, prior_report=_prior(b_through=None))
+    r = build(now_utc=_TUE_25_AUG)
+    b = next(s for s in r["strategies"] if s["sleeve"] == "B")
+    assert b["data_through"] is None and b["status"] == UNKNOWN
+    c = next(s for s in r["strategies"] if s["sleeve"] == "C")
+    assert c["data_through"] == "2026-08-21" and c["carried"] is True
+
+
+def test_carried_laggards_keep_their_names(tmp_path, monkeypatch):
+    """The laggard channel survives the carry: the names describe the bound
+    as measured, and a named laggard still wins over the generic sentence."""
+    _runner_world(tmp_path, monkeypatch,
+                  prior_report=_prior(b_laggards=("TLT",)))
+    r = build(now_utc=_TUE_25_AUG)
+    b = next(s for s in r["strategies"] if s["sleeve"] == "B")
+    assert b["laggards"] == ["TLT"]
+    assert b["why"] is None, b
+
+
+def test_an_empty_cache_that_exists_is_a_fault_not_a_carry(tmp_path,
+                                                           monkeypatch):
+    """Absence of the FILE is the trigger. A cache that exists but yields no
+    dates has lost its columns -- surfacing that as unknown is the point."""
+    import pandas as pd
+    p = tmp_path / "hollow.parquet"
+    pd.DataFrame({"XXX": [1.0]},
+                 index=pd.to_datetime(["2026-08-21"])).to_parquet(p)
+    monkeypatch.setattr("scripts.strategy_freshness.DATA_DIR", tmp_path)
+    (tmp_path / "strategy_freshness.json").write_text(
+        json.dumps(_prior()), encoding="utf-8")
+    reach, laggards, source, carried = cache_reach_or_carried(
+        p, ["SPY"], "B", "price cache (asset-class ETFs)")
+    assert reach is None and carried is False
+    assert "carried" not in source
 
 
 # ---------------------------------------------------------------------------
