@@ -296,6 +296,45 @@ def _cap_reason(caps: dict, reach: str | None) -> tuple[str | None, str | None]:
     return technical, plain
 
 
+def verdict_has_lapsed(report: dict | None,
+                       now_utc: datetime | None = None) -> bool:
+    """True when a venue has completed a session this report never saw.
+
+    THE VERDICT EXPIRES; THE FILE DOES NOT. Every row here is a comparison
+    against ``venue_last_session`` as it stood at ``computed_at_utc``, so the
+    moment a venue closes again the stored answer describes a market that has
+    moved on. `status` and `sessions_behind` do not decay into vagueness --
+    they stay confidently wrong, which is the worst way for a freshness widget
+    to fail.
+
+    That is not hypothetical. The report committed on Sun 2026-08-23 said all
+    four sleeves were `current` with a zero gap, which was TRUE when computed:
+    Friday was the last completed session. From Monday's close it was false,
+    and the dashboard published "current" over a book a session behind until
+    Tuesday. Nothing regenerates this file except a local refresh_all.py run,
+    and the mtime guard beside it in pipeline.main compares DERIVED against
+    SOURCE -- when neither moves, both look agreed and the check is silent.
+    Only real time can catch this, so this is the check that reads the clock.
+
+    FAILS CLOSED. An unreadable calendar returns True rather than False: a
+    verdict that cannot be verified is treated as expired, because the cost of
+    withholding the strip for one build is a blank space, and the cost of the
+    other mistake is a false claim on a published page.
+    """
+    now = now_utc or datetime.now(timezone.utc)
+    for row in (report or {}).get("strategies") or []:
+        seen, venue = row.get("venue_last_session"), row.get("venue")
+        if not seen or not venue:
+            continue
+        try:
+            lcs = last_completed_session_on(mcal.get_calendar(venue), now)
+        except Exception:
+            return True
+        if lcs is not None and str(lcs.date()) > seen:
+            return True
+    return False
+
+
 def _uniform_stale_reason(reach: str | None, venue_last: str | None,
                           gap: int | None, venue: str,
                           inputs: str) -> tuple[str | None, str | None]:

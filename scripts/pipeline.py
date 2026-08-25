@@ -33,6 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import ETF_REGISTRY, display_ticker_map  # noqa: E402
+from strategy_freshness import verdict_has_lapsed  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -175,14 +176,27 @@ def load_strategy_freshness() -> dict | None:
     Kept as a READ rather than an in-process call so the dashboard renders
     the same artefact the operator CLI prints and the reduced public page
     shows — three surfaces, one file, no chance of them disagreeing about
-    how fresh a sleeve is. The mtime guard in main() is what stops a stale
-    one being published; a freshness widget that is itself stale would be
+    how fresh a sleeve is. A freshness widget that is itself stale would be
     worse than none.
+
+    The mtime guard in main() was documented here as what stops a stale one
+    being published, and it does not: it compares this file against the
+    breadth panels, so when NEITHER moves — which is precisely the state
+    between local refreshes — the two look agreed and it stays silent while
+    the verdict inside expires against the clock. `verdict_has_lapsed` is the
+    check that reads real time. Withheld rather than rendered stale, and the
+    template draws nothing when the key is absent.
     """
     path = DATA_DIR / "strategy_freshness.json"
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    if verdict_has_lapsed(blob):
+        print(f"  freshness: verdict computed {blob.get('computed_at_utc')} has "
+              f"LAPSED — a venue has closed since. Widget withheld; run "
+              f"scripts/strategy_freshness.py.", flush=True)
+        return None
+    return blob
 
 
 def load_execution_timing() -> dict | None:

@@ -39,6 +39,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import ETF_REGISTRY, display_ticker  # noqa: E402
+from strategy_freshness import verdict_has_lapsed  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "simple_template.html"
@@ -444,7 +445,11 @@ def _load_freshness() -> dict | None:
     Returns None rather than raising: a missing freshness report should not
     stop the portfolio page publishing, and the template renders nothing when
     the key is absent. What it must NEVER do is print a stale report as a
-    current one, so the caller checks age in assert_payload_usable.
+    current one — and until 2026-08-25 it could, because nothing here read the
+    clock. assert_payload_usable checks that no sleeve reaches PAST the book's
+    as-of, which is the look-ahead direction; the staleness direction was
+    unguarded, and the Sunday-computed report went on claiming all four sleeves
+    `current` through Monday's close. `verdict_has_lapsed` closes it.
     """
     path = ROOT / "data" / "strategy_freshness.json"
     if not path.exists():
@@ -455,6 +460,10 @@ def _load_freshness() -> dict | None:
         return None
     rows = blob.get("strategies")
     if not rows:
+        return None
+    if verdict_has_lapsed(blob):
+        print(f"  freshness: verdict computed {blob.get('computed_at_utc')} has "
+              f"LAPSED — withheld rather than published as current", flush=True)
         return None
 
     # ALLOW-LIST, NOT A DENY-LIST. The freshness report is written for three

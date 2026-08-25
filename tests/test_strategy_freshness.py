@@ -28,6 +28,7 @@ from scripts.strategy_freshness import (
     _cap_reason,
     _uniform_stale_reason,
     build,
+    verdict_has_lapsed,
     cache_reach,
     classify,
     panel_reach,
@@ -390,6 +391,110 @@ def test_the_generic_reason_has_a_plain_register_too():
         assert jargon not in plain.lower(), jargon
     for d in ("2026-08-21", "2026-08-24"):
         assert d in technical and d in plain, d
+
+
+# ---------------------------------------------------------------------------
+# The verdict expires; the file does not
+# ---------------------------------------------------------------------------
+def _report(venue_last: str, venue: str = "NYSE", status: str = CURRENT) -> dict:
+    return {"computed_at_utc": "2026-08-23T07:11:36+00:00",
+            "strategies": [{"sleeve": "A", "venue": venue, "status": status,
+                            "data_through": "2026-08-21",
+                            "venue_last_session": venue_last,
+                            "sessions_behind": 0}]}
+
+
+def test_a_verdict_survives_until_the_venue_closes_again():
+    """Sun 23 Aug: Friday IS the last completed session, so the Sunday-computed
+    `current` is true and must keep rendering. Expiry is a venue close, not an
+    elapsed duration — a rule counted in hours would blank the strip across
+    every weekend it is still correct on."""
+    sun = datetime(2026, 8, 23, 7, 11, tzinfo=timezone.utc)
+    assert verdict_has_lapsed(_report("2026-08-21"), now_utc=sun) is False
+    # Mon 06:00 UTC, still before the NYSE close: nothing new has completed.
+    mon_am = datetime(2026, 8, 24, 6, 0, tzinfo=timezone.utc)
+    assert verdict_has_lapsed(_report("2026-08-21"), now_utc=mon_am) is False
+
+
+def test_the_verdict_lapses_once_a_session_it_never_saw_has_closed():
+    """THE DEFECT. The same report, unchanged on disk, after Monday's close: it
+    still says `current` with a zero gap, and by then the book is a session
+    behind. Nothing regenerates the file between local refreshes and the mtime
+    guard cannot see it, so real time is the only thing that catches this."""
+    assert verdict_has_lapsed(_report("2026-08-21"), now_utc=_TUE_25_AUG) is True
+
+
+def test_lapse_is_judged_on_each_row_s_own_venue():
+    """Sleeve D is Xetra. Judging it on the NYSE calendar is the defect class
+    the whole module exists to avoid, and it must not creep back in here.
+    Thu 4 July 2024 is a NYSE holiday that Xetra traded through."""
+    # Both rows saw Wed 3 Jul. At 06:00 UTC on Friday, NYSE's next session
+    # after the 3rd is the 5th and has not closed (20:00 UTC), so NYSE has not
+    # moved — while Xetra completed Thu 4 Jul (close 15:30 UTC) and has.
+    fri = datetime(2024, 7, 5, 6, 0, tzinfo=timezone.utc)
+    assert verdict_has_lapsed(_report("2024-07-03", "NYSE"), now_utc=fri) is False
+    assert verdict_has_lapsed(_report("2024-07-03", "XETR"), now_utc=fri) is True
+
+
+def test_an_unverifiable_verdict_is_treated_as_expired():
+    """Fails CLOSED. A calendar that cannot be resolved must not read as
+    'nothing has closed since' — withholding a strip costs a blank space,
+    publishing a false 'current' costs a reader acting on it."""
+    assert verdict_has_lapsed(_report("2026-08-21", "NOT-A-VENUE")) is True
+
+
+def test_a_report_with_nothing_in_it_is_not_called_lapsed():
+    """Absent and expired are different states with the same remedy but
+    different diagnoses; the consumers already reject an empty report."""
+    assert verdict_has_lapsed(None) is False
+    assert verdict_has_lapsed({"strategies": []}) is False
+
+
+def _write_report(path, venue_last: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(_report(venue_last)), encoding="utf-8")
+
+
+@pytest.mark.parametrize("venue_last,rendered", [("2026-08-21", False),
+                                                 ("2026-08-24", True)])
+def test_the_dashboard_loader_withholds_a_lapsed_verdict(tmp_path, monkeypatch,
+                                                          venue_last, rendered):
+    """A guard nothing consults is decoration. The dashboard reads this file,
+    so the dashboard is where the withholding has to happen."""
+    import scripts.pipeline as pl
+    monkeypatch.setattr(pl, "DATA_DIR", tmp_path)
+    _write_report(tmp_path / "strategy_freshness.json", venue_last)
+    monkeypatch.setattr(pl, "verdict_has_lapsed",
+                        lambda b, now_utc=None: sf_lapsed(b))
+    assert bool(pl.load_strategy_freshness()) is rendered
+
+
+@pytest.mark.parametrize("venue_last,rendered", [("2026-08-21", False),
+                                                 ("2026-08-24", True)])
+def test_the_public_page_loader_withholds_a_lapsed_verdict(tmp_path, monkeypatch,
+                                                            venue_last, rendered):
+    """Same guard on the reduced page, which is published from a separate repo
+    and would otherwise carry the expired claim furthest from anyone able to
+    notice it."""
+    import scripts.build_simple_page as bsp
+    monkeypatch.setattr(bsp, "ROOT", tmp_path)
+    _write_report(tmp_path / "data" / "strategy_freshness.json", venue_last)
+    monkeypatch.setattr(bsp, "verdict_has_lapsed",
+                        lambda b, now_utc=None: sf_lapsed(b))
+    assert bool(bsp._load_freshness()) is rendered
+
+
+def sf_lapsed(blob) -> bool:
+    """The real guard, pinned to Tue 25 Aug so the consumer tests do not drift
+    with the wall clock — the fault this whole change is about."""
+    return verdict_has_lapsed(blob, now_utc=_TUE_25_AUG)
+
+
+def test_a_freshly_built_report_never_reads_as_lapsed():
+    """The round trip: whatever build() stamps must satisfy the guard at the
+    instant it was stamped, or the strip would blank on every build."""
+    r = build(now_utc=_TUE_25_AUG)
+    assert verdict_has_lapsed(r, now_utc=_TUE_25_AUG) is False
 
 
 def test_a_current_sleeve_gets_no_generic_reason():
