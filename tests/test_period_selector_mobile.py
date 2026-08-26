@@ -14,11 +14,28 @@ over a border-coloured container, because a per-button border cannot draw the
 line BETWEEN rows once the row wraps, and a gap needs no nth-child arithmetic
 that would break the next time a period is added or removed.
 
+FOUR SELECTORS, NOT ONE, and the other three matter more than they first
+looked. The Risk Overlay, EM Tilt and Multi-Strategy tabs each carry a
+seven-button copy. Measured at 375px they needed 337px against 347px available
+and squeaked through, which is why the bug was first found only on the
+eight-button one. But that 10px is not headroom:
+
+    viewport   7-button row needs   available   pre-fix result
+    375px      337px                347px       fits, 10px spare
+    360px      337px                332px       CLIPPED by 5px
+    320px      337px                292px       CLIPPED by 45px
+
+360px is an ordinary Android width and 320px is an iPhone SE, so MAX was
+already being cut on both -- silently, in three more places. Applying the wrap
+to `.period-selector` rather than to `#perf-period-selector` is therefore the
+fix, not tidiness, and test_the_rules_are_not_scoped_to_one_selector pins it.
+
 These assertions are on the stylesheet rather than on a rendered page, which is
-the weaker half of the check -- the rendered half was measured directly at 375
-and 390 CSS px (2 rows of 4, zero clipped, every button 86x40 and hit-testable)
-and is recorded in the commit. What is pinned here is the mechanism, so that a
-future edit cannot quietly reintroduce a single unwrappable row.
+the weaker half of the check. The rendered half was measured directly: all four
+selectors at 320 / 375 / 390 CSS px give two clean rows, zero clipped buttons,
+every button >= 62x40 and returning itself from elementFromPoint at its own
+centre, with no horizontal page scroll. What is pinned here is the mechanism,
+so that a future edit cannot quietly reintroduce a single unwrappable row.
 """
 
 from __future__ import annotations
@@ -95,3 +112,36 @@ def test_every_period_is_still_offered(css):
     assert sel, "period selector markup not found"
     periods = re.findall(r'data-period="([^"]+)"', sel.group(0))
     assert periods == ["1d", "1w", "1m", "ytd", "1y", "3y", "5y", "max"], periods
+
+
+def test_the_rules_are_not_scoped_to_one_selector(css):
+    """The fix must reach all four copies of the control.
+
+    Scoping it to #perf-period-selector would look correct -- that is the one
+    where the clip was found -- and would leave the Risk Overlay, EM Tilt and
+    Multi-Strategy selectors clipping MAX at 360px and below, which is where
+    they actually break.
+    """
+    for selector in (".period-selector", ".period-selector button"):
+        block_start = css.find(selector + " {")
+        assert block_start != -1, f"{selector} block not found"
+    assert "#perf-period-selector {" not in css, (
+        "an id-scoped block would strand the other three selectors")
+    # The phone block must key off the class too.
+    mq = css.find("@media (max-width: 700px)")
+    window = css[mq:mq + 1200]
+    assert ".period-selector {" in window and ".period-selector button {" in window
+    assert "#perf-period-selector" not in window
+
+
+def test_all_four_selectors_exist_and_carry_the_shared_class(css):
+    """If a selector is ever added without the class it inherits none of this."""
+    ids = re.findall(r'id="([a-z0-9-]*period[a-z0-9-]*)"', css)
+    assert sorted(set(ids)) == sorted(
+        {"perf-period-selector", "overlay-dd-period", "phase22-period",
+         "multi-contrib-period"}), ids
+    for sid in set(ids):
+        m = re.search(r'class="([^"]*)"[^>]*id="' + re.escape(sid) + r'"', css) \
+            or re.search(r'id="' + re.escape(sid) + r'"[^>]*class="([^"]*)"', css) \
+            or re.search(r'class="([^"]*)"\s*\n?\s*id="' + re.escape(sid) + r'"', css)
+        assert m and "period-selector" in m.group(1), f"{sid} lacks .period-selector"
