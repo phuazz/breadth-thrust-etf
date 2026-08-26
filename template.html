@@ -1178,17 +1178,29 @@
       display: flex; align-items: center; justify-content: space-between;
       flex-wrap: wrap; gap: 10px; margin-bottom: 6px;
     }
+    /* WRAPS RATHER THAN CLIPS (fixed 2026-08-26). Eight buttons do not fit a
+       phone: at a 375px viewport the row measured 389px against a 375px
+       container and `overflow: hidden` silently cut MAX off, so the longest
+       and most-used window was unreachable on mobile. It read as a design
+       choice rather than a bug because the clip is clean.
+
+       The separators are now a 1px gap over a border-coloured container
+       instead of a border-right per button. Same 1px line, but it renders
+       between ROWS as well as columns, which a per-button border cannot do
+       once the row wraps -- and it needs no nth-child arithmetic that would
+       break whenever a period is added or removed. */
     .period-selector {
-      display: inline-flex; gap: 0; border: 1px solid var(--border);
-      border-radius: 4px; overflow: hidden; background: var(--bg-card);
+      display: inline-flex; flex-wrap: wrap; gap: 1px;
+      border: 1px solid var(--border);
+      border-radius: 4px; overflow: hidden;
+      background: var(--border);
     }
     .period-selector button {
       padding: 7px 13px; background: var(--bg-card); border: none;
-      border-right: 1px solid var(--border); cursor: pointer;
+      cursor: pointer;
       font-size: 13px; font-weight: 600; color: var(--ink-soft);
       font-family: inherit;
     }
-    .period-selector button:last-child { border-right: none; }
     .period-selector button:hover { background: var(--bg-soft); }
     .period-selector button.active {
       background: var(--accent); color: white;
@@ -1252,6 +1264,15 @@
     @media (max-width: 700px) {
       .attrib-row { grid-template-columns: 1fr; gap: 4px; }
       .attrib-bar-wrap { display: none; }
+      /* Full width so the eight periods wrap to even rows rather than a
+         ragged 5+3, and a 40px row so each is a comfortable touch target
+         (they were 31px, below the usual 44px guidance and fiddly on a
+         phone). flex-basis 22% leaves room for the 1px gaps at four per
+         row without relying on how box-sizing is set. */
+      .period-selector { display: flex; width: 100%; }
+      .period-selector button {
+        flex: 1 0 22%; min-height: 40px; padding: 9px 4px;
+      }
     }
 
     .two-col {
