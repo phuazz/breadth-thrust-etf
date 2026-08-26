@@ -62,7 +62,32 @@ sleeve D does not; by Sunday morning all four do.
   Saturday 09:00 SGT  sleeves A/B/C ready to review and plan; D reports HOLD
   Sunday   09:00 SGT  D's European close has settled; the full book is ready
 
-Both fire hourly for six hours, with StartWhenAvailable, so a machine off at
+A SECOND PAIR AFTER THE FILL, added 2026-08-26 (BreadthThrust-PostFillRefresh,
+--cadence post-fill). The refresh cadence did not move with the rebalance
+cadence on 22 August, and that left a four-day hole nobody had looked for.
+Under W-FRI the weekend refresh ran AFTER Friday's fill, so the published book
+was current all the following week. Under W-MON it runs BEFORE Monday's fill,
+and mark_to_market_live.py is a strictly forward-only extension that never
+applies a rebalance — so without a second pair the dashboard, live_track.json
+and every downstream consumer carry a book one fill stale from Tuesday to
+Friday. Found on 2026-08-26: the dashboard was still advertising the 24 August
+fill as PLANNED two days after it, and the Navigo digest quoted SOXX at 6.01%
+of NAV against a post-fill target of 2.78%.
+
+  Tuesday  09:00 SGT  A/B/C re-anchor onto Monday's fill; D still one behind
+  Wednesday 09:00 SGT Xetra's Monday close has settled; D re-anchors too
+
+THE SPLIT IS MEASURED, NOT ASSUMED. data/vendor_availability_log.jsonl (4x
+daily since 2026-08-15) shows the Xetra bar for a session served about three
+hours after that bell, retracted overnight, and settled permanently only the
+following day. At 01:00 UTC (09:00 SGT) Xetra is reliably ONE session behind
+on a weekday: on Tue 2026-08-25 it held Friday's bar while NYSE held Monday's;
+by Wed 2026-08-26 it held Monday's. Tuesday therefore re-anchors 80% of NAV
+and Wednesday completes it — the same shape as the weekend pair, for the same
+reason. A mixed day is disclosed rather than hidden: strategy_freshness.py
+reports per-sleeve reach and the dashboard prints it per sleeve.
+
+All four fire hourly for six hours, with StartWhenAvailable, so a machine off at
 09:00 catches up on power-on.
 
 --commit EXISTS BECAUSE OF THAT SECOND RUN. Soak mode never commits, so
@@ -161,10 +186,26 @@ def log_path_for(now_utc: datetime, tz=None) -> Path:
     return LOG_DIR / f"scheduled_refresh_{now_utc.astimezone(tz).date().isoformat()}.log"
 
 
-def scheduled_commit_message(today: date, panel_end: date) -> str:
-    """House-style local-refresh commit message, marked as scheduled."""
+CADENCES = ("weekend", "post-fill")
+
+
+def scheduled_commit_message(today: date, panel_end: date,
+                             cadence: str = "weekend") -> str:
+    """House-style local-refresh commit message, marked as scheduled.
+
+    The cadence is IN the message because the two pairs make different
+    promises and fleet_watch greps them apart. The weekend pair produces the
+    book Monday's fill will be RANKED on; the post-fill pair records the fill
+    itself. Under one shared prefix a post-fill week that never ran would be
+    indistinguishable from a healthy one, because the weekend commit would
+    keep the heartbeat fresh — which is the exact blind spot the row exists
+    to close.
+    """
+    if cadence not in CADENCES:
+        raise ValueError(f"unknown cadence {cadence!r}, expected one of {CADENCES}")
+    kind = "weekly" if cadence == "weekend" else "post-fill"
     return (
-        f"Local weekly refresh {today.isoformat()} (scheduled): "
+        f"Local {kind} refresh {today.isoformat()} (scheduled): "
         f"panels current to {panel_end.isoformat()}, all steps OK"
     )
 
@@ -214,6 +255,12 @@ def main(argv: list[str] | None = None) -> int:
                         help="Run the git preflight and the gate preview "
                              "only — no refresh. Smoke test for the "
                              "scheduled task setup.")
+    parser.add_argument("--cadence", choices=CADENCES, default="weekend",
+                        help="Which pair this run belongs to. Affects the "
+                             "commit message only — every guard is identical. "
+                             "'weekend' (Sat/Sun) produces the book Monday's "
+                             "fill is ranked on; 'post-fill' (Tue/Wed) records "
+                             "the fill itself.")
     args = parser.parse_args(argv)
 
     LOG_DIR.mkdir(exist_ok=True)
@@ -323,10 +370,21 @@ def main(argv: list[str] | None = None) -> int:
 
     # ----- Push (armed) or READY (soak) -----
     if args.push:
-        msg = scheduled_commit_message(now.date(), panel_end)
+        msg = scheduled_commit_message(now.date(), panel_end, args.cadence)
         for step in (["add", "data/", "docs/"], ["commit", "-m", msg]):
             cp = _git(step, log)
             if cp.returncode != 0:
+                # A no-change run is a CLEAN run, not a failure — the same
+                # tolerance the --commit branch below has always had. Without
+                # it the armed post-fill pair alerts on a healthy outcome:
+                # Tuesday commits the fill, and a Wednesday that finds nothing
+                # further to record exits 5. The push still runs, because the
+                # clone may carry earlier commits that never reached origin.
+                if step[0] == "commit" and "nothing to commit" in (
+                        cp.stdout + cp.stderr).lower():
+                    log.write("\nnothing to commit — pushing any earlier "
+                              "local commits\n")
+                    break
                 return fail(5, f"git {step[0]} failed", cp.stderr or cp.stdout)
         cp = _git(["push", "origin", "main"], log)
         if cp.returncode != 0:
@@ -352,7 +410,7 @@ def main(argv: list[str] | None = None) -> int:
         #
         # A local commit leaves the tree clean for the next run and publishes
         # nothing: the factsheet still waits for a human push and the CI gate.
-        msg = scheduled_commit_message(now.date(), panel_end)
+        msg = scheduled_commit_message(now.date(), panel_end, args.cadence)
         for step in (["add", "data/", "docs/"], ["commit", "-m", msg]):
             cp = _git(step, log)
             if cp.returncode != 0:

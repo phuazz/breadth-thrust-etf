@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
+import pytest
+
 from scripts.scheduled_refresh import (
+    CADENCES,
     panel_is_week_current,
     scheduled_commit_message,
 )
@@ -62,6 +65,62 @@ def test_commit_message_contract():
     # not the message, but the "Local weekly refresh" prefix is the
     # commit-heartbeat convention VERIFY_DASHBOARD greps for.
     assert msg.startswith("Local weekly refresh ")
+    # Default must stay the weekend pair: the post-fill cadence was added
+    # later and must never capture a caller that did not ask for it.
+    assert msg == scheduled_commit_message(date(2026, 8, 1), date(2026, 7, 31),
+                                           "weekend")
+
+
+def test_post_fill_commit_message_contract():
+    """The post-fill pair carries its OWN prefix.
+
+    fleet_watch greps the two apart. Sharing a prefix would let the weekend
+    commit keep the heartbeat fresh while the post-fill pair silently stopped
+    running — the blind spot the row exists to close.
+    """
+    msg = scheduled_commit_message(date(2026, 8, 25), date(2026, 8, 24),
+                                   "post-fill")
+    assert msg == (
+        "Local post-fill refresh 2026-08-25 (scheduled): "
+        "panels current to 2026-08-24, all steps OK"
+    )
+    assert msg.startswith("Local post-fill refresh ")
+    assert "weekly" not in msg
+
+
+def test_the_two_cadences_never_collide():
+    """Same day, same panel — the messages must still be distinguishable."""
+    today, panel = date(2026, 8, 25), date(2026, 8, 24)
+    msgs = {c: scheduled_commit_message(today, panel, c) for c in CADENCES}
+    assert len(set(msgs.values())) == len(CADENCES)
+    # The weekend grep must not match a post-fill commit, in either direction.
+    assert not msgs["post-fill"].startswith("Local weekly refresh ")
+    assert not msgs["weekend"].startswith("Local post-fill refresh ")
+
+
+def test_unknown_cadence_is_refused():
+    """Fail loudly rather than mint an unwatched commit prefix."""
+    with pytest.raises(ValueError):
+        scheduled_commit_message(date(2026, 8, 25), date(2026, 8, 24), "monday")
+
+
+def test_post_fill_message_at_month_and_year_boundaries():
+    """Per CLAUDE.md: one month boundary, one year boundary. 1-indexed months.
+
+    Tue 1 Sep 2026 records the Mon 31 Aug fill (month boundary); Tue 5 Jan
+    2027 records the Mon 4 Jan fill against a panel still in 2026 (year
+    boundary).
+    """
+    assert scheduled_commit_message(date(2026, 9, 1), date(2026, 8, 31),
+                                    "post-fill") == (
+        "Local post-fill refresh 2026-09-01 (scheduled): "
+        "panels current to 2026-08-31, all steps OK"
+    )
+    assert scheduled_commit_message(date(2027, 1, 5), date(2026, 12, 31),
+                                    "post-fill") == (
+        "Local post-fill refresh 2027-01-05 (scheduled): "
+        "panels current to 2026-12-31, all steps OK"
+    )
 
 
 # --------------------------------------------------------------------------
