@@ -10,10 +10,15 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
+import inspect
+import re
+
 import pytest
 
+from scripts import scheduled_refresh
 from scripts.scheduled_refresh import (
     CADENCES,
+    RELEASE,
     panel_is_week_current,
     scheduled_commit_message,
 )
@@ -96,6 +101,25 @@ def test_the_two_cadences_never_collide():
     # The weekend grep must not match a post-fill commit, in either direction.
     assert not msgs["post-fill"].startswith("Local weekly refresh ")
     assert not msgs["weekend"].startswith("Local post-fill refresh ")
+
+
+def test_gate_preview_passes_the_release_marker():
+    """The preview must be able to say PUBLISH, not only HOLD.
+
+    build_gate_report treats a missing release_path as NOT RELEASED by
+    construction, so calling it without one made the preview report HOLD
+    unconditionally — including in the single case that matters, where CI
+    would actually send. It looked like a passing guard for as long as
+    nobody checked it against a release marker that named the anchor.
+    """
+    src = inspect.getsource(scheduled_refresh.main)
+    call = re.search(r"build_gate_report\((?:[^()]|\([^()]*\))*\)", src)
+    assert call, "gate preview call not found — did main() get restructured?"
+    assert "release_path" in call.group(0), (
+        "the gate preview must pass release_path, or it reports HOLD whatever "
+        "the true state is"
+    )
+    assert RELEASE.name == "factsheet_release.json"
 
 
 def test_unknown_cadence_is_refused():

@@ -128,6 +128,7 @@ from nyse_sessions import last_completed_session, week_final_anchor  # noqa: E40
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PANEL = REPO_ROOT / "data" / "breadth_csp1.json"
 MARKER = REPO_ROOT / "docs" / "factsheet_published.json"
+RELEASE = REPO_ROOT / "docs" / "factsheet_release.json"
 LOG_DIR = REPO_ROOT / "logs"
 
 
@@ -357,7 +358,16 @@ def main(argv: list[str] | None = None) -> int:
                             f"roster. Nothing pushed; re-run once the endpoint "
                             f"is healthy - the raw responses are cached, so "
                             f"only the missing dates refetch.")
-        gate = build_gate_report("publish", now, PANEL, MARKER)
+        # RELEASE must be passed explicitly. build_gate_report treats a missing
+        # release_path as NOT RELEASED by construction (it is a pure core and
+        # refuses to reach for repo state on its own), so omitting it made this
+        # "preview" report HOLD unconditionally — including in the one case
+        # that matters, where CI would actually send. A guard that returns the
+        # same answer whatever the state is not a guard. Found 2026-08-26 while
+        # arming the post-fill pair: the preview said "not released" against a
+        # release marker on disk that plainly named the anchor.
+        gate = build_gate_report("publish", now, PANEL, MARKER,
+                                 release_path=RELEASE)
         log.write(f"\nCI gate preview on push:\n{gate['detail']}\n")
     except Exception as exc:
         return fail(4, "anchor/gate check errored", repr(exc))
