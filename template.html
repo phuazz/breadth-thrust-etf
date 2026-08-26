@@ -44,6 +44,17 @@
       background: rgba(183, 110, 0, 0.10); color: var(--warn);
       border-color: rgba(183, 110, 0, 0.30);
     }
+    /* The strip wraps between pills, but `white-space: nowrap` stops a single
+       pill wrapping WITHIN itself -- so the longest one overflowed the strip
+       rather than folding. A behind pill carries an extra "N sessions behind"
+       clause, which makes it the longest and means the overflow appears
+       exactly when a sleeve is late, i.e. when the strip most needs reading.
+       Measured at 320px: "D Europe sectors 2026-08-24 - 1 session behind" was
+       293px inside a 231px strip and pushed the page 19px sideways.
+       Found in the 2026-08-26 narrow-width audit. */
+    @media (max-width: 720px) {
+      .fresh-strip .fs-item { white-space: normal; flex-wrap: wrap; max-width: 100%; }
+    }
     .fresh-strip .fs-item .fs-k { font-weight: 700; }
     .fresh-strip .fs-item .fs-d {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -1456,12 +1467,28 @@
        page, not buried in the Monitor tab. */
     #positions-preview {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      /* minmax(0, 1fr), NOT 1fr. A bare `1fr` is `minmax(auto, 1fr)`, and that
+         auto floor is the item's MIN-CONTENT width -- so any child that cannot
+         shrink pushes the track wider than its container instead of being
+         constrained by it. Every other grid in this file already uses the
+         minmax(0, ...) form; this one did not, and it is why the Monitor tab
+         scrolled sideways at 320px (found in the 2026-08-26 narrow-width
+         audit). */
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 14px;
       margin: 14px 0 12px 0;
     }
     @media (max-width: 720px) {
-      #positions-preview { grid-template-columns: 1fr; }
+      #positions-preview { grid-template-columns: minmax(0, 1fr); }
+      /* AND the table needs somewhere to go. A table's min-content is set by
+         its cells and it will not shrink past them: preview-activity-table
+         measured 322px min-content inside a 292px container at a 320px
+         viewport, pinning the grid track at 352px and scrolling the whole page
+         32px sideways. Letting each preview table scroll inside its own card
+         is the same remedy the wide tables elsewhere on the page already use,
+         and it keeps the card itself within the viewport. */
+      .prev-card { min-width: 0; }
+      .prev-card > table.prev-table { display: block; overflow-x: auto; }
     }
     /* NEXT FILL card (2026-08-23). Full width and leading, because "what is
        coming" is the question the Monitor tab is opened to answer. It is the
