@@ -2,7 +2,7 @@
   "etf": "IUCM",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/304659/ishares-s-p-500-communication-sector-ucits-etf-usd-acc-fund/1506575576011.ajax?fileType=csv&fileName=IUCM_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-23T06:22:42.534868+00:00",
+  "fetched_at_utc": "2026-08-26T07:15:23.027662+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-21",
   "n_target_fridays": 451,
@@ -26,12 +26,6 @@
     {
       "target_friday": "2021-01-01",
       "fallback_date": "2020-12-31",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-08-21",
-      "fallback_date": "2026-08-20",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
@@ -273,8 +267,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-08-20",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-08-21",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -12958,7 +12952,7 @@
       ]
     },
     "2026-08-21": {
-      "actual_date": "2026-08-20",
+      "actual_date": "2026-08-21",
       "n_tickers": 24,
       "tickers": [
         "GOOGL",

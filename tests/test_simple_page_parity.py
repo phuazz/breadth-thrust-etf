@@ -678,3 +678,80 @@ def test_a_behind_row_keeps_a_plain_reason_or_names_its_laggard(freshness_block)
     for row in freshness_block["strategies"]:
         if row["status"] == "behind":
             assert row.get("why_plain") or row.get("laggards"), row
+
+
+# ---------------------------------------------------------------------------
+# The freshness ceiling. Corrected 2026-08-26: it used to bound each sleeve by
+# the book's as_of, which is min(panel_end, live_anchor) — and live_anchor is
+# the blend curve's last date, an INTERSECTION across sleeves and therefore
+# floored by the slowest. That asserted uniformity, not freshness, and it
+# contradicted the per-sleeve block whose whole purpose is to disclose
+# divergence. It never fired while refreshes ran only at weekends; the
+# post-fill pair refreshes mid-week, when Xetra is a session behind NYSE.
+# ---------------------------------------------------------------------------
+
+def _payload_with(freshness_rows, as_of, panel_end):
+    """A payload complete enough that assert_payload_usable REACHES the
+    freshness ceiling. Built deliberately: a thinner dict raises KeyError on
+    'curve' first, and an assertion of the form "no freshness complaint" then
+    passes on the exception instead of on the guard — a false green."""
+    return {
+        "holdings": [{"ticker": "SPY", "weight": 1.0}],
+        "sleeves": [{"weight": 1.0}],
+        "as_of": as_of,
+        "panel_end_date": panel_end,
+        "freshness": {"strategies": freshness_rows},
+        "curve": {"dates": [as_of], "equity": [1.0]},
+        "calendars": {},
+        "charts": {},
+    }
+
+
+def _problems(payload):
+    """Return the validator's complaint text, or '' if it accepted the payload.
+
+    A KeyError here means the fixture never reached the check under test, so it
+    is re-raised rather than returned as a 'problem' — otherwise a missing key
+    reads as a passing guard.
+    """
+    try:
+        bsp.assert_payload_usable(payload)
+    except KeyError:
+        raise
+    except Exception as exc:                                   # noqa: BLE001
+        return str(exc)
+    return ""
+
+
+def test_midweek_venue_divergence_is_publishable():
+    """The exact state the post-fill pair produces every Tuesday and Wednesday.
+
+    US sleeves carry Tuesday's close; sleeve D carries Monday's because Xetra
+    has not settled, which drags live_anchor — and therefore as_of — back to
+    Monday. Every sleeve is correct and the page must build.
+    """
+    rows = [{"sleeve": s, "data_through": "2026-08-25"} for s in "ABC"]
+    rows.append({"sleeve": "D", "data_through": "2026-08-24"})
+    problems = _problems(_payload_with(rows, as_of="2026-08-24",
+                                       panel_end="2026-08-25"))
+    assert "freshness says sleeve" not in problems, problems
+
+
+def test_a_report_from_a_later_refresh_is_still_refused():
+    """The guard must keep catching what it was built for.
+
+    A sleeve reaching PAST the newest data this refresh produced cannot have
+    come from this refresh, whatever the venues were doing.
+    """
+    rows = [{"sleeve": "A", "data_through": "2026-08-26"}]
+    problems = _problems(_payload_with(rows, as_of="2026-08-24",
+                                       panel_end="2026-08-25"))
+    assert "freshness says sleeve A reaches 2026-08-26" in problems
+    assert "2026-08-25" in problems
+
+
+def test_ceiling_falls_back_to_as_of_when_panel_end_is_absent():
+    """No panel_end must not silently disable the guard."""
+    rows = [{"sleeve": "A", "data_through": "2026-08-26"}]
+    problems = _problems(_payload_with(rows, as_of="2026-08-24", panel_end=None))
+    assert "freshness says sleeve A" in problems

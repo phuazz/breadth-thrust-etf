@@ -528,16 +528,32 @@ def assert_payload_usable(payload: dict) -> None:
     # A FRESHNESS REPORT THAT IS ITSELF STALE IS WORSE THAN NONE, because it
     # makes a confident claim about currency using yesterday's evidence. The
     # cheap, content-based check: no sleeve may report data reaching FURTHER
-    # than the book's own as-of. If it does, the report was computed against a
-    # later refresh than the one being published here.
+    # than the newest data THIS refresh produced. If it does, the report was
+    # computed against a later refresh than the one being published here.
+    #
+    # THE CEILING IS panel_end, NOT as_of — corrected 2026-08-26. as_of is
+    # min(panel_end, live_anchor), and live_anchor is the blend curve's last
+    # date, which is an INTERSECTION across the four sleeves and therefore
+    # floored by the SLOWEST one. Bounding per-sleeve reach by it asserts that
+    # no sleeve may run ahead of the laggard — a uniformity claim, not a
+    # freshness one — and it contradicts the per-sleeve block built above,
+    # whose stated purpose is to disclose exactly that divergence.
+    #
+    # It never fired because refreshes only ever ran at weekends, when both
+    # venues have settled and all four sleeves are level. The post-fill pair
+    # (Tue/Wed, added 2026-08-26) refreshes MID-WEEK by design, when Xetra is
+    # a session behind NYSE, and it tripped on its first run: A/B/C reaching
+    # Tue 2026-08-25 against a live_anchor of Mon 2026-08-24 held down by D.
+    # Every one of those sleeves was correct and the page was publishable.
     fresh = payload.get("freshness") or {}
+    ceiling = payload.get("panel_end_date") or payload.get("as_of")
     for row in fresh.get("strategies", []):
         through = row.get("data_through")
-        if through and payload.get("as_of") and through > payload["as_of"]:
+        if through and ceiling and through > ceiling:
             problems.append(
                 f"freshness says sleeve {row.get('sleeve')} reaches {through}, "
-                f"past the book's as-of {payload['as_of']} — the freshness "
-                f"report is from a later refresh than this page")
+                f"past the newest data this refresh produced ({ceiling}) — the "
+                f"freshness report is from a later refresh than this page")
 
     # The two sources are refreshed by different steps. If they disagree, one of
     # them is stale, and the page would date a holdings table against a curve

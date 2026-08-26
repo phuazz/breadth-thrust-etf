@@ -1,110 +1,112 @@
 {
-  "computed_at_utc": "2026-08-25 08:24 UTC",
+  "computed_at_utc": "2026-08-26 08:56 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
-  "anchor_date": "2026-08-21",
-  "anchor_equity": 2.968524,
+  "anchor_date": "2026-08-24",
+  "anchor_equity": 2.952206,
   "regime_state": "RISK_ON",
   "eem_tilt_active": true,
-  "eem_tilt_signal_as_of": "2026-08-21",
+  "eem_tilt_signal_as_of": "2026-08-24",
   "eem_tilt_signal_stale": false,
   "effective_weights": {
-    "IUES": 0.10247,
     "EEM": 0.1,
-    "IUFS": 0.082312,
-    "EXV1": 0.075,
-    "EXH1": 0.0648,
-    "EXV3": 0.0602,
-    "SOXX": 0.060124,
-    "IUSP": 0.05337,
-    "IJR": 0.0445,
-    "IUHC": 0.043641,
-    "DBC": 0.040525,
-    "EWJ": 0.03855,
-    "QQQ": 0.038225,
-    "SPY": 0.031875,
-    "EFA": 0.02925,
-    "VGK": 0.027075,
+    "IUES": 0.090335,
+    "IUFS": 0.07616,
+    "EXV1": 0.07424,
+    "EXH1": 0.0652,
+    "IUHC": 0.063175,
+    "EXV3": 0.06056,
+    "IUSP": 0.05985,
+    "DBC": 0.058481,
+    "IJR": 0.039629,
+    "QQQ": 0.032378,
+    "VGK": 0.030328,
+    "EFA": 0.029978,
+    "EWJ": 0.029753,
+    "SPY": 0.029453,
+    "SOXX": 0.02779,
+    "IUMS": 0.023905,
     "CIBR": 0.02,
     "SKYY": 0.02,
     "XBI": 0.02,
     "ARKG": 0.02,
-    "159801.SZ": 0.02,
-    "IUIS": 0.008084
+    "COPX": 0.02,
+    "IUCS": 0.008785
   },
   "live_dates": [
-    "2026-08-24"
+    "2026-08-25"
   ],
   "live_equity": [
-    2.952748
+    2.959646
   ],
   "sleeve_extensions": {
     "strategy_a": {
-      "anchor_date": "2026-08-21",
-      "anchor_equity": 3.2428,
+      "anchor_date": "2026-08-24",
+      "anchor_equity": 3.232,
       "weights": {
-        "IUES": 0.2928,
-        "IUFS": 0.2352,
-        "SOXX": 0.1718,
-        "IUSP": 0.1525,
-        "IUHC": 0.1247,
-        "IUIS": 0.0231
+        "IUES": 0.2581,
+        "IUFS": 0.2176,
+        "IUHC": 0.1805,
+        "IUSP": 0.171,
+        "SOXX": 0.0794,
+        "IUMS": 0.0683,
+        "IUCS": 0.0251
       },
       "dates": [
-        "2026-08-24"
+        "2026-08-25"
       ],
       "equity": [
-        3.232586
+        3.224677
       ]
     },
     "strategy_b": {
-      "anchor_date": "2026-08-21",
-      "anchor_equity": 2.3216,
+      "anchor_date": "2026-08-24",
+      "anchor_equity": 2.3096,
       "weights": {
-        "IJR": 0.178,
-        "DBC": 0.1621,
-        "EWJ": 0.1542,
-        "QQQ": 0.1529,
-        "SPY": 0.1275,
-        "EFA": 0.117,
-        "VGK": 0.1083
+        "DBC": 0.2339,
+        "IJR": 0.1585,
+        "QQQ": 0.1295,
+        "VGK": 0.1213,
+        "EFA": 0.1199,
+        "EWJ": 0.119,
+        "SPY": 0.1178
       },
       "dates": [
-        "2026-08-24"
+        "2026-08-25"
       ],
       "equity": [
-        2.309716
+        2.309297
       ]
     },
     "strategy_c": {
-      "anchor_date": "2026-08-21",
-      "anchor_equity": 2.9793,
+      "anchor_date": "2026-08-24",
+      "anchor_equity": 2.916,
       "weights": {
         "CIBR": 0.2,
         "SKYY": 0.2,
         "XBI": 0.2,
         "ARKG": 0.2,
-        "159801.SZ": 0.2
+        "COPX": 0.2
       },
       "dates": [
-        "2026-08-24"
+        "2026-08-25"
       ],
       "equity": [
-        2.93781
+        2.963285
       ]
     },
     "strategy_d": {
-      "anchor_date": "2026-08-21",
-      "anchor_equity": 3.6921,
+      "anchor_date": "2026-08-24",
+      "anchor_equity": 3.6751,
       "weights": {
-        "EXV1": 0.375,
-        "EXH1": 0.324,
-        "EXV3": 0.301
+        "EXV1": 0.3712,
+        "EXH1": 0.326,
+        "EXV3": 0.3028
       },
       "dates": [
-        "2026-08-24"
+        "2026-08-25"
       ],
       "equity": [
-        3.6921
+        3.6751
       ]
     }
   },
