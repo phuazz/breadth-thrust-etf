@@ -158,3 +158,97 @@ def test_the_built_page_carries_the_label_and_the_data():
     assert found["sentence"], "the not-traded label did not reach the page"
     assert found["card"], "the card markup did not reach the page"
     assert found["data"], "live_targets data did not reach the page"
+
+
+# ---------------------------------------------------------------------------
+# Provisional vs final (2026-08-26)
+#
+# The card is worth reading only when its weights are the ones that will
+# actually trade. The engines rank at rd-1, so that is true exactly when the
+# session it was ranked on IS the session before the fill. Mid-week it is not:
+# on Wed 2026-08-26 the card showed targets ranked Tue 25 August for a Mon 31
+# August fill, with three sessions still to come, every one of which re-ranks
+# it. Same card, entirely different standing, and nothing said which.
+# ---------------------------------------------------------------------------
+from scripts.live_targets import decision_session_for  # noqa: E402
+
+
+def test_a_monday_fill_is_ranked_on_the_friday():
+    assert decision_session_for("NYSE", "2026-08-31") == "2026-08-28"
+    assert decision_session_for("XETR", "2026-08-31") == "2026-08-28"
+
+
+def test_a_holiday_moves_the_decision_session_off_the_previous_weekday():
+    """2026-09-07 is Labor Day. The US fill rolls to Tuesday the 8th, but its
+    decision session is the FRIDAY the 4th, not the holiday Monday — and Xetra,
+    which trades the 7th, ranks on that same Friday."""
+    assert decision_session_for("NYSE", "2026-09-08") == "2026-09-04"
+    assert decision_session_for("XETR", "2026-09-07") == "2026-09-04"
+
+
+def test_decision_session_across_the_year_boundary():
+    """1 Jan 2027 is a holiday, so the Mon 4 Jan fill ranks on Thu 31 Dec."""
+    assert decision_session_for("NYSE", "2027-01-04") == "2026-12-31"
+
+
+def test_decision_session_across_a_month_boundary():
+    assert decision_session_for("NYSE", "2026-09-01") == "2026-08-31"
+
+
+def test_a_short_lookback_returns_none_rather_than_guessing():
+    """Same contract as next_fill_date: no answer beats a wrong one."""
+    assert decision_session_for("NYSE", "2026-08-31", lookback_days=0) is None
+
+
+def test_targets_are_not_final_when_sessions_remain_before_the_fill(targets):
+    """The live artefact must state its own standing, not leave it inferred."""
+    assert "targets_final" in targets, "the artefact does not declare its standing"
+    assert isinstance(targets["targets_final"], bool)
+    ds = targets["next_fill"].get("decision_session")
+    if ds and targets.get("as_of"):
+        # The flag must agree with the dates it is derived from, in both
+        # directions — a flag that can disagree with its own evidence is worse
+        # than none, because the card is styled off it.
+        assert targets["targets_final"] == (targets["as_of"] == ds)
+
+
+def test_every_sleeve_names_the_close_its_fill_will_use(targets):
+    for s in targets["sleeves"]:
+        if s.get("fill_date"):
+            assert s.get("decision_session_for_fill"), s["sleeve"]
+            assert s["decision_session_for_fill"] < s["fill_date"], s["sleeve"]
+
+
+# ---------------------------------------------------------------------------
+# The collapsed state must not cost the card its safety labels
+# ---------------------------------------------------------------------------
+def test_collapsing_keeps_the_not_traded_sentence_in_both_states():
+    """Both branches of the note carry it. Collapsing hides the TABLE, never
+    the reason the card cannot be read as a trade log."""
+    t = _template_text()
+    assert t.count("Nothing here has been traded") >= 2, (
+        "the provisional branch must carry the not-traded sentence too")
+
+
+def test_the_collapsed_card_still_shows_header_note_and_pill():
+    """Only the table, the net line and the hold note collapse."""
+    t = _template_text()
+    for hidden in ("#preview-nextfill-table", "#preview-nextfill-net", "#nf-hold-note"):
+        assert f".prev-card.next-fill.nf-collapsed {hidden}" in t or hidden in t
+    assert ".nf-collapsed .nf-note" not in t, "the note must never be collapsed"
+    assert ".nf-collapsed .prev-card-h" not in t, "the header must never be collapsed"
+
+
+def test_the_toggle_is_available_in_both_states():
+    """Collapsing hides noise; it must never withhold the detail from a reader
+    who wants it."""
+    t = _template_text()
+    assert 'id="nf-toggle"' in t
+    assert "aria-expanded" in t and "aria-controls" in t
+    assert "toggle.hidden = false;" in t
+
+
+def test_the_card_is_expanded_only_when_the_targets_are_final():
+    t = _template_text()
+    assert "const isFinal = lt.targets_final === true;" in t
+    assert "setOpen(isFinal);" in t

@@ -1,14 +1,20 @@
 {
- "computed_at_utc": "2026-08-26T08:56:17.600203+00:00",
+ "computed_at_utc": "2026-08-26T13:12:07.740906+00:00",
  "as_of": "2026-08-25",
  "executed": false,
+ "targets_final": false,
  "next_fill": {
   "by_venue": {
    "NYSE": "2026-08-31",
    "XETR": "2026-08-31"
   },
   "date": "2026-08-31",
-  "venues_agree": true
+  "venues_agree": true,
+  "decision_by_venue": {
+   "NYSE": "2026-08-28",
+   "XETR": "2026-08-28"
+  },
+  "decision_session": "2026-08-28"
  },
  "sleeves": [
   {
@@ -27,7 +33,8 @@
     "SOXX": 0.029645,
     "CSP1": 0.019416
    },
-   "fill_date": "2026-08-31"
+   "fill_date": "2026-08-31",
+   "decision_session_for_fill": "2026-08-28"
   },
   {
    "sleeve": "B",
@@ -45,7 +52,8 @@
     "QQQ": 0.128452,
     "SPY": 0.122655
    },
-   "fill_date": "2026-08-31"
+   "fill_date": "2026-08-31",
+   "decision_session_for_fill": "2026-08-28"
   },
   {
    "sleeve": "C",
@@ -61,7 +69,8 @@
     "ARKG": 0.2,
     "COPX": 0.2
    },
-   "fill_date": "2026-08-31"
+   "fill_date": "2026-08-31",
+   "decision_session_for_fill": "2026-08-28"
   },
   {
    "sleeve": "D",
@@ -74,7 +83,8 @@
     "EXH3": 0.625,
     "EXV3": 0.375
    },
-   "fill_date": "2026-08-31"
+   "fill_date": "2026-08-31",
+   "decision_session_for_fill": "2026-08-28"
   }
  ],
  "lines": [

@@ -193,15 +193,67 @@ def build(now_utc: datetime | None = None) -> dict:
         fills[sl["venue"]] = fd
     distinct = sorted({v for v in fills.values() if v})
 
+    # IS THIS THE BOOK THAT WILL ACTUALLY TRADE, or a provisional one?
+    #
+    # The engines rank at rd-1, so a fill is decided by the session immediately
+    # before it. These targets are FINAL only when the session they were ranked
+    # on IS that session. Mid-week they are not: on Wed 2026-08-26 the card was
+    # ranked on Tue 25 August for a Mon 31 August fill, with three more sessions
+    # to come, every one of which re-ranks it. Same card, entirely different
+    # standing, and nothing on the page said which.
+    #
+    # Computed per sleeve against each venue's own calendar, never from "the
+    # previous weekday": a holiday moves the decision session and the two are
+    # not the same day.
+    decisions = {}
+    for sl in sleeves:
+        ds = decision_session_for(sl["venue"], sl["fill_date"]) if sl["fill_date"] else None
+        sl["decision_session_for_fill"] = ds
+        decisions[sl["venue"]] = ds
+    final = bool(sleeves) and all(
+        s.get("decision_session") and s.get("decision_session_for_fill")
+        and s["decision_session"] == s["decision_session_for_fill"]
+        for s in sleeves)
+    ds_distinct = sorted({v for v in decisions.values() if v})
+
     return {"computed_at_utc": now.isoformat(), "as_of": asof,
             "executed": False,
+            "targets_final": final,
             "next_fill": {
                 "by_venue": fills,
                 "date": distinct[0] if len(distinct) == 1 else None,
                 "venues_agree": len(distinct) == 1,
+                # The close these targets WILL be ranked on, which is not
+                # necessarily the one they were ranked on -- see targets_final.
+                "decision_by_venue": decisions,
+                "decision_session": ds_distinct[0] if len(ds_distinct) == 1 else None,
             },
             "sleeves": sleeves, "lines": lines,
             "one_way_turnover": sum(abs(x["delta"]) for x in lines) / 2}
+
+
+def decision_session_for(venue: str, fill_date: str,
+                         lookback_days: int = 15) -> str | None:
+    """The close a fill on ``fill_date`` is ranked on: the session before it.
+
+    Mirrors the engines, which rank at ``get_loc(rd) - 1``. Taken from the
+    venue's real calendar rather than "the previous weekday", because a holiday
+    moves it and the two are not the same day: a Monday fill normally ranks on
+    Friday, but the Monday after a Friday holiday ranks on the Thursday.
+
+    ``lookback_days`` of 15 calendar days comfortably spans any real holiday
+    run while keeping the schedule fetch small. Returns None rather than
+    guessing when the window somehow contains no prior session.
+
+    Python datetime months are 1-indexed; no weekday is ever derived by hand.
+    """
+    start = (pd.Timestamp(fill_date) - pd.Timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+    sched = mcal.get_calendar(venue).schedule(start_date=start, end_date=fill_date)
+    if not len(sched):
+        return None
+    target = pd.Timestamp(fill_date).date()
+    prior = [d for d in pd.DatetimeIndex(sched.index) if d.date() < target]
+    return str(prior[-1].date()) if prior else None
 
 
 def next_fill_date(venue: str, now_utc: datetime,

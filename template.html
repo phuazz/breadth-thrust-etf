@@ -1459,6 +1459,14 @@
       background: rgba(183,110,0,0.12); color: var(--warn);
       border: 1px solid rgba(183,110,0,0.30); vertical-align: 2px;
     }
+    /* NO max-width here on purpose. The note is a <p> inside .tab-content, so
+       the site-wide `.tab-content p { max-width: 66ch }` already bounds it --
+       and at 0-1-1 that rule outranks a bare `.nf-note` at 0-1-0, so a
+       max-width added here is DEAD CSS that reads as if it were doing
+       something. Two were added and removed on 2026-08-26 before the cascade
+       was checked; the measured 520.459px was 66ch from the shared rule the
+       whole time. If the measure needs changing it is a design.md decision for
+       every paragraph on the site, not a patch to one card. */
     .nf-note {
       font-size: 12.5px; color: var(--neutral); margin: 2px 0 10px;
       line-height: 1.5;
@@ -1469,6 +1477,30 @@
       background: rgba(179,38,30,0.06); color: var(--bad);
       border: 1px solid rgba(179,38,30,0.20);
     }
+    /* COLLAPSED STATE (2026-08-26). The card is expanded only when its targets
+       are the ones that will actually trade -- i.e. ranked on the close the
+       fill uses. Mid-week they are provisional and every remaining session
+       re-ranks them, so the detail is noise competing with the book that IS
+       held. The header, the PLANNED pill, the fill date and the not-traded
+       sentence stay visible in BOTH states: those are the card's safety
+       invariants and collapsing must not cost them. */
+    .prev-card.next-fill.nf-collapsed { border-left-color: var(--neutral); background: none; }
+    .prev-card.next-fill.nf-collapsed .nf-pill {
+      background: rgba(90,90,90,0.10); color: var(--neutral);
+      border-color: rgba(90,90,90,0.28);
+    }
+    .prev-card.next-fill.nf-collapsed #preview-nextfill-table,
+    .prev-card.next-fill.nf-collapsed #preview-nextfill-net,
+    .prev-card.next-fill.nf-collapsed #nf-hold-note { display: none; }
+    .nf-toggle {
+      font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+      margin-top: 6px; padding: 5px 11px; border-radius: 6px;
+      min-height: 32px;                 /* comfortable touch target on mobile */
+      background: var(--bg-card); color: var(--fg);
+      border: 1px solid var(--border);
+    }
+    .nf-toggle:hover { border-color: var(--neutral); }
+    .nf-toggle:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
     #preview-nextfill-table td.nf-act { font-weight: 700; font-size: 12px; }
     #preview-nextfill-table td.nf-buy  { color: var(--good); }
     #preview-nextfill-table td.nf-sell { color: var(--bad); }
@@ -2050,6 +2082,9 @@
           <span class="prev-card-h-asof" id="preview-nextfill-asof">—</span>
         </div>
         <p class="nf-note" id="nf-note"></p>
+        <button type="button" class="nf-toggle" id="nf-toggle"
+                aria-expanded="true" aria-controls="preview-nextfill-table"
+                hidden>Show the target book</button>
         <table class="prev-table" id="preview-nextfill-table">
           <thead>
             <tr>
@@ -4660,11 +4695,28 @@ function renderNextFill(labelMap) {
   document.getElementById('preview-nextfill-asof').textContent =
     fillDate ? `for ${fmtDateLongSafe(fillDate)}` : whenText;
 
-  document.getElementById('nf-note').innerHTML =
-    `<strong>Nothing here has been traded.</strong> These are the target `
-    + `weights for the next scheduled fill, ranked on the `
-    + `${fmtDateLongSafe(lt.as_of)} close and intended for ${whenText}. `
-    + `The book below the fold is what is actually held today.`;
+  // PROVISIONAL vs FINAL. targets_final says whether these weights were ranked
+  // on the close the fill will actually use (the engines rank at rd-1). Only
+  // then is this the book that will trade. Mid-week it is provisional and every
+  // remaining session re-ranks it, so the card collapses to its header and says
+  // when it firms up. The not-traded sentence and the fill date survive both
+  // states -- they are the reason the card cannot be misread as a trade log.
+  const isFinal = lt.targets_final === true;
+  const rankedOn = (nf.decision_session && fmtDateLongSafe(nf.decision_session))
+    || Object.values(nf.decision_by_venue || {}).filter(Boolean)
+         .map(fmtDateLongSafe).join(' / ');
+
+  document.getElementById('nf-note').innerHTML = isFinal
+    ? `<strong>Nothing here has been traded.</strong> These are the target `
+      + `weights for the next scheduled fill, ranked on the `
+      + `${fmtDateLongSafe(lt.as_of)} close and intended for ${whenText}. `
+      + `The book below the fold is what is actually held today.`
+    : `<strong>Nothing here has been traded, and these are not final.</strong> `
+      + `A fill on ${whenText} is ranked on the ${rankedOn || 'preceding'} close; `
+      + `this is ranked on ${fmtDateLongSafe(lt.as_of)}, so every session `
+      + `between now and then re-ranks it. Shown for reference only — review it `
+      + `after the ${rankedOn || 'decision'} close. The book below the fold is `
+      + `what is actually held today.`;
 
   const held = new Map();
   for (const ln of lt.lines) held.set(ln.sleeve + '|' + ln.etf, ln);
@@ -4717,6 +4769,27 @@ function renderNextFill(labelMap) {
       + holds.map(h => _escapeHtml(h.reason || 'signal short of the last close')).join(' ')
       + ` Leave those sleeves as held.</p>`
     : '';
+
+  // Collapse when provisional. The toggle stays available in both states so a
+  // reader who wants the detail is never blocked -- this hides noise, it does
+  // not withhold anything.
+  const pill = document.getElementById('nf-pill');
+  if (pill) pill.textContent = isFinal ? 'planned' : 'provisional';
+
+  const toggle = document.getElementById('nf-toggle');
+  const setOpen = (open) => {
+    card.classList.toggle('nf-collapsed', !open);
+    if (!toggle) return;
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.textContent = open
+      ? 'Hide the target book'
+      : `Show the target book (${moves.length} move${moves.length === 1 ? '' : 's'})`;
+  };
+  if (toggle) {
+    toggle.hidden = false;
+    toggle.onclick = () => setOpen(card.classList.contains('nf-collapsed'));
+  }
+  setOpen(isFinal);
 
   card.style.display = '';
 }
