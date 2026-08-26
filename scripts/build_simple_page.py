@@ -451,6 +451,24 @@ def _load_freshness() -> dict | None:
     unguarded, and the Sunday-computed report went on claiming all four sleeves
     `current` through Monday's close. `verdict_has_lapsed` closes it.
     """
+    blob = read_freshness_report()
+    if blob is None:
+        return None
+    if verdict_has_lapsed(blob):
+        print(f"  freshness: verdict computed {blob.get('computed_at_utc')} has "
+              f"LAPSED — withheld rather than published as current", flush=True)
+        return None
+    return filter_freshness(blob)
+
+
+def read_freshness_report() -> dict | None:
+    """The report on disk, or None if it is missing, unreadable or empty.
+
+    Split out from _load_freshness so the CLOCK-FREE half can be tested on its
+    own. The lapse check is deliberately time-dependent, which makes anything
+    built on top of the whole function non-deterministic — see the note on
+    test_built_page_matches_the_current_sources.
+    """
     path = ROOT / "data" / "strategy_freshness.json"
     if not path.exists():
         return None
@@ -458,29 +476,29 @@ def _load_freshness() -> dict | None:
         blob = json.loads(path.read_text(encoding="utf-8"))
     except (ValueError, OSError):
         return None
-    rows = blob.get("strategies")
-    if not rows:
-        return None
-    if verdict_has_lapsed(blob):
-        print(f"  freshness: verdict computed {blob.get('computed_at_utc')} has "
-              f"LAPSED — withheld rather than published as current", flush=True)
-        return None
+    return blob if blob.get("strategies") else None
 
-    # ALLOW-LIST, NOT A DENY-LIST. The freshness report is written for three
-    # audiences and its full row names the method -- `source` reads "breadth
-    # panels (constituents above their 200-day average)" and the technical
-    # `why` says "constituents" and "venue". This page exists to disclose the
-    # book WITHOUT the method, and test_built_page_discloses_no_parameters
-    # caught exactly that leak when this copied the row wholesale.
-    #
-    # Listing what MAY pass rather than what may not means a field added
-    # upstream later is excluded by default. A deny-list would ship it.
+
+def filter_freshness(blob: dict) -> dict:
+    """Reduce a freshness report to the fields this page may disclose.
+
+    ALLOW-LIST, NOT A DENY-LIST. The freshness report is written for three
+    audiences and its full row names the method -- `source` reads "breadth
+    panels (constituents above their 200-day average)" and the technical
+    `why` says "constituents" and "venue". This page exists to disclose the
+    book WITHOUT the method, and test_built_page_discloses_no_parameters
+    caught exactly that leak when this copied the row wholesale.
+
+    Listing what MAY pass rather than what may not means a field added
+    upstream later is excluded by default. A deny-list would ship it.
+    """
     keep = ("sleeve", "label", "data_through", "venue_last_session",
             "sessions_behind", "status", "laggards", "why_plain")
     return {
         "computed_at_utc": blob.get("computed_at_utc"),
         "all_current": blob.get("all_current"),
-        "strategies": [{k: r.get(k) for k in keep} for r in rows],
+        "strategies": [{k: r.get(k) for k in keep}
+                       for r in blob.get("strategies", [])],
     }
 
 

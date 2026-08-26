@@ -435,9 +435,65 @@ def test_unavailable_charts_are_named_not_silent(payload):
 # The published artefact
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# Parity, and the one key that cannot take part in it (2026-08-26)
+#
+# THIS COMPARISON MUST BE DETERMINISTIC OR IT IS NOT A TEST. `freshness` is
+# not: build_simple_page._load_freshness runs verdict_has_lapsed, which READS
+# THE CLOCK on purpose, so the same page and the same sources produce a block
+# before a venue closes and None after it. The suite therefore went red on its
+# own, with no commit and no source change, every time a session completed
+# after the last local refresh_all.py run -- 2026-08-25 08:24 UTC in the case
+# that surfaced this. Two scheduled workflows gate on this suite, so the ETF
+# scanner stopped publishing for the same reason.
+#
+# Excluding the key is not weakening the guard, because parity was never the
+# thing protecting it: a lapsed verdict is caught at BUILD time, where
+# _load_freshness withholds it. What parity is for -- a hand-edited page, a
+# source rolled back under a built artefact -- is still checked on this key
+# below, against the clock-free half of the same loader.
+# --------------------------------------------------------------------------
+
+CLOCK_DEPENDENT = ("freshness",)
+
+
 def test_built_page_matches_the_current_sources(built_payload, payload):
     """Catches a hand-edited build/portfolio.html and a stale build alike."""
-    assert built_payload == json.loads(json.dumps(payload))
+    strip = lambda d: {k: v for k, v in d.items() if k not in CLOCK_DEPENDENT}
+    assert strip(built_payload) == strip(json.loads(json.dumps(payload)))
+
+
+def test_the_pages_freshness_block_is_the_one_on_disk(built_payload):
+    """The clock-free half of the parity check on the excluded key.
+
+    A page MAY carry no freshness block: the build withholds it whenever the
+    verdict has lapsed, and that is the safe direction. What it may never do is
+    carry one that disagrees with the report on disk -- that is a hand-edit, or
+    a report rolled back underneath a built page, and neither is visible
+    anywhere else.
+    """
+    shown = built_payload.get("freshness")
+    if shown is None:
+        pytest.skip("page carries no freshness block — always permitted")
+    blob = bsp.read_freshness_report()
+    assert blob is not None, (
+        "the page discloses a freshness verdict that no longer exists on disk")
+    assert shown == json.loads(json.dumps(bsp.filter_freshness(blob)))
+
+
+def test_a_lapsed_verdict_is_withheld_from_a_fresh_build(monkeypatch):
+    """Pin the behaviour the exclusion above relies on.
+
+    Parity no longer covers this key, so the withholding has to be tested
+    directly or the exclusion would quietly become a hole.
+    """
+    blob = bsp.read_freshness_report()
+    if blob is None:
+        pytest.skip("no freshness report on disk to reason about")
+    monkeypatch.setattr(bsp, "verdict_has_lapsed", lambda *a, **k: True)
+    assert bsp._load_freshness() is None
+    monkeypatch.setattr(bsp, "verdict_has_lapsed", lambda *a, **k: False)
+    assert bsp._load_freshness() == bsp.filter_freshness(blob)
 
 
 def _flat(path: Path) -> str:
@@ -584,35 +640,41 @@ def test_tolerance_grows_with_the_book():
 #
 # The fix was an ALLOW-list. These pin that it stays one, because a deny-list
 # would silently ship whatever field is added upstream next.
+#
+# They read the FILTERED REPORT ON DISK, not payload["freshness"] (2026-08-26).
+# Taking the payload meant they skipped whenever verdict_has_lapsed was true,
+# which is most of the time between local refresh_all.py runs -- so the three
+# guards over the allow-list went dark exactly while the report sat stale, and
+# a method field added upstream in that window would have met no test at all.
+# Nothing about the allow-list depends on whether the verdict is still current.
 # ---------------------------------------------------------------------------
-def test_freshness_block_carries_no_method_fields(payload):
-    fresh = payload.get("freshness")
-    if not fresh:
-        pytest.skip("no freshness block in this payload")
+@pytest.fixture(scope="module")
+def freshness_block():
+    blob = bsp.read_freshness_report()
+    if blob is None:
+        pytest.skip("no freshness report on disk")
+    return bsp.filter_freshness(blob)
+
+
+def test_freshness_block_carries_no_method_fields(freshness_block):
     permitted = {"sleeve", "label", "data_through", "venue_last_session",
                  "sessions_behind", "status", "laggards", "why_plain"}
-    for row in fresh["strategies"]:
+    for row in freshness_block["strategies"]:
         extra = set(row) - permitted
         assert not extra, f"method fields reached the reduced page: {extra}"
 
 
-def test_freshness_block_still_answers_the_question_it_exists_for(payload):
+def test_freshness_block_still_answers_the_question_it_exists_for(freshness_block):
     """Filtering must not strip it down to uselessness: every row still has to
     say WHICH strategy, THROUGH WHAT DATE, and whether that is current."""
-    fresh = payload.get("freshness")
-    if not fresh:
-        pytest.skip("no freshness block in this payload")
-    assert len(fresh["strategies"]) == 4
-    for row in fresh["strategies"]:
+    assert len(freshness_block["strategies"]) == 4
+    for row in freshness_block["strategies"]:
         assert row["label"]
         assert row["data_through"]
         assert row["status"] in {"current", "behind", "unknown"}
 
 
-def test_a_behind_row_keeps_a_plain_reason_or_names_its_laggard(payload):
-    fresh = payload.get("freshness")
-    if not fresh:
-        pytest.skip("no freshness block in this payload")
-    for row in fresh["strategies"]:
+def test_a_behind_row_keeps_a_plain_reason_or_names_its_laggard(freshness_block):
+    for row in freshness_block["strategies"]:
         if row["status"] == "behind":
             assert row.get("why_plain") or row.get("laggards"), row
