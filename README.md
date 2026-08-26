@@ -49,12 +49,14 @@ Both workflows that commit `docs/` rebuild both pages, so the two cannot drift a
 | When (SGT) | What happens |
 |---|---|
 | Fri 23:30 / Sat 04:00 | Xetra closes, then NYSE. This is the information the decision reads. |
-| **Sat 09:00–14:00** | `BreadthThrust-WeeklyRefresh` runs `scripts/scheduled_refresh.py` in the automation clone. Sleeves A/B/C have Friday's NYSE close; D reports `HOLD`, its Xetra close not yet settled. |
+| **Sat 09:00–14:00** | `BreadthThrust-WeeklyRefresh` (`--push --cadence weekend`, **armed**) runs `scripts/scheduled_refresh.py` in the automation clone. Sleeves A/B/C have Friday's NYSE close; D reports `HOLD`, its Xetra close not yet settled. |
 | **Sun 09:00–14:00** | Same task, second trigger. D's European close has settled — the full book is ready. |
 | Sun/Mon, after the refresh | `python scripts/live_targets.py` — the target book for Monday's fill, with the decision session named per sleeve. |
 | Mon 21:50 (Xetra) / Tue 03:50 (US) | Submit market-on-close orders. NYSE MOC cut-off is 15:50 ET, Nasdaq 15:55 ET. |
 | **Tue 09:00–14:00** | `BreadthThrust-PostFillRefresh` (`--cadence post-fill`, armed). A/B/C re-anchor onto Monday's fill. |
 | **Wed 09:00–14:00** | Same task, second trigger. Xetra's Monday close has settled, so D re-anchors and the published book is fully post-fill. |
+
+**Both tasks are ARMED (`--push`) as of 2026-08-26.** The push publishes the dashboard and the reduced public page, so every consumer reads the current book with no operator step. It does **not** email the factsheet: `check_factsheet_gate` requires the anchor to be *released* (`docs/factsheet_release.json`, written only by `scripts/release_factsheet.py`) and not yet published, and an automatic push-triggered run gets no exemption from that. The release stays a deliberate operator act, and is the human gate on the one outward-facing send. Both carry `ExecutionTimeLimit PT8H` — `PT5H` killed a contended run on 2026-08-26 that had already finished every step including pytest, which then left a dirty tree that blocked the next run's clean-tree preflight.
 
 **Why the post-fill pair exists (2026-08-26).** The refresh cadence did not move with the rebalance cadence on 22 August. Under W-FRI the weekend refresh ran *after* Friday's fill, so the published book was current all the following week. Under W-MON it runs *before* Monday's fill, and `mark_to_market_live.py` is a strictly forward-only extension from the engine anchor that never applies a rebalance — so without a second pair, the dashboard, `live_track.json` and every downstream consumer carry a book **one fill stale from Tuesday to Friday**. Found on 2026-08-26: the dashboard was still advertising the 24 August fill as `PLANNED` two days after it, and the Navigo daily digest quoted SOXX at 6.01% of NAV against a post-fill target of 2.78% — a 3.2pp overstatement in a paragraph whose whole subject was semiconductor exposure.
 

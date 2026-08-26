@@ -32,10 +32,37 @@ BUT guard layers around refresh_all.py:
               run locally, previews exactly what CI will do on push.
   commit      --commit commits data/ and docs/ LOCALLY and pushes nothing,
               so a second scheduled run that day starts on a clean tree.
-  push        ONLY with --push (armed mode). Soak mode (no flag — the
-              initial state) stops here and reports READY so the
-              operator reviews and pushes manually. Arm the scheduled
-              task by adding --push after two clean soak runs.
+  push        ONLY with --push (armed mode). Soak mode (no flag) stops
+              here and reports READY so the operator reviews and pushes
+              manually.
+
+BOTH SCHEDULED TASKS ARE ARMED as of 2026-08-26 (owner decision):
+BreadthThrust-WeeklyRefresh and BreadthThrust-PostFillRefresh both run
+--push. What that does and does NOT do:
+
+  DOES     push the refresh to main, so Pages rebuilds and every consumer
+           — the dashboard, the reduced public page, the Navigo digest —
+           reads the current book without an operator step.
+  DOES NOT email the factsheet. check_factsheet_gate requires the anchor to
+           be RELEASED (docs/factsheet_release.json, written only by
+           scripts/release_factsheet.py) AND not yet published. An automatic
+           push-triggered run gets no exemption; the release is a separate,
+           deliberate operator act and remains the human gate on the one
+           outward-facing send. Verified against the decision core for
+           Saturday and Sunday clocks on 2026-08-26.
+
+A NOTE ON THE EXECUTION LIMIT. Both tasks carry ExecutionTimeLimit PT8H,
+raised from PT5H on 2026-08-26. A contended run that day took 4h55m and was
+terminated at the limit having ALREADY completed every step including
+pytest — killed at the finish line, reported as a failure, and leaving a
+dirty tree that then blocked the next run's clean-tree preflight. A full
+cold refresh is ~4h by itself, so PT5H had no real headroom.
+
+A TRIGGER'S START BOUNDARY MUST BE IN THE FUTURE. Registering a weekly
+trigger whose StartBoundary is earlier the same day makes Task Scheduler
+treat it as a MISSED occurrence and, with StartWhenAvailable, fire it
+immediately. That is how the post-fill task ran unintended at 15:00 on the
+afternoon it was created, mid-market and against pre-fix code.
 
 Failure alerting is best-effort local email (GMAIL_USER +
 GMAIL_APP_PASSWORD environment variables, same names as the CI
