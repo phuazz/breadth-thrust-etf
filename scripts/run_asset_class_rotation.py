@@ -77,7 +77,7 @@ from nyse_sessions import (  # noqa: E402
 )
 from price_panel_guard import (
     ma_distance_signal,  # noqa: E402
-    assert_attribution_sane, assert_panel_usable,
+    assert_attribution_sane, assert_panel_usable, fetched_panel_is_worse,
 )
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -251,11 +251,19 @@ def download_prices() -> pd.DataFrame:
     """
     needed = TICKERS + CASH_ONLY_TICKERS
     current_through = last_completed_session(datetime.now(timezone.utc))
+    cached = None
     if PRICE_CACHE.exists():
         cached = pd.read_parquet(PRICE_CACHE)
-        cache_end = cached.index.max().date()
+        # An EMPTY cache must read as "no usable cache", not explode. A
+        # zero-row frame gives index.max() = NaT, and comparing NaT to a date
+        # raises TypeError — which is how a dropped connection on 2026-08-26
+        # took down Strategies B and C on the NEXT run rather than on the one
+        # that broke the file.
+        cache_end = cached.index.max().date() if len(cached) else None
         cached_universe = set(cached.columns)
-        if cache_end >= current_through and set(needed).issubset(cached_universe):
+        if cache_end is None:
+            print(f"  Cache at {PRICE_CACHE.name} is EMPTY — re-downloading")
+        elif cache_end >= current_through and set(needed).issubset(cached_universe):
             print(f"  Using cached prices ({cached.index.min().date()} -> "
                   f"{cache_end}, current through {current_through})")
             return cached[needed]
@@ -279,6 +287,17 @@ def download_prices() -> pd.DataFrame:
     # Partial-bar guard: the padded fetch window may include today's
     # in-progress session when run during US market hours.
     df = cap_to_last_completed_session(df)
+    # REFUSE A DEGENERATE WRITE. Same rule as the SOXX OHLC path: a vendor
+    # never un-prints a close, so an empty or shrunken fetch is a sourcing
+    # fault and must not become the series the engine falls back on.
+    worse = fetched_panel_is_worse(df, cached)
+    if worse is not None:
+        if cached is not None and len(cached) and set(needed).issubset(set(cached.columns)):
+            print(f"  REFUSED cache write: {worse}. Falling back to the "
+                  f"cache on disk.")
+            return cached[needed]
+        raise RuntimeError(
+            f"price fetch unusable and no cache to fall back on: {worse}")
     df.to_parquet(PRICE_CACHE)
     print(f"  Downloaded {df.shape[0]} rows x {df.shape[1]} tickers")
     return df

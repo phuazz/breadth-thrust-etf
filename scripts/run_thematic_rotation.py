@@ -83,7 +83,7 @@ from nyse_sessions import (  # noqa: E402
 )
 from price_panel_guard import (
     ma_distance_signal,  # noqa: E402
-    assert_attribution_sane, assert_panel_usable,
+    assert_attribution_sane, assert_panel_usable, fetched_panel_is_worse,
 )
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -522,10 +522,16 @@ def download_prices() -> pd.DataFrame:
     """
     needed = TICKERS + [CASH_PROXY]
     current_through = last_completed_session(datetime.now(timezone.utc))
+    cached = None
     if PRICE_CACHE.exists():
         cached = pd.read_parquet(PRICE_CACHE)
-        cache_end = cached.index.max().date()
-        if cache_end >= current_through and set(needed).issubset(set(cached.columns)):
+        # An EMPTY cache must read as "no usable cache", not explode. See the
+        # matching note in run_asset_class_rotation.download_prices: a zero-row
+        # frame gives index.max() = NaT, and comparing NaT to a date raises.
+        cache_end = cached.index.max().date() if len(cached) else None
+        if cache_end is None:
+            print(f"  Cache at {PRICE_CACHE.name} is EMPTY — re-downloading")
+        elif cache_end >= current_through and set(needed).issubset(set(cached.columns)):
             print(f"  Using cached prices ({cached.index.min().date()} -> "
                   f"{cache_end}, current through {current_through})")
             return cached[needed]
@@ -557,6 +563,17 @@ def download_prices() -> pd.DataFrame:
     # the expense-ratio drag, so the drag compounds on USD prices.
     df = _fx_convert_to_usd(df)
     df = _apply_expense_ratio_drag(df)
+    # REFUSE A DEGENERATE WRITE. Same rule as the SOXX OHLC path and the
+    # sibling in run_asset_class_rotation: an empty or shrunken fetch is a
+    # sourcing fault and must not replace a good cache.
+    worse = fetched_panel_is_worse(df, cached)
+    if worse is not None:
+        if cached is not None and len(cached) and set(needed).issubset(set(cached.columns)):
+            print(f"  REFUSED cache write: {worse}. Falling back to the "
+                  f"cache on disk.")
+            return cached[needed]
+        raise RuntimeError(
+            f"price fetch unusable and no cache to fall back on: {worse}")
     df.to_parquet(PRICE_CACHE)
     print(f"  Downloaded {df.shape[0]} rows x {df.shape[1]} tickers")
     return df

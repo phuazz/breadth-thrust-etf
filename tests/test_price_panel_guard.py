@@ -599,3 +599,74 @@ def test_infinities_are_treated_as_missing_not_as_prices():
     v = g.assess_close_series(s, "BROKEN", panel_index=idx, min_obs=10)
     assert v.status == g.FAIL
     assert "no valid close" in v.note
+
+
+# ---------------------------------------------------------------------------
+# fetched_panel_is_worse — the WIDE-panel sibling, added 2026-08-26.
+#
+# The two engine price caches (asset_class, thematic) are one column per
+# ticker, so the Close-column rule cannot judge them and they were left
+# unguarded. On 2026-08-26 a dropped connection made yfinance return nothing
+# mid-refresh; both files were overwritten with a ZERO-ROW frame, and the
+# failure surfaced only on the NEXT run, as a TypeError from comparing the
+# resulting NaT to a date, with the good caches already gone.
+# ---------------------------------------------------------------------------
+
+def _wide_panel(dates, tickers=("SPY", "QQQ")):
+    idx = pd.to_datetime(dates)
+    return pd.DataFrame(
+        {t: np.linspace(100, 100 + len(idx), len(idx)) for t in tickers},
+        index=idx,
+    )
+
+
+GOOD = ["2026-08-20", "2026-08-21", "2026-08-24", "2026-08-25"]
+
+
+def test_the_2026_08_26_incident_is_refused():
+    """The exact write that destroyed both caches: a zero-row fetch."""
+    empty = pd.DataFrame(columns=["SPY", "QQQ"], index=pd.to_datetime([]))
+    assert g.fetched_panel_is_worse(empty, _wide_panel(GOOD)) is not None
+
+
+def test_none_and_no_columns_are_refused():
+    assert g.fetched_panel_is_worse(None, _wide_panel(GOOD)) is not None
+    assert g.fetched_panel_is_worse(pd.DataFrame(), _wide_panel(GOOD)) is not None
+
+
+def test_a_fetch_ending_earlier_is_refused():
+    """A vendor never un-prints a close."""
+    reason = g.fetched_panel_is_worse(_wide_panel(GOOD[:2]), _wide_panel(GOOD))
+    assert reason and "ends" in reason
+
+
+def test_a_fetch_starting_later_is_refused():
+    """The 2026-08-19 lesson, in panel form: a short window is not an update."""
+    reason = g.fetched_panel_is_worse(_wide_panel(GOOD[2:]), _wide_panel(GOOD))
+    assert reason and "starts" in reason
+
+
+def test_a_fetch_that_lost_a_ticker_is_refused():
+    reason = g.fetched_panel_is_worse(_wide_panel(GOOD, ("SPY",)), _wide_panel(GOOD))
+    assert reason and "dropped" in reason and "QQQ" in reason
+
+
+def test_a_genuine_extension_is_allowed():
+    """The normal case must still write, or the guard has eaten the pipeline."""
+    extended = _wide_panel(GOOD + ["2026-08-26"])
+    assert g.fetched_panel_is_worse(extended, _wide_panel(GOOD)) is None
+
+
+def test_a_cold_start_is_allowed():
+    """No cache on disk is not a reason to refuse a good fetch."""
+    assert g.fetched_panel_is_worse(_wide_panel(GOOD), None) is None
+    assert g.fetched_panel_is_worse(
+        _wide_panel(GOOD), pd.DataFrame(columns=["SPY"], index=pd.to_datetime([]))
+    ) is None
+
+
+def test_an_all_nan_fetch_is_refused():
+    """yfinance can return the right SHAPE with no data in it."""
+    df = _wide_panel(GOOD)
+    df[:] = np.nan
+    assert g.fetched_panel_is_worse(df, _wide_panel(GOOD)) is not None

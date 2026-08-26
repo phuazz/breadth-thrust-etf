@@ -282,6 +282,52 @@ def fetched_frame_is_worse(fetched: pd.DataFrame | None,
     return None
 
 
+def fetched_panel_is_worse(fetched: pd.DataFrame | None,
+                           on_disk: pd.DataFrame | None) -> str | None:
+    """Reason to REFUSE writing a WIDE close panel over ``on_disk``, or None.
+
+    The sibling of ``fetched_frame_is_worse`` for the two engine-level price
+    caches — ``asset_class_prices_cache.parquet`` and
+    ``thematic_prices_cache.parquet`` — whose frames are one column per ticker
+    rather than an OHLC block, so the Close-column rule cannot judge them.
+
+    The rule is identical, and so is the reason for it: a vendor never
+    un-prints a close, so a response that is empty, ends earlier, starts later
+    or has LOST a ticker is a sourcing fault, not new information.
+
+    Added 2026-08-26, after a dropped connection made yfinance return nothing
+    mid-refresh and both cache files were overwritten with a ZERO-ROW frame.
+    Nothing noticed at write time. The next run read the stubs back, took
+    ``index.max()`` off an empty index and died on
+    ``Cannot compare NaT with datetime.date`` — Strategies B and C both down,
+    and the good caches gone, because the write site trusted the fetch. The
+    SOXX path has refused degenerate writes since 2026-08-15; these two were
+    simply never covered.
+    """
+    if fetched is None or len(fetched) == 0 or fetched.shape[1] == 0:
+        return "the fetch returned nothing usable"
+    usable = fetched.dropna(how="all")
+    if len(usable) < 2:
+        return f"the fetch returned {len(usable)} usable row(s)"
+    if on_disk is None or len(on_disk) == 0:
+        return None
+    prev = on_disk.dropna(how="all")
+    if prev.empty:
+        return None
+    new_idx, old_idx = pd.DatetimeIndex(usable.index), pd.DatetimeIndex(prev.index)
+    if new_idx.max() < old_idx.max():
+        return (f"the fetch ends {new_idx.max().date()} but the cache "
+                f"already ends {old_idx.max().date()}")
+    if new_idx.min() > old_idx.min():
+        return (f"the fetch starts {new_idx.min().date()} but the cache "
+                f"already starts {old_idx.min().date()}")
+    lost = [c for c in on_disk.columns if c not in fetched.columns]
+    if lost:
+        return (f"the fetch dropped {len(lost)} ticker(s) the cache had: "
+                f"{', '.join(map(str, sorted(lost)[:6]))}")
+    return None
+
+
 def assess_close_series(
     close: pd.Series | None,
     member: str,
