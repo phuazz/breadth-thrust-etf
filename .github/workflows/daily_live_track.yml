@@ -162,6 +162,36 @@ jobs:
       - name: Check anchor consistency (live track vs deployed curve)
         run: python scripts/check_anchor_consistency.py
 
+      # ----- The nightly vendor hole (2026-08-27) -----
+      # Three consecutive unattended runs died here (25, 26 and 27 August) and
+      # the dashboard went stale each morning until someone dispatched by hand.
+      # The REGRESSION line names SPY, which is a red herring: SPY's 2026-08-20
+      # bar comes from the committed em_regime_context.parquet, it is printed
+      # BEFORE the re-fetch repairs it, and it appears in the run that
+      # succeeded too. The lines that actually failed were 159801.SZ and the
+      # five Xetra .DE lines.
+      #
+      # Cause: for non-US venues yfinance serves the most recently COMPLETED
+      # session as NaN for 12-20 hours, having served it during and just after
+      # that session. Every 00:00 and 06:00 UTC row in
+      # data/vendor_availability_log.jsonl sits one session behind the
+      # 12:00/18:00 rows before it, on all five Xetra lines, every weekday from
+      # 18 to 27 August without exception. dropna() turned that into a shorter
+      # series and the never-go-backwards guard fired.
+      #
+      # This cron sits inside that window, and GitHub's scheduling delay pushes
+      # it deeper — the 26 Aug 21:30 slot did not fire until 00:55 on 27 Aug.
+      # No fetch shape recovers the withheld bar (period=2y, period=1mo,
+      # narrow start/end, Ticker.history and auto_adjust=False were all tried
+      # on 2026-08-27 and none returned it), so a retry or a secondary yfinance
+      # source would not have helped. The export instead reinstates the bar
+      # from the panel IT ALREADY PUBLISHED, for a session the vendor's own
+      # response still lists as live, and only when the two agree on the price
+      # scale everywhere they overlap.
+      #
+      # The guard is UNCHANGED and still hard-fails below on exit 2: a
+      # truncation with no vendor evidence behind it is indistinguishable from
+      # source rot, so it is still held back and still refuses to publish.
       - name: Run holdings price export (soft-fail, except a backwards panel)
         run: |
           set +e

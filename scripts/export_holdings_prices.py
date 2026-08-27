@@ -72,6 +72,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -343,6 +344,18 @@ def _round_sig(values: list[float], sig: int = 4) -> list[float]:
     return out
 
 
+def universe_sources_present() -> bool:
+    """True when the caches that DEFINE the requested universe are on disk.
+
+    ``collect_all_tickers`` reads the asset-class and thematic rotation
+    parquets, both gitignored. Where they are absent the requested set is a
+    floor, not the universe, and no conclusion may be drawn from a ticker's
+    absence from it. Used to gate the retirement branch in ``main``.
+    """
+    return ((DATA_DIR / "asset_class_prices_cache.parquet").exists()
+            and (DATA_DIR / "thematic_prices_cache.parquet").exists())
+
+
 def collect_all_tickers() -> set[str]:
     """Union of every ticker any of the four strategies' price caches
     can offer plus the individual-OHLC list."""
@@ -410,7 +423,9 @@ def build_entry(close: "pd.Series | None") -> dict | None:
     }
 
 
-def fetch_missing_from_yfinance(tickers: list[str]) -> dict[str, pd.Series]:
+def fetch_missing_from_yfinance(tickers: list[str],
+                                gaps_out: dict[str, list[str]] | None = None
+                                ) -> dict[str, pd.Series]:
     """Last-resort fetch for book-critical tickers whose local caches are
     absent (the CI-runner case — those caches are gitignored). Downloads ~2
     calendar years of daily closes in one batched call so the 200d MA is
@@ -418,6 +433,14 @@ def fetch_missing_from_yfinance(tickers: list[str]) -> dict[str, pd.Series]:
     subsequent runs are cheap, and returns {ticker: Close series}. Any
     failure degrades gracefully to an empty mapping — the caller then simply
     reports the ticker as skipped rather than crashing the (soft-fail) step.
+
+    ``gaps_out``, when supplied, is filled with {ticker: [ISO dates]} for every
+    session the VENDOR ITSELF returned empty — the date is in the response's
+    own index and at least one other ticker in the batch printed a close on it,
+    but this line did not. That is the evidence ``reinstate_vendor_gaps`` needs
+    to tell a vendor hole apart from a stale local source, and it is only
+    visible BEFORE the ``dropna()`` below collapses a NaN tail into a shorter
+    series. See the vendor-gap note on ``reinstate_vendor_gaps``.
     """
     if not tickers:
         return {}
@@ -429,7 +452,8 @@ def fetch_missing_from_yfinance(tickers: list[str]) -> dict[str, pd.Series]:
     # ~2y of calendar days comfortably covers 200 trading sessions + the 1Y
     # window. auto_adjust=True matches the convention used by the Strategy B/C
     # rotations and the EEM loader (adjusted closes).
-    print(f"  Backfilling {len(tickers)} ticker(s) from yfinance: "
+    print(f"  Backfilling {len(tickers)} ticker(s) from yfinance "
+          f"(yfinance {getattr(yf, '__version__', 'unknown')}): "
           f"{', '.join(tickers)}")
     out: dict[str, pd.Series] = {}
     try:
@@ -438,6 +462,20 @@ def fetch_missing_from_yfinance(tickers: list[str]) -> dict[str, pd.Series]:
     except Exception as exc:
         print(f"  WARN: yfinance batch download failed: {exc}")
         return {}
+    if raw is None or len(raw) == 0:
+        print("  WARN: yfinance returned an EMPTY frame for the whole batch")
+        return {}
+    print(f"  Vendor frame: {len(raw)} rows, "
+          f"{str(pd.Timestamp(raw.index.min()).date())} .. "
+          f"{str(pd.Timestamp(raw.index.max()).date())}")
+
+    # How many of the batch printed a close on each date. A date where SOME
+    # ticker traded is a real session at the vendor, so a NaN there is the
+    # vendor withholding one line, not a market holiday.
+    close_cols = [c for c in raw.columns
+                  if (isinstance(c, tuple) and c[-1] == "Close") or c == "Close"]
+    printed = raw[close_cols].notna().sum(axis=1) if close_cols else None
+
     for tk in tickers:
         try:
             if len(tickers) == 1:
@@ -447,6 +485,22 @@ def fetch_missing_from_yfinance(tickers: list[str]) -> dict[str, pd.Series]:
                 ser = raw[(tk, "Close")] if (tk, "Close") in raw.columns else None
             if ser is None:
                 continue
+            if isinstance(ser, pd.DataFrame):
+                ser = ser.iloc[:, 0]
+            if gaps_out is not None and printed is not None:
+                # Recent tail only. A batch spans several venues, so every US
+                # holiday is a date where the Xetra lines printed and the US
+                # ones did not (and vice versa) — hundreds of blanks that are
+                # simply closed markets. Withholding is a fresh-tail
+                # behaviour; anything older is judged by interior_gaps, which
+                # uses the venue's own calendar and cannot confuse the two.
+                recent = ser.iloc[-VENDOR_GAP_LOOKBACK_ROWS:]
+                blank = recent.isna() & (printed.reindex(recent.index) > 0)
+                if bool(blank.any()):
+                    gaps_out[tk] = [
+                        str(pd.Timestamp(d).date())
+                        for d in recent.index[blank]
+                    ]
             ser = ser.dropna()
             if ser.empty:
                 continue
@@ -519,7 +573,178 @@ def fetch_missing_from_yfinance(tickers: list[str]) -> dict[str, pd.Series]:
                 pass
         except Exception:
             continue
+
+    # What the vendor actually served, per line. Three nights of failures were
+    # read as a stale SPY because the log said nothing about the fetch itself:
+    # which lines came back short, and how short. Only the lines that trail the
+    # frame are named — on a good night this prints one word.
+    frame_last = str(pd.Timestamp(raw.index.max()).date())
+    trailing = sorted((tk, str(s.index[-1].date()))
+                      for tk, s in out.items()
+                      if len(s) and str(s.index[-1].date()) < frame_last)
+    missing = [tk for tk in tickers if tk not in out]
+    print(f"  Fetched {len(out)}/{len(tickers)} line(s); frame ends {frame_last}"
+          + (f"; behind it: {', '.join(f'{t} ({d})' for t, d in trailing)}"
+             if trailing else "; all current with the frame"))
+    if missing:
+        print(f"  WARN: vendor returned NOTHING for: {', '.join(missing)}")
     return out
+
+
+# --------------------------------------------------------------------------
+# Vendor gaps — the nightly XETR / SZSE hole (2026-08-27)
+#
+# WHAT HAPPENS. For non-US venues yfinance serves the most recently COMPLETED
+# session as NaN for roughly 12-20 hours after that session, having served it
+# during and just after the session itself. Measured, not assumed: every 00:00
+# and 06:00 UTC row in data/vendor_availability_log.jsonl sits one session
+# behind the 12:00/18:00 rows that preceded it, on all five Xetra lines, on
+# every weekday from 2026-08-18 to 2026-08-27 without exception. Confirmed
+# directly at 15:44 UTC on 2026-08-27: EXV1.DE's 2026-08-26 close came back
+# NaN in a batched frame where SPY printed normally, and the date was absent
+# altogether from a single-ticker fetch.
+#
+# WHY IT BROKE THE NIGHTLY PUBLISH. fetch_missing_from_yfinance drops NaNs, so
+# a withheld tail becomes a SHORTER series; its last bar then sits behind the
+# published panel, find_regressions fires, and the run exits 2 — which the
+# daily_live_track workflow turns into a hard failure that blocks live_track,
+# the dashboard, the factsheet and the public page. The engine cron ('30 21 *
+# * 1-5') sits inside the withholding window, and GitHub's cron delay pushes
+# it deeper: the 26 Aug 21:30 slot did not fire until 00:55 on 27 Aug.
+#
+# WHY REINSTATING IS A REPAIR AND NOT A RELAXATION. The bar being restored is
+# one THIS repo already published, for a session the vendor's own response
+# still lists as real (peers printed on it), at a price the vendor served us
+# hours earlier and which still agrees with everything around it. Nothing is
+# invented: a date the previous panel does not carry can never be filled. And
+# because the evidence required is the vendor returning a blank for a live
+# session, a merely stale LOCAL source produces no gaps at all — so the 2026-
+# 08-08 EEM shape (a frozen cache four sessions behind a good panel) still
+# regresses, is still held back, and still exits 2. That distinction is the
+# whole point, and tests/test_export_holdings_prices.py pins both directions.
+# --------------------------------------------------------------------------
+
+# Published prices are rounded to 4 significant figures by _round_sig, so the
+# overlap comparison has to tolerate that rounding — and nothing looser. Any
+# genuine change of adjustment vintage (a dividend going ex re-scales the whole
+# auto_adjust=True history) moves closes by far more than 5e-4, so it fails the
+# check and the splice is refused rather than silently mixing two vintages.
+VENDOR_GAP_RTOL = 5e-4
+
+# How many overlapping bars to compare before trusting a splice.
+VENDOR_GAP_OVERLAP_BARS = 10
+
+# How far back a withheld session is looked for in the vendor's response. The
+# behaviour being caught lasts 12-20 hours, so two trading weeks is generous;
+# the limit exists to keep ordinary market holidays out of the evidence.
+VENDOR_GAP_LOOKBACK_ROWS = 10
+
+
+def reinstate_vendor_gaps(ticker: str,
+                          fetched: "pd.Series",
+                          prev_entry: dict | None,
+                          gap_dates: list[str] | None,
+                          ) -> tuple["pd.Series", list[str], str | None]:
+    """Put back the sessions the vendor withheld, from the published panel.
+
+    Returns ``(series, reinstated_dates, refusal_reason)``. A date is only
+    reinstated when ALL of the following hold, which is what keeps this a
+    repair rather than a way of manufacturing data:
+
+      * the vendor returned a blank for it while other lines in the same
+        response printed a close (so the session is real at the vendor);
+      * the previously published panel carries a price for that exact date;
+      * the fetched and published series agree, within VENDOR_GAP_RTOL, on
+        the bars they do share — otherwise the adjustment vintage has moved
+        and splicing would join two different scales.
+    """
+    if fetched is None or not gap_dates or not prev_entry:
+        return fetched, [], None
+    prev_dates = prev_entry.get("dates") or []
+    prev_prices = prev_entry.get("prices") or []
+    if not prev_dates or len(prev_dates) != len(prev_prices):
+        return fetched, [], None
+    published = {d: p for d, p in zip(prev_dates, prev_prices) if p is not None}
+
+    have = {str(pd.Timestamp(d).date()) for d in fetched.index}
+    fillable = sorted(set(gap_dates) & set(published) - have)
+    if not fillable:
+        return fetched, [], None
+
+    # Adjustment-vintage check on the shared bars.
+    shared = [d for d in prev_dates if d in have and d in published]
+    if len(shared) < 2:
+        return fetched, [], "too little overlap to verify the price scale"
+    by_date = {str(pd.Timestamp(d).date()): float(v)
+               for d, v in fetched.items()}
+    tail = shared[-VENDOR_GAP_OVERLAP_BARS:]
+    for d in tail:
+        a, b = by_date[d], float(published[d])
+        if b == 0 or abs(a - b) / abs(b) > VENDOR_GAP_RTOL:
+            return fetched, [], (
+                f"published and fetched closes disagree on {d} "
+                f"({b} vs {round(a, 6)}) — adjustment vintage changed, "
+                f"refusing to splice")
+
+    repaired = fetched.copy()
+    for d in fillable:
+        repaired.loc[pd.Timestamp(d)] = float(published[d])
+    repaired = repaired.sort_index()
+    return repaired, fillable, None
+
+
+# Suffix -> trading calendar. Shenzhen has no separate pandas_market_calendars
+# entry; it keeps the same session dates and holidays as Shanghai, so XSHG is
+# the right proxy for a DATE-level completeness check (it is never used for
+# prices). An unmapped suffix reports nothing rather than guessing.
+VENUE_BY_SUFFIX = {".DE": "XETR", ".SZ": "XSHG", ".SS": "XSHG"}
+
+
+@lru_cache(maxsize=8)
+def _venue_calendar(name: str):
+    """Cached calendar handle — building one per ticker costs more than the
+    whole export."""
+    import pandas_market_calendars as mcal
+    return mcal.get_calendar(name)
+
+
+def venue_calendar_for(ticker: str) -> str | None:
+    """Trading calendar name for a panel ticker, or None if not known."""
+    if ticker.endswith("-USD"):     # crypto trades every day; no calendar
+        return None
+    for suffix, cal in VENUE_BY_SUFFIX.items():
+        if ticker.endswith(suffix):
+            return cal
+    return "NYSE" if ticker.isalpha() else None
+
+
+def interior_gaps(entry: dict | None, ticker: str) -> list[str]:
+    """Sessions this ticker's venue held that the series is missing, strictly
+    INSIDE its own span.
+
+    find_regressions compares last bars only, so a hole that is not at the tail
+    passes it silently. That is not hypothetical: the run that published at
+    15:30 UTC on 2026-08-27 went green while committing a panel with no
+    2026-08-26 bar for any of the five Xetra lines, because the vendor had
+    already restored 08-27 over the top of the hole it left at 08-26.
+
+    Interior only, deliberately: the tail is where a legitimate publication lag
+    lives (Europe routinely trails the US by a session), and flagging that would
+    fire every night for a condition that is not a fault.
+    """
+    dates = (entry or {}).get("dates") or []
+    if len(dates) < 3:
+        return []
+    cal_name = venue_calendar_for(ticker)
+    if not cal_name:
+        return []
+    try:
+        sched = _venue_calendar(cal_name).schedule(
+            start_date=dates[0], end_date=dates[-1])
+    except Exception:
+        return []
+    expected = {str(pd.Timestamp(d).date()) for d in sched.index}
+    return sorted(expected - set(dates))
 
 
 # --------------------------------------------------------------------------
@@ -798,12 +1023,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  WARN: could not read previous panel: {exc}")
 
     out: dict[str, dict] = {}
+    # The close series behind each entry, kept so a repair can be applied to
+    # the SERIES and the moving averages rebuilt from it. Splicing an entry
+    # would mean hand-patching three MA arrays in step with the price array.
+    series: dict[str, "pd.Series"] = {}
     n_skipped: list[str] = []
     for ticker in tickers:
-        entry = build_entry(load_close_series(ticker))
+        close = load_close_series(ticker)
+        entry = build_entry(close)
         if entry is None:
             n_skipped.append(ticker)
             continue
+        series[ticker] = close
         out[ticker] = entry
 
     # Second pass: any book-critical ticker that is missing, whose only
@@ -826,18 +1057,66 @@ def main(argv: list[str] | None = None) -> int:
     refetch = sorted({t for t in critical
                       if t not in out or entry_is_stale(out.get(t), now_utc)}
                      | set(regressed))
+    vendor_gaps: dict[str, list[str]] = {}
+    reinstated: dict[str, list[str]] = {}
     if refetch:
         stale_names = [t for t in refetch
                        if t in out and t not in regressed]
         if stale_names:
             print(f"  Stale beyond {MAX_CACHE_AGE_DAYS}d, re-fetching: "
                   f"{', '.join(stale_names)}")
-        for tk, close in fetch_missing_from_yfinance(refetch).items():
+        fetched = fetch_missing_from_yfinance(refetch, gaps_out=vendor_gaps)
+        if vendor_gaps:
+            print("  Vendor returned NO close on a live session for: "
+                  + ", ".join(f"{t} ({', '.join(d)})"
+                              for t, d in sorted(vendor_gaps.items())))
+        for tk, close in fetched.items():
+            close, filled, refused = reinstate_vendor_gaps(
+                tk, close, prev_prices.get(tk), vendor_gaps.get(tk))
+            if filled:
+                reinstated[tk] = filled
+            if refused:
+                print(f"  NOT SPLICED: {tk} — {refused}")
             entry = build_entry(close)
             if entry is not None:
+                series[tk] = close
                 out[tk] = entry
                 if tk in n_skipped:
                     n_skipped.remove(tk)
+
+    # Second repair, against the venue calendar rather than the vendor's own
+    # response. A hole can reach the panel from a CACHE as well as from a
+    # fetch: the reinstated bar above is not written back to the per-ETF OHLC
+    # parquet (that file feeds the strategy engines, and a Close with no
+    # Open/High/Low would disarm backtest.py's ATR path), so the next run
+    # reads the holed cache and the gap re-opens. This closes it every run.
+    #
+    # It can only ever fill a session STRICTLY INSIDE the series, so it never
+    # moves a last bar and therefore cannot mask a regression. The 2026-08-08
+    # EEM shape — a frozen source four sessions short at the TAIL — is
+    # untouched by it and still exits 2.
+    for tk, entry in list(out.items()):
+        gap_dates = interior_gaps(entry, tk)
+        if not gap_dates or tk not in series or series[tk] is None:
+            continue
+        repaired, filled, refused = reinstate_vendor_gaps(
+            tk, series[tk], prev_prices.get(tk), gap_dates)
+        if refused:
+            print(f"  NOT SPLICED: {tk} — {refused}")
+            continue
+        if not filled:
+            continue
+        rebuilt = build_entry(repaired)
+        if rebuilt is not None:
+            series[tk] = repaired
+            out[tk] = rebuilt
+            reinstated.setdefault(tk, []).extend(filled)
+            reinstated[tk] = sorted(set(reinstated[tk]))
+
+    if reinstated:
+        print("  REINSTATED from the published panel (vendor withheld a live "
+              "session): " + ", ".join(f"{t} ({', '.join(d)})"
+                                       for t, d in sorted(reinstated.items())))
 
     # Never-go-backwards. Any regression the re-fetch did not repair keeps the
     # PREVIOUSLY published series: it is the more truthful of the two, and a
@@ -865,21 +1144,45 @@ def main(argv: list[str] | None = None) -> int:
     # that will never resolve again. EXH3.DE became exactly that on
     # 2026-08-03 when sleeve D's industrials panel was repointed to
     # EXH4.DE — see reviews/2026-08-03_sleeve-d-exh3-correction.md.
+    # Retiring is a LOCAL privilege (2026-08-27). ``wanted`` is derived partly
+    # from the rotation parquets, which are gitignored — so on a CI runner the
+    # requested set collapses to the static list plus the book, and every
+    # cache-derived name in the published panel looks retired. The run that
+    # published at 15:30 UTC on 2026-08-27 duly dropped 26 of them (TLT, GLD,
+    # VNQ, XME, ...) and committed a 32-ticker panel over the 58-ticker one a
+    # local refresh had written: the exact shrink this guard block was written
+    # to prevent, re-opened by the retirement branch added for the EXH3 ghost.
+    # run_c_seat_watch.py reads the panel for the whole thematic UNIVERSE, not
+    # just current holdings, so those names are not spare.
+    #
+    # A run that cannot see the universe definition cannot judge what is no
+    # longer in it, so it carries everything forward and leaves retirement to
+    # the local refresh, which can. EXH3.DE still goes when refresh_all runs.
     wanted = collect_all_tickers() | set(critical)
+    can_retire = universe_sources_present()
     carried: list[str] = []
     retired: list[str] = []
     for tk, entry in prev_prices.items():
         if tk in out or not entry or not entry.get("dates"):
             continue
-        if tk in wanted:
+        if tk in wanted or not can_retire:
             out[tk] = entry
             carried.append(tk)
         else:
             retired.append(tk)
 
+    # Completeness, reported rather than assumed. find_regressions compares
+    # LAST BARS, so a session missing from the middle of a series passes it
+    # without a word — and one did: see interior_gaps. This says so in the log
+    # and carries it in the artefact, so a consumer can show the series as
+    # holed instead of drawing a straight line across the gap.
+    holes = {tk: g for tk, g in ((t, interior_gaps(e, t))
+                                 for t, e in out.items()) if g}
+
     payload = {
         "computed_at_utc": now_utc.isoformat(timespec="seconds"),
         "lookback_days": LOOKBACK_DAYS,
+        "interior_gaps": holes,
         "prices": out,
     }
     OUT_PATH.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
@@ -915,6 +1218,11 @@ def main(argv: list[str] | None = None) -> int:
     if behind:
         print(f"  Panel newest bar {newest}; {len(behind)} ticker(s) behind it: "
               + ", ".join(f"{t} ({d})" for t, d in behind))
+    if holes:
+        print(f"  WARN: {len(holes)} ticker(s) are missing a session INSIDE "
+              "their own span (the vendor withheld it and the published panel "
+              "had nothing to restore): "
+              + ", ".join(f"{t} ({', '.join(g)})" for t, g in sorted(holes.items())))
     if unrepaired:
         print(f"  FAIL: {len(unrepaired)} ticker(s) regressed and could not be "
               f"re-sourced: {', '.join(sorted(unrepaired))}")
