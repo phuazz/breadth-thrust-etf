@@ -225,7 +225,8 @@ def test_regressed_ticker_is_held_back_to_the_published_series(tmp_path, monkeyp
     monkeypatch.setattr(ehp, "collect_all_tickers", lambda: {"EEM"})
     monkeypatch.setattr(ehp, "collect_book_symbols", lambda: {"EEM"})
     monkeypatch.setattr(ehp, "NETWORK_FALLBACK_TICKERS", ["EEM"])
-    monkeypatch.setattr(ehp, "fetch_missing_from_yfinance", lambda tks: {})
+    monkeypatch.setattr(ehp, "fetch_missing_from_yfinance",
+                        lambda tks, gaps_out=None: {})
 
     good = ["2026-08-06", "2026-08-07"]
     out_path.write_text(json.dumps({
@@ -264,7 +265,8 @@ def test_a_repaired_panel_exits_zero(tmp_path, monkeypatch):
     monkeypatch.setattr(ehp, "collect_all_tickers", lambda: {"EEM"})
     monkeypatch.setattr(ehp, "collect_book_symbols", lambda: {"EEM"})
     monkeypatch.setattr(ehp, "NETWORK_FALLBACK_TICKERS", ["EEM"])
-    monkeypatch.setattr(ehp, "fetch_missing_from_yfinance", lambda tks: {})
+    monkeypatch.setattr(ehp, "fetch_missing_from_yfinance",
+                        lambda tks, gaps_out=None: {})
 
     out_path.write_text(json.dumps({
         "computed_at_utc": "2026-08-03T00:00:00+00:00", "lookback_days": 252,
@@ -363,3 +365,323 @@ def test_the_live_panel_has_no_exh3_ghost():
     )["prices"]
     assert "EXH4.DE" in panel, "the industrials line must be published"
     assert "EXH3.DE" not in panel, "EXH3.DE is a food & beverage fund, not in any sleeve"
+
+
+# ---------------------------------------------------------------------------
+# Vendor gaps — the nightly XETR / SZSE hole
+#
+# 2026-08-25/26/27: three consecutive unattended "Daily live mark-to-market"
+# runs died at the holdings price export. The failing tickers were 159801.SZ
+# and the five Xetra .DE lines, not SPY — SPY appears in the pre-refetch
+# REGRESSION line of the run that SUCCEEDED too, because its 2026-08-20 bar
+# comes from the committed em_regime_context.parquet and the refetch repairs
+# it every time.
+#
+# The cause: for non-US venues yfinance returns the most recently completed
+# session as NaN for 12-20 hours, having served it earlier the same day.
+# dropna() turns that into a shorter series, the last bar moves backwards
+# against the published panel, and the run exits 2.
+#
+# The repair reinstates ONLY a bar that (a) the vendor's own response marks as
+# a live session it withheld from this line, and (b) this repo already
+# published for that exact date, and (c) sits on the same price scale as what
+# the vendor is serving now. The tests below pin the repair AND every one of
+# the three refusals — a guard that cannot say no is not a guard.
+# ---------------------------------------------------------------------------
+XETR_AUG = ["2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21",
+            "2026-08-24", "2026-08-25", "2026-08-26", "2026-08-27"]
+
+
+def _panel_entry(dates, prices):
+    return {"dates": list(dates),
+            "prices": ehp._round_sig([float(p) for p in prices])}
+
+
+def _series(dates, prices):
+    return pd.Series([float(p) for p in prices],
+                     index=pd.to_datetime(list(dates)))
+
+
+def _long_dates(n=260, end="2026-08-25"):
+    return [str(d.date()) for d in pd.bdate_range(end=end, periods=n)]
+
+
+def test_vendor_gaps_are_captured_before_dropna(tmp_path, monkeypatch):
+    """fetch_missing_from_yfinance must report a session the vendor blanked
+    for ONE line while other lines in the same response printed a close.
+    That evidence only exists before dropna(), which is why it is collected
+    inside the fetch rather than inferred afterwards."""
+    idx = pd.to_datetime(["2026-08-24", "2026-08-25", "2026-08-26", "2026-08-27"])
+    frame = pd.DataFrame(
+        {("EXV1.DE", "Close"): [42.40, 42.31, np.nan, 41.84],   # 08-26 withheld
+         ("SPY", "Close"): [763.47, 765.91, 766.08, 769.67]},
+        index=idx)
+    frame.columns = pd.MultiIndex.from_tuples(frame.columns)
+    fake_yf = type("_YF", (), {"download": staticmethod(lambda *a, **k: frame),
+                               "__version__": "1.1.0"})
+    monkeypatch.setitem(sys.modules, "yfinance", fake_yf)
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+
+    gaps = {}
+    got = ehp.fetch_missing_from_yfinance(["EXV1.DE", "SPY"], gaps_out=gaps)
+
+    assert gaps == {"EXV1.DE": ["2026-08-26"]}, gaps
+    # dropna() still shortens the returned series — the gap record is what lets
+    # the caller put the bar back.
+    assert str(got["EXV1.DE"].index[-1].date()) == "2026-08-27"
+    assert "2026-08-26" not in [str(d.date()) for d in got["EXV1.DE"].index]
+
+
+def test_a_market_holiday_is_not_reported_as_a_vendor_gap(tmp_path, monkeypatch):
+    """A date where NOTHING in the batch printed is a closed market, not a
+    withheld line. It must not be recorded as a gap."""
+    idx = pd.to_datetime(["2026-08-24", "2026-08-25", "2026-08-26"])
+    frame = pd.DataFrame(
+        {("EXV1.DE", "Close"): [42.40, 42.31, np.nan],
+         ("EXH4.DE", "Close"): [120.32, 121.76, np.nan]},
+        index=idx)
+    frame.columns = pd.MultiIndex.from_tuples(frame.columns)
+    fake_yf = type("_YF", (), {"download": staticmethod(lambda *a, **k: frame)})
+    monkeypatch.setitem(sys.modules, "yfinance", fake_yf)
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+
+    gaps = {}
+    ehp.fetch_missing_from_yfinance(["EXV1.DE", "EXH4.DE"], gaps_out=gaps)
+    assert gaps == {}, f"a closed session was mistaken for a vendor gap: {gaps}"
+
+
+def test_reinstate_puts_back_a_withheld_session():
+    dates = _long_dates()
+    prices = [100.0 + i * 0.01 for i in range(len(dates))]
+    prev = _panel_entry(dates + ["2026-08-26"], prices + [102.6])
+    fetched = _series(dates + ["2026-08-27"], prices + [102.7])   # 08-26 missing
+
+    got, filled, refused = ehp.reinstate_vendor_gaps(
+        "EXV1.DE", fetched, prev, ["2026-08-26"])
+
+    assert refused is None
+    assert filled == ["2026-08-26"]
+    assert str(got.index[-2].date()) == "2026-08-26"
+    assert got.loc[pd.Timestamp("2026-08-26")] == pytest.approx(102.6)
+    assert got.index.is_monotonic_increasing
+
+
+def test_reinstate_refuses_when_the_adjustment_vintage_moved():
+    """auto_adjust=True re-scales the WHOLE history when a dividend goes ex.
+    Splicing a bar from the old scale onto the new one would join two
+    vintages, so a disagreeing overlap must refuse rather than repair."""
+    dates = _long_dates()
+    prices = [100.0 + i * 0.01 for i in range(len(dates))]
+    prev = _panel_entry(dates + ["2026-08-26"], prices + [102.6])
+    # Same shape, every close re-scaled 0.4% down: a dividend adjustment.
+    fetched = _series(dates + ["2026-08-27"],
+                      [p * 0.996 for p in prices] + [102.3])
+
+    got, filled, refused = ehp.reinstate_vendor_gaps(
+        "EXV1.DE", fetched, prev, ["2026-08-26"])
+
+    assert filled == []
+    assert refused and "adjustment vintage" in refused
+    assert "2026-08-26" not in [str(d.date()) for d in got.index]
+
+
+def test_reinstate_cannot_invent_a_date_the_panel_never_published():
+    dates = _long_dates()
+    prices = [100.0 + i * 0.01 for i in range(len(dates))]
+    prev = _panel_entry(dates, prices)          # no 08-26 bar to restore
+    fetched = _series(dates + ["2026-08-27"], prices + [102.7])
+
+    got, filled, refused = ehp.reinstate_vendor_gaps(
+        "EXV1.DE", fetched, prev, ["2026-08-26"])
+
+    assert filled == [] and refused is None
+    assert "2026-08-26" not in [str(d.date()) for d in got.index]
+
+
+def test_reinstate_does_nothing_without_vendor_evidence():
+    """The 2026-08-08 EEM shape: a local source simply ENDS early. There is no
+    vendor blank, so there is nothing to reinstate and the regression stands."""
+    dates = _long_dates()
+    prices = [100.0 + i * 0.01 for i in range(len(dates))]
+    prev = _panel_entry(dates + ["2026-08-26"], prices + [102.6])
+    short = _series(dates[:-4], prices[:-4])
+
+    for evidence in (None, []):
+        got, filled, refused = ehp.reinstate_vendor_gaps(
+            "EEM", short, prev, evidence)
+        assert filled == [] and refused is None
+        assert str(got.index[-1].date()) == dates[-5]
+
+
+def test_withheld_session_run_exits_zero_and_keeps_the_bar(tmp_path, monkeypatch):
+    """End-to-end, the exact shape of the 2026-08-26/27 failures: the vendor
+    withholds the newest completed Xetra session, the published panel has it,
+    and the run must publish a complete series and exit 0 — WITHOUT the guard
+    being told to look the other way."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    out_path = tmp_path / "holdings_prices_1y.json"
+    monkeypatch.setattr(ehp, "OUT_PATH", out_path)
+    monkeypatch.setattr(ehp, "collect_all_tickers", lambda: {"EXV1.DE"})
+    monkeypatch.setattr(ehp, "collect_book_symbols", lambda: {"EXV1.DE"})
+    monkeypatch.setattr(ehp, "NETWORK_FALLBACK_TICKERS", ["EXV1.DE"])
+
+    dates = _long_dates()
+    prices = [100.0 + i * 0.01 for i in range(len(dates))]
+    out_path.write_text(json.dumps({
+        "computed_at_utc": "2026-08-26T18:00:00+00:00", "lookback_days": 252,
+        "prices": {"EXV1.DE": _panel_entry(dates + ["2026-08-26"],
+                                           prices + [102.6])},
+    }), encoding="utf-8")
+
+    def _fetch(tks, gaps_out=None):
+        if gaps_out is not None:
+            gaps_out["EXV1.DE"] = ["2026-08-26"]
+        return {"EXV1.DE": _series(dates + ["2026-08-27"], prices + [102.7])}
+
+    monkeypatch.setattr(ehp, "fetch_missing_from_yfinance", _fetch)
+
+    assert ehp.main([]) == 0, "a repairable vendor gap must not block the publish"
+    published = json.loads(
+        out_path.read_text(encoding="utf-8"))["prices"]["EXV1.DE"]
+    assert published["dates"][-2:] == ["2026-08-26", "2026-08-27"], (
+        f"the withheld session was not restored: {published['dates'][-3:]}")
+
+
+def test_same_run_without_vendor_evidence_still_fails(tmp_path, monkeypatch):
+    """Control for the test above, identical in every respect EXCEPT that the
+    vendor reports no withheld session. The truncation is then indistinguishable
+    from source rot, so it must still be held back and still exit 2."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    out_path = tmp_path / "holdings_prices_1y.json"
+    monkeypatch.setattr(ehp, "OUT_PATH", out_path)
+    monkeypatch.setattr(ehp, "collect_all_tickers", lambda: {"EXV1.DE"})
+    monkeypatch.setattr(ehp, "collect_book_symbols", lambda: {"EXV1.DE"})
+    monkeypatch.setattr(ehp, "NETWORK_FALLBACK_TICKERS", ["EXV1.DE"])
+
+    dates = _long_dates()
+    prices = [100.0 + i * 0.01 for i in range(len(dates))]
+    out_path.write_text(json.dumps({
+        "computed_at_utc": "2026-08-26T18:00:00+00:00", "lookback_days": 252,
+        "prices": {"EXV1.DE": _panel_entry(dates + ["2026-08-26"],
+                                           prices + [102.6])},
+    }), encoding="utf-8")
+
+    monkeypatch.setattr(
+        ehp, "fetch_missing_from_yfinance",
+        lambda tks, gaps_out=None: {"EXV1.DE": _series(dates, prices)})
+
+    assert ehp.main([]) == ehp.REGRESSION_EXIT_CODE
+    published = json.loads(
+        out_path.read_text(encoding="utf-8"))["prices"]["EXV1.DE"]
+    assert published["dates"][-1] == "2026-08-26", "the panel went backwards"
+
+
+# ---------------------------------------------------------------------------
+# Interior gaps — the hole find_regressions cannot see
+# ---------------------------------------------------------------------------
+def test_interior_gap_is_detected():
+    """The panel committed at 15:30 UTC on 2026-08-27 carried no 2026-08-26
+    bar for any of the five Xetra lines and went green: the vendor had already
+    restored 08-27 over the hole, so the last-bar check passed."""
+    holed = {"dates": [d for d in XETR_AUG if d != "2026-08-26"],
+             "prices": [1.0] * (len(XETR_AUG) - 1)}
+    assert ehp.interior_gaps(holed, "EXV1.DE") == ["2026-08-26"]
+
+
+def test_complete_series_and_tail_lag_report_no_interior_gap():
+    """Two controls, so the check cannot pass by always complaining: a full
+    series is clean, and a series that merely STOPS early is a publication lag
+    (Europe routinely trails the US by a session), not a hole."""
+    full = {"dates": XETR_AUG, "prices": [1.0] * len(XETR_AUG)}
+    assert ehp.interior_gaps(full, "EXV1.DE") == []
+
+    lagging = {"dates": XETR_AUG[:-2], "prices": [1.0] * (len(XETR_AUG) - 2)}
+    assert ehp.interior_gaps(lagging, "EXV1.DE") == []
+
+
+def test_us_holiday_is_not_an_interior_gap():
+    """4 July 2025 fell on a Friday and NYSE was shut. A NYSE-calendar ticker
+    with no bar that day is correct, not holed."""
+    sessions = ["2025-07-01", "2025-07-02", "2025-07-03", "2025-07-07"]
+    entry = {"dates": sessions, "prices": [1.0] * len(sessions)}
+    assert ehp.interior_gaps(entry, "SPY") == []
+
+
+# ---------------------------------------------------------------------------
+# Retirement is a local privilege
+#
+# 2026-08-27: the daily runner dropped 26 tickers as "retired" (159801.SZ, TLT,
+# GLD, VNQ, XME, ...) and committed a 32-ticker panel over the 58-ticker one a
+# local refresh had written. They were never retired — collect_all_tickers
+# reads the gitignored rotation parquets, so on a runner the requested set
+# collapses to a floor and every cache-derived name looks absent. This is the
+# same shrink the coverage guard was written to stop, re-opened by the
+# retirement branch added for the EXH3 ghost.
+# ---------------------------------------------------------------------------
+def test_universe_sources_present_reflects_the_rotation_caches(tmp_path, monkeypatch):
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    assert ehp.universe_sources_present() is False
+    idx = pd.bdate_range(end="2026-08-25", periods=5)
+    pd.DataFrame({"TLT": np.arange(5, dtype=float)}, index=idx).to_parquet(
+        tmp_path / "asset_class_prices_cache.parquet")
+    assert ehp.universe_sources_present() is False, "one cache is not the universe"
+    pd.DataFrame({"ARKG": np.arange(5, dtype=float)}, index=idx).to_parquet(
+        tmp_path / "thematic_prices_cache.parquet")
+    assert ehp.universe_sources_present() is True
+
+
+def test_runner_without_the_universe_caches_carries_forward(tmp_path, monkeypatch):
+    """A run that cannot see the universe must not shrink the panel."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    out_path = tmp_path / "holdings_prices_1y.json"
+    monkeypatch.setattr(ehp, "OUT_PATH", out_path)
+    monkeypatch.setattr(ehp, "collect_all_tickers", lambda: {"SPY"})
+    monkeypatch.setattr(ehp, "collect_book_symbols", lambda: {"SPY"})
+    monkeypatch.setattr(ehp, "NETWORK_FALLBACK_TICKERS", ["SPY"])
+    monkeypatch.setattr(ehp, "fetch_missing_from_yfinance",
+                        lambda tks, gaps_out=None: {})
+
+    dates = _long_dates()
+    prices = [100.0 + i * 0.01 for i in range(len(dates))]
+    out_path.write_text(json.dumps({
+        "computed_at_utc": "2026-08-26T08:56:00+00:00", "lookback_days": 252,
+        "prices": {"SPY": _panel_entry(dates, prices),
+                   "TLT": _panel_entry(dates, prices),
+                   "GLD": _panel_entry(dates, prices)},
+    }), encoding="utf-8")
+
+    assert ehp.main([]) == 0
+    published = json.loads(out_path.read_text(encoding="utf-8"))["prices"]
+    assert set(published) == {"SPY", "TLT", "GLD"}, (
+        f"the runner shrank the panel to {sorted(published)}")
+
+
+def test_a_local_run_that_sees_the_universe_still_retires(tmp_path, monkeypatch):
+    """Control: with both rotation caches present the run CAN judge the
+    universe, so a genuinely dropped line (the EXH3 ghost) is still retired."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    out_path = tmp_path / "holdings_prices_1y.json"
+    monkeypatch.setattr(ehp, "OUT_PATH", out_path)
+    monkeypatch.setattr(ehp, "collect_all_tickers", lambda: {"SPY"})
+    monkeypatch.setattr(ehp, "collect_book_symbols", lambda: {"SPY"})
+    monkeypatch.setattr(ehp, "NETWORK_FALLBACK_TICKERS", ["SPY"])
+    monkeypatch.setattr(ehp, "fetch_missing_from_yfinance",
+                        lambda tks, gaps_out=None: {})
+
+    idx = pd.bdate_range(end="2026-08-25", periods=5)
+    for name in ("asset_class_prices_cache", "thematic_prices_cache"):
+        pd.DataFrame({"SPY": np.arange(5, dtype=float)}, index=idx).to_parquet(
+            tmp_path / f"{name}.parquet")
+
+    dates = _long_dates()
+    prices = [100.0 + i * 0.01 for i in range(len(dates))]
+    out_path.write_text(json.dumps({
+        "computed_at_utc": "2026-08-26T08:56:00+00:00", "lookback_days": 252,
+        "prices": {"SPY": _panel_entry(dates, prices),
+                   "EXH3.DE": _panel_entry(dates, prices)},
+    }), encoding="utf-8")
+
+    assert ehp.main([]) == 0
+    published = json.loads(out_path.read_text(encoding="utf-8"))["prices"]
+    assert "EXH3.DE" not in published, "a genuinely retired line must still go"
+    assert "SPY" in published
