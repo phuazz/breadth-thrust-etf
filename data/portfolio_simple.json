@@ -6703,7 +6703,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-08-25",
- "computed_at_utc": "2026-08-27 15:30 UTC",
+ "computed_at_utc": "2026-08-27 16:18 UTC",
  "holdings": [
   {
    "ticker": "EEM",
@@ -6920,7 +6920,7 @@
  "n_positions": 23,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-08-27T15:30:57.494965+00:00",
+  "computed_at_utc": "2026-08-27T16:18:22.890684+00:00",
   "all_current": false,
   "strategies": [
    {

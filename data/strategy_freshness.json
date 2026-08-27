@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-08-27T15:30:57.494965+00:00",
+ "computed_at_utc": "2026-08-27T16:18:22.890684+00:00",
  "strategies": [
   {
    "sleeve": "A",
@@ -24,7 +24,7 @@
    "sessions_behind": 1,
    "status": "behind",
    "laggards": [],
-   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-08-26T08:56Z; the cache is not present on this checkout",
+   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-08-27T15:30Z; the cache is not present on this checkout",
    "carried": true,
    "why": "every one of the cached price series stops at 2026-08-25 while NYSE has completed 2026-08-26 \u2014 none lags the others, so they have not been rebuilt since.",
    "why_plain": "the data behind this strategy stops on 2026-08-25, while the market has traded to 2026-08-26 \u2014 it has not been rebuilt since."
@@ -38,7 +38,7 @@
    "sessions_behind": 1,
    "status": "behind",
    "laggards": [],
-   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-08-26T08:56Z; the cache is not present on this checkout",
+   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-08-27T15:30Z; the cache is not present on this checkout",
    "carried": true,
    "why": "every one of the cached price series stops at 2026-08-25 while NYSE has completed 2026-08-26 \u2014 none lags the others, so they have not been rebuilt since.",
    "why_plain": "the data behind this strategy stops on 2026-08-25, while the market has traded to 2026-08-26 \u2014 it has not been rebuilt since."
