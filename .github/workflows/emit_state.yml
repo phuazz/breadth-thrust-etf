@@ -1,0 +1,101 @@
+name: Emit state contract
+
+# Publishes data/state.json — this repo's gate, EM tilt and deployed blend in
+# the shape a private consumer (the command centre) reads them in.
+#
+# WHY THIS EXISTS. That consumer used to reach INTO this repo and read exact
+# JSON pointers out of risk_overlay.json and live_track.json from its own side.
+# It works and it is guarded there, but it leaves the knowledge of THIS repo's
+# field names living in somebody else's codebase: rename a key here and the
+# break surfaces over there, days later, in a file nobody was editing. This
+# moves that knowledge back beside the data, so a rename breaks here, now.
+#
+# WHY A SEPARATE WORKFLOW, NOT A STEP IN daily_live_track.yml. Nothing in this
+# repo consumes data/state.json — not the engine, the factsheet, the scanner or
+# the monitor. It must therefore never be able to fail a publish that matters.
+# A `set +e` step would rely on getting the soft-fail right forever; a separate
+# workflow cannot fail the daily track at all, whatever it does. The repo has
+# already been bitten once by the opposite arrangement, when an unrelated
+# prose-figure test in the shared suite blocked the scanner over a weekend.
+#
+# GUARD (CLAUDE.md: no unattended run without one). Four layers, none of them
+# this workflow's own exit code:
+#   1. emit_state.py hard-asserts every pointer and every state vocabulary, and
+#      REFUSES to write on any failure — a bad run leaves the previous
+#      state.json exactly as it was rather than half-writing a new one.
+#   2. tests/test_emit_state.py covers the copy for missing keys, nulls, wrong
+#      types, states outside the frozen vocabulary and an empty blend. It runs
+#      in the shared suite, so a drift here fails tests.yml.
+#   3. The CONSUMER validates every emission against its own registry and
+#      REJECTS one whose grade, licence, role, schema or state enum disagrees.
+#   4. The consumer reads this emission in SHADOW: it renders its own proven
+#      extraction and reports any field-level divergence from this file. Two
+#      independent readings of the same signal are compared on every run, and
+#      this one is trusted only after it has agreed for a while.
+#
+# NOTHING NON-PUBLIC IS EMITTED. Every value here is copied from a file this
+# repo already commits publicly.
+
+on:
+  workflow_run:
+    workflows: ["Daily live mark-to-market"]
+    types: [completed]
+  workflow_dispatch:
+
+# The emission is a copy of the files the daily track just wrote; two runs
+# interleaving could commit an older copy over a newer one.
+concurrency:
+  group: emit-state-contract
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  emit:
+    # Only copy from a run that actually produced fresh inputs. On a failed
+    # daily track the previous state.json stays, and the consumer's own
+    # staleness rule is what reports it — a stale emission is visible there,
+    # a wrong one would not be.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # No dependencies: the emitter reads this repo's own JSON with the
+      # standard library only, deliberately, so it cannot break on a vendor
+      # package the rest of the pipeline happens to pin.
+      - name: Emit the state contract
+        run: python scripts/emit_state.py
+
+      - name: Commit the emission
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "State Contract Emitter"
+          git add data/state.json
+          if git diff --cached --quiet; then
+            echo "State unchanged — nothing to commit."
+            exit 0
+          fi
+          git commit -m "Emit state contract $(date -u +'%Y-%m-%d %H:%M') UTC"
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "Pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected on attempt $attempt — rebasing onto origin/main."
+            git pull --rebase --autostash origin main || exit 1
+          done
+          echo "::error::Could not push the state emission after 3 attempts."
+          exit 1
