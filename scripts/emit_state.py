@@ -158,6 +158,27 @@ def build() -> dict:
     }
 
 
+def unchanged(payload: dict) -> bool:
+    """Is this emission the same as the one already on disk, apart from the
+    timestamp of the run that produced it?
+
+    `emitted_at` moves on every run, so writing unconditionally would leave a
+    diff every time and the workflow would commit a no-op to a public repo each
+    weekday, forever. Liveness does not need that commit: the consumer judges
+    freshness from `as_of`, which advances whenever the engine actually
+    produces a new session, so a genuinely dead emitter still shows up there as
+    a stale state. A day with nothing new to say is better said by silence.
+    """
+    if not OUT.exists():
+        return False
+    try:
+        prev = json.loads(OUT.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False  # unreadable previous emission — rewrite it
+    strip = lambda d: {k: v for k, v in d.items() if k != "emitted_at"}
+    return strip(prev) == strip(payload)
+
+
 def main(argv: list[str]) -> int:
     check_only = "--check" in argv
     try:
@@ -177,6 +198,10 @@ def main(argv: list[str]) -> int:
 
     if check_only:
         print("emit_state: --check, nothing written.")
+        return 0
+
+    if unchanged(payload):
+        print("emit_state: state unchanged since the last emission — leaving it as it is.")
         return 0
 
     OUT.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

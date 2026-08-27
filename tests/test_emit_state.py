@@ -217,3 +217,49 @@ def test_a_successful_run_writes_valid_json(files, monkeypatch, tmp_path):
     assert emit_state.main([]) == 0
     written = json.loads(out.read_text(encoding="utf-8"))
     assert set(written["signals"]) == SIGNALS
+
+
+# --- an unchanged state must not churn the repo ------------------------------
+
+def test_an_unchanged_state_is_not_rewritten(files, monkeypatch, tmp_path):
+    """emitted_at moves every run. Writing unconditionally left a diff every
+    time, and the workflow committed a no-op to a public repo on every weekday
+    run — observed once live before this guard existed."""
+    out = tmp_path / "state.json"
+    monkeypatch.setattr(emit_state, "OUT", out)
+
+    assert emit_state.main([]) == 0
+    first = out.read_text(encoding="utf-8")
+
+    assert emit_state.main([]) == 0
+    assert out.read_text(encoding="utf-8") == first, "unchanged state was rewritten"
+
+
+def test_a_changed_state_IS_rewritten(files, monkeypatch, tmp_path):
+    out = tmp_path / "state.json"
+    monkeypatch.setattr(emit_state, "OUT", out)
+    assert emit_state.main([]) == 0
+
+    files["risk_overlay.json"]["current_state"] = "RISK_OFF"
+    assert emit_state.main([]) == 0
+    assert json.loads(out.read_text(encoding="utf-8"))["signals"] \
+        ["engine_phase19_gate"]["state"] == "RISK_OFF"
+
+
+def test_only_the_timestamp_differing_counts_as_unchanged(files, monkeypatch, tmp_path):
+    out = tmp_path / "state.json"
+    monkeypatch.setattr(emit_state, "OUT", out)
+    payload = emit_state.build()
+    out.write_text(json.dumps({**payload, "emitted_at": "1999-01-01T00:00:00+00:00"},
+                              indent=2) + "\n", encoding="utf-8")
+    assert emit_state.unchanged(emit_state.build()) is True
+
+
+def test_an_unreadable_previous_emission_is_rewritten(files, monkeypatch, tmp_path):
+    """A corrupt file must be replaced, not treated as 'unchanged' and left."""
+    out = tmp_path / "state.json"
+    out.write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(emit_state, "OUT", out)
+    assert emit_state.unchanged(emit_state.build()) is False
+    assert emit_state.main([]) == 0
+    assert set(json.loads(out.read_text(encoding="utf-8"))["signals"]) == SIGNALS
