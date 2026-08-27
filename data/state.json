@@ -1,7 +1,7 @@
 {
   "contract_version": "1",
   "emitted_by": "breadth-thrust-etf",
-  "emitted_at": "2026-08-27T02:00:48+00:00",
+  "emitted_at": "2026-08-27T02:04:59+00:00",
   "signals": {
     "engine_phase19_gate": {
       "as_of": "2026-08-25",
