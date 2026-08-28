@@ -1,8 +1,8 @@
 {
- "generated_at_utc": "2026-08-28T14:51:32+00:00",
+ "generated_at_utc": "2026-08-28T23:15:03+00:00",
  "source": "norgate-local #SPX%MA50 (derived states only; raw series never committed \u2014 licence)",
  "state_machine": "run_risk_overlay._compute_states (off 0.2, on 0.5)",
- "last_bar": "2026-08-27",
+ "last_bar": "2026-08-28",
  "current_state": "RISK_ON",
  "series": {
   "dates": [
@@ -17494,7 +17494,8 @@
    "2026-08-24",
    "2026-08-25",
    "2026-08-26",
-   "2026-08-27"
+   "2026-08-27",
+   "2026-08-28"
   ],
   "state": [
    1,
@@ -34891,6 +34892,7 @@
    0,
    0,
    0,
+   1,
    1,
    1,
    1,
