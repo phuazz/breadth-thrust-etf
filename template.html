@@ -3051,15 +3051,6 @@
   </section>
 
   <section>
-    <h2>What the execution moment is worth</h2>
-    <p class="section-sub">The alternative to the closing auction is the opening one, and the choice was priced on every weekday, on the identical book. On four days of five it makes no reliable difference either way; on Monday &mdash; the day this portfolio actually trades &mdash; filling at the open is reliably worse, because the opening auction absorbs the weekend gap. So the book fills at the close, settled on execution quality rather than on return. WS13 exhibit, study data as at 2026-08-12.</p>
-    <div style="overflow-x:auto;">
-      <table class="small-table" id="exec-ir-table"><thead></thead><tbody></tbody></table>
-    </div>
-    <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="exec-ir-note"></p>
-  </section>
-
-  <section>
     <h2>Where the trading day sits on a Singapore clock</h2>
     <p class="section-sub">The portfolio holds instruments on two exchanges. They do not open together, so one weekly rebalance fills in two parts on the same Monday: a fifth of the book in Europe, four fifths in the United States. The bars carry those shares. (Some weeks the thematic sleeve holds a Shenzhen-listed or crypto line &mdash; up to about four per cent of the portfolio &mdash; which trades on neither of these clocks.)</p>
     <div id="exec-clock-diagram" style="overflow-x:auto;"></div>
@@ -3073,7 +3064,7 @@
       <p class="section-sub">Retained in full so the decision can be audited. This is research material: it was the basis for choosing, and it is not needed to understand what the portfolio does.</p>
 
       <h3>All ten rebalance timings, priced</h3>
-      <p class="section-sub">Five weekdays, each filled at the close or at the open — ten methods, each priced as the same blend (35/35/10/20 A:B:C:D, before the EEM tilt and the breadth gate, so not comparable with the gated figures elsewhere on this dashboard). The signal is untouched in every row; only the fill timing moves. The @2× column doubles the assumed trading cost on the open legs, because an opening auction is a thinner book than a closing one.</p>
+      <p class="section-sub">Five weekdays, each filled at the close or at the open — ten methods, each priced as the same blend (35/35/10/20 A:B:C:D, before the EEM tilt and the breadth gate, so not comparable with the gated figures elsewhere on this dashboard). Every method ranks on the close of the previous business day and fills the next session, so the open and close legs of a day carry the identical signal — only the fill price moves. The @2× column doubles the assumed trading cost on the open legs, because an opening auction is a thinner book than a closing one.</p>
       <div style="overflow-x:auto;">
         <table class="small-table" id="exec-grid"><thead></thead><tbody></tbody></table>
       </div>
@@ -8375,62 +8366,12 @@ function renderExecutionTiming() {
   const yrs = ec.n_days ? ec.n_days / 252 : null;
   put('exec-irse', yrs ? '±' + (1 / Math.sqrt(yrs)).toFixed(2) : '—');
 
-  // --- The weekday table, cut to what the lay reader actually asks: what
-  //     would filling at the open have done, and is that real or luck? One
-  //     number, one verdict, one status per row. Tracking error, consistency
-  //     scores and confidence intervals are workings, not answers — they
-  //     live in full in the collapsed evidence disclosure below.
-  const irT = document.getElementById('exec-ir-table');
-  if (irT && days.length) {
-    const PT = ((D.paired_tests || {}).tests) || {};
-    const sub = function (t) {
-      return '<br><span style="font-weight:400;color:var(--ink-faint);'
-        + 'font-size:11.5px">' + t + '</span>';
-    };
-    irT.querySelector('thead').innerHTML =
-      '<tr><th>Rebalance day</th>'
-      + '<th>Filling at the open instead of the close'
-      + sub('average effect, per year') + '</th>'
-      + '<th>Verdict' + sub('paired statistical test'
-        + (yrs ? ', ' + yrs.toFixed(1) + ' years' : '')) + '</th>'
-      + '<th>Status</th></tr>';
-    irT.querySelector('tbody').innerHTML = days.map(function (d) {
-      const e = (blend[d] || {}).execution_choice; if (!e) return '';
-      const isDep = d === 'MON';
-      const pt = PT[d + ': open minus close'] || {};
-      const has = pt.delta_point !== null && pt.delta_point !== undefined;
-      const excl = has && ((pt.delta_p5 > 0 && pt.delta_p95 > 0)
-                        || (pt.delta_p5 < 0 && pt.delta_p95 < 0));
-      const ar = e.active_return_ann || 0;
-      const verdict = !has ? '&mdash;'
-        : excl ? '<strong>real &mdash; too consistent to be luck</strong>'
-        : '<span style="color:var(--ink-faint)">within luck</span>';
-      const note = isDep
-        ? '<strong>in use</strong> &mdash; fills at the close'
-        : d === 'FRI' ? 'in use 2026-08-12 to 2026-08-22' : '';
-      return '<tr' + (isDep ? ' style="background:var(--bg-soft)"' : '') + '>'
-        + '<td>' + (isDep ? '<strong>Monday</strong>' :
-            ({ TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday', FRI: 'Friday' })[d])
-        + '</td><td>' + (ar >= 0 ? '+' : '') + (ar * 100).toFixed(2) + '% '
-        + '<span style="color:var(--ink-faint)">('
-        + (ar < 0 ? 'open worse' : 'open better') + ')</span>'
-        + '</td><td>' + verdict + '</td>'
-        + '<td style="font-size:12px;color:var(--ink-faint)">' + note + '</td></tr>';
-    }).join('');
-  }
-  const irN = document.getElementById('exec-ir-note');
-  if (irN) {
-    irN.innerHTML = 'In money terms: on a US$100,000 book, filling at '
-      + 'Monday&rsquo;s open instead of its close would have cost about US$'
-      + Math.round(Math.abs(ec.active_return_ann || 0) * 100000)
-      + ' a year over the study window; no other weekday&rsquo;s choice is '
-      + 'distinguishable from luck. The verdict comes from a paired test on '
-      + (yrs ? yrs.toFixed(1) : '—') + ' years of daily differences between '
-      + 'the two fills of the identical book. The full workings &mdash; '
-      + 'tracking error, consistency scores, confidence intervals &mdash; are '
-      + 'in the evidence disclosure below. Study data as at '
-      + (D.as_of || '—') + ' (WS13).';
-  }
+  // --- The per-day open-versus-close table that stood here was removed on
+  //     owner review (2026-08-30): with the ten-method Sharpe table in the
+  //     evidence disclosure it double-counted the same cells and read as a
+  //     second, conflicting exhibit. Its two load-bearing facts survive —
+  //     the Monday money line in the disclosure paragraph below, and the
+  //     per-day workings in the dossier's paired-tests table.
 
   // --- Disclosure. Stated on the face of the tab, not footnoted.
   const dis = document.getElementById('exec-disclosure');
@@ -8442,11 +8383,15 @@ function renderExecutionTiming() {
       + 'prices, and the portfolio is executed in the closing auction. There is '
       + 'no wedge between the record and the fills to explain, which is a '
       + 'property worth more than the alternative was worth in return.</p>'
-      + '<p>The opposite choice was tried, once. The Friday open was adopted '
-      + 'on 12 August 2026 and reversed the same day, when honest costing of '
-      + 'the thinner opening auction removed its apparent edge. The pricing '
-      + 'of every fill alternative sits in the weekday table above and in the '
-      + 'evidence section below.</p>';
+      + '<p>The alternative was priced before it was rejected: on a '
+      + 'US$100,000 book, filling at Monday&rsquo;s open instead of its close '
+      + 'would have cost about US$'
+      + Math.round(Math.abs(ec.active_return_ann || 0) * 100000)
+      + ' a year over the study window &mdash; the one timing difference the '
+      + 'paired tests can distinguish from luck, because the Monday opening '
+      + 'auction absorbs the weekend gap. The Friday open was tried once, on '
+      + '12 August 2026, and reversed the same day. All ten rebalance '
+      + 'timings are priced in the evidence section below.</p>';
   }
 
   // --- Everything below is inside the collapsed evidence disclosure. ---
@@ -8458,35 +8403,39 @@ function renderExecutionTiming() {
   if (gt && days.length) {
     const dayName = { MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday',
                       THU: 'Thursday', FRI: 'Friday' };
+    // Every method ranks at the close of the session BEFORE its fill — the
+    // engines' get_loc(rd)-1 convention. Open and close legs of a day share
+    // the same signal; only the fill price moves. Named per row because a
+    // reader cannot be expected to carry that rule across ten rows.
+    const prevName = { MON: 'Friday', TUE: 'Monday', WED: 'Tuesday',
+                       THU: 'Wednesday', FRI: 'Thursday' };
     gt.querySelector('thead').innerHTML =
-      '<tr><th>Rebalance method</th><th>Sharpe</th><th>CAGR</th>'
-      + '<th>Max drawdown</th><th>Sharpe @2&times; cost</th><th></th></tr>';
+      '<tr><th>Rebalance method</th>'
+      + '<th>Ranked on<br><span style="font-weight:400;'
+      + 'color:var(--ink-faint);font-size:11.5px">the session before the '
+      + 'fill</span></th>'
+      + '<th>Sharpe</th><th>CAGR</th>'
+      + '<th>Max drawdown</th><th>Sharpe @2&times; cost</th></tr>';
     gt.querySelector('tbody').innerHTML = days.map(function (d) {
       const b = blend[d]; if (!b) return '';
       return ['close', 'open'].map(function (f) {
         const leg = b[f]; if (!leg) return '';
-        const isDep = d === 'MON' && f === 'close';
-        const tag = isDep
-          ? '<span style="color:var(--ink-faint)">the deployed day, at the '
-            + 'deployed moment</span>'
-          : (d === 'FRI' && f === 'close')
-            ? '<span style="color:var(--ink-faint)">deployed until 2026-08-22</span>'
-            : '';
         const stress = (f === 'open' && b.open_2x)
           ? _execFmt(b.open_2x.sharpe, 2) : '&mdash;';
-        return '<tr' + (isDep ? ' style="background:var(--bg-soft)"' : '') + '>'
-          + '<td>' + (isDep ? '<strong>' : '') + dayName[d] + ' &middot; ' + f
-          + (isDep ? '</strong>' : '') + '</td>'
+        return '<tr>'
+          + '<td>' + dayName[d] + ' &middot; ' + f + '</td>'
+          + '<td style="color:var(--ink-faint)">' + prevName[d]
+          + ' close</td>'
           + '<td><strong>' + _execFmt(leg.sharpe, 2) + '</strong></td>'
           + '<td>' + _execFmt(leg.cagr, 1, true) + '</td>'
           + '<td>' + _execFmt(leg.max_dd, 1, true) + '</td>'
-          + '<td>' + stress + '</td>'
-          + '<td style="font-size:12px">' + tag + '</td></tr>';
+          + '<td>' + stress + '</td></tr>';
       }).join('');
     }).join('');
   }
   const gn = document.getElementById('exec-grid-note');
   if (gn) {
+    const win = ((blend.MON || {}).close || {}).window;
     gn.innerHTML = 'This table is <strong>not</strong> a menu to pick from. '
       + 'The best-looking method is the best of ' + (days.length * 2)
       + ', so its margin is optimistic by construction, the four sleeves '
@@ -8497,7 +8446,8 @@ function renderExecutionTiming() {
       + 'deployed book uses, so it is not the deployed variant re-priced. '
       + 'Under W-MON the ranking session is the weekly close, Friday. Cost '
       + 'stress applied: '
-      + (D.cost_stress_multipliers || []).join('×, ') + '×. Study data as at '
+      + (D.cost_stress_multipliers || []).join('×, ') + '×. Window '
+      + (win ? win[0] + ' to ' + win[1] : '—') + '; study data as at '
       + (D.as_of || '—') + ' (WS13).';
   }
 
