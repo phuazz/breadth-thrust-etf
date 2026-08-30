@@ -170,7 +170,101 @@ independent test.
   to constituent breadth. If that widening is ever proposed it needs its own
   registration and its own answer to this, and the answer is not free.
 
-## 9. Inherits
+## 9. Results — measurement run 2026-08-30 (H2 answered, H1 NOT yet)
+
+All 14 in-scope US panels rebuilt on `--price-source auto --out-suffix _ng`,
+14:57–15:05 UTC. **Eight minutes for the whole set**, against roughly an hour
+for the yfinance path, because the feed is local. Every panel exited 0.
+Deployed panels untouched throughout.
+
+Resolution: CSP1 707/725, CNDX 188/191, SOXX 57/57, IUCD 108/109, IUFS 102/103,
+IUIS 109/114, IUSP 169/179, the rest 33–85 with 0–3 falling back.
+
+### H2 — HOLDS on every panel
+
+`ma_breadth`, deployed vs candidate, over the 2,170 shared sessions:
+
+| panel | median | mean | p95 | max | days >1pp | >5pp |
+|---|---|---|---|---|---|---|
+| CSP1 | 0.123pp | 0.175pp | 0.487pp | 2.58pp | 19 | 0 |
+| CNDX | 0.143pp | 0.293pp | 1.107pp | 2.37pp | 130 | 0 |
+| IUIS | 0.400pp | 0.506pp | 1.440pp | 5.69pp | 308 | 1 |
+| IUSP | 0.565pp | 0.765pp | 2.126pp | 6.93pp | 594 | 2 |
+| IUCM | 0.000pp | 1.061pp | 4.348pp | 21.47pp | 697 | 78 |
+| (nine others) | 0.000pp | 0.096–0.409pp | 0–2.96pp | 3.45–10.95pp | 51–301 | 0–21 |
+
+Worst median 0.565pp (IUSP) against the 1pp bound. **H2's first clause holds
+with room on all fourteen.**
+
+### The >5pp days are a coverage improvement, not a disagreement
+
+H2's second clause required no day above 5pp without an identified cause.
+IUCM carries 78 such days and is the only panel that looks materially
+different — and it resolves cleanly:
+
+```
+2018-09-21   deployed breadth 0.4375 on 16 names
+             candidate breadth 0.6522 on 23 names     (panel holds ~25)
+```
+
+The deployed panel was computing communications-sector breadth on **16 of 25
+constituents**; Norgate prices **23**. The gap is not a different price for the
+same name, it is a price where there was none. 72 of the 78 excursions fall in
+2018–2019 — exactly the early-history population WS11 identified as yfinance's
+weakest, and on a ~25-name panel seven extra names is a third of the
+denominator. **Cause identified; the clause is satisfied.**
+
+### A limitation in the design, stated because it cuts the other way
+
+Mean priced-name count, candidate minus deployed, is NEGATIVE on the larger
+panels: CSP1 −4.04, IUSP −3.43, IUIS −1.07. The candidate ran on a FRESH cache
+by design, so it never inherited the deployed cache's accumulated WS11
+backfill and later repairs. Part of the recent-era difference is therefore
+cache provenance rather than source, and **this measurement cannot separate the
+two**. The separation needs a second run of `auto` against the deployed cache —
+production-faithful, since that is what a live refresh would do — with the
+blending caveat understood. Not run today.
+
+So the picture is era-split and both directions are explained: Norgate is
+materially better in early history, and the deployed cache is marginally ahead
+recently for a reason that is an artefact of how I built the candidate.
+
+### H1 — PARTIALLY adjudicated, therefore NOT met
+
+**MNST: adjudicated, Norgate correct.** yfinance's own split calendar carries
+2026-08-11 2:1 while its price series does not apply it; the WS15 guard blanked
+the column, and the deployed panel has run without the name since 2026-08-10.
+Norgate carries it split-adjusted and continuous. Note the price gap is a
+CONSTANT 2.0000× across the whole history, which is breadth-NEUTRAL — a price
+sits above its own moving average regardless of scale. MNST's actual cost is
+4 differing MA50 verdicts, 0 at MA200, and 19 sessions with no price at all.
+
+**IUCM 2018–19: no adjudication needed.** Having a price beats having none and
+the prices themselves are not in dispute.
+
+**AZN and FER: NOT adjudicated.** These are the names that would drive any
+remaining panel difference, and I do not yet know which source is right. My
+first attempt was invalid: Norgate's TOTALRETURN adjustment is normalised to
+the END of the requested window, so a short-window sample compared against a
+cache adjusted to 2026 produced a spurious 1.9794× on AZN which I briefly read
+as an unadjusted split. It was the two windows straddling AZN's 2026-02-02 0.5
+split. Any comparison of these sources must request identical windows; the
+panel builds do, so the H2 numbers above are unaffected.
+
+**Verdict against the pre-committed rule: NO ADOPTION.** The rule is adopt iff
+H1 holds. One case is adjudicated in Norgate's favour, one needs none, and two
+are open. H2 holding is not sufficient and was never the criterion.
+
+### What the next session needs
+
+1. Adjudicate AZN and FER on matched windows, with an independent public
+   reference each, per H1.
+2. Re-run `auto` against the deployed cache to separate source from cache
+   provenance.
+3. Then H3 — sleeve A selections and the blend headline — which has not been
+   touched. B/C/D must come back unchanged to 4dp.
+
+## 10. Inherits
 
 - `2026-07-17-breadth-thrust-etf-1` — migration pattern, provenance labelling
   (`gate_feed`), licence containment, fail-open fallback, guard tests including

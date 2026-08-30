@@ -51,8 +51,15 @@ def test_compute_breadth_main_uses_unique_roster_without_network(tmp_path, monke
         "B": np.linspace(120.0, 80.0, len(idx)),
     }, index=idx)
 
-    def fake_download_prices(tickers, start, end, cache_path, force=False):
+    def fake_download_prices(tickers, start, end, cache_path, force=False,
+                             price_source="yfinance", **kwargs):
+        # The assertion this test exists for is the roster, unchanged below.
+        # price_source arrived with WS19 (2026-08-30); it is accepted and
+        # pinned to the deployed default here so a future source argument
+        # cannot reach this stub unnoticed.
         assert tickers == ["A", "B"]
+        assert price_source == "yfinance", (
+            f"main() passed price_source={price_source!r} on a default run")
         return prices.loc[pd.Timestamp(start):pd.Timestamp(end), tickers]
 
     monkeypatch.setattr(cb, "DATA_DIR", data_dir)

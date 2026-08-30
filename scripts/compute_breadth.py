@@ -624,6 +624,7 @@ def download_prices(
     cache_path: Path = PRICES_CACHE,
     force: bool = False,
     deadline_s: float | None = None,
+    price_source: str = "yfinance",
 ) -> pd.DataFrame:
     """Download adjusted-close history. Cache to parquet so reruns are free.
 
@@ -697,6 +698,52 @@ def download_prices(
     close = close[list(tickers)]
     close.index = pd.to_datetime(close.index).tz_localize(None)
 
+    # ----- WS19 price-source override (2026-08-30, pre-registered) -----
+    # Norgate PRIMARY where it resolves, the frame above as the fallback for
+    # everything else. Applied as an overwrite on the finished frame rather
+    # than as an alternative fetch path, so every guard below — the WS15
+    # step-defect revert and the cell-preservation merge — sees the same shape
+    # it always has and keeps working unchanged. That merge is why this must
+    # run against a SEPARATE cache path when measuring: pointed at the
+    # deployed cache it would fill Norgate's gaps from yfinance history and
+    # the comparison would measure a blend of the two sources.
+    #
+    # Default is 'yfinance', i.e. deployed behaviour byte for byte. Nothing
+    # adopts until WS19's H1 is adjudicated.
+    if price_source in ("norgate", "auto"):
+        import norgate_prices
+        if not norgate_prices.available():
+            if price_source == "norgate":
+                raise RuntimeError(
+                    "--price-source norgate, but the local Norgate feed is "
+                    "unavailable (no NDU service, or not licensed here)")
+            print("  Norgate unavailable — whole universe stays on yfinance",
+                  flush=True)
+        else:
+            ng, served, unserved = norgate_prices.fetch_closes(
+                list(tickers), start, end)
+            if served:
+                ng = ng.reindex(close.index.union(ng.index))
+                close = close.reindex(ng.index)
+                for t in served:
+                    col = ng[t].reindex(close.index)
+                    if price_source == "norgate":
+                        close[t] = col
+                    else:
+                        # Norgate wins wherever it has a value; yfinance keeps
+                        # the dates it does not. A vendor never un-prints a
+                        # close, so a NaN here is absence, not a correction.
+                        close[t] = col.where(col.notna(), close[t])
+                if price_source == "norgate":
+                    for t in unserved:
+                        if t in close.columns:
+                            close[t] = np.nan
+                print(f"  Price source {price_source}: {len(served)} column(s) "
+                      f"from Norgate, {len(unserved)} left to yfinance"
+                      + (" (blanked)" if price_source == "norgate" else ""),
+                      flush=True)
+                close = close.sort_index()
+
     # PRESERVE CELLS YFINANCE CANNOT SERVE. The frame above is built purely
     # from the download, so anything the vendor no longer serves would be
     # silently deleted from the cache. That failure has now occurred at BOTH
@@ -759,6 +806,24 @@ def parse_args() -> argparse.Namespace:
         "--etf", default=DEFAULT_ETF,
         help=f"ETF symbol to compute breadth for. Default: {DEFAULT_ETF}",
     )
+    # WS19 (pre-registered 2026-08-30). Default is deployed behaviour; the
+    # other two values exist to MEASURE, and nothing adopts until H1 is
+    # adjudicated. Always pair a non-default source with --out-suffix, or the
+    # measurement overwrites the published panel it is being compared against.
+    p.add_argument(
+        "--price-source", default="yfinance",
+        choices=["yfinance", "norgate", "auto"],
+        help="Constituent price source. 'auto' = Norgate where it resolves, "
+             "yfinance for the rest; 'norgate' = Norgate only, unresolved "
+             "names blanked. Default: yfinance (deployed).",
+    )
+    p.add_argument(
+        "--out-suffix", default="",
+        help="Suffix for the output panel AND the price cache, e.g. "
+             "'_ng' writes breadth_<etf>_ng.json and "
+             "prices_cache_<etf>_ng.parquet. Keeps a measurement run from "
+             "touching deployed state.",
+    )
     return p.parse_args()
 
 
@@ -768,6 +833,19 @@ def main() -> int:
     constituents_path = paths["constituents"]
     out_path = paths["out"]
     prices_cache = paths["prices_cache"]
+    # WS19: a suffixed run is a MEASUREMENT and must not touch deployed state.
+    # The cache is suffixed with the output for a reason — sharing the
+    # deployed cache would let the cell-preservation merge fill Norgate's
+    # gaps from yfinance history, and the comparison would then be between
+    # the deployed panel and a blend of both sources rather than between
+    # sources.
+    if args.out_suffix:
+        sfx = args.out_suffix
+        out_path = out_path.with_name(f"{out_path.stem}{sfx}{out_path.suffix}")
+        prices_cache = prices_cache.with_name(
+            f"{prices_cache.stem}{sfx}{prices_cache.suffix}")
+        print(f"  MEASUREMENT RUN — writing {out_path.name}, "
+              f"cache {prices_cache.name}", flush=True)
 
     print(f"Loading constituents JSON ({constituents_path.name}) ...", flush=True)
     consts = json.loads(constituents_path.read_text(encoding="utf-8"))
@@ -823,7 +901,8 @@ def main() -> int:
                  schedule_end + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     print("Downloading prices ...", flush=True)
-    prices = download_prices(universe, dl_start, dl_end, cache_path=prices_cache)
+    prices = download_prices(universe, dl_start, dl_end, cache_path=prices_cache,
+                             price_source=args.price_source)
     n_with_any_data = int((prices.notna().any(axis=0)).sum())
     print(f"  Prices shape: {prices.shape}, tickers with any data: "
           f"{n_with_any_data}/{len(universe)}")
