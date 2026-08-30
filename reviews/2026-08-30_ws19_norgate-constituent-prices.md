@@ -255,6 +255,50 @@ panel builds do, so the H2 numbers above are unaffected.
 H1 holds. One case is adjudicated in Norgate's favour, one needs none, and two
 are open. H2 holding is not sufficient and was never the criterion.
 
+### H1 adjudication completed 2026-08-30 — H1 FAILS, and H2 is now void
+
+Redone on **identical windows** for both sources, which the first attempt was
+not. The deployed cache proved byte-identical to a fresh yfinance fetch, which
+clears the stale-cache hypothesis: this is a genuine source disagreement.
+
+**FER — Norgate correct; panel unaffected.** Norgate holds 834 sessions and is
+empty until 2024, matching Ferrovial's actual Nasdaq listing in May 2024.
+yfinance supplies 2,297 back to 2017 — pre-listing foreign history under a US
+ticker, the reused-line class WS11 documented. Norgate is right to have
+nothing there, and the point-in-time roster only carries FER from its index
+entry, so neither source changes the panel.
+
+**AZN — Norgate is WRONG. This is the finding.** Norgate has 1,846 sessions
+against yfinance's 2,297, and the 452 missing cluster exactly where it hurts:
+75 in 2017, 146 in 2018, 138 in 2019. Q1 2018 holds 23 of 61 sessions,
+irregularly scattered (gaps of 1, 2, 4, 5, 6, 9 days — no pattern), for a
+liquid mega-cap ADR that Norgate's own metadata dates to 1999. For AZN in that
+era yfinance is the better source.
+
+**H1 as registered — "where the two sources disagree, Norgate is correct" —
+FAILS.** It holds for MNST and FER and fails for AZN. Neither source dominates;
+correctness is name-dependent. Under the pre-committed rule that is **NO
+ADOPTION**, and the rule is doing exactly the job it was written for.
+
+### The adjudication exposed a defect in this workstream's own code
+
+`auto` fills Norgate's NaNs from yfinance **per cell**. Where the two sources
+disagree on level — AZN's ratio spans 0.96 to 1.12 around a 1.011 median —
+every junction between them fabricates a day-to-day return of several per
+cent. The §9 candidate panels contain such splices.
+
+**The H2 table above is therefore VOID as a measurement of the source and must
+not be cited.** Its median-bound result was computed on panels carrying spliced
+columns. The coverage findings survive — IUCM's 16-of-25 versus 23-of-25 is a
+count of priced names, not a price — but the breadth differences do not.
+
+I could not cleanly count how many columns were affected: the obvious test
+(what fraction of days the candidate matches yfinance exactly) returns 2–10%
+for nearly every column, because the two sources differ in the last decimal
+almost everywhere, and it does not separate that from splicing. Rather than
+report a number I cannot stand behind, the count is left open and the panels
+are treated as contaminated.
+
 ### What the next session needs
 
 1. Adjudicate AZN and FER on matched windows, with an independent public
