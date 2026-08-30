@@ -140,9 +140,35 @@ independent test.
   comparison measures roster drift, not source.
 - **Silent adjustment drift.** Norgate's package default is TOTALRETURN today;
   pinned explicitly so a future default change cannot move the basis unnoticed.
-- **CI divergence.** Norgate cannot run on a GitHub runner. If CI recomputes
+- ~~**CI divergence.** Norgate cannot run on a GitHub runner. If CI recomputes
   panels from yfinance after a Norgate-sourced local build, the two will
-  disagree in production. This must be resolved before adoption, not after.
+  disagree in production. This must be resolved before adoption, not after.~~
+  **WITHDRAWN 2026-08-30, same day, before any work rested on it. The risk does
+  not exist, and naming it was a failure to check.** No workflow recomputes
+  breadth: `compute_breadth.py`, `run_topk_robustness.py` (sleeve A),
+  `run_europe_rotation.py` (sleeve D), `run_ma200_sweep.py` and
+  `fetch_constituents.py` are invoked by no workflow at all — verified across
+  every file in `.github/workflows/`. The two textual hits on `refresh_all.py`
+  are operator instructions inside failure-alert email bodies, not `run:`
+  steps. CI recomputes only sleeves B and C (ETF-level, ~25 tickers each), the
+  blend, the overlay, the mark-to-market and the builders; every breadth panel
+  and both of sleeves A and D are consumed from the committed local build.
+
+  This is by design and predates the question. `weekly_factsheet.yml` records
+  the sleeve A block being **removed from CI on 2026-06-10** after exactly this
+  defect fired — "PROBLEM 2 (destructive overwrite): compute_breadth.py expects
+  per-constituent price parquets … which are gitignored. On a fresh CI checkout
+  those caches do not exist, so compute_breadth produces an empty/truncated
+  breadth_soxx.json that OVERWRITES the committed panel." The gitignored caches
+  that make Norgate licence-safe are the same property that keeps CI out of
+  breadth, so a Norgate-sourced panel flows through CI untouched.
+
+- **The real boundary, which the withdrawn risk was a confused version of.**
+  CI *does* re-run sleeves B and C from yfinance every publish. So the local /
+  CI divergence is real for **ETF-level** prices and would bite immediately if
+  WS19's scope ever widened to sourcing B or C from Norgate. It does not apply
+  to constituent breadth. If that widening is ever proposed it needs its own
+  registration and its own answer to this, and the answer is not free.
 
 ## 9. Inherits
 
