@@ -133,3 +133,49 @@ def test_the_incumbent_cadence_stays_in_the_grid_as_a_comparison(module):
     import importlib
     m = importlib.import_module(module)
     assert "Weekly Fri" in dict(m.REBAL_FREQS)
+
+
+# ---------------------------------------------------------------------------
+# The dashboard's prose is part of the same contract (added 2026-08-30).
+#
+# WS18 restated every published number on 2026-08-22, and the dashboard's
+# Execution Timing tab kept the Thursday-rank / Friday-fill prose for a week
+# afterwards — a label saying Friday over a Monday book, published. The
+# engine constants above cannot catch that: the template is not an engine.
+# Pin the deployed-cadence sentences on the template text so the tab cannot
+# go silently stale at the next cadence change either.
+# ---------------------------------------------------------------------------
+def _template_text():
+    return (ROOT / "template.html").read_text(encoding="utf-8")
+
+
+def test_the_dashboard_prose_matches_the_deployed_cadence():
+    t = _template_text()
+    # The Execution Timing hero names both halves of the deployed rule.
+    assert "<strong>Friday&rsquo;s closing prices</strong>" in t
+    assert "<strong>Monday&rsquo;s closing auctions</strong>" in t
+    # The superseded cadence may survive only as dated history, never as the
+    # live claim.
+    assert "Thursday&rsquo;s closing prices" not in t
+    assert "Every Friday close" not in t
+    assert "Each Friday close" not in t
+    assert "ranks on Thursday" not in t
+    # The overview step card states the full rule on one line.
+    assert ("<strong>Every Monday close</strong>, rebalance all four "
+            "strategies on rankings computed from the "
+            "<strong>previous session's close</strong> — Friday's") in t
+    # Adoption is dated to WS18; the WS13 adoption date survives only in
+    # lower-case history notes.
+    assert "ADOPTED 2026-08-22" in t
+    assert "ADOPTED 2026-08-12" not in t
+
+
+def test_the_ws18_result_is_filed_as_null_on_the_dashboard():
+    """The +0.0098 deployed-variant delta must never be quoted as
+    improvement: its 90% CI straddles zero and the record files it as null.
+    Pin the point, the interval and the filing together so none of the three
+    can drift or be dropped alone."""
+    t = _template_text()
+    assert "+0.0098" in t
+    assert "[-0.0588, +0.0761]" in t
+    assert "filed as null" in t

@@ -2256,7 +2256,7 @@
           <li><strong>EM tilt — small-sample caveat partially closed by OOS test</strong>: the 50d/200d golden cross has 14 distinct ON-events in 7.5 years (~2/year). Earlier caveat was "deployed on weak sample"; June 2026 walk-forward validation showed the fixed deployed (50/200) thresholds contribute +0.06 Sharpe on the 2024-2026 OOS test windows vs the un-tilted blend, and annual refit picks slightly different windows (50/150) that perform marginally worse. The deployed thresholds are near-optimal — the OOS evidence is supportive, not conclusive, given the modest sample size. See <code>data/em_tilt_validation.json</code>.</li>
           <li><strong>Sharpe sample noise</strong>: 7.5y &times; weekly observations gives Sharpe SE &asymp; &plusmn;0.4. A reported Sharpe of +1.22 sits in a ~95% CI of roughly [+0.48, +1.96]. Treat headline ratios as ranges.</li>
           <li><strong>No live track record</strong>: every return shown is simulated. Future performance will diverge.</li>
-          <li><strong>Backtest costs are conservative-not-pessimistic</strong>: 2&ndash;9 bps per unit weight change per sleeve, no slippage / market-impact model. Real execution at Friday close has measurable spread cost not captured here.</li>
+          <li><strong>Backtest costs are conservative-not-pessimistic</strong>: 2&ndash;9 bps per unit weight change per sleeve, no slippage / market-impact model. Real execution at the Monday close has measurable spread cost not captured here.</li>
           <li><strong>Walk-forward definition</strong>: within-sleeve <em>K</em> parameter (the number of ETFs held) is refit each year using only past data, then applied to the next 12 months. <strong>Not walk-forward</strong>: weighting scheme, universe additions over time, per-sleeve cost calibration, breadth-gate parameters, EEM-tilt parameters. Those structural changes were applied across the entire backtest history &mdash; their reported lifts are in-sample improvements.</li>
         </ul>
       </div>
@@ -2341,7 +2341,7 @@
         </div>
         <div class="step">
           <div class="step-n">2</div>
-          <div class="step-body"><strong>Every Friday close</strong>, rebalance all four strategies on rankings computed from the <strong>previous session's close</strong> — Thursday's (the dashboard does this when the pipeline runs). The one-session lag is deliberate: it is what keeps the decision free of look-ahead.</div>
+          <div class="step-body"><strong>Every Monday close</strong>, rebalance all four strategies on rankings computed from the <strong>previous session's close</strong> — Friday's (the dashboard does this when the pipeline runs). The one-session lag is deliberate: it is what keeps the decision free of look-ahead, and Monday is the one fill day on which every sleeve — Europe included — can actually rank on the session before its fill (WS18, 2026-08-22).</div>
         </div>
         <div class="step">
           <div class="step-n">3</div>
@@ -2407,9 +2407,9 @@
 
     <section>
       <h2>2 · Asset-class exposure over time</h2>
-      <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly Friday snapshots since 2018-Q4 (common window across all four sleeves). <strong>Strategy A's 14 US sector ETFs are decomposed into 5 macro buckets</strong> (US Tech / Comms, US Cyclicals, US Energy, US Financials, US Defensives) so A's actual sector rotation is visible. <strong>Amber-shaded vertical bands</strong> mark periods when the breadth-regime overlay was RISK_OFF — look for the corresponding swell in the pale-green <strong>Cash (SHY)</strong> band at the bottom. Both overlays are drawn as bands of their own. The palest-green <strong>De-risk gate (SHY)</strong> slab at the very bottom is the gate's forced 50% of NAV, and every sleeve band halves alongside it — keep it distinct from the <strong>Cash (SHY)</strong> band directly above, which is the <em>sleeves' own</em> cash floors and tends to fill in the same weeks for reasons of its own. The teal <strong>EM tilt (EEM)</strong> band is the Phase 22 overlay at 10% of NAV, funded out of Strategy B, so B's bands thin by exactly that much while it is ON. Every column still totals 100% of NAV. Notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic burst in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, and the rotation between US Tech / Cyclicals / Defensives within Strategy A over the full window.</p>
+      <p class="section-sub full">The deployed 35/35/10/20 A:B:C:D portfolio's exposure by asset class, stacked to 100%, weekly rebalance snapshots since 2018-Q4 (common window across all four sleeves). <strong>Strategy A's 14 US sector ETFs are decomposed into 5 macro buckets</strong> (US Tech / Comms, US Cyclicals, US Energy, US Financials, US Defensives) so A's actual sector rotation is visible. <strong>Amber-shaded vertical bands</strong> mark periods when the breadth-regime overlay was RISK_OFF — look for the corresponding swell in the pale-green <strong>Cash (SHY)</strong> band at the bottom. Both overlays are drawn as bands of their own. The palest-green <strong>De-risk gate (SHY)</strong> slab at the very bottom is the gate's forced 50% of NAV, and every sleeve band halves alongside it — keep it distinct from the <strong>Cash (SHY)</strong> band directly above, which is the <em>sleeves' own</em> cash floors and tends to fill in the same weeks for reasons of its own. The teal <strong>EM tilt (EEM)</strong> band is the Phase 22 overlay at 10% of NAV, funded out of Strategy B, so B's bands thin by exactly that much while it is ON. Every column still totals 100% of NAV. Notice the bond spike in early-2020 (B's flight to TLT/IEF), the thematic burst in 2020-21 (C catching the AI/clean-energy boom), the commodity tilt in 2022, and the rotation between US Tech / Cyclicals / Defensives within Strategy A over the full window.</p>
       <div id="blend-allocation-chart" class="chart tall"></div>
-      <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV every Friday. <strong>Colours grouped by exposure family</strong>: greens for cash + fixed income + real estate, blues / purples for US equities (defensives → cyclicals → tech), teals for international equities, amber for commodities, magenta for thematic optionality. <strong>Stack order bottom-up</strong>: defensive base first (cash, bonds, real estate), then US equities, then intl / commodities / thematic optionality — the "satellite" risk that moves most. <strong>Bucketing</strong>: Strategy A's sectors split into Tech / Comms (CNDX, SOXX, IUCM), Cyclicals (IUIS, IUCD, IUMS), Energy (IUES), Financials (IUFS), Defensives (IUHC, IUCS, IUUS); IUSP rolls into Real Estate; VGK aggregates with Strategy D's Stoxx 600 sectors into Europe Equity; Strategy C's commodity-equity themes (XME, GDX, COPX, WOOD, REMX, MOO) aggregate into Commodities; SHY (both sleeves' cash floor and the breadth gate's defensive parking) is its own band so the overlay engagement is visible.</p>
+      <p style="margin-top:10px;font-size:12px;color:var(--ink-faint);">Bands sum to 100% of NAV at every rebalance. <strong>Colours grouped by exposure family</strong>: greens for cash + fixed income + real estate, blues / purples for US equities (defensives → cyclicals → tech), teals for international equities, amber for commodities, magenta for thematic optionality. <strong>Stack order bottom-up</strong>: defensive base first (cash, bonds, real estate), then US equities, then intl / commodities / thematic optionality — the "satellite" risk that moves most. <strong>Bucketing</strong>: Strategy A's sectors split into Tech / Comms (CNDX, SOXX, IUCM), Cyclicals (IUIS, IUCD, IUMS), Energy (IUES), Financials (IUFS), Defensives (IUHC, IUCS, IUUS); IUSP rolls into Real Estate; VGK aggregates with Strategy D's Stoxx 600 sectors into Europe Equity; Strategy C's commodity-equity themes (XME, GDX, COPX, WOOD, REMX, MOO) aggregate into Commodities; SHY (both sleeves' cash floor and the breadth gate's defensive parking) is its own band so the overlay engagement is visible.</p>
     </section>
 
     <section>
@@ -2426,10 +2426,10 @@
     <div class="recipe">
       <h3>Strategy A — US sector breadth rotation</h3>
       <div class="recipe-title">Top-K-by-breadth sector rotation (35% sleeve in the deployed 4-way blend)</div>
-      <p style="margin:0;color:var(--ink-soft);"><em style="color:var(--ink-faint);">Sector-relative breadth rotation, up to K = 7, long-only.</em> Each Friday close, rebalance on the % above 200d MA computed for each of the 14 sector ETFs as at the previous session's close (Thursday's). Convert to <strong>sector-relative breadth</strong> by subtracting the cross-sectional mean. Rank by relative breadth, take the top K = 7, then drop any with negative relative breadth (those below the mean) to keep the sleeve long-only. Weight survivors by their share of total positive relative breadth. <strong>K is the cap, not a target</strong> — in narrow leadership regimes only a handful of sectors sit above the mean and the sleeve concentrates to those; in broad rallies all top 7 are above mean and the sleeve fans out. Refit K only annually on expanding-window Sharpe — the choice has been stable at K = 7 throughout the backtest. Strategy A is the largest single sleeve (35%) in the deployed multi-strategy blend; see the Multi-Strategy tab for how it combines with B, C, and D.</p>
+      <p style="margin:0;color:var(--ink-soft);"><em style="color:var(--ink-faint);">Sector-relative breadth rotation, up to K = 7, long-only.</em> Each Monday close, rebalance on the % above 200d MA computed for each of the 14 sector ETFs as at the previous session's close (Friday's). Convert to <strong>sector-relative breadth</strong> by subtracting the cross-sectional mean. Rank by relative breadth, take the top K = 7, then drop any with negative relative breadth (those below the mean) to keep the sleeve long-only. Weight survivors by their share of total positive relative breadth. <strong>K is the cap, not a target</strong> — in narrow leadership regimes only a handful of sectors sit above the mean and the sleeve concentrates to those; in broad rallies all top 7 are above mean and the sleeve fans out. Refit K only annually on expanding-window Sharpe — the choice has been stable at K = 7 throughout the backtest. Strategy A is the largest single sleeve (35%) in the deployed multi-strategy blend; see the Multi-Strategy tab for how it combines with B, C, and D.</p>
       <div class="recipe-stats" id="recipe-stats"></div>
       <ol class="recipe-steps">
-        <li><strong>Every Friday close, ranking on the previous session's data</strong>: pull the 14 ETF rosters, compute % of constituents above their own 200d simple MA as at Thursday's close (absolute breadth, 0-100%).</li>
+        <li><strong>Every Monday close, ranking on the previous session's data</strong>: pull the 14 ETF rosters, compute % of constituents above their own 200d simple MA as at Friday's close (absolute breadth, 0-100%).</li>
         <li><strong>Convert to sector-relative breadth</strong>: for each ETF, subtract the cross-sectional mean breadth across all 14 sectors. The signal is now "how much is this sector leading or lagging the others" (positive = leading, negative = lagging).</li>
         <li><strong>Rank by relative breadth and take the top K = 7</strong>, then <strong>drop any with negative relative breadth</strong> (sectors below the mean). The sleeve holds <strong>up to K</strong> survivors — often fewer when the cross-section is narrow.</li>
         <li><strong>Weight by positive relative-breadth share</strong>: weight_i = rel_breadth_i / Σ(positive rel_breadths). Survivors with the largest excess over the mean get the largest slices.</li>
@@ -2466,7 +2466,7 @@
 
     <section>
       <h2>Headline comparison</h2>
-      <p class="section-sub">Top row (highlighted green, tagged DEPLOYED) is the actual Strategy A used in the 4-way Multi-Strategy blend at 35% weight: <strong>Sector-relative breadth rotation, up to K=7, weekly Friday, no leverage</strong>. Below it: the K=5 unleveraged variant as a K-sensitivity reference, and the two passive benchmarks (naive equal-weight across the 14 ETFs, SPY buy-and-hold).</p>
+      <p class="section-sub">Top row (highlighted green, tagged DEPLOYED) is the actual Strategy A used in the 4-way Multi-Strategy blend at 35% weight: <strong>Sector-relative breadth rotation, up to K=7, weekly Monday, no leverage</strong>. Below it: the K=5 unleveraged variant as a K-sensitivity reference, and the two passive benchmarks (naive equal-weight across the 14 ETFs, SPY buy-and-hold).</p>
       <table class="small-table" id="portfolio-table"><thead></thead><tbody></tbody></table>
     </section>
 
@@ -2484,12 +2484,12 @@
 
     <section style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px;">
       <h2>Trade Explorer — Strategy A deep-dive</h2>
-      <p class="section-sub">Every rebalance of Strategy A from <strong id="trade-first-date">—</strong> to <strong id="trade-last-date">—</strong>. <span id="trade-summary"></span> Each row = a Friday close; holdings shown are what the strategy should be in for the following week. Green chips entered this week; red chips exited; blue chips persisted. Weight = portfolio share; breadth = % of that ETF's constituents above 200d MA at the rebalance date. <em>For the BLEND-LEVEL combined ledger across all four sleeves, see the <a href="#" onclick="document.querySelector('[data-tab=history]').click();return false;">Trade History tab</a>.</em></p>
+      <p class="section-sub">Every rebalance of Strategy A from <strong id="trade-first-date">—</strong> to <strong id="trade-last-date">—</strong>. <span id="trade-summary"></span> Each row = a Monday close (a holiday Monday rolls forward to the next session); holdings shown are what the strategy should be in for the following week. Green chips entered this week; red chips exited; blue chips persisted. Weight = portfolio share; breadth = % of that ETF's constituents above 200d MA at the rebalance date. <em>For the BLEND-LEVEL combined ledger across all four sleeves, see the <a href="#" onclick="document.querySelector('[data-tab=history]').click();return false;">Trade History tab</a>.</em></p>
     </section>
 
     <section>
       <h3>Strategy A · Equity vs benchmarks</h3>
-      <p class="section-sub">Strategy A (K = 7, weekly Friday) versus <strong>SPY buy-and-hold</strong> and <strong>naive equal-weight across all 14 ETFs</strong>. All series shown as cumulative return from period start (0% baseline) — use the timeframe selector to switch between YTD / 1Y / MAX windows.</p>
+      <p class="section-sub">Strategy A (K = 7, weekly Monday) versus <strong>SPY buy-and-hold</strong> and <strong>naive equal-weight across all 14 ETFs</strong>. All series shown as cumulative return from period start (0% baseline) — use the timeframe selector to switch between YTD / 1Y / MAX windows.</p>
       <div id="trade-equity-chart" class="chart"></div>
       <table class="small-table" id="trade-stats-table" style="margin-top:14px;"><thead></thead><tbody></tbody></table>
       <p style="margin-top:10px;color:var(--ink-faint);font-size:13px;">CAGR = compound annual growth rate. Δ = strategy minus benchmark.</p>
@@ -2536,10 +2536,10 @@
     <div class="recipe">
       <h3>Strategy B — Asset-class momentum</h3>
       <div class="recipe-title">Asset-class momentum rotation</div>
-      <p style="margin:0;color:var(--ink-soft);">A separate strategy that operates at the asset-class level instead of within US sectors. 13 broad ETFs across US equity, international developed, emerging markets, real estate, commodities, and bonds. Each Friday close, rank by distance above own 200d MA. Hold the top K with positive signal, weight by signal strength; idle capital sits in <strong>SHY (1-3y Treasury)</strong> as a duration-neutral cash floor. IEF remains in the rotation universe as a long-duration play, not as the cash proxy. This is "<em>which asset classes should I be in at all?</em>" — orthogonal to Strategy A's "<em>within US equities, which sector?</em>".</p>
+      <p style="margin:0;color:var(--ink-soft);">A separate strategy that operates at the asset-class level instead of within US sectors. 13 broad ETFs across US equity, international developed, emerging markets, real estate, commodities, and bonds. Each Monday close, rank by distance above own 200d MA as at the previous session's (Friday's) close. Hold the top K with positive signal, weight by signal strength; idle capital sits in <strong>SHY (1-3y Treasury)</strong> as a duration-neutral cash floor. IEF remains in the rotation universe as a long-duration play, not as the cash proxy. This is "<em>which asset classes should I be in at all?</em>" — orthogonal to Strategy A's "<em>within US equities, which sector?</em>".</p>
       <div class="recipe-stats" id="asset-recipe-stats"></div>
       <ol class="recipe-steps">
-        <li><strong>Each Friday close</strong>, compute (price − MA200) / MA200 for each of the 13 asset-class ETFs.</li>
+        <li><strong>Each Monday close</strong>, compute (price − MA200) / MA200 for each of the 13 asset-class ETFs, as at the previous session's (Friday's) close.</li>
         <li><strong>Drop any ETF with negative signal</strong> (price below its 200d MA — in a downtrend).</li>
         <li><strong>Rank survivors</strong>. Take the top K = 7.</li>
         <li><strong>Weight by signal share</strong>. If only N &lt; K ETFs have positive signal, allocate (N/K) of capital to them and the remaining (K − N)/K to SHY (1-3y Treasury, duration-neutral) as cash floor. Built-in cash floor when the world is broadly weak — unlike Strategy A which stays 100% invested.</li>
@@ -2625,7 +2625,7 @@
       <p style="margin:0;color:var(--ink-soft);">A third sleeve for catching secular trends that don't fit traditional sectors (AI, cybersecurity, clean energy, biotech, blockchain, defence, crypto, broad metals & mining, timber, rare earth, China-tech-broad, China-A-share semis, etc). Same momentum signal as Strategy B applied to 25 thematic ETFs, with extra guardrails to limit fad-chasing. Sized at <strong>10% of the combined portfolio</strong> — designed as optionality on the next AI-style bull run, not a primary alpha source.</p>
       <div class="recipe-stats" id="thematic-recipe-stats"></div>
       <ol class="recipe-steps">
-        <li><strong>Each Friday close</strong>, compute distance above 200d MA for each of the 25 thematic ETFs.</li>
+        <li><strong>Each Monday close</strong>, compute distance above 200d MA for each of the 25 thematic ETFs, as at the previous session's (Friday's) close.</li>
         <li><strong>Hard signal floor:</strong> only consider ETFs with signal ≥ <strong>+5%</strong> above their 200d MA (not just positive). This filters out marginal "in an uptrend" cases that often reverse.</li>
         <li><strong>Sleeve breadth gate (deployed June 2026):</strong> if <strong>fewer than 30% of the 25-theme universe</strong> clears the +5% floor at this rebal, exit ALL positions to SHY for the week. Catches sleeve-wide regime changes (e.g. early 2022 thematic-complex rollover) before per-ETF signals individually breach. Walk-forward Sharpe lift +0.16, max DD reduction 14.8pp vs the un-gated rule.</li>
         <li><strong>Rank the survivors. Take the top K = 5.</strong> Walk-forward picked K=5 in every refit segment once the sleeve gate was active — the gate handles regime risk so the in-sample concentration choice K=5 becomes safe to deploy. (Prior K=4 was the WF pick before the gate.)</li>
@@ -2726,7 +2726,7 @@
       <p style="margin:0;color:var(--ink-soft);">A fourth sleeve applying the same constituent-breadth mechanism as Strategy A, but to 5 Stoxx Europe 600 sector UCITS funds (Banks, Oil &amp; Gas, Technology, Industrials, Utilities). The motivation is structural orthogonality: Europe runs on its own macro cycle (ECB rates, EUR/USD, China trade exposure) that is genuinely different from the US sector universe. Sized at <strong>20% of the combined portfolio</strong> in the recommended 4-way blend, which empirically lifts Sharpe by ~+0.07 vs the prior 3-way 45/45/10 baseline.</p>
       <div class="recipe-stats" id="europe-recipe-stats"></div>
       <ol class="recipe-steps">
-        <li><strong>Each Friday close</strong>, compute % of constituents above 200d MA for each of the 5 Europe sector ETFs.</li>
+        <li><strong>Each Monday close</strong>, compute % of constituents above 200d MA for each of the 5 Europe sector ETFs, as at the previous session's (Friday's) close.</li>
         <li><strong>Rank by breadth</strong>. Take the top K = 3.</li>
         <li><strong>Weight by breadth-share excess</strong> (each holding's weight ∝ its breadth − the K+1-ranked ETF's breadth). Same weighting rule as Strategy A.</li>
         <li><strong>Rebalance to the new mix</strong>. Costs 5 bps × turnover.</li>
@@ -2957,7 +2957,7 @@
 
     <section>
       <h2>Strategy A — K × rebalance-cadence sensitivity</h2>
-      <p class="section-sub">How sensitive is the deployed Strategy A to its two free choices: how many ETFs to own (K) and how often to rebalance? Each cell is the in-sample Sharpe; sub-cell shows max drawdown, annual turnover (a unit = full portfolio replacement), and number of position flips. Best cell highlighted green, worst red. The deployed cell is K = 7 × Weekly Fri.</p>
+      <p class="section-sub">How sensitive is the deployed Strategy A to its two free choices: how many ETFs to own (K) and how often to rebalance? Each cell is the in-sample Sharpe; sub-cell shows max drawdown, annual turnover (a unit = full portfolio replacement), and number of position flips. Best cell highlighted green, worst red. The deployed cell is K = 7 × Weekly Mon (cadence per WS18, 2026-08-22).</p>
       <table class="heat" id="topk-cadence-table"><thead></thead><tbody></tbody></table>
       <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="topk-cadence-note"></p>
     </section>
@@ -2991,11 +2991,13 @@
      steps, one idea per step.
 
      It was built as a DECISION AID while the owner was choosing between fill
-     conventions, and left that way after the choice was made on 2026-08-12.
-     That is the "dossier grammar applied to an argument" failure the design
-     standard names: six-row comparison tables and bootstrap intervals are the
-     right form for choosing and the wrong form for explaining a settled
-     process. The comparison evidence still exists, one disclosure below.
+     conventions (settled 2026-08-12, WS12/13: the close, market-on-close),
+     then re-grounded on 2026-08-22 when WS18 moved the DAY to Monday on
+     operational correctness. Six-row comparison tables and bootstrap
+     intervals are the right form for choosing and the wrong form for
+     explaining a settled process — the "dossier grammar applied to an
+     argument" failure the design standard names — so the WS13 evidence
+     lives in one disclosure below, labelled with its own study date.
 
      AUDIENCE: institutional allocator (s5) — cost and risk before return. -->
 <div class="tab-content" id="tab-execution">
@@ -3006,13 +3008,32 @@
 
   <section>
     <h2>The weekly cycle</h2>
-    <p class="section-sub">One decision a week, in three steps. The gap between deciding and trading is deliberate and is what keeps the strategy honest: the ranking can only ever use prices that had already printed when it was made.</p>
+    <p class="section-sub">One decision a week: rank on the Friday close, fill on the Monday close. The gap between deciding and trading is deliberate and is what keeps the strategy honest: the ranking can only ever use prices that had already printed when it was made — for every sleeve, on both venues.</p>
     <div id="exec-cycle-diagram" style="overflow-x:auto;"></div>
   </section>
 
   <section>
-    <h2>Why the Friday close</h2>
-    <p class="section-sub">Three reasons, in the order they mattered. Performance is deliberately not one of them.</p>
+    <h2>Why Monday, and not Friday</h2>
+    <p class="section-sub">The fill moved from the Friday close to the Monday close on 2026-08-22 (WS18, pre-registered; record in <code>reviews/2026-08-22_prereg_ws18_monday-cadence.md</code>). The reason is operational correctness, not performance.</p>
+    <div class="two-col" style="gap:18px;margin-top:6px;">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body"><strong>Under a Friday fill, one sleeve could never rank on time.</strong> The engines rank on the session before the fill. The vendor-availability probe (four measurements a day, running since 2026-08-15) found the European price lines a session behind at <em>every</em> hour of the Friday decision window &mdash; so sleeve D, a fifth of the book, was structurally forced to rank a session earlier than the backtest assumes, every week. The live book could not implement the convention the engines test.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body"><strong>A Monday fill restores the convention for all four sleeves.</strong> Ranked on the Friday close and filled on the Monday close, both venues have published the decision session by the weekend refresh. A holiday Monday rolls <em>forward</em> to the next session, never back &mdash; under the old backward roll, 39 of 406 NYSE Monday rebalances would have landed on the previous Friday, before the decision that produces them existed.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body"><strong>The performance evidence is null, and is filed as null.</strong> On the deployed variant the move measured +0.0098 Sharpe against the Friday incumbent, 90% CI [-0.0588, +0.0761] &mdash; indistinguishable from zero, which is exactly what the pre-registered non-inferiority bar asked of a correctness fix. It is not evidence of improvement and is not quoted as one anywhere on this dashboard.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why the close, not the open</h2>
+    <p class="section-sub">Three reasons, in the order they mattered. Performance is deliberately not one of them. Settled by WS12/13 (2026-08-12); the 2026-08-22 day move did not reopen it &mdash; market-on-close carried over unchanged.</p>
     <div class="two-col" style="gap:18px;margin-top:6px;">
       <div class="step">
         <div class="step-n">1</div>
@@ -3024,14 +3045,14 @@
       </div>
       <div class="step">
         <div class="step-n">3</div>
-        <div class="step-body"><strong>It needs nobody awake.</strong> A market-on-close order is submitted on Friday evening Singapore time and executes hours later unsupervised. The US deadline is 15:50 New York time; the order goes in roughly six hours before it.</div>
+        <div class="step-body"><strong>It needs nobody awake.</strong> Market-on-close orders are submitted on Monday evening Singapore time and execute hours later unsupervised. Xetra&rsquo;s cut-off is 21:50 SGT; the US cut-off is 15:50 New York time &mdash; 03:50 SGT on the Tuesday &mdash; and both orders go in the same evening.</div>
       </div>
     </div>
   </section>
 
   <section>
     <h2>What the execution moment is worth</h2>
-    <p class="section-sub">The alternative to the closing auction is the opening one. Measured as an active decision &mdash; filling at the open rather than the close, on the identical book &mdash; here is what that is worth on each weekday grid. Read the tracking error first: the choice moves the book by well under one per cent a year whichever way it goes, and the sign is not stable across neighbouring weekdays. That is why it was settled on execution quality rather than on return.</p>
+    <p class="section-sub">The alternative to the closing auction is the opening one. Measured as an active decision &mdash; filling at the open rather than the close, on the identical book &mdash; here is what that is worth on each weekday grid. Read the tracking error first: the choice moves the book by well under one per cent a year whichever way it goes, and the sign is not stable across neighbouring weekdays. That is why it was settled on execution quality rather than on return. WS13 exhibit, study data as at 2026-08-12.</p>
     <div style="overflow-x:auto;">
       <table class="small-table" id="exec-ir-table"><thead></thead><tbody></tbody></table>
     </div>
@@ -3040,7 +3061,7 @@
 
   <section>
     <h2>Where the trading day sits on a Singapore clock</h2>
-    <p class="section-sub">The portfolio holds instruments on two exchanges. They do not open together, so a single weekly rebalance is executed in two parts on the same Friday &mdash; a fifth of the book in Europe, four fifths in the United States. The bars below carry that share, because the Xetra session is the longer of the two and would otherwise read as the more important. One caveat on the 80%: the thematic sleeve may hold a Shenzhen-listed or crypto line in a given week, which trades on neither of these clocks and is worth up to about four per cent of the portfolio when it does.</p>
+    <p class="section-sub">The portfolio holds instruments on two exchanges. They do not open together, so a single weekly rebalance is executed in two parts on the same Monday &mdash; a fifth of the book in Europe, four fifths in the United States. The bars below carry that share, because the Xetra session is the longer of the two and would otherwise read as the more important. One caveat on the 80%: the thematic sleeve may hold a Shenzhen-listed or crypto line in a given week, which trades on neither of these clocks and is worth up to about four per cent of the portfolio when it does.</p>
     <div id="exec-clock-diagram" style="overflow-x:auto;"></div>
   </section>
 
@@ -3076,7 +3097,7 @@
       </div>
 
       <h3 style="margin-top:24px;">How the choice was arrived at</h3>
-      <p class="section-sub">Six variants, in the order they were priced. <strong>The Sharpe column is not comparable down the whole table</strong> — the two studies behind it end on different dates, so a row's figure is only comparable with others sharing its basis, and no delta is taken across bases.</p>
+      <p class="section-sub">Eight variants, in the order they were priced. <strong>The Sharpe column is not comparable down the whole table</strong> — the three studies behind it run on different panels and end on different dates, so a row's figure is only comparable with others sharing its basis, and no delta is taken across bases.</p>
       <div style="overflow-x:auto;">
         <table class="small-table" id="exec-path"><thead></thead><tbody></tbody></table>
       </div>
@@ -3096,7 +3117,7 @@
       <p><strong>What is "leading on breadth"?</strong> A sector at 75% breadth sounds strong in absolute terms, but if every other sector is also above 75% then this one is not standing out — it is just riding the broader rally. To distinguish leaders from market beneficiaries, we compute the average breadth across all 14 sectors, then subtract that average from each sector's own breadth. The result is <em>sector-relative breadth</em> — positive when the sector is leading the pack, negative when it is lagging. This is the signal we actually rank on.</p>
       <div class="step">
         <div class="step-n">1</div>
-        <div class="step-body"><strong>The rebalance lands at Friday's close, and it ranks on Thursday's.</strong> Look up the constituents of each of the 14 ETFs and compute the breadth (% above 200d MA) for each one, measured at the <strong>previous session's close</strong>. The one-session lag is deliberate: it guarantees the decision only ever uses information that was already public when it was taken. The Execution Timing tab sets out the full sequence and what the delay costs.</div>
+        <div class="step-body"><strong>The rebalance lands at Monday's close, and it ranks on Friday's.</strong> Look up the constituents of each of the 14 ETFs and compute the breadth (% above 200d MA) for each one, measured at the <strong>previous session's close</strong>. The one-session lag is deliberate: it guarantees the decision only ever uses information that was already public when it was taken. The Execution Timing tab sets out the full sequence and what the delay costs.</div>
       </div>
       <div class="step">
         <div class="step-n">2</div>
@@ -3112,7 +3133,7 @@
       </div>
       <div class="step">
         <div class="step-n">5</div>
-        <div class="step-body"><strong>Re-check next Friday.</strong> Some sectors will have weakened and dropped below the mean; others will have strengthened and entered. Sell what dropped out, buy what came in, adjust the rest. Costs are about 5 basis points (0.05%) per unit of weight change — a typical retail ETF brokerage fee. The Trade Explorer tab shows every single rebalance.</div>
+        <div class="step-body"><strong>Re-check the next Monday.</strong> Some sectors will have weakened and dropped below the mean; others will have strengthened and entered. Sell what dropped out, buy what came in, adjust the rest. Costs are about 5 basis points (0.05%) per unit of weight change — a typical retail ETF brokerage fee. The Trade Explorer tab shows every single rebalance.</div>
       </div>
       <p style="margin-top:18px;"><strong>What this strategy is NOT doing.</strong> It is not trying to predict which individual sector will go up next. It is doing something simpler: <em>own whatever is leading, trim whatever is lagging</em>. Markets reward this pattern more often than they punish it, because trends in market breadth tend to persist for weeks-to-months at a time. Within Strategy A there is no cash view: the sleeve stays fully invested in whichever sectors sit above the cross-sectional mean, however few that turns out to be.</p>
       <p><strong>The deployed portfolio, however, does step aside.</strong> Strategy A is one sleeve of a blend that sits under a breadth gate: when the share of S&amp;P 500 constituents above their own 200-day average falls below <span data-fig="gate.off_thresh">20%</span>, <span data-fig="gate.derisk_frac">50%</span> of the portfolio moves into short-dated Treasuries, and it re-engages once breadth recovers above <span data-fig="gate.on_thresh">50%</span>. That is a market-timing rule, it is switched on, and it is inside the headline numbers — the deployed series is the <em>gated</em> blend. It has held the book partly defensive on <span data-fig="gate.pct_days_off">13%</span> of all days since 2018, including December 2018, February 2020 and the 2022 drawdown. The Risk Overlay tab shows every switch.</p>
@@ -3157,7 +3178,7 @@
           <li><strong>Strategy B</strong>: rank 12 broad asset-class ETFs by distance above 200d MA, drop negatives, take top K = 7, weight by signal share, cash floor in SHY (1-3y Treasury) for unfilled slots. IEF remains in the rotation universe as a duration play. Universe (HYG removed 2026-05 — equity-correlated, never defensive; EEM moved to the Phase 22 overlay 2026-07, Phase 29): SPY, IJR, QQQ, EFA, VGK, EWJ, VNQ, GLD, DBC, TLT, IEF, TIP.</li>
           <li><strong>Strategy C</strong> (10% sleeve): rank 25 thematic ETFs by distance above 200d MA, drop any below +5% (signal floor), take top K = 5, equal-weight (1/K) across the holdings, cash floor in SHY (1-3y Treasury) for unfilled slots. <strong>Sleeve-breadth gate (deployed June 2026)</strong>: if fewer than 30% of the 25-theme universe clears the +5% floor at any rebal, exit ALL positions to SHY for the week. Universe: ARKK, CIBR, SKYY, BOTZ, BLOK, ICLN, TAN, LIT, URA, XBI, ARKG, JETS, GDX, COPX, MOO, PAVE, <strong>ITA</strong> (defence/aerospace), <strong>BTC-USD</strong> (Bitcoin spot — see caveat below; live execution in IBIT), <strong>XME</strong> (broad metals &amp; mining), <strong>WOOD</strong> (timber &amp; forestry), <strong>REMX</strong> (rare earth / strategic metals), <strong>CQQQ</strong> (Invesco China Technology — broad China-tech), <strong>159801.SZ</strong> (Bosera CSI Chip ETF, CNY-denominated, USD-adjusted via spot FX — pure China A-share semiconductor hardware basket: Cambricon, AMEC, NAURA, SMIC. Deployed via IBKR Stock Connect; 588200.SS is an interchangeable Shanghai-listed alternative), <strong>PHO</strong> (Invesco Water Resources — water infrastructure, added 2026-05-31), <strong>IHI</strong> (iShares US Medical Devices — Abbott, Thermo Fisher, Medtronic, Stryker, added 2026-05-31). <em>The C sleeve uses equal-weight (1/K) across the holdings rather than signal-weighting, after an A/B test showed equal-weight dominates on every metric for this high-floor (5%) regime — see the research log below.</em></li>
           <li><strong>Strategy D</strong> (20% sleeve): rank 5 Stoxx Europe 600 sector UCITS by constituent breadth, take top K = 3, weight by breadth share. Universe: EXV1 (Banks), EXH1 (Oil &amp; Gas), EXV3 (Technology), EXH4 (Industrial Goods &amp; Services), EXH9 (Utilities). Trade as the Xetra-listed UCITS (EXV1.DE etc.) in EUR. The industrials member is keyed <code>EXH3</code> internally — that is the id of its constituent and breadth panels on disk, not a Xetra ticker, and it trades as EXH4.DE.</li>
-          <li><strong>Combination</strong>: 35% A + 35% B + 10% C + 20% D, rebalanced weekly Friday.</li>
+          <li><strong>Combination</strong>: 35% A + 35% B + 10% C + 20% D, rebalanced weekly at the Monday close.</li>
           <li>Transaction cost: 5 bps per unit of weight change (10 bps round-trip).</li>
           <li>No look-ahead: every weight is decided using the prior trading day's signal.</li>
           <li>K is refit only annually on expanding-window Sharpe; choices have been stable at K = 7 (A), K = 7 (B), <strong>K = 5 (C, deployed June 2026 with sleeve-breadth gate)</strong>, K = 3 (D).</li>
@@ -3355,7 +3376,7 @@
           <li><strong>If walk-forward Sharpe ≤ BH Sharpe, abandon the strategy.</strong> No amount of in-sample tweaking saves a strategy whose held-out performance is no better than the passive benchmark. CSP1 fails this test (WF 0.57 vs BH 0.84); SOXX with bi-weekly cadence passes (1.05 vs 0.98).</li>
           <li><strong>Prefer relative signals to absolute thresholds.</strong> "Top K by breadth" is a relative statement that self-normalises across regimes; "breadth ≥ L" is an absolute threshold that has to be re-tuned every regime. Test 10 shows the cross-sectional rotation paradigm has zero walk-forward degradation, while threshold-based timing degrades ~0.3 Sharpe. Whenever a signal can be expressed as a cross-sectional rank instead of a level, prefer the rank version.</li>
         </ul>
-        <p><strong>Practical deployment translation.</strong> The strategy that survives all the tests is paradigm 3 from Test 10: <em>own up to K = 5-7 ETFs by current MA200 breadth, ranked on sector-relative breadth (breadth minus the cross-sectional mean), drop sectors below the mean to keep the sleeve long-only, weight survivors by their positive relative-breadth share, rebalance weekly Friday, no per-ETF threshold tuning, refit K only annually</em>. Walk-forward Sharpe ≈ 1.05 with no degradation from in-sample. The previous "fixed L=60 on IUIT / CNDX / IUES" recommendation was correct given the framing of paradigm 2, but paradigm 3 is strictly better — it owns the same sectors when they lead, drops them when they lag, and never bets on a single ETF being "above the L-line" in isolation. The original headline Sharpe 1.04 for CSP1 single-ETF was an artifact; the headline Sharpe 1.05 for top-K rotation is honest.</p>
+        <p><strong>Practical deployment translation.</strong> The strategy that survives all the tests is paradigm 3 from Test 10: <em>own up to K = 5-7 ETFs by current MA200 breadth, ranked on sector-relative breadth (breadth minus the cross-sectional mean), drop sectors below the mean to keep the sleeve long-only, weight survivors by their positive relative-breadth share, rebalance weekly, no per-ETF threshold tuning, refit K only annually</em>. Walk-forward Sharpe ≈ 0.99 on the restated W-MON basis, essentially level with in-sample. The previous "fixed L=60 on IUIT / CNDX / IUES" recommendation was correct given the framing of paradigm 2, but paradigm 3 is strictly better — it owns the same sectors when they lead, drops them when they lag, and never bets on a single ETF being "above the L-line" in isolation. The original headline Sharpe 1.04 for CSP1 single-ETF was an artifact; the top-K rotation headline is honest.</p>
       </div>
     </section>
 
@@ -3488,9 +3509,9 @@
       <p class="section-sub" style="margin-top:14px;font-size:12px;">Weight is the fund's own published holding percentage. <strong>vs 50d</strong> is the constituent's last close against its 50-day moving average — the measure this breadth panel counts, so the green share above equals its <code>ma_breadth</code>. <strong>vs 200d</strong> is the same comparison on the 200-day average, which is what <strong>Strategy A actually ranks sectors on</strong>; the two can disagree, and the 200-day is the one that moves the book. Its denominator is the smaller of the two — a name with fewer than 200 sessions of history has no 200-day average and shows <em>—</em> rather than counting as below. Names marked <em>no price</em> have no usable history at all and are excluded from both numerator and denominator. Only the most recent roster is published; the full weekly membership history is 60&ndash;80MB and stays in the repository.</p>
 
       <h4 style="margin-top:28px;">Weekly history</h4>
-      <p class="section-sub">Every rebalance Friday. <strong>Roster</strong> is the membership count; <strong>priced</strong> is how many had usable prices that day; <strong>MA / RSI / Highs</strong> are the three breadth measures. Click any column heading to sort.<br>
+      <p class="section-sub">Every roster Friday — the weekly grid the iShares holdings publish on. <strong>Roster</strong> is the membership count; <strong>priced</strong> is how many had usable prices that day; <strong>MA / RSI / Highs</strong> are the three breadth measures. Click any column heading to sort.<br>
       Two reasons a row can be blank, and they mean different things. <strong>Early rows</strong> have a roster but no breadth: the 50-day average needs 50 sessions of history before it exists. <strong>A blank later row</strong> means the exchange traded that Friday but the price vendor never published the bar — a data gap, not a closed market, and the strategy skips that week's rebalance rather than guessing.<br>
-      Amber figures marked <span style="color:#b45309;">✦</span> are the third case: the market was <em>shut</em> that Friday, so the reading is the prior session's close — the same session the strategy rebalances on. Hover for the date.</p>
+      Amber figures marked <span style="color:#b45309;">✦</span> are the third case: the market was <em>shut</em> that Friday, so the reading is the prior session's close — the same session the strategy ranks on. Hover for the date.</p>
       <p style="margin:0 0 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);">
         <label for="data-from">From</label>
         <input type="date" id="data-from" style="font-size:13px;padding:5px 8px;border:1px solid var(--rule,#d6d9dd);border-radius:4px;background:#fff;color:var(--ink);">
@@ -3674,7 +3695,7 @@ function fmtPct(x, signed = false) {
 // returns the index of the bar the window REBASES ON, from the SERIES'S
 // OWN LAST DATE. (Anchoring on series last date rather than "today"
 // keeps the chart stable even when the data lags the calendar by a few
-// days — common for Friday-rebalanced backtests.) Returns 0 for 'max'
+// days — common for weekly-rebalanced backtests.) Returns 0 for 'max'
 // or when the requested window is older than the series start.
 //
 // Anchor conventions (2026-07-18 audit F4):
@@ -4311,9 +4332,10 @@ function renderPositionsPreview() {
     const prev = Object.fromEntries((trades[trades.length - 2].holdings || []).map(h => [h.etf, h.weight]));
     const curr = Object.fromEntries((trades[trades.length - 1].holdings || []).map(h => [h.etf, h.weight]));
     const sl = k.toUpperCase();
-    // Each sleeve rebalances on its own Friday (e.g. on a US-holiday
-    // Friday only Europe/D trades), so stamp every change with the date
-    // it actually happened — the same date the combined ledger shows.
+    // Each sleeve rebalances on its own venue's session (a holiday Monday
+    // rolls forward, and the venues can diverge when it does), so stamp
+    // every change with the date it actually happened — the same date the
+    // combined ledger shows.
     const rebalDate = trades[trades.length - 1].date || '';
     const prevDate = trades[trades.length - 2].date || rebalDate;
     // Sleeve weights AS OF each side's own rebalance date — a tilt or
@@ -4424,7 +4446,7 @@ function renderPositionsPreview() {
   // moves display — sleeves legitimately skip weeks, and mixing week-old
   // rows the reader has already executed with the new ones invited double
   // execution. The week is Monday-anchored on the newest move date so a
-  // mid-week overlay flip (TILT / GATE row) shows beside Friday's
+  // mid-week overlay flip (TILT / GATE row) shows beside Monday's
   // rebalance rows; older-dated sleeves become a footnote, mirroring the
   // weekly email's card.
   let weekRows = activity;
@@ -4506,8 +4528,9 @@ function renderPositionsPreview() {
     }
   }
   // Header note = the span of rebalance dates actually represented. The
-  // sleeves rebalance on different Fridays (only Europe/D trades on a US
-  // holiday), so this can legitimately span two dates; each row is dated.
+  // sleeves can rebalance on different sessions (a US-holiday Monday sends
+  // A/B/C to Tuesday while Xetra trades Monday), so this can legitimately
+  // span two dates; each row is dated.
   const actDates = [...new Set(shown.map(a => a.date).filter(Boolean))].sort();
   const asofA = document.getElementById('preview-activity-asof');
   if (asofA) {
@@ -5049,7 +5072,7 @@ function renderMonitor() {
   // today" labelled only "<mix> blend Sharpe", which reads as a live track
   // record. There is no live track record: live_track.json is a daily
   // mark-to-market overlay that extends the backtest through the current
-  // week (live_dates is empty between the Friday anchor and the next
+  // week (live_dates is empty between the weekly anchor and the next
   // session), not an independent record of realised returns. The page
   // header strip already labels its equivalents "Backtest Sharpe (rf = 0)" /
   // "Backtest CAGR"; this strip now matches it.
@@ -7962,7 +7985,7 @@ function _curatedSeries(data) {
   const meq = m.winner_equity_curves || {};
   const out = [];
   // 1. STRATEGY A (deployed) — sector-relative-breadth rotation, up to K=7,
-  //    weekly Fri, NO LEVERAGE. This row matches run_topk_robustness
+  //    weekly Mon, NO LEVERAGE. This row matches run_topk_robustness
   //    HEADLINE_K=7 with USE_RELATIVE_BREADTH_SIGNAL=True (Phase 20.1) and
   //    is the row used by the deployed 35/35/10/20 A:B:C:D blend (at 35%).
   if (r.top7_breadth_weight) {
@@ -8023,7 +8046,7 @@ function renderPortfolio() {
   const wfTopK = data.robustness?.test_10_wf_topk_portfolio?.walk_forward_sharpe;
   const wfL_csp1 = data.robustness?.test_1_walk_forward_l?.CSP1?.walk_forward_sharpe;
   document.getElementById('portfolio-verdict').innerHTML =
-    `<strong>Strategy A is the top row in the table below: Top-7 breadth-weighted rotation, weekly Friday, no leverage.</strong> In-sample Sharpe <strong>${fmtNum(stratA?.sharpe, 2, true)}</strong>, CAGR <strong>${fmtPct(stratA?.cagr, true)}</strong>, max DD <strong>${fmtPct(stratA?.max_dd)}</strong>. Walk-forward Sharpe <strong>${fmtNum(wfTopK, 2, true)}</strong> (Risk &amp; Validation tab) — essentially equal to in-sample, no overfit.<br><br>`
+    `<strong>Strategy A is the top row in the table below: Top-7 breadth-weighted rotation, weekly Monday, no leverage.</strong> In-sample Sharpe <strong>${fmtNum(stratA?.sharpe, 2, true)}</strong>, CAGR <strong>${fmtPct(stratA?.cagr, true)}</strong>, max DD <strong>${fmtPct(stratA?.max_dd)}</strong>. Walk-forward Sharpe <strong>${fmtNum(wfTopK, 2, true)}</strong> (Risk &amp; Validation tab) — essentially equal to in-sample, no overfit.<br><br>`
     + `In the deployed <a href="#" onclick="document.querySelector('[data-tab=multi]').click();return false;">4-way 35/35/10/20 A:B:C:D Multi-Strategy blend</a>, Strategy A contributes 35% of total NAV; the other 65% is split across <a href="#" onclick="document.querySelector('[data-tab=asset]').click();return false;">Strategy B</a> (35%, asset-class momentum), <a href="#" onclick="document.querySelector('[data-tab=thematic]').click();return false;">Strategy C</a> (10% optionality), and <a href="#" onclick="document.querySelector('[data-tab=europe]').click();return false;">Strategy D</a> (20%, Europe sector breadth). The K=5 row below shows the K-sensitivity reference. Benchmarks are equal-weight all 14 ETFs (no signal) and SPY buy-and-hold.`;
 
   // Headline table — Strategy A on top, highlighted; others as reference
@@ -8067,7 +8090,7 @@ function renderPortfolio() {
       const datesSlice = c.dates.slice(startIdx);
       const eqSlice = c.equity.slice(startIdx);
       const legendName = c.isStrategyA
-        ? `★ STRATEGY A (Top-7 K=7 Weekly Fri, no leverage) — Shp ${fmtNum(c.sharpe, 2, true)}`
+        ? `★ STRATEGY A (Top-7 K=7 Weekly Mon, no leverage) — Shp ${fmtNum(c.sharpe, 2, true)}`
         : `${c.label} — Shp ${fmtNum(c.sharpe, 2, true)}`;
       return {
         name: legendName,
@@ -8135,7 +8158,7 @@ function renderPortfolio() {
 
 // ----------- Risk & Validation tab -------------------------------------
 // ---------------------------------------------------------------------------
-// Execution timing (WS13) — EXPLAINER
+// Execution timing (WS12/13 fill moment; WS18 rebalance day) — EXPLAINER
 // ---------------------------------------------------------------------------
 // Every figure is READ from window.DATA.execution_timing. Nothing is recomputed
 // in the browser and nothing is hard-coded, so the tab cannot quietly disagree
@@ -8169,13 +8192,13 @@ function _execCycleSVG(D) {
   const us = (D.sessions_sgt || {}).US || {};
   const xe = (D.sessions_sgt || {}).XETR || {};
   const steps = [
-    { t: 'Thursday close', s: 'Rankings use these prices',
-      c: us.sgt_close_summer + ' SGT Fri', kind: 'signal' },
-    { t: 'Friday morning', s: 'Position changes are produced',
-      c: 'from 08:00 SGT', kind: 'decide' },
-    { t: 'Friday evening', s: 'Orders submitted, then left alone',
-      c: '21:00–23:00 SGT', kind: 'decide' },
-    { t: 'Friday closing auctions', s: 'Europe 23:30, US 04:00 Sat',
+    { t: 'Friday close', s: 'Rankings use these prices',
+      c: us.sgt_close_summer + ' SGT Sat', kind: 'signal' },
+    { t: 'Weekend refresh', s: 'Position changes are produced',
+      c: 'Sat + Sun, from 09:00 SGT', kind: 'decide' },
+    { t: 'Monday evening', s: 'Orders submitted, then left alone',
+      c: 'Mon 21:50 / Tue 03:50 SGT', kind: 'decide' },
+    { t: 'Monday closing auctions', s: 'Europe 23:30, US 04:00 Tue',
       c: 'unattended', kind: 'fill' }
   ];
   const W = 940, H = 200, bw = 200, gap = 46, y = 46, bh = 96;
@@ -8218,7 +8241,7 @@ function _execCycleSVG(D) {
 }
 
 // --- Diagram 2: the trading day on a Singapore clock ------------------------
-// Two venues, one Friday. Drawn because "15:00 and 21:30" is a sentence a
+// Two venues, one Monday. Drawn because "15:00 and 21:30" is a sentence a
 // reader has to assemble; a bar showing both sessions against the same axis is
 // one glance. The overnight band is what made the old convention unworkable.
 function _execClockSVG(D) {
@@ -8232,7 +8255,7 @@ function _execClockSVG(D) {
   const rows = [
     { name: 'Xetra', o: 15, c: 23.5, fill: xe.sgt_close_summer, y: 52,
       w: 0.20, who: 'sleeve D' },
-    { name: 'US', o: 21.5, c: 28, fill: us.sgt_close_summer + ' Sat', y: 100,
+    { name: 'US', o: 21.5, c: 28, fill: us.sgt_close_summer + ' Tue', y: 100,
       w: 0.80, who: 'sleeves A, B, C' }
   ];
   let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" '
@@ -8304,8 +8327,10 @@ function renderExecutionTiming() {
   const days = D.days || [];
   const blend = D.blend || {};
   const us = (D.sessions_sgt || {}).US || {};
-  const fri = blend['FRI'] || {};
-  const ec = fri.execution_choice || {};
+  // The deployed day since 2026-08-22 (WS18). Its execution_choice block is
+  // the open-versus-close evidence for the auction the book actually uses.
+  const mon = blend['MON'] || {};
+  const ec = mon.execution_choice || {};
 
   // --- Verdict: one sentence. The close times come from the feed, so they
   //     stay right through daylight saving rather than being written down.
@@ -8314,15 +8339,17 @@ function renderExecutionTiming() {
     const xeC = ((D.sessions_sgt || {}).XETR || {}).sgt_close_summer;
     vEl.innerHTML =
       'This portfolio rebalances <strong>once a week</strong>. It ranks on '
-      + '<strong>Thursday&rsquo;s closing prices</strong> and executes in '
-      + '<strong>Friday&rsquo;s closing auctions</strong> using market-on-close '
-      + 'orders submitted on Friday evening Singapore time. Nobody needs to be '
+      + '<strong>Friday&rsquo;s closing prices</strong> and executes in '
+      + '<strong>Monday&rsquo;s closing auctions</strong> using market-on-close '
+      + 'orders submitted on Monday evening Singapore time. Nobody needs to be '
       + 'awake when they fill: Europe clears at '
-      + (xeC || '—') + ' SGT and the United States at ' + (usC || '—')
-      + ' SGT on the Saturday. The closing auction is the deepest and '
-      + 'best-priced moment of the trading day, and it is the same price this '
-      + 'dashboard reports, so what is executed and what is published are one '
-      + 'number. As at ' + (D.as_of || '—') + '.';
+      + (xeC || '—') + ' SGT on the Monday and the United States at '
+      + (usC || '—') + ' SGT early on the Tuesday. The closing auction is the '
+      + 'deepest and best-priced moment of the trading day, and it is the same '
+      + 'price this dashboard reports, so what is executed and what is '
+      + 'published are one number. Cadence per WS18, adopted 2026-08-22; the '
+      + 'open-versus-close evidence below is WS13, study data as at '
+      + (D.as_of || '—') + '.';
   }
 
   // --- Diagrams
@@ -8357,15 +8384,16 @@ function renderExecutionTiming() {
       + '<th>Active return</th><th>Information ratio</th><th></th></tr>';
     irT.querySelector('tbody').innerHTML = days.map(function (d) {
       const e = (blend[d] || {}).execution_choice; if (!e) return '';
-      const isDep = d === 'FRI';
-      const worst = d === 'MON';
-      const note = isDep ? '<strong>in use</strong>'
-                 : worst ? 'avoided &mdash; the Monday auction absorbs the weekend gap'
-                 : '';
+      const isDep = d === 'MON';
+      const note = isDep
+        ? '<strong>in use</strong> &mdash; fills at the close; its open is the '
+          + 'one leg distinguishable from zero (the Monday opening auction '
+          + 'absorbs the weekend gap)'
+        : d === 'FRI' ? 'in use 2026-08-12 to 2026-08-22' : '';
       const col = e.information_ratio >= 0 ? 'var(--positive)' : 'var(--negative)';
       return '<tr' + (isDep ? ' style="background:var(--bg-soft)"' : '') + '>'
-        + '<td>' + (isDep ? '<strong>Friday</strong>' :
-            ({ MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday' })[d])
+        + '<td>' + (isDep ? '<strong>Monday</strong>' :
+            ({ TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday', FRI: 'Friday' })[d])
         + '</td><td>' + _execBp(e.tracking_error_ann, 0).replace('+', '')
         + '</td><td>' + _execBp(e.active_return_ann, 0)
         + '</td><td style="color:' + col + '"><strong>'
@@ -8383,8 +8411,12 @@ function renderExecutionTiming() {
       + 'of one execution choice against another. On '
       + (yrs ? yrs.toFixed(1) : '—') + ' years the standard error on such a '
       + 'ratio is roughly ' + (yrs ? (1 / Math.sqrt(yrs)).toFixed(2) : '—')
-      + ', so none of these rows is distinguishable from zero and the day was '
-      + 'not chosen on them.';
+      + '. Only Monday&rsquo;s row clears that bar &mdash; its opening auction '
+      + 'absorbs the weekend gap, which is an argument about the moment, not '
+      + 'the day, and the book fills at the close. No day was chosen on these '
+      + 'returns: WS13 settled the fill moment on execution quality, and WS18 '
+      + 'moved the day on operational correctness. Study data as at '
+      + (D.as_of || '—') + ' (WS13).';
   }
 
   // --- Disclosure. Stated on the face of the tab, not footnoted.
@@ -8397,17 +8429,17 @@ function renderExecutionTiming() {
       + 'prices, and the portfolio is executed in the closing auction. There is '
       + 'no wedge between the record and the fills to explain, which is a '
       + 'property worth more than the alternative was worth in return.</p>'
-      + '<p>The alternative was priced before it was rejected. Filling at the '
-      + 'open instead was worth ' + _execBp(ec.active_return_ann, 0) + ' a year '
-      + 'against ' + _execBp(Math.abs(ec.tracking_error_ann || 0), 0).replace('+', '')
+      + '<p>The alternative was priced before it was rejected. On the deployed '
+      + 'Monday grid, filling at the open instead was worth '
+      + _execBp(ec.active_return_ann, 0) + ' a year against '
+      + _execBp(Math.abs(ec.tracking_error_ann || 0), 0).replace('+', '')
       + ' of tracking error, an information ratio of '
-      + _execFmt(ec.information_ratio, 2) + ' with a standard error near '
-      + (yrs ? (1 / Math.sqrt(yrs)).toFixed(2) : '—') + '. Its 90% paired '
-      + 'interval straddles zero, its sign reverses across neighbouring '
-      + 'weekdays, and it survives only while both auctions are charged the '
-      + 'same trading cost &mdash; price the thinner opening auction honestly '
-      + 'and the advantage is gone by about 1.8 times the assumed cost. It was '
-      + 'not a real edge to give up.</p>';
+      + _execFmt(ec.information_ratio, 2) + ' &mdash; the one open-versus-close '
+      + 'leg in the study whose paired interval clears zero, because the '
+      + 'Monday opening auction absorbs the weekend gap. The Friday open, '
+      + 'briefly adopted in August 2026, reversed the same day once the '
+      + 'thinner opening book was costed honestly. WS13 evidence, study data '
+      + 'as at ' + (D.as_of || '—') + '.</p>';
   }
 
   // --- Everything below is inside the collapsed evidence disclosure. ---
@@ -8422,7 +8454,8 @@ function renderExecutionTiming() {
       const col = delta === null ? '' :
         ' style="color:' + (delta >= 0 ? 'var(--positive)' : 'var(--negative)') + '"';
       return '<tr><td><strong>W-' + d + '</strong>'
-        + (d === 'FRI' ? ' <span style="color:var(--ink-faint)">(in use)</span>' : '')
+        + (d === 'MON' ? ' <span style="color:var(--ink-faint)">(the deployed day)</span>'
+          : d === 'FRI' ? ' <span style="color:var(--ink-faint)">(deployed until 2026-08-22)</span>' : '')
         + '</td><td>' + _execFmt(b.close.sharpe, 4)
         + '</td><td>' + _execFmt(b.open.sharpe, 4)
         + '</td><td' + col + '>' + _execSigned(delta, 4)
@@ -8436,9 +8469,14 @@ function renderExecutionTiming() {
       + 'from. The best-looking grid was selected as the maximum of ' + days.length
       + ', so its margin is optimistic by construction, the four sleeves '
       + 'disagree on which day is best, and no mechanism distinguishes a '
-      + 'mid-week rebalance from any other. Friday is the only grid with a '
-      + 'structural story &mdash; it is the weekly close. Cost stress applied: '
-      + (D.cost_stress_multipliers || []).join('×, ') + '×.';
+      + 'mid-week rebalance from any other. The 2026-08-22 move to Monday was '
+      + 'made on operational correctness (WS18), not from this table &mdash; '
+      + 'and this W-MON row predates the forward-roll holiday calendar the '
+      + 'deployed book uses, so it is not the deployed variant re-priced. '
+      + 'Under W-MON the ranking session is the weekly close, Friday. Cost '
+      + 'stress applied: '
+      + (D.cost_stress_multipliers || []).join('×, ') + '×. Study data as at '
+      + (D.as_of || '—') + ' (WS13).';
   }
 
   const pt = document.getElementById('exec-paired');
@@ -8511,7 +8549,7 @@ function renderExecutionTiming() {
       note: 'Discards a day of information and keeps the same clock problem.' },
     { n: 3, name: 'Weekly-close grid', sig: 'Fri close', fill: 'Mon close',
       sgt: '04:00 Tue', v: flLeg('monday_grid'), basis: W11, verdict: 'rejected',
-      note: 'Coherent, and needed a new forward-roll calendar mode. Still a 4am fill.' },
+      note: 'Coherent, and needed a forward-roll calendar mode that did not yet exist. Still a 4am fill. Row 8 is this same grid, adopted once the mode existed and the vendor probe made the operational case.' },
     { n: 4, name: 'Monday open', sig: 'Fri close', fill: 'Mon open',
       sgt: '21:30 Mon', v: gridLeg('MON', 'open'), basis: 'WS13', verdict: 'rejected',
       note: 'The only fill point measurably worse than its own close.' },
@@ -8524,8 +8562,12 @@ function renderExecutionTiming() {
       note: 'Adopted 12 Aug and reversed the same day: the thinner opening auction is not free once costed as one, and a market-on-close order removes the 4am objection it was solving.' },
     { n: 7, name: 'Friday close, market-on-close', sig: 'Thu close',
       fill: 'Fri close', sgt: '04:00 Sat (unattended)',
-      v: gridLeg('FRI', 'close'), basis: 'WS13', verdict: 'adopted',
-      note: 'Deepest and best-priced auction of the day, and the same price the record is computed on.' }
+      v: gridLeg('FRI', 'close'), basis: 'WS13', verdict: 'superseded',
+      note: 'Adopted 12 Aug 2026 on execution quality; superseded 22 Aug 2026 when WS18 moved the day. The closing auction and the market-on-close order carried over unchanged.' },
+    { n: 8, name: 'Monday close, forward-roll calendar', sig: 'Fri close',
+      fill: 'Mon close', sgt: '04:00 Tue (unattended)',
+      v: null, basis: 'WS18', verdict: 'adopted',
+      note: 'Deployed. Moved on operational correctness: the European lines are a session behind at every Friday decision hour, so under a Friday fill sleeve D &mdash; a fifth of the book &mdash; could never rank on the session before its fill. A holiday Monday now rolls forward, never back onto a fill that would precede its own decision.' }
   ];
   const pTab = document.getElementById('exec-path');
   if (pTab) {
@@ -8535,7 +8577,7 @@ function renderExecutionTiming() {
     pTab.querySelector('tbody').innerHTML = path.map(function (r) {
       const col = r.verdict === 'adopted' ? 'var(--positive)'
                 : r.verdict === 'rejected' ? 'var(--negative)' : 'var(--ink-faint)';
-      const lab = r.verdict === 'adopted' ? 'ADOPTED 2026-08-12' : r.verdict;
+      const lab = r.verdict === 'adopted' ? 'ADOPTED 2026-08-22' : r.verdict;
       return '<tr><td>' + r.n + '</td><td><strong>' + r.name + '</strong><br>'
         + '<span style="color:var(--ink-faint);font-size:12px">' + r.note + '</span></td>'
         + '<td>' + r.sig + '</td><td>' + r.fill + '</td><td>' + r.sgt + '</td>'
@@ -8548,8 +8590,12 @@ function renderExecutionTiming() {
   if (pn) {
     pn.innerHTML = 'Rows 1&ndash;3 are priced by WS12'
       + (fl ? '' : ' &mdash; <strong>not present in this build</strong>, so those figures show as dashes')
-      + '; rows 4&ndash;6 by WS13, whose panel runs one session later. '
-      + 'Comparisons are valid within a basis, never across one.';
+      + '; rows 4&ndash;7 by WS13, whose panel runs one session later; row 8 '
+      + 'by WS18 (2026-08-22) on its own pinned frames, so its figure is not '
+      + 'printed in a column it is not comparable with &mdash; measured on '
+      + 'the deployed variant the move was +0.0098 Sharpe against row 7, 90% '
+      + 'CI [-0.0588, +0.0761], filed as null. Comparisons are valid within '
+      + 'a basis, never across one.';
   }
 }
 
@@ -8572,7 +8618,7 @@ function renderRobustnessVerdict() {
   document.getElementById('robustness-verdict').innerHTML =
     `<strong>The deployed 35/35/10/20 A:B:C:D blend has three layers of OOS validation</strong>, each addressing a different overfit concern. This tab shows the three tests specifically about the deployed strategy; legacy per-ETF L-threshold research from earlier phases has been moved to the git history.<br><br>`
     + `<strong>1. Paradigm choice (Strategy A foundation).</strong> The "Why top-K rotation, not per-ETF threshold tuning" table below shows why cross-sectional top-K rotation was chosen over per-ETF L tuning (overfit) or fixed-L baselines (no peer awareness). Top-K rotation walk-forward Sharpe is <strong>${fmtNum(wfTopK, 2, true)}</strong>, essentially identical to in-sample — no overfit decay. The refit K sequence is stable: [${kSeq}]. The strategy uses breadth as a relative-strength selector, not as 14 independent timing models.<br><br>`
-    + `<strong>2. K × cadence sensitivity (Strategy A robustness).</strong> The deployed K = 7 × Weekly Fri cell sits in a broad plateau of high Sharpe values across K ∈ {5, 6, 7} and cadences {Weekly, Bi-weekly}. Not a sharp peak — robust to small choices.<br><br>`
+    + `<strong>2. K × cadence sensitivity (Strategy A robustness).</strong> The deployed K = 7 × Weekly Mon cell sits in a broad plateau of high Sharpe values across K ∈ {3, 5, 7} and every non-daily cadence. Not a sharp peak — robust to small choices.<br><br>`
     + `<strong>3. Universe correlation diagnostic (saturation check).</strong> The within-universe correlation gate; surviving ETFs are mostly &lt; 0.85 pairwise on the weekly signal series, confirming the universe carries diversifying signal rather than redundancy. Used both for justifying current universe size and for filtering future candidates.<br><br>`
     + `<strong>Additional OOS validation lives on other tabs</strong>: per-strategy walk-forward Sharpe on each Strategy A/B/C/D tab (recipe-stats card), block-bootstrap CIs (Multi-Strategy tab Statistical Significance section), and regime decomposition + right-tail metrics (Strategy tabs + Multi-Strategy regime table). Together these mean the pre-overlay 35/35/10/20 baseline Sharpe of <strong>+1.16</strong> (in-sample) ${ciStr ? `(${ciStr}) ` : ''}is supported by multiple independent robustness arguments, not a single backtest number. The currently deployed blend with the breadth regime gate and EEM tilt active is <strong>+1.30</strong>.`;
 }
@@ -8719,7 +8765,7 @@ function renderTopKCadence() {
     `Headline cell: <strong>K = ${topk.headline?.K} × ${topk.headline?.rebal_freq}</strong>, Sharpe ${fmtNum(topk.headline?.headline_stats?.sharpe, 2, true)}. ` +
     `<strong>Daily rebalancing destroys Sharpe</strong> on every K — the strategy churns on intraday breadth noise. ` +
     `<strong>Bi-weekly Fri</strong> is the lowest-turnover cadence that preserves >95% of the weekly Sharpe; if execution cost is your bottleneck (e.g., spread on UCITS sector funds), use it. ` +
-    `<strong>Month-end</strong> works for K = 3 but loses edge at K ≥ 5 because breadth ranks turn over faster than the rebalance can track them.`;
+    `<strong>Month-end</strong> tests level-or-better than weekly at K ≥ 5 on the restated W-MON surface — the best cell is K = 7 × Month-end — a flat-surface margin inside sampling noise, left alone per the plateau rule; weekly stays for signal freshness and cross-sleeve cadence consistency.`;
 }
 
 // ----------- Universe correlation diagnostic (Robustness Test 12) ---------
@@ -9103,7 +9149,7 @@ function renderTradeCharts() {
   // ============ Equity vs benchmarks ============
   const seriesDefs = [
     {
-      name: 'Top-K Rotation (K=7 Weekly Fri) — DEPLOYED',
+      name: 'Top-K Rotation (K=7 Weekly Mon) — DEPLOYED',
       dates: h.headline_equity_dates, equity: h.headline_equity,
       line: { color: '#dc2626', width: 3.5 },
     },
@@ -9210,7 +9256,7 @@ function renderTradeStatsTable() {
     <th>Δ CAGR vs SPY</th>
   </tr>`;
   const rows = [
-    { label: 'Top-K Rotation (K=7 Weekly Fri)', data: st, highlight: true },
+    { label: 'Top-K Rotation (K=7 Weekly Mon)', data: st, highlight: true },
     { label: 'Equal-weight 14 ETFs (no signal)', data: ew, highlight: false },
     { label: 'SPY buy-and-hold (broad-market passive)', data: spy, highlight: false },
   ];
@@ -9289,7 +9335,7 @@ function renderTradeTable() {
   document.getElementById('trade-first-date').textContent = history[0]?.date || '—';
   document.getElementById('trade-last-date').textContent = history[history.length - 1]?.date || '—';
   document.getElementById('trade-summary').textContent =
-    `${history.length} rebalances. Each row is a Friday close — the holdings shown apply from that date forward.`;
+    `${history.length} rebalances. Each row is a Monday close (a holiday Monday rolls forward to the next session) — the holdings shown apply from that date forward.`;
 
   // Filter on a copy in ascending order first
   let asc = history.slice();
@@ -9363,7 +9409,7 @@ function renderAssetCharts() {
 
   // Equity vs benchmarks — wrapped for timeframe selector
   const seriesDefs = [
-    { name: 'Asset-Class Rotation (K=7 Weekly Fri) — DEPLOYED',
+    { name: 'Asset-Class Rotation (K=7 Weekly Mon) — DEPLOYED',
       dates: h.headline_equity_dates, equity: h.headline_equity,
       line: { color: '#dc2626', width: 3.5 } },
   ];
@@ -9470,7 +9516,7 @@ function renderAssetStatsTable() {
       <td class="num">${fmtNum(wf - sfSh, 2, true)}</td><td class="num">—</td>
     </tr>` : '';
   const rows = [
-    { label: 'Strategy B: K=7 Weekly Fri (in-sample)', data: h, highlight: true },
+    { label: 'Strategy B: K=7 Weekly Mon (in-sample)', data: h, highlight: true },
     { label: '60/40 SPY/IEF (rebalanced weekly)', data: sf },
     { label: 'Equal-weight universe (no signal)', data: ew },
     { label: 'SPY buy-and-hold (broad market)', data: spy },
@@ -9762,7 +9808,7 @@ function renderThematicStatsTable() {
       <td class="num bad">${fmtNum(wf - (spy.sharpe ?? 0), 2, true)}</td>
     </tr>` : '';
   const rows = [
-    { label: 'Strategy C: K=5 Weekly Fri (in-sample, sleeve-gate active)', data: h, highlight: true },
+    { label: 'Strategy C: K=5 Weekly Mon (in-sample, sleeve-gate active)', data: h, highlight: true },
     { label: 'SPY buy-and-hold (broad market)', data: spy },
   ];
   const spySh = spy.sharpe ?? 0;
@@ -10114,7 +10160,7 @@ function renderEuropeCadenceGrid() {
   }).join('');
   document.getElementById('europe-cadence-note').innerHTML =
     `Headline: K=${eu.headline?.K} ${eu.headline?.rebal_freq} (Sharpe ${fmtNum(eu.headline?.headline_stats?.sharpe, 2, true)}). ` +
-    `The K=3 Bi-weekly cell is the global best at Sharpe ${fmtNum(grid['K=3']?.['Bi-weekly Fri']?.sharpe, 2, true)} (slightly above Weekly), but Weekly Friday is kept as the headline for cadence consistency with Strategies A / B / C. ` +
+    `On the restated W-MON surface the global best is K=2 × Month-end at Sharpe ${fmtNum(grid['K=2']?.['Month-end']?.sharpe, 2, true)} — but that cell holds just two of the five funds and its margin is a flat-surface difference, not a mechanism. Weekly Monday stays as the headline for cadence consistency with Strategies A / B / C (WS18, 2026-08-22). ` +
     `K=4 (holding 4 of 5 ETFs) collapses to near-beta — keep K=3 as the rotation discipline.`;
 }
 
