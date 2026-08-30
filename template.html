@@ -3018,22 +3018,22 @@
     <div class="two-col" style="gap:18px;margin-top:6px;">
       <div class="step">
         <div class="step-n">1</div>
-        <div class="step-body"><strong>Under a Friday fill, one sleeve could never rank on time.</strong> The engines rank on the session before the fill. The vendor-availability probe (four measurements a day, running since 2026-08-15) found the European price lines a session behind at <em>every</em> hour of the Friday decision window &mdash; so sleeve D, a fifth of the book, was structurally forced to rank a session earlier than the backtest assumes, every week. The live book could not implement the convention the engines test.</div>
+        <div class="step-body"><strong>Under a Friday fill, the European sleeve was always deciding on stale prices.</strong> The rankings use the previous session&rsquo;s close, but the vendor publishes European closing prices a session late &mdash; measured four times a day since 2026-08-15, they were behind at <em>every</em> hour of the Friday decision window. So a fifth of the book was forced to decide on prices one day older than the rest of the portfolio, and one day older than the backtest assumes, every week.</div>
       </div>
       <div class="step">
         <div class="step-n">2</div>
-        <div class="step-body"><strong>A Monday fill restores the convention for all four sleeves.</strong> Ranked on the Friday close and filled on the Monday close, both venues have published the decision session by the weekend refresh. A holiday Monday rolls <em>forward</em> to the next session, never back &mdash; under the old backward roll, 39 of 406 NYSE Monday rebalances would have landed on the previous Friday, before the decision that produces them existed.</div>
+        <div class="step-body"><strong>A Monday fill fixes it for all four sleeves.</strong> Ranked on Friday&rsquo;s close and filled on Monday&rsquo;s, both exchanges have published the decision prices by the weekend refresh. A holiday Monday pushes the fill <em>forward</em> to Tuesday, never backwards &mdash; a backward roll would place 39 of 406 NYSE Monday fills on the Friday <em>before</em> the decision that produces them even existed.</div>
       </div>
       <div class="step">
         <div class="step-n">3</div>
-        <div class="step-body"><strong>The performance evidence is null, and is filed as null.</strong> On the deployed variant the move measured +0.0098 Sharpe against the Friday incumbent, 90% CI [-0.0588, +0.0761] &mdash; indistinguishable from zero, which is exactly what the pre-registered non-inferiority bar asked of a correctness fix. It is not evidence of improvement and is not quoted as one anywhere on this dashboard.</div>
+        <div class="step-body"><strong>The switch was checked for cost, and the result is filed as null.</strong> Measured over the full history, the performance difference between the two cadences is indistinguishable from zero &mdash; which is exactly what the pre-registered bar asked of a correctness fix. It is not evidence of improvement, it is not quoted as one anywhere on this dashboard, and the exact figures sit in the evidence section below.</div>
       </div>
     </div>
   </section>
 
   <section>
     <h2>Why the close, not the open</h2>
-    <p class="section-sub">Three reasons, in the order they mattered. Performance is deliberately not one of them. Settled by WS12/13 (2026-08-12); the 2026-08-22 day move did not reopen it &mdash; market-on-close carried over unchanged.</p>
+    <p class="section-sub">Three reasons, in the order they mattered. Performance is deliberately not one of them. Settled on 2026-08-12; the later move of the day did not reopen it &mdash; market-on-close carried over unchanged.</p>
     <div class="two-col" style="gap:18px;margin-top:6px;">
       <div class="step">
         <div class="step-n">1</div>
@@ -3052,7 +3052,7 @@
 
   <section>
     <h2>What the execution moment is worth</h2>
-    <p class="section-sub">The alternative to the closing auction is the opening one. Measured as an active decision &mdash; filling at the open rather than the close, on the identical book &mdash; here is what that is worth on each weekday grid. The choice was priced on every weekday. On four days of five it makes no reliable difference either way; on Monday &mdash; the day this portfolio actually trades &mdash; filling at the open is reliably worse, because the opening auction absorbs the weekend gap. So the book fills at the close, settled on execution quality rather than on return. WS13 exhibit, study data as at 2026-08-12.</p>
+    <p class="section-sub">The alternative to the closing auction is the opening one, and the choice was priced on every weekday, on the identical book. On four days of five it makes no reliable difference either way; on Monday &mdash; the day this portfolio actually trades &mdash; filling at the open is reliably worse, because the opening auction absorbs the weekend gap. So the book fills at the close, settled on execution quality rather than on return. WS13 exhibit, study data as at 2026-08-12.</p>
     <div style="overflow-x:auto;">
       <table class="small-table" id="exec-ir-table"><thead></thead><tbody></tbody></table>
     </div>
@@ -3061,7 +3061,7 @@
 
   <section>
     <h2>Where the trading day sits on a Singapore clock</h2>
-    <p class="section-sub">The portfolio holds instruments on two exchanges. They do not open together, so a single weekly rebalance is executed in two parts on the same Monday &mdash; a fifth of the book in Europe, four fifths in the United States. The bars below carry that share, because the Xetra session is the longer of the two and would otherwise read as the more important. One caveat on the 80%: the thematic sleeve may hold a Shenzhen-listed or crypto line in a given week, which trades on neither of these clocks and is worth up to about four per cent of the portfolio when it does.</p>
+    <p class="section-sub">The portfolio holds instruments on two exchanges. They do not open together, so one weekly rebalance fills in two parts on the same Monday: a fifth of the book in Europe, four fifths in the United States. The bars carry those shares. (Some weeks the thematic sleeve holds a Shenzhen-listed or crypto line &mdash; up to about four per cent of the portfolio &mdash; which trades on neither of these clocks.)</p>
     <div id="exec-clock-diagram" style="overflow-x:auto;"></div>
   </section>
 
@@ -8339,18 +8339,16 @@ function renderExecutionTiming() {
     const usC = ((D.sessions_sgt || {}).US || {}).sgt_close_summer;
     const xeC = ((D.sessions_sgt || {}).XETR || {}).sgt_close_summer;
     vEl.innerHTML =
-      'This portfolio rebalances <strong>once a week</strong>. It ranks on '
+      'This portfolio rebalances <strong>once a week</strong>: it ranks on '
       + '<strong>Friday&rsquo;s closing prices</strong> and executes in '
-      + '<strong>Monday&rsquo;s closing auctions</strong> using market-on-close '
-      + 'orders submitted on Monday evening Singapore time. Nobody needs to be '
-      + 'awake when they fill: Europe clears at '
-      + (xeC || '—') + ' SGT on the Monday and the United States at '
-      + (usC || '—') + ' SGT early on the Tuesday. The closing auction is the '
-      + 'deepest and best-priced moment of the trading day, and it is the same '
-      + 'price this dashboard reports, so what is executed and what is '
-      + 'published are one number. Cadence per WS18, adopted 2026-08-22; the '
-      + 'open-versus-close evidence below is WS13, study data as at '
-      + (D.as_of || '—') + '.';
+      + '<strong>Monday&rsquo;s closing auctions</strong>, through '
+      + 'market-on-close orders placed on Monday evening Singapore time. '
+      + 'Nobody needs to be awake when they fill &mdash; Europe clears at '
+      + (xeC || '—') + ' SGT that evening, the United States at '
+      + (usC || '—') + ' SGT early on the Tuesday &mdash; and the auction '
+      + 'price is the same closing price every figure on this dashboard is '
+      + 'computed on, so what is executed and what is published are one '
+      + 'number. In place since 2026-08-22.';
   }
 
   // --- Diagrams
@@ -8444,17 +8442,11 @@ function renderExecutionTiming() {
       + 'prices, and the portfolio is executed in the closing auction. There is '
       + 'no wedge between the record and the fills to explain, which is a '
       + 'property worth more than the alternative was worth in return.</p>'
-      + '<p>The alternative was priced before it was rejected. On the deployed '
-      + 'Monday grid, filling at the open instead was worth '
-      + _execBp(ec.active_return_ann, 0) + ' a year against '
-      + _execBp(Math.abs(ec.tracking_error_ann || 0), 0).replace('+', '')
-      + ' of tracking error, an information ratio of '
-      + _execFmt(ec.information_ratio, 2) + ' &mdash; the one open-versus-close '
-      + 'leg in the study whose paired interval clears zero, because the '
-      + 'Monday opening auction absorbs the weekend gap. The Friday open, '
-      + 'briefly adopted in August 2026, reversed the same day once the '
-      + 'thinner opening book was costed honestly. WS13 evidence, study data '
-      + 'as at ' + (D.as_of || '—') + '.</p>';
+      + '<p>The opposite choice was tried, once. The Friday open was adopted '
+      + 'on 12 August 2026 and reversed the same day, when honest costing of '
+      + 'the thinner opening auction removed its apparent edge. The pricing '
+      + 'of every fill alternative sits in the weekday table above and in the '
+      + 'evidence section below.</p>';
   }
 
   // --- Everything below is inside the collapsed evidence disclosure. ---
