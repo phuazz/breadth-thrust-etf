@@ -238,6 +238,39 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
     if why is None:
         raw = raw[["Open", "High", "Low", "Close"]].copy()
         raw.index = pd.to_datetime(raw.index).tz_localize(None)
+
+        # ----- Norgate price source, opt-in (2026-08-30) -----
+        # BTE_PRICE_SOURCE=norgate prefers the locally licensed feed for this
+        # security. Default, and every CI runner, is yfinance unchanged.
+        #
+        # This one site serves sleeves A and D, and that is deliberate rather
+        # than convenient: sleeve D's five Xetra lines and the Shenzhen
+        # holding resolve to None at Norgate — there is no European or Chinese
+        # product at any tier — so they keep their yfinance series with no
+        # sleeve-specific branch anywhere. D gets isolated treatment for free.
+        #
+        # WHOLE FRAME OR NOTHING, on the same superset test the column rule
+        # uses (WS19b): take Norgate only when its dates cover every date this
+        # response has. Splicing two vendors' bars into one series fabricates
+        # a return at the join, and here it would also mix two adjustment
+        # bases across Open/High/Low/Close within a bar.
+        #
+        # Placed BEFORE fetched_frame_is_worse and the cache write, so the
+        # degenerate-write guard still vets whatever is returned.
+        import os  # noqa: PLC0415
+        if os.environ.get("BTE_PRICE_SOURCE", "").strip().lower() == "norgate":
+            import norgate_prices  # noqa: PLC0415
+            ng = norgate_prices.fetch_ohlc(yf_symbol or etf, start, end)
+            if ng is not None and raw.index.difference(ng.index).empty:
+                print(f"  Norgate: {sym} taken whole "
+                      f"({ng.index.min().date()} -> {ng.index.max().date()}, "
+                      f"{len(ng)} bars vs {len(raw)} from yfinance)", flush=True)
+                raw = ng[["Open", "High", "Low", "Close"]].copy()
+            elif ng is not None:
+                print(f"  Norgate: {sym} NOT taken — "
+                      f"{len(raw.index.difference(ng.index))} date(s) the "
+                      f"incumbent has are missing there", flush=True)
+
         shrink = fetched_frame_is_worse(raw, cached)
         if shrink is None:
             raw.to_parquet(cache_path)

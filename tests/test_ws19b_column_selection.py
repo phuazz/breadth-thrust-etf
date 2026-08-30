@@ -191,3 +191,66 @@ def test_priced_count_cannot_fall_through_select_columns(monkeypatch):
     out, _ = npx.select_columns(base, ["A"], "2024-01-01", "2024-01-20",
                                 verbose=False)
     assert out["A"].notna().sum() >= base["A"].notna().sum()
+
+
+# ---------------------------------------------------------------------------
+# Sleeve A / D OHLC site (backtest.download_soxx_ohlc, 2026-08-30). Whole
+# frame or nothing, on the same superset test. This one site serves both
+# sleeves: D's Xetra lines resolve to None at Norgate, so they keep yfinance
+# with no sleeve-specific branch. That is the isolated treatment, and these
+# tests are what hold it in place.
+# ---------------------------------------------------------------------------
+
+def _ohlc(idx, level):
+    """A VARYING series -- backtest's degenerate-price guard rightly refuses a
+    flat one, so the fixture has to be a real price path. Levels are an order
+    of magnitude apart so the source of any bar is unmistakable."""
+    base = np.linspace(float(level), float(level) * 1.1, len(idx))
+    return pd.DataFrame({"Open": base, "High": base * 1.01,
+                         "Low": base * 0.99, "Close": base}, index=idx)
+
+
+@pytest.fixture
+def ohlc_site(monkeypatch, tmp_path):
+    import backtest as bt
+    yf_frame = _ohlc(DATES, 100.0)
+    monkeypatch.setattr(bt, "yf", type("Y", (), {
+        "download": staticmethod(lambda *a, **k: yf_frame.copy())})())
+    monkeypatch.setattr(bt, "paths_for",
+                        lambda etf: {"ohlc_cache": tmp_path / f"{etf}.parquet"})
+    return bt
+
+
+def test_ohlc_default_stays_on_yfinance(ohlc_site, monkeypatch):
+    monkeypatch.delenv("BTE_PRICE_SOURCE", raising=False)
+    out = ohlc_site.download_soxx_ohlc("2024-01-01", "2024-01-20", etf="TEST")
+    assert out["Close"].between(99, 112).all()
+
+
+def test_ohlc_superset_is_taken_whole(ohlc_site, monkeypatch):
+    import norgate_prices as npx
+    monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
+    monkeypatch.setattr(npx, "fetch_ohlc",
+                        lambda t, s, e: _ohlc(DATES, 1000.0))
+    out = ohlc_site.download_soxx_ohlc("2024-01-01", "2024-01-20", etf="TEST")
+    assert out["Close"].between(999, 1111).all(), "Norgate frame was not taken"
+
+
+def test_ohlc_non_superset_is_refused(ohlc_site, monkeypatch):
+    """One missing date and the whole frame is refused -- no splicing."""
+    import norgate_prices as npx
+    monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
+    short = _ohlc(DATES.drop(DATES[4]), 1000.0)
+    monkeypatch.setattr(npx, "fetch_ohlc", lambda t, s, e: short)
+    out = ohlc_site.download_soxx_ohlc("2024-01-01", "2024-01-20", etf="TEST")
+    assert out["Close"].between(99, 112).all(), \
+        "a non-superset Norgate frame was spliced in"
+
+
+def test_ohlc_unresolved_keeps_the_incumbent(ohlc_site, monkeypatch):
+    """Sleeve D's case: Norgate has no such security, so nothing changes."""
+    import norgate_prices as npx
+    monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
+    monkeypatch.setattr(npx, "fetch_ohlc", lambda t, s, e: None)
+    out = ohlc_site.download_soxx_ohlc("2024-01-01", "2024-01-20", etf="TEST")
+    assert out["Close"].between(99, 112).all()

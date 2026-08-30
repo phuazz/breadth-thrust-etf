@@ -114,6 +114,57 @@ def resolve_all(tickers: list[str], start: str, end: str
     return resolved, missing
 
 
+def fetch_ohlc(ticker: str, start: str, end: str) -> pd.DataFrame | None:
+    """TOTALRETURN Open/High/Low/Close for one security, or None.
+
+    None means "not available here" in every sense — feed down, ticker outside
+    the licensed databases, or an empty response — and callers must treat all
+    three the same way: keep whatever they already had. This is how sleeve D
+    gets its isolated treatment for nothing: its five Xetra lines and the
+    Shenzhen holding resolve to None because Norgate sells no European or
+    Chinese equity product, so they keep their yfinance series untouched
+    without a single line of sleeve-specific code.
+
+    Adjusted on all four fields together. Mixing an adjusted close with a raw
+    high would misstate every intrabar range downstream, and backtest.py's ATR
+    path reads these columns.
+    """
+    if not available():
+        return None
+    try:
+        import norgate_symbols
+        import norgatedata
+        sym = (norgate_symbols.resolve(ticker, date.fromisoformat(str(end)[:10]))
+               or norgate_symbols.resolve(ticker,
+                                          date.fromisoformat(str(start)[:10])))
+    except Exception:
+        return None
+    if not sym:
+        return None
+    try:
+        df = norgatedata.price_timeseries(
+            sym,
+            stock_price_adjustment_setting=getattr(
+                norgatedata.StockPriceAdjustmentType, _ADJUSTMENT),
+            start_date=str(start)[:10],
+            end_date=str(end)[:10],
+            format="pandas-dataframe",
+        )
+    except Exception:
+        return None
+    if df is None or len(df) == 0:
+        return None
+    need = ["Open", "High", "Low", "Close"]
+    if any(c not in df.columns for c in need):
+        return None
+    out = df[need].copy()
+    idx = pd.to_datetime(out.index)
+    if getattr(idx, "tz", None) is not None:
+        idx = idx.tz_localize(None)
+    out.index = idx.normalize()
+    return out.dropna(how="all")
+
+
 def select_columns(base: pd.DataFrame, tickers: list[str], start: str, end: str,
                    verbose: bool = True, label: str = ""
                    ) -> tuple[pd.DataFrame, dict]:
