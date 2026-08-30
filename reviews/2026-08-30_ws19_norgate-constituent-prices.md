@@ -308,7 +308,75 @@ are treated as contaminated.
 3. Then H3 — sleeve A selections and the blend headline — which has not been
    touched. B/C/D must come back unchanged to 4dp.
 
-## 10. Inherits
+## 10. WS19b results — per-column selection, measured 2026-08-30
+
+Rule implemented as the **superset test**, stronger than registered: take
+Norgate's column only when its observed dates are a superset of the
+incumbent's, then take the whole column; otherwise keep the incumbent whole.
+A count comparison ("at least as complete") would let a fuller column still
+drop dates the incumbent had; the superset test cannot, so C2 holds by
+construction rather than by measurement. Tightening, disclosed here.
+
+It makes the right call on both adjudicated names:
+
+```
+MNST   incumbent 2283 obs, norgate 2298; missing 0    -> taken   (split correction lands)
+AZN    incumbent 2297 obs, norgate 1846; missing 452  -> kept    (hole refused)
+NVDA / AAPL                              missing 0    -> taken
+```
+
+All 14 panels rebuilt **seeded from the deployed cache**, so C2 is measured
+against the real incumbent rather than a fresh build. 1,524 columns taken from
+Norgate across the set. Every panel rc=0.
+
+**C2 — PASS on all fourteen.** Zero panel-days on which the candidate prices
+fewer names than deployed. By construction, and confirmed.
+
+**C3 — PASS on all fourteen.** Median absolute daily `ma_breadth` difference
+0.000pp on every panel. p95 ranges 0.000–2.632pp; the >5pp days are the same
+early-history coverage gains §9 identified, IUCM again the largest at 26.
+
+**C1 — passes AS REGISTERED, empirically unconfirmed, and I want the
+distinction on the record.** The registered criterion was "true by construction
+and pinned by a test that fails if any column mixes". Both hold: the code
+assigns whole columns and runs last, and six unit tests exercise it on fixtures
+where the sources sit in unmistakable value bands (100s vs 1000s).
+
+What I could NOT do is confirm C1 on production panels. Three attempts, each
+confounded differently: comparing against the deployed cache fails because it
+is a different adjustment vintage; comparing against a fresh yfinance fetch
+fails because two yfinance calls differ in the seventh significant figure of
+the adjustment arithmetic, so a 1e-6 absolute tolerance rejects identical data
+— MNST and NVDA match fresh Norgate at exactly 1.0000 because Norgate is
+deterministic, while yfinance-kept columns do not. Each time I read the
+artefact as a finding before catching it.
+
+**And a construction argument already failed once in this workstream.** The
+selection originally ran BEFORE the cell-preservation merge, whose per-cell
+fill re-spliced columns the rule had just taken whole — the WS19 defect
+reappearing one layer down. It was an empirical check that caught it, not the
+construction argument. Moving the selection to run last changed CNDX from 179
+columns taken to 174. So "by construction" is worth exactly as much as the
+construction being right, and the check that would police that is the one I
+could not complete at scale.
+
+### Verdict
+
+C1 and C2 both pass as registered, so the pre-committed rule is satisfied and
+the rule is **adoptable in principle**. It is NOT adopted, for two reasons that
+are not the decision rule's:
+
+1. **H3 is still untested.** Sleeve A's selections and the blend headline have
+   not been computed either way, and B/C/D have not been checked for the
+   required 4dp invariance. A breadth source change cannot go in without that.
+2. **The production-scale C1 check is outstanding**, and it is the check that
+   found the one real defect so far. It needs a correct methodology: relative
+   tolerance, and controls fetched at the same vintage as the build.
+
+Recommend both before any default flip. Nothing is adopted; `--price-source`
+still defaults to `yfinance`.
+
+## 11. Inherits
 
 - `2026-07-17-breadth-thrust-etf-1` — migration pattern, provenance labelling
   (`gate_feed`), licence containment, fail-open fallback, guard tests including

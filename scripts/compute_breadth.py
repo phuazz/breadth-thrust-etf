@@ -698,51 +698,6 @@ def download_prices(
     close = close[list(tickers)]
     close.index = pd.to_datetime(close.index).tz_localize(None)
 
-    # ----- WS19 price-source override (2026-08-30, pre-registered) -----
-    # Norgate PRIMARY where it resolves, the frame above as the fallback for
-    # everything else. Applied as an overwrite on the finished frame rather
-    # than as an alternative fetch path, so every guard below — the WS15
-    # step-defect revert and the cell-preservation merge — sees the same shape
-    # it always has and keeps working unchanged. That merge is why this must
-    # run against a SEPARATE cache path when measuring: pointed at the
-    # deployed cache it would fill Norgate's gaps from yfinance history and
-    # the comparison would measure a blend of the two sources.
-    #
-    # Default is 'yfinance', i.e. deployed behaviour byte for byte. Nothing
-    # adopts until WS19's H1 is adjudicated.
-    if price_source in ("norgate", "auto"):
-        import norgate_prices
-        if not norgate_prices.available():
-            if price_source == "norgate":
-                raise RuntimeError(
-                    "--price-source norgate, but the local Norgate feed is "
-                    "unavailable (no NDU service, or not licensed here)")
-            print("  Norgate unavailable — whole universe stays on yfinance",
-                  flush=True)
-        else:
-            ng, served, unserved = norgate_prices.fetch_closes(
-                list(tickers), start, end)
-            if served:
-                ng = ng.reindex(close.index.union(ng.index))
-                close = close.reindex(ng.index)
-                for t in served:
-                    col = ng[t].reindex(close.index)
-                    if price_source == "norgate":
-                        close[t] = col
-                    else:
-                        # Norgate wins wherever it has a value; yfinance keeps
-                        # the dates it does not. A vendor never un-prints a
-                        # close, so a NaN here is absence, not a correction.
-                        close[t] = col.where(col.notna(), close[t])
-                if price_source == "norgate":
-                    for t in unserved:
-                        if t in close.columns:
-                            close[t] = np.nan
-                print(f"  Price source {price_source}: {len(served)} column(s) "
-                      f"from Norgate, {len(unserved)} left to yfinance"
-                      + (" (blanked)" if price_source == "norgate" else ""),
-                      flush=True)
-                close = close.sort_index()
 
     # PRESERVE CELLS YFINANCE CANNOT SERVE. The frame above is built purely
     # from the download, so anything the vendor no longer serves would be
@@ -789,6 +744,84 @@ def download_prices(
                       + (f"; {len(whole)} column(s) wholly from cache: "
                          f"{whole[:8]}" if whole else ""), flush=True)
             close = close.sort_index()
+
+    # ----- WS19/WS19b price-source selection (2026-08-30, pre-registered) -----
+    #
+    # POSITION IS LOAD-BEARING. This runs LAST, after the WS15 step-defect
+    # revert and after the cell-preservation merge, and it must stay there.
+    # Placed before the merge — where it was first written — the merge's
+    # per-cell fill re-splices a column this had just selected whole, and C1
+    # fails on exactly the names the rule exists to protect. Measured
+    # 2026-08-30: 5 of CNDX's 191 columns came out mixed that way. Any step
+    # added below this one must be column-aware or it will do the same.
+    # Norgate PRIMARY where it resolves, the frame above as the fallback for
+    # everything else. Applied as an overwrite on the finished frame rather
+    # than as an alternative fetch path, so every guard below — the WS15
+    # step-defect revert and the cell-preservation merge — sees the same shape
+    # it always has and keeps working unchanged. That merge is why this must
+    # run against a SEPARATE cache path when measuring: pointed at the
+    # deployed cache it would fill Norgate's gaps from yfinance history and
+    # the comparison would measure a blend of the two sources.
+    #
+    # Default is 'yfinance', i.e. deployed behaviour byte for byte. Nothing
+    # adopts until WS19's H1 is adjudicated.
+    if price_source in ("norgate", "auto"):
+        import norgate_prices
+        if not norgate_prices.available():
+            if price_source == "norgate":
+                raise RuntimeError(
+                    "--price-source norgate, but the local Norgate feed is "
+                    "unavailable (no NDU service, or not licensed here)")
+            print("  Norgate unavailable — whole universe stays on yfinance",
+                  flush=True)
+        else:
+            ng, served, unserved = norgate_prices.fetch_closes(
+                list(tickers), start, end)
+            if served:
+                ng = ng.reindex(close.index.union(ng.index))
+                close = close.reindex(ng.index)
+                replaced, kept = [], []
+                for t in served:
+                    col = ng[t].reindex(close.index)
+                    if price_source == "norgate":
+                        close[t] = col          # diagnostic mode, whole column
+                        replaced.append(t)
+                        continue
+                    # ---- WS19b: the SUPERSET rule (2026-08-30) ----
+                    # Take Norgate's column only when its observed dates are a
+                    # SUPERSET of the incumbent's. Whole column or nothing.
+                    #
+                    # WS19 filled per CELL and that was the defect: on a name
+                    # where the two sources disagree on level — AZN's ratio
+                    # spans 0.96 to 1.12 about a 1.011 median — every junction
+                    # between them fabricates a day return of several per cent.
+                    # A price basis may not change mid-column. The WS15
+                    # step-defect guard reverts whole columns for the same
+                    # reason.
+                    #
+                    # STRONGER than WS19b registered ("at least as complete").
+                    # A count comparison lets a column with MORE observations
+                    # still drop dates the incumbent had; the superset test
+                    # cannot, so C2 (n_with_price >= deployed on every
+                    # panel-day) holds BY CONSTRUCTION rather than by
+                    # measurement. Tightening, not loosening: strictly fewer
+                    # columns qualify. Disclosed in the record.
+                    base_dates = close[t].dropna().index
+                    if base_dates.difference(col.dropna().index).empty:
+                        close[t] = col
+                        replaced.append(t)
+                    else:
+                        kept.append(t)
+                if price_source == "norgate":
+                    for t in unserved:
+                        if t in close.columns:
+                            close[t] = np.nan
+                print(f"  Price source {price_source}: {len(replaced)} column(s) "
+                      f"taken from Norgate, {len(kept)} kept on the incumbent "
+                      f"(not a date superset), {len(unserved)} unresolved"
+                      + (" (blanked)" if price_source == "norgate" else ""),
+                      flush=True)
+                close = close.sort_index()
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     close.to_parquet(cache_path)
