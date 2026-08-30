@@ -3052,7 +3052,7 @@
 
   <section>
     <h2>What the execution moment is worth</h2>
-    <p class="section-sub">The alternative to the closing auction is the opening one. Measured as an active decision &mdash; filling at the open rather than the close, on the identical book &mdash; here is what that is worth on each weekday grid. Read the tracking error first: the choice moves the book by well under one per cent a year whichever way it goes, and the sign is not stable across neighbouring weekdays. The paired-interval column is the test each difference has to face &mdash; an interval that excludes zero marks a real difference, and only Monday&rsquo;s open shows one. That is why the moment was settled on execution quality rather than on return. WS13 exhibit, study data as at 2026-08-12.</p>
+    <p class="section-sub">The alternative to the closing auction is the opening one. Measured as an active decision &mdash; filling at the open rather than the close, on the identical book &mdash; here is what that is worth on each weekday grid. Read it left to right: how big the choice is in a typical year, its average effect, how consistent that effect is, and whether the paired test calls it real or chance. Only one cell in the verdict column says real &mdash; Monday&rsquo;s open, which absorbs the weekend gap &mdash; and that is the leg this portfolio avoids by filling at the close. That is why the moment was settled on execution quality rather than on return. WS13 exhibit, study data as at 2026-08-12.</p>
     <div style="overflow-x:auto;">
       <table class="small-table" id="exec-ir-table"><thead></thead><tbody></tbody></table>
     </div>
@@ -8376,17 +8376,28 @@ function renderExecutionTiming() {
   const yrs = ec.n_days ? ec.n_days / 252 : null;
   put('exec-irse', yrs ? '±' + (1 / Math.sqrt(yrs)).toFixed(2) : '—');
 
-  // --- The IR table: risk first, per the allocator register. Each row now
-  //     carries its own paired test, read from the feed — five IRs with no
-  //     significance column invited exactly the misreading the note below
-  //     has to talk the reader out of.
+  // --- The IR table, in plain terms. Every figure is still read from the
+  //     feed; only the presentation is lay: sizes in % a year rather than
+  //     bp, the score's chance band in the header, and a one-word verdict
+  //     per row from the paired bootstrap. Raw bp, Sharpe deltas and CIs
+  //     stay in the collapsed evidence disclosure for the technical reader.
+  //     Sign colours are deliberately absent: a green +0.53 on a leg the
+  //     book does not use read as a recommendation, and it is noise.
   const irT = document.getElementById('exec-ir-table');
   if (irT && days.length) {
     const PT = ((D.paired_tests || {}).tests) || {};
+    const band = yrs ? (1.645 / Math.sqrt(yrs)).toFixed(1) : '—';
+    const sub = function (t) {
+      return '<br><span style="font-weight:400;color:var(--ink-faint);'
+        + 'font-size:11.5px">' + t + '</span>';
+    };
     irT.querySelector('thead').innerHTML =
-      '<tr><th>Rebalance day</th><th>Tracking error</th>'
-      + '<th>Active return (open &minus; close)</th><th>Information ratio</th>'
-      + '<th>Paired &Delta; Sharpe, 90% CI</th><th>Status</th></tr>';
+      '<tr><th>Rebalance day</th>'
+      + '<th>Typical size of the choice' + sub('per year, either direction') + '</th>'
+      + '<th>Average effect of filling at the open' + sub('per year') + '</th>'
+      + '<th>Consistency score' + sub('inside &plusmn;' + band + ' is chance') + '</th>'
+      + '<th>Verdict' + sub('paired bootstrap') + '</th>'
+      + '<th>Status</th></tr>';
     irT.querySelector('tbody').innerHTML = days.map(function (d) {
       const e = (blend[d] || {}).execution_choice; if (!e) return '';
       const isDep = d === 'MON';
@@ -8394,34 +8405,37 @@ function renderExecutionTiming() {
       const has = pt.delta_point !== null && pt.delta_point !== undefined;
       const excl = has && ((pt.delta_p5 > 0 && pt.delta_p95 > 0)
                         || (pt.delta_p5 < 0 && pt.delta_p95 < 0));
-      const ci = !has ? '&mdash;'
-        : _execSigned(pt.delta_point, 3) + ' [' + _execSigned(pt.delta_p5, 3)
-          + ', ' + _execSigned(pt.delta_p95, 3) + ']<br>'
-          + (excl
-             ? '<strong style="color:var(--negative)">excludes zero</strong>'
-             : '<span style="color:var(--ink-faint)">straddles zero</span>');
+      const ar = e.active_return_ann || 0;
+      const verdict = !has ? '&mdash;'
+        : excl ? '<strong>real difference</strong>'
+        : '<span style="color:var(--ink-faint)">within chance</span>';
       const note = isDep
         ? '<strong>in use</strong> &mdash; fills at the close; its open is the '
-          + 'one leg the paired test rejects (the Monday opening auction '
-          + 'absorbs the weekend gap)'
+          + 'one real difference in this table, and it is a cost (the Monday '
+          + 'opening auction absorbs the weekend gap)'
         : d === 'FRI' ? 'in use 2026-08-12 to 2026-08-22' : '';
-      const col = e.information_ratio >= 0 ? 'var(--positive)' : 'var(--negative)';
       return '<tr' + (isDep ? ' style="background:var(--bg-soft)"' : '') + '>'
         + '<td>' + (isDep ? '<strong>Monday</strong>' :
             ({ TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday', FRI: 'Friday' })[d])
-        + '</td><td>' + _execBp(e.tracking_error_ann, 0).replace('+', '')
-        + '</td><td>' + _execBp(e.active_return_ann, 0)
-        + '</td><td style="color:' + col + '"><strong>'
-        + _execFmt(e.information_ratio, 2) + '</strong></td>'
-        + '<td style="font-size:12px;white-space:nowrap">' + ci + '</td>'
+        + '</td><td>&plusmn;' + (Math.abs(e.tracking_error_ann || 0) * 100).toFixed(2)
+        + '%</td><td>' + (ar >= 0 ? '+' : '') + (ar * 100).toFixed(2) + '% '
+        + '<span style="color:var(--ink-faint)">('
+        + (ar < 0 ? 'open worse' : 'open better') + ')</span>'
+        + '</td><td><strong>' + _execFmt(e.information_ratio, 2) + '</strong></td>'
+        + '<td>' + verdict + '</td>'
         + '<td style="font-size:12px;color:var(--ink-faint)">' + note + '</td></tr>';
     }).join('');
   }
   const irN = document.getElementById('exec-ir-note');
   if (irN) {
-    irN.innerHTML = 'Active return and tracking error are annualised from the '
-      + 'daily difference between filling at the open and filling at the close, '
-      + 'on the identical book. <strong>This is an information ratio, not the '
+    irN.innerHTML = 'In money terms: on a US$100,000 book, filling at '
+      + 'Monday&rsquo;s open instead of its close would have cost about US$'
+      + Math.round(Math.abs(ec.active_return_ann || 0) * 100000)
+      + ' a year over the study window; no other weekday&rsquo;s choice is '
+      + 'distinguishable from chance. Average effect and typical size are '
+      + 'annualised from the daily difference between filling at the open and '
+      + 'filling at the close, on the identical book. <strong>The consistency '
+      + 'score is an information ratio, not the '
       + 'Sharpe ratio quoted elsewhere on this dashboard</strong> &mdash; Sharpe '
       + 'measures absolute return against a cash rate, this measures the value '
       + 'of one execution choice against another. A ratio this large on a '
