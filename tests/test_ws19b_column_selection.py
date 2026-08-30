@@ -127,3 +127,67 @@ def test_default_source_leaves_the_frame_alone(sources):
     for t in ("A", "B", "C"):
         assert out[t].dropna().between(99, 112).all(), \
             "default run reached the Norgate path"
+
+
+# ---------------------------------------------------------------------------
+# The shared rule, as used by sleeves B and C (2026-08-30). Same superset
+# logic, exercised through norgate_prices.select_columns rather than through
+# compute_breadth's frame, because the two engines call it directly.
+# ---------------------------------------------------------------------------
+
+def test_select_columns_takes_superset_and_keeps_the_rest(monkeypatch):
+    import norgate_prices as npx
+
+    base = pd.DataFrame({
+        "TAKE": pd.Series(np.linspace(100.0, 111.0, len(DATES)), index=DATES),
+        "KEEP": pd.Series(np.linspace(100.0, 111.0, len(DATES)), index=DATES),
+        "NONE": pd.Series(np.linspace(100.0, 111.0, len(DATES)), index=DATES),
+    })
+    ng = pd.DataFrame({
+        "TAKE": pd.Series(np.linspace(1000.0, 1110.0, len(DATES)), index=DATES),
+        "KEEP": pd.Series(np.linspace(1000.0, 1110.0, len(DATES)), index=DATES),
+    })
+    ng.loc[DATES[3], "KEEP"] = np.nan     # one date the incumbent has
+
+    monkeypatch.setattr(npx, "available", lambda: True)
+    monkeypatch.setattr(npx, "fetch_closes",
+                        lambda t, s, e, verbose=True: (ng, ["TAKE", "KEEP"], ["NONE"]))
+
+    out, rep = npx.select_columns(base, list(base.columns), "2024-01-01",
+                                  "2024-01-20", verbose=False)
+    assert rep["replaced"] == ["TAKE"]
+    assert rep["kept"] == ["KEEP"]
+    assert rep["unresolved"] == ["NONE"]
+    assert out["TAKE"].dropna().between(999, 1111).all()
+    assert out["KEEP"].dropna().between(99, 112).all(), \
+        "KEEP mixed sources — the per-cell defect in the shared helper"
+    assert out["NONE"].dropna().between(99, 112).all()
+
+
+def test_select_columns_is_inert_without_the_feed(monkeypatch):
+    """Every CI runner takes this path; it must change nothing."""
+    import norgate_prices as npx
+    base = pd.DataFrame({"A": pd.Series(np.arange(len(DATES), dtype=float),
+                                        index=DATES)})
+    monkeypatch.setattr(npx, "available", lambda: False)
+    out, rep = npx.select_columns(base, ["A"], "2024-01-01", "2024-01-20",
+                                  verbose=False)
+    assert rep["status"] == "unavailable"
+    pd.testing.assert_frame_equal(out, base)
+
+
+def test_priced_count_cannot_fall_through_select_columns(monkeypatch):
+    """C2, stated on the shared helper."""
+    import norgate_prices as npx
+    base = pd.DataFrame({
+        "A": pd.Series(np.linspace(100.0, 111.0, len(DATES)), index=DATES),
+    })
+    ng = pd.DataFrame({
+        "A": pd.Series(np.linspace(1000.0, 1110.0, len(DATES)), index=DATES),
+    })
+    monkeypatch.setattr(npx, "available", lambda: True)
+    monkeypatch.setattr(npx, "fetch_closes",
+                        lambda t, s, e, verbose=True: (ng, ["A"], []))
+    out, _ = npx.select_columns(base, ["A"], "2024-01-01", "2024-01-20",
+                                verbose=False)
+    assert out["A"].notna().sum() >= base["A"].notna().sum()

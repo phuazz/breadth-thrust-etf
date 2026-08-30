@@ -55,6 +55,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -284,6 +285,41 @@ def download_prices() -> pd.DataFrame:
     df = pd.DataFrame(closes)
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.sort_index().dropna(how="all")
+
+    # ----- Norgate price source, opt-in (2026-08-30) -----
+    # Set BTE_PRICE_SOURCE=norgate to prefer the locally licensed feed for the
+    # US-listed lines this sleeve trades. Default is yfinance, i.e. deployed
+    # behaviour unchanged, and every CI runner stays on it because no runner
+    # has the feed.
+    #
+    # WHY IT EXISTS: over 2026-08-28/30 yfinance withheld Friday's closes on
+    # every probed line for more than 43 hours, having served them once and
+    # retracted them, and no fetch shape recovered them. Norgate carried
+    # Friday throughout. This sleeve is entirely US-listed ETFs, which Norgate
+    # covers completely.
+    #
+    # The selection is the WS19b superset rule: a column is taken whole or not
+    # at all, never spliced, because filling one source's gaps from the other
+    # fabricates returns at each junction. Placed here, BEFORE the partial-bar
+    # cap and the degenerate-write guard, so both still vet the final frame —
+    # the rule's contract allows row-level and whole-frame steps afterwards
+    # and forbids only per-cell fills.
+    #
+    # BASIS: measured 2026-08-30 on five of this sleeve's own ETFs, each over
+    # 125 sessions spanning a dividend ex-date, yfinance-adjusted against
+    # Norgate: worst deviation 6.3e-5 (TLT, XLF, IJR, XLU, EEM). At ETF level
+    # the two feeds are interchangeable, which is NOT true at constituent
+    # level — see WS19 on AZN.
+    price_source = os.environ.get("BTE_PRICE_SOURCE", "yfinance").strip().lower()
+    if price_source == "norgate":
+        import norgate_prices
+        df, _ngrep = norgate_prices.select_columns(
+            df, list(df.columns), START_DATE, END_DATE, label="Strategy B ")
+    elif price_source != "yfinance":
+        raise ValueError(
+            f"BTE_PRICE_SOURCE={price_source!r} is not a source "
+            f"(expected 'yfinance' or 'norgate')")
+
     # Partial-bar guard: the padded fetch window may include today's
     # in-progress session when run during US market hours.
     df = cap_to_last_completed_session(df)

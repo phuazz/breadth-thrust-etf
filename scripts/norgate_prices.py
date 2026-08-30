@@ -114,6 +114,70 @@ def resolve_all(tickers: list[str], start: str, end: str
     return resolved, missing
 
 
+def select_columns(base: pd.DataFrame, tickers: list[str], start: str, end: str,
+                   verbose: bool = True, label: str = ""
+                   ) -> tuple[pd.DataFrame, dict]:
+    """WS19b superset rule, shared by every caller that has a price frame.
+
+    Takes Norgate's column ONLY when its observed dates are a superset of the
+    incumbent's, and then takes the WHOLE column. Otherwise the incumbent is
+    kept whole. A column never draws on both sources.
+
+    Why whole columns (WS19, 2026-08-30). Filling the incumbent's gaps from
+    Norgate per CELL fabricates returns: on a name where the two disagree on
+    level — AZN's ratio spans 0.96 to 1.12 about a 1.011 median — every
+    junction invents a day move of several per cent. A price basis may not
+    change part-way down a column. The WS15 step-defect guard reverts whole
+    columns for the same reason.
+
+    Why superset rather than "at least as complete". A count comparison lets a
+    fuller column still drop dates the incumbent had; the superset test cannot,
+    so the priced-name count can never fall as a result of the swap. That
+    property holds by construction, which is the only kind of guarantee worth
+    having here — the one time this workstream trusted a construction argument
+    without checking it, the argument was wrong (the selection had been placed
+    where a later per-cell merge could re-splice it).
+
+    CALLER CONTRACT: run this as LATE as possible. Anything applied afterwards
+    that touches individual cells will undo the guarantee. Row-level steps (a
+    partial-bar cap) and whole-frame guards are safe; per-cell fills are not.
+
+    Returns ``(frame, report)``; the frame is a copy when anything changed.
+    """
+    report = {"replaced": [], "kept": [], "unresolved": [], "status": "ok"}
+    if base is None or base.empty or not tickers:
+        report["status"] = "skipped"
+        return base, report
+    if not available():
+        report["status"] = "unavailable"
+        if verbose:
+            print(f"  {label}Norgate unavailable — frame unchanged", flush=True)
+        return base, report
+
+    ng, served, unresolved = fetch_closes(list(tickers), start, end,
+                                          verbose=False)
+    report["unresolved"] = unresolved
+    if not served:
+        return base, report
+
+    out = base.reindex(base.index.union(ng.index))
+    for t in served:
+        if t not in out.columns:
+            continue
+        col = ng[t].reindex(out.index)
+        incumbent_dates = out[t].dropna().index
+        if incumbent_dates.difference(col.dropna().index).empty:
+            out[t] = col
+            report["replaced"].append(t)
+        else:
+            report["kept"].append(t)
+    if verbose:
+        print(f"  {label}Norgate: {len(report['replaced'])} column(s) taken, "
+              f"{len(report['kept'])} kept on the incumbent (not a date "
+              f"superset), {len(unresolved)} unresolved", flush=True)
+    return out.sort_index(), report
+
+
 def fetch_closes(tickers: list[str], start: str, end: str,
                  verbose: bool = True
                  ) -> tuple[pd.DataFrame, list[str], list[str]]:

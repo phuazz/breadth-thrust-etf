@@ -61,6 +61,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -549,6 +550,28 @@ def download_prices() -> pd.DataFrame:
     df = pd.DataFrame(closes)
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.sort_index()
+
+    # ----- Norgate price source, opt-in (2026-08-30) -----
+    # Same mechanism, same reasoning and the same default as Strategy B; see
+    # run_asset_class_rotation.load_prices for the full note. Set
+    # BTE_PRICE_SOURCE=norgate to prefer the locally licensed feed.
+    #
+    # ONE DIFFERENCE THAT MATTERS HERE: this sleeve's universe is not purely
+    # US-listed. Norgate has no European or Chinese equity product at any
+    # tier, so any non-US line simply comes back unresolved and keeps its
+    # yfinance column — the superset rule cannot take what it was never
+    # offered. That is a silent partial by nature, so the unresolved count is
+    # printed on every run rather than left to be inferred.
+    price_source = os.environ.get("BTE_PRICE_SOURCE", "yfinance").strip().lower()
+    if price_source == "norgate":
+        import norgate_prices
+        df, _ngrep = norgate_prices.select_columns(
+            df, list(df.columns), START_DATE, END_DATE, label="Strategy C ")
+    elif price_source != "yfinance":
+        raise ValueError(
+            f"BTE_PRICE_SOURCE={price_source!r} is not a source "
+            f"(expected 'yfinance' or 'norgate')")
+
     # Partial-bar guard: the padded fetch window may include today's
     # in-progress session (and crypto's current partial day) when run
     # during market hours. Cap BEFORE the crypto/FX calendar work so
