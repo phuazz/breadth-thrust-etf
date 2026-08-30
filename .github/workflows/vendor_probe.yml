@@ -76,7 +76,41 @@ jobs:
         run: python scripts/probe_vendor_availability.py
 
       - name: Guard — did this run record a usable observation?
+        id: guard
         run: python scripts/check_vendor_probe.py
+
+      # ----- Retraction tripwire (2026-08-29) -----
+      # A vendor withdrawing a bar it already served is not a missing bar: the
+      # placeholder row keeps the right date and carries a NaN close, so every
+      # index-based check reads it as present. On 2026-08-28/29 yfinance served
+      # Friday's closes on all seven probed lines after their sessions closed
+      # and had withdrawn every one by the next morning. The pipeline's guards
+      # each did the right thing and none of them said why, so two full local
+      # refreshes ran against data that was no longer there.
+      #
+      # NOT blocking, and deliberately placed before the commit with
+      # continue-on-error: the row is a true observation and losing it would
+      # destroy the only record of the retraction. The guard step above still
+      # decides whether the run is committed; this only tells the operator.
+      - name: Email retraction alert (vendor withdrew a settled bar)
+        if: steps.guard.outputs.retracted == 'true'
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[WARN] Vendor RETRACTED a settled bar — ${{ steps.guard.outputs.retracted_summary }}'
+          # Operator only, never RECIPIENT_EMAIL — the factsheet distribution
+          # list does not receive plumbing email.
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            ${{ steps.guard.outputs.retracted_detail }}
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       # Hard-fail the push (2026-08-13, external review F1): a swallowed push
       # rejection loses the observation on the runner, which is the silent hole
