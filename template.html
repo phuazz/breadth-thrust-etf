@@ -3052,7 +3052,7 @@
 
   <section>
     <h2>What the execution moment is worth</h2>
-    <p class="section-sub">The alternative to the closing auction is the opening one. Measured as an active decision &mdash; filling at the open rather than the close, on the identical book &mdash; here is what that is worth on each weekday grid. Read it left to right: how big the choice is in a typical year, its average effect, how consistent that effect is, and whether the paired test calls it real or chance. Only one cell in the verdict column says real &mdash; Monday&rsquo;s open, which absorbs the weekend gap &mdash; and that is the leg this portfolio avoids by filling at the close. That is why the moment was settled on execution quality rather than on return. WS13 exhibit, study data as at 2026-08-12.</p>
+    <p class="section-sub">The alternative to the closing auction is the opening one. Measured as an active decision &mdash; filling at the open rather than the close, on the identical book &mdash; here is what that is worth on each weekday grid. The choice was priced on every weekday. On four days of five it makes no reliable difference either way; on Monday &mdash; the day this portfolio actually trades &mdash; filling at the open is reliably worse, because the opening auction absorbs the weekend gap. So the book fills at the close, settled on execution quality rather than on return. WS13 exhibit, study data as at 2026-08-12.</p>
     <div style="overflow-x:auto;">
       <table class="small-table" id="exec-ir-table"><thead></thead><tbody></tbody></table>
     </div>
@@ -3084,6 +3084,7 @@
       <div style="overflow-x:auto;">
         <table class="small-table" id="exec-paired"><thead></thead><tbody></tbody></table>
       </div>
+      <p style="margin-top:12px;color:var(--ink-faint);font-size:13px;" id="exec-paired-note"></p>
 
       <h3 style="margin-top:24px;">Can a rebalance be crossed at one moment?</h3>
       <p class="section-sub">A rotation sells one holding and buys another in the same decision. If both legs sit on one venue they cross at a single moment. If they sit on different venues the legs are hours apart and the book carries an unhedged gap in between — an execution risk no backtest on daily closes can see.</p>
@@ -8376,27 +8377,24 @@ function renderExecutionTiming() {
   const yrs = ec.n_days ? ec.n_days / 252 : null;
   put('exec-irse', yrs ? '±' + (1 / Math.sqrt(yrs)).toFixed(2) : '—');
 
-  // --- The IR table, in plain terms. Every figure is still read from the
-  //     feed; only the presentation is lay: sizes in % a year rather than
-  //     bp, the score's chance band in the header, and a one-word verdict
-  //     per row from the paired bootstrap. Raw bp, Sharpe deltas and CIs
-  //     stay in the collapsed evidence disclosure for the technical reader.
-  //     Sign colours are deliberately absent: a green +0.53 on a leg the
-  //     book does not use read as a recommendation, and it is noise.
+  // --- The weekday table, cut to what the lay reader actually asks: what
+  //     would filling at the open have done, and is that real or luck? One
+  //     number, one verdict, one status per row. Tracking error, consistency
+  //     scores and confidence intervals are workings, not answers — they
+  //     live in full in the collapsed evidence disclosure below.
   const irT = document.getElementById('exec-ir-table');
   if (irT && days.length) {
     const PT = ((D.paired_tests || {}).tests) || {};
-    const band = yrs ? (1.645 / Math.sqrt(yrs)).toFixed(1) : '—';
     const sub = function (t) {
       return '<br><span style="font-weight:400;color:var(--ink-faint);'
         + 'font-size:11.5px">' + t + '</span>';
     };
     irT.querySelector('thead').innerHTML =
       '<tr><th>Rebalance day</th>'
-      + '<th>Typical size of the choice' + sub('per year, either direction') + '</th>'
-      + '<th>Average effect of filling at the open' + sub('per year') + '</th>'
-      + '<th>Consistency score' + sub('luck alone reaches about &plusmn;' + band + ' here') + '</th>'
-      + '<th>Verdict' + sub('paired bootstrap') + '</th>'
+      + '<th>Filling at the open instead of the close'
+      + sub('average effect, per year') + '</th>'
+      + '<th>Verdict' + sub('paired statistical test'
+        + (yrs ? ', ' + yrs.toFixed(1) + ' years' : '')) + '</th>'
       + '<th>Status</th></tr>';
     irT.querySelector('tbody').innerHTML = days.map(function (d) {
       const e = (blend[d] || {}).execution_choice; if (!e) return '';
@@ -8407,22 +8405,18 @@ function renderExecutionTiming() {
                         || (pt.delta_p5 < 0 && pt.delta_p95 < 0));
       const ar = e.active_return_ann || 0;
       const verdict = !has ? '&mdash;'
-        : excl ? '<strong>real difference</strong>'
-        : '<span style="color:var(--ink-faint)">within chance</span>';
+        : excl ? '<strong>real &mdash; too consistent to be luck</strong>'
+        : '<span style="color:var(--ink-faint)">within luck</span>';
       const note = isDep
-        ? '<strong>in use</strong> &mdash; fills at the close; its open is the '
-          + 'one real difference in this table, and it is a cost (the Monday '
-          + 'opening auction absorbs the weekend gap)'
+        ? '<strong>in use</strong> &mdash; fills at the close'
         : d === 'FRI' ? 'in use 2026-08-12 to 2026-08-22' : '';
       return '<tr' + (isDep ? ' style="background:var(--bg-soft)"' : '') + '>'
         + '<td>' + (isDep ? '<strong>Monday</strong>' :
             ({ TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday', FRI: 'Friday' })[d])
-        + '</td><td>&plusmn;' + (Math.abs(e.tracking_error_ann || 0) * 100).toFixed(2)
-        + '%</td><td>' + (ar >= 0 ? '+' : '') + (ar * 100).toFixed(2) + '% '
+        + '</td><td>' + (ar >= 0 ? '+' : '') + (ar * 100).toFixed(2) + '% '
         + '<span style="color:var(--ink-faint)">('
         + (ar < 0 ? 'open worse' : 'open better') + ')</span>'
-        + '</td><td><strong>' + _execFmt(e.information_ratio, 2) + '</strong></td>'
-        + '<td>' + verdict + '</td>'
+        + '</td><td>' + verdict + '</td>'
         + '<td style="font-size:12px;color:var(--ink-faint)">' + note + '</td></tr>';
     }).join('');
   }
@@ -8432,30 +8426,11 @@ function renderExecutionTiming() {
       + 'Monday&rsquo;s open instead of its close would have cost about US$'
       + Math.round(Math.abs(ec.active_return_ann || 0) * 100000)
       + ' a year over the study window; no other weekday&rsquo;s choice is '
-      + 'distinguishable from chance. Average effect and typical size are '
-      + 'annualised from the daily difference between filling at the open and '
-      + 'filling at the close, on the identical book. <strong>The consistency '
-      + 'score is an information ratio, not the '
-      + 'Sharpe ratio quoted elsewhere on this dashboard</strong> &mdash; Sharpe '
-      + 'measures absolute return against a cash rate, this measures the value '
-      + 'of one execution choice against another. A ratio this large on a '
-      + 'return this small is the arithmetic of consistency, not of '
-      + 'magnitude: in a typical week the Monday choice moves the book by '
-      + 'about '
-      + (Math.abs(ec.tracking_error_ann || 0) / Math.sqrt(52) * 10000).toFixed(1)
-      + ' bp and costs about '
-      + (Math.abs(ec.active_return_ann || 0) / 52 * 10000).toFixed(1)
-      + ' bp of that on average &mdash; a '
-      + _execFmt((ec.information_ratio || 0) / Math.sqrt(52), 2)
-      + ' edge per event, which 52 repetitions a year annualise back to the '
-      + _execFmt(ec.information_ratio, 2) + ' shown. On '
-      + (yrs ? yrs.toFixed(1) : '—') + ' years the standard error on such a '
-      + 'ratio is roughly ' + (yrs ? (1 / Math.sqrt(yrs)).toFixed(2) : '—')
-      + '. Only Monday&rsquo;s row clears that bar &mdash; its opening auction '
-      + 'absorbs the weekend gap, which is an argument about the moment, not '
-      + 'the day, and the book fills at the close. No day was chosen on these '
-      + 'returns: WS13 settled the fill moment on execution quality, and WS18 '
-      + 'moved the day on operational correctness. Study data as at '
+      + 'distinguishable from luck. The verdict comes from a paired test on '
+      + (yrs ? yrs.toFixed(1) : '—') + ' years of daily differences between '
+      + 'the two fills of the identical book. The full workings &mdash; '
+      + 'tracking error, consistency scores, confidence intervals &mdash; are '
+      + 'in the evidence disclosure below. Study data as at '
       + (D.as_of || '—') + ' (WS13).';
   }
 
@@ -8524,19 +8499,56 @@ function renderExecutionTiming() {
     const T = D.paired_tests.tests;
     pt.querySelector('thead').innerHTML =
       '<tr><th>Comparison</th><th>Δ Sharpe</th><th>90% CI</th>'
-      + '<th>P(first is better)</th><th>Excludes zero?</th></tr>';
+      + '<th>P(first is better)</th><th>Excludes zero?</th>'
+      + '<th>Tracking error</th><th>Active return</th>'
+      + '<th>Information ratio</th></tr>';
     pt.querySelector('tbody').innerHTML = Object.keys(T).map(function (k) {
       const r = T[k];
       if (r.delta_point === null || r.delta_point === undefined) {
-        return '<tr><td>' + k + '</td><td colspan="4">no valid samples</td></tr>';
+        return '<tr><td>' + k + '</td><td colspan="7">no valid samples</td></tr>';
       }
       const excl = (r.delta_p5 > 0 && r.delta_p95 > 0) || (r.delta_p5 < 0 && r.delta_p95 < 0);
+      // The open-minus-close rows carry the per-day execution_choice stats
+      // that used to sit on the top-level table; the cross-day comparison
+      // has no such block and shows dashes.
+      const eDay = (blend[k.split(':')[0]] || {}).execution_choice;
+      const stats = eDay
+        ? '<td>' + _execBp(eDay.tracking_error_ann, 0).replace('+', '')
+          + '</td><td>' + _execBp(eDay.active_return_ann, 0)
+          + '</td><td>' + _execFmt(eDay.information_ratio, 2) + '</td>'
+        : '<td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>';
       return '<tr><td>' + k + '</td><td>' + _execSigned(r.delta_point, 4)
         + '</td><td>[' + _execSigned(r.delta_p5, 4) + ', '
         + _execSigned(r.delta_p95, 4) + ']</td><td>'
         + _execFmt(r.p_better, 2) + '</td><td>'
-        + (excl ? '<strong>yes</strong>' : 'no') + '</td></tr>';
+        + (excl ? '<strong>yes</strong>' : 'no') + '</td>'
+        + stats + '</tr>';
     }).join('');
+  }
+  const ptn = document.getElementById('exec-paired-note');
+  if (ptn) {
+    ptn.innerHTML = 'Reading the information ratio: the annualised average '
+      + 'difference divided by its annualised wobble &mdash; consistency, not '
+      + 'magnitude, and <strong>not the Sharpe ratio quoted elsewhere on this '
+      + 'dashboard</strong>, which prices absolute return against cash. A '
+      + 'ratio this large on a return this small is the arithmetic of '
+      + 'repetition: in a typical week the Monday choice moves the book by '
+      + 'about '
+      + (Math.abs(ec.tracking_error_ann || 0) / Math.sqrt(52) * 10000).toFixed(1)
+      + ' bp and costs about '
+      + (Math.abs(ec.active_return_ann || 0) / 52 * 10000).toFixed(1)
+      + ' bp of that on average &mdash; a '
+      + _execFmt((ec.information_ratio || 0) / Math.sqrt(52), 2)
+      + ' edge per event, which 52 repetitions a year annualise back to '
+      + _execFmt(ec.information_ratio, 2) + '. On '
+      + (yrs ? yrs.toFixed(1) : '—') + ' years the standard error on such a '
+      + 'ratio is roughly ' + (yrs ? (1 / Math.sqrt(yrs)).toFixed(2) : '—')
+      + ', so luck alone reaches about &plusmn;'
+      + (yrs ? (1.645 / Math.sqrt(yrs)).toFixed(1) : '—')
+      + '; only Monday&rsquo;s open-versus-close clears that, and the '
+      + 'bootstrap intervals above agree on every row. No day was chosen on '
+      + 'these returns: WS13 settled the fill moment on execution quality, '
+      + 'and WS18 moved the day on operational correctness.';
   }
 
   const vt = document.getElementById('exec-venues');
