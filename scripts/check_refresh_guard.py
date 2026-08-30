@@ -16,7 +16,21 @@ This script runs after the refresh, before the operator commits, and
 asserts over the whole 24-panel deployed set:
 
   G1  every constituents panel shares ONE end_friday, equal to the
-      expected target Friday (latest completed Friday);
+      expected target Friday (latest completed Friday) — AND, since
+      2026-08-30, the price side must corroborate the claim: no panel's
+      constituent price cache may carry rows past its last POPULATED
+      session. That night the vendor's batch download served a Friday
+      row that merely EXISTED (IUFS 0 of 76 roster names non-NaN, EXH9
+      1 of 28, while single-ticker requests returned real Friday bars);
+      compute_breadth correctly capped the tail back to Thursday, G4
+      honoured the declared cap — and this check printed "24 panels all
+      end 2026-08-28" off the roster stamp alone. A row that exists is
+      not a capture. The check now reads the cache and FAILS a traded
+      panel whose tail is hollow, warns when the hollow panel is
+      monitored-only (the G6 split), and warns when the gitignored cache
+      is not on this machine to read. "Populated" is
+      compute_breadth.priced_sessions — the writer's own tail-cap floor,
+      imported, not re-derived;
   G2  no panel reports endpoint_health.status != "ok";
   G3  no panel is critically stale (staleness.status == "critical" or
       "no_real_fetches" fails; "warning" warns);
@@ -72,13 +86,26 @@ asserts over the whole 24-panel deployed set:
       holdings, keeping IDP6 at 6.3% and ejecting IUMS. Writing a thin
       panel beats writing a stale one; committing one does not, so the
       block belongs here rather than as a stricter floor in the writer;
-  W1  (warn only) if EVERY deployed panel's newest snapshot walked back
-      from the target Friday, the refresh almost certainly ran before
-      iShares published Friday's holdings (the 2026-08-08 lesson).
-      Prices/breadth are still Friday-close; the roster is one day
-      stale, which is defensible — hence warn, not fail. Re-run
+  W1  Friday capture, BOTH directions. Roster behind prices (warn only):
+      if EVERY deployed panel's newest snapshot walked back from the
+      target Friday, the refresh almost certainly ran before iShares
+      published Friday's holdings (the 2026-08-08 lesson). Prices and
+      breadth are still Friday-close; the roster is one day stale, which
+      is defensible — hence warn, not fail. Re-run
       `fetch_constituents --etf <sym>` later to close the gap, and see
       scripts/measure_publication_lag.py for the lag measurement.
+
+      Prices behind roster (since 2026-08-30): each panel's cache must be
+      POPULATED through the last session on that panel's own calendar on
+      or before the target Friday. Short on a HOLLOW cache tail is the
+      2026-08-30 batch-download failure and FAILS for traded panels (the
+      claim "captured the target Friday exactly" rested on a row with no
+      prices in it); short with a CLEAN tail is genuine vendor lag — the
+      2026-08-22 class the G4 tail cap exists for — and warns. The two
+      states are told apart by whether the cache carries index rows past
+      its populated end, which is the only offline discriminator there
+      is: a failed batch leaves the empty row behind, a lagging vendor
+      serves nothing at all.
 
 Verdicts: FAIL -> exit 1 (the run must not be trusted or committed as-is),
 WARN -> exit 0 with a printed notice, OK -> silence beyond the summary.
@@ -115,6 +142,7 @@ import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+import pandas as pd
 import pandas_market_calendars as mcal
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -129,6 +157,8 @@ from refresh_all import ETFS_ALL  # noqa: E402  (single source of truth)
 from session_bounds import last_completed_session_on  # noqa: E402
 from compute_breadth import (  # noqa: E402  (one floor, one definition)
     MIN_ROSTER_COVERAGE_WARN,
+    active_roster_at,
+    priced_sessions,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -138,6 +168,13 @@ OK = "OK"
 WARN = "WARN"
 FAIL = "FAIL"
 
+# The TRADED book versus merely-monitored panels (the G6 split, 2026-08-22):
+# a defect on a panel no engine reads must not block committing a book it
+# cannot move — it is warned about, named, instead of failing the run. One
+# definition for every check that splits on it: G6 roster coverage, and the
+# G1/W1 price-side checks since 2026-08-30.
+TRADED = frozenset(UNIVERSE_ETFS) | frozenset(UNIVERSE_EUROPE_SECTORS)
+
 
 def verdict(check: str, status: str, evidence: str) -> dict:
     return {"check": check, "status": status, "evidence": evidence}
@@ -146,9 +183,56 @@ def verdict(check: str, status: str, evidence: str) -> dict:
 # ---------------------------------------------------------------------------
 # Pure verdict logic — unit-tested offline
 # ---------------------------------------------------------------------------
+def hollow_price_tails(price_sides: dict[str, dict] | None) -> dict[str, str]:
+    """Panels whose price cache carries rows PAST the last populated session.
+
+    The 2026-08-30 signature: an index row that exists while the roster's
+    prices for it never arrived (IUFS's Friday row held 0 of 76 roster
+    closes). ``price_sides`` entries come from price_cache_side; anything
+    without status "ok" is someone else's WARN, not a hollow tail.
+    Returns {etf: evidence fragment}. ISO date strings compare correctly
+    as strings, the convention G5 already relies on.
+    """
+    out: dict[str, str] = {}
+    for etf, side in (price_sides or {}).items():
+        if not isinstance(side, dict) or side.get("status") != "ok":
+            continue
+        idx = side.get("index_end")
+        pop = side.get("populated_end")
+        if idx and (not pop or pop < idx):
+            out[etf] = (f"populated to {pop or 'NO session at all'}, rows to "
+                        f"{idx} ({side.get('newest_row_populated', '?')} "
+                        f"roster names non-NaN on the newest row)")
+    return out
+
+
+def unverifiable_price_sides(price_sides: dict[str, dict] | None
+                             ) -> dict[str, str]:
+    """Panels whose cache could not be read — {etf: reason}."""
+    return {etf: (side.get("status", "malformed")
+                  if isinstance(side, dict) else "malformed")
+            for etf, side in (price_sides or {}).items()
+            if not isinstance(side, dict) or side.get("status") != "ok"}
+
+
 def check_shared_end_friday(end_fridays: dict[str, str],
-                            expected: date) -> list[dict]:
-    """G1: one end_friday across all panels, equal to ``expected``."""
+                            expected: date,
+                            price_sides: dict[str, dict] | None = None,
+                            ) -> list[dict]:
+    """G1: one end_friday across all panels, equal to ``expected`` — and,
+    when ``price_sides`` is supplied, corroborated by PRICES.
+
+    Until 2026-08-30 this read only the constituents' end_friday stamp, a
+    statement about the week the ROSTER fetch targeted. That night the
+    stamp was right, every roster was right, and the price caches carried
+    a Friday row with no prices in it — so "24 panels all end 2026-08-28"
+    printed over a book priced to Thursday. The price leg rejects any
+    end-claim resting on bare row presence: a traded panel with a hollow
+    cache tail FAILS, a monitored-only one warns (the G6 split), and an
+    unreadable cache warns (the caches are gitignored — off the refresh
+    machine there is nothing to corroborate with, and silence would be
+    the same blindness this leg exists to remove).
+    """
     distinct = sorted(set(end_fridays.values()))
     out = []
     if len(distinct) != 1:
@@ -168,7 +252,40 @@ def check_shared_end_friday(end_fridays: dict[str, str],
         else:
             out.append(verdict(
                 "G1 shared end_friday", OK,
-                f"{len(end_fridays)} panels all end {got}"))
+                f"{len(end_fridays)} constituents panels all stamp {got}"))
+    if price_sides is None:
+        return out
+
+    hollow = hollow_price_tails(price_sides)
+    hollow_traded = {e: v for e, v in hollow.items() if e in TRADED}
+    hollow_monitored = {e: v for e, v in hollow.items() if e not in TRADED}
+    unknown = unverifiable_price_sides(price_sides)
+    if hollow_traded:
+        out.append(verdict(
+            "G1 populated price tail", FAIL,
+            f"HOLLOW cache tail on traded panels — the newest row(s) exist "
+            f"but the roster is not priced on them, so any Friday-capture "
+            f"claim resting on row presence is void (2026-08-30: the batch "
+            f"download served empty Fridays while single-ticker requests "
+            f"had real bars): {hollow_traded}"))
+    if hollow_monitored:
+        out.append(verdict(
+            "G1 populated price tail", WARN,
+            f"hollow cache tail, but OUTSIDE the traded book so it cannot "
+            f"move it (G6 split): {hollow_monitored}"))
+    if not hollow:
+        n_ok = sum(1 for s in price_sides.values()
+                   if isinstance(s, dict) and s.get("status") == "ok")
+        if n_ok:
+            out.append(verdict(
+                "G1 populated price tail", OK,
+                f"{n_ok} price caches populated through their newest rows"))
+    if unknown:
+        out.append(verdict(
+            "G1 populated price tail", WARN,
+            f"price side unverifiable — the hollow-tail check needs the "
+            f"gitignored prices_cache parquets, which exist only on the "
+            f"machine that ran the refresh: {unknown}"))
     return out
 
 
@@ -361,7 +478,7 @@ def check_roster_coverage(coverages: dict[str, float | None],
     # They are still MEASURED and still reported — silence would be a
     # different error — but they cannot block a refresh of a book they are
     # not in.
-    traded = frozenset(UNIVERSE_ETFS) | frozenset(UNIVERSE_EUROPE_SECTORS)
+    traded = TRADED
     out = []
     thin = {e: f"{c:.1%}" for e, c in coverages.items()
             if c is not None and c < floor and e in traded}
@@ -420,29 +537,112 @@ def check_no_lost_state(etf: str,
 
 
 def check_universal_walkback(latest_actuals: dict[str, str],
-                             end_friday: date) -> list[dict]:
-    """W1: every panel walking back from the target Friday means the
-    refresh predated iShares' publication of Friday's holdings."""
+                             end_friday: date,
+                             price_sides: dict[str, dict] | None = None,
+                             expected_ends: dict[str, str] | None = None,
+                             ) -> list[dict]:
+    """W1: did the refresh capture the target Friday — both directions?
+
+    Roster behind prices (warn only, the 2026-08-08 lesson): every panel
+    walking back from the target Friday means the refresh predated
+    iShares' publication of Friday's holdings.
+
+    Prices behind roster (the 2026-08-30 lesson): when ``price_sides`` and
+    ``expected_ends`` are supplied, each panel's cache must be POPULATED
+    through its expected session — the last session on that panel's own
+    calendar on or before the target Friday, so a venue-holiday Friday is
+    not called short. Short on a HOLLOW tail is a failed batch download
+    wearing a capture's clothes and FAILS for traded panels; short with a
+    clean tail is genuine vendor lag (the 2026-08-22 class the G4 tail cap
+    exists for) and warns. Until 2026-08-30 this check read only the
+    roster side and printed "captured the target Friday exactly" over a
+    book priced to Thursday.
+
+    A panel absent from ``expected_ends`` has its shortness unevaluated
+    (its hollow tail is still G1's to catch); a panel whose cache is
+    unreadable is covered by G1's unverifiable WARN rather than double-
+    reported here.
+    """
     n = len(latest_actuals)
     walked = sorted(k for k, v in latest_actuals.items()
                     if v != end_friday.isoformat())
+    out: list[dict] = []
     if n and len(walked) == n:
         sample = latest_actuals[walked[0]]
-        return [verdict(
+        out.append(verdict(
             "W1 universal walkback", WARN,
             f"all {n} panels' newest snapshot fell back from "
             f"{end_friday.isoformat()} (e.g. to {sample}) — the refresh "
             f"likely ran before iShares published Friday. Roster is one "
             f"day stale (defensible; prices/breadth are Friday-close). "
             f"Consider re-running fetch_constituents later; see "
-            f"measure_publication_lag.py.")]
-    if walked:
-        return [verdict(
+            f"measure_publication_lag.py."))
+    elif walked:
+        out.append(verdict(
             "W1 universal walkback", OK,
             f"{len(walked)}/{n} panels walked back ({walked}) — normal "
-            f"holiday/data-gap territory, recorded in walkbacks arrays")]
-    return [verdict("W1 universal walkback", OK,
-                    f"all {n} panels captured the target Friday exactly")]
+            f"holiday/data-gap territory, recorded in walkbacks arrays"))
+    else:
+        out.append(verdict(
+            "W1 universal walkback", OK,
+            f"all {n} panels' rosters captured the target Friday exactly"))
+    if price_sides is None:
+        return out
+
+    hollow = hollow_price_tails(price_sides)
+    short_hollow: dict[str, str] = {}
+    short_clean: dict[str, str] = {}
+    n_evaluated = 0
+    for etf, side in price_sides.items():
+        if not isinstance(side, dict) or side.get("status") != "ok":
+            continue
+        exp = (expected_ends or {}).get(etf)
+        if not exp:
+            continue
+        n_evaluated += 1
+        pop = side.get("populated_end")
+        if pop and pop >= exp:            # ISO strings order correctly
+            continue
+        frag = (f"populated to {pop or 'NO session at all'} vs expected "
+                f"{exp}")
+        if etf in hollow:
+            short_hollow[etf] = (
+                f"{frag}, yet a row exists to {side.get('index_end')} with "
+                f"{side.get('newest_row_populated', '?')} roster names "
+                f"non-NaN")
+        else:
+            short_clean[etf] = frag
+    sh_traded = {e: v for e, v in short_hollow.items() if e in TRADED}
+    sh_monitored = {e: v for e, v in short_hollow.items() if e not in TRADED}
+    if sh_traded:
+        out.append(verdict(
+            "W1 friday price capture", FAIL,
+            f"prices for the expected session NEVER arrived on traded "
+            f"panels, though the cache carries a row for it — the "
+            f"2026-08-30 failure: the vendor's batch download served empty "
+            f"Fridays while single-ticker requests returned real bars. The "
+            f"roster stamps cannot vouch for prices: {sh_traded}. Re-run "
+            f"the price fetch / compute_breadth before trusting this "
+            f"refresh."))
+    if sh_monitored:
+        out.append(verdict(
+            "W1 friday price capture", WARN,
+            f"the same hollow shortfall, OUTSIDE the traded book so it "
+            f"cannot move it (G6 split): {sh_monitored}"))
+    if short_clean:
+        out.append(verdict(
+            "W1 friday price capture", WARN,
+            f"constituents priced short of the expected session with a "
+            f"CLEAN cache tail — genuine vendor lag, the 2026-08-22 class "
+            f"the G4 tail cap exists for: {short_clean}. Prices/breadth "
+            f"legitimately end earlier; re-run compute_breadth once the "
+            f"vendor publishes."))
+    if n_evaluated and not (short_hollow or short_clean):
+        out.append(verdict(
+            "W1 friday price capture", OK,
+            f"{n_evaluated} panels' prices populated through their "
+            f"expected sessions"))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -482,6 +682,51 @@ def latest_snapshot_actual(consts: dict) -> str | None:
     return (snaps[newest_key] or {}).get("actual_date")
 
 
+def price_cache_side(cache_path: Path, roster: list[str]) -> dict:
+    """Price-side facts for one panel, read from its constituent cache.
+
+    status "ok" carries:
+      index_end             newest row the cache HAS — bare presence,
+                            which is exactly what must never be trusted
+                            on its own (2026-08-30);
+      populated_end         newest row the roster is actually PRICED on,
+                            by compute_breadth.priced_sessions — the ONE
+                            definition the writer's tail cap uses. None
+                            when no row clears the floor;
+      newest_row_populated  "<non-NaN roster closes>/<roster names held>"
+                            on the index_end row, for the evidence line.
+
+    Any other status means the price side cannot be verified HERE: the
+    caches are gitignored, so off the refresh machine this returns
+    "missing" and the caller warns instead of guessing.
+    """
+    if not roster:
+        return {"status": "no roster"}
+    if not cache_path.exists():
+        return {"status": "missing"}
+    try:
+        prices = pd.read_parquet(cache_path)
+    except Exception as exc:  # noqa: BLE001 — every unreadable cache is one fact
+        return {"status": f"unreadable: {exc}"}
+    if prices.empty:
+        return {"status": "empty"}
+    held = [t for t in roster if t in prices.columns]
+    if not held:
+        return {"status": "no roster columns in cache"}
+    ok = priced_sessions(prices, roster)
+    index_end = pd.Timestamp(prices.index.max())
+    newest = prices.loc[prices.index.max(), held]
+    if isinstance(newest, pd.DataFrame):  # duplicated index row: read the last
+        newest = newest.iloc[-1]
+    return {
+        "status": "ok",
+        "index_end": str(index_end.date()),
+        "populated_end": (str(pd.Timestamp(ok.max()).date())
+                          if len(ok) else None),
+        "newest_row_populated": f"{int(newest.notna().sum())}/{len(held)}",
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Assert cross-panel coherence of the state a "
@@ -514,6 +759,7 @@ def main(argv: list[str] | None = None) -> int:
     calendars: dict[str, str] = {}
     coverages: dict[str, float | None] = {}
     latest_actuals: dict[str, str] = {}
+    price_sides: dict[str, dict] = {}
 
     baseline_missing: list[str] = []
     n_baseline_checked = 0
@@ -545,6 +791,19 @@ def main(argv: list[str] | None = None) -> int:
         if actual:
             latest_actuals[etf] = actual
 
+        # Price side for the G1/W1 populated-tail checks. The roster is the
+        # one in force on the newest snapshot date — the same call the
+        # writer's tail cap makes, so guard and writer count the same names.
+        snaps = consts.get("snapshots") or {}
+        try:
+            snap_dates = sorted(snaps)
+            roster_now = (active_roster_at(snap_dates, snaps, snap_dates[-1])
+                          if snap_dates else [])
+        except (KeyError, TypeError):
+            roster_now = []
+        price_sides[etf] = price_cache_side(
+            DATA_DIR / f"prices_cache_{key}.parquet", roster_now)
+
         # G5 versus the committed baseline.
         old_consts = load_committed_json(consts_rel, args.baseline_ref)
         old_breadth = load_committed_json(breadth_rel, args.baseline_ref)
@@ -561,7 +820,8 @@ def main(argv: list[str] | None = None) -> int:
             n_loss_failures += len(loss)
             results.extend(loss)
 
-    results.extend(check_shared_end_friday(end_fridays, expected_friday))
+    results.extend(check_shared_end_friday(end_fridays, expected_friday,
+                                           price_sides=price_sides))
     results.extend(check_endpoint_health(health))
     results.extend(check_staleness(staleness))
     results.extend(check_roster_coverage(coverages,
@@ -569,7 +829,14 @@ def main(argv: list[str] | None = None) -> int:
     results.extend(check_breadth_ends(breadth_ends, calendars,
                                       expected_friday,
                                       tail_caps=tail_caps))
-    results.extend(check_universal_walkback(latest_actuals, expected_friday))
+    # Each panel's expected session on its OWN calendar — a venue-holiday
+    # Friday must not read as a price shortfall (the 2026-07-03 boundary).
+    expected_ends = {etf: expected_panel_end(calendars.get(etf, "NYSE"),
+                                             expected_friday).isoformat()
+                     for etf in price_sides}
+    results.extend(check_universal_walkback(latest_actuals, expected_friday,
+                                            price_sides=price_sides,
+                                            expected_ends=expected_ends))
     if n_loss_failures == 0 and n_baseline_checked:
         results.append(verdict(
             "G5 no lost state", OK,
