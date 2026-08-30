@@ -1553,6 +1553,18 @@
     #preview-nextfill-table td.nf-buy  { color: var(--good); }
     #preview-nextfill-table td.nf-sell { color: var(--bad); }
     #preview-nextfill-table td.nf-trim { color: var(--neutral); }
+    /* The same move on its second basis. The primary pair is % of TOTAL NAV
+       (the tradeable size); this grey restatement is the weight within the
+       sleeve, because 12.5pp of NAV and 62.5% of sleeve D are the same order
+       and read as two different trades. Each line names its own basis. */
+    #preview-nextfill-table td.num .nf-within {
+      display: block;
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--ink-faint);
+      margin-top: 1px;
+      white-space: nowrap;
+    }
     .prev-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -2139,7 +2151,7 @@
               <th class="th-sl">Sleeve</th>
               <th class="th-tk">Ticker &amp; name</th>
               <th class="th-act">Action</th>
-              <th class="th-delta">Held &rarr; Target (% NAV)</th>
+              <th class="th-delta">Held &rarr; Target (% of total NAV)</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -4782,6 +4794,19 @@ function renderNextFill(labelMap) {
   const nDrift = lt.lines.filter(
     l => Math.abs(l.delta) >= 5e-5 && Math.abs(l.delta) < NF_MIN_MOVE).length;
 
+  // The held side of the within-sleeve basis is divided out here rather than
+  // shipped in the payload: a sleeve's effective NAV share IS the sum of its
+  // lines' effective weights (the target side is built as within x share, and
+  // Σwithin = 1 by the weight functions), so held/Σheld cannot disagree with
+  // the NAV numbers printed beside it. The identity is pinned by
+  // test_within_weights_and_nav_weights_agree, not assumed. Summed over ALL
+  // lines, not just the ones that move -- an omitted drift line still holds
+  // its share of the sleeve.
+  const heldBySleeve = new Map();
+  for (const ln of lt.lines) {
+    heldBySleeve.set(ln.sleeve, (heldBySleeve.get(ln.sleeve) || 0) + ln.held);
+  }
+
   const rows = moves.map(l => {
     const isBuy = l.held === 0 && l.target > 0;
     const isSell = l.target === 0 && l.held > 0;
@@ -4791,12 +4816,22 @@ function renderNextFill(labelMap) {
       ? `<span class="tk-label">${_escapeHtml(lbl(l.etf))}</span>` : '';
     const holdTag = l.status !== 'READY'
       ? ' <span class="nf-pill" style="margin-left:4px">hold</span>' : '';
+    // TILT/GATE are single-instrument overlays: "within sleeve" is always
+    // 100% there and would print as information. A payload without `within`
+    // gets no second line at all -- absent beats derived-and-wrong.
+    const hs = heldBySleeve.get(l.sleeve) || 0;
+    const withinHtml = (typeof l.within === 'number'
+                        && l.sleeve !== 'TILT' && l.sleeve !== 'GATE')
+      ? `<span class="nf-within">within ${_escapeHtml(l.sleeve)}: `
+        + `${(hs > 0 ? l.held / hs * 100 : 0).toFixed(1)}% &rarr; `
+        + `${(l.within * 100).toFixed(1)}%</span>`
+      : '';
     return `<tr>
       <td class="sl">${_escapeHtml(l.sleeve)}</td>
       <td class="tk">${_displaySym(l.etf)}${labelHtml}${holdTag}</td>
       <td class="nf-act ${cls}">${action}</td>
       <td class="num">${(l.held * 100).toFixed(1)}% &rarr; ${(l.target * 100).toFixed(1)}%
-          <span class="${cls}">(${l.delta >= 0 ? '+' : ''}${(l.delta * 100).toFixed(1)}pp)</span></td>
+          <span class="${cls}">(${l.delta >= 0 ? '+' : ''}${(l.delta * 100).toFixed(1)}pp)</span>${withinHtml}</td>
     </tr>`;
   }).join('');
 

@@ -252,3 +252,55 @@ def test_the_card_is_expanded_only_when_the_targets_are_final():
     t = _template_text()
     assert "const isFinal = lt.targets_final === true;" in t
     assert "setOpen(isFinal);" in t
+
+
+# ---------------------------------------------------------------------------
+# Both bases, each named beside its number (2026-08-30)
+#
+# The primary pair is % of TOTAL NAV -- the tradeable size. The grey line
+# restates the same move within its sleeve, because 12.5pp of NAV and 62.5%
+# of sleeve D are the same order of magnitude and read as two different
+# trades. Neither number may appear without its basis: an unlabelled weight
+# is exactly how the NAV column got read as a sleeve column in the first
+# place.
+# ---------------------------------------------------------------------------
+def test_the_numbers_carry_both_bases():
+    t = _template_text()
+    assert "% of total NAV" in t, "the header must name the primary basis"
+    assert "nf-within" in t
+    # The second basis names itself and its sleeve inline, on every row.
+    assert "within ${_escapeHtml(l.sleeve)}" in t
+
+
+def test_the_within_basis_is_skipped_where_it_is_meaningless():
+    """TILT/GATE are single-instrument overlays -- 'within sleeve' is 100%
+    by construction there and would print as information."""
+    t = _template_text()
+    assert "l.sleeve !== 'TILT' && l.sleeve !== 'GATE'" in t
+
+
+def test_within_weights_and_nav_weights_agree(targets):
+    """The renderer derives the held side of the within-sleeve basis as
+    held/Σheld over the sleeve's lines. That is an identity, not an estimate,
+    exactly while target == within x (sleeve NAV share) and each ranked
+    sleeve's `within` weights sum to 1 -- so pin both on the live artefact.
+    If a producer change breaks either, this fails before the card divides
+    by the wrong denominator."""
+    from collections import defaultdict
+
+    tgt_sum = defaultdict(float)
+    within_sum = defaultdict(float)
+    for ln in targets["lines"]:
+        assert "within" in ln, ln["etf"]
+        tgt_sum[ln["sleeve"]] += ln["target"]
+        within_sum[ln["sleeve"]] += ln["within"]
+    for sleeve, s in within_sum.items():
+        if sleeve in {"TILT", "GATE"}:
+            continue
+        assert abs(s - 1.0) < 1e-4 or s == 0.0, (
+            f"sleeve {sleeve} within-weights sum to {s}: the sleeve is "
+            f"neither fully allocated nor unranked")
+    for ln in targets["lines"]:
+        nav = tgt_sum[ln["sleeve"]]
+        if nav > 0 and ln["sleeve"] not in {"TILT", "GATE"}:
+            assert abs(ln["target"] - ln["within"] * nav) < 1e-6, ln
