@@ -8408,7 +8408,17 @@ function renderExecutionTiming() {
       + 'on the identical book. <strong>This is an information ratio, not the '
       + 'Sharpe ratio quoted elsewhere on this dashboard</strong> &mdash; Sharpe '
       + 'measures absolute return against a cash rate, this measures the value '
-      + 'of one execution choice against another. On '
+      + 'of one execution choice against another. A ratio this large on a '
+      + 'return this small is the arithmetic of consistency, not of '
+      + 'magnitude: in a typical week the Monday choice moves the book by '
+      + 'about '
+      + (Math.abs(ec.tracking_error_ann || 0) / Math.sqrt(52) * 10000).toFixed(1)
+      + ' bp and costs about '
+      + (Math.abs(ec.active_return_ann || 0) / 52 * 10000).toFixed(1)
+      + ' bp of that on average &mdash; a '
+      + _execFmt((ec.information_ratio || 0) / Math.sqrt(52), 2)
+      + ' edge per event, which 52 repetitions a year annualise back to the '
+      + _execFmt(ec.information_ratio, 2) + ' shown. On '
       + (yrs ? yrs.toFixed(1) : '—') + ' years the standard error on such a '
       + 'ratio is roughly ' + (yrs ? (1 / Math.sqrt(yrs)).toFixed(2) : '—')
       + '. Only Monday&rsquo;s row clears that bar &mdash; its opening auction '
