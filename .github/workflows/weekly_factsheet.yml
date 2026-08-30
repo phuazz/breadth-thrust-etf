@@ -332,11 +332,48 @@ jobs:
       # run — fast for ~14 and ~25 tickers respectively), so they can
       # re-run cleanly in CI without local caches.
 
+      # ----- Do not overwrite a build CI cannot reproduce (2026-08-30) -----
+      # The re-runs below are how B and C stay current between local
+      # refreshes, and that is still their job. But a re-run is only ever an
+      # improvement when the committed output is BEHIND the last completed
+      # session. When it is already there, CI has nothing to add and the
+      # re-run silently replaces good data with worse.
+      #
+      # That stopped being hypothetical over 2026-08-28/30: yfinance withheld
+      # Friday's closes for 43+ hours having served and retracted them, and a
+      # local run sourcing the same ETFs from Norgate reached Friday where no
+      # runner can (BTE_PRICE_SOURCE=norgate; the feed is a locally licensed
+      # Windows service). Publishing would have dragged both sleeves back a
+      # session.
+      #
+      # One-directional by design: CI may move a sleeve forward, never back.
+      # An unreadable or missing committed output re-runs, fail-safe.
+      #
+      # COST, stated because it is real: the re-run also propagates engine
+      # code and config changes, not only newer data, so a deliberate change
+      # to either engine now waits for the next local refresh. Set
+      # BTE_FORCE_ENGINE_RERUN=1 to override. That trade is acceptable only
+      # because sleeves A and D already anchor on the local refresh for the
+      # same underlying reason.
+      - name: Would a CI re-run of B and C add anything?
+        id: currency
+        run: python scripts/check_engine_currency.py
+
       - name: Run Strategy B (asset-class rotation; ~14 ETF download)
+        if: steps.currency.outputs.rerun_b == 'true'
         run: python scripts/run_asset_class_rotation.py
 
+      - name: Keep the committed Strategy B (CI cannot improve on it)
+        if: steps.currency.outputs.rerun_b != 'true'
+        run: echo "Skipped — ${{ steps.currency.outputs.summary }}"
+
       - name: Run Strategy C (thematic rotation; ~23 ETF download)
+        if: steps.currency.outputs.rerun_c == 'true'
         run: python scripts/run_thematic_rotation.py
+
+      - name: Keep the committed Strategy C (CI cannot improve on it)
+        if: steps.currency.outputs.rerun_c != 'true'
+        run: echo "Skipped — ${{ steps.currency.outputs.summary }}"
 
       - name: Run multi-strategy blend (uses A + D from committed JSONs)
         run: python scripts/run_multi_strategy.py
