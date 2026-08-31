@@ -78,6 +78,7 @@ re-run them individually.
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import time
@@ -226,9 +227,18 @@ def main() -> int:
             timings.append((f"fetch_constituents {etf}", dt))
             if not ok:
                 failures.append(f"fetch_constituents {etf}")
+        # BTE_PRICE_SOURCE=norgate is honoured by the sleeve engines directly
+        # (they read the env var), but compute_breadth takes it as a flag, so
+        # the orchestrator translates. Without this the panels would stay on
+        # yfinance while B, C and the A/D proxies moved to Norgate — a book
+        # split down the middle by accident rather than by decision, which is
+        # worse than either source used consistently.
+        _bcmd = [py, "scripts/compute_breadth.py", "--etf", etf]
+        if os.environ.get("BTE_PRICE_SOURCE", "").strip().lower() == "norgate":
+            _bcmd += ["--price-source", "auto"]
         ok, dt = run_step(
             f"[{i}/{len(ETFS_REFRESH)}] {etf} compute_breadth",
-            [py, "scripts/compute_breadth.py", "--etf", etf],
+            _bcmd,
         )
         timings.append((f"compute_breadth {etf}", dt))
         if not ok:

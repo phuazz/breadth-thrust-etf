@@ -360,12 +360,27 @@ def _cap_reason(caps: dict, reach: str | None) -> tuple[str | None, str | None]:
         return None, None
     c = match[0]
     priced, traded = c.get("constituents_priced_to"), c.get("venue_last_completed")
+    # STATE THE FACT, NOT A CAUSE THIS CANNOT KNOW (2026-08-31).
+    #
+    # Both sentences used to assert the routine European publication lag —
+    # "the vendor publishes these prices about a session late", and in the
+    # plain register "publishes European prices about a day late". That was
+    # written when only sleeve D could trip this, and it is now wrong twice
+    # over. On 2026-08-31 sleeve A tripped it, so the PUBLIC page would have
+    # explained a US-sectors gap as a European publishing delay. And the cause
+    # itself was wrong: the vendor had served that session and RETRACTED it,
+    # which is a different fault with a different remedy from a late publish.
+    #
+    # A cap records WHAT was missing, never WHY. Saying only what is known
+    # keeps the sentence true for a late publish, a retraction and an outage
+    # alike, and stops a caveat elsewhere on the page being quietly softened
+    # by a confident explanation sitting two lines below it.
     technical = (f"the constituents are priced to {priced} while the venue has "
-                 f"traded to {traded} — the vendor publishes these prices about "
-                 f"a session late.")
+                 f"traded to {traded} — the newest session was not available "
+                 f"from the price source when this was built.")
     plain = (f"the shares held inside these funds are priced up to {priced}, "
-             f"while the exchange itself has traded to {traded} — the data "
-             f"provider publishes European prices about a day late.")
+             f"while the exchange itself has traded to {traded} — the newest "
+             f"day's prices were not available when this was built.")
     return technical, plain
 
 

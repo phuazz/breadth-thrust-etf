@@ -1,64 +1,66 @@
 {
- "computed_at_utc": "2026-08-29T03:13:31.205445+00:00",
+ "computed_at_utc": "2026-08-31T09:18:18.398404+00:00",
  "strategies": [
   {
    "sleeve": "A",
    "label": "US sectors",
    "venue": "NYSE",
-   "data_through": "2026-08-25",
+   "data_through": "2026-08-27",
    "venue_last_session": "2026-08-28",
-   "sessions_behind": 3,
+   "sessions_behind": 1,
    "status": "behind",
-   "laggards": [],
+   "laggards": [
+    "IUMS"
+   ],
    "source": "breadth panels (constituents above their 200-day average)",
    "carried": false,
-   "why": "every one of the breadth panels stops at 2026-08-25 while NYSE has completed 2026-08-28 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-08-25, while the market has traded to 2026-08-28 \u2014 it has not been rebuilt since."
+   "why": "the constituents are priced to 2026-08-27 while the venue has traded to 2026-08-28 \u2014 the newest session was not available from the price source when this was built.",
+   "why_plain": "the shares held inside these funds are priced up to 2026-08-27, while the exchange itself has traded to 2026-08-28 \u2014 the newest day's prices were not available when this was built."
   },
   {
    "sleeve": "B",
    "label": "Asset classes",
    "venue": "NYSE",
-   "data_through": "2026-08-25",
+   "data_through": "2026-08-28",
    "venue_last_session": "2026-08-28",
-   "sessions_behind": 3,
-   "status": "behind",
+   "sessions_behind": 0,
+   "status": "current",
    "laggards": [],
-   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-08-28T05:31Z; the cache is not present on this checkout",
-   "carried": true,
-   "why": "every one of the cached price series stops at 2026-08-25 while NYSE has completed 2026-08-28 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-08-25, while the market has traded to 2026-08-28 \u2014 it has not been rebuilt since."
+   "source": "price cache (asset-class ETFs)",
+   "carried": false,
+   "why": null,
+   "why_plain": null
   },
   {
    "sleeve": "C",
    "label": "Thematic",
    "venue": "NYSE",
-   "data_through": "2026-08-25",
+   "data_through": "2026-08-28",
    "venue_last_session": "2026-08-28",
-   "sessions_behind": 3,
-   "status": "behind",
+   "sessions_behind": 0,
+   "status": "current",
    "laggards": [],
-   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-08-28T05:31Z; the cache is not present on this checkout",
-   "carried": true,
-   "why": "every one of the cached price series stops at 2026-08-25 while NYSE has completed 2026-08-28 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-08-25, while the market has traded to 2026-08-28 \u2014 it has not been rebuilt since."
+   "source": "price cache (thematic ETFs)",
+   "carried": false,
+   "why": null,
+   "why_plain": null
   },
   {
    "sleeve": "D",
    "label": "Europe sectors",
    "venue": "XETR",
-   "data_through": "2026-08-24",
+   "data_through": "2026-08-27",
    "venue_last_session": "2026-08-28",
-   "sessions_behind": 4,
+   "sessions_behind": 1,
    "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
    "carried": false,
-   "why": "the constituents are priced to 2026-08-24 while the venue has traded to 2026-08-25 \u2014 the vendor publishes these prices about a session late.",
-   "why_plain": "the shares held inside these funds are priced up to 2026-08-24, while the exchange itself has traded to 2026-08-25 \u2014 the data provider publishes European prices about a day late."
+   "why": "the constituents are priced to 2026-08-27 while the venue has traded to 2026-08-28 \u2014 the newest session was not available from the price source when this was built.",
+   "why_plain": "the shares held inside these funds are priced up to 2026-08-27, while the exchange itself has traded to 2026-08-28 \u2014 the newest day's prices were not available when this was built."
   }
  ],
  "all_current": false,
- "stalest": "2026-08-24",
- "n_behind": 4
+ "stalest": "2026-08-27",
+ "n_behind": 2
 }

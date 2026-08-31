@@ -260,7 +260,23 @@ def download_prices() -> pd.DataFrame:
         # raises TypeError — which is how a dropped connection on 2026-08-26
         # took down Strategies B and C on the NEXT run rather than on the one
         # that broke the file.
-        cache_end = cached.index.max().date() if len(cached) else None
+        # The cache is only as current as its LEAST current column, and that
+        # has to be measured on values rather than on the index (2026-08-31).
+        # cached.index.max() reads the union of every column's dates, so one
+        # line lagging behind twelve others is invisible: on 2026-08-31 the
+        # index reached Friday because 12 of 13 tickers did, while SPY was NaN
+        # there, and this branch handed back the short frame instead of
+        # refetching. The sleeve then published a session behind and capture
+        # integrity failed the run — twice, because the second attempt hit the
+        # same short-circuit. Index-versus-values is the same confusion that
+        # cost this repo the 2026-08-29 weekend; it is worth being explicit
+        # about wherever a date is read.
+        if len(cached) and len(cached.columns):
+            per_col = [cached[c].dropna().index.max() for c in cached.columns
+                       if cached[c].notna().any()]
+            cache_end = min(per_col).date() if per_col else None
+        else:
+            cache_end = None
         cached_universe = set(cached.columns)
         if cache_end is None:
             print(f"  Cache at {PRICE_CACHE.name} is EMPTY — re-downloading")

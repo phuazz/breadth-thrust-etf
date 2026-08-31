@@ -758,6 +758,12 @@ def _allocation_bar(st_now: dict) -> str:
     )
 
 
+
+def _sentence(s: str) -> str:
+    """Upper-case the first character only. str.capitalize() lower-cases the
+    rest, which turned "sleeves B and C" into "sleeves b and c" on 2026-08-31."""
+    return s[:1].upper() + s[1:] if s else s
+
 def build_html(out_path: Path):
     multi = _load_json(DATA_DIR / "multi_strategy.json")
     overlay = _load_json(DATA_DIR / "risk_overlay.json")
@@ -837,6 +843,54 @@ def build_html(out_path: Path):
         f'Weekly factsheet &middot; signals as of <strong style="color:#fff;">'
         f'{asof_str}</strong></div></div>'
     )
+
+    # ----- Mixed pricing basis (2026-08-31) -----
+    # The as-at above is ONE date over four sleeves. When they do not share a
+    # session, that line is not the whole truth and the NAV below it fuses two
+    # vintages. Placed here, immediately under the as-at and above the
+    # holdings, because a reader who stops after the first screen must still
+    # have seen it — a footnote would not do.
+    #
+    # Built from data/strategy_freshness.json, never from a typed date, so it
+    # states whatever is actually true and vanishes by itself once the sleeves
+    # agree. The third sentence is the substantive point and was approved as
+    # the reason this is publishable at all: selection happens WITHIN a
+    # sleeve, so a per-sleeve vintage cannot corrupt any rebalance.
+    fresh = _load_json(DATA_DIR / "strategy_freshness.json") or {}
+    _rows = [s for s in (fresh.get("strategies") or []) if s.get("data_through")]
+    _groups: dict[str, list[str]] = {}
+    for _s in _rows:
+        _groups.setdefault(_s["data_through"], []).append(_s["sleeve"])
+    if len(_groups) > 1:
+        _parts = []
+        for _d in sorted(_groups, reverse=True):
+            _sl = sorted(_groups[_d])
+            _nm = (f"sleeve {_sl[0]}" if len(_sl) == 1
+                   else f"sleeves {', '.join(_sl[:-1])} and {_sl[-1]}")
+            # Weekday spelled out, from a date library rather than reasoned
+            # about: a factsheet naming the wrong weekday for its own close
+            # is the kind of error that costs a reader's trust in every other
+            # number on the page. %d is zero-padded on Windows, so strip it.
+            _dt = datetime.strptime(_d, "%Y-%m-%d")
+            _pretty = _dt.strftime("%A %d %B %Y").replace(" 0", " ", 1)
+            _parts.append(f"{_nm} to {_pretty}")
+        out.append(
+            '<div style="margin:0 0 18px;padding:12px 14px;background:#fff8e6;'
+            'border-left:3px solid #d99e00;border-radius:4px;font-size:13px;'
+            'line-height:1.55;color:#1a1a1a;">'
+            '<strong>The pricing basis for this week is mixed.</strong> '
+            + _sentence('; '.join(_parts)) + '.'
+            '<div style="margin-top:8px;">The price vendor withheld this '
+            'week’s closing prices across every holding and has not '
+            'restored them. The lines that could be recovered from a second '
+            'licensed feed were; that feed does not carry every market, so the '
+            'remainder could not be brought forward.</div>'
+            '<div style="margin-top:8px;">Each sleeve’s own rebalance is '
+            'unaffected: selection happens within a sleeve, and every sleeve '
+            'is internally consistent on a single session. The blended NAV '
+            'combines the vintages above.</div>'
+            '</div>'
+        )
 
     # (Regime state moved to a compact footer line below — holdings and
     # activity are what readers want to see first.)

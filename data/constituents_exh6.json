@@ -2,11 +2,11 @@
   "etf": "EXH6",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-08-26T07:37:58.552285+00:00",
+  "fetched_at_utc": "2026-08-31T01:09:30.860686+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-08-21",
-  "n_target_fridays": 451,
-  "n_snapshots_written": 451,
+  "end_friday": "2026-08-28",
+  "n_target_fridays": 452,
+  "n_snapshots_written": 452,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -44,7 +44,7 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-08-21",
+    "last_real_fetch_date": "2026-08-28",
     "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
@@ -8952,6 +8952,20 @@
     },
     "2026-08-21": {
       "actual_date": "2026-08-21",
+      "n_tickers": 8,
+      "tickers": [
+        "PUB.PA",
+        "INF.L",
+        "PSON.L",
+        "UMG.AS",
+        "WPP.L",
+        "EVD.DE",
+        "ITV.L",
+        "BOL.PA"
+      ]
+    },
+    "2026-08-28": {
+      "actual_date": "2026-08-28",
       "n_tickers": 8,
       "tickers": [
         "PUB.PA",

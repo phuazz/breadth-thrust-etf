@@ -153,12 +153,27 @@ def test_panel_reach_surfaces_the_declared_tail_cap(tmp_path, monkeypatch):
     _write_panel(tmp_path, "EXV1", "2026-08-20", cap)
     reach, _, caps = sf.panel_reach(["EXV1"])
     technical, plain = _cap_reason(caps, reach)
-    assert technical and "2026-08-20" in technical and "session late" in technical
+    # Both dates, in both registers. The sentence must carry WHAT is missing.
+    assert technical and "2026-08-20" in technical and "2026-08-21" in technical
     # Two registers: the plain one must carry the same facts without the
     # vocabulary ("constituents", "venue") the reduced public page refuses.
     assert plain and "2026-08-20" in plain
     for jargon in ("constituent", "venue", "vendor"):
         assert jargon not in plain.lower(), jargon
+
+    # ...and NEITHER may assert a cause (2026-08-31). This previously said
+    # "the vendor publishes these prices about a session late", and in the
+    # plain register "publishes European prices about a day late" — written
+    # when only sleeve D could trip it. On 2026-08-31 sleeve A tripped it, so
+    # the public page would have explained a US-sectors gap as a European
+    # publishing delay; and the cause was wrong anyway, the vendor having
+    # served that session and retracted it. A cap records WHAT was missing,
+    # never WHY. This assertion is the regression guard for both faults.
+    for text in (technical, plain):
+        low = text.lower()
+        for claim in ("session late", "day late", "european", "publishes"):
+            assert claim not in low, (
+                f"the cap sentence asserts a cause it cannot know: {claim!r}")
 
 
 def test_a_missing_panel_is_skipped_not_counted_as_stale(tmp_path, monkeypatch):
