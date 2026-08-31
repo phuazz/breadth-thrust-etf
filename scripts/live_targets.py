@@ -280,7 +280,21 @@ def next_fill_date(venue: str, now_utc: datetime,
     dates = rc.engine_rebalance_dates(idx, idx[0], freq=tk.HEADLINE_FREQ,
                                       calendar=venue)
     today = pd.Timestamp(now_utc.date())
-    upcoming = [d for d in dates if d > today]
+    # TODAY COUNTS (2026-08-31, owner instruction, reversing the original
+    # call). This was `d > today`, on the reasoning that on the fill day the
+    # trade is already being placed, so showing it as upcoming would mislead.
+    # That holds AFTER the trade is placed and not before it, and the card is
+    # read before: asked on Monday morning the operator's question is "what do
+    # I trade today", and the strict test answered with NEXT week's provisional
+    # book while saying nothing about the fill actually due. On 2026-08-31 the
+    # card showed a 7/8 September fill on the morning of a 31 August one.
+    #
+    # `executed` is False by construction here — this module only ever
+    # describes an INTENDED book — so including today cannot make a completed
+    # trade look pending. It also lets targets_final speak: the decision
+    # session for today's fill IS the Friday close these were ranked on, so
+    # the card can say "final, trade these" instead of "provisional".
+    upcoming = [d for d in dates if d >= today]
     return str(upcoming[0].date()) if upcoming else None
 
 

@@ -35,10 +35,27 @@ def test_next_fill_is_the_coming_monday_from_a_sunday():
     assert next_fill_date("XETR", now) == "2026-08-24"
 
 
-def test_next_fill_is_strictly_in_the_future_on_the_fill_day_itself():
-    """Asked ON Monday, the next fill is the FOLLOWING week, not today.
-    Otherwise the card would show a trade already being placed as upcoming."""
-    now = datetime(2026, 8, 24, 6, 0, tzinfo=timezone.utc)   # Monday
+def test_the_fill_day_itself_is_the_next_fill():
+    """Asked ON Monday, the next fill is TODAY (2026-08-31, owner instruction).
+
+    This previously asserted the opposite — that Monday's answer is the
+    FOLLOWING Monday — on the reasoning that the trade is already being placed
+    so showing it as upcoming would mislead. That holds after the trade is
+    placed and not before it, and the card is read before: on the morning of
+    the 31 August fill it announced a 7/8 September one and said nothing about
+    the fill actually due that day. `executed` is False by construction in this
+    module, which only ever describes an INTENDED book, so today cannot be
+    mistaken for a completed trade.
+    """
+    now = datetime(2026, 8, 24, 6, 0, tzinfo=timezone.utc)   # Monday, a fill day
+    assert next_fill_date("NYSE", now) == "2026-08-24"
+    assert next_fill_date("XETR", now) == "2026-08-24"
+
+
+def test_the_day_after_a_fill_moves_on():
+    """The corollary, and the half the strict test got right: once the fill
+    day has passed the card must advance, not cling to it."""
+    now = datetime(2026, 8, 25, 6, 0, tzinfo=timezone.utc)   # Tuesday
     assert next_fill_date("NYSE", now) == "2026-08-31"
 
 
