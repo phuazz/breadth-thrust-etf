@@ -230,6 +230,26 @@ jobs:
         continue-on-error: true
         run: python scripts/strategy_freshness.py
 
+      # ----- Keep the next-fill card current (2026-09-01) -----
+      # live_targets.json was written by a LOCAL refresh and by NOTHING in CI,
+      # so between weekly refreshes the card sat at whatever the last one
+      # produced. On 1 September it was still announcing a fill "for Mon, 31
+      # Aug 2026" as upcoming — asserting that the previous day's trade was
+      # still pending, which is the one claim that card must never make.
+      #
+      # Recomputed here because this job already runs after the close and
+      # rebuilds the page below. It needs only the committed sleeve JSONs and
+      # the venue calendars, not the gitignored price caches, so it runs on a
+      # runner unchanged.
+      #
+      # Soft-failed on the same reasoning as the freshness step above: the
+      # card's own lapse guard withholds a stale fill date in the browser
+      # rather than presenting it, so a failure here degrades to "out of date,
+      # run a refresh" instead of taking the daily publish down.
+      - name: Recompute the next-fill card
+        continue-on-error: true
+        run: python scripts/live_targets.py
+
       - name: Rebuild dashboard + factsheet with live extension
         run: python scripts/pipeline.py
 

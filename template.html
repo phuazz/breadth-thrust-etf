@@ -4802,6 +4802,41 @@ function renderNextFill(labelMap) {
     || Object.values(nf.decision_by_venue || {}).filter(Boolean)
          .map(fmtDateLongSafe).join(' / ');
 
+  // ----- LAPSE GUARD (2026-09-01) -----
+  // live_targets.json is written by a LOCAL refresh and by nothing in CI, so
+  // between refreshes this card is a static artefact describing a fill that
+  // may already have happened. Read on 1 September it still announced a fill
+  // "for Mon, 31 Aug 2026" as upcoming, with the not-traded sentence intact —
+  // asserting that yesterday's trade is still pending, which is the one claim
+  // this card must never make.
+  //
+  // Judged in the BROWSER's clock rather than at build time, because that is
+  // the only clock that knows when the page is being read; a build-time check
+  // is already stale by construction. The freshness strip has carried
+  // verdict_has_lapsed for this same class since 2026-08-25 and this card
+  // never got the equivalent.
+  //
+  // It withholds the instruction rather than guessing the next date: computing
+  // the following fill client-side would need the venue calendars and the
+  // holiday roll, and a card that quietly invents a date is worse than one
+  // that says it is out of date.
+  const _today = new Date().toISOString().slice(0, 10);
+  const _lapsedOn = Object.values(byVenue).filter(Boolean)
+    .concat(fillDate ? [fillDate] : []).filter(d => d < _today);
+  if (_lapsedOn.length) {
+    card.classList.add('nf-collapsed');
+    document.getElementById('preview-nextfill-asof').textContent =
+      `stale — ${whenText} has passed`;
+    document.getElementById('nf-note').innerHTML =
+      `<strong>This card is out of date.</strong> It describes a fill for `
+      + `${whenText}, which has already passed; it was computed on `
+      + `${fmtDateLongSafe((lt.computed_at_utc || '').slice(0, 10))} and is `
+      + `rebuilt only by a local refresh. The next fill is NOT shown — run `
+      + `<code>refresh_all.py</code> to recompute it. The book below the fold `
+      + `is what is actually held today.`;
+    return;
+  }
+
   document.getElementById('nf-note').innerHTML = isFinal
     ? `<strong>Nothing here has been traded.</strong> These are the target `
       + `weights for the next scheduled fill, ranked on the `
