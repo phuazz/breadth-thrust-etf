@@ -408,7 +408,7 @@ def main(argv: list[str] | None = None) -> int:
     # ----- Push (armed) or READY (soak) -----
     if args.push:
         msg = scheduled_commit_message(now.date(), panel_end, args.cadence)
-        for step in (["add", "data/", "docs/"], ["commit", "-m", msg]):
+        for step in (["add", "data/", "docs/", "build/portfolio.html"], ["commit", "-m", msg]):
             cp = _git(step, log)
             if cp.returncode != 0:
                 # A no-change run is a CLEAN run, not a failure — the same
@@ -448,7 +448,7 @@ def main(argv: list[str] | None = None) -> int:
         # A local commit leaves the tree clean for the next run and publishes
         # nothing: the factsheet still waits for a human push and the CI gate.
         msg = scheduled_commit_message(now.date(), panel_end, args.cadence)
-        for step in (["add", "data/", "docs/"], ["commit", "-m", msg]):
+        for step in (["add", "data/", "docs/", "build/portfolio.html"], ["commit", "-m", msg]):
             cp = _git(step, log)
             if cp.returncode != 0:
                 if step[0] == "commit" and "nothing to commit" in (
@@ -464,7 +464,7 @@ def main(argv: list[str] | None = None) -> int:
                f"factsheet.\n\nGate preview:\n{gate['detail']}", log)
     else:
         print(f"READY TO PUSH (soak mode) - review the clone, then: "
-              f"git add data/ docs/ && git commit && git push")
+              f"git add data/ docs/ build/portfolio.html && git commit && git push")
         log.write("\nsoak mode: validated, NOT pushed\n")
         _email("[READY] Scheduled refresh validated - review and push (soak mode)",
                f"refresh_all.py green; panel current to {panel_end}.\n"

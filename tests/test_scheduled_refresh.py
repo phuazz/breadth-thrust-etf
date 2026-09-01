@@ -287,9 +287,28 @@ def test_commit_mode_exists_and_publishes_nothing():
 
 
 def test_commit_mode_stages_what_the_preflight_would_call_dirty():
-    assert '"add", "data/", "docs/"' in _commit_branch(), (
-        "commit mode must stage the same paths the preflight sees as dirty, "
-        "or the next run still refuses")
+    """THE DEADLOCK THIS PREVENTS, and did not (2026-09-01).
+
+    The preflight refuses to start on ANY dirty path. So every path the
+    refresh writes must be staged, or one armed run leaves the tree dirty and
+    every subsequent run exits 2 — a deadlock that tightens rather than
+    self-clears, because nothing ever cleans up.
+
+    This test was written for exactly that and pinned an INCOMPLETE list.
+    `build/portfolio.html` is written by build_simple_page in step 6 and was
+    staged by neither add list, so from the 2026-08-26 arming onward every run
+    failed preflight. It ran unnoticed for a fortnight: the task's own alert
+    could not send (no GMAIL_* in the automation environment) and only the
+    Saturday fleet watch caught it. `daily_live_track.yml` had the identical
+    defect fixed on 2026-08-16; this file never got the same fix.
+
+    Assert the PROPERTY, not one literal string: every written path is staged.
+    """
+    body = _commit_branch()
+    for path in ("data/", "docs/", "build/portfolio.html"):
+        assert f'"{path}"' in body, (
+            f"{path} is written by the refresh but not staged — the preflight "
+            f"will see it as dirty and the next run will refuse")
 
 
 def test_a_no_change_commit_is_not_a_failure():
