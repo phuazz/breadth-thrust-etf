@@ -1,16 +1,16 @@
 {
   "contract_version": "1",
   "emitted_by": "breadth-thrust-etf",
-  "emitted_at": "2026-08-29T03:15:19+00:00",
+  "emitted_at": "2026-09-01T00:44:04+00:00",
   "signals": {
     "engine_phase19_gate": {
-      "as_of": "2026-08-25",
+      "as_of": "2026-08-28",
       "state": "RISK_ON",
-      "value": 0.6068,
+      "value": 0.5367,
       "zone": "since 2026-04-14",
       "horizon": "weeks-months",
       "source_file": "data/risk_overlay.json",
-      "computed_at": "2026-08-26T08:55:33+00:00",
+      "computed_at": "2026-08-31T09:28:53+00:00",
       "role": "engine-internal",
       "evidence_grade": "deployed-engine",
       "licence": "public",
@@ -18,13 +18,13 @@
       "action_hint": "none"
     },
     "engine_phase22_em_tilt": {
-      "as_of": "2026-08-25",
+      "as_of": "2026-08-28",
       "state": "EM_TILT_ON",
-      "value": 0.0874,
+      "value": 0.0877,
       "zone": "since 2025-04-07",
       "horizon": "weeks-months",
       "source_file": "data/risk_overlay.json",
-      "computed_at": "2026-08-26T08:55:33+00:00",
+      "computed_at": "2026-08-31T09:28:53+00:00",
       "role": "engine-internal",
       "evidence_grade": "deployed-engine",
       "licence": "public",
@@ -32,13 +32,13 @@
       "action_hint": "none"
     },
     "engine_live_blend": {
-      "as_of": "2026-08-24",
+      "as_of": "2026-08-28",
       "state": "DEPLOYED",
       "value": 23,
       "zone": "blend_35_35_10_20_gated_eem_tilted",
       "horizon": "weekly rebalance",
       "source_file": "data/live_track.json",
-      "computed_at": "2026-08-29 03:13 UTC",
+      "computed_at": "2026-09-01 00:42 UTC",
       "role": "engine-internal",
       "evidence_grade": "deployed-engine",
       "licence": "public",
