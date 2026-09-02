@@ -470,3 +470,71 @@ def test_a_hold_is_never_final_even_when_its_dates_agree():
 def test_a_missing_decision_session_or_an_empty_book_is_never_final():
     assert _targets_final([_sleeve("A", None, "2026-08-28")]) is False
     assert _targets_final([]) is False
+
+
+# ---------------------------------------------------------------------------
+# A HOLD sleeve's intended book is its held book (owner decision 2026-09-02)
+#
+# Before this, a HOLD sleeve with no weights fell through to the exit path:
+# every held position printed as SELL ALL under a hold pill and the notional
+# liquidation was counted in one-way turnover; a HOLD sleeve ranked on a stale
+# session printed that rank's ADD/TRIM/BUY lines under the same pill. Both sat
+# beside a banner saying do not trade. The coverage guard above makes the
+# no-weights HOLD common rather than rare, so the contradiction had to go.
+# ---------------------------------------------------------------------------
+from scripts.live_targets import _intended_lines  # noqa: E402
+
+NAV_SHARE = {"a": 0.35, "d": 0.20}
+
+
+def _by(lines):
+    return {(l["sleeve"], l["etf"]): l for l in lines}
+
+
+def test_a_hold_sleeve_with_no_weights_carries_its_held_book_unchanged():
+    sleeves = [{"sleeve": "A", "status": "HOLD", "weights": {}}]
+    held = {("A", "IUFS"): 0.21, ("A", "IUES"): 0.14}
+    lines = _by(_intended_lines(sleeves, held, NAV_SHARE))
+    assert set(lines) == {("A", "IUFS"), ("A", "IUES")}
+    for line in lines.values():
+        assert line["target"] == line["held"] and line["delta"] == 0.0
+        assert line["status"] == "HOLD"
+    # `within` is the held share of the sleeve, so the artefact identity
+    # target == within x sum(target) keeps holding for HOLD sleeves too.
+    assert abs(lines[("A", "IUFS")]["within"] - 0.6) < 1e-12
+    assert abs(sum(line["within"] for line in lines.values()) - 1.0) < 1e-12
+
+
+def test_a_hold_sleeve_ranked_on_a_stale_session_does_not_print_that_rank():
+    """The stale rank stays in sleeves[].weights; the lines say leave as held.
+    A ranked-but-unheld name gets no line, because nothing is intended to be
+    bought -- and with every delta at zero the sleeve adds nothing to turnover."""
+    sleeves = [{"sleeve": "D", "status": "HOLD",
+                "weights": {"EXH9": 0.6, "EXV1": 0.4}}]
+    held = {("D", "EXV1"): 0.12, ("D", "EXH1"): 0.08}
+    lines = _by(_intended_lines(sleeves, held, NAV_SHARE))
+    assert set(lines) == {("D", "EXV1"), ("D", "EXH1")}
+    assert all(line["delta"] == 0.0 for line in lines.values())
+    assert sum(abs(line["delta"]) for line in lines.values()) == 0.0
+
+
+def test_a_ready_sleeve_still_exits_a_name_its_rank_dropped():
+    """The fix must not reach READY sleeves: the exit line (target 0) is how a
+    dropped name becomes a SELL ALL, and that path stays exactly as it was."""
+    sleeves = [{"sleeve": "A", "status": "READY",
+                "weights": {"IUFS": 0.75, "IUHC": 0.25}}]
+    held = {("A", "IUFS"): 0.20, ("A", "IUCS"): 0.05}
+    lines = _by(_intended_lines(sleeves, held, NAV_SHARE))
+    assert abs(lines[("A", "IUFS")]["target"] - 0.75 * 0.35) < 1e-12
+    assert lines[("A", "IUHC")]["held"] == 0.0
+    assert lines[("A", "IUHC")]["target"] > 0
+    exit_line = lines[("A", "IUCS")]
+    assert exit_line["target"] == 0.0 and exit_line["held"] == 0.05
+    assert exit_line["within"] == 0.0 and exit_line["status"] == "READY"
+
+
+def test_overlay_lines_are_carried_as_held():
+    lines = _by(_intended_lines([], {("TILT", "EEM"): 0.10}, NAV_SHARE))
+    line = lines[("TILT", "EEM")]
+    assert line["target"] == line["held"] == 0.10
+    assert line["within"] == 1.0 and line["delta"] == 0.0

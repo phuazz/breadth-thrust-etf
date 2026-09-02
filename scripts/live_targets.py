@@ -40,6 +40,12 @@ signal, not a smaller one: on 2026-08-28 sleeve A's row arrived with 5 of its
 turnover, while sleeve D's 3-of-5 row silently ejected EXV3. Caught by hand,
 discarded by hand — this guard exists so the catching is not manual.
 
+And a HOLD sleeve's intended book is its held book (owner decision 2026-09-02).
+Its lines carry target = held, so nothing in it moves and nothing of it counts
+towards turnover; the rank it could not use stays in sleeves[].weights. Before
+this, a HOLD with no weights printed every held position as SELL ALL under a
+hold pill, beside a banner saying do not trade.
+
 Usage:
     python scripts/live_targets.py
     python scripts/live_targets.py --json data/live_targets.json
@@ -50,6 +56,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -199,28 +206,7 @@ def build(now_utc: datetime | None = None) -> dict:
     for h in _collect_deployed_holdings(sleeve_data, overlay, asof):
         held[(h["sleeve"], h["etf"])] = h["effective"]
 
-    lines = []
-    for s in sleeves:
-        nav = st.get(s["sleeve"].lower(), 0.0)
-        for etf, w in s["weights"].items():
-            lines.append({"sleeve": s["sleeve"], "etf": etf,
-                          "traded": _traded(etf), "within": w,
-                          "target": w * nav,
-                          "held": held.get((s["sleeve"], etf), 0.0),
-                          "status": s["status"]})
-    for (sl, etf), eff in held.items():
-        if sl in {"TILT", "GATE"}:
-            lines.append({"sleeve": sl, "etf": etf, "traded": _traded(etf),
-                          "within": 1.0, "target": eff, "held": eff,
-                          "status": "READY"})
-        elif not any(x["sleeve"] == sl and x["etf"] == etf for x in lines):
-            lines.append({"sleeve": sl, "etf": etf, "traded": _traded(etf),
-                          "within": 0.0, "target": 0.0, "held": eff,
-                          "status": next((s["status"] for s in sleeves
-                                          if s["sleeve"] == sl), "READY")})
-    for ln in lines:
-        ln["delta"] = ln["target"] - ln["held"]
-    lines.sort(key=lambda x: (x["sleeve"], -abs(x["delta"])))
+    lines = _intended_lines(sleeves, held, st)
     # WHICH fill is this, and has it happened? Both stated explicitly, because
     # a target book that does not say either is indistinguishable from a record
     # of trades already done -- which is the one way this artefact could
@@ -267,6 +253,63 @@ def build(now_utc: datetime | None = None) -> dict:
             },
             "sleeves": sleeves, "lines": lines,
             "one_way_turnover": sum(abs(x["delta"]) for x in lines) / 2}
+
+
+def _intended_lines(sleeves: list[dict], held: dict[tuple[str, str], float],
+                    sleeve_nav: dict[str, float]) -> list[dict]:
+    """The intended book, line by line, against what is held.
+
+    A READY sleeve's lines are its ranked weights scaled to the sleeve's share
+    of effective NAV, plus an exit line (target 0) for any held name the rank
+    dropped. TILT/GATE overlays are carried as held.
+
+    A HOLD sleeve's intended book IS its held book (owner decision 2026-09-02).
+    Before this, a HOLD with no weights fell through to the exit path and every
+    held position printed as SELL ALL under a hold pill, with the notional
+    liquidation counted in one-way turnover; a HOLD ranked on a stale session
+    printed that rank's ADD/TRIM/BUY lines under the same pill. Both sat beside
+    a banner saying do not trade, and the coverage guard makes the no-weights
+    HOLD common rather than rare. So every held position of a HOLD sleeve
+    carries target = held (delta 0; `within` is its share of the sleeve's held
+    book, which keeps the artefact identity target == within x sum(target)),
+    and a ranked-but-unheld name gets no line at all: nothing is intended to be
+    bought. The rank the sleeve could not use stays in sleeves[].weights.
+    """
+    status_of = {s["sleeve"]: s["status"] for s in sleeves}
+    ready = {sl for sl, status in status_of.items() if status == "READY"}
+    lines = []
+    for s in sleeves:
+        if s["sleeve"] not in ready:
+            continue
+        nav = sleeve_nav.get(s["sleeve"].lower(), 0.0)
+        for etf, w in s["weights"].items():
+            lines.append({"sleeve": s["sleeve"], "etf": etf,
+                          "traded": _traded(etf), "within": w,
+                          "target": w * nav,
+                          "held": held.get((s["sleeve"], etf), 0.0),
+                          "status": s["status"]})
+    held_total: dict[str, float] = defaultdict(float)
+    for (sl, _etf), eff in held.items():
+        held_total[sl] += eff
+    for (sl, etf), eff in held.items():
+        if sl in {"TILT", "GATE"}:
+            lines.append({"sleeve": sl, "etf": etf, "traded": _traded(etf),
+                          "within": 1.0, "target": eff, "held": eff,
+                          "status": "READY"})
+        elif sl in status_of and sl not in ready:
+            tot = held_total[sl]
+            lines.append({"sleeve": sl, "etf": etf, "traded": _traded(etf),
+                          "within": eff / tot if tot > 0 else 0.0,
+                          "target": eff, "held": eff,
+                          "status": status_of[sl]})
+        elif not any(x["sleeve"] == sl and x["etf"] == etf for x in lines):
+            lines.append({"sleeve": sl, "etf": etf, "traded": _traded(etf),
+                          "within": 0.0, "target": 0.0, "held": eff,
+                          "status": status_of.get(sl, "READY")})
+    for ln in lines:
+        ln["delta"] = ln["target"] - ln["held"]
+    lines.sort(key=lambda x: (x["sleeve"], -abs(x["delta"])))
+    return lines
 
 
 def _targets_final(sleeves: list[dict]) -> bool:
