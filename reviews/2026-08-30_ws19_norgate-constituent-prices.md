@@ -478,7 +478,8 @@ today as 2026-08-30-breadth-thrust-etf-1 to -4.
 ### Instrument, as built
 
 Worktree `C:\dev\bte-ws19c-sandbox` at `5c47248` (main after the 2026-09-02
-post-fill refresh `62292ed`), 130 parquet caches copied from the automation
+post-fill refresh `62292ed`; rebased onto origin later as `a1bd2a2`), 130
+parquet caches copied from the automation
 clone at 16:10 SGT, twenty minutes after that refresh's engines wrote them. The
 deployed panels were priced to 2026-08-28 for constituents (yfinance had not
 served Monday 2026-09-01 at 15:xx SGT) while the engine caches reach 2026-09-01.
@@ -644,8 +645,9 @@ undid them; with Norgate primary, any cache — the clone's survivor cache
 included — comes out on the point-in-time basis on every build.
 
 Actions taken tonight, all local: the main tree's 38 backfilled caches were
-copied into the clone (its survivor copies kept as `*.survivor-2026-09-02.bak`)
-so Saturday's armed run does not repeat this; a chip proposes a coverage-depth
+copied into the clone (its survivor copies kept in the clone's gitignored
+`data_local/survivor-caches-2026-09-02/`, out of the tree its clean-tree
+preflight inspects) so Saturday's armed run does not repeat this; a chip proposes a coverage-depth
 guard baselined on the 670ca1c panels; nothing was republished — reverting
 62292ed or re-running the post-fill refresh on the repaired caches is a
 publication decision and is the owner's.
