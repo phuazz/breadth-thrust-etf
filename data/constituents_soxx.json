@@ -2,7 +2,7 @@
   "etf": "SOXX",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/us/products/239705/ishares-phlx-semiconductor-etf/1467271812596.ajax?fileType=csv&fileName=SOXX_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-31T00:30:14.240110+00:00",
+  "fetched_at_utc": "2026-09-02T07:18:07.367639+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-28",
   "n_target_fridays": 452,

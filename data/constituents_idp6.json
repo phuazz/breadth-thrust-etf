@@ -2,7 +2,7 @@
   "etf": "IDP6",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251920/ishares-sp-smallcap-600-ucits-etf/1506575576011.ajax?fileType=csv&fileName=ISP6_holdings&dataType=fund",
-  "fetched_at_utc": "2026-08-31T00:57:50.893132+00:00",
+  "fetched_at_utc": "2026-09-02T07:46:31.493654+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-08-28",
   "n_target_fridays": 452,

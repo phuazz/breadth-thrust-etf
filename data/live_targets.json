@@ -1,6 +1,6 @@
 {
- "computed_at_utc": "2026-09-01T09:17:22.399162+00:00",
- "as_of": "2026-08-31",
+ "computed_at_utc": "2026-09-02T07:56:37.466080+00:00",
+ "as_of": "2026-09-01",
  "executed": false,
  "targets_final": false,
  "next_fill": {
@@ -20,18 +20,18 @@
   {
    "sleeve": "A",
    "venue": "NYSE",
-   "status": "HOLD",
-   "reason": "signal reaches 2026-08-28 but the last completed NYSE session is 2026-08-31 \u2014 ranking now would use an earlier session",
-   "decision_session": "2026-08-28",
-   "last_completed_session": "2026-08-31",
+   "status": "READY",
+   "reason": null,
+   "decision_session": "2026-09-01",
+   "last_completed_session": "2026-09-01",
    "weights": {
-    "IUFS": 0.337419,
-    "IUES": 0.278639,
-    "IUHC": 0.186439,
-    "IUSP": 0.142068,
-    "CSP1": 0.033979,
-    "SOXX": 0.012188,
-    "IUMS": 0.009268
+    "IUES": 0.290305,
+    "IUFS": 0.243562,
+    "IUHC": 0.192199,
+    "IUSP": 0.183298,
+    "IUCS": 0.06665,
+    "CSP1": 0.011993,
+    "SOXX": 0.011993
    },
    "fill_date": "2026-09-08",
    "decision_session_for_fill": "2026-09-04"
@@ -41,16 +41,16 @@
    "venue": "NYSE",
    "status": "READY",
    "reason": null,
-   "decision_session": "2026-08-31",
-   "last_completed_session": "2026-08-31",
+   "decision_session": "2026-09-01",
+   "last_completed_session": "2026-09-01",
    "weights": {
-    "DBC": 0.244112,
-    "QQQ": 0.142755,
-    "EWJ": 0.134899,
-    "IJR": 0.132603,
-    "SPY": 0.125857,
-    "EFA": 0.112488,
-    "VGK": 0.107286
+    "DBC": 0.296125,
+    "EWJ": 0.13113,
+    "QQQ": 0.129422,
+    "SPY": 0.121924,
+    "IJR": 0.12115,
+    "EFA": 0.104001,
+    "VGK": 0.096247
    },
    "fill_date": "2026-09-08",
    "decision_session_for_fill": "2026-09-04"
@@ -60,14 +60,14 @@
    "venue": "NYSE",
    "status": "READY",
    "reason": null,
-   "decision_session": "2026-08-31",
-   "last_completed_session": "2026-08-31",
+   "decision_session": "2026-09-01",
+   "last_completed_session": "2026-09-01",
    "weights": {
     "CIBR": 0.2,
     "SKYY": 0.2,
     "XBI": 0.2,
     "ARKG": 0.2,
-    "COPX": 0.2
+    "159801.SZ": 0.2
    },
    "fill_date": "2026-09-08",
    "decision_session_for_fill": "2026-09-04"
@@ -75,14 +75,14 @@
   {
    "sleeve": "D",
    "venue": "XETR",
-   "status": "HOLD",
-   "reason": "signal reaches 2026-08-28 but the last completed XETR session is 2026-08-31 \u2014 ranking now would use an earlier session",
-   "decision_session": "2026-08-28",
-   "last_completed_session": "2026-08-31",
+   "status": "READY",
+   "reason": null,
+   "decision_session": "2026-09-01",
+   "last_completed_session": "2026-09-01",
    "weights": {
-    "EXH9": 0.37037,
-    "EXH3": 0.333333,
-    "EXV1": 0.296296
+    "EXV1": 0.351438,
+    "EXH1": 0.335463,
+    "EXV3": 0.313099
    },
    "fill_date": "2026-09-07",
    "decision_session_for_fill": "2026-09-04"
@@ -91,153 +91,183 @@
  "lines": [
   {
    "sleeve": "A",
-   "etf": "IUFS",
-   "traded": "IUFS",
-   "within": 0.337419,
-   "target": 0.11809665,
-   "held": 0.06783,
-   "status": "HOLD",
-   "delta": 0.050266649999999996
+   "etf": "IUSP",
+   "traded": "IUSP",
+   "within": 0.183298,
+   "target": 0.0641543,
+   "held": 0.0,
+   "status": "READY",
+   "delta": 0.0641543
   },
   {
    "sleeve": "A",
-   "etf": "IUMS",
-   "traded": "IUMS",
-   "within": 0.009268,
-   "target": 0.0032438,
-   "held": 0.03178,
-   "status": "HOLD",
-   "delta": -0.028536200000000005
+   "etf": "IUFS",
+   "traded": "IUFS",
+   "within": 0.243562,
+   "target": 0.0852467,
+   "held": 0.03381,
+   "status": "READY",
+   "delta": 0.051436699999999995
   },
   {
    "sleeve": "A",
    "etf": "SOXX",
    "traded": "SOXX",
-   "within": 0.012188,
-   "target": 0.004265799999999999,
-   "held": 0.028175,
-   "status": "HOLD",
-   "delta": -0.0239092
+   "within": 0.011993,
+   "target": 0.0041975499999999995,
+   "held": 0.04563999999999999,
+   "status": "READY",
+   "delta": -0.04144244999999999
   },
   {
    "sleeve": "A",
-   "etf": "IUCS",
-   "traded": "IUCS",
+   "etf": "IUMS",
+   "traded": "IUMS",
    "within": 0.0,
    "target": 0.0,
-   "held": 0.016274999999999998,
-   "status": "HOLD",
-   "delta": -0.016274999999999998
-  },
-  {
-   "sleeve": "A",
-   "etf": "CSP1",
-   "traded": "CSP1",
-   "within": 0.033979,
-   "target": 0.01189265,
-   "held": 0.0,
-   "status": "HOLD",
-   "delta": 0.01189265
+   "held": 0.035699999999999996,
+   "status": "READY",
+   "delta": -0.035699999999999996
   },
   {
    "sleeve": "A",
    "etf": "IUHC",
    "traded": "IUHC",
-   "within": 0.186439,
-   "target": 0.06525365,
-   "held": 0.061215,
-   "status": "HOLD",
-   "delta": 0.004038649999999998
+   "within": 0.192199,
+   "target": 0.06726965,
+   "held": 0.09302999999999999,
+   "status": "READY",
+   "delta": -0.025760349999999987
+  },
+  {
+   "sleeve": "A",
+   "etf": "CNDX",
+   "traded": "CNDX",
+   "within": 0.0,
+   "target": 0.0,
+   "held": 0.024674999999999996,
+   "status": "READY",
+   "delta": -0.024674999999999996
+  },
+  {
+   "sleeve": "A",
+   "etf": "IUCS",
+   "traded": "IUCS",
+   "within": 0.06665,
+   "target": 0.023327499999999998,
+   "held": 0.0,
+   "status": "READY",
+   "delta": 0.023327499999999998
+  },
+  {
+   "sleeve": "A",
+   "etf": "CSP1",
+   "traded": "CSP1",
+   "within": 0.011993,
+   "target": 0.0041975499999999995,
+   "held": 0.024115,
+   "status": "READY",
+   "delta": -0.019917450000000003
   },
   {
    "sleeve": "A",
    "etf": "IUES",
    "traded": "IUES",
-   "within": 0.278639,
-   "target": 0.09752365,
-   "held": 0.09425499999999999,
-   "status": "HOLD",
-   "delta": 0.003268650000000012
-  },
-  {
-   "sleeve": "A",
-   "etf": "IUSP",
-   "traded": "IUSP",
-   "within": 0.142068,
-   "target": 0.0497238,
-   "held": 0.050539999999999995,
-   "status": "HOLD",
-   "delta": -0.0008161999999999961
-  },
-  {
-   "sleeve": "B",
-   "etf": "IJR",
-   "traded": "IJR",
-   "within": 0.132603,
-   "target": 0.03315074999999999,
-   "held": 0.039624999999999994,
+   "within": 0.290305,
+   "target": 0.10160674999999998,
+   "held": 0.09302999999999999,
    "status": "READY",
-   "delta": -0.006474250000000001
-  },
-  {
-   "sleeve": "B",
-   "etf": "EWJ",
-   "traded": "EWJ",
-   "within": 0.134899,
-   "target": 0.03372474999999999,
-   "held": 0.029749999999999995,
-   "status": "READY",
-   "delta": 0.003974749999999996
-  },
-  {
-   "sleeve": "B",
-   "etf": "VGK",
-   "traded": "VGK",
-   "within": 0.107286,
-   "target": 0.026821499999999998,
-   "held": 0.030324999999999998,
-   "status": "READY",
-   "delta": -0.0035034999999999997
-  },
-  {
-   "sleeve": "B",
-   "etf": "QQQ",
-   "traded": "QQQ",
-   "within": 0.142755,
-   "target": 0.03568874999999999,
-   "held": 0.032374999999999994,
-   "status": "READY",
-   "delta": 0.0033137499999999973
+   "delta": 0.008576749999999994
   },
   {
    "sleeve": "B",
    "etf": "DBC",
    "traded": "DBC",
-   "within": 0.244112,
-   "target": 0.06102799999999999,
-   "held": 0.05847499999999999,
+   "within": 0.296125,
+   "target": 0.07403124999999999,
+   "held": 0.05299999999999999,
    "status": "READY",
-   "delta": 0.0025529999999999997
+   "delta": 0.02103125
   },
   {
    "sleeve": "B",
-   "etf": "SPY",
-   "traded": "SPY",
-   "within": 0.125857,
-   "target": 0.03146424999999999,
-   "held": 0.029449999999999997,
+   "etf": "IJR",
+   "traded": "IJR",
+   "within": 0.12115,
+   "target": 0.030287499999999995,
+   "held": 0.03807499999999999,
    "status": "READY",
-   "delta": 0.002014249999999995
+   "delta": -0.007787499999999996
+  },
+  {
+   "sleeve": "B",
+   "etf": "QQQ",
+   "traded": "QQQ",
+   "within": 0.129422,
+   "target": 0.032355499999999995,
+   "held": 0.03674999999999999,
+   "status": "READY",
+   "delta": -0.004394499999999996
+  },
+  {
+   "sleeve": "B",
+   "etf": "VGK",
+   "traded": "VGK",
+   "within": 0.096247,
+   "target": 0.024061749999999996,
+   "held": 0.028424999999999995,
+   "status": "READY",
+   "delta": -0.004363249999999999
   },
   {
    "sleeve": "B",
    "etf": "EFA",
    "traded": "EFA",
-   "within": 0.112488,
-   "target": 0.028121999999999998,
-   "held": 0.029974999999999998,
+   "within": 0.104001,
+   "target": 0.026000249999999996,
+   "held": 0.029099999999999997,
    "status": "READY",
-   "delta": -0.0018530000000000005
+   "delta": -0.003099750000000002
+  },
+  {
+   "sleeve": "B",
+   "etf": "SPY",
+   "traded": "SPY",
+   "within": 0.121924,
+   "target": 0.030480999999999998,
+   "held": 0.03234999999999999,
+   "status": "READY",
+   "delta": -0.0018689999999999922
+  },
+  {
+   "sleeve": "B",
+   "etf": "EWJ",
+   "traded": "EWJ",
+   "within": 0.13113,
+   "target": 0.03278249999999999,
+   "held": 0.032299999999999995,
+   "status": "READY",
+   "delta": 0.0004824999999999968
+  },
+  {
+   "sleeve": "C",
+   "etf": "159801.SZ",
+   "traded": "159801.SZ",
+   "within": 0.2,
+   "target": 0.020000000000000004,
+   "held": 0.0,
+   "status": "READY",
+   "delta": 0.020000000000000004
+  },
+  {
+   "sleeve": "C",
+   "etf": "COPX",
+   "traded": "COPX",
+   "within": 0.0,
+   "target": 0.0,
+   "held": 0.020000000000000004,
+   "status": "READY",
+   "delta": -0.020000000000000004
   },
   {
    "sleeve": "C",
@@ -280,64 +310,34 @@
    "delta": 0.0
   },
   {
-   "sleeve": "C",
-   "etf": "COPX",
-   "traded": "COPX",
-   "within": 0.2,
-   "target": 0.020000000000000004,
-   "held": 0.020000000000000004,
-   "status": "READY",
-   "delta": 0.0
-  },
-  {
-   "sleeve": "D",
-   "etf": "EXH9",
-   "traded": "EXH9",
-   "within": 0.37037,
-   "target": 0.074074,
-   "held": 0.0,
-   "status": "HOLD",
-   "delta": 0.074074
-  },
-  {
-   "sleeve": "D",
-   "etf": "EXH3",
-   "traded": "EXH4",
-   "within": 0.333333,
-   "target": 0.0666666,
-   "held": 0.0,
-   "status": "HOLD",
-   "delta": 0.0666666
-  },
-  {
    "sleeve": "D",
    "etf": "EXH1",
    "traded": "EXH1",
-   "within": 0.0,
-   "target": 0.0,
-   "held": 0.06520000000000001,
-   "status": "HOLD",
-   "delta": -0.06520000000000001
+   "within": 0.335463,
+   "target": 0.0670926,
+   "held": 0.059860000000000003,
+   "status": "READY",
+   "delta": 0.007232599999999999
   },
   {
    "sleeve": "D",
    "etf": "EXV3",
    "traded": "EXV3",
-   "within": 0.0,
-   "target": 0.0,
-   "held": 0.06056,
-   "status": "HOLD",
-   "delta": -0.06056
+   "within": 0.313099,
+   "target": 0.0626198,
+   "held": 0.06626,
+   "status": "READY",
+   "delta": -0.003640199999999996
   },
   {
    "sleeve": "D",
    "etf": "EXV1",
    "traded": "EXV1",
-   "within": 0.296296,
-   "target": 0.059259200000000005,
-   "held": 0.07424,
-   "status": "HOLD",
-   "delta": -0.014980799999999996
+   "within": 0.351438,
+   "target": 0.07028759999999999,
+   "held": 0.07386000000000001,
+   "status": "READY",
+   "delta": -0.0035724000000000172
   },
   {
    "sleeve": "TILT",
@@ -350,5 +350,5 @@
    "delta": 0.0
   }
  ],
- "one_way_turnover": 0.22208555
+ "one_way_turnover": 0.19623172499999997
 }
