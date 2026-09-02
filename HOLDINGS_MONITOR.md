@@ -137,6 +137,7 @@ python scripts/run_holdings_monitor.py                # capture + metrics
 python scripts/check_holdings_monitor_guard.py        # the guard
 python scripts/build_holdings_monitor_page.py         # -> docs/
 python scripts/scheduled_holdings_monitor.py          # all four, soak mode
+python scripts/scheduled_holdings_monitor.py --push   # all four, armed: commit + push (the scheduled task since 2026-09-02)
 ```
 
 `data/holdings_monitor/<ETF>/<date>.json` snapshots are **immutable**. A
@@ -172,14 +173,22 @@ in the repository.
 
 ## Schedule
 
-Daily, Windows Task Scheduler, **soak mode first**. Arm with `--push` after two
-clean soak runs — the same discipline `scheduled_refresh.py` follows.
+Daily 09:00 SGT, Windows Task Scheduler ("holdings monitor daily"), **soak mode
+first**; armed with `--push` on 2026-09-02 after clean soak runs on 2026-08-22,
+08-23 and 08-27 — the same discipline `scheduled_refresh.py` follows. Soak mode
+in a shared working tree needs the operator to commit or revert the owned paths
+after every run: the snapshots the 08-27 run wrote stayed untracked, and every
+firing from 08-28 to 09-02 refused at its own preflight until they were
+committed by hand (0ea4208). Armed mode commits and pushes only the owned
+paths, so a clean run leaves nothing behind.
 
-Two `fleet_watch.json` rows, because one is not enough: the git heartbeat moves
-only when output *changes*, so a run that fires and fails writes nothing and
-looks identical to a quiet day. The sentinel at
-`logs/holdings_monitor_last_success.txt` is a liveness signal rather than a
-change signal. That gap once hid a failed Perp-Funding run for a day.
+Two `fleet_watch.json` rows, because one is not enough: the git heartbeat
+("holdings monitor output", grep `monitor: holdings capture`, 48h) moves only
+when output *changes*, so a run that fires and fails writes nothing and looks
+identical to a quiet day. The sentinel at
+`logs/holdings_monitor_last_success.txt` ("holdings monitor run liveness", 48h)
+is a liveness signal rather than a change signal. That gap once hid a failed
+Perp-Funding run for a day.
 
 ---
 
