@@ -218,15 +218,29 @@ def test_a_short_lookback_returns_none_rather_than_guessing():
 
 
 def test_targets_are_not_final_when_sessions_remain_before_the_fill(targets):
-    """The live artefact must state its own standing, not leave it inferred."""
+    """The live artefact must state its own standing, not leave it inferred.
+
+    The flag is derived from EVERY sleeve's own status and pair of dates, and
+    the test mirrors that rather than a top-level proxy. It used to assert
+    ``targets_final == (as_of == next_fill.decision_session)``, which holds
+    only when the sleeves agree: on 2026-08-30 A and D ranked on Friday while
+    B and C held on Thursday, so as_of (the LATEST sleeve) matched the fill's
+    decision session and the flag, correctly, did not -- the old assertion
+    failed on exactly the artefact the coverage guard is built to produce.
+    """
     assert "targets_final" in targets, "the artefact does not declare its standing"
     assert isinstance(targets["targets_final"], bool)
+    per_sleeve = [
+        s.get("status") == "READY"
+        and bool(s.get("decision_session")) and bool(s.get("decision_session_for_fill"))
+        and s["decision_session"] == s["decision_session_for_fill"]
+        for s in targets["sleeves"]]
+    assert targets["targets_final"] == (bool(per_sleeve) and all(per_sleeve))
+    # One direction of the old proxy survives: a FINAL book was necessarily
+    # ranked on the close the fill uses, so as_of must name that close.
     ds = targets["next_fill"].get("decision_session")
-    if ds and targets.get("as_of"):
-        # The flag must agree with the dates it is derived from, in both
-        # directions — a flag that can disagree with its own evidence is worse
-        # than none, because the card is styled off it.
-        assert targets["targets_final"] == (targets["as_of"] == ds)
+    if targets["targets_final"] and ds:
+        assert targets["as_of"] == ds
 
 
 def test_every_sleeve_names_the_close_its_fill_will_use(targets):
@@ -321,3 +335,138 @@ def test_within_weights_and_nav_weights_agree(targets):
         nav = tgt_sum[ln["sleeve"]]
         if nav > 0 and ln["sleeve"] not in {"TILT", "GATE"}:
             assert abs(ln["target"] - ln["within"] * nav) < 1e-6, ln
+
+
+# ---------------------------------------------------------------------------
+# A row that reaches the last close but arrives hollow (2026-08-30)
+#
+# _rank() verified the decision row REACHES the venue's last completed
+# session, never that it is POPULATED. On 2026-08-30 sleeve A's 2026-08-28
+# row carried 5 of its 14 names (the 27th had carried all 14) and still
+# ranked READY: top-K of whatever published put 35% of NAV into IDP6 alone
+# at 50.06% one-way turnover, and sleeve D's 3-of-5 row silently ejected
+# EXV3. The run was caught by hand and the artefact discarded. The known
+# cause sits upstream — the vendor withholds the newest non-US session —
+# but the card cannot wait on vendor fixes: a partial row is a different
+# signal, not a smaller one.
+#
+# The dates below are library-verified: 2026-08-28 is a Friday and the last
+# completed NYSE session at Sat 2026-08-29 12:00 UTC, and 17–28 Aug 2026
+# holds no NYSE holiday, so business days and sessions coincide. No date
+# arithmetic here — the guard is coverage arithmetic; the month- and
+# year-boundary cases for this file's date logic sit above.
+# ---------------------------------------------------------------------------
+import pandas as pd  # noqa: E402
+
+from scripts.live_targets import ROW_COVERAGE_FLOOR, _rank  # noqa: E402
+
+
+def _panel(populated_last: int, total: int = 14) -> pd.DataFrame:
+    """Ten sessions of breadth ending Fri 2026-08-28, fully populated except
+    the final row, which carries only the first ``populated_last`` names."""
+    idx = pd.bdate_range("2026-08-17", "2026-08-28")
+    df = pd.DataFrame({f"N{i:02d}": 0.9 - 0.05 * i for i in range(total)},
+                      index=idx)
+    df.iloc[-1, populated_last:] = float("nan")
+    return df
+
+
+def _must_not_rank(row):
+    raise AssertionError("the guard must refuse before any weight is computed")
+
+
+def _top3(row):
+    top = row.sort_values(ascending=False).head(3)
+    return top / top.sum()
+
+
+def test_a_partial_decision_row_reports_hold_and_names_the_coverage():
+    """The failure mode is silent: a 5-of-14 row ranks cleanly, top-K simply
+    selects from the five names that published. So the guard must refuse
+    BEFORE the weight function — a book ranked and then discarded is exactly
+    the artefact that gets trusted — and the reason must name the coverage,
+    because 'HOLD' alone does not tell the operator how hollow the row is."""
+    now = datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc)   # Saturday
+    r = _rank(_panel(5), _must_not_rank, "NYSE", now, "A")
+    assert r["status"] == "HOLD"
+    assert "carries 5 of 14 names" in r["reason"]
+    assert r["weights"] == {}
+    assert r["decision_session"] == "2026-08-28", (
+        "the HOLD must still name the row that failed, or the operator "
+        "cannot check it against the vendor")
+
+
+def test_a_full_decision_row_still_ranks():
+    """The guard must not become a standing hold: a fully populated row at
+    the venue's last close ranks exactly as it did before the guard."""
+    now = datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc)   # Saturday
+    r = _rank(_panel(14), _top3, "NYSE", now, "A")
+    assert r["status"] == "READY"
+    assert r["reason"] is None
+    assert r["decision_session"] == "2026-08-28"
+    assert len(r["weights"]) == 3
+    # Published weights are rounded to 6 dp in the artefact, so a three-way
+    # split sums to 1 only within that rounding.
+    assert abs(sum(r["weights"].values()) - 1.0) < 1e-5
+
+
+def test_the_default_floor_is_the_full_row():
+    """One missing name already re-ranks the sleeve on a different universe,
+    so the default floor is 1.0, not a ratio: 13 of 14 still holds. The
+    repository's other coverage floor (0.85) was calibrated while the ITWN
+    bug was depressing the measurement and proved too loose once the bug was
+    fixed (2026-08-16) — a floor tuned around a defect is no precedent."""
+    assert ROW_COVERAGE_FLOOR == 1.0
+    now = datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc)   # Saturday
+    r = _rank(_panel(13), _must_not_rank, "NYSE", now, "A")
+    assert r["status"] == "HOLD"
+    assert "carries 13 of 14 names" in r["reason"]
+
+
+# ---------------------------------------------------------------------------
+# Finality is the weakest sleeve's answer, not the latest one's (2026-09-02)
+#
+# as_of is the LATEST decision session across sleeves. On a mixed morning --
+# A and D ranked on the Friday close, B and C HOLD on Thursday because the
+# vendor withheld their Friday row (2026-08-30) -- as_of equals the fill's
+# decision session while two sleeves would trade a session-early rank. The
+# coverage guard above makes such mornings more common, not less, so the
+# contract is pinned on a pure function rather than left to whatever shape
+# the live artefact happens to have on the day the suite runs.
+# ---------------------------------------------------------------------------
+from scripts.live_targets import _targets_final  # noqa: E402
+
+
+def _sleeve(label, decided, for_fill, status="READY"):
+    return {"sleeve": label, "status": status, "decision_session": decided,
+            "decision_session_for_fill": for_fill}
+
+
+def test_final_when_every_sleeve_is_ready_on_the_close_its_fill_uses():
+    sleeves = [_sleeve(s, "2026-08-28", "2026-08-28") for s in "ABCD"]
+    assert _targets_final(sleeves) is True
+
+
+def test_not_final_when_one_sleeve_ranked_a_session_early():
+    """The 2026-08-30 shape. The LATEST sleeve matches the fill's decision
+    session -- which is exactly why an as_of-based proxy gets this wrong."""
+    sleeves = [_sleeve("A", "2026-08-28", "2026-08-28"),
+               _sleeve("B", "2026-08-27", "2026-08-28", status="HOLD"),
+               _sleeve("C", "2026-08-27", "2026-08-28", status="HOLD"),
+               _sleeve("D", "2026-08-28", "2026-08-28")]
+    assert _targets_final(sleeves) is False
+    assert max(s["decision_session"] for s in sleeves) == "2026-08-28"
+
+
+def test_a_hold_is_never_final_even_when_its_dates_agree():
+    """A hollow-row HOLD keeps its decision_session so the operator can check
+    the row against the vendor; its dates therefore match the fill's. Its
+    printed lines are still not the weights that will trade."""
+    sleeves = [_sleeve("A", "2026-08-28", "2026-08-28"),
+               _sleeve("D", "2026-08-28", "2026-08-28", status="HOLD")]
+    assert _targets_final(sleeves) is False
+
+
+def test_a_missing_decision_session_or_an_empty_book_is_never_final():
+    assert _targets_final([_sleeve("A", None, "2026-08-28")]) is False
+    assert _targets_final([]) is False

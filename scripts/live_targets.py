@@ -33,6 +33,13 @@ WHAT IT REFUSES TO DO. If a sleeve's signal does not reach the last completed
 session on its venue, it is reported HOLD rather than ranked on whatever came
 before. Ranking a session early is how EXH3/EXV3 flipped on a 1.3pp margin.
 
+And reaching is not carrying. A decision row below ROW_COVERAGE_FLOOR of its
+panel's names is HOLD too, because top-K of whatever published is a different
+signal, not a smaller one: on 2026-08-28 sleeve A's row arrived with 5 of its
+14 names and would have put 35% of NAV into one ETF at 50.06% one-way
+turnover, while sleeve D's 3-of-5 row silently ejected EXV3. Caught by hand,
+discarded by hand — this guard exists so the catching is not manual.
+
 Usage:
     python scripts/live_targets.py
     python scripts/live_targets.py --json data/live_targets.json
@@ -68,6 +75,16 @@ from session_bounds import last_completed_session_on  # noqa: E402
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 
+# A decision row must carry EVERY name in its panel before it ranks. 1.0 is
+# deliberate, not a placeholder: one missing name already re-ranks the sleeve
+# on a different universe, and the repository's other coverage floor (0.85,
+# compute_breadth's WARN level, enforced by G6) is known to be too loose --
+# it was calibrated while the ITWN coverage bug was depressing the
+# measurement, and the bug's fix (2026-08-16, coverage 89.7% -> 98.7%) left
+# it far below anything a healthy panel produces. Loosening this floor is an
+# owner decision, not a tuning knob.
+ROW_COVERAGE_FLOOR = 1.0
+
 
 def _breadth_panel(universe: list[str]) -> tuple[pd.DataFrame, list[str]]:
     """Constituent-derived breadth, on its OWN index.
@@ -92,8 +109,17 @@ def _venue(universe: list[str]) -> str:
 
 
 def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
-          label: str) -> dict:
-    """Rank on the last signal session at or before the venue's last close."""
+          label: str, coverage_floor: float = ROW_COVERAGE_FLOOR) -> dict:
+    """Rank on the last signal session at or before the venue's last close.
+
+    Refuses twice, for two different failures. A row that stops SHORT of the
+    last close would rank an earlier session (the EXH3/EXV3 flip); a row that
+    REACHES it but arrives hollow would rank top-K of whatever published (the
+    2026-08-28 5-of-14 row). Both report HOLD, and the hollow row is refused
+    BEFORE the weight function runs — a book ranked on a partial panel must
+    not exist even transiently, because the ranked artefact is exactly the
+    thing that gets trusted.
+    """
     cal = mcal.get_calendar(venue)
     lcs = last_completed_session_on(cal, now_utc)
     rows = signal.dropna(how="all")
@@ -104,8 +130,22 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
                 "decision_session": None, "last_completed_session":
                     str(lcs.date()) if lcs is not None else None, "weights": {}}
     decided = usable[-1]
+    row = signal.loc[decided]
+    # `decided` survived dropna(how="all"), so the panel has at least one
+    # column and the share below is always well defined.
+    have, total = int(row.notna().sum()), int(signal.shape[1])
+    if have < total * coverage_floor:
+        return {"sleeve": label, "venue": venue, "status": "HOLD",
+                "reason": (
+                    f"decision row carries {have} of {total} names — below "
+                    f"the {coverage_floor:.0%} coverage floor; a partial row "
+                    f"is a different signal, not a smaller one"),
+                "decision_session": str(decided.date()),
+                "last_completed_session":
+                    str(lcs.date()) if lcs is not None else None,
+                "weights": {}}
     reaches = lcs is not None and pd.Timestamp(decided) >= pd.Timestamp(lcs)
-    w = weight_fn(signal.loc[decided])
+    w = weight_fn(row)
     w = w[w > 0].sort_values(ascending=False)
     return {
         "sleeve": label,
@@ -210,10 +250,7 @@ def build(now_utc: datetime | None = None) -> dict:
         ds = decision_session_for(sl["venue"], sl["fill_date"]) if sl["fill_date"] else None
         sl["decision_session_for_fill"] = ds
         decisions[sl["venue"]] = ds
-    final = bool(sleeves) and all(
-        s.get("decision_session") and s.get("decision_session_for_fill")
-        and s["decision_session"] == s["decision_session_for_fill"]
-        for s in sleeves)
+    final = _targets_final(sleeves)
     ds_distinct = sorted({v for v in decisions.values() if v})
 
     return {"computed_at_utc": now.isoformat(), "as_of": asof,
@@ -230,6 +267,30 @@ def build(now_utc: datetime | None = None) -> dict:
             },
             "sleeves": sleeves, "lines": lines,
             "one_way_turnover": sum(abs(x["delta"]) for x in lines) / 2}
+
+
+def _targets_final(sleeves: list[dict]) -> bool:
+    """FINAL means every sleeve is READY and was ranked on the very close its
+    fill will use.
+
+    Every sleeve, not the latest. The artefact's top-level ``as_of`` is the
+    LATEST decision session across sleeves, so on a mixed morning -- A and D
+    ranked on Friday, B and C HOLD on Thursday because the vendor withheld
+    their Friday row (2026-08-30) -- ``as_of`` equals the fill's decision
+    session while two sleeves would trade a session-early rank. The card is
+    styled off this flag, so it has to be the weakest sleeve's answer.
+
+    A HOLD sleeve is never final even when its dates agree: a hollow-row HOLD
+    keeps its decision_session so the operator can check the row against the
+    vendor, but its printed lines (target 0, "leave as held") are not the
+    weights that will trade, and a PLANNED pill over a do-not-trade banner is
+    a contradiction the reader is left to resolve.
+    """
+    return bool(sleeves) and all(
+        s.get("status") == "READY"
+        and s.get("decision_session") and s.get("decision_session_for_fill")
+        and s["decision_session"] == s["decision_session_for_fill"]
+        for s in sleeves)
 
 
 def decision_session_for(venue: str, fill_date: str,
@@ -343,8 +404,11 @@ def main(argv: list[str] | None = None) -> int:
               f"{ln['delta']*100:+7.2f}%{tag}")
     print(f"\n  one-way turnover {r['one_way_turnover']*100:.2f}% of NAV")
     if holds:
-        print(f"  HOLD (signal short of the last close): {', '.join(holds)} — "
-              f"do not trade these; leave them as held.")
+        # Not "(signal short of the last close)": with the coverage floor
+        # there are two ways to HOLD, and each sleeve's own reason is already
+        # printed beside it above.
+        print(f"  HOLD: {', '.join(holds)} — do not trade these; leave them "
+              f"as held (each sleeve's reason is printed above).")
 
     Path(args.json).write_text(json.dumps(r, indent=1), encoding="utf-8")
     print(f"\n  wrote {args.json}")
