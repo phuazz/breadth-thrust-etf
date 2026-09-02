@@ -316,3 +316,29 @@ def test_a_no_change_commit_is_not_a_failure():
     commit' as an error would fail every quiet Sunday and train the operator
     to ignore the alert."""
     assert "nothing to commit" in _commit_branch()
+
+
+def test_post_fill_skips_the_panel_rebuild_and_weekend_does_not():
+    """CADENCE DECIDES SCOPE (2026-09-02).
+
+    A Monday fill ranks on the FRIDAY close, which the committed panels
+    already carry, so a post-fill run has nothing to gain from re-fetching 38
+    rosters -- and step 1 is where the entire cost and the entire vendor
+    exposure sit. On 2026-09-01 a post-fill run spent 13.3 hours inside one
+    compute_breadth once the rate limiter throttled it, held the automation
+    clone dirty across two scheduled fires, and never reached the engines it
+    existed to re-anchor. The book sat on the 2026-08-24 rebalance for two
+    days because of it.
+
+    The weekend cadence must KEEP the full run: that is the one that rebuilds
+    rosters and panels, and quietly narrowing it would freeze the breadth
+    record while every guard stayed green.
+    """
+    src = inspect.getsource(_sr.main)
+    assert '"--skip-panels"' in src, "post-fill must be able to skip step 1"
+    assert 'args.cadence == "post-fill"' in src, (
+        "the skip must be tied to the cadence, not applied unconditionally")
+    # The weekend cadence must not acquire it by accident.
+    guarded = src.split('args.cadence == "post-fill"')[1][:200]
+    assert "--skip-panels" in guarded, (
+        "--skip-panels must sit inside the post-fill branch")

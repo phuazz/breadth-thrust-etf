@@ -187,6 +187,13 @@ def main() -> int:
                          "targetSite=ishares-us, so it no longer depends on "
                          "the Akamai-blocked iShares US route and fetches "
                          "as fast as any other ETF.")
+    p.add_argument("--skip-panels", action="store_true",
+                   help="Skip steps 1 and 2 (per-ETF constituents + breadth, "
+                        "and the ma200 sweep) and start at the engine price "
+                        "caches. For a POST-FILL re-anchor, whose job is to "
+                        "move the engines onto the fill just executed, not to "
+                        "re-fetch rosters: a Monday fill ranks on the FRIDAY "
+                        "close, which the committed panels already carry.")
     p.add_argument("--no-tests", action="store_true",
                     help="Skip the final pytest run.")
     p.add_argument("--throttle", type=float, default=THROTTLE_DEFAULT_S,
@@ -204,8 +211,20 @@ def main() -> int:
     timings: list[tuple[str, float]] = []
 
     # ----- Step 1: per-ETF constituents + breadth -----
+    #
+    # SKIPPABLE for a post-fill re-anchor (2026-09-02). This step is the whole
+    # cost of the run: 38 ETFs of roster fetching and constituent pricing,
+    # and it is the step exposed to the vendor's rate limiter. On 2026-09-01 a
+    # post-fill run spent 13.3 HOURS on SOXX's compute_breadth alone once
+    # throttled, held the automation clone dirty across two scheduled fires,
+    # and never reached the engines it existed to re-anchor.
+    #
+    # A post-fill run does not need it. A Monday fill ranks on the FRIDAY
+    # close, which the committed panels already carry; what must move is the
+    # ENGINES, onto the prices of the fill just executed. Rosters are a
+    # weekend concern and the weekend cadence still does the full run.
     py = sys.executable
-    for i, etf in enumerate(ETFS_REFRESH, start=1):
+    for i, etf in enumerate([] if args.skip_panels else ETFS_REFRESH, start=1):
         # Pace the loop so the price vendor's rate limiter can refill.
         # Skipped before the first ETF, and skipped when the previous
         # compute_breadth was fast: a sub-THROTTLE_SKIP_UNDER_S step served
@@ -245,11 +264,20 @@ def main() -> int:
             failures.append(f"compute_breadth {etf}")
 
     # ----- Step 2: aggregated breadth sweep -----
-    ok, dt = run_step("run_ma200_sweep (aggregates per-ETF breadth)",
-                       [py, "scripts/run_ma200_sweep.py"])
-    timings.append(("run_ma200_sweep", dt))
-    if not ok:
-        failures.append("run_ma200_sweep")
+    # Aggregates step 1's output, so it is skipped with it: re-running it over
+    # unchanged panels would rewrite ma200_sweep.json with identical numbers
+    # and a new timestamp, which is exactly the false-freshness signal the
+    # staleness guards exist to catch.
+    if args.skip_panels:
+        print("\n--- Steps 1-2 SKIPPED (--skip-panels): panels and the "
+              "ma200 sweep are unchanged; a post-fill run re-anchors the "
+              "ENGINES onto the executed fill. ---", flush=True)
+    else:
+        ok, dt = run_step("run_ma200_sweep (aggregates per-ETF breadth)",
+                           [py, "scripts/run_ma200_sweep.py"])
+        timings.append(("run_ma200_sweep", dt))
+        if not ok:
+            failures.append("run_ma200_sweep")
 
     # ----- Step 2b: engine-facing price caches (MUST precede step 3) -----
     # Added 2026-08-15. Strategy A ran at 16:17 against a broken SOXX series

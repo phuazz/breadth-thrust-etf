@@ -346,11 +346,25 @@ def main(argv: list[str] | None = None) -> int:
 
     # ----- Refresh (the ~4.3 hour part) -----
     if not args.preflight_only:
-        log.write("\nrunning refresh_all.py (output follows)\n")
+        # CADENCE DECIDES THE SCOPE (2026-09-02). The weekend run rebuilds
+        # everything; the post-fill run re-anchors the ENGINES onto the fill
+        # just executed and skips the 38-panel rebuild.
+        #
+        # WHY. A Monday fill ranks on the FRIDAY close, which the committed
+        # panels already carry, so a post-fill run has nothing to gain from
+        # re-fetching rosters — and step 1 is where the whole cost and the
+        # whole vendor exposure sit. On 2026-09-01 a post-fill run spent 13.3
+        # hours inside SOXX's compute_breadth alone once the rate limiter
+        # throttled it, held the automation clone dirty across two scheduled
+        # fires, and never reached the engines it existed to re-anchor. The
+        # book stayed on the 2026-08-24 rebalance for two days as a result.
+        cmd = [sys.executable, "scripts/refresh_all.py"]
+        if args.cadence == "post-fill":
+            cmd.append("--skip-panels")
+        log.write(f"\nrunning {' '.join(cmd[1:])} (output follows)\n")
         log.flush()
         rc = subprocess.run(
-            [sys.executable, "scripts/refresh_all.py"],
-            cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT,
+            cmd, cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT,
         ).returncode
         if rc != 0:
             return fail(3, "refresh_all.py reported failed steps",
