@@ -1,7 +1,16 @@
-"""PROPOSAL ARTEFACT — Stage 1/2 publisher for the Norgate breadth feed.
-NOT WIRED into any pipeline, workflow, or scheduled task. Runs only when
-invoked manually (Stage 0 preview) or by the Stage-1 Task Scheduler job
-once approved. See reviews/2026-07-17_norgate-feed-migration.md.
+"""DEPLOYED publisher for the Norgate breadth feed.
+
+STATUS. Stage 2 is LIVE: the scheduled job runs it with --commit-path --push
+and it publishes data/gate_states_norgate.json to origin/main. The fleet
+row 'norgate gate-states publish' (scripts/fleet_watch.json, max_age 48h)
+watches that output. See reviews/2026-07-17_norgate-feed-migration.md.
+
+This header read "PROPOSAL ARTEFACT — NOT WIRED into any pipeline, workflow,
+or scheduled task" until 2026-09-02, long after Stage 2 went ahead. Nobody
+was misled into breaking anything, but a reader auditing what touches the
+committed data/ tree would have cleared this file on its own say-so. Prose
+goes stale exactly like a number does and is not covered by any test —
+the same failure as the WS18 execution-timing surfaces.
 
 What it does per run:
   1. Pulls #SPX%MA50 from the local NDU (full history, padding NONE).
@@ -12,14 +21,47 @@ What it does per run:
      downstream staleness cap and scrape fallback then govern).
   3. Runs the DEPLOYED hysteresis (_compute_states imported from
      run_risk_overlay, OFF 0.20 / ON 0.50) over the FULL vendor history.
-  4. Writes DERIVED GATE STATES ONLY (licence: vendor series values never
-     enter the committed repo):
+  4. Writes the DERIVED STATE SERIES plus the CURRENT BREADTH SCALAR. The
+     licence line is between a derived value and the vendor's series, not
+     between states and levels: norgate_prices.py permits published derived
+     values and names this percentage as its example, and risk_overlay.json
+     has always committed it. So `series` carries states only — committing
+     the daily levels would republish #SPX%MA50 — while current_breadth
+     carries one number, as at last_bar.
        Stage 0/1 -> data_local/gate_states_norgate.preview.json
-       Stage 2   -> data/gate_states_norgate.json   (flag --commit-path;
-                    only after approval #2)
-  5. Stage-1 divergence check: compares its current state against the
-     scrape-fed state in data/risk_overlay.json and prints/flags any
-     mismatch or a level residing in the 0.20/0.50 threshold zone.
+       Stage 2   -> data/gate_states_norgate.json   (flag --commit-path)
+  5. Divergence check: compares its current state against the scrape-fed
+     state in data/risk_overlay.json and prints/flags any mismatch or a
+     level residing in the 0.20/0.50 threshold zone.
+
+WHY THE SCALAR IS PUBLISHED (added 2026-09-02). Two reasons, the first
+being the one that matters.
+
+FEED CONSISTENCY. On the norgate-local feed the deployed pipeline takes its
+STATES from this file and its LEVEL from the CSP1 scrape (run_risk_overlay
+:714) — not because anyone chose a mixed basis, but because this file
+carried no level to take. run_risk_overlay's own NOTE anticipates the
+consequence: a level may "sit on the other side of the threshold" from the
+state. Measured 2026-09-01: scrape 0.5060 vs vendor 0.4573, a 4.87pp gap
+straddling the 0.50 re-engage threshold. Any consumer quoting a breadth
+level was therefore measuring its distance-to-threshold on a series that
+does not decide the gate. The 2026-07-17 migration review recorded exactly
+this as an open residual — 60 zone-side disagreements at 0.50, "agreement
+at a regime flip or inside the threshold zone: NOT EVIDENCED... recorded as
+a residual, not as a pass". This closes the half of it that was a plumbing
+gap; the underlying feed disagreement is a separate question.
+
+TIMELINESS. Measured against this file's own 17,492-session state history,
+reading the gate k sessions late is wrong on 1.03% of sessions at k=1,
+3.09% at k=3, 5.11% at k=5 — and the wrong days are not scattered: at k=3
+they number exactly 3 x 180 flips, so every one sits in the window straight
+after a regime change. Staleness here is harmless except precisely when the
+gate turns, which is the worst error profile a risk trigger can have.
+
+CAVEAT for anyone comparing the two files: a difference between this
+current_breadth and risk_overlay's is EXPECTED and is a feed difference,
+not a staleness one. The publisher's divergence check below compares STATES
+and a narrow zone band only, so a level gap of this size passes it silently.
 
 Run:    python scripts/publish_norgate_breadth.py [--commit-path]
 """
@@ -133,12 +175,34 @@ def main() -> int:
     out = {
         "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(
             timespec="seconds"),
-        "source": "norgate-local #SPX%MA50 (derived states only; raw "
-                  "series never committed — licence)",
+        "source": "norgate-local #SPX%MA50 (derived states plus the current "
+                  "scalar; the vendor SERIES is never committed — licence)",
         "state_machine": "run_risk_overlay._compute_states "
                          f"(off {OFF_THRESHOLD}, on {ON_THRESHOLD})",
         "last_bar": str(last_bar),
         "current_state": STATE_LABELS[float(states.iloc[-1])],
+        # The CURRENT breadth level, as at last_bar. One scalar, not a
+        # series: norgate_prices.py's licence note permits published derived
+        # values and names this very percentage as the example. What the
+        # licence forbids is committing the daily history, which would
+        # republish #SPX%MA50 wholesale — so `series` above stays states-only
+        # and this stays a single number.
+        #
+        # WHY IT IS NEEDED. risk_overlay.json also publishes a
+        # current_breadth, but on the norgate-local feed that number is NOT
+        # from this feed: run_risk_overlay takes its STATES from the file
+        # this script writes and its LEVEL from the CSP1 scrape series
+        # (run_risk_overlay.py:714), precisely because this file carried no
+        # level to take. Its own NOTE (~line 567) anticipates the result —
+        # "a flip date may therefore annotate a scrape level that sits on
+        # the other side of the threshold". That is live as at 2026-09-01:
+        # scrape 0.5060 against vendor 0.4573, a 4.87pp gap straddling the
+        # 0.50 re-engage threshold. So every consumer quoting a breadth
+        # level, including the daily research digest and its "buffer to
+        # de-risk", has been measuring distance-to-threshold on a series
+        # that does not decide the gate. Emitting the level here lets a
+        # consumer read the state and the level from ONE feed.
+        "current_breadth": float(breadth.iloc[-1]),
         "series": {
             "dates": [str(d.date()) for d in states.index],
             "state": [int(s) for s in states.values],
