@@ -1344,6 +1344,26 @@ def main() -> int:
         "live_targets": live_targets,
     }
 
+    # ----- Rewrite the prose fallback literals from the data (2026-09-02) -----
+    #
+    # The <span data-fig="..."> literals are what a reader sees with no
+    # JavaScript, and they were maintained BY HAND. Every refresh that moved a
+    # bound figure therefore failed test_figure_bindings, which failed pytest,
+    # which made refresh_all report a failed step, which made scheduled_refresh
+    # refuse to commit — so an unattended refresh could rebuild everything,
+    # pass every integrity guard, and still push nothing. That is one of the
+    # two reasons the scheduled pair last pushed on 2026-08-01.
+    #
+    # Done HERE, immediately before the template is read, so the fallback and
+    # the injected value come from one load of one dataset and cannot disagree.
+    #
+    # Every change is printed. Rewriting from data means a wrong datum now
+    # reaches the prose without anyone typing it, so the visibility a human
+    # editor used to provide has to be replaced by a loud log rather than
+    # dropped. The test still guards the result.
+    import figure_bindings  # noqa: PLC0415
+    figure_bindings.sync()
+
     template_text = TEMPLATE.read_text(encoding="utf-8")
     print(f"\nTemplate size: {len(template_text):,} bytes")
     # Guard against publishing a corrupted template that already has

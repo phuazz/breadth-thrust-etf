@@ -49,56 +49,21 @@ DATA_ROOTS = {
 }
 
 
-def _load_spec() -> dict:
-    text = TEMPLATE.read_text(encoding="utf-8")
-    i, j = text.find(SPEC_START), text.find(SPEC_END)
-    assert i != -1 and j != -1, "FIGURE_SPEC markers missing from template.html"
-    block = text[i + len(SPEC_START):j]
-    block = block.strip()
-    assert block.startswith("const FIGURE_SPEC = "), (
-        "FIGURE_SPEC block must start with `const FIGURE_SPEC = ` so this "
-        f"guard can parse it; got: {block[:60]!r}")
-    block = block[len("const FIGURE_SPEC = "):].rstrip().rstrip(";")
-    return json.loads(block)
-
-
-def _load_root() -> dict:
-    root = {}
-    for key, fname in DATA_ROOTS.items():
-        path = DATA_DIR / fname
-        if path.exists():
-            root[key] = json.loads(path.read_text(encoding="utf-8"))
-    return root
-
-
-def _lookup(root, path: str):
-    cur = root
-    for part in path.split("."):
-        if cur is None:
-            return None
-        cur = cur.get(part) if isinstance(cur, dict) else None
-    return cur
-
-
-def _fmt(v, fmt: str) -> str:
-    if v is None or (isinstance(v, float) and math.isnan(v)):
-        return "—"
-    if fmt == "sharpe":
-        return ("+" if v > 0 else "") + f"{v:.2f}"
-    if fmt == "sharpe3":
-        return ("+" if v > 0 else "") + f"{v:.3f}"
-    if fmt == "pct1s":
-        return ("+" if v > 0 else "") + f"{v * 100:.1f}%"
-    if fmt == "pct1":
-        return f"{v * 100:.1f}%"
-    if fmt == "pp1":
-        return f"{v * 100:.1f}pp"
-    if fmt == "pct0":
-        return f"{v * 100:.0f}%"
-    if fmt == "pctraw":
-        # Source value is already a percentage (pct_days_risk_off = 13.04).
-        return f"{v:.0f}%"
-    raise AssertionError(f"unknown fmt {fmt!r} — mirror it from _figFormat()")
+# ONE implementation, imported (2026-09-02). These helpers used to be
+# duplicated here, and the build had no way to reach them — which is why the
+# fallback literals were maintained by hand and why every refresh that moved a
+# figure failed this test and blocked the scheduled push. scripts/figure_bindings
+# now owns the spec parsing, resolution and formatting; the build calls its
+# sync() and this guard checks the result. A second copy could drift from the
+# page's own _figFormat(); there is no longer a second copy.
+from scripts.figure_bindings import (  # noqa: E402
+    bindings as _bindings,
+    fmt as _fmt,
+    load_root as _load_root,
+    load_spec as _load_spec,
+    lookup as _lookup,
+    resolve as _resolve,
+)
 
 
 def _unfmt(s: str, fmt: str) -> float:
