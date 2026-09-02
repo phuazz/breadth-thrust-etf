@@ -24,10 +24,13 @@ import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+import pandas as pd
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import check_refresh_guard as guard  # noqa: E402
+import compute_breadth  # noqa: E402
 
 
 def statuses(results):
@@ -547,3 +550,243 @@ def test_g4_cap_does_not_loosen_the_upper_bound():
         now_utc=datetime(2026, 8, 22, 4, 0, tzinfo=timezone.utc),
         tail_caps={"CSP1": _europe_cap("2026-08-24")})
     assert r["status"] == guard.FAIL
+
+
+# ---------------------------------------------------------------------------
+# G1/W1 price side (2026-08-30) — a row that exists is not a capture
+#
+# The failed 2026-08-30 refresh: the vendor's batch download served a
+# Friday row that EXISTED but was empty (IUFS 0 of 76 roster closes, EXH9
+# 1 of 28 — single-ticker requests returned real Friday bars the same
+# night). compute_breadth's tail cap correctly pulled the panels back to
+# Thursday, G4 honoured the declared cap, and G1/W1 — which read only the
+# roster-side stamps — printed "24 panels all end 2026-08-28" and "all 24
+# panels captured the target Friday exactly" over a book priced to
+# Thursday. check_capture_integrity --strict b,c caught the same night for
+# sleeves B/C; the refresh guard's panel side was the only blind surface.
+#
+# The checks now read the caches. Calendar facts used below were verified
+# with datetime/pandas_market_calendars on 2026-08-30, not from memory
+# (Python datetime months are 1-indexed):
+#   - 2026-08-26/27/28 are Wed/Thu/Fri, all NYSE and XETR sessions.
+#   - 2026-08-20/21 are Thu/Fri (the 2026-08-22 vendor-lag replay).
+#   - 2026-08-31 (Mon) / 2026-09-01 (Tue) span a month boundary.
+#   - 2026-12-31 (Thu) / 2027-01-04 (Mon) span a year boundary.
+# ---------------------------------------------------------------------------
+def _side(populated: str | None, index_end: str, newest: str) -> dict:
+    return {"status": "ok", "populated_end": populated,
+            "index_end": index_end, "newest_row_populated": newest}
+
+
+def test_g1_and_w1_go_red_on_the_2026_08_30_hollow_friday():
+    """THE regression this section exists for, with the incident's numbers."""
+    stamps = {"IUFS": "2026-08-28", "SOXX": "2026-08-28",
+              "EXH9": "2026-08-28"}
+    sides = {"IUFS": _side("2026-08-27", "2026-08-28", "0/76"),
+             "SOXX": _side("2026-08-27", "2026-08-28", "0/30"),
+             "EXH9": _side("2026-08-27", "2026-08-28", "1/28")}
+    expected_ends = {k: "2026-08-28" for k in sides}
+
+    g1 = guard.check_shared_end_friday(stamps, date(2026, 8, 28),
+                                       price_sides=sides)
+    w1 = guard.check_universal_walkback(dict(stamps), date(2026, 8, 28),
+                                        price_sides=sides,
+                                        expected_ends=expected_ends)
+
+    # The roster legs alone still read green — that WAS the blindness.
+    assert g1[0]["status"] == guard.OK
+    assert w1[0]["status"] == guard.OK
+    # The price legs must go red, naming the panels and the hollowness.
+    (g1_fail,) = [r for r in g1 if r["status"] == guard.FAIL]
+    assert "HOLLOW" in g1_fail["evidence"]
+    for etf in sides:
+        assert etf in g1_fail["evidence"]
+    assert "0/76" in g1_fail["evidence"]
+    (w1_fail,) = [r for r in w1 if r["status"] == guard.FAIL]
+    assert "IUFS" in w1_fail["evidence"]
+    assert "2026-08-28" in w1_fail["evidence"]
+
+
+def test_w1_short_with_a_clean_tail_warns_vendor_lag_rather_than_fails():
+    """The 2026-08-22 replay: constituents genuinely priced only to
+    Thursday, no hollow row — the cache index ENDS where its data ends.
+    That is the state the G4 tail cap legitimises, so it must stay
+    committable: WARN, not FAIL, and G1's tail leg stays green."""
+    sides = {"EXV1": _side("2026-08-20", "2026-08-20", "48/48")}
+    g1 = guard.check_shared_end_friday({"EXV1": "2026-08-21"},
+                                       date(2026, 8, 21), price_sides=sides)
+    w1 = guard.check_universal_walkback({"EXV1": "2026-08-21"},
+                                        date(2026, 8, 21),
+                                        price_sides=sides,
+                                        expected_ends={"EXV1": "2026-08-21"})
+    assert guard.FAIL not in statuses(g1)
+    assert guard.FAIL not in statuses(w1)
+    (lag,) = [r for r in w1 if r["status"] == guard.WARN]
+    assert "vendor lag" in lag["evidence"]
+    assert "EXV1" in lag["evidence"]
+
+
+def test_hollow_tail_on_a_monitored_panel_warns_but_cannot_block():
+    """The G6 split applies here too: NDIA's cache going hollow cannot move
+    a book no engine reads it into, so it warns, named, instead of
+    failing the refresh (the 2026-08-22 NDIA lesson)."""
+    sides = {"NDIA": _side("2026-08-27", "2026-08-28", "0/40"),
+             "CSP1": _side("2026-08-28", "2026-08-28", "500/503")}
+    stamps = {"NDIA": "2026-08-28", "CSP1": "2026-08-28"}
+    g1 = guard.check_shared_end_friday(stamps, date(2026, 8, 28),
+                                       price_sides=sides)
+    w1 = guard.check_universal_walkback(dict(stamps), date(2026, 8, 28),
+                                        price_sides=sides,
+                                        expected_ends={
+                                            "NDIA": "2026-08-28",
+                                            "CSP1": "2026-08-28"})
+    for results in (g1, w1):
+        assert guard.FAIL not in statuses(results)
+        assert guard.WARN in statuses(results)
+        warn = next(r for r in results if r["status"] == guard.WARN)
+        assert "NDIA" in warn["evidence"]
+        assert "CSP1" not in warn["evidence"]
+
+
+def test_price_legs_all_green_when_populated_reaches_index_and_expected():
+    sides = {"SOXX": _side("2026-08-28", "2026-08-28", "30/30"),
+             "EXH9": _side("2026-08-28", "2026-08-28", "28/28")}
+    stamps = {"SOXX": "2026-08-28", "EXH9": "2026-08-28"}
+    g1 = guard.check_shared_end_friday(stamps, date(2026, 8, 28),
+                                       price_sides=sides)
+    w1 = guard.check_universal_walkback(dict(stamps), date(2026, 8, 28),
+                                        price_sides=sides,
+                                        expected_ends={
+                                            "SOXX": "2026-08-28",
+                                            "EXH9": "2026-08-28"})
+    assert statuses(g1) == [guard.OK, guard.OK]
+    assert statuses(w1) == [guard.OK, guard.OK]
+
+
+def test_an_unreadable_price_side_warns_and_never_fails():
+    """Off the refresh machine the gitignored caches do not exist. That is
+    a fact about the machine, not about the refresh — warn, so it cannot
+    pass unnoticed, but do not fail a state nobody here can inspect."""
+    sides = {"CSP1": {"status": "missing"}}
+    g1 = guard.check_shared_end_friday({"CSP1": "2026-08-28"},
+                                       date(2026, 8, 28), price_sides=sides)
+    w1 = guard.check_universal_walkback({"CSP1": "2026-08-28"},
+                                        date(2026, 8, 28),
+                                        price_sides=sides,
+                                        expected_ends={"CSP1": "2026-08-28"})
+    assert guard.FAIL not in statuses(g1) + statuses(w1)
+    (warn,) = [r for r in g1 if r["status"] == guard.WARN]
+    assert "CSP1" in warn["evidence"] and "missing" in warn["evidence"]
+
+
+def test_legacy_two_arg_calls_emit_no_price_verdicts():
+    """Callers that pass no price side get exactly the old single verdict —
+    the price legs must be impossible to half-enable by accident."""
+    (only,) = guard.check_shared_end_friday({"CSP1": "2026-08-28"},
+                                            date(2026, 8, 28))
+    assert only["check"] == "G1 shared end_friday"
+    (only,) = guard.check_universal_walkback({"CSP1": "2026-08-28"},
+                                             date(2026, 8, 28))
+    assert only["check"] == "W1 universal walkback"
+
+
+# --- price_cache_side: the parquet-reading half, on planted caches ---------
+_TICKERS = ["AAA", "BBB", "CCC", "DDD", "EEE"]
+
+
+def _cache(tmp_path: Path, rows: dict[str, list[float]]) -> Path:
+    idx = pd.to_datetime(list(rows))
+    frame = pd.DataFrame(
+        {t: [rows[d][i] for d in rows] for i, t in enumerate(_TICKERS)},
+        index=idx)
+    path = tmp_path / "prices_cache_test.parquet"
+    frame.to_parquet(path)
+    return path
+
+
+def test_price_cache_side_flags_a_planted_hollow_trailing_row(tmp_path):
+    """Plant the 2026-08-30 state and walk it through to the G1 verdict."""
+    nan = float("nan")
+    path = _cache(tmp_path, {
+        "2026-08-26": [1.0] * 5,           # Wednesday, fully populated
+        "2026-08-27": [2.0] * 5,           # Thursday, fully populated
+        "2026-08-28": [nan] * 5,           # Friday: the row exists, empty
+    })
+    side = guard.price_cache_side(path, _TICKERS)
+    assert side == {"status": "ok", "index_end": "2026-08-28",
+                    "populated_end": "2026-08-27",
+                    "newest_row_populated": "0/5"}
+    g1 = guard.check_shared_end_friday({"SOXX": "2026-08-28"},
+                                       date(2026, 8, 28),
+                                       price_sides={"SOXX": side})
+    assert guard.FAIL in statuses(g1)
+
+
+def test_price_cache_side_partial_trailing_row_is_still_hollow(tmp_path):
+    """EXH9's 1-of-28 case: one early publisher creates the index row, the
+    floor (90% of roster, +1) is nowhere near met, the tail is hollow."""
+    nan = float("nan")
+    path = _cache(tmp_path, {
+        "2026-08-27": [2.0] * 5,
+        "2026-08-28": [3.0, 3.0, 3.0, nan, nan],   # 3/5 < need of 5
+    })
+    side = guard.price_cache_side(path, _TICKERS)
+    assert side["populated_end"] == "2026-08-27"
+    assert side["index_end"] == "2026-08-28"
+    assert side["newest_row_populated"] == "3/5"
+
+
+def test_price_cache_side_healthy_tail_reads_equal_ends(tmp_path):
+    path = _cache(tmp_path, {
+        "2026-08-27": [2.0] * 5,
+        "2026-08-28": [3.0] * 5,
+    })
+    side = guard.price_cache_side(path, _TICKERS)
+    assert side["populated_end"] == side["index_end"] == "2026-08-28"
+    assert side["newest_row_populated"] == "5/5"
+
+
+def test_price_cache_side_hollow_detection_across_a_month_boundary(tmp_path):
+    # Monday 2026-08-31 populated, Tuesday 2026-09-01 hollow.
+    nan = float("nan")
+    path = _cache(tmp_path, {
+        "2026-08-31": [4.0] * 5,
+        "2026-09-01": [nan] * 5,
+    })
+    side = guard.price_cache_side(path, _TICKERS)
+    assert side["populated_end"] == "2026-08-31"
+    assert side["index_end"] == "2026-09-01"
+
+
+def test_price_cache_side_hollow_detection_across_a_year_boundary(tmp_path):
+    # Thursday 2026-12-31 populated, Monday 2027-01-04 hollow.
+    nan = float("nan")
+    path = _cache(tmp_path, {
+        "2026-12-31": [4.0] * 5,
+        "2027-01-04": [nan] * 5,
+    })
+    side = guard.price_cache_side(path, _TICKERS)
+    assert side["populated_end"] == "2026-12-31"
+    assert side["index_end"] == "2027-01-04"
+
+
+def test_price_cache_side_missing_cache_and_empty_roster(tmp_path):
+    assert guard.price_cache_side(tmp_path / "absent.parquet",
+                                  _TICKERS) == {"status": "missing"}
+    assert guard.price_cache_side(tmp_path / "absent.parquet",
+                                  [])["status"] == "no roster"
+
+
+def test_priced_sessions_is_the_writers_own_floor():
+    """The guard must count "populated" with compute_breadth's tail-cap
+    definition, imported — not a re-derived one. Re-derivation drifted
+    twice before the cap was keyed to the WARN floor; pin the identity and
+    the floor arithmetic (max(MIN_BREADTH_NAMES, 90% of roster + 1))."""
+    assert guard.priced_sessions is compute_breadth.priced_sessions
+    roster = [f"T{i}" for i in range(10)]          # need = int(9.0) + 1 = 10
+    idx = pd.to_datetime(["2026-08-27", "2026-08-28"])
+    full = pd.DataFrame({t: [1.0, 1.0] for t in roster}, index=idx)
+    assert list(guard.priced_sessions(full, roster)) == list(idx)
+    nine = full.copy()
+    nine.loc[idx[1], "T9"] = float("nan")          # 9 of 10 misses the floor
+    assert list(guard.priced_sessions(nine, roster)) == [idx[0]]

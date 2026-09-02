@@ -506,6 +506,34 @@ def active_roster_at(snapshot_dates: list[str], snapshot_map: dict, d: str) -> l
     return list(dict.fromkeys(snapshot_map[snapshot_dates[idx]]["tickers"]))
 
 
+def priced_sessions(prices: pd.DataFrame, roster: list[str]) -> pd.DatetimeIndex:
+    """Rows of ``prices`` on which ``roster`` is actually PRICED.
+
+    A row counts only when the number of roster names carrying a close
+    clears the tightest floor any downstream consumer enforces:
+    max(MIN_BREADTH_NAMES, MIN_ROSTER_COVERAGE_WARN of the roster, +1) —
+    see the tail-cap block in main() for why it is the WARN floor.
+
+    ONE definition, used by the tail cap here AND by the refresh guard's
+    price-side checks (G1/W1). The 2026-08-30 refresh showed why sharing
+    it matters twice over: the vendor's batch download served a Friday row
+    that EXISTED but was empty (IUFS 0 of its roster non-NaN), the cap
+    correctly pulled the tail back to Thursday — and the guard, which never
+    looked at the cache, reported the Friday captured. A guard that
+    re-derived its own "populated" floor could drift from this one exactly
+    as the cap itself drifted twice before being keyed to the WARN floor.
+
+    Empty index when the roster is empty or none of it is in ``prices``.
+    """
+    held = [t for t in roster if t in prices.columns]
+    if not held:
+        return pd.DatetimeIndex([])
+    need = max(MIN_BREADTH_NAMES,
+               int(MIN_ROSTER_COVERAGE_WARN * len(roster)) + 1)
+    covered = prices[held].notna().sum(axis=1)
+    return covered.index[covered >= need]
+
+
 # ---------------------------------------------------------------------------
 # Price download with cache
 # ---------------------------------------------------------------------------
@@ -1032,60 +1060,57 @@ def main() -> int:
     tail_cap = None
     if snapshot_dates:
         roster_now = active_roster_at(snapshot_dates, snapshot_map, snapshot_dates[-1])
-        held = [t for t in roster_now if t in prices.columns]
-        if held:
-            need = max(MIN_BREADTH_NAMES,
-                       int(MIN_ROSTER_COVERAGE_WARN * len(roster_now)) + 1)
-            covered = prices[held].notna().sum(axis=1)
-            ok = covered.index[covered >= need]
-            if len(ok):
-                # FLOOR ON WHAT WAS PUBLISHED, NOT ON THE ROSTER FRIDAY.
-                #
-                # This floored on end_friday until 2026-08-22, which assumed the
-                # roster never leads the prices. On 2026-08-22 it did: the
-                # 21 August roster published while the European constituents
-                # were still priced only to the 20th. max(end_friday, ...) then
-                # PINNED the panel onto a session with zero prices, and all five
-                # deployed Europe panels plus fourteen candidates refused to
-                # write at 0.0% coverage. The cap meant to stop the tail
-                # outrunning the data was itself forcing it to.
-                #
-                # Declining to ADD an unpriced session is not the same as
-                # DELETING history, and only the second needs a floor. So the
-                # floor is the panel's own last published end: never shorter
-                # than what is already on disk, never longer than the data.
+        # priced_sessions is the ONE definition of "this row is priced" —
+        # shared with the refresh guard's G1/W1 price-side checks.
+        ok = priced_sessions(prices, roster_now)
+        if len(ok):
+            # FLOOR ON WHAT WAS PUBLISHED, NOT ON THE ROSTER FRIDAY.
+            #
+            # This floored on end_friday until 2026-08-22, which assumed the
+            # roster never leads the prices. On 2026-08-22 it did: the
+            # 21 August roster published while the European constituents
+            # were still priced only to the 20th. max(end_friday, ...) then
+            # PINNED the panel onto a session with zero prices, and all five
+            # deployed Europe panels plus fourteen candidates refused to
+            # write at 0.0% coverage. The cap meant to stop the tail
+            # outrunning the data was itself forcing it to.
+            #
+            # Declining to ADD an unpriced session is not the same as
+            # DELETING history, and only the second needs a floor. So the
+            # floor is the panel's own last published end: never shorter
+            # than what is already on disk, never longer than the data.
+            prev_end = None
+            try:
+                prev_end = pd.Timestamp(json.loads(
+                    out_path.read_text(encoding="utf-8"))["end_date"])
+            except Exception:  # noqa: BLE001 - absent or unreadable: no floor
                 prev_end = None
-                try:
-                    prev_end = pd.Timestamp(json.loads(
-                        out_path.read_text(encoding="utf-8"))["end_date"])
-                except Exception:  # noqa: BLE001 - absent or unreadable: no floor
-                    prev_end = None
-                floor = prev_end if prev_end is not None else start_friday
-                capped = max(floor, min(schedule_end, pd.Timestamp(ok.max())))
-                if capped < schedule_end:
-                    # RECORD IT IN THE PANEL, so the refresh guard honours the
-                    # bound the writer computed instead of re-deriving one from
-                    # the roster. G4's floor is the last session on or before
-                    # end_friday; when the roster leads the prices that floor is
-                    # unreachable, and G4 called five deployed panels TRUNCATED
-                    # on 2026-08-22 for ending where the data ends. One
-                    # definition, stated once, honoured downstream — the same
-                    # rule that stopped the cap and the coverage guard drifting.
-                    tail_cap = {
-                        "capped_at": str(capped.date()),
-                        "venue_last_completed": str(schedule_end.date()),
-                        "constituents_priced_to": str(pd.Timestamp(ok.max()).date()),
-                        "roster_end_friday": str(end_friday.date()),
-                    }
-                    why = ("the constituents are only priced to "
-                           f"{pd.Timestamp(ok.max()).date()}")
-                    if end_friday > capped:
-                        why += (f", while the roster already reaches "
-                                f"{end_friday.date()}")
-                    print(f"  Panel capped at {capped.date()}: the venue's last "
-                          f"completed session is {schedule_end.date()}, but "
-                          f"{why}.", flush=True)
-                schedule_end = capped
+            floor = prev_end if prev_end is not None else start_friday
+            capped = max(floor, min(schedule_end, pd.Timestamp(ok.max())))
+            if capped < schedule_end:
+                # RECORD IT IN THE PANEL, so the refresh guard honours the
+                # bound the writer computed instead of re-deriving one from
+                # the roster. G4's floor is the last session on or before
+                # end_friday; when the roster leads the prices that floor is
+                # unreachable, and G4 called five deployed panels TRUNCATED
+                # on 2026-08-22 for ending where the data ends. One
+                # definition, stated once, honoured downstream — the same
+                # rule that stopped the cap and the coverage guard drifting.
+                tail_cap = {
+                    "capped_at": str(capped.date()),
+                    "venue_last_completed": str(schedule_end.date()),
+                    "constituents_priced_to": str(pd.Timestamp(ok.max()).date()),
+                    "roster_end_friday": str(end_friday.date()),
+                }
+                why = ("the constituents are only priced to "
+                       f"{pd.Timestamp(ok.max()).date()}")
+                if end_friday > capped:
+                    why += (f", while the roster already reaches "
+                            f"{end_friday.date()}")
+                print(f"  Panel capped at {capped.date()}: the venue's last "
+                      f"completed session is {schedule_end.date()}, but "
+                      f"{why}.", flush=True)
+            schedule_end = capped
 
     schedule = cal.schedule(start_date=start_friday, end_date=schedule_end)
     trading_days = pd.DatetimeIndex(schedule.index.normalize().tz_localize(None))
