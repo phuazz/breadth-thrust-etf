@@ -250,10 +250,7 @@ def build(now_utc: datetime | None = None) -> dict:
         ds = decision_session_for(sl["venue"], sl["fill_date"]) if sl["fill_date"] else None
         sl["decision_session_for_fill"] = ds
         decisions[sl["venue"]] = ds
-    final = bool(sleeves) and all(
-        s.get("decision_session") and s.get("decision_session_for_fill")
-        and s["decision_session"] == s["decision_session_for_fill"]
-        for s in sleeves)
+    final = _targets_final(sleeves)
     ds_distinct = sorted({v for v in decisions.values() if v})
 
     return {"computed_at_utc": now.isoformat(), "as_of": asof,
@@ -270,6 +267,30 @@ def build(now_utc: datetime | None = None) -> dict:
             },
             "sleeves": sleeves, "lines": lines,
             "one_way_turnover": sum(abs(x["delta"]) for x in lines) / 2}
+
+
+def _targets_final(sleeves: list[dict]) -> bool:
+    """FINAL means every sleeve is READY and was ranked on the very close its
+    fill will use.
+
+    Every sleeve, not the latest. The artefact's top-level ``as_of`` is the
+    LATEST decision session across sleeves, so on a mixed morning -- A and D
+    ranked on Friday, B and C HOLD on Thursday because the vendor withheld
+    their Friday row (2026-08-30) -- ``as_of`` equals the fill's decision
+    session while two sleeves would trade a session-early rank. The card is
+    styled off this flag, so it has to be the weakest sleeve's answer.
+
+    A HOLD sleeve is never final even when its dates agree: a hollow-row HOLD
+    keeps its decision_session so the operator can check the row against the
+    vendor, but its printed lines (target 0, "leave as held") are not the
+    weights that will trade, and a PLANNED pill over a do-not-trade banner is
+    a contradiction the reader is left to resolve.
+    """
+    return bool(sleeves) and all(
+        s.get("status") == "READY"
+        and s.get("decision_session") and s.get("decision_session_for_fill")
+        and s["decision_session"] == s["decision_session_for_fill"]
+        for s in sleeves)
 
 
 def decision_session_for(venue: str, fill_date: str,

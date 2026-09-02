@@ -218,15 +218,29 @@ def test_a_short_lookback_returns_none_rather_than_guessing():
 
 
 def test_targets_are_not_final_when_sessions_remain_before_the_fill(targets):
-    """The live artefact must state its own standing, not leave it inferred."""
+    """The live artefact must state its own standing, not leave it inferred.
+
+    The flag is derived from EVERY sleeve's own status and pair of dates, and
+    the test mirrors that rather than a top-level proxy. It used to assert
+    ``targets_final == (as_of == next_fill.decision_session)``, which holds
+    only when the sleeves agree: on 2026-08-30 A and D ranked on Friday while
+    B and C held on Thursday, so as_of (the LATEST sleeve) matched the fill's
+    decision session and the flag, correctly, did not -- the old assertion
+    failed on exactly the artefact the coverage guard is built to produce.
+    """
     assert "targets_final" in targets, "the artefact does not declare its standing"
     assert isinstance(targets["targets_final"], bool)
+    per_sleeve = [
+        s.get("status") == "READY"
+        and bool(s.get("decision_session")) and bool(s.get("decision_session_for_fill"))
+        and s["decision_session"] == s["decision_session_for_fill"]
+        for s in targets["sleeves"]]
+    assert targets["targets_final"] == (bool(per_sleeve) and all(per_sleeve))
+    # One direction of the old proxy survives: a FINAL book was necessarily
+    # ranked on the close the fill uses, so as_of must name that close.
     ds = targets["next_fill"].get("decision_session")
-    if ds and targets.get("as_of"):
-        # The flag must agree with the dates it is derived from, in both
-        # directions — a flag that can disagree with its own evidence is worse
-        # than none, because the card is styled off it.
-        assert targets["targets_final"] == (targets["as_of"] == ds)
+    if targets["targets_final"] and ds:
+        assert targets["as_of"] == ds
 
 
 def test_every_sleeve_names_the_close_its_fill_will_use(targets):
@@ -407,3 +421,52 @@ def test_the_default_floor_is_the_full_row():
     r = _rank(_panel(13), _must_not_rank, "NYSE", now, "A")
     assert r["status"] == "HOLD"
     assert "carries 13 of 14 names" in r["reason"]
+
+
+# ---------------------------------------------------------------------------
+# Finality is the weakest sleeve's answer, not the latest one's (2026-09-02)
+#
+# as_of is the LATEST decision session across sleeves. On a mixed morning --
+# A and D ranked on the Friday close, B and C HOLD on Thursday because the
+# vendor withheld their Friday row (2026-08-30) -- as_of equals the fill's
+# decision session while two sleeves would trade a session-early rank. The
+# coverage guard above makes such mornings more common, not less, so the
+# contract is pinned on a pure function rather than left to whatever shape
+# the live artefact happens to have on the day the suite runs.
+# ---------------------------------------------------------------------------
+from scripts.live_targets import _targets_final  # noqa: E402
+
+
+def _sleeve(label, decided, for_fill, status="READY"):
+    return {"sleeve": label, "status": status, "decision_session": decided,
+            "decision_session_for_fill": for_fill}
+
+
+def test_final_when_every_sleeve_is_ready_on_the_close_its_fill_uses():
+    sleeves = [_sleeve(s, "2026-08-28", "2026-08-28") for s in "ABCD"]
+    assert _targets_final(sleeves) is True
+
+
+def test_not_final_when_one_sleeve_ranked_a_session_early():
+    """The 2026-08-30 shape. The LATEST sleeve matches the fill's decision
+    session -- which is exactly why an as_of-based proxy gets this wrong."""
+    sleeves = [_sleeve("A", "2026-08-28", "2026-08-28"),
+               _sleeve("B", "2026-08-27", "2026-08-28", status="HOLD"),
+               _sleeve("C", "2026-08-27", "2026-08-28", status="HOLD"),
+               _sleeve("D", "2026-08-28", "2026-08-28")]
+    assert _targets_final(sleeves) is False
+    assert max(s["decision_session"] for s in sleeves) == "2026-08-28"
+
+
+def test_a_hold_is_never_final_even_when_its_dates_agree():
+    """A hollow-row HOLD keeps its decision_session so the operator can check
+    the row against the vendor; its dates therefore match the fill's. Its
+    printed lines are still not the weights that will trade."""
+    sleeves = [_sleeve("A", "2026-08-28", "2026-08-28"),
+               _sleeve("D", "2026-08-28", "2026-08-28", status="HOLD")]
+    assert _targets_final(sleeves) is False
+
+
+def test_a_missing_decision_session_or_an_empty_book_is_never_final():
+    assert _targets_final([_sleeve("A", None, "2026-08-28")]) is False
+    assert _targets_final([]) is False
