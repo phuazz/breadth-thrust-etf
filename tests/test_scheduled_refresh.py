@@ -349,5 +349,36 @@ def test_post_fill_narrows_the_panel_set_but_never_skips_it():
     # ("freshness says sleeve B reaches 2026-09-01, past the newest data this
     # refresh produced"). Sleeve A ranks on the panels, so a re-anchor that
     # omits them is incoherent by construction.
-    assert "--skip-panels" not in src, (
+    # Check the CALL, not any mention: the re-exec note below quotes the old
+    # flag by name when explaining the 2026-09-02 version skew, and a bare
+    # substring ban would fail on the history rather than on the behaviour.
+    assert 'append("--skip-panels")' not in src, (
         "post-fill must NARROW the panel set, never skip it")
+
+
+def test_a_pull_that_rewrites_this_script_re_execs_once():
+    """VERSION SKEW INSIDE ONE PROCESS (2026-09-02).
+
+    The preflight pull updates the clone this script is RUNNING FROM. A commit
+    touching both this file and something it invokes therefore leaves the
+    process holding the old half: on 2026-09-02 the 09:00 run executed the
+    previous scheduled_refresh against the freshly pulled refresh_all and died
+    on "unrecognized arguments: --skip-panels", a flag renamed in the very
+    commit the pull had just applied. Neither version was wrong; they were a
+    commit apart inside one interpreter.
+
+    Re-exec rather than abort, so a run still happens on the schedule it was
+    given -- and guarded by an environment marker, because a file that keeps
+    changing must not spin.
+    """
+    src = inspect.getsource(_sr.main)
+    assert "os.execv" in src, "a self-rewriting pull must re-exec"
+    assert "BTE_SCHED_REEXEC" in src, (
+        "the re-exec must be guarded against looping")
+    # The comparison has to straddle the pull: captured before, checked after.
+    before = src.index("_self_before")
+    pull = src.index('"pull", "--rebase"')
+    exec_at = src.index("os.execv")
+    assert before < pull < exec_at, (
+        "the script's own contents must be captured BEFORE the pull and "
+        "compared AFTER it, or the skew is invisible")

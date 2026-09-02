@@ -318,9 +318,37 @@ def main(argv: list[str] | None = None) -> int:
                     "The automation clone has local changes; a human or "
                     "another process interfered. Not touching anything.\n"
                     + cp.stdout)
+    _self_before = Path(__file__).read_bytes()
     cp = _git(["pull", "--rebase", "origin", "main"], log)
     if cp.returncode != 0:
         return fail(2, "git pull --rebase failed", cp.stderr)
+
+    # RE-EXEC IF THE PULL REWROTE THIS SCRIPT (2026-09-02).
+    #
+    # The preflight pull updates the clone this script is RUNNING FROM, so a
+    # commit that touches both this file and something it calls leaves the
+    # process holding the old half. On 2026-09-02 that ran the previous
+    # scheduled_refresh against the new refresh_all and died on
+    # "unrecognized arguments: --skip-panels" — the flag had been renamed in
+    # the very commit the pull had just applied. Nothing was wrong with
+    # either version; they were simply a commit apart inside one process.
+    #
+    # Re-exec rather than abort, so a run still happens on the schedule it
+    # was given. Guarded by an environment marker so a pull that keeps
+    # changing the file cannot spin: the second pass proceeds on whatever it
+    # has, and the version skew is gone by then in every realistic case.
+    if Path(__file__).read_bytes() != _self_before:
+        if os.environ.get("BTE_SCHED_REEXEC") == "1":
+            log.write("\nthis script changed again after re-exec — "
+                      "continuing on the current version rather than "
+                      "looping\n")
+        else:
+            log.write("\nthe pull rewrote this script; re-executing so both "
+                      "halves come from the same commit\n")
+            log.flush()
+            log.close()
+            os.environ["BTE_SCHED_REEXEC"] = "1"
+            os.execv(sys.executable, [sys.executable, *sys.argv])
 
     # ----- Already done? -----
     # The scheduled task retries hourly and starts as soon as the machine is
