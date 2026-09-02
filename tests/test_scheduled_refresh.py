@@ -305,7 +305,12 @@ def test_commit_mode_stages_what_the_preflight_would_call_dirty():
     Assert the PROPERTY, not one literal string: every written path is staged.
     """
     body = _commit_branch()
-    for path in ("data/", "docs/", "build/portfolio.html"):
+    # template.html joined the list on 2026-09-02, when pipeline began
+    # rewriting its prose fallbacks from the data. It was omitted at first and
+    # reintroduced the deadlock this test exists for, within hours of the
+    # build/portfolio.html fix -- the same mistake, a fresh file. Any NEW
+    # output path must be added here and to the add lists together.
+    for path in ("data/", "docs/", "build/portfolio.html", "template.html"):
         assert f'"{path}"' in body, (
             f"{path} is written by the refresh but not staged — the preflight "
             f"will see it as dirty and the next run will refuse")
