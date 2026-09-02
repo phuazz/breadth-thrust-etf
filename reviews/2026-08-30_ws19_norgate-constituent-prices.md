@@ -467,3 +467,202 @@ different series):
 (items 2 and 4 above) AND C1 passes (item 4). Otherwise HOLD at yfinance.** The
 flip is its own restatement of the published record and takes the WS10 / WS11 /
 WS16 sign-off; nothing in this session flips it. Fable adjudicates.
+
+## 13. WS19c — results (measured Wednesday 2026-09-02; panels built 16:10–20:18 SGT, engines and checks from 20:18 SGT)
+
+Inherits, per the pre-study ledger check: 2026-07-17-breadth-thrust-etf-1 (gate
+feed), 2026-08-10-breadth-thrust-etf-1 (WS11 basis and symbol discipline),
+2026-08-13-breadth-thrust-etf-2 (WS16), and the WS19 / WS19b records filed
+today as 2026-08-30-breadth-thrust-etf-1 to -4.
+
+### Instrument, as built
+
+Worktree `C:\dev\bte-ws19c-sandbox` at `5c47248` (main after the 2026-09-02
+post-fill refresh `62292ed`), 130 parquet caches copied from the automation
+clone at 16:10 SGT, twenty minutes after that refresh's engines wrote them. The
+deployed panels were priced to 2026-08-28 for constituents (yfinance had not
+served Monday 2026-09-01 at 15:xx SGT) while the engine caches reach 2026-09-01.
+
+The 14 candidate panels, each `_ng` cache seeded from the deployed cache, built
+16:10–20:18 SGT with `--price-source auto --out-suffix _ng`, every one rc = 0.
+Four hours, not the eight minutes WS19 recorded: the `auto` path still downloads
+the whole universe from yfinance first, and the vendor's rate limiter throttled
+the 1,284-ticker IDP6 pull for most of that time — the same class of stall that
+held the 2026-09-01 post-fill run for 13 hours on SOXX.
+
+| panel | universe | taken from Norgate | kept (not a date superset) | unresolved | notes |
+|---|---:|---:|---:|---:|---|
+| SOXX | 57 | 54 | 3 | 0 | |
+| CSP1 | 725 | 686 | 21 | 18 | MNST refused by the WS15 step guard on the yfinance side (split still served unapplied), prior column kept, then Norgate |
+| CNDX | 191 | 178 | 10 | 3 | MNST as above |
+| IUES | 42 | 39 | 0 | 3 | |
+| IUFS | 103 | 99 | 3 | 1 | |
+| IUHC | 87 | 83 | 2 | 2 | |
+| IUIS | 114 | 103 | 6 | 5 | |
+| IUCS | 42 | 42 | 0 | 0 | MNST as above |
+| IUCD | 109 | 107 | 1 | 1 | |
+| IUUS | 33 | 33 | 0 | 0 | |
+| IUMS | 38 | 33 | 5 | 0 | the five WS19b/outage names (AMCR, CRH, DD, LIN, SW class) |
+| IUCM | 43 | 39 | 2 | 2 | |
+| IUSP | 179 | 164 | 5 | 10 | |
+| IDP6 | 1,284 | 1,066 | 78 | 140 | |
+| **all** | **3,047** | **2,726** | **136** | **185** | |
+
+Every candidate cache carries 2,300 rows against the deployed 2,297: Norgate
+serves sessions at the tail that yfinance had not yet served.
+
+Engines were run with yfinance made unreachable (a dead proxy on 127.0.0.1:9,
+`NO_PROXY` for the local Norgate service), so B, C, D and the A/D proxy OHLC
+fall back to the copied caches and the price vintage is pinned to the deployed
+run. Sleeve D's engine cannot run that way (its FX leg has no cache and the
+panel guard correctly refused an all-NaN USD panel), so D's control was run
+online; the Xetra 2026-09-02 partial bars were dropped by the session guard.
+
+### Reproducibility control — the instrument is valid
+
+Sandbox re-run of the deployed configuration against the committed JSONs:
+
+| sleeve | worst \|Δ statistic\| | holdings differing (dates) | verdict |
+|---|---|---|---|
+| A | 1.7e-6 | 0 of 412 | identical to 4 dp |
+| B | 0 | 0 of 967 | identical |
+| C | 0 | 0 of 213 | identical |
+| D (online) | 1.2e-6 | 0 of 412 | identical to 4 dp |
+
+Blend and overlay variants identical to 4 dp; gate feed `norgate-local`,
+20 switches, panel end 2026-09-01 on both sides.
+
+### C1 at production scale — PASS
+
+Controls fetched in the build session over the build's own windows
+(2017-07-09 → 2026-09-02): fresh Norgate for every universe, the seeded
+incumbent cache, and a fresh yfinance fetch reserved for cells neither
+explains. Relative tolerance 1e-5.
+
+| | columns |
+|---|---:|
+| wholly Norgate (N-only cells, no yfinance-family cell) | 2,691 |
+| wholly Norgate but indistinguishable from yfinance at rtol everywhere | 35 |
+| wholly on the yfinance family (incumbent) | 154 |
+| never priced (empty) | 167 |
+| **spliced** (≥1 N-only and ≥1 yfinance-only cell) | **0** |
+| **unexplained cells** | **0** |
+| **total** | **3,047** |
+
+On every one of the 14 panels the 2,691 + 35 = 2,726 Norgate columns
+reconcile exactly with the count `compute_breadth` reported as taken, and the
+yfinance-family plus empty columns with kept plus unresolved. Not one residual
+cell needed the fresh yfinance fetch: every candidate cell is either Norgate's
+or the incumbent's, which is what "whole column or nothing" means in the
+artefact rather than in the code. The 35 ambiguous columns are the stated
+limit of the test — where two sources agree to 1e-5 on every cell a splice is
+undetectable and fabricates nothing. **C1 PASSES.** The 2026-08-30 confounds
+(adjustment vintage; a 1e-6 absolute tolerance rejecting yfinance's own
+inter-call arithmetic noise) do not arise with same-session controls and a
+relative tolerance.
+
+### H3 on the panel-only route — HOLDS
+
+Engines re-run with the 14 `_ng` caches in place of the deployed ones, B, C, D
+and the proxy OHLC untouched:
+
+| | deployed (control) | candidate | Δ |
+|---|---|---|---|
+| B headline Sharpe / CAGR / max DD / 967 weekly weights | 0.7695 / 8.42% / −17.71% | identical | 0 |
+| C headline, 213 weekly weights | 0.6847 / 14.56% / −38.93% | identical | 0 |
+| D headline, 412 weekly weights | 0.9266 / 17.13% / −35.03% | identical | 0 |
+| **A** headline Sharpe | 0.9564 | 0.9143 | **−0.0422** |
+| A CAGR | 17.67% | 16.56% | −1.10pp |
+| A total return | +259.3% | +233.6% | −25.7pp |
+| A max drawdown | −31.40% | −31.47% | −0.07pp |
+| A annual turnover | 17.77 | 17.68 | −0.09 |
+| A rebalance dates with a different holding SET | | 177 of 412 | first 2018-10-15 |
+| A rebalance dates with any weight moved ≥ 5e-5 | | 412 of 412 | |
+| ungated `blend_35_35_10_20` Sharpe / CAGR / max DD | 1.2011 / 15.76% / −21.69% | 1.1804 / 15.34% / −21.72% | −0.0207 |
+| gated | 1.2609 / 15.13% / −15.19% | 1.2450 / 14.78% / −15.14% | −0.0159 |
+| **deployed gated + EEM-tilted** | **1.2557 / 15.24% / −15.07%** | **1.2401 / 14.90% / −15.04%** | **−0.0156** |
+
+B, C and D come back identical to 4 dp — to the last decimal, in fact — and
+the entire movement sits in sleeve A and the blends that carry it. **H3
+HOLDS.** The A restatement is the finding to disclose, not a criterion.
+
+Where the A move comes from, panel by panel (candidate vs deployed, shared
+sessions): the candidate prices more names in early history on every panel —
+2018 coverage SOXX 0.819 → 1.000, CSP1 0.825 → 0.981, CNDX 0.819 → 0.969,
+IUES 0.628 → 0.929, IUCM 0.538 → 0.882, IDP6 0.623 → 0.835 — and the
+`ma_breadth` differences are small in the median (0.00–2.37pp, IUCM and IUES
+the widest) with the >5pp days concentrated in the thin panels where a handful
+of extra names is a large share of the denominator (IUCM 446 days, IUES 350).
+MNST is restored: the deployed cache holds it blanked from 2026-08-07 at the
+pre-split 90.36, the candidate carries it split-adjusted to 2026-09-01 at
+44.99. This is the survivorship mechanism WS11 measured, not a level dispute
+between vendors.
+
+### The operational-switch run says nothing about B and C
+
+Under `BTE_PRICE_SOURCE=norgate` with yfinance pinned, the B and C engines took
+their cache-reuse branch, which returns before `select_columns` runs, so
+neither touched Norgate; A came out identical to the candidate. The check is
+vacuous as run and is reported as such — the only evidence on the env-var
+route moving B and C remains the 2026-08-31 outage exception.
+
+### What the "deployed basis" was on 2026-09-02, and why it matters
+
+Tracing the committed SOXX panel back through the commits that rewrote it:
+
+| commit | date | SOXX 2018 coverage | sleeve A Sharpe (blend engine) | ungated blend | deployed gated + tilted |
+|---|---|---|---|---|---|
+| 1237546 … faf9a22 | 08-15 → 08-21 | 1.000 | 0.926–0.928 | 1.155–1.164 | |
+| 3718550 … 43a21d1 | 08-22 → 08-26 | 1.000 | 0.910–0.915 | 1.182–1.188 | |
+| 670ca1c (hand run, `BTE_PRICE_SOURCE=norgate`) | 08-31 | 1.000 | 0.9196 | 1.1864 | 1.2422 |
+| **62292ed (post-fill run from the automation clone)** | **09-02** | **0.819** | **0.9623** | **1.2011** | **1.2557** |
+
+**The automation clone's gitignored caches never received the WS11 / WS16
+Norgate delisted-archive backfills.** In the main tree XLNX, MXIM, SIVB, FRC
+and TWTR carry 1,000–2,300 observations each; in the clone's caches every one
+is empty, and 2018 coverage there is 0.54–0.84 on every US panel against
+0.97–1.00 in the main tree. The 2026-09-02 run — the first panel build from
+the clone to reach origin, and it reached origin because I pushed its
+race-rejected commit by hand at 16:07 SGT — therefore published a book on the
+survivor basis: 2018 coverage fell on all fourteen panels (SOXX 1.000 → 0.819,
+IUCM 0.998 → 0.538, IUES 1.000 → 0.628, IDP6 0.835 → 0.623), sleeve A rose
+0.9196 → 0.9623, the ungated blend 1.1864 → 1.2011 and the deployed variant
+1.2422 → 1.2557. Every guard passed — refresh guard, price-panel guard, 1,752
+tests — because none of them watches coverage depth. **That is an
+unsanctioned restatement upward, and it stands on the public dashboard as
+this is written.**
+
+Two consequences for this workstream. First, the H3 comparison above is
+like-for-like (same caches, same vintage) but its baseline is the regressed
+book, so most of the −0.042 in sleeve A is the WS11 / WS16 correction being
+re-applied by Norgate's point-in-time resolution: against the last filed basis
+(670ca1c) the candidate's deployed variant sits at 1.2401 vs 1.2422, −0.002,
+on a book three sessions longer. Second, and this is the argument that was not
+available on 2026-08-30: **the `auto` path makes the delisted-name correction
+self-sustaining.** WS11 and WS16 were cache surgery, and a fresh cache silently
+undid them; with Norgate primary, any cache — the clone's survivor cache
+included — comes out on the point-in-time basis on every build.
+
+Actions taken tonight, all local: the main tree's 38 backfilled caches were
+copied into the clone (its survivor copies kept as `*.survivor-2026-09-02.bak`)
+so Saturday's armed run does not repeat this; a chip proposes a coverage-depth
+guard baselined on the 670ca1c panels; nothing was republished — reverting
+62292ed or re-running the post-fill refresh on the repaired caches is a
+publication decision and is the owner's.
+
+### Verdict and decision
+
+- **H3 HOLDS** (B, C, D identical to 4 dp; A and the blend move, disclosed).
+- **C1 PASSES** at production scale (0 spliced columns, 0 unexplained cells).
+- **Under the pre-committed rule the default flip is ADOPT-ELIGIBLE.** The
+  flip is a restatement of the published record — on today's committed basis
+  1.2557 → 1.2401 for the deployed variant, on the last filed basis a
+  round-off — and takes the WS10 / WS11 / WS16 sign-off. `--price-source`
+  still defaults to `yfinance`; nothing in this session flips it.
+- Recommendation for that sign-off: **adopt**, and take it together with the
+  decision on 62292ed, because promoting `auto` in the clone re-corrects the
+  basis on the next run by itself, whereas reverting or re-running on the
+  repaired caches corrects it once.
+
+Register records 2026-09-02-breadth-thrust-etf-3 (H3) and -4 (C1); the WS19 /
+WS19b verdicts of 2026-08-30 are filed as -1 to -4 of that date.
