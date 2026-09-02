@@ -1,0 +1,962 @@
+{
+ "schema_version": 1,
+ "adopted_at_utc": "2026-09-02T13:06:19.977110+00:00",
+ "generated_by": "scripts/check_coverage_depth.py --write-baseline --ref 670ca1c",
+ "basis": {
+  "ref": "670ca1c",
+  "commit": "670ca1ca6e3a1b31f32d6aec9a87ddbb806e59b0",
+  "committed_at": "2026-08-31 17:26:36 +0800",
+  "subject": "Weekly refresh 2026-08-28, sourced from Norgate, with a mixed-basis caveat",
+  "why": "Last filed basis. The panels at 670ca1c were built from the main tree caches, which carry the WS11 (2026-08-10) and WS16 (2026-08-13) Norgate delisted-archive backfills plus the Norgate columns the 2026-08-31 hand run (BTE_PRICE_SOURCE=norgate, so compute_breadth --price-source auto) wrote into the deployed caches: on IDP6 that run priced 1,155 of 1,284 columns against 951 on the yfinance-only basis, and later runs keep those columns because the cache merge is per cell and prior values survive wherever the download is NaN. Chosen by the owner on 2026-09-02 after the post-fill refresh 62292ed, run from the automation clone on caches that had never received the backfills, published every US panel on the survivor basis (SOXX 2018 coverage 0.9997 -> 0.8193, sleeve A Sharpe 0.9196 -> 0.9623) with every existing guard green. Record: reviews/2026-08-30_ws19_norgate-constituent-prices.md section 13."
+ },
+ "metric": "per calendar year: sum(series.n_with_price) / sum(series.n_constituents) over the panel's sessions in that year. The guard measures the current panel over this baseline's own start_date..end_date so the comparison is like for like.",
+ "scope": "US-constituent panels in refresh_all.ETFS_ALL, i.e. registry entries without apply_exchange_suffix; see check_coverage_depth.us_panels",
+ "tolerance_note": "the tolerance is COVERAGE_TOLERANCE in scripts/check_coverage_depth.py, one definition, pinned by tests; it is not stored here",
+ "panels": {
+  "SOXX": {
+   "computed_at_utc": "2026-08-31T00:30:42.751387+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 0.999731,
+     "n_with_price": 7442,
+     "n_constituents": 7444,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 1.0,
+     "n_with_price": 7560,
+     "n_constituents": 7560,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 1.0,
+     "n_with_price": 7590,
+     "n_constituents": 7590,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 0.999603,
+     "n_with_price": 7562,
+     "n_constituents": 7565,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 0.999469,
+     "n_with_price": 7526,
+     "n_constituents": 7530,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 1.0,
+     "n_with_price": 7500,
+     "n_constituents": 7500,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 1.0,
+     "n_with_price": 7560,
+     "n_constituents": 7560,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 1.0,
+     "n_with_price": 7500,
+     "n_constituents": 7500,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 0.999798,
+     "n_with_price": 4949,
+     "n_constituents": 4950,
+     "sessions": 165
+    }
+   }
+  },
+  "CSP1": {
+   "computed_at_utc": "2026-08-31T00:33:51.930778+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 0.999753,
+     "n_with_price": 125231,
+     "n_constituents": 125262,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 0.999796,
+     "n_with_price": 127257,
+     "n_constituents": 127283,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 0.999585,
+     "n_with_price": 127760,
+     "n_constituents": 127813,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 0.999874,
+     "n_with_price": 127297,
+     "n_constituents": 127313,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 0.999763,
+     "n_with_price": 126430,
+     "n_constituents": 126460,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 0.999801,
+     "n_with_price": 125750,
+     "n_constituents": 125775,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 0.999953,
+     "n_with_price": 126737,
+     "n_constituents": 126743,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 0.999849,
+     "n_with_price": 125895,
+     "n_constituents": 125914,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 0.999049,
+     "n_with_price": 82992,
+     "n_constituents": 83071,
+     "sessions": 165
+    }
+   }
+  },
+  "CNDX": {
+   "computed_at_utc": "2026-08-31T00:35:06.167090+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 1.0,
+     "n_with_price": 25587,
+     "n_constituents": 25587,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 0.999384,
+     "n_with_price": 25965,
+     "n_constituents": 25981,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 0.999808,
+     "n_with_price": 26050,
+     "n_constituents": 26055,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 0.999883,
+     "n_with_price": 25691,
+     "n_constituents": 25694,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 0.999844,
+     "n_with_price": 25565,
+     "n_constituents": 25569,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 0.99996,
+     "n_with_price": 25249,
+     "n_constituents": 25250,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 1.0,
+     "n_with_price": 25461,
+     "n_constituents": 25461,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 0.99996,
+     "n_with_price": 25249,
+     "n_constituents": 25250,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 0.999402,
+     "n_with_price": 16720,
+     "n_constituents": 16730,
+     "sessions": 165
+    }
+   }
+  },
+  "IUES": {
+   "computed_at_utc": "2026-08-31T00:35:54.626418+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 1.0,
+     "n_with_price": 7663,
+     "n_constituents": 7663,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 0.999862,
+     "n_with_price": 7238,
+     "n_constituents": 7239,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 0.997154,
+     "n_with_price": 6658,
+     "n_constituents": 6677,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 0.999466,
+     "n_with_price": 5613,
+     "n_constituents": 5616,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 1.0,
+     "n_with_price": 5389,
+     "n_constituents": 5389,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 1.0,
+     "n_with_price": 5750,
+     "n_constituents": 5750,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 1.0,
+     "n_with_price": 5625,
+     "n_constituents": 5625,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 1.0,
+     "n_with_price": 5581,
+     "n_constituents": 5581,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 0.999718,
+     "n_with_price": 3551,
+     "n_constituents": 3552,
+     "sessions": 165
+    }
+   }
+  },
+  "IUFS": {
+   "computed_at_utc": "2026-08-31T00:36:57.152871+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 0.999881,
+     "n_with_price": 16784,
+     "n_constituents": 16786,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 0.999765,
+     "n_with_price": 17004,
+     "n_constituents": 17008,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 0.9997,
+     "n_with_price": 16635,
+     "n_constituents": 16640,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 1.0,
+     "n_with_price": 16410,
+     "n_constituents": 16410,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 0.99976,
+     "n_with_price": 16668,
+     "n_constituents": 16672,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 0.998595,
+     "n_with_price": 17774,
+     "n_constituents": 17799,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 1.0,
+     "n_with_price": 18021,
+     "n_constituents": 18021,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 0.999783,
+     "n_with_price": 18461,
+     "n_constituents": 18465,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 0.99992,
+     "n_with_price": 12543,
+     "n_constituents": 12544,
+     "sessions": 165
+    }
+   }
+  },
+  "IUIT": {
+   "computed_at_utc": "2026-08-31T00:38:03.864465+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 0.99965,
+     "n_with_price": 17122,
+     "n_constituents": 17128,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 0.999708,
+     "n_with_price": 17144,
+     "n_constituents": 17149,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 1.0,
+     "n_with_price": 18074,
+     "n_constituents": 18074,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 0.999947,
+     "n_with_price": 18790,
+     "n_constituents": 18791,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 0.999526,
+     "n_with_price": 18970,
+     "n_constituents": 18979,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 1.0,
+     "n_with_price": 16747,
+     "n_constituents": 16747,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 1.0,
+     "n_with_price": 16739,
+     "n_constituents": 16739,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 0.999825,
+     "n_with_price": 17187,
+     "n_constituents": 17190,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 1.0,
+     "n_with_price": 11933,
+     "n_constituents": 11933,
+     "sessions": 165
+    }
+   }
+  },
+  "IUHC": {
+   "computed_at_utc": "2026-08-31T00:39:03.591804+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 0.99987,
+     "n_with_price": 15433,
+     "n_constituents": 15435,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 0.999936,
+     "n_with_price": 15536,
+     "n_constituents": 15537,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 1.0,
+     "n_with_price": 15554,
+     "n_constituents": 15554,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 0.999813,
+     "n_with_price": 16014,
+     "n_constituents": 16017,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 0.999814,
+     "n_with_price": 16129,
+     "n_constituents": 16132,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 1.0,
+     "n_with_price": 16147,
+     "n_constituents": 16147,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 0.999874,
+     "n_with_price": 15914,
+     "n_constituents": 15916,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 1.0,
+     "n_with_price": 15053,
+     "n_constituents": 15053,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 0.994601,
+     "n_with_price": 9764,
+     "n_constituents": 9817,
+     "sessions": 165
+    }
+   }
+  },
+  "IUIS": {
+   "computed_at_utc": "2026-08-31T00:40:07.206336+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 0.99977,
+     "n_with_price": 17375,
+     "n_constituents": 17379,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 0.999828,
+     "n_with_price": 17445,
+     "n_constituents": 17448,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 0.999726,
+     "n_with_price": 18263,
+     "n_constituents": 18268,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 0.999838,
+     "n_with_price": 18515,
+     "n_constituents": 18518,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 0.999665,
+     "n_with_price": 17920,
+     "n_constituents": 17926,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 1.0,
+     "n_with_price": 18584,
+     "n_constituents": 18584,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 1.0,
+     "n_with_price": 19699,
+     "n_constituents": 19699,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 1.0,
+     "n_with_price": 19603,
+     "n_constituents": 19603,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 0.999545,
+     "n_with_price": 13189,
+     "n_constituents": 13195,
+     "sessions": 165
+    }
+   }
+  },
+  "IUCS": {
+   "computed_at_utc": "2026-08-31T00:40:56.976408+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 1.0,
+     "n_with_price": 8159,
+     "n_constituents": 8159,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 1.0,
+     "n_with_price": 8316,
+     "n_constituents": 8316,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 1.0,
+     "n_with_price": 8276,
+     "n_constituents": 8276,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 1.0,
+     "n_with_price": 8064,
+     "n_constituents": 8064,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 1.0,
+     "n_with_price": 8168,
+     "n_constituents": 8168,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 1.0,
+     "n_with_price": 9134,
+     "n_constituents": 9134,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 1.0,
+     "n_with_price": 9576,
+     "n_constituents": 9576,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 0.999787,
+     "n_with_price": 9399,
+     "n_constituents": 9401,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 1.0,
+     "n_with_price": 5837,
+     "n_constituents": 5837,
+     "sessions": 165
+    }
+   }
+  },
+  "IUCD": {
+   "computed_at_utc": "2026-08-31T00:41:55.670562+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 0.999843,
+     "n_with_price": 19115,
+     "n_constituents": 19118,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 1.0,
+     "n_with_price": 16055,
+     "n_constituents": 16055,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 1.0,
+     "n_with_price": 15725,
+     "n_constituents": 15725,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 0.999937,
+     "n_with_price": 15789,
+     "n_constituents": 15790,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 1.0,
+     "n_with_price": 14663,
+     "n_constituents": 14663,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 1.0,
+     "n_with_price": 13374,
+     "n_constituents": 13374,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 1.0,
+     "n_with_price": 13037,
+     "n_constituents": 13037,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 0.999206,
+     "n_with_price": 12580,
+     "n_constituents": 12590,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 1.0,
+     "n_with_price": 7875,
+     "n_constituents": 7875,
+     "sessions": 165
+    }
+   }
+  },
+  "IUUS": {
+   "computed_at_utc": "2026-08-31T00:42:42.920759+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 1.0,
+     "n_with_price": 7086,
+     "n_constituents": 7086,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 0.999716,
+     "n_with_price": 7037,
+     "n_constituents": 7039,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 1.0,
+     "n_with_price": 7084,
+     "n_constituents": 7084,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 1.0,
+     "n_with_price": 7060,
+     "n_constituents": 7060,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 1.0,
+     "n_with_price": 7320,
+     "n_constituents": 7320,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 1.0,
+     "n_with_price": 7500,
+     "n_constituents": 7500,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 1.0,
+     "n_with_price": 7722,
+     "n_constituents": 7722,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 1.0,
+     "n_with_price": 7750,
+     "n_constituents": 7750,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 1.0,
+     "n_with_price": 5115,
+     "n_constituents": 5115,
+     "sessions": 165
+    }
+   }
+  },
+  "IUMS": {
+   "computed_at_utc": "2026-08-31T00:43:30.947216+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-27",
+   "n_trading_days": 2172,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 0.999505,
+     "n_with_price": 6061,
+     "n_constituents": 6064,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 0.999557,
+     "n_with_price": 6772,
+     "n_constituents": 6775,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 1.0,
+     "n_with_price": 7084,
+     "n_constituents": 7084,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 1.0,
+     "n_with_price": 7061,
+     "n_constituents": 7061,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 1.0,
+     "n_with_price": 7033,
+     "n_constituents": 7033,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 1.0,
+     "n_with_price": 7240,
+     "n_constituents": 7240,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 0.999433,
+     "n_with_price": 7052,
+     "n_constituents": 7056,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 1.0,
+     "n_with_price": 6611,
+     "n_constituents": 6611,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 1.0,
+     "n_with_price": 4244,
+     "n_constituents": 4244,
+     "sessions": 164
+    }
+   }
+  },
+  "IUCM": {
+   "computed_at_utc": "2026-08-31T00:44:22.854405+00:00",
+   "start_date": "2018-09-21",
+   "end_date": "2026-08-28",
+   "n_trading_days": 1994,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 0.99777,
+     "n_with_price": 1790,
+     "n_constituents": 1794,
+     "sessions": 69
+    },
+    "2019": {
+     "coverage": 0.998949,
+     "n_with_price": 6653,
+     "n_constituents": 6660,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 0.996365,
+     "n_with_price": 6578,
+     "n_constituents": 6602,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 1.0,
+     "n_with_price": 6626,
+     "n_constituents": 6626,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 0.99939,
+     "n_with_price": 6550,
+     "n_constituents": 6554,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 1.0,
+     "n_with_price": 5861,
+     "n_constituents": 5861,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 1.0,
+     "n_with_price": 5544,
+     "n_constituents": 5544,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 1.0,
+     "n_with_price": 5790,
+     "n_constituents": 5790,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 0.996584,
+     "n_with_price": 3793,
+     "n_constituents": 3806,
+     "sessions": 165
+    }
+   }
+  },
+  "IUSP": {
+   "computed_at_utc": "2026-08-31T00:45:36.262617+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 0.991242,
+     "n_with_price": 29994,
+     "n_constituents": 30259,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 0.998135,
+     "n_with_price": 29970,
+     "n_constituents": 30026,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 0.999794,
+     "n_with_price": 29183,
+     "n_constituents": 29189,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 0.999527,
+     "n_with_price": 27445,
+     "n_constituents": 27458,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 0.990027,
+     "n_with_price": 23329,
+     "n_constituents": 23564,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 0.996456,
+     "n_with_price": 25024,
+     "n_constituents": 25113,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 0.999877,
+     "n_with_price": 24446,
+     "n_constituents": 24449,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 0.999958,
+     "n_with_price": 23865,
+     "n_constituents": 23866,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 0.999258,
+     "n_with_price": 14823,
+     "n_constituents": 14834,
+     "sessions": 165
+    }
+   }
+  },
+  "IDP6": {
+   "computed_at_utc": "2026-08-31T01:01:42.104402+00:00",
+   "start_date": "2018-01-05",
+   "end_date": "2026-08-28",
+   "n_trading_days": 2173,
+   "trading_calendar": "NYSE",
+   "years": {
+    "2018": {
+     "coverage": 0.834866,
+     "n_with_price": 124203,
+     "n_constituents": 148770,
+     "sessions": 248
+    },
+    "2019": {
+     "coverage": 0.837023,
+     "n_with_price": 126475,
+     "n_constituents": 151101,
+     "sessions": 252
+    },
+    "2020": {
+     "coverage": 0.863333,
+     "n_with_price": 131098,
+     "n_constituents": 151851,
+     "sessions": 253
+    },
+    "2021": {
+     "coverage": 0.883304,
+     "n_with_price": 133477,
+     "n_constituents": 151111,
+     "sessions": 252
+    },
+    "2022": {
+     "coverage": 0.893249,
+     "n_with_price": 134442,
+     "n_constituents": 150509,
+     "sessions": 251
+    },
+    "2023": {
+     "coverage": 0.921184,
+     "n_with_price": 138185,
+     "n_constituents": 150008,
+     "sessions": 250
+    },
+    "2024": {
+     "coverage": 0.944433,
+     "n_with_price": 143244,
+     "n_constituents": 151672,
+     "sessions": 252
+    },
+    "2025": {
+     "coverage": 0.965212,
+     "n_with_price": 145304,
+     "n_constituents": 150541,
+     "sessions": 250
+    },
+    "2026": {
+     "coverage": 0.987241,
+     "n_with_price": 98190,
+     "n_constituents": 99459,
+     "sessions": 165
+    }
+   }
+  }
+ }
+}

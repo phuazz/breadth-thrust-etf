@@ -44,17 +44,22 @@ Runs the complete dependency chain in the right order:
     6. Live / dashboard: mark_to_market_live, export_holdings_prices,
        pipeline (builds docs/index.html + factsheet PDF)
 
-    7. Verification (guard layer, 2026-08-08): the four integrity checks
-       run against the state steps 1-6 just wrote, BEFORE the operator
-       commits — so a silently-wrong step is caught while the previous
-       committed state is still intact. check_capture_integrity (strict
-       b,c — matching the weekly factsheet CI semantics, because the
-       push this refresh produces IS the factsheet trigger),
-       check_pair_integrity, check_refresh_guard (cross-panel coherence
-       vs the committed baseline), then check_freshness_headroom
-       (informational; exits 0 by design). The first three fail the run;
-       a failed run prints in the summary and the operator must not
-       commit/push the refreshed state. Then pytest last.
+    7. Verification (guard layer, 2026-08-08; widened 2026-08-15 and
+       2026-09-02): the integrity checks run against the state steps 1-6
+       just wrote, BEFORE the operator commits — so a silently-wrong step
+       is caught while the previous committed state is still intact.
+       check_capture_integrity (strict b,c — matching the weekly
+       factsheet CI semantics, because the push this refresh produces IS
+       the factsheet trigger), check_pair_integrity, check_refresh_guard
+       (cross-panel coherence vs the committed baseline),
+       check_engine_price_panels (each sleeve priced off a series that
+       can support a backtest), check_coverage_depth (every US panel
+       still carries the delisted-name history of the filed basis, and
+       this tree's caches still carry the backfills), then
+       check_freshness_headroom (informational; exits 0 by design). All
+       but the last fail the run; a failed run prints in the summary and
+       the operator must not commit/push the refreshed state. Then
+       pytest last.
 
 This is the script the user should run weekly (typically Saturday morning,
 to catch the Friday close). The CI weekly_factsheet workflow runs a
@@ -431,6 +436,21 @@ def main() -> int:
     #     series an engine actually priced its universe off exists across
     #     the window it backtested, and it reads the tell directly — a
     #     large days_held beside an annualised return of exactly 0.0.
+    #   - coverage depth: FAIL fails the run. Added 2026-09-02, when the
+    #     five checks above passed a post-fill run from the automation
+    #     clone whose caches had never received the WS11 / WS16 Norgate
+    #     delisted-archive backfills. All fifteen US panels were rebuilt on
+    #     the survivor basis (SOXX 2018 coverage 0.9997 -> 0.8193, IUCM
+    #     0.9978 -> 0.5385), sleeve A's Sharpe rose 0.9196 -> 0.9623 and
+    #     the blend 1.1864 -> 1.2011, and the result was published at
+    #     62292ed. The checks above watch the TAIL -- newest bars, roster
+    #     coverage on the last row, cross-panel agreement -- where a
+    #     delisted name is not in the roster and cannot be missed. This one
+    #     compares each US panel's per-year coverage with the committed
+    #     baseline of the filed basis (data/coverage_baseline.json, written
+    #     by hand from 670ca1c) and confirms the named delisted probes still
+    #     carry prices in this tree's caches. Re-baselining is a sign-off
+    #     act and is never done here.
     #   - freshness headroom: informational tripwire, exits 0 by design
     #     (it forecasts the CI hard guard; right after a refresh it
     #     should report lag 0-1). Recorded for timing only.
@@ -444,6 +464,8 @@ def main() -> int:
             [py, "scripts/check_refresh_guard.py"]),
         ("VERIFY engine price panels (sleeve vs the prices it backtested on)",
             [py, "scripts/check_engine_price_panels.py"]),
+        ("VERIFY coverage depth (US panels vs the filed basis; delisted probes)",
+            [py, "scripts/check_coverage_depth.py"]),
         ("VERIFY freshness headroom (informational)",
             [py, "scripts/check_freshness_headroom.py"]),
     ]

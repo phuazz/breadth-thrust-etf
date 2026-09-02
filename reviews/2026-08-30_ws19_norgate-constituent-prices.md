@@ -647,8 +647,15 @@ included — comes out on the point-in-time basis on every build.
 Actions taken tonight, all local: the main tree's 38 backfilled caches were
 copied into the clone (its survivor copies kept in the clone's gitignored
 `data_local/survivor-caches-2026-09-02/`, out of the tree its clean-tree
-preflight inspects) so Saturday's armed run does not repeat this; a chip proposes a coverage-depth
-guard baselined on the 670ca1c panels; nothing was republished — reverting
+preflight inspects) so Saturday's armed run does not repeat this; the
+coverage-depth guard baselined on the 670ca1c panels shipped the same evening
+as `scripts/check_coverage_depth.py` (sixth VERIFY step in `refresh_all.py`;
+`data/coverage_baseline.json` carries the basis provenance;
+`tests/test_check_coverage_depth.py`; policy in `DATA_INTEGRITY_POLICY.md`
+§5e), fails any of the fifteen US panels more than 0.01 below the filed
+per-year coverage and any cache whose named delisted probes are empty, and
+has its first live run on the weekend refresh of 2026-09-05; nothing was
+republished — reverting
 62292ed or re-running the post-fill refresh on the repaired caches is a
 publication decision and is the owner's.
 
