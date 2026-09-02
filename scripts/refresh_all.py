@@ -269,11 +269,11 @@ def main() -> int:
             time.sleep(args.throttle)
 
         if etf == "SOXX" and args.skip_soxx_fetch:
-            print(f"\n[{i}/{len(ETFS_REFRESH)}] {etf}: SKIPPED (--skip-soxx-fetch)",
+            print(f"\n[{i}/{len(_panels)}] {etf}: SKIPPED (--skip-soxx-fetch)",
                   flush=True)
         else:
             ok, dt = run_step(
-                f"[{i}/{len(ETFS_REFRESH)}] {etf} fetch_constituents",
+                f"[{i}/{len(_panels)}] {etf} fetch_constituents",
                 [py, "scripts/fetch_constituents.py", "--etf", etf],
             )
             timings.append((f"fetch_constituents {etf}", dt))
@@ -289,7 +289,7 @@ def main() -> int:
         if os.environ.get("BTE_PRICE_SOURCE", "").strip().lower() == "norgate":
             _bcmd += ["--price-source", "auto"]
         ok, dt = run_step(
-            f"[{i}/{len(ETFS_REFRESH)}] {etf} compute_breadth",
+            f"[{i}/{len(_panels)}] {etf} compute_breadth",
             _bcmd,
         )
         timings.append((f"compute_breadth {etf}", dt))
