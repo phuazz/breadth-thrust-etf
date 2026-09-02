@@ -425,8 +425,12 @@ def load_baseline(path: Path = BASELINE_PATH) -> dict:
 
 
 def write_baseline(doc: dict, path: Path = BASELINE_PATH) -> None:
+    """LF line endings on every platform, so a baseline regenerated on
+    Windows is byte-identical to the committed one rather than a CRLF copy
+    git has to normalise."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8",
+                    newline="\n")
 
 
 # ---------------------------------------------------------------------------
