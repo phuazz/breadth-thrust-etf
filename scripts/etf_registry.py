@@ -924,3 +924,147 @@ UNIVERSE_COUNTRIES: list[str] = [
 
 # Merged variant: UNIVERSE_ETFS + Europe sectors + Countries = 23 ETFs
 UNIVERSE_GLOBAL: list[str] = UNIVERSE_ETFS + UNIVERSE_EUROPE_SECTORS + UNIVERSE_COUNTRIES
+
+
+# =========================================================================
+# STAGED roster changes — verified, recorded, NOT applied (2026-09-02)
+# =========================================================================
+# Why a staging area exists at all. A registry change to `ticker_overrides`
+# or to the exclusion list rewrites every historical roster the next time
+# fetch_constituents re-parses the cached iShares files, which it does on
+# every refresh. The weekend refresh task is ARMED (`--push`), so a live
+# change committed on a Wednesday rebuilds the five sleeve D panels on
+# Saturday, re-runs the D engine, moves the published blend and pushes it —
+# a restatement of the published record with no sign-off. WS10, WS11 and
+# WS16 were each restatements taken deliberately; this must not become one
+# taken by a scheduled task.
+#
+# So a change lands here first. It is inert unless the environment variable
+# named below is set to "1", which only a measurement run sets. PROMOTION —
+# moving an entry from here into the live `ticker_overrides` / `exclude_symbols`
+# keys of the ETF entry above — is the sign-off act, and the restatement it
+# causes is filed like the others.
+#
+# Every mapping below carries a three-source verification in
+# reviews/2026-09-02_sleeve-d-alias-overrides.md: the iShares roster's own
+# continuity across the switch week (name and fund weight), yfinance metadata
+# and back-history for the new symbol, and OpenFIGI's security name. A line
+# whose roster label is an entitlement — RIGHTS, PAID, BTA, TR, REDEMPTION,
+# SUBSCRIPTION, COUPON RIGHT, tendered ("Z VERK"), redeemable prefs — is
+# EXCLUDED rather than mapped: pricing a right at its ordinary share's close
+# double-counts a name already in the roster.
+#
+# Keys are the RAW iShares ticker as printed in the CSV / JSON (the form
+# `ticker_overrides` uses), values the yfinance symbol. `exclude_symbols`
+# lists RESOLVED yfinance symbols, which is what the parsers produce and what
+# the filed classification names.
+STAGED_ROSTER_ENV = "BTE_APPLY_STAGED_ROSTER"
+
+STAGED_ROSTER_CHANGES: dict[str, dict] = {
+    # Verified 2026-09-02 (S1 roster continuity / S2 yfinance / S3 OpenFIGI,
+    # per name in reviews/2026-09-02_sleeve-d-alias-overrides.md §2).
+    # Every override target below carries back-history through the old
+    # line's whole roster window on yfinance. Four of the 2026-08-01
+    # hypotheses were wrong symbols and are corrected here: Loomis trades as
+    # LOOMIS (not LOOM) since 2020-06-23, Georg Fischer as GF (not FI-N)
+    # since its 1:20 split of 2022-04-28, and RMG->IDS.L / CNHI.MI->CNH are
+    # verified identities that recover nothing usable (successor delisted;
+    # USD line only) and are deliberately NOT staged.
+    "EXH1": {
+        "ticker_overrides": {
+            "FP": "TTE.PA",         # TotalEnergies rename, roster switch 2021-05-28 -> 06-04
+            "STL": "EQNR.OL",       # Equinor rename, 2018-05-11 -> 05-18
+            "AKERBP": "AKRBP.OL",   # Aker BP ticker change, 2020-11-20 -> 11-27
+            "RDSA": "SHELL.AS",     # Shell plc simplification, same-week switch 2022-01-28
+            "SSO": "SCATC.OL",      # Scatec rename, 2020-12-31 -> 2021-01-08
+        },
+        "exclude_symbols": [
+            "1625306D.PA", "1655454D.PA",   # TOTAL SA COUPON (entitlement placeholders)
+        ],
+    },
+    "EXH3": {
+        "ticker_overrides": {
+            "DPW": "DHL.DE",        # DHL Group rename, 2023-06-30 -> 07-07
+            "MOCORP": "METSO.HE",   # Metso Outotec -> Metso, 2023-04-28 -> 05
+            "AND": "ANDR.VI",       # Andritz ticker change, 2018-11-02 -> 11-09
+            "VOLVB": "VOLV-B.ST",   # vendor ticker variant, 26 weeks 2018-05..11
+            "ECM": "RS1.L",         # RS Group rename, 2022-04-29 -> 05-06
+            "CGCBV": "HIAB.HE",     # Cargotec -> Hiab, 2025-03-28 -> 04-04
+            "LOOM B": "LOOMIS.ST",  # Loomis ticker change 2020-06-23 (Nasdaq notice)
+            "FI.N": "GF.SW",        # Georg Fischer 1:20 split + ticker 2022-04-28
+        },
+        "exclude_symbols": [
+            # entitlement lines by roster name
+            "ALODS.PA", "ATCO-IL-A.ST", "BEIJ-BTA-B.ST", "BEIJ-TR-B.ST", "PRYAXA",
+            "PRYAXA.MI", "RRN.L", "SAAB-TR-B.ST", "SAABBTAB.ST", "SECU-BTA-B.ST",
+            "SECU-TR-B.ST", "SMDF.L", "SMDN.L",
+            # 2026-08-01 alias hypotheses rejected: rights / prefs with the
+            # ordinary present in the same week, weight 0.00
+            "KGXA.DE", "ROLLS.L",
+            # entitlement placeholders (Bloomberg D-codes carrying a rights name)
+            "1625053D.PA", "1651620D.PA", "1721859D.PA", "1888016D",
+            "2157464D.ST", "2412835D.SW",
+        ],
+    },
+    "EXH9": {
+        "ticker_overrides": {
+            "GAS": "NTGY.MC",       # Naturgy rename, 2018-06-29 -> 07-06
+            "REE": "RED.MC",        # Redeia rename, 2022-06-10 -> 06-17
+        },
+        "exclude_symbols": [
+            "DIEDR.LS", "DIEDS.LS", "DIEDT.LS", "DIEDU.LS", "EDFDS.PA", "EDPS1.LS",
+            "ELI20.BR", "ELI24.BR", "IGAA.MI", "NGPF.L", "NGPN.L", "ORSTED-T.CO",
+            "PNNF.L", "PNNN.L", "VIEDS.PA",
+            "IGYB.DE",              # innogy tendered line ("Z VERK"), IGY.DE present 8/8 weeks
+        ],
+    },
+    "EXV1": {
+        "ticker_overrides": {
+            "NDA": "NDA-SE.ST",     # Nordea Stockholm line, vendor ticker variant (19 weeks)
+            "NDA SEK": "NDA-SE.ST", # Nordea pre-redomiciliation SEK line, 2018-09-28 -> 10-05
+            "SHBA": "SHB-A.ST",     # Handelsbanken A, one-week vendor variant 2019-11-29
+            "BAAKOMB": "KOMB.PR",   # Komercni banka Prague code, 38 weeks 2018
+        },
+        "exclude_symbols": [
+            "DNBH.OL",              # DNB holding line, weight 0.00, DNB.OL present 1/1
+            "UCGIM.MI",             # UniCredit duplicate line, weight 0.00, UCG.MI present 4/4
+            "NDASS.ST",             # Nordea Abp line at redomiciliation week, weight 0.00
+        ],
+    },
+    "EXV3": {
+        "ticker_overrides": {
+            "STM": "STMMI.MI",      # yfinance symbol for Milan STMicro, 2023-03-10 -> 03-17
+        },
+        "exclude_symbols": [
+            "ALTDS.PA", "AMS1.SW", "AMS2.SW", "AVVN.L", "RECI-B.DE",
+            "BESIT.AS",             # one-week duplicate at weight 0.00, BESI.AS present
+            "G24B.DE", "G24B.HM",   # Scout24 rights lines, G24.DE present
+        ],
+    },
+}
+
+
+def roster_rules(cfg: dict) -> dict:
+    """The override map and exclusion set a roster parse should apply.
+
+    Live keys always apply. Staged entries for this ETF are merged in ONLY
+    when ``STAGED_ROSTER_ENV`` is "1"; a live override wins any collision so a
+    staged entry can never silently redefine a deployed mapping. The returned
+    ``staged_applied`` flag is written into the constituents JSON so a roster
+    built with staged rules is distinguishable from a deployed one.
+    """
+    import os
+
+    overrides = dict(cfg.get("ticker_overrides") or {})
+    exclude = set(cfg.get("exclude_symbols") or ())
+    staged_applied = False
+    if os.environ.get(STAGED_ROSTER_ENV, "").strip() == "1":
+        staged = STAGED_ROSTER_CHANGES.get(cfg.get("symbol", ""), {})
+        if staged:
+            for raw, sym in (staged.get("ticker_overrides") or {}).items():
+                overrides.setdefault(raw, sym)
+            exclude |= set(staged.get("exclude_symbols") or ())
+            staged_applied = True
+    return {"ticker_overrides": overrides,
+            "exclude_symbols": frozenset(exclude),
+            "staged_applied": staged_applied}

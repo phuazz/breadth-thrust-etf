@@ -22,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from etf_registry import get_etf  # noqa: E402
+from etf_registry import get_etf, roster_rules  # noqa: E402
 from fetch_constituents import (  # noqa: E402
     RAW_DIR,
     parse_holdings,
@@ -42,7 +42,11 @@ def regenerate(etf: str) -> dict:
     """Reparse cached CSVs for one ETF; return summary dict."""
     cfg = get_etf(etf)
     symbol = cfg["symbol"]
-    overrides = cfg.get("ticker_overrides", {})
+    # Same rules the fetch layer applies, including STAGED changes when
+    # BTE_APPLY_STAGED_ROSTER=1 (etf_registry.roster_rules, 2026-09-02).
+    rules = roster_rules(cfg)
+    overrides = rules["ticker_overrides"]
+    excluded = rules["exclude_symbols"]
     apply_suffix = cfg.get("apply_exchange_suffix", False)
 
     json_path = DATA_DIR / f"constituents_{etf.lower()}.json"
@@ -74,7 +78,8 @@ def regenerate(etf: str) -> dict:
             body = csv_path.read_text(encoding="utf-8", errors="replace")
             new_tickers = parse_holdings(body, ticker_overrides=overrides,
                                          apply_exchange_suffix=apply_suffix,
-                                         symbol=symbol, strict_exchanges=False)
+                                         symbol=symbol, strict_exchanges=False,
+                                         exclude_symbols=excluded)
             n_csv += 1
         elif json_cache.exists():
             try:
@@ -88,7 +93,8 @@ def regenerate(etf: str) -> dict:
             new_tickers = parse_holdings_json(
                 payload, actual_dt, ticker_overrides=overrides,
                 apply_exchange_suffix=apply_suffix,
-                symbol=symbol, strict_exchanges=False)
+                symbol=symbol, strict_exchanges=False,
+                exclude_symbols=excluded)
             n_json += 1
         else:
             n_no_cache += 1

@@ -82,7 +82,7 @@ import pandas as pd
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from etf_registry import get_etf  # noqa: E402
+from etf_registry import get_etf, roster_rules  # noqa: E402
 from stall_guard import EndpointDegraded, LatencyCircuit  # noqa: E402
 
 # Force UTF-8 stdout so the BOM in iShares CSVs and any non-ASCII names do
@@ -326,8 +326,14 @@ def parse_holdings_json(
     apply_exchange_suffix: bool = False,
     symbol: str | None = None,
     strict_exchanges: bool = True,
+    exclude_symbols: frozenset[str] | set[str] | None = None,
 ) -> list[str]:
     """Parse a product-data API payload into a yfinance-ready ticker list.
+
+    ``exclude_symbols`` drops RESOLVED symbols after the resolver has run —
+    rights, paid/nil-paid and tendered lines that are transient by
+    construction and inflate the breadth denominator for a week or two each
+    (see etf_registry.roster_rules). None or empty means deployed behaviour.
 
     Returns [] when the endpoint has no holdings for `target` — the JSON
     equivalent of the old empty-template CSV, and the input to the walkback.
@@ -370,6 +376,7 @@ def parse_holdings_json(
         return values[i] if values is not None else None
 
     overrides = ticker_overrides or {}
+    excluded = exclude_symbols or frozenset()
     tickers: list[str] = []
     seen: set[str] = set()
     unmapped: dict[str, list[str]] = {}
@@ -395,7 +402,7 @@ def parse_holdings_json(
             sym = overrides.get(raw, raw.replace(".", "-"))
         if sym is None or sym in {"", "-"} or sym.startswith("-."):
             continue
-        if sym in seen:
+        if sym in excluded or sym in seen:
             continue
         seen.add(sym)
         tickers.append(sym)
@@ -888,7 +895,9 @@ def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
 def parse_holdings(body: str, ticker_overrides: dict | None = None,
                      apply_exchange_suffix: bool = False,
                      symbol: str | None = None,
-                     strict_exchanges: bool = True) -> list[str]:
+                     strict_exchanges: bool = True,
+                     exclude_symbols: frozenset[str] | set[str] | None = None,
+                     ) -> list[str]:
     """Parse iShares CSV body and return Equity-only yfinance-ready ticker list,
     or [] if the file is empty.
 
@@ -918,6 +927,7 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
     if 'Fund Holdings as of,"-"' in body or 'Fund Holdings as of,-' in body:
         return []
     overrides = ticker_overrides or {}
+    excluded = exclude_symbols or frozenset()
     tickers: list[str] = []
     seen: set[str] = set()
     unmapped: dict[str, list[str]] = {}
@@ -975,7 +985,7 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
         # could have produced from edge-case inputs.
         if sym is None or sym in {"", "-"} or sym.startswith("-."):
             continue
-        if sym in seen:
+        if sym in excluded or sym in seen:
             continue
         seen.add(sym)
         tickers.append(sym)
@@ -1033,7 +1043,9 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
     dates are 95% cached would show a healthy average no matter how slow the
     remaining 5% ran.
     """
-    overrides = etf_cfg.get("ticker_overrides", {})
+    rules = roster_rules(etf_cfg)
+    overrides = rules["ticker_overrides"]
+    excluded = rules["exclude_symbols"]
     apply_suffix = etf_cfg.get("apply_exchange_suffix", False)
     symbol = etf_cfg["symbol"]
     RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -1047,7 +1059,7 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
                 latency.record_cache_hit()
             return parse_holdings(cached, ticker_overrides=overrides,
                                    apply_exchange_suffix=apply_suffix,
-                                   symbol=symbol)
+                                   symbol=symbol, exclude_symbols=excluded)
         # Poisoned by an earlier run's anti-bot HTML — drop and fall through.
         csv_path.unlink()
 
@@ -1065,6 +1077,7 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
             return parse_holdings_json(
                 payload, target, ticker_overrides=overrides,
                 apply_exchange_suffix=apply_suffix, symbol=symbol,
+                exclude_symbols=excluded,
             )
 
     if latency is None:
@@ -1082,6 +1095,7 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
     tickers = parse_holdings_json(
         payload, target, ticker_overrides=overrides,
         apply_exchange_suffix=apply_suffix, symbol=symbol,
+        exclude_symbols=excluded,
     )
     if tickers:
         json_path.write_text(json.dumps(payload), encoding="utf-8")
@@ -1399,7 +1413,13 @@ def main() -> int:
             f"membership and protects against off-cycle add/drops."
         ),
         "asset_class_filter": "Equity",
-        "ticker_overrides_applied": etf_cfg.get("ticker_overrides", {}),
+        "ticker_overrides_applied": roster_rules(etf_cfg)["ticker_overrides"],
+        # Resolved symbols dropped from every roster (rights / temporary
+        # lines), and whether STAGED registry changes were merged in — a
+        # roster built with staged rules must never be mistaken for a
+        # deployed one (etf_registry.roster_rules, 2026-09-02).
+        "exclude_symbols_applied": sorted(roster_rules(etf_cfg)["exclude_symbols"]),
+        "staged_roster_changes_applied": roster_rules(etf_cfg)["staged_applied"],
         "walkbacks": walkbacks,
         "carry_forwards": carry_forwards,
         "edgar_used": edgar_used,
