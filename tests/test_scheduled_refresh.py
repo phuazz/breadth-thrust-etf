@@ -387,3 +387,29 @@ def test_a_pull_that_rewrites_this_script_re_execs_once():
     assert before < pull < exec_at, (
         "the script's own contents must be captured BEFORE the pull and "
         "compared AFTER it, or the skew is invisible")
+
+
+def test_the_push_retries_after_rebasing():
+    """A 40-minute run races every other writer in the repo (2026-09-02).
+
+    Three probes a day, the scanner, the daily live track and whoever is at
+    the keyboard all push to the same ref, so origin moves UNDER a healthy run
+    as a matter of course and the first push comes back non-fast-forward
+    through no fault of the refresh. On 2026-09-02 that lost a complete,
+    correct, fully-guarded post-fill run at the final step — the commit sat in
+    the automation clone until it was rebased by hand.
+
+    A run that did everything right must not need a human for the last thirty
+    seconds. Same shape the workflows already use.
+    """
+    src = inspect.getsource(_sr.main)
+    push_at = src.index('"push", "origin", "main"')
+    tail = src[push_at:]
+    assert "--autostash" in tail, (
+        "the retry must rebase onto origin, and --autostash because the build "
+        "may have left tracked outputs dirty")
+    assert "attempt" in tail, "the push must retry, not fail on the first race"
+    # ...and it must still give up rather than loop for ever: a push that
+    # cannot land after three rebases is not a race, it is something else.
+    assert "3 attempts" in tail or "(1, 2, 3)" in tail, (
+        "the retry must be bounded")

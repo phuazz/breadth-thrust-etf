@@ -472,11 +472,46 @@ def main(argv: list[str] | None = None) -> int:
                               "local commits\n")
                     break
                 return fail(5, f"git {step[0]} failed", cp.stderr or cp.stdout)
-        cp = _git(["push", "origin", "main"], log)
-        if cp.returncode != 0:
-            return fail(5, "git push failed",
+        # RETRY, REBASING BETWEEN ATTEMPTS (2026-09-02).
+        #
+        # This run takes 40 minutes and the repo is written by several other
+        # things — three probes a day, the scanner, the daily live track, and
+        # whoever is at the keyboard. Origin therefore moves UNDER a healthy
+        # run as a matter of course, and the first push comes back
+        # "non-fast-forward" through no fault of the refresh. On 2026-09-02
+        # that lost a complete, correct, fully-guarded post-fill run at the
+        # final step; the commit sat in the clone until someone rebased it by
+        # hand. A run that did everything right must not need a human for the
+        # last thirty seconds.
+        #
+        # Same shape the workflows already use (daily_live_track, scanner,
+        # universe_monitor): push, and on rejection rebase onto origin and try
+        # again. --autostash because the build may have left tracked outputs
+        # dirty. Three attempts, then fail loudly — a push that cannot land
+        # after three rebases is not a race, it is something else.
+        pushed = False
+        for attempt in (1, 2, 3):
+            cp = _git(["push", "origin", "main"], log)
+            if cp.returncode == 0:
+                pushed = True
+                if attempt > 1:
+                    log.write(f"\npushed on attempt {attempt} "
+                              f"(origin moved during the run)\n")
+                break
+            log.write(f"\npush rejected on attempt {attempt}; rebasing onto "
+                      f"origin/main and retrying\n")
+            rb = _git(["pull", "--rebase", "--autostash", "origin", "main"], log)
+            if rb.returncode != 0:
+                return fail(5, "git push failed, and the rebase failed too",
+                            "Refresh is committed locally in the automation "
+                            "clone but not pushed, and it could not be "
+                            "rebased onto origin. Resolve by hand.\n"
+                            + rb.stderr)
+        if not pushed:
+            return fail(5, "git push failed after 3 attempts",
                         "Refresh is committed locally in the automation "
-                        "clone but not pushed; push manually. " + cp.stderr)
+                        "clone but not pushed after three rebase-and-retry "
+                        "attempts; push manually. " + cp.stderr)
         print(f"PUSHED - {msg}")
         log.write(f"\npushed: {msg}\n")
         _email("[OK] Scheduled refresh pushed - factsheet publishing",
