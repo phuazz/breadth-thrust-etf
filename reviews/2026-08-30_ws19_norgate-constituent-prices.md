@@ -386,3 +386,84 @@ still defaults to `yfinance`.
 
 Both are `source: extracted` and daggered; their verdicts were checked against
 the filed records and commit history on 2026-08-30 before being relied on here.
+
+## 12. WS19c — H3 and the production-scale C1 check: tolerances PRE-STATED
+
+**Written Wednesday 2026-09-02 (weekday verified against `datetime`), before any
+candidate panel of this session was built. The local commit carrying this
+section is the timestamp.** The WS19b verdict left two things open: H3 untested
+and C1 unconfirmed at production scale. This section fixes, in advance, what
+"holds" means for each, so the adoption decision cannot be tuned to the result.
+
+### Instrument
+
+A git worktree of `main` at the post-fill refresh of 2026-09-02, with the
+gitignored price caches copied from the automation clone at the same vintage.
+The deployed tree is not touched. Every comparison is against the deployed
+JSONs that refresh committed — same rosters, same cache vintage, same session
+bound — so the source is the only variable.
+
+### H3 — adjudicated on the PANEL-ONLY route
+
+1. The 14 sleeve A panels (`UNIVERSE_ETFS`) are rebuilt with
+   `--price-source auto --out-suffix _ng`, each `_ng` cache **seeded from the
+   deployed cache** (as WS19b did), then the engines run against those panels
+   with sleeves B, C, D and the A/D proxy OHLC left on their deployed source.
+   That isolates the breadth-source swap, which is what H3 as registered is
+   about: "the deployed consequences are confined to sleeve A and the published
+   panels."
+2. **Sleeves B, C and D must be identical to the deployed outputs to 4 dp** —
+   headline Sharpe, CAGR, max drawdown and total return, and every weekly weight
+   vector, `|Δ| < 5e-5`. Any difference is a defect in the swap, not a finding,
+   and H3 FAILS.
+3. **Sleeve A and the blend carry NO tolerance.** Whatever moves is the
+   restatement and is reported as such: sleeve A's weekly holdings (weeks whose
+   holding set differs, weight L1 distance), sleeve A's headline statistics, the
+   ungated `blend_35_35_10_20` and the deployed gated + EEM-tilted variant. A
+   larger move is not a reason to hold and a smaller one is not a reason to
+   adopt; the direction is not a criterion either (WS11 restated down, WS16 up).
+4. **Reproducibility control, run first.** The sandbox re-runs the DEPLOYED
+   configuration (yfinance) end to end and must reproduce the committed JSONs
+   to 4 dp. If it does not, the sandbox is not a valid instrument and nothing
+   in this section is adjudicated.
+5. **Operational-switch check, reported and NOT adjudicated.** The same
+   pipeline run under `BTE_PRICE_SOURCE=norgate`, which also moves sleeves B and
+   C and the A/D proxies onto Norgate at ETF level. Movement in B/C there says
+   something about the env-var route (the 2026-08-31 outage exception took it),
+   not about H3.
+
+### C1 — production-scale, with same-vintage controls and relative tolerance
+
+The three 2026-08-30 attempts were confounded: the deployed cache is a different
+adjustment vintage; two yfinance calls differ in the seventh significant figure;
+an absolute tolerance of 1e-6 therefore rejected identical data. The controls
+here are fetched **in the same session as the build**, over **identical
+windows** (`dl_start..dl_end` as the build used them — Norgate normalises
+TOTALRETURN adjustments to the window's end, so a different window is a
+different series):
+
+1. Control N: fresh Norgate closes for the whole universe of each panel.
+   Control Y: fresh yfinance closes for the same universe. Control I: the
+   incumbent cache the candidate was seeded from.
+2. Each candidate cell is classified at **relative tolerance rtol = 1e-5**
+   (two orders above yfinance's inter-call arithmetic noise, one order below
+   the median Norgate-vs-yfinance level difference WS19 measured at 1.06e-4):
+   N-only, Y-only, both, or neither.
+3. **A column is SPLICED if it holds at least one N-only cell and at least one
+   Y-only cell.** A "neither" cell must equal the incumbent cache exactly (a
+   preserved delisted backfill), otherwise it is unexplained and the column
+   FAILS.
+4. **C1 PASSES iff there are zero spliced columns and zero unexplained cells
+   across all 14 panels**, the columns `compute_breadth` reports as taken hold
+   no Y-only cell, and the columns it reports as kept hold no N-only cell.
+5. Where the two sources agree within rtol on every cell of a column, a splice
+   is undetectable and immaterial by construction — it fabricates no return
+   above 1e-5 — and that is stated as the limit of the test, not counted as a
+   pass by default.
+
+### Decision rule
+
+**Flip `compute_breadth --price-source` from `yfinance` to `auto` iff H3 holds
+(items 2 and 4 above) AND C1 passes (item 4). Otherwise HOLD at yfinance.** The
+flip is its own restatement of the published record and takes the WS10 / WS11 /
+WS16 sign-off; nothing in this session flips it. Fable adjudicates.
