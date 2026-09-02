@@ -143,6 +143,16 @@ ETFS_REFRESH = [*ETFS_ALL, *ETFS_CANDIDATES]
 # backoff inside the download, not a longer pause out here.
 THROTTLE_DEFAULT_S = 15
 
+# Hard ceiling on ANY single step (2026-09-02). Calibrated against measured
+# healthy runs rather than guessed: across the 2026-08-08 38-ETF run the
+# slowest compute_breadth was 10.7s with a 17.1s median, and the whole
+# 38-panel step comes in around 50 minutes on a warm cache. 20 minutes leaves
+# two orders of magnitude of headroom over any healthy step while still
+# catching the pathological case — the 13.3-hour SOXX step of 2026-09-01
+# would have died at 20 minutes with 37 panels still to run, instead of
+# consuming the night and reaching none of them.
+STEP_TIMEOUT_S = 20 * 60
+
 # Skip the pause after a step this fast, on the theory that it did no
 # fetching worth pacing.
 #
@@ -162,13 +172,33 @@ THROTTLE_DEFAULT_S = 15
 THROTTLE_SKIP_UNDER_S = 10.0
 
 
-def run_step(label: str, cmd: list[str], cwd: Path = REPO_ROOT) -> tuple[bool, float]:
-    """Run a subprocess, stream output, return (ok, elapsed_seconds)."""
+def run_step(label: str, cmd: list[str], cwd: Path = REPO_ROOT,
+             timeout_s: float | None = STEP_TIMEOUT_S) -> tuple[bool, float]:
+    """Run a subprocess, stream output, return (ok, elapsed_seconds).
+
+    BOUNDED (2026-09-02). Nothing used to cap a single step, and on
+    2026-09-01 SOXX's compute_breadth ran for 13.3 HOURS: yfinance's rate
+    limiter throttled the run, every ticker then waited out its own timeout,
+    and the deadline inside compute_breadth bounds the batched download but
+    not the per-ticker resolution behind it. That run held the automation
+    clone dirty across two scheduled fires and never reached the engines it
+    existed to re-anchor.
+
+    A step that has not finished in STEP_TIMEOUT_S is not going to finish
+    usefully. Killing it lets the remaining steps run and lets the summary
+    NAME what was lost, which is strictly better than a run whose end nobody
+    can see. The panel keeps its committed contents either way --
+    compute_breadth writes nothing when it stops short.
+    """
     print(f"\n{'='*72}\n{label}\n{'='*72}", flush=True)
     t0 = time.perf_counter()
     try:
-        result = subprocess.run(cmd, cwd=cwd, check=False)
+        result = subprocess.run(cmd, cwd=cwd, check=False, timeout=timeout_s)
         ok = (result.returncode == 0)
+    except subprocess.TimeoutExpired:
+        print(f"  TIMEOUT after {timeout_s:.0f}s — step killed, run continues",
+              flush=True)
+        ok = False
     except Exception as e:
         print(f"  EXCEPTION: {e}", flush=True)
         ok = False
@@ -187,13 +217,15 @@ def main() -> int:
                          "targetSite=ishares-us, so it no longer depends on "
                          "the Akamai-blocked iShares US route and fetches "
                          "as fast as any other ETF.")
-    p.add_argument("--skip-panels", action="store_true",
-                   help="Skip steps 1 and 2 (per-ETF constituents + breadth, "
-                        "and the ma200 sweep) and start at the engine price "
-                        "caches. For a POST-FILL re-anchor, whose job is to "
-                        "move the engines onto the fill just executed, not to "
-                        "re-fetch rosters: a Monday fill ranks on the FRIDAY "
-                        "close, which the committed panels already carry.")
+    p.add_argument("--deployed-only", action="store_true",
+                   help="Walk only the 24 DEPLOYED panels in step 1, not the "
+                        "14 Europe supersector candidates. For a post-fill "
+                        "re-anchor: candidates are screened, never held, so "
+                        "they cannot affect the book being re-anchored. Cuts "
+                        "step 1 by roughly a third and still produces a "
+                        "COHERENT book — unlike skipping the panels outright, "
+                        "which lets the engines advance past them and is "
+                        "refused by build_simple_page's guard.")
     p.add_argument("--no-tests", action="store_true",
                     help="Skip the final pytest run.")
     p.add_argument("--throttle", type=float, default=THROTTLE_DEFAULT_S,
@@ -224,7 +256,8 @@ def main() -> int:
     # ENGINES, onto the prices of the fill just executed. Rosters are a
     # weekend concern and the weekend cadence still does the full run.
     py = sys.executable
-    for i, etf in enumerate([] if args.skip_panels else ETFS_REFRESH, start=1):
+    _panels = ETFS_ALL if args.deployed_only else ETFS_REFRESH
+    for i, etf in enumerate(_panels, start=1):
         # Pace the loop so the price vendor's rate limiter can refill.
         # Skipped before the first ETF, and skipped when the previous
         # compute_breadth was fast: a sub-THROTTLE_SKIP_UNDER_S step served
@@ -264,20 +297,18 @@ def main() -> int:
             failures.append(f"compute_breadth {etf}")
 
     # ----- Step 2: aggregated breadth sweep -----
-    # Aggregates step 1's output, so it is skipped with it: re-running it over
-    # unchanged panels would rewrite ma200_sweep.json with identical numbers
-    # and a new timestamp, which is exactly the false-freshness signal the
-    # staleness guards exist to catch.
-    if args.skip_panels:
-        print("\n--- Steps 1-2 SKIPPED (--skip-panels): panels and the "
-              "ma200 sweep are unchanged; a post-fill run re-anchors the "
-              "ENGINES onto the executed fill. ---", flush=True)
-    else:
-        ok, dt = run_step("run_ma200_sweep (aggregates per-ETF breadth)",
-                           [py, "scripts/run_ma200_sweep.py"])
-        timings.append(("run_ma200_sweep", dt))
-        if not ok:
-            failures.append("run_ma200_sweep")
+    # ALWAYS runs, including under --deployed-only. It aggregates step 1's
+    # output, and step 1 always runs now: the earlier --skip-panels, which
+    # skipped both, produced a book whose engines had advanced past its
+    # panels and which build_simple_page's guard correctly refused to publish
+    # ("freshness says sleeve B reaches 2026-09-01, past the newest data this
+    # refresh produced"). Sleeve A ranks on these panels, so they are part of
+    # a coherent re-anchor rather than an optional extra.
+    ok, dt = run_step("run_ma200_sweep (aggregates per-ETF breadth)",
+                       [py, "scripts/run_ma200_sweep.py"])
+    timings.append(("run_ma200_sweep", dt))
+    if not ok:
+        failures.append("run_ma200_sweep")
 
     # ----- Step 2b: engine-facing price caches (MUST precede step 3) -----
     # Added 2026-08-15. Strategy A ran at 16:17 against a broken SOXX series

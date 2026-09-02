@@ -318,7 +318,7 @@ def test_a_no_change_commit_is_not_a_failure():
     assert "nothing to commit" in _commit_branch()
 
 
-def test_post_fill_skips_the_panel_rebuild_and_weekend_does_not():
+def test_post_fill_narrows_the_panel_set_but_never_skips_it():
     """CADENCE DECIDES SCOPE (2026-09-02).
 
     A Monday fill ranks on the FRIDAY close, which the committed panels
@@ -335,10 +335,19 @@ def test_post_fill_skips_the_panel_rebuild_and_weekend_does_not():
     record while every guard stayed green.
     """
     src = inspect.getsource(_sr.main)
-    assert '"--skip-panels"' in src, "post-fill must be able to skip step 1"
+    assert '"--deployed-only"' in src, "post-fill must narrow step 1's scope"
     assert 'args.cadence == "post-fill"' in src, (
-        "the skip must be tied to the cadence, not applied unconditionally")
-    # The weekend cadence must not acquire it by accident.
+        "the narrowing must be tied to the cadence, not unconditional")
+    # The weekend cadence must not acquire it by accident: it is the run that
+    # rebuilds the candidate panels, and narrowing it would freeze them while
+    # every guard stayed green.
     guarded = src.split('args.cadence == "post-fill"')[1][:200]
-    assert "--skip-panels" in guarded, (
-        "--skip-panels must sit inside the post-fill branch")
+    assert "--deployed-only" in guarded, (
+        "--deployed-only must sit inside the post-fill branch")
+    # And it must NOT be a panel skip. Skipping the panels lets the engines
+    # advance past them; build_simple_page refused exactly that on 2026-09-02
+    # ("freshness says sleeve B reaches 2026-09-01, past the newest data this
+    # refresh produced"). Sleeve A ranks on the panels, so a re-anchor that
+    # omits them is incoherent by construction.
+    assert "--skip-panels" not in src, (
+        "post-fill must NARROW the panel set, never skip it")
