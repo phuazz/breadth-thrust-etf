@@ -2522,7 +2522,7 @@
 
     <section>
       <h3>Strategy A · Trade history</h3>
-      <p class="section-sub" id="trade-history-sub">All rebalances, newest first. Use the filter to find rebalances containing a specific ETF or close to a specific date.</p>
+      <p class="section-sub" id="trade-history-sub">All trades, newest first — the rebalances that changed the book. Use the filter to find trades containing a specific ETF or close to a specific date.</p>
       <div class="trade-controls">
         <label class="toggle"><input type="checkbox" id="trade-recent-only" checked> Show last 50 only</label>
         <input type="text" id="trade-filter" placeholder="Filter by ETF (e.g. IUES) or date (e.g. 2024-03)">
@@ -5081,15 +5081,20 @@ function renderMonitor() {
   }
 
   // ===== Latest rebalances =====
+  // latest_rebalance is the last rebalance RUN (2026-09-03). trade_history
+  // logs weight CHANGES only, so on a held week its last entry is a week or
+  // more old — sleeve C, equal-weighted, showed "2026-08-24" on 3 Sep for a
+  // book its 31 Aug rebalance had held. Fall back to the trade record only
+  // for data built before the field existed.
   const aHist = topk.headline.trade_history;
   const bHist = ac.headline.trade_history;
-  const aLatest = aHist[aHist.length - 1];
-  const bLatest = bHist[bHist.length - 1];
+  const aLatest = topk.headline.latest_rebalance || aHist[aHist.length - 1];
+  const bLatest = ac.headline.latest_rebalance || bHist[bHist.length - 1];
   const aDate = aLatest.date;
   const bDate = bLatest.date;
-  const cLatest = hasC ? tc.headline.trade_history[tc.headline.trade_history.length - 1] : null;
+  const cLatest = hasC ? (tc.headline.latest_rebalance || tc.headline.trade_history[tc.headline.trade_history.length - 1]) : null;
   const cDate = cLatest?.date;
-  const dLatest = hasD ? eu.headline.trade_history[eu.headline.trade_history.length - 1] : null;
+  const dLatest = hasD ? (eu.headline.latest_rebalance || eu.headline.trade_history[eu.headline.trade_history.length - 1]) : null;
   const dDate = dLatest?.date;
 
   // Use the blend stats that match the actual deployment. Phase 19:
@@ -7543,8 +7548,15 @@ function _momUniverse(view) {
   return [...own, ...extras];
 }
 
+// The last rebalance RUN, falling back to the last TRADE for data built
+// before latest_rebalance existed (2026-09-03). The two differ on a held week.
+function _momLatestRebal(root) {
+  const h = window.DATA?.[root]?.headline;
+  return h?.latest_rebalance || h?.trade_history?.slice(-1)[0] || null;
+}
+
 function _momHoldings(root) {
-  const last = window.DATA?.[root]?.headline?.trade_history?.slice(-1)[0];
+  const last = _momLatestRebal(root);
   return (last?.holdings || []).map(h => h.etf);
 }
 
@@ -7552,7 +7564,7 @@ function _momHoldings(root) {
 // dates, so a "held by" tag states its OWN sleeve's date rather than
 // borrowing the date of the tab it happens to be rendered on.
 function _momRebalDate(root) {
-  return window.DATA?.[root]?.headline?.trade_history?.slice(-1)[0]?.date || null;
+  return _momLatestRebal(root)?.date || null;
 }
 
 function _momLatest(view, etf) {
@@ -7877,14 +7889,18 @@ function _renderAHoldings() {
     return;
   }
   const last = th[th.length - 1];
+  // The last rebalance RUN; trade_history is the change log and its last entry
+  // is a week or more old on a held week (2026-09-03).
+  const latest = h.latest_rebalance || last;
+  const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
   const K = h.K;
   const universe = h.etfs_used || [];
   // Holdings already filtered by the engine to those above the cross-sectional
   // mean at rebal — sort by absolute breadth desc for display.
-  const holds = (last.holdings || []).slice().sort(
+  const holds = (latest.holdings || []).slice().sort(
     (a, b) => (b.breadth_pct ?? -1e9) - (a.breadth_pct ?? -1e9),
   );
-  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (up to K=${K} above the mean)`;
+  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (up to K=${K} above the mean)${heldSince}`;
   tbl.querySelector('thead').innerHTML = `<tr>
     <th class="num">#</th>
     <th>ETF</th>
@@ -7903,7 +7919,7 @@ function _renderAHoldings() {
     const lowest = holds.length ? holds[holds.length - 1] : null;
     const dropped = (universe.length || 14) - holds.length;
     noteEl.innerHTML = lowest
-      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth, which sat above the cross-sectional mean at the ${last.date} rebalance. ${dropped} of ${universe.length || 14} sectors were below the mean and dropped to keep the sleeve long-only — Strategy A holds <strong>${holds.length} of K=${K} max</strong>${holds.length < K ? ' (narrow leadership regime: most sectors clustered near the average)' : ' (all K slots filled)'}.`
+      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth, which sat above the cross-sectional mean at the ${latest.date} rebalance. ${dropped} of ${universe.length || 14} sectors were below the mean and dropped to keep the sleeve long-only — Strategy A holds <strong>${holds.length} of K=${K} max</strong>${holds.length < K ? ' (narrow leadership regime: most sectors clustered near the average)' : ' (all K slots filled)'}.`
       : '';
   }
 }
@@ -7920,13 +7936,19 @@ function _renderCHoldings() {
     return;
   }
   const last = th[th.length - 1];
+  // The last rebalance RUN. This sleeve is equal-weighted, so a week that
+  // holds the same names writes no trade_history entry; labelling that
+  // entry "the rebalance" is how the block read "2026-08-24" on 3 Sep 2026
+  // for a book the 31 Aug rebalance had held.
+  const latest = h.latest_rebalance || last;
+  const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
   const K = h.K;
-  const holds = (last.holdings || []).slice().sort(
+  const holds = (latest.holdings || []).slice().sort(
     (a, b) => (b.signal_pct ?? -1e9) - (a.signal_pct ?? -1e9),
   );
   const invested = holds.reduce((s, x) => s + (x.weight || 0), 0);
   const cash = Math.max(0, 1 - invested);
-  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (top K=${K} above the +5% floor, equal-weighted)`;
+  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${K} above the +5% floor, equal-weighted)${heldSince}`;
   tbl.querySelector('thead').innerHTML = `<tr>
     <th class="num">#</th>
     <th>ETF</th>
@@ -7963,7 +7985,7 @@ function _renderCHoldings() {
     if (sleeveOff) {
       txt = `<strong>Entire sleeve in SHY this week</strong> — either the V6 sleeve-breadth gate tripped (fewer than 30% of the 25-theme universe above +5%) or no themes cleared the +5% floor. The whole 10% sleeve sits in 1-3y Treasuries until the next rebal.`;
     } else if (lowest) {
-      txt = `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day MA — well above the +5% hard floor. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in SHY because fewer than K=${K} themes cleared the floor at the ${last.date} rebalance.` : `All K=${K} slots are filled, so no cash is held.`} Any theme whose live signal has since crossed +5% (or a held one that has since fallen below) is not acted on until the next rebal.`;
+      txt = `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day MA — well above the +5% hard floor. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in SHY because fewer than K=${K} themes cleared the floor at the ${latest.date} rebalance.` : `All K=${K} slots are filled, so no cash is held.`} Any theme whose live signal has since crossed +5% (or a held one that has since fallen below) is not acted on until the next rebal.`;
     }
     noteEl.innerHTML = txt;
   }
@@ -7981,11 +8003,14 @@ function _renderDHoldings() {
     return;
   }
   const last = th[th.length - 1];
+  // The last rebalance RUN; trade_history is the change log (2026-09-03).
+  const latest = h.latest_rebalance || last;
+  const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
   const K = h.K;
-  const holds = (last.holdings || []).slice().sort(
+  const holds = (latest.holdings || []).slice().sort(
     (a, b) => (b.breadth_pct ?? -1e9) - (a.breadth_pct ?? -1e9),
   );
-  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (top K=${K} by breadth)`;
+  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${K} by breadth)${heldSince}`;
   tbl.querySelector('thead').innerHTML = `<tr>
     <th class="num">#</th>
     <th>ETF</th>
@@ -8003,7 +8028,7 @@ function _renderDHoldings() {
   if (noteEl) {
     const lowest = holds.length ? holds[holds.length - 1] : null;
     noteEl.innerHTML = lowest
-      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth at the ${last.date} rebalance. The 2 Europe sectors not in the table sat below this — they are excluded until the next rebal. All K=${K} slots are always filled (the 5-ETF universe is larger than K), so no cash is held.`
+      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth at the ${latest.date} rebalance. The 2 Europe sectors not in the table sat below this — they are excluded until the next rebal. All K=${K} slots are always filled (the 5-ETF universe is larger than K), so no cash is held.`
       : '';
   }
 }
@@ -8020,11 +8045,14 @@ function _renderBHoldings() {
     return;
   }
   const last = th[th.length - 1];
+  // The last rebalance RUN; trade_history is the change log (2026-09-03).
+  const latest = h.latest_rebalance || last;
+  const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
   const K = h.K;
-  const holds = (last.holdings || []).slice().sort((a, b) => (b.signal_pct ?? -1e9) - (a.signal_pct ?? -1e9));
+  const holds = (latest.holdings || []).slice().sort((a, b) => (b.signal_pct ?? -1e9) - (a.signal_pct ?? -1e9));
   const invested = holds.reduce((s, x) => s + (x.weight || 0), 0);
   const cash = Math.max(0, 1 - invested);
-  if (asOfEl) asOfEl.textContent = ` — as of the ${last.date} rebalance (top K=${K} by trend)`;
+  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${K} by trend)${heldSince}`;
   tbl.querySelector('thead').innerHTML = `<tr>
     <th class="num">#</th>
     <th>ETF</th>
@@ -8054,7 +8082,7 @@ function _renderBHoldings() {
   if (noteEl) {
     const lowest = holds.length ? holds[holds.length - 1] : null;
     noteEl.innerHTML = lowest
-      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day average. Any positive-trend asset class ranked below it — or above the line only after ${last.date} — is excluded until the next rebalance. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in cash because fewer than K=${K} names were in an uptrend.` : `All K=${K} slots are filled, so no cash is held.`}`
+      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day average. Any positive-trend asset class ranked below it — or above the line only after ${latest.date} — is excluded until the next rebalance. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in cash because fewer than K=${K} names were in an uptrend.` : `All K=${K} slots are filled, so no cash is held.`}`
       : '';
   }
 }
@@ -9488,7 +9516,7 @@ function renderTradeTable() {
   document.getElementById('trade-first-date').textContent = history[0]?.date || '—';
   document.getElementById('trade-last-date').textContent = history[history.length - 1]?.date || '—';
   document.getElementById('trade-summary').textContent =
-    `${history.length} rebalances. Each row is a Monday close (a holiday Monday rolls forward to the next session) — the holdings shown apply from that date forward.`;
+    `${history.length} trades — the rebalances that changed the book; a rebalance that held the same book writes no row. Each row is a Monday close (a holiday Monday rolls forward to the next session) — the holdings shown apply from that date forward.`;
 
   // Filter on a copy in ascending order first
   let asc = history.slice();
@@ -9507,7 +9535,7 @@ function renderTradeTable() {
   const rows = asc.slice().reverse();
 
   document.getElementById('trade-count').textContent =
-    `${rows.length} of ${history.length} rebalances`;
+    `${rows.length} of ${history.length} trades`;
 
   // entered/exited diff vs the chronologically prior rebalance in the FULL history
   const indexByDate = new Map(history.map((r, i) => [r.date, i]));
@@ -9771,9 +9799,9 @@ function renderAssetTradeTable() {
   if (_assetTradeRecentOnly && asc.length > 50) asc = asc.slice(-50);
   const rows = asc.slice().reverse();
   document.getElementById('asset-trade-count').textContent =
-    `${rows.length} of ${history.length} rebalances`;
+    `${rows.length} of ${history.length} trades`;
   document.getElementById('asset-trade-history-sub').textContent =
-    `${history.length} rebalances from ${history[0]?.date} to ${history[history.length-1]?.date}. Newest first. Filter to find specific ETFs or dates.`;
+    `${history.length} trades from ${history[0]?.date} to ${history[history.length-1]?.date} — the rebalances that changed the book. Newest first. Filter to find specific ETFs or dates.`;
   const indexByDate = new Map(history.map((r, i) => [r.date, i]));
   const colours = ac.asset_class_colours || {};
   const el = document.getElementById('asset-trade-table');
@@ -10060,9 +10088,9 @@ function renderThematicTradeTable() {
   if (_thematicTradeRecentOnly && asc.length > 50) asc = asc.slice(-50);
   const rows = asc.slice().reverse();
   document.getElementById('thematic-trade-count').textContent =
-    `${rows.length} of ${history.length} rebalances`;
+    `${rows.length} of ${history.length} trades`;
   document.getElementById('thematic-trade-history-sub').textContent =
-    `${history.length} rebalances from ${history[0]?.date} to ${history[history.length-1]?.date}. Newest first.`;
+    `${history.length} trades from ${history[0]?.date} to ${history[history.length-1]?.date} — the rebalances that changed the book; an equal-weight week that held the same names writes no row. Newest first.`;
   const indexByDate = new Map(history.map((r, i) => [r.date, i]));
   const colours = tc.thematic_colours || {};
   const el = document.getElementById('thematic-trade-table');
@@ -10330,9 +10358,9 @@ function renderEuropeTradeTable() {
   if (_europeTradeRecentOnly && asc.length > 50) asc = asc.slice(-50);
   const rows = asc.slice().reverse();
   document.getElementById('europe-trade-count').textContent =
-    `${rows.length} of ${history.length} rebalances`;
+    `${rows.length} of ${history.length} trades`;
   document.getElementById('europe-trade-history-sub').textContent =
-    `${history.length} rebalances from ${history[0]?.date} to ${history[history.length-1]?.date}. Newest first. Filter to find specific sectors or dates.`;
+    `${history.length} trades from ${history[0]?.date} to ${history[history.length-1]?.date} — the rebalances that changed the book. Newest first. Filter to find specific sectors or dates.`;
   const indexByDate = new Map(history.map((r, i) => [r.date, i]));
   const colours = eu.europe_colours || {};
   const el = document.getElementById('europe-trade-table');

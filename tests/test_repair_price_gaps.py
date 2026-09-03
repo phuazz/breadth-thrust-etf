@@ -213,17 +213,23 @@ def test_a_gap_with_no_usable_source_is_reported_not_invented(tmp_path,
 
 def test_the_primary_is_preferred_over_the_secondary(tmp_path, monkeypatch):
     """Most holes backfill. A secondary splice is a fallback, never the first
-    answer, so a repair never introduces a second source unnecessarily."""
+    answer, so a repair never introduces a second source unnecessarily.
+
+    Since 2026-09-03 the primary's value is spliced by RETURN like any other
+    (it used to be copied at level, which the module docstring itself calls
+    badly wrong on a drag-adjusted column)."""
     import scripts.repair_price_gaps as rp
 
     df = _frame(holes=(30,))
     df.to_parquet(tmp_path / "thematic_prices_cache.parquet")
-    gap = df.index[30]
+    gap, prev = df.index[30], df.index[29]
     monkeypatch.setattr(rp, "DATA_DIR", tmp_path)
     monkeypatch.setattr(rp, "fetch_primary",
-                        lambda *a, **k: pd.Series({gap: 4242.0}))
+                        lambda *a, **k: pd.Series({prev: 4000.0, gap: 4242.0}))
     monkeypatch.setattr(rp, "fetch_secondary",
-                        lambda *a, **k: (pd.Series({gap: 1.0}), "binance:X"))
+                        lambda *a, **k: (pd.Series({prev: 1.0, gap: 9.0}), "binance:X"))
     (rec,) = rp.repair_cache("thematic", only_ticker="BTC-USD", apply=False)
     assert rec["source"] == "primary:yfinance"
-    assert rec["value"] == 4242.0
+    assert rec["method"] == "return_splice"
+    assert rec["value"] == pytest.approx(float(df.loc[prev, "BTC-USD"]) * 4242.0 / 4000.0)
+    assert rec["value"] != 4242.0, "a level copy would undo the cache's basis"

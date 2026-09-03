@@ -895,7 +895,7 @@ def main() -> int:
     if topk:
         h = topk.get("headline", {})
         print(f"  top-K rotation: K={h.get('K')} {h.get('rebal_freq')}, "
-              f"{h.get('n_rebalances')} rebalances, "
+              f"{h.get('n_rebalances')} rebalances ({h.get('n_trades', '?')} trades), "
               f"Sharpe {h.get('headline_stats', {}).get('sharpe', 0):+.2f}")
 
     print("Loading asset-class rotation (Strategy B) ...", flush=True)
@@ -903,7 +903,7 @@ def main() -> int:
     if asset_class:
         h = asset_class.get("headline", {})
         print(f"  asset-class: K={h.get('K')} {h.get('rebal_freq')}, "
-              f"{h.get('n_rebalances')} rebalances, "
+              f"{h.get('n_rebalances')} rebalances ({h.get('n_trades', '?')} trades), "
               f"Sharpe {h.get('headline_stats', {}).get('sharpe', 0):+.2f}")
 
     print("Loading thematic rotation (Strategy C) ...", flush=True)
@@ -911,7 +911,7 @@ def main() -> int:
     if thematic:
         h = thematic.get("headline", {})
         print(f"  thematic: K={h.get('K')} {h.get('rebal_freq')}, "
-              f"{h.get('n_rebalances')} rebalances, "
+              f"{h.get('n_rebalances')} rebalances ({h.get('n_trades', '?')} trades), "
               f"Sharpe {h.get('headline_stats', {}).get('sharpe', 0):+.2f}")
 
     print("Loading Europe sector rotation (Strategy D) ...", flush=True)
@@ -919,7 +919,7 @@ def main() -> int:
     if europe:
         h = europe.get("headline", {})
         print(f"  europe: K={h.get('K')} {h.get('rebal_freq')}, "
-              f"{h.get('n_rebalances')} rebalances, "
+              f"{h.get('n_rebalances')} rebalances ({h.get('n_trades', '?')} trades), "
               f"Sharpe {h.get('headline_stats', {}).get('sharpe', 0):+.2f}")
 
     print("Loading multi-strategy combinations (A+B[+C][+D]) ...", flush=True)

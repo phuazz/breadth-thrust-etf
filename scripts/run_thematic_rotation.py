@@ -74,9 +74,14 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 PRICE_CACHE = DATA_DIR / "thematic_prices_cache.parquet"
 OUT_PATH = DATA_DIR / "thematic_rotation.json"
+# The source download_prices() actually priced this run on; written into the
+# payload so the artefact states its own basis (2026-09-03).
+EFFECTIVE_PRICE_SOURCE: str | None = None
 
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 from rebalance_calendar import engine_rebalance_dates  # noqa: E402
+from rebalance_records import latest_rebalance_record  # noqa: E402
+import price_source as price_source_mod  # noqa: E402
 from nyse_sessions import (  # noqa: E402
     cap_to_last_completed_session,
     last_completed_session,
@@ -84,7 +89,8 @@ from nyse_sessions import (  # noqa: E402
 )
 from price_panel_guard import (
     ma_distance_signal,  # noqa: E402
-    assert_attribution_sane, assert_panel_usable, fetched_panel_is_worse,
+    assert_attribution_sane, assert_decision_session_present,
+    assert_panel_usable, fetched_panel_is_worse,
 )
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -523,6 +529,13 @@ def download_prices() -> pd.DataFrame:
     """
     needed = TICKERS + [CASH_PROXY]
     current_through = last_completed_session(datetime.now(timezone.utc))
+    # Resolved FIRST, so a request for Norgate that cannot be met fails here
+    # rather than after a silent fallback (price_source.py, 2026-09-03).
+    price_source, why = price_source_mod.resolve_source(
+        price_source_mod.requested_source())
+    print(f"  price source: {price_source} ({why})", flush=True)
+    global EFFECTIVE_PRICE_SOURCE
+    EFFECTIVE_PRICE_SOURCE = price_source
     cached = None
     if PRICE_CACHE.exists():
         cached = pd.read_parquet(PRICE_CACHE)
@@ -530,12 +543,20 @@ def download_prices() -> pd.DataFrame:
         # matching note in run_asset_class_rotation.download_prices: a zero-row
         # frame gives index.max() = NaT, and comparing NaT to a date raises.
         cache_end = cached.index.max().date() if len(cached) else None
+        cache_source = price_source_mod.read_cache_source(PRICE_CACHE)
         if cache_end is None:
             print(f"  Cache at {PRICE_CACHE.name} is EMPTY — re-downloading")
         elif cache_end >= current_through and set(needed).issubset(set(cached.columns)):
-            print(f"  Using cached prices ({cached.index.min().date()} -> "
-                  f"{cache_end}, current through {current_through})")
-            return cached[needed]
+            # A current cache built from the OTHER source is not this run's
+            # cache (WS19 found the Norgate switch vacuous for this reason).
+            if price_source_mod.cache_matches(cache_source, price_source):
+                print(f"  Using cached prices ({cached.index.min().date()} -> "
+                      f"{cache_end}, current through {current_through}, "
+                      f"built from {cache_source or 'yfinance (unrecorded)'})")
+                return cached[needed]
+            print(f"  Cache is current but was built from "
+                  f"{cache_source or 'yfinance (unrecorded)'}; this run is on "
+                  f"{price_source} — refreshing")
 
     print(f"  Downloading {len(needed)} tickers from yfinance "
           f"({START_DATE} -> {END_DATE}) ...", flush=True)
@@ -562,15 +583,11 @@ def download_prices() -> pd.DataFrame:
     # yfinance column — the superset rule cannot take what it was never
     # offered. That is a silent partial by nature, so the unresolved count is
     # printed on every run rather than left to be inferred.
-    price_source = os.environ.get("BTE_PRICE_SOURCE", "yfinance").strip().lower()
+    _ngrep = None
     if price_source == "norgate":
         import norgate_prices
         df, _ngrep = norgate_prices.select_columns(
             df, list(df.columns), START_DATE, END_DATE, label="Strategy C ")
-    elif price_source != "yfinance":
-        raise ValueError(
-            f"BTE_PRICE_SOURCE={price_source!r} is not a source "
-            f"(expected 'yfinance' or 'norgate')")
 
     # Partial-bar guard: the padded fetch window may include today's
     # in-progress session (and crypto's current partial day) when run
@@ -598,7 +615,9 @@ def download_prices() -> pd.DataFrame:
         raise RuntimeError(
             f"price fetch unusable and no cache to fall back on: {worse}")
     df.to_parquet(PRICE_CACHE)
-    print(f"  Downloaded {df.shape[0]} rows x {df.shape[1]} tickers")
+    price_source_mod.write_cache_source(PRICE_CACHE, price_source, _ngrep)
+    print(f"  Downloaded {df.shape[0]} rows x {df.shape[1]} tickers "
+          f"(source recorded: {price_source})")
     return df
 
 
@@ -983,6 +1002,12 @@ def main() -> int:
     # a thin vendor history. See the 2026-08-15 note in price_panel_guard.py.
     assert_panel_usable(closes, "Strategy C closes", window_start=eligible,
                         allow_late=set(late_inception_tickers))
+    # This panel takes its calendar from the cash proxy, so one withheld SHY
+    # print removes a session for the whole sleeve — on 2026-08-28 it did,
+    # and the 2026-08-31 rebalance was decided on Thursday. The venue
+    # calendar is the only reference that can see a session the panel lacks.
+    assert_decision_session_present(closes, CALENDAR, HEADLINE_FREQ, eligible,
+                                    "Strategy C closes")
 
     print("\nComputing signal (distance above 200d MA) ...")
     signal = compute_signal(closes)
@@ -1009,6 +1034,14 @@ def main() -> int:
                 eq_window = r["equity"].loc[r["equity"].index >= eligible]
                 eq_window = eq_window / eq_window.iloc[0]
                 trades = build_trade_history(r["weights"], signal, eligible)
+                # The last rebalance RUN, traded or held. trade_history logs
+                # weight changes only, and this sleeve is equal-weighted, so
+                # a held week writes nothing there — which is how the
+                # dashboard came to label a week-old trade "the rebalance"
+                # on 2026-09-03. Same conventions as the trade record.
+                latest_rebalance = latest_rebalance_record(
+                    r["weights"], signal, r["rebalance_dates"], "signal_pct",
+                    eligible)
 
                 # Per-ETF attribution
                 rets = closes.pct_change().fillna(0).loc[r["weights"].index]
@@ -1071,8 +1104,14 @@ def main() -> int:
                     "headline_equity_dates": [d.strftime("%Y-%m-%d")
                                                 for d in eq_window.index],
                     "headline_equity": round_series(eq_window.values),
-                    "n_rebalances": len(trades),
+                    # n_rebalances counted TRADES until 2026-09-03 (it was
+                    # len(trades)); it now counts the rebalance grid the
+                    # allocation series samples, and the trade count has
+                    # its own key.
+                    "n_rebalances": int(len(weekly_w)),
+                    "n_trades": len(trades),
                     "trade_history": trades,
+                    "latest_rebalance": latest_rebalance,
                     "attribution": attribution,
                     "weekly_allocation_dates": [d.strftime("%Y-%m-%d")
                                                   for d in weekly_w.index],
@@ -1146,6 +1185,9 @@ def main() -> int:
 
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),
+        # The basis this run priced on (2026-09-03): a reader of the artefact
+        # can tell a Norgate-basis book from a yfinance one without the log.
+        "price_source": EFFECTIVE_PRICE_SOURCE,
         "universe": [
             {"etf": t, "label": UNIVERSE[t]["label"], "theme": UNIVERSE[t]["theme"]}
             for t in TICKERS

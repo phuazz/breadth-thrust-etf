@@ -45,8 +45,10 @@ from run_improvements import compute_stats  # noqa: E402
 from run_ma200_sweep import MA_PERIOD  # noqa: E402
 from backtest import download_spy_close  # noqa: E402
 from price_panel_guard import (  # noqa: E402
-    assert_attribution_sane, assert_panel_usable,
+    assert_attribution_sane, assert_decision_session_present,
+    assert_panel_usable,
 )
+from rebalance_records import latest_rebalance_record  # noqa: E402
 
 # Phase 12 cost calibration: Strategy A trades 14 US sector / broad ETFs
 # via SPDR Select Sector proxies (XLE, XLF, XLV, XLI, XLP, XLY, XLU, XLB,
@@ -231,6 +233,11 @@ def main() -> int:
     # the 2026-08-15 SOXX defect, and it costs sleeve A 17 points of total
     # return without a single error being raised.
     assert_panel_usable(closes, "Strategy A closes", window_start=eligible)
+    # A session absent from the price index redates the decision (the engine
+    # ranks at get_loc(rd) - 1); an unpriced member on a present session only
+    # mis-marks a day, because this sleeve ranks on breadth. Trades NYSE.
+    assert_decision_session_present(closes, "NYSE", HEADLINE_FREQ, eligible,
+                                    "Strategy A closes", hollow_is_fail=False)
 
     # =====================================================================
     # 1. Rebalance-frequency sensitivity grid
@@ -267,6 +274,11 @@ def main() -> int:
             if K == HEADLINE_K and freq_name == HEADLINE_FREQ_NAME:
                 # Trade history
                 trades = build_trade_history(r["weights"], breadths, eligible)
+                # The last rebalance RUN, traded or held (2026-09-03). See
+                # rebalance_records.py: trade_history is the change log.
+                latest_rebalance = latest_rebalance_record(
+                    r["weights"], breadths, r["rebalance_dates"],
+                    "breadth_pct", eligible)
                 headline_payload = {
                     "K": K,
                     "rebal_freq": freq_name,
@@ -278,8 +290,12 @@ def main() -> int:
                     "headline_equity_dates": [d.strftime("%Y-%m-%d")
                                               for d in eq_window.index],
                     "headline_equity": round_series(eq_window.values),
+                    # n_rebalances counted TRADES until 2026-09-03; it is
+                    # re-stated below once the rebalance grid is sampled.
                     "n_rebalances": len(trades),
+                    "n_trades": len(trades),
                     "trade_history": trades,
+                    "latest_rebalance": latest_rebalance,
                 }
 
     # =====================================================================
@@ -445,6 +461,9 @@ def main() -> int:
         etf: round_series(weekly_w[etf].values, ndigits=4)
         for etf in weekly_w.columns
     }
+    # The count of rebalances is the grid the allocation series samples, not
+    # the number of weeks that traded (2026-09-03).
+    headline_payload["n_rebalances"] = int(len(weekly_w))
     headline_payload["attribution"] = attribution
     payload = {
         "computed_at_utc": datetime.now(timezone.utc).isoformat(),

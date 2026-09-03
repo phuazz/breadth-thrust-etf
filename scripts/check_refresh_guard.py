@@ -289,6 +289,75 @@ def check_shared_end_friday(end_fridays: dict[str, str],
     return out
 
 
+ENGINE_PRICE_CACHES = {
+    "B": "asset_class_prices_cache.parquet",
+    "C": "thematic_prices_cache.parquet",
+}
+
+
+def check_decision_sessions(frames: dict[str, "pd.DataFrame | None"],
+                            calendar: str = "NYSE", freq: str = "W-MON",
+                            ) -> list[dict]:
+    """G7: each price-signal engine's latest rebalance was decided on the
+    session its venue actually closed before it.
+
+    Added 2026-09-03. On Friday 2026-08-28 yfinance served no bar for ten of
+    thirteen sleeve-B lines and for SHY; both engine caches lost the session
+    (B drops holed rows, C takes its calendar from SHY) and the 2026-08-31
+    rebalance was published decided on Thursday. G1 and G4 read tails and end
+    dates, the panel guard reads the panel's own index, and the cache-write
+    refusal reads start, end and lost columns; an interior missing session
+    passed all of them. This verdict reads the VENUE calendar. FAIL when the
+    decision session is absent or unpriced for a member; WARN for an older
+    scheduled session missing inside the trailing window; WARN unverifiable
+    when the gitignored cache is not on this machine (the CI convention G1's
+    price leg already follows).
+    """
+    from price_panel_guard import (  # local: keeps this module importable
+        FAIL as P_FAIL, SKIP as P_SKIP, decision_session_report,
+    )
+    out = []
+    for sleeve, frame in sorted((frames or {}).items()):
+        name = f"G7 decision session {sleeve}"
+        if frame is None or len(frame) == 0:
+            out.append(verdict(name, WARN,
+                               f"engine price cache for sleeve {sleeve} not "
+                               f"readable on this machine — the decision "
+                               f"session cannot be corroborated"))
+            continue
+        rep = decision_session_report(frame, calendar, freq,
+                                      pd.Timestamp(frame.index.min()),
+                                      hollow_is_fail=True)
+        if rep["status"] == P_SKIP:
+            out.append(verdict(name, WARN, "; ".join(rep["reasons"])))
+        elif rep["status"] == P_FAIL:
+            out.append(verdict(name, FAIL, "; ".join(rep["reasons"])))
+        elif rep["warnings"]:
+            out.append(verdict(name, WARN,
+                               f"the {rep['rebalance_date']} rebalance ranks "
+                               f"on {rep['expected_decision']}, present and "
+                               f"priced; but " + "; ".join(rep["warnings"])))
+        else:
+            out.append(verdict(name, OK,
+                               f"the {rep['rebalance_date']} rebalance ranks "
+                               f"on {calendar} {rep['expected_decision']}, "
+                               f"present and priced for every member"))
+    return out
+
+
+def load_engine_price_caches(data_dir: Path) -> dict[str, "pd.DataFrame | None"]:
+    """The two engine caches, or None where unreadable (gitignored: absent
+    off the refresh machine)."""
+    frames: dict[str, "pd.DataFrame | None"] = {}
+    for sleeve, fname in ENGINE_PRICE_CACHES.items():
+        path = data_dir / fname
+        try:
+            frames[sleeve] = pd.read_parquet(path) if path.exists() else None
+        except Exception:
+            frames[sleeve] = None
+    return frames
+
+
 def check_endpoint_health(health: dict[str, str]) -> list[dict]:
     """G2: every panel's endpoint_health.status must be "ok"."""
     bad = {k: v for k, v in health.items() if v != "ok"}
@@ -837,6 +906,9 @@ def main(argv: list[str] | None = None) -> int:
     results.extend(check_universal_walkback(latest_actuals, expected_friday,
                                             price_sides=price_sides,
                                             expected_ends=expected_ends))
+    # G7 — the price-signal engines' decision session, read against the
+    # venue calendar (2026-09-03; the 2026-08-28 withheld Friday).
+    results.extend(check_decision_sessions(load_engine_price_caches(DATA_DIR)))
     if n_loss_failures == 0 and n_baseline_checked:
         results.append(verdict(
             "G5 no lost state", OK,

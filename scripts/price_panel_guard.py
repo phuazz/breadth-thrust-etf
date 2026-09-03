@@ -565,3 +565,187 @@ def assert_attribution_sane(
         "2026-08-15 SOXX incident in scripts/price_panel_guard.py. Repair the "
         "cache and re-run before committing anything downstream."
     )
+
+
+# --------------------------------------------------------------------------
+# The decision session (2026-09-03)
+# --------------------------------------------------------------------------
+# WHY THIS EXISTS. Every check above measures a member against the PANEL'S
+# OWN INDEX, so a session the whole panel lacks is invisible to all of them.
+# On Friday 2026-08-28 yfinance served no bar for ten of thirteen sleeve-B
+# lines and for SHY. Sleeve B drops any row with a gap and sleeve C takes its
+# calendar from SHY, so both panels lost the session outright; the engines
+# then stamped the 2026-08-31 rebalance on THURSDAY's close (decision_date
+# 2026-08-27), the refresh guard, this module and the cache-write refusal all
+# passed, and the result was published. A rebalance decided on the wrong
+# session is plausible and wrong — the same shape as the 2026-08-14 sleeve-D
+# incident, which a vendor hole moved from Thursday to Wednesday.
+#
+# The VENUE CALENDAR is the reference this check has and the others do not.
+# Two severities, deliberately:
+#   FAIL  the session the most recent rebalance ranks on is absent from the
+#         panel, or (for a price-signal engine) present but unpriced for a
+#         member — the published decision is mis-decided either way.
+#   WARN  any other scheduled session missing inside the trailing window. It
+#         moves a 200-session mean by one day and drops a day from the equity
+#         curve, and it should be repaired, but it decides nothing.
+# A breadth engine (A, D) ranks on its breadth panel, so an unpriced member
+# on the decision session mis-MARKS one day rather than mis-deciding; those
+# callers pass hollow_is_fail=False and get the WARN.
+#
+# WHAT IT DOES NOT DO. It does not police the tail: a panel that stops short
+# of the last completed session is live_targets' and the refresh guard's
+# question (the "reaches" HOLD and G1). Here the rebalance grid is read off
+# the panel that exists, and the question is whether THAT rebalance was
+# decided on the session the venue actually closed before it.
+
+DECISION_LOOKBACK_SESSIONS = 30
+
+
+def venue_sessions_through(calendar: str, end, lookback: int = DECISION_LOOKBACK_SESSIONS
+                           ) -> list[pd.Timestamp]:
+    """The last ``lookback`` sessions of ``calendar`` at or before ``end``."""
+    from rebalance_calendar import _exchange_sessions  # local: no import cycle
+
+    end = pd.Timestamp(end).normalize()
+    start = end - pd.Timedelta(days=lookback * 3 + 14)
+    sessions = sorted(_exchange_sessions(
+        calendar, start.date().isoformat(), end.date().isoformat()))
+    return [pd.Timestamp(d) for d in sessions][-lookback:]
+
+
+def expected_decision_session(rebalance_date, calendar: str) -> pd.Timestamp | None:
+    """The venue's last session STRICTLY before the rebalance date — the one
+    an engine ranking at rd-1 reads when its panel is complete."""
+    rd = pd.Timestamp(rebalance_date).normalize()
+    before = venue_sessions_through(calendar, rd - pd.Timedelta(days=1), lookback=10)
+    return before[-1] if before else None
+
+
+def missing_scheduled_sessions(index, calendar: str,
+                               lookback: int = DECISION_LOOKBACK_SESSIONS
+                               ) -> list[pd.Timestamp]:
+    """Scheduled venue sessions inside the trailing window that the index lacks."""
+    idx = pd.DatetimeIndex(index).normalize()
+    if len(idx) == 0:
+        return []
+    have = set(idx)
+    return [s for s in venue_sessions_through(calendar, idx.max(), lookback)
+            if s not in have]
+
+
+def decision_session_report(closes: pd.DataFrame, calendar: str, freq: str,
+                            eligible_start, hollow_is_fail: bool = True,
+                            lookback: int = DECISION_LOOKBACK_SESSIONS) -> dict:
+    """Pure verdict on the most recent rebalance's decision session.
+
+    Returns a dict with ``status`` (PASS / FAIL / SKIP), the rebalance date
+    read off the panel, the venue session it should have ranked on, whether
+    that session is present, the members unpriced on it, the other scheduled
+    sessions missing from the trailing window, and the reasons and warnings
+    in prose. SKIP means there is no rebalance to judge.
+    """
+    from rebalance_calendar import engine_rebalance_dates  # local: no cycle
+
+    idx = pd.DatetimeIndex(closes.index).normalize()
+    report = {
+        "status": PASS, "calendar": calendar, "rebalance_date": None,
+        "expected_decision": None, "present": None, "hollow_members": [],
+        "missing_sessions": [], "reasons": [], "warnings": [],
+    }
+    if len(idx) == 0:
+        report["status"] = SKIP
+        report["reasons"].append("empty panel — nothing to judge")
+        return report
+
+    missing = missing_scheduled_sessions(idx, calendar, lookback)
+    report["missing_sessions"] = [m.strftime("%Y-%m-%d") for m in missing]
+
+    rds = engine_rebalance_dates(idx, pd.Timestamp(eligible_start), freq, calendar)
+    if len(rds) == 0:
+        report["status"] = SKIP
+        report["reasons"].append("no rebalance date at or after eligible_start")
+        return report
+    rd = pd.Timestamp(rds[-1]).normalize()
+    report["rebalance_date"] = rd.strftime("%Y-%m-%d")
+    expected = expected_decision_session(rd, calendar)
+    if expected is None:
+        report["status"] = FAIL
+        report["reasons"].append(
+            f"the {calendar} calendar returned no session before the "
+            f"{rd.date()} rebalance — calendar data is broken")
+        return report
+    report["expected_decision"] = expected.strftime("%Y-%m-%d")
+    present = expected in set(idx)
+    report["present"] = bool(present)
+    if not present:
+        earlier = idx[idx < expected]
+        used = earlier.max().strftime("%Y-%m-%d") if len(earlier) else "nothing"
+        report["status"] = FAIL
+        report["reasons"].append(
+            f"the {calendar} session {expected.date()} that the {rd.date()} "
+            f"rebalance ranks on is ABSENT from the panel, so the engine "
+            f"decides on {used} instead — a vendor gap on the decision "
+            f"session, not a holiday")
+    else:
+        row = closes.loc[closes.index.normalize() == expected].iloc[0]
+        hollow = [str(m) for m in row.index[row.isna()]]
+        report["hollow_members"] = hollow
+        if hollow:
+            text = (f"the decision session {expected.date()} is present but "
+                    f"unpriced for {len(hollow)} of {len(row)} members: "
+                    f"{hollow}")
+            if hollow_is_fail:
+                report["status"] = FAIL
+                report["reasons"].append(text + " — a partial row is a "
+                                         "different signal, not a smaller one")
+            else:
+                report["warnings"].append(
+                    text + " — this engine ranks on breadth, so the day is "
+                    "mis-marked rather than mis-decided; repair the cache")
+    others = [m for m in report["missing_sessions"]
+              if m != report["expected_decision"]]
+    if others:
+        report["warnings"].append(
+            f"{len(others)} scheduled {calendar} session(s) missing inside "
+            f"the last {lookback}: {others} — each drops a day from the "
+            f"equity curve and moves the 200-session mean; repair with "
+            f"scripts/repair_price_gaps.py")
+    return report
+
+
+def assert_decision_session_present(closes: pd.DataFrame, calendar: str,
+                                    freq: str, eligible_start, label: str,
+                                    hollow_is_fail: bool = True,
+                                    lookback: int = DECISION_LOOKBACK_SESSIONS
+                                    ) -> dict:
+    """Raise ``DegeneratePriceError`` unless the latest rebalance was decided
+    on the session the venue actually closed before it. Prints its finding
+    either way, so a passing run still names the session it checked."""
+    rep = decision_session_report(closes, calendar, freq, eligible_start,
+                                  hollow_is_fail=hollow_is_fail,
+                                  lookback=lookback)
+    if rep["status"] == SKIP:
+        print(f"  [decision session] {label}: SKIP — {'; '.join(rep['reasons'])}",
+              flush=True)
+        return rep
+    if rep["status"] == PASS:
+        print(f"  [decision session] {label}: the {rep['rebalance_date']} "
+              f"rebalance ranks on {calendar} {rep['expected_decision']} — "
+              f"present and priced for every member", flush=True)
+    for w in rep["warnings"]:
+        print(f"  [decision session] {label}: WARN {w}", flush=True)
+    if rep["status"] == FAIL:
+        detail = "\n".join(f"  - {r}" for r in rep["reasons"])
+        raise DegeneratePriceError(
+            f"{label}: the latest rebalance was not decided on its venue "
+            f"session.\n{detail}\n\n"
+            "A backtest run on this panel would stamp the rebalance on the "
+            "wrong close and publish it as plausible. This is the 2026-08-28 "
+            "class: yfinance withheld a Friday, and the 2026-08-31 rebalance "
+            "went out decided on Thursday. Repair the panel (python "
+            "scripts/repair_price_gaps.py, then --apply) or source it from "
+            "Norgate (BTE_PRICE_SOURCE=norgate), and re-run the engine. Do "
+            "NOT commit the artefacts from this run."
+        )
+    return rep

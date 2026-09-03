@@ -216,6 +216,44 @@ def log_path_for(now_utc: datetime, tz=None) -> Path:
 
 CADENCES = ("weekend", "post-fill")
 
+# PRICE SOURCE (2026-09-03, owner decision; WS19c found `auto` adopt-eligible).
+#
+# On Friday 2026-08-28 yfinance served no bar for ten of thirteen sleeve-B
+# lines and for SHY, and the 2026-09-02 post-fill run from this clone
+# published the 2026-08-31 rebalance decided on THURSDAY. Norgate carried the
+# session throughout. The scheduled runs therefore source sleeves B and C and
+# the A/D proxies from Norgate, on the same machine, and FAIL CLOSED when the
+# feed is unreachable: a basis flip is a restatement and must be chosen, not
+# suffered because a service was down at 09:00. `--price-source yfinance` is
+# the explicit way to accept the yfinance basis for one run.
+PRICE_SOURCES = ("norgate", "yfinance", "auto")
+DEFAULT_PRICE_SOURCE = "norgate"
+
+
+def price_source_preflight(requested: str, available=None) -> tuple[bool, str]:
+    """(ok, message). A request for Norgate that the machine cannot honour is
+    refused BEFORE the four-hour refresh starts, not discovered in an engine
+    step at the end of it."""
+    if requested not in PRICE_SOURCES:
+        return False, f"unknown price source {requested!r}"
+    if requested == "yfinance":
+        return True, "price source yfinance (requested)"
+    if available is None:
+        import norgate_prices  # local: sibling module on sys.path
+        available = norgate_prices.available
+    reachable = bool(available())
+    if requested == "norgate" and not reachable:
+        return False, ("price source norgate requested but the Norgate feed is "
+                       "unreachable on this machine. Start the Norgate Data "
+                       "Updater, or re-run with --price-source yfinance to "
+                       "accept the yfinance basis explicitly for this run.")
+    if requested == "auto":
+        return True, ("price source auto: " + ("norgate, feed reachable"
+                                               if reachable else
+                                               "yfinance, feed unreachable "
+                                               "(fallback RECORDED)"))
+    return True, "price source norgate (requested and reachable)"
+
 
 def scheduled_commit_message(today: date, panel_end: date,
                              cadence: str = "weekend") -> str:
@@ -289,6 +327,16 @@ def main(argv: list[str] | None = None) -> int:
                              "'weekend' (Sat/Sun) produces the book Monday's "
                              "fill is ranked on; 'post-fill' (Tue/Wed) records "
                              "the fill itself.")
+    parser.add_argument("--price-source", choices=PRICE_SOURCES,
+                        default=DEFAULT_PRICE_SOURCE,
+                        help="Price source for sleeves B and C and the A/D "
+                             "proxies, passed to refresh_all.py. Default "
+                             f"'{DEFAULT_PRICE_SOURCE}' (owner decision "
+                             "2026-09-03, WS19c): the run FAILS at preflight "
+                             "when the Norgate feed is unreachable rather "
+                             "than publishing a yfinance-basis book under a "
+                             "Norgate flag. Pass 'yfinance' to accept that "
+                             "basis explicitly.")
     args = parser.parse_args(argv)
 
     LOG_DIR.mkdir(exist_ok=True)
@@ -309,7 +357,11 @@ def main(argv: list[str] | None = None) -> int:
         log.close()
         return code
 
-    # ----- Preflight: clean tree, then sync to origin -----
+    # ----- Preflight: price source, clean tree, then sync to origin -----
+    ok, msg = price_source_preflight(args.price_source)
+    log.write(f"\n{msg}\n")
+    if not ok:
+        return fail(2, "price source unavailable", msg)
     cp = _git(["status", "--porcelain"], log)
     if cp.returncode != 0:
         return fail(2, "git status failed", cp.stderr)
@@ -393,7 +445,8 @@ def main(argv: list[str] | None = None) -> int:
         # the per-step timeout now in run_step: one compute_breadth consumed
         # 13.3 hours there once yfinance's limiter throttled it, and no
         # narrowing of scope would have bounded that.
-        cmd = [sys.executable, "scripts/refresh_all.py"]
+        cmd = [sys.executable, "scripts/refresh_all.py",
+               "--price-source", args.price_source]
         if args.cadence == "post-fill":
             cmd.append("--deployed-only")
         log.write(f"\nrunning {' '.join(cmd[1:])} (output follows)\n")

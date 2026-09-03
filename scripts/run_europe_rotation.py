@@ -45,8 +45,10 @@ from run_improvements import compute_stats  # noqa: E402
 from run_ma200_sweep import MA_PERIOD  # noqa: E402
 from backtest import download_spy_close  # noqa: E402
 from price_panel_guard import (  # noqa: E402
-    assert_attribution_sane, assert_panel_usable,
+    assert_attribution_sane, assert_decision_session_present,
+    assert_panel_usable,
 )
+from rebalance_records import latest_rebalance_record  # noqa: E402
 
 # Phase 12 cost calibration: Strategy D trades 5 Stoxx Europe 600 sector
 # UCITS on Xetra in EUR (EXV1.DE banks, EXH1.DE oil & gas, EXV3.DE tech,
@@ -223,6 +225,13 @@ def main() -> int:
     # Checking the EUR side would pass a member whose FX leg holed the series
     # after conversion. See the 2026-08-15 note in price_panel_guard.py.
     assert_panel_usable(closes, "Strategy D closes (USD)", window_start=eligible)
+    # The 2026-08-14 shape: a vendor hole on the Xetra session before the
+    # rebalance moved this sleeve's decision back a day and flipped a 1.3pp
+    # call. A breadth engine mis-MARKS on an unpriced member but only
+    # mis-DECIDES when the session itself is absent, hence hollow_is_fail=False.
+    assert_decision_session_present(closes, CALENDAR, HEADLINE_FREQ, eligible,
+                                    "Strategy D closes (USD)",
+                                    hollow_is_fail=False)
 
     # K x cadence grid
     print(f"\n=== K × cadence sensitivity (Strategy D: Europe sectors) ===")
@@ -254,6 +263,11 @@ def main() -> int:
                   f"turnover/yr {to['annual_turnover']:>4.2f}")
             if K == HEADLINE_K and freq_name == HEADLINE_FREQ_NAME:
                 trades = build_trade_history(r["weights"], breadths, eligible)
+                # The last rebalance RUN, traded or held (2026-09-03). See
+                # rebalance_records.py: trade_history is the change log.
+                latest_rebalance = latest_rebalance_record(
+                    r["weights"], breadths, r["rebalance_dates"],
+                    "breadth_pct", eligible)
 
                 rets = closes.pct_change().fillna(0).loc[r["weights"].index]
                 rets = rets.loc[rets.index >= eligible]
@@ -312,8 +326,12 @@ def main() -> int:
                     "headline_equity_dates": [d.strftime("%Y-%m-%d")
                                                 for d in eq_window.index],
                     "headline_equity": round_series(eq_window.values),
-                    "n_rebalances": len(trades),
+                    # n_rebalances counted TRADES until 2026-09-03; it now
+                    # counts the rebalance grid, and trades have their own key.
+                    "n_rebalances": int(len(weekly_w)),
+                    "n_trades": len(trades),
                     "trade_history": trades,
+                    "latest_rebalance": latest_rebalance,
                     "attribution": attribution,
                     "weekly_allocation_dates": [d.strftime("%Y-%m-%d")
                                                   for d in weekly_w.index],

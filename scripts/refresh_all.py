@@ -233,6 +233,16 @@ def main() -> int:
                         "refused by build_simple_page's guard.")
     p.add_argument("--no-tests", action="store_true",
                     help="Skip the final pytest run.")
+    p.add_argument("--price-source", choices=("yfinance", "norgate", "auto"),
+                   default=None,
+                   help="Price source for sleeves B and C and the A/D "
+                        "proxies (sets BTE_PRICE_SOURCE for every step). "
+                        "'norgate' FAILS the engines when the feed is "
+                        "unreachable rather than falling back; 'auto' falls "
+                        "back and records it. Default: whatever "
+                        "BTE_PRICE_SOURCE already says, else yfinance. "
+                        "Adopted for the scheduled runs on 2026-09-03 "
+                        "(WS19c).")
     p.add_argument("--throttle", type=float, default=THROTTLE_DEFAULT_S,
                     metavar="SECONDS",
                     help=f"Pause between ETFs in step 1 so the price "
@@ -243,6 +253,17 @@ def main() -> int:
                          f"served from cache. Pass 0 to disable — only "
                          f"sensible on a fully warm cache.")
     args = p.parse_args()
+
+    # One source for the whole run, stated once at the top of the log. The
+    # engines read the variable directly; compute_breadth takes it as a flag
+    # (translated below). Setting it here means every child step inherits the
+    # same answer, which is the point — a book split between two sources by
+    # accident is worse than either source used consistently.
+    if args.price_source:
+        os.environ["BTE_PRICE_SOURCE"] = args.price_source
+    print(f"price source: {os.environ.get('BTE_PRICE_SOURCE', 'yfinance')} "
+          f"(BTE_PRICE_SOURCE{' from --price-source' if args.price_source else ''})",
+          flush=True)
 
     failures: list[str] = []
     timings: list[tuple[str, float]] = []
@@ -291,7 +312,10 @@ def main() -> int:
         # split down the middle by accident rather than by decision, which is
         # worse than either source used consistently.
         _bcmd = [py, "scripts/compute_breadth.py", "--etf", etf]
-        if os.environ.get("BTE_PRICE_SOURCE", "").strip().lower() == "norgate":
+        if os.environ.get("BTE_PRICE_SOURCE", "").strip().lower() in ("norgate", "auto"):
+            # The panels are a mixed universe (no European or Chinese product
+            # at Norgate), so their flag is always 'auto': Norgate where it
+            # resolves, the incumbent elsewhere, per column.
             _bcmd += ["--price-source", "auto"]
         ok, dt = run_step(
             f"[{i}/{len(_panels)}] {etf} compute_breadth",

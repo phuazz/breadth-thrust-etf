@@ -32,6 +32,25 @@ Measured before trusting it: over 157 overlapping sessions in 2026, Binance
 BTCUSDT and the cached series had daily-return correlation 0.9998, mean
 difference -0.00000, median absolute difference 3.2bp and worst 33bp.
 
+THE 2026-08-28 CLASS, added 2026-09-03. The first version found a gap only
+where "the rest of the panel priced and this ticker did not" -- at least five
+peers with a close on the session. On Friday 2026-08-28 the vendor withheld
+the session for ten of thirteen sleeve-B lines and for SHY, so the B cache
+carried a row three names priced (no gap by that rule) and the C cache, which
+takes its calendar from SHY, carried no row at all (nothing to compare). Both
+engines published the 2026-08-31 rebalance decided on Thursday, and this
+script reported nothing. Gaps are now found against the NYSE SCHEDULE: a
+scheduled session absent from the frame, or unpriced for the ticker, is a gap
+whatever the peers did. The peer rule remains for callers that pass no
+schedule.
+
+Two consequences follow. The primary may have backfilled by the time this
+runs, and its value is spliced by RETURN like any other -- never dropped in at
+level, because these caches are not raw vendor prices (see above). And
+US-listed lines default to the locally licensed Norgate feed as their
+secondary, which carried 2026-08-28 for every one of them; non-US and synthetic
+lines still need an explicit SECONDARY entry, because absence is meaningful.
+
 WHAT IT REFUSES TO DO.
 
   - It will not fill a RUN of missing bars. A single absent print is a vendor
@@ -82,15 +101,51 @@ MAX_PLAUSIBLE_MOVE = 0.25
 # published record; repairing them would restate history silently.
 LOOKBACK_SESSIONS = 30
 
-# Secondary sources, declared per ticker. Absence is meaningful: a ticker with
-# no entry here is never filled from anywhere but its primary vendor.
+# Secondary sources, declared per ticker. Absence is meaningful for anything
+# that is not a plain US listing: a ticker with no entry here and a suffix or
+# a hyphen is never filled from anywhere but its primary vendor.
 SECONDARY = {
     "BTC-USD": {"venue": "binance", "symbol": "BTCUSDT"},
 }
 
+# Plain US listings (no exchange suffix, no pair hyphen) default to the
+# locally licensed Norgate feed as their secondary (2026-09-03). It is the
+# source that carried the withheld 2026-08-28 session for every US line in
+# both caches, and its ETF-level agreement with yfinance's adjusted closes is
+# 6.3e-5 at worst (WS19). Off the licensed machine it is simply unavailable
+# and the gap stays reported, not filled.
+US_LISTED_SECONDARY_VENUE = "norgate"
+
 
 class RepairError(RuntimeError):
     pass
+
+
+def us_listed(ticker: str) -> bool:
+    """A plain US listing: no '.XX' venue suffix, no '-USD' pair, no '=X' FX."""
+    return "." not in ticker and "-" not in ticker and "=" not in ticker
+
+
+def secondary_for(ticker: str) -> dict | None:
+    """The declared secondary, else Norgate for a plain US listing, else None."""
+    meta = SECONDARY.get(ticker)
+    if meta:
+        return meta
+    if us_listed(ticker):
+        return {"venue": US_LISTED_SECONDARY_VENUE, "symbol": ticker}
+    return None
+
+
+def nyse_sessions_for(frame: pd.DataFrame,
+                      lookback: int = LOOKBACK_SESSIONS) -> pd.DatetimeIndex:
+    """The last ``lookback`` NYSE sessions at or before the cache's last row.
+    Both engine caches sit on the NYSE calendar (crypto is reindexed onto it,
+    Shenzhen is FX-aligned onto it)."""
+    if frame is None or len(frame) == 0:
+        return pd.DatetimeIndex([])
+    from price_panel_guard import venue_sessions_through  # sibling module
+    return pd.DatetimeIndex(venue_sessions_through(
+        "NYSE", pd.Timestamp(frame.index.max()), lookback))
 
 
 # ---------------------------------------------------------------------------
@@ -98,15 +153,24 @@ class RepairError(RuntimeError):
 # ---------------------------------------------------------------------------
 def find_gaps(frame: pd.DataFrame, ticker: str,
               lookback: int = LOOKBACK_SESSIONS,
-              min_peers: int = 5) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
-    """Sessions where the rest of the panel priced and ``ticker`` did not.
+              min_peers: int = 5,
+              sessions: pd.DatetimeIndex | None = None,
+              ) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    """Sessions the market traded and ``ticker`` has no close for.
+
+    With ``sessions`` (the venue schedule, see nyse_sessions_for) a gap is a
+    scheduled session that is absent from the frame or unpriced for the
+    ticker, whatever the peers did -- the 2026-08-28 class, where the vendor
+    withheld a whole session and the peer rule below saw nothing. Without it,
+    the original rule: sessions where at least ``min_peers`` peers priced and
+    the ticker did not.
 
     Returns (gap, previous_session) PAIRS rather than bare dates. That is
     deliberate: the caller needs a previous bar to splice onto, and if it
     derived one itself there would be two definitions of "previous" -- this
-    one on the peer-filtered session index, the caller's on the raw frame
-    index -- which are not the same whenever the frame carries a row that
-    almost nothing priced on. One definition, returned with the gap.
+    one on the session index used here, the caller's on the raw frame index
+    -- which are not the same whenever the frame carries a row that almost
+    nothing priced on. One definition, returned with the gap.
 
     ISOLATED gaps only. A run of two or more consecutive holes is returned as
     nothing at all, because a run is an outage rather than a hiccup and must
@@ -114,12 +178,17 @@ def find_gaps(frame: pd.DataFrame, ticker: str,
     """
     if ticker not in frame.columns:
         return []
-    peers = frame.drop(columns=[ticker])
-    traded = frame.index[peers.notna().sum(axis=1) >= min_peers]
+    if sessions is not None:
+        traded = pd.DatetimeIndex(sessions)
+        if len(frame.index):
+            traded = traded[traded <= pd.Timestamp(frame.index.max())]
+    else:
+        peers = frame.drop(columns=[ticker])
+        traded = frame.index[peers.notna().sum(axis=1) >= min_peers]
     if len(traded) == 0:
         return []
     window = traded[-lookback:] if lookback else traded
-    col = frame[ticker]
+    col = frame[ticker].reindex(traded)          # an absent row reads as NaN
     missing = [d for d in window if pd.isna(col.loc[d])]
     if not missing:
         return []
@@ -182,14 +251,33 @@ def fetch_binance(symbol: str, start: pd.Timestamp,
     return s[s.index <= pd.Timestamp(end)]
 
 
+def fetch_norgate(symbol: str, start: pd.Timestamp,
+                  end: pd.Timestamp) -> pd.Series:
+    """TOTALRETURN closes from the local Norgate feed; empty when the feed is
+    unreachable or does not carry the symbol (both mean "not here")."""
+    import norgate_prices  # sibling module
+    if not norgate_prices.available():
+        return pd.Series(dtype=float)
+    df = norgate_prices.fetch_ohlc(symbol, str(pd.Timestamp(start))[:10],
+                                   str(pd.Timestamp(end))[:10])
+    if df is None or "Close" not in df.columns:
+        return pd.Series(dtype=float)
+    s = df["Close"].dropna()
+    s.index = pd.to_datetime(s.index).normalize()
+    return s
+
+
 def fetch_secondary(ticker: str, start: pd.Timestamp,
                     end: pd.Timestamp) -> tuple[pd.Series, str]:
-    meta = SECONDARY.get(ticker)
+    meta = secondary_for(ticker)
     if not meta:
         return pd.Series(dtype=float), ""
     if meta["venue"] == "binance":
         return fetch_binance(meta["symbol"], start, end), \
             f"binance:{meta['symbol']}"
+    if meta["venue"] == "norgate":
+        return fetch_norgate(meta["symbol"], start, end), \
+            f"norgate:{meta['symbol']}"
     raise RepairError(f"unknown secondary venue {meta['venue']!r}")
 
 
@@ -202,18 +290,38 @@ CACHES = {
 }
 
 
+def _splice_from(series: pd.Series, label: str, g: pd.Timestamp,
+                 prev: pd.Timestamp, prev_val: float, rec: dict) -> bool:
+    """Try to fill ``rec`` from ``series`` by RETURN. True when it produced a
+    value or a refusal (either way the record is complete), False when the
+    series does not cover both sessions."""
+    if not (len(series) and g in series.index and prev in series.index):
+        return False
+    try:
+        v = splice_value(prev_val, float(series.loc[prev]), float(series.loc[g]))
+    except RepairError as e:
+        rec.update(source=label, method="return_splice", refused=str(e))
+        return True
+    rec.update(source=label, method="return_splice", value=v,
+               implied_return=float(series.loc[g] / series.loc[prev] - 1))
+    return True
+
+
 def repair_cache(key: str, only_ticker: str | None = None,
-                 apply: bool = False) -> list[dict]:
+                 apply: bool = False,
+                 sessions: pd.DatetimeIndex | None = None) -> list[dict]:
     fname, _ = CACHES[key]
     path = DATA_DIR / fname
     if not path.exists():
         raise RepairError(f"no cache at {path}")
     frame = pd.read_parquet(path)
+    if sessions is None:
+        sessions = nyse_sessions_for(frame)
     tickers = [only_ticker] if only_ticker else list(frame.columns)
     repairs: list[dict] = []
 
     for t in tickers:
-        gaps = find_gaps(frame, t)
+        gaps = find_gaps(frame, t, sessions=sessions)
         if not gaps:
             continue
         lo = min(g for g, _ in gaps) - pd.Timedelta(days=10)
@@ -227,26 +335,15 @@ def repair_cache(key: str, only_ticker: str | None = None,
             rec = {"cache": key, "ticker": t, "date": str(g.date()),
                    "prev_date": str(prev.date()), "prev_value": prev_val}
 
-            # 1. The primary may simply have backfilled.
-            if g in primary.index:
-                rec.update(source="primary:yfinance", method="direct",
-                           value=float(primary.loc[g]))
+            # 1. The primary may have backfilled. Its RETURN is spliced like
+            #    any other -- never its level: the cache carries drag, FX and
+            #    calendar work that a raw close would undo at the junction.
+            if _splice_from(primary, "primary:yfinance", g, prev, prev_val, rec):
                 repairs.append(rec)
                 continue
 
-            # 2. Otherwise a declared secondary, spliced by RETURN.
-            if len(sec) and g in sec.index and prev in sec.index:
-                try:
-                    v = splice_value(prev_val, float(sec.loc[prev]),
-                                     float(sec.loc[g]))
-                except RepairError as e:
-                    rec.update(source=sec_label, method="return_splice",
-                               refused=str(e))
-                    repairs.append(rec)
-                    continue
-                rec.update(source=sec_label, method="return_splice",
-                           value=v,
-                           implied_return=float(sec.loc[g] / sec.loc[prev] - 1))
+            # 2. Otherwise the secondary (declared, or Norgate for a US line).
+            if _splice_from(sec, sec_label, g, prev, prev_val, rec):
                 repairs.append(rec)
                 continue
 
@@ -258,6 +355,8 @@ def repair_cache(key: str, only_ticker: str | None = None,
               and "refused" not in r]
     if apply and usable:
         for r in usable:
+            # .loc on a new row label enlarges the frame: an ABSENT session
+            # (the C cache's 2026-08-28) gains its row here, NaN elsewhere.
             frame.loc[pd.Timestamp(r["date"]), r["ticker"]] = r["value"]
         frame = frame.sort_index()
         frame.to_parquet(path)
@@ -283,10 +382,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if not all_reps:
         print("\nNo isolated price gaps in the last "
-              f"{LOOKBACK_SESSIONS} sessions.")
+              f"{LOOKBACK_SESSIONS} NYSE sessions (checked against the "
+              f"exchange schedule).")
         return 0
 
-    print(f"\nPRICE GAP REPAIR — {'APPLIED' if args.apply else 'REPORT ONLY'}\n")
+    print(f"\nPRICE GAP REPAIR — {'APPLIED' if args.apply else 'REPORT ONLY'}")
+    print("  gaps are scheduled NYSE sessions absent or unpriced; values are "
+          "spliced by RETURN from the primary if it has backfilled, else from "
+          "the declared secondary (Norgate for plain US listings)\n")
     for r in all_reps:
         head = f"  {r['ticker']:10s} {r['date']}  ({r['cache']})"
         if "refused" in r:

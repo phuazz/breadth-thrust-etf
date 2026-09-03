@@ -525,18 +525,21 @@ def _collect_deployed_holdings(sleeves, overlay, asof_iso):
             "fallback_ticker", "SHY")
         holdings.append({"etf": fb, "sleeve": "GATE", "within": 1.0,
                          "effective": st["shy_overlay"], "signal": None})
-    # Say so when the sleeves do not share a rebalance date. Divergence is
-    # NORMAL — sleeve C only trades when its basket changes, so it legitimately
-    # sits weeks behind A and B. What is not normal is a sleeve running AHEAD,
-    # which is what a partial bar looks like from here, and printing the spread
-    # is what makes the difference visible without having to guess.
+    # Say so when the sleeves do not share a last-trade date. Divergence is
+    # NORMAL — sleeve C only trades when its basket changes, so its last TRADE
+    # legitimately sits weeks behind A and B while its last REBALANCE does not
+    # (the engines' latest_rebalance field carries that, 2026-09-03). What is
+    # not normal is a sleeve running AHEAD, which is what a partial bar looks
+    # like from here, and printing the spread is what makes the difference
+    # visible without having to guess.
     dates = {v["rebalance"] for v in vintages.values() if v.get("rebalance")}
     if len(dates) > 1:
         spread = ", ".join(f"{k}={v['rebalance']}"
                            for k, v in sorted(vintages.items()))
-        print(f"  [book vintage] as-of {asof_iso}: sleeves rebalanced on "
-              f"different dates ({spread}). Each is the last trade AT OR "
-              f"BEFORE the as-of date.", flush=True)
+        print(f"  [book vintage] as-of {asof_iso}: sleeves last traded on "
+              f"different dates ({spread}). Each is the last TRADE at or "
+              f"before the as-of date — a held rebalance writes no trade.",
+              flush=True)
     holdings.sort(key=lambda x: -x["effective"])
     for h in holdings:
         v = vintages.get(h["sleeve"])
