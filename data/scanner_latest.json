@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-09-02T23:30:26+00:00",
+  "built_at_utc": "2026-09-03T01:25:18+00:00",
   "as_of": "2026-09-02",
   "as_of_modal": "2026-09-02",
   "as_of_modal_share": "48/54",
@@ -2352,6 +2352,7 @@
     "failures": [],
     "stale": [],
     "notes": [
+      "snapshots not refreshed this run (--skip-snapshots)",
       "naive-recompute check passed on EEM, EFA, EWJ"
     ],
     "stale_threshold_sessions": 3
