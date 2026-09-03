@@ -2503,7 +2503,7 @@
 
     <section style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px;">
       <h2>Trade Explorer — Strategy A deep-dive</h2>
-      <p class="section-sub">Every rebalance of Strategy A from <strong id="trade-first-date">—</strong> to <strong id="trade-last-date">—</strong>. <span id="trade-summary"></span> Each row = a Monday close (a holiday Monday rolls forward to the next session); holdings shown are what the strategy should be in for the following week. Green chips entered this week; red chips exited; blue chips persisted. Weight = portfolio share; breadth = % of that ETF's constituents above 200d MA at the rebalance date. <em>For the BLEND-LEVEL combined ledger across all four sleeves, see the <a href="#" onclick="document.querySelector('[data-tab=history]').click();return false;">Trade History tab</a>.</em></p>
+      <p class="section-sub">Every trade of Strategy A from <strong id="trade-first-date">—</strong> to <strong id="trade-last-date">—</strong> — the rebalances that changed the book; a rebalance that held the same book writes no row. <span id="trade-summary"></span> Each row = a Monday close (a holiday Monday rolls forward to the next session); holdings shown are what the strategy should be in for the following week. Green chips entered this week; red chips exited; blue chips persisted. Weight = portfolio share; breadth = % of that ETF's constituents above 200d MA at the rebalance date. <em>For the BLEND-LEVEL combined ledger across all four sleeves, see the <a href="#" onclick="document.querySelector('[data-tab=history]').click();return false;">Trade History tab</a>.</em></p>
     </section>
 
     <section>
@@ -4273,10 +4273,18 @@ function renderPositionsPreview() {
   // the four sleeves, both overlays applied (tilt funding + de-risk gate).
   // The gate was previously ignored here — a RISK_OFF dashboard would
   // have shown the full-equity book at twice the live target.
+  // The last rebalance RUN per sleeve (latest_rebalance, 2026-09-03), falling
+  // back to the last trade for data built before the field existed. The
+  // trade record is the change log and its last entry is a week or more old
+  // on a held week.
+  const _lastRebalOf = (sleeve) => {
+    const trades = sleeve?.headline?.trade_history || [];
+    return sleeve?.headline?.latest_rebalance
+      || (trades.length ? trades[trades.length - 1] : null);
+  };
   let latestRebal = '';
   for (const sleeve of Object.values(sleeves)) {
-    const trades = sleeve?.headline?.trade_history || [];
-    const d = trades.length ? (trades[trades.length - 1].date || '') : '';
+    const d = _lastRebalOf(sleeve)?.date || '';
     if (d > latestRebal) latestRebal = d;
   }
   const stNow = _sleeveNavWeightsOn(latestRebal || '9999-12-31');
@@ -4289,9 +4297,8 @@ function renderPositionsPreview() {
   const holdings = [];
   let mostRecentDate = '';
   for (const [k, sleeve] of Object.entries(sleeves)) {
-    const trades = sleeve?.headline?.trade_history || [];
-    if (!trades.length) continue;
-    const latest = trades[trades.length - 1];
+    const latest = _lastRebalOf(sleeve);
+    if (!latest) continue;
     if (latest.date && latest.date > mostRecentDate) mostRecentDate = latest.date;
     for (const h of latest.holdings || []) {
       holdings.push({
@@ -4535,7 +4542,7 @@ function renderPositionsPreview() {
       const sign = netPct >= -0.05 ? '+' : '−';  // values that round to 0 show as +0.0%, never −0.0%
       const staleNote = staleSleeves.length
         ? ' ' + staleSleeves.map(([sl, d]) =>
-            `Sleeve ${sl} unchanged this week (last rebalanced ${d}).`).join(' ')
+            `Sleeve ${sl} unchanged this week (last traded ${d}).`).join(' ')
         : '';
       netEl.innerHTML = `Buys minus sells net to <b>${sign}${Math.abs(netPct).toFixed(1)}% NAV</b> across this week's moves (remainder is unchanged holdings or cash).${staleNote}`;
     }

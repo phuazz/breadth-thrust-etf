@@ -537,6 +537,7 @@ def download_prices() -> pd.DataFrame:
     global EFFECTIVE_PRICE_SOURCE
     EFFECTIVE_PRICE_SOURCE = price_source
     cached = None
+    cache_source = None
     if PRICE_CACHE.exists():
         cached = pd.read_parquet(PRICE_CACHE)
         # An EMPTY cache must read as "no usable cache", not explode. See the
@@ -559,7 +560,9 @@ def download_prices() -> pd.DataFrame:
                   f"{price_source} — refreshing")
 
     print(f"  Downloading {len(needed)} tickers from yfinance "
-          f"({START_DATE} -> {END_DATE}) ...", flush=True)
+          f"({START_DATE} -> {END_DATE})"
+          + (" as the base frame; Norgate column selection follows"
+             if price_source == "norgate" else "") + " ...", flush=True)
     raw = yf.download(needed, start=START_DATE, end=END_DATE, auto_adjust=True,
                       progress=False, threads=True, group_by="ticker")
     closes = {}
@@ -588,6 +591,11 @@ def download_prices() -> pd.DataFrame:
         import norgate_prices
         df, _ngrep = norgate_prices.select_columns(
             df, list(df.columns), START_DATE, END_DATE, label="Strategy C ")
+        # REACHABLE IS NOT SERVING (2026-09-03). The preflight only proved
+        # the service answers; a strict run must also have TAKEN every US
+        # line (the Shenzhen and crypto lines are never expected), or it
+        # would record a yfinance frame as Norgate-built.
+        price_source_mod.assert_norgate_complete(_ngrep, needed, "Strategy C")
 
     # Partial-bar guard: the padded fetch window may include today's
     # in-progress session (and crypto's current partial day) when run
@@ -609,8 +617,19 @@ def download_prices() -> pd.DataFrame:
     worse = fetched_panel_is_worse(df, cached)
     if worse is not None:
         if cached is not None and len(cached) and set(needed).issubset(set(cached.columns)):
+            # The frame handed back is the CACHE'S basis, not this run's
+            # (2026-09-03): a strict Norgate run may not fall back onto a
+            # yfinance-built cache, and any run must label what it returns.
+            cache_src = cache_source or "yfinance"
+            if price_source == "norgate" and cache_src != "norgate":
+                raise RuntimeError(
+                    f"price fetch refused ({worse}) and the cache on disk was "
+                    f"built from {cache_src}; a Norgate-basis run cannot fall "
+                    f"back onto it. Re-run once the fetch is healthy, or set "
+                    f"BTE_PRICE_SOURCE=yfinance to accept that basis explicitly.")
             print(f"  REFUSED cache write: {worse}. Falling back to the "
-                  f"cache on disk.")
+                  f"cache on disk (built from {cache_src}).")
+            EFFECTIVE_PRICE_SOURCE = cache_src
             return cached[needed]
         raise RuntimeError(
             f"price fetch unusable and no cache to fall back on: {worse}")

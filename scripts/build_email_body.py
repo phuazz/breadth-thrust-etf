@@ -300,6 +300,26 @@ def _collect_holdings(sleeves, overlay, asof_iso):
     return sorted(holdings, key=lambda x: -x["effective"])
 
 
+def _latest_rebalance_iso(sleeves) -> str:
+    """The newest rebalance RUN across the four sleeves, from
+    ``headline.latest_rebalance`` (emitted since 2026-09-03), falling back to
+    the last trade for payloads built before the field existed. The trade
+    record is the change log: on a week every sleeve held, its newest date is
+    a week or more older than the rebalance that held the book, and this
+    email's card used to print that as "rebalanced <date>"."""
+    best = ""
+    for key in ("a", "b", "c", "d"):
+        h = (sleeves.get(key, {}) or {}).get("headline") or {}
+        rec = h.get("latest_rebalance")
+        if not rec:
+            th = h.get("trade_history") or []
+            rec = th[-1] if th else None
+        d = (rec or {}).get("date") or ""
+        if d > best:
+            best = d
+    return best
+
+
 def _collect_activity(sleeves, overlay):
     """Identify ENTER/EXIT/RESIZE moves from prior rebalance to current,
     across all four sleeves, plus the overlays' own trades.
@@ -1052,7 +1072,9 @@ def build_html(out_path: Path):
     _order_activity(shown)
     n_small = sum(1 for a in shown if a["nav_impact"] < MATERIAL_NAV)
     net_nav = sum((a["new"] or 0) - (a["prev"] or 0) for a in shown)
-    date_note = latest_rebal or asof_iso
+    # The card is dated by the last rebalance RUN, not the newest trade
+    # (2026-09-03): on a held week the two differ and the trade date is stale.
+    date_note = _latest_rebalance_iso(sleeves) or latest_rebal or asof_iso
 
     def _net_note():
         sign = "+" if net_nav >= -0.00005 else "−"
@@ -1142,7 +1164,7 @@ def build_html(out_path: Path):
         out.append('</table>')
         if stale_sleeves:
             unchanged = " &middot; ".join(
-                f"Sleeve {s} unchanged this week (last rebalanced {d})"
+                f"Sleeve {s} unchanged this week (last traded {d})"
                 for s, d in stale_sleeves)
             out.append('<p style="color:#7c8590;font-size:11px;'
                        'margin:6px 0 0 0;line-height:1.5;">'

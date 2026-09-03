@@ -110,8 +110,14 @@ def engine_site(monkeypatch, tmp_path):
         "download": staticmethod(lambda *a, **k: yf_frame.copy())})())
     import norgate_prices as npx
     monkeypatch.setattr(npx, "available", lambda: True)
+    # A FULL take: every requested column reported as replaced. Since
+    # 2026-09-03 a strict run refuses a selection that took nothing, so the
+    # stub has to model Norgate actually serving (see the tests below for
+    # the refusal).
     monkeypatch.setattr(npx, "select_columns",
-                        lambda df, tickers, s, e, label="": (df, {"replaced": [], "kept": [], "unresolved": []}))
+                        lambda df, tickers, s, e, label="": (
+                            df, {"replaced": list(tickers), "kept": [],
+                                 "unresolved": []}))
     return ac, cache, cached, fresh
 
 
@@ -148,6 +154,53 @@ def test_engine_refuses_norgate_when_the_feed_is_down(engine_site, monkeypatch):
     monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
     with pytest.raises(RuntimeError):
         ac.download_prices()
+
+
+def test_engine_refuses_norgate_that_answers_but_serves_nothing(engine_site, monkeypatch):
+    """REACHABLE IS NOT SERVING (2026-09-03 review). The feed is up, the
+    preflight passes, and the selection takes no column — access denied on
+    the symbols, or Norgate a session behind so nothing is a date superset.
+    Before this guard the engine recorded source "norgate" for a frame with
+    no Norgate column in it, and nothing was written for it to fail on."""
+    ac, cache, cached, fresh = engine_site
+    import norgate_prices as npx
+    monkeypatch.setattr(npx, "select_columns",
+                        lambda df, tickers, s, e, label="": (
+                            df, {"replaced": [], "kept": list(tickers),
+                                 "unresolved": []}))
+    monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
+    with pytest.raises(RuntimeError) as exc:
+        ac.download_prices()
+    assert "0 of 13" in str(exc.value)
+    # ...and the cache and its sidecar were NOT rewritten as Norgate-built.
+    assert ps.read_cache_source(cache) is None
+
+
+def test_engine_will_not_fall_back_onto_a_yfinance_cache_under_norgate(engine_site, monkeypatch):
+    """A refused fetch used to hand back the cache on disk with the payload
+    still claiming the requested source. Under strict Norgate that is a
+    yfinance-basis book under a Norgate label — refuse."""
+    ac, cache, cached, fresh = engine_site
+    monkeypatch.setattr(ac, "fetched_panel_is_worse",
+                        lambda df, on_disk: "the fetch ends earlier than the cache")
+    monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
+    with pytest.raises(RuntimeError) as exc:
+        ac.download_prices()
+    assert "cannot fall back" in str(exc.value)
+
+
+def test_fallback_onto_the_cache_labels_the_cache_basis(engine_site, monkeypatch):
+    """On yfinance the fallback is allowed, and the payload's basis must be
+    the CACHE'S, which for an unrecorded cache is yfinance."""
+    ac, cache, cached, fresh = engine_site
+    monkeypatch.setattr(ac, "fetched_panel_is_worse",
+                        lambda df, on_disk: "the fetch ends earlier than the cache")
+    monkeypatch.setattr(ac, "last_completed_session",
+                        lambda now: (cached.index[-1] + pd.Timedelta(days=7)).date())
+    monkeypatch.delenv("BTE_PRICE_SOURCE", raising=False)
+    out = ac.download_prices()
+    assert out["SPY"].iloc[-1] == pytest.approx(cached["SPY"].iloc[-1])
+    assert ac.EFFECTIVE_PRICE_SOURCE == "yfinance"
 
 
 # ---------------------------------------------------------------------------

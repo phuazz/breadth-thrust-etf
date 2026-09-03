@@ -120,3 +120,26 @@ def test_hero_line_reads_the_latest_rebalance():
 def test_trade_tables_call_their_rows_trades_not_rebalances():
     """The per-sleeve history tables list trade_history rows."""
     assert "${history.length} rebalances" not in TEMPLATE
+    assert "Every rebalance of Strategy A" not in TEMPLATE, (
+        "the Strategy A explorer heading spans trade_history dates")
+
+
+def test_no_surface_calls_the_last_trade_the_last_rebalance():
+    """The 2026-09-03 review found the same defect on three more surfaces:
+    'Sleeve X unchanged this week (last rebalanced <date>)' in the weekly
+    email, the factsheet PDF and the dashboard's positions preview, where
+    <date> was the last TRADE. A sleeve that held its book DID rebalance."""
+    assert "last rebalanced" not in TEMPLATE
+    for name in ("build_email_body.py", "build_factsheet.py"):
+        src = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert "last rebalanced" not in src, name
+
+
+def test_factsheet_dates_come_from_the_latest_rebalance_record():
+    """Provenance and the stable-week fallback read the last rebalance RUN,
+    with the trade record only as the fallback for older payloads."""
+    src = (ROOT / "scripts" / "build_factsheet.py").read_text(encoding="utf-8")
+    assert "def _latest_rebalance_record" in src
+    assert "_last_rebal(" not in src, "the trade-date provenance helper is back"
+    assert '"LAST REBALANCE"' in src and '"SIGNALS AS OF"' in src
+    assert "Most recent rebal:" not in src

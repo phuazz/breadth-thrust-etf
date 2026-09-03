@@ -11,8 +11,10 @@ BUT guard layers around refresh_all.py:
   preflight   clean working tree required (a dirty automation clone
               means a human or another process interfered — abort), then
               git pull --rebase so the run starts from origin HEAD.
-  refresh     scripts/refresh_all.py, full run, no flags. Exit 0 there
-              already requires every step green INCLUDING pytest.
+  refresh     scripts/refresh_all.py --price-source <source> (default
+              norgate since 2026-09-03), plus --deployed-only for the
+              post-fill cadence. Exit 0 there already requires every step
+              green INCLUDING pytest.
   anchor      data/breadth_csp1.json end_date must reach
               nyse_sessions.last_completed_session(now) — catches the silent
               case where every step exits 0 on quietly-stale fetches
@@ -276,9 +278,9 @@ def scheduled_commit_message(today: date, panel_end: date,
     )
 
 
-def _git(args: list[str], log) -> subprocess.CompletedProcess:
+def _git(args: list[str], log, cwd: Path = REPO_ROOT) -> subprocess.CompletedProcess:
     cp = subprocess.run(
-        ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True
+        ["git", *args], cwd=cwd, capture_output=True, text=True
     )
     log.write(f"\n$ git {' '.join(args)}\n{cp.stdout}{cp.stderr}")
     log.flush()
@@ -304,6 +306,101 @@ def _email(subject: str, body: str, log) -> None:
         log.write(f"\n[email sent: {subject}]\n")
     except Exception as exc:
         log.write(f"\n[email FAILED: {exc}]\n")
+
+
+# RESTORE THE CLONE AFTER A FAILED REFRESH (2026-09-03).
+#
+# A run that fails after refresh_all has started writing leaves tracked
+# outputs modified, and the clean-tree preflight then refuses EVERY later
+# firing until a person resets the clone: sixteen firings were consumed that
+# way between 2026-08-29 and 2026-09-01, and the hourly repetition the
+# schedule carries was worth nothing. Every fail-closed guard added since
+# (decision session, coverage depth, strict Norgate) is one more way to fail
+# mid-run, so without this the weekend has ONE real attempt, not twelve.
+# Restoring the committed state after a failure is what makes the next firing
+# a retry instead of a refusal.
+#
+# Only for failures INSIDE the refresh (exit 3 and 4). A preflight refusal
+# (exit 2) found the tree dirty before this run touched it, and that is a
+# person's work to keep; a push failure (exit 5) has already committed, so
+# there is nothing to restore. The porcelain listing is logged before anything
+# is discarded, so nothing disappears without a record.
+RESTORE_ON_EXIT_CODES = (3, 4)
+RESTORE_PATHS = ("data/", "docs/", "build/portfolio.html", "template.html")
+
+
+def restore_tracked_outputs(log, repo_root: Path = REPO_ROOT) -> bool:
+    """Discard what a failed refresh wrote: tracked files under the output
+    paths back to HEAD, untracked (never ignored) files under data/ and docs/
+    removed. Returns True when the tree is clean afterwards."""
+    before = _git(["status", "--porcelain"], log, cwd=repo_root)
+    if before.returncode != 0:
+        return False
+    if not before.stdout.strip():
+        log.write("\nrestore: tree already clean\n")
+        return True
+    log.write("\nrestore: discarding the failed run's outputs:\n" + before.stdout)
+    # One path per call: a pathspec that matches nothing aborts the whole
+    # checkout, and build/portfolio.html need not exist in every tree.
+    for path in RESTORE_PATHS:
+        _git(["checkout", "--", path], log, cwd=repo_root)
+    # -fd without -x: ignored files (the price caches, logs/) are untouched.
+    _git(["clean", "-fd", "--", "data/", "docs/"], log, cwd=repo_root)
+    after = _git(["status", "--porcelain"], log, cwd=repo_root)
+    clean = after.returncode == 0 and not after.stdout.strip()
+    log.write("\nrestore: tree clean\n" if clean else
+              "\nrestore: tree STILL dirty — the next firing will refuse:\n"
+              + after.stdout)
+    return clean
+
+
+# ONE GREEN RUN PER LOCAL DAY PER CADENCE (2026-09-03).
+#
+# The hourly repeats need a way to tell "the day's work is done" from "this
+# is the first firing". Until 2026-09-03 that test was "the S&P panel already
+# reaches the last completed session", and the two-run weekend fell into its
+# hole: after a green Saturday the panel reaches Friday, so SUNDAY also read
+# as done and exited at once — the run that exists because sleeve D's
+# European close settles only on Sunday never happened. Nobody had seen it,
+# because the scheduled run had never yet succeeded on its own.
+#
+# The run now records its own green completion, keyed on the cadence and the
+# LOCAL date the firing started (the schedule is local; see log_path_for).
+# Saturday's marker does not satisfy Sunday; Tuesday's does not satisfy
+# Wednesday; the 10:00 retry after a green 09:00 run exits as before.
+GREEN_MARKER = LOG_DIR / "last_green_run.json"
+
+
+def _local_date(when_utc: datetime, tz=None) -> str:
+    return when_utc.astimezone(tz).date().isoformat()
+
+
+def already_ran_today(marker: Path, cadence: str, now_utc: datetime,
+                      tz=None) -> bool:
+    """True when a green run of ``cadence`` already completed on the local
+    date of ``now_utc``. A missing or unreadable marker means run."""
+    try:
+        rec = json.loads(Path(marker).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return (isinstance(rec, dict) and rec.get("cadence") == cadence
+            and rec.get("local_date") == _local_date(now_utc, tz))
+
+
+def record_green_run(marker: Path, cadence: str, started_utc: datetime,
+                     tz=None) -> Path:
+    """Write the marker for a run that STARTED at ``started_utc`` — the
+    firing's own date, so a run that crosses midnight is filed under the
+    day it was scheduled for."""
+    marker = Path(marker)
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(json.dumps({
+        "cadence": cadence,
+        "local_date": _local_date(started_utc, tz),
+        "started_utc": started_utc.isoformat(timespec="seconds"),
+        "recorded_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }, indent=2), encoding="utf-8")
+    return marker
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -341,6 +438,7 @@ def main(argv: list[str] | None = None) -> int:
 
     LOG_DIR.mkdir(exist_ok=True)
     now = datetime.now(timezone.utc)
+    run_started = now          # the firing's own date, for the green-run marker
     log_path = log_path_for(now)
     log = open(log_path, "a", encoding="utf-8")
     # Both stamps on the header line: the local one is how the schedule and the
@@ -353,6 +451,10 @@ def main(argv: list[str] | None = None) -> int:
     def fail(code: int, subject: str, body: str) -> int:
         print(f"FAILED ({subject}) - see {log_path}")
         log.write(f"\nFAILED exit {code}: {subject}\n{body}\n")
+        # A failure inside the refresh must not poison every later firing;
+        # see restore_tracked_outputs.
+        if code in RESTORE_ON_EXIT_CODES:
+            restore_tracked_outputs(log)
         _email(f"[FAIL] Scheduled refresh - {subject}", body + f"\n\nLog: {log_path}", log)
         log.close()
         return code
@@ -395,34 +497,46 @@ def main(argv: list[str] | None = None) -> int:
                       "continuing on the current version rather than "
                       "looping\n")
         else:
-            log.write("\nthe pull rewrote this script; re-executing so both "
-                      "halves come from the same commit\n")
+            log.write("\nthe pull rewrote this script; re-running it as a "
+                      "waited child so both halves come from the same commit\n")
             log.flush()
             log.close()
-            os.environ["BTE_SCHED_REEXEC"] = "1"
-            os.execv(sys.executable, [sys.executable, *sys.argv])
+            # WAITED, NOT EXEC'D (2026-09-03). This was os.execv, which does
+            # not replace the process on Windows: it spawns the new
+            # interpreter and exits the current one at once. Probed on
+            # 2026-09-03 — the caller saw exit 0 after one second while the
+            # child was still running and later exited 7. Under Task
+            # Scheduler that recorded the firing as a success within seconds,
+            # left the real run outside ExecutionTimeLimit and the
+            # single-instance guard, and let every hourly repeat start a
+            # fresh instance against the tree the detached run was writing.
+            # A child this process WAITS for keeps it the scheduled instance
+            # and returns the outcome that actually happened.
+            env = dict(os.environ, BTE_SCHED_REEXEC="1")
+            child = subprocess.run(
+                [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
+                cwd=REPO_ROOT, env=env)
+            return child.returncode
 
-    # ----- Already done? -----
+    # ----- Already done today? -----
     # The scheduled task retries hourly and starts as soon as the machine is
-    # available, so that a Friday with the laptop shut still gets its refresh
-    # when it opens. Without this exit every one of those retries would re-run
-    # the whole ~1-4 hour refresh over a panel that is already current, and a
-    # long run could still be going when the next hour fired. Checked AFTER the
-    # pull, so the answer reflects origin rather than a stale local clone.
-    if not args.preflight_only:
-        try:
-            panel_end_now = date.fromisoformat(
-                json.loads(PANEL.read_text(encoding="utf-8"))["end_date"])
-        except Exception:  # noqa: BLE001
-            panel_end_now = None          # unreadable -> fall through and run
-        if panel_end_now and panel_is_current(panel_end_now, now):
-            msg = (f"ALREADY CURRENT - panel ends {panel_end_now}, which "
-                   f"reaches the last completed session "
-                   f"{last_completed_session(now)}. Nothing to do.")
-            print(msg)
-            log.write(f"\n{msg}\n")
-            log.close()
-            return 0
+    # available, so that a Saturday with the laptop shut still gets its
+    # refresh when it opens. Without this exit every one of those retries
+    # would re-run the whole ~1-4 hour refresh, and a long run could still be
+    # going when the next hour fired. The test used to be "the S&P panel is
+    # already current", which silently swallowed the SUNDAY run once Saturday
+    # had succeeded — see the note above GREEN_MARKER. It is now "a green run
+    # of this cadence already completed on this local date". Checked AFTER
+    # the pull, so a rewritten wrapper is the one making the decision.
+    if not args.preflight_only and already_ran_today(GREEN_MARKER,
+                                                     args.cadence, now):
+        msg = (f"ALREADY RAN TODAY - a green {args.cadence} run completed on "
+               f"{now.astimezone().date().isoformat()} (local); this firing "
+               f"is an hourly retry. Nothing to do.")
+        print(msg)
+        log.write(f"\n{msg}\n")
+        log.close()
+        return 0
 
     # ----- Refresh (the ~4.3 hour part) -----
     if not args.preflight_only:
@@ -607,6 +721,12 @@ def main(argv: list[str] | None = None) -> int:
                f"refresh_all.py green; panel current to {panel_end}.\n"
                f"Review {REPO_ROOT}, then commit and push to publish "
                f"the factsheet.\n\nGate preview:\n{gate['detail']}", log)
+    # One green run per local day per cadence — see GREEN_MARKER. Written on
+    # every green outcome (pushed, committed locally, or READY), never on a
+    # preflight-only run.
+    record_green_run(GREEN_MARKER, args.cadence, run_started)
+    log.write(f"\ngreen-run marker written: {GREEN_MARKER.name} "
+              f"({args.cadence}, {run_started.astimezone().date().isoformat()})\n")
     log.close()
     return 0
 

@@ -549,6 +549,21 @@ def _collect_deployed_holdings(sleeves, overlay, asof_iso):
     return holdings
 
 
+def _latest_rebalance_record(sleeve: dict | None) -> dict | None:
+    """The last rebalance RUN for a sleeve: ``headline.latest_rebalance``
+    (emitted since 2026-09-03), falling back to the last TRADE for payloads
+    built before the field existed. The two differ by exactly the held weeks
+    — sleeve C is equal-weighted and writes no trade on a week it holds — and
+    every "rebalance date" this file prints must come from here, never from
+    ``trade_history[-1]``."""
+    h = (sleeve or {}).get("headline") or {}
+    rec = h.get("latest_rebalance")
+    if rec:
+        return rec
+    th = h.get("trade_history") or []
+    return th[-1] if th else None
+
+
 # Maximum calendar-day lag between a per-ETF series' last bar and the build
 # as-of before its attribution row is treated as UNCOVERED rather than
 # silently plotted against a different week. The 2026-07-18 audit found the
@@ -1513,10 +1528,21 @@ def build_trades_table(sleeves, page_w, styles, overlay, as_of=None):
         week_rebal_dates.add(d)
 
     if not rows:
-        msg = ("<i>No new rebalance activity this week — strategy stable. "
-                f"Most recent rebal: {most_recent_rebal}.</i>"
-                if most_recent_rebal else
-                "<i>No position changes this week — strategy stable.</i>")
+        # The last rebalance RUN across the sleeves (2026-09-03). The trade
+        # record's newest date is the last TRADE, which on a held week is a
+        # week or more older than the rebalance that held the book.
+        latest_run = max((((_latest_rebalance_record(sleeves.get(k, {})) or {})
+                           .get("date") or "") for k in sleeve_letter),
+                         default="")
+        if latest_run or most_recent_rebal:
+            trade_note = (f" (last trade {most_recent_rebal})"
+                          if most_recent_rebal and latest_run
+                          and latest_run != most_recent_rebal else "")
+            msg = ("<i>No new rebalance activity this week — strategy stable. "
+                   f"Most recent rebalance: {latest_run or most_recent_rebal}"
+                   f"{trade_note}.</i>")
+        else:
+            msg = "<i>No position changes this week — strategy stable.</i>"
         return [Paragraph(msg, styles["body"])]
 
     # Order to match the email card and the dashboard activity card so all three
@@ -1570,7 +1596,7 @@ def build_trades_table(sleeves, page_w, styles, overlay, as_of=None):
     flows: list = [t]
     if stale_sleeves:
         note = " &middot; ".join(
-            f"Sleeve {sl} unchanged this week (last rebalanced {d})"
+            f"Sleeve {sl} unchanged this week (last traded {d})"
             for sl, d in sorted(set(stale_sleeves)))
         flows.append(Spacer(1, 2))
         flows.append(Paragraph(f"<i>{note}.</i>", styles["body_small"]))
@@ -1790,19 +1816,30 @@ def build_parameters_footer(overlay, sleeves, breadth_end_date,
         blend_line += (f" (EEM tilt held OFF — feed stale since "
                         f"{_ft_tilt['signal_as_of']})")
 
-    def _last_rebal(key):
-        th = (sleeves.get(key, {}).get("headline") or {}).get(
-            "trade_history") or []
-        return th[-1].get("date") if th else "—"
+    def _rebal_field(key, field):
+        # The last rebalance RUN (2026-09-03), never trade_history[-1]: until
+        # then this row printed the last TRADE's date as the signal vintage,
+        # which on a held week is a week or more stale.
+        rec = _latest_rebalance_record(sleeves.get(key, {}))
+        return (rec or {}).get(field) or "—"
 
     parameters_data = [
         ["BLEND",       blend_line],
-        ["REBALANCE",   "Weekly Friday close (per-sleeve cadence noted in dashboard)"],
+        # W-MON in all four engines since WS18 (2026-08-22). This line said
+        # "Weekly Friday close" until 2026-09-03, a fortnight after the move.
+        ["REBALANCE",   "Weekly, Monday close; each sleeve ranks on the last "
+                         "session its venue closed before the fill"],
         ["RISK OVERLAY", f"De-risk to {derisk:.0f}% NAV when S&P 500 breadth < "
                           f"{off_thr:.0f}%; re-engage when breadth > {on_thr:.0f}%"],
         ["EM TILT",     "Activates on EEM/SPY 50d &gt; 200d MA golden cross "
                          "(funded by reducing Strategy B's 35% &rarr; 25%)"],
-        ["COST MODEL",  "5 bps per unit of weight change (10 bps round-trip)"],
+        # Two layers, stated separately (2026-09-03): the blend tables charge
+        # 5 bps on blend-level weight change at each rebalance; the sleeve
+        # engines carry the Phase 12 per-venue calibration (COST_BPS in each).
+        ["COST MODEL",  "Blend: 5 bps per unit of weight change at each "
+                         "rebalance (10 bps round-trip). Sleeve engines, "
+                         "one-way: A 2 bps &middot; B 2 bps &middot; C 5 bps "
+                         "&middot; D 9 bps"],
         ["UNIVERSE",    "A · 14 US sector ETFs (SOXX, CSP1, CNDX, IUES, IUFS, "
                          "IUHC, IUIS, IUCS, IUCD, IUUS, IUMS, IUCM, "
                          "IUSP, IDP6; IUIT pruned) · B · 12 asset-class ETFs "
@@ -1826,11 +1863,16 @@ def build_parameters_footer(overlay, sleeves, breadth_end_date,
         ]),
     )
 
-    sigs = {k: _last_rebal(k) for k in ("a", "b", "c", "d")}
+    rebals = {k: _rebal_field(k, "date") for k in ("a", "b", "c", "d")}
+    ranked = {k: _rebal_field(k, "decision_date") for k in ("a", "b", "c", "d")}
     built_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     provenance_data = [
+        ["LAST REBALANCE",
+         f"A {rebals['a']}  ·  B {rebals['b']}  ·  C {rebals['c']}  ·  D {rebals['d']}"],
+        # The session each sleeve RANKED on: the venue's close before the
+        # rebalance date, which is what "signals as of" has to mean.
         ["SIGNALS AS OF",
-         f"A {sigs['a']}  ·  B {sigs['b']}  ·  C {sigs['c']}  ·  D {sigs['d']}"],
+         f"A {ranked['a']}  ·  B {ranked['b']}  ·  C {ranked['c']}  ·  D {ranked['d']}"],
         ["BREADTH PANEL", f"{breadth_end_date or '—'} (drives the Risk Overlay regime gate)"],
         ["BUILT",         built_iso],
     ]

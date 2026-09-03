@@ -114,3 +114,79 @@ def cache_matches(recorded: str | None, effective: str) -> bool:
 
     An unrecorded cache is a yfinance cache (see read_cache_source)."""
     return (recorded or "yfinance") == effective
+
+
+# ---------------------------------------------------------------------------
+# Reachable is not serving (2026-09-03 review)
+#
+# ``norgate_prices.available()`` answers one question: is the local service
+# up. ``select_columns`` then returns the incumbent frame UNCHANGED when every
+# symbol comes back unserved, and keeps a column on the incumbent when
+# Norgate's dates are not a superset of yfinance's — which is exactly what a
+# Norgate feed one session behind at 09:00 looks like. Before this guard a
+# strict ``norgate`` run could pass the preflight, take nothing from Norgate,
+# and still record source "norgate" in the sidecar and the payload: the
+# vacuous switch WS19 measured, in a new costume. The mode is real — on
+# 2026-09-03 the gate-states publisher got "access denied" on a symbol at
+# 14:12 SGT with the service up, and the same symbol served again by evening.
+#
+# A strict run therefore asserts that every plain US listing it asked for
+# was TAKEN from Norgate, and fails otherwise. ``auto`` is the explicit way
+# to accept a partial or absent take, with the fallback recorded.
+# ---------------------------------------------------------------------------
+def plain_us_listing(ticker: str) -> bool:
+    """A plain US listing: no '.XX' venue suffix, no '-USD' pair, no '=X' FX.
+    The lines Norgate covers, and the same rule ``repair_price_gaps.us_listed``
+    applies when choosing a secondary source."""
+    t = str(ticker)
+    return "." not in t and "-" not in t and "=" not in t
+
+
+def norgate_shortfall(report: dict | None, tickers) -> dict[str, list[str]]:
+    """The plain US listings among ``tickers`` that a strict-Norgate run did
+    NOT take from Norgate, sorted by reason: ``kept_on_incumbent`` (served,
+    but not a date superset — usually Norgate a session behind),
+    ``unresolved`` (no Norgate symbol) and ``unserved`` (resolved, but the
+    feed returned nothing, or no selection ran at all)."""
+    rep = report or {}
+    replaced = set(rep.get("replaced") or [])
+    kept = set(rep.get("kept") or [])
+    unresolved = set(rep.get("unresolved") or [])
+    out: dict[str, list[str]] = {"kept_on_incumbent": [], "unresolved": [],
+                                 "unserved": []}
+    for t in tickers:
+        t = str(t)
+        if not plain_us_listing(t) or t in replaced:
+            continue
+        if t in kept:
+            out["kept_on_incumbent"].append(t)
+        elif t in unresolved:
+            out["unresolved"].append(t)
+        else:
+            out["unserved"].append(t)
+    return out
+
+
+def assert_norgate_complete(report: dict | None, tickers, label: str = "") -> None:
+    """Raise unless every plain US listing in ``tickers`` was taken from
+    Norgate. Called by a strict ``norgate`` run right after the column
+    selection and BEFORE the cache and its sidecar are written, so a frame
+    that is not on the Norgate basis is never recorded as one."""
+    short = norgate_shortfall(report, tickers)
+    expected = [str(t) for t in tickers if plain_us_listing(str(t))]
+    missing = sum(len(v) for v in short.values())
+    if not missing:
+        return
+    taken = len(expected) - missing
+    prefix = f"{label}: " if label else ""
+    raise RuntimeError(
+        f"{prefix}{ENV_VAR}=norgate but Norgate supplied {taken} of "
+        f"{len(expected)} US lines. Kept on the incumbent (not a date "
+        f"superset — usually Norgate a session behind): "
+        f"{short['kept_on_incumbent']}; unresolved: {short['unresolved']}; "
+        f"served nothing: {short['unserved']}. Refusing to record yfinance "
+        f"columns under a Norgate label. Wait for the Norgate Data Updater "
+        f"to catch up and re-run, or set {ENV_VAR}=yfinance to accept that "
+        f"basis explicitly, or {ENV_VAR}=auto to accept a partial take with "
+        f"the fallback recorded."
+    )

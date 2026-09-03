@@ -377,14 +377,26 @@ def test_a_pull_that_rewrites_this_script_re_execs_once():
     changing must not spin.
     """
     src = inspect.getsource(_sr.main)
-    assert "os.execv" in src, "a self-rewriting pull must re-exec"
     assert "BTE_SCHED_REEXEC" in src, (
-        "the re-exec must be guarded against looping")
+        "the re-run must be guarded against looping")
+    # WAITED, NOT EXEC'D (2026-09-03). os.execv is spawn-and-exit on Windows:
+    # probed, the caller saw exit 0 after one second while the child kept
+    # running and later exited 7. Under Task Scheduler that recorded the
+    # firing as a success within seconds, left the real run outside the
+    # eight-hour limit and the single-instance guard, and let every hourly
+    # repeat start a fresh instance against the tree the detached run was
+    # writing. The re-run must be a child the wrapper WAITS for, whose exit
+    # code it returns.
+    # The CALL, not the name: the wrapper's own note explains why it left.
+    assert "os.execv(" not in src, (
+        "os.execv does not replace the process on Windows — run a waited child")
+    rerun = src.index("str(Path(__file__).resolve())")
+    assert "returncode" in src[rerun:rerun + 400], (
+        "the wrapper must return the re-run child's exit code")
     # The comparison has to straddle the pull: captured before, checked after.
     before = src.index("_self_before")
     pull = src.index('"pull", "--rebase"')
-    exec_at = src.index("os.execv")
-    assert before < pull < exec_at, (
+    assert before < pull < rerun, (
         "the script's own contents must be captured BEFORE the pull and "
         "compared AFTER it, or the skew is invisible")
 
@@ -413,3 +425,180 @@ def test_the_push_retries_after_rebasing():
     # cannot land after three rebases is not a race, it is something else.
     assert "3 attempts" in tail or "(1, 2, 3)" in tail, (
         "the retry must be bounded")
+
+
+# ---------------------------------------------------------------------------
+# One green run per local day per cadence (2026-09-03)
+#
+# THE SUNDAY SHORT-CIRCUIT. The early exit used to ask "does the S&P panel
+# already reach the last completed session". After a green Saturday it does,
+# so Sunday exited at once — and Sunday is the run that exists because sleeve
+# D's European close settles only the day after its session. Nobody had seen
+# it because the scheduled run had never yet succeeded on its own. The test
+# is now "did a green run of THIS cadence already complete on THIS local
+# date", recorded by the run itself. tz is injected, as for log_path_for.
+# ---------------------------------------------------------------------------
+
+import io  # noqa: E402
+import subprocess  # noqa: E402
+
+from scripts.scheduled_refresh import (  # noqa: E402
+    RESTORE_ON_EXIT_CODES,
+    already_ran_today,
+    record_green_run,
+    restore_tracked_outputs,
+)
+
+
+def test_no_marker_means_run(tmp_path):
+    assert already_ran_today(tmp_path / "missing.json", "weekend",
+                             _utc(2026, 9, 5, 1), SGT) is False
+
+
+def test_a_green_run_today_stops_the_hourly_retries(tmp_path):
+    marker = tmp_path / "last_green_run.json"
+    started = datetime(2026, 9, 5, 1, 5, tzinfo=timezone.utc)   # Sat 09:05 SGT
+    record_green_run(marker, "weekend", started, SGT)
+    retry = datetime(2026, 9, 5, 2, 0, tzinfo=timezone.utc)     # Sat 10:00 SGT
+    assert already_ran_today(marker, "weekend", retry, SGT) is True
+
+
+def test_sunday_runs_even_though_saturday_left_the_panel_current(tmp_path):
+    marker = tmp_path / "last_green_run.json"
+    record_green_run(marker, "weekend",
+                     datetime(2026, 9, 5, 1, 5, tzinfo=timezone.utc), SGT)
+    sunday = datetime(2026, 9, 6, 1, 0, tzinfo=timezone.utc)    # Sun 09:00 SGT
+    assert already_ran_today(marker, "weekend", sunday, SGT) is False
+
+
+def test_the_two_cadences_do_not_share_a_marker(tmp_path):
+    marker = tmp_path / "last_green_run.json"
+    when = datetime(2026, 9, 8, 1, 5, tzinfo=timezone.utc)      # Tue 09:05 SGT
+    record_green_run(marker, "post-fill", when, SGT)
+    assert already_ran_today(marker, "post-fill", when, SGT) is True
+    assert already_ran_today(marker, "weekend", when, SGT) is False
+
+
+def test_marker_month_and_year_boundaries(tmp_path):
+    """Per CLAUDE.md: one month boundary, one year boundary; the marker is
+    keyed on the LOCAL date, so 22:30Z is already the next day in SGT."""
+    marker = tmp_path / "last_green_run.json"
+    # Month: a run at 2026-08-31 22:30Z is 1 Sep 06:30 SGT.
+    record_green_run(marker, "weekend",
+                     datetime(2026, 8, 31, 22, 30, tzinfo=timezone.utc), SGT)
+    assert already_ran_today(marker, "weekend",
+                             datetime(2026, 9, 1, 3, 0, tzinfo=timezone.utc), SGT)
+    assert not already_ran_today(marker, "weekend",
+                                 datetime(2026, 9, 2, 1, 0, tzinfo=timezone.utc), SGT)
+    # ...and read in UTC the same marker names a different day: the zone is
+    # part of the contract, exactly as it is for the log file name.
+    assert not already_ran_today(marker, "weekend",
+                                 datetime(2026, 8, 31, 23, 0, tzinfo=timezone.utc),
+                                 timezone.utc)
+    # Year: 2026-12-31 22:30Z is 1 Jan 2027 06:30 SGT.
+    record_green_run(marker, "weekend",
+                     datetime(2026, 12, 31, 22, 30, tzinfo=timezone.utc), SGT)
+    assert already_ran_today(marker, "weekend",
+                             datetime(2027, 1, 1, 2, 0, tzinfo=timezone.utc), SGT)
+    assert not already_ran_today(marker, "weekend",
+                                 datetime(2027, 1, 2, 1, 0, tzinfo=timezone.utc), SGT)
+
+
+def test_a_corrupt_marker_means_run(tmp_path):
+    marker = tmp_path / "last_green_run.json"
+    marker.write_text("{not json", encoding="utf-8")
+    assert already_ran_today(marker, "weekend", _utc(2026, 9, 5, 1), SGT) is False
+
+
+def test_main_keys_the_early_exit_on_the_marker_not_the_panel():
+    src = inspect.getsource(_sr.main)
+    assert "already_ran_today(" in src
+    assert "record_green_run(" in src
+    assert "ALREADY CURRENT" not in src, (
+        "the panel-current early exit is what swallowed the Sunday run")
+    # Written on the green paths only: never before the refresh, never on a
+    # preflight-only run.
+    assert src.index("record_green_run(") > src.index('"push", "origin", "main"')
+
+
+# ---------------------------------------------------------------------------
+# A failed refresh restores the clone (2026-09-03)
+#
+# Otherwise the clean-tree preflight refuses every later firing until a person
+# resets the clone — sixteen firings were consumed that way over 2026-08-29 to
+# 09-01, and the hourly repetition was worth nothing.
+# ---------------------------------------------------------------------------
+
+def _git_repo(tmp_path, monkeypatch):
+    """A throwaway clone with tracked outputs, an ignored cache and a base
+    commit. Isolated git config, with core.longpaths for the Windows tmp
+    path (see the 2026-09-02 note in test_scheduled_refresh_push)."""
+    cfg = tmp_path / "gitconfig"
+    cfg.write_text("[user]\n\tname = t\n\temail = t@t.test\n"
+                   "[core]\n\tlongpaths = true\n\tautocrlf = false\n",
+                   encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(cfg))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    repo = tmp_path / "clone"
+    (repo / "data").mkdir(parents=True)
+    (repo / "docs").mkdir()
+    (repo / "build").mkdir()
+    (repo / ".gitignore").write_text("data/*.parquet\nlogs/\n", encoding="utf-8")
+    (repo / "data" / "panel.json").write_text('{"end_date": "2026-08-28"}',
+                                              encoding="utf-8")
+    (repo / "docs" / "index.html").write_text("old", encoding="utf-8")
+    (repo / "build" / "portfolio.html").write_text("old", encoding="utf-8")
+    (repo / "template.html").write_text("old", encoding="utf-8")
+
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=repo, capture_output=True,
+                              text=True, check=True)
+
+    git("init", "-q")
+    git("add", "-A")
+    git("commit", "-q", "-m", "base")
+    return repo
+
+
+def test_a_failed_refresh_restores_the_clone(tmp_path, monkeypatch):
+    repo = _git_repo(tmp_path, monkeypatch)
+    # What a run that died at VERIFY leaves behind.
+    (repo / "data" / "panel.json").write_text('{"end_date": "2026-09-04"}',
+                                              encoding="utf-8")
+    (repo / "docs" / "index.html").write_text("new", encoding="utf-8")
+    (repo / "build" / "portfolio.html").write_text("new", encoding="utf-8")
+    (repo / "template.html").write_text("new", encoding="utf-8")
+    (repo / "data" / "new_output.json").write_text("{}", encoding="utf-8")
+    (repo / "data" / "prices_cache.parquet").write_bytes(b"cache")   # ignored
+    log = io.StringIO()
+    assert restore_tracked_outputs(log, repo) is True
+    assert (repo / "data" / "panel.json").read_text(encoding="utf-8") == \
+        '{"end_date": "2026-08-28"}'
+    assert (repo / "docs" / "index.html").read_text(encoding="utf-8") == "old"
+    assert (repo / "build" / "portfolio.html").read_text(encoding="utf-8") == "old"
+    assert (repo / "template.html").read_text(encoding="utf-8") == "old"
+    assert not (repo / "data" / "new_output.json").exists()
+    # The gitignored cache survives: -fd without -x.
+    assert (repo / "data" / "prices_cache.parquet").exists()
+    porcelain = subprocess.run(["git", "status", "--porcelain"], cwd=repo,
+                               capture_output=True, text=True).stdout
+    assert porcelain.strip() == ""
+    assert "discarding the failed run's outputs" in log.getvalue()
+    assert "panel.json" in log.getvalue(), "what was discarded must be logged"
+
+
+def test_restore_on_a_clean_tree_is_a_no_op(tmp_path, monkeypatch):
+    repo = _git_repo(tmp_path, monkeypatch)
+    log = io.StringIO()
+    assert restore_tracked_outputs(log, repo) is True
+    assert "already clean" in log.getvalue()
+
+
+def test_restore_is_wired_to_the_in_run_failures_only():
+    """Exit 2 found a tree a person dirtied and must leave it alone; exit 5
+    has already committed. Only a failure INSIDE the refresh restores."""
+    assert RESTORE_ON_EXIT_CODES == (3, 4)
+    src = inspect.getsource(_sr.main)
+    assert "restore_tracked_outputs(log)" in src
+    fail_body = src[src.index("def fail("):src.index("# ----- Preflight")]
+    assert "RESTORE_ON_EXIT_CODES" in fail_body
