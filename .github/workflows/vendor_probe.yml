@@ -92,6 +92,14 @@ jobs:
       # continue-on-error: the row is a true observation and losing it would
       # destroy the only record of the retraction. The guard step above still
       # decides whether the run is committed; this only tells the operator.
+      #
+      # ROUTINE SINCE 2026-09-05. The European overnight withdrawal — one
+      # session gone, restored within two calendar days — is this vendor's
+      # ordinary cycle, and the tripwire's first week of email was almost all
+      # of it. check_vendor_probe.py now classifies: a withdrawal inside that
+      # measured window is recorded and printed but sets `retracted=false`
+      # here, so only an ANOMALOUS one (a NYSE line, two or more sessions
+      # gone, or a bar still absent past the window) reaches the inbox.
       - name: Email retraction alert (vendor withdrew a settled bar)
         if: steps.guard.outputs.retracted == 'true'
         continue-on-error: true
