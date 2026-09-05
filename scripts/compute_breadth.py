@@ -7,7 +7,10 @@ Pipeline:
   1. Build the union universe of all tickers that ever appeared in a SOXX
      weekly snapshot 2018-2026.
   2. Download adjusted-close history for that universe from yfinance with
-     parquet-backed disk cache.
+     parquet-backed disk cache. Then settle the tail: a newest row the roster
+     is not priced on is probed single-ticker, healed when the batch was the
+     defect, and dropped when the vendor is not serving that session (the
+     tail-verification block above download_prices, 2026-09-05).
   3. For each trading day in [start_friday, end_friday] on the ETF's own
      calendar (registry `trading_calendar`, default NYSE; XETR for the
      Europe sector funds), resolve the active constituent roster (most
@@ -59,6 +62,7 @@ import json
 import math
 import os
 import sys
+import time
 import warnings
 from bisect import bisect_right
 from datetime import datetime, timezone
@@ -645,6 +649,241 @@ def _revert_vendor_step_defects(close: pd.DataFrame, prior: pd.DataFrame,
     return close, reverted
 
 
+# ---- Tail verification (2026-09-05): a placeholder row is not a capture ----
+#
+# THE FAILURE. The vendor withdraws every European session's close overnight
+# and serves a row dated correctly with NaN closes in its place, restoring it
+# by about 01:00 UTC two calendar days after the session. Measured on
+# data/vendor_availability_log.jsonl from 2026-08-15 to 2026-09-05, weekends
+# included (Friday's bar is absent all Saturday), and not Xetra alone: the
+# London, Paris, Madrid, Milan, Amsterdam, Stockholm, Zurich and Helsinki
+# lines go with it. So the batch download lands a HOLLOW tail row on every
+# Saturday and every Tuesday morning refresh. Offline, that row is
+# indistinguishable from the 2026-08-30 failure, in which the batch download
+# served empty Fridays while single-ticker requests returned real bars, and
+# on 2026-09-05 the refresh guard refused the whole Saturday run over sleeve
+# D's five panels — when the cadence design has D reporting HOLD on Saturday
+# and the other three sleeves publishing.
+#
+# THE DISCRIMINATOR is the one the guard's own message names, applied here,
+# where the network already is: ask the vendor single-ticker for a sample of
+# the LIVE roster names the batch left unpriced on the tail row.
+#   served     -> the batch was defective. Re-request every unpriced live
+#                 name and fill the row: the 2026-08-30 class heals itself.
+#   not served -> the vendor is not serving that session. DROP the
+#                 placeholder row, so the cache ends on the last session
+#                 actually priced. That is the clean-short tail every
+#                 downstream reader already handles as vendor lag: the tail
+#                 cap in main(), G1/W1's warn, live_targets' per-sleeve HOLD.
+#   no answer  -> keep the row and say so. The guard fails closed, as before.
+# Only LIVE names vote — names priced on the last populated row — so a
+# delisted column that is NaN everywhere cannot say "not served". Columns
+# taken whole from Norgate are never touched (a price basis may not change
+# mid-column, WS19b), so a Norgate lag still fails closed. A healed cell
+# passes the WS15 step-defect check like any fresh bar.
+#
+# Dropping a row the vendor does not serve is not deleting history: the row
+# clears no coverage floor, so nothing downstream could read it, and the
+# next download restores any cell the vendor serves again. It is also the
+# only way the row leaves: the cell-preservation merge above re-unions the
+# prior cache's index, so a placeholder written by an earlier run today
+# would otherwise come back on every retry.
+TAIL_PROBE_SAMPLE = 5              # names asked single-ticker before deciding
+TAIL_PROBE_CALL_DEADLINE_S = 20.0  # per single-ticker request
+TAIL_HEAL_BUDGET_S = 300.0         # wall clock for re-requesting a whole roster
+TAIL_PROBE_PERIOD = "10d"          # covers any tail row a refresh can carry
+
+
+def _single_ticker_closes(ticker: str) -> pd.Series | None:
+    """The closes the vendor serves for ``ticker`` on its own, on a tz-naive
+    daily index. None means NO ANSWER (the request failed or came back
+    empty), which is different from a series that lacks a date — that is the
+    vendor saying there is no bar. Isolated so tests can stub it."""
+    sym = normalise_for_yfinance(ticker)
+    try:
+        hist = run_with_deadline(
+            lambda: yf.Ticker(sym).history(period=TAIL_PROBE_PERIOD,
+                                           auto_adjust=True),
+            seconds=TAIL_PROBE_CALL_DEADLINE_S,
+            label=f"single-ticker probe {sym}")
+    except Exception:  # noqa: BLE001 — a failed probe is no answer, never a verdict
+        return None
+    if hist is None or len(hist) == 0 or "Close" not in hist.columns:
+        return None
+    s = hist["Close"].astype(float)
+    idx = pd.to_datetime(s.index)
+    if idx.tz is not None:
+        idx = idx.tz_localize(None)
+    s.index = idx.normalize()
+    return s[~s.index.duplicated(keep="last")]
+
+
+def _spread(items: list[str], k: int) -> list[str]:
+    """Up to ``k`` items spaced evenly through ``items`` — deterministic, and
+    not the first k, which on a roster in index order could all sit on one
+    venue of a pan-European fund."""
+    if k <= 0 or len(items) <= k:
+        return list(items)
+    if k == 1:
+        return [items[0]]
+    step = (len(items) - 1) / (k - 1)
+    picked = sorted({int(round(i * step)) for i in range(k)})
+    return [items[i] for i in picked]
+
+
+def _has_close(series: pd.Series | None, ts: pd.Timestamp) -> bool:
+    return (series is not None and ts in series.index
+            and bool(pd.notna(series.loc[ts])))
+
+
+def verify_price_tail(
+    close: pd.DataFrame,
+    roster: list[str],
+    exclude=(),
+    fetch_single=None,
+    sample_size: int = TAIL_PROBE_SAMPLE,
+    heal_budget_s: float = TAIL_HEAL_BUDGET_S,
+    clock=time.monotonic,
+    now_utc: datetime | None = None,
+) -> tuple[pd.DataFrame, dict | None]:
+    """Settle every index row past the roster's last PRICED session.
+
+    Returns the frame — healed, or with unserved placeholder rows dropped —
+    and a record of what was asked and decided (None when there was no tail
+    to settle). ``exclude`` names columns that must not be touched (taken
+    whole from another source). ``fetch_single`` is the single-ticker
+    request, stubbed in tests. Pure given those two.
+    """
+    fetch = fetch_single or _single_ticker_closes
+    held = [t for t in roster if t in close.columns]
+    if not held:
+        return close, None
+    close = close.copy()
+    if close.index.has_duplicates:
+        close = close[~close.index.duplicated(keep="last")]
+    close = close.sort_index()
+    ok = priced_sessions(close, roster)
+    if not len(ok):
+        return close, None
+    last_ok = pd.Timestamp(ok.max())
+    tail = [pd.Timestamp(ts) for ts in close.index if ts > last_ok]
+    if not tail:
+        return close, None
+
+    excluded = set(exclude or ())
+    live = [t for t in held
+            if pd.notna(close.at[last_ok, t]) and t not in excluded]
+    answers: dict[str, pd.Series | None] = {}
+
+    def ask(t: str) -> pd.Series | None:
+        if t not in answers:
+            try:
+                answers[t] = fetch(t)
+            except Exception:  # noqa: BLE001 — no answer, never a verdict
+                answers[t] = None
+        return answers[t]
+
+    started = clock()
+    rows: list[dict] = []
+    dropped: list[pd.Timestamp] = []
+    for ts in tail:
+        unpriced = [t for t in live if pd.isna(close.at[ts, t])]
+        rec: dict = {
+            "date": str(ts.date()),
+            "roster_held": len(held),
+            "roster_priced": int(close.loc[ts, held].notna().sum()),
+            "live_unpriced": len(unpriced),
+        }
+        if not unpriced:
+            rec.update(verdict="unverifiable",
+                       reason="no live name to probe: every unpriced name is "
+                              "unpriced on the last populated row too, or "
+                              "sourced elsewhere")
+            rows.append(rec)
+            continue
+        sample = _spread(unpriced, sample_size)
+        served = [t for t in sample if _has_close(ask(t), ts)]
+        answered = [t for t in sample if answers.get(t) is not None]
+        rec.update(sampled=sample, sample_answered=len(answered),
+                   sample_served=len(served))
+        if served:
+            filled, refused, timed_out = 0, [], False
+            for t in unpriced:
+                if clock() - started > heal_budget_s:
+                    timed_out = True
+                    break
+                s = ask(t)
+                if not _has_close(s, ts):
+                    continue
+                close.at[ts, t] = float(s.loc[ts])
+                # A healed bar is a fresh bar: the WS15 step-defect guard
+                # applies to it exactly as to a batch column. Only a
+                # split-sized step AT the healed bar consults the calendar.
+                prev = close[t].loc[:ts].dropna()
+                if (len(prev) >= 2 and prev.iloc[-2] > 0 and prev.iloc[-1] > 0
+                        and abs(math.log(prev.iloc[-1] / prev.iloc[-2]))
+                        >= VENDOR_STEP_LOG_RETURN):
+                    reason = _vendor_step_defect(close[t].loc[:ts], t)
+                    if reason:
+                        close.at[ts, t] = np.nan
+                        refused.append(t)
+                        print(f"  REFUSED {t} on {ts.date()}: {reason}.",
+                              flush=True)
+                        continue
+                filled += 1
+            populated = ts in priced_sessions(close, roster)
+            rec.update(filled=filled, refused=refused,
+                       heal_timed_out=timed_out,
+                       verdict="healed" if populated else "partial")
+        elif answered:
+            dropped.append(ts)
+            rec["verdict"] = "unserved"
+        else:
+            rec.update(verdict="unverifiable",
+                       reason="no sampled name answered")
+        rows.append(rec)
+
+    if dropped:
+        close = close.drop(index=dropped)
+    stamp = (now_utc or datetime.now(timezone.utc)).isoformat(timespec="seconds")
+    return close, {
+        "checked_at_utc": stamp,
+        "probe": "yfinance single-ticker history",
+        "last_populated": str(last_ok.date()),
+        "rows": rows,
+        "dropped": [str(ts.date()) for ts in dropped],
+    }
+
+
+def _report_tail_verification(v: dict | None) -> None:
+    if not v:
+        return
+    for r in v["rows"]:
+        head = (f"  Tail check {r['date']}: {r['roster_priced']}/"
+                f"{r['roster_held']} roster names priced")
+        verdict = r["verdict"]
+        if verdict == "unserved":
+            print(f"{head}; {r['sample_answered']} of {len(r['sampled'])} "
+                  f"sampled names answered single-ticker and none carries "
+                  f"the bar -> the vendor is not serving {r['date']} for this "
+                  f"roster; placeholder row dropped (vendor lag, not a batch "
+                  f"defect).", flush=True)
+        elif verdict in ("healed", "partial"):
+            print(f"{head}; {r['sample_served']} of {len(r['sampled'])} "
+                  f"sampled names carry the bar single-ticker -> batch "
+                  f"download defect; re-requested {r['live_unpriced']} "
+                  f"unpriced names, filled {r['filled']}"
+                  + (f", refused {len(r['refused'])}" if r.get("refused") else "")
+                  + (" (heal budget exhausted)" if r.get("heal_timed_out") else "")
+                  + (". Row now populated." if verdict == "healed" else
+                     ". Row STILL below the priced floor; kept for the "
+                     "refresh guard to judge."),
+                  flush=True)
+        else:
+            print(f"{head}; UNVERIFIABLE ({r.get('reason')}); row kept, the "
+                  f"refresh guard will judge it.", flush=True)
+
+
 def download_prices(
     tickers: list[str],
     start: str,
@@ -653,11 +892,18 @@ def download_prices(
     force: bool = False,
     deadline_s: float | None = None,
     price_source: str = "yfinance",
+    roster: list[str] | None = None,
+    tail_probe: bool = True,
 ) -> pd.DataFrame:
     """Download adjusted-close history. Cache to parquet so reruns are free.
 
     Cache hit policy: reuse cache when it covers the requested date range
     and all requested tickers. Any change to either invalidates and re-pulls.
+
+    ``roster`` (the names in force on the newest snapshot) enables the tail
+    verification above; without it the frame is written as downloaded. The
+    verification's record travels on the returned frame as
+    ``frame.attrs["tail_verification"]`` (None when nothing was settled).
     """
     requested = set(tickers)
     start_ts = pd.Timestamp(start)
@@ -793,6 +1039,7 @@ def download_prices(
     #
     # Default is 'yfinance', i.e. deployed behaviour byte for byte. Nothing
     # adopts until WS19's H1 is adjudicated.
+    norgate_columns: list[str] = []   # taken whole from Norgate: never re-touched
     if price_source in ("norgate", "auto"):
         import norgate_prices
         if not norgate_prices.available():
@@ -840,6 +1087,7 @@ def download_prices(
                         replaced.append(t)
                     else:
                         kept.append(t)
+                norgate_columns = list(replaced)
                 if price_source == "norgate":
                     for t in unserved:
                         if t in close.columns:
@@ -851,8 +1099,22 @@ def download_prices(
                       flush=True)
                 close = close.sort_index()
 
+    # ----- Tail verification (2026-09-05) — the block above this function -----
+    # Runs LAST, on the finished frame, and is column-aware: it fills only
+    # cells of columns the vendor above served, never a Norgate column. The
+    # 'norgate' diagnostic mode blanks the unresolved names on purpose and
+    # is left alone.
+    verification = None
+    if roster and tail_probe and price_source != "norgate":
+        close, verification = verify_price_tail(close, roster,
+                                                exclude=norgate_columns)
+        _report_tail_verification(verification)
+
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     close.to_parquet(cache_path)
+    # Carried on the returned frame for main() to record in the panel JSON;
+    # the parquet does not need it.
+    close.attrs["tail_verification"] = verification
     return close
 
 
@@ -962,8 +1224,15 @@ def main() -> int:
                  schedule_end + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     print("Downloading prices ...", flush=True)
-    prices = download_prices(universe, dl_start, dl_end, cache_path=prices_cache,
-                             price_source=args.price_source)
+    # The roster in force on the newest snapshot: what the tail verification
+    # probes, and the same call the tail cap below makes.
+    roster_now = (active_roster_at(snapshot_dates, snapshot_map, snapshot_dates[-1])
+                  if snapshot_dates else [])
+    prices = download_prices(
+        universe, dl_start, dl_end, cache_path=prices_cache,
+        price_source=args.price_source, roster=roster_now,
+        tail_probe=os.environ.get("BTE_TAIL_PROBE", "1").strip() != "0")
+    verification = getattr(prices, "attrs", {}).get("tail_verification")
     n_with_any_data = int((prices.notna().any(axis=0)).sum())
     print(f"  Prices shape: {prices.shape}, tickers with any data: "
           f"{n_with_any_data}/{len(universe)}")
@@ -1102,6 +1371,11 @@ def main() -> int:
                     "constituents_priced_to": str(pd.Timestamp(ok.max()).date()),
                     "roster_end_friday": str(end_friday.date()),
                 }
+                if verification:
+                    # WHY the constituents stop short, from the writer that
+                    # asked the vendor: provenance beside the cap, not only
+                    # in the log.
+                    tail_cap["vendor_probe"] = verification
                 why = ("the constituents are only priced to "
                        f"{pd.Timestamp(ok.max()).date()}")
                 if end_friday > capped:
@@ -1293,6 +1567,11 @@ def main() -> int:
         # reaches as far as it should, so a consumer that ignores this field
         # keeps the strict behaviour.
         "tail_cap": tail_cap,
+        # What the tail verification asked the vendor and decided (None when
+        # every row was priced). Present even when no cap resulted — a healed
+        # batch defect leaves the panel full-length and this is the only
+        # record that it happened.
+        "tail_verification": verification,
         "n_trading_days": int(len(df)),
         "n_signals": int(df["signal_fires"].sum()),
         "first_eligible_signal_date": df.index[SIGNAL_ELIGIBLE_AFTER].strftime("%Y-%m-%d")
