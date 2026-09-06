@@ -102,9 +102,15 @@ def write_cache_source(cache_path: Path, source: str,
         "written_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
     if report:
-        payload["columns_from_norgate"] = list(report.get("replaced") or [])
-        payload["columns_kept_on_incumbent"] = list(report.get("kept") or [])
-        payload["unresolved"] = list(report.get("unresolved") or [])
+        if any(k in report for k in ("replaced", "kept", "unresolved")):
+            payload["columns_from_norgate"] = list(report.get("replaced") or [])
+            payload["columns_kept_on_incumbent"] = list(report.get("kept") or [])
+            payload["unresolved"] = list(report.get("unresolved") or [])
+        # What the tail heal asked the vendor and got back (2026-09-06), so
+        # a blank cell in the cache can be traced to "not served" rather
+        # than guessed at.
+        if report.get("tail_heal"):
+            payload["tail_heal"] = report["tail_heal"]
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
 

@@ -83,6 +83,7 @@ from stall_guard import (  # noqa: E402
     DEFAULT_DOWNLOAD_DEADLINE_S,
     run_with_deadline,
 )
+import vendor_tail  # noqa: E402  (the single-ticker request, shared with B/C)
 
 # Force UTF-8 stdout for Windows console.
 sys.stdout.reconfigure(encoding="utf-8")
@@ -698,24 +699,11 @@ def _single_ticker_closes(ticker: str) -> pd.Series | None:
     """The closes the vendor serves for ``ticker`` on its own, on a tz-naive
     daily index. None means NO ANSWER (the request failed or came back
     empty), which is different from a series that lacks a date — that is the
-    vendor saying there is no bar. Isolated so tests can stub it."""
-    sym = normalise_for_yfinance(ticker)
-    try:
-        hist = run_with_deadline(
-            lambda: yf.Ticker(sym).history(period=TAIL_PROBE_PERIOD,
-                                           auto_adjust=True),
-            seconds=TAIL_PROBE_CALL_DEADLINE_S,
-            label=f"single-ticker probe {sym}")
-    except Exception:  # noqa: BLE001 — a failed probe is no answer, never a verdict
-        return None
-    if hist is None or len(hist) == 0 or "Close" not in hist.columns:
-        return None
-    s = hist["Close"].astype(float)
-    idx = pd.to_datetime(s.index)
-    if idx.tz is not None:
-        idx = idx.tz_localize(None)
-    s.index = idx.normalize()
-    return s[~s.index.duplicated(keep="last")]
+    vendor saying there is no bar. The request itself lives in vendor_tail,
+    shared with the sleeve B/C engines; isolated here so tests can stub it."""
+    return vendor_tail.single_ticker_closes(
+        normalise_for_yfinance(ticker), period=TAIL_PROBE_PERIOD,
+        deadline_s=TAIL_PROBE_CALL_DEADLINE_S)
 
 
 def _spread(items: list[str], k: int) -> list[str]:

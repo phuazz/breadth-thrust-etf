@@ -77,6 +77,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 from rebalance_calendar import engine_rebalance_dates  # noqa: E402
 from rebalance_records import latest_rebalance_record  # noqa: E402
 import price_source as price_source_mod  # noqa: E402
+import vendor_tail  # noqa: E402
 from nyse_sessions import (  # noqa: E402
     cap_to_last_completed_session,
     last_completed_session,
@@ -286,12 +287,12 @@ def download_prices() -> pd.DataFrame:
         # same short-circuit. Index-versus-values is the same confusion that
         # cost this repo the 2026-08-29 weekend; it is worth being explicit
         # about wherever a date is read.
-        if len(cached) and len(cached.columns):
-            per_col = [cached[c].dropna().index.max() for c in cached.columns
-                       if cached[c].notna().any()]
-            cache_end = min(per_col).date() if per_col else None
-        else:
-            cache_end = None
+        # One definition since 2026-09-06, shared with sleeve C, which had
+        # kept the index-based read and reused a cache with BTC-USD blank on
+        # the Friday row (vendor_tail.cache_current_through). Measured over
+        # the names this run needs: a column left behind by a universe change
+        # cannot force a refresh forever.
+        cache_end = vendor_tail.cache_current_through(cached, needed)
         cached_universe = set(cached.columns)
         cache_source = price_source_mod.read_cache_source(PRICE_CACHE)
         if cache_end is None:
@@ -363,6 +364,17 @@ def download_prices() -> pd.DataFrame:
         # line, or it would record a yfinance frame as Norgate-built.
         price_source_mod.assert_norgate_complete(_ngrep, needed, "Strategy B")
 
+    # ----- Blank tail cells (2026-09-06) -----
+    # Same step as Strategy C, same reasoning (vendor_tail): a name's newest
+    # cell left empty by the batch is asked for single-ticker before the cache
+    # is written, Norgate-owned columns excluded. On a Norgate run this sleeve
+    # is wholly Norgate's and the step has nothing to ask; on a yfinance run
+    # (every CI runner) it is the 2026-08-31 SPY blank, healed at the source.
+    df, _heal = vendor_tail.heal_hollow_tail(
+        df, needed, through=current_through,
+        exclude=(_ngrep or {}).get("replaced", []))
+    vendor_tail.report_heal(_heal, label="Strategy B")
+
     # Partial-bar guard: the padded fetch window may include today's
     # in-progress session when run during US market hours.
     df = cap_to_last_completed_session(df)
@@ -389,7 +401,11 @@ def download_prices() -> pd.DataFrame:
         raise RuntimeError(
             f"price fetch unusable and no cache to fall back on: {worse}")
     df.to_parquet(PRICE_CACHE)
-    price_source_mod.write_cache_source(PRICE_CACHE, price_source, _ngrep)
+    _sidecar = dict(_ngrep or {})
+    if _heal:
+        _sidecar["tail_heal"] = _heal
+    price_source_mod.write_cache_source(PRICE_CACHE, price_source,
+                                        _sidecar or None)
     print(f"  Downloaded {df.shape[0]} rows x {df.shape[1]} tickers "
           f"(source recorded: {price_source})")
     return df
