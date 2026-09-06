@@ -32,12 +32,13 @@ def _lt():
         "one_way_turnover": 0.0454,
         "next_fill": {"by_venue": {"NYSE": "2026-09-08", "XETR": "2026-09-07"}},
         "sleeves": [
+            # Sleeve D-style absolute breadth, as fractions (the engines' unit).
             {"sleeve": "A", "status": "READY", "decision_session": "2026-09-04",
              "signal_kind": "breadth", "top_k": 7,
-             "signals": {"IUES": 91.2, "IUSP": 70.0, "IUMS": 55.2, "IUFS": 90.6,
-                         "IUHC": 80.0, "IUIS": 60.0, "IUCD": 58.0, "IUCS": 57.0, "IUUS": 20.0},
-             "signals_prev": {"IUES": 88.9, "IUSP": 74.0, "IUMS": 61.0, "IUFS": 90.6,
-                              "IUHC": 78.0, "IUIS": 59.0, "IUCD": 56.0, "IUCS": 55.0, "IUUS": 19.4}},
+             "signals": {"IUES": 0.912, "IUSP": 0.700, "IUMS": 0.552, "IUFS": 0.906,
+                         "IUHC": 0.800, "IUIS": 0.600, "IUCD": 0.580, "IUCS": 0.570, "IUUS": 0.200},
+             "signals_prev": {"IUES": 0.889, "IUSP": 0.740, "IUMS": 0.610, "IUFS": 0.906,
+                              "IUHC": 0.780, "IUIS": 0.590, "IUCD": 0.560, "IUCS": 0.550, "IUUS": 0.194}},
             {"sleeve": "B", "status": "READY", "decision_session": "2026-09-04",
              "signal_kind": "ma_distance", "top_k": 7,
              "signals": {"DBC": 0.161, "SPY": 0.05}, "signals_prev": {"DBC": 0.144, "SPY": 0.06}},
@@ -134,12 +135,20 @@ def test_no_material_move_says_so():
 
 
 def test_ranks_and_phrases():
+    """Every signal arrives as a FRACTION in its sleeve's own unit: absolute
+    breadth (D), sector-relative breadth (A, signed), distance from the
+    200-day average (B and C). The first live run printed sleeve A's +0.21
+    as "0.2%"; these pin the units."""
     r = bc._ranks({"A": 3.0, "B": 9.0, "C": None, "D": 1.0})
     assert r == {"B": 1, "A": 2, "D": 3}
-    assert bc._signal_phrase("breadth", 55.2, 61.0, 8, 7, 9, 7) == \
+    assert bc._signal_phrase("breadth", 0.552, 0.610, 8, 7, 9, 7) == \
         "breadth 61.0% → 55.2%, rank 7 → 8 of 9, out of the top 7"
-    assert bc._signal_phrase("breadth", 75.0, 60.0, 3, 8, 9, 7) == \
+    assert bc._signal_phrase("breadth", 0.75, 0.60, 3, 8, 9, 7) == \
         "breadth 60.0% → 75.0%, rank 8 → 3 of 9, into the top 7"
+    assert bc._signal_phrase("breadth_relative", 0.214, 0.201, 1, 2, 14, 7) == \
+        "breadth +20.1pp → +21.4pp against the sector average, rank 2 → 1 of 14"
+    assert bc._signal_phrase("breadth_relative", -0.03, None, 9, None, 14, 7) == \
+        "breadth -3.0pp against the sector average, rank 9 of 14"
     assert bc._signal_phrase("ma_distance", 0.05, None, 2, None, 9, None) == \
         "+5.0% against its 200-day average, rank 2 of 9"
     assert bc._signal_phrase("breadth", None, None, None, None, 0, None) == ""

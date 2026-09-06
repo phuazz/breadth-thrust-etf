@@ -227,10 +227,13 @@ def build(now_utc: datetime | None = None) -> dict:
     sleeves = []
 
     ba, used_a = _breadth_panel(UNIVERSE_ETFS)
+    # Sleeve A ranks on SECTOR-RELATIVE breadth (_to_signal_panel subtracts
+    # the cross-sector average), a signed fraction; sleeve D on absolute
+    # breadth. The commentary formats each in its own units.
     sleeves.append(_rank(tk._to_signal_panel(ba),
                          top_k_breadth_weight(tk.HEADLINE_K),
                          _venue(used_a), now, "A",
-                         signal_kind="breadth", top_k=tk.HEADLINE_K,
+                         signal_kind="breadth_relative", top_k=tk.HEADLINE_K,
                          prev_session=prev.get("A")))
 
     cb = ac.download_prices()

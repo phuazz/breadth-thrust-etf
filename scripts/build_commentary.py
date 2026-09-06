@@ -79,9 +79,19 @@ def _signal_phrase(kind: str | None, now: float | None, prev: float | None,
     """The move's driver, in the sleeve's own signal units."""
     if now is None:
         return ""
+    # Units per sleeve, from the signal each engine actually ranks on. All
+    # three arrive as FRACTIONS: sleeve D's breadth is the share of
+    # constituents above their 200-day average (0.83 = 83%); sleeve A's is
+    # that share MINUS the cross-sector average, signed (+0.21 = 21pp ahead
+    # of the pack — the Method tab's "sector-relative breadth"); B and C
+    # rank on distance from the 200-day average (+0.14 = 14% above it).
     if kind == "breadth":
-        body = (f"breadth {prev:.1f}% → {now:.1f}%" if prev is not None
-                else f"breadth {now:.1f}%")
+        body = (f"breadth {prev * 100:.1f}% → {now * 100:.1f}%" if prev is not None
+                else f"breadth {now * 100:.1f}%")
+    elif kind == "breadth_relative":
+        body = (f"breadth {prev * 100:+.1f}pp → {now * 100:+.1f}pp against the sector average"
+                if prev is not None
+                else f"breadth {now * 100:+.1f}pp against the sector average")
     else:
         body = (f"{prev * 100:+.1f}% → {now * 100:+.1f}% against its 200-day average"
                 if prev is not None
