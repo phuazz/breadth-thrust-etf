@@ -116,6 +116,39 @@ def test_a_held_sleeve_gets_its_reason_and_the_summary_states_the_basis():
     assert nf["decision_session"] == "2026-09-04"
 
 
+def test_moves_are_grouped_by_sleeve_with_the_unit_once_and_a_story():
+    """The readable form (2026-09-06, owner review of the first preview): a
+    heading that states the sleeve, its universe size, its signal and its
+    cut; a one-line story; then the numbers in columns."""
+    nf = bc.moves_commentary(_lt(), LABELS, {"A": "US sectors", "B": "Asset classes"})
+    groups = {g["sleeve"]: g for g in nf["sleeves"]}
+    assert list(groups) == ["A", "B"]
+    a = groups["A"]
+    assert a["heading"] == ("Sleeve A · US sectors · ranks 9 on share of constituents above "
+                            "their 200-day average, holds the top 7")
+    assert a["signal_unit"] == "breadth (%)" and a["top_k"] == 7 and a["n"] == 9
+    assert a["story"] == ("IUMS exits (rank 5 → 8, out of the top 7); largest add IUES +1.4pp; "
+                          "largest trim IUSP -1.2pp.")
+    assert [m["traded"] for m in a["moves"]] == ["IUES", "IUSP", "IUMS"]
+    iums = a["moves"][2]
+    assert iums["cut"] == "out" and iums["signal_prev_fmt"] == "61.0" and iums["signal_now_fmt"] == "55.2"
+    b = groups["B"]
+    assert b["signal_unit"] == "vs 200-day avg (%)"
+    assert b["story"] == "SHY enters at 2.0% of NAV; largest add DBC +0.8pp."
+    shy = next(m for m in b["moves"] if m["etf"] == "SHY")
+    assert shy["cash_proxy"] is True
+
+
+def test_small_resizes_are_counted_in_the_story_not_listed():
+    lt = _lt()
+    lt["lines"] = [
+        {"sleeve": "A", "etf": "IUES", "traded": "IUES", "held": 0.10, "target": 0.102, "delta": 0.002, "status": "READY"},
+        {"sleeve": "A", "etf": "IUSP", "traded": "IUSP", "held": 0.05, "target": 0.048, "delta": -0.002, "status": "READY"},
+    ]
+    nf = bc.moves_commentary(lt, LABELS)
+    assert nf["sleeves"][0]["story"] == "2 smaller resizes under 0.5pp of NAV follow the signal."
+
+
 def test_a_move_without_a_recorded_signal_is_stated_without_a_driver():
     """No number is invented: the move is stated bare and the gap is noted."""
     lt = _lt()
@@ -191,6 +224,14 @@ def test_week_review_states_blend_spy_sleeves_and_holdings():
     assert "Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 47.7% above the 50-day average (+2.7pp on the week)." in t
     assert w["n_priced"] == 2 and w["n_held"] == 3
     assert w["spy_return"] == pytest.approx(0.02)
+    # The labelled-line form carries the same numbers, shorter.
+    assert w["headline"] == "Blend +0.60% · SPY +2.00% · Fri 28 Aug 2026 → Fri 4 Sep 2026 close"
+    lines = {ln["label"]: ln["text"] for ln in w["lines"]}
+    assert lines["By sleeve"] == "A +0.35pp (+1.0% on 35%) · B -0.10pp (-0.4% on 25%)"
+    assert lines["Helped"] == "XLE +0.98pp (+10.0%)"
+    assert lines["Hurt"] == "XLB -0.05pp (-5.0%)"
+    assert lines["Regime"] == "RISK_ON since Tue 14 Apr 2026 · S&P 500 breadth 47.7% (+2.7pp on the week)"
+    assert w["basis"].startswith("Holding contributions are weight × return")
 
 
 def test_week_review_omits_what_it_cannot_derive():

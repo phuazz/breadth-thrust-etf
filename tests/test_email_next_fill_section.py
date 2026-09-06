@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from build_email_body import _next_fill_section  # noqa: E402
+from build_email_body import _next_fill_section, _week_block  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "template.html"
@@ -96,6 +96,56 @@ def test_no_material_moves_says_so():
     assert "No position changes above 0.05pp of NAV" in html
 
 
+NF_GROUPED = {
+    "summary": "3 moves at the next fill.",
+    "moves": NF["moves"],
+    "sleeves": [{
+        "sleeve": "A", "label": "US sectors", "signal_kind": "breadth_relative",
+        "signal_unit": "breadth vs sector avg (pp)", "top_k": 7, "n": 14,
+        "heading": "Sleeve A · US sectors · ranks 14 on breadth relative to the sector average, holds the top 7",
+        "story": "IUMS exits (rank 6 → 9, out of the top 7); largest add IUES +1.4pp.",
+        "moves": [
+            {"traded": "IUES", "name": "iShares S&P 500 Energy", "action": "ADD", "held": 0.0977,
+             "target": 0.1113, "delta": 0.0135, "signal_prev": 0.214, "signal_now": 0.241,
+             "signal_prev_fmt": "+21.4", "signal_now_fmt": "+24.1", "rank_prev": 2, "rank_now": 1,
+             "n": 14, "cut": None, "cash_proxy": False},
+            {"traded": "IUMS", "name": "iShares S&P 500 Materials", "action": "SELL ALL", "held": 0.01,
+             "target": 0.0, "delta": -0.01, "signal_prev": 0.022, "signal_now": -0.011,
+             "signal_prev_fmt": "+2.2", "signal_now_fmt": "-1.1", "rank_prev": 6, "rank_now": 9,
+             "n": 14, "cut": "out", "cash_proxy": False},
+        ],
+    }],
+}
+
+
+def test_grouped_commentary_renders_a_table_per_sleeve_with_the_unit_in_the_header():
+    html = _next_fill_section(_lt(), NF_GROUPED, _name)
+    assert "Why these moves" in html
+    assert "Sleeve A · US sectors · ranks 14 on breadth relative to the sector average, holds the top 7" in html
+    assert "IUMS exits (rank 6 → 9, out of the top 7); largest add IUES +1.4pp." in html
+    assert "breadth vs sector avg (pp)" in html            # unit once, in the column header
+    assert "+21.4 &rarr; +24.1" in html and "2 &rarr; 1 of 14" in html
+    assert "exits 1.0" in html and "6 &rarr; 9 of 14" in html and "out of top 7" in html
+    assert "<li" not in html, "grouped form replaces the sentence list"
+
+
+def test_week_block_is_labelled_lines_not_a_paragraph():
+    week = {"headline": "Blend +0.56% · SPY +0.12% · Fri 28 Aug 2026 → Fri 4 Sep 2026 close",
+            "lines": [{"label": "By sleeve", "text": "B +0.30pp (+1.2% on 25%)"},
+                      {"label": "Helped", "text": "EEM +0.23pp (+2.3%)"},
+                      {"label": "Regime", "text": "RISK_ON since Tue 14 Apr 2026"}],
+            "basis": "Holding contributions are weight × return from each sleeve's own fill close.",
+            "text": "the paragraph form"}
+    html = _week_block(week)
+    assert "Blend +0.56% · SPY +0.12%" in html
+    assert "By sleeve" in html and "Helped" in html and "Regime" in html
+    assert "the paragraph form" not in html, "the lines replace the paragraph"
+    assert "weight × return" in html
+    # A commentary written before the lines existed still renders its paragraph.
+    assert "the paragraph form" in _week_block({"text": "the paragraph form"})
+    assert _week_block({}) == ""
+
+
 # ---------------------------------------------------------------------------
 # The dashboard block and the pipeline loader read the same file
 # ---------------------------------------------------------------------------
@@ -106,7 +156,9 @@ def test_dashboard_renders_why_only_for_the_same_decision_session():
     assert m, "renderNextFillWhy() missing"
     body = m.group(1)
     assert "c.as_of !== lt.as_of" in body, "a stale commentary must not narrate this week"
-    assert "_escapeHtml(m.text)" in body, "commentary is data, never markup"
+    assert "const esc = _escapeHtml;" in body and "esc(m.text)" in body and "esc(g.heading)" in body, \
+        "commentary is data, never markup"
+    assert "nf-why-t" in body, "the grouped table form"
     assert "renderNextFillWhy(lt);" in t
     assert ".prev-card.next-fill.nf-collapsed #nf-why" in t, "collapses with the card"
 

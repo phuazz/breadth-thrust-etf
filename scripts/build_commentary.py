@@ -32,6 +32,17 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import display_ticker, get_etf  # noqa: E402
 
+# The sentences carry arrows and em dashes. Under Task Scheduler and a
+# redirected stdout Python picks the console code page, and a print then
+# raises UnicodeEncodeError AFTER the JSON is written — a green artefact
+# and a red step (seen 2026-09-06 under Git Bash). Same fix as
+# compute_breadth: force UTF-8 out, and never let the report fail the step.
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: BLE001
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 
@@ -117,8 +128,76 @@ def _action(ln: dict) -> str:
     return "ADD" if ln.get("delta", 0) > 0 else "TRIM"
 
 
-def moves_commentary(lt: dict, labels: dict) -> dict:
-    """One line per material move, ordered by |delta|, plus a summary."""
+# A resize this small is the weight following the signal, not a decision;
+# the story line counts them rather than naming each (the email's own
+# materiality line for executed moves is the same 0.5% of NAV).
+MATERIAL_MOVE = 0.005
+
+SLEEVE_LABELS = {"A": "US sectors", "B": "Asset classes", "C": "Thematic",
+                 "D": "Europe sectors"}
+
+
+def _signal_unit(kind: str | None) -> tuple[str, str]:
+    """(column header, one-line description) for a sleeve's signal."""
+    if kind == "breadth_relative":
+        return ("breadth vs sector avg (pp)",
+                "share of constituents above their 200-day average, minus the "
+                "average across the sectors")
+    if kind == "breadth":
+        return ("breadth (%)",
+                "share of constituents above their 200-day average")
+    if kind == "ma_distance":
+        return ("vs 200-day avg (%)", "distance of the price above its 200-day average")
+    return ("signal", "")
+
+
+def _fmt_signal(kind: str | None, v: float | None) -> str:
+    if v is None:
+        return "—"
+    if kind == "breadth_relative":
+        return f"{v * 100:+.1f}"
+    if kind == "breadth":
+        return f"{v * 100:.1f}"
+    return f"{v * 100:+.1f}"
+
+
+def _story(sleeve: str, moves: list[dict], top_k: int | None) -> str:
+    """One sentence per sleeve: what entered, what left, the largest add and
+    trim, and how many small resizes followed the signal."""
+    entries = [m for m in moves if m["action"] == "BUY"]
+    exits = [m for m in moves if m["action"] == "SELL ALL"]
+    resizes = [m for m in moves if m["action"] in ("ADD", "TRIM")]
+    big = [m for m in resizes if abs(m["delta"]) >= MATERIAL_MOVE]
+    small = [m for m in resizes if abs(m["delta"]) < MATERIAL_MOVE]
+    parts = []
+    for m in entries:
+        cut = f" (rank {m['rank_prev']} → {m['rank_now']}, into the top {top_k})" \
+            if m.get("rank_prev") and m.get("rank_now") and top_k else ""
+        parts.append(f"{m['traded']} enters at {_pct(m['target'])} of NAV{cut}")
+    for m in exits:
+        cut = f" (rank {m['rank_prev']} → {m['rank_now']}, out of the top {top_k})" \
+            if m.get("rank_prev") and m.get("rank_now") and top_k else ""
+        parts.append(f"{m['traded']} exits{cut}")
+    adds = sorted([m for m in big if m["delta"] > 0], key=lambda m: -m["delta"])
+    trims = sorted([m for m in big if m["delta"] < 0], key=lambda m: m["delta"])
+    if adds:
+        parts.append("largest add " + ", ".join(f"{m['traded']} {_pp(m['delta'], 1)}" for m in adds[:2]))
+    if trims:
+        parts.append("largest trim " + ", ".join(f"{m['traded']} {_pp(m['delta'], 1)}" for m in trims[:2]))
+    if small:
+        parts.append(f"{len(small)} smaller resize{'s' if len(small) != 1 else ''} "
+                     f"under 0.5pp of NAV follow the signal")
+    if not parts:
+        return f"Sleeve {sleeve}: no change."
+    s = "; ".join(parts)
+    return s[0].upper() + s[1:] + "."
+
+
+def moves_commentary(lt: dict, labels: dict, sleeve_labels: dict | None = None) -> dict:
+    """The planned moves, flat (one derived sentence each, ordered by size)
+    and grouped by sleeve for a tabular rendering: the unit stated once in
+    the group, the numbers in columns, one story line per sleeve."""
+    sleeve_labels = {**SLEEVE_LABELS, **(sleeve_labels or {})}
     sleeves = {s["sleeve"]: s for s in lt.get("sleeves", [])}
     lines = [ln for ln in lt.get("lines", []) if abs(ln.get("delta", 0)) >= MIN_MOVE]
     lines.sort(key=lambda x: -abs(x["delta"]))
@@ -148,11 +227,37 @@ def moves_commentary(lt: dict, labels: dict) -> dict:
         text = head + (f": {why}." if why else ".")
         if not why and etf not in ("SHY", "IEF"):
             notes.append(f"no signal recorded for {etf} in sleeve {ln['sleeve']}; the move is stated without its driver")
-        out.append({"sleeve": ln["sleeve"], "etf": etf, "traded": sym, "action": act,
-                    "held": ln["held"], "target": ln["target"], "delta": ln["delta"],
+        rank_now, rank_prev = rn.get(etf), rp.get(etf)
+        cut = None
+        if k and rank_now and rank_prev:
+            cut = "out" if rank_prev <= k < rank_now else ("in" if rank_now <= k < rank_prev else None)
+        out.append({"sleeve": ln["sleeve"], "etf": etf, "traded": sym, "name": name,
+                    "action": act, "held": ln["held"], "target": ln["target"],
+                    "delta": ln["delta"],
                     "signal_now": sig.get(etf), "signal_prev": prev.get(etf),
-                    "rank_now": rn.get(etf), "rank_prev": rp.get(etf),
+                    "signal_now_fmt": _fmt_signal(kind, sig.get(etf)),
+                    "signal_prev_fmt": _fmt_signal(kind, prev.get(etf)),
+                    "rank_now": rank_now, "rank_prev": rank_prev, "n": len(rn) or None,
+                    "cut": cut, "cash_proxy": etf in ("SHY", "IEF"),
                     "signal_kind": kind, "text": text})
+
+    # Grouped by sleeve, in sleeve order, for the tabular rendering.
+    groups = []
+    for sl in sorted({m["sleeve"] for m in out}):
+        s = sleeves.get(sl, {})
+        kind, k = s.get("signal_kind"), s.get("top_k")
+        unit, desc = _signal_unit(kind)
+        ms = [m for m in out if m["sleeve"] == sl]
+        n = ms[0]["n"] if ms else None
+        groups.append({
+            "sleeve": sl, "label": sleeve_labels.get(sl, ""), "signal_kind": kind,
+            "signal_unit": unit, "signal_desc": desc, "top_k": k, "n": n,
+            "heading": (f"Sleeve {sl} · {sleeve_labels.get(sl, '')}"
+                        + (f" · ranks {n} on {desc}, holds the top {k}" if n and k and desc else "")),
+            "story": _story(sl, ms, k),
+            "moves": ms,
+        })
+
     holds = [s for s in lt.get("sleeves", []) if s.get("status") != "READY"]
     hold_text = [f"Sleeve {s['sleeve']} is held and its book is unchanged: "
                  f"{s.get('reason') or 'its signal does not reach the last close'}."
@@ -172,8 +277,8 @@ def moves_commentary(lt: dict, labels: dict) -> dict:
                    + ". Signals compared with the previous decision close.")
     else:
         summary = f"No move above 0.05pp of NAV at the next fill ({when})."
-    return {"summary": summary, "moves": out, "holds": hold_text, "notes": notes,
-            "decision_session": sorted(decided)[-1] if decided else None,
+    return {"summary": summary, "moves": out, "sleeves": groups, "holds": hold_text,
+            "notes": notes, "decision_session": sorted(decided)[-1] if decided else None,
             "fill_by_venue": fills}
 
 
@@ -227,13 +332,20 @@ def week_commentary(wtd, attribution: dict | None, holdings: list[dict],
     the same window the headline tile uses."""
     notes: list[str] = []
     if not wtd:
-        return {"text": "", "notes": ["no week-to-date window could be computed"]}
+        return {"text": "", "headline": "", "lines": [], "basis": "",
+                "notes": ["no week-to-date window could be computed"]}
     ret, start, end = wtd
     spy = _window_return(_series(hp, "SPY"), start, end)
     parts = [f"Week {_fmt_date(start)} close → {_fmt_date(end)} close: the blend "
              f"returned {_pct(ret, 2, signed=True)}"
              + (f" against SPY {_pct(spy, 2, signed=True)}" if spy is not None else "")
              + "."]
+    # The same facts as short labelled lines, for the rendering that reads
+    # (the paragraph form above stays for anything that wants one string).
+    headline = (f"Blend {_pct(ret, 2, signed=True)}"
+                + (f" · SPY {_pct(spy, 2, signed=True)}" if spy is not None else "")
+                + f" · {_fmt_date(start)} → {_fmt_date(end)} close")
+    lines: list[dict] = []
     if spy is None:
         notes.append("SPY series not in the holdings panel; no benchmark stated")
 
@@ -243,6 +355,10 @@ def week_commentary(wtd, attribution: dict | None, holdings: list[dict],
                      + ", ".join(f"{r['label']} {_pp(r['contrib'])} "
                                  f"({_pct(r['ret'], 2, signed=True)} at "
                                  f"{_pct(r['w'], 0)} of NAV)" for r in rows) + ".")
+        lines.append({"label": "By sleeve",
+                      "text": " · ".join(f"{r['label'].replace('Sleeve ', '')} {_pp(r['contrib'])} "
+                                         f"({_pct(r['ret'], 1, signed=True)} on {_pct(r['w'], 0)})"
+                                         for r in rows)})
 
     # Holdings: return from the later of the window start and the sleeve's
     # own fill date (the book changed at that close), at the weight held.
@@ -270,15 +386,23 @@ def week_commentary(wtd, attribution: dict | None, holdings: list[dict],
         bottom = [c for c in contribs if c["contrib"] < 0][-TOP_N:][::-1]
         if top:
             parts.append("Largest contributors: " + "; ".join(_one(c) for c in top) + ".")
+            lines.append({"label": "Helped",
+                          "text": " · ".join(f"{c['traded']} {_pp(c['contrib'])} "
+                                             f"({_pct(c['ret'], 1, signed=True)})" for c in top)})
         if bottom:
             parts.append("Largest detractors: " + "; ".join(_one(c) for c in bottom) + ".")
+            lines.append({"label": "Hurt",
+                          "text": " · ".join(f"{c['traded']} {_pp(c['contrib'])} "
+                                             f"({_pct(c['ret'], 1, signed=True)})" for c in bottom)})
         starts = sorted({c["from"] for c in contribs})
         basis = (f"from the {_fmt_date(starts[0])} close" if len(starts) == 1
                  else f"from each sleeve's own fill close ({', '.join(_fmt_date(x) for x in starts)})")
-        parts.append(f"Holding contributions are weight × return {basis} to the "
-                     f"{_fmt_date(end)} close, {n_priced} of {len(holdings)} holdings priced "
-                     f"from the one-year price panel.")
+        basis_note = (f"Holding contributions are weight × return {basis} to the "
+                      f"{_fmt_date(end)} close, {n_priced} of {len(holdings)} holdings priced "
+                      f"from the one-year price panel.")
+        parts.append(basis_note)
     else:
+        basis_note = ""
         notes.append("no holding could be priced from the one-year panel")
 
     ctx = []
@@ -287,14 +411,19 @@ def week_commentary(wtd, attribution: dict | None, holdings: list[dict],
         since = overlay.get("current_state_since")
         b = overlay.get("current_breadth")
         line = f"Regime {st}" + (f" since {_fmt_date(since)}" if since else "")
+        short = f"{st}" + (f" since {_fmt_date(since)}" if since else "")
         if b is not None:
             line += f", S&P 500 breadth {b * 100:.1f}% above the 50-day average"
+            short += f" · S&P 500 breadth {b * 100:.1f}%"
             prev = _breadth_at(breadth_panel, start)
             if prev is not None:
                 line += f" ({(b - prev) * 100:+.1f}pp on the week)"
+                short += f" ({(b - prev) * 100:+.1f}pp on the week)"
         ctx.append(line + ".")
+        lines.append({"label": "Regime", "text": short})
     text = " ".join(parts + ctx)
-    return {"text": text, "start": start, "end": end, "blend_return": ret,
+    return {"text": text, "headline": headline, "lines": lines, "basis": basis_note,
+            "start": start, "end": end, "blend_return": ret,
             "spy_return": spy, "holdings": contribs[:12], "notes": notes,
             "n_priced": n_priced, "n_held": len(holdings)}
 
@@ -335,10 +464,14 @@ def build(data_dir: Path = DATA_DIR, now_utc: datetime | None = None) -> dict:
         if d:
             sleeves[key] = d
     labels = eb._build_label_map(sleeves)
+    fresh = load("strategy_freshness.json") or {}
+    sleeve_labels = {s["sleeve"]: s.get("label") for s in fresh.get("strategies", [])
+                     if s.get("sleeve") and s.get("label")}
 
     notes: list[str] = []
-    moves = moves_commentary(lt, labels) if lt else {"summary": "", "moves": [],
-                                                    "holds": [], "notes": ["live_targets.json absent"]}
+    moves = (moves_commentary(lt, labels, sleeve_labels) if lt
+             else {"summary": "", "moves": [], "sleeves": [], "holds": [],
+                   "notes": ["live_targets.json absent"]})
     notes += moves.get("notes", [])
 
     week = {"text": "", "notes": []}

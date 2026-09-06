@@ -1560,6 +1560,15 @@
     .nf-why p { margin: 0 0 6px; }
     .nf-why ul { margin: 0 0 6px; padding-left: 18px; }
     .nf-why li { margin: 0 0 4px; }
+    .nf-why .nf-why-g { font-weight: 700; margin: 10px 0 2px; color: var(--ink); }
+    .nf-why .nf-why-t { max-width: 100%; margin: 0 0 8px; font-size: 12px; }
+    .nf-why .nf-why-t td, .nf-why .nf-why-t th { padding: 4px 8px; white-space: nowrap; }
+    .nf-why .nf-why-t td.tk { white-space: normal; }
+    .nf-why .nf-why-w { border-collapse: collapse; margin: 0 0 4px; }
+    .nf-why .nf-why-w td { padding: 2px 8px 2px 0; vertical-align: top; }
+    .nf-why .nf-why-l { font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--ink-faint); white-space: nowrap; }
+    .nf-why .nf-why-basis { font-size: 11px; color: var(--ink-faint); line-height: 1.45; }
     .nf-toggle {
       font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
       margin-top: 6px; padding: 5px 11px; border-radius: 6px;
@@ -5021,16 +5030,54 @@ function renderNextFillWhy(lt) {
   if (!nf || !lt || (c.as_of && lt.as_of && c.as_of !== lt.as_of)) {
     el.innerHTML = ''; return;
   }
-  const items = (nf.moves || []).map(m => `<li>${_escapeHtml(m.text)}</li>`)
-    .concat((nf.holds || []).map(h => `<li>${_escapeHtml(h)}</li>`));
-  if (!items.length && !nf.summary) { el.innerHTML = ''; return; }
-  const week = (c.week && c.week.text)
-    ? `<div class="nf-why-h">The week in review</div><p>${_escapeHtml(c.week.text)}</p>`
-    : '';
+  const esc = _escapeHtml;
+  const groups = Array.isArray(nf.sleeves) ? nf.sleeves : [];
+  const holds = (nf.holds || []).map(h => `<p>${esc(h)}</p>`).join('');
+  let body = '';
+  if (groups.length) {
+    // Grouped: the unit once in the heading, the numbers in columns, a
+    // one-line story per sleeve — the form a reader can scan.
+    body = groups.map(g => {
+      const rows = (g.moves || []).map(m => {
+        const move = m.action === 'BUY' ? `enters ${(m.target * 100).toFixed(1)}`
+          : m.action === 'SELL ALL' ? `exits ${(m.held * 100).toFixed(1)}`
+          : `${(m.held * 100).toFixed(1)} → ${(m.target * 100).toFixed(1)}`;
+        const d = `<span class="${m.delta >= 0 ? 'nf-buy' : 'nf-sell'}">(${m.delta >= 0 ? '+' : ''}${(m.delta * 100).toFixed(1)}pp)</span>`;
+        let sig, rank;
+        if (m.cash_proxy) { sig = 'cash proxy'; rank = '—'; }
+        else {
+          sig = m.signal_prev != null ? `${esc(m.signal_prev_fmt)} → ${esc(m.signal_now_fmt)}` : esc(m.signal_now_fmt);
+          rank = m.rank_now == null ? '—'
+            : (m.rank_prev && m.rank_prev !== m.rank_now) ? `${m.rank_prev} → ${m.rank_now} of ${m.n}` : `${m.rank_now} of ${m.n}`;
+          if (m.cut === 'out') rank += ` <span class="nf-sell">out of top ${g.top_k}</span>`;
+          if (m.cut === 'in') rank += ` <span class="nf-buy">into top ${g.top_k}</span>`;
+        }
+        return `<tr><td class="tk">${esc(m.traded)}${m.name ? `<span class="tk-label">${esc(m.name)}</span>` : ''}</td>`
+          + `<td class="num">${move} ${d}</td><td class="num">${sig}</td><td class="num">${rank}</td></tr>`;
+      }).join('');
+      return `<div class="nf-why-g">${esc(g.heading)}</div>`
+        + (g.story ? `<p>${esc(g.story)}</p>` : '')
+        + `<table class="prev-table nf-why-t"><thead><tr><th>Ticker</th><th class="num">Move (% NAV)</th>`
+        + `<th class="num">${esc(g.signal_unit)}</th><th class="num">Rank</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }).join('');
+  } else {
+    const items = (nf.moves || []).map(m => `<li>${esc(m.text)}</li>`);
+    body = items.length ? `<ul>${items.join('')}</ul>` : '';
+  }
+  if (!body && !holds && !nf.summary) { el.innerHTML = ''; return; }
+  const w = c.week || {};
+  let week = '';
+  if (w.headline) {
+    const lines = (w.lines || []).map(l => `<tr><td class="nf-why-l">${esc(l.label)}</td><td>${esc(l.text)}</td></tr>`).join('');
+    week = `<div class="nf-why-h">The week in review</div><p><strong>${esc(w.headline)}</strong></p>`
+      + `<table class="nf-why-w"><tbody>${lines}</tbody></table>`
+      + (w.basis ? `<p class="nf-why-basis">${esc(w.basis)}</p>` : '');
+  } else if (w.text) {
+    week = `<div class="nf-why-h">The week in review</div><p>${esc(w.text)}</p>`;
+  }
   el.innerHTML = `<div class="nf-why"><div class="nf-why-h">Why these moves</div>`
-    + (nf.summary ? `<p>${_escapeHtml(nf.summary)}</p>` : '')
-    + (items.length ? `<ul>${items.join('')}</ul>` : '')
-    + week + `</div>`;
+    + (nf.summary ? `<p>${esc(nf.summary)}</p>` : '')
+    + body + holds + week + `</div>`;
 }
 
 // Long date without inventing a weekday: parsed as UTC so a local timezone

@@ -67,6 +67,14 @@ HOLD = DOCS / "factsheet_hold.json"
 
 TRUTHY = {"1", "true", "yes", "on"}
 
+# The report carries an em dash; a console code page must not turn a
+# verdict into an exception (see build_commentary).
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: BLE001
+        pass
+
 
 def _sidecar_source(cache: Path) -> str | None:
     p = cache.with_name(cache.stem + ".source.json")
@@ -92,8 +100,13 @@ def _readiness_rc(root: Path) -> tuple[int, str]:
         [sys.executable, str(root / "scripts" / "check_publish_readiness.py"),
          "--skip-slow"], cwd=root, capture_output=True, text=True,
         encoding="utf-8", errors="replace")
-    tail = [ln for ln in (p.stdout or "").splitlines() if ln.strip()][-1:] or [""]
-    return p.returncode, tail[0][:160]
+    # The verdict line, not the last line: the script ends with the release
+    # instructions, which read as a failure when quoted as evidence.
+    lines = [ln.strip() for ln in (p.stdout or "").splitlines() if ln.strip()]
+    verdict = next((ln for ln in lines
+                    if ln.startswith(("MECHANICALLY READY", "NOT READY"))
+                    or " FAIL, " in ln), lines[-1] if lines else "")
+    return p.returncode, verdict[:160]
 
 
 def evaluate(anchor: date, *, cadence: str, price_source: str,

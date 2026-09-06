@@ -907,18 +907,97 @@ def _next_fill_section(lt: dict, nf: dict, name_cell) -> str:
                    f'<strong>Do not trade sleeve {s["sleeve"]}.</strong> '
                    f'{s.get("reason") or "Its signal does not reach the last close."} '
                    f'Leave it as held.</p>')
-    lines_html = [f'<li style="margin:0 0 4px;">{why[(ln["sleeve"], ln["etf"])]}</li>'
-                  for ln in moves if why.get((ln["sleeve"], ln["etf"]))]
-    if lines_html or nf.get("summary"):
-        out.append('<div style="margin:10px 0 18px;font-size:12.5px;line-height:1.55;color:#1a1a1a;">'
-                   '<div style="font-size:11px;font-weight:700;letter-spacing:.04em;'
-                   'text-transform:uppercase;color:#3a4148;margin:0 0 4px;">Why these moves</div>'
-                   + (f'<p style="margin:0 0 6px;">{nf["summary"]}</p>' if nf.get("summary") else '')
-                   + (f'<ul style="margin:0;padding-left:18px;">{"".join(lines_html)}</ul>' if lines_html else '')
-                   + '</div>')
+    why_html = _why_block(nf, why, moves)
+    if why_html:
+        out.append(why_html)
     else:
         out.append('<div style="margin:0 0 18px;"></div>')
     return "".join(out)
+
+
+def _why_block(nf: dict, why: dict, moves: list[dict]) -> str:
+    """"Why these moves", grouped by sleeve: the unit once in the heading,
+    the numbers in columns, a one-line story per sleeve. Falls back to the
+    flat sentences for a commentary written before the groups existed."""
+    groups = nf.get("sleeves") or []
+    if not groups and not any(why.get((ln["sleeve"], ln["etf"])) for ln in moves) \
+            and not nf.get("summary"):
+        return ""
+    head = ('<div style="margin:10px 0 18px;font-size:12.5px;line-height:1.5;color:#1a1a1a;">'
+            '<div style="font-size:11px;font-weight:700;letter-spacing:.04em;'
+            'text-transform:uppercase;color:#3a4148;margin:0 0 4px;">Why these moves</div>'
+            + (f'<p style="margin:0 0 8px;color:#4a5159;">{nf["summary"]}</p>'
+               if nf.get("summary") else ''))
+    if not groups:
+        items = [f'<li style="margin:0 0 4px;">{why[(ln["sleeve"], ln["etf"])]}</li>'
+                 for ln in moves if why.get((ln["sleeve"], ln["etf"]))]
+        return head + (f'<ul style="margin:0;padding-left:18px;">{"".join(items)}</ul>' if items else '') + '</div>'
+    th = ('style="text-align:{a};padding:3px 8px;border-bottom:1px solid #c8ccd2;'
+          'font-size:10.5px;color:#7c8590;text-transform:uppercase;letter-spacing:0.4px;font-weight:600;"')
+    td = 'style="padding:4px 8px;border-bottom:1px solid #f0f2f4;vertical-align:top;{x}"'
+    parts = [head]
+    for g in groups:
+        parts.append(f'<div style="margin:8px 0 3px;font-weight:700;color:#0f1217;">{g["heading"]}</div>')
+        if g.get("story"):
+            parts.append(f'<div style="margin:0 0 5px;color:#4a5159;">{g["story"]}</div>')
+        parts.append('<table style="width:100%;border-collapse:collapse;margin:0 0 6px;font-size:12px;">'
+                     f'<tr><th {th.format(a="left")}>Ticker</th><th {th.format(a="right")}>Move (% NAV)</th>'
+                     f'<th {th.format(a="right")}>{g["signal_unit"]}</th><th {th.format(a="right")}>Rank</th></tr>')
+        for m in g["moves"]:
+            if m["action"] == "BUY":
+                move = f'enters {m["target"] * 100:.1f}'
+            elif m["action"] == "SELL ALL":
+                move = f'exits {m["held"] * 100:.1f}'
+            else:
+                move = f'{m["held"] * 100:.1f} &rarr; {m["target"] * 100:.1f}'
+            dcol = "#1d7a3a" if m["delta"] >= 0 else "#b3261e"
+            move += f' <span style="color:{dcol};">({m["delta"] * 100:+.1f}pp)</span>'
+            if m.get("cash_proxy"):
+                sig, rank = "cash proxy", "&mdash;"
+            else:
+                sig = (f'{m["signal_prev_fmt"]} &rarr; {m["signal_now_fmt"]}'
+                       if m.get("signal_prev") is not None else m["signal_now_fmt"])
+                if m.get("rank_now") is None:
+                    rank = "&mdash;"
+                elif m.get("rank_prev") and m["rank_prev"] != m["rank_now"]:
+                    rank = f'{m["rank_prev"]} &rarr; {m["rank_now"]} of {m["n"]}'
+                else:
+                    rank = f'{m["rank_now"]} of {m["n"]}'
+                if m.get("cut") == "out":
+                    rank += f' <span style="color:#b3261e;">out of top {g["top_k"]}</span>'
+                elif m.get("cut") == "in":
+                    rank += f' <span style="color:#1d7a3a;">into top {g["top_k"]}</span>'
+            name = (f'<br><span style="font-size:10.5px;color:#7c8590;">{m["name"]}</span>'
+                    if m.get("name") else "")
+            parts.append(
+                f'<tr><td {td.format(x="")}><strong style="font-family:{MONO};">{m["traded"]}</strong>{name}</td>'
+                f'<td {td.format(x="text-align:right;font-family:" + MONO + ";white-space:nowrap;")}>{move}</td>'
+                f'<td {td.format(x="text-align:right;font-family:" + MONO + ";white-space:nowrap;")}>{sig}</td>'
+                f'<td {td.format(x="text-align:right;white-space:nowrap;")}>{rank}</td></tr>')
+        parts.append('</table>')
+    parts.append('</div>')
+    return "".join(parts)
+
+
+def _week_block(week: dict) -> str:
+    """The week as short labelled lines: headline, by sleeve, helped, hurt,
+    regime, and the basis as a footnote. Falls back to the paragraph."""
+    if not week:
+        return ""
+    if not week.get("headline"):
+        return (f'<p style="margin:0 0 18px 0;font-size:13px;line-height:1.55;color:#1a1a1a;">'
+                f'{week.get("text", "")}</p>') if week.get("text") else ""
+    rows = "".join(
+        f'<tr><td style="padding:2px 10px 2px 0;color:#7c8590;font-size:11px;text-transform:uppercase;'
+        f'letter-spacing:0.4px;white-space:nowrap;vertical-align:top;">{ln["label"]}</td>'
+        f'<td style="padding:2px 0;color:#1a1a1a;">{ln["text"]}</td></tr>'
+        for ln in week.get("lines") or [])
+    basis = (f'<p style="margin:6px 0 0;font-size:11px;color:#7c8590;line-height:1.45;">{week["basis"]}</p>'
+             if week.get("basis") else "")
+    return ('<div style="margin:0 0 18px 0;font-size:12.5px;line-height:1.5;">'
+            f'<div style="font-weight:700;color:#0f1217;margin:0 0 4px;">{week["headline"]}</div>'
+            f'<table style="border-collapse:collapse;font-size:12.5px;">{rows}</table>'
+            + basis + '</div>')
 
 
 def build_html(out_path: Path):
@@ -1183,10 +1262,8 @@ def build_html(out_path: Path):
     # for THIS as-of; omitted, never estimated, otherwise.
     commentary = _load_json(DATA_DIR / "commentary.json") or {}
     _week = commentary.get("week") or {}
-    if _week.get("text") and _week.get("as_of") == asof_iso:
-        out.append(
-            '<p style="margin:0 0 18px 0;font-size:13px;line-height:1.55;'
-            f'color:#1a1a1a;">{_week["text"]}</p>')
+    if (_week.get("text") or _week.get("headline")) and _week.get("as_of") == asof_iso:
+        out.append(_week_block(_week))
 
     # Shared cell renderer — ticker bold with the fund name as a small
     # grey secondary line. Used by both the rebalance and holdings tables.
@@ -1546,7 +1623,13 @@ def build_html(out_path: Path):
     # deterministic on both Windows and Linux runners.
     body = ("\n".join(out) + "\n").encode("utf-8")
     out_path.write_bytes(body)
-    print(f"Wrote {out_path.relative_to(ROOT)}")
+    # An operator preview may live outside the repo; the write above has
+    # already happened, so a path that is not under ROOT is printed as is.
+    try:
+        shown = out_path.relative_to(ROOT)
+    except ValueError:
+        shown = out_path
+    print(f"Wrote {shown}")
     print(f"  As of:        {asof_str}")
     print(f"  Deployed key: {deployed_key}")
     print(f"  Regime:       {regime_state} (since {regime_since})")
