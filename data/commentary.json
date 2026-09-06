@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-09-06T14:18:56+00:00",
+  "computed_at_utc": "2026-09-06T14:49:26+00:00",
   "as_of": "2026-09-04",
   "next_fill": {
     "summary": "18 moves at the next fill (NYSE Tue 8 Sep 2026, XETR Mon 7 Sep 2026), ranked on the Fri 4 Sep 2026 close; one-way turnover 4.54% of NAV; 1 new name; 1 exit. Signals compared with the previous decision close.",
@@ -820,11 +820,11 @@
       },
       {
         "label": "Helped",
-        "text": "EEM +0.23pp (+2.3%) \u00b7 EXV1.DE +0.16pp (+2.1%) \u00b7 DBC +0.10pp (+1.9%)"
+        "text": "iShares MSCI Emerging Markets +0.23pp (+2.3%) \u00b7 STOXX Europe 600 Banks +0.16pp (+2.1%) \u00b7 Broad Commodities +0.10pp (+1.9%)"
       },
       {
         "label": "Hurt",
-        "text": "CIBR -0.11pp (-5.6%) \u00b7 COPX -0.05pp (-2.4%) \u00b7 SKYY -0.04pp (-2.2%)"
+        "text": "First Trust Cybersecurity -0.11pp (-5.6%) \u00b7 Global X Copper Miners -0.05pp (-2.4%) \u00b7 First Trust Cloud Computing -0.04pp (-2.2%)"
       },
       {
         "label": "Regime",
