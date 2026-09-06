@@ -82,6 +82,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 from rebalance_calendar import engine_rebalance_dates  # noqa: E402
 from rebalance_records import latest_rebalance_record  # noqa: E402
 import price_source as price_source_mod  # noqa: E402
+import vendor_tail  # noqa: E402
 from nyse_sessions import (  # noqa: E402
     cap_to_last_completed_session,
     last_completed_session,
@@ -543,7 +544,18 @@ def download_prices() -> pd.DataFrame:
         # An EMPTY cache must read as "no usable cache", not explode. See the
         # matching note in run_asset_class_rotation.download_prices: a zero-row
         # frame gives index.max() = NaT, and comparing NaT to a date raises.
-        cache_end = cached.index.max().date() if len(cached) else None
+        #
+        # LEAST-CURRENT COLUMN, ON VALUES (2026-09-06). This read
+        # ``cached.index.max()`` until the 7/8 September fill: the failed
+        # Saturday run had written the Friday row with the 24 Norgate lines
+        # priced and BTC-USD blank (the vendor had not served the crypto bar
+        # at 01:55 UTC), the gitignored cache survived the clone's restore,
+        # and on Sunday the index reached Friday, so this branch called the
+        # cache current and reused it — 25 of 26 names on the decision row,
+        # sleeve C on HOLD for a bar the vendor was serving by breakfast.
+        # Sleeve B learnt the same lesson on 2026-08-31 (SPY); the shared
+        # helper is that rule, stated once.
+        cache_end = vendor_tail.cache_current_through(cached, needed)
         cache_source = price_source_mod.read_cache_source(PRICE_CACHE)
         if cache_end is None:
             print(f"  Cache at {PRICE_CACHE.name} is EMPTY — re-downloading")
@@ -558,6 +570,10 @@ def download_prices() -> pd.DataFrame:
             print(f"  Cache is current but was built from "
                   f"{cache_source or 'yfinance (unrecorded)'}; this run is on "
                   f"{price_source} — refreshing")
+        else:
+            print(f"  Cache's least current column ends {cache_end} < last "
+                  f"completed session {current_through}, or universe "
+                  f"expanded — refreshing")
 
     print(f"  Downloading {len(needed)} tickers from yfinance "
           f"({START_DATE} -> {END_DATE})"
@@ -597,6 +613,19 @@ def download_prices() -> pd.DataFrame:
         # would record a yfinance frame as Norgate-built.
         price_source_mod.assert_norgate_complete(_ngrep, needed, "Strategy C")
 
+    # ----- Blank tail cells (2026-09-06) -----
+    # The batch can leave one NAME's newest cell empty on a row that exists:
+    # the crypto and Shenzhen lines stay on yfinance, and yfinance serves a
+    # day's bar hours after the day ends, sometimes after withdrawing it
+    # once. Ask for those cells one name at a time before the cache is
+    # written; a name the vendor still does not serve stays blank, the row
+    # stays partial, and live_targets' coverage floor makes that a HOLD.
+    # Norgate-owned columns are never touched (WS19b: whole column or none).
+    df, _heal = vendor_tail.heal_hollow_tail(
+        df, needed, through=current_through,
+        exclude=(_ngrep or {}).get("replaced", []))
+    vendor_tail.report_heal(_heal, label="Strategy C")
+
     # Partial-bar guard: the padded fetch window may include today's
     # in-progress session (and crypto's current partial day) when run
     # during market hours. Cap BEFORE the crypto/FX calendar work so
@@ -634,7 +663,11 @@ def download_prices() -> pd.DataFrame:
         raise RuntimeError(
             f"price fetch unusable and no cache to fall back on: {worse}")
     df.to_parquet(PRICE_CACHE)
-    price_source_mod.write_cache_source(PRICE_CACHE, price_source, _ngrep)
+    _sidecar = dict(_ngrep or {})
+    if _heal:
+        _sidecar["tail_heal"] = _heal
+    price_source_mod.write_cache_source(PRICE_CACHE, price_source,
+                                        _sidecar or None)
     print(f"  Downloaded {df.shape[0]} rows x {df.shape[1]} tickers "
           f"(source recorded: {price_source})")
     return df
