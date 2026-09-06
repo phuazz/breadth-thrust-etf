@@ -83,6 +83,10 @@ jobs:
     outputs:
       publish: ${{ steps.decide.outputs.publish }}
       anchor: ${{ steps.decide.outputs.anchor }}
+      # 'true' when this send rests on a marker the weekend refresh wrote
+      # itself (auto_release.py); the build job then mails the operator a
+      # notice after the send, since nobody countersigned before it.
+      auto: ${{ steps.decide.outputs.auto }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -578,6 +582,45 @@ jobs:
           # (written by build_factsheet.py) so the workflow never has to
           # re-derive the date independently.
           attachments: ${{ steps.meta.outputs.dated_path }}
+
+      # ----- Automatic-send notice (2026-09-06) -----
+      # The release is now a mechanical verdict taken by the weekend refresh
+      # (scripts/auto_release.py); the human step moved AFTER the send. This
+      # tells the operator the list has been mailed and names the three
+      # things no script judges. Operator only. Not on a trial, and not on a
+      # manual dispatch — those are the operator acting already.
+      - name: Email operator — automatic send notice
+        if: ${{ !inputs.trial && needs.gate.outputs.auto == 'true' }}
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[AUTO] Weekly factsheet sent automatically — week ending ${{ needs.gate.outputs.anchor }}'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            The factsheet for the week ending ${{ needs.gate.outputs.anchor }}
+            was released by the weekend refresh (every automatic-release
+            condition met; the evidence is in docs/factsheet_release.json)
+            and has just been emailed to the distribution list.
+
+            Three things no script judges - look at them now:
+              - the Data tab: any panel with an unexpected roster count or a
+                coverage drop this week
+              - the next-fill card and its "why these moves" lines: do the
+                planned changes match what the signals did
+              - week-on-week NAV: a jump with no corresponding market move
+                usually means a pricing or FX problem, not performance
+
+            To veto next week's automatic send:
+              python scripts/release_factsheet.py --hold "reason"   (commit and push)
+            To send a corrected factsheet now: Run workflow on 'Weekly factsheet'.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       # ----- Publish marker (2026-07-25; hard-fail 2026-08-13) -----
       # Records which week-final anchor was just emailed so the gate can

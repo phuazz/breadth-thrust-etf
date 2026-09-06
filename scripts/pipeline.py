@@ -170,6 +170,22 @@ def load_live_targets() -> dict | None:
     return blob if blob.get("lines") else None
 
 
+def load_commentary() -> dict | None:
+    """Derived commentary for the next fill and the week, written by
+    scripts/build_commentary.py (2026-09-06). Every sentence in it is
+    computed from other artefacts; the template renders it only when its
+    decision session matches the targets it explains, so a stale file
+    cannot narrate this week's moves with last week's numbers."""
+    path = DATA_DIR / "commentary.json"
+    if not path.exists():
+        return None
+    try:
+        blob = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    return blob if isinstance(blob, dict) and blob.get("next_fill") else None
+
+
 def load_strategy_freshness() -> dict | None:
     """Per-sleeve data reach, written by scripts/strategy_freshness.py.
 
@@ -1342,6 +1358,7 @@ def main() -> int:
         "execution_timing": execution_timing,
         "strategy_freshness": strategy_freshness,
         "live_targets": live_targets,
+        "commentary": load_commentary(),
     }
 
     # ----- Rewrite the prose fallback literals from the data (2026-09-02) -----

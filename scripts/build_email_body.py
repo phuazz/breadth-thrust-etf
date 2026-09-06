@@ -784,6 +784,143 @@ def _sentence(s: str) -> str:
     rest, which turned "sleeves B and C" into "sleeves b and c" on 2026-08-31."""
     return s[:1].upper() + s[1:] if s else s
 
+
+def _long_date(iso: str | None) -> str:
+    """'Tue 8 Sep 2026' from ISO via the date library; never a computed
+    weekday. '—' when absent."""
+    if not iso:
+        return "&mdash;"
+    d = datetime.strptime(iso, "%Y-%m-%d")
+    return d.strftime("%a %d %b %Y").replace(" 0", " ", 1)
+
+
+# Same materiality as the dashboard's next-fill card: below 5bp of NAV nobody
+# places an order, and a row about it reads as an instruction.
+NF_MIN_MOVE = 5e-4
+
+
+def _next_fill_section(lt: dict, nf: dict, name_cell) -> str:
+    """The planned fill, with its derived commentary (2026-09-06).
+
+    Mirrors the dashboard card's three states and safety labels. PLANNED:
+    every sleeve final on the close its fill uses. PARTLY HELD: every sleeve
+    ranked on that close but one or more HOLD — the final sleeves' moves are
+    actionable, the held sleeve's book is unchanged and says so. PROVISIONAL:
+    ranked before the decision close, so every remaining session re-ranks it.
+    ``nf`` is the commentary block for the same decision session (may be
+    empty: then the table renders without its "why" lines, never with
+    invented ones).
+    """
+    sleeves = lt.get("sleeves") or []
+    held_sl = [s for s in sleeves if s.get("status") != "READY"]
+    ready_sl = [s for s in sleeves if s.get("status") == "READY"]
+    ranked = bool(sleeves) and all(
+        s.get("decision_session") and s.get("decision_session_for_fill")
+        and s["decision_session"] == s["decision_session_for_fill"] for s in sleeves)
+    final = lt.get("targets_final") is True
+    partly = (not final) and ranked and bool(held_sl) and bool(ready_sl)
+    fills = (lt.get("next_fill") or {}).get("by_venue") or {}
+    when = ", ".join(f"{v} {_long_date(d)}" for v, d in sorted(fills.items()) if d) or "&mdash;"
+    decided = sorted({s.get("decision_session_for_fill") for s in sleeves
+                      if s.get("decision_session_for_fill")})
+    ranked_on = _long_date(decided[-1]) if decided else "the decision"
+
+    def _names(arr):
+        n = [s["sleeve"] for s in arr]
+        return n[0] if len(n) == 1 else ", ".join(n[:-1]) + " and " + n[-1]
+
+    if final:
+        pill, colour = "PLANNED", "#b76e00"
+        note = (f"<strong>Nothing here has been traded.</strong> These are the target "
+                f"weights for the next fill, ranked on the {_long_date(lt.get('as_of'))} "
+                f"close and intended for {when}.")
+    elif partly:
+        pill, colour = "PARTLY HELD", "#b76e00"
+        note = (f"<strong>Nothing here has been traded.</strong> Sleeve"
+                f"{'' if len(ready_sl) == 1 else 's'} {_names(ready_sl)} "
+                f"{'is' if len(ready_sl) == 1 else 'are'} final: ranked on the {ranked_on} "
+                f"close, the close {when} uses. Sleeve"
+                f"{'' if len(held_sl) == 1 else 's'} {_names(held_sl)} "
+                f"{'is' if len(held_sl) == 1 else 'are'} held and must be left as held.")
+    else:
+        pill, colour = "PROVISIONAL", "#7c8590"
+        note = (f"<strong>Nothing here has been traded, and these are not final.</strong> "
+                f"A fill on {when} is ranked on the {ranked_on} close; this is ranked on "
+                f"{_long_date(lt.get('as_of'))}, so every session between now and then "
+                f"re-ranks it.")
+
+    moves = [ln for ln in (lt.get("lines") or []) if abs(ln.get("delta", 0)) >= NF_MIN_MOVE]
+    moves.sort(key=lambda x: -abs(x["delta"]))
+    why = {(m.get("sleeve"), m.get("etf")): m.get("text") for m in (nf.get("moves") or [])}
+    action_colour = {"BUY": "#1d7a3a", "ADD": "#1d7a3a", "TRIM": "#b76e00", "SELL ALL": "#b3261e"}
+
+    out = [
+        '<h3 style="margin:0 0 10px 0;font-size:14px;color:#3a4148;'
+        'text-transform:uppercase;letter-spacing:1px;">Next fill '
+        f'<span style="display:inline-block;font-size:10px;font-weight:700;'
+        f'letter-spacing:.04em;padding:2px 8px;border-radius:999px;margin-left:8px;'
+        f'background:rgba(183,110,0,0.12);color:{colour};'
+        f'border:1px solid rgba(183,110,0,0.30);vertical-align:2px;">{pill}</span>'
+        f'<span style="float:right;font-size:11px;color:#7c8590;font-weight:400;'
+        f'text-transform:none;letter-spacing:0;">{when}</span></h3>',
+        f'<p style="font-size:12.5px;color:#4a5159;margin:2px 0 10px;line-height:1.5;">'
+        f'{note}</p>',
+    ]
+    if not moves:
+        out.append('<p style="color:#7c8590;font-style:italic;margin-bottom:18px;">'
+                   'No position changes above 0.05pp of NAV at the next fill.</p>')
+    else:
+        out.append('<table style="width:100%;border-collapse:collapse;margin-bottom:6px;'
+                   'font-size:13px;">')
+        out.append(
+            '<tr style="color:#7c8590;font-size:11px;text-transform:uppercase;'
+            'letter-spacing:0.5px;">'
+            '<th style="text-align:left;padding:4px 10px;border-bottom:1px solid #c8ccd2;">Sleeve</th>'
+            '<th style="text-align:left;padding:4px 10px;border-bottom:1px solid #c8ccd2;">Action</th>'
+            '<th style="text-align:left;padding:4px 10px;border-bottom:1px solid #c8ccd2;">Ticker &amp; name</th>'
+            '<th style="text-align:right;padding:4px 10px;border-bottom:1px solid #c8ccd2;">Held &rarr; Target (% NAV)</th></tr>')
+        for ln in moves:
+            held, target = ln.get("held", 0.0), ln.get("target", 0.0)
+            action = ("BUY" if held <= 0 and target > 0 else "SELL ALL" if target <= 0 and held > 0
+                      else "ADD" if ln["delta"] > 0 else "TRIM")
+            hold_tag = ('' if ln.get("status") == "READY" else
+                        ' <span style="font-size:10px;color:#b3261e;">hold</span>')
+            out.append(
+                f'<tr><td style="padding:6px 10px;color:#3a4148;vertical-align:top;'
+                f'border-bottom:1px solid #f0f2f4;">{ln["sleeve"]}</td>'
+                f'<td style="padding:6px 10px;font-weight:700;font-size:11px;letter-spacing:0.4px;'
+                f'vertical-align:top;color:{action_colour[action]};border-bottom:1px solid #f0f2f4;">'
+                f'{action}{hold_tag}</td>'
+                f'<td style="padding:6px 10px;vertical-align:top;border-bottom:1px solid #f0f2f4;">'
+                f'{name_cell(ln["etf"])}</td>'
+                f'<td style="padding:6px 10px;text-align:right;font-family:{MONO};vertical-align:top;'
+                f'border-bottom:1px solid #f0f2f4;">{held * 100:.1f}% &rarr; {target * 100:.1f}% '
+                f'<span style="color:{"#1d7a3a" if ln["delta"] >= 0 else "#b3261e"};">'
+                f'({ln["delta"] * 100:+.1f}pp)</span></td></tr>')
+        out.append('</table>')
+        out.append(f'<p style="color:#7c8590;font-size:11px;margin:6px 0 8px 0;line-height:1.5;">'
+                   f'{len(moves)} move{"" if len(moves) == 1 else "s"}, one-way turnover '
+                   f'{(lt.get("one_way_turnover") or 0) * 100:.2f}% of NAV.</p>')
+    for s in held_sl:
+        out.append('<p style="font-size:12.5px;margin:6px 0 0;padding:7px 10px;border-radius:6px;'
+                   'background:rgba(179,38,30,0.06);color:#b3261e;border:1px solid rgba(179,38,30,0.20);">'
+                   f'<strong>Do not trade sleeve {s["sleeve"]}.</strong> '
+                   f'{s.get("reason") or "Its signal does not reach the last close."} '
+                   f'Leave it as held.</p>')
+    lines_html = [f'<li style="margin:0 0 4px;">{why[(ln["sleeve"], ln["etf"])]}</li>'
+                  for ln in moves if why.get((ln["sleeve"], ln["etf"]))]
+    if lines_html or nf.get("summary"):
+        out.append('<div style="margin:10px 0 18px;font-size:12.5px;line-height:1.55;color:#1a1a1a;">'
+                   '<div style="font-size:11px;font-weight:700;letter-spacing:.04em;'
+                   'text-transform:uppercase;color:#3a4148;margin:0 0 4px;">Why these moves</div>'
+                   + (f'<p style="margin:0 0 6px;">{nf["summary"]}</p>' if nf.get("summary") else '')
+                   + (f'<ul style="margin:0;padding-left:18px;">{"".join(lines_html)}</ul>' if lines_html else '')
+                   + '</div>')
+    else:
+        out.append('<div style="margin:0 0 18px;"></div>')
+    return "".join(out)
+
+
 def build_html(out_path: Path):
     multi = _load_json(DATA_DIR / "multi_strategy.json")
     overlay = _load_json(DATA_DIR / "risk_overlay.json")
@@ -1039,6 +1176,18 @@ def build_html(out_path: Path):
         _weekly_attribution(sleeves, st_now, wtd, eem_series),
         wtd[0] if wtd else None))
 
+    # ----- The week in review (2026-09-06) -----
+    # Derived sentences from data/commentary.json: the blend against SPY on
+    # the same window as the tile above, the sleeve split, the holdings
+    # that drove it, and the regime context. Rendered only when computed
+    # for THIS as-of; omitted, never estimated, otherwise.
+    commentary = _load_json(DATA_DIR / "commentary.json") or {}
+    _week = commentary.get("week") or {}
+    if _week.get("text") and _week.get("as_of") == asof_iso:
+        out.append(
+            '<p style="margin:0 0 18px 0;font-size:13px;line-height:1.55;'
+            f'color:#1a1a1a;">{_week["text"]}</p>')
+
     # Shared cell renderer — ticker bold with the fund name as a small
     # grey secondary line. Used by both the rebalance and holdings tables.
     def _name_cell(etf: str) -> str:
@@ -1052,6 +1201,21 @@ def build_html(out_path: Path):
             return f'<strong style="font-family:{MONO};">{sym}</strong>'
         return (f'<strong style="font-family:{MONO};">{sym}</strong>'
                 f'<br><span style="font-size:11px;color:#7c8590;">{nm}</span>')
+
+    # ----- Next fill: planned, not traded (2026-09-06) -----
+    # The factsheet now goes out on the weekend BEFORE the Monday fill, so
+    # the actionable payload is the planned fill, not last Monday's executed
+    # one. Rendered from data/live_targets.json with the derived "why" lines
+    # from data/commentary.json, carrying the same safety labels as the
+    # dashboard card (PLANNED / PARTLY HELD / PROVISIONAL, the not-traded
+    # sentence, the fill date per venue). Omitted entirely when the targets
+    # are absent or were ranked for another as-of than this email's.
+    _lt = _load_json(DATA_DIR / "live_targets.json") or {}
+    if _lt.get("lines") and _lt.get("as_of") == asof_iso:
+        _nf = commentary.get("next_fill") or {}
+        if commentary.get("as_of") not in (None, asof_iso):
+            _nf = {}
+        out.append(_next_fill_section(_lt, _nf, _name_cell))
 
     # Latest rebalance changes — placed directly after performance (owner
     # preference 2026-07-18: the week's trades are the actionable payload

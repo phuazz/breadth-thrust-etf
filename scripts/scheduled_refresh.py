@@ -609,6 +609,24 @@ def main(argv: list[str] | None = None) -> int:
         # same answer whatever the state is not a guard. Found 2026-08-26 while
         # arming the post-fill pair: the preview said "not released" against a
         # release marker on disk that plainly named the anchor.
+        # ----- AUTOMATIC RELEASE (2026-09-06, owner decision) -----
+        # The release marker used to be written by a person after reading
+        # the week. It is now a mechanical verdict taken here, by the run
+        # that produced the book, on the conditions auto_release.py lists —
+        # every sleeve final on its fill's close, data current, basis as
+        # requested, no hold, readiness clean. On RELEASE the marker joins
+        # this commit, the push triggers the gated workflow, and the
+        # workflow mails the operator a notice with the items no script
+        # judges. On HOLD nothing is written and the reasons are logged; the
+        # Sunday check then names them. Never on a post-fill run.
+        if not args.preflight_only and args.push and args.cadence == "weekend":
+            import auto_release
+            verdict = auto_release.release_if_ready(
+                week_final_anchor(now), cadence=args.cadence,
+                price_source=args.price_source)
+            log.write("\n" + auto_release.format_report(verdict) + "\n")
+            if verdict.get("marker"):
+                log.write(f"release marker written: {verdict['marker']}\n")
         gate = build_gate_report("publish", now, PANEL, MARKER,
                                  release_path=RELEASE)
         log.write(f"\nCI gate preview on push:\n{gate['detail']}\n")

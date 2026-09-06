@@ -426,6 +426,13 @@ def main() -> int:
         # page builds so the dashboard renders what this refresh computed.
         ("live_targets (next fill, not yet executed)",
             "scripts/live_targets.py"),
+        # Derived commentary for the email and the dashboard (2026-09-06):
+        # each planned move with the signal it followed, the held sleeves
+        # with their reason, and the week in review. Reads only what the
+        # steps above wrote, fetches nothing, and omits any sentence it
+        # cannot derive rather than estimate one.
+        ("commentary (why these moves, the week in review)",
+            "scripts/build_commentary.py"),
         ("pipeline (build docs/index.html + factsheet PDF)",
             "scripts/pipeline.py"),
         ("simple page (build build/portfolio.html, the reduced public view)",

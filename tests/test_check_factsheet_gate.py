@@ -185,15 +185,42 @@ def test_sunday_check_warns_when_refresh_missing(tmp_path):
     assert "run refresh_all.py before Mon 2026-07-27 21:30 UTC" in r["summary"]
 
 
-def test_sunday_check_warns_when_refreshed_but_unpublished(tmp_path):
-    # Refresh landed but no email went out (failed run, mail outage):
-    # a different remediation — inspect/dispatch, not refresh.
+def test_sunday_check_warns_when_refreshed_but_unreleased(tmp_path):
+    # Refresh landed but nothing released it — since 2026-09-06 that means
+    # the weekend run's automatic release did not fire, and the remediation
+    # is to read why, not to inspect a publish run that never ran.
     r = build_gate_report(
         "sunday-check", _utc(2026, 7, 26),
         _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
     )
     assert r["warn"] is True
-    assert "NOT published although the panel is current" in r["summary"]
+    assert "NOT released" in r["summary"]
+    assert "auto_release.py --dry-run" in r["summary"]
+
+
+def test_sunday_check_warns_when_released_but_unpublished(tmp_path):
+    # Released (by the automation or by hand) but no email went out: the
+    # publish run failed or never triggered — inspect/dispatch.
+    r = build_gate_report(
+        "sunday-check", _utc(2026, 7, 26),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=_release(tmp_path, "2026-07-24"),
+    )
+    assert r["warn"] is True
+    assert "released but NOT published" in r["summary"]
+    assert "push-triggered run" in r["summary"]
+
+
+def test_sunday_check_reports_an_operator_hold_as_chosen_not_broken(tmp_path):
+    r = build_gate_report(
+        "sunday-check", _utc(2026, 7, 26),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=_release(tmp_path, "2026-07-24"),
+        hold_path=_hold(tmp_path, "restating sleeve D"),
+    )
+    assert r["warn"] is True
+    assert "held by operator" in r["summary"] and "restating sleeve D" in r["summary"]
+    assert "--unhold" in r["detail"]
 
 
 # ---------------------------------------------------------------------------
@@ -272,3 +299,91 @@ def test_pure_core_ignores_the_repository_release_marker(tmp_path):
         _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
     )
     assert r["publish"] is False
+
+
+# ---------------------------------------------------------------------------
+# Automatic release and the operator hold (2026-09-06)
+# ---------------------------------------------------------------------------
+# The marker is now normally written by the weekend refresh itself
+# (auto_release.py). The gate reads one shape for both paths and reports
+# which it was; the hold file is the operator's veto over the automatic one.
+
+def _auto_release(tmp_path, anchor_iso):
+    r = tmp_path / "factsheet_release.json"
+    r.write_text(json.dumps({"approved_anchor": anchor_iso, "auto": True,
+                             "conditions": [{"check": "weekend cadence", "ok": True}]}),
+                 encoding="utf-8")
+    return r
+
+
+def _hold(tmp_path, note):
+    h = tmp_path / "factsheet_hold.json"
+    h.write_text(json.dumps({"held_at_utc": "2026-07-25T08:00:00Z", "note": note}),
+                 encoding="utf-8")
+    return h
+
+
+def test_an_automatic_release_publishes_and_is_reported_as_such(tmp_path):
+    r = build_gate_report(
+        "publish", _utc(2026, 7, 25),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=_auto_release(tmp_path, "2026-07-24"),
+        hold_path=tmp_path / "factsheet_hold.json",   # absent
+    )
+    assert r["publish"] is True and r["auto"] is True
+    assert "released automatically" in r["summary"]
+    assert "(automatic)" in r["detail"]
+
+
+def test_a_manual_release_is_not_reported_as_automatic(tmp_path):
+    r = build_gate_report(
+        "publish", _utc(2026, 7, 25),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=_release(tmp_path, "2026-07-24"),
+    )
+    assert r["publish"] is True and r["auto"] is False
+
+
+def test_an_operator_hold_vetoes_a_released_week(tmp_path):
+    r = build_gate_report(
+        "publish", _utc(2026, 7, 25),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=_auto_release(tmp_path, "2026-07-24"),
+        hold_path=_hold(tmp_path, "restating sleeve D"),
+    )
+    assert r["publish"] is False and r["hold"] is True
+    assert "operator hold in place" in r["summary"]
+    assert "restating sleeve D" in r["summary"]
+
+
+def test_a_manual_dispatch_overrides_the_hold(tmp_path):
+    """Dispatching IS the operator acting; the hold guards the automatic path."""
+    r = build_gate_report(
+        "publish", _utc(2026, 7, 25),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=_auto_release(tmp_path, "2026-07-24"),
+        hold_path=_hold(tmp_path, "restating sleeve D"),
+        allow_republish=True,
+    )
+    assert r["publish"] is True and r["auto"] is False
+
+
+def test_a_malformed_hold_file_still_holds(tmp_path):
+    h = tmp_path / "factsheet_hold.json"
+    h.write_text("{ not json", encoding="utf-8")
+    r = build_gate_report(
+        "publish", _utc(2026, 7, 25),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=_auto_release(tmp_path, "2026-07-24"), hold_path=h,
+    )
+    assert r["publish"] is False and r["hold"] is True
+
+
+def test_publish_hold_reason_points_at_the_automatic_release(tmp_path):
+    r = build_gate_report(
+        "publish", _utc(2026, 7, 25),
+        _panel(tmp_path, "2026-07-24"), _no_marker(tmp_path),
+        release_path=_no_release(tmp_path),
+    )
+    assert r["publish"] is False
+    assert "automatic release did not fire" in r["summary"]

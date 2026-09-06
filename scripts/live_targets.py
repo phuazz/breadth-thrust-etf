@@ -116,7 +116,9 @@ def _venue(universe: list[str]) -> str:
 
 
 def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
-          label: str, coverage_floor: float = ROW_COVERAGE_FLOOR) -> dict:
+          label: str, coverage_floor: float = ROW_COVERAGE_FLOOR,
+          signal_kind: str = "breadth", top_k: int | None = None,
+          prev_session: str | None = None) -> dict:
     """Rank on the last signal session at or before the venue's last close.
 
     Refuses twice, for two different failures. A row that stops SHORT of the
@@ -154,6 +156,21 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
     reaches = lcs is not None and pd.Timestamp(decided) >= pd.Timestamp(lcs)
     w = weight_fn(row)
     w = w[w > 0].sort_values(ascending=False)
+    # THE SIGNAL ITSELF, not only the weights it produced (2026-09-06). The
+    # commentary says why a name moved — "breadth 61.0% → 55.2%, rank 7 → 9,
+    # out of the top 7" — and it can only say so from the row the sleeve
+    # ranked on and the row it ranked on last time. Both are recorded here,
+    # in the sleeve's own units, for every name in the panel, so nothing
+    # downstream has to recompute a signal and risk disagreeing with the one
+    # that actually decided the book.
+    prev_row = {}
+    if prev_session:
+        try:
+            ts = pd.Timestamp(prev_session)
+            if ts in signal.index:
+                prev_row = _row_dict(signal.loc[ts])
+        except Exception:  # noqa: BLE001 — an unparseable date is simply "no prior row"
+            prev_row = {}
     return {
         "sleeve": label,
         "venue": venue,
@@ -165,7 +182,32 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
         "decision_session": str(decided.date()),
         "last_completed_session": str(lcs.date()) if lcs is not None else None,
         "weights": {k: round(float(v), 6) for k, v in w.items()},
+        "signal_kind": signal_kind,
+        "top_k": top_k,
+        "signals": _row_dict(row),
+        "signals_prev": prev_row,
+        "decision_session_prev": prev_session if prev_row else None,
     }
+
+
+def _row_dict(row: pd.Series) -> dict[str, float | None]:
+    return {str(k): (None if pd.isna(v) else round(float(v), 4))
+            for k, v in row.items()}
+
+
+def _prev_decisions(sleeve_data) -> dict[str, str | None]:
+    """Each sleeve's PREVIOUS decision close, from the engines' own last
+    rebalance record (latest_rebalance, else the last trade). Empty when
+    the payloads have no record — the commentary then states the signal
+    without a comparison rather than inventing one."""
+    out: dict[str, str | None] = {}
+    if not isinstance(sleeve_data, dict):
+        return out
+    for key, sl in (("a", "A"), ("b", "B"), ("c", "C"), ("d", "D")):
+        h = ((sleeve_data.get(key) or {}).get("headline") or {})
+        rec = h.get("latest_rebalance") or ((h.get("trade_history") or [None])[-1])
+        out[sl] = (rec or {}).get("decision_date")
+    return out
 
 
 def build(now_utc: datetime | None = None) -> dict:
@@ -176,28 +218,40 @@ def build(now_utc: datetime | None = None) -> dict:
     import run_topk_robustness as tk
     from run_portfolio import top_k_breadth_weight
 
+    # Loaded first: the previous decision close per sleeve comes from the
+    # engines' own records and is handed to every rank below.
+    out = load_all()
+    overlay, sleeve_data = out[1], out[2]
+    prev = _prev_decisions(sleeve_data)
+
     sleeves = []
 
     ba, used_a = _breadth_panel(UNIVERSE_ETFS)
     sleeves.append(_rank(tk._to_signal_panel(ba),
                          top_k_breadth_weight(tk.HEADLINE_K),
-                         _venue(used_a), now, "A"))
+                         _venue(used_a), now, "A",
+                         signal_kind="breadth", top_k=tk.HEADLINE_K,
+                         prev_session=prev.get("A")))
 
     cb = ac.download_prices()
     sleeves.append(_rank(ac.compute_signal(cb),
-                         ac.top_k_by_signal(ac.HEADLINE_K), "NYSE", now, "B"))
+                         ac.top_k_by_signal(ac.HEADLINE_K), "NYSE", now, "B",
+                         signal_kind="ma_distance", top_k=ac.HEADLINE_K,
+                         prev_session=prev.get("B")))
 
     cc = th.download_prices()
     sleeves.append(_rank(th.compute_signal(cc),
-                         th.top_k_equal_weight(th.HEADLINE_K), "NYSE", now, "C"))
+                         th.top_k_equal_weight(th.HEADLINE_K), "NYSE", now, "C",
+                         signal_kind="ma_distance", top_k=th.HEADLINE_K,
+                         prev_session=prev.get("C")))
 
     bd, used_d = _breadth_panel(UNIVERSE_EUROPE_SECTORS)
     sleeves.append(_rank(bd, eu.top_k_breadth_weight(eu.HEADLINE_K),
-                         _venue(used_d), now, "D"))
+                         _venue(used_d), now, "D",
+                         signal_kind="breadth", top_k=eu.HEADLINE_K,
+                         prev_session=prev.get("D")))
 
     # Effective NAV weights and the delta against what is currently held.
-    out = load_all()
-    overlay, sleeve_data = out[1], out[2]
     from build_factsheet import sleeve_nav_weights
     asof = max((s["decision_session"] for s in sleeves
                 if s["decision_session"]), default=None)

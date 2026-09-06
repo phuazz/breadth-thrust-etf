@@ -1548,7 +1548,18 @@
     }
     .prev-card.next-fill.nf-collapsed #preview-nextfill-table,
     .prev-card.next-fill.nf-collapsed #preview-nextfill-net,
-    .prev-card.next-fill.nf-collapsed #nf-hold-note { display: none; }
+    .prev-card.next-fill.nf-collapsed #nf-hold-note,
+    .prev-card.next-fill.nf-collapsed #nf-why { display: none; }
+    /* Why these moves (2026-09-06): running prose under the target book,
+       one derived sentence per move. Prose measure, not table width. */
+    .nf-why { margin: 10px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--ink); max-width: 66ch; }
+    .nf-why .nf-why-h {
+      font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+      color: var(--ink-soft); margin: 8px 0 4px;
+    }
+    .nf-why p { margin: 0 0 6px; }
+    .nf-why ul { margin: 0 0 6px; padding-left: 18px; }
+    .nf-why li { margin: 0 0 4px; }
     .nf-toggle {
       font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
       margin-top: 6px; padding: 5px 11px; border-radius: 6px;
@@ -2174,6 +2185,11 @@
         </table>
         <div class="prev-card-net" id="preview-nextfill-net"></div>
         <div id="nf-hold-note"></div>
+        <!-- Why these moves (2026-09-06): derived sentences from
+             data/commentary.json, one per planned move, with the signal it
+             followed; rendered only when computed for the same decision
+             session as the targets above. -->
+        <div id="nf-why"></div>
       </div>
       <div class="prev-card">
         <div class="prev-card-h">
@@ -4984,7 +5000,37 @@ function renderNextFill(labelMap) {
   // the whole book is still provisional.
   setOpen(isFinal || partlyHeld);
 
+  renderNextFillWhy(lt);
   card.style.display = '';
+}
+
+// ---------------------------------------------------------------------------
+// WHY THESE MOVES (2026-09-06). Derived sentences from data/commentary.json:
+// each planned move with the signal it followed — the sleeve's own units,
+// compared with the previous decision close, rank and top-K cut — the held
+// sleeves with their reason, and the week in review. Rendered only when the
+// commentary was computed for the SAME decision session as the targets, so
+// a stale file cannot explain this week's moves with last week's numbers.
+// Text is escaped: it is data, never markup.
+// ---------------------------------------------------------------------------
+function renderNextFillWhy(lt) {
+  const el = document.getElementById('nf-why');
+  if (!el) return;
+  const c = (window.DATA || {}).commentary;
+  const nf = c && c.next_fill;
+  if (!nf || !lt || (c.as_of && lt.as_of && c.as_of !== lt.as_of)) {
+    el.innerHTML = ''; return;
+  }
+  const items = (nf.moves || []).map(m => `<li>${_escapeHtml(m.text)}</li>`)
+    .concat((nf.holds || []).map(h => `<li>${_escapeHtml(h)}</li>`));
+  if (!items.length && !nf.summary) { el.innerHTML = ''; return; }
+  const week = (c.week && c.week.text)
+    ? `<div class="nf-why-h">The week in review</div><p>${_escapeHtml(c.week.text)}</p>`
+    : '';
+  el.innerHTML = `<div class="nf-why"><div class="nf-why-h">Why these moves</div>`
+    + (nf.summary ? `<p>${_escapeHtml(nf.summary)}</p>` : '')
+    + (items.length ? `<ul>${items.join('')}</ul>` : '')
+    + week + `</div>`;
 }
 
 // Long date without inventing a weekday: parsed as UTC so a local timezone

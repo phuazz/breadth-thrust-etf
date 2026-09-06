@@ -91,6 +91,37 @@ DEFAULT_MARKER = ROOT / "docs" / "factsheet_published.json"
 # scripts/release_factsheet.py once the week's data has been reviewed.
 DEFAULT_RELEASE = ROOT / "docs" / "factsheet_release.json"
 
+# Operator hold (2026-09-06). With the release taken automatically by the
+# weekend refresh (scripts/auto_release.py), the human veto moved from
+# "do not write the marker" to this file: while it exists no automatic
+# release fires and the gate holds even a marker that was written. A manual
+# dispatch still sends — that is the operator acting.
+DEFAULT_HOLD = ROOT / "docs" / "factsheet_hold.json"
+
+
+def read_hold(hold_path: Path | None) -> dict | None:
+    """The operator's hold, or None. A malformed hold file still HOLDS —
+    the veto fails toward not sending, never toward sending."""
+    if hold_path is None or not Path(hold_path).exists():
+        return None
+    try:
+        blob = json.loads(Path(hold_path).read_text(encoding="utf-8"))
+        return blob if isinstance(blob, dict) else {"note": "unreadable hold file"}
+    except Exception:  # noqa: BLE001
+        return {"note": "unreadable hold file"}
+
+
+def read_release_meta(release_path: Path | None) -> dict:
+    """The whole release marker (auto flag and note beside the anchor), or
+    {} when absent or unreadable."""
+    if release_path is None:
+        return {}
+    try:
+        blob = json.loads(Path(release_path).read_text(encoding="utf-8"))
+        return blob if isinstance(blob, dict) else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
 
 def read_release_anchor(release_path: Path) -> date | None:
     """Anchor the operator has released for publication, or None.
@@ -135,6 +166,7 @@ def build_gate_report(
     marker_path: Path,
     allow_republish: bool = False,
     release_path: Path | None = None,
+    hold_path: Path | None = None,
 ) -> dict:
     """Pure decision core, injectable clock for tests."""
     anchor = week_final_anchor(now_utc)
@@ -148,6 +180,9 @@ def build_gate_report(
     # main() passes DEFAULT_RELEASE explicitly.
     released_anchor = read_release_anchor(release_path) if release_path else None
     released = released_anchor == anchor
+    release_meta = read_release_meta(release_path) if released else {}
+    auto = released and release_meta.get("auto") is True
+    hold = read_hold(hold_path)
 
     base_lines = [
         f"week-final anchor          : {anchor.isoformat()}",
@@ -156,29 +191,46 @@ def build_gate_report(
         f"last published anchor      : "
         + (published_anchor.isoformat() if published_anchor else "none (no marker)"),
         f"released for this anchor   : "
-        + (released_anchor.isoformat() if released_anchor else "no (not released)"),
+        + (released_anchor.isoformat() if released_anchor else "no (not released)")
+        + (" (automatic)" if auto else (" (manual)" if released else "")),
+        f"operator hold              : "
+        + ("none" if hold is None else
+           f"since {hold.get('held_at_utc', '?')} - {hold.get('note') or 'no reason given'}"),
     ]
 
     if mode == "publish":
         # `allow_republish` is set only by workflow_dispatch, which IS the
         # operator acting deliberately — that act is itself the release, so
-        # dispatch does not additionally require the marker. An automatic
-        # push-triggered run does, which is the whole point: a refresh
-        # landing on main must never email on its own.
-        publish = current and (allow_republish or (released and not published))
+        # dispatch does not additionally require the marker and overrides a
+        # hold. An automatic push-triggered run needs the marker AND no hold:
+        # since 2026-09-06 the marker is normally written by the weekend
+        # refresh itself (auto_release.py), and the hold is the operator's
+        # veto over that.
+        publish = current and (allow_republish
+                               or (released and not published and hold is None))
         if publish:
             reason = (
                 "panel current to the anchor"
                 + ("; sent by operator dispatch" if allow_republish
-                   else "; released for this anchor and not yet published")
+                   else ("; released automatically for this anchor and not yet published"
+                         if auto else
+                         "; released for this anchor and not yet published"))
             )
         elif not current:
             reason = "panel behind the anchor - refresh incomplete, holding the email"
+        elif hold is not None:
+            reason = (
+                f"operator hold in place ({hold.get('note') or 'no reason given'}) - "
+                f"holding. Lift it with scripts/release_factsheet.py --unhold, or "
+                f"dispatch the workflow manually to send now"
+            )
         elif not released:
             reason = (
-                "panel current but this anchor is NOT released - holding. "
-                "Run scripts/check_publish_readiness.py, then "
-                "scripts/release_factsheet.py to release, or dispatch the "
+                "panel current but this anchor is NOT released - holding. The "
+                "weekend refresh's automatic release did not fire (its log names "
+                "the failed condition; `python scripts/auto_release.py --dry-run` "
+                "reproduces it). Run scripts/check_publish_readiness.py, then "
+                "scripts/release_factsheet.py to release by hand, or dispatch the "
                 "workflow manually to send now"
             )
         else:
@@ -188,6 +240,8 @@ def build_gate_report(
         return {
             "publish": publish,
             "warn": False,
+            "auto": bool(publish and auto and not allow_republish),
+            "hold": hold is not None,
             "anchor": anchor,
             "summary": summary,
             "detail": detail,
@@ -198,14 +252,45 @@ def build_gate_report(
         if not warn:
             summary = f"weekly factsheet for {anchor.isoformat()} already published"
             detail = "\n".join(base_lines)
-        elif current:
+        elif current and hold is not None:
+            # The state the operator chose; say so rather than alarm.
             summary = (
-                f"factsheet for {anchor.isoformat()} NOT published although the "
-                f"panel is current - check the push-triggered run, or dispatch "
-                f"'Weekly factsheet' manually"
+                f"factsheet for {anchor.isoformat()} held by operator - "
+                f"{hold.get('note') or 'no reason given'}"
             )
             detail = "\n".join(base_lines + [
-                "state                      : refresh landed but no factsheet email went out.",
+                "state                      : refresh landed; the automatic release is vetoed by",
+                "                             docs/factsheet_hold.json, so no email went out.",
+                "action                     : none unless the hold should end - then",
+                "                             `python scripts/release_factsheet.py --unhold`,",
+                "                             commit and push (the next refresh push sends), or",
+                "                             dispatch 'Weekly factsheet' to send now.",
+            ])
+        elif current and not released:
+            # Since 2026-09-06 the marker is written by the weekend refresh
+            # when every automatic-release condition is met. Not released
+            # means one was not, and the run's log says which.
+            summary = (
+                f"factsheet for {anchor.isoformat()} NOT released - the weekend "
+                f"refresh's automatic release did not fire; see its log, or run "
+                f"scripts/auto_release.py --dry-run"
+            )
+            detail = "\n".join(base_lines + [
+                "state                      : refresh landed but no condition-complete release was",
+                "                             written, so the email is held for a person.",
+                "action                     : `python scripts/auto_release.py --dry-run` names the",
+                "                             failed condition. Fix it and re-run the refresh, or",
+                "                             release by hand (check_publish_readiness.py, then",
+                "                             release_factsheet.py), or dispatch 'Weekly factsheet'.",
+            ])
+        elif current:
+            summary = (
+                f"factsheet for {anchor.isoformat()} released but NOT published - "
+                f"check the push-triggered run, or dispatch 'Weekly factsheet' manually"
+            )
+            detail = "\n".join(base_lines + [
+                "state                      : released, but no factsheet email went out - the",
+                "                             publish run failed or never triggered.",
                 "action                     : open the Actions tab, inspect the last 'Weekly factsheet'",
                 "                             run, and re-dispatch via 'Run workflow' once fixed.",
             ])
@@ -229,6 +314,8 @@ def build_gate_report(
         return {
             "publish": False,
             "warn": warn,
+            "auto": False,
+            "hold": hold is not None,
             "anchor": anchor,
             "summary": summary,
             "detail": detail,
@@ -262,8 +349,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--marker", default=str(DEFAULT_MARKER))
     parser.add_argument("--allow-republish", action="store_true")
     parser.add_argument("--release", default=str(DEFAULT_RELEASE),
-                         help="Operator release marker. Absent or not "
+                         help="Release marker (written by the weekend refresh's "
+                              "automatic release, or by hand). Absent or not "
                               "matching the anchor holds the email.")
+    parser.add_argument("--hold", default=str(DEFAULT_HOLD),
+                         help="Operator hold file; while present, holds an "
+                              "automatic send (a manual dispatch still sends).")
     args = parser.parse_args(argv)
     try:
         report = build_gate_report(
@@ -273,6 +364,7 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.marker),
             allow_republish=args.allow_republish,
             release_path=Path(args.release),
+            hold_path=Path(args.hold),
         )
     except Exception as exc:  # fail CLOSED, but never silently
         summary = f"factsheet gate could not run: {exc}"
@@ -282,6 +374,7 @@ def main(argv: list[str] | None = None) -> int:
                 "publish": "false",
                 "warn": "true",
                 "gate_error": "true",
+                "auto": "false",
                 "anchor": "",
                 "summary": summary,
             },
@@ -295,6 +388,7 @@ def main(argv: list[str] | None = None) -> int:
             "publish": "true" if report["publish"] else "false",
             "warn": "true" if report["warn"] else "false",
             "gate_error": "false",
+            "auto": "true" if report.get("auto") else "false",
             "anchor": report["anchor"].isoformat(),
             "summary": report["summary"],
         },
