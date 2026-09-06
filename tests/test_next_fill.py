@@ -279,10 +279,15 @@ def test_the_toggle_is_available_in_both_states():
     assert "toggle.hidden = false;" in t
 
 
-def test_the_card_is_expanded_only_when_the_targets_are_final():
+def test_the_card_is_expanded_only_when_its_moves_are_actionable():
+    """Expanded when every sleeve is final, and — since 2026-09-06 — when the
+    final sleeves sit beside a held one whose lines are tagged (partly held).
+    Collapsed only while the whole book is provisional: mid-week the detail
+    is noise competing with the book that IS held."""
     t = _template_text()
     assert "const isFinal = lt.targets_final === true;" in t
-    assert "setOpen(isFinal);" in t
+    assert "setOpen(isFinal || partlyHeld);" in t
+    assert "setOpen(isFinal);" not in t
 
 
 # ---------------------------------------------------------------------------

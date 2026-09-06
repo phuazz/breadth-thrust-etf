@@ -25,7 +25,9 @@ inside something that assumed it would.
    carries an extra "N sessions behind" clause -- which means the overflow
    appeared exactly when a sleeve was late, i.e. when the strip most needed
    reading. "D Europe sectors 2026-08-24 - 1 session behind" measured 293px
-   inside a 231px strip.
+   inside a 231px strip. (The pills became a per-sleeve status table on
+   2026-09-06; the pin below moved to the table's own scroller, for the same
+   reason -- a behind row is the longest row.)
 
 Rendered verification is recorded in the commit: after the fix all fourteen
 tabs report zero overflowing elements, zero sub-11px type and no page scroll at
@@ -123,17 +125,17 @@ def test_preview_tables_get_a_scroller_on_a_phone(css):
         "floor regardless of the track")
 
 
-def test_a_freshness_pill_may_wrap_within_itself_on_a_phone(css):
-    """nowrap on the pill is what pushed the page sideways when a sleeve was
-    behind -- and a behind pill is the longest one by construction."""
-    i = css.find(".fresh-strip .fs-item")
-    assert i != -1
-    assert "white-space: nowrap" in css[i:i + 400], (
-        "base style changed; re-check whether the phone override is still needed")
-    m = re.search(r"\.fresh-strip \.fs-item\s*\{([^}]*)\}", _phone_css(css))
-    assert m, "no phone override for .fs-item"
-    assert "white-space: normal" in m.group(1)
-    assert "max-width: 100%" in m.group(1)
+def test_the_sleeve_status_table_scrolls_inside_its_own_wrapper(css):
+    """The freshness pills were replaced by a per-sleeve status TABLE on
+    2026-09-06. A table cannot wrap within itself the way a pill could be made
+    to, so the remedy is the one every wide table on the page uses: a wrapper
+    of its own with a horizontal scroller, at every width, so the body never
+    scrolls sideways when a sleeve is behind and its row is at its longest."""
+    assert ".fresh-strip .fs-item" not in css, (
+        "the chip strip is gone; if it returns, its phone override must too")
+    m = re.search(r"\.sleeve-status\s*\{([^}]*)\}", css)
+    assert m, ".sleeve-status has no rule"
+    assert "overflow-x: auto" in m.group(1), "the status table has no scroller"
 
 
 def test_the_fixes_are_confined_to_the_phone_breakpoint(css):

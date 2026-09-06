@@ -27,38 +27,35 @@
       --warn: #b76e00;
       --neutral: #4a5159;
     }
-    /* Per-sleeve data-currency strip (2026-08-22). A lookup, not a chart:
-       the reader asks "is the sleeve I care about current?", and a lookup
-       wants a compact row of chips. */
-    .fresh-strip {
-      display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0;
-      align-items: center;
+    /* Per-sleeve status table (2026-09-06). Replaced the chip strip of
+       2026-08-22. The reader's question is "which sleeve is updated to
+       when, and will it trade?", and that is four dates and a verdict per
+       sleeve — a table, not a row of pills. On 2026-09-06 the answer (A, B
+       and D final on the Friday close; C held for one blank member) was
+       spread over the chips, the next-fill card and the holdings footnotes,
+       and the card's banner read as if nothing were final. Every cell is
+       rendered from data — strategy_freshness, live_targets and each
+       engine's latest_rebalance — never from a typed date. The wrapper
+       scrolls on a phone; the table keeps its columns. */
+    .sleeve-status { overflow-x: auto; margin: 12px 0 0; }
+    .sleeve-status-table { font-size: 13px; }
+    .sleeve-status-table thead th { white-space: nowrap; }
+    .sleeve-status-table tbody td { vertical-align: top; }
+    .sleeve-status-table .ss-sub {
+      display: block; font-size: 11.5px; color: var(--ink-faint);
+      margin-top: 2px; line-height: 1.4; max-width: 34ch;
     }
-    .fresh-strip .fs-item {
-      display: inline-flex; align-items: baseline; gap: 6px;
-      font-size: 12px; padding: 3px 9px; border-radius: 999px;
-      background: var(--good-soft); color: var(--good);
-      border: 1px solid rgba(29, 122, 58, 0.25); white-space: nowrap;
+    .sleeve-status-table .ss-warn { color: var(--warn); font-weight: 600; }
+    .ss-pill {
+      display: inline-block; font-size: 11px; font-weight: 700;
+      letter-spacing: .04em; text-transform: uppercase; white-space: nowrap;
+      padding: 2px 8px; border-radius: 999px;
     }
-    .fresh-strip .fs-item.behind {
-      background: rgba(183, 110, 0, 0.10); color: var(--warn);
-      border-color: rgba(183, 110, 0, 0.30);
-    }
-    /* The strip wraps between pills, but `white-space: nowrap` stops a single
-       pill wrapping WITHIN itself -- so the longest one overflowed the strip
-       rather than folding. A behind pill carries an extra "N sessions behind"
-       clause, which makes it the longest and means the overflow appears
-       exactly when a sleeve is late, i.e. when the strip most needs reading.
-       Measured at 320px: "D Europe sectors 2026-08-24 - 1 session behind" was
-       293px inside a 231px strip and pushed the page 19px sideways.
-       Found in the 2026-08-26 narrow-width audit. */
-    @media (max-width: 720px) {
-      .fresh-strip .fs-item { white-space: normal; flex-wrap: wrap; max-width: 100%; }
-    }
-    .fresh-strip .fs-item .fs-k { font-weight: 700; }
-    .fresh-strip .fs-item .fs-d {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 11px; opacity: .85;
+    .ss-pill.ss-final { background: var(--good-soft); color: var(--good); border: 1px solid rgba(29,122,58,0.25); }
+    .ss-pill.ss-hold  { background: rgba(179,38,30,0.08); color: var(--bad); border: 1px solid rgba(179,38,30,0.25); }
+    .ss-pill.ss-prov  { background: rgba(183,110,0,0.12); color: var(--warn); border: 1px solid rgba(183,110,0,0.30); }
+    .ss-pill.ss-stale, .ss-pill.ss-none {
+      background: rgba(90,90,90,0.10); color: var(--neutral); border: 1px solid rgba(90,90,90,0.28);
     }
     .fresh-note {
       font-size: 12px; color: var(--neutral); margin: 6px 0 0; line-height: 1.5;
@@ -4805,6 +4802,27 @@ function renderNextFill(labelMap) {
   // when it firms up. The not-traded sentence and the fill date survive both
   // states -- they are the reason the card cannot be misread as a trade log.
   const isFinal = lt.targets_final === true;
+  // PARTLY HELD (2026-09-06). targets_final is the weakest sleeve's answer,
+  // so one HOLD sleeve made the whole card PROVISIONAL and fired the
+  // mid-week sentence — "every session between now and then re-ranks it" —
+  // on a Sunday, after the decision close, over three sleeves that were
+  // final. When every sleeve was ranked on the close its fill will use and
+  // some are HOLD, the truth is "these are final, that one is held", and the
+  // card says exactly that, with the held sleeve's reason, and stays open:
+  // the final sleeves' moves are the actionable payload.
+  const _sl = Array.isArray(lt.sleeves) ? lt.sleeves : [];
+  const _rankedOnFillClose = _sl.length > 0 && _sl.every(s =>
+    s.decision_session && s.decision_session_for_fill
+    && s.decision_session === s.decision_session_for_fill);
+  const _held = _sl.filter(s => s.status !== 'READY');
+  const _ready = _sl.filter(s => s.status === 'READY');
+  const partlyHeld = !isFinal && _rankedOnFillClose
+    && _held.length > 0 && _ready.length > 0;
+  const _names = (arr) => {
+    const n = arr.map(s => s.sleeve);
+    return n.length <= 1 ? n.join('')
+      : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1];
+  };
   const rankedOn = (nf.decision_session && fmtDateLongSafe(nf.decision_session))
     || Object.values(nf.decision_by_venue || {}).filter(Boolean)
          .map(fmtDateLongSafe).join(' / ');
@@ -4848,6 +4866,16 @@ function renderNextFill(labelMap) {
     ? `<strong>Nothing here has been traded.</strong> These are the target `
       + `weights for the next scheduled fill, ranked on the `
       + `${fmtDateLongSafe(lt.as_of)} close and intended for ${whenText}. `
+      + `The book below the fold is what is actually held today.`
+    : partlyHeld
+    ? `<strong>Nothing here has been traded.</strong> `
+      + `Sleeve${_ready.length === 1 ? '' : 's'} ${_names(_ready)} `
+      + `${_ready.length === 1 ? 'is' : 'are'} final: ranked on the `
+      + `${rankedOn} close, the close ${whenText} uses. `
+      + `Sleeve${_held.length === 1 ? '' : 's'} ${_names(_held)} `
+      + `${_held.length === 1 ? 'is' : 'are'} held — `
+      + _held.map(h => _escapeHtml(h.reason || 'signal short of the last close')).join(' ')
+      + ` — and must be left as held; its lines are marked below. `
       + `The book below the fold is what is actually held today.`
     : `<strong>Nothing here has been traded, and these are not final.</strong> `
       + `A fill on ${whenText} is ranked on the ${rankedOn || 'preceding'} close; `
@@ -4935,7 +4963,8 @@ function renderNextFill(labelMap) {
   // reader who wants the detail is never blocked -- this hides noise, it does
   // not withhold anything.
   const pill = document.getElementById('nf-pill');
-  if (pill) pill.textContent = isFinal ? 'planned' : 'provisional';
+  if (pill) pill.textContent = isFinal ? 'planned'
+    : partlyHeld ? 'partly held' : 'provisional';
 
   const toggle = document.getElementById('nf-toggle');
   const setOpen = (open) => {
@@ -4950,7 +4979,10 @@ function renderNextFill(labelMap) {
     toggle.hidden = false;
     toggle.onclick = () => setOpen(card.classList.contains('nf-collapsed'));
   }
-  setOpen(isFinal);
+  // Open when the moves are actionable: every sleeve final, or the final
+  // sleeves beside a held one whose lines are tagged. Collapsed only when
+  // the whole book is still provisional.
+  setOpen(isFinal || partlyHeld);
 
   card.style.display = '';
 }
@@ -4999,6 +5031,24 @@ function renderMixedBasis() {
   el.hidden = false;
 }
 
+// ---------------------------------------------------------------------------
+// PER-SLEEVE STATUS TABLE (2026-09-06)
+//
+// One row per sleeve, five answers: how far its signal data reaches (against
+// its own venue's last close, so a lag shows as a gap), when it last
+// rebalanced (decided on which close, filled when), what its next fill is
+// (ranked on which close, fills when, on which venue — the two venues can
+// differ, 2026-09-07 being a NYSE holiday that Xetra trades), and a verdict:
+// FINAL when it was ranked on the very close its fill will use, PROVISIONAL
+// until that close otherwise, HOLD with the reason, STALE when the fill date
+// has passed in the reader's clock (the same lapse rule the next-fill card
+// applies). Sources: strategy_freshness.json for reach, live_targets.json
+// for the fill and the verdict, each engine's latest_rebalance for the last
+// fill, and the held NAV share summed from the same lines the next-fill card
+// prints. Renders nothing when the freshness block is absent — an empty
+// table says "not measured", where a default would assert what it does not
+// know.
+// ---------------------------------------------------------------------------
 function renderStrategyFreshness() {
   renderMixedBasis();
   const el = document.getElementById('live-freshness');
@@ -5007,32 +5057,107 @@ function renderStrategyFreshness() {
   if (!f || !Array.isArray(f.strategies) || !f.strategies.length) {
     el.innerHTML = ''; return;
   }
-  const chips = f.strategies.map(s => {
+  const lt = (window.DATA || {}).live_targets || null;
+  const ltSleeves = (lt && Array.isArray(lt.sleeves)) ? lt.sleeves : [];
+  const ltBySleeve = new Map(ltSleeves.map(s => [s.sleeve, s]));
+  // Effective NAV share held today: the sum of the sleeve's lines, which is
+  // the identity the next-fill card relies on (Σ within = 1 per sleeve).
+  const heldShare = new Map();
+  for (const ln of ((lt && Array.isArray(lt.lines)) ? lt.lines : [])) {
+    heldShare.set(ln.sleeve, (heldShare.get(ln.sleeve) || 0) + (ln.held || 0));
+  }
+  const engines = { A: 'topk', B: 'asset_class', C: 'thematic', D: 'europe' };
+  // Judged in the reader's clock, as the next-fill card's lapse guard is.
+  const today = new Date().toISOString().slice(0, 10);
+  const dl = fmtDateLongSafe;
+  const esc = _escapeHtml;
+  const sub = (t) => t ? `<span class="ss-sub">${t}</span>` : '';
+  const pill = (cls, t) => `<span class="ss-pill ss-${cls}">${t}</span>`;
+
+  const rows = f.strategies.map(s => {
     const late = s.status === 'behind';
     const n = s.sessions_behind;
     // Sessions, not calendar days: Friday to Monday is ONE session, and
     // calling it three days would overstate every weekend.
-    const tail = late
-      ? (n === 1 ? '1 session behind' : n + ' sessions behind')
-      : (s.status === 'current' ? 'current' : 'not measured');
-    return `<span class="fs-item${late ? ' behind' : ''}" title="${s.venue}`
-         + ` — ${s.source}"><span class="fs-k">${s.sleeve}</span>`
-         + `<span>${s.label}</span>`
-         + `<span class="fs-d">${s.data_through || '—'}</span>`
-         + `<span>· ${tail}</span></span>`;
+    const behindText = n === 1 ? '1 session behind' : `${n} sessions behind`;
+    const waiting = (s.laggards && s.laggards.length)
+      ? ` · waiting on ${esc(s.laggards.join(', '))}` : '';
+    let reach;
+    if (!s.data_through) {
+      reach = '—' + sub('not measured');
+    } else if (late) {
+      reach = `<span class="ss-warn">${dl(s.data_through)}</span>`
+        + sub(`${esc(s.venue)} closed ${dl(s.venue_last_session)} · ${behindText}${waiting}`);
+    } else if (s.status === 'current') {
+      reach = dl(s.data_through) + sub(`${esc(s.venue)} last close`);
+    } else {
+      reach = dl(s.data_through) + sub('not measured against the venue');
+    }
+
+    const lr = _momLatestRebal(engines[s.sleeve]);
+    const last = lr && lr.date
+      ? `filled ${dl(lr.date)}`
+        + sub(lr.decision_date ? `decided on the ${dl(lr.decision_date)} close` : '')
+      : '—';
+
+    const t = ltBySleeve.get(s.sleeve);
+    let next = '—' + sub('not computed');
+    let status = pill('none', '—');
+    if (t) {
+      const lapsed = !!(t.fill_date && t.fill_date < today);
+      const ranked = !!(t.decision_session && t.decision_session_for_fill
+                        && t.decision_session === t.decision_session_for_fill);
+      if (t.status === 'READY') {
+        next = (t.fill_date ? `${dl(t.fill_date)} (${esc(t.venue)})` : '—')
+          + sub(t.decision_session ? `ranked on the ${dl(t.decision_session)} close` : '');
+        if (lapsed) {
+          status = pill('stale', 'stale')
+            + sub(`the ${dl(t.fill_date)} fill has passed; run refresh_all.py`);
+        } else if (ranked) {
+          status = pill('final', 'final');
+        } else {
+          status = pill('prov', 'provisional')
+            + sub(`re-ranks until the ${dl(t.decision_session_for_fill)} close`);
+        }
+      } else {
+        next = 'none' + sub(lr && lr.date
+          ? `keeps the ${dl(lr.date)} book${t.fill_date ? `; the ${dl(t.fill_date)} fill is skipped` : ''}`
+          : (t.fill_date ? `the ${dl(t.fill_date)} fill is skipped` : ''));
+        status = pill('hold', 'hold')
+          + sub(esc(t.reason || 'signal short of the last close'));
+      }
+    }
+
+    const share = heldShare.has(s.sleeve)
+      ? `${(heldShare.get(s.sleeve) * 100).toFixed(1)}% of NAV held` : '';
+    // Verdict SECOND, beside the sleeve: on a phone the table scrolls and
+    // the first two columns are what is on screen — the answer must not be
+    // the column that scrolled away (measured at 375px: a fifth column sat
+    // 151px past the edge).
+    return `<tr>
+      <td><span class="row-label">${esc(s.sleeve)}</span> ${esc(s.label || '')}${sub(share)}</td>
+      <td>${status}</td>
+      <td>${reach}</td>
+      <td>${last}</td>
+      <td>${next}</td>
+    </tr>`;
   }).join('');
 
-  const behind = f.strategies.filter(s => s.status === 'behind');
-  const notes = behind.map(s => {
-    if (s.why) return `<strong>${s.label}:</strong> ${s.why}`;
-    if (s.laggards && s.laggards.length) {
-      return `<strong>${s.label}:</strong> waiting on `
-           + s.laggards.join(', ') + '.';
-    }
-    return '';
-  }).filter(Boolean);
+  // Plain-language reasons for a lagging sleeve stay beneath the table: the
+  // row says how far behind, the note says why, when the data knows.
+  const notes = f.strategies.filter(s => s.status === 'behind' && s.why)
+    .map(s => `<strong>${esc(s.label)}:</strong> ${esc(s.why)}`);
 
-  el.innerHTML = `<div class="fresh-strip">${chips}</div>`
+  el.innerHTML = `<div class="sleeve-status"><table class="small-table sleeve-status-table">
+    <thead><tr>
+      <th>Sleeve</th>
+      <th>Status</th>
+      <th>Signal data through</th>
+      <th>Last rebalance</th>
+      <th>Next fill</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`
     + (notes.length ? `<p class="fresh-note">${notes.join('<br>')}</p>` : '');
 }
 
