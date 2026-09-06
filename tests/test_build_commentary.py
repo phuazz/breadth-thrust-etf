@@ -228,10 +228,18 @@ def test_week_review_states_blend_spy_sleeves_and_holdings():
     assert w["headline"] == "Blend +0.60% · SPY +2.00% · Fri 28 Aug 2026 → Fri 4 Sep 2026 close"
     lines = {ln["label"]: ln["text"] for ln in w["lines"]}
     assert lines["By sleeve"] == "A +0.35pp (+1.0% on 35%) · B -0.10pp (-0.4% on 25%)"
-    assert lines["Helped"] == "XLE +0.98pp (+10.0%)"
-    assert lines["Hurt"] == "XLB -0.05pp (-5.0%)"
+    assert lines["Helped"] == "iShares S&P 500 Energy +0.98pp (+10.0%)"   # names, not tickers
+    assert lines["Hurt"] == "iShares S&P 500 Materials -0.05pp (-5.0%)"
     assert lines["Regime"] == "RISK_ON since Tue 14 Apr 2026 · S&P 500 breadth 47.7% (+2.7pp on the week)"
     assert w["basis"].startswith("Holding contributions are weight × return")
+
+
+def test_a_holding_without_a_name_falls_back_to_its_ticker():
+    hp = _hp(WEEK_DATES, XLE=[50, 50, 51, 52, 53, 55])
+    w = bc.week_commentary((0.006, "2026-08-28", "2026-09-04"), None,
+                           [{"etf": "IUES", "sleeve": "A", "effective": 0.098}],
+                           hp, {}, None, None, {})
+    assert {ln["label"]: ln["text"] for ln in w["lines"]}["Helped"] == "XLE +0.98pp (+10.0%)"
 
 
 def test_week_review_omits_what_it_cannot_derive():

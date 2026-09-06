@@ -384,16 +384,18 @@ def week_commentary(wtd, attribution: dict | None, holdings: list[dict],
                     f"({_pct(c['ret'], 1, signed=True)} at {_pct(c['weight'], 1)})")
         top = [c for c in contribs if c["contrib"] > 0][:TOP_N]
         bottom = [c for c in contribs if c["contrib"] < 0][-TOP_N:][::-1]
+        # Names, not tickers, on the lines a reader scans (owner, 2026-09-06);
+        # the ticker stands in only where no name is known.
+        def _named(c):
+            return (f"{_label(c['etf'], labels) or c['traded']} {_pp(c['contrib'])} "
+                    f"({_pct(c['ret'], 1, signed=True)})")
+
         if top:
             parts.append("Largest contributors: " + "; ".join(_one(c) for c in top) + ".")
-            lines.append({"label": "Helped",
-                          "text": " · ".join(f"{c['traded']} {_pp(c['contrib'])} "
-                                             f"({_pct(c['ret'], 1, signed=True)})" for c in top)})
+            lines.append({"label": "Helped", "text": " · ".join(_named(c) for c in top)})
         if bottom:
             parts.append("Largest detractors: " + "; ".join(_one(c) for c in bottom) + ".")
-            lines.append({"label": "Hurt",
-                          "text": " · ".join(f"{c['traded']} {_pp(c['contrib'])} "
-                                             f"({_pct(c['ret'], 1, signed=True)})" for c in bottom)})
+            lines.append({"label": "Hurt", "text": " · ".join(_named(c) for c in bottom)})
         starts = sorted({c["from"] for c in contribs})
         basis = (f"from the {_fmt_date(starts[0])} close" if len(starts) == 1
                  else f"from each sleeve's own fill close ({', '.join(_fmt_date(x) for x in starts)})")
