@@ -146,6 +146,26 @@ def test_week_block_is_labelled_lines_not_a_paragraph():
     assert _week_block({}) == ""
 
 
+def test_under_the_attribution_chart_the_block_does_not_repeat_it():
+    """The email places the block beneath the week-to-date tile and the
+    sleeve contribution chart; there it carries only the holdings and the
+    regime, never the blend, SPY or the sleeve split a third time."""
+    week = {"headline": "Blend +0.56% · SPY +0.12% · Fri 28 Aug 2026 → Fri 4 Sep 2026 close",
+            "lines": [{"label": "By sleeve", "text": "B +0.30pp (+1.2% on 25%)"},
+                      {"label": "Helped", "text": "EEM +0.23pp (+2.3%)"},
+                      {"label": "Hurt", "text": "CIBR -0.11pp (-5.6%)"},
+                      {"label": "Regime", "text": "RISK_ON since Tue 14 Apr 2026"}],
+            "basis": "Holding contributions are weight × return."}
+    html = _week_block(week, under_attribution=True)
+    assert "By sleeve" not in html and "Blend +0.56%" not in html
+    assert "Helped" in html and "Hurt" in html and "Regime" in html
+    assert "weight × return" in html
+    only_sleeve = {"headline": "Blend +0.56%", "lines": [{"label": "By sleeve", "text": "B +0.30pp"}]}
+    assert _week_block(only_sleeve, under_attribution=True) == "", "nothing new to say, nothing printed"
+    src = (ROOT / "scripts" / "build_email_body.py").read_text(encoding="utf-8")
+    assert "_week_block(_week, under_attribution=True)" in src
+
+
 # ---------------------------------------------------------------------------
 # The dashboard block and the pipeline loader read the same file
 # ---------------------------------------------------------------------------

@@ -979,24 +979,37 @@ def _why_block(nf: dict, why: dict, moves: list[dict]) -> str:
     return "".join(parts)
 
 
-def _week_block(week: dict) -> str:
-    """The week as short labelled lines: headline, by sleeve, helped, hurt,
-    regime, and the basis as a footnote. Falls back to the paragraph."""
+def _week_block(week: dict, under_attribution: bool = False) -> str:
+    """The week as short labelled lines, and the basis as a footnote.
+
+    ``under_attribution`` is the email's placement: directly beneath the
+    week-to-date tile and the per-sleeve contribution chart, which already
+    carry the blend, SPY and the sleeve split. There the block prints only
+    what those cannot show — the holdings that helped and hurt, and the
+    regime line — rather than the same numbers a third time (owner review
+    of the first preview, 2026-09-06). Elsewhere the headline and the sleeve
+    line are kept. Falls back to the paragraph for an older commentary."""
     if not week:
         return ""
     if not week.get("headline"):
         return (f'<p style="margin:0 0 18px 0;font-size:13px;line-height:1.55;color:#1a1a1a;">'
                 f'{week.get("text", "")}</p>') if week.get("text") else ""
+    lines = [ln for ln in (week.get("lines") or [])
+             if not (under_attribution and ln.get("label") == "By sleeve")]
+    if not lines:
+        return ""
     rows = "".join(
         f'<tr><td style="padding:2px 10px 2px 0;color:#7c8590;font-size:11px;text-transform:uppercase;'
         f'letter-spacing:0.4px;white-space:nowrap;vertical-align:top;">{ln["label"]}</td>'
         f'<td style="padding:2px 0;color:#1a1a1a;">{ln["text"]}</td></tr>'
-        for ln in week.get("lines") or [])
+        for ln in lines)
     basis = (f'<p style="margin:6px 0 0;font-size:11px;color:#7c8590;line-height:1.45;">{week["basis"]}</p>'
              if week.get("basis") else "")
+    head = ("" if under_attribution else
+            f'<div style="font-weight:700;color:#0f1217;margin:0 0 4px;">{week["headline"]}</div>')
     return ('<div style="margin:0 0 18px 0;font-size:12.5px;line-height:1.5;">'
-            f'<div style="font-weight:700;color:#0f1217;margin:0 0 4px;">{week["headline"]}</div>'
-            f'<table style="border-collapse:collapse;font-size:12.5px;">{rows}</table>'
+            + head
+            + f'<table style="border-collapse:collapse;font-size:12.5px;">{rows}</table>'
             + basis + '</div>')
 
 
@@ -1263,7 +1276,7 @@ def build_html(out_path: Path):
     commentary = _load_json(DATA_DIR / "commentary.json") or {}
     _week = commentary.get("week") or {}
     if (_week.get("text") or _week.get("headline")) and _week.get("as_of") == asof_iso:
-        out.append(_week_block(_week))
+        out.append(_week_block(_week, under_attribution=True))
 
     # Shared cell renderer — ticker bold with the fund name as a small
     # grey secondary line. Used by both the rebalance and holdings tables.
