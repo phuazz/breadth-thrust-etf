@@ -2,14 +2,16 @@
   "etf": "EXV3",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251961/ishares-stoxx-europe-600-technology-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV3_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-02T07:35:11.462048+00:00",
+  "fetched_at_utc": "2026-09-06T01:16:35.109083+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-08-28",
-  "n_target_fridays": 452,
-  "n_snapshots_written": 452,
+  "end_friday": "2026-09-04",
+  "n_target_fridays": 453,
+  "n_snapshots_written": 453,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
+  "exclude_symbols_applied": [],
+  "staged_roster_changes_applied": false,
   "walkbacks": [
     {
       "target_friday": "2020-04-10",
@@ -28,6 +30,12 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-09-04",
+      "fallback_date": "2026-09-03",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -44,8 +52,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-08-28",
-    "days_since_last_real_fetch": 0,
+    "last_real_fetch_date": "2026-09-03",
+    "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -17201,6 +17209,46 @@
         "REY.MI",
         "COTN.SW",
         "NOD.OL",
+        "SOP.PA"
+      ]
+    },
+    "2026-09-04": {
+      "actual_date": "2026-09-03",
+      "n_tickers": 34,
+      "tickers": [
+        "ASML.AS",
+        "SAP.DE",
+        "IFX.DE",
+        "REL.L",
+        "PRX.AS",
+        "ASM.AS",
+        "STMMI.MI",
+        "AMS.MC",
+        "CAP.PA",
+        "HEXA-B.ST",
+        "DSY.PA",
+        "BESI.AS",
+        "LOGN.SW",
+        "SGE.L",
+        "IDR.MC",
+        "G24.DE",
+        "AUTO.L",
+        "TPRO.MI",
+        "NEM.DE",
+        "MYCR.ST",
+        "VEND.OL",
+        "LAGR-B.ST",
+        "CCC.L",
+        "AIXA.DE",
+        "TEMN.SW",
+        "ATS.VI",
+        "SOI.PA",
+        "OCTV-SDB.ST",
+        "BC8.DE",
+        "ACP.WA",
+        "REY.MI",
+        "NOD.OL",
+        "COTN.SW",
         "SOP.PA"
       ]
     }

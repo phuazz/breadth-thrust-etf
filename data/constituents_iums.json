@@ -2,14 +2,16 @@
   "etf": "IUMS",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/287104/ishares-s-p-500-materials-sector-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=IUMS_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-02T07:30:04.085194+00:00",
+  "fetched_at_utc": "2026-09-06T01:12:15.765556+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-08-28",
-  "n_target_fridays": 452,
-  "n_snapshots_written": 452,
+  "end_friday": "2026-09-04",
+  "n_target_fridays": 453,
+  "n_snapshots_written": 453,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
+  "exclude_symbols_applied": [],
+  "staged_roster_changes_applied": false,
   "walkbacks": [
     {
       "target_friday": "2020-04-10",
@@ -28,6 +30,12 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-09-04",
+      "fallback_date": "2026-09-03",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -44,8 +52,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-08-28",
-    "days_since_last_real_fetch": 0,
+    "last_real_fetch_date": "2026-09-03",
+    "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -15070,6 +15078,37 @@
         "PKG",
         "IP",
         "CF",
+        "BALL",
+        "LYB",
+        "ALB",
+        "AVY",
+        "MOS"
+      ]
+    },
+    "2026-09-04": {
+      "actual_date": "2026-09-03",
+      "n_tickers": 25,
+      "tickers": [
+        "LIN",
+        "NEM",
+        "FCX",
+        "SHW",
+        "ECL",
+        "APD",
+        "CRH",
+        "NUE",
+        "CTVA",
+        "VMC",
+        "STLD",
+        "MLM",
+        "PPG",
+        "SW",
+        "IFF",
+        "DOW",
+        "AMCR",
+        "CF",
+        "PKG",
+        "IP",
         "BALL",
         "LYB",
         "ALB",
