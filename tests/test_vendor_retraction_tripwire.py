@@ -18,7 +18,9 @@ edge cases CLAUDE.md requires of any date logic.
 """
 from __future__ import annotations
 
+import json
 import sys
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
@@ -27,12 +29,19 @@ import check_vendor_probe as cvp  # noqa: E402
 
 
 def _row(stamp: str, entries):
-    """entries: (ticker, last_bar, last_completed_session) triples."""
-    return {
-        "probed_at_utc": stamp,
-        "rows": [{"ticker": t, "venue": "NYSE", "last_bar": lb,
-                  "last_completed_session": lcs} for t, lb, lcs in entries],
-    }
+    """entries: (ticker, last_bar, last_completed_session[, venue]) tuples;
+    the venue defaults to NYSE."""
+    rows = []
+    for e in entries:
+        t, lb, lcs = e[:3]
+        venue = e[3] if len(e) > 3 else "NYSE"
+        rows.append({"ticker": t, "venue": venue, "last_bar": lb,
+                     "last_completed_session": lcs})
+    return {"probed_at_utc": stamp, "rows": rows}
+
+
+def _xetr(stamp: str, ticker: str, last_bar, lcs: str):
+    return _row(stamp, [(ticker, last_bar, lcs, "XETR")])
 
 
 def test_withdrawn_settled_bar_is_detected():
@@ -144,3 +153,178 @@ def test_lookback_window_forgets_an_old_high_water_mark():
                      [("SPY", "2026-07-31", "2026-08-01")])
                 for d in range(2, 2 + cvp.RETRACTION_LOOKBACK_ROWS + 2)]
     assert cvp.detect_retractions(history) == []
+
+
+# ---------------------------------------------------------------------------
+# The routine overnight cycle (2026-09-05): recorded, printed, not emailed.
+#
+# In its first week the tripwire emailed on twelve probe rows, nearly all of
+# them the vendor's ordinary European cycle — the close withdrawn overnight
+# and restored within two calendar days. The rule below carves that cycle out
+# EXACTLY, and the 2026-08-28/30 outage weekend still alerts on both of its
+# shapes. Dates are ISO strings; the calendar arithmetic is
+# pandas_market_calendars' and timedelta's, never a hand count.
+# ---------------------------------------------------------------------------
+def test_previous_session_uses_the_venue_calendar():
+    """Friday before a Monday, Thursday before a Friday — the calendar, not
+    a weekday count; and an unknown venue is None, never a guess."""
+    assert cvp.previous_session("XETR", date(2026, 8, 31)) == date(2026, 8, 28)
+    assert cvp.previous_session("XETR", date(2026, 9, 4)) == date(2026, 9, 3)
+    assert cvp.previous_session("NOT-A-VENUE", date(2026, 9, 4)) is None
+
+
+def test_routine_overnight_xetr_withdrawal_is_flagged_routine():
+    """The 2026-09-05 02:43 UTC shape that emailed: Friday's bar served at
+    20:12 UTC, gone by the Saturday 02:43 probe, Thursday's in its place."""
+    history = [
+        _xetr("2026-09-04T20:12:45+00:00", "EXV1.DE", "2026-09-04", "2026-09-04"),
+        _xetr("2026-09-05T02:43:11+00:00", "EXV1.DE", "2026-09-03", "2026-09-04"),
+    ]
+    out = cvp.detect_retractions(history)
+    assert len(out) == 1
+    assert out[0]["routine"] is True
+    assert out[0]["was"] == "2026-09-04" and out[0]["now"] == "2026-09-03"
+
+
+def test_saturday_evening_is_still_inside_the_window():
+    """2026-08-22 18:23 UTC: Friday's bar absent all Saturday, restored by
+    the Sunday 01:04 probe. Routine right up to 00:00 UTC on the Sunday."""
+    history = [
+        _xetr("2026-08-21T18:30:00+00:00", "EXV1.DE", "2026-08-21", "2026-08-21"),
+        _xetr("2026-08-22T18:23:00+00:00", "EXV1.DE", "2026-08-20", "2026-08-21"),
+    ]
+    assert cvp.detect_retractions(history)[0]["routine"] is True
+
+
+def test_bar_still_absent_on_sunday_is_anomalous():
+    """2026-08-30 03:21 UTC: Friday 08-28's bar not back on the Sunday — the
+    genuine outage weekend, and the window is set so it still alerts."""
+    history = [
+        _xetr("2026-08-28T21:41:00+00:00", "EXV1.DE", "2026-08-28", "2026-08-28"),
+        _xetr("2026-08-30T03:21:04+00:00", "EXV1.DE", "2026-08-27", "2026-08-28"),
+    ]
+    assert cvp.detect_retractions(history)[0]["routine"] is False
+
+
+def test_two_sessions_withdrawn_is_anomalous():
+    """2026-08-29 05:25 UTC: last_bar 08-26 against a withdrawn 08-28 — two
+    sessions gone is not the one-session cycle."""
+    history = [
+        _xetr("2026-08-28T21:41:00+00:00", "EXV1.DE", "2026-08-28", "2026-08-28"),
+        _xetr("2026-08-29T05:25:20+00:00", "EXV1.DE", "2026-08-26", "2026-08-28"),
+    ]
+    assert cvp.detect_retractions(history)[0]["routine"] is False
+
+
+def test_nyse_line_has_no_routine_window():
+    """The cycle is measured on the European lines only; SPY going back one
+    session overnight is still an alert."""
+    history = [
+        _row("2026-08-28T21:41:31+00:00", [("SPY", "2026-08-28", "2026-08-28")]),
+        _row("2026-08-29T05:25:20+00:00", [("SPY", "2026-08-27", "2026-08-28")]),
+    ]
+    assert cvp.detect_retractions(history)[0]["routine"] is False
+
+
+def test_total_withdrawal_is_never_routine():
+    history = [
+        _xetr("2026-09-04T20:12:45+00:00", "EXV1.DE", "2026-09-04", "2026-09-04"),
+        _xetr("2026-09-05T02:43:11+00:00", "EXV1.DE", None, "2026-09-04"),
+    ]
+    out = cvp.detect_retractions(history)
+    assert out[0]["now"] is None and out[0]["routine"] is False
+
+
+def test_routine_window_across_a_month_boundary():
+    """Edge case 1: Monday 2026-08-31 withdrawn. The window ends 00:00 UTC
+    on 2026-09-02, so the Tuesday 02:40 probe is routine and a Wednesday
+    00:30 probe is not."""
+    served = _xetr("2026-08-31T20:00:00+00:00", "SAP.DE", "2026-08-31", "2026-08-31")
+    inside = _xetr("2026-09-01T02:40:00+00:00", "SAP.DE", "2026-08-28", "2026-08-31")
+    outside = _xetr("2026-09-02T00:30:00+00:00", "SAP.DE", "2026-08-28", "2026-08-31")
+    assert cvp.detect_retractions([served, inside])[0]["routine"] is True
+    assert cvp.detect_retractions([served, outside])[0]["routine"] is False
+    assert cvp.routine_window_end(date(2026, 8, 31)) == datetime(
+        2026, 9, 2, tzinfo=timezone.utc)
+
+
+def test_routine_window_across_a_year_boundary():
+    """Edge case 2: Wednesday 2026-12-30 withdrawn (Xetra is shut on the
+    31st, so the session before it is the 29th). The window ends 00:00 UTC
+    on 2027-01-01."""
+    served = _xetr("2026-12-30T20:00:00+00:00", "SAP.DE", "2026-12-30", "2026-12-30")
+    inside = _xetr("2026-12-31T06:00:00+00:00", "SAP.DE", "2026-12-29", "2026-12-30")
+    outside = _xetr("2027-01-01T01:00:00+00:00", "SAP.DE", "2026-12-29", "2026-12-30")
+    assert cvp.detect_retractions([served, inside])[0]["routine"] is True
+    assert cvp.detect_retractions([served, outside])[0]["routine"] is False
+    assert cvp.routine_window_end(date(2026, 12, 30)) == datetime(
+        2027, 1, 1, tzinfo=timezone.utc)
+
+
+def _write_log(path: Path, rows) -> None:
+    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n",
+                    encoding="utf-8")
+
+
+def _pin_clock(monkeypatch, now: datetime) -> None:
+    """main() reads the wall clock through evaluate(); pin it so the fixture
+    rows are 'fresh' on any day the suite runs."""
+    real = cvp.evaluate
+    monkeypatch.setattr(
+        cvp, "evaluate",
+        lambda p, max_age_minutes=90: real(p, now_utc=now,
+                                           max_age_minutes=max_age_minutes))
+
+
+def test_routine_only_probe_is_endorsed_and_does_not_email(tmp_path, monkeypatch, capsys):
+    """The Saturday-morning shape end to end: the row is committed, the
+    withdrawal is printed, and the workflow's email condition stays false."""
+    log = tmp_path / "log.jsonl"
+    gh_out = tmp_path / "gh_output.txt"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(gh_out))
+    _write_log(log, [
+        _row("2026-09-04T20:12:45+00:00",
+             [("SPY", "2026-09-04", "2026-09-04"),
+              ("EXV1.DE", "2026-09-04", "2026-09-04", "XETR")]),
+        _row("2026-09-05T02:43:11+00:00",
+             [("SPY", "2026-09-04", "2026-09-04"),
+              ("EXV1.DE", "2026-09-03", "2026-09-04", "XETR")]),
+    ])
+    _pin_clock(monkeypatch, datetime(2026, 9, 5, 2, 50, tzinfo=timezone.utc))
+    assert cvp.main(["--log", str(log), "--fail-on-retraction"]) == 0
+    printed = capsys.readouterr().out
+    assert "Routine overnight withdrawal" in printed
+    assert "RETRACTION TRIPWIRE" not in printed
+    outputs = gh_out.read_text(encoding="utf-8")
+    assert "retracted=false" in outputs
+    assert "routine_count=1" in outputs
+    assert "retracted_count=0" in outputs
+
+
+def test_anomalous_retraction_still_emails_and_can_block(tmp_path, monkeypatch, capsys):
+    """SPY going backwards beside the routine XETR withdrawal: the alert
+    names SPY, lists the routine line separately, and --fail-on-retraction
+    blocks on the anomalous one alone."""
+    log = tmp_path / "log.jsonl"
+    gh_out = tmp_path / "gh_output.txt"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(gh_out))
+    _write_log(log, [
+        _row("2026-09-04T20:12:45+00:00",
+             [("SPY", "2026-09-04", "2026-09-04"),
+              ("EXV1.DE", "2026-09-04", "2026-09-04", "XETR")]),
+        _row("2026-09-05T02:43:11+00:00",
+             [("SPY", "2026-09-03", "2026-09-04"),
+              ("EXV1.DE", "2026-09-03", "2026-09-04", "XETR")]),
+    ])
+    _pin_clock(monkeypatch, datetime(2026, 9, 5, 2, 50, tzinfo=timezone.utc))
+    assert cvp.main(["--log", str(log)]) == 0            # endorsed: a true observation
+    assert cvp.main(["--log", str(log), "--fail-on-retraction"]) == 1
+    printed = capsys.readouterr().out
+    assert "RETRACTION TRIPWIRE" in printed and "SPY" in printed
+    outputs = gh_out.read_text(encoding="utf-8")
+    assert "retracted=true" in outputs
+    assert "retracted_summary=SPY 2026-09-04->2026-09-03" in outputs
+    assert "routine_count=1" in outputs
+    # The routine line is disclosed in the email body, not hidden.
+    assert "Routine overnight withdrawal on the same probe" in outputs
+    assert "EXV1.DE 2026-09-04->2026-09-03" in outputs

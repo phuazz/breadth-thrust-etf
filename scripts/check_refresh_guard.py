@@ -103,9 +103,17 @@ asserts over the whole 24-panel deployed set:
       prices in it); short with a CLEAN tail is genuine vendor lag — the
       2026-08-22 class the G4 tail cap exists for — and warns. The two
       states are told apart by whether the cache carries index rows past
-      its populated end, which is the only offline discriminator there
-      is: a failed batch leaves the empty row behind, a lagging vendor
-      serves nothing at all.
+      its populated end. That is an OFFLINE discriminator, and since
+      2026-09-05 it is the WRITER that makes it true: the vendor withdraws
+      every European close overnight and serves a placeholder row in its
+      place — the same shape as a failed batch, which is how this guard
+      refused the whole 2026-09-05 Saturday run over sleeve D's panels —
+      so compute_breadth now probes the unpriced live names single-ticker
+      before writing: it heals a defective batch, drops a row the vendor
+      confirms it is not serving, and keeps a row it could not verify. A
+      hollow tail reaching this guard therefore means the writer could not
+      settle it (no answer, or a heal that fell short — see
+      `tail_verification` in the panel JSON), and it still FAILS, closed.
 
 Verdicts: FAIL -> exit 1 (the run must not be trusted or committed as-is),
 WARN -> exit 0 with a printed notice, OK -> silence beyond the summary.
@@ -267,7 +275,9 @@ def check_shared_end_friday(end_fridays: dict[str, str],
             f"but the roster is not priced on them, so any Friday-capture "
             f"claim resting on row presence is void (2026-08-30: the batch "
             f"download served empty Fridays while single-ticker requests "
-            f"had real bars): {hollow_traded}"))
+            f"had real bars; since 2026-09-05 the writer probes that itself, "
+            f"so read tail_verification in the panel JSON for what it "
+            f"found): {hollow_traded}"))
     if hollow_monitored:
         out.append(verdict(
             "G1 populated price tail", WARN,
@@ -692,7 +702,8 @@ def check_universal_walkback(latest_actuals: dict[str, str],
             f"Fridays while single-ticker requests returned real bars. The "
             f"roster stamps cannot vouch for prices: {sh_traded}. Re-run "
             f"the price fetch / compute_breadth before trusting this "
-            f"refresh."))
+            f"refresh, and read tail_verification in the panel JSON for "
+            f"what the writer's single-ticker probe found."))
     if sh_monitored:
         out.append(verdict(
             "W1 friday price capture", WARN,
