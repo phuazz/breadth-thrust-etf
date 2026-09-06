@@ -1626,10 +1626,10 @@ def build_html(out_path: Path):
     # An operator preview may live outside the repo; the write above has
     # already happened, so a path that is not under ROOT is printed as is.
     try:
-        shown = out_path.relative_to(ROOT)
+        _out_shown = out_path.relative_to(ROOT)
     except ValueError:
-        shown = out_path
-    print(f"Wrote {shown}")
+        _out_shown = out_path
+    print(f"Wrote {_out_shown}")
     print(f"  As of:        {asof_str}")
     print(f"  Deployed key: {deployed_key}")
     print(f"  Regime:       {regime_state} (since {regime_since})")
