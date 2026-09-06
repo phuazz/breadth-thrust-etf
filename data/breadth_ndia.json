@@ -1,11 +1,12 @@
 {
   "etf": "NDIA",
-  "computed_at_utc": "2026-09-06T01:21:12.506007+00:00",
+  "computed_at_utc": "2026-09-06T06:54:53.848703+00:00",
   "constituents_source": "data\\constituents_ndia.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-05-25",
   "end_date": "2026-09-04",
   "tail_cap": null,
+  "tail_verification": null,
   "n_trading_days": 1982,
   "n_signals": 34,
   "first_eligible_signal_date": "2019-06-20",

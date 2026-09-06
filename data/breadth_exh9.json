@@ -1,11 +1,12 @@
 {
   "etf": "EXH9",
-  "computed_at_utc": "2026-09-06T01:18:44.708258+00:00",
+  "computed_at_utc": "2026-09-06T06:51:15.940835+00:00",
   "constituents_source": "data\\constituents_exh9.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
   "end_date": "2026-09-04",
   "tail_cap": null,
+  "tail_verification": null,
   "n_trading_days": 2200,
   "n_signals": 60,
   "first_eligible_signal_date": "2019-01-08",

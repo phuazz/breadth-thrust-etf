@@ -1,11 +1,12 @@
 {
   "etf": "IDP6",
-  "computed_at_utc": "2026-09-06T01:28:04.089776+00:00",
+  "computed_at_utc": "2026-09-06T07:04:36.055923+00:00",
   "constituents_source": "data\\constituents_idp6.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
   "end_date": "2026-09-04",
   "tail_cap": null,
+  "tail_verification": null,
   "n_trading_days": 2178,
   "n_signals": 38,
   "first_eligible_signal_date": "2019-01-08",

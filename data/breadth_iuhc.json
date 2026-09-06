@@ -1,11 +1,12 @@
 {
   "etf": "IUHC",
-  "computed_at_utc": "2026-09-06T01:08:14.925469+00:00",
+  "computed_at_utc": "2026-09-06T06:37:43.532327+00:00",
   "constituents_source": "data\\constituents_iuhc.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
   "end_date": "2026-09-04",
   "tail_cap": null,
+  "tail_verification": null,
   "n_trading_days": 2178,
   "n_signals": 34,
   "first_eligible_signal_date": "2019-01-08",

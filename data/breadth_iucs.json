@@ -1,11 +1,12 @@
 {
   "etf": "IUCS",
-  "computed_at_utc": "2026-09-06T01:10:03.412559+00:00",
+  "computed_at_utc": "2026-09-06T06:40:00.341390+00:00",
   "constituents_source": "data\\constituents_iucs.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
   "end_date": "2026-09-04",
   "tail_cap": null,
+  "tail_verification": null,
   "n_trading_days": 2178,
   "n_signals": 49,
   "first_eligible_signal_date": "2019-01-08",

@@ -1,8 +1,8 @@
 {
- "computed_at_utc": "2026-09-06T01:44:14.032947+00:00",
+ "computed_at_utc": "2026-09-06T07:11:01.432909+00:00",
  "as_of": "2026-09-04",
  "executed": false,
- "targets_final": false,
+ "targets_final": true,
  "next_fill": {
   "by_venue": {
    "NYSE": "2026-09-08",
@@ -58,11 +58,17 @@
   {
    "sleeve": "C",
    "venue": "NYSE",
-   "status": "HOLD",
-   "reason": "decision row carries 25 of 26 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one",
+   "status": "READY",
+   "reason": null,
    "decision_session": "2026-09-04",
    "last_completed_session": "2026-09-04",
-   "weights": {},
+   "weights": {
+    "CIBR": 0.2,
+    "SKYY": 0.2,
+    "XBI": 0.2,
+    "ARKG": 0.2,
+    "COPX": 0.2
+   },
    "fill_date": "2026-09-08",
    "decision_session_for_fill": "2026-09-04"
   },
@@ -240,7 +246,7 @@
    "within": 0.2,
    "target": 0.020000000000000004,
    "held": 0.020000000000000004,
-   "status": "HOLD",
+   "status": "READY",
    "delta": 0.0
   },
   {
@@ -250,7 +256,7 @@
    "within": 0.2,
    "target": 0.020000000000000004,
    "held": 0.020000000000000004,
-   "status": "HOLD",
+   "status": "READY",
    "delta": 0.0
   },
   {
@@ -260,7 +266,7 @@
    "within": 0.2,
    "target": 0.020000000000000004,
    "held": 0.020000000000000004,
-   "status": "HOLD",
+   "status": "READY",
    "delta": 0.0
   },
   {
@@ -270,7 +276,7 @@
    "within": 0.2,
    "target": 0.020000000000000004,
    "held": 0.020000000000000004,
-   "status": "HOLD",
+   "status": "READY",
    "delta": 0.0
   },
   {
@@ -280,7 +286,7 @@
    "within": 0.2,
    "target": 0.020000000000000004,
    "held": 0.020000000000000004,
-   "status": "HOLD",
+   "status": "READY",
    "delta": 0.0
   },
   {

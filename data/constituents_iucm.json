@@ -2,7 +2,7 @@
   "etf": "IUCM",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/304659/ishares-s-p-500-communication-sector-ucits-etf-usd-acc-fund/1506575576011.ajax?fileType=csv&fileName=IUCM_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-06T01:13:04.971756+00:00",
+  "fetched_at_utc": "2026-09-06T06:43:48.937375+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-09-04",
   "n_target_fridays": 453,
