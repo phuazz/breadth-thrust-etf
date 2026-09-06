@@ -1,6 +1,54 @@
 {
-  "approved_anchor": "2026-08-28",
-  "approved_at_utc": "2026-08-31T09:25:40Z",
+  "approved_anchor": "2026-09-04",
+  "approved_at_utc": "2026-09-06T14:23:09Z",
   "forced": false,
-  "note": ""
+  "note": "automatic release: every condition met",
+  "auto": true,
+  "conditions": [
+    {
+      "check": "weekend cadence",
+      "ok": true,
+      "detail": "cadence=weekend"
+    },
+    {
+      "check": "no operator hold",
+      "ok": true,
+      "detail": "none"
+    },
+    {
+      "check": "panel reaches the anchor",
+      "ok": true,
+      "detail": "breadth_csp1 end_date 2026-09-04 vs anchor 2026-09-04"
+    },
+    {
+      "check": "every sleeve ranked on its fill's close",
+      "ok": true,
+      "detail": "targets_final=True; decision 2026-09-04"
+    },
+    {
+      "check": "every sleeve's data reaches its venue's last close",
+      "ok": true,
+      "detail": "all current"
+    },
+    {
+      "check": "price basis as requested",
+      "ok": true,
+      "detail": "requested norgate -> expected norgate; caches record B=norgate, C=norgate"
+    },
+    {
+      "check": "no staged roster promotion",
+      "ok": true,
+      "detail": "BTE_APPLY_STAGED_ROSTER=unset"
+    },
+    {
+      "check": "not already published for this anchor",
+      "ok": true,
+      "detail": "last published 2026-08-28"
+    },
+    {
+      "check": "publication readiness checks",
+      "ok": true,
+      "detail": "0 FAIL, 3 WARN, 2 ok"
+    }
+  ]
 }
