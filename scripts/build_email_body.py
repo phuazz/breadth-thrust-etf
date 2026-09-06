@@ -176,24 +176,16 @@ def _max_drawdown(series: pd.Series):
 
 
 def _load_spy():
-    """SPY closes from the asset-class price cache — the SAME source the
-    factsheet PDF reads, so the email body and the attached PDF quote one
-    benchmark rather than two. Returns None if unavailable; every caller
-    degrades to bare strategy figures."""
-    p = DATA_DIR / "asset_class_prices_cache.parquet"
-    if not p.exists():
-        return None
-    try:
-        df = pd.read_parquet(p)
-    except Exception:
-        return None
-    if "SPY" not in df.columns:
-        return None
-    s = df["SPY"].dropna()
-    if not len(s):
-        return None
-    s.index = pd.to_datetime(s.index)
-    return s
+    """SPY adjusted closes — the SAME series the factsheet PDF reads, so the
+    email body and the attached PDF quote one benchmark rather than two:
+    the sleeve B engine cache on the local machine, else the committed
+    export data/benchmark_spy.json (export_benchmark.py, 2026-09-06 — the
+    cache is gitignored and the CI runner that sends the email never had
+    it, so the first automatic-era send went out with no SPY line at all).
+    Returns None if neither is available; every caller degrades to bare
+    strategy figures."""
+    from export_benchmark import load_spy_series
+    return load_spy_series()
 
 
 def _spy_metrics(spy, series, wtd):

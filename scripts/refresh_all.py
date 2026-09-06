@@ -402,6 +402,11 @@ def main() -> int:
         ("mark_to_market_live (intra-week NAV)", "scripts/mark_to_market_live.py"),
         ("export_holdings_prices (1Y price series)",
             "scripts/export_holdings_prices.py"),
+        # The SPY benchmark the email and the PDF compare against, committed
+        # so the CI runner that sends them has it (2026-09-06; the engine
+        # cache it used to come from is gitignored and absent there).
+        ("export_benchmark (SPY series for the email and factsheet)",
+            "scripts/export_benchmark.py"),
         ("c_seat_watch (WS7 OOS evidence accumulator)",
             "scripts/run_c_seat_watch.py"),
         # BEFORE the page builds, because both pages render its output. It

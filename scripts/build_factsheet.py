@@ -2027,15 +2027,12 @@ def build(out_path: Path):
     deployed_series = pd.Series(blend["equity"],
                                   index=pd.to_datetime(blend["dates"]))
 
-    spy_series = None
-    spy_cache = DATA_DIR / "asset_class_prices_cache.parquet"
-    if spy_cache.exists():
-        try:
-            spy_df = pd.read_parquet(spy_cache)
-            if "SPY" in spy_df.columns:
-                spy_series = spy_df["SPY"].dropna()
-        except Exception:
-            pass
+    # The engine cache when it is here, else the committed export
+    # (export_benchmark.py, 2026-09-06): the cache is gitignored, and the CI
+    # runner that builds the emailed PDF never had it, so the KPI cards of the
+    # first automatic-era factsheet printed "—" under every figure.
+    from export_benchmark import load_spy_series
+    spy_series = load_spy_series()
 
     # Align SPY onto the STRATEGY'S trading calendar so every comparison spans
     # identical dates. The deployed blend has no 2025-12-31 observation while
