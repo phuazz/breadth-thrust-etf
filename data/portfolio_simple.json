@@ -6517,7 +6517,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-09-04",
- "computed_at_utc": "2026-09-06 14:52 UTC",
+ "computed_at_utc": "2026-09-07 23:38 UTC",
  "holdings": [
   {
    "ticker": "IUFS",
@@ -6734,8 +6734,8 @@
  "n_positions": 23,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-09-06T07:10:57.829508+00:00",
-  "all_current": true,
+  "computed_at_utc": "2026-09-07T23:38:05.853748+00:00",
+  "all_current": false,
   "strategies": [
    {
     "sleeve": "A",
@@ -6771,11 +6771,11 @@
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-09-04",
-    "venue_last_session": "2026-09-04",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-09-07",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-09-04, while the market has traded to 2026-09-07 — it has not been rebuilt since."
    }
   ]
  },
