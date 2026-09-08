@@ -1,12 +1,68 @@
 {
   "etf": "EXV3",
-  "computed_at_utc": "2026-09-06T06:48:48.397014+00:00",
+  "computed_at_utc": "2026-09-08T03:35:03.397622+00:00",
   "constituents_source": "data\\constituents_exv3.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
   "end_date": "2026-09-04",
-  "tail_cap": null,
-  "tail_verification": null,
+  "tail_cap": {
+    "capped_at": "2026-09-04",
+    "venue_last_completed": "2026-09-07",
+    "constituents_priced_to": "2026-09-04",
+    "roster_end_friday": "2026-09-04",
+    "vendor_probe": {
+      "checked_at_utc": "2026-09-08T03:34:26+00:00",
+      "probe": "yfinance single-ticker history",
+      "last_populated": "2026-09-04",
+      "rows": [
+        {
+          "date": "2026-09-07",
+          "roster_held": 34,
+          "roster_priced": 2,
+          "live_unpriced": 32,
+          "sampled": [
+            "ASML.AS",
+            "HEXA-B.ST",
+            "TPRO.MI",
+            "LAGR-B.ST",
+            "SOP.PA"
+          ],
+          "sample_answered": 5,
+          "sample_served": 0,
+          "verdict": "unserved"
+        }
+      ],
+      "dropped": [
+        "2026-09-07"
+      ]
+    }
+  },
+  "tail_verification": {
+    "checked_at_utc": "2026-09-08T03:34:26+00:00",
+    "probe": "yfinance single-ticker history",
+    "last_populated": "2026-09-04",
+    "rows": [
+      {
+        "date": "2026-09-07",
+        "roster_held": 34,
+        "roster_priced": 2,
+        "live_unpriced": 32,
+        "sampled": [
+          "ASML.AS",
+          "HEXA-B.ST",
+          "TPRO.MI",
+          "LAGR-B.ST",
+          "SOP.PA"
+        ],
+        "sample_answered": 5,
+        "sample_served": 0,
+        "verdict": "unserved"
+      }
+    ],
+    "dropped": [
+      "2026-09-07"
+    ]
+  },
   "n_trading_days": 2200,
   "n_signals": 52,
   "first_eligible_signal_date": "2019-01-08",

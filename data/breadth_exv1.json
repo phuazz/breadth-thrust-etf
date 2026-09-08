@@ -1,12 +1,68 @@
 {
   "etf": "EXV1",
-  "computed_at_utc": "2026-09-06T06:46:43.159554+00:00",
+  "computed_at_utc": "2026-09-08T03:32:00.419602+00:00",
   "constituents_source": "data\\constituents_exv1.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
   "end_date": "2026-09-04",
-  "tail_cap": null,
-  "tail_verification": null,
+  "tail_cap": {
+    "capped_at": "2026-09-04",
+    "venue_last_completed": "2026-09-07",
+    "constituents_priced_to": "2026-09-04",
+    "roster_end_friday": "2026-09-04",
+    "vendor_probe": {
+      "checked_at_utc": "2026-09-08T03:31:09+00:00",
+      "probe": "yfinance single-ticker history",
+      "last_populated": "2026-09-04",
+      "rows": [
+        {
+          "date": "2026-09-07",
+          "roster_held": 57,
+          "roster_priced": 1,
+          "live_unpriced": 56,
+          "sampled": [
+            "HSBA.L",
+            "EBS.VI",
+            "CBK.DE",
+            "BGEO.L",
+            "VATN.SW"
+          ],
+          "sample_answered": 5,
+          "sample_served": 0,
+          "verdict": "unserved"
+        }
+      ],
+      "dropped": [
+        "2026-09-07"
+      ]
+    }
+  },
+  "tail_verification": {
+    "checked_at_utc": "2026-09-08T03:31:09+00:00",
+    "probe": "yfinance single-ticker history",
+    "last_populated": "2026-09-04",
+    "rows": [
+      {
+        "date": "2026-09-07",
+        "roster_held": 57,
+        "roster_priced": 1,
+        "live_unpriced": 56,
+        "sampled": [
+          "HSBA.L",
+          "EBS.VI",
+          "CBK.DE",
+          "BGEO.L",
+          "VATN.SW"
+        ],
+        "sample_answered": 5,
+        "sample_served": 0,
+        "verdict": "unserved"
+      }
+    ],
+    "dropped": [
+      "2026-09-07"
+    ]
+  },
   "n_trading_days": 2200,
   "n_signals": 62,
   "first_eligible_signal_date": "2019-01-08",

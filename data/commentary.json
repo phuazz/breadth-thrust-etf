@@ -1,8 +1,8 @@
 {
-  "computed_at_utc": "2026-09-06T14:49:26+00:00",
+  "computed_at_utc": "2026-09-08T07:06:45+00:00",
   "as_of": "2026-09-04",
   "next_fill": {
-    "summary": "18 moves at the next fill (NYSE Tue 8 Sep 2026, XETR Mon 7 Sep 2026), ranked on the Fri 4 Sep 2026 close; one-way turnover 4.54% of NAV; 1 new name; 1 exit. Signals compared with the previous decision close.",
+    "summary": "15 moves at the next fill (NYSE Tue 8 Sep 2026, XETR Mon 14 Sep 2026), ranked on the Fri 4 Sep 2026 close; one-way turnover 4.23% of NAV; 1 new name; 1 exit. Signals compared with the previous decision close.",
     "moves": [
       {
         "sleeve": "A",
@@ -215,27 +215,6 @@
         "text": "VGK (FTSE Europe) 2.8% \u2192 2.4% of NAV (-0.4pp): +7.5% \u2192 +6.9% against its 200-day average, rank 7 of 13."
       },
       {
-        "sleeve": "D",
-        "etf": "EXV3",
-        "traded": "EXV3",
-        "name": "STOXX Europe 600 Technology",
-        "action": "TRIM",
-        "held": 0.06626,
-        "target": 0.06317660000000001,
-        "delta": -0.003083399999999986,
-        "signal_now": 0.7736,
-        "signal_prev": 0.8302,
-        "signal_now_fmt": "77.4",
-        "signal_prev_fmt": "83.0",
-        "rank_now": 2,
-        "rank_prev": 2,
-        "n": 5,
-        "cut": null,
-        "cash_proxy": false,
-        "signal_kind": "breadth",
-        "text": "EXV3 (STOXX Europe 600 Technology) 6.6% \u2192 6.3% of NAV (-0.3pp): breadth 83.0% \u2192 77.4%, rank 2 of 5."
-      },
-      {
         "sleeve": "A",
         "etf": "SOXX",
         "traded": "SOXX",
@@ -297,48 +276,6 @@
         "cash_proxy": false,
         "signal_kind": "ma_distance",
         "text": "QQQ (NASDAQ-100 (US tech-heavy)) 3.6% \u2192 3.4% of NAV (-0.2pp): +9.5% \u2192 +9.5% against its 200-day average, rank 3 of 13."
-      },
-      {
-        "sleeve": "D",
-        "etf": "EXV1",
-        "traded": "EXV1",
-        "name": "STOXX Europe 600 Banks",
-        "action": "ADD",
-        "held": 0.07386000000000001,
-        "target": 0.0755728,
-        "delta": 0.0017127999999999866,
-        "signal_now": 0.9254,
-        "signal_prev": 0.9254,
-        "signal_now_fmt": "92.5",
-        "signal_prev_fmt": "92.5",
-        "rank_now": 1,
-        "rank_prev": 1,
-        "n": 5,
-        "cut": null,
-        "cash_proxy": false,
-        "signal_kind": "breadth",
-        "text": "EXV1 (STOXX Europe 600 Banks) 7.4% \u2192 7.6% of NAV (+0.2pp): breadth 92.5% \u2192 92.5%, rank 1 of 5."
-      },
-      {
-        "sleeve": "D",
-        "etf": "EXH1",
-        "traded": "EXH1",
-        "name": "STOXX Europe 600 Oil & Gas",
-        "action": "ADD",
-        "held": 0.059860000000000003,
-        "target": 0.0612506,
-        "delta": 0.0013905999999999988,
-        "signal_now": 0.75,
-        "signal_prev": 0.75,
-        "signal_now_fmt": "75.0",
-        "signal_prev_fmt": "75.0",
-        "rank_now": 3,
-        "rank_prev": 3,
-        "n": 5,
-        "cut": null,
-        "cash_proxy": false,
-        "signal_kind": "breadth",
-        "text": "EXH1 (STOXX Europe 600 Oil & Gas) 6.0% \u2192 6.1% of NAV (+0.1pp): breadth 75.0% \u2192 75.0%, rank 3 of 5."
       },
       {
         "sleeve": "A",
@@ -724,99 +661,25 @@
             "text": "EFA (MSCI EAFE (Intl developed)) 2.9% \u2192 2.8% of NAV (-0.1pp): +7.8% \u2192 +8.0% against its 200-day average, rank 6 of 13."
           }
         ]
-      },
-      {
-        "sleeve": "D",
-        "label": "Europe sectors",
-        "signal_kind": "breadth",
-        "signal_unit": "breadth (%)",
-        "signal_desc": "share of constituents above their 200-day average",
-        "top_k": 3,
-        "n": 5,
-        "heading": "Sleeve D \u00b7 Europe sectors \u00b7 ranks 5 on share of constituents above their 200-day average, holds the top 3",
-        "story": "3 smaller resizes under 0.5pp of NAV follow the signal.",
-        "moves": [
-          {
-            "sleeve": "D",
-            "etf": "EXV3",
-            "traded": "EXV3",
-            "name": "STOXX Europe 600 Technology",
-            "action": "TRIM",
-            "held": 0.06626,
-            "target": 0.06317660000000001,
-            "delta": -0.003083399999999986,
-            "signal_now": 0.7736,
-            "signal_prev": 0.8302,
-            "signal_now_fmt": "77.4",
-            "signal_prev_fmt": "83.0",
-            "rank_now": 2,
-            "rank_prev": 2,
-            "n": 5,
-            "cut": null,
-            "cash_proxy": false,
-            "signal_kind": "breadth",
-            "text": "EXV3 (STOXX Europe 600 Technology) 6.6% \u2192 6.3% of NAV (-0.3pp): breadth 83.0% \u2192 77.4%, rank 2 of 5."
-          },
-          {
-            "sleeve": "D",
-            "etf": "EXV1",
-            "traded": "EXV1",
-            "name": "STOXX Europe 600 Banks",
-            "action": "ADD",
-            "held": 0.07386000000000001,
-            "target": 0.0755728,
-            "delta": 0.0017127999999999866,
-            "signal_now": 0.9254,
-            "signal_prev": 0.9254,
-            "signal_now_fmt": "92.5",
-            "signal_prev_fmt": "92.5",
-            "rank_now": 1,
-            "rank_prev": 1,
-            "n": 5,
-            "cut": null,
-            "cash_proxy": false,
-            "signal_kind": "breadth",
-            "text": "EXV1 (STOXX Europe 600 Banks) 7.4% \u2192 7.6% of NAV (+0.2pp): breadth 92.5% \u2192 92.5%, rank 1 of 5."
-          },
-          {
-            "sleeve": "D",
-            "etf": "EXH1",
-            "traded": "EXH1",
-            "name": "STOXX Europe 600 Oil & Gas",
-            "action": "ADD",
-            "held": 0.059860000000000003,
-            "target": 0.0612506,
-            "delta": 0.0013905999999999988,
-            "signal_now": 0.75,
-            "signal_prev": 0.75,
-            "signal_now_fmt": "75.0",
-            "signal_prev_fmt": "75.0",
-            "rank_now": 3,
-            "rank_prev": 3,
-            "n": 5,
-            "cut": null,
-            "cash_proxy": false,
-            "signal_kind": "breadth",
-            "text": "EXH1 (STOXX Europe 600 Oil & Gas) 6.0% \u2192 6.1% of NAV (+0.1pp): breadth 75.0% \u2192 75.0%, rank 3 of 5."
-          }
-        ]
       }
     ],
-    "holds": [],
+    "holds": [
+      "Sleeve D is held and its book is unchanged: signal reaches 2026-09-04 but the last completed XETR session is 2026-09-07 \u2014 ranking now would use an earlier session."
+    ],
     "notes": [],
     "decision_session": "2026-09-04",
     "fill_by_venue": {
       "NYSE": "2026-09-08",
-      "XETR": "2026-09-07"
+      "XETR": "2026-09-14"
     }
   },
   "week": {
-    "text": "Week Fri 28 Aug 2026 close \u2192 Fri 4 Sep 2026 close: the blend returned +0.56% against SPY +0.12%. By sleeve: Sleeve B +0.30pp (+1.22% at 25% of NAV), EEM tilt +0.23pp (+2.32% at 10% of NAV), Sleeve A +0.17pp (+0.48% at 35% of NAV), Sleeve D +0.05pp (+0.27% at 20% of NAV), Sleeve C -0.20pp (-2.05% at 10% of NAV). Largest contributors: EEM (iShares MSCI Emerging Markets) +0.23pp (+2.3% at 10.0%); EXV1.DE (STOXX Europe 600 Banks) +0.16pp (+2.1% at 7.4%); DBC (Broad Commodities) +0.10pp (+1.9% at 5.4%). Largest detractors: CIBR (First Trust Cybersecurity) -0.11pp (-5.6% at 2.0%); COPX (Global X Copper Miners) -0.05pp (-2.4% at 2.0%); SKYY (First Trust Cloud Computing) -0.04pp (-2.2% at 2.0%). Holding contributions are weight \u00d7 return from each sleeve's own fill close (Fri 28 Aug 2026, Mon 31 Aug 2026) to the Fri 4 Sep 2026 close, 23 of 23 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 47.7% above the 50-day average (-5.8pp on the week).",
-    "headline": "Blend +0.56% \u00b7 SPY +0.12% \u00b7 Fri 28 Aug 2026 \u2192 Fri 4 Sep 2026 close",
+    "text": "Week Fri 28 Aug 2026 close \u2192 Fri 4 Sep 2026 close: the blend returned +0.57% against SPY +0.12%. By sleeve: Sleeve B +0.30pp (+1.22% at 25% of NAV), EEM tilt +0.23pp (+2.32% at 10% of NAV), Sleeve A +0.17pp (+0.48% at 35% of NAV), Sleeve D +0.07pp (+0.33% at 20% of NAV), Sleeve C -0.20pp (-2.05% at 10% of NAV). Largest contributors: EEM (iShares MSCI Emerging Markets) +0.23pp (+2.3% at 10.0%); EXV1.DE (STOXX Europe 600 Banks) +0.16pp (+2.1% at 7.4%); DBC (Broad Commodities) +0.10pp (+1.9% at 5.4%). Largest detractors: CIBR (First Trust Cybersecurity) -0.11pp (-5.6% at 2.0%); COPX (Global X Copper Miners) -0.05pp (-2.4% at 2.0%); SKYY (First Trust Cloud Computing) -0.04pp (-2.2% at 2.0%). Holding contributions are weight \u00d7 return from each sleeve's own fill close (Fri 28 Aug 2026, Mon 31 Aug 2026) to the Fri 4 Sep 2026 close, 23 of 23 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 47.7% above the 50-day average (-5.8pp on the week).",
+    "headline": "Blend +0.57% \u00b7 SPY +0.12% \u00b7 Fri 28 Aug 2026 \u2192 Fri 4 Sep 2026 close",
     "lines": [
       {
         "label": "By sleeve",
-        "text": "B +0.30pp (+1.2% on 25%) \u00b7 EEM tilt +0.23pp (+2.3% on 10%) \u00b7 A +0.17pp (+0.5% on 35%) \u00b7 D +0.05pp (+0.3% on 20%) \u00b7 C -0.20pp (-2.0% on 10%)"
+        "text": "B +0.30pp (+1.2% on 25%) \u00b7 EEM tilt +0.23pp (+2.3% on 10%) \u00b7 A +0.17pp (+0.5% on 35%) \u00b7 D +0.07pp (+0.3% on 20%) \u00b7 C -0.20pp (-2.0% on 10%)"
       },
       {
         "label": "Helped",
@@ -834,7 +697,7 @@
     "basis": "Holding contributions are weight \u00d7 return from each sleeve's own fill close (Fri 28 Aug 2026, Mon 31 Aug 2026) to the Fri 4 Sep 2026 close, 23 of 23 holdings priced from the one-year price panel.",
     "start": "2026-08-28",
     "end": "2026-09-04",
-    "blend_return": 0.005578343291010146,
+    "blend_return": 0.005707733323269348,
     "spy_return": 0.0011698947094762602,
     "holdings": [
       {

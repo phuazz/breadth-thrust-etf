@@ -1,6 +1,6 @@
 {
   "etf": "NDIA",
-  "computed_at_utc": "2026-09-06T06:54:53.848703+00:00",
+  "computed_at_utc": "2026-09-08T06:40:03.806074+00:00",
   "constituents_source": "data\\constituents_ndia.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-05-25",
@@ -26,14 +26,14 @@
     "price_warmup_calendar_days": 180
   },
   "data_quality": {
-    "roster_coverage_latest": 0.9939759036144579,
+    "roster_coverage_latest": 0.9939393939393939,
     "roster_coverage_warn_floor": 0.9,
     "roster_coverage_fail_floor": 0.5,
     "universe_size": 243,
     "tickers_with_any_yf_data": 195,
     "tickers_with_no_yf_data": 48,
     "max_missing_constituent_pct": 0.12658227848101267,
-    "mean_missing_constituent_pct": 0.06801327768842694,
+    "mean_missing_constituent_pct": 0.06801329610905008,
     "first_date_below_10pct_missing": "2019-10-18",
     "note": "48 of 243 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. 1514983D.NS, 1704627D.NS, 1906272D.NS, 1915213D.NS, 1964717D.NS, 2311004D.NS, 2360335D.NS, 2461539D.NS). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -4492,7 +4492,7 @@
       165,
       165,
       165,
-      166
+      165
     ],
     "n_with_price": [
       68,
@@ -6476,7 +6476,7 @@
       164,
       164,
       164,
-      165
+      164
     ],
     "n_with_rsi": [
       68,
@@ -8460,7 +8460,7 @@
       164,
       164,
       164,
-      165
+      164
     ],
     "n_with_ma50": [
       68,
@@ -10444,7 +10444,7 @@
       164,
       164,
       164,
-      165
+      164
     ],
     "n_with_high63": [
       68,
@@ -12428,7 +12428,7 @@
       163,
       163,
       163,
-      164
+      163
     ],
     "rsi_breadth": [
       0.029412,
@@ -14412,7 +14412,7 @@
       0.02439,
       0.012195,
       0.012195,
-      0.012121
+      0.012195
     ],
     "ma_breadth": [
       0.352941,
@@ -16396,7 +16396,7 @@
       0.420732,
       0.420732,
       0.426829,
-      0.418182
+      0.414634
     ],
     "highs_breadth": [
       0.088235,
@@ -18380,7 +18380,7 @@
       0.018405,
       0.01227,
       0.018405,
-      0.006098
+      0.006135
     ],
     "rsi_breadth_z": [
       null,
@@ -20364,7 +20364,7 @@
       -0.613239,
       -0.780395,
       -0.780078,
-      -0.780776
+      -0.779761
     ],
     "ma_breadth_z": [
       null,
@@ -22348,7 +22348,7 @@
       -0.630967,
       -0.630744,
       -0.603068,
-      -0.6418
+      -0.657776
     ],
     "highs_breadth_z": [
       null,
@@ -24332,7 +24332,7 @@
       -0.865262,
       -0.946894,
       -0.864425,
-      -1.028585
+      -1.028085
     ],
     "composite_z": [
       null,
@@ -26316,7 +26316,7 @@
       -0.703156,
       -0.786011,
       -0.74919,
-      -0.817054
+      -0.821874
     ],
     "composite_p90": [
       null,

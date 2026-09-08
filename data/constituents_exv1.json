@@ -2,7 +2,7 @@
   "etf": "EXV1",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251934/ishares-stoxx-europe-600-banks-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-06T06:46:11.659631+00:00",
+  "fetched_at_utc": "2026-09-08T03:30:49.530849+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-09-04",
   "n_target_fridays": 453,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-09-04",
-      "fallback_date": "2026-09-03",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -52,8 +46,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-03",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-09-04",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -23323,7 +23317,7 @@
       ]
     },
     "2026-09-04": {
-      "actual_date": "2026-09-03",
+      "actual_date": "2026-09-04",
       "n_tickers": 57,
       "tickers": [
         "HSBA.L",
@@ -23378,8 +23372,8 @@
         "BGN.MI",
         "KBCA.BR",
         "ING.WA",
-        "CMBN.SW",
         "MIL.WA",
+        "CMBN.SW",
         "TBCG.L",
         "SBNOR.OL",
         "VATN.SW"

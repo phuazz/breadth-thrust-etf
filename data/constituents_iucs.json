@@ -2,7 +2,7 @@
   "etf": "IUCS",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/287102/ishares-s-p-500-consumer-staples-sector-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=IUCS_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-06T06:39:26.646586+00:00",
+  "fetched_at_utc": "2026-09-08T03:19:48.941762+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-09-04",
   "n_target_fridays": 453,
@@ -36,12 +36,6 @@
       "fallback_date": "2024-08-01",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-09-04",
-      "fallback_date": "2026-09-03",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -58,8 +52,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-03",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-09-04",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -18369,7 +18363,7 @@
       ]
     },
     "2026-09-04": {
-      "actual_date": "2026-09-03",
+      "actual_date": "2026-09-04",
       "n_tickers": 34,
       "tickers": [
         "WMT",
@@ -18391,8 +18385,8 @@
         "KR",
         "DG",
         "CASY",
-        "HSY",
         "EL",
+        "HSY",
         "DLTR",
         "CHD",
         "KHC",
