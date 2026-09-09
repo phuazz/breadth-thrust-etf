@@ -34,7 +34,10 @@ from ws6b_shadow import (  # noqa: E402
     check_weight_integrity,
     consecutive_publishable_weeks,
     evaluate_week,
+    rulings,
+    rulings_line,
     shadow_status,
+    strict_snapshot_fallbacks,
     verify_log_chain,
     weekly_gap_from_daily,
 )
@@ -393,3 +396,130 @@ def test_member_fetch_end_threads_to_universe_and_meta(tmp_path, monkeypatch):
     R.load_or_fetch_member_prices(("SOXX",))
     assert seen["window_end"] == R.WINDOW_END
     assert seen["fetch_end"] == R.WINDOW_END.strftime("%Y-%m-%d")
+
+
+# --- SS6 owner rulings (ZH, 2026-09-09) ------------------------------------
+#
+# The three readings SS6 of the pre-shadow review pack left open. These tests
+# pin the rulings themselves, not merely the behaviour they select: a bar that
+# can drift without a test failing is not a bar, and at T4 the question "which
+# reading governed week 3" has to be answerable from the record.
+
+def test_rulings_record_all_three_with_the_ruling_date():
+    r = rulings()
+    assert r["ruled_on"] == "2026-09-09"
+    assert r["ruled_by"] == "ZH"
+    assert r["divergence_bar"] == "registered"
+    assert r["turnover_reading"] == "running_average"
+    assert r["missing_snapshot_semantics"] == "strict"
+
+
+def test_divergence_ruling_selects_the_registered_66bp_bar():
+    # "Keep it loose" — the signed parenthetical governs, not the tighter
+    # adopted-set figure, which stays logged so the ruling can be revisited on
+    # evidence already collected.
+    assert sh.BINDING_DIVERGENCE_BAR == "registered"
+    assert rulings()["divergence_bar_bp"] == pytest.approx(66.0)
+    assert sh.DIVERGENCE_BAR_ADOPTED_SET < sh.DIVERGENCE_BAR_REGISTERED
+
+
+def test_rulings_line_names_every_ruling():
+    line = rulings_line()
+    for token in ("2026-09-09", "SS6.1", "SS6.2", "SS6.3",
+                  "registered", "66.0bp", "running_average", "strict"):
+        assert token in line, f"{token!r} missing from the weekly log line"
+
+
+def test_rulings_are_sealed_into_the_record_hash():
+    # A record that carries its governing rulings outside the hash could be
+    # re-labelled after the fact; inside it, re-labelling breaks the chain.
+    recs = append_week([], _week(rulings=rulings()))
+    ok, _ = verify_log_chain(recs)
+    assert ok
+    tampered = copy.deepcopy(recs)
+    tampered[0]["rulings"]["divergence_bar"] = "adopted_set"
+    ok, detail = verify_log_chain(tampered)
+    assert not ok and "altered" in detail
+
+
+def test_shadow_status_reports_the_rulings_in_force():
+    recs = append_week([], _week(rulings=rulings()))
+    recs[-1]["publishable"] = True
+    st = shadow_status(recs)
+    assert st["rulings_in_force"]["missing_snapshot_semantics"] == "strict"
+    assert len(st["rulings_seen_in_log"]) == 1
+
+
+# --- SS6.3 STRICT missing-snapshot semantics -------------------------------
+
+def _fresh(*lines, d="2026-09-04"):
+    return {L: d for L in lines}
+
+
+def test_strict_passes_when_both_halves_are_one_cadence_old():
+    # The normal W-FRI week: the rebalance is Friday 2026-09-11, the t-1 read is
+    # Thursday 2026-09-10, and the newest usable entry is the previous Friday's.
+    # Six days is the frozen cadence, not staleness.
+    assert strict_snapshot_fallbacks(_fresh("SOXX", "IUES"),
+                                     _fresh("SOXX", "IUES"),
+                                     date(2026, 9, 10)) == []
+
+
+def test_strict_withholds_a_line_whose_membership_missed_a_week():
+    assert strict_snapshot_fallbacks(
+        {"SOXX": "2026-09-04", "IUES": "2026-08-28"},
+        _fresh("SOXX", "IUES"), date(2026, 9, 10)) == ["IUES"]
+
+
+def test_strict_withholds_a_line_whose_WEIGHTS_are_stale_though_membership_is_current():
+    # The 2026-09-09 state exactly, and the reason this ruling is not inert:
+    # membership current to 2026-09-04 on every line, A3 weights stuck at
+    # 2026-07-10. A check on membership alone would have passed all five.
+    assert strict_snapshot_fallbacks(
+        _fresh("IUES", "IUUS", "IUCS", "SOXX", "IUFS"),
+        {"IUES": "2026-07-10", "IUUS": "2026-07-10", "IUCS": "2026-07-10",
+         "SOXX": "2026-07-31", "IUFS": "2026-07-10"},
+        date(2026, 9, 10)) == ["IUCS", "IUES", "IUFS", "IUUS", "SOXX"]
+
+
+def test_strict_withholds_a_line_with_no_usable_entry_at_all():
+    assert strict_snapshot_fallbacks(
+        {"SOXX": "none", "IUES": ""}, _fresh("SOXX", "IUES"),
+        date(2026, 9, 10)) == ["IUES", "SOXX"]
+    # ... and the same on the weights side.
+    assert strict_snapshot_fallbacks(
+        _fresh("SOXX"), {"SOXX": "none"}, date(2026, 9, 10)) == ["SOXX"]
+
+
+def test_strict_boundary_is_exactly_one_cadence():
+    # Seven days passes, eight fires. Pinned because an off-by-one here either
+    # fires every single week (the shadow measures nothing) or never fires (the
+    # ruling has no effect), and neither would be visible in a log.
+    assert strict_snapshot_fallbacks({"SOXX": "2026-09-03"}, {"SOXX": "2026-09-03"},
+                                     date(2026, 9, 10)) == []
+    assert strict_snapshot_fallbacks({"SOXX": "2026-09-02"}, {"SOXX": "2026-09-02"},
+                                     date(2026, 9, 10)) == ["SOXX"]
+
+
+def test_strict_month_boundary():
+    # Month boundary: 2026-08-28 to 2026-09-03 is six days across the turn.
+    assert strict_snapshot_fallbacks({"SOXX": "2026-08-28"}, {"SOXX": "2026-08-28"},
+                                     date(2026, 9, 3)) == []
+    assert strict_snapshot_fallbacks({"SOXX": "2026-08-21"}, {"SOXX": "2026-08-21"},
+                                     date(2026, 9, 3)) == ["SOXX"]
+
+
+def test_strict_year_boundary():
+    # Year boundary: 2026-12-31 to 2027-01-06 is six days across the turn.
+    assert strict_snapshot_fallbacks({"SOXX": "2026-12-31"}, {"SOXX": "2026-12-31"},
+                                     date(2027, 1, 6)) == []
+    assert strict_snapshot_fallbacks({"SOXX": "2026-12-24"}, {"SOXX": "2026-12-24"},
+                                     date(2027, 1, 6)) == ["SOXX"]
+
+
+def test_carry_forward_reading_disables_the_check(monkeypatch):
+    # The softer reading the engine had before the ruling. Kept reachable so a
+    # later owner can reverse SS6.3 without a code change disguised as a fix.
+    monkeypatch.setattr(sh, "MISSING_SNAPSHOT_SEMANTICS", "carry_forward")
+    assert strict_snapshot_fallbacks({"SOXX": "2026-06-05"}, {"SOXX": "2026-06-05"},
+                                     date(2026, 9, 10)) == []

@@ -22,7 +22,7 @@ import hashlib
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -49,7 +49,10 @@ from ws6b_shadow import (  # noqa: E402
     ShadowWeek,
     append_week,
     evaluate_week,
+    rulings,
+    rulings_line,
     shadow_status,
+    strict_snapshot_fallbacks,
     verify_log_chain,
     weekly_gap_from_daily,
 )
@@ -71,10 +74,55 @@ def _params_sha() -> str:
     return hashlib.sha256(PARAMS_PATH.read_bytes()).hexdigest()[:16]
 
 
+# Arming facts, for the log header's week arithmetic. Both dates are asserted
+# against a date library below rather than trusted — a mis-stated weekday here
+# would mis-date the whole 8-week count and nothing downstream would catch it.
+MANUAL_FIRE_DATE = date(2026, 9, 9)          # Wednesday, the first-run-clean fire
+FIRST_SCHEDULED_FIRE = date(2026, 9, 12)     # Saturday 17:30 SGT, armed 2026-09-09
+NORGATE_SOAK_CLOSE = date(2026, 8, 7)        # registration bar (d)
+
+
 def load_log() -> list[dict]:
     if not LOG_PATH.exists():
         return []
     return json.loads(LOG_PATH.read_text(encoding="utf-8"))["weeks"]
+
+
+def schedule_header(weeks: list[dict]) -> dict:
+    """Week numbering against bar (b), computed rather than asserted.
+
+    Bar (b) wants 8 CONSECUTIVE publishable weeks, so the count is anchored on
+    the first week actually in the log; a run that later breaks and restarts
+    moves the finish line, which ``--status`` reports and this header does not
+    pretend to predict. Weekdays are asserted, not remembered: Python's
+    ``weekday()`` is Monday=0, so Friday is 4 and Saturday is 5.
+    """
+    assert MANUAL_FIRE_DATE.weekday() == 2, "manual fire is a Wednesday"
+    assert FIRST_SCHEDULED_FIRE.weekday() == 5, "scheduled fire is a Saturday"
+    hdr = {
+        "manual_first_fire": (f"{MANUAL_FIRE_DATE.isoformat()} "
+                              f"({MANUAL_FIRE_DATE:%A}) — first-run-clean"),
+        "first_scheduled_fire": (f"{FIRST_SCHEDULED_FIRE.isoformat()} "
+                                 f"({FIRST_SCHEDULED_FIRE:%A}) 17:30 SGT"),
+        "required_consecutive_weeks": 8,
+        "bar_d_earliest": (f"{NORGATE_SOAK_CLOSE.isoformat()} Norgate soak "
+                           "close — passed"),
+    }
+    if not weeks:
+        hdr["week_1_ending"] = "not yet published"
+        return hdr
+    w1 = date.fromisoformat(weeks[0]["week_ending"])
+    w8 = w1 + timedelta(weeks=7)
+    # Week 8's Friday is published by the Saturday fire the day after it.
+    verdict = w8 + timedelta(days=1)
+    assert w1.weekday() == 4, "shadow weeks end on a Friday (W-FRI, frozen)"
+    hdr["week_1_ending"] = f"{w1.isoformat()} ({w1:%A})"
+    hdr["week_8_ending"] = f"{w8.isoformat()} ({w8:%A})"
+    hdr["earliest_verdict_date"] = (
+        f"{max(verdict, NORGATE_SOAK_CLOSE).isoformat()} ({verdict:%A}) — the "
+        "fire that publishes week 8, assuming no week is refused; every "
+        "refused week resets the run and moves this out")
+    return hdr
 
 
 def save_log(weeks: list[dict]) -> None:
@@ -84,8 +132,21 @@ def save_log(weeks: list[dict]) -> None:
                      "record seals its predecessor, so an altered or reordered "
                      "week is detected rather than silently counted toward "
                      "bar (b). Never hand-edit."),
+         "_rulings_in_force": rulings(),
+         "_schedule": schedule_header(weeks),
          "updated_utc": datetime.now(timezone.utc).isoformat(),
          "weeks": weeks}, indent=2), encoding="utf-8")
+
+
+def _snapshot_at(snapshots: dict, t_minus_1) -> str:
+    """The newest membership snapshot a t-1 read may consume, or ``"none"``.
+
+    Snapshot keys are the requested week-ending dates the deployed fetcher uses,
+    which is the same key the arm builder consumes, so the two cannot disagree.
+    """
+    cut = t_minus_1.isoformat()
+    usable = [d for d in snapshots if str(d) <= cut]
+    return str(max(usable)) if usable else "none"
 
 
 def compute_week(window_end: pd.Timestamp) -> dict:
@@ -132,11 +193,33 @@ def compute_week(window_end: pd.Timestamp) -> dict:
                 sector["eligible"], membership, signals, prices_by_line,
                 member_resolution=resolution, member_weights=weights)
 
-    e0, i0 = _build(None), _build(PARTIAL_5)
+    week_ending = rebal[-1]
+    # SS6.3 STRICT (ZH, 2026-09-09). The snapshot a t-1 read actually consumes
+    # is the newest one dated on or before the session BEFORE the rebalance —
+    # not the newest one in the series. By the Saturday this week is computed
+    # the current Friday's snapshot usually exists, so reporting max(snapshots)
+    # would overstate freshness by exactly the week being measured, and under
+    # an iShares outage it would hide the carry-forward entirely.
+    prior_sessions = closes.index[closes.index < week_ending]
+    t_minus_1 = (prior_sessions[-1] if len(prior_sessions) else week_ending).date()
+    snapshot_used = {L: _snapshot_at(membership[L], t_minus_1) for L in PARTIAL_5}
+    # Both halves, per the registration's "missing snapshot OR WEIGHTS" clause.
+    # They come from different fetch routes and fail independently: membership
+    # through the JSON product-data API, weights through the CSV holdings
+    # endpoint. As at 2026-09-09 the second is walled and the first is not.
+    weights_used = {L: _snapshot_at(weights[L], t_minus_1) for L in PARTIAL_5}
+    stale_lines = strict_snapshot_fallbacks(snapshot_used, weights_used,
+                                            t_minus_1)
+    # A stale line is dropped from the week's adopted set, which is how the
+    # registered fallback is actually EFFECTED rather than merely labelled: a
+    # line outside the restriction stays as its ETF, so the logged reversion and
+    # the computed return say the same thing.
+    adopted_this_week = tuple(L for L in PARTIAL_5 if L not in stale_lines)
+
+    e0, i0 = _build(None), _build(adopted_this_week)
     e0_daily = simulate_arm(e0.name_weights, returns, 0.0)["daily"]
     i0_daily = simulate_arm(i0.name_weights, returns, 0.0)["daily"]
 
-    week_ending = rebal[-1]
     i0_r, e0_r, gap = weekly_gap_from_daily(i0_daily, e0_daily, week_ending)
 
     led = trade_ledger(i0.name_weights, rebal)
@@ -145,7 +228,7 @@ def compute_week(window_end: pd.Timestamp) -> dict:
     row = sector["weights"].loc[week_ending]
     held = [L for L in row.index if float(row.get(L, 0)) > 0]
     line_w = {L: float(row[L]) for L in held}
-    basketed_eligible = [L for L in PARTIAL_5 if L in held]
+    basketed_eligible = [L for L in adopted_this_week if L in held]
 
     # Reconstruct each basketed line's within-line weights for the guard, via
     # that line's ISOLATED book. Exact, and it handles a name held by two lines
@@ -169,7 +252,13 @@ def compute_week(window_end: pd.Timestamp) -> dict:
     # cumulative-counter test missed a week where EVERY line reverted, so the
     # weight-integrity guard fired on empty baskets instead of the fallback
     # being reported as the resolved, logged outcome it is registered to be.
-    fallbacks = [L for L in basketed_eligible if not baskets[L]]
+    # Two ways a held line can end the week on the ETF: the builder reverted it
+    # (empty reconstructed basket), or the SS6.3 STRICT ruling withheld it for a
+    # stale snapshot. Both are the same registered valve and are logged as one
+    # list, because the verdict cares how many line-weeks ran on the valve, not
+    # which of the two reasons put them there.
+    fallbacks = sorted({L for L in basketed_eligible if not baskets[L]}
+                       | {L for L in stale_lines if L in held})
     baskets = {L: w for L, w in baskets.items() if w}
     basketed = [L for L in basketed_eligible if L in baskets]
 
@@ -184,13 +273,21 @@ def compute_week(window_end: pd.Timestamp) -> dict:
             lines_held=held, lines_basketed=basketed,
             fallback_lines=fallbacks, unresolved_gaps=unresolved,
             corporate_actions=[],
-            snapshot_dates={L: (str(max(membership[L])) if membership[L]
-                                else "none") for L in basketed_eligible},
+            # Every adopted line, held or not, and the snapshot the t-1 read
+            # would consume — not the newest in the series. Recorded for all
+            # five because basketed_eligible now EXCLUDES the stale lines, and
+            # those are precisely the rows a later reader needs to see.
+            snapshot_dates={L: snapshot_used[L] for L in PARTIAL_5},
+            weights_dates={L: weights_used[L] for L in PARTIAL_5},
             data_asof=str(closes.index.max().date()),
-            engine_commit=_engine_commit(), params_sha=_params_sha()),
+            engine_commit=_engine_commit(), params_sha=_params_sha(),
+            rulings=rulings()),
         "line_weights": line_w,
         "basket_weights": baskets,
         "e0_total_weight": float(row.sum()),
+        "t_minus_1": str(t_minus_1),
+        "stale_snapshot_lines": stale_lines,
+        "adopted_this_week": list(adopted_this_week),
     }
 
 
@@ -233,9 +330,22 @@ def main() -> int:
         built["e0_total_weight"],
         [r["turnover_i0"] for r in weeks if r.get("publishable")])
 
-    print(f"\nweek ending {week.week_ending} | I0 {week.i0_return:+.4%} "
-          f"E0 {week.e0_return:+.4%} | gap {week.gap*1e4:+.1f}bp | "
-          f"turnover {week.turnover_i0:.4f}")
+    # The rulings print on every run, above the numbers they govern. SS6 left
+    # three readings open; a log line that does not name the one applied cannot
+    # be audited at T4 by anyone who was not in the room when it was ruled.
+    print(f"\n{rulings_line()}")
+    print(f"week ending {week.week_ending} (t-1 read {built['t_minus_1']}) | "
+          f"I0 {week.i0_return:+.4%} E0 {week.e0_return:+.4%} | "
+          f"gap {week.gap*1e4:+.1f}bp | turnover {week.turnover_i0:.4f}")
+    stale = built["stale_snapshot_lines"]
+    print(f"  SS6.3 STRICT: adopted this week {built['adopted_this_week']}"
+          f" | withheld as stale: {stale or 'none'}")
+    # Membership and weights printed SEPARATELY. They fail independently, and a
+    # single as-of line would have concealed the state this shadow was armed in.
+    for L in sorted(week.snapshot_dates):
+        mark = " <-- WITHHELD" if L in stale else ""
+        print(f"    {L:6} membership {week.snapshot_dates[L]:>10} | "
+              f"weights {week.weights_dates.get(L, 'none'):>10}{mark}")
     for name, c in guard.checks.items():
         if name == "divergence_detail":
             continue

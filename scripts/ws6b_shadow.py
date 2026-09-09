@@ -24,16 +24,61 @@ TWO PROBLEMS WITH THE SIGNED BARS, SURFACED NOT SILENTLY RESOLVED
    gate nothing ever trips is not a test. Both thresholds are evaluated and
    logged every week; ``BINDING_DIVERGENCE_BAR`` records which one governs, and
    it is a ZH ruling because the document is binding, not a modelling choice.
+   RULED 2026-09-09 — see OWNER RULINGS below.
 
 2. **The turnover bar breaks under a per-week reading.** "Realised shadow
    turnover <= 1.5x the backtest average" exceeds its bar in 15.2% of backtest
    weeks if applied week by week, so a per-week reading would fail the shadow
    routinely on entirely normal behaviour. It is therefore evaluated on the
    RUNNING AVERAGE across shadow weeks, which is the only reading under which
-   the bar discriminates. Stated here rather than buried.
+   the bar discriminates. Stated here rather than buried. RULED 2026-09-09.
 
 All constants below are frozen from the T1 mechanics and must not be re-derived
 from shadow data — a bar that moves with the evidence it judges is not a bar.
+
+--------------------------------------------------------------------------
+OWNER RULINGS (ZH, 2026-09-09) — SS6 of the pre-shadow review pack
+--------------------------------------------------------------------------
+``reviews/2026-08-05_ws6b_pre-shadow-review.md`` SS6 put three readings to the
+owner and held the publisher at its defaults until they were ruled. They are
+recorded here, not only in the review document, because a bar that lives only in
+a review document is not a bar this publisher can be held to. Each ruling is
+sealed into every weekly record and printed in the weekly log line, so a later
+reader sees which reading governed THAT week rather than which reading governs
+on the day they happen to read the log.
+
+- **SS6.1 divergence bar: REGISTERED, 66 bp.** The owner ruled to keep it loose,
+  leaving the signed parenthetical untouched. The stricter 43 bp adopted-set
+  figure is computed and logged every week regardless, so the ruling can be
+  revisited on evidence already collected without re-running a single week.
+- **SS6.2 turnover: RUNNING AVERAGE.** Confirmed as proposed. No behaviour
+  change — ``check_turnover`` already read it this way.
+- **SS6.3 missing-snapshot semantics: STRICT.** A line whose usable membership
+  snapshot OR A3 weight table is staler than one snapshot cadence at the week's
+  t-1 read reverts to its ETF for the week and is logged as the registered
+  fallback, rather than silently running on a carried-forward snapshot. This is
+  the literal reading of the registration's frozen fallback clause ("any
+  line-week with a missing snapshot or weights ... reverts that line to its ETF
+  for the week, logged"); the engine's prior live behaviour was the softer t-1
+  carry-forward. Under STRICT a persistent iShares outage produces visible valve
+  weeks instead of an invisible drift onto month-old membership.
+
+  READ THIS BEFORE THE T4 VERDICT. As at 2026-09-09 the weight route is the
+  binding half and it is BROKEN: membership is current to 2026-09-04 on all five
+  adopted lines, while the A3 weight tables stop at 2026-07-10 (IUES, IUUS,
+  IUCS, IUFS) and 2026-07-31 (SOXX). STRICT therefore reverts every adopted line
+  every week, I0 equals E0 exactly, and the shadow measures NOTHING until the
+  weight route is repaired. That is the honest state of the world and it is
+  logged as such — it is not a reason to loosen the ruling. Cause, diagnosed
+  2026-09-09: fetch_ws6_weights reaches the weight column only through the CSV
+  holdings endpoint, which now returns anti-bot HTML for UCITS AND US lines
+  alike (probed live: IUES and SOXX both, 2026-09-04), while the deployed
+  membership pipeline long since migrated to the JSON product-data API. The
+  cached JSON payloads DO carry holdingPercent, so this is a repairable
+  plumbing defect rather than a dead source — but reproducing the frozen
+  ``true_weight_a3`` basis from a second payload format has to be PROVED against
+  the CSV-derived weights on the overlapping history, not assumed, and that is
+  its own piece of work.
 """
 
 from __future__ import annotations
@@ -50,9 +95,94 @@ BACKTEST_WEEKLY_TE_PARTIAL5 = 0.001430      # 14.3 bp
 BACKTEST_WEEKLY_TE_FULL11 = 0.002219        # 22.2 bp, the source of "approx 66 bp"
 DIVERGENCE_BAR_REGISTERED = 0.0066          # the kickoff's parenthetical
 DIVERGENCE_BAR_ADOPTED_SET = 3 * BACKTEST_WEEKLY_TE_PARTIAL5   # 42.9 bp
-# Which bar governs the verdict. "registered" until ZH rules otherwise; the
-# stricter figure is logged either way so no shadow week has to be re-run.
+# Which bar governs the verdict. RULED "registered" (66 bp) by ZH on 2026-09-09;
+# the stricter figure is logged either way so no shadow week has to be re-run if
+# the ruling is ever revisited.
 BINDING_DIVERGENCE_BAR = "registered"
+
+# --- Owner rulings, SS6 of the pre-shadow review pack ----------------------
+OWNER_RULING_DATE = "2026-09-09"
+# SS6.2: the turnover bar is read on the running average across shadow weeks,
+# not week by week. Confirmed as proposed; check_turnover already read it so.
+TURNOVER_READING = "running_average"
+# SS6.3: STRICT. A usable snapshot staler than one cadence at t-1 fires the
+# registered fallback for that line. "carry_forward" restores the prior softer
+# behaviour; nothing else in this module reads any other value.
+MISSING_SNAPSHOT_SEMANTICS = "strict"
+# The membership series' own cadence, not a tuned knob: fetch_constituents takes
+# one snapshot per week on the last business day, so the newest snapshot a t-1
+# read can legitimately see is up to one week old. A gap wider than that means a
+# snapshot is missing, which is what the registration's fallback clause covers.
+SNAPSHOT_CADENCE_DAYS = 7
+
+
+def rulings() -> dict:
+    """The SS6 rulings in force, sealed into every weekly record.
+
+    Returned as data rather than read from the constants at report time so that
+    a record published under one ruling still says so after the ruling changes.
+    """
+    return {
+        "ruled_on": OWNER_RULING_DATE,
+        "ruled_by": "ZH",
+        "divergence_bar": BINDING_DIVERGENCE_BAR,
+        "divergence_bar_bp": round(
+            (DIVERGENCE_BAR_REGISTERED if BINDING_DIVERGENCE_BAR == "registered"
+             else DIVERGENCE_BAR_ADOPTED_SET) * 1e4, 1),
+        "turnover_reading": TURNOVER_READING,
+        "missing_snapshot_semantics": MISSING_SNAPSHOT_SEMANTICS,
+    }
+
+
+def rulings_line(r: dict | None = None) -> str:
+    """One line naming every governing ruling, for the weekly log line.
+
+    The whole point of SS6 was that three readings were open; a log that does
+    not say which one was applied cannot be audited at T4 by anyone who was not
+    in the room on 2026-09-09.
+    """
+    r = r or rulings()
+    return (f"rulings (ZH {r['ruled_on']}): "
+            f"SS6.1 divergence bar {r['divergence_bar']} "
+            f"({r['divergence_bar_bp']}bp) | "
+            f"SS6.2 turnover {r['turnover_reading']} | "
+            f"SS6.3 missing snapshot {r['missing_snapshot_semantics']}")
+
+
+def _stale(used: str | None, t_minus_1: date) -> bool:
+    if not used or used == "none":
+        return True
+    return (t_minus_1 - date.fromisoformat(used)).days > SNAPSHOT_CADENCE_DAYS
+
+
+def strict_snapshot_fallbacks(snapshot_used: dict[str, str],
+                              weights_used: dict[str, str],
+                              t_minus_1: date) -> list[str]:
+    """Lines the SS6.3 STRICT ruling reverts to their ETF this week.
+
+    BOTH HALVES, because the registration's frozen fallback clause is "any
+    line-week with a missing snapshot OR WEIGHTS ... reverts that line to its
+    ETF for the week". A line needs a current membership snapshot and a current
+    A3 weight table to be expressed as a basket, and the two come from different
+    fetch routes that fail independently — as of 2026-09-09 the membership route
+    is current to 2026-09-04 on every adopted line while the weight route is
+    stuck at 2026-07-10 on four of the five. Checking only membership would
+    leave this ruling inert in precisely the state it was written for.
+
+    Each mapping gives the value the t-1 read would actually CONSUME — the
+    newest entry dated on or before ``t_minus_1``, NOT the newest in the series.
+    The distinction is the whole check: by the Saturday a shadow week is
+    computed the current Friday's snapshot usually exists, and reporting that
+    one would overstate freshness by exactly the week being measured.
+
+    A line with no usable entry at all reverts, which is the registration's
+    "missing" case read literally.
+    """
+    if MISSING_SNAPSHOT_SEMANTICS != "strict":
+        return []
+    return sorted(line for line in snapshot_used
+                  if _stale(snapshot_used.get(line), t_minus_1)
+                  or _stale(weights_used.get(line), t_minus_1))
 
 BACKTEST_MEAN_WEEKLY_TURNOVER = 0.3391
 TURNOVER_BAR_MULTIPLE = 1.5
@@ -81,10 +211,19 @@ class ShadowWeek:
     fallback_lines: list[str]        # fired fallback = RESOLVED, not a gap
     unresolved_gaps: list[str]       # anything the resolver could not settle
     corporate_actions: list[str]     # logged explanations for a wide gap
-    snapshot_dates: dict             # per line, the membership snapshot used
+    snapshot_dates: dict             # per line, the membership snapshot USED at t-1
     data_asof: str                   # last session the price data reaches
     engine_commit: str
     params_sha: str
+    # Per line, the A3 weight table USED at t-1. Separate from snapshot_dates
+    # because the two come from different fetch routes and fail independently;
+    # a single "as of" would have hidden the 2026-09-09 state, in which
+    # membership was current and every weight table two months stale.
+    weights_dates: dict = field(default_factory=dict)
+    # The SS6 rulings in force when this week was published. Inside the hashed
+    # payload deliberately: at T4 the question "which reading governed week 3"
+    # must be answerable from the record itself, and tamper-evidently.
+    rulings: dict = field(default_factory=dict)
     prev_hash: str = ""
     record_hash: str = ""
 
@@ -311,6 +450,11 @@ def shadow_status(records: list[dict]) -> dict:
         "turnover_bar": TURNOVER_BAR,
         "max_abs_gap_bp": (max(gaps) * 1e4 if gaps else None),
         "binding_divergence_bar": BINDING_DIVERGENCE_BAR,
+        "rulings_in_force": rulings(),
+        # Rulings are sealed per record, so a status read across a ruling change
+        # would otherwise average two different regimes without saying so.
+        "rulings_seen_in_log": sorted(
+            {json.dumps(r.get("rulings", {}), sort_keys=True) for r in records}),
         # Bar (b) can be met with excused wide weeks inside the run. Count them
         # so the T4 verdict sees a book that tracked, not one that was
         # explained. Also count against the stricter adopted-set bar, so the

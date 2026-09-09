@@ -261,7 +261,95 @@ executed (destructive; needs individual approval).
 - [ ] NAV band supplied at T1-start (optional input, item 5 default stands)
 - [ ] §8 §5b amendment question noted (decision separate from this stop)
 
-**Outcome:** PROCEED TO SHADOW / FIX AND RE-PRESENT / KEEP-ETF
+**Outcome:** PROCEED TO SHADOW / ~~FIX AND RE-PRESENT~~ / ~~KEEP-ETF~~
+
+## 11. Sign-off recorded (ZH, 2026-09-09)
+
+*Recorded seven weeks after the stop was drafted; the shadow was never armed on
+2026-08-06 and the registration went quiet in the interval because it carried no
+line in `C:\dev\NEXT.md`. That line now exists.*
+
+☑ **§6.1 divergence bar — REGISTERED, 66 bp.** "Keep it loose": the signed
+parenthetical governs. The stricter 43 bp adopted-set figure is computed and
+logged every week regardless, so the ruling can be revisited at T4 on evidence
+already collected without re-running a week.
+☑ **§6.2 turnover — RUNNING AVERAGE.** Confirmed as proposed. No behaviour
+change; `check_turnover` already read it this way.
+☑ **§6.3 missing-snapshot semantics — STRICT.** A line whose usable membership
+snapshot **or A3 weight table** at the week's t−1 read is staler than one
+snapshot cadence reverts to its ETF and is logged as the registered fallback,
+rather than running on a carried-forward snapshot. Both halves, per the frozen
+fallback clause's "a missing snapshot **or weights**" — and it is the weights
+half that binds today (see §5 below). Implemented by dropping the line from the
+week's adopted set, so the logged reversion and the computed return say the same
+thing, and every week records both dates per line rather than one pooled as-of.
+☑ **§7 arming approved**, with the schedule corrected — see below.
+
+All three are recorded in `scripts/ws6b_shadow.py` (`rulings()`), sealed into
+every weekly record's hash, and printed in the weekly log line, so a later
+reader can see which reading governed the week in front of them.
+
+**Not ruled on this date, and still open:** §2 (T1 model / floors / NAV
+bracketing), §3 (ops budget accepted — measured time governs bar (c)), the
+optional NAV band, and the §8 / §5b venue-switch amendment question. The shadow
+does not depend on any of them; the T4 verdict does.
+
+**§7 schedule corrected before arming.** §7 assumed a 06:00 SGT weekend cache
+refresh. That schedule no longer exists: since the WS18 cadence change the
+weekend refresh is `BreadthThrust-WeeklyRefresh` at **09:00 SGT on Saturday and
+Sunday**, repeating hourly for six hours, so the staged 08:30 Saturday shadow
+would have run before its own inputs and been refused every week. Armed instead
+as `BreadthThrust-WS6bShadow`, **Saturday 17:30 SGT**, which clears the last
+hourly retry (15:00) plus the longest observed refresh run (92 minutes,
+2026-09-09). Chaining off the refresh task's completion was considered and
+rejected: the Task Scheduler operational log is disabled on this machine, so an
+event-102 trigger would never fire, and a second action on the refresh task
+would fire on every hourly retry. Reasoning in full in
+`scripts/run_ws6b_shadow.bat`. Fleet row `breadth-etf WS6b shadow` added to
+`C:\dev\scripts\fleet_watch.json` per the unattended-agent rule.
+
+**§5 live-data facts, re-measured 2026-09-09 — the wall PERSISTS, and it is now
+wider than §5 found it. This is the one thing to read before T4.**
+
+The two halves a basketed line needs come from different fetch routes, and they
+must not be pooled:
+
+| | route | state at 2026-09-09 |
+|---|---|---|
+| **Membership** | JSON product-data API (`parse_holdings_json`) | **CURRENT.** All five lines carry genuine weekly snapshots through 2026-09-04, 453 each, zero carry-forwards and zero walkbacks (IUES 21 names, IUUS 31, IUCS 34, SOXX 30, IUFS 76). |
+| **A3 weights** | CSV holdings endpoint (`fetch_ws6_weights`) | **WALLED.** IUES, IUUS, IUCS and IUFS stop at **2026-07-10**; SOXX at **2026-07-31**. |
+
+IUES was re-attempted end to end on 2026-09-09 (weights table regenerated
+15:03 UTC): 442 snapshots from cache, **0 from network**, and all eight requests
+from 2026-07-17 to 2026-09-04 failed. Probed live the same evening, the CSV
+endpoint returns anti-bot HTML for **IUES and SOXX alike** — so unlike §5, the
+wall is no longer confined to the four UCITS lines, and the US line is behind it
+too.
+
+**The consequence, stated plainly because it was asked for from week one, not
+week eight: under §6.3 STRICT every adopted line reverts to its ETF every week.
+I0 equals E0 exactly, the gap is 0.0 bp, and the shadow measures nothing until
+the weight route is repaired.** Note the shape of the trap: such a week is
+*publishable* — a fired fallback is registered as resolved, not a gap — so eight
+of them would satisfy bar (b) on a book that never once traded as a basket.
+Bar (b) should not be read as met on a run of total-reversion weeks.
+
+**It is repairable, and cheaply.** The cached JSON payloads the deployed
+pipeline already writes to `data/raw_ishares/` carry `holdingPercent` beside
+`ticker` (verified on `IUES_20260904.json`: 28 rows, `asOfDate` echoing
+20260904, first weights 28.48 / 16.83 / 7.05). `parse_holdings_json` simply does
+not map that column, because membership never needed it. So the weights are on
+disk and only the parser is missing. **Not attempted in this session, and
+deliberately:** reproducing the frozen `true_weight_a3` basis from a second
+payload format must be PROVED against the CSV-derived weights on the overlapping
+history — 10,473 cached CSVs give a large parity sample — and an unproved second
+source inside a binding register is exactly the silent-construction-change this
+registration exists to prevent. It is queued in `C:\dev\NEXT.md` as the one item
+blocking the register.
+
+**§7 data-freshness dependency, re-measured 2026-09-09 — cleared.** The 2026-07-21
+sector-cache ceiling §7 warned about is gone. All five adopted lines' breadth
+panels end 2026-09-08 with `tail_cap` null, rebuilt 2026-09-09 07:1x UTC.
 
 ---
 *Registration: KICKOFF_ws6b-unscreened-replication.md. Evidence:
