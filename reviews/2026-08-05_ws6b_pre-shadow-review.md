@@ -317,7 +317,18 @@ must not be pooled:
 | | route | state at 2026-09-09 |
 |---|---|---|
 | **Membership** | JSON product-data API (`parse_holdings_json`) | **CURRENT.** All five lines carry genuine weekly snapshots through 2026-09-04, 453 each, zero carry-forwards and zero walkbacks (IUES 21 names, IUUS 31, IUCS 34, SOXX 30, IUFS 76). |
-| **A3 weights** | CSV holdings endpoint (`fetch_ws6_weights`) | **WALLED.** IUES, IUUS, IUCS and IUFS stop at **2026-07-10**; SOXX at **2026-07-31**. |
+| **A3 weights** | CSV holdings endpoint (`fetch_ws6_weights`) | **WALLED.** IUES, IUUS, IUCS and IUFS stop at **2026-07-10**; SOXX at **2026-05-08**. |
+
+*The SOXX figure is what the first fire measured, and it is worse than the
+2026-07-31 this section first recorded. `build_line` rebuilds a line's weight
+table from whatever raw bodies it can parse at run time, and SOXX's cached CSVs
+end 2026-05-08 — every later date exists only as a JSON payload, which this
+builder cannot read. So the table moved BACKWARDS when the shadow ran, from
+2026-07-31 to 2026-05-08, and `data_local/` is not under version control. No
+information was lost (the JSON payloads hold it), and the fall is bounded by
+where each line's CSV cache ends rather than ongoing. It nonetheless argues for
+the same guard the price caches already carry — `9c7efee`, no writer may shrink
+an OHLC cache — applied to the weight tables.*
 
 IUES was re-attempted end to end on 2026-09-09 (weights table regenerated
 15:03 UTC): 442 snapshots from cache, **0 from network**, and all eight requests
@@ -333,6 +344,18 @@ the weight route is repaired.** Note the shape of the trap: such a week is
 *publishable* — a fired fallback is registered as resolved, not a gap — so eight
 of them would satisfy bar (b) on a book that never once traded as a basket.
 Bar (b) should not be read as met on a run of total-reversion weeks.
+
+**First fire, 2026-09-09 — the prediction above, confirmed on the first week.**
+Week ending 2026-09-04, t−1 read 2026-09-03. All five adopted lines withheld on
+a stale weight table; three of them (IUCS, IUES, IUFS) were held by the sector
+layer that week and are logged as fallbacks. Membership read 2026-08-28 on every
+line — six days old, inside cadence, and *not* the withholding cause; note it is
+NOT the 2026-09-04 snapshot that exists on disk, because a t−1 read cannot see
+it, which is precisely the freshness overstatement the logging fix removed.
+Result: **I0 +0.7166%, E0 +0.7166%, gap +0.0 bp, turnover 0.3234, PUBLISHABLE
+True, consecutive 1 of 8.** A week that measured nothing and counts anyway —
+`shadow_status` now reports `weeks_fully_reverted: 1` beside it. Log written and
+hash-chained (one record, chain intact); working tree untouched.
 
 **It is repairable, and cheaply.** The cached JSON payloads the deployed
 pipeline already writes to `data/raw_ishares/` carry `holdingPercent` beside
