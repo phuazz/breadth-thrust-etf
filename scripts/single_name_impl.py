@@ -1101,13 +1101,28 @@ def _add(row: dict, name: str, w: float) -> None:
     row[name] = row.get(name, 0.0) + w
 
 
+def _default_basket_fn(spec: ArmSpec, eff_date, snapshots, prices, sig, *,
+                       resolution=None, weights=None, line=None,
+                       rebal_date=None) -> BasketResult:
+    """The register's own selection, adapted to the ``basket_fn`` signature.
+
+    ``line`` and ``rebal_date`` are passed by the builder so an injected
+    selection function can key its diagnostics by line-week; the register's own
+    selection does not read them. Defaulting to this keeps every existing call
+    site byte-identical."""
+    del line, rebal_date
+    return select_basket(spec, eff_date, snapshots, prices, sig,
+                         resolution=resolution, weights=weights)
+
+
 def build_arm_name_weights(spec: ArmSpec, sector_weights: pd.DataFrame,
                            closes: pd.DataFrame, rebal_dates: pd.DatetimeIndex,
                            eligible: pd.Timestamp,
                            membership: dict, member_signals: dict,
                            member_prices: dict,
                            member_resolution: dict | None = None,
-                           member_weights: dict | None = None) -> ArmBuild:
+                           member_weights: dict | None = None,
+                           basket_fn=None) -> ArmBuild:
     """Distribute the shared per-line book into a daily name-level weight panel.
 
     ``sector_weights`` is the deployed E0 weight panel (columns = the 14 lines,
@@ -1130,7 +1145,17 @@ def build_arm_name_weights(spec: ArmSpec, sector_weights: pd.DataFrame,
     case, counted in ``weight_ew_weeks``). All are dependency-injected so the
     selftests can drive the builder on synthetic panels and T3 on the Norgate
     caches.
+
+    ``basket_fn`` overrides how one line-week's basket is selected, defaulting to
+    the register's own ``select_basket``. It exists so an OBSERVATIONAL arm
+    outside the WS6 register — WS6c's screened arm I1X — can be built through
+    this same builder without editing ``select_basket`` or adding a spec to the
+    frozen arm register. It is called with ``select_basket``'s signature plus
+    keyword ``line`` and ``rebal_date``, so an injected selection can key its own
+    diagnostics by line-week. The default preserves every existing arm's panel
+    exactly; that identity is pinned by test.
     """
+    basket_fn = basket_fn or _default_basket_fn
     lines = list(sector_weights.columns)
     fallback_weeks = {L: 0 for L in SINGLE_NAMED_LINES if L in lines}
     basket_sizes: dict[str, list[int]] = {L: [] for L in fallback_weeks}
@@ -1158,9 +1183,10 @@ def build_arm_name_weights(spec: ArmSpec, sector_weights: pd.DataFrame,
             weeks_evaluated[L] += 1
             resolution = (member_resolution or {}).get(L)
             line_weights = (member_weights or {}).get(L)
-            basket = select_basket(spec, eff_date, membership[L],
-                                   member_prices[L], member_signals[L],
-                                   resolution=resolution, weights=line_weights)
+            basket = basket_fn(spec, eff_date, membership[L],
+                               member_prices[L], member_signals[L],
+                               resolution=resolution, weights=line_weights,
+                               line=L, rebal_date=rd)
             uncovered_seen[L].update(basket.uncovered)
             missing_seen[L].update(basket.missing_price)
             if basket.fallback:

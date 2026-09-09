@@ -58,3 +58,13 @@ rem working one - observed on the 2026-09-09 first-run-clean fire, which showed
 rem nothing for twenty minutes while it was in fact progressing normally.
 set BTE_PRICE_SOURCE=norgate
 C:\Users\phuaz\AppData\Local\Python\pythoncore-3.14-64\python.exe -u scripts\run_ws6b_shadow.py >> data_local\ws6b\shadow_task.log 2>&1
+rem
+rem WS6c screened arm (I1X), chained after the WS6b publisher in the SAME
+rem environment, per KICKOFF_ws6c-screened-arm.md SS7 (frozen at vault-docs
+rem cc84122). Observational and zero-touch: it reads the WS6b week just
+rem published, recomputes E0/I0/I1X for that week from the same inputs, and
+rem writes ONLY data_local\ws6c\. It never touches the WS6b log, and adding this
+rem step is not a change to the WS6b registration. -u for the reason above: this
+rem log is the only record of an unattended run.
+if not exist data_local\ws6c mkdir data_local\ws6c
+C:\Users\phuaz\AppData\Local\Python\pythoncore-3.14-64\python.exe -u scripts\run_ws6c_screened_arm.py >> data_local\ws6c\screened_task.log 2>&1
