@@ -51,5 +51,10 @@ cd /d C:\dev\breadth-thrust-etf
 if not exist data_local\ws6b mkdir data_local\ws6b
 echo ---- %date% %time% ---- >> data_local\ws6b\shadow_task.log
 git pull --ff-only origin main >> data_local\ws6b\shadow_task.log 2>&1
+rem -u because this log is the ONLY record of an unattended run. Redirected
+rem stdout is block-buffered, so without it the log sits empty for the length of
+rem the throttled weight-fetch phase and a stalled run looks identical to a
+rem working one - observed on the 2026-09-09 first-run-clean fire, which showed
+rem nothing for twenty minutes while it was in fact progressing normally.
 set BTE_PRICE_SOURCE=norgate
-C:\Users\phuaz\AppData\Local\Python\pythoncore-3.14-64\python.exe scripts\run_ws6b_shadow.py >> data_local\ws6b\shadow_task.log 2>&1
+C:\Users\phuaz\AppData\Local\Python\pythoncore-3.14-64\python.exe -u scripts\run_ws6b_shadow.py >> data_local\ws6b\shadow_task.log 2>&1
