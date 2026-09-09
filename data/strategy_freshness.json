@@ -1,55 +1,55 @@
 {
- "computed_at_utc": "2026-09-09T07:58:57.908642+00:00",
+ "computed_at_utc": "2026-09-09T23:24:13.810075+00:00",
  "strategies": [
   {
    "sleeve": "A",
    "label": "US sectors",
    "venue": "NYSE",
    "data_through": "2026-09-08",
-   "venue_last_session": "2026-09-08",
-   "sessions_behind": 0,
-   "status": "current",
+   "venue_last_session": "2026-09-09",
+   "sessions_behind": 1,
+   "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
    "carried": false,
-   "why": null,
-   "why_plain": null
+   "why": "every one of the breadth panels stops at 2026-09-08 while NYSE has completed 2026-09-09 \u2014 none lags the others, so they have not been rebuilt since.",
+   "why_plain": "the data behind this strategy stops on 2026-09-08, while the market has traded to 2026-09-09 \u2014 it has not been rebuilt since."
   },
   {
    "sleeve": "B",
    "label": "Asset classes",
    "venue": "NYSE",
    "data_through": "2026-09-08",
-   "venue_last_session": "2026-09-08",
-   "sessions_behind": 0,
-   "status": "current",
+   "venue_last_session": "2026-09-09",
+   "sessions_behind": 1,
+   "status": "behind",
    "laggards": [],
-   "source": "price cache (asset-class ETFs)",
-   "carried": false,
-   "why": null,
-   "why_plain": null
+   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-09-09T07:58Z; the cache is not present on this checkout",
+   "carried": true,
+   "why": "every one of the cached price series stops at 2026-09-08 while NYSE has completed 2026-09-09 \u2014 none lags the others, so they have not been rebuilt since.",
+   "why_plain": "the data behind this strategy stops on 2026-09-08, while the market has traded to 2026-09-09 \u2014 it has not been rebuilt since."
   },
   {
    "sleeve": "C",
    "label": "Thematic",
    "venue": "NYSE",
    "data_through": "2026-09-08",
-   "venue_last_session": "2026-09-08",
-   "sessions_behind": 0,
-   "status": "current",
+   "venue_last_session": "2026-09-09",
+   "sessions_behind": 1,
+   "status": "behind",
    "laggards": [],
-   "source": "price cache (thematic ETFs)",
-   "carried": false,
-   "why": null,
-   "why_plain": null
+   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-09-09T07:58Z; the cache is not present on this checkout",
+   "carried": true,
+   "why": "every one of the cached price series stops at 2026-09-08 while NYSE has completed 2026-09-09 \u2014 none lags the others, so they have not been rebuilt since.",
+   "why_plain": "the data behind this strategy stops on 2026-09-08, while the market has traded to 2026-09-09 \u2014 it has not been rebuilt since."
   },
   {
    "sleeve": "D",
    "label": "Europe sectors",
    "venue": "XETR",
    "data_through": "2026-09-04",
-   "venue_last_session": "2026-09-08",
-   "sessions_behind": 2,
+   "venue_last_session": "2026-09-09",
+   "sessions_behind": 3,
    "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
@@ -60,5 +60,5 @@
  ],
  "all_current": false,
  "stalest": "2026-09-04",
- "n_behind": 1
+ "n_behind": 4
 }
