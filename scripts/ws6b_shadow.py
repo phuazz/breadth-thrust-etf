@@ -466,6 +466,16 @@ def shadow_status(records: list[dict]) -> dict:
         "weeks_breaching_adopted_set_bar": sum(
             1 for r in records if abs(r.get("gap", 0)) > DIVERGENCE_BAR_ADOPTED_SET),
         "weeks_on_fallback": sum(1 for r in records if r.get("fallback_lines")),
+        # THE TRAP, COUNTED. A week in which every adopted held line reverted is
+        # PUBLISHABLE by the register's own terms — a fired fallback is resolved,
+        # not a gap — so eight of them would satisfy bar (b) on a book that never
+        # once traded as a basket, with I0 equal to E0 and a gap of 0.0 bp. That
+        # is the state the shadow was armed in on 2026-09-09, with the weight
+        # route walled. Counted here so the T4 verdict cannot read a clean run of
+        # eight as evidence of tracking without seeing how many measured nothing.
+        "weeks_fully_reverted": sum(
+            1 for r in records
+            if r.get("fallback_lines") and not r.get("lines_basketed")),
     }
 
 

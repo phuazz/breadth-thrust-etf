@@ -549,3 +549,28 @@ def test_snapshot_at_normalises_both_key_types():
         {"SOXX": R._snapshot_at(str_keyed, _d(2026, 9, 10))},
         {"SOXX": R._snapshot_at(ts_keyed, _d(2026, 9, 10))},
         _d(2026, 9, 10)) == ["SOXX"]
+
+
+def test_status_counts_weeks_that_measured_nothing():
+    """Eight total-reversion weeks would satisfy bar (b) while measuring nothing.
+
+    A fired fallback is registered as resolved rather than as a gap, so a week
+    in which every adopted held line reverted is publishable, carries a 0.0 bp
+    gap, and looks identical to perfect tracking. That is the state the shadow
+    was armed in on 2026-09-09 with the weight route walled, so the count has to
+    be on the face of the status read, not inferred at T4.
+    """
+    recs = []
+    for i, d in enumerate(("2026-09-04", "2026-09-11", "2026-09-18")):
+        reverted = i < 2
+        recs = append_week(recs, _week(
+            week_ending=d, gap=0.0,
+            lines_basketed=[] if reverted else ["SOXX"],
+            fallback_lines=["IUES", "IUUS", "IUCS", "SOXX", "IUFS"]
+            if reverted else []))
+        recs[-1]["publishable"] = True
+
+    st = shadow_status(recs)
+    assert st["consecutive_publishable"] == 3      # all three "count"
+    assert st["weeks_fully_reverted"] == 2         # but two measured nothing
+    assert st["max_abs_gap_bp"] == 0.0             # and tracked perfectly by construction
