@@ -1,13 +1,13 @@
 {
   "etf": "IUCS",
-  "computed_at_utc": "2026-09-08T03:20:52.884437+00:00",
+  "computed_at_utc": "2026-09-09T01:20:23.082093+00:00",
   "constituents_source": "data\\constituents_iucs.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
-  "end_date": "2026-09-04",
+  "end_date": "2026-09-08",
   "tail_cap": null,
   "tail_verification": null,
-  "n_trading_days": 2178,
+  "n_trading_days": 2179,
   "n_signals": 49,
   "first_eligible_signal_date": "2019-01-08",
   "config": {
@@ -33,7 +33,7 @@
     "tickers_with_any_yf_data": 42,
     "tickers_with_no_yf_data": 0,
     "max_missing_constituent_pct": 0.027027027027026973,
-    "mean_missing_constituent_pct": 2.449165128590962e-05,
+    "mean_missing_constituent_pct": 2.448041142758658e-05,
     "first_date_below_10pct_missing": "2018-01-05",
     "note": "0 of 42 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -2910,7 +2910,8 @@
       "2026-09-01",
       "2026-09-02",
       "2026-09-03",
-      "2026-09-04"
+      "2026-09-04",
+      "2026-09-08"
     ],
     "n_constituents": [
       34,
@@ -5046,6 +5047,7 @@
       35,
       35,
       35,
+      34,
       34,
       34,
       34,
@@ -7270,6 +7272,7 @@
       34,
       34,
       34,
+      34,
       34
     ],
     "n_with_rsi": [
@@ -9406,6 +9409,7 @@
       35,
       35,
       35,
+      34,
       34,
       34,
       34,
@@ -11630,6 +11634,7 @@
       34,
       34,
       34,
+      34,
       34
     ],
     "n_with_high63": [
@@ -13766,6 +13771,7 @@
       35,
       35,
       35,
+      34,
       34,
       34,
       34,
@@ -15990,6 +15996,7 @@
       0.0,
       0.0,
       0.0,
+      0.0,
       0.0
     ],
     "ma_breadth": [
@@ -18170,7 +18177,8 @@
       0.470588,
       0.588235,
       0.441176,
-      0.352941
+      0.352941,
+      0.294118
     ],
     "highs_breadth": [
       0.176471,
@@ -20350,7 +20358,8 @@
       0.029412,
       0.0,
       0.029412,
-      0.029412
+      0.029412,
+      0.0
     ],
     "rsi_breadth_z": [
       null,
@@ -22530,7 +22539,8 @@
       -0.778438,
       -0.77815,
       -0.777863,
-      -0.777576
+      -0.777576,
+      -0.77729
     ],
     "ma_breadth_z": [
       null,
@@ -24710,7 +24720,8 @@
       -0.338375,
       0.166496,
       -0.464665,
-      -0.843277
+      -0.843277,
+      -1.095456
     ],
     "highs_breadth_z": [
       null,
@@ -26890,7 +26901,8 @@
       -0.563947,
       -0.862802,
       -0.563413,
-      -0.563242
+      -0.563242,
+      -0.86221
     ],
     "composite_z": [
       null,
@@ -29070,7 +29082,8 @@
       -0.560253,
       -0.491485,
       -0.60198,
-      -0.728032
+      -0.728032,
+      -0.911652
     ],
     "composite_p90": [
       null,
@@ -31250,7 +31263,8 @@
       1.123305,
       1.123175,
       1.123045,
-      1.122915
+      1.122915,
+      1.122785
     ],
     "composite_p10": [
       null,
@@ -33430,7 +33444,8 @@
       -0.986535,
       -0.986326,
       -0.986118,
-      -0.985909
+      -0.985909,
+      -0.985701
     ],
     "rsi_p90": [
       null,
@@ -35610,6 +35625,7 @@
       0.157895,
       0.157895,
       0.157895,
+      0.157895,
       0.157895
     ],
     "highs_p90": [
@@ -37664,6 +37680,7 @@
       0.21411,
       0.213447,
       0.212784,
+      0.212121,
       0.212121,
       0.212121,
       0.212121,
@@ -39970,6 +39987,7 @@
       0,
       0,
       0,
+      0,
       0
     ],
     "ma_zweig_trigger": [
@@ -42005,6 +42023,7 @@
       1,
       1,
       1,
+      0,
       0,
       0,
       0,
@@ -44330,6 +44349,7 @@
       0,
       0,
       0,
+      0,
       0
     ],
     "trigger_count": [
@@ -46484,6 +46504,7 @@
       0,
       1,
       1,
+      0,
       0,
       0,
       0,
@@ -48690,6 +48711,7 @@
       0,
       0,
       0,
+      0,
       0
     ],
     "composite_crosses_p90": [
@@ -50870,6 +50892,7 @@
       0,
       0,
       0,
+      0,
       0
     ],
     "signal_eligible": [
@@ -51125,6 +51148,7 @@
       0,
       0,
       0,
+      1,
       1,
       1,
       1,
@@ -55100,6 +55124,7 @@
       0,
       0,
       1,
+      0,
       0,
       0,
       0,

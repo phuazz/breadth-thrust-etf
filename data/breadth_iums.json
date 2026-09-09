@@ -1,12 +1,66 @@
 {
   "etf": "IUMS",
-  "computed_at_utc": "2026-09-08T03:26:07.010623+00:00",
+  "computed_at_utc": "2026-09-09T01:25:05.462819+00:00",
   "constituents_source": "data\\constituents_iums.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
   "end_date": "2026-09-04",
-  "tail_cap": null,
-  "tail_verification": null,
+  "tail_cap": {
+    "capped_at": "2026-09-04",
+    "venue_last_completed": "2026-09-08",
+    "constituents_priced_to": "2026-09-04",
+    "roster_end_friday": "2026-09-04",
+    "vendor_probe": {
+      "checked_at_utc": "2026-09-09T01:24:22+00:00",
+      "probe": "yfinance single-ticker history",
+      "last_populated": "2026-09-04",
+      "rows": [
+        {
+          "date": "2026-09-08",
+          "roster_held": 25,
+          "roster_priced": 21,
+          "live_unpriced": 4,
+          "sampled": [
+            "LIN",
+            "CRH",
+            "SW",
+            "AMCR"
+          ],
+          "sample_answered": 4,
+          "sample_served": 0,
+          "verdict": "unserved"
+        }
+      ],
+      "dropped": [
+        "2026-09-08"
+      ]
+    }
+  },
+  "tail_verification": {
+    "checked_at_utc": "2026-09-09T01:24:22+00:00",
+    "probe": "yfinance single-ticker history",
+    "last_populated": "2026-09-04",
+    "rows": [
+      {
+        "date": "2026-09-08",
+        "roster_held": 25,
+        "roster_priced": 21,
+        "live_unpriced": 4,
+        "sampled": [
+          "LIN",
+          "CRH",
+          "SW",
+          "AMCR"
+        ],
+        "sample_answered": 4,
+        "sample_served": 0,
+        "verdict": "unserved"
+      }
+    ],
+    "dropped": [
+      "2026-09-08"
+    ]
+  },
   "n_trading_days": 2178,
   "n_signals": 51,
   "first_eligible_signal_date": "2019-01-08",

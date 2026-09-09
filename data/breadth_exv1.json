@@ -1,31 +1,47 @@
 {
   "etf": "EXV1",
-  "computed_at_utc": "2026-09-08T03:32:00.419602+00:00",
+  "computed_at_utc": "2026-09-09T01:30:23.820894+00:00",
   "constituents_source": "data\\constituents_exv1.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
   "end_date": "2026-09-04",
   "tail_cap": {
     "capped_at": "2026-09-04",
-    "venue_last_completed": "2026-09-07",
+    "venue_last_completed": "2026-09-08",
     "constituents_priced_to": "2026-09-04",
     "roster_end_friday": "2026-09-04",
     "vendor_probe": {
-      "checked_at_utc": "2026-09-08T03:31:09+00:00",
+      "checked_at_utc": "2026-09-09T01:29:37+00:00",
       "probe": "yfinance single-ticker history",
       "last_populated": "2026-09-04",
       "rows": [
         {
           "date": "2026-09-07",
           "roster_held": 57,
-          "roster_priced": 1,
-          "live_unpriced": 56,
+          "roster_priced": 9,
+          "live_unpriced": 48,
+          "sampled": [
+            "BBVA.MC",
+            "SEB-A.ST",
+            "SAB.MC",
+            "JYSK.CO",
+            "VATN.SW"
+          ],
+          "sample_answered": 5,
+          "sample_served": 0,
+          "verdict": "unserved"
+        },
+        {
+          "date": "2026-09-08",
+          "roster_held": 57,
+          "roster_priced": 3,
+          "live_unpriced": 54,
           "sampled": [
             "HSBA.L",
-            "EBS.VI",
-            "CBK.DE",
-            "BGEO.L",
-            "VATN.SW"
+            "CABK.MC",
+            "SHB-A.ST",
+            "RILBA.CO",
+            "SBNOR.OL"
           ],
           "sample_answered": 5,
           "sample_served": 0,
@@ -33,26 +49,43 @@
         }
       ],
       "dropped": [
-        "2026-09-07"
+        "2026-09-07",
+        "2026-09-08"
       ]
     }
   },
   "tail_verification": {
-    "checked_at_utc": "2026-09-08T03:31:09+00:00",
+    "checked_at_utc": "2026-09-09T01:29:37+00:00",
     "probe": "yfinance single-ticker history",
     "last_populated": "2026-09-04",
     "rows": [
       {
         "date": "2026-09-07",
         "roster_held": 57,
-        "roster_priced": 1,
-        "live_unpriced": 56,
+        "roster_priced": 9,
+        "live_unpriced": 48,
+        "sampled": [
+          "BBVA.MC",
+          "SEB-A.ST",
+          "SAB.MC",
+          "JYSK.CO",
+          "VATN.SW"
+        ],
+        "sample_answered": 5,
+        "sample_served": 0,
+        "verdict": "unserved"
+      },
+      {
+        "date": "2026-09-08",
+        "roster_held": 57,
+        "roster_priced": 3,
+        "live_unpriced": 54,
         "sampled": [
           "HSBA.L",
-          "EBS.VI",
-          "CBK.DE",
-          "BGEO.L",
-          "VATN.SW"
+          "CABK.MC",
+          "SHB-A.ST",
+          "RILBA.CO",
+          "SBNOR.OL"
         ],
         "sample_answered": 5,
         "sample_served": 0,
@@ -60,7 +93,8 @@
       }
     ],
     "dropped": [
-      "2026-09-07"
+      "2026-09-07",
+      "2026-09-08"
     ]
   },
   "n_trading_days": 2200,

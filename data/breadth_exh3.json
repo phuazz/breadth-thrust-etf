@@ -1,17 +1,102 @@
 {
   "etf": "EXH3",
-  "computed_at_utc": "2026-09-08T06:36:07.874349+00:00",
+  "computed_at_utc": "2026-09-09T01:35:53.865372+00:00",
   "constituents_source": "data\\constituents_exh3.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
   "end_date": "2026-09-04",
   "tail_cap": {
     "capped_at": "2026-09-04",
-    "venue_last_completed": "2026-09-07",
+    "venue_last_completed": "2026-09-08",
     "constituents_priced_to": "2026-09-04",
-    "roster_end_friday": "2026-09-04"
+    "roster_end_friday": "2026-09-04",
+    "vendor_probe": {
+      "checked_at_utc": "2026-09-09T01:34:44+00:00",
+      "probe": "yfinance single-ticker history",
+      "last_populated": "2026-09-04",
+      "rows": [
+        {
+          "date": "2026-09-07",
+          "roster_held": 107,
+          "roster_priced": 32,
+          "live_unpriced": 75,
+          "sampled": [
+            "SIE.DE",
+            "MTX.DE",
+            "SECU-B.ST",
+            "ELIS.PA",
+            "FRA.DE"
+          ],
+          "sample_answered": 5,
+          "sample_served": 0,
+          "verdict": "unserved"
+        },
+        {
+          "date": "2026-09-08",
+          "roster_held": 107,
+          "roster_priced": 15,
+          "live_unpriced": 92,
+          "sampled": [
+            "SIE.DE",
+            "WKL.AS",
+            "KBX.DE",
+            "RS1.L",
+            "KMAR.OL"
+          ],
+          "sample_answered": 5,
+          "sample_served": 0,
+          "verdict": "unserved"
+        }
+      ],
+      "dropped": [
+        "2026-09-07",
+        "2026-09-08"
+      ]
+    }
   },
-  "tail_verification": null,
+  "tail_verification": {
+    "checked_at_utc": "2026-09-09T01:34:44+00:00",
+    "probe": "yfinance single-ticker history",
+    "last_populated": "2026-09-04",
+    "rows": [
+      {
+        "date": "2026-09-07",
+        "roster_held": 107,
+        "roster_priced": 32,
+        "live_unpriced": 75,
+        "sampled": [
+          "SIE.DE",
+          "MTX.DE",
+          "SECU-B.ST",
+          "ELIS.PA",
+          "FRA.DE"
+        ],
+        "sample_answered": 5,
+        "sample_served": 0,
+        "verdict": "unserved"
+      },
+      {
+        "date": "2026-09-08",
+        "roster_held": 107,
+        "roster_priced": 15,
+        "live_unpriced": 92,
+        "sampled": [
+          "SIE.DE",
+          "WKL.AS",
+          "KBX.DE",
+          "RS1.L",
+          "KMAR.OL"
+        ],
+        "sample_answered": 5,
+        "sample_served": 0,
+        "verdict": "unserved"
+      }
+    ],
+    "dropped": [
+      "2026-09-07",
+      "2026-09-08"
+    ]
+  },
   "n_trading_days": 2200,
   "n_signals": 53,
   "first_eligible_signal_date": "2019-01-08",
