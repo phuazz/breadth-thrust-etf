@@ -1,6 +1,6 @@
 {
   "etf": "IUHC",
-  "computed_at_utc": "2026-09-09T01:17:00.141827+00:00",
+  "computed_at_utc": "2026-09-09T07:22:52.897077+00:00",
   "constituents_source": "data\\constituents_iuhc.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
@@ -26,14 +26,14 @@
     "price_warmup_calendar_days": 180
   },
   "data_quality": {
-    "roster_coverage_latest": 0.9666666666666667,
+    "roster_coverage_latest": 0.9833333333333333,
     "roster_coverage_warn_floor": 0.9,
     "roster_coverage_fail_floor": 0.5,
     "universe_size": 87,
     "tickers_with_any_yf_data": 86,
     "tickers_with_no_yf_data": 1,
-    "max_missing_constituent_pct": 0.033333333333333326,
-    "mean_missing_constituent_pct": 0.0005313664803188606,
+    "max_missing_constituent_pct": 0.016949152542372836,
+    "mean_missing_constituent_pct": 0.0005237177117705968,
     "first_date_below_10pct_missing": "2018-01-05",
     "note": "1 of 87 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. HOLX US). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -7063,7 +7063,7 @@
       59,
       59,
       59,
-      58
+      59
     ],
     "n_with_rsi": [
       61,
@@ -9244,7 +9244,7 @@
       59,
       59,
       59,
-      58
+      59
     ],
     "n_with_ma50": [
       61,
@@ -11425,7 +11425,7 @@
       59,
       59,
       59,
-      58
+      59
     ],
     "n_with_high63": [
       61,
@@ -13606,7 +13606,7 @@
       59,
       59,
       59,
-      58
+      59
     ],
     "rsi_breadth": [
       0.196721,
@@ -17968,7 +17968,7 @@
       0.779661,
       0.79661,
       0.762712,
-      0.586207
+      0.59322
     ],
     "highs_breadth": [
       0.393443,
@@ -24511,7 +24511,7 @@
       0.98345,
       1.058412,
       0.907087,
-      0.121428
+      0.152631
     ],
     "highs_breadth_z": [
       null,
@@ -28873,7 +28873,7 @@
       0.657024,
       0.54574,
       -0.239816,
-      -0.561387
+      -0.550985
     ],
     "composite_p90": [
       null,

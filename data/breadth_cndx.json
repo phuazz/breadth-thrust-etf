@@ -1,6 +1,6 @@
 {
   "etf": "CNDX",
-  "computed_at_utc": "2026-09-09T01:09:28.204734+00:00",
+  "computed_at_utc": "2026-09-09T07:17:37.216880+00:00",
   "constituents_source": "data\\constituents_cndx.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
@@ -26,14 +26,14 @@
     "price_warmup_calendar_days": 180
   },
   "data_quality": {
-    "roster_coverage_latest": 0.9509803921568627,
+    "roster_coverage_latest": 1.0,
     "roster_coverage_warn_floor": 0.9,
     "roster_coverage_fail_floor": 0.5,
     "universe_size": 191,
     "tickers_with_any_yf_data": 189,
     "tickers_with_no_yf_data": 2,
-    "max_missing_constituent_pct": 0.0490196078431373,
-    "mean_missing_constituent_pct": 0.00017828594632237512,
+    "max_missing_constituent_pct": 0.00990099009900991,
+    "mean_missing_constituent_pct": 0.0001557895682392465,
     "first_date_below_10pct_missing": "2018-01-05",
     "note": "2 of 191 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. TMUSR, VSNTV UW). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -7172,7 +7172,7 @@
       102,
       102,
       102,
-      97
+      102
     ],
     "n_with_rsi": [
       104,
@@ -9353,7 +9353,7 @@
       102,
       102,
       102,
-      97
+      102
     ],
     "n_with_ma50": [
       104,
@@ -11534,7 +11534,7 @@
       102,
       102,
       102,
-      97
+      102
     ],
     "n_with_high63": [
       104,
@@ -13715,7 +13715,7 @@
       100,
       100,
       100,
-      96
+      100
     ],
     "rsi_breadth": [
       0.201923,
@@ -18077,7 +18077,7 @@
       0.460784,
       0.480392,
       0.45098,
-      0.494845
+      0.480392
     ],
     "highs_breadth": [
       0.317308,
@@ -20258,7 +20258,7 @@
       0.05,
       0.07,
       0.02,
-      0.020833
+      0.02
     ],
     "rsi_breadth_z": [
       null,
@@ -24620,7 +24620,7 @@
       -0.478531,
       -0.384427,
       -0.525307,
-      -0.314857
+      -0.384148
     ],
     "highs_breadth_z": [
       null,
@@ -26801,7 +26801,7 @@
       -0.49608,
       -0.257473,
       -0.853701,
-      -0.843423
+      -0.853362
     ],
     "composite_z": [
       null,
@@ -28982,7 +28982,7 @@
       -0.623958,
       -0.559532,
       -0.80507,
-      -0.73133
+      -0.75774
     ],
     "composite_p90": [
       null,

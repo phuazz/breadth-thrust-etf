@@ -1,6 +1,6 @@
 {
   "etf": "CSP1",
-  "computed_at_utc": "2026-09-09T01:06:55.974285+00:00",
+  "computed_at_utc": "2026-09-09T07:16:03.712756+00:00",
   "constituents_source": "data\\constituents_csp1.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
@@ -26,14 +26,14 @@
     "price_warmup_calendar_days": 180
   },
   "data_quality": {
-    "roster_coverage_latest": 0.9722222222222222,
+    "roster_coverage_latest": 0.998015873015873,
     "roster_coverage_warn_floor": 0.9,
     "roster_coverage_fail_floor": 0.5,
     "universe_size": 725,
     "tickers_with_any_yf_data": 716,
     "tickers_with_no_yf_data": 9,
-    "max_missing_constituent_pct": 0.02777777777777779,
-    "mean_missing_constituent_pct": 0.0002645379755844616,
+    "max_missing_constituent_pct": 0.003976143141153132,
+    "mean_missing_constituent_pct": 0.00025270059568833917,
     "first_date_below_10pct_missing": "2018-01-05",
     "note": "9 of 725 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. 1812473D, DISHR, HOLX US, MRP-W, OXY WS, OXY WS WI, RTX US, SYF-W). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -7173,7 +7173,7 @@
       503,
       503,
       503,
-      490
+      503
     ],
     "n_with_rsi": [
       498,
@@ -9354,7 +9354,7 @@
       503,
       503,
       503,
-      490
+      503
     ],
     "n_with_ma50": [
       498,
@@ -11535,7 +11535,7 @@
       503,
       503,
       503,
-      490
+      503
     ],
     "n_with_high63": [
       498,
@@ -13716,7 +13716,7 @@
       502,
       502,
       502,
-      490
+      502
     ],
     "rsi_breadth": [
       0.238956,
@@ -15897,7 +15897,7 @@
       0.025845,
       0.017893,
       0.007952,
-      0.010204
+      0.00994
     ],
     "ma_breadth": [
       0.825301,
@@ -18078,7 +18078,7 @@
       0.481113,
       0.508946,
       0.477137,
-      0.430612
+      0.429423
     ],
     "highs_breadth": [
       0.321285,
@@ -20259,7 +20259,7 @@
       0.057769,
       0.067729,
       0.025896,
-      0.018367
+      0.017928
     ],
     "rsi_breadth_z": [
       null,
@@ -22440,7 +22440,7 @@
       -0.683643,
       -0.810371,
       -0.968774,
-      -0.93239
+      -0.936601
     ],
     "ma_breadth_z": [
       null,
@@ -24621,7 +24621,7 @@
       -0.435235,
       -0.297336,
       -0.454758,
-      -0.685032
+      -0.690919
     ],
     "highs_breadth_z": [
       null,
@@ -26802,7 +26802,7 @@
       -0.450948,
       -0.321811,
       -0.863691,
-      -0.960894
+      -0.966582
     ],
     "composite_z": [
       null,
@@ -28983,7 +28983,7 @@
       -0.523275,
       -0.476506,
       -0.762408,
-      -0.859438
+      -0.8647
     ],
     "composite_p90": [
       null,

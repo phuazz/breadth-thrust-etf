@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-09-09T02:00:07.469773+00:00",
+  "computed_at_utc": "2026-09-09T08:07:33.329070+00:00",
   "ma_period": 200,
   "long_thresholds": [
     50,
@@ -308131,7 +308131,7 @@
         75.0,
         68.75,
         66.67,
-        68.09
+        68.75
       ],
       "chosen_long_threshold": 60,
       "episodes": [
@@ -309241,7 +309241,7 @@
         70.19,
         69.73,
         65.61,
-        62.07
+        61.81
       ],
       "chosen_long_threshold": 55,
       "episodes": [
@@ -310407,7 +310407,7 @@
         66.67,
         66.06,
         62.42,
-        59.74
+        58.79
       ],
       "chosen_long_threshold": 50,
       "episodes": [
@@ -312578,7 +312578,7 @@
         83.33,
         90.62,
         88.54,
-        84.78
+        82.29
       ],
       "chosen_long_threshold": 75,
       "episodes": [
@@ -313632,7 +313632,7 @@
         81.94,
         81.94,
         80.56,
-        77.46
+        77.78
       ],
       "chosen_long_threshold": 50,
       "episodes": [
@@ -314882,7 +314882,7 @@
         66.34,
         63.37,
         55.45,
-        54.17
+        53.47
       ],
       "chosen_long_threshold": 50,
       "episodes": [
@@ -317270,7 +317270,7 @@
         55.21,
         52.63,
         50.53,
-        43.96
+        46.32
       ],
       "chosen_long_threshold": 60,
       "episodes": [
@@ -319847,7 +319847,7 @@
         75.76,
         69.7,
         63.64,
-        63.64
+        51.52
       ],
       "chosen_long_threshold": 80,
       "episodes": [
@@ -320955,7 +320955,7 @@
         53.12,
         53.12,
         50.0,
-        42.86
+        46.88
       ],
       "chosen_long_threshold": 80,
       "episodes": [
@@ -322037,7 +322037,7 @@
         79.7,
         79.39,
         74.05,
-        70.63
+        71.76
       ],
       "chosen_long_threshold": 50,
       "episodes": [
@@ -323209,7 +323209,7 @@
       "etf": "SOXX",
       "trading_proxy": "SOXX",
       "as_of": "2026-09-08",
-      "ma200_breadth_pct": 68.1,
+      "ma200_breadth_pct": 68.8,
       "long_threshold_pct": 60,
       "in_long_state": true,
       "current_allocation_pct": 150,
@@ -323221,7 +323221,7 @@
       "etf": "CSP1",
       "trading_proxy": "SPY",
       "as_of": "2026-09-08",
-      "ma200_breadth_pct": 62.1,
+      "ma200_breadth_pct": 61.8,
       "long_threshold_pct": 55,
       "in_long_state": true,
       "current_allocation_pct": 150,
@@ -323233,7 +323233,7 @@
       "etf": "CNDX",
       "trading_proxy": "QQQ",
       "as_of": "2026-09-08",
-      "ma200_breadth_pct": 59.7,
+      "ma200_breadth_pct": 58.8,
       "long_threshold_pct": 50,
       "in_long_state": true,
       "current_allocation_pct": 150,
@@ -323257,7 +323257,7 @@
       "etf": "IUFS",
       "trading_proxy": "XLF",
       "as_of": "2026-09-08",
-      "ma200_breadth_pct": 84.8,
+      "ma200_breadth_pct": 82.3,
       "long_threshold_pct": 75,
       "in_long_state": true,
       "current_allocation_pct": 150,
@@ -323269,7 +323269,7 @@
       "etf": "IUHC",
       "trading_proxy": "XLV",
       "as_of": "2026-09-08",
-      "ma200_breadth_pct": 77.5,
+      "ma200_breadth_pct": 77.8,
       "long_threshold_pct": 50,
       "in_long_state": true,
       "current_allocation_pct": 150,
@@ -323281,7 +323281,7 @@
       "etf": "IUIS",
       "trading_proxy": "XLI",
       "as_of": "2026-09-08",
-      "ma200_breadth_pct": 54.2,
+      "ma200_breadth_pct": 53.5,
       "long_threshold_pct": 50,
       "in_long_state": true,
       "current_allocation_pct": 150,
@@ -323305,7 +323305,7 @@
       "etf": "IUCD",
       "trading_proxy": "XLY",
       "as_of": "2026-09-08",
-      "ma200_breadth_pct": 44.0,
+      "ma200_breadth_pct": 46.3,
       "long_threshold_pct": 60,
       "in_long_state": false,
       "current_allocation_pct": 50,
@@ -323329,7 +323329,7 @@
       "etf": "IUMS",
       "trading_proxy": "XLB",
       "as_of": "2026-09-08",
-      "ma200_breadth_pct": 63.6,
+      "ma200_breadth_pct": 51.5,
       "long_threshold_pct": 80,
       "in_long_state": false,
       "current_allocation_pct": 50,
@@ -323341,7 +323341,7 @@
       "etf": "IUCM",
       "trading_proxy": "XLC",
       "as_of": "2026-09-08",
-      "ma200_breadth_pct": 42.9,
+      "ma200_breadth_pct": 46.9,
       "long_threshold_pct": 80,
       "in_long_state": false,
       "current_allocation_pct": 50,
@@ -323353,7 +323353,7 @@
       "etf": "IUSP",
       "trading_proxy": "XLRE",
       "as_of": "2026-09-08",
-      "ma200_breadth_pct": 70.6,
+      "ma200_breadth_pct": 71.8,
       "long_threshold_pct": 50,
       "in_long_state": true,
       "current_allocation_pct": 150,

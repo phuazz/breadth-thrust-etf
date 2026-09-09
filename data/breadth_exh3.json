@@ -1,6 +1,6 @@
 {
   "etf": "EXH3",
-  "computed_at_utc": "2026-09-09T01:35:53.865372+00:00",
+  "computed_at_utc": "2026-09-09T07:36:25.378121+00:00",
   "constituents_source": "data\\constituents_exh3.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
@@ -11,7 +11,7 @@
     "constituents_priced_to": "2026-09-04",
     "roster_end_friday": "2026-09-04",
     "vendor_probe": {
-      "checked_at_utc": "2026-09-09T01:34:44+00:00",
+      "checked_at_utc": "2026-09-09T07:36:08+00:00",
       "probe": "yfinance single-ticker history",
       "last_populated": "2026-09-04",
       "rows": [
@@ -34,13 +34,13 @@
         {
           "date": "2026-09-08",
           "roster_held": 107,
-          "roster_priced": 15,
-          "live_unpriced": 92,
+          "roster_priced": 14,
+          "live_unpriced": 93,
           "sampled": [
             "SIE.DE",
             "WKL.AS",
             "KBX.DE",
-            "RS1.L",
+            "AALB.AS",
             "KMAR.OL"
           ],
           "sample_answered": 5,
@@ -55,7 +55,7 @@
     }
   },
   "tail_verification": {
-    "checked_at_utc": "2026-09-09T01:34:44+00:00",
+    "checked_at_utc": "2026-09-09T07:36:08+00:00",
     "probe": "yfinance single-ticker history",
     "last_populated": "2026-09-04",
     "rows": [
@@ -78,13 +78,13 @@
       {
         "date": "2026-09-08",
         "roster_held": 107,
-        "roster_priced": 15,
-        "live_unpriced": 92,
+        "roster_priced": 14,
+        "live_unpriced": 93,
         "sampled": [
           "SIE.DE",
           "WKL.AS",
           "KBX.DE",
-          "RS1.L",
+          "AALB.AS",
           "KMAR.OL"
         ],
         "sample_answered": 5,

@@ -1,6 +1,6 @@
 {
   "etf": "EXH9",
-  "computed_at_utc": "2026-09-09T01:37:17.489925+00:00",
+  "computed_at_utc": "2026-09-09T07:37:30.914903+00:00",
   "constituents_source": "data\\constituents_exh9.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
@@ -9,94 +9,9 @@
     "capped_at": "2026-09-04",
     "venue_last_completed": "2026-09-08",
     "constituents_priced_to": "2026-09-04",
-    "roster_end_friday": "2026-09-04",
-    "vendor_probe": {
-      "checked_at_utc": "2026-09-09T01:36:38+00:00",
-      "probe": "yfinance single-ticker history",
-      "last_populated": "2026-09-04",
-      "rows": [
-        {
-          "date": "2026-09-07",
-          "roster_held": 28,
-          "roster_priced": 8,
-          "live_unpriced": 20,
-          "sampled": [
-            "IBE.MC",
-            "VIE.PA",
-            "FORTUM.HE",
-            "IG.MI",
-            "TPE.WA"
-          ],
-          "sample_answered": 5,
-          "sample_served": 0,
-          "verdict": "unserved"
-        },
-        {
-          "date": "2026-09-08",
-          "roster_held": 28,
-          "roster_priced": 1,
-          "live_unpriced": 27,
-          "sampled": [
-            "IBE.MC",
-            "SSE.L",
-            "SVT.L",
-            "EDPR.LS",
-            "TPE.WA"
-          ],
-          "sample_answered": 5,
-          "sample_served": 0,
-          "verdict": "unserved"
-        }
-      ],
-      "dropped": [
-        "2026-09-07",
-        "2026-09-08"
-      ]
-    }
+    "roster_end_friday": "2026-09-04"
   },
-  "tail_verification": {
-    "checked_at_utc": "2026-09-09T01:36:38+00:00",
-    "probe": "yfinance single-ticker history",
-    "last_populated": "2026-09-04",
-    "rows": [
-      {
-        "date": "2026-09-07",
-        "roster_held": 28,
-        "roster_priced": 8,
-        "live_unpriced": 20,
-        "sampled": [
-          "IBE.MC",
-          "VIE.PA",
-          "FORTUM.HE",
-          "IG.MI",
-          "TPE.WA"
-        ],
-        "sample_answered": 5,
-        "sample_served": 0,
-        "verdict": "unserved"
-      },
-      {
-        "date": "2026-09-08",
-        "roster_held": 28,
-        "roster_priced": 1,
-        "live_unpriced": 27,
-        "sampled": [
-          "IBE.MC",
-          "SSE.L",
-          "SVT.L",
-          "EDPR.LS",
-          "TPE.WA"
-        ],
-        "sample_answered": 5,
-        "sample_served": 0,
-        "verdict": "unserved"
-      }
-    ],
-    "dropped": [
-      "2026-09-07",
-      "2026-09-08"
-    ]
-  },
+  "tail_verification": null,
   "n_trading_days": 2200,
   "n_signals": 60,
   "first_eligible_signal_date": "2019-01-08",

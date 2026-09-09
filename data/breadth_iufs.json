@@ -1,6 +1,6 @@
 {
   "etf": "IUFS",
-  "computed_at_utc": "2026-09-09T01:12:59.035362+00:00",
+  "computed_at_utc": "2026-09-09T07:19:55.311782+00:00",
   "constituents_source": "data\\constituents_iufs.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
@@ -26,14 +26,14 @@
     "price_warmup_calendar_days": 180
   },
   "data_quality": {
-    "roster_coverage_latest": 0.9868421052631579,
+    "roster_coverage_latest": 1.0,
     "roster_coverage_warn_floor": 0.9,
     "roster_coverage_fail_floor": 0.5,
     "universe_size": 103,
     "tickers_with_any_yf_data": 103,
     "tickers_with_no_yf_data": 0,
     "max_missing_constituent_pct": 0.02985074626865669,
-    "mean_missing_constituent_pct": 0.00029339081980405063,
+    "mean_missing_constituent_pct": 0.00028735231831857923,
     "first_date_below_10pct_missing": "2018-01-05",
     "note": "0 of 103 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -7409,7 +7409,7 @@
       76,
       76,
       76,
-      75
+      76
     ],
     "n_with_rsi": [
       66,
@@ -9590,7 +9590,7 @@
       76,
       76,
       76,
-      75
+      76
     ],
     "n_with_ma50": [
       66,
@@ -11771,7 +11771,7 @@
       76,
       76,
       76,
-      75
+      76
     ],
     "n_with_high63": [
       66,
@@ -13952,7 +13952,7 @@
       76,
       76,
       76,
-      75
+      76
     ],
     "rsi_breadth": [
       0.121212,
@@ -18314,7 +18314,7 @@
       0.631579,
       0.736842,
       0.710526,
-      0.52
+      0.526316
     ],
     "highs_breadth": [
       0.393939,
@@ -24857,7 +24857,7 @@
       0.14587,
       0.530914,
       0.434472,
-      -0.262883
+      -0.23977
     ],
     "highs_breadth_z": [
       null,
@@ -29219,7 +29219,7 @@
       -0.412469,
       -0.107565,
       -0.245484,
-      -0.583695
+      -0.57599
     ],
     "composite_p90": [
       null,
