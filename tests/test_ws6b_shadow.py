@@ -523,3 +523,29 @@ def test_carry_forward_reading_disables_the_check(monkeypatch):
     monkeypatch.setattr(sh, "MISSING_SNAPSHOT_SEMANTICS", "carry_forward")
     assert strict_snapshot_fallbacks({"SOXX": "2026-06-05"}, {"SOXX": "2026-06-05"},
                                      date(2026, 9, 10)) == []
+
+
+def test_snapshot_at_normalises_both_key_types():
+    """The two halves of the SS6.3 check are keyed differently.
+
+    load_constituents gives ISO date STRINGS, load_member_weights gives
+    pd.Timestamps. A bare str() on the latter yields "2026-07-10 00:00:00",
+    which sorts correctly and then raises out of date.fromisoformat inside the
+    guard - a crash that would only ever have appeared on the live weights half.
+    """
+    import run_ws6b_shadow as R
+    from datetime import date as _d
+
+    ts_keyed = {pd.Timestamp("2026-07-03"): {}, pd.Timestamp("2026-07-10"): {}}
+    str_keyed = {"2026-08-28": {}, "2026-09-04": {}}
+
+    assert R._snapshot_at(ts_keyed, _d(2026, 9, 10)) == "2026-07-10"
+    assert R._snapshot_at(str_keyed, _d(2026, 9, 10)) == "2026-09-04"
+    # Never returns an entry the t-1 read could not have seen.
+    assert R._snapshot_at(str_keyed, _d(2026, 8, 31)) == "2026-08-28"
+    assert R._snapshot_at(str_keyed, _d(2020, 1, 1)) == "none"
+    # And what it returns must survive the guard it feeds.
+    assert strict_snapshot_fallbacks(
+        {"SOXX": R._snapshot_at(str_keyed, _d(2026, 9, 10))},
+        {"SOXX": R._snapshot_at(ts_keyed, _d(2026, 9, 10))},
+        _d(2026, 9, 10)) == ["SOXX"]

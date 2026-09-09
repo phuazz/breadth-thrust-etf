@@ -139,14 +139,18 @@ def save_log(weeks: list[dict]) -> None:
 
 
 def _snapshot_at(snapshots: dict, t_minus_1) -> str:
-    """The newest membership snapshot a t-1 read may consume, or ``"none"``.
+    """The newest entry a t-1 read may consume, as an ISO date, or ``"none"``.
 
-    Snapshot keys are the requested week-ending dates the deployed fetcher uses,
-    which is the same key the arm builder consumes, so the two cannot disagree.
+    Serves both halves of the SS6.3 check, whose keys are NOT the same type:
+    ``load_constituents`` is keyed by ISO date STRING and ``load_member_weights``
+    by ``pd.Timestamp``. Normalising to the first ten characters covers both —
+    a bare ``str()`` on a Timestamp yields "2026-07-10 00:00:00", which sorts
+    correctly but is not an ISO date and raises straight out of
+    ``date.fromisoformat`` in the guard downstream.
     """
     cut = t_minus_1.isoformat()
-    usable = [d for d in snapshots if str(d) <= cut]
-    return str(max(usable)) if usable else "none"
+    usable = [str(d)[:10] for d in snapshots if str(d)[:10] <= cut]
+    return max(usable) if usable else "none"
 
 
 def compute_week(window_end: pd.Timestamp) -> dict:
