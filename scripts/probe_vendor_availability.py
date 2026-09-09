@@ -56,6 +56,23 @@ PROBES = [
     ("EXV3.DE", "XETR", "Europe ETF line"),
     ("SAP.DE", "XETR", "Europe constituent"),   # the SIGNAL side, which was
     ("SIE.DE", "XETR", "Europe constituent"),   # never late on 2026-08-14
+    # ADDED 2026-09-09. SPY and XLF cannot answer "has the US side settled":
+    # both carried 2026-09-08 by 20:38 UTC that day and kept it, while the
+    # IUMS panel capped at 2026-09-04 because LIN, CRH, SW and AMCR were
+    # unserved at 01:24 UTC — and sleeve A reported HOLD on 13 of its 14
+    # panels for it. All four carried 09-08 by 06:42 UTC, so the hour at
+    # which they settle sits between those two and nothing measures it. That
+    # hour is what decides whether the 01:00 UTC refresh is simply too early.
+    #
+    # Norgate does not cover for this group. Under --price-source auto their
+    # columns stay on the incumbent because the Norgate series is not a date
+    # superset of the cached one — measured 2026-09-09 on IUMS, where AMCR,
+    # CRH, DD, LIN and SW all start later at Norgate than in the cache
+    # (Praxair/Linde, Bemis/Amcor, WestRock/Smurfit Westrock, CRH's US
+    # listing, DuPont). The names that drag are exactly the names the mixed
+    # source cannot reach, so the lag is a property of the schedule, not of
+    # the feed choice. LIN is the liquid representative.
+    ("LIN", "NYSE", "US constituent (foreign domicile)"),
 ]
 
 
@@ -108,13 +125,47 @@ def summarise() -> None:
             if row["sessions_behind"] is not None:
                 by.setdefault(f"{row['ticker']} ({row['role']})", []).append(
                     row["sessions_behind"])
-    print(f"  {'line':34s} {'n':>3s} {'mean':>6s} {'max':>4s}  distribution")
+    print(f"  {'line':40s} {'n':>3s} {'mean':>6s} {'max':>4s}  distribution")
     for k, v in sorted(by.items()):
         dist = {b: v.count(b) for b in sorted(set(v))}
-        print(f"  {k:34s} {len(v):3d} {sum(v)/len(v):6.2f} {max(v):4d}  "
+        print(f"  {k:40s} {len(v):3d} {sum(v)/len(v):6.2f} {max(v):4d}  "
               + ", ".join(f"{b}:{c}" for b, c in dist.items()))
     print("\n  0 = current at probe time; 1 = one session late.")
     print("  A cadence decision needs weeks of this, not days.")
+
+    # BY FIRING HOUR (2026-09-09). "How late is this line on average" and "by
+    # which hour of the day is it current" are different questions, and only
+    # the second one can move a refresh. The table above answers the first and
+    # was read as if it answered the second.
+    #
+    # Each row is bucketed to the firing it belongs to (hour // 6 * 6), not to
+    # the hour it landed in: the cron is 00/06/12/18 UTC and GitHub runs it
+    # late, so the 02:50 row is the 00:00 firing. CURRENT means
+    # sessions_behind <= 0 — zero is the last completed session served, and -1
+    # is an in-progress bar ahead of it, which means the settled one is there
+    # too.
+    buckets = (0, 6, 12, 18)
+    hourly: dict[str, dict[int, list[int]]] = {}
+    for r in recs:
+        try:
+            fired = datetime.fromisoformat(r["probed_at_utc"]).hour // 6 * 6
+        except (KeyError, TypeError, ValueError):
+            continue  # an unreadable stamp is one lost row, never a crash
+        for row in r["rows"]:
+            if row["sessions_behind"] is not None:
+                hourly.setdefault(f"{row['ticker']} ({row['role']})", {}) \
+                      .setdefault(fired, []).append(row["sessions_behind"])
+    print("\n  probes CURRENT (sessions_behind <= 0) / probes taken, "
+          "by firing hour")
+    print(f"  {'line':40s} " + " ".join(f"{b:02d}Z".rjust(8) for b in buckets))
+    for k in sorted(hourly):
+        cells = []
+        for b in buckets:
+            v = hourly[k].get(b, [])
+            cells.append((f"{sum(1 for x in v if x <= 0)}/{len(v)}"
+                          if v else "-").rjust(8))
+        print(f"  {k:40s} " + " ".join(cells))
+    print("\n  The refresh fires at ~01:00 UTC, inside the 00Z bucket.")
 
 
 def main(argv: list[str] | None = None) -> int:

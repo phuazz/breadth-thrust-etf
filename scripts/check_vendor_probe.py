@@ -61,6 +61,22 @@ ROUTINE: recorded and printed, not emailed. The 2026-08-28/30 outage still
 alerts on both of its shapes: two sessions gone on the Saturday, and Friday's
 bar still absent on the Sunday.
 
+LINES UNDER MEASUREMENT (2026-09-09). A line just added to the probe has no
+measured cycle to be judged against, so every withdrawal on it classifies as
+anomalous and emails. LIN was added to measure the hour at which the
+foreign-domiciled US constituents settle — the group that capped the IUMS
+panel at 2026-09-04 that morning and put sleeve A on HOLD — and if it follows
+the pattern the European lines follow, it would email every morning before
+the measurement it was added for had produced anything. An alert that fires
+every morning is not an alert.
+
+So a withdrawal on such a line is detected, recorded and printed like any
+other, and kept out of the email only. The exemption EXPIRES on its own date:
+after MEASURING_UNTIL the line alerts like every other, which forces the
+review rather than leaving a silence nobody revisits. This is deliberately
+narrow — SPY and XLF are not exempt, so a genuine US-wide withdrawal of the
+2026-08-28/30 kind still reaches the inbox on the lines that measured it.
+
 Exit 0 = usable. Exit 1 = nothing usable, do not commit. Exit 2 = cannot tell.
 """
 
@@ -105,6 +121,14 @@ RETRACTION_LOOKBACK_ROWS = 12
 ROUTINE_WITHDRAWAL_VENUES = frozenset({"XETR"})
 ROUTINE_WITHDRAWAL_WINDOW_DAYS = 2   # calendar days after the session, 00:00 UTC
 
+# LINES UNDER MEASUREMENT — see the module docstring. Recorded and printed,
+# not emailed, until the date below, by which the log holds four rows a day
+# for a fortnight: enough to say whether there is a cycle at all and where
+# its restore hour sits. On that date the exemption lapses and the line
+# alerts like any other, so the review happens or the email arrives.
+MEASURING_LINES = frozenset({"LIN"})
+MEASURING_UNTIL = date(2026, 9, 23)
+
 
 def previous_session(venue: str, day: date) -> date | None:
     """The venue's last session strictly before ``day``, or None when the
@@ -142,6 +166,18 @@ def is_routine_withdrawal(venue: str | None, was: date,
     if probed_at.tzinfo is None:
         probed_at = probed_at.replace(tzinfo=timezone.utc)
     return probed_at < routine_window_end(was)
+
+
+def is_under_measurement(ticker: str | None,
+                         probed_at: datetime | None) -> bool:
+    """Is this a line whose withdrawal cycle is still being measured?
+
+    A row with no readable timestamp does not qualify. The exemption is
+    time-bounded, and a row that cannot be placed in time must alert rather
+    than fall silent on the strength of a missing field.
+    """
+    return (ticker in MEASURING_LINES and probed_at is not None
+            and probed_at.date() < MEASURING_UNTIL)
 
 
 def _as_datetime(v) -> datetime | None:
@@ -225,6 +261,10 @@ def detect_retractions(history: list[dict],
             # workflow emails only on the anomalous ones.
             "routine": is_routine_withdrawal(r.get("venue"), was[0],
                                              now_bar, probed_at),
+            # True while this line's own cycle is still being measured. Also
+            # a true observation, also recorded; the workflow does not email
+            # on it until the exemption lapses.
+            "measuring": is_under_measurement(ticker, probed_at),
         })
     return sorted(out, key=lambda x: x["ticker"])
 
@@ -281,8 +321,15 @@ def evaluate(log_path: Path, now_utc: datetime | None = None,
         except Exception:  # noqa: BLE001
             continue
     retractions = detect_retractions(history)
-    anomalous = [r for r in retractions if not r.get("routine")]
+    # Three disjoint classes, in precedence order: a withdrawal that fits the
+    # measured cycle is routine whatever else it is; one on a line still
+    # being measured is neither routine nor an anomaly yet; everything left
+    # emails.
     routine = [r for r in retractions if r.get("routine")]
+    measuring = [r for r in retractions
+                 if r.get("measuring") and not r.get("routine")]
+    anomalous = [r for r in retractions
+                 if not r.get("routine") and not r.get("measuring")]
 
     summary = (f"{len(served)}/{len(rows)} lines served"
                + (f"; empty: {', '.join(empty)}" if empty else ""))
@@ -294,31 +341,40 @@ def evaluate(log_path: Path, now_utc: datetime | None = None,
         summary += (f"; routine overnight withdrawal (not emailed): "
                     + ", ".join(f"{r['ticker']} {r['was']}->{r['now']}"
                                 for r in routine))
+    if measuring:
+        summary += (f"; under measurement until "
+                    f"{MEASURING_UNTIL.isoformat()} (not emailed): "
+                    + ", ".join(f"{r['ticker']} {r['was']}->{r['now'] or 'none'}"
+                                for r in measuring))
     return {
         "ok": True, "undetermined": False, "rows": len(lines),
         "served": len(served), "empty": empty,
         "retractions": retractions,
         "anomalous": anomalous,
         "routine": routine,
+        "measuring": measuring,
         "summary": summary,
     }
 
 
 def _emit_outputs(anomalous: list[dict], detail: str,
-                  routine: list[dict] | None = None) -> None:
+                  routine: list[dict] | None = None,
+                  measuring: list[dict] | None = None) -> None:
     """Append step outputs for the workflow's conditional email step.
     No-op outside GitHub Actions. Same heredoc convention as
     check_freshness_headroom._emit_outputs. ``retracted`` is true only for
-    an ANOMALOUS withdrawal; the routine overnight cycle is counted
-    separately and does not email."""
+    an ANOMALOUS withdrawal; the routine overnight cycle and the lines still
+    under measurement are counted separately and do not email."""
     out = os.environ.get("GITHUB_OUTPUT")
     if not out:
         return
     routine = routine or []
+    measuring = measuring or []
     with open(out, "a", encoding="utf-8") as fh:
         fh.write(f"retracted={'true' if anomalous else 'false'}\n")
         fh.write(f"retracted_count={len(anomalous)}\n")
         fh.write(f"routine_count={len(routine)}\n")
+        fh.write(f"measuring_count={len(measuring)}\n")
         summary = ", ".join(f"{r['ticker']} {r['was']}->{r['now'] or 'none'}"
                             for r in anomalous) or "none"
         fh.write(f"retracted_summary={summary}\n")
@@ -328,15 +384,27 @@ def _emit_outputs(anomalous: list[dict], detail: str,
 
 
 def _retraction_detail(anomalous: list[dict],
-                       routine: list[dict] | None = None) -> str:
+                       routine: list[dict] | None = None,
+                       measuring: list[dict] | None = None) -> str:
     routine = routine or []
+    measuring = measuring or []
     if not anomalous:
+        parts = []
         if routine:
-            return ("No anomalous vendor retraction. Routine overnight "
-                    "withdrawal only (the measured European cycle; the bar "
-                    "is due back within two days): "
-                    + ", ".join(f"{r['ticker']} {r['was']}->{r['now']}"
-                                for r in routine))
+            parts.append("Routine overnight withdrawal (the measured "
+                         "European cycle; the bar is due back within two "
+                         "days): "
+                         + ", ".join(f"{r['ticker']} {r['was']}->{r['now']}"
+                                     for r in routine))
+        if measuring:
+            parts.append(f"Line under measurement until "
+                         f"{MEASURING_UNTIL.isoformat()}, cycle not yet "
+                         f"known: "
+                         + ", ".join(
+                             f"{r['ticker']} {r['was']}->{r['now'] or 'none'}"
+                             for r in measuring))
+        if parts:
+            return "No anomalous vendor retraction. " + " ".join(parts)
         return "No vendor retraction detected."
     lines = [
         "A vendor WITHDREW bars it had already served, OUTSIDE its measured",
@@ -373,6 +441,16 @@ def _retraction_detail(anomalous: list[dict],
             + ", ".join(f"{r['ticker']} {r['was']}->{r['now']}"
                         for r in routine),
         ]
+    if measuring:
+        lines += [
+            "",
+            f"Line under measurement on the same probe, not part of this "
+            f"alert (its cycle is being measured until "
+            f"{MEASURING_UNTIL.isoformat()}, after which it alerts like any "
+            f"other): "
+            + ", ".join(f"{r['ticker']} {r['was']}->{r['now'] or 'none'}"
+                        for r in measuring),
+        ]
     return "\n".join(lines)
 
 
@@ -391,7 +469,8 @@ def main(argv: list[str] | None = None) -> int:
 
     anomalous = r.get("anomalous") or []
     routine = r.get("routine") or []
-    detail = _retraction_detail(anomalous, routine)
+    measuring = r.get("measuring") or []
+    detail = _retraction_detail(anomalous, routine, measuring)
     if anomalous:
         print("")
         print(f"RETRACTION TRIPWIRE — {len(anomalous)} line(s) went "
@@ -407,7 +486,15 @@ def main(argv: list[str] | None = None) -> int:
         for x in routine:
             print(f"  {x['ticker']}: {x['was']} (seen {x['was_seen_at']}) "
                   f"-> {x['now']}")
-    _emit_outputs(anomalous, detail, routine)
+    if measuring:
+        print("")
+        print(f"Under measurement — {len(measuring)} line(s) whose cycle is "
+              f"not yet known; recorded, not emailed until "
+              f"{MEASURING_UNTIL.isoformat()}:")
+        for x in measuring:
+            print(f"  {x['ticker']}: {x['was']} (seen {x['was_seen_at']}) "
+                  f"-> {x['now'] or 'no bar at all'}")
+    _emit_outputs(anomalous, detail, routine, measuring)
 
     if r.get("undetermined"):
         return 2

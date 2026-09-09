@@ -128,6 +128,11 @@ def test_probe_covers_both_sides_of_the_europe_question():
     assert "Europe ETF line" in roles
     assert "Europe constituent" in roles
     assert "US ETF proxy" in roles
+    # ADDED 2026-09-09. The US side has the same split and it went unmeasured:
+    # SPY and XLF carried 2026-09-08 all evening while LIN, CRH, SW and AMCR
+    # did not, which capped the IUMS panel at 09-04 and held sleeve A. A US
+    # ETF proxy cannot answer for the constituents any more than EXV1.DE can.
+    assert "US constituent (foreign domicile)" in roles
 
 
 def test_probe_is_not_a_guard():

@@ -100,6 +100,14 @@ jobs:
       # measured window is recorded and printed but sets `retracted=false`
       # here, so only an ANOMALOUS one (a NYSE line, two or more sessions
       # gone, or a bar still absent past the window) reaches the inbox.
+      #
+      # UNDER MEASUREMENT SINCE 2026-09-09. LIN was added to the probe to
+      # measure when the foreign-domiciled US constituents settle, and it has
+      # no measured cycle to be judged against yet, so its withdrawals would
+      # all read as anomalous. They are recorded and printed and count in
+      # `measuring_count`, and do not email until the exemption in
+      # check_vendor_probe.MEASURING_UNTIL lapses. SPY and XLF are not
+      # exempt, so a US-wide withdrawal still arrives here.
       - name: Email retraction alert (vendor withdrew a settled bar)
         if: steps.guard.outputs.retracted == 'true'
         continue-on-error: true

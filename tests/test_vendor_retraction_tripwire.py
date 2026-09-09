@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
@@ -261,6 +261,49 @@ def test_routine_window_across_a_year_boundary():
         2027, 1, 1, tzinfo=timezone.utc)
 
 
+# ---------------------------------------------------------------------------
+# Lines under measurement (2026-09-09): recorded and printed, not emailed,
+# until the exemption's own expiry date. LIN was added to the probe to measure
+# when the foreign-domiciled US constituents settle — the group that capped
+# the IUMS panel and held sleeve A on 2026-09-09 — and would otherwise have
+# emailed every morning throughout the measurement it exists to produce.
+#
+# Stamps are derived from cvp.MEASURING_UNTIL so these pin the RULE and not a
+# particular fortnight. Python months are 1-indexed; the arithmetic is
+# timedelta's.
+# ---------------------------------------------------------------------------
+def _measuring_pair(probe_stamp: str):
+    """A LIN withdrawal: Tuesday's bar served after the close, gone at the
+    probe named by ``probe_stamp``."""
+    return [
+        _row("2026-09-08T21:41:31+00:00", [("LIN", "2026-09-08", "2026-09-08")]),
+        _row(probe_stamp, [("LIN", "2026-09-04", "2026-09-08")]),
+    ]
+
+
+def test_line_under_measurement_is_a_retraction_but_not_anomalous():
+    inside = (cvp.MEASURING_UNTIL - timedelta(days=1)).isoformat()
+    out = cvp.detect_retractions(_measuring_pair(f"{inside}T02:50:00+00:00"))
+    assert len(out) == 1
+    assert out[0]["ticker"] == "LIN" and out[0]["was"] == "2026-09-08"
+    assert out[0]["measuring"] is True
+    assert out[0]["routine"] is False      # a NYSE line has no measured cycle
+
+
+def test_the_measurement_exemption_expires_on_its_own_date():
+    """The point of the expiry: on the day it lapses the line alerts like any
+    other, so the review happens or the email arrives."""
+    on_the_day = cvp.MEASURING_UNTIL.isoformat()
+    out = cvp.detect_retractions(_measuring_pair(f"{on_the_day}T02:50:00+00:00"))
+    assert out[0]["measuring"] is False
+
+
+def test_an_unreadable_timestamp_does_not_earn_the_exemption():
+    """The exemption is time-bounded, so a row that cannot be placed in time
+    must alert rather than fall silent on a missing field."""
+    assert cvp.is_under_measurement("LIN", None) is False
+
+
 def _write_log(path: Path, rows) -> None:
     path.write_text("\n".join(json.dumps(r) for r in rows) + "\n",
                     encoding="utf-8")
@@ -328,3 +371,55 @@ def test_anomalous_retraction_still_emails_and_can_block(tmp_path, monkeypatch, 
     # The routine line is disclosed in the email body, not hidden.
     assert "Routine overnight withdrawal on the same probe" in outputs
     assert "EXV1.DE 2026-09-04->2026-09-03" in outputs
+
+
+def test_measuring_line_alone_does_not_email(tmp_path, monkeypatch, capsys):
+    """The LIN shape end to end: the row is committed, the withdrawal is
+    printed, and the workflow's email condition stays false."""
+    log = tmp_path / "log.jsonl"
+    gh_out = tmp_path / "gh_output.txt"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(gh_out))
+    inside = cvp.MEASURING_UNTIL - timedelta(days=1)
+    _write_log(log, _measuring_pair(f"{inside.isoformat()}T02:50:00+00:00"))
+    _pin_clock(monkeypatch, datetime(inside.year, inside.month, inside.day,
+                                     2, 55, tzinfo=timezone.utc))
+    # Endorsed even under --fail-on-retraction: nothing anomalous happened.
+    assert cvp.main(["--log", str(log), "--fail-on-retraction"]) == 0
+    printed = capsys.readouterr().out
+    assert "Under measurement" in printed and "LIN" in printed
+    assert "RETRACTION TRIPWIRE" not in printed
+    outputs = gh_out.read_text(encoding="utf-8")
+    assert "retracted=false" in outputs
+    assert "retracted_count=0" in outputs
+    assert "measuring_count=1" in outputs
+
+
+def test_the_exemption_does_not_cover_the_other_us_lines(tmp_path, monkeypatch,
+                                                         capsys):
+    """THE CASE THE NARROWNESS EXISTS FOR. SPY withdrawing beside LIN is the
+    2026-08-28/30 shape, and it must still reach the inbox — with the LIN
+    withdrawal disclosed in the body rather than hidden."""
+    log = tmp_path / "log.jsonl"
+    gh_out = tmp_path / "gh_output.txt"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(gh_out))
+    inside = cvp.MEASURING_UNTIL - timedelta(days=1)
+    _write_log(log, [
+        _row("2026-09-08T21:41:31+00:00",
+             [("SPY", "2026-09-08", "2026-09-08"),
+              ("LIN", "2026-09-08", "2026-09-08")]),
+        _row(f"{inside.isoformat()}T02:50:00+00:00",
+             [("SPY", "2026-09-04", "2026-09-08"),
+              ("LIN", "2026-09-04", "2026-09-08")]),
+    ])
+    _pin_clock(monkeypatch, datetime(inside.year, inside.month, inside.day,
+                                     2, 55, tzinfo=timezone.utc))
+    assert cvp.main(["--log", str(log)]) == 0
+    assert cvp.main(["--log", str(log), "--fail-on-retraction"]) == 1
+    printed = capsys.readouterr().out
+    assert "RETRACTION TRIPWIRE" in printed
+    outputs = gh_out.read_text(encoding="utf-8")
+    assert "retracted=true" in outputs
+    assert "retracted_summary=SPY 2026-09-08->2026-09-04" in outputs
+    assert "measuring_count=1" in outputs
+    assert "Line under measurement on the same probe" in outputs
+    assert "LIN 2026-09-08->2026-09-04" in outputs
