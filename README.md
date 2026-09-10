@@ -95,7 +95,7 @@ Why it can matter: on 2026-08-14, under the superseded Friday cadence, the Xetra
 
 ### Test coverage
 
-1,819 pytest tests across 94 files (count as of 2026-09-02 — date it when you update it, so the next reader can see how stale it is). Key suites:
+2,196 pytest tests across 110 files (count as of 2026-09-10 — date it when you update it, so the next reader can see how stale it is). Key suites:
 - `test_check_coverage_depth.py` (56 tests) — the coverage-depth guard: per-year coverage against the committed baseline of the filed basis, both tolerance bounds pinned to the measured drift and the measured 2026-09-02 regression, the delisted-name probes, the baseline's provenance and scope, and the committed panels themselves for panels built after the baseline was adopted.
 - `test_backtest_math.py` (17 tests) — structural invariants: long-only, sum-to-100%, no NaN, monotonic dates.
 - `test_weight_function_edge_cases.py` (12 tests) — direct unit tests on `top_k_breadth_weight` with synthetic stress inputs (all-positives, all-negatives, mixed, NaN, ties, single-element). Includes regression test that would have caught the Phase 20 long-only bug.

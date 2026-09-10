@@ -182,6 +182,27 @@ firing from 08-28 to 09-02 refused at its own preflight until they were
 committed by hand (0ea4208). Armed mode commits and pushes only the owned
 paths, so a clean run leaves nothing behind.
 
+A failed run leaves nothing behind either, from 2026-09-10. The capture writes
+its snapshots and both payloads before the guard reads them, so a guard
+failure used to leave the owned paths dirty and the next firing refused at
+preflight: on 2026-09-09 yfinance returned nothing for 136 of 166 names, G5
+failed on price coverage (ARKG 25.0%, XBI 17.1%, floor 85%), nothing was
+published, and the 2026-09-10 firing refused on the two unpriced payloads and
+two new snapshots. The wrapper now records the state of the owned paths after
+the preflight and, when the capture, guard or page build fails, restores
+exactly what the run itself dirtied: tracked outputs back to HEAD, snapshots
+the run wrote removed, one path per git call, each named in the log. A
+snapshot that existed before the run started is never removed, a path that
+was already dirty is left for its owner, and the preflight refusal stays as
+the guard against a manual run already in flight. A failure inside the
+publish step is left as found, since the commit may already exist. The same
+pattern as `scheduled_refresh.py` (e3e992a), scoped to the owned paths
+because this tree is shared. `tests/test_scheduled_holdings_monitor.py` pins
+it. The 2026-09-09 yfinance failure was transient: the same library build
+(1.1.0, installed 2026-07-02) priced 100% on 09-08 and 20 of 20 probed names
+on 09-10, and the signature is what yfinance 1.1.0 reports for any chart
+request that returns no usable JSON.
+
 Two `fleet_watch.json` rows, because one is not enough: the git heartbeat
 ("holdings monitor output", grep `monitor: holdings capture`, 48h) moves only
 when output *changes*, so a run that fires and fails writes nothing and looks
