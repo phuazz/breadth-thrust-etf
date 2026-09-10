@@ -599,92 +599,209 @@ def assert_built_at_valid(ts: str | None) -> None:
 # phase8_right_tail, portfolio_construction) that the silent-staleness bug of
 # 2026-06-17 was hiding inside.
 
+# ---------------------------------------------------------------------------
+# Observation-date contract (2026-09-10)
+# ---------------------------------------------------------------------------
+# Every monitored feed MUST name the field(s) that carry its market
+# OBSERVATION date, via the ``obs`` key below. A feed with no ``obs`` is
+# reported broken rather than guessed at.
+#
+# This replaces the original ``_last_data_date_from`` deep-walk, which took
+# the maximum YYYY-MM-DD string found anywhere in the blob. That conflated
+# four distinct kinds of date and produced a health table that measured the
+# fetch clock rather than the market. Measured on the 2026-09-09 23:24 UTC
+# build, all 88 rows reported a non-observation date:
+#
+#   * fetch timestamps  — ``computed_at_utc``. 58 rows reported the build
+#     date itself; the 28 Europe rows reported Sunday 2026-09-06, the day
+#     that batch was computed, while their true basis was Friday 2026-09-04.
+#   * forward period labels — ``ma200_sweep`` resamples breadth weekly to
+#     Friday buckets, so the current partial week carries the NEXT Friday's
+#     label (2026-09-11) over a Tuesday 2026-09-08 observation.
+#   * monthly period-end labels — ``phase8_right_tail.common_monthly_window``
+#     ends 2026-09-30, the calendar end of the month in progress.
+#   * scheduled decision dates — ``headline.latest_rebalance`` and the fill
+#     dates beside it name a future session, not an observed one.
+#
+# Because a feed's freshest real date was never the maximum, every row
+# classified OK and the badge read "88 OK" over a panel five days behind.
+#
+# Selector grammar (deliberately narrow — no free walking):
+#   ``a.b``   dict key
+#   ``*``     every value of a dict / every element of a list
+#   ``-1``    list index (negatives allowed)
+# Only a string of EXACTLY ten characters that parses as an ISO date is
+# accepted, so a ``...T07:32:04+00:00`` timestamp can never be selected even
+# if a selector is later pointed at one by mistake.
+
 DATA_HEALTH_CHECKS: list[dict] = [
     # Live / daily-update feeds — narrow tolerance
     {"key": "live_track", "file": "live_track.json", "group": "live",
      "label": "Live mark-to-market (intra-week NAV splice)",
      "warn": 3, "stale": 7,
+     # live_dates is the intra-week splice of real marks; anchor_date is the
+     # prior Friday close it splices onto. The splice is the observation.
+     "obs": ["live_dates.*"],
      "fix": "GitHub Actions daily_live_track or `python scripts/mark_to_market_live.py`"},
     {"key": "holdings_prices", "file": "holdings_prices_1y.json", "group": "live",
      "label": "Holdings 1Y price series (for click-expand mini-charts)",
      "warn": 3, "stale": 7,
+     "obs": ["prices.*.dates.*"],
      "fix": "`python scripts/export_holdings_prices.py`"},
-    # Strategy-engine outputs — weekly cadence
+    # Strategy-engine outputs — weekly cadence. headline_equity_dates is the
+    # realised equity curve; latest_rebalance beside it is a SCHEDULED
+    # decision date and is deliberately not selected.
     {"key": "topk", "file": "topk_robustness.json", "group": "strategy",
      "label": "Strategy A — US Sector Rotation (top-K)",
      "warn": 8, "stale": 14,
+     "obs": ["headline.headline_equity_dates.*"],
      "fix": "`python scripts/run_topk_robustness.py`"},
     {"key": "asset_class", "file": "asset_class_rotation.json", "group": "strategy",
      "label": "Strategy B — Asset Class Rotation",
      "warn": 8, "stale": 14,
+     "obs": ["headline.headline_equity_dates.*"],
      "fix": "`python scripts/run_asset_class_rotation.py`"},
     {"key": "thematic", "file": "thematic_rotation.json", "group": "strategy",
      "label": "Strategy C — Thematic Rotation",
      "warn": 8, "stale": 14,
+     "obs": ["headline.headline_equity_dates.*"],
      "fix": "`python scripts/run_thematic_rotation.py`"},
     {"key": "europe", "file": "europe_rotation.json", "group": "strategy",
      "label": "Strategy D — Europe Sector Rotation",
      "warn": 8, "stale": 14,
+     "obs": ["headline.headline_equity_dates.*"],
      "fix": "`python scripts/run_europe_rotation.py`"},
     {"key": "multi", "file": "multi_strategy.json", "group": "strategy",
      "label": "Multi-strategy blend (deployed 4-way)",
      "warn": 8, "stale": 14,
+     "obs": ["common_end"],
      "fix": "`python scripts/run_multi_strategy.py`"},
     {"key": "risk_overlay", "file": "risk_overlay.json", "group": "strategy",
      "label": "Risk Overlay (regime gate + EM tilt)",
      "warn": 8, "stale": 14,
+     # panel_end_date is the last observed bar behind the gate. current_state_since
+     # is a state-transition label and events[].date are historical switches.
+     "obs": ["panel_end_date", "gate_feed_last_bar"],
      "fix": "`python scripts/run_risk_overlay.py`"},
     # Aggregated derivations — the silent-staleness offenders
     {"key": "ma200_sweep", "file": "ma200_sweep.json", "group": "derived",
      "label": "MA200 sweep (feeds Live Signal breadth chart)",
      "warn": 8, "stale": 14,
+     # monitor.*.as_of is the observed bar behind each panel's live reading.
+     # per_etf_detail.*.breadth_dates is a weekly-resampled FRIDAY LABEL series
+     # whose final entry is the forward Friday of the week in progress.
+     "obs": ["monitor.*.as_of"],
      "fix": "`python scripts/run_ma200_sweep.py`"},
     {"key": "phase7_bootstrap", "file": "phase7_bootstrap.json", "group": "derived",
      "label": "Bootstrap CIs on Sharpe (Phase 7)",
      "warn": 8, "stale": 14,
+     "obs": ["per_strategy.*.date_range.-1"],
      "fix": "`python scripts/run_phase7_bootstrap.py`"},
     {"key": "phase8_right_tail", "file": "phase8_right_tail.json", "group": "derived",
      "label": "Right-tail / regime metrics + sleeve correlations (Phase 8)",
      "warn": 8, "stale": 14,
+     # per_strategy.*.date_range is the daily observation span.
+     # common_monthly_window ends at a CALENDAR MONTH END (2026-09-30 on a
+     # 2026-09-09 build) and regime_decomposition.*.end are fixed historical
+     # episode bounds — neither is an observation.
+     "obs": ["per_strategy.*.date_range.-1"],
      "fix": "`python scripts/run_phase8_right_tail.py`"},
     {"key": "portfolio_construction", "file": "portfolio_construction.json", "group": "derived",
      "label": "Portfolio variants comparison table",
      "warn": 8, "stale": 14,
+     "obs": ["results.*.dates.*"],
      "fix": "`python scripts/run_portfolio.py`"},
 ]
 # Per-ETF breadth panels and constituent rosters are added dynamically by
 # _compute_data_health below so the registry stays compact.
 
+# Breadth panels: end_date is the last bar actually priced into the panel.
+# tail_cap.venue_last_completed / tail_verification.* record what the VENUE
+# had available and what the vendor probe saw — diagnostics about the gap,
+# not the panel's own basis. Selecting them would report a panel as current
+# precisely when it had failed to ingest the newest session.
+BREADTH_OBS_SELECTORS = ["end_date"]
+# Rosters: end_friday is the last weekly snapshot boundary actually written.
+# fetched_at_utc is the fetch clock.
+CONSTITUENTS_OBS_SELECTORS = ["end_friday"]
 
-def _last_data_date_from(blob: dict) -> str | None:
-    """Best-effort extract of the LATEST YYYY-MM-DD date anywhere in a
-    result JSON. Deep-walks the tree and returns the maximum date string
-    encountered, or None if the tree contains no recognisable dates.
 
-    Deliberately does NOT short-circuit on explicit keys like
-    ``end_date`` / ``anchor_date`` — live_track.json has both an
-    ``anchor_date`` of the most-recent-Friday close AND a ``live_dates``
-    array that extends through today's intra-week splice. Stopping at
-    ``anchor_date`` would mark a freshly-refreshed file as 14+ days
-    stale. Always scan for the true maximum.
+def _iso_observation_date(value: object) -> str | None:
+    """Return ``value`` as a YYYY-MM-DD string, or None.
+
+    Accepts ONLY an exactly-ten-character ISO date. A datetime stamp
+    (``2026-09-09T07:32:04+00:00``) is rejected rather than truncated, so a
+    fetch clock cannot become a "Last Data" date even via a mis-aimed
+    selector. This is the structural half of the guard; naming the right
+    field in ``obs`` is the other half.
     """
-    best: list[str] = [""]
-    def walk(o):
-        if isinstance(o, str):
-            # Match strict ISO YYYY-MM-DD prefix
-            if len(o) >= 10 and o[4] == "-" and o[7] == "-" and o[:4].isdigit():
-                if o[:10] > best[0]:
-                    best[0] = o[:10]
-        elif isinstance(o, dict):
-            for vv in o.values(): walk(vv)
-        elif isinstance(o, list):
-            for vv in o: walk(vv)
-    walk(blob)
-    return best[0] or None
+    if not isinstance(value, str) or len(value) != 10:
+        return None
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return None
+    return value
+
+
+def _select_dates(blob: object, selector: str) -> list[str]:
+    """Collect every ISO date reachable from ``blob`` along ``selector``.
+
+    Grammar is documented above DATA_HEALTH_CHECKS. Unresolvable segments
+    yield nothing rather than raising — a renamed field surfaces as a broken
+    row in _process, which is the signal we want.
+    """
+    nodes: list[object] = [blob]
+    for seg in selector.split("."):
+        nxt: list[object] = []
+        for node in nodes:
+            if seg == "*":
+                if isinstance(node, dict):
+                    nxt.extend(node.values())
+                elif isinstance(node, list):
+                    nxt.extend(node)
+                continue
+            if isinstance(node, dict):
+                if seg in node:
+                    nxt.append(node[seg])
+                continue
+            if isinstance(node, list):
+                try:
+                    idx = int(seg)
+                except ValueError:
+                    continue
+                if -len(node) <= idx < len(node):
+                    nxt.append(node[idx])
+        nodes = nxt
+        if not nodes:
+            return []
+    out = []
+    for node in nodes:
+        iso = _iso_observation_date(node)
+        if iso is not None:
+            out.append(iso)
+    return out
+
+
+def _observation_date_from(blob: object, selectors: list[str]) -> str | None:
+    """Latest observation date across ``selectors``, or None if none resolve."""
+    found: list[str] = []
+    for sel in selectors:
+        found.extend(_select_dates(blob, sel))
+    return max(found) if found else None
 
 
 def _classify(days_old: int | None, warn: int, stale: int) -> str:
+    """Bucket a feed by age in days.
+
+    A NEGATIVE days_old is broken, never ok: a feed cannot have observed a
+    session that has not happened. _process catches the future case first and
+    with a better note; this is the backstop that stops any other caller
+    deriving OK from a future date, which is what the badge did until
+    2026-09-10.
+    """
     if days_old is None: return "unknown"
+    if days_old < 0: return "broken"
     if days_old >= stale: return "stale"
     if days_old >= warn: return "warn"
     return "ok"
@@ -727,21 +844,75 @@ def _compute_data_health(today: date) -> dict:
             row["note"] = f"unreadable: {e}"
             rows.append(row)
             return
-        last = _last_data_date_from(blob)
         mtime_ts = _os.path.getmtime(fp)
         mtime_iso = _dt.utcfromtimestamp(mtime_ts).strftime("%Y-%m-%dT%H:%M:%SZ")
-        if last:
-            try:
-                days = (today - date.fromisoformat(last)).days
-            except ValueError:
-                days = None
-        else:
-            # Fallback to file mtime
-            days = (today - date.fromtimestamp(mtime_ts)).days
-        row["status"] = _classify(days, check["warn"], check["stale"])
+        row["mtime"] = mtime_iso
+
+        selectors = check.get("obs") or []
+        if not selectors:
+            # Fail closed. A feed added without naming its observation field
+            # must not inherit a guess — that is how the 88-OK badge happened.
+            row["status"] = "broken"
+            row["last_data_date"] = None
+            row["days_old"] = None
+            row["note"] = "no observation-date selector declared for this feed"
+            rows.append(row)
+            return
+        last = _observation_date_from(blob, selectors)
+        if last is None:
+            # Selector declared but nothing resolved: the field was renamed or
+            # the writer stopped emitting it. Previously this fell back to file
+            # mtime, which reports the fetch clock as freshness — a green row
+            # over a feed whose contents nobody checked.
+            row["status"] = "broken"
+            row["last_data_date"] = None
+            row["days_old"] = None
+            row["note"] = (
+                "observation date not found at " + ", ".join(selectors)
+                + " — field renamed or no longer written"
+            )
+            rows.append(row)
+            return
+
+        days = (today - date.fromisoformat(last)).days
         row["last_data_date"] = last
         row["days_old"] = days
-        row["mtime"] = mtime_iso
+        note = ""
+        if days < 0:
+            # A feed cannot observe a session that has not happened. Either a
+            # period label leaked into the observation field or the writer
+            # forward-stamped a row.
+            if check.get("allow_future"):
+                status = "warn"
+                note = (
+                    f"forward-dated {abs(days)}d beyond the {today.isoformat()} "
+                    f"build; allowed for this feed ({check.get('allow_future')})"
+                )
+            else:
+                status = "broken"
+                note = (
+                    f"observation date {last} is {abs(days)}d AFTER the "
+                    f"{today.isoformat()} build — a period label or scheduled "
+                    f"date has leaked into the observation field"
+                )
+        else:
+            status = _classify(days, check["warn"], check["stale"])
+            if date.fromisoformat(last).weekday() >= 5:
+                # Secondary tripwire. Every feed here is priced off an exchange
+                # session, so a Saturday/Sunday observation date means a compute
+                # clock got selected again. Warn rather than break: a venue
+                # calendar could legitimately differ, and the reader should see
+                # the date and judge.
+                status = "warn" if status == "ok" else status
+                note = (
+                    f"{last} is a "
+                    f"{date.fromisoformat(last).strftime('%A')} — not an "
+                    f"exchange session; check the selector points at an "
+                    f"observation field"
+                )
+        row["status"] = status
+        if note:
+            row["note"] = note
         rows.append(row)
 
     # Registered explicit checks
@@ -770,6 +941,7 @@ def _compute_data_health(today: date) -> dict:
             "file": fp.name, "group": "breadth",
             "label": f"Breadth panel — {etf}",
             "warn": warn, "stale": stale,
+            "obs": BREADTH_OBS_SELECTORS,
             "fix": f"`python scripts/compute_breadth.py --etf {etf}`",
         })
 
@@ -784,6 +956,7 @@ def _compute_data_health(today: date) -> dict:
             "file": fp.name, "group": "constituents",
             "label": f"Constituent roster — {etf}",
             "warn": warn, "stale": stale,
+            "obs": CONSTITUENTS_OBS_SELECTORS,
             "fix": f"`python scripts/fetch_constituents.py --etf {etf}`",
         })
 

@@ -12147,6 +12147,7 @@ function renderDataHealth() {
       <td>
         <div style="font-weight:500;">${r.label}</div>
         <div style="font-size:11px;color:var(--ink-faint);">${r.file}</div>
+        ${r.note ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:3px;">${r.note}</div>` : ''}
       </td>
       <td style="font-size:12px;color:var(--ink-soft);">${groupLabels[r.group] || r.group}</td>
       <td style="font-size:12px;">${last}</td>
