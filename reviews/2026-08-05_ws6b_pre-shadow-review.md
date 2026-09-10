@@ -357,7 +357,19 @@ True, consecutive 1 of 8.** A week that measured nothing and counts anyway —
 `shadow_status` now reports `weeks_fully_reverted: 1` beside it. Log written and
 hash-chained (one record, chain intact); working tree untouched.
 
-**It is repairable, and cheaply.** The cached JSON payloads the deployed
+**REPAIRED 2026-09-10 (commit `10a7f76`), and the wall no longer binds.** The
+weight route now reads `holdingPercent` from the product-data JSON API behind an
+exact-equality parity proof against the CSV basis — 330 pairs, 2018-01-05 to
+2026-07-10, keys 330/330, top-15 pool 330/330, max per-name difference 0.0. All
+five adopted lines rebuilt to 2026-09-04 with **0 restated**. The week ending
+2026-09-04 recomputes with nothing withheld and a gap of **+12.7 bp** against
+the +0.0 bp recorded above. Full record, including the two defects the proof
+exposed — an unguarded `asOfDate` look-ahead on the CSV route, and a basket
+reconstruction that would have refused the first real week —
+`reviews/2026-09-10_ws6_weight-route-json-parity.md`. The paragraph below stands
+as the diagnosis that led there.
+
+**It was repairable, and cheaply.** The cached JSON payloads the deployed
 pipeline already writes to `data/raw_ishares/` carry `holdingPercent` beside
 `ticker` (verified on `IUES_20260904.json`: 28 rows, `asOfDate` echoing
 20260904, first weights 28.48 / 16.83 / 7.05). `parse_holdings_json` simply does
