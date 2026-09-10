@@ -138,6 +138,24 @@ def save_log(weeks: list[dict]) -> None:
          "weeks": weeks}, indent=2), encoding="utf-8")
 
 
+def _within_line_weights(panel_row, book_lines: set, line_weight: float
+                         ) -> dict[str, float]:
+    """One line's basket as within-line weights summing to 1.
+
+    ``book_lines`` must be the WHOLE sector book — all 14 line codes — not just
+    the single-named ones. ``restricted_to`` expresses the other SINGLE-named
+    lines as ETFs, but the three broad slices are held as their own ETFs in
+    every arm and remain positive-weight columns of the panel; leaving them in
+    divides a broad slice's weight by this line's and counts it into this
+    line's basket, which the weight-integrity guard then refuses.
+    """
+    if line_weight <= 0:
+        return {}
+    names = [c for c in panel_row.index if c not in book_lines]
+    w = panel_row[names]
+    return {n: float(v) / line_weight for n, v in w[w > 0].items()}
+
+
 def _snapshot_at(snapshots: dict, t_minus_1) -> str:
     """The newest entry a t-1 read may consume, as an ISO date, or ``"none"``.
 
@@ -244,11 +262,22 @@ def compute_week(window_end: pd.Timestamp) -> dict:
                 ARM_BY_ID["I0"], sector["weights"], closes, rebal,
                 sector["eligible"], membership, signals, prices_by_line,
                 member_resolution=resolution, member_weights=weights)
-        cols = [c for c in b.name_weights.columns if c not in SINGLE_NAMED_LINES]
-        w = b.name_weights.loc[week_ending, cols]
-        w = w[w > 0]
-        baskets[L] = ({n: float(v) / line_w[L] for n, v in w.items()}
-                      if line_w[L] > 0 else {})
+        # Exclude the WHOLE sector book, not just the single-named lines.
+        # restricted_to() makes the other SINGLE-named lines behave as ETFs, but
+        # the three BROAD_SLICES (CSP1, CNDX, IDP6) are held as their own ETFs
+        # in every arm and stay as positive-weight columns. Filtering only
+        # SINGLE_NAMED_LINES divided CSP1's weight by line L's and counted it
+        # into L's basket, so basket_weights_sum_to_one refused the week: on the
+        # week ending 2026-09-04 the baskets summed to 1.077 (IUES), 1.370
+        # (IUCS) and 1.075 (IUFS), and to 1.0 with this exclusion. Latent until
+        # now only because SS6.3 STRICT has withheld every line while the weight
+        # route was walled, so no week had ever basketed anything; repairing
+        # that route is what would have made it bite, on WS6b's first real week.
+        # Found by the WS6c session, which copied this shape (memory
+        # ws6b-basket-reconstruction-drops-only-named-lines, commit 7d4b385).
+        baskets[L] = _within_line_weights(
+            b.name_weights.loc[week_ending],
+            set(sector["weights"].columns), line_w[L])
 
     # A held, adopted line whose reconstructed basket is EMPTY did not trade
     # as a basket this week — the builder reverted it to its ETF (the

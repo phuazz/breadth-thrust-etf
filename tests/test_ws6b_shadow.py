@@ -574,3 +574,43 @@ def test_status_counts_weeks_that_measured_nothing():
     assert st["consecutive_publishable"] == 3      # all three "count"
     assert st["weeks_fully_reverted"] == 2         # but two measured nothing
     assert st["max_abs_gap_bp"] == 0.0             # and tracked perfectly by construction
+
+
+# --- basket reconstruction: exclude the WHOLE book, not just named lines ----
+
+def test_within_line_weights_excludes_the_broad_slices_too():
+    """The defect that would have refused WS6b's first real week.
+
+    restricted_to() expresses the other SINGLE-named lines as ETFs, but the
+    three broad slices (CSP1, CNDX, IDP6) are held as their own ETFs in every
+    arm and stay as positive-weight columns. Filtering only SINGLE_NAMED_LINES
+    divided a broad slice's weight by this line's and counted it into this
+    line's basket; on the week ending 2026-09-04 that gave baskets summing to
+    1.077 (IUES), 1.370 (IUCS) and 1.075 (IUFS). Latent while SS6.3 withheld
+    every line, and it bites the moment the weight route is repaired.
+    """
+    import run_ws6b_shadow as R
+
+    book = ["CSP1", "CNDX", "IDP6", "IUES", "SOXX"]      # 3 broad + 2 named
+    row = pd.Series({"CSP1": 0.20, "CNDX": 0.10, "IDP6": 0.05,   # broad slices
+                     "IUES": 0.00, "SOXX": 0.00,                 # the line itself
+                     "XOM": 0.06, "CVX": 0.04})                  # the real basket
+    got = R._within_line_weights(row, set(book), line_weight=0.10)
+
+    assert set(got) == {"XOM", "CVX"}, "a broad slice leaked into the basket"
+    assert got["XOM"] == pytest.approx(0.6)
+    assert got["CVX"] == pytest.approx(0.4)
+    assert sum(got.values()) == pytest.approx(1.0)
+
+    # The pre-fix exclusion set reproduces the reported failure, so this test
+    # would have caught it rather than merely describing it.
+    named_only = {"IUES", "SOXX"}
+    leaked = R._within_line_weights(row, named_only, line_weight=0.10)
+    assert sum(leaked.values()) == pytest.approx(4.5)     # 0.45 / 0.10
+    assert "CSP1" in leaked
+
+
+def test_within_line_weights_on_a_zero_weight_line_is_empty():
+    import run_ws6b_shadow as R
+    row = pd.Series({"CSP1": 0.2, "XOM": 0.0})
+    assert R._within_line_weights(row, {"CSP1"}, line_weight=0.0) == {}
