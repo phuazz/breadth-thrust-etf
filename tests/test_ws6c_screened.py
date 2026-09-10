@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import copy
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -1033,15 +1033,74 @@ def test_week_window_year_boundary():
     assert out2["AAA"] == pytest.approx(1.01 ** 2 - 1)    # two bars, not three
 
 
+def test_a1_floor_is_the_friday_the_record_opens_on():
+    """Amendment A1 (vault-docs bfa42ee, logged under §9 before the first fire):
+    week 1 is the week ending Friday 2026-09-11, as a condition rather than an
+    intent. The weekday is asserted with a date library, never recalled; Python
+    weekday() is Monday=0, so Friday is 4, and months are 1-INDEXED."""
+    import run_ws6c_screened_arm as R
+
+    assert R.RECORD_START_FLOOR == date(2026, 9, 11)
+    assert R.RECORD_START_FLOOR.weekday() == 4
+    assert R.FIRST_SCHEDULED_FIRE == date(2026, 9, 12)
+    assert R.FIRST_SCHEDULED_FIRE.weekday() == 5
+    # The fire that publishes week 1 is the day after it ends.
+    assert R.FIRST_SCHEDULED_FIRE - R.RECORD_START_FLOOR == timedelta(days=1)
+
+
+def test_a1_floor_refuses_the_week_that_was_actually_published_by_accident():
+    """The concrete case A1 exists for: the week ending 2026-09-04 was published
+    once from an uncommitted tree, removed, and would publish again — legitimately
+    under §7 as drafted — on any further manual run. It must now refuse."""
+    import run_ws6c_screened_arm as R
+
+    assert R.before_floor("2026-09-04")
+    assert R.before_floor("2026-08-28")
+    # The floor itself and everything after it are allowed.
+    assert not R.before_floor("2026-09-11")
+    assert not R.before_floor("2026-09-18")
+
+
+def test_a1_floor_month_and_year_boundaries():
+    """House rule: one month boundary, one year boundary. Both are weeks the
+    record will actually meet — the floor is compared as a DATE, so neither the
+    October turn nor the year turn can flip the comparison."""
+    import run_ws6c_screened_arm as R
+
+    # Month boundary: the week ending Friday 2026-10-02, inside the 8-week span.
+    assert date(2026, 10, 2).weekday() == 4
+    assert not R.before_floor("2026-10-02")
+    # Year boundary: Friday 2027-01-01 is an NYSE holiday and the deployed
+    # calendar drops it, so the boundary week is the one ending 2027-01-08.
+    assert date(2027, 1, 8).weekday() == 4
+    assert not R.before_floor("2027-01-08")
+    # ... and a week from the year BEFORE the floor is still below it, which a
+    # string comparison would also get right and a day-of-year one would not.
+    assert R.before_floor("2025-12-26")
+
+
+def test_schedule_header_refuses_to_describe_a_log_that_breaches_the_floor():
+    """A record earlier than the floor cannot have been written by this
+    publisher, so the header asserts rather than quietly describing it."""
+    import run_ws6c_screened_arm as R
+
+    with pytest.raises(AssertionError, match="A1 floor"):
+        R.schedule_header([{"week_ending": "2026-09-04"}])
+
+
 def test_schedule_header_records_the_start_week_and_flags_a_late_start():
     """§7: the start week is recorded in the log header, and a start later than
-    the intended 2026-09-11 says so — the record must not have to be
-    reconstructed later from commit dates."""
+    the A1 floor says so — the record must not have to be reconstructed later
+    from commit dates. A1 fixes the EARLIEST week the record may open on; a
+    refused or missed fire still moves the actual start out, and that is
+    legitimate and must remain visible."""
     import run_ws6c_screened_arm as R
 
     hdr = R.schedule_header([])
     assert hdr["start_week_ending"] == "not yet published"
-    assert "2026-09-11 (Friday)" in hdr["intended_week_1_ending"]
+    assert "2026-09-11 (Friday)" in hdr["week_1_ending"]
+    assert "A1 floor, enforced" in hdr["week_1_ending"]
+    assert "bfa42ee" in hdr["registration"]      # the amendment travels with it
     assert "2026-09-12 (Saturday)" in hdr["first_scheduled_fire"]
 
     on_time = R.schedule_header([{"week_ending": "2026-09-11"}])

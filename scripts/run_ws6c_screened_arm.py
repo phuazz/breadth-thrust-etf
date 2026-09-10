@@ -86,7 +86,22 @@ PARAMS_PATH = PROJECT_ROOT / "data" / "ws6b_params.json"
 # remembered. Python's weekday() is Monday=0, so Friday is 4 and Saturday is 5;
 # datetime months are 1-INDEXED.
 FIRST_SCHEDULED_FIRE = date(2026, 9, 12)     # Saturday 17:30 SGT
-INTENDED_WEEK_1 = date(2026, 9, 11)          # Friday
+
+# AMENDMENT A1 (vault-docs `bfa42ee`, 2026-09-10, logged under §9 before the
+# first fire and therefore governing). §7 stated 2026-09-11 as the INTENT of
+# week 1; A1 makes it a condition. No week ending before this date is published,
+# whether or not WS6b published such a week.
+#
+# It exists because the accident it prevents already happened once: a manual
+# wrapper run published the week ending 2026-09-04 from an uncommitted tree,
+# twelve minutes before this publisher was committed. That record was removed,
+# but the publisher is committed now, so without a floor a further manual run
+# before the fire would publish 2026-09-04 legitimately and move the eight-week
+# close-out and the 52-week citability date a week earlier than §5.
+#
+# A LATER start is still legitimate and is NOT blocked: §7's rule that a missed
+# fire moves the start week out rather than backfilling is untouched by A1.
+RECORD_START_FLOOR = date(2026, 9, 11)       # Friday
 
 
 def _engine_commit() -> str:
@@ -116,20 +131,32 @@ def load_ws6b_log() -> list[dict]:
     return json.loads(WS6B_LOG_PATH.read_text(encoding="utf-8"))["weeks"]
 
 
+def before_floor(week_ending: str) -> bool:
+    """Amendment A1: is this week earlier than the record may start?
+
+    A pure predicate so the floor is testable without the live data path. The
+    comparison is on real dates, not ISO strings — the two orderings agree for
+    well-formed dates, but a floor that silently depends on that is a floor that
+    breaks the first time a key is malformed.
+    """
+    return date.fromisoformat(week_ending) < RECORD_START_FLOOR
+
+
 def schedule_header(weeks: list[dict]) -> dict:
     """The §7 log header. The START WEEK is recorded because it is not knowable
-    in advance: the arm's first counted week is the first WS6b published week for
-    which this publisher, committed with tests, also ran, and if that is not the
-    intended 2026-09-11 the difference has to be visible in the record rather
-    than reconstructed later."""
+    in advance: A1 fixes the earliest week the record may open on, but a refused
+    or missed fire still moves the actual start out, and that difference has to
+    be visible in the record rather than reconstructed later from commit dates."""
     assert FIRST_SCHEDULED_FIRE.weekday() == 5, "the fire is a Saturday"
-    assert INTENDED_WEEK_1.weekday() == 4, "screened weeks end on a Friday"
+    assert RECORD_START_FLOOR.weekday() == 4, "screened weeks end on a Friday"
     hdr = {
         "registration": ("KICKOFF_ws6c-screened-arm.md, frozen at vault-docs "
-                         "cc84122 (2026-09-09)"),
+                         "cc84122 (2026-09-09), amended by §9 A1 (bfa42ee, "
+                         "2026-09-10) before the first fire"),
         "arm": "I1X — screened PARTIAL-5 basket, observational",
-        "intended_week_1_ending": (f"{INTENDED_WEEK_1.isoformat()} "
-                                   f"({INTENDED_WEEK_1:%A})"),
+        "week_1_ending": (f"{RECORD_START_FLOOR.isoformat()} "
+                          f"({RECORD_START_FLOOR:%A}) — A1 floor, enforced: no "
+                          "earlier week is published"),
         "first_scheduled_fire": (f"{FIRST_SCHEDULED_FIRE.isoformat()} "
                                  f"({FIRST_SCHEDULED_FIRE:%A}) 17:30 SGT"),
         "backfill": "none, ever (§7)",
@@ -139,13 +166,16 @@ def schedule_header(weeks: list[dict]) -> dict:
         return hdr
     w1 = date.fromisoformat(weeks[0]["week_ending"])
     assert w1.weekday() == 4, "screened weeks end on a Friday (W-FRI, frozen)"
+    assert not before_floor(weeks[0]["week_ending"]), (
+        "a record earlier than the A1 floor is in the log — it cannot have been "
+        "written by this publisher")
     hdr["start_week_ending"] = f"{w1.isoformat()} ({w1:%A})"
-    if w1 != INTENDED_WEEK_1:
+    if w1 != RECORD_START_FLOOR:
         hdr["start_week_note"] = (
-            f"started at {w1.isoformat()}, not the intended "
-            f"{INTENDED_WEEK_1.isoformat()}: the publisher was not committed "
-            "before that fire, so per §7 the record starts at the first fire "
-            "after it was and the earlier WS6b weeks are NOT backfilled")
+            f"started at {w1.isoformat()}, later than the A1 floor "
+            f"{RECORD_START_FLOOR.isoformat()}: a fire was missed or refused, so "
+            "per §7 the record starts at the first fire after it and the earlier "
+            "WS6b weeks are NOT backfilled")
     return hdr
 
 
@@ -420,6 +450,19 @@ def main() -> int:
             f"--week-ending {args.week_ending} is not the latest WS6b record "
             f"({target}). There is no backfill (§7): a backfilled week is not a "
             "live week and the caches it would read have moved. Nothing written.")
+
+    # Amendment A1, before the publishable test: a week earlier than the floor is
+    # refused whether or not it would otherwise have passed its guards.
+    if before_floor(target):
+        return _refuse(
+            f"the latest WS6b week {target} ends before the record's start week "
+            f"{RECORD_START_FLOOR.isoformat()} ({RECORD_START_FLOOR:%A}). "
+            "Amendment A1 (vault-docs bfa42ee, logged under §9 before the first "
+            "fire) makes that date a condition rather than an intent, so no "
+            "earlier week is published — publishing one would move the "
+            "eight-week close-out and the 52-week citability date a week earlier "
+            "than §5. Nothing written; this is not an error, and the record "
+            "opens at the first fire on or after the floor.")
 
     if not latest.get("publishable", False):
         return _refuse(
