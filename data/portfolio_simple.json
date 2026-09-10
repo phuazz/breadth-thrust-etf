@@ -2,7 +2,6 @@
  "as_of": "2026-09-04",
  "calendars": {
   "c0": [
-   "2025-09-09",
    "2025-09-10",
    "2025-09-11",
    "2025-09-12",
@@ -763,7 +762,6 @@
   "IUES": {
    "cal": "c0",
    "px": [
-    42.47,
     43.21,
     43.22,
     42.96,
@@ -1022,7 +1020,6 @@
   "IUFS": {
    "cal": "c0",
    "px": [
-    52.52,
     52.35,
     53.2,
     52.98,
@@ -1800,7 +1797,6 @@
   "IUHC": {
    "cal": "c0",
    "px": [
-    136.2,
     135.0,
     137.3,
     135.7,
@@ -2317,7 +2313,6 @@
   "DBC": {
    "cal": "c0",
    "px": [
-    21.52,
     21.66,
     21.5,
     21.62,
@@ -2834,7 +2829,6 @@
   "IUSP": {
    "cal": "c0",
    "px": [
-    40.48,
     40.46,
     41.12,
     40.94,
@@ -3093,7 +3087,6 @@
   "EWJ": {
    "cal": "c0",
    "px": [
-    76.76,
     77.04,
     77.96,
     77.43,
@@ -3352,7 +3345,6 @@
   "QQQ": {
    "cal": "c0",
    "px": [
-    577.7,
     577.9,
     581.3,
     583.8,
@@ -3611,7 +3603,6 @@
   "IJR": {
    "cal": "c0",
    "px": [
-    116.4,
     116.1,
     118.6,
     116.9,
@@ -3870,7 +3861,6 @@
   "SPY": {
    "cal": "c0",
    "px": [
-    643.2,
     645.1,
     650.4,
     650.2,
@@ -4129,7 +4119,6 @@
   "EFA": {
    "cal": "c0",
    "px": [
-    89.34,
     89.32,
     90.27,
     89.91,
@@ -4388,7 +4377,6 @@
   "VGK": {
    "cal": "c0",
    "px": [
-    76.64,
     76.43,
     77.26,
     77.0,
@@ -4647,7 +4635,6 @@
   "CIBR": {
    "cal": "c0",
    "px": [
-    74.16,
     74.6,
     75.19,
     74.54,
@@ -4906,7 +4893,6 @@
   "SKYY": {
    "cal": "c0",
    "px": [
-    132.4,
     134.7,
     135.3,
     133.2,
@@ -5165,7 +5151,6 @@
   "XBI": {
    "cal": "c0",
    "px": [
-    94.55,
     93.47,
     95.26,
     93.69,
@@ -5424,7 +5409,6 @@
   "ARKG": {
    "cal": "c0",
    "px": [
-    25.61,
     24.78,
     26.19,
     25.6,
@@ -5683,7 +5667,6 @@
   "COPX": {
    "cal": "c0",
    "px": [
-    50.08,
     50.43,
     51.61,
     52.0,
@@ -5942,7 +5925,6 @@
   "SOXX": {
    "cal": "c0",
    "px": [
-    247.9,
     252.3,
     254.0,
     254.5,
@@ -6201,7 +6183,6 @@
   "CSP1": {
    "cal": "c0",
    "px": [
-    643.2,
     645.1,
     650.4,
     650.2,
@@ -6460,7 +6441,6 @@
   "IUCS": {
    "cal": "c0",
    "px": [
-    78.55,
     77.78,
     78.42,
     78.15,
@@ -6719,7 +6699,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-09-08",
- "computed_at_utc": "2026-09-09 23:24 UTC",
+ "computed_at_utc": "2026-09-10 23:17 UTC",
  "holdings": [
   {
    "ticker": "IUES",
@@ -6936,45 +6916,45 @@
  "n_positions": 23,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-09-09T23:24:13.810075+00:00",
+  "computed_at_utc": "2026-09-10T23:17:56.659952+00:00",
   "all_current": false,
   "strategies": [
    {
     "sleeve": "A",
     "label": "US sectors",
     "data_through": "2026-09-08",
-    "venue_last_session": "2026-09-09",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-09-10",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-09-08, while the market has traded to 2026-09-09 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-09-08, while the market has traded to 2026-09-10 — it has not been rebuilt since."
    },
    {
     "sleeve": "B",
     "label": "Asset classes",
     "data_through": "2026-09-08",
-    "venue_last_session": "2026-09-09",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-09-10",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-09-08, while the market has traded to 2026-09-09 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-09-08, while the market has traded to 2026-09-10 — it has not been rebuilt since."
    },
    {
     "sleeve": "C",
     "label": "Thematic",
     "data_through": "2026-09-08",
-    "venue_last_session": "2026-09-09",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-09-10",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-09-08, while the market has traded to 2026-09-09 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-09-08, while the market has traded to 2026-09-10 — it has not been rebuilt since."
    },
    {
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-09-04",
-    "venue_last_session": "2026-09-09",
-    "sessions_behind": 3,
+    "venue_last_session": "2026-09-10",
+    "sessions_behind": 4,
     "status": "behind",
     "laggards": [],
     "why_plain": "the shares held inside these funds are priced up to 2026-09-04, while the exchange itself has traded to 2026-09-08 — the newest day's prices were not available when this was built."
