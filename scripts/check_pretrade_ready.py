@@ -1,16 +1,14 @@
-"""Pre-trade readiness check — is the instruction built before the fill?
+"""Pre-trade readiness check — is the instruction built before the next fill?
 
 WHY THIS EXISTS, and why it is not check_factsheet_gate.py.
 
-Since 2026-08-12 the book fills in the Friday CLOSING auctions: Xetra at 23:30
-SGT that evening and the US at 04:00 SGT on the Saturday, via market-on-close
-orders submitted on Friday evening. (An earlier same-day revision used the
-Friday OPEN; it was reversed once the thinner opening auction was costed as
-one.) The instruction is produced by the local Friday-morning refresh, which
-cannot run in CI because the per-constituent parquet caches are gitignored. If that machine is off, nothing
-is built, and until now nothing would say so before the trade: the existing
-Sunday 09:00 UTC check asks whether the WEEK's factsheet went out, which is a
-reconciliation question answered two days after the fill.
+Since WS18 (2026-08-22), the book ranks on Friday's close and normally fills
+in the Monday CLOSING auctions. The instruction is produced by the local weekend
+refresh pair; Sunday 09:00 SGT is the full-book run after sleeve D's Friday
+Xetra close has settled. It cannot run in CI because the per-constituent
+parquet caches are gitignored. If the weekend pair does not land, nothing is
+built, and this check reports it before Monday's trade. The existing Sunday
+09:00 UTC factsheet check is a reconciliation question, not a pre-trade one.
 
 This asks the pre-trade question instead: does the committed panel reach the
 session the decision reads? It is deliberately a different question from
@@ -40,7 +38,7 @@ Python datetime months are 1-indexed (January = 1).
 
 Usage:
     python scripts/check_pretrade_ready.py
-    python scripts/check_pretrade_ready.py --now 2026-08-14T04:00:00Z   # test
+    python scripts/check_pretrade_ready.py --now 2026-09-13T06:00:00Z   # test
 """
 
 from __future__ import annotations
@@ -89,8 +87,8 @@ def build_report(panel_path: Path, now_utc: datetime) -> dict:
                 f"Pre-trade check PASSED at {now_utc.isoformat()}.\n"
                 f"  panel end_date          : {panel_end.isoformat()}\n"
                 f"  last completed session  : {needed.isoformat()}\n\n"
-                "The panel reaches the session today's decision reads, so the "
-                "instruction is built and the fill can proceed."),
+            "The panel reaches Friday's decision session, so the instruction "
+            "is built for the next scheduled fill."),
         }
 
     return {
@@ -102,20 +100,22 @@ def build_report(panel_path: Path, now_utc: datetime) -> dict:
             f"  panel end_date          : {panel_end.isoformat()}\n"
             f"  last completed session  : {needed.isoformat()}\n"
             f"  behind by               : {stale_days} calendar days\n\n"
-            "The committed panel does NOT reach the session today's decision "
-            "reads, so no instruction has been built for today's fill.\n\n"
-            "Most likely cause: the Friday 08:00 SGT local refresh did not "
-            "run, usually because the machine was off. The scheduled task is "
-            "set to start as soon as the machine is available and to retry "
-            "hourly until early afternoon SGT, so simply switching it on may "
-            "be enough.\n\n"
+            "The committed panel does NOT reach Friday's decision session, "
+            "so no current instruction has been built for the next scheduled "
+            "fill.\n\n"
+            "Most likely cause: the Saturday/Sunday local refresh pair did "
+            "not complete or did not push. The scheduled task starts at 09:00 "
+            "SGT, retries hourly until early afternoon SGT, and starts when "
+            "the machine becomes available.\n\n"
             "To act manually:\n"
+            "  use the dedicated automation clone, not an interactive tree\n"
             "  python scripts/scheduled_refresh.py     (soak: validates, no push)\n"
             "  then review and push, which triggers the rest of the chain.\n\n"
-            "Fills today are the CLOSING auctions: Xetra 23:30 SGT this "
-            "evening (sleeve D), US 04:00 SGT tomorrow (sleeves A/B/C), "
-            "one hour later in winter. Market-on-close orders must be in "
-            "before 15:50 New York time. Do not trade on the stale card."),
+            "The next fill is normally in the Monday CLOSING auctions: Xetra "
+            "23:30 SGT on Monday evening (sleeve D), US 04:00 SGT on Tuesday "
+            "(sleeves A/B/C), one hour later in winter. Check the exchange "
+            "calendar for a holiday displacement. Market-on-close orders must "
+            "be in before 15:50 New York time. Do not trade on the stale card."),
     }
 
 

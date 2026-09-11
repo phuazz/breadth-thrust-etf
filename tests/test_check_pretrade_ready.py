@@ -1,10 +1,10 @@
-"""Tests for scripts/check_pretrade_ready.py — the pre-trade backstop.
+"""Tests for scripts/check_pretrade_ready.py — the Monday pre-trade backstop.
 
-The check exists because the Friday fill needs the instruction built BEFORE
+The check exists because the Monday fill needs the instruction built BEFORE
 it, and the local refresh that builds it cannot run in CI. These pin the
 question it asks, which is deliberately not the one the factsheet gate asks:
-"does the panel reach the session today's decision reads", not "has the
-completed week been published".
+"does the panel reach Friday's decision session", not "has the completed week
+been published".
 
 Month- and year-boundary cases per CLAUDE.md date rules. Python date months
 are 1-indexed (January = 1).
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 
@@ -31,8 +32,8 @@ def _panel(tmp_path, end_date: str):
 
 
 def test_ready_when_panel_reaches_the_decision_session(tmp_path):
-    """Fri 14 Aug 2026 04:00 UTC (12:00 SGT). The decision reads Thu 13 Aug."""
-    r = build_report(_panel(tmp_path, "2026-08-13"), _utc(2026, 8, 14))
+    """Sun 13 Sep 2026 06:00 UTC (14:00 SGT) reads Fri 11 Sep."""
+    r = build_report(_panel(tmp_path, "2026-09-11"), _utc(2026, 9, 13, 6))
     assert r["status"] == "ready"
     assert r["warn"] == "false"
     assert r["tag"] == "OK"
@@ -40,16 +41,15 @@ def test_ready_when_panel_reaches_the_decision_session(tmp_path):
 
 def test_not_ready_when_the_refresh_did_not_run(tmp_path):
     """The failure this check exists for: machine off, panel still at the
-    previous week's Friday while the fill is hours away."""
-    r = build_report(_panel(tmp_path, "2026-08-07"), _utc(2026, 8, 14))
+    previous week's Friday while Monday's fill is hours away."""
+    r = build_report(_panel(tmp_path, "2026-09-04"), _utc(2026, 9, 13, 6))
     assert r["status"] == "not_ready"
     assert r["warn"] == "true"
     assert r["tag"] == "PRE-TRADE"
-    assert "2026-08-13" in r["summary"]
+    assert "2026-09-11" in r["summary"]
     # The body has to be actionable, not just an alarm.
     assert "scheduled_refresh.py" in r["detail"]
-    # The CLOSING auction times, not the opens. This assertion caught the
-    # stale times when execution moved back to the close on 2026-08-12.
+    # CLOSING auction times, not the opens or the retired Friday-fill dates.
     assert "23:30 SGT" in r["detail"] and "04:00 SGT" in r["detail"]
     assert "15:50 New York" in r["detail"]
 
@@ -57,7 +57,7 @@ def test_not_ready_when_the_refresh_did_not_run(tmp_path):
 def test_a_panel_ahead_of_the_session_is_ready(tmp_path):
     """Defensive: a panel dated later than the last completed session (an
     early or manual run) must not be reported as stale."""
-    r = build_report(_panel(tmp_path, "2026-08-14"), _utc(2026, 8, 14))
+    r = build_report(_panel(tmp_path, "2026-09-14"), _utc(2026, 9, 13, 6))
     assert r["status"] == "ready"
 
 
@@ -65,39 +65,36 @@ def test_unreadable_panel_fails_toward_alerting(tmp_path):
     """A checker that cannot read the panel must warn, never reassure."""
     p = tmp_path / "breadth_csp1.json"
     p.write_text("{ this is not json", encoding="utf-8")
-    r = build_report(p, _utc(2026, 8, 14))
+    r = build_report(p, _utc(2026, 9, 13, 6))
     assert r["warn"] == "true"
     assert r["status"] == "error"
 
 
 def test_missing_panel_fails_toward_alerting(tmp_path):
-    r = build_report(tmp_path / "does_not_exist.json", _utc(2026, 8, 14))
+    r = build_report(tmp_path / "does_not_exist.json", _utc(2026, 9, 13, 6))
     assert r["warn"] == "true"
     assert r["status"] == "error"
 
 
 def test_holiday_shortened_week(tmp_path):
-    """Fri 3 Jul 2026 was the Independence Day observance. Running that
-    morning, the last completed session is Wed 1 Jul, so a Wednesday panel
-    is ready even though no Thursday exists to reach."""
-    r = build_report(_panel(tmp_path, "2026-07-01"), _utc(2026, 7, 2, 4))
+    """Mon 7 Sep was the Labor Day closure. Sunday afternoon reads the
+    preceding Friday, so the Friday panel is ready for Tuesday's fill."""
+    r = build_report(_panel(tmp_path, "2026-09-04"), _utc(2026, 9, 6, 6))
     assert r["status"] == "ready"
 
 
 def test_month_boundary(tmp_path):
-    """Fri 4 Sep 2026 morning reads Thu 3 Sep; a panel left at 31 Aug is in
-    the previous month and must fail."""
-    now = _utc(2026, 9, 4)
-    assert build_report(_panel(tmp_path, "2026-09-03"), now)["status"] == "ready"
-    assert build_report(_panel(tmp_path, "2026-08-31"), now)["status"] == "not_ready"
+    """Sun 30 Aug afternoon reads Fri 28 Aug; July's final panel is stale."""
+    now = _utc(2026, 8, 30, 6)
+    assert build_report(_panel(tmp_path, "2026-08-28"), now)["status"] == "ready"
+    assert build_report(_panel(tmp_path, "2026-07-31"), now)["status"] == "not_ready"
 
 
 def test_year_boundary(tmp_path):
-    """Fri 8 Jan 2027 morning reads Thu 7 Jan; a panel at 31 Dec 2026 is
-    stale across the year boundary."""
-    now = _utc(2027, 1, 8)
-    assert build_report(_panel(tmp_path, "2027-01-07"), now)["status"] == "ready"
-    assert build_report(_panel(tmp_path, "2026-12-31"), now)["status"] == "not_ready"
+    """Sun 3 Jan 2027 afternoon reads Thu 31 Dec: New Year's Day is closed."""
+    now = _utc(2027, 1, 3, 6)
+    assert build_report(_panel(tmp_path, "2026-12-31"), now)["status"] == "ready"
+    assert build_report(_panel(tmp_path, "2026-12-24"), now)["status"] == "not_ready"
 
 
 def test_shares_one_definition_with_the_local_guard(tmp_path):
@@ -107,7 +104,24 @@ def test_shares_one_definition_with_the_local_guard(tmp_path):
     from datetime import date
 
     from scripts.scheduled_refresh import panel_is_current
-    now = _utc(2026, 8, 14)
-    for end in ("2026-08-13", "2026-08-07", "2026-08-12"):
+    now = _utc(2026, 9, 13, 6)
+    for end in ("2026-09-11", "2026-09-04", "2026-09-10"):
         report_ready = build_report(_panel(tmp_path, end), now)["status"] == "ready"
         assert report_ready is panel_is_current(date.fromisoformat(end), now)
+
+
+def test_a_late_sunday_run_still_reads_fridays_close(tmp_path):
+    """The workflow has fired up to 11.8 hours late. Monday 01:48 SGT still
+    precedes Monday's NYSE close and therefore retains Friday's anchor."""
+    now = datetime(2026, 9, 13, 17, 48, tzinfo=timezone.utc)
+    r = build_report(_panel(tmp_path, "2026-09-11"), now)
+    assert r["status"] == "ready"
+
+
+def test_workflow_is_pinned_to_the_sunday_review_slot():
+    """A cadence re-timing must update this CI guard in the same commit."""
+    workflow = (Path(__file__).resolve().parents[1] / ".github" / "workflows"
+                / "pretrade_check.yml").read_text(encoding="utf-8")
+    assert "cron: '0 6 * * 0'" in workflow
+    assert "cron: '0 4 * * 5'" not in workflow
+    assert "Next fill" in workflow

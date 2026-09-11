@@ -2,19 +2,16 @@ name: Pre-trade readiness check
 
 # WHY A SEPARATE WORKFLOW FROM weekly_factsheet.yml.
 #
-# Since 2026-08-12 the book executes in the Friday CLOSING auctions — Xetra at
-# 23:30 SGT that evening, the US at 04:00 SGT on the Saturday — via
-# market-on-close orders submitted Friday evening. (An earlier revision the same
-# day used the Friday OPEN and was reversed once the thinner opening auction was
-# costed as one.) The instruction is built by the local
-# Friday 08:00 SGT refresh, which cannot run in CI because the per-constituent
-# parquet caches are gitignored. If that machine is off, nothing is built.
+# Since WS18 (2026-08-22) the book ranks on Friday's close and normally fills
+# at Monday's close. The full instruction is built by the Sunday 09:00 SGT local refresh,
+# which cannot run in CI because the per-constituent parquet caches are
+# gitignored. If the weekend pair does not land, nothing has been built for
+# the next order submission.
 #
 # weekly_factsheet.yml's Sunday check cannot cover this. It asks whether the
 # WEEK's factsheet went out, which is a reconciliation question answered two
 # days AFTER the fill, and it is built on week_final_anchor, which mid-week
-# points at the previous week by design — so on a Friday morning it would pass
-# while the panel sat six days stale. Detecting a miss and preventing one are
+# points at the previous week by design. Detecting a miss and preventing one are
 # different jobs and need different questions.
 #
 # This one asks: does the committed panel reach the session today's decision
@@ -24,14 +21,12 @@ name: Pre-trade readiness check
 
 on:
   schedule:
-    # Friday 04:00 UTC = 12:00 SGT. The local refresh is scheduled 08:00 SGT
-    # and takes ~1h normally, ~4h on a full run, so this lands after it should
-    # have finished. It sits 11.5h before the Xetra auction (23:30 SGT) and 16h
-    # before the US one (04:00 SGT Saturday), and well before the ~22:00 SGT
-    # moment the orders are submitted, which is the deadline that actually
-    # matters. GitHub crons can fire a few hours late under load; even several
-    # hours late still precedes submission.
-    - cron: '0 4 * * 5'
+    # Sunday 06:00 UTC = 14:00 SGT. The local full-book refresh starts at
+    # 09:00 SGT and has a documented ~4.3-hour cold-run allowance, so this is
+    # the earliest independent review point with a margin. It is also before
+    # Monday's Xetra order-submission deadline even under the observed GitHub
+    # cron-delay tail.
+    - cron: '0 6 * * 0'
   workflow_dispatch:
 
 permissions:
@@ -72,7 +67,7 @@ jobs:
           secure: true
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[${{ steps.pretrade.outputs.tag }}] Friday fill — ${{ steps.pretrade.outputs.summary }}'
+          subject: '[${{ steps.pretrade.outputs.tag }}] Next fill — ${{ steps.pretrade.outputs.summary }}'
           # Operator only, NOT RECIPIENT_EMAIL — the factsheet distribution
           # list must not receive plumbing email.
           to: ${{ secrets.GMAIL_USER }}

@@ -51,6 +51,7 @@ Both workflows that commit `docs/` rebuild both pages, so the two cannot drift a
 | Fri 23:30 / Sat 04:00 | Xetra closes, then NYSE. This is the information the decision reads. |
 | **Sat 09:00–14:00** | `BreadthThrust-WeeklyRefresh` (`--push --cadence weekend`, **armed**) runs `scripts/scheduled_refresh.py` in the automation clone. Sleeves A/B/C have Friday's NYSE close; D reports `HOLD`, its Xetra close not yet settled. |
 | **Sun 09:00–14:00** | Same task, second trigger. D's European close has settled — the full book is ready. |
+| **Sun 14:00** | CI pre-trade check verifies that the committed CSP1 panel reaches Friday's decision session for the next scheduled fill (normally Monday). It emails only when the weekend refresh did not produce a current instruction. |
 | Sun/Mon, after the refresh | `python scripts/live_targets.py` — the target book for Monday's fill, with the decision session named per sleeve. |
 | Mon 21:50 (Xetra) / Tue 03:50 (US) | Submit market-on-close orders. NYSE MOC cut-off is 15:50 ET, Nasdaq 15:55 ET. |
 | **Tue 09:00–14:00** | `BreadthThrust-PostFillRefresh` (`--cadence post-fill`, armed). A/B/C re-anchor onto Monday's fill. |
