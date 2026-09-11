@@ -232,6 +232,16 @@ def test_a_hold_with_current_broad_market_keeps_hold_verdict(tmp_path):
     assert check(tmp_path)["status"] == "hold"
 
 
+@pytest.mark.parametrize("phase,status", [("review", "pending"), ("deadline", "not_ready")])
+def test_current_hold_cannot_waive_missing_sleeve_panel(tmp_path, phase, status):
+    held_book(tmp_path)
+    panel = tmp_path / f"breadth_{UNIVERSE_EUROPE_SECTORS[0].lower()}.json"
+    panel.unlink()
+    result = check(tmp_path, phase)
+    assert result["status"] == status
+    assert f"missing source panel: {panel.name}" in result["detail"]
+
+
 @pytest.mark.parametrize("which", ["panel", "decision"])
 def test_invalid_observation_is_not_also_reported_as_pending(tmp_path, which):
     book = write_book(tmp_path)
@@ -261,6 +271,7 @@ def test_live_alert_contains_safe_recovery_steps(tmp_path, scenario):
     assert "does not commit or push" in text
     assert "Do not trade on the stale card" in text
     assert "broker order cutoffs" in text
+    assert "dashboard's Execution Timing tab" in text
 
 
 @pytest.mark.parametrize("instant,expected", [

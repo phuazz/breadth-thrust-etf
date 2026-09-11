@@ -11,7 +11,10 @@ Parent: `03d562b`, following capture repair `5372b3e`.
   invalid dates. Invalid observations are not duplicated as pending shortfalls.
 - Broad-market capture remains a cross-book requirement because it feeds the
   portfolio risk overlay. A sleeve-A HOLD cannot waive a stale or missing
-  `breadth_csp1.json`; ordinary sleeve-specific HOLD behaviour is retained.
+  `breadth_csp1.json`. A current, consistent HOLD may waive stale ordinary
+  sleeve-specific panels, but never missing panel files. Missing files remain
+  pending at review and trigger PRE-TRADE at the deadline; malformed or future
+  observations remain data errors at either checkpoint.
 - Live reports carry recovery guidance: inspect Task Scheduler and the dedicated
   clone's log first, avoid concurrent refreshes, use the scheduled Python
   environment to run `python scripts/scheduled_refresh.py` in the clean automation
@@ -20,7 +23,8 @@ Parent: `03d562b`, following capture repair `5372b3e`.
 - Where the instruction names a valid next-session fill, closing times are
   calculated from that venue's calendar and converted to Singapore time.
   They are explicitly not broker order cutoffs or trading authorisation.
-  Broker cutoffs must be confirmed separately; no fixed auction clock was copied
+  Broker cutoffs must be confirmed separately; the recovery text names the
+  dashboard's Execution Timing tab. No fixed auction clock was copied
   from the retired helper. Checker-exception output also retains recovery guidance.
 
 ## Test plan and verification
@@ -43,6 +47,16 @@ inputs also confirmed that the deadline report includes the cross-book shortfall
 calendar-derived venue closing times, concurrency warning and recovery command.
 
 ## Boundaries and Claude handoff
+
+Documentation follow-up: corrected the README's normal-session SGT clocks for
+both venue-specific daylight-saving regimes and date rollover; removed the fixed
+SGT order-submission instruction in favour of broker-confirmed deadlines. Named
+the Execution Timing tab and clarified the existing stale-versus-missing HOLD
+distinction. Verification: **11 targeted tests passed** (39 deselected), including
+two new missing-panel HOLD cases and the recovery-text assertion. Calendar spot
+checks covered summer, winter, the Europe/US clock-change mismatch, month-end
+rollover and year-end rollover. The full suite was not rerun for this wording-only
+follow-up; the full-suite count above belongs to the preceding code cleanup.
 
 The Sunday 14:00 SGT review and Monday 06:00 SGT deadline schedules are unchanged.
 No production refresh, manual email, order, local Task Scheduler change or

@@ -71,7 +71,7 @@ RECOVERY_GUIDANCE = (
     "3. Review the resulting instruction, capture dates and guards before committing/pushing approved outputs. "
     "Then rerun python scripts/check_pretrade_ready.py --phase deadline against the published inputs.\n"
     "Closing-auction times are not broker order cutoffs. Confirm the venue-specific submission deadline "
-    "with the broker and the Execution Timing guidance, including holidays and early closes.\n"
+    "with the broker and consult the dashboard's Execution Timing tab, including holidays and early closes.\n"
     "Do not trade on the stale card or create new orders for an unverified or HOLD sleeve."
 )
 
