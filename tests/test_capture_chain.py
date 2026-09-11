@@ -225,7 +225,7 @@ def test_pretrade_checks_complete_book_and_rejects_one_hold(tmp_path, now, end):
                 "decision_session_for_fill": ends["XETR" if sl == "D" else "NYSE"],
                 "fill_date": lt.next_fill_date("XETR" if sl == "D" else "NYSE", instant)}
                for sl in "ABCD"]
-    book = {"targets_final": True, "sleeves": sleeves}
+    book = {"targets_final": True, "sleeves": sleeves, "computed_at_utc": instant.isoformat()}
     path = tmp_path / "live_targets.json"
     path.write_text(json.dumps(book))
     p = tmp_path / "breadth_csp1.json"

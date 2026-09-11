@@ -18,7 +18,7 @@ downstream calculations, and a local full refresh fails if deployed Data tab
 inputs cannot be rebuilt. CI can still render the last committed artefacts.
 
 Data Health surfaces declared price shortfalls even within its weekly age
-tolerance. The Sunday pre-trade check verifies the full four-sleeve instruction
+tolerance. The pre-trade checkpoints verify the full four-sleeve instruction
 and A/D source panels. Vendor-unavailable data remains visibly incomplete;
 the pipeline does not guarantee that a provider has published every close.
 
@@ -78,8 +78,9 @@ Both workflows that commit `docs/` rebuild both pages, so the two cannot drift a
 |---|---|
 | Fri 23:30 / Sat 04:00 | Xetra closes, then NYSE. This is the information the decision reads. |
 | **Sat 09:00–14:00** | `BreadthThrust-WeeklyRefresh` (`--push --cadence weekend`, **armed**) runs `scripts/scheduled_refresh.py` in the automation clone. Sleeves A/B/C have Friday's NYSE close; D reports `HOLD`, its Xetra close not yet settled. |
-| **Sun 09:00–14:00** | Same task, second trigger. D's European close has settled — the full book is ready. |
-| **Sun 14:00** | CI pre-trade check verifies that the committed CSP1 panel reaches Friday's decision session for the next scheduled fill (normally Monday). It emails only when the weekend refresh did not produce a current instruction. |
+| **Sun 09:00–14:00** | Same task, second trigger, intended to capture D's settled European close. The full book is ready only if the capture and readiness checks pass. |
+| **Sun 14:00** | CI progress checkpoint checks the full instruction and A/D source panels. Pending refreshes and recorded HOLDs do not email; invalid data or a checker failure does. This can overlap local retries. |
+| **Mon 06:00** | CI deadline checkpoint runs regardless of local refresh success. Missing/stale instructions trigger PRE-TRADE; a current explicit HOLD is labelled HOLD, not a missing book; invalid data triggers DATA-ERROR. Manual dispatch defaults to this phase. |
 | Sun/Mon, after the refresh | `python scripts/live_targets.py` — the target book for Monday's fill, with the decision session named per sleeve. |
 | Mon 21:50 (Xetra) / Tue 03:50 (US) | Submit market-on-close orders. NYSE MOC cut-off is 15:50 ET, Nasdaq 15:55 ET. |
 | **Tue 09:00–14:00** | `BreadthThrust-PostFillRefresh` (`--cadence post-fill`, armed). A/B/C re-anchor onto Monday's fill. |

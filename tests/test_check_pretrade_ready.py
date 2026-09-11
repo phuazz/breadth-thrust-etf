@@ -54,11 +54,12 @@ def test_not_ready_when_the_refresh_did_not_run(tmp_path):
     assert "15:50 New York" in r["detail"]
 
 
-def test_a_panel_ahead_of_the_session_is_ready(tmp_path):
-    """Defensive: a panel dated later than the last completed session (an
-    early or manual run) must not be reported as stale."""
+def test_a_panel_ahead_of_the_session_is_invalid(tmp_path):
+    """A future observation must not pass as current or be called stale."""
     r = build_report(_panel(tmp_path, "2026-09-14"), _utc(2026, 9, 13, 6))
-    assert r["status"] == "ready"
+    assert r["status"] == "error"
+    assert r["tag"] == "DATA-ERROR"
+    assert r["warn"] == "true"
 
 
 def test_unreadable_panel_fails_toward_alerting(tmp_path):
@@ -97,10 +98,8 @@ def test_year_boundary(tmp_path):
     assert build_report(_panel(tmp_path, "2026-12-24"), now)["status"] == "not_ready"
 
 
-def test_shares_one_definition_with_the_local_guard(tmp_path):
-    """The whole point of importing panel_is_current rather than restating
-    it: the CI backstop and the local push guard must never disagree about
-    what 'ready' means."""
+def test_agrees_with_local_guard_for_non_future_observations(tmp_path):
+    """Pre-trade adds future-date rejection; non-future observations agree."""
     from datetime import date
 
     from scripts.scheduled_refresh import panel_is_current
@@ -123,5 +122,9 @@ def test_workflow_is_pinned_to_the_sunday_review_slot():
     workflow = (Path(__file__).resolve().parents[1] / ".github" / "workflows"
                 / "pretrade_check.yml").read_text(encoding="utf-8")
     assert "cron: '0 6 * * 0'" in workflow
+    assert "cron: '0 22 * * 0'" in workflow
     assert "cron: '0 4 * * 5'" not in workflow
     assert "Next fill" in workflow
+    assert "--phase" in workflow
+    assert "steps.pretrade.outputs.warn != 'false'" in workflow
+    assert "last_green_run" not in workflow

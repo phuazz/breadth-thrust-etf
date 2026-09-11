@@ -3,8 +3,10 @@ name: Pre-trade readiness check
 # WHY A SEPARATE WORKFLOW FROM weekly_factsheet.yml.
 #
 # Since WS18 (2026-08-22) the book ranks on Friday's close and normally fills
-# at Monday's close. The full instruction is built by the Sunday 09:00 SGT local refresh,
-# which cannot run in CI because the per-constituent parquet caches are
+# at Monday's close. The weekend local refresh pair builds the instruction;
+# the Sunday 09:00 SGT run attempts to capture the settled European close.
+# Vendor availability and successful completion are checked, not assumed.
+# These refreshes cannot run in CI because the per-constituent parquet caches are
 # gitignored. If the weekend pair does not land, nothing has been built for
 # the next order submission.
 #
@@ -20,12 +22,14 @@ name: Pre-trade readiness check
 
 on:
   schedule:
-    # Sunday 06:00 UTC = 14:00 SGT. The local full-book refresh starts at
-    # 09:00 SGT and has a documented ~4.3-hour cold-run allowance, so this is
-    # the earliest independent review point with a margin. It is also before
-    # Monday's Xetra order-submission deadline even under the observed GitHub
-    # cron-delay tail.
+    # Sunday 14:00 SGT: progress only. Catch-up/retry runs can still be active;
+    # pending captures and HOLDs are recorded without emailing a failure.
     - cron: '0 6 * * 0'
+    # Monday 06:00 SGT: deadline escalation, independent of local success.
+    # After the ordinary Sunday retry window plus the 8-hour run allowance.
+    # The observed 11.8-hour GitHub delay still leaves time before Xetra orders;
+    # this is not a guarantee of scheduler punctuality or vendor availability.
+    - cron: '0 22 * * 0'
   workflow_dispatch:
 
 permissions:
@@ -54,10 +58,13 @@ jobs:
       - name: Check pre-trade readiness
         id: pretrade
         continue-on-error: true
-        run: python scripts/check_pretrade_ready.py
+        env:
+          CHECK_PHASE: ${{ github.event_name == 'schedule' && github.event.schedule == '0 6 * * 0' && 'review' || 'deadline' }}
+        run: python scripts/check_pretrade_ready.py --phase "$CHECK_PHASE"
 
-      - name: Email the operator when no instruction has been built
-        if: steps.pretrade.outputs.warn == 'true'
+      - name: Email actionable readiness or checker failures
+        # Missing outputs must alert too (including dependency/setup failures).
+        if: ${{ !cancelled() && steps.pretrade.outputs.warn != 'false' }}
         continue-on-error: true
         uses: dawidd6/action-send-mail@v18
         with:
@@ -66,12 +73,12 @@ jobs:
           secure: true
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[${{ steps.pretrade.outputs.tag }}] Next fill — ${{ steps.pretrade.outputs.summary }}'
+          subject: '[${{ steps.pretrade.outputs.tag || ''DATA-ERROR'' }}] Next fill — ${{ steps.pretrade.outputs.summary || ''checker did not produce a result'' }}'
           # Operator only, NOT RECIPIENT_EMAIL — the factsheet distribution
           # list must not receive plumbing email.
           to: ${{ secrets.GMAIL_USER }}
           from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
           body: |
-            ${{ steps.pretrade.outputs.detail }}
+            ${{ steps.pretrade.outputs.detail || 'Readiness is unverified: the checker or its setup failed. Inspect this workflow run.' }}
 
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

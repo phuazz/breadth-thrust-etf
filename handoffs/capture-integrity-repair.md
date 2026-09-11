@@ -48,8 +48,10 @@ strategy or a restatement of research conclusions.
 The full production refresh has not run on this version. The dedicated scheduler
 checkout pulls origin before running and will pick up the repair after it is
 pushed. Its ordinary weekend runs begin at 09:00 SGT. Review positions after a
-successful full run; the independent Sunday 14:00 SGT check remains the guard,
-not the earliest possible review time. Vendor publication can delay finality.
+successful full run; review availability does not depend on the CI checkpoint.
+The subsequent monitoring follow-up separates Sunday 14:00 SGT progress from
+Monday 06:00 SGT deadline escalation. See `pretrade-monitoring-followup.md`.
+Vendor publication can delay finality.
 
 Do not claim the whole book is current from these two smoke tests. Do not
 substitute prices, delete lagging members or lower the registered coverage floor
