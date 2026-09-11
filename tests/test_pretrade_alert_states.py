@@ -6,7 +6,7 @@ import pandas as pd
 import pandas_market_calendars as mcal
 import pytest
 
-from scripts.check_pretrade_ready import build_book_report, build_report, main
+from scripts.check_pretrade_ready import build_book_report, main
 from scripts.etf_registry import UNIVERSE_ETFS, UNIVERSE_EUROPE_SECTORS
 from scripts.session_bounds import last_completed_session_on
 
@@ -128,8 +128,6 @@ def test_future_dates_are_invalid_everywhere(tmp_path, which):
         save(tmp_path, book)
     result = check(tmp_path, "review")
     assert result["tag"] == "DATA-ERROR" and result["warn"] == "true"
-    if which == "broad":
-        assert build_report(tmp_path / "breadth_csp1.json", NOW)["tag"] == "DATA-ERROR"
 
 
 @pytest.mark.parametrize("filename", ["live_targets.json", "breadth_csp1.json"])
@@ -198,3 +196,93 @@ def test_invalid_instruction_metadata_alerts(tmp_path, mutation):
         book["sleeves"][0]["fill_date"] = "2026-09-13"
     save(tmp_path, book)
     assert check(tmp_path, "review")["tag"] == "DATA-ERROR"
+
+
+def a_hold_book(root):
+    book = write_book(root)
+    book["sleeves"][0].update(status="HOLD", reason="sector signal incomplete",
+                                decision_session="2026-09-10")
+    book["targets_final"] = False
+    book["lines"] = [{"sleeve": "A", "held": 0.35, "target": 0.35, "delta": 0}]
+    other = next(etf for etf in UNIVERSE_ETFS if etf != "CSP1")
+    (root / f"breadth_{other.lower()}.json").write_text(json.dumps({"end_date": "2026-09-10"}))
+    save(root, book)
+    return book
+
+
+@pytest.mark.parametrize("phase,warn", [("review", "false"), ("deadline", "true")])
+@pytest.mark.parametrize("missing", [False, True])
+def test_a_hold_cannot_waive_cross_book_capture(tmp_path, phase, warn, missing):
+    a_hold_book(tmp_path)
+    panel = tmp_path / "breadth_csp1.json"
+    if missing:
+        panel.unlink()
+    else:
+        panel.write_text(json.dumps({"end_date": "2026-09-10"}))
+    result = check(tmp_path, phase)
+    assert result["status"] == ("pending" if phase == "review" else "not_ready")
+    assert result["warn"] == warn
+    assert "breadth_csp1.json" in result["detail"]
+    if not missing:
+        assert "cross-book risk-overlay input" in result["detail"]
+
+
+def test_a_hold_with_current_broad_market_keeps_hold_verdict(tmp_path):
+    a_hold_book(tmp_path)
+    assert check(tmp_path)["status"] == "hold"
+
+
+@pytest.mark.parametrize("which", ["panel", "decision"])
+def test_invalid_observation_is_not_also_reported_as_pending(tmp_path, which):
+    book = write_book(tmp_path)
+    if which == "panel":
+        (tmp_path / "breadth_csp1.json").write_text(json.dumps({"end_date": "2026-09-14"}))
+    else:
+        book["sleeves"][0]["decision_session"] = "2026-09-14"
+        save(tmp_path, book)
+    result = check(tmp_path)
+    assert result["tag"] == "DATA-ERROR"
+    assert result["detail"].count("future-dated") == 1
+    assert "Pending verification:" not in result["detail"]
+
+
+@pytest.mark.parametrize("scenario", ["missing", "hold", "invalid"])
+def test_live_alert_contains_safe_recovery_steps(tmp_path, scenario):
+    if scenario == "hold":
+        held_book(tmp_path)
+    elif scenario == "invalid":
+        (tmp_path / "live_targets.json").write_text("{bad-json")
+    result = check(tmp_path)
+    assert result["warn"] == "true"
+    text = result["detail"]
+    assert "Do not start a second refresh while one is active" in text
+    assert "C:\\dev\\breadth-thrust-etf-sched" in text
+    assert "python scripts/scheduled_refresh.py" in text
+    assert "does not commit or push" in text
+    assert "Do not trade on the stale card" in text
+    assert "broker order cutoffs" in text
+
+
+@pytest.mark.parametrize("instant,expected", [
+    ("2026-09-13T06:00:00+00:00", "NYSE: Tue 2026-09-15 04:00 SGT"),
+    ("2027-01-03T06:00:00+00:00", "NYSE: Tue 2027-01-05 05:00 SGT"),
+    ("2026-09-06T06:00:00+00:00", "NYSE: Wed 2026-09-09 04:00 SGT"),
+])
+def test_report_closing_times_follow_dst_and_venue_holidays(tmp_path, instant, expected):
+    now = datetime.fromisoformat(instant)
+    write_book(tmp_path, now)
+    result = check(tmp_path, now=now)
+    assert result["status"] == "ready"
+    assert expected in result["detail"]
+    assert "not broker cutoffs or trade authorisation" in result["detail"]
+
+
+def test_cli_unexpected_checker_failure_keeps_recovery_guidance(tmp_path, monkeypatch, capsys):
+    from scripts import check_pretrade_ready as checker
+    def fail(*args, **kwargs):
+        raise RuntimeError("synthetic checker failure")
+    monkeypatch.setattr(checker, "build_book_report", fail)
+    monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "output"))
+    assert checker.main(["--now", NOW.isoformat()]) == 0
+    assert "python scripts/scheduled_refresh.py" in capsys.readouterr().out
+    assert "warn=true" in (tmp_path / "output").read_text()

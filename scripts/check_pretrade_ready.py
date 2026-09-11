@@ -55,81 +55,32 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nyse_sessions import last_completed_session  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PANEL = REPO_ROOT / "data" / "breadth_csp1.json"
 
 
-def build_report(panel_path: Path, now_utc: datetime) -> dict:
-    """Decide readiness and compose the operator-facing text."""
-    try:
-        blob = json.loads(panel_path.read_text(encoding="utf-8"))
-        panel_end = date.fromisoformat(blob["end_date"])
-    except Exception as exc:  # noqa: BLE001
-        # Fail toward alerting: an unreadable panel is not evidence of health.
-        return {
-            "warn": "true", "status": "error", "tag": "WARN",
-            "summary": f"panel unreadable ({type(exc).__name__})",
-            "detail": (
-                f"Could not read {panel_path.name} to decide pre-trade "
-                f"readiness: {exc!r}\n\n"
-                "Treating this as NOT ready. Check the panel file and the "
-                "last local refresh before trading."),
-        }
-
-    needed = last_completed_session(now_utc)
-    if panel_end > needed:
-        return {"warn": "true", "status": "error", "tag": "DATA-ERROR",
-                "summary": f"future-dated panel: {panel_end}, requires {needed}",
-                "detail": "The panel is later than the last completed session; do not use it."}
-    ready = panel_end == needed
-    stale_days = (needed - panel_end).days
-
-    if ready:
-        return {
-            "warn": "false", "status": "ready", "tag": "OK",
-            "summary": f"panel current to {panel_end.isoformat()}",
-            "detail": (
-                f"Broad-market capture PASSED at {now_utc.isoformat()}.\n"
-                f"  panel end_date          : {panel_end.isoformat()}\n"
-                f"  last completed session  : {needed.isoformat()}\n\n"
-            "The broad-market panel reaches the required session. "
-            "The instruction must also be checked across all four sleeves."),
-        }
-
-    return {
-        "warn": "true", "status": "not_ready", "tag": "PRE-TRADE",
-        "summary": (f"panel at {panel_end.isoformat()}, needs "
-                    f"{needed.isoformat()} ({stale_days}d behind)"),
-        "detail": (
-            f"Pre-trade check FAILED at {now_utc.isoformat()}.\n"
-            f"  panel end_date          : {panel_end.isoformat()}\n"
-            f"  last completed session  : {needed.isoformat()}\n"
-            f"  behind by               : {stale_days} calendar days\n\n"
-            "The committed panel does not reach the required completed session. "
-            "Current capture for the next instruction is not established.\n\n"
-            "Possible causes include an incomplete local refresh, missing "
-            "vendor data, or a completed refresh that has not been pushed. "
-            "The scheduled task starts at 09:00 "
-            "SGT, retries hourly until early afternoon SGT, and starts when "
-            "the machine becomes available.\n\n"
-            "To act manually:\n"
-            "  use the dedicated automation clone, not an interactive tree\n"
-            "  python scripts/scheduled_refresh.py     (soak: validates, no push)\n"
-            "  then review and push, which triggers the rest of the chain.\n\n"
-            "The next fill is normally in the Monday CLOSING auctions: Xetra "
-            "23:30 SGT on Monday evening (sleeve D), US 04:00 SGT on Tuesday "
-            "(sleeves A/B/C), one hour later in winter. Check the exchange "
-            "calendar for a holiday displacement. Market-on-close orders must "
-            "be in before 15:50 New York time. Do not trade on the stale card."),
-    }
+RECOVERY_GUIDANCE = (
+    "Operator recovery:\n"
+    "1. Inspect Task Scheduler and the latest log in C:\\dev\\breadth-thrust-etf-sched\\logs. "
+    "Do not start a second refresh while one is active.\n"
+    "2. If no refresh is active, investigate the named errors and confirm the dedicated automation "
+    "clone is clean. From C:\\dev\\breadth-thrust-etf-sched run:\n"
+    "   python scripts/scheduled_refresh.py\n"
+    "   This is soak mode: it validates but does not commit or push. Use the scheduled task's Python environment.\n"
+    "3. Review the resulting instruction, capture dates and guards before committing/pushing approved outputs. "
+    "Then rerun python scripts/check_pretrade_ready.py --phase deadline against the published inputs.\n"
+    "Closing-auction times are not broker order cutoffs. Confirm the venue-specific submission deadline "
+    "with the broker and the Execution Timing guidance, including holidays and early closes.\n"
+    "Do not trade on the stale card or create new orders for an unverified or HOLD sleeve."
+)
 
 
 def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadline") -> dict:
     """Check the committed instruction and every sleeve, using its own venue.
 
-    The broad-market panel is a capture alarm, not proof that the book exists.
+    Broad-market freshness is a cross-book requirement even if sleeve A is on
+    HOLD, because that panel also feeds the portfolio risk overlay.
     No cache downloads occur in this CI check. Python months are 1-indexed.
     """
     import pandas as pd
@@ -141,19 +92,21 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
         raise ValueError("phase must be review or deadline")
     errors, pending, holds = [], [], []
     held_names = set()
+    fill_closes = set()
     data_dir = panel_path.parent
 
     def observation(value, expected, label, allow_missing=False):
         if value is None and allow_missing:
-            return False
+            return "missing"
         try:
             observed = date.fromisoformat(value)
         except (TypeError, ValueError):
             errors.append(f"{label}: missing or invalid observation date")
-            return False
+            return "invalid"
         if observed > expected:
             errors.append(f"{label}: future-dated {observed}, requires {expected}")
-        return observed == expected
+            return "invalid"
+        return "current" if observed == expected else "stale"
 
     try:
         book = json.loads((data_dir / "live_targets.json").read_text(encoding="utf-8"))
@@ -177,10 +130,10 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
             fresh_build = pd.Timestamp(built) >= close
             if not fresh_build:
                 pending.append(f"sleeve {name}: instruction predates the required {expected} close")
-            decision_current = observation(sl.get("decision_session"), expected,
+            decision_state = observation(sl.get("decision_session"), expected,
                                            f"sleeve {name} decision", allow_missing=sl.get("status") == "HOLD")
             if sl.get("status") == "HOLD":
-                evaluated_current = observation(sl.get("last_completed_session"), expected,
+                evaluated_state = observation(sl.get("last_completed_session"), expected,
                                                 f"sleeve {name} evaluated session")
                 if not sl.get("reason"):
                     errors.append(f"sleeve {name}: HOLD has no recorded reason")
@@ -196,13 +149,13 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
                         held, target, delta = (float(line[k]) for k in ("held", "target", "delta"))
                         if not all(math.isfinite(x) for x in (held, target, delta)) or held != target or delta != 0:
                             errors.append(f"sleeve {name}: HOLD changes a position")
-                if fresh_build and evaluated_current:
+                if fresh_build and evaluated_state == "current":
                     held_names.add(name)
                     holds.append(f"sleeve {name}: HOLD — {sl.get('reason')}; retain existing holdings")
-                else:
+                elif evaluated_state != "invalid":
                     pending.append(f"sleeve {name}: old HOLD has not been evaluated for {expected}")
             elif sl.get("status") == "READY":
-                if not decision_current:
+                if decision_state == "stale":
                     pending.append(f"sleeve {name}: decision {sl.get('decision_session')}, requires {expected}")
             else:
                 errors.append(f"sleeve {name}: unknown status {sl.get('status')}")
@@ -217,6 +170,9 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
                     errors.append(f"sleeve {name}: fill is not a future exchange session")
                 elif len(schedule) != 1:
                     pending.append(f"sleeve {name}: fill is not the next exchange session")
+                else:
+                    closing = schedule.iloc[0]["market_close"].tz_convert("Asia/Singapore")
+                    fill_closes.add(f"{venue}: {closing.strftime('%a %Y-%m-%d %H:%M')} SGT")
         if holds and book.get("targets_final") is True:
             errors.append("instruction declares targets_final despite a HOLD sleeve")
         elif not holds and book.get("targets_final") is False:
@@ -241,9 +197,11 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
                 except FileNotFoundError:
                     pending.append(f"missing source panel: {path.name}")
                     continue
-                current = observation(panel.get("end_date"), last.date(), path.name)
-                if not current and name not in held_names:
-                    pending.append(f"{path.name}: ends {panel.get('end_date')}, requires {last.date()}")
+                state = observation(panel.get("end_date"), last.date(), path.name)
+                broad_market = name == "A" and path in (panel_path, data_dir / "breadth_csp1.json")
+                if state == "stale" and (broad_market or name not in held_names):
+                    scope = " (cross-book risk-overlay input)" if broad_market else ""
+                    pending.append(f"{path.name}{scope}: ends {panel.get('end_date')}, requires {last.date()}")
     except Exception as exc:
         errors.append(f"source-panel verification failed: {type(exc).__name__}: {exc}")
     if errors:
@@ -265,8 +223,11 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
                       "Inspect the dedicated automation clone's run log before starting another refresh.")
     if phase == "review":
         detail.append("This is a progress checkpoint, not a completion deadline. The later deadline check runs even if no refresh succeeds.")
+    if fill_closes:
+        detail.append("Calendar closing times for the next-session fill dates in the instruction "
+                      "(not broker cutoffs or trade authorisation):\n" + "\n".join(sorted(fill_closes)))
     if errors or pending or holds:
-        detail.append("Do not create new orders for an unverified or HOLD sleeve. Review live_targets.json and the named evidence.")
+        detail.append(RECOVERY_GUIDANCE)
     return {"warn": str(warn).lower(), "status": status, "tag": tag,
             "summary": summary, "detail": "\n\n".join(detail)}
 
@@ -307,7 +268,7 @@ def main(argv: list[str] | None = None) -> int:
         report = {
             "warn": "true", "status": "error", "tag": "WARN",
             "summary": f"checker error ({type(exc).__name__})",
-            "detail": f"check_pretrade_ready itself failed: {exc!r}",
+            "detail": f"check_pretrade_ready itself failed: {exc!r}\n\n{RECOVERY_GUIDANCE}",
         }
 
     print(f"[{report['tag']}] {report['summary']}")

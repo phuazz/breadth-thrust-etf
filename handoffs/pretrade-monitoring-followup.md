@@ -42,6 +42,12 @@ does not suppress the deadline warning.
 - Missing GitHub step outputs and setup failures trigger the fallback alert
   unless the workflow was cancelled. No successful local marker is required.
 
+The subsequent cleanup removes the orphaned `build_report` helper and its
+test-only path, restores recovery instructions in the live report, and makes
+broad-market freshness mandatory even for a sleeve-A HOLD. The existing live
+month/year/holiday boundary tests were retained. See `pretrade-live-path-cleanup.md`
+for the cleanup's additional regression tests and verification record.
+
 ## Test plan and evidence
 
 The testing-strategy skill informed the failure-case coverage. Unit/integration

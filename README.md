@@ -21,6 +21,10 @@ Data Health surfaces declared price shortfalls even within its weekly age
 tolerance. The pre-trade checkpoints verify the full four-sleeve instruction
 and A/D source panels. Vendor-unavailable data remains visibly incomplete;
 the pipeline does not guarantee that a provider has published every close.
+The broad-market panel also feeds the portfolio risk overlay, so its freshness
+requirement is not waived by a sleeve-A HOLD. Live alert bodies include recovery
+steps and calendar closing times where the instruction supplies valid fill dates;
+these are not broker order cutoffs or permission to trade an unverified book.
 
 For an isolated live check using the scheduled task's Python, run
 `python tools/verify_capture_smoke.py --etf EXH1`. Evidence goes under ignored
