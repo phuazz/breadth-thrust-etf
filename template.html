@@ -991,6 +991,15 @@
     table.matrix .row-label, table.small-table .row-label {
       font-weight: 600; color: var(--ink);
     }
+    /* Sub-line under a ticker in the sleeve current-selection tables.
+       Hidden on desktop, where the theme / sector has its own column;
+       shown on mobile, where that column is dropped to let the table
+       fit the viewport. It exists so narrowing never leaves a bare
+       ticker as the only label a reader gets. */
+    table.sleeve-holdings .row-sub {
+      display: none; font-size: 11.5px; font-weight: 400;
+      color: var(--ink-faint); margin-top: 2px; line-height: 1.3;
+    }
     table.matrix .num, table.small-table .num {
       font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
       font-variant-numeric: tabular-nums; font-size: 13px;
@@ -2041,6 +2050,25 @@
       table.heat, table.small-table, table.trade-table, table.health-table {
         font-size: 12px; min-width: 480px;
       }
+      /* Sleeve current-selection tables are the exception to the 480px
+         floor above: they carry an expandable price chart, and a chart
+         inside a sideways scroller is a chart the reader has to drag
+         into view. Drop to three columns — ticker, signal, weight — so
+         the table and the chart fit a 390px phone outright. The theme /
+         sector name is not lost; it moves under the ticker as .row-sub,
+         because a bare ticker must never be a reader's only label.
+         Scoped to tr.holdings-row and tr.sleeve-cash-row so the
+         colspan=5 "holdings unavailable" fallback row is not hidden. */
+      table.sleeve-holdings { min-width: 0; }
+      table.sleeve-holdings thead th:nth-child(1),
+      table.sleeve-holdings thead th:nth-child(3),
+      table.sleeve-holdings tbody tr.holdings-row td:nth-child(1),
+      table.sleeve-holdings tbody tr.holdings-row td:nth-child(3),
+      table.sleeve-holdings tbody tr.sleeve-cash-row td:nth-child(1),
+      table.sleeve-holdings tbody tr.sleeve-cash-row td:nth-child(3) {
+        display: none;
+      }
+      table.sleeve-holdings .row-sub { display: block; }
       table.heat thead th, table.heat tbody td,
       table.small-table thead th, table.small-table tbody td,
       table.trade-table thead th, table.trade-table tbody td,
@@ -2493,7 +2521,7 @@
     <section>
       <h2>Strategy A — current selection<span id="a-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
       <p class="section-sub full">What Strategy A actually holds right now, and why each sector qualified. The rule: rank every US sector ETF by sector-relative breadth (breadth − cross-sectional mean), keep only those above the mean, hold the top K (up to 7) weighted by positive excess share. <strong>The breadth shown here is the value at the last rebalance, not today</strong> — so a sector whose breadth has since crossed the mean is not added until the next rebalance, and a held sector that has since fallen below is not dropped until then either. That is why the Live Signal chart below may show a different ordering than this table. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
-      <table class="small-table" id="a-holdings-table"><thead></thead><tbody></tbody></table>
+      <table class="small-table sleeve-holdings" id="a-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="a-holdings-note" style="margin-top:8px;font-size:12px;"></p>
     </section>
 
@@ -2599,7 +2627,7 @@
     <section>
       <h2>Strategy B — current selection<span id="b-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
       <p class="section-sub full">What Strategy B actually holds right now, and why each name qualified. The rule: rank every asset-class ETF by how far it sits above its own 200-day average (the signal), keep only those above it, hold the top K weighted by signal share, and route any unfilled slots to cash. <strong>The signal shown here is the value at the last rebalance, not today</strong> — so a name whose live signal (see the Trend snapshot below) has since overtaken a held one is not added until the next rebalance. That is why an ETF can show a higher current signal yet still read "no" in that snapshot. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
-      <table class="small-table" id="b-holdings-table"><thead></thead><tbody></tbody></table>
+      <table class="small-table sleeve-holdings" id="b-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="b-holdings-note" style="margin-top:8px;font-size:12px;"></p>
     </section>
 
@@ -2686,7 +2714,7 @@
     <section>
       <h2>Strategy C — current selection<span id="c-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
       <p class="section-sub full">What Strategy C actually holds right now, and why each theme qualified. The rule: rank every thematic ETF by distance above its own 200-day MA, keep only those at or above the <strong>+5% hard signal floor</strong>, then equal-weight (1/K) across the top K=5. If fewer than K names clear the floor, the deficit sits in SHY. The <strong>V6 sleeve-breadth gate</strong> trips when fewer than 30% of the 25-theme universe is above +5% — when active, the entire sleeve exits to SHY for the week. <strong>The signal shown here is the value at the last rebalance, not today</strong> — a name whose live signal has since crossed +5% or fallen below it is not acted on until the next rebalance. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
-      <table class="small-table" id="c-holdings-table"><thead></thead><tbody></tbody></table>
+      <table class="small-table sleeve-holdings" id="c-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="c-holdings-note" style="margin-top:8px;font-size:12px;"></p>
     </section>
 
@@ -2786,7 +2814,7 @@
     <section>
       <h2>Strategy D — current selection<span id="d-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
       <p class="section-sub full">What Strategy D actually holds right now, and why each Europe sector qualified. The rule: rank the 5 Stoxx Europe 600 sector UCITS by absolute breadth (% of constituents above their own 200-day MA), hold the top K=3 weighted by breadth share. The 5-sector universe is small enough that all three slots are always filled — there is no cash floor. Unlike Strategy A, D uses <em>absolute</em> breadth rather than sector-relative excess because the cross-sectional mean over only 5 sectors does not add reliable signal. <strong>The breadth shown here is the value at the last rebalance, not today</strong> — a sector whose breadth has since changed is not re-ranked until the next rebalance. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
-      <table class="small-table" id="d-holdings-table"><thead></thead><tbody></tbody></table>
+      <table class="small-table sleeve-holdings" id="d-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="d-holdings-note" style="margin-top:8px;font-size:12px;"></p>
     </section>
 
@@ -8175,7 +8203,7 @@ function _renderAHoldings() {
     const x = _sleeveExpandAttrs(r.etf);
     return `<tr ${x.attrs}>
     <td class="num">${i + 1}</td>
-    <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
+    <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong><span class="row-sub">${ETF_DESCRIPTIONS[r.etf] || ''}</span></td>
     <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
     <td class="num good"><strong>${r.breadth_pct.toFixed(1)}%</strong></td>
     <td class="num">${(r.weight * 100).toFixed(1)}%</td>
@@ -8229,7 +8257,7 @@ function _renderCHoldings() {
     const x = _sleeveExpandAttrs(r.etf);
     return `<tr ${x.attrs}>
       <td class="num">${i + 1}</td>
-      <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
+      <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong><span class="row-sub">${ETF_DESCRIPTIONS[r.etf] || ''}</span></td>
       <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
       <td class="num ${sig >= 0 ? 'good' : 'bad'}"><strong>${sgn}${sig.toFixed(1)}%</strong></td>
       <td class="num">${(r.weight * 100).toFixed(1)}%</td>
@@ -8239,7 +8267,7 @@ function _renderCHoldings() {
   // the V6 sleeve-breadth gate having tripped (or every theme dropped below
   // +5%); call it out explicitly.
   const sleeveOff = holds.length === 0;
-  const cashRow = cash > 0.0005 ? `<tr>
+  const cashRow = cash > 0.0005 ? `<tr class="sleeve-cash-row">
       <td class="num">—</td>
       <td class="row-label" style="color:var(--ink-faint);">Cash floor (SHY)</td>
       <td style="color:var(--ink-faint);font-size:12px;">${sleeveOff ? 'V6 sleeve-breadth gate active OR no themes above +5%' : `Fewer than K=${K} themes above the +5% signal floor`}</td>
@@ -8291,7 +8319,7 @@ function _renderDHoldings() {
     const x = _sleeveExpandAttrs(r.etf);
     return `<tr ${x.attrs}>
     <td class="num">${i + 1}</td>
-    <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
+    <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong><span class="row-sub">${ETF_DESCRIPTIONS[r.etf] || ''}</span></td>
     <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
     <td class="num good"><strong>${r.breadth_pct.toFixed(1)}%</strong></td>
     <td class="num">${(r.weight * 100).toFixed(1)}%</td>
@@ -8339,13 +8367,13 @@ function _renderBHoldings() {
     const x = _sleeveExpandAttrs(r.etf);
     return `<tr ${x.attrs}>
       <td class="num">${i + 1}</td>
-      <td class="row-label">${x.caret}<span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${_displaySym(r.etf)}</strong></td>
+      <td class="row-label">${x.caret}<span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${_displaySym(r.etf)}</strong><span class="row-sub">${_bcLabel(r.etf)}</span></td>
       <td style="color:var(--ink-faint);font-size:12px;">${_bcLabel(r.etf)}</td>
       <td class="num ${sig >= 0 ? 'good' : 'bad'}"><strong>${sgn}${sig.toFixed(1)}%</strong></td>
       <td class="num">${(r.weight * 100).toFixed(1)}%</td>
     </tr>`;
   }).join('');
-  const cashRow = cash > 0.0005 ? `<tr>
+  const cashRow = cash > 0.0005 ? `<tr class="sleeve-cash-row">
       <td class="num">—</td>
       <td class="row-label" style="color:var(--ink-faint);">Cash floor</td>
       <td style="color:var(--ink-faint);font-size:12px;">Fewer than K=${K} ETFs above their 200d trend</td>
