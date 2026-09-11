@@ -305,6 +305,9 @@ def main() -> int:
             timings.append((f"fetch_constituents {etf}", dt))
             if not ok:
                 failures.append(f"fetch_constituents {etf}")
+                # Preserve the dependency: an old roster left on disk is not
+                # a successful input to this run's breadth calculation.
+                continue
         # BTE_PRICE_SOURCE=norgate is honoured by the sleeve engines directly
         # (they read the env var), but compute_breadth takes it as a flag, so
         # the orchestrator translates. Without this the panels would stay on
@@ -324,6 +327,10 @@ def main() -> int:
         timings.append((f"compute_breadth {etf}", dt))
         if not ok:
             failures.append(f"compute_breadth {etf}")
+
+    if failures:
+        print("Capture failed; downstream calculations were not started: " + ", ".join(failures), flush=True)
+        return 1
 
     # ----- Step 2: aggregated breadth sweep -----
     # ALWAYS runs, including under --deployed-only. It aggregates step 1's
@@ -359,6 +366,10 @@ def main() -> int:
     timings.append(("export_holdings_prices --refresh-caches-only", dt))
     if not ok:
         failures.append("export_holdings_prices --refresh-caches-only")
+
+    if failures:
+        print("Input preparation failed; strategy engines were not started: " + ", ".join(failures), flush=True)
+        return 1
 
     # ----- Step 3: strategy engines -----
     strategy_steps = [
@@ -444,7 +455,10 @@ def main() -> int:
             "scripts/build_simple_page.py"),
     ]
     for label, script in live_steps:
-        ok, dt = run_step(label, [py, script])
+        cmd = [py, script]
+        if script == "scripts/pipeline.py":
+            cmd.append("--strict-capture")
+        ok, dt = run_step(label, cmd)
         timings.append((label, dt))
         if not ok:
             failures.append(label)

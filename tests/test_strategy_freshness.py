@@ -176,15 +176,14 @@ def test_panel_reach_surfaces_the_declared_tail_cap(tmp_path, monkeypatch):
                 f"the cap sentence asserts a cause it cannot know: {claim!r}")
 
 
-def test_a_missing_panel_is_skipped_not_counted_as_stale(tmp_path, monkeypatch):
-    """An absent file is not evidence of staleness; treating it as one would
-    report the whole sleeve behind on a file that was never written."""
+def test_a_missing_required_panel_makes_the_sleeve_unknown(tmp_path, monkeypatch):
+    """An absent required member cannot silently shrink the universe."""
     import scripts.strategy_freshness as sf
     monkeypatch.setattr(sf, "DATA_DIR", tmp_path)
     _write_panel(tmp_path, "IUES", "2026-08-21")
     reach, laggards, _ = sf.panel_reach(["IUES", "NOTHERE"])
-    assert reach == "2026-08-21"
-    assert laggards == []
+    assert reach is None
+    assert laggards == ["NOTHERE"]
 
 
 def test_cache_reach_ignores_trailing_nans_per_ticker(tmp_path):

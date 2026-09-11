@@ -360,6 +360,41 @@ def test_positive_response_is_cached_as_the_payload(monkeypatch, tmp_path):
     assert [p.name for p in tmp_path.glob("*.json")] == ["CSP1_20260717.json"]
 
 
+def test_refresh_latest_bypasses_positive_cache_but_keeps_history(monkeypatch, tmp_path):
+    monkeypatch.setattr(fc, "RAW_DIR", tmp_path)
+    target = date(2026, 9, 4)
+    path = tmp_path / "CSP1_20260904.json"
+    def payload(name):
+        return _payload_with(asOfDate={"value": "20260904"},
+                             ticker={"value": [name]}, assetClass={"value": ["Equity"]})
+    path.write_text(json.dumps(payload("OLD")))
+    monkeypatch.setattr(fc, "fetch_product_data", lambda *args: payload("NEW"))
+    assert fc.load_snapshot_tickers(target, get_etf("CSP1")) == ["OLD"]
+    assert fc.load_snapshot_tickers(target, get_etf("CSP1"), refresh=True) == ["NEW"]
+    assert fc.load_snapshot_tickers(target, get_etf("CSP1")) == ["NEW"]
+
+
+def test_wrong_date_cached_response_does_not_freeze_a_gap(monkeypatch, tmp_path):
+    monkeypatch.setattr(fc, "RAW_DIR", tmp_path)
+    path = tmp_path / "CSP1_20260904.json"
+    path.write_text(json.dumps(_payload_with(asOfDate={"value": "20260903"},
+        ticker={"value": ["OLD"]}, assetClass={"value": ["Equity"]})))
+    monkeypatch.setattr(fc, "fetch_product_data", lambda *args: _payload_with(
+        asOfDate={"value": "20260904"}, ticker={"value": ["NEW"]},
+        assetClass={"value": ["Equity"]}))
+    assert fc.load_snapshot_tickers(date(2026, 9, 4), get_etf("CSP1")) == ["NEW"]
+
+
+def test_recent_negative_marker_is_retried(monkeypatch, tmp_path):
+    monkeypatch.setattr(fc, "RAW_DIR", tmp_path)
+    target = date.today() - timedelta(days=1)
+    (tmp_path / f"CSP1_{target:%Y%m%d}.json").write_text(json.dumps({"_no_holdings": True}))
+    monkeypatch.setattr(fc, "fetch_product_data", lambda *args: _payload_with(
+        asOfDate={"value": target.strftime("%Y%m%d")}, ticker={"value": ["NEW"]},
+        assetClass={"value": ["Equity"]}))
+    assert fc.load_snapshot_tickers(target, get_etf("CSP1")) == ["NEW"]
+
+
 def test_legacy_csv_cache_still_wins(monkeypatch, tmp_path):
     """The ~10,400 pre-re-platform CSVs remain the source of truth for
     history and must never trigger a network call."""

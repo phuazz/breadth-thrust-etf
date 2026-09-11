@@ -171,17 +171,23 @@ def panel_reach(universe: list[str]) -> tuple[str | None, list[str], dict]:
     """
     ends: dict[str, str] = {}
     caps: dict[str, dict] = {}
+    missing = []
     for etf in universe:
         p = DATA_DIR / f"breadth_{etf.lower()}.json"
         if not p.exists():
+            missing.append(etf)
             continue
         blob = json.loads(p.read_text(encoding="utf-8"))
         end = blob.get("end_date")
         if end:
             ends[etf] = end
+        else:
+            missing.append(etf)
         cap = blob.get("tail_cap")
         if cap:
             caps[etf] = cap
+    if missing:
+        return None, sorted(missing), caps
     if not ends:
         return None, [], {}
     stalest = min(ends.values())
@@ -199,7 +205,10 @@ def cache_reach(cache_path: Path,
     if not cache_path.exists():
         return None, []
     frame = pd.read_parquet(cache_path)
-    cols = [c for c in (tickers or frame.columns) if c in frame.columns]
+    cols = list(tickers if tickers is not None else frame.columns)
+    missing = [c for c in cols if c not in frame.columns or not frame[c].notna().any()]
+    if missing:
+        return None, sorted(missing)
     last: dict[str, str] = {}
     for c in cols:
         s = frame[c].dropna()
@@ -333,7 +342,8 @@ def build(now_utc: datetime | None = None) -> dict:
     return {
         "computed_at_utc": now.isoformat(),
         "strategies": rows,
-        "all_current": not behind,
+        "all_current": bool(rows) and all(r["status"] == CURRENT for r in rows),
+        "n_unknown": sum(r["status"] == UNKNOWN for r in rows),
         "stalest": min((r["data_through"] for r in rows
                         if r["data_through"]), default=None),
         "n_behind": len(behind),

@@ -84,6 +84,8 @@ from stall_guard import (  # noqa: E402
     run_with_deadline,
 )
 import vendor_tail  # noqa: E402  (the single-ticker request, shared with B/C)
+import price_source as price_source_mod  # noqa: E402
+from capture_status import describe_capture  # noqa: E402
 
 # Force UTF-8 stdout for Windows console.
 sys.stdout.reconfigure(encoding="utf-8")
@@ -733,6 +735,7 @@ def verify_price_tail(
     heal_budget_s: float = TAIL_HEAL_BUDGET_S,
     clock=time.monotonic,
     now_utc: datetime | None = None,
+    expected_sessions=None,
 ) -> tuple[pd.DataFrame, dict | None]:
     """Settle every index row past the roster's last PRICED session.
 
@@ -750,10 +753,22 @@ def verify_price_tail(
     if close.index.has_duplicates:
         close = close[~close.index.duplicated(keep="last")]
     close = close.sort_index()
+    if expected_sessions is not None:
+        close = close.reindex(close.index.union(pd.DatetimeIndex(expected_sessions)))
     ok = priced_sessions(close, roster)
     if not len(ok):
         return close, None
     last_ok = pd.Timestamp(ok.max())
+    if expected_sessions is not None and len(expected_sessions):
+        newest = pd.Timestamp(max(expected_sessions))
+        # Even a row above the breadth floor can be missing live members.
+        # Retry those members without changing the registered coverage floor.
+        prior = close.loc[close.index < newest, held]
+        active_missing = [t for t in held if t not in set(exclude) and
+                          pd.isna(close.at[newest, t]) and prior[t].notna().any()]
+        earlier = ok[ok < newest]
+        if active_missing and len(earlier):
+            last_ok = min(last_ok, pd.Timestamp(earlier.max()))
     tail = [pd.Timestamp(ts) for ts in close.index if ts > last_ok]
     if not tail:
         return close, None
@@ -823,12 +838,12 @@ def verify_price_tail(
             rec.update(filled=filled, refused=refused,
                        heal_timed_out=timed_out,
                        verdict="healed" if populated else "partial")
-        elif answered:
+        elif len(answered) == len(sample) and rec["roster_priced"] == 0:
             dropped.append(ts)
             rec["verdict"] = "unserved"
         else:
             rec.update(verdict="unverifiable",
-                       reason="no sampled name answered")
+                       reason="some sampled names did not answer, or the row retains real prices")
         rows.append(rec)
 
     if dropped:
@@ -882,6 +897,8 @@ def download_prices(
     price_source: str = "yfinance",
     roster: list[str] | None = None,
     tail_probe: bool = True,
+    required_through=None,
+    calendar: str = "NYSE",
 ) -> pd.DataFrame:
     """Download adjusted-close history. Cache to parquet so reruns are free.
 
@@ -903,7 +920,13 @@ def download_prices(
                 cached.index.min() <= start_ts and cached.index.max() >= end_ts
             )
             covers_tickers = requested.issubset(set(cached.columns))
-            if covers_dates and covers_tickers:
+            source_matches = price_source_mod.cache_matches(
+                price_source_mod.read_cache_source(cache_path), price_source)
+            through = vendor_tail.cache_current_through(cached, roster) if roster else None
+            covers_required = (required_through is None or
+                               (through is not None and through >= pd.Timestamp(required_through).date()
+                                and vendor_tail.has_required_session(cached, roster, required_through)))
+            if covers_dates and covers_tickers and source_matches and covers_required:
                 print(f"  Using cached prices: {cache_path.name}", flush=True)
                 return cached[list(tickers)].loc[start_ts:end_ts]
         except Exception as e:
@@ -1093,13 +1116,29 @@ def download_prices(
     # 'norgate' diagnostic mode blanks the unresolved names on purpose and
     # is left alone.
     verification = None
+    if required_through is not None:
+        close = close.loc[:pd.Timestamp(required_through)]
     if roster and tail_probe and price_source != "norgate":
+        close, missing_recovery = vendor_tail.recover_missing_columns(
+            close, roster, exclude=norgate_columns,
+            fetch_single=lambda t: vendor_tail.single_ticker_closes(
+                normalise_for_yfinance(t), period="max"))
+        close = close.loc[start_ts:pd.Timestamp(end) - pd.Timedelta(days=1)]
+        if required_through is not None:
+            close = close.loc[:pd.Timestamp(required_through)]
+        expected = vendor_tail.expected_tail(close.index, required_through, calendar)
         close, verification = verify_price_tail(close, roster,
-                                                exclude=norgate_columns)
+                                                exclude=norgate_columns,
+                                                expected_sessions=expected)
         _report_tail_verification(verification)
+        if missing_recovery:
+            print(f"  Missing active-name recovery: {missing_recovery}", flush=True)
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     close.to_parquet(cache_path)
+    price_source_mod.write_cache_source(cache_path, price_source,
+                                        {"replaced": norgate_columns,
+                                         "tail_heal": verification})
     # Carried on the returned frame for main() to record in the panel JSON;
     # the parquet does not need it.
     close.attrs["tail_verification"] = verification
@@ -1219,6 +1258,7 @@ def main() -> int:
     prices = download_prices(
         universe, dl_start, dl_end, cache_path=prices_cache,
         price_source=args.price_source, roster=roster_now,
+        required_through=panel_end, calendar=cal_name,
         tail_probe=os.environ.get("BTE_TAIL_PROBE", "1").strip() != "0")
     verification = getattr(prices, "attrs", {}).get("tail_verification")
     n_with_any_data = int((prices.notna().any(axis=0)).sum())
@@ -1560,6 +1600,9 @@ def main() -> int:
         # batch defect leaves the panel full-length and this is the only
         # record that it happened.
         "tail_verification": verification,
+        "current_capture": describe_capture(
+            consts, prices, panel_end, df.index[-1].strftime("%Y-%m-%d"),
+            args.price_source),
         "n_trading_days": int(len(df)),
         "n_signals": int(df["signal_fires"].sum()),
         "first_eligible_signal_date": df.index[SIGNAL_ELIGIBLE_AFTER].strftime("%Y-%m-%d")

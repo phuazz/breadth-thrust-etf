@@ -297,7 +297,8 @@ def download_prices() -> pd.DataFrame:
         cache_source = price_source_mod.read_cache_source(PRICE_CACHE)
         if cache_end is None:
             print(f"  Cache at {PRICE_CACHE.name} is EMPTY — re-downloading")
-        elif cache_end >= current_through and set(needed).issubset(cached_universe):
+        elif (cache_end >= current_through and set(needed).issubset(cached_universe)
+              and vendor_tail.has_required_session(cached, needed, current_through)):
             # A current cache built from the OTHER source is not this run's
             # cache. WS19 found the Norgate switch vacuous for exactly this
             # reason: the reuse branch returned before the selection ran.
@@ -326,7 +327,7 @@ def download_prices() -> pd.DataFrame:
             closes[t] = raw[(t, "Close")]
         elif "Close" in raw.columns:
             closes[t] = raw["Close"]
-    df = pd.DataFrame(closes)
+    df = pd.DataFrame(closes).reindex(columns=needed)
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.sort_index().dropna(how="all")
 
@@ -370,6 +371,11 @@ def download_prices() -> pd.DataFrame:
     # is written, Norgate-owned columns excluded. On a Norgate run this sleeve
     # is wholly Norgate's and the step has nothing to ask; on a yfinance run
     # (every CI runner) it is the 2026-08-31 SPY blank, healed at the source.
+    df, _missing = vendor_tail.recover_missing_columns(
+        df, needed, exclude=(_ngrep or {}).get("replaced", []))
+    if _missing:
+        print(f"  Missing required-name recovery: {_missing}", flush=True)
+    df = df.loc[START_DATE:END_DATE]
     df, _heal = vendor_tail.heal_hollow_tail(
         df, needed, through=current_through,
         exclude=(_ngrep or {}).get("replaced", []))

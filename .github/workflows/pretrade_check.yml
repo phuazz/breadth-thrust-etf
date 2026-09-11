@@ -14,10 +14,9 @@ name: Pre-trade readiness check
 # points at the previous week by design. Detecting a miss and preventing one are
 # different jobs and need different questions.
 #
-# This one asks: does the committed panel reach the session today's decision
-# reads? The test is imported from scheduled_refresh.panel_is_current, the same
-# function the local wrapper uses to decide whether to push, so the two cannot
-# drift apart.
+# This checks the broad-market capture, all four sleeve decisions and their
+# fill dates, and every A/D source panel. A current broad-market panel alone
+# cannot prove that the complete instruction is ready.
 
 on:
   schedule:

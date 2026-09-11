@@ -100,14 +100,25 @@ def _breadth_panel(universe: list[str]) -> tuple[pd.DataFrame, list[str]]:
     calendar, which deletes a signal the vendor did publish whenever the ETF
     wrapper's own bar is missing.
     """
-    cols, used = {}, []
+    cols = {}
     for etf in universe:
         try:
             cols[etf] = compute_ma200_breadth(load_constituent_prices(etf), MA_PERIOD)
+            panel = json.loads((DATA_DIR / f"breadth_{etf.lower()}.json").read_text(encoding="utf-8"))
+            # A cache can have a thin newer row than its validated breadth
+            # panel. Do not rank it merely because a few prices exist there.
+            bound = pd.Timestamp(panel["end_date"])
+            cols[etf] = cols[etf].where(cols[etf].index <= bound)
+            capture = panel.get("current_capture")
+            if capture:
+                from capture_status import roster_fingerprint
+                roster = json.loads((DATA_DIR / f"constituents_{etf.lower()}.json").read_text(encoding="utf-8"))
+                if capture.get("roster_fingerprint") != roster_fingerprint(roster):
+                    cols[etf][:] = float("nan")
         except FileNotFoundError:
+            cols[etf] = pd.Series(dtype=float)
             continue
-        used.append(etf)
-    return pd.DataFrame(cols).sort_index(), used
+    return pd.DataFrame(cols).reindex(columns=universe).sort_index(), list(universe)
 
 
 def _venue(universe: list[str]) -> str:
@@ -236,13 +247,13 @@ def build(now_utc: datetime | None = None) -> dict:
                          signal_kind="breadth_relative", top_k=tk.HEADLINE_K,
                          prev_session=prev.get("A")))
 
-    cb = ac.download_prices()
+    cb = ac.download_prices().reindex(columns=list(ac.TICKERS))
     sleeves.append(_rank(ac.compute_signal(cb),
                          ac.top_k_by_signal(ac.HEADLINE_K), "NYSE", now, "B",
                          signal_kind="ma_distance", top_k=ac.HEADLINE_K,
                          prev_session=prev.get("B")))
 
-    cc = th.download_prices()
+    cc = th.download_prices().reindex(columns=list(th.TICKERS))
     sleeves.append(_rank(th.compute_signal(cc),
                          th.top_k_equal_weight(th.HEADLINE_K), "NYSE", now, "C",
                          signal_kind="ma_distance", top_k=th.HEADLINE_K,

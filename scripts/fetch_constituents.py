@@ -1018,8 +1018,12 @@ def latest_completed_friday(today: date) -> date:
 
 
 def load_snapshot_tickers(target: date, etf_cfg: dict,
-                          latency: LatencyCircuit | None = None) -> list[str]:
+                          latency: LatencyCircuit | None = None,
+                          refresh: bool = False) -> list[str]:
     """Return the Equity roster for one calendar date, cache-first.
+
+    ``refresh=True`` revalidates this date against the endpoint. The main
+    weekly run uses it for the newest Friday; historical captures stay cached.
 
     Resolution order:
       1. Legacy CSV cache (`SYM_YYYYMMDD.csv`) — the ~10,400 files captured
@@ -1052,7 +1056,7 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
     stamp = target.strftime("%Y%m%d")
 
     csv_path = RAW_DIR / f"{symbol}_{stamp}.csv"
-    if csv_path.exists():
+    if csv_path.exists() and not refresh:
         cached = csv_path.read_text(encoding="utf-8")
         if looks_like_ishares_holdings_csv(cached):
             if latency is not None:
@@ -1064,7 +1068,7 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
         csv_path.unlink()
 
     json_path = RAW_DIR / f"{symbol}_{stamp}.json"
-    if json_path.exists():
+    if json_path.exists() and not refresh:
         try:
             payload = json.loads(json_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
@@ -1073,12 +1077,17 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
             if latency is not None:
                 latency.record_cache_hit()
             if payload.get("_no_holdings"):
-                return []
-            return parse_holdings_json(
-                payload, target, ticker_overrides=overrides,
-                apply_exchange_suffix=apply_suffix, symbol=symbol,
-                exclude_symbols=excluded,
-            )
+                if (date.today() - target).days > NEGATIVE_CACHE_MIN_AGE_DAYS:
+                    return []
+            else:
+                cached_tickers = parse_holdings_json(
+                    payload, target, ticker_overrides=overrides,
+                    apply_exchange_suffix=apply_suffix, symbol=symbol,
+                    exclude_symbols=excluded,
+                )
+                if cached_tickers:
+                    return cached_tickers
+            # An empty or wrong-date response is not a permanent positive cache.
 
     if latency is None:
         payload = fetch_product_data(target, etf_cfg)
@@ -1121,6 +1130,7 @@ def get_snapshot(
     target_friday: date, etf_cfg: dict,
     circuit: EndpointCircuit | None = None,
     latency: LatencyCircuit | None = None,
+    refresh: bool = False,
 ) -> tuple[list[str] | None, date | None, str]:
     """Walk back from `target_friday` looking for a populated holdings file.
 
@@ -1143,7 +1153,8 @@ def get_snapshot(
     for days_back in range(MAX_WALKBACK_DAYS + 1):
         try_date = target_friday - timedelta(days=days_back)
         try:
-            tickers = load_snapshot_tickers(try_date, etf_cfg, latency=latency)
+            kwargs = {"refresh": True} if refresh and days_back == 0 else {}
+            tickers = load_snapshot_tickers(try_date, etf_cfg, latency=latency, **kwargs)
         except (EndpointUnavailable, PayloadContractError) as e:
             if circuit is None:
                 raise
@@ -1266,7 +1277,8 @@ def main() -> int:
             raise EndpointDegraded(latency.reason or "endpoint degraded")
         try:
             tickers, actual, status = get_snapshot(friday, etf_cfg, circuit,
-                                                   latency=latency)
+                                                   latency=latency,
+                                                   refresh=friday == end_friday)
         except Exception as e:
             print(f"  ERROR on {friday}: {e}", flush=True)
             tickers, actual, status = None, None, "not_found"

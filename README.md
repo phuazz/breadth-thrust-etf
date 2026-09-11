@@ -1,5 +1,33 @@
 # breadth-thrust-etf
 
+### Capture integrity
+
+The full refresh revalidates the newest weekly constituent snapshot, then
+downloads prices on the configured source basis. It retries missing active
+members with full same-source history and checks recent completed exchange
+sessions even when the batch omitted the entire row. A future or intraday
+bar cannot satisfy a missing required close. Historical membership rules,
+registered coverage floors and whole-column source selection are unchanged.
+
+Each new breadth JSON includes `current_capture`: actual roster date,
+roster fingerprint, required price session, panel reach and named missing
+or lagging members. Price-source sidecars remain local and gitignored.
+Missing required panels or ranking instruments make freshness unknown or the live sleeve HOLD;
+they cannot silently reduce the ranking universe. A failed capture stops
+downstream calculations, and a local full refresh fails if deployed Data tab
+inputs cannot be rebuilt. CI can still render the last committed artefacts.
+
+Data Health surfaces declared price shortfalls even within its weekly age
+tolerance. The Sunday pre-trade check verifies the full four-sleeve instruction
+and A/D source panels. Vendor-unavailable data remains visibly incomplete;
+the pipeline does not guarantee that a provider has published every close.
+
+For an isolated live check using the scheduled task's Python, run
+`python tools/verify_capture_smoke.py --etf EXH1`. Evidence goes under ignored
+`logs/capture-smoke/`; deployed files are unchanged. For a presentation-only
+rebuild from committed artefacts, use `python scripts/pipeline.py --dashboard-only`.
+The normal `refresh_all.py` workflow uses `--strict-capture` for the full build.
+
 USD-denominated 4-sleeve breadth + momentum ETF rotation strategy with a CSP1 breadth regime overlay and an EEM/SPY relative-strength tilt. **Personal research artefact** — not investment advice, not affiliated with any regulated fund. **Live dashboard**: [phuazz.github.io/breadth-thrust-etf](https://phuazz.github.io/breadth-thrust-etf/)
 
 **Companion pages** (separate builds, neither feeds the strategy): the cross-sectional [scanner](https://phuazz.github.io/breadth-thrust-etf/scanner.html), and the [theme constituent monitor](https://phuazz.github.io/breadth-thrust-etf/holdings-monitor.html) — current holdings of selected theme ETFs, priced and ranked for idea generation. See [HOLDINGS_MONITOR.md](HOLDINGS_MONITOR.md).

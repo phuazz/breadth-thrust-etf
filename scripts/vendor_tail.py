@@ -76,8 +76,9 @@ def single_ticker_closes(symbol: str, period: str = PROBE_PERIOD,
 def cache_current_through(cached: pd.DataFrame | None,
                           needed=None) -> date | None:
     """The date the cache is current through: the LEAST current column's last
-    priced date, over ``needed`` (default: every column), ignoring columns
-    with no data at all. None for an empty or absent cache.
+    priced date, over ``needed`` (default: every column). Explicitly required
+    absent or empty columns return None. Without explicit requirements, empty
+    historical columns are ignored. None for an empty or absent cache.
 
     Measured on values, never on the index. ``index.max()`` is the union of
     every column's dates, so one name blank on the newest row is invisible
@@ -86,13 +87,77 @@ def cache_current_through(cached: pd.DataFrame | None,
     name that mattered."""
     if cached is None or len(cached) == 0 or cached.shape[1] == 0:
         return None
-    cols = [c for c in (needed if needed is not None else cached.columns)
-            if c in cached.columns]
+    cols = list(needed if needed is not None else cached.columns)
+    # Explicit requirements may not disappear from the denominator. Historical
+    # unused columns remain ignorable when the caller supplies no requirements.
+    if needed is not None and any(
+            c not in cached.columns or not cached[c].notna().any() for c in cols):
+        return None
     per_col = [cached[c].dropna().index.max() for c in cols
                if cached[c].notna().any()]
     if not per_col:
         return None
     return pd.Timestamp(min(per_col)).date()
+
+
+def expected_tail(index, through, calendar="NYSE", lookback_days=10):
+    """Completed venue sessions to check, including rows absent from a batch.
+
+    Bounded to the probe window; older gaps remain visible to freshness checks.
+    Python datetime months are 1-indexed.
+    """
+    import pandas_market_calendars as mcal
+    if through is None or len(index) == 0:
+        return pd.DatetimeIndex([])
+    end = pd.Timestamp(through).normalize()
+    start = max(pd.Timestamp(index.min()).normalize(),
+                end - pd.Timedelta(days=lookback_days - 1))
+    return mcal.get_calendar(calendar).schedule(start_date=start, end_date=end).index
+
+
+def has_required_session(frame, names, through):
+    """A future/in-progress row cannot prove the required close was captured."""
+    stamp = pd.Timestamp(through)
+    names = list(names)
+    return bool(names and stamp in frame.index and set(names).issubset(frame.columns)
+                and frame.loc[stamp, names].notna().all())
+
+
+def recover_missing_columns(df, names, exclude=(), fetch_single=None,
+                            budget_s=HEAL_BUDGET_S, clock=time.monotonic):
+    """Retry wholly absent required names with full same-source history.
+
+    Tail-only bars cannot supply a moving-average warm-up. Historical names
+    outside the supplied active roster are never requested. No cached or
+    synthetic value is used when the vendor does not answer.
+    """
+    missing = [n for n in names if n not in set(exclude) and
+               (n not in df.columns or not df[n].notna().any())]
+    if not missing:
+        return df, None
+    out = df.copy()
+    fetch = fetch_single or (lambda n: single_ticker_closes(n, period="max"))
+    record = {"requested": missing, "recovered": [], "unanswered": [], "not_attempted": []}
+    started = clock()
+    for n in missing:
+        if clock() - started >= budget_s:
+            record["not_attempted"].append(n)
+            continue
+        try:
+            series = fetch(n)
+        except Exception:
+            series = None
+        if series is None or series.dropna().empty:
+            record["unanswered"].append(n)
+            continue
+        series = series.where((series > 0) & (series < float("inf"))).dropna()
+        if series.empty:
+            record["unanswered"].append(n)
+            continue
+        out = out.reindex(out.index.union(series.index))
+        out[n] = series.reindex(out.index)
+        record["recovered"].append(n)
+    return out.sort_index(), record
 
 
 def heal_hollow_tail(df: pd.DataFrame, names, through: date | None,
@@ -113,10 +178,14 @@ def heal_hollow_tail(df: pd.DataFrame, names, through: date | None,
     Returns the frame (a copy when anything was asked) and a record of what
     was asked and what came back, or None when there was nothing to ask.
     """
-    held = [n for n in names if n in df.columns]
+    held = list(names)
     if not held or len(df) == 0:
         return df, None
+    df = df.reindex(columns=list(dict.fromkeys([*df.columns, *held])))
+    df = df.reindex(df.index.union(expected_tail(df.index, through))).sort_index()
     full = df[held].notna().all(axis=1)
+    if through is not None:
+        full &= df.index <= pd.Timestamp(through)
     if not full.any():
         return df, None
     last_full = df.index[full][-1]

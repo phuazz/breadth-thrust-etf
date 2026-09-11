@@ -911,6 +911,36 @@ def _compute_data_health(today: date) -> dict:
                     f"observation field"
                 )
         row["status"] = status
+        # Cadence tolerances cannot excuse a shortfall measured by the writer.
+        # This is independent of whether the next decision session is due yet.
+        cap = blob.get("tail_cap") if check["group"] == "breadth" else None
+        capture = blob.get("current_capture") if check["group"] == "breadth" else None
+        if cap or (capture and capture.get("panel_current") is False):
+            if row["status"] == "ok":
+                row["status"] = "warn"
+            note = (f"Price capture incomplete: panel through {last}; "
+                    f"required at capture {(capture or {}).get('required_price_session') or (cap or {}).get('venue_last_completed')}. "
+                    "Review sleeve readiness before using this signal.")
+        if capture:
+            absent = capture.get("no_price_history") or []
+            behind = capture.get("behind_required_session") or {}
+            if absent or behind:
+                if row["status"] == "ok":
+                    row["status"] = "warn"
+                gaps = [f"{ticker}: no history" for ticker in absent]
+                gaps.extend(f"{ticker}: {end}" for ticker, end in sorted(behind.items()))
+                detail = (f"Active-member price gaps at {capture.get('required_price_session')}: "
+                          + "; ".join(gaps) + ". Registered breadth coverage rules are unchanged.")
+                note = f"{note} {detail}" if note else detail
+        if check["group"] == "constituents":
+            endpoint = (blob.get("endpoint_health") or {}).get("status")
+            stale = (blob.get("staleness") or {}).get("status")
+            if endpoint == "unavailable" or stale in ("warning", "critical", "no_real_fetches"):
+                if stale in ("critical", "no_real_fetches"):
+                    row["status"] = "broken"
+                elif row["status"] == "ok":
+                    row["status"] = "warn"
+                note = f"Roster capture: endpoint={endpoint}, staleness={stale}."
         if note:
             row["note"] = note
         rows.append(row)
@@ -999,7 +1029,7 @@ def inject(template_text: str, data: dict) -> str:
     )
 
 
-def main() -> int:
+def main(dashboard_only: bool = False, strict_capture: bool = False) -> int:
     # Freshness guard: every derived JSON the dashboard renders live must
     # not lag its sources by more than a week. Catches the silent-
     # staleness class that surfaced on 2026-06-17 (Live Signal chart
@@ -1568,6 +1598,10 @@ def main() -> int:
     # This is the post-2026-05-30 hotfix backstop.
     assert_no_conflict_markers(OUT)
 
+    if dashboard_only:
+        return 0
+    capture_failed = False
+
     # Data tab payload — built here rather than inlined between the
     # __DASHBOARD_DATA_*__ markers because index.html is already ~7.3MB and
     # this ~1.2MB payload serves a tab most visits never open. Built in the
@@ -1584,6 +1618,7 @@ def main() -> int:
     except Exception as exc:
         print(f"  WARN: data audit build unavailable (non-fatal): {exc}",
               file=sys.stderr)
+        capture_failed = True
     else:
         # Run the two independently. They read the same price caches, so a
         # stale cache stops BOTH — but each must still get its own attempt,
@@ -1595,9 +1630,13 @@ def main() -> int:
                 fn()
             except build_panel_series.StalePriceCacheError as exc:
                 stale.append(str(exc))
+                from refresh_all import ETFS_ALL
+                if not exc.etfs or set(exc.etfs) & set(ETFS_ALL):
+                    capture_failed = True
             except Exception as exc:
                 print(f"  WARN: {label} build failed (non-fatal): {exc}",
                       file=sys.stderr)
+                capture_failed = True
         if stale:
             # Distinct from a crash: the build worked and deliberately
             # declined to publish. A banner rather than a one-liner because
@@ -1620,8 +1659,15 @@ def main() -> int:
     except Exception as exc:
         print(f"  WARN: factsheet build failed (non-fatal): {exc}",
               file=sys.stderr)
-    return 0
+    return 1 if strict_capture and capture_failed else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dashboard-only", action="store_true",
+                        help="Rebuild HTML from existing artefacts; do not fetch Data tab prices or build PDF.")
+    parser.add_argument("--strict-capture", action="store_true",
+                        help="Fail a local refresh when deployed Data tab inputs could not be rebuilt.")
+    args = parser.parse_args()
+    sys.exit(main(dashboard_only=args.dashboard_only, strict_capture=args.strict_capture))

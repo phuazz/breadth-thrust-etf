@@ -10,6 +10,7 @@ data/raw_ishares/
 data/prices_cache.parquet
 data/prices_cache/
 data/prices_cache_*.parquet
+data/prices_cache_*.source.json
 data/*_ohlc_cache.parquet
 data/spy_close_cache.parquet
 data/asset_class_prices_cache.parquet

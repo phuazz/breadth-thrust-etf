@@ -16,11 +16,10 @@ publishability, because week_final_anchor is unanswerable mid-week — it points
 at the previous week by design, so a check built on it would pass on a Friday
 morning while the panel sat six days stale.
 
-ONE DEFINITION OF READY. The test itself is imported from
-scheduled_refresh.panel_is_current rather than restated here, so the local
-guard that decides whether to push and the CI guard that decides whether to
-alarm cannot drift apart. That drift is exactly how a re-timed guard goes
-quietly blind, which is the defect this whole change set began with.
+The broad-market capture test shares scheduled_refresh.panel_is_current.
+Full readiness additionally requires the committed live_targets instruction,
+exactly four READY sleeves, their venue-specific decision and fill dates,
+and every A/D breadth panel. One current panel cannot establish book readiness.
 
 WHAT IT DOES NOT DO. It cannot rebuild the panel — only the operator's machine
 can. It reports, and it never blocks: exit is always 0, and an internal error
@@ -84,11 +83,11 @@ def build_report(panel_path: Path, now_utc: datetime) -> dict:
             "warn": "false", "status": "ready", "tag": "OK",
             "summary": f"panel current to {panel_end.isoformat()}",
             "detail": (
-                f"Pre-trade check PASSED at {now_utc.isoformat()}.\n"
+                f"Broad-market capture PASSED at {now_utc.isoformat()}.\n"
                 f"  panel end_date          : {panel_end.isoformat()}\n"
                 f"  last completed session  : {needed.isoformat()}\n\n"
-            "The panel reaches Friday's decision session, so the instruction "
-            "is built for the next scheduled fill."),
+            "The broad-market panel reaches the required session. "
+            "The instruction must also be checked across all four sleeves."),
         }
 
     return {
@@ -100,11 +99,11 @@ def build_report(panel_path: Path, now_utc: datetime) -> dict:
             f"  panel end_date          : {panel_end.isoformat()}\n"
             f"  last completed session  : {needed.isoformat()}\n"
             f"  behind by               : {stale_days} calendar days\n\n"
-            "The committed panel does NOT reach Friday's decision session, "
-            "so no current instruction has been built for the next scheduled "
-            "fill.\n\n"
-            "Most likely cause: the Saturday/Sunday local refresh pair did "
-            "not complete or did not push. The scheduled task starts at 09:00 "
+            "The committed panel does not reach the required completed session. "
+            "Current capture for the next instruction is not established.\n\n"
+            "Possible causes include an incomplete local refresh, missing "
+            "vendor data, or a completed refresh that has not been pushed. "
+            "The scheduled task starts at 09:00 "
             "SGT, retries hourly until early afternoon SGT, and starts when "
             "the machine becomes available.\n\n"
             "To act manually:\n"
@@ -117,6 +116,66 @@ def build_report(panel_path: Path, now_utc: datetime) -> dict:
             "calendar for a holiday displacement. Market-on-close orders must "
             "be in before 15:50 New York time. Do not trade on the stale card."),
     }
+
+
+def build_book_report(panel_path: Path, now_utc: datetime) -> dict:
+    """Check the committed instruction and every sleeve, using its own venue.
+
+    The broad-market panel is a capture alarm, not proof that the book exists.
+    No cache downloads occur in this CI check. Python months are 1-indexed.
+    """
+    import pandas as pd
+    import pandas_market_calendars as mcal
+    from session_bounds import last_completed_session_on
+    from etf_registry import UNIVERSE_ETFS, UNIVERSE_EUROPE_SECTORS
+
+    report = build_report(panel_path, now_utc)
+    issues = []
+    data_dir = panel_path.parent
+    try:
+        book = json.loads((data_dir / "live_targets.json").read_text(encoding="utf-8"))
+        sleeves = book.get("sleeves") or []
+        if len(sleeves) != 4 or {s.get("sleeve") for s in sleeves} != set("ABCD"):
+            issues.append("instruction must contain exactly sleeves A, B, C and D")
+        if book.get("targets_final") is not True:
+            issues.append("instruction is provisional or on HOLD")
+        for sl in sleeves:
+            name = sl.get("sleeve")
+            venue = "XETR" if name == "D" else "NYSE"
+            cal = mcal.get_calendar(venue)
+            last = last_completed_session_on(cal, now_utc)
+            expected = str(last.date()) if last is not None else None
+            if (sl.get("status") != "READY" or not expected or
+                    sl.get("decision_session") != expected or
+                    sl.get("decision_session_for_fill") != expected):
+                issues.append(f"sleeve {name}: {sl.get('status')}, decision "
+                              f"{sl.get('decision_session')}, needs {expected} ({venue})")
+            fill = pd.Timestamp(sl.get("fill_date"))
+            if pd.isna(fill) or fill.date() < now_utc.date():
+                issues.append(f"sleeve {name}: missing or expired fill date")
+            elif expected:
+                schedule = cal.schedule(start_date=last + pd.Timedelta(days=1), end_date=fill)
+                if len(schedule) != 1 or schedule.index[0].date() != fill.date():
+                    issues.append(f"sleeve {name}: fill is not the session after its decision")
+        for name, universe, venue in (("A", UNIVERSE_ETFS, "NYSE"),
+                                      ("D", UNIVERSE_EUROPE_SECTORS, "XETR")):
+            last = last_completed_session_on(mcal.get_calendar(venue), now_utc)
+            for etf in universe:
+                panel = json.loads((data_dir / f"breadth_{etf.lower()}.json").read_text(encoding="utf-8"))
+                if last is None or panel.get("end_date") != str(last.date()):
+                    issues.append(f"sleeve {name}: {etf} panel ends {panel.get('end_date')}")
+    except Exception as exc:
+        issues.append(f"instruction/input verification failed: {type(exc).__name__}: {exc}")
+    if issues:
+        report.update(warn="true", status="not_ready", tag="PRE-TRADE",
+                      summary=f"book not ready ({len(issues)} checks failed)")
+        report["detail"] = ("Pre-trade book check FAILED.\n\n" + report["detail"]
+                            + "\n\nBook readiness:\n" + "\n".join(issues))
+        report["detail"] += "\nRun the local scheduled refresh and review the resulting instruction."
+    elif report["warn"] == "false":
+        report["summary"] = "all four sleeves ready for the next fill"
+        report["detail"] += "\nAll four sleeve decisions and A/D source panels verified."
+    return report
 
 
 def write_github_output(report: dict) -> None:
@@ -148,7 +207,7 @@ def main(argv: list[str] | None = None) -> int:
         now = datetime.now(timezone.utc)
 
     try:
-        report = build_report(Path(args.panel), now)
+        report = build_book_report(Path(args.panel), now)
     except Exception as exc:  # noqa: BLE001
         report = {
             "warn": "true", "status": "error", "tag": "WARN",

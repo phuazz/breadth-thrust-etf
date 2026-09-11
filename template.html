@@ -2080,6 +2080,24 @@
       table.health-table thead th, table.health-table tbody td {
         padding: 6px 8px;
       }
+      /* Keep capture dates, warnings and repair commands visible on a phone. */
+      table.health-table { display: block; min-width: 0; border: 0; }
+      table.health-table thead { display: none; }
+      table.health-table tbody { display: block; }
+      table.health-table tr {
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+        border: 1px solid var(--border); margin-bottom: 12px;
+      }
+      table.health-table tbody td {
+        display: block; min-width: 0; border: 0; overflow-wrap: anywhere;
+        text-align: left !important;
+      }
+      table.health-table td:nth-child(1), table.health-table td:nth-child(2),
+      table.health-table td:nth-child(6) { grid-column: 1 / -1; }
+      table.health-table td[data-label]::before {
+        content: attr(data-label); display: block; font: 11px var(--sans, sans-serif);
+        color: var(--ink-faint); margin-bottom: 4px;
+      }
       /* Trade controls (filter rows): tighter spacing + full-width inputs */
       .trade-controls { gap: 8px; }
       .trade-controls input[type="text"] { flex: 1 1 100%; min-width: 0; }
@@ -12136,7 +12154,7 @@ function updateHealthBadge() {
     dot.title = 'All data feeds fresh';
   } else if (status === 'warn') {
     sum.textContent = '(' + (c.warn || 0) + ' warning' + (c.warn === 1 ? '' : 's') + ')';
-    dot.title = c.warn + ' feed(s) approaching staleness';
+    dot.title = c.warn + ' feed(s) with capture or freshness warnings';
   } else {
     const broken = c.broken || 0;
     const stale = c.stale || 0;
@@ -12168,7 +12186,7 @@ function renderDataHealth() {
       <div class="n">${c.ok || 0}</div><div class="lbl">Fresh</div>
     </div>
     <div class="health-stat health-stat--warn">
-      <div class="n">${c.warn || 0}</div><div class="lbl">Approaching</div>
+      <div class="n">${c.warn || 0}</div><div class="lbl">Warnings</div>
     </div>
     <div class="health-stat health-stat--stale">
       <div class="n">${c.stale || 0}</div><div class="lbl">Stale</div>
@@ -12191,9 +12209,9 @@ function renderDataHealth() {
       <strong style="font-size:14px;">${overallLabel}</strong>
       <p style="margin:8px 0 0 0;font-size:13px;color:var(--ink-soft);">
         ${stale.length} feed${stale.length === 1 ? '' : 's'} stale or missing,
-        ${warn.length} approaching.
+        ${warn.length} with capture or freshness warnings.
         Run <code>python scripts/refresh_all.py</code> from the repo root
-        to refresh all monitored feeds (≈20-30 min on a residential IP).
+        to refresh all monitored feeds (runtime depends on vendor availability).
         Individual fix commands are shown per-row below.
       </p>
     `;
@@ -12232,10 +12250,10 @@ function renderDataHealth() {
         <div style="font-size:11px;color:var(--ink-faint);">${r.file}</div>
         ${r.note ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:3px;">${r.note}</div>` : ''}
       </td>
-      <td style="font-size:12px;color:var(--ink-soft);">${groupLabels[r.group] || r.group}</td>
-      <td style="font-size:12px;">${last}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;">${days}</td>
-      <td style="font-size:11px;font-family:var(--mono,monospace);color:var(--ink-soft);">${fix}</td>
+      <td data-label="Group" style="font-size:12px;color:var(--ink-soft);">${groupLabels[r.group] || r.group}</td>
+      <td data-label="Last data" style="font-size:12px;">${last}</td>
+      <td data-label="Days old" style="text-align:right;font-variant-numeric:tabular-nums;">${days}</td>
+      <td data-label="Fix command" style="font-size:11px;font-family:var(--mono,monospace);color:var(--ink-soft);">${fix}</td>
     </tr>`;
   }).join('');
 }
