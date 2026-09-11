@@ -996,7 +996,7 @@
        shown on mobile, where that column is dropped to let the table
        fit the viewport. It exists so narrowing never leaves a bare
        ticker as the only label a reader gets. */
-    table.sleeve-holdings .row-sub {
+    table.sleeve-holdings .row-sub, table.holdings .row-sub {
       display: none; font-size: 11.5px; font-weight: 400;
       color: var(--ink-faint); margin-top: 2px; line-height: 1.3;
     }
@@ -2069,6 +2069,11 @@
         display: none;
       }
       table.sleeve-holdings .row-sub { display: block; }
+      /* Monitor consolidated book: same reasoning. It already fits a
+         phone (it drops to ETF + total weight), but the hidden
+         description column left a bare ticker carrying only a sleeve
+         tag. The fund name comes back as a sub-line. */
+      table.holdings .row-sub { display: block; }
       table.heat thead th, table.heat tbody td,
       table.small-table thead th, table.small-table tbody td,
       table.trade-table thead th, table.trade-table tbody td,
@@ -5667,7 +5672,7 @@ function renderMonitor() {
     if (e.is_eem_tilt) sleeveLetters.push('TILT');
     const mobileTag = sleeveLetters.length ? `(${sleeveLetters.join('·')})` : '';
     return `<tr class="${rowClass}" data-etf="${e.etf}" data-trade-as="${tradeAs}">
-      <td>${caret}<span class="swatch" style="background:${colourFor(e.etf)};"></span><span class="sym" data-mobile-tag="${mobileTag}">${_displaySym(e.etf)}</span></td>
+      <td>${caret}<span class="swatch" style="background:${colourFor(e.etf)};"></span><span class="sym" data-mobile-tag="${mobileTag}">${_displaySym(e.etf)}</span><span class="row-sub">${e.label || ''}</span></td>
       <td style="font-size:13px;">${e.label || ''}</td>
       <td>${stratTags.join(' ')}</td>
       <td><span class="sym" style="font-size:13px;color:var(--ink-soft);">${tradeAs}</span></td>
