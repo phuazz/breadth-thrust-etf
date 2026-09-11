@@ -525,22 +525,26 @@
     table.holdings tbody tr:hover { background: var(--bg-soft); }
     table.holdings tbody tr:last-child td { border-bottom: none; }
     /* Click-to-expand: rows with mini-chart data are clickable.
-       Caret indicator before the ETF symbol shows the state. */
-    table.holdings tbody tr.holdings-row.expandable {
+       Caret indicator before the ETF symbol shows the state.
+       Deliberately NOT scoped to table.holdings — the same expander
+       serves the per-sleeve "current selection" tables (class
+       small-table) on the A/B/C/D tabs. Class specificity (2 classes)
+       still beats the table.holdings tbody tr:hover background rule. */
+    tbody tr.holdings-row.expandable {
       cursor: pointer;
     }
-    table.holdings tbody tr.holdings-row .caret {
+    tbody tr.holdings-row .caret {
       display: inline-block; width: 12px; color: var(--ink-faint);
       font-size: 11px; margin-right: 2px; user-select: none;
       transition: transform 0.15s;
     }
-    table.holdings tbody tr.holdings-row.is-expanded .caret {
+    tbody tr.holdings-row.is-expanded .caret {
       transform: rotate(90deg); color: var(--accent);
     }
-    table.holdings tbody tr.holdings-row.is-expanded {
+    tbody tr.holdings-row.is-expanded {
       background: var(--bg-soft);
     }
-    table.holdings tr.holdings-expand-row td {
+    tr.holdings-expand-row td {
       padding: 14px 18px; background: var(--bg-soft);
       border-bottom: 1px solid var(--border);
     }
@@ -587,16 +591,20 @@
          on desktop and mobile, no extra rules needed here. */
       /* Expand row (mini-chart panel) — reduce chart height on mobile
          and tighten padding so the chart + stats fit comfortably. */
-      table.holdings tr.holdings-expand-row td {
+      tr.holdings-expand-row td {
         padding: 10px 8px;
       }
-      .holdings-mini-chart {
+      /* Specificity note: the base .holdings-mini-chart rule is declared
+         LATER in this stylesheet, so a bare class selector here loses the
+         cascade tie and the mobile height never applied (measured 260px
+         at a 390px viewport). Qualifying with the ancestor table wins it. */
+      table .holdings-mini-chart {
         height: 200px;
       }
-      .holdings-mini-header {
+      table .holdings-mini-header {
         flex-wrap: wrap; gap: 8px 14px;
       }
-      .holdings-mini-header .meta {
+      table .holdings-mini-header .meta {
         margin-left: 0; flex-basis: 100%;
       }
       /* Holdings table: tighten cell padding on mobile so the two
@@ -2484,7 +2492,7 @@
 
     <section>
       <h2>Strategy A — current selection<span id="a-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
-      <p class="section-sub full">What Strategy A actually holds right now, and why each sector qualified. The rule: rank every US sector ETF by sector-relative breadth (breadth − cross-sectional mean), keep only those above the mean, hold the top K (up to 7) weighted by positive excess share. <strong>The breadth shown here is the value at the last rebalance, not today</strong> — so a sector whose breadth has since crossed the mean is not added until the next rebalance, and a held sector that has since fallen below is not dropped until then either. That is why the Live Signal chart below may show a different ordering than this table.</p>
+      <p class="section-sub full">What Strategy A actually holds right now, and why each sector qualified. The rule: rank every US sector ETF by sector-relative breadth (breadth − cross-sectional mean), keep only those above the mean, hold the top K (up to 7) weighted by positive excess share. <strong>The breadth shown here is the value at the last rebalance, not today</strong> — so a sector whose breadth has since crossed the mean is not added until the next rebalance, and a held sector that has since fallen below is not dropped until then either. That is why the Live Signal chart below may show a different ordering than this table. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
       <table class="small-table" id="a-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="a-holdings-note" style="margin-top:8px;font-size:12px;"></p>
     </section>
@@ -2590,7 +2598,7 @@
 
     <section>
       <h2>Strategy B — current selection<span id="b-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
-      <p class="section-sub full">What Strategy B actually holds right now, and why each name qualified. The rule: rank every asset-class ETF by how far it sits above its own 200-day average (the signal), keep only those above it, hold the top K weighted by signal share, and route any unfilled slots to cash. <strong>The signal shown here is the value at the last rebalance, not today</strong> — so a name whose live signal (see the Trend snapshot below) has since overtaken a held one is not added until the next rebalance. That is why an ETF can show a higher current signal yet still read "no" in that snapshot.</p>
+      <p class="section-sub full">What Strategy B actually holds right now, and why each name qualified. The rule: rank every asset-class ETF by how far it sits above its own 200-day average (the signal), keep only those above it, hold the top K weighted by signal share, and route any unfilled slots to cash. <strong>The signal shown here is the value at the last rebalance, not today</strong> — so a name whose live signal (see the Trend snapshot below) has since overtaken a held one is not added until the next rebalance. That is why an ETF can show a higher current signal yet still read "no" in that snapshot. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
       <table class="small-table" id="b-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="b-holdings-note" style="margin-top:8px;font-size:12px;"></p>
     </section>
@@ -2677,7 +2685,7 @@
 
     <section>
       <h2>Strategy C — current selection<span id="c-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
-      <p class="section-sub full">What Strategy C actually holds right now, and why each theme qualified. The rule: rank every thematic ETF by distance above its own 200-day MA, keep only those at or above the <strong>+5% hard signal floor</strong>, then equal-weight (1/K) across the top K=5. If fewer than K names clear the floor, the deficit sits in SHY. The <strong>V6 sleeve-breadth gate</strong> trips when fewer than 30% of the 25-theme universe is above +5% — when active, the entire sleeve exits to SHY for the week. <strong>The signal shown here is the value at the last rebalance, not today</strong> — a name whose live signal has since crossed +5% or fallen below it is not acted on until the next rebalance.</p>
+      <p class="section-sub full">What Strategy C actually holds right now, and why each theme qualified. The rule: rank every thematic ETF by distance above its own 200-day MA, keep only those at or above the <strong>+5% hard signal floor</strong>, then equal-weight (1/K) across the top K=5. If fewer than K names clear the floor, the deficit sits in SHY. The <strong>V6 sleeve-breadth gate</strong> trips when fewer than 30% of the 25-theme universe is above +5% — when active, the entire sleeve exits to SHY for the week. <strong>The signal shown here is the value at the last rebalance, not today</strong> — a name whose live signal has since crossed +5% or fallen below it is not acted on until the next rebalance. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
       <table class="small-table" id="c-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="c-holdings-note" style="margin-top:8px;font-size:12px;"></p>
     </section>
@@ -2777,7 +2785,7 @@
 
     <section>
       <h2>Strategy D — current selection<span id="d-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
-      <p class="section-sub full">What Strategy D actually holds right now, and why each Europe sector qualified. The rule: rank the 5 Stoxx Europe 600 sector UCITS by absolute breadth (% of constituents above their own 200-day MA), hold the top K=3 weighted by breadth share. The 5-sector universe is small enough that all three slots are always filled — there is no cash floor. Unlike Strategy A, D uses <em>absolute</em> breadth rather than sector-relative excess because the cross-sectional mean over only 5 sectors does not add reliable signal. <strong>The breadth shown here is the value at the last rebalance, not today</strong> — a sector whose breadth has since changed is not re-ranked until the next rebalance.</p>
+      <p class="section-sub full">What Strategy D actually holds right now, and why each Europe sector qualified. The rule: rank the 5 Stoxx Europe 600 sector UCITS by absolute breadth (% of constituents above their own 200-day MA), hold the top K=3 weighted by breadth share. The 5-sector universe is small enough that all three slots are always filled — there is no cash floor. Unlike Strategy A, D uses <em>absolute</em> breadth rather than sector-relative excess because the cross-sectional mean over only 5 sectors does not add reliable signal. <strong>The breadth shown here is the value at the last rebalance, not today</strong> — a sector whose breadth has since changed is not re-ranked until the next rebalance. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
       <table class="small-table" id="d-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="d-holdings-note" style="margin-top:8px;font-size:12px;"></p>
     </section>
@@ -6451,8 +6459,15 @@ function _initHoldingsClickExpand(tableEl) {
     expand.className = expandClass;
     expand.dataset.parentEtf = etf;
     const td = document.createElement('td');
-    td.colSpan = 7;
-    const chartDivId = `holdings-chart-${tradeAs.replace(/[^A-Za-z0-9]/g, '_')}`;
+    // Span the full table. Derived, not hardcoded to 7: the per-sleeve
+    // current-selection tables are 5 columns wide and a fixed 7 would
+    // push the panel past the table's right edge.
+    td.colSpan = tableEl.querySelectorAll('thead th').length || row.children.length || 7;
+    // Namespaced by table id — the same ticker can be expanded in the
+    // Monitor book and in a sleeve table at once, and two DOM nodes
+    // sharing an id would send the second plot into the first div.
+    const scope = (tableEl.id || 'tbl').replace(/[^A-Za-z0-9]/g, '_');
+    const chartDivId = `holdings-chart-${scope}-${tradeAs.replace(/[^A-Za-z0-9]/g, '_')}`;
     td.innerHTML = `<div class="holdings-mini-chart" id="${chartDivId}"></div>`;
     expand.appendChild(td);
     row.classList.add('is-expanded');
@@ -6491,9 +6506,16 @@ function _renderHoldingsMiniChart(chartDivId, tradeAs, etfLabel) {
        <span class="change ${vsMa200Cls}" style="font-size:13px;">
          ${(vsMa200 >= 0 ? '+' : '') + (vsMa200 * 100).toFixed(2)}%
        </span>`;
+  // Header ticker is the name the BOOK HOLDS, not the series it is priced
+  // on. _proxy returns XLE for IUES and XLF for IUFS — price proxies, not
+  // traded lines — so labelling the panel "XLE (trade as XLE)" both names
+  // a fund the sleeve does not own and mis-describes the relationship.
+  // Where the two differ the proxy is named as what it is: a price series.
+  const heldSym = (typeof _displaySym === 'function') ? _displaySym(etfLabel) : etfLabel;
+  const proxied = tradeAs !== heldSym;
   const headerHtml = `
     <div class="holdings-mini-header">
-      <span class="ticker">${tradeAs}</span>
+      <span class="ticker">${heldSym}</span>
       <span style="color:var(--ink-faint);font-size:12px;">1Y:</span>
       <span class="change ${isUp ? 'up' : 'down'}">
         ${isUp ? '+' : ''}${(changePct * 100).toFixed(2)}%
@@ -6503,7 +6525,7 @@ function _renderHoldingsMiniChart(chartDivId, tradeAs, etfLabel) {
         · ${data.n_days} trading days
       </span>
       <span class="meta">
-        ${etfLabel}${tradeAs !== etfLabel ? ` (trade as ${tradeAs})` : ''}
+        ${proxied ? `price series: ${tradeAs}` : ''}
       </span>
     </div>
   `;
@@ -8102,6 +8124,22 @@ function _etfSwatch(etf) {
   return `<span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c};margin-right:8px;vertical-align:middle;"></span>`;
 }
 
+// Shared by the four per-sleeve "current selection" tables. Resolves the
+// traded symbol through the registry (IUFS prices as XLF, EXV1 as EXV1.DE)
+// and returns the row class, data attributes and caret that
+// _initHoldingsClickExpand reads. A name with no 1Y series gets a plain
+// row and an empty caret so the ETF column still lines up.
+function _sleeveExpandAttrs(etf) {
+  const tradeAs = _proxy(etf);
+  const has = !!(window.DATA?.holdings_prices?.prices?.[tradeAs]);
+  return {
+    tradeAs,
+    attrs: `class="${has ? 'holdings-row expandable' : 'holdings-row'}"`
+      + ` data-etf="${etf}" data-trade-as="${tradeAs}"`,
+    caret: has ? '<span class="caret">▸</span>' : '<span class="caret"></span>',
+  };
+}
+
 function _renderAHoldings() {
   const tbl = document.getElementById('a-holdings-table');
   if (!tbl) return;
@@ -8133,13 +8171,17 @@ function _renderAHoldings() {
     <th class="num">Breadth at rebalance</th>
     <th class="num">Weight</th>
   </tr>`;
-  tbl.querySelector('tbody').innerHTML = holds.map((r, i) => `<tr>
+  tbl.querySelector('tbody').innerHTML = holds.map((r, i) => {
+    const x = _sleeveExpandAttrs(r.etf);
+    return `<tr ${x.attrs}>
     <td class="num">${i + 1}</td>
-    <td class="row-label">${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
+    <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
     <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
     <td class="num good"><strong>${r.breadth_pct.toFixed(1)}%</strong></td>
     <td class="num">${(r.weight * 100).toFixed(1)}%</td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
+  _initHoldingsClickExpand(tbl);
   if (noteEl) {
     const lowest = holds.length ? holds[holds.length - 1] : null;
     const dropped = (universe.length || 14) - holds.length;
@@ -8184,9 +8226,10 @@ function _renderCHoldings() {
   const rows = holds.map((r, i) => {
     const sig = r.signal_pct;
     const sgn = sig >= 0 ? '+' : '';
-    return `<tr>
+    const x = _sleeveExpandAttrs(r.etf);
+    return `<tr ${x.attrs}>
       <td class="num">${i + 1}</td>
-      <td class="row-label">${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
+      <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
       <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
       <td class="num ${sig >= 0 ? 'good' : 'bad'}"><strong>${sgn}${sig.toFixed(1)}%</strong></td>
       <td class="num">${(r.weight * 100).toFixed(1)}%</td>
@@ -8204,6 +8247,7 @@ function _renderCHoldings() {
       <td class="num">${(cash * 100).toFixed(1)}%</td>
     </tr>` : '';
   tbl.querySelector('tbody').innerHTML = rows + cashRow;
+  _initHoldingsClickExpand(tbl);
   if (noteEl) {
     const lowest = holds.length ? holds[holds.length - 1] : null;
     let txt = '';
@@ -8243,13 +8287,17 @@ function _renderDHoldings() {
     <th class="num">Breadth at rebalance</th>
     <th class="num">Weight</th>
   </tr>`;
-  tbl.querySelector('tbody').innerHTML = holds.map((r, i) => `<tr>
+  tbl.querySelector('tbody').innerHTML = holds.map((r, i) => {
+    const x = _sleeveExpandAttrs(r.etf);
+    return `<tr ${x.attrs}>
     <td class="num">${i + 1}</td>
-    <td class="row-label">${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
+    <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong></td>
     <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
     <td class="num good"><strong>${r.breadth_pct.toFixed(1)}%</strong></td>
     <td class="num">${(r.weight * 100).toFixed(1)}%</td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
+  _initHoldingsClickExpand(tbl);
   if (noteEl) {
     const lowest = holds.length ? holds[holds.length - 1] : null;
     noteEl.innerHTML = lowest
@@ -8288,9 +8336,10 @@ function _renderBHoldings() {
   const rows = holds.map((r, i) => {
     const sig = r.signal_pct;
     const sgn = sig >= 0 ? '+' : '';
-    return `<tr>
+    const x = _sleeveExpandAttrs(r.etf);
+    return `<tr ${x.attrs}>
       <td class="num">${i + 1}</td>
-      <td class="row-label"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${_displaySym(r.etf)}</strong></td>
+      <td class="row-label">${x.caret}<span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${_displaySym(r.etf)}</strong></td>
       <td style="color:var(--ink-faint);font-size:12px;">${_bcLabel(r.etf)}</td>
       <td class="num ${sig >= 0 ? 'good' : 'bad'}"><strong>${sgn}${sig.toFixed(1)}%</strong></td>
       <td class="num">${(r.weight * 100).toFixed(1)}%</td>
@@ -8304,6 +8353,7 @@ function _renderBHoldings() {
       <td class="num">${(cash * 100).toFixed(1)}%</td>
     </tr>` : '';
   tbl.querySelector('tbody').innerHTML = rows + cashRow;
+  _initHoldingsClickExpand(tbl);
   if (noteEl) {
     const lowest = holds.length ? holds[holds.length - 1] : null;
     noteEl.innerHTML = lowest
