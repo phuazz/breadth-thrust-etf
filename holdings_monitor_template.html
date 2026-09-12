@@ -569,20 +569,29 @@ async function drawChart(tk) {
   const base = px.find(v => v !== null && v !== undefined);
   if (!base) { host.innerHTML = '<div class="note">No price history for this line.</div>'; return; }
   const rb = a => (a || []).slice(cut).map(v => (v === null || v === undefined) ? null : (v / base) - 1);
+  // The hover is "x unified", so the session is named ONCE in the box title
+  // (see xaxis.hoverformat below) and each row carries only its value. Do not
+  // put %{x} back into these templates: unified mode collapses the <br>, so
+  // the row rendered as "Price : Aug 6, 2026-66.2%" and the date ran into the
+  // number with no separator.
   const traces = [{
     x: dates, y: rb(closes), name: 'Price', type: 'scatter', mode: 'lines',
     line: { color: '#1e3a8a', width: 2 }, connectgaps: true,
-    hovertemplate: '%{x}<br>%{y:+.1%}<extra>Price</extra>',
+    hovertemplate: '%{y:+.1%}<extra>Price</extra>',
   }].concat(MA_TRACES.filter(t => mas[t.k].some(v => v !== null)).map(t => ({
     x: dates, y: rb(mas[t.k]), name: t.name, type: 'scatter', mode: 'lines',
     line: { color: t.color, width: t.width, dash: t.dash || undefined },
     connectgaps: true,
-    hovertemplate: '%{x}<br>%{y:+.1%}<extra>' + t.name + '</extra>',
+    hovertemplate: '%{y:+.1%}<extra>' + t.name + '</extra>',
   })));
   Plotly.newPlot(host, traces, {
     margin: { l: 46, r: 12, t: 28, b: 34 },
     title: { text: tk + ' — 1Y daily vs moving averages', font: { size: 13 }, x: 0 },
-    xaxis: { gridcolor: '#eeeee8', tickfont: { size: 11 } },
+    // Without an explicit hoverformat the unified hover title falls back to
+    // Plotly's own date default ("Aug 6, 2026"); '%d %b %Y' is the house
+    // format used on the dashboard and scanner charts.
+    xaxis: { gridcolor: '#eeeee8', tickfont: { size: 11 },
+             hoverformat: '%d %b %Y' },
     yaxis: { tickformat: '+.0%', gridcolor: '#eeeee8', tickfont: { size: 11 },
              zeroline: true, zerolinecolor: '#d5d3ca' },
     hovermode: 'x unified', showlegend: true,
