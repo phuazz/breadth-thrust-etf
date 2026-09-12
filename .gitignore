@@ -54,3 +54,6 @@ pytest-output.txt
 
 # Word lock files, created whenever a reviews/*.docx is opened or rendered
 ~$*
+
+# Local no-send rehearsals and CI mail payloads; never source inputs.
+.component-mail/

@@ -405,6 +405,8 @@ def record_green_run(marker: Path, cadence: str, started_utc: datetime,
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--component", choices=("auto", "all", "core", "europe"), default="auto",
+                        help="Weekend default: publish verified core first, then attempt Europe independently.")
     parser.add_argument("--commit", action="store_true",
                         help="commit data/ and docs/ locally and push NOTHING. "
                              "Required for a multi-run weekend: soak mode never "
@@ -518,6 +520,39 @@ def main(argv: list[str] | None = None) -> int:
                 cwd=REPO_ROOT, env=env)
             return child.returncode
 
+    # Waited children preserve Task Scheduler single-instance protection.
+    # Core is committed first; a Europe failure cannot roll it back.
+    if args.component == "auto" and args.cadence == "weekend" and not args.preflight_only:
+        log.write("\ncomponent sequence: core first, then Europe\n")
+        log.close()
+        for component in ("core", "europe"):
+            child_args = [sys.executable, str(Path(__file__).resolve()), "--component", component,
+                          "--cadence", args.cadence, "--price-source", args.price_source]
+            if args.push:
+                child_args.append("--push")
+            elif args.commit:
+                child_args.append("--commit")
+            else:
+                print("Soak mode: validating core only; no commit, push or email.")
+            rc = subprocess.run(child_args, cwd=REPO_ROOT).returncode
+            if rc or not (args.push or args.commit):
+                return rc
+        return 0
+    component = "all" if args.component == "auto" else args.component
+    marker = GREEN_MARKER if component == "all" else LOG_DIR / f"last_green_{component}.json"
+    if component == "core" and not args.preflight_only:
+        release_path = REPO_ROOT / "data/component_release.json"
+        if release_path.exists():
+            try:
+                from component_release import verify
+                released = verify(REPO_ROOT, now, committed=True)
+                if released["anchor"] == week_final_anchor(now).isoformat():
+                    print("CORE ALREADY VERIFIED for this weekly decision; proceeding to Europe.")
+                    log.close()
+                    return 0
+            except Exception:
+                pass  # Changed sources require a new guarded refresh.
+
     # ----- Already done today? -----
     # The scheduled task retries hourly and starts as soon as the machine is
     # available, so that a Saturday with the laptop shut still gets its
@@ -528,7 +563,7 @@ def main(argv: list[str] | None = None) -> int:
     # had succeeded — see the note above GREEN_MARKER. It is now "a green run
     # of this cadence already completed on this local date". Checked AFTER
     # the pull, so a rewritten wrapper is the one making the decision.
-    if not args.preflight_only and already_ran_today(GREEN_MARKER,
+    if not args.preflight_only and already_ran_today(marker,
                                                      args.cadence, now):
         msg = (f"ALREADY RAN TODAY - a green {args.cadence} run completed on "
                f"{now.astimezone().date().isoformat()} (local); this firing "
@@ -560,7 +595,7 @@ def main(argv: list[str] | None = None) -> int:
         # 13.3 hours there once yfinance's limiter throttled it, and no
         # narrowing of scope would have bounded that.
         cmd = [sys.executable, "scripts/refresh_all.py",
-               "--price-source", args.price_source]
+               "--price-source", args.price_source, "--component", component]
         if args.cadence == "post-fill":
             cmd.append("--deployed-only")
         log.write(f"\nrunning {' '.join(cmd[1:])} (output follows)\n")
@@ -619,7 +654,7 @@ def main(argv: list[str] | None = None) -> int:
         # workflow mails the operator a notice with the items no script
         # judges. On HOLD nothing is written and the reasons are logged; the
         # Sunday check then names them. Never on a post-fill run.
-        if not args.preflight_only and args.push and args.cadence == "weekend":
+        if not args.preflight_only and args.push and args.cadence == "weekend" and component == "all":
             import auto_release
             verdict = auto_release.release_if_ready(
                 week_final_anchor(now), cadence=args.cadence,
@@ -629,6 +664,11 @@ def main(argv: list[str] | None = None) -> int:
                 log.write(f"release marker written: {verdict['marker']}\n")
         gate = build_gate_report("publish", now, PANEL, MARKER,
                                  release_path=RELEASE)
+        if component != "all" and not args.preflight_only:
+            from component_release import verify
+            sealed = verify(REPO_ROOT, now)
+            gate = {"detail": f"Sealed {component} release {sealed['anchor']}; D ready={sealed['d_ready']}. "
+                              "The component sender checks the delivery ledger before emailing."}
         log.write(f"\nCI gate preview on push:\n{gate['detail']}\n")
     except Exception as exc:
         return fail(4, "anchor/gate check errored", repr(exc))
@@ -742,9 +782,12 @@ def main(argv: list[str] | None = None) -> int:
     # One green run per local day per cadence — see GREEN_MARKER. Written on
     # every green outcome (pushed, committed locally, or READY), never on a
     # preflight-only run.
-    record_green_run(GREEN_MARKER, args.cadence, run_started)
-    log.write(f"\ngreen-run marker written: {GREEN_MARKER.name} "
-              f"({args.cadence}, {run_started.astimezone().date().isoformat()})\n")
+    if component != "europe" or sealed["d_ready"]:
+        record_green_run(marker, args.cadence, run_started)
+        log.write(f"\ngreen-run marker written: {marker.name} "
+                  f"({args.cadence}, {run_started.astimezone().date().isoformat()})\n")
+    else:
+        log.write("\nD remains HOLD; do not suppress later Europe retries today.\n")
     log.close()
     return 0
 

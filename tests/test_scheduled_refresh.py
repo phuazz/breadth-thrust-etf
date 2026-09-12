@@ -272,7 +272,9 @@ from scripts import scheduled_refresh as _sr  # noqa: E402
 
 def _commit_branch() -> str:
     src = inspect.getsource(_sr.main)
-    start = src.index("elif args.commit")
+    # The component launcher also passes --commit to a child. Inspect the
+    # actual output-commit branch, not the earlier argument assembly.
+    start = src.rindex("elif args.commit")
     return src[start:src.index("else:", start)]
 
 

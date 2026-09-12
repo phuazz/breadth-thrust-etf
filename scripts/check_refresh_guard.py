@@ -819,6 +819,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--baseline-ref", default="HEAD",
                         help="git ref holding the previous committed state "
                         "for the loss check (default: HEAD)")
+    parser.add_argument("--component", choices=("all", "core", "europe"), default="all")
     args = parser.parse_args(argv)
 
     if args.end_friday:
@@ -844,7 +845,9 @@ def main(argv: list[str] | None = None) -> int:
     baseline_missing: list[str] = []
     n_baseline_checked = 0
     n_loss_failures = 0
-    for etf in ETFS_ALL:
+    from component_scope import select_panels
+    panels = select_panels(ETFS_ALL, args.component)
+    for etf in panels:
         key = etf.lower()
         consts_rel = f"data/constituents_{key}.json"
         breadth_rel = f"data/breadth_{key}.json"
@@ -919,7 +922,8 @@ def main(argv: list[str] | None = None) -> int:
                                             expected_ends=expected_ends))
     # G7 — the price-signal engines' decision session, read against the
     # venue calendar (2026-09-03; the 2026-08-28 withheld Friday).
-    results.extend(check_decision_sessions(load_engine_price_caches(DATA_DIR)))
+    if args.component != "europe":
+        results.extend(check_decision_sessions(load_engine_price_caches(DATA_DIR)))
     if n_loss_failures == 0 and n_baseline_checked:
         results.append(verdict(
             "G5 no lost state", OK,
@@ -936,7 +940,7 @@ def main(argv: list[str] | None = None) -> int:
     n_warn = sum(1 for r in results if r["status"] == WARN)
     print(f"refresh guard @ {datetime.now(timezone.utc).isoformat(timespec='seconds')} "
           f"— expected target Friday {expected_friday.isoformat()}, "
-          f"{len(ETFS_ALL)} deployed panels")
+          f"{len(panels)} deployed panels ({args.component})")
     for r in results:
         print(f"  {r['status']:<4} {r['check']}: {r['evidence']}")
     print(f"\n{n_fail} FAIL, {n_warn} WARN, "

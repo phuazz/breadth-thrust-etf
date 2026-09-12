@@ -255,7 +255,7 @@ def _load_norgate_states(
     return aligned, doc.get("last_bar")
 
 
-def _load_eem_data() -> tuple[pd.Series, pd.Series] | tuple[None, None]:
+def _load_eem_data(required_session=None) -> tuple[pd.Series, pd.Series] | tuple[None, None]:
     """Load (EEM_close, EEM_SPY_ratio). Tries em_regime_context.parquet
     first, then falls back to yfinance. Returns (None, None) on failure
     so Phase 22 is gracefully skipped without breaking Phase 19.
@@ -284,6 +284,12 @@ def _load_eem_data() -> tuple[pd.Series, pd.Series] | tuple[None, None]:
         if stale:
             print(f"  {EEM_RATIO_CACHE} stale (last {last.date()}, beyond "
                   f"{EEM_MAX_CACHE_AGE_DAYS}d) — re-fetching", flush=True)
+        if required_session is not None:
+            required = pd.Timestamp(required_session)
+            # Weekly decisions require the actual close, not a seven-day
+            # valuation-cache allowance. The caller still verifies the result.
+            pair = df[[EEM_TICKER, EEM_REFERENCE_TICKER]].dropna()
+            stale = stale or required not in pair.index
     if not usable or stale:
         reason = "stale" if stale else "not in cache"
         print(f"  Fetching {EEM_TICKER} + {EEM_REFERENCE_TICKER} from "

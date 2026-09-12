@@ -809,14 +809,23 @@ def verify_price_tail(
         answered = [t for t in sample if answers.get(t) is not None]
         rec.update(sampled=sample, sample_answered=len(answered),
                    sample_served=len(served))
-        if served:
+        # Mixed availability warrants more than a five-name sample. Probe
+        # remaining live names within the existing budget; never erase real
+        # prices or exempt an unresolved row from the publication guard.
+        if served or rec["roster_priced"] > 0:
             filled, refused, timed_out = 0, [], False
+            requested, unserved, no_answer = [], [], []
             for t in unpriced:
                 if clock() - started > heal_budget_s:
                     timed_out = True
                     break
+                requested.append(t)
                 s = ask(t)
+                if s is None:
+                    no_answer.append(t)
+                    continue
                 if not _has_close(s, ts):
+                    unserved.append(t)
                     continue
                 close.at[ts, t] = float(s.loc[ts])
                 # A healed bar is a fresh bar: the WS15 step-defect guard
@@ -836,6 +845,9 @@ def verify_price_tail(
                 filled += 1
             populated = ts in priced_sessions(close, roster)
             rec.update(filled=filled, refused=refused,
+                       requested=requested, unserved=unserved,
+                       no_answer=no_answer,
+                       not_attempted=[t for t in unpriced if t not in requested],
                        heal_timed_out=timed_out,
                        verdict="healed" if populated else "partial")
         elif len(answered) == len(sample) and rec["roster_priced"] == 0:
@@ -873,8 +885,8 @@ def _report_tail_verification(v: dict | None) -> None:
                   f"defect).", flush=True)
         elif verdict in ("healed", "partial"):
             print(f"{head}; {r['sample_served']} of {len(r['sampled'])} "
-                  f"sampled names carry the bar single-ticker -> batch "
-                  f"download defect; re-requested {r['live_unpriced']} "
+                  f"sampled names carry the bar single-ticker; "
+                  f"re-requested {len(r.get('requested', r['sampled']))} "
                   f"unpriced names, filled {r['filled']}"
                   + (f", refused {len(r['refused'])}" if r.get("refused") else "")
                   + (" (heal budget exhausted)" if r.get("heal_timed_out") else "")

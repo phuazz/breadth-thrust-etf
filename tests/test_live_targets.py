@@ -92,6 +92,20 @@ def test_empty_signal_holds_rather_than_raising():
     assert r["status"] == "HOLD" and r["weights"] == {}
 
 
+def test_partial_signal_names_missing_inputs_without_ranking():
+    sig = _signal(["2026-09-09", "2026-09-10", "2026-09-11"])
+    sig.loc[pd.Timestamp("2026-09-11"), "Y"] = float("nan")
+
+    def must_not_rank(row):
+        raise AssertionError("partial input must never reach the ranker")
+
+    r = lt._rank(sig, must_not_rank, "NYSE", _utc(2026, 9, 12, 4), "C")
+    assert r["status"] == "HOLD" and r["weights"] == {}
+    assert r["missing_signal_inputs"] == ["Y"]
+    assert "missing signal inputs: Y" in r["reason"]
+    assert "2 of 3" in r["reason"]
+
+
 def test_breadth_panel_is_not_collapsed_onto_the_execution_calendar():
     """The whole point of the module. _build_panels_for aligns breadth onto
     closes.index, which deletes a signal the vendor did publish whenever the

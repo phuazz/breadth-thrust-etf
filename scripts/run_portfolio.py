@@ -100,6 +100,8 @@ def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, 
     without modifying the global UNIVERSE_ETFS."""
     closes = {}
     breadths = {}
+    bounds = {}
+    from validated_breadth import validated_end, cap_signal
     used = []
     for etf in universe:
         cfg = get_etf(etf)
@@ -108,7 +110,8 @@ def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, 
             cp = load_constituent_prices(etf)
         except FileNotFoundError:
             continue
-        ma200_b = compute_ma200_breadth(cp, MA_PERIOD)
+        bounds[etf] = validated_end(DATA_DIR, etf)
+        ma200_b = cap_signal(compute_ma200_breadth(cp, MA_PERIOD), bounds[etf])
         dl_start = (cp.index.min() - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
         dl_end = (cp.index.max() + pd.Timedelta(days=5)).strftime("%Y-%m-%d")
         ohlc = download_soxx_ohlc(dl_start, dl_end, etf=proxy, yf_symbol=proxy)
@@ -133,9 +136,11 @@ def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, 
     # (the eligibility check inside top_k_breadth_weight already handles
     # this), so a sleeve goes flat rather than trading on stale signal.
     breadths_df = pd.DataFrame({
-        etf: align_breadth_to_index(b, closes_df.index)
+        etf: cap_signal(align_breadth_to_index(b, closes_df.index), bounds[etf])
         for etf, b in breadths.items()
     })
+    if bounds:
+        breadths_df.attrs["validated_through"] = min(bounds.values()).isoformat()
     # Say out loud whether the panel reaches the session a decision would rank
     # on. It is reindexed onto the EXECUTION calendar above, so a hole in the
     # traded line deletes a signal that exists: on 2026-08-14 the constituent
@@ -189,8 +194,15 @@ def run_portfolio(
         prev_idx = closes.index.get_loc(rd) - 1
         if prev_idx < 0:
             continue
+        bound = breadths.attrs.get("validated_through")
+        if bound is not None and closes.index[prev_idx] > pd.Timestamp(bound):
+            # An unverified tail cannot choose a replacement basket. Keep
+            # the last entire weight row; do not turn missing data into cash.
+            continue
         b_row = breadths.iloc[prev_idx]
         rb_weights.loc[rd] = weight_fn(b_row).reindex(closes.columns).fillna(0.0)
+    rb_weights = rb_weights.dropna(how="all")
+    rebalance_dates = rb_weights.index
     weight_panel = rb_weights.reindex(closes.index, method="ffill").fillna(0.0)
     weight_panel.loc[weight_panel.index < eligible_start] = 0.0
 

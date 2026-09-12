@@ -1,753 +1,107 @@
-name: Weekly factsheet — pipeline + email
+name: Weekly factsheet — verified components + email
 
-# EVENT-DRIVEN PUBLISH (2026-07-25, Zhenghao's directive).
-#
-# The weekly email goes out only AFTER the breadth panels have been
-# refreshed for the week just ended, so the rebalance card carries the
-# COMPLETE position changes. The old Friday 22:00 UTC cron mailed a
-# factsheet whose A/D positions and regime flag were a week stale every
-# normal week: A and D re-anchor only when the local refresh_all.py run
-# lands (per-constituent parquet caches are gitignored — CI cannot
-# compute breadth), while B and C re-run in CI. The trigger is therefore
-# the refresh itself: a push touching data/breadth_csp1.json, gated by
-# scripts/check_factsheet_gate.py (panel current to the week-final NYSE
-# session AND that week not already published per the committed
-# docs/factsheet_published.json marker). A Sunday 09:00 UTC scheduled
-# run performs a check ONLY: if the week's factsheet has still not gone
-# out, it emails the operator while there is time to refresh before
-# Monday's 21:30 UTC hard guard freezes the builds.
-#
-# DESIGN NOTE (unchanged):
-# The heavy constituent-roster + price-cache refresh runs LOCALLY (the
-# per-ETF parquet caches are gitignored because they are 1-10 MB each).
-# On a publishable event, CI:
-#   1. Refreshes the asset_class + thematic ETF-level price caches
-#      (lightweight — ~25 tickers each, ~30s)
-#   2. Re-runs the strategy engines + blend + overlay (~1-2 min)
-#   3. Rebuilds the dashboard + factsheet PDF (~30s)
-#   4. Commits the refreshed outputs back to main
-#   5. Emails the factsheet, then commits the publish marker
-#
-# Required GitHub Secrets (Settings -> Secrets and variables -> Actions):
-#   GMAIL_USER          - Gmail address used to send
-#   GMAIL_APP_PASSWORD  - 16-char Gmail app password
-#                          (myaccount.google.com/apppasswords)
-#   RECIPIENT_EMAIL     - Comma-separated recipient list, e.g.
-#                          "phuazz@gmail.com,chengmalse@gmail.com"
-#                          (dawidd6/action-send-mail handles splitting)
-
+# No engines run in the sender. The local refresh seals the exact input book.
+# Both stages use the existing full recipient list. Cron may run late;
+# calendar policy is rechecked immediately before the SMTP attempt.
 on:
   push:
-    # Fires when the local weekly refresh lands — breadth_csp1.json only
-    # changes in those commits. Bot commits made in CI with GITHUB_TOKEN
-    # cannot re-trigger this workflow (GitHub suppresses them), and CI
-    # never writes the panel anyway, so there is no loop.
     branches: [main]
-    paths:
-      - 'data/breadth_csp1.json'
+    paths: ['data/component_release.json']
   schedule:
-    # Sunday 09:00 UTC = 17:00 SGT (SGT has no DST; GitHub cron delay of
-    # up to a few hours still lands Sunday evening SGT, leaving the
-    # whole of Monday SGT for the ~4.3 h refresh before the Monday
-    # 21:30 UTC hard guard). Check-only run — it never builds or emails
-    # the factsheet itself. Subsumes the short-lived lag-based
-    # sunday_last_call.yml (2026-07-25): the marker check is a strict
-    # superset of the panel-lag check.
-    - cron: '0 9 * * 0'
-  workflow_dispatch:  # manual trigger button in Actions tab
+    # Sunday 17:00 SGT reconciliation, 18:00 bounded wait, then D checkpoints.
+    - cron: '0 9,10,14,18,22 * * 0'
+  workflow_dispatch:
     inputs:
-      trial:
-        description: 'Trial: email the factsheet to the operator (GMAIL_USER) only, [TRIAL] subject, and skip the publish commit'
+      dry_run:
+        description: 'No-send rehearsal: validate and render without reserving or emailing'
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: write
-
-# One factsheet flow at a time; queue rather than cancel so a second
-# refresh push cannot kill a run mid-email.
 concurrency:
   group: weekly-factsheet
   cancel-in-progress: false
 
 jobs:
-  # ----- Publish gate (2026-07-25) -----
-  # Decides whether this push/dispatch event may build and email. Fails
-  # CLOSED (publish=false) on any internal error — this gate guards an
-  # outward send to the distribution list — but emails the operator
-  # about the error so a broken gate is never silent.
-  gate:
-    if: github.event_name != 'schedule'
+  publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      publish: ${{ steps.decide.outputs.publish }}
-      anchor: ${{ steps.decide.outputs.anchor }}
-      # 'true' when this send rests on a marker the weekend refresh wrote
-      # itself (auto_release.py); the build job then mails the operator a
-      # notice after the send, since nobody countersigned before it.
-      auto: ${{ steps.decide.outputs.auto }}
+    timeout-minutes: 20
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Verify exact snapshot and prepare message
+        id: plan
+        env:
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Decide whether this event publishes
-        id: decide
-        # Dispatch is operator intent: allow a re-send of an already
-        # published week (trial runs and corrected re-issues).
-        run: |
-          EXTRA=""
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then EXTRA="--allow-republish"; fi
-          python scripts/check_factsheet_gate.py --mode publish $EXTRA
-
-      - name: Email gate error (fail-safe — the gate itself broke)
-        if: steps.decide.outputs.gate_error == 'true'
-        continue-on-error: true
-        uses: dawidd6/action-send-mail@v18
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.GMAIL_USER }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[WARN] Factsheet publish gate error — ${{ steps.decide.outputs.summary }}'
-          to: ${{ secrets.GMAIL_USER }}
-          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
-          body: |
-            ${{ steps.decide.outputs.detail }}
-
-            The factsheet was HELD (the gate fails closed). Fix the gate,
-            then re-dispatch 'Weekly factsheet' via the Run workflow button.
-
-            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-  build-and-email:
-    needs: gate
-    if: needs.gate.outputs.publish == 'true'
-    runs-on: ubuntu-latest
-    # 2026-06-10: bumped from 20 -> 30. The Saturday 2026-06-06 run hung
-    # at exactly the 20m ceiling because the SOXX fetch step (which is
-    # supposed to fail-and-carry-forward when iShares blocks the CI
-    # runner) instead consumed the entire job budget against ~440
-    # Fridays of fresh network calls (the per-Friday RAW_DIR cache is
-    # gitignored, so CI starts cold every run). With per-step caps
-    # added below, 30m on the job gives the email step real headroom
-    # without ever being the binding constraint again.
-    timeout-minutes: 30
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      # ----- Freshness early warning (2026-07-03; de-duplicated 2026-07-25) -----
-      # Same tripwire as in daily_live_track.yml, but this workflow only
-      # EMAILS at status 'fail' (hard stop live, or the checker itself
-      # errored — the script reports errors as status 'fail' precisely so
-      # this condition cannot swallow them). Under the event-driven
-      # publish this job runs just after a refresh landed, so the check
-      # normally reports ok; it stays as a fail-safe for dispatch runs on
-      # a stale tree, and the log always carries the lag forecast. The
-      # daily workflow owns the [REMINDER] cadence. Never blocks the build.
-      # Behavioural half of the sleeve D EXH3 guard (2026-08-03). The offline
-      # half — tests/test_europe_symbol_contract.py, which asserts every
-      # surface against the registry — already runs in the regression step of
-      # both workflows. This step is the one that needs prices: it correlates
-      # each breadth-signalled member against a basket of its own
-      # constituents, which is the only check that could have caught a panel
-      # paired with the wrong fund. Weekly, not daily: a pairing changes only
-      # when the registry or a constituent roster does, and this costs a
-      # ~230-ticker fetch.
-      #
-      # Unlike the freshness check above, a breach DOES block the publish
-      # (step below): if a sleeve prices the wrong instrument, every number in
-      # the factsheet for that sleeve is meaningless, and mailing it is worse
-      # than mailing nothing. False alarms are structurally unlikely because
-      # the checker reports SKIP, never FAIL, on a thin fetch or short
-      # overlap — only a well-evidenced breach fails.
-      - name: Check signal/instrument pair integrity (sleeves A + D)
-        id: pairs
-        continue-on-error: true
-        run: python scripts/check_pair_integrity.py
-
-      - name: Email pair-integrity alert (a sleeve prices the wrong fund)
-        if: steps.pairs.outcome == 'failure'
-        continue-on-error: true
-        uses: dawidd6/action-send-mail@v18
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.GMAIL_USER }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[PAIR-INTEGRITY] A sleeve member does not track its own constituents — publish blocked'
-          # Operator only — this is plumbing, not distribution.
-          to: ${{ secrets.GMAIL_USER }}
-          from: ${{ secrets.GMAIL_USER }}
-          body: |
-            scripts/check_pair_integrity.py failed on the weekly run.
-
-            At least one breadth-signalled member's priced instrument does not
-            move with the constituents its own signal is computed from. Either
-            the registry's yfinance_trading_proxy names the wrong fund, or the
-            constituent source does.
-
-            The factsheet build and email were BLOCKED. Do not trust any
-            signal or performance figure for the affected member until it is
-            resolved.
-
-            Precedent: sleeve D's EXH3 panel (Industrial Goods & Services) was
-            priced as EXH3.DE, the Food & Beverage fund, from Phase 4 until
-            2026-08-03 — see reviews/2026-08-03_sleeve-d-exh3-correction.md.
-
-            Run locally for the per-pair table:
-              python scripts/check_pair_integrity.py --verbose
-
-            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-      - name: Stop the publish on a pair-integrity breach
-        if: steps.pairs.outcome == 'failure'
-        run: |
-          echo "::error::Pair-integrity breach — a sleeve member does not track its own constituents. Publish blocked."
-          exit 1
-
-      - name: Check breadth_csp1 freshness headroom
-        id: headroom
-        continue-on-error: true
-        run: python scripts/check_freshness_headroom.py
-
-      - name: Email freshness alert (hard stop or checker error only)
-        if: steps.headroom.outputs.status == 'fail'
-        continue-on-error: true
-        uses: dawidd6/action-send-mail@v18
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.GMAIL_USER }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[${{ steps.headroom.outputs.tag }}] Dashboard freshness — ${{ steps.headroom.outputs.summary }}'
-          # Ops alerts go to the operator only, NOT RECIPIENT_EMAIL — the
-          # factsheet distribution list should not receive plumbing email.
-          to: ${{ secrets.GMAIL_USER }}
-          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
-          body: |
-            ${{ steps.headroom.outputs.detail }}
-
-            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-      # ----- SOXX-specific refresh (Phase 26, 2026-05-31) -----
-      # SOXX is the only Strategy A ETF that uses the iShares US
-      # holdings endpoint (all others use iShares UK). The US endpoint
-      # is Akamai-blocked from CI runners (returns 10MB HTML warmup
-      # page instead of the CSV). fetch_constituents.py detects this
-      # and falls back to carrying the last-known good roster forward,
-      # so weekly invocation keeps SOXX's Friday snapshot index
-      # extending even when fresh constituents are unavailable.
-      #
-      # compute_breadth.py is then re-run for SOXX so the breadth
-      # series extends past the last-real-fetch date — without this,
-      # the alignment.MAX_STALE_DAYS=7 guard masks SOXX out of the
-      # eligible Strategy A universe within 7 calendar days of the
-      # last real roster fetch, and the live picks silently drop SOXX
-      # (this is exactly what happened between 2026-05-15 and 2026-05-
-      # 31 — the user spotted it in the Strategy A holdings).
-      #
-      # Note: this does NOT fix the underlying iShares US block. It
-      # keeps the operational pipeline running on a stale-but-still-
-      # representative roster (SOXX components change ~2 times/year).
-      # The user should periodically run fetch_constituents.py --etf
-      # SOXX locally (from a residential IP that occasionally clears
-      # the block) to refresh the real roster.
-
-      # ----- Strategy A SOXX block REMOVED from CI (2026-06-10) -----
-      # Previously this block ran:
-      #   (1) fetch_constituents.py --etf SOXX
-      #   (2) compute_breadth.py --etf SOXX
-      #   (3) run_topk_robustness.py
-      #
-      # The original design intent was: refresh SOXX in CI when iShares
-      # happens to be unblocked from the runner, and let it fail/carry-
-      # forward when blocked. Two problems made it net-harmful:
-      #
-      #   PROBLEM 1 (timeout): When iShares hardened its Akamai block in
-      #   early June 2026, fetch_constituents.py exhausted the 20-minute
-      #   job budget on retries against 440 Fridays. Saturday 2026-06-06
-      #   ran to the ceiling without reaching the strategy engines — the
-      #   deployed dashboard sat at the 2026-05-29 signal anchor for an
-      #   entire week. Adding per-step 5-min caps + continue-on-error
-      #   (kept below) resolves the starvation.
-      #
-      #   PROBLEM 2 (destructive overwrite): compute_breadth.py expects
-      #   per-constituent price parquets in data/prices_cache_*.parquet
-      #   which are gitignored (1-10 MB each). On a fresh CI checkout
-      #   those caches do not exist, so compute_breadth produces an
-      #   empty/truncated breadth_soxx.json that OVERWRITES the committed
-      #   panel. run_topk_robustness then runs against a misaligned
-      #   universe (SOXX has no breadth, other 13 sectors have full
-      #   history) and produces topk_robustness.json with zero
-      #   rebalances and a flat-1.0 equity curve. The pipeline freshness
-      #   guard (Phase 3 stuck-breadth detector) correctly aborts when
-      #   it sees the frozen equity, and the whole workflow fails.
-      #
-      # Resolution: skip the SOXX block in CI entirely. The local
-      # pipeline run on the user's machine — where the constituent price
-      # caches exist — is the canonical source for constituents_soxx.json,
-      # breadth_soxx.json, and topk_robustness.json. The user commits
-      # those whenever they run the pipeline locally (already part of
-      # session discipline). The Strategy A staleness guard in
-      # etf_registry (60-day warning per-ETF override) flags via the
-      # dashboard if a local refresh has been skipped for too long.
-
-      # ----- Strategy engines -----
-      # Strategy D depends on per-ETF constituent price parquets
-      # (data/prices_cache_*.parquet) which are gitignored — each is
-      # 1-10 MB so they would bloat the repo. On a fresh CI checkout
-      # these are missing, so we SKIP re-running D in CI and rely on
-      # the committed europe_rotation.json from the user's last local
-      # pipeline run. Strategy A's SOXX leg is refreshed above; the
-      # other 13 sectors of A inherit from committed breadth_*.json.
-      #
-      # Strategy B and C use ETF-level momentum (yfinance fetches each
-      # run — fast for ~14 and ~25 tickers respectively), so they can
-      # re-run cleanly in CI without local caches.
-
-      # ----- Do not overwrite a build CI cannot reproduce (2026-08-30) -----
-      # The re-runs below are how B and C stay current between local
-      # refreshes, and that is still their job. But a re-run is only ever an
-      # improvement when the committed output is BEHIND the last completed
-      # session. When it is already there, CI has nothing to add and the
-      # re-run silently replaces good data with worse.
-      #
-      # That stopped being hypothetical over 2026-08-28/30: yfinance withheld
-      # Friday's closes for 43+ hours having served and retracted them, and a
-      # local run sourcing the same ETFs from Norgate reached Friday where no
-      # runner can (BTE_PRICE_SOURCE=norgate; the feed is a locally licensed
-      # Windows service). Publishing would have dragged both sleeves back a
-      # session.
-      #
-      # One-directional by design: CI may move a sleeve forward, never back.
-      # An unreadable or missing committed output re-runs, fail-safe.
-      #
-      # COST, stated because it is real: the re-run also propagates engine
-      # code and config changes, not only newer data, so a deliberate change
-      # to either engine now waits for the next local refresh. Set
-      # BTE_FORCE_ENGINE_RERUN=1 to override. That trade is acceptable only
-      # because sleeves A and D already anchor on the local refresh for the
-      # same underlying reason.
-      - name: Would a CI re-run of B and C add anything?
-        id: currency
-        run: python scripts/check_engine_currency.py
-
-      - name: Run Strategy B (asset-class rotation; ~14 ETF download)
-        if: steps.currency.outputs.rerun_b == 'true'
-        run: python scripts/run_asset_class_rotation.py
-
-      - name: Keep the committed Strategy B (CI cannot improve on it)
-        if: steps.currency.outputs.rerun_b != 'true'
-        run: echo "Skipped — ${{ steps.currency.outputs.summary }}"
-
-      - name: Run Strategy C (thematic rotation; ~23 ETF download)
-        if: steps.currency.outputs.rerun_c == 'true'
-        run: python scripts/run_thematic_rotation.py
-
-      - name: Keep the committed Strategy C (CI cannot improve on it)
-        if: steps.currency.outputs.rerun_c != 'true'
-        run: echo "Skipped — ${{ steps.currency.outputs.summary }}"
-
-      - name: Run multi-strategy blend (uses A + D from committed JSONs)
-        run: python scripts/run_multi_strategy.py
-
-      - name: Run breadth-gate + EEM-tilt risk overlay
-        run: python scripts/run_risk_overlay.py
-
-      - name: Run daily mark-to-market overlay
-        # CRITICAL: A and D are skipped in CI (constituent caches are
-        # gitignored), so multi.strategies.common_end is constrained by
-        # whatever Friday the user last refreshed those sleeves locally.
-        # The live mark-to-market overlay extends the deployed-blend AND
-        # all four sleeve series through the latest available daily
-        # close, so the factsheet ships fresh-as-of-yesterday rather
-        # than stuck-on-last-locally-refreshed-Friday.
-        run: python scripts/mark_to_market_live.py
-
-      # ----- Capture integrity (2026-07-03; strict B/C 2026-07-18) -----
-      # A run can succeed while the engines quietly captured nothing new
-      # (partial yfinance response, cached feed) or a corrupt print — the
-      # silent-wrong class no process-level check sees. This anchors the
-      # series THIS job just refreshed (Strategy B, Strategy C and the
-      # live track) to the true NYSE calendar. The live track keeps the
-      # warn-and-publish cadence rule at 1 session behind; Strategy B/C
-      # run STRICT — this workflow's whole payload is the Friday
-      # rebalance, and 2026-07-17 shipped a factsheet presenting last
-      # week's trades as "this week" because B/C quietly ended Thursday.
-      # (The engines' exclusive-end fetch fencepost that caused that miss
-      # is fixed, so a strict failure now means genuine upstream lag —
-      # re-dispatch later rather than publish without the Friday bar.)
-      # 2+ behind or a corrupt tail fails as before, before anything is
-      # built, committed or emailed.
-      - name: Check capture integrity (B/C strict, live track vs NYSE calendar)
-        id: capture
-        run: python scripts/check_capture_integrity.py --targets all --strict b,c
-
-      - name: Email capture warning (1 session behind, still publishing)
-        if: steps.capture.outputs.capture_warn == 'true'
-        continue-on-error: true
-        uses: dawidd6/action-send-mail@v18
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.GMAIL_USER }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[WARN] Capture lag — ${{ steps.capture.outputs.summary }}'
-          to: ${{ secrets.GMAIL_USER }}
-          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
-          body: |
-            ${{ steps.capture.outputs.detail }}
-
-            The run continues and publishes the latest populated close.
-            If the lag persists into the next scheduled run, the
-            2-session threshold will fail the job.
-
-            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-      # Soft-fail EXCEPT exit 2 (an unrepaired regression) — see the same step
-      # in daily_live_track.yml. A panel that moved backwards must never reach
-      # the factsheet or the weekly digest.
-      - name: Run holdings price export (soft-fail, except a backwards panel)
-        run: |
-          set +e
-          python scripts/export_holdings_prices.py
-          rc=$?
-          set -e
-          if [ "$rc" -eq 2 ]; then
-            echo "::error::holdings price panel went BACKWARDS — refusing to publish"
-            exit 1
+          if [ "$DRY_RUN" = "true" ]; then
+            python scripts/send_component_factsheet.py plan
+          else
+            python scripts/send_component_factsheet.py plan --reserve
           fi
-          exit 0
-
-      # WS7 evidence accumulator (KICKOFF_ws7-c-seat.md). Soft-fail is safe
-      # BECAUSE the email watch line renders a STALE tag whenever the
-      # tracker's last week trails the as-of — failure is visible in the
-      # artefact, never silent.
-      - name: Run Sleeve C seat watch (WS7; soft-fail, staleness surfaces in the email)
-        run: python scripts/run_c_seat_watch.py || true
-
-      - name: Build dashboard + factsheet PDF
-        run: python scripts/pipeline.py
-
-      # Same rebuild as the daily workflow — both commit docs/, so both must
-      # refresh the reduced public page or it drifts behind docs/index.html.
-      - name: Rebuild public portfolio page
-        run: python scripts/build_simple_page.py
-
-      - name: Run regression tests
-        # The committed-literal guard is DESELECTED here, and only here.
-        #
-        # It asserts that the figures hand-written into template.html equal
-        # what the page renders from data/*.json — a check on the COMMITTED
-        # artefact, and it runs correctly in the standalone Tests workflow
-        # and locally. This job is the one place it cannot hold: steps above
-        # re-run Strategy B and C against fresh downloads before this point,
-        # so the guard compares a committed literal against data this runner
-        # has just recomputed. Two legitimate vintages of the same number.
-        #
-        # It blocked the 2026-08-16 trial on blend4.cagr: 15.3779% locally,
-        # rendering +15.4%, against a CI re-run that landed below 15.35% and
-        # rendered +15.3%. The figure sits 0.028pp from a rounding boundary
-        # and has printed +15.2, +15.3, +15.4 and +15.5 across past
-        # refreshes, so this recurs whenever it crosses a 0.05pp line.
-        #
-        # Deselecting it here does NOT weaken the guard, which is why the
-        # narrow form matters: the same test still gates every push through
-        # the Tests workflow and every local run, where the literal and the
-        # data share one vintage. What it stops is a rounding difference
-        # between two honest vintages silently blocking the weekly send. The
-        # other 1,373 tests still run, including the rest of the figure
-        # bindings — spec parses, every binding has an entry, every path
-        # resolves, no dead entries, rounding gaps carry their markers.
-        #
-        # Reducing the figure's precision was considered and rejected: at
-        # zero decimals blend3.cagr (14.52%) and blend4.cagr (15.38%) both
-        # render 15%, collapsing the "CAGR from X to Y" comparison the
-        # sentence exists to make.
-        run: >-
-          python -m pytest tests/ -q
-          --deselect tests/test_figure_bindings.py::test_committed_literals_match_the_data
-
-      - name: Commit refreshed outputs
-        # Trial runs publish nothing — the rebuilt artefacts stay on the
-        # runner so a styling experiment never reaches the live site.
-        # Hard-fail the push (2026-08-13, external review F1): if these
-        # commits cannot land, the email step below must not run — the
-        # recipients would get a factsheet the live site never shows.
-        # Failing here routes to the failure alert instead.
-        #
-        # build/portfolio.html is staged EXPLICITLY (2026-08-16) — see the
-        # matching note in daily_live_track.yml. This run is the one that
-        # exposed the gap: it refreshed data/, rebuilt the page, committed
-        # only data/ and docs/, and left main carrying a page one vintage
-        # behind its own sources.
-        if: ${{ !inputs.trial }}
+      - name: Persist reservation before contacting Gmail
+        if: steps.plan.outputs.send == 'true'
+        shell: bash
         run: |
-          git config --local user.email "actions@github.com"
-          git config --local user.name "Weekly Factsheet Bot"
-          git add data/ docs/ build/portfolio.html
-          if git diff --cached --quiet; then
-            echo "No refreshed outputs to commit."
-            exit 0
-          fi
-          git commit -m "Weekly refresh $(date -u +%Y-%m-%d)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/component_delivery.json
+          git commit -m 'Reserve verified component factsheet delivery'
           for attempt in 1 2 3; do
-            if git push origin main; then
-              echo "Pushed on attempt $attempt."
-              exit 0
-            fi
-            echo "Push rejected on attempt $attempt — rebasing onto origin/main."
-            git pull --rebase --autostash origin main || exit 1
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main || exit 1
           done
-          echo "::error::Could not push refreshed data and docs after 3 attempts — not emailing a factsheet the site does not show."
           exit 1
-
-      - name: Read factsheet meta for email subject and attachment path
-        id: meta
-        # build_factsheet.py writes docs/factsheet_meta.json with the
-        # actual as-of date and dated-pdf path it built for (single
-        # source of truth — works correctly with the live mark-to-
-        # market splice, where the deployed series may extend past
-        # multi_strategy.json's common_end).
+      - name: Send once to all existing recipients
+        if: steps.plan.outputs.send == 'true'
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+        run: python scripts/send_component_factsheet.py send
+      - name: Persist confirmed delivery
+        if: steps.plan.outputs.send == 'true'
+        shell: bash
         run: |
-          ASOF=$(python -c "import json; print(json.load(open('docs/factsheet_meta.json'))['asof_iso'])")
-          DATED=$(python -c "import json; print(json.load(open('docs/factsheet_meta.json'))['dated_pdf_path'])")
-          echo "asof=${ASOF}" >> $GITHUB_OUTPUT
-          echo "dated_path=${DATED}" >> $GITHUB_OUTPUT
-          echo "Factsheet asof: ${ASOF}"
-          echo "Dated PDF:      ${DATED}"
-          test -f "${DATED}" || { echo "ERROR: ${DATED} not found"; ls -la docs/; exit 1; }
-
-      - name: Build rich email body
-        run: python scripts/build_email_body.py
-
-      - name: Load email body into step output
-        id: emailbody
-        run: |
-          {
-            echo 'html<<EMAILBODY_EOF'
-            cat docs/email_body.html
-            echo EMAILBODY_EOF
-          } >> $GITHUB_OUTPUT
-
-      - name: Email factsheet PDF
-        uses: dawidd6/action-send-mail@v18
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.GMAIL_USER }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "${{ inputs.trial && '[TRIAL] ' || '' }}Weekly factsheet · USD Multi-Strategy ETF Portfolio · ${{ steps.meta.outputs.asof }}"
-          # Trial runs go to the operator only — never the distribution
-          # list. Scheduled runs have no inputs context, so the ternary
-          # falls through to RECIPIENT_EMAIL.
-          to: ${{ inputs.trial && secrets.GMAIL_USER || secrets.RECIPIENT_EMAIL }}
-          from: 'USD Multi-Strategy ETF Factsheet <${{ secrets.GMAIL_USER }}>'
-          html_body: ${{ steps.emailbody.outputs.html }}
-          # Attach the dated copy so the recipient sees a properly-named
-          # archive in their inbox. Path comes from factsheet_meta.json
-          # (written by build_factsheet.py) so the workflow never has to
-          # re-derive the date independently.
-          attachments: ${{ steps.meta.outputs.dated_path }}
-
-      # ----- Automatic-send notice (2026-09-06) -----
-      # The release is now a mechanical verdict taken by the weekend refresh
-      # (scripts/auto_release.py); the human step moved AFTER the send. This
-      # tells the operator the list has been mailed and names the three
-      # things no script judges. Operator only. Not on a trial, and not on a
-      # manual dispatch — those are the operator acting already.
-      - name: Email operator — automatic send notice
-        if: ${{ !inputs.trial && needs.gate.outputs.auto == 'true' }}
-        continue-on-error: true
-        uses: dawidd6/action-send-mail@v18
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.GMAIL_USER }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[AUTO] Weekly factsheet sent automatically — week ending ${{ needs.gate.outputs.anchor }}'
-          to: ${{ secrets.GMAIL_USER }}
-          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
-          body: |
-            The factsheet for the week ending ${{ needs.gate.outputs.anchor }}
-            was released by the weekend refresh (every automatic-release
-            condition met; the evidence is in docs/factsheet_release.json)
-            and has just been emailed to the distribution list.
-
-            Three things no script judges - look at them now:
-              - the Data tab: any panel with an unexpected roster count or a
-                coverage drop this week
-              - the next-fill card and its "why these moves" lines: do the
-                planned changes match what the signals did
-              - week-on-week NAV: a jump with no corresponding market move
-                usually means a pricing or FX problem, not performance
-
-            To veto next week's automatic send:
-              python scripts/release_factsheet.py --hold "reason"   (commit and push)
-            To send a corrected factsheet now: Run workflow on 'Weekly factsheet'.
-
-            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-      # ----- Publish marker (2026-07-25; hard-fail 2026-08-13) -----
-      # Records which week-final anchor was just emailed so the gate can
-      # refuse duplicate sends (a second refresh push the same weekend)
-      # and the Sunday check knows the week is covered. Written only
-      # AFTER the email step succeeded, never on trial runs. The push
-      # retries over a rebase (the daily live-track job may land in
-      # between; --autostash for the tracked email-body file the earlier
-      # steps leave dirty) and then fails RED. By then the email has
-      # already gone out, so a red job here is a false alarm about the
-      # send itself — accepted, because a loud false alarm beats the
-      # silent duplicate-send window the old soft fallback left open
-      # (external review F1).
-      - name: Record publish marker and commit it
-        if: ${{ !inputs.trial }}
-        run: |
-          python scripts/write_factsheet_published.py --anchor "${{ needs.gate.outputs.anchor }}"
-          git config --local user.email "actions@github.com"
-          git config --local user.name "Weekly Factsheet Bot"
-          git add docs/factsheet_published.json
-          if git diff --cached --quiet; then
-            echo "Marker unchanged — nothing to commit."
-            exit 0
-          fi
-          git commit -m "Factsheet published for week ending ${{ needs.gate.outputs.anchor }}"
+          git add docs/component_delivery.json docs/factsheet_published.json
+          git commit -m 'Record confirmed component factsheet delivery'
           for attempt in 1 2 3; do
-            if git push origin main; then
-              echo "Marker pushed on attempt $attempt."
-              exit 0
-            fi
-            echo "Push rejected on attempt $attempt — rebasing onto origin/main."
-            git pull --rebase --autostash origin main || exit 1
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main || exit 1
           done
-          echo "::error::Marker push failed after 3 attempts. The factsheet email HAS been sent; until docs/factsheet_published.json lands, the gate may allow one duplicate send on the next refresh event. Commit the marker manually."
           exit 1
-
-      # ----- Failure alert (2026-07-03) -----
-      # The scheduled 26 Jun run failed and no factsheet went out that
-      # weekend; nothing emailed about the failure itself. if: failure()
-      # fires when any earlier step failed — including the email step.
-      - name: Email failure alert
-        if: failure()
-        continue-on-error: true
-        uses: dawidd6/action-send-mail@v18
+      - name: Preserve no-send preview or attempted payload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: component-factsheet-preview
+          path: .component-mail/*
+          include-hidden-files: true
+          if-no-files-found: ignore
+      - name: Operator-only failure or readiness alert
+        if: (failure() || steps.plan.outputs.alert == 'true') && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+        uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
           secure: true
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[FAIL] Weekly factsheet did not publish or send'
+          subject: '[ACTION REQUIRED] Component factsheet delivery'
           to: ${{ secrets.GMAIL_USER }}
-          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          from: Dashboard Ops
           body: |
-            The weekly factsheet run (triggered by the panel refresh
-            push, or a manual dispatch) failed. The dashboard was not
-            refreshed by CI and no factsheet email went to the
-            distribution list.
-
-            If the log shows the breadth_csp1 freshness guard, the fix is
-            local: python scripts/refresh_all.py, then commit and push,
-            then start a NEW run via the 'Run workflow' button. Do NOT
-            use 'Re-run failed jobs' after a refresh - it re-runs the
-            original commit without the refreshed panels and hits the
-            same guard again.
-
-            If the log shows the capture-integrity check failing STRICT
-            on Strategy B/C (1 session behind), the vendor has not yet
-            posted the latest close: re-dispatch via 'Run workflow' an
-            hour later or on Saturday morning SGT. Do not loosen the
-            check - a factsheet without the Friday rebalance misleads.
-
-            For transient failures (network, yfinance), 'Re-run failed
-            jobs' is fine - same commit, same inputs, likely to pass.
-
-            Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-  # ----- Sunday held-factsheet check (2026-07-25) -----
-  # Check ONLY — never builds or emails the factsheet. With the Friday
-  # cron gone, a weekend where the local refresh never lands would
-  # otherwise be silent until Monday's 21:30 UTC run hits the breadth
-  # hard guard. This job emails the operator on Sunday night SGT when
-  # the week's factsheet has not gone out, with the remediation that
-  # matches the state: refresh still missing (run refresh_all.py — the
-  # push then publishes automatically) vs refresh landed but the
-  # publish run failed (inspect and re-dispatch). The gate script
-  # reports its own internal errors as warn=true, so this check fails
-  # toward alerting, never toward silence.
-  sunday-check:
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Has this week's factsheet gone out?
-        id: check
-        run: python scripts/check_factsheet_gate.py --mode sunday-check
-
-      - name: Email held-factsheet warning
-        if: steps.check.outputs.warn == 'true'
-        continue-on-error: true
-        uses: dawidd6/action-send-mail@v18
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.GMAIL_USER }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[WARN] Weekly factsheet held — ${{ steps.check.outputs.summary }}'
-          to: ${{ secrets.GMAIL_USER }}
-          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
-          body: |
-            ${{ steps.check.outputs.detail }}
-
+            The factsheet needs operator review. Open the run log for the exact failed check.
+            An unconfirmed reservation may represent a delivered or partly delivered email.
+            Reconcile Gmail delivery before clearing it; do not blindly retry the send.
+            No stale or unverified snapshot is authorised for distribution.
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

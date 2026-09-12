@@ -61,12 +61,11 @@ Runs the complete dependency chain in the right order:
        the operator must not commit/push the refreshed state. Then
        pytest last.
 
-This is the script the user should run weekly (typically Saturday morning,
-to catch the Friday close). The CI weekly_factsheet workflow runs a
-RESTRICTED subset: only #3 (B + C only — A and D need local price caches),
-#4, and the parts of #6 that do not depend on local caches. The committed
-outputs of #1, #2, #5 from the most recent local refresh are what CI
-operates on.
+The scheduled weekend wrapper runs --component core, commits it, then runs
+--component europe independently. Core does not rerun the Europe engine;
+Europe does not rerun A/B/C. Both retain the shared accounting guards.
+The CI weekly_factsheet workflow sends the sealed component snapshot and
+does not rebuild any engine or replace the saved instructions.
 
 Usage:
     python scripts/refresh_all.py            # full refresh
@@ -215,6 +214,8 @@ def run_step(label: str, cmd: list[str], cwd: Path = REPO_ROOT,
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--component", choices=("all", "core", "europe"), default="all",
+                   help="Independent capture scope; default retains the full legacy refresh.")
     p.add_argument("--skip-soxx-fetch", action="store_true",
                     help="Skip fetch_constituents.py --etf SOXX. Largely "
                          "obsolete since Phase 27 (2026-08-07): SOXX is "
@@ -253,6 +254,17 @@ def main() -> int:
                          f"served from cache. Pass 0 to disable — only "
                          f"sensible on a fully warm cache.")
     args = p.parse_args()
+    if args.component != "all" and args.no_tests:
+        p.error("component publication requires the regression tests; --no-tests is not permitted")
+    if args.component != "all":
+        from component_basis import prepare
+        from datetime import datetime, timezone
+        from nyse_sessions import week_final_anchor
+        os.environ["BTE_COMPONENT_REFRESH"] = args.component
+        prepare(Path(__file__).resolve().parent.parent / "data",
+                week_final_anchor(datetime.now(timezone.utc)).isoformat())
+    else:
+        os.environ.pop("BTE_COMPONENT_REFRESH", None)
 
     # One source for the whole run, stated once at the top of the log. The
     # engines read the variable directly; compute_breadth takes it as a flag
@@ -283,6 +295,8 @@ def main() -> int:
     # weekend concern and the weekend cadence still does the full run.
     py = sys.executable
     _panels = ETFS_ALL if args.deployed_only else ETFS_REFRESH
+    from component_scope import select_panels
+    _panels = select_panels(_panels, args.component)
     for i, etf in enumerate(_panels, start=1):
         # Pace the loop so the price vendor's rate limiter can refill.
         # Skipped before the first ETF, and skipped when the previous
@@ -379,10 +393,21 @@ def main() -> int:
         ("Strategy D (europe_rotation)", "scripts/run_europe_rotation.py"),
     ]
     for label, script in strategy_steps:
+        from component_scope import engine_in_scope
+        if not engine_in_scope(script, args.component):
+            continue
         ok, dt = run_step(label, [py, script])
         timings.append((label, dt))
         if not ok:
             failures.append(label)
+
+    # Refresh overlay inputs before both the historical overlay and live book.
+    # A Europe retry retains the already-verified core overlay decision.
+    if args.component == "core":
+        ok, dt = run_step("current overlay decision", [py, "scripts/overlay_decision.py"])
+        timings.append(("current overlay decision", dt))
+        if not ok:
+            return 1
 
     # ----- Step 4: blend + overlay -----
     blend_steps = [
@@ -511,7 +536,7 @@ def main() -> int:
         ("VERIFY pair integrity (fund vs own constituents)",
             [py, "scripts/check_pair_integrity.py"]),
         ("VERIFY refresh guard (cross-panel coherence)",
-            [py, "scripts/check_refresh_guard.py"]),
+            [py, "scripts/check_refresh_guard.py", "--component", args.component]),
         ("VERIFY engine price panels (sleeve vs the prices it backtested on)",
             [py, "scripts/check_engine_price_panels.py"]),
         ("VERIFY coverage depth (US panels vs the filed basis; delisted probes)",
@@ -542,6 +567,11 @@ def main() -> int:
         for f in failures:
             print(f"  - {f}")
         return 1
+    if args.component != "all":
+        ok, _ = run_step("seal component publication", [py, "scripts/component_release.py", "seal",
+                                                        "--component", args.component])
+        if not ok:
+            return 1
     print("\nAll steps OK. Review `git status`, commit, push.")
     return 0
 

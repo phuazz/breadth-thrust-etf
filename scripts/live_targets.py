@@ -57,6 +57,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -101,21 +102,12 @@ def _breadth_panel(universe: list[str]) -> tuple[pd.DataFrame, list[str]]:
     wrapper's own bar is missing.
     """
     cols = {}
+    from validated_breadth import validated_end, cap_signal, RosterMismatch
     for etf in universe:
         try:
             cols[etf] = compute_ma200_breadth(load_constituent_prices(etf), MA_PERIOD)
-            panel = json.loads((DATA_DIR / f"breadth_{etf.lower()}.json").read_text(encoding="utf-8"))
-            # A cache can have a thin newer row than its validated breadth
-            # panel. Do not rank it merely because a few prices exist there.
-            bound = pd.Timestamp(panel["end_date"])
-            cols[etf] = cols[etf].where(cols[etf].index <= bound)
-            capture = panel.get("current_capture")
-            if capture:
-                from capture_status import roster_fingerprint
-                roster = json.loads((DATA_DIR / f"constituents_{etf.lower()}.json").read_text(encoding="utf-8"))
-                if capture.get("roster_fingerprint") != roster_fingerprint(roster):
-                    cols[etf][:] = float("nan")
-        except FileNotFoundError:
+            cols[etf] = cap_signal(cols[etf], validated_end(DATA_DIR, etf))
+        except (FileNotFoundError, RosterMismatch):
             cols[etf] = pd.Series(dtype=float)
             continue
     return pd.DataFrame(cols).reindex(columns=universe).sort_index(), list(universe)
@@ -155,11 +147,14 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
     # column and the share below is always well defined.
     have, total = int(row.notna().sum()), int(signal.shape[1])
     if have < total * coverage_floor:
+        missing_names = [str(name) for name in row.index[row.isna()]]
         return {"sleeve": label, "venue": venue, "status": "HOLD",
                 "reason": (
                     f"decision row carries {have} of {total} names — below "
                     f"the {coverage_floor:.0%} coverage floor; a partial row "
-                    f"is a different signal, not a smaller one"),
+                    f"is a different signal, not a smaller one; "
+                    f"missing signal inputs: {', '.join(missing_names)}"),
+                "missing_signal_inputs": missing_names,
                 "decision_session": str(decided.date()),
                 "last_completed_session":
                     str(lcs.date()) if lcs is not None else None,
@@ -265,16 +260,44 @@ def build(now_utc: datetime | None = None) -> dict:
                          signal_kind="breadth", top_k=eu.HEADLINE_K,
                          prev_session=prev.get("D")))
 
+    import os
+    if os.environ.get("BTE_COMPONENT_REFRESH") == "europe":
+        from component_release import read
+        from nyse_sessions import week_final_anchor
+        previous = read(DATA_DIR / "component_release.json")
+        if previous["anchor"] != week_final_anchor(now).isoformat():
+            raise ValueError("Europe refresh requires the current verified core first")
+        sleeves = [s for s in previous["book"]["sleeves"] if s["sleeve"] != "D"] + [sleeves[-1]]
+
     # Effective NAV weights and the delta against what is currently held.
     from build_factsheet import sleeve_nav_weights
     asof = max((s["decision_session"] for s in sleeves
                 if s["decision_session"]), default=None)
+    if os.environ.get("BTE_COMPONENT_REFRESH") in {"core", "europe"}:
+        # The weekly email anchor belongs to NYSE. Xetra may have a later
+        # completed session on a US holiday; D keeps its own decision date.
+        asof = max((s["decision_session"] for s in sleeves
+                    if s["sleeve"] != "D" and s["decision_session"]), default=None)
     st = sleeve_nav_weights(overlay, asof)
     held = {}
     for h in _collect_deployed_holdings(sleeve_data, overlay, asof):
         held[(h["sleeve"], h["etf"])] = h["effective"]
 
-    lines = _intended_lines(sleeves, held, st)
+    import os
+    component_mode = os.environ.get("BTE_COMPONENT_REFRESH") in {"core", "europe"}
+    overlay_decision = None
+    if component_mode:
+        overlay_decision = json.loads((DATA_DIR / "overlay_decision.json").read_text(encoding="utf-8"))
+        if overlay_decision["as_of"] != asof:
+            raise ValueError("overlay decision and core signal dates disagree")
+        st = overlay_decision["weights"]
+        basis = json.loads((DATA_DIR / "component_held_basis.json").read_text(encoding="utf-8"))
+        from component_basis import validate
+        validate(basis, asof)
+        if basis["anchor"] != asof:
+            raise ValueError("held-book basis belongs to another week")
+        held = {(r["sleeve"], r["etf"]): float(r["held"]) for r in basis["lines"] if float(r["held"]) > 0}
+    lines = _intended_lines(sleeves, held, st, adjust_overlays=component_mode)
     # WHICH fill is this, and has it happened? Both stated explicitly, because
     # a target book that does not say either is indistinguishable from a record
     # of trades already done -- which is the one way this artefact could
@@ -308,6 +331,7 @@ def build(now_utc: datetime | None = None) -> dict:
     ds_distinct = sorted({v for v in decisions.values() if v})
 
     return {"computed_at_utc": now.isoformat(), "as_of": asof,
+            "overlay_decision": overlay_decision,
             "executed": False,
             "targets_final": final,
             "next_fill": {
@@ -324,7 +348,7 @@ def build(now_utc: datetime | None = None) -> dict:
 
 
 def _intended_lines(sleeves: list[dict], held: dict[tuple[str, str], float],
-                    sleeve_nav: dict[str, float]) -> list[dict]:
+                    sleeve_nav: dict[str, float], *, adjust_overlays=False) -> list[dict]:
     """The intended book, line by line, against what is held.
 
     A READY sleeve's lines are its ranked weights scaled to the sleeve's share
@@ -359,21 +383,34 @@ def _intended_lines(sleeves: list[dict], held: dict[tuple[str, str], float],
     held_total: dict[str, float] = defaultdict(float)
     for (sl, _etf), eff in held.items():
         held_total[sl] += eff
+    overlay_targets = {"TILT": sleeve_nav.get("tilt_nav", 0.0),
+                       "GATE": sleeve_nav.get("shy_overlay", 0.0)}
     for (sl, etf), eff in held.items():
         if sl in {"TILT", "GATE"}:
             lines.append({"sleeve": sl, "etf": etf, "traded": _traded(etf),
-                          "within": 1.0, "target": eff, "held": eff,
+                          "within": 1.0, "target": overlay_targets[sl] if adjust_overlays else eff, "held": eff,
                           "status": "READY"})
         elif sl in status_of and sl not in ready:
             tot = held_total[sl]
+            target = eff / tot * sleeve_nav[sl.lower()] if adjust_overlays and tot else eff
             lines.append({"sleeve": sl, "etf": etf, "traded": _traded(etf),
                           "within": eff / tot if tot > 0 else 0.0,
-                          "target": eff, "held": eff,
+                          "target": target, "held": eff,
+                          "risk_adjustment": bool(adjust_overlays and target != eff),
                           "status": status_of[sl]})
         elif not any(x["sleeve"] == sl and x["etf"] == etf for x in lines):
             lines.append({"sleeve": sl, "etf": etf, "traded": _traded(etf),
                           "within": 0.0, "target": 0.0, "held": eff,
                           "status": status_of.get(sl, "READY")})
+    if adjust_overlays:
+        from run_risk_overlay import EEM_TICKER, FALLBACK_TICKER
+        for sl, etf in (("TILT", EEM_TICKER), ("GATE", FALLBACK_TICKER)):
+            if not any(ln["sleeve"] == sl for ln in lines) and overlay_targets[sl] > 0:
+                lines.append({"sleeve": sl, "etf": etf, "traded": _traded(etf),
+                              "within": 1.0, "held": 0.0, "target": overlay_targets[sl], "status": "READY"})
+        total = sum(ln["target"] for ln in lines)
+        if not math.isclose(total, 1.0, abs_tol=1e-6):
+            raise ValueError(f"component target book does not conserve NAV: {total}")
     for ln in lines:
         ln["delta"] = ln["target"] - ln["held"]
     lines.sort(key=lambda x: (x["sleeve"], -abs(x["delta"])))

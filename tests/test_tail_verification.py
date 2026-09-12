@@ -136,6 +136,74 @@ def test_no_answer_keeps_the_row_unverifiable():
     assert v["dropped"] == []
 
 
+@pytest.mark.parametrize("end", ["2026-09-01", "2027-01-04"])
+def test_partial_row_probes_beyond_negative_sample(end):
+    # Python months are 1-indexed; pandas supplies month/year boundaries.
+    f = _frame(roster=WIDE, end=end)
+    f.iloc[-1, 0] = f.iloc[-2, 0]
+    missing = WIDE[1:]
+    sample = set(cb._spread(missing, cb.TAIL_PROBE_SAMPLE))
+    base = _serving(f)
+    asked = []
+
+    def fetch(t):
+        asked.append(t)
+        s = base(t)
+        return s.iloc[:-1] if t in sample else s
+
+    out, record = cb.verify_price_tail(f, WIDE, fetch_single=fetch)
+    row = record["rows"][0]
+    assert row["sample_served"] == 0
+    assert set(asked) == set(missing)
+    assert len(asked) == len(set(asked))  # sample responses are reused
+    assert row["filled"] == len(missing) - len(sample)
+    assert row["verdict"] == "partial"
+    assert out.iloc[-1, 0] == f.iloc[-1, 0]
+    assert record["dropped"] == []
+    assert out.index[-1] not in cb.priced_sessions(out, WIDE)
+
+
+def test_partial_row_unavailable_prices_are_preserved_and_reported():
+    f = _frame(roster=WIDE)
+    f.iloc[-1, 0] = f.iloc[-2, 0]
+    base = _serving(f, through=_last_ok(f))
+
+    def fetch(t):
+        return None if t == WIDE[-1] else base(t)
+
+    out, record = cb.verify_price_tail(f, WIDE, fetch_single=fetch)
+    row = record["rows"][0]
+    pd.testing.assert_frame_equal(out, f)
+    assert row["verdict"] == "partial"
+    assert row["no_answer"] == [WIDE[-1]]
+    assert set(row["unserved"]) == set(WIDE[1:-1])
+    assert row["not_attempted"] == []
+    assert record["dropped"] == []
+
+    import check_refresh_guard as guard
+    side = {"status": "ok", "index_end": str(out.index[-1].date()),
+            "populated_end": _last_ok(out), "newest_row_populated": "1/20"}
+    verdicts = guard.check_shared_end_friday(
+        {"EXV1": str(out.index[-1].date())}, out.index[-1].date(),
+        price_sides={"EXV1": side})
+    assert any(v["status"] == guard.FAIL for v in verdicts)
+
+
+def test_partial_row_retry_respects_budget():
+    f = _frame(roster=WIDE)
+    f.iloc[-1, 0] = f.iloc[-2, 0]
+    ticks = iter([0.0, 301.0])
+    out, record = cb.verify_price_tail(
+        f, WIDE, fetch_single=_serving(f, through=_last_ok(f)),
+        clock=lambda: next(ticks))
+    row = record["rows"][0]
+    assert row["heal_timed_out"]
+    assert row["requested"] == []
+    assert row["not_attempted"] == WIDE[1:]
+    assert record["dropped"] == []
+    pd.testing.assert_frame_equal(out, f)
+
+
 def test_a_raising_probe_is_no_answer():
     def fetch(t):
         raise RuntimeError("rate limited")

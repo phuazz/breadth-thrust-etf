@@ -143,15 +143,20 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
                     errors.append(f"sleeve {name}: HOLD has no position-line evidence")
                 else:
                     import math
+                    from component_contract import risk_only_hold
+                    risk_only = risk_only_hold(book, name)
                     for line in lines:
                         if line.get("sleeve") != name:
                             continue
                         held, target, delta = (float(line[k]) for k in ("held", "target", "delta"))
-                        if not all(math.isfinite(x) for x in (held, target, delta)) or held != target or delta != 0:
+                        if (not all(math.isfinite(x) for x in (held, target, delta))
+                                or ((held != target or delta != 0) and not risk_only)):
                             errors.append(f"sleeve {name}: HOLD changes a position")
                 if fresh_build and evaluated_state == "current":
                     held_names.add(name)
-                    holds.append(f"sleeve {name}: HOLD — {sl.get('reason')}; retain existing holdings")
+                    instruction = ("retain existing selection; verified risk-only resizing is stated in the position lines"
+                                   if book.get("overlay_decision") else "retain existing holdings")
+                    holds.append(f"sleeve {name}: HOLD — {sl.get('reason')}; {instruction}")
                 elif evaluated_state != "invalid":
                     pending.append(f"sleeve {name}: old HOLD has not been evaluated for {expected}")
             elif sl.get("status") == "READY":
@@ -211,7 +216,9 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
         summary = "refresh not yet verified" if phase == "review" else "deadline check: current instruction unavailable"
     elif holds:
         status, tag, warn = "hold", "HOLD", phase == "deadline"
-        summary = "instruction contains HOLD sleeves — retain their existing holdings"
+        summary = ("instruction contains HOLD sleeves — retain their existing selection"
+                   if book.get("overlay_decision") else
+                   "instruction contains HOLD sleeves — retain their existing holdings")
     else:
         status, tag, warn, summary = "ready", "OK", False, "all four sleeves ready for the next fill"
     detail = [f"Pre-trade {phase} checkpoint at {now_utc.isoformat()}: {summary}."]
@@ -227,7 +234,12 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
         detail.append("Calendar closing times for the next-session fill dates in the instruction "
                       "(not broker cutoffs or trade authorisation):\n" + "\n".join(sorted(fill_closes)))
     if errors or pending or holds:
-        detail.append(RECOVERY_GUIDANCE)
+        guidance = RECOVERY_GUIDANCE
+        if 'book' in locals() and book.get("overlay_decision"):
+            guidance = guidance.replace("or create new orders for an unverified or HOLD sleeve.",
+                "or create new selections for an unverified or HOLD sleeve. Only explicitly verified "
+                "portfolio-risk resizing of an existing HOLD basket may appear in the position lines.")
+        detail.append(guidance)
     return {"warn": str(warn).lower(), "status": status, "tag": tag,
             "summary": summary, "detail": "\n\n".join(detail)}
 
