@@ -1028,6 +1028,11 @@ const CHART_LAYOUT = {
   xaxis: {
     gridcolor: '#eeeee8', linecolor: '#d5d3ca', linewidth: 1, showgrid: false,
     tickformat: "%b '%y", dtick: 'M2', tickfont: { size: 11 },
+    // Ticks stay coarse (bimonthly month-year), but the unified hover has to
+    // name the session — without an explicit hoverformat Plotly reuses
+    // tickformat and the label reads "Aug '26" for every bar in the month.
+    // '%d %b %Y' is the house date format used across the PCC charts.
+    hoverformat: '%d %b %Y',
   },
   yaxis: {
     gridcolor: '#f0f0ea', linecolor: '#d5d3ca', linewidth: 1, showgrid: true,
@@ -1110,7 +1115,7 @@ function renderChart(boxId, ticker) {
   const traces = [
     { x, y: s.close.slice(cut), name: 'Close', type: 'scatter', mode: 'lines',
       line: { color: '#1a1a18', width: 3.0 }, connectgaps: true,
-      hovertemplate: '%{y}<extra>Close</extra>' },
+      hovertemplate: '%{y:.2f}<extra>Close</extra>' },
     { x, y: ma50.slice(cut), name: 'MA50', type: 'scatter', mode: 'lines',
       line: { color: '#f59e0b', width: 1.8 }, connectgaps: true,
       hovertemplate: '%{y:.2f}<extra>MA50</extra>' },
