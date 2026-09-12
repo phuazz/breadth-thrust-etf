@@ -403,10 +403,33 @@ def record_green_run(marker: Path, cadence: str, started_utc: datetime,
     return marker
 
 
+def component_sequence(run_child, *, armed: bool, recover_first: bool = False) -> int:
+    """One bounded recovery, with no publication from collection-only work."""
+    if recover_first:
+        rc = run_child("europe", capture_only=True)
+        if rc not in (0, 3):
+            return rc
+    rc = run_child("core", capture_only=False)
+    if rc and armed and not recover_first and rc in (3, 4):
+        capture_rc = run_child("europe", capture_only=True)
+        # A source failure (3) may still have refreshed the traded fund.
+        # Core must judge its own inputs. A dirty/preflight failure must stop.
+        if capture_rc not in (0, 3):
+            return capture_rc
+        rc = run_child("core", capture_only=False)
+    if rc or not armed:
+        return rc
+    return run_child("europe", capture_only=False)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--component", choices=("auto", "all", "core", "europe"), default="auto",
                         help="Weekend default: publish verified core first, then attempt Europe independently.")
+    parser.add_argument("--capture-only", action="store_true",
+                        help="Collect Europe data without a core release; retain only ignored caches.")
+    parser.add_argument("--recover-europe-first", action="store_true",
+                        help="One recovery run: collect Europe first, then retry the normal core/Europe sequence.")
     parser.add_argument("--commit", action="store_true",
                         help="commit data/ and docs/ locally and push NOTHING. "
                              "Required for a multi-run weekend: soak mode never "
@@ -437,6 +460,12 @@ def main(argv: list[str] | None = None) -> int:
                              "Norgate flag. Pass 'yfinance' to accept that "
                              "basis explicitly.")
     args = parser.parse_args(argv)
+    if args.capture_only and (args.component != "europe" or args.push or args.commit
+                              or args.preflight_only):
+        parser.error("--capture-only requires Europe and forbids commit, push and preflight-only")
+    if args.recover_europe_first and (args.component != "auto" or args.cadence != "weekend"
+                                     or args.preflight_only or not (args.push or args.commit)):
+        parser.error("--recover-europe-first requires the armed weekend auto sequence")
 
     LOG_DIR.mkdir(exist_ok=True)
     now = datetime.now(timezone.utc)
@@ -522,22 +551,41 @@ def main(argv: list[str] | None = None) -> int:
 
     # Waited children preserve Task Scheduler single-instance protection.
     # Core is committed first; a Europe failure cannot roll it back.
+    if args.capture_only:
+        cmd = [sys.executable, "scripts/refresh_all.py", "--component", "europe",
+               "--capture-only", "--price-source", args.price_source]
+        log.write("\nIndependent Europe collection; no core release required, no publication.\n")
+        log.flush()
+        try:
+            rc = subprocess.run(cmd, cwd=REPO_ROOT, stdout=log,
+                                stderr=subprocess.STDOUT).returncode
+        finally:
+            # Preflight proved this clone clean. Keep raw ignored price caches,
+            # but discard this collection's unsealed JSON and page outputs.
+            clean = restore_tracked_outputs(log)
+            log.write("\nEurope collection cleanup complete; no commit, push or email.\n")
+            log.close()
+        return (0 if rc == 0 else 3) if clean else 2
+
     if args.component == "auto" and args.cadence == "weekend" and not args.preflight_only:
-        log.write("\ncomponent sequence: core first, then Europe\n")
+        log.write("\ncomponent sequence: core then Europe; one independent Europe capture on core validation failure\n")
         log.close()
-        for component in ("core", "europe"):
+
+        def run_child(component, *, capture_only):
             child_args = [sys.executable, str(Path(__file__).resolve()), "--component", component,
                           "--cadence", args.cadence, "--price-source", args.price_source]
-            if args.push:
+            if capture_only:
+                child_args.append("--capture-only")
+            elif args.push:
                 child_args.append("--push")
             elif args.commit:
                 child_args.append("--commit")
             else:
                 print("Soak mode: validating core only; no commit, push or email.")
-            rc = subprocess.run(child_args, cwd=REPO_ROOT).returncode
-            if rc or not (args.push or args.commit):
-                return rc
-        return 0
+            return subprocess.run(child_args, cwd=REPO_ROOT).returncode
+
+        return component_sequence(run_child, armed=bool(args.push or args.commit),
+                                  recover_first=args.recover_europe_first)
     component = "all" if args.component == "auto" else args.component
     marker = GREEN_MARKER if component == "all" else LOG_DIR / f"last_green_{component}.json"
     if component == "core" and not args.preflight_only:

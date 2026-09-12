@@ -216,6 +216,8 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--component", choices=("all", "core", "europe"), default="all",
                    help="Independent capture scope; default retains the full legacy refresh.")
+    p.add_argument("--capture-only", action="store_true",
+                   help="Europe data collection only: no engines, release, page or email.")
     p.add_argument("--skip-soxx-fetch", action="store_true",
                     help="Skip fetch_constituents.py --etf SOXX. Largely "
                          "obsolete since Phase 27 (2026-08-07): SOXX is "
@@ -254,9 +256,11 @@ def main() -> int:
                          f"served from cache. Pass 0 to disable — only "
                          f"sensible on a fully warm cache.")
     args = p.parse_args()
+    if args.capture_only and args.component != "europe":
+        p.error("--capture-only requires --component europe")
     if args.component != "all" and args.no_tests:
         p.error("component publication requires the regression tests; --no-tests is not permitted")
-    if args.component != "all":
+    if args.component != "all" and not args.capture_only:
         from component_basis import prepare
         from datetime import datetime, timezone
         from nyse_sessions import week_final_anchor
@@ -294,7 +298,8 @@ def main() -> int:
     # ENGINES, onto the prices of the fill just executed. Rosters are a
     # weekend concern and the weekend cadence still does the full run.
     py = sys.executable
-    _panels = ETFS_ALL if args.deployed_only else ETFS_REFRESH
+    # Recovery needs deployed D only; research candidates cannot change its book.
+    _panels = ETFS_ALL if args.deployed_only or args.capture_only else ETFS_REFRESH
     from component_scope import select_panels
     _panels = select_panels(_panels, args.component)
     for i, etf in enumerate(_panels, start=1):
@@ -341,6 +346,15 @@ def main() -> int:
         timings.append((f"compute_breadth {etf}", dt))
         if not ok:
             failures.append(f"compute_breadth {etf}")
+
+    if args.capture_only:
+        # Collect traded-fund prices even if a constituent source failed.
+        # No ranking, held-basis preparation or publication is permitted here.
+        ok, _ = run_step("Europe traded-price caches (collection only)",
+                         [py, "scripts/export_holdings_prices.py",
+                          "--refresh-caches-only", "--component", "europe"])
+        print("Europe collection finished; publication was not attempted.", flush=True)
+        return 0 if ok and not failures else 1
 
     if failures:
         print("Capture failed; downstream calculations were not started: " + ", ".join(failures), flush=True)

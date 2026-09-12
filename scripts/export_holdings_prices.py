@@ -71,6 +71,7 @@ Output schema:
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -976,6 +977,22 @@ def entry_is_stale(entry: dict | None, now_utc: datetime,
     return entry["dates"][-1] < cutoff
 
 
+def missing_completed_session(ticker: str, entry: dict | None, now_utc: datetime) -> bool:
+    """Component release prices require the actual completed venue session.
+
+    This triggers a vendor fetch, never a forward fill or a relaxed release
+    check. The legacy daily export retains its existing age policy.
+    """
+    from session_bounds import last_completed_session_on
+    name = venue_calendar_for(ticker)
+    if name is None:
+        return False
+    session = last_completed_session_on(_venue_calendar(name), now_utc)
+    if session is None:
+        return True
+    return session.date().isoformat() not in (entry or {}).get("dates", [])
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
     ap = argparse.ArgumentParser(description=__doc__)
@@ -996,11 +1013,20 @@ def main(argv: list[str] | None = None) -> int:
                          "before them (refresh_all step 2b). Exits "
                          f"{UNUSABLE_CACHE_EXIT_CODE} if any engine-facing "
                          "series is still unusable afterwards.")
+    ap.add_argument("--component", choices=("all", "europe"), default="all",
+                    help="Scope the cache-only collection; never changes publication checks.")
     args = ap.parse_args(argv)
+    if args.component != "all" and not args.refresh_caches_only:
+        ap.error("--component requires --refresh-caches-only")
     if args.strict:
         print("  NOTE: --strict is now the default and can be dropped.")
 
     if args.refresh_caches_only:
+        if args.component == "europe":
+            from etf_registry import UNIVERSE_EUROPE_SECTORS
+            mapping = {s: k for s, k in engine_ohlc_tickers().items()
+                       if k in UNIVERSE_EUROPE_SECTORS}
+            return refresh_ohlc_caches(mapping)
         return refresh_ohlc_caches()
 
     now_utc = datetime.now(timezone.utc)
@@ -1057,6 +1083,11 @@ def main(argv: list[str] | None = None) -> int:
     refetch = sorted({t for t in critical
                       if t not in out or entry_is_stale(out.get(t), now_utc)}
                      | set(regressed))
+    if os.environ.get("BTE_COMPONENT_REFRESH") in {"core", "europe"}:
+        required = {t for t in critical if missing_completed_session(t, out.get(t), now_utc)}
+        if required:
+            print("  Missing completed venue session; re-fetching: " + ", ".join(sorted(required)))
+        refetch = sorted(set(refetch) | required)
     vendor_gaps: dict[str, list[str]] = {}
     reinstated: dict[str, list[str]] = {}
     if refetch:
