@@ -2023,6 +2023,14 @@
     }
     .plain-box .step-body { flex: 1; font-size: 14px; }
 
+    #tab-execution p, #tab-execution .step-body { max-width: 63ch; }
+    .exec-cycle-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; list-style: none; padding: 0; }
+    .exec-cycle-steps li { min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-soft); }
+    .exec-cycle-steps p { font-size: 13px; line-height: 1.6; margin: 10px 0 0; }
+    #tab-execution summary { min-height: 44px; }
+    @media (max-width: 900px) { .exec-cycle-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 500px) { .exec-cycle-steps { grid-template-columns: minmax(0, 1fr); } }
+
     footer {
       margin-top: 60px; padding: 24px 0 36px 0;
       border-top: 1px solid var(--border); color: var(--ink-faint); font-size: 13px;
@@ -3145,14 +3153,15 @@
       </div>
       <div class="step">
         <div class="step-n">3</div>
-        <div class="step-body"><strong>It needs nobody awake.</strong> Market-on-close orders are submitted on Monday evening Singapore time and execute hours later unsupervised. Xetra&rsquo;s cut-off is 21:50 SGT; the US cut-off is 15:50 New York time &mdash; 03:50 SGT on the Tuesday &mdash; and both orders go in the same evening.</div>
+        <div class="step-body"><strong>The fill does not require an overnight submission.</strong> Market-on-close orders can be entered before the closing auction, subject to the broker&rsquo;s venue-specific order rules. Confirm the actual submission deadline with the broker. The closing times below are not order cutoffs; holidays and early closes can change the session.</div>
       </div>
     </div>
   </section>
 
   <section>
     <h2>Where the trading day sits on a Singapore clock</h2>
-    <p class="section-sub">The portfolio holds instruments on two exchanges. They do not open together, so one weekly rebalance fills in two parts on the same Monday: a fifth of the book in Europe, four fifths in the United States. The bars carry those shares. (Some weeks the thematic sleeve holds a Shenzhen-listed or crypto line &mdash; up to about four per cent of the portfolio &mdash; which trades on neither of these clocks.)</p>
+    <p class="section-sub">The normal Monday sessions can close on Tuesday in Singapore. Each venue is shown under its own daylight-saving and standard-time regime: Europe and the US change clocks on different dates, so CEST/EDT and CET/EST are not paired settings. The 20%/80% labels describe the strategic sleeve split, not current holdings. Some thematic holdings trade in Shenzhen or continuously as crypto and follow neither clock.</p>
+    <p class="section-sub" id="exec-clock-basis">Normal-session reference from <code>execution_timing.json</code> (source as at <span id="exec-clock-source-date">unavailable</span>), using the venue time zones. These are not live fill dates or broker deadlines. Consult the verified instruction for each sleeve&rsquo;s actual fill date and check the exchange calendar for holidays and early closes. Scroll the diagram horizontally on a narrow screen.</p>
     <div id="exec-clock-diagram" style="overflow-x:auto;"></div>
   </section>
 
@@ -3186,6 +3195,7 @@
       </div>
 
       <h3 style="margin-top:24px;">Venue sessions in full</h3>
+      <p class="section-sub">S/W are each venue&rsquo;s daylight-saving/standard-time reference, not a shared global season. (+1d) means the following Singapore calendar day. See the source date above; these are normal-session hours, not a holiday calendar.</p>
       <div style="overflow-x:auto;">
         <table class="small-table" id="exec-sessions"><thead></thead><tbody></tbody></table>
       </div>
@@ -8620,134 +8630,101 @@ function _execBp(x, dp) {
   return (v >= 0 ? '+' : '') + v.toFixed(dp === undefined ? 0 : dp) + ' bp';
 }
 
-// --- Diagram 1: the weekly cycle -------------------------------------------
-// A process needs a process drawing. Sequential, left to right, one idea per
-// node, with the Singapore clock under each — which is the whole point, since
-// the choice was made on when a person can actually place the order.
-function _execCycleSVG(D) {
-  const us = (D.sessions_sgt || {}).US || {};
-  const xe = (D.sessions_sgt || {}).XETR || {};
-  const steps = [
-    { t: 'Friday close', s: 'Rankings use these prices',
-      c: us.sgt_close_summer + ' SGT Sat', kind: 'signal' },
-    { t: 'Weekend refresh', s: 'Position changes are produced',
-      c: 'Sat + Sun, from 09:00 SGT', kind: 'decide' },
-    { t: 'Monday evening', s: 'Orders submitted, then left alone',
-      c: 'Mon 21:50 / Tue 03:50 SGT', kind: 'decide' },
-    { t: 'Monday closing auctions', s: 'Europe 23:30, US 04:00 Tue',
-      c: 'unattended', kind: 'fill' }
-  ];
-  const W = 940, H = 200, bw = 200, gap = 46, y = 46, bh = 96;
-  const fill = { signal: 'var(--bg-soft)', decide: 'var(--bg-soft)', fill: '#e0f2fe' };
-  const stroke = { signal: 'var(--border)', decide: 'var(--border)', fill: '#0891b2' };
-  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" '
-        + 'style="min-width:820px;height:auto;display:block" '
-        + 'role="img" aria-label="The weekly decision and execution cycle">';
-  s += '<text x="0" y="18" font-size="13" fill="var(--ink-faint)">'
-     + 'One decision a week. Times are Singapore, summer offsets.</text>';
-  steps.forEach(function (st, i) {
-    const x = i * (bw + gap);
-    s += '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh
-       + '" rx="5" fill="' + fill[st.kind] + '" stroke="' + stroke[st.kind] + '"/>';
-    s += '<text x="' + (x + 14) + '" y="' + (y + 26)
-       + '" font-size="14" font-weight="600" fill="var(--ink)">' + st.t + '</text>';
-    s += '<text x="' + (x + 14) + '" y="' + (y + 48)
-       + '" font-size="11.5" fill="var(--ink-faint)">' + st.s + '</text>';
-    s += '<text x="' + (x + 14) + '" y="' + (y + 76)
-       + '" font-size="13" font-weight="600" fill="'
-       + (st.kind === 'fill' ? '#0369a1' : 'var(--ink-soft)') + '">' + st.c + '</text>';
-    if (i < steps.length - 1) {
-      const ax = x + bw + 8, ay = y + bh / 2;
-      s += '<line x1="' + ax + '" y1="' + ay + '" x2="' + (ax + gap - 18)
-         + '" y2="' + ay + '" stroke="var(--ink-faint)" stroke-width="1.5"/>';
-      s += '<path d="M' + (ax + gap - 18) + ' ' + (ay - 4) + ' l6 4 l-6 4 z" '
-         + 'fill="var(--ink-faint)"/>';
-    }
-  });
-  const braceY = y + bh + 22;
-  s += '<line x1="0" y1="' + braceY + '" x2="' + bw + '" y2="' + braceY
-     + '" stroke="var(--ink-faint)" stroke-width="1"/>';
-  s += '<line x1="' + (bw + gap) + '" y1="' + braceY + '" x2="' + W + '" y2="'
-     + braceY + '" stroke="#0891b2" stroke-width="1.5"/>';
-  s += '<text x="0" y="' + (braceY + 17)
-     + '" font-size="11.5" fill="var(--ink-faint)">what the decision knows</text>';
-  s += '<text x="' + (bw + gap) + '" y="' + (braceY + 17)
-     + '" font-size="11.5" fill="#0369a1">everything after it is already public when the order is placed</text>';
-  return s + '</svg>';
+// Session-clock presentation only: no trading date or broker deadline is inferred.
+// The reference dates name weekdays in an ordinary week, not the next live fill.
+// JavaScript months are 0-indexed; ISO date strings avoid numeric month arguments.
+function _execSession(D, venue, season, sessionDate, edge) {
+  const row = (D.sessions_sgt || {})[venue] || {};
+  const time = row['sgt_' + edge + '_' + season];
+  const rolls = row['sgt_close_rolls_' + season];
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time || '')
+      || (edge === 'close' && typeof rolls !== 'boolean')) return null;
+  const day = new Date(sessionDate + 'T00:00:00Z');
+  if (!Number.isFinite(day.getTime())) return null;
+  const next = edge === 'close' && rolls;
+  day.setUTCDate(day.getUTCDate() + (next ? 1 : 0));
+  const weekday = new Intl.DateTimeFormat('en-GB', {weekday:'short', timeZone:'UTC'}).format(day);
+  const regimes = {US:['EDT','EST'], XETR:['CEST','CET'], LSE:['BST','GMT'], SZSE:['CST','CST']};
+  const regime = (regimes[venue] || ['daylight','standard'])[season === 'summer' ? 0 : 1];
+  const parts = time.split(':').map(Number);
+  return {time, regime, day:day.toISOString().slice(0,10),
+    label:weekday + ' ' + time + ' SGT',
+    hour:parts[0] + parts[1] / 60 + (next ? 24 : 0)};
+}
+function _execPair(D, venue, sessionDate, edge) {
+  return ['summer','winter'].map(function (season) {
+    const value = _execSession(D, venue, season, sessionDate, edge || 'close');
+    return value ? value.regime + ': ' + value.label : 'Session time unavailable';
+  }).join('<br>');
 }
 
-// --- Diagram 2: the trading day on a Singapore clock ------------------------
-// Two venues, one Monday. Drawn because "15:00 and 21:30" is a sentence a
-// reader has to assemble; a bar showing both sessions against the same axis is
-// one glance. The overnight band is what made the old convention unworkable.
-function _execClockSVG(D) {
-  const us = (D.sessions_sgt || {}).US || {};
-  const xe = (D.sessions_sgt || {}).XETR || {};
-  const W = 940, H = 178, L = 96, R = W - 24, span = R - L;
-  const hx = function (h) { return L + (h / 30) * span; };
-  // Weight is carried explicitly. Without it the Xetra bar reads as the more
-  // important of the two purely because its session is longer, when it is a
-  // fifth of the book.
-  const rows = [
-    { name: 'Xetra', o: 15, c: 23.5, fill: xe.sgt_close_summer, y: 52,
-      w: 0.20, who: 'sleeve D' },
-    { name: 'US', o: 21.5, c: 28, fill: us.sgt_close_summer + ' Tue', y: 100,
-      w: 0.80, who: 'sleeves A, B, C' }
+// --- Diagram 1: the weekly cycle (reflowing steps, no clipped SVG text) ------
+function _execCycleHTML(D) {
+  const steps = [
+    ['1. Friday close', 'Rankings use these prices',
+      'Xetra<br>' + _execPair(D, 'XETR', '2026-09-11') + '<br>US<br>' + _execPair(D, 'US', '2026-09-11')],
+    ['2. Weekend refresh', 'Review the verified instruction',
+      'Sat + Sun, from 09:00 SGT.<br>Retain holdings for a HOLD sleeve.'],
+    ['3. Before the deadline', 'Confirm with the broker',
+      'Use the venue and order-type submission deadline.<br>A closing time is not an order cutoff.'],
+    ['4. Monday close', 'Orders execute in closing auctions',
+      'Xetra<br>' + _execPair(D, 'XETR', '2026-09-14') + '<br>US<br>' + _execPair(D, 'US', '2026-09-14')]
   ];
+  return '<ol class="exec-cycle-steps">' + steps.map(function (step) {
+    return '<li><strong>' + step[0] + '</strong><p>' + step[1]
+      + '</p><p>' + step[2] + '</p></li>';
+  }).join('') + '</ol>';
+}
+
+// --- Diagram 2: each venue shown in both of its clock regimes --------------
+function _execClockSVG(D) {
+  const W = 940, H = 382, L = 140, R = W - 24, span = R - L;
+  const hx = function (h) { return L + (h / 30) * span; };
+  const rows = [];
+  ['XETR','US'].forEach(function (venue) {
+    ['summer','winter'].forEach(function (season) {
+      const open = _execSession(D, venue, season, '2026-09-14', 'open');
+      const close = _execSession(D, venue, season, '2026-09-14', 'close');
+      rows.push({name:venue === 'XETR' ? 'Xetra' : 'US', open, close,
+        y:50 + rows.length * 76, w:venue === 'XETR' ? 0.20 : 0.80,
+        who:venue === 'XETR' ? 'sleeve D' : 'sleeves A, B, C'});
+    });
+  });
   let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" '
-        + 'style="min-width:820px;height:auto;display:block" role="img" '
-        + 'aria-label="Venue sessions and fill times on a Singapore clock">';
-  // civilised / overnight bands
-  s += '<rect x="' + hx(7) + '" y="34" width="' + (hx(23) - hx(7))
-     + '" height="120" fill="#dcfce7" opacity="0.5"/>';
-  s += '<rect x="' + hx(23) + '" y="34" width="' + (hx(30) - hx(23))
-     + '" height="120" fill="#fee2e2" opacity="0.55"/>';
-  s += '<text x="' + hx(15) + '" y="30" font-size="11.5" fill="#15803d" '
-     + 'text-anchor="middle">Singapore waking hours</text>';
-  s += '<text x="' + hx(26.5) + '" y="30" font-size="11.5" fill="#dc2626" '
-     + 'text-anchor="middle">overnight</text>';
+    + 'style="min-width:940px;height:auto;display:block" role="img" '
+    + 'aria-label="Normal Monday venue sessions in both clock regimes, shown in Singapore time">';
+  s += '<text x="0" y="18" font-size="13" fill="var(--ink-faint)">'
+    + 'Normal sessions only; each venue changes clocks independently. Not broker deadlines.</text>';
+  s += '<rect x="' + hx(24) + '" y="34" width="' + (hx(30)-hx(24))
+    + '" height="300" fill="var(--bg-soft)"/>';
   rows.forEach(function (r) {
     s += '<text x="0" y="' + (r.y + 4) + '" font-size="13" font-weight="600" '
-       + 'fill="var(--ink)">' + r.name + '</text>';
-    s += '<text x="0" y="' + (r.y + 20) + '" font-size="11.5" '
-       + 'fill="var(--ink-faint)">' + r.who + '</text>';
-    // Proportional share bar: 78px wide, filled to the sleeve weight.
-    s += '<rect x="0" y="' + (r.y + 27) + '" width="78" height="7" rx="2" '
-       + 'fill="var(--bg-soft)" stroke="var(--border)"/>';
-    s += '<rect x="0" y="' + (r.y + 27) + '" width="' + (78 * r.w) + '" '
-       + 'height="7" rx="2" fill="#0891b2"/>';
-    s += '<text x="82" y="' + (r.y + 34) + '" font-size="11.5" '
-       + 'font-weight="600" fill="var(--ink-soft)">'
-       + Math.round(r.w * 100) + '%</text>';
-    s += '<rect x="' + hx(r.o) + '" y="' + r.y + '" width="' + (hx(r.c) - hx(r.o))
-       + '" height="22" rx="3" fill="var(--bg-soft)" stroke="var(--border)"/>';
-    s += '<text x="' + (hx(r.o) + 8) + '" y="' + (r.y + 16)
-       + '" font-size="12" fill="var(--ink-faint)">market open</text>';
-    // The fill is the CLOSING AUCTION. Marked at the close, not the open.
-    s += '<circle cx="' + hx(r.c) + '" cy="' + (r.y + 11) + '" r="6" '
-       + 'fill="#0891b2" stroke="white" stroke-width="1.5"/>';
-    s += '<text x="' + hx(r.c) + '" y="' + (r.y - 6) + '" font-size="12" '
-       + 'font-weight="600" fill="#0369a1" text-anchor="end">fills at the '
-       + 'close ' + r.fill + '</text>';
+      + 'fill="var(--ink)">' + r.name + ' ' + (r.close ? r.close.regime : '') + '</text>';
+    s += '<text x="0" y="' + (r.y + 23) + '" font-size="12" fill="var(--ink-faint)">'
+      + r.who + ' (' + Math.round(r.w * 100) + '%)</text>';
+    if (!r.open || !r.close) {
+      s += '<text x="' + L + '" y="' + (r.y + 18)
+        + '" font-size="13" fill="var(--ink)">Session time unavailable</text>';
+      return;
+    }
+    s += '<rect data-venue="' + r.name + '" data-regime="' + r.close.regime
+      + '" data-open-hour="' + r.open.hour + '" data-close-hour="' + r.close.hour
+      + '" x="' + hx(r.open.hour) + '" y="' + r.y + '" width="'
+      + (hx(r.close.hour)-hx(r.open.hour)) + '" height="22" rx="3" '
+      + 'fill="var(--bg-soft)" stroke="var(--border)"/>';
+    s += '<text x="' + (hx(r.open.hour)+8) + '" y="' + (r.y+16)
+      + '" font-size="12" fill="var(--ink-faint)">opens ' + r.open.time + '</text>';
+    s += '<circle cx="' + hx(r.close.hour) + '" cy="' + (r.y+11)
+      + '" r="6" fill="var(--accent)"/>';
+    s += '<text x="' + hx(r.close.hour) + '" y="' + (r.y-6)
+      + '" font-size="12" font-weight="600" fill="var(--ink)" text-anchor="end">'
+      + 'close ' + r.close.label + '</text>';
   });
-  // Right-aligned to the plot edge: centred on hx(28) it ran 55px past the
-  // viewBox and was clipped. It sits under both red markers either way.
-  // The window in which a person is involved at all. Everything after it is
-  // an order sitting on an exchange.
-  s += '<rect x="' + hx(21) + '" y="34" width="' + (hx(23) - hx(21))
-     + '" height="120" fill="none" stroke="#0891b2" stroke-dasharray="4 3"/>';
-  s += '<text x="' + hx(22) + '" y="' + (100 + 46) + '" font-size="11.5" '
-     + 'fill="#0369a1" text-anchor="middle">orders submitted here</text>';
-  // axis
-  s += '<line x1="' + L + '" y1="154" x2="' + R + '" y2="154" '
-     + 'stroke="var(--border)"/>';
-  [8, 12, 16, 20, 24, 28].forEach(function (h) {
-    const lab = h < 24 ? (h < 10 ? '0' + h + ':00' : h + ':00')
-                       : ((h - 24) < 10 ? '0' + (h - 24) : (h - 24)) + ':00 +1d';
-    s += '<line x1="' + hx(h) + '" y1="154" x2="' + hx(h) + '" y2="159" '
-       + 'stroke="var(--border)"/>';
-    s += '<text x="' + hx(h) + '" y="172" font-size="12" fill="var(--ink-faint)" '
-       + 'text-anchor="middle">' + lab + '</text>';
+  s += '<line x1="' + L + '" y1="340" x2="' + R + '" y2="340" stroke="var(--border)"/>';
+  [8,12,16,20,24,28].forEach(function (h) {
+    const label = String(h % 24).padStart(2,'0') + ':00 ' + (h < 24 ? 'Mon' : 'Tue');
+    s += '<text x="' + hx(h) + '" y="360" font-size="12" fill="var(--ink-faint)" '
+      + 'text-anchor="middle">' + label + '</text>';
   });
   return s + '</svg>';
 }
@@ -8762,44 +8739,36 @@ function renderExecutionTiming() {
   }
   const days = D.days || [];
   const blend = D.blend || {};
-  const us = (D.sessions_sgt || {}).US || {};
   // The deployed day since 2026-08-22 (WS18). Its execution_choice block is
   // the open-versus-close evidence for the auction the book actually uses.
   const mon = blend['MON'] || {};
   const ec = mon.execution_choice || {};
 
-  // --- Verdict: one sentence. The close times come from the feed, so they
-  //     stay right through daylight saving rather than being written down.
+  // Normal-session examples are not a calendar forecast for the live book.
   if (vEl) {
-    const usC = ((D.sessions_sgt || {}).US || {}).sgt_close_summer;
-    const xeC = ((D.sessions_sgt || {}).XETR || {}).sgt_close_summer;
     vEl.innerHTML =
       'This portfolio rebalances <strong>once a week</strong>: it ranks on '
       + '<strong>Friday&rsquo;s closing prices</strong> and executes in '
-      + '<strong>Monday&rsquo;s closing auctions</strong>, through '
-      + 'market-on-close orders placed on Monday evening Singapore time. '
-      + 'Nobody needs to be awake when they fill &mdash; Europe clears at '
-      + (xeC || '—') + ' SGT that evening, the United States at '
-      + (usC || '—') + ' SGT early on the Tuesday &mdash; and the auction '
-      + 'price is the same closing price every figure on this dashboard is '
-      + 'computed on, so what is executed and what is published are one '
-      + 'number. In place since 2026-08-22.';
+      + '<strong>Monday&rsquo;s closing auctions</strong> in an ordinary week. '
+      + 'Market-on-close orders must reach the broker before its confirmed deadline. '
+      + 'Normal Monday closing times in Singapore:<br><strong>Xetra</strong><br>'
+      + _execPair(D, 'XETR', '2026-09-14') + '<br><strong>US</strong><br>'
+      + _execPair(D, 'US', '2026-09-14')
+      + '<br>Europe and the US change clocks independently. These are not live '
+      + 'fill dates or order cutoffs. Use the verified instruction for actual '
+      + 'fill dates, including holidays and early closes; do not trade a HOLD sleeve.';
   }
 
   // --- Diagrams
   const cy = document.getElementById('exec-cycle-diagram');
-  if (cy) cy.innerHTML = _execCycleSVG(D);
+  if (cy) cy.innerHTML = _execCycleHTML(D);
   const ck = document.getElementById('exec-clock-diagram');
   if (ck) ck.innerHTML = _execClockSVG(D);
 
-  // --- Inline figures in the three reasons
-  const setX = function (name, val) {
-    document.querySelectorAll('[data-x="' + name + '"]').forEach(function (e) {
-      e.textContent = val || '—';
-    });
-  };
-  setX('us_close_s', us.sgt_close_summer);
-  setX('us_open_s', us.sgt_open_summer);
+  const basis = document.getElementById('exec-clock-basis');
+  if (basis) basis.dataset.sourceAsOf = D.as_of || 'unavailable';
+  const stamp = document.getElementById('exec-clock-source-date');
+  if (stamp) stamp.textContent = D.as_of || 'unavailable';
   const put = function (id, txt) {
     const e = document.getElementById(id); if (e) e.textContent = txt;
   };
@@ -9080,7 +9049,7 @@ function renderExecutionTiming() {
   if (pTab) {
     pTab.querySelector('thead').innerHTML =
       '<tr><th>#</th><th>Variant</th><th>Signal bar</th><th>Fill</th>'
-      + '<th>SGT</th><th>Blend Sharpe</th><th>Basis</th><th>Verdict</th></tr>';
+      + '<th>SGT (US daylight-time reference)</th><th>Blend Sharpe</th><th>Basis</th><th>Verdict</th></tr>';
     pTab.querySelector('tbody').innerHTML = path.map(function (r) {
       const col = r.verdict === 'adopted' ? 'var(--positive)'
                 : r.verdict === 'rejected' ? 'var(--negative)' : 'var(--ink-faint)';
