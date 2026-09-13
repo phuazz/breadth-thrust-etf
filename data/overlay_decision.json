@@ -1,0 +1,19 @@
+{
+  "as_of": "2026-09-11",
+  "gate_feed": "norgate-local",
+  "gate_input_date": "2026-09-11",
+  "tilt_input_date": "2026-09-11",
+  "gate_on": false,
+  "tilt_on": true,
+  "weights": {
+    "a": 0.35,
+    "b": 0.24999999999999997,
+    "c": 0.1,
+    "d": 0.2,
+    "tilt_on": true,
+    "derisk_on": false,
+    "equity_scaler": 1.0,
+    "tilt_nav": 0.1,
+    "shy_overlay": 0.0
+  }
+}
