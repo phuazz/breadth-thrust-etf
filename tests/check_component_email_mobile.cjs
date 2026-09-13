@@ -43,6 +43,10 @@ const http = require('node:http');
           results.push({file,width,theme,...result});
           if(result.viewport!==width || result.scrollWidth>width+1 || result.overflow || result.minFont<11)
             throw new Error(JSON.stringify(results.at(-1)));
+          const measure = width===390 ? [40,50] : [65,75];
+          if(result.charsPerLine<measure[0] || result.charsPerLine>measure[1])
+            throw new Error('Reading measure outside target: '+JSON.stringify(results.at(-1)));
+          if(width===390) await page.screenshot({path:path.join(folder,file+'.'+theme+'.png'),fullPage:true});
         }
         if(width===390) await page.screenshot({path:path.join(folder,file+'.png'),fullPage:true});
         await context.close();

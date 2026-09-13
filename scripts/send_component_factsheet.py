@@ -8,10 +8,10 @@ Python datetime months are 1-indexed; exchange calendars define the anchor.
 from __future__ import annotations
 
 import argparse
+import base64
 from datetime import datetime, timezone
 from email.message import EmailMessage
-from email.utils import getaddresses
-from html import escape
+from email.utils import getaddresses, formataddr
 import os
 from pathlib import Path
 import smtplib
@@ -65,70 +65,8 @@ def plan(root=ROOT, now=None, committed=False):
 
 
 def render(decision, release, include_unchanged=False):
-    """Decision-aid email: status, explicit changes, then historical performance."""
-    wording = email_wording(decision)
-    book = release["book"]
-    e = escape
-    anchor = e(release["anchor"])
-    parts = [f"<h1>{e(wording['heading'])}</h1>", f"<p>Decision close: {anchor}. Proposed positions, not executed trades.</p>",
-             f"<p>{e(wording['summary'])}</p><p>{e(wording['difference'])}</p>",
-             f"<p><strong>Strategy D:</strong> {e(wording['d_instruction'])}</p>"]
-    if release["performance"]["series"].startswith("synthetic"):
-        parts.insert(0, "<p><strong>SYNTHETIC NO-SEND REHEARSAL — not a live instruction.</strong></p>")
-    overlays = book["overlay_decision"]
-    parts.append(f"<p>EM tilt: {'ON' if overlays['tilt_on'] else 'OFF'}. "
-                 f"Breadth gate: {'RISK OFF' if overlays['gate_on'] else 'RISK ON'}. "
-                 f"Both inputs verified to {anchor}.</p>")
-    for s in book["sleeves"]:
-        # datetime supplies the weekday; no manually inferred calendar labels.
-        fill = datetime.fromisoformat(s["fill_date"]).strftime("%a %d %b %Y")
-        parts.append(f"<p>Strategy {e(s['sleeve'])}: {e(s['status'])}. "
-                     f"{e(s['venue'])} closing-auction fill: {e(fill)}.</p>")
-    parts.append("<p>Confirm broker submission times in the dashboard’s Execution Timing tab. "
-                 "An email review checkpoint is not an order cutoff.</p>"
-                 + ("<h2>Complete proposed book</h2>" if include_unchanged else "<h2>Proposed position changes</h2>") +
-                 "<p>Held and target figures are percentages of total NAV. Change is in percentage points. "
-                 "The held baseline is the model portfolio, not confirmation of broker holdings.</p>")
-    count = 0
-    for r in book["lines"]:
-        if abs(r["delta"]) <= 1e-8 and not include_unchanged:
-            continue
-        count += 1
-        name = release["labels"].get(r["etf"], r["etf"])
-        note = " — portfolio-risk adjustment only; selection unchanged" if r.get("risk_adjustment") else ""
-        parts.append(f"<section class='position'><h3>{e(name)} ({e(r['traded'])})</h3>"
-            f"<p>Strategy {e(r['sleeve'])}{e(note)}</p>"
-            f"<p>Held {r['held']*100:.2f}% → Target {r['target']*100:.2f}% "
-            f"· Change {r['delta']*100:+.2f}pp</p></section>")
-    if not count:
-        parts.append("<p>No position changes.</p>")
-    if decision["d_hold"]:
-        parts.append("<p>D remains on HOLD for selection. No Thursday-close substitute or new D ranking is used.</p>")
-    if abs(book.get("rounding_residual_nav", 0.0)) > 1e-12:
-        parts.append("<p>D holdings are unchanged; small rounding differences in totals are not trades.</p>")
-    stats = release["performance"]
-    parts.append(f"<h2>Historical model performance</h2><p>Valuation as of {e(stats['as_of'])}. "
-        f"Source: deployed model series {e(stats['series'])}. These results do not assume the proposed trades occurred.</p>")
-    for label, value in stats["values"].items():
-        text = "Unavailable" if value is None else (f"{value:.2f}" if label == "Sharpe" else f"{value*100:+.2f}%")
-        parts.append(f"<p>{e(label)}: {e(text)}</p>")
-    parts.append(f"<p>WTD: {e(stats['wtd_start'] or 'unavailable')} to {e(stats['as_of'])}. "
-                 "YTD starts at the prior year-end close; 1Y is the trailing calendar year. "
-                 "Sharpe and maximum drawdown cover the full deployed-model history.</p>")
-    parts.append("<p>The attached HTML contains the complete proposed book, including unchanged positions; "
-        "the JSON copy provides the same book for audit. "
-        "Review it against actual holdings before submitting orders.</p>"
-        "<p><a href='https://phuazz.github.io/breadth-thrust-etf/'>Dashboard and Execution Timing</a></p>"
-        "<p>Systematic model research, not personalised investment advice. Past performance does not guarantee future results.</p>")
-    css = """html{-webkit-text-size-adjust:100%;color-scheme:light}body{margin:0;background:#fff;color:#17212f;
-font:16px/1.6 Arial,sans-serif;padding:20px}main{max-width:60ch;margin:auto}p{overflow-wrap:anywhere}
-h1{font-size:24px;line-height:1.3}h2{font-size:20px}h3{font-size:16px;margin:0}
-.position{border-top:1px solid #d5dce5;padding:12px 0}.position p{margin:4px 0}
-a{color:#164cb2}@media(max-width:480px){body{padding:16px;font-size:16px}h1{font-size:22px}}
-html[data-theme=dark]{color-scheme:dark}html[data-theme=dark] body{background:#111827;color:#f3f4f6}
-html[data-theme=dark] a{color:#93c5fd}"""
-    return "<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>" + \
-        f"<title>{e(wording['subject'])}</title><style>{css}</style></head><body><main>" + "".join(parts) + "</main></body></html>"
+    from component_factsheet_view import render_html
+    return render_html(decision, release, include_unchanged)
 
 
 def prepare(root=ROOT, now=None, reserve=False, committed=False):
@@ -136,14 +74,20 @@ def prepare(root=ROOT, now=None, reserve=False, committed=False):
     decision, release = plan(root, now, committed=committed)
     if decision["action"] not in SEND_ACTIONS:
         return decision
+    from component_factsheet_view import verified_context, render_pdf, render_text
+    release = {**release, "presentation": verified_context(root, release, committed)}
     html = render(decision, release)
     wording = email_wording(decision)
     candidate = {"decision": decision, "release_identity": release["identity"],
-        "subject": f"{wording['subject']} · {release['anchor']}", "html": html,
+        "subject": f"{wording['subject']} · USD Multi-Strategy ETF Portfolio · {release['anchor']}", "html": html,
         "book_html": render(decision, release, include_unchanged=True), "book": release["book"]}
+    candidate["text"] = render_text(decision, release)
+    candidate["pdf_base64"] = base64.b64encode(render_pdf(decision, release)).decode("ascii")
+    candidate["pdf_filename"] = f"factsheet_{release['anchor']}_{decision['action']}.pdf"
     candidate["id"] = digest(candidate)
     write(root / OUT / "candidate.json", candidate)
     (root / OUT / "preview.html").write_text(html, encoding="utf-8")
+    (root / OUT / candidate["pdf_filename"]).write_bytes(base64.b64decode(candidate["pdf_base64"]))
     if reserve:
         ledger = ledger_at(root)
         anchor = release["anchor"]
@@ -159,13 +103,16 @@ def smtp_send(candidate, env):
     if not recipients or any("@" not in a or "\n" in a or "\r" in a for a in recipients):
         raise ValueError("recipient configuration is empty or invalid")
     msg = EmailMessage()
-    msg["From"] = sender
+    msg["From"] = formataddr(("USD Multi-Strategy ETF Factsheet", sender))
     msg["To"] = ", ".join(recipients)
     msg["Subject"] = candidate["subject"]
     msg["Message-ID"] = f"<component-{candidate['id']}@breadth-thrust-etf.invalid>"
     wording = email_wording(candidate["decision"])
-    msg.set_content("\n\n".join(wording.values()) + "\n\nThe complete proposed model book is attached.")
+    msg.set_content(candidate.get("text") or "\n\n".join(wording.values()) + "\n\nThe complete proposed model book is attached.")
     msg.add_alternative(candidate["html"], subtype="html")
+    if candidate.get("pdf_base64"):
+        msg.add_attachment(base64.b64decode(candidate["pdf_base64"], validate=True),
+                           maintype="application", subtype="pdf", filename=candidate["pdf_filename"])
     msg.add_attachment(candidate["book_html"], subtype="html", filename="complete-proposed-book.html")
     from component_release import canonical
     msg.add_attachment(canonical(candidate["book"]), maintype="application", subtype="json",
