@@ -2,11 +2,11 @@
   "etf": "EXV9",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-09-06T01:38:14.578136+00:00",
+  "fetched_at_utc": "2026-09-13T01:12:49.501998+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-09-04",
-  "n_target_fridays": 453,
-  "n_snapshots_written": 453,
+  "end_friday": "2026-09-11",
+  "n_target_fridays": 454,
+  "n_snapshots_written": 454,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -32,8 +32,8 @@
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-09-04",
-      "fallback_date": "2026-09-03",
+      "target_friday": "2026-09-11",
+      "fallback_date": "2026-09-10",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
@@ -52,7 +52,7 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-03",
+    "last_real_fetch_date": "2026-09-10",
     "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
@@ -9824,7 +9824,7 @@
       ]
     },
     "2026-09-04": {
-      "actual_date": "2026-09-03",
+      "actual_date": "2026-09-04",
       "n_tickers": 12,
       "tickers": [
         "IHG.L",
@@ -9834,8 +9834,26 @@
         "AC.PA",
         "LTMC.MI",
         "SW.PA",
-        "WTB.L",
         "LHA.DE",
+        "WTB.L",
+        "ENT.L",
+        "TUI1.DE",
+        "FDJU.PA"
+      ]
+    },
+    "2026-09-11": {
+      "actual_date": "2026-09-10",
+      "n_tickers": 12,
+      "tickers": [
+        "IHG.L",
+        "RYA.IR",
+        "IAG.L",
+        "EVO.ST",
+        "AC.PA",
+        "LTMC.MI",
+        "SW.PA",
+        "LHA.DE",
+        "WTB.L",
         "ENT.L",
         "TUI1.DE",
         "FDJU.PA"

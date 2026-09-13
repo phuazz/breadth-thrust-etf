@@ -2,11 +2,11 @@
   "etf": "EXH1",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251954/ishares-stoxx-europe-600-oil-gas-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXH1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-09T07:33:25.761020+00:00",
+  "fetched_at_utc": "2026-09-13T00:58:32.824188+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-09-04",
-  "n_target_fridays": 453,
-  "n_snapshots_written": 453,
+  "end_friday": "2026-09-11",
+  "n_target_fridays": 454,
+  "n_snapshots_written": 454,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -30,6 +30,12 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-09-11",
+      "fallback_date": "2026-09-10",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -46,8 +52,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-04",
-    "days_since_last_real_fetch": 0,
+    "last_real_fetch_date": "2026-09-10",
+    "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -12586,6 +12592,38 @@
     },
     "2026-09-04": {
       "actual_date": "2026-09-04",
+      "n_tickers": 26,
+      "tickers": [
+        "SHELL.AS",
+        "TTE.PA",
+        "ENR.DE",
+        "BP.L",
+        "ENI.MI",
+        "EQNR.OL",
+        "REP.MC",
+        "VWS.CO",
+        "PKN.WA",
+        "NESTE.HE",
+        "SRG.MI",
+        "AKRBP.OL",
+        "OMV.VI",
+        "GALP.LS",
+        "GTT.PA",
+        "TEN.MI",
+        "SUBC.OL",
+        "SPM.MI",
+        "NDX1.DE",
+        "SBMO.AS",
+        "VAR.OL",
+        "TE.PA",
+        "ENG.MC",
+        "VK.PA",
+        "VPK.AS",
+        "TGS.OL"
+      ]
+    },
+    "2026-09-11": {
+      "actual_date": "2026-09-10",
       "n_tickers": 26,
       "tickers": [
         "SHELL.AS",
