@@ -104,6 +104,8 @@ def render(decision, release, include_unchanged=False):
         parts.append("<p>No position changes.</p>")
     if decision["d_hold"]:
         parts.append("<p>D remains on HOLD for selection. No Thursday-close substitute or new D ranking is used.</p>")
+    if abs(book.get("rounding_residual_nav", 0.0)) > 1e-12:
+        parts.append("<p>D holdings are unchanged; small rounding differences in totals are not trades.</p>")
     stats = release["performance"]
     parts.append(f"<h2>Historical model performance</h2><p>Valuation as of {e(stats['as_of'])}. "
         f"Source: deployed model series {e(stats['series'])}. These results do not assume the proposed trades occurred.</p>")

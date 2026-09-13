@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from test_component_sender import install, NOW
-from component_release import ROOT
+from component_release import ROOT, read, write, seal
 from send_component_factsheet import prepare, render
 
 
@@ -30,7 +30,19 @@ def main():
             release = install(root, patch, ready=True)
             html = render({"action": "regular", "d_hold": False}, release, include_unchanged=True)
             (out / "rehearsal-complete-book.html").write_text(html, encoding="utf-8")
-    print("NO-SEND REHEARSAL: three synthetic previews generated; no SMTP, no production ledger.")
+            install(root, patch, rounded_d=True)
+            quotes = read(root / "data/holdings_prices_1y.json")
+            for ticker in ("EXV1", "EXV3", "EXH1"):
+                quotes["prices"].pop(ticker)
+            write(root / "data/holdings_prices_1y.json", quotes)
+            release = seal(root, now=NOW)
+            assert prepare(root, NOW)["action"] == "preview"
+            assert not (root / "docs/component_delivery.json").exists()
+            for full in (False, True):
+                html = render({"action": "preview", "d_hold": True}, release, include_unchanged=full)
+                name = "rehearsal-rounded-hold-book.html" if full else "rehearsal-rounded-hold.html"
+                (out / name).write_text(html, encoding="utf-8")
+    print("NO-SEND REHEARSAL: six synthetic previews, including rounded HOLD with no D quotes; no SMTP, no production ledger.")
 
 
 if __name__ == "__main__":

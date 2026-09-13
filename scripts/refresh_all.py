@@ -502,6 +502,15 @@ def main() -> int:
         if not ok:
             failures.append(label)
 
+        if script == "scripts/live_targets.py" and args.component != "all":
+            if failures:
+                print("Live inputs failed; publication preparation was not started.", flush=True)
+                return 1
+            ok, _ = run_step("early book and traded-price preflight (not a release)",
+                             [py, "scripts/component_release.py", "preflight"])
+            if not ok:
+                return 1
+
     # ----- Step 7: verification (guard layer) -----
     # These validate the state steps 1-6 just wrote, before the operator
     # commits. Failure semantics:

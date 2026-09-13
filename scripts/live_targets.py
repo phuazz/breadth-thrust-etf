@@ -298,6 +298,8 @@ def build(now_utc: datetime | None = None) -> dict:
             raise ValueError("held-book basis belongs to another week")
         held = {(r["sleeve"], r["etf"]): float(r["held"]) for r in basis["lines"] if float(r["held"]) > 0}
     lines = _intended_lines(sleeves, held, st, adjust_overlays=component_mode)
+    from component_contract import hold_rounding_residual
+    rounding_residual = hold_rounding_residual(sleeves, lines, st) if component_mode else 0.0
     # WHICH fill is this, and has it happened? Both stated explicitly, because
     # a target book that does not say either is indistinguishable from a record
     # of trades already done -- which is the one way this artefact could
@@ -332,6 +334,7 @@ def build(now_utc: datetime | None = None) -> dict:
 
     return {"computed_at_utc": now.isoformat(), "as_of": asof,
             "overlay_decision": overlay_decision,
+            "rounding_residual_nav": rounding_residual,
             "executed": False,
             "targets_final": final,
             "next_fill": {
@@ -366,6 +369,10 @@ def _intended_lines(sleeves: list[dict], held: dict[tuple[str, str], float],
     book, which keeps the artefact identity target == within x sum(target)),
     and a ranked-but-unheld name gets no line at all: nothing is intended to be
     bought. The rank the sleeve could not use stays in sleeves[].weights.
+
+    Component mode permits real portfolio-risk resizing of a HOLD selection.
+    An unchanged registered D budget preserves the stored weights exactly;
+    their bounded rounding residual is accounting metadata, not an order.
     """
     status_of = {s["sleeve"]: s["status"] for s in sleeves}
     ready = {sl for sl, status in status_of.items() if status == "READY"}
@@ -392,7 +399,9 @@ def _intended_lines(sleeves: list[dict], held: dict[tuple[str, str], float],
                           "status": "READY"})
         elif sl in status_of and sl not in ready:
             tot = held_total[sl]
-            target = eff / tot * sleeve_nav[sl.lower()] if adjust_overlays and tot else eff
+            from component_contract import unchanged_hold_budget
+            preserve = adjust_overlays and unchanged_hold_budget(sl, tot, sleeve_nav[sl.lower()])
+            target = eff / tot * sleeve_nav[sl.lower()] if adjust_overlays and tot and not preserve else eff
             lines.append({"sleeve": sl, "etf": etf, "traded": _traded(etf),
                           "within": eff / tot if tot > 0 else 0.0,
                           "target": target, "held": eff,
@@ -408,9 +417,8 @@ def _intended_lines(sleeves: list[dict], held: dict[tuple[str, str], float],
             if not any(ln["sleeve"] == sl for ln in lines) and overlay_targets[sl] > 0:
                 lines.append({"sleeve": sl, "etf": etf, "traded": _traded(etf),
                               "within": 1.0, "held": 0.0, "target": overlay_targets[sl], "status": "READY"})
-        total = sum(ln["target"] for ln in lines)
-        if not math.isclose(total, 1.0, abs_tol=1e-6):
-            raise ValueError(f"component target book does not conserve NAV: {total}")
+        from component_contract import validate_target_nav
+        validate_target_nav(sleeves, lines, sleeve_nav)
     for ln in lines:
         ln["delta"] = ln["target"] - ln["held"]
     lines.sort(key=lambda x: (x["sleeve"], -abs(x["delta"])))

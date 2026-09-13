@@ -15,7 +15,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from component_contract import expected_budgets, risk_only_hold
+from component_contract import expected_budgets, risk_only_hold, validate_target_nav
 from component_basis import validate as validate_basis
 from nyse_sessions import week_final_anchor
 
@@ -131,8 +131,10 @@ def validate_book(book, basis, now):
                 raise ValueError("position disagrees with verified ranking or overlay")
     if any(v > 0 and k not in keys for mapping in (prior, expected) for k, v in mapping.items()):
         raise ValueError("position omitted from instruction")
-    if not math.isclose(sum(r["target"] for r in rows), 1, abs_tol=1e-5):
-        raise ValueError("target book does not conserve NAV")
+    declared_rounding = book.get("rounding_residual_nav", 0.0)
+    if declared_rounding is None or isinstance(declared_rounding, bool):
+        raise ValueError("invalid declared HOLD rounding residual")
+    validate_target_nav(sleeves, rows, budgets, declared_rounding)
     d = next(s for s in sleeves if s["sleeve"] == "D")
     d_fields = ("sleeve", "venue", "status", "weights", "decision_session",
                 "decision_session_for_fill", "fill_date")
@@ -198,6 +200,15 @@ def performance(root, reader=read):
          ("c", "thematic_rotation.json"), ("d", "europe_rotation.json")]})
     return {"as_of": str(series.index[-1].date()), "series": key,
             "values": values, "wtd_start": wtd[1] if wtd else None}, labels
+
+
+def preflight(root=ROOT, now=None):
+    """Fail early on book/price defects; not a replacement for the final seal."""
+    now = now or datetime.now(timezone.utc)
+    book = read(root / "data/live_targets.json")
+    verdict = validate_book(book, read(root / "data/component_held_basis.json"), now)
+    price_evidence(root, book)
+    return verdict
 
 
 def seal(root=ROOT, component="core", now=None):
@@ -276,8 +287,10 @@ def verify(root=ROOT, now=None, committed=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("seal", "verify"))
+    parser.add_argument("operation", choices=("seal", "verify", "preflight"))
     parser.add_argument("--component", choices=("core", "europe"), default="core")
     args = parser.parse_args()
-    result = seal(component=args.component) if args.operation == "seal" else verify()
-    print(f"Verified component release: {result['anchor']}; D ready={result['d_ready']}")
+    result = (seal(component=args.component) if args.operation == "seal" else
+              preflight() if args.operation == "preflight" else verify())
+    label = "Book/price preflight only (not sealed)" if args.operation == "preflight" else "Verified component release"
+    print(f"{label}: {result['anchor']}; D ready={result['d_ready']}")

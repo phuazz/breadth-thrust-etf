@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import pytest
 import component_release as cr
 import send_component_factsheet as sender
-from component_contract import expected_budgets
+from component_contract import expected_budgets, hold_rounding_residual
 from component_basis import validate as validate_basis
 from live_targets import _intended_lines, next_fill_date, decision_session_for
 from nyse_sessions import week_final_anchor
@@ -23,13 +23,19 @@ from nyse_sessions import week_final_anchor
 NOW = datetime(2026, 9, 12, 6, tzinfo=timezone.utc)
 
 
-def fixture_book(now=NOW, d_ready=False, gate=False, tilt=False):
+def fixture_book(now=NOW, d_ready=False, gate=False, tilt=False, rounded_d=False):
     anchor = week_final_anchor(now).isoformat()
     overlay = {"as_of": anchor, "gate_input_date": anchor, "tilt_input_date": anchor,
                "gate_on": gate, "tilt_on": tilt, "gate_feed": "fixture"}
     overlay["weights"] = expected_budgets(overlay)
     names = dict(A="SPY", B="QQQ", C="SMH", D="EXV1")
     held = {(s, names[s]): w for s, w in zip("ABCD", (.35, .35, .1, .2))}
+    if rounded_d:
+        # The three D weights reproduce the failed production baseline.
+        held.pop(("D", "EXV1"))
+        held.update({("D", "EXV1"): .07558, ("D", "EXV3"): .06318,
+                     ("D", "EXH1"): .06126})
+        held[("A", "SPY")] += .000035  # reproduce total held NAV 1.000055
     sleeves = []
     for s in "ABCD":
         venue = "XETR" if s == "D" else "NYSE"
@@ -45,11 +51,12 @@ def fixture_book(now=NOW, d_ready=False, gate=False, tilt=False):
     book = {"as_of": anchor, "computed_at_utc": now.isoformat(), "executed": False,
             "targets_final": d_ready, "sleeves": sleeves, "overlay_decision": overlay,
             "lines": _intended_lines(sleeves, held, overlay["weights"], adjust_overlays=True)}
+    book["rounding_residual_nav"] = hold_rounding_residual(sleeves, book["lines"], overlay["weights"])
     return book, basis
 
 
-def install(root, monkeypatch, *, now=NOW, ready=False, gate=False):
-    book, basis = fixture_book(now, ready, gate)
+def install(root, monkeypatch, *, now=NOW, ready=False, gate=False, rounded_d=False):
+    book, basis = fixture_book(now, ready, gate, rounded_d=rounded_d)
     for p in cr.source_paths(root):
         cr.write(p, {})
     cr.write(root / "data/live_targets.json", book)

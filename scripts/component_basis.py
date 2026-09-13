@@ -7,6 +7,8 @@ import math
 from datetime import date
 from pathlib import Path
 
+MODEL_WEIGHT_ROUNDING_TOL = 1e-4
+
 
 def validate(basis, anchor):
     if basis["anchor"] != anchor or date.fromisoformat(basis["model_as_of"]) > date.fromisoformat(anchor):
@@ -16,7 +18,8 @@ def validate(basis, anchor):
     if (not rows or len(set(keys)) != len(rows)
             or any(r["sleeve"] not in {"A", "B", "C", "D", "TILT", "GATE"} for r in rows)
             or any(not math.isfinite(float(r["held"])) or float(r["held"]) < 0 for r in rows)
-            or not math.isclose(sum(float(r["held"]) for r in rows), 1.0, abs_tol=1e-4)):
+            or not math.isclose(sum(float(r["held"]) for r in rows), 1.0, rel_tol=0,
+                                abs_tol=MODEL_WEIGHT_ROUNDING_TOL)):
         raise ValueError("model-held basis is incomplete, duplicated or does not conserve NAV")
     return basis
 
@@ -33,7 +36,8 @@ def prepare(data_dir: Path, anchor: str):
     keys = [(r["sleeve"], r["etf"]) for r in rows]
     if (not rows or len(set(keys)) != len(rows)
             or any(not math.isfinite(r["held"]) or r["held"] < 0 for r in rows)
-            or not math.isclose(sum(r["held"] for r in rows), 1.0, abs_tol=1e-4)):
+            or not math.isclose(sum(r["held"] for r in rows), 1.0, rel_tol=0,
+                                abs_tol=MODEL_WEIGHT_ROUNDING_TOL)):
         raise ValueError("model-held basis is incomplete, duplicated or does not conserve NAV")
     result = {"anchor": anchor, "model_as_of": book["as_of"], "lines": rows,
               "basis": "existing model-held positions; not broker execution confirmation",
