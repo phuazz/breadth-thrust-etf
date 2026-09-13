@@ -13,7 +13,9 @@ safeguard already in production, verify, deploy, and send one clearly labelled
 revised-presentation email to all existing recipients without disturbing the
 already-delivered instruction.
 
-Status: **COMPLETE — see "Actual send evidence" below.**
+Status: **COMPLETE.** Deployed as `23272ba` on `main`, and one labelled revision
+accepted by Gmail for all configured recipients at 21:28 SGT on Sunday 13
+September 2026. Evidence below.
 
 Codex commit `f3e666c` was used as a starting point, not a constraint. Its
 performance panels, return drivers, holding-price moves, deterministic PDF,
@@ -138,7 +140,13 @@ Europe identity is refused.
 Branch `codex/factsheet-presentation`, rebased onto production and fast-forwarded
 to `main`.
 
-- `PLACEHOLDER_COMMITS`
+- `f6e6890` — Codex's `f3e666c`, rebased unchanged onto production.
+- `23272ba` — **Rebuild section 02 around the portfolio, and add one labelled
+  revision path.** The whole of this work.
+- `01dadc1` — Reserve labelled factsheet presentation revision (written and
+  pushed by the workflow, before SMTP).
+- `717f7a1` — Record confirmed factsheet presentation revision (written and
+  pushed by the workflow, after SMTP acceptance).
 
 Changed:
 
@@ -178,7 +186,11 @@ also remains, so colour is never the only signal.
 ## Tests, guards and measured results
 
 - **Full repository suite, production interpreter** (`.venv`, Python 3.12.14),
-  run against the final code: `PLACEHOLDER_FULLSUITE`.
+  run against the final code: **2,398 passed, 27 skipped, 127 warnings, 23:08**.
+  (An earlier full run also passed but predated the last two edits and was
+  discarded rather than reported.) Re-run of the focused 85 after the rebase
+  onto production: all passed. `tests/test_live_targets.py`, the only suite
+  coupled to the vendor-probe log that the rebase advanced: 15 passed.
 - **Focused suite** (`test_factsheet_presentation.py`, `test_factsheet_revision.py`,
   `test_component_sender.py`, `test_hold_rounding.py`): 85 tests. 23 presentation
   tests lock the new layout contract (portfolio answer before the fund list, the
@@ -228,7 +240,8 @@ All weekdays below were checked with `datetime`/`zoneinfo`, not from memory.
 - Decision close / anchor: **Friday 11 September 2026**.
 - Proposed fill: **Monday 14 September 2026**, NYSE and XETR closing auctions.
 - Weekend review checkpoint: **Monday 14 September 2026, 06:00 SGT**.
-- Revision sent: `PLACEHOLDER_SENDDATE`.
+- Revision accepted by Gmail: **Sunday 13 September 2026, 21:28 SGT**
+  (2026-09-13T13:28:12Z), inside the review window and before the checkpoint.
 
 The venue dates were still ahead at send time; nothing stale was re-sent. This
 is stated because the brief requires actual venue dates to be checked and
@@ -236,11 +249,83 @@ flagged rather than rewritten as current.
 
 ## Deployment
 
-`PLACEHOLDER_DEPLOY`
+`codex/factsheet-presentation` was rebased onto `origin/main` (which had advanced
+by one vendor-probe commit, `c2f0462`) and fast-forwarded to `main` as `23272ba`.
+Only the isolated presentation change went up: nothing from the development
+checkout's unfinished merge, and no holdings-monitor work.
+
+The push did **not** trigger the weekly factsheet workflow, because it does not
+touch `data/component_release.json` — checked, not assumed. It did trigger the
+pre-merge gates, both green on `23272ba`: **Tests success**, **Conflict-marker
+check success** (plus the routine Pages build).
+
+Automation clone `C:\dev\breadth-thrust-etf-sched` was re-verified idle and clean
+immediately before being touched (task `BreadthThrust-WeeklyRefresh` State Ready,
+LastRunTime 2026-09-13 16:00 SGT, LastTaskResult 0, NextRunTime 2026-09-19 09:00)
+and then **fast-forwarded** `c961120..717f7a1` with `merge --ff-only`. It is now
+clean and in sync. No second refresh was started and no schedule was changed.
 
 ## Actual send evidence
 
-`PLACEHOLDER_SEND`
+**A hosted no-send rehearsal ran first**, on the deployed code, to see the exact
+bytes before authorising any reservation:
+
+- Run <https://github.com/phuazz/breadth-thrust-etf/actions/runs/34759755287>,
+  conclusion **success**. The reservation, send and record steps all show
+  **skipped**; the remote ledger was re-read afterwards and carried no `pending`.
+- The uploaded payload was verified as the artefact, not as source: candidate
+  digest `98958c14…`, release `d821d62b6d295189…`, `core_identity` and
+  `europe_identity` **equal to the values already in the delivery ledger**, 24
+  book lines, no preview or synthetic banner, the revision banner present.
+- That exact email HTML and complete book passed `check_page.py` (0 fail) and
+  8 rendered checks (zero overflow, 13 px minimum, correct row counts), and its
+  6-page PDF attachment was rendered and read. Pages 2–6 hash **identical** to
+  the pages already inspected; page 1 differs only by the absence of the
+  no-send line and was inspected directly.
+
+**The authorised send:**
+
+- Run <https://github.com/phuazz/breadth-thrust-etf/actions/runs/34759881257>,
+  conclusion **success**, dispatched 2026-09-13T13:27:15Z.
+- Log line, from the sender itself: `SMTP accepted the revised presentation for
+  all configured recipients; revision recorded.` at **2026-09-13T13:28:12Z
+  (21:28:12 SGT, Sunday 13 September 2026)**.
+- Step order executed as designed: reserve → push (`01dadc1`) → SMTP → record →
+  push (`717f7a1`).
+- Subject: **`Revised presentation - same portfolio instructions · USD
+  Multi-Strategy ETF Portfolio · 2026-09-11`**
+- Attachments: `factsheet_2026-09-11_revision-presentation.pdf` (15,249 bytes,
+  6 pages), `complete-proposed-book.html`, `proposed-model-book.json`. Plain-text
+  alternative included.
+- The ledger's recorded candidate digest is `98958c149b600b59d906ea0829759ddc8dd81a310558530ab643a7d8705b53a8`
+  — **identical to the rehearsed candidate**, so the payload inspected above is
+  the payload delivered, not a re-render of it.
+
+**Durable confirmed receipt**, `docs/component_delivery.json` on `origin/main`:
+
+```
+"revisions": {"presentation": {
+  "candidate": "98958c149b600b59d906ea0829759ddc8dd81a310558530ab643a7d8705b53a8",
+  "confirmed_at": "2026-09-13T13:28:05.748086+00:00",
+  "release":   "d821d62b6d295189bae828f8dab82b486584fd77dca794d796804ae413026760",
+  "subject":   "Revised presentation - same portfolio instructions · …· 2026-09-11"}}
+```
+
+`core`, `europe`, `preview`, `regular` and `last_confirmed_at` are **byte-for-byte
+what they were before**, and `docs/factsheet_published.json` still reads
+`2026-09-13T01:24:00.616260+00:00`. No `pending` remains.
+
+**Guards re-probed after the send**, against the real repository state:
+
+- `plan_revision` → `blocked — a presentation revision was already delivered for
+  this anchor: ['presentation']`, with `committed` both False and True.
+- Ordinary `plan` → `wait — already distributed or update window closed`.
+
+Nothing can send again for this anchor by either path.
+
+**This is SMTP acceptance, not inbox placement.** Gmail accepted the message for
+every configured recipient; whether it renders as intended in each reader's
+client is a separate question that only opening it can answer.
 
 ## Open decisions for the owner
 
