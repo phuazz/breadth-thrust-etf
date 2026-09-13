@@ -1,0 +1,91 @@
+name: Factsheet presentation revision — manual, once per anchor
+
+# A relabelled restatement of an ALREADY-CONFIRMED weekly factsheet. It sends
+# the same sealed book, changes no instruction, and clears no receipt. There is
+# no push or schedule trigger: a human dispatches it with an explicit revision
+# identifier, and every eligibility check is rerun immediately before SMTP.
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: 'Revision identifier, e.g. presentation-2026-09-13 (one per anchor)'
+        type: string
+        required: true
+      dry_run:
+        description: 'No-send rehearsal: validate and render without reserving or emailing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+concurrency:
+  # The ordinary weekly sender's group, so the two can never overlap.
+  group: weekly-factsheet
+  cancel-in-progress: false
+
+jobs:
+  revise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Verify the confirmed anchor and render the revision
+        id: plan
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          REVISION: ${{ inputs.revision }}
+        shell: bash
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            python scripts/send_component_factsheet.py revise --revision "$REVISION"
+          else
+            python scripts/send_component_factsheet.py revise --revision "$REVISION" --reserve
+          fi
+      - name: Persist revision reservation before contacting Gmail
+        if: steps.plan.outputs.send == 'true'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/component_delivery.json
+          git commit -m 'Reserve labelled factsheet presentation revision'
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main || exit 1
+          done
+          exit 1
+      - name: Send the revised presentation once to all existing recipients
+        if: steps.plan.outputs.send == 'true'
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          REVISION: ${{ inputs.revision }}
+        run: python scripts/send_component_factsheet.py revise-send --revision "$REVISION"
+      - name: Record the confirmed revision beside the original receipt
+        if: steps.plan.outputs.send == 'true'
+        shell: bash
+        run: |
+          git add docs/component_delivery.json
+          git commit -m 'Record confirmed factsheet presentation revision'
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main || exit 1
+          done
+          exit 1
+      - name: Preserve the rendered or attempted payload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factsheet-revision-payload
+          path: .component-mail/*
+          include-hidden-files: true
+          if-no-files-found: ignore

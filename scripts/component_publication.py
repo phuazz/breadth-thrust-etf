@@ -120,6 +120,18 @@ def email_wording(decision: dict) -> dict[str, str]:
     lines must come from the sealed snapshot checked by the eventual sender.
     """
     action = decision.get("action")
+    if action == "revision":
+        # A presentation revision of an already-delivered anchor. It restates
+        # the same sealed book; it never proposes, supersedes or adds an order.
+        return {
+            "subject": "Revised presentation - same portfolio instructions",
+            "heading": "Revised presentation; the portfolio instructions are unchanged",
+            "summary": "This email restates the weekly factsheet already delivered for this week "
+                       "in a clearer layout. The proposed positions, signals and dates are identical.",
+            "difference": "Nothing here supersedes or adds to what has already been sent. If you have "
+                          "reviewed the earlier email, no further action is required.",
+            "d_instruction": "Unchanged from the factsheet already delivered; no new D selection is proposed.",
+        }
     if action == "preview":
         return {
             "subject": "Initial factsheet — A–C ready; D pending",

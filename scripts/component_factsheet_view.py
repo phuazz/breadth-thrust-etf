@@ -2,6 +2,12 @@
 
 Python datetime months are 1-indexed. No fetching, ranking or delivery here.
 The email is a short dossier; the PDF is its complete reference edition.
+
+Section 02 is organised around the portfolio, not around the fund list: what
+the strategy budgets did, the largest increases and reductions, what entered
+and exited, then one compact held-to-target table per strategy with that
+strategy's own driver stated once. Nothing here infers a signal, a scheme or a
+market explanation that the sealed book does not already record.
 """
 from datetime import datetime
 from html import escape
@@ -16,6 +22,28 @@ NAMES = {"A": "US sectors", "B": "Asset classes", "C": "Thematic",
          "D": "Europe sectors", "TILT": "EM tilt", "GATE": "Defensive allocation"}
 DISCLAIMER = ("Personal research artefact. Not investment advice and not affiliated with any regulated fund or manager. "
               "Past simulated performance is not indicative of future returns. Model results are not broker execution records.")
+
+# Presentation order: strategy identity, not move size. A small Europe resize
+# therefore cannot be pushed off the page by a large core move.
+SLEEVE_ORDER = ("A", "B", "C", "D", "TILT", "GATE")
+# A delta below this is not a proposed trade; it is arithmetic noise.
+CHANGE_EPSILON = 1e-8
+# The established model-held-basis rounding bound (see the HOLD rounding fix).
+MODEL_ROUNDING_NAV = 1e-4
+# Stored signal rows carry four decimals, which bounds any reconstruction.
+SIGNAL_PRECISION = 1e-4
+# The house small-move threshold, matching MATERIAL_NAV in build_email_body.
+MATERIAL_NAV = 0.005
+# A pathological week must not turn the email into a book; the PDF holds all.
+EMAIL_CHANGE_LIMIT = 20
+# Units, per the house rule: relative breadth in percentage points; breadth
+# levels and price distance in percentages. A breadth level cannot be
+# negative and is written unsigned; a relative or distance reading can be.
+SIGNAL_UNITS = {"breadth_relative": ("breadth versus the sector average", "pp", True),
+                "breadth": ("constituent breadth", "%", False),
+                "ma_distance": ("price distance from the 200-day average", "%", True)}
+OVERLAY_SLEEVES = ("TILT", "GATE")
+ACTION_WORDS = {"ENTER": "Enter", "EXIT": "Exit", "ADD": "Increase", "TRIM": "Reduce"}
 
 
 def pct(value, signed=False, dp=2):
@@ -123,38 +151,143 @@ def verified_context(root, release, committed=False):
     return context_from_sources(release, reader)
 
 
+# ---------------------------------------------------------------- signals ---
+
+def sleeve_record(book, sleeve):
+    return next((s for s in book["sleeves"] if s["sleeve"] == sleeve), {})
+
+
+def signal_terms(record):
+    return SIGNAL_UNITS.get(record.get("signal_kind"), ("the recorded signal", "", True))
+
+
+def signal_level(value, suffix, signed):
+    if value is None:
+        return "Unavailable"
+    return f"{value*100:+.2f}{suffix}" if signed else f"{value*100:.2f}{suffix}"
+
+
+def signal_move(etf, record):
+    """Before/after level and rank, taken only from the stored signal rows."""
+    signals, previous = record.get("signals") or {}, record.get("signals_prev") or {}
+    if etf not in signals:
+        return None
+    _, suffix, signed = signal_terms(record)
+    order = sorted(signals, key=lambda k: (-signals[k], k))
+    move = {"now": signal_level(signals[etf], suffix, signed), "rank": order.index(etf) + 1,
+            "of": len(signals), "before": None, "rank_before": None}
+    if etf in previous:
+        move["before"] = signal_level(previous[etf], suffix, signed)
+        move["rank_before"] = sorted(previous, key=lambda k: (-previous[k], k)).index(etf) + 1
+    return move
+
+
+def signal_cell(etf, record):
+    """Compact evidence for one line: the level it moved to and its rank.
+
+    The unit is written once, on the figure the reader ends on.
+    """
+    move = signal_move(etf, record)
+    if move is None:
+        return "No comparable signal recorded"
+    unit = signal_terms(record)[1] or ""
+    before = (move["before"] or "").removesuffix(unit) if unit else move["before"]
+    level = f"{before} to {move['now']}" if move["before"] else move["now"]
+    rank = (f"rank {move['rank_before']} to {move['rank']} of {move['of']}"
+            if move["rank_before"] and move["rank_before"] != move["rank"]
+            else f"rank {move['rank']} of {move['of']}")
+    return f"{level} · {rank}"
+
+
+def sizing_scheme(record):
+    """Name the weighting only when this book's own numbers confirm it.
+
+    Silence is the correct answer for an unrecognised scheme: the release
+    records the signals and the weights, never a declared weighting rule.
+    """
+    weights, signals = record.get("weights") or {}, record.get("signals") or {}
+    if len(weights) < 2:
+        return None
+    if max(weights.values()) - min(weights.values()) <= 1e-9:
+        return "equal-weighted across the qualifying members"
+    if set(weights) - set(signals):
+        return None
+    total = math.fsum(signals[k] for k in weights)
+    if total <= 0:
+        return None
+    # Four-decimal signal rounding bounds how exactly a share can be rebuilt.
+    tolerance = SIGNAL_PRECISION * (1 + len(weights)) / total
+    if all(abs(weights[k] - signals[k] / total) <= tolerance for k in weights):
+        return "sized in proportion to the recorded signal levels, so a weight can fall without a rank changing"
+    return None
+
+
 def rationale(row, book):
+    """Full-sentence driver for one line, used in the reference edition."""
     if row.get("risk_adjustment"):
         return "Portfolio-risk adjustment only; selection unchanged."
-    sleeve = next((s for s in book["sleeves"] if s["sleeve"] == row["sleeve"]), {})
-    if sleeve.get("status") == "HOLD":
+    record = sleeve_record(book, row["sleeve"])
+    if record.get("status") == "HOLD":
         return "Selection held pending complete data; no new ranking."
-    if row["sleeve"] in ("TILT", "GATE"):
+    if row["sleeve"] in OVERLAY_SLEEVES:
         return "Allocation follows the verified portfolio overlay."
-    if abs(row["delta"]) <= 1e-8:
+    if abs(row["delta"]) <= CHANGE_EPSILON:
         return "No change to the model-held weight."
-    signals, previous = sleeve.get("signals", {}), sleeve.get("signals_prev", {})
-    key = row["etf"]
-    if key not in signals:
+    move = signal_move(row["etf"], record)
+    if move is None:
         return "No comparable signal recorded; proposed weight shown without an inferred driver."
-    ordered = sorted(signals, key=lambda k: (-signals[k], k))
-    prev_order = sorted(previous, key=lambda k: (-previous[k], k))
-    rank = str(ordered.index(key) + 1)
-    if key in previous and prev_order.index(key)!=ordered.index(key):
-        rank = f"{prev_order.index(key)+1} to {rank}"
-    unit = {"breadth_relative": "Breadth versus sector average (pp)",
-            "breadth": "Constituent breadth (%)", "ma_distance": "Price versus 200-day average (%)"}.get(
-                sleeve.get("signal_kind"), "Recorded signal")
-    before = f"{previous[key]*100:+.2f} to " if key in previous else ""
-    return f"{unit}: {before}{signals[key]*100:+.2f}; rank {rank} of {len(signals)}."
+    name = signal_terms(record)[0]
+    return f"{name[0].upper()}{name[1:]}: {signal_cell(row['etf'], record)}."
+
+
+# ------------------------------------------------------------- view model ---
+
+def action_of(row):
+    if abs(row["delta"]) <= CHANGE_EPSILON:
+        return "HOLD"
+    if row["held"] <= 0 and row["target"] > 0:
+        return "ENTER"
+    if row["target"] <= 0 and row["held"] > 0:
+        return "EXIT"
+    return "ADD" if row["delta"] > 0 else "TRIM"
+
+
+def sleeve_shifts(book):
+    """Held-to-target at strategy level, against the registered risk budget."""
+    weights = book["overlay_decision"]["weights"]
+    budgets = {"A": weights["a"], "B": weights["b"], "C": weights["c"], "D": weights["d"],
+               "TILT": weights.get("tilt_nav", 0.0), "GATE": weights.get("shy_overlay", 0.0)}
+    shifts = []
+    for sleeve in SLEEVE_ORDER:
+        rows = [r for r in book["lines"] if r["sleeve"] == sleeve]
+        if not rows and not budgets.get(sleeve):
+            continue
+        held = math.fsum(r["held"] for r in rows)
+        target = math.fsum(r["target"] for r in rows)
+        shifts.append({"sleeve": sleeve, "name": NAMES[sleeve], "budget": budgets.get(sleeve, 0.0),
+                       "held": held, "target": target, "net": target - held, "rows": rows,
+                       "changed": sorted([r for r in rows if abs(r["delta"]) > CHANGE_EPSILON],
+                                         key=lambda r: (-abs(r["delta"]), r["etf"]))})
+    return shifts
+
+
+def budgets_held(shifts):
+    """True when no strategy's NAV share moves beyond the model rounding bound."""
+    return all(abs(s["net"]) <= MODEL_ROUNDING_NAV for s in shifts)
 
 
 def view_model(decision, release):
     book = release["book"]
     rows = sorted(book["lines"], key=lambda r: (-abs(r["delta"]), r["sleeve"], r["etf"]))
-    changed = [r for r in rows if abs(r["delta"]) > 1e-8]
+    changed = [r for r in rows if abs(r["delta"]) > CHANGE_EPSILON]
+    shifts = sleeve_shifts(book)
     return {"wording": email_wording(decision), "rows": rows, "changed": changed,
+            "shifts": shifts, "budgets_held": budgets_held(shifts),
             "turnover": math.fsum(abs(r["delta"]) for r in rows)/2,
+            "increases": [r for r in changed if r["delta"] > 0],
+            "reductions": [r for r in changed if r["delta"] < 0],
+            "entering": [r for r in changed if action_of(r) == "ENTER"],
+            "exiting": [r for r in changed if action_of(r) == "EXIT"],
             "entries": sum(r["held"] == 0 and r["target"] > 0 for r in changed),
             "exits": sum(r["held"] > 0 and r["target"] == 0 for r in changed)}
 
@@ -163,14 +296,188 @@ def position_name(row, release):
     return f"{release['labels'].get(row['etf'], row['etf'])} ({row['traded']})"
 
 
+def allocation_strip(shifts):
+    return " · ".join(f"{s['name']} {pct(s['target'], dp=1)}" for s in shifts if s["target"])
+
+
+def budget_sentence(v):
+    """State what happened to the strategy budgets, computed from the book."""
+    if v["budgets_held"]:
+        return ("The strategy budgets do not change. Every proposed move is a rotation inside a "
+                f"strategy: {allocation_strip(v['shifts'])} of NAV.")
+    moved = [s for s in v["shifts"] if abs(s["net"]) > MODEL_ROUNDING_NAV]
+    return ("Strategy budgets change this week: "
+            + " · ".join(f"{s['name']} {pct(s['held'], dp=1)} to {pct(s['target'], dp=1)} ({pp(s['net'])})"
+                         for s in moved) + ".")
+
+
+def sleeve_story(shift, release):
+    """One grounded sentence per strategy that moved. No market commentary."""
+    book = release["book"]
+    changed = shift["changed"]
+    if not changed:
+        return None
+    record = sleeve_record(book, shift["sleeve"])
+    if shift["sleeve"] in OVERLAY_SLEEVES:
+        return "Set by the verified portfolio overlay, not by a ranking."
+    if record.get("status") == "HOLD":
+        return "Selection held pending complete data; no new ranking was run."
+    if all(r.get("risk_adjustment") for r in changed):
+        return "Portfolio-risk resize only; the selection is unchanged."
+    name = signal_terms(record)[0]
+    up = max(changed, key=lambda r: r["delta"])
+    down = min(changed, key=lambda r: r["delta"])
+    parts = [f"Re-ranked on {name}."]
+    if up["delta"] > 0:
+        parts.append(f"Largest addition: {position_name(up, release)}, {pp(up['delta'])} to "
+                     f"{pct(up['target'])} ({signal_cell(up['etf'], record)}).")
+    if down["delta"] < 0:
+        parts.append(f"Largest reduction: {position_name(down, release)}, {pp(down['delta'])} to "
+                     f"{pct(down['target'])} ({signal_cell(down['etf'], record)}).")
+    return " ".join(parts)
+
+
+def sizing_note(shifts, book):
+    """State the weighting once, and only when every ranked strategy agrees."""
+    schemes = set()
+    for shift in shifts:
+        if not shift["changed"] or shift["sleeve"] in OVERLAY_SLEEVES:
+            continue
+        schemes.add(sizing_scheme(sleeve_record(book, shift["sleeve"])))
+    if len(schemes) != 1:
+        return None
+    scheme = schemes.pop()
+    return None if scheme is None else f"Within each strategy shown, members are {scheme}."
+
+
+def group_heading(shift, book, decision=None):
+    budget = "unchanged budget" if abs(shift["net"]) <= MODEL_ROUNDING_NAV else f"budget {pp(shift['net'])}"
+    record = sleeve_record(book, shift["sleeve"])
+    note = ""
+    if shift["sleeve"] == "D" and record.get("status") == "READY":
+        note = " · newly verified this week"
+    elif (decision or {}).get("action") == "d_update":
+        # A D follow-up is only authorised while the core identity matches the
+        # one already distributed, so these lines are provably the same lines.
+        note = " · already sent in the initial email"
+    return f"Strategy {shift['sleeve']} · {shift['name']} · {pct(shift['target'], dp=1)} of NAV, {budget}{note}"
+
+
+def unchanged_sentence(v, book):
+    """What a reader does not need to act on, stated rather than left implicit."""
+    parts = []
+    for shift in v["shifts"]:
+        if shift["changed"] or not shift["rows"]:
+            continue
+        count = len(shift["rows"])
+        parts.append(f"{shift['name']} {pct(shift['target'], dp=1)}"
+                     + (f" across {count} positions" if count > 1 else ""))
+    overlay = book["overlay_decision"]
+    parts.append(f"breadth gate {'RISK OFF' if overlay['gate_on'] else 'RISK ON'}")
+    if not overlay["weights"].get("shy_overlay"):
+        parts.append("no defensive allocation")
+    return " · ".join(parts)
+
+
+def highlight_rows(v, release):
+    """Label/value pairs: the one-glance answer to what moves and what does not."""
+    def listing(rows, phrase):
+        return " · ".join(f"{position_name(r, release)} {pp(r['delta'])} {phrase} {pct(r['target'])}"
+                          for r in rows)
+    out = []
+    if v["increases"]:
+        out.append(("Increased", listing(v["increases"][:3], "to")))
+    if v["reductions"]:
+        out.append(("Reduced", listing(v["reductions"][:3], "to")))
+    if v["entering"]:
+        out.append(("Enters", " · ".join(f"{position_name(r, release)} at {pct(r['target'])} of NAV"
+                                         for r in v["entering"])))
+    if v["exiting"]:
+        out.append(("Exits", " · ".join(f"{position_name(r, release)} from {pct(r['held'])} of NAV"
+                                        for r in v["exiting"])))
+    edges = v["entering"] + v["exiting"]
+    if edges and all(max(r["held"], r["target"]) < MATERIAL_NAV for r in edges):
+        out.append(("", f"Every entry and exit is below {pct(MATERIAL_NAV, dp=1)} of NAV: "
+                        "ranking-tail positions, not a change of stance."))
+    out.append(("Unchanged", unchanged_sentence(v, release["book"])))
+    return out
+
+
+# ----------------------------------------------------------------- render ---
+
+REVISION_BANNER = (
+    "This message changes the presentation only. The proposed positions, signals, dates and "
+    "weights are identical to the factsheet already delivered for this week. It is not a new "
+    "instruction and not a second set of orders; no action is required if you have already "
+    "reviewed that email.")
+
+
+def _tag(action):
+    """Entries and exits are named, not merely coloured.
+
+    The colour is inline so it survives a client that strips the stylesheet;
+    the dark-theme rule overrides it, because these two values fall to roughly
+    2.5:1 on the dark ground and the word alone must not be the fallback.
+    """
+    colour = {"ENTER": "#1a6b34", "EXIT": "#a3201a"}.get(action)
+    if not colour:
+        return ""
+    return (f" <span class='tag {action.lower()}' style='font-size:13px;font-weight:bold;"
+            f"letter-spacing:.04em;color:{colour}'>{escape(action)}</span>")
+
+
+def _change_table(shifts, release, decision=None, limit=None, unchanged=False):
+    """One compact held-to-target table, grouped by strategy, names and units."""
+    e = book_e = escape
+    book = release["book"]
+    cell = "padding:7px 6px;border-bottom:1px solid #e3e8ee;vertical-align:top;font-size:13px"
+    right = cell + ";text-align:right;white-space:nowrap"
+    head = "padding:6px;border-bottom:1px solid #b5c3d3;font-size:13px;text-align:left"
+    parts = ["<table class='changes' style='width:100%;table-layout:fixed;border-collapse:collapse'>",
+             "<thead><tr>"
+             f"<th style='{head};width:40%'>Position</th>"
+             f"<th style='{head};width:18%;text-align:right'>Held</th>"
+             f"<th style='{head};width:18%;text-align:right'>Target</th>"
+             f"<th style='{head};width:24%;text-align:right'>Change</th></tr></thead><tbody>"]
+    shown = 0
+    for shift in shifts:
+        rows = shift["rows"] if unchanged else shift["changed"]
+        if not rows:
+            continue
+        if limit is not None:
+            rows = rows[:max(0, limit - shown)]
+            if not rows:
+                continue
+        story = sleeve_story(shift, release)
+        detail = f"<br><span class='note' style='font-size:13px;line-height:1.5'>{book_e(story)}</span>" if story else ""
+        parts.append("<tr class='group'><td colspan='4' style='padding:16px 6px 6px;font-size:13px;"
+                     f"border-bottom:1px solid #b5c3d3'><strong>{book_e(group_heading(shift, book, decision))}</strong>{detail}</td></tr>")
+        for row in rows:
+            shown += 1
+            parts.append(
+                f"<tr class='position'><td style='{cell};overflow-wrap:anywhere'>"
+                f"<strong>{e(row['traded'])}</strong>{_tag(action_of(row))}<br>"
+                f"<span class='note' style='font-size:13px'>{e(release['labels'].get(row['etf'], row['etf']))}</span></td>"
+                f"<td style='{right}'>{e(pct(row['held']))}</td>"
+                f"<td style='{right}'>{e(pct(row['target']))}</td>"
+                f"<td style='{right}'>{e(pp(row['delta']))}</td></tr>")
+    parts.append("</tbody></table>")
+    return "".join(parts), shown
+
+
 def render_html(decision, release, include_unchanged=False):
     e, book, stats = escape, release["book"], release["performance"]
     v = view_model(decision, release)
     w, context = v["wording"], release.get("presentation", {})
-    stage = "INITIAL REVIEW" if decision["action"] == "preview" else "D UPDATE" if decision["action"] == "d_update" else "WEEKLY FACTSHEET"
+    revision = decision.get("action") == "revision"
+    stage = ("REVISED PRESENTATION" if revision else
+             "INITIAL REVIEW" if decision["action"] == "preview" else
+             "D UPDATE" if decision["action"] == "d_update" else "WEEKLY FACTSHEET")
     parts = [f"<p class='eyebrow'>{stage} · {e(long_date(release['anchor']))}</p>",
              "<h1>USD Multi-Strategy ETF Portfolio</h1>",
              f"<div class='status'><h2>{e(w['heading'])}</h2><p>{e(w['difference'])}</p></div>"]
+    if revision:
+        parts.insert(0, f"<p><strong>{e(REVISION_BANNER)}</strong></p>")
     if stats["series"].startswith("synthetic"):
         parts.insert(0, "<p><strong>SYNTHETIC NO-SEND REHEARSAL — not a live instruction.</strong></p>")
     if release.get("preview_only"):
@@ -214,34 +521,52 @@ def render_html(decision, release, include_unchanged=False):
         parts.append(f"<p class='note'>{len(priced)} of {len(context['holding_returns'])} model-held lines have both weekly endpoints. "
                      "Quote/proxy returns, not portfolio contributions; Europe FX is not added. The PDF identifies each price proxy.</p>")
     overlay = book["overlay_decision"]
-    parts += ["<h2>02 · What changes next</h2>",
-              f"<p><strong>{len(v['changed'])} changes · {pct(v['turnover'])} one-way turnover</strong><br>"
-              f"New positions: {v['entries']} · Exits: {v['exits']}. Turnover is half the sum of absolute NAV-weight changes.</p>",
-              "<p>Proposed positions, not executed trades. Held and target figures are percentages of total NAV; changes are percentage points. "
-              "The held baseline is the model portfolio, not confirmation of broker holdings.</p>",
-              f"<p><strong>Strategy D:</strong> {e(w['d_instruction'])}</p>"]
-    shown = (sorted(v["rows"], key=lambda r: (-r["target"], r["sleeve"], r["etf"])) if include_unchanged else v["changed"][:6])
+    parts += ["<h2>02 · What changes and why</h2>",
+              f"<p><strong>{len(v['changed'])} proposed changes · {pct(v['turnover'])} one-way turnover · "
+              f"{v['entries']} new · {v['exits']} closed.</strong> {e(budget_sentence(v))}</p>"]
+    if v["changed"]:
+        rows = "".join(f"<tr><th style='text-align:left;padding:7px 8px 7px 0;width:26%;font-size:13px;"
+                       f"vertical-align:top;border-bottom:1px solid #e3e8ee'>{e(label)}</th>"
+                       f"<td style='padding:7px 0;font-size:13px;vertical-align:top;"
+                       f"border-bottom:1px solid #e3e8ee;overflow-wrap:anywhere'>{e(text)}</td></tr>"
+                       for label, text in highlight_rows(v, release))
+        parts.append("<table class='shifts' style='width:100%;table-layout:fixed;border-collapse:collapse'>"
+                     f"<tbody>{rows}</tbody></table>")
+    parts.append("<p class='note'>Proposed positions, not executed trades. Held and target are percentages of total NAV; "
+                 "changes are percentage points. The held baseline is the model portfolio, not confirmation of broker holdings.</p>")
     if include_unchanged:
         parts.append("<h3>Complete proposed book</h3>")
-    for row in shown:
-        parts.append(f"<section class='position'><h3>{e(position_name(row,release))}</h3>"
-                     f"<p>Strategy {e(row['sleeve'])} · Held {pct(row['held'])} → Target {pct(row['target'])} "
-                     f"· Change {pp(row['delta'])}</p><p class='note'>{e(rationale(row,book))}</p></section>")
-    if not shown:
+        table, _ = _change_table(v["shifts"], release, decision, unchanged=True)
+        parts.append(table)
+    elif v["changed"]:
+        table, shown = _change_table(v["shifts"], release, decision, limit=EMAIL_CHANGE_LIMIT)
+        parts.append(table)
+        scheme = sizing_note(v["shifts"], book)
+        if shown < len(v["changed"]):
+            parts.append(f"<p class='note'>{shown} of {len(v['changed'])} changes shown, the largest within each strategy. "
+                         "Every change and unchanged position is in the attached PDF and complete HTML book.</p>")
+        else:
+            parts.append(f"<p class='note'>All {len(v['changed'])} proposed changes are listed above; none is omitted. "
+                         "Unchanged positions are in the attached PDF and complete HTML book.</p>")
+        if scheme:
+            parts.append(f"<p class='note'>{e(scheme)}</p>")
+    else:
         parts.append("<p>No position changes.</p>")
-    if not include_unchanged:
-        parts.append(f"<p class='note'>{len(shown)} of {len(v['changed'])} changes shown, ordered by size. "
-                     "Every change and unchanged position is in the attached PDF and complete HTML book.</p>")
-        if not decision['d_hold']:
-            parts.append("<h3>D confirmation</h3>")
-            d_changes = [r for r in v['changed'] if r['sleeve']=='D']
-            if not d_changes:
-                parts.append("<p>D is verified with no proposed weight changes.</p>")
-            for r in d_changes:
-                parts.append(f"<p>{e(position_name(r,release))}: held {pct(r['held'])} → target {pct(r['target'])} "
-                             f"({pp(r['delta'])}).</p>")
-            parts.append("<p class='note'>All D changes are shown here, including any repeated in the largest moves above. "
-                         "If you received the initial email, A–C and overlays are unchanged; do not treat them as a second set of orders.</p>")
+    parts.append(f"<p><strong>Strategy D:</strong> {e(w['d_instruction'])}</p>")
+    if not include_unchanged and not decision['d_hold']:
+        parts.append("<h3>D confirmation</h3>")
+        d_changes = [r for r in v['changed'] if r['sleeve']=='D']
+        if not d_changes:
+            parts.append("<p>D is verified with no proposed weight changes.</p>")
+        for r in d_changes:
+            parts.append(f"<p>{e(position_name(r,release))}: held {pct(r['held'])} → target {pct(r['target'])} "
+                         f"({pp(r['delta'])}).</p>")
+        # Only a D follow-up can assert an earlier email; a single all-ready
+        # factsheet has no predecessor, and a revision says so in its banner.
+        earlier = (" A–C and the overlays are unchanged from the initial email; do not submit them a second time."
+                   if decision["action"] == "d_update" else "")
+        parts.append("<p class='note'>All D changes are shown here, including any repeated in the table above."
+                     + e(earlier) + "</p>")
     if decision["d_hold"]:
         parts.append("<p>D remains on HOLD for selection. No Thursday-close substitute or new D ranking is used.</p>")
     if abs(book.get("rounding_residual_nav", 0.0)) > 1e-12:
@@ -251,12 +576,7 @@ def render_html(decision, release, include_unchanged=False):
               f"EM tilt: {'ON' if overlay['tilt_on'] else 'OFF'}</strong><br>Both inputs verified to {e(release['anchor'])}.</p>"]
     for text in context.get('watchlist',[]):
         parts.append(f"<p class='note'>{e(text)}</p>")
-    allocation = []
-    for sleeve, label in NAMES.items():
-        total = math.fsum(r["target"] for r in v["rows"] if r["sleeve"] == sleeve)
-        if total:
-            allocation.append(f"{label} {pct(total, dp=1)}")
-    parts.append(f"<p>{e(' · '.join(allocation))}</p>")
+    parts.append(f"<p>{e(allocation_strip(v['shifts']))}</p>")
     for venue in sorted({s["venue"] for s in book["sleeves"]}):
         rows = [s for s in book["sleeves"] if s["venue"] == venue]
         parts.append(f"<p><strong>{e(venue)}: {e(long_date(rows[0]['fill_date']))} closing auction</strong><br>"
@@ -271,14 +591,17 @@ def render_html(decision, release, include_unchanged=False):
 main{max-width:60ch;margin:auto}p{max-width:60ch;overflow-wrap:anywhere;margin:10px 0}h1{font-size:26px;line-height:1.25;margin:12px 0 24px}h2{font-size:20px;line-height:1.4;margin:28px 0 12px}h3{font-size:16px;margin:0}
 .eyebrow{font-size:13px;color:#475569;letter-spacing:.04em}.status{border-left:4px solid #245c94;background:#eef4fa;padding:14px 18px}.status h2{margin:0;font-size:19px}.status p{margin-bottom:0}
 .metrics{display:flex;flex-wrap:wrap;gap:8px}.metric{flex:1 1 90px;min-width:0;padding:12px;background:#f3f6f9;border:1px solid #d5dce5}.metric span{display:block;font-size:13px}.metric strong{display:block;font-size:23px}
-.note{font-size:13px;color:#475569}.position{border-top:1px solid #d5dce5;padding:12px 0;break-inside:avoid}.position p{margin:4px 0}.driver{margin:8px 0}.driver p{margin:0}.driver strong{float:right}.track{height:6px;background:#eef2f6}
+.note{font-size:13px;color:#475569}.driver{margin:8px 0}.driver p{margin:0}.driver strong{float:right}.track{height:6px;background:#eef2f6}
+table{margin:12px 0}.changes thead th{color:#475569;letter-spacing:.03em}.changes tr.group td{background:#f3f6f9}.shifts th{color:#475569;letter-spacing:.03em}
 a{color:#164cb2}.button{display:inline-block;padding:12px 16px;background:#eef4fa;font-weight:bold;border:1px solid #b5c9dd}
 @media(max-width:480px){body{padding:16px}h1{font-size:23px}.metric{flex-basis:80px}.metric strong{font-size:21px}}
-html[data-theme=dark]{color-scheme:dark}html[data-theme=dark] body{background:#111827;color:#f3f4f6}html[data-theme=dark] .note,html[data-theme=dark] .eyebrow{color:#cbd5e1}
-html[data-theme=dark] .status,html[data-theme=dark] .metric,html[data-theme=dark] .button{background:#1e293b;color:#f3f4f6}html[data-theme=dark] a{color:#93c5fd}
+html[data-theme=dark]{color-scheme:dark}html[data-theme=dark] body{background:#111827;color:#f3f4f6}html[data-theme=dark] .note,html[data-theme=dark] .eyebrow,html[data-theme=dark] .changes thead th,html[data-theme=dark] .shifts th{color:#cbd5e1}
+html[data-theme=dark] .status,html[data-theme=dark] .metric,html[data-theme=dark] .button,html[data-theme=dark] .changes tr.group td{background:#1e293b;color:#f3f4f6}html[data-theme=dark] a{color:#93c5fd}
+html[data-theme=dark] .tag.enter{color:#86efac!important}html[data-theme=dark] .tag.exit{color:#fca5a5!important}
 """
     # Critical email styling is inline as well as in the stylesheet. No scripts,
-    # remote images or fonts are required; information survives stripped CSS.
+    # remote images or fonts are required; information survives stripped CSS —
+    # a table without its stylesheet is still a table.
     html = ("<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>{e(w['subject'])}</title><style>{css}</style></head>"
             "<body><main style='max-width:540px;margin:auto;font-family:Arial,sans-serif;line-height:1.6'>" + "".join(parts) + "</main></body></html>")
@@ -288,8 +611,7 @@ html[data-theme=dark] .status,html[data-theme=dark] .metric,html[data-theme=dark
                     "<h2>": "<h2 style='font-size:20px;line-height:1.4;margin-top:28px'>",
                     "<h3>": "<h3 style='font-size:16px'>",
                     "<p class='note'>": "<p class='note' style='font-size:13px;line-height:1.6'>",
-                    "<div class='metric'>": "<div class='metric' style='display:inline-block;padding:12px;border:1px solid #d5dce5'>",
-                    "<section class='position'>": "<section class='position' style='padding:12px 0;border-top:1px solid #d5dce5'>"}
+                    "<div class='metric'>": "<div class='metric' style='display:inline-block;padding:12px;border:1px solid #d5dce5'>"}
     for old,new in replacements.items():
         html=html.replace(old,new)
     return html
@@ -303,20 +625,33 @@ def render_text(decision, release):
             super().__init__()
             self.parts=[]
             self.hidden=False
+            self.cell=0
         def handle_starttag(self,tag,attrs):
             if tag in ('style','head'):
                 self.hidden=True
-            if tag in ('p','h1','h2','h3','section','div','br') and not self.hidden:
+            if self.hidden:
+                return
+            if tag in ('td','th'):
+                self.cell+=1
+            # Inside a cell a line break is a separator, not a new line: the
+            # plain-text table must keep one row on one line.
+            if tag in ('p','h1','h2','h3','section','div','tr') or (tag=='br' and not self.cell):
                 self.parts.append('\n')
+            elif tag in ('br','span','strong'):
+                self.parts.append(' ')
         def handle_endtag(self,tag):
             if tag=='head':
                 self.hidden=False
+            if tag in ('td','th') and not self.hidden:
+                self.cell=max(0,self.cell-1)
+                self.parts.append(' · ')
         def handle_data(self,data):
             if not self.hidden:
                 self.parts.append(data)
     parser=Text()
     parser.feed(render_html(decision,release))
-    return '\n'.join(line.strip() for line in ''.join(parser.parts).splitlines() if line.strip())
+    lines=(line.strip().strip('·').strip() for line in ''.join(parser.parts).splitlines())
+    return '\n'.join(line for line in lines if line)
 
 
 def render_pdf(decision, release):
@@ -330,22 +665,30 @@ def render_pdf(decision, release):
               fontSize=size, leading=size*1.4, spaceAfter=8, textColor=colors.HexColor("#17212f"))
               for k, size in (("title", 21), ("head", 14), ("body", 10), ("note", 9))}
     styles['head'].keepWithNext=True
+    styles['sub']=ParagraphStyle('sub',parent=styles['body'],fontName="Helvetica-Bold",fontSize=11,
+                                 leading=15,spaceBefore=10,spaceAfter=3,keepWithNext=True)
     styles['table']=ParagraphStyle('table',parent=styles['body'],fontSize=9.5,leading=12,spaceAfter=0)
+    styles['cell']=ParagraphStyle('cell',parent=styles['table'],fontSize=8.5,leading=11)
     def p(text, style="body"):
         # Built-in PDF fonts: use printable ASCII punctuation, keep names intact.
         text = text.replace("→", " to ").replace("—", "-").replace("–", "-").replace("’", "'").replace("·", " / ").replace("×", " x ")
         return Paragraph(escape(text), styles[style])
-    def table(rows, widths):
-        t = Table([[p(str(c),'table') for c in row] for row in rows], colWidths=widths, repeatRows=1, hAlign="LEFT")
-        t.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#edf2f7")),
-              ("VALIGN",(0,0),(-1,-1),"TOP"),("BOTTOMPADDING",(0,0),(-1,-1),4),
-              ("TOPPADDING",(0,0),(-1,-1),4),("LINEBELOW",(0,0),(-1,-1),.3,colors.HexColor("#d5dce5"))]))
+    def table(rows, widths, style="table", align=()):
+        body = [[p(str(c), style) for c in row] for row in rows]
+        t = Table(body, colWidths=widths, repeatRows=1, hAlign="LEFT")
+        commands = [("BACKGROUND",(0,0),(-1,0),colors.HexColor("#edf2f7")),
+                    ("VALIGN",(0,0),(-1,-1),"TOP"),("BOTTOMPADDING",(0,0),(-1,-1),4),
+                    ("TOPPADDING",(0,0),(-1,-1),4),("LINEBELOW",(0,0),(-1,-1),.3,colors.HexColor("#d5dce5"))]
+        commands += [("ALIGN",(c,0),(c,-1),"RIGHT") for c in align]
+        t.setStyle(TableStyle(commands))
         return t
     v, book, stats = view_model(decision,release), release["book"], release["performance"]
     ctx = release.get("presentation", {})
     flow = [p("USD Multi-Strategy ETF Portfolio", "title"), p(v["wording"]["heading"], "head"),
             p(f"Decision close {long_date(release['anchor'])}. Proposed model positions; not executed trades."),
             p(v["wording"]["difference"])]
+    if decision.get("action") == "revision":
+        flow.insert(0, p(REVISION_BANNER, "head"))
     if release.get("preview_only") or stats["series"].startswith("synthetic"):
         flow.insert(0,p("NO-SEND PREVIEW - not a new instruction", "head"))
     flow += [p("01 / Performance and return drivers", "head")]
@@ -370,32 +713,61 @@ def render_pdf(decision, release):
         flow.append(table([["Fund / price proxy", "Model-held NAV", "Week return"], *[
             [f"{position_name(r,release)} / {r['price_key']}",pct(r['held']),pct(r['ret'],True)]
             for r in sorted(ctx['holding_returns'],key=lambda r: (r['ret'] is None,-abs(r['ret'] or 0))) ]], [310,100,100]))
-    flow += [PageBreak(),p("02 / Proposed changes and their signals", "head"),
-             p(f"{len(v['changed'])} changes; {pct(v['turnover'])} one-way turnover (half the sum of absolute NAV changes). "
-               f"New positions: {v['entries']}; exits: {v['exits']}. All changes are listed, including small resizes."),
-             p("Strategy D: " + v["wording"]["d_instruction"])]
-    for r in v["changed"]:
-        flow += [p(f"{position_name(r,release)} / Strategy {r['sleeve']}", "head"),
-                 p(f"Held {pct(r['held'])} to target {pct(r['target'])}; change {pp(r['delta'])}. " + rationale(r,book))]
-    if not v["changed"]:
+    # ---- 02: portfolio first, then one compact table per strategy ----------
+    flow += [PageBreak(),p("02 / What changes and why", "head"),
+             p(f"{len(v['changed'])} proposed changes; {pct(v['turnover'])} one-way turnover (half the sum of "
+               f"absolute NAV changes). {v['entries']} new position(s); {v['exits']} closed. " + budget_sentence(v))]
+    flow.append(table([["Strategy", "Held", "Target", "Net shift", "Changes"], *[
+        [f"{s['sleeve']} / {s['name']}", pct(s["held"]), pct(s["target"]), pp(s["net"]), str(len(s["changed"]))]
+        for s in v["shifts"]]], [175,80,80,90,86], align=(1,2,3,4)))
+    flow.append(p("Net shift is the strategy's change in NAV share. A shift within the model rounding bound "
+                  f"of {pct(MODEL_ROUNDING_NAV, dp=2)} is rounding, not a budget decision.", "note"))
+    if v["changed"]:
+        flow.append(p("The largest moves at a glance", "sub"))
+        flow.append(table([[label, text] for label, text in highlight_rows(v, release)], [90, 421]))
+        for shift in v["shifts"]:
+            if not shift["changed"]:
+                continue
+            flow.append(p(group_heading(shift, book, decision), "sub"))
+            story = sleeve_story(shift, release)
+            if story:
+                flow.append(p(story, "note"))
+            record = sleeve_record(book, shift["sleeve"])
+            overlay_sleeve = shift["sleeve"] in OVERLAY_SLEEVES
+            name, suffix, _ = signal_terms(record)
+            header = ("Basis" if overlay_sleeve else f"Signal: {name}"
+                      + (f" ({'percentage points' if suffix == 'pp' else 'percentages'})" if suffix else ""))
+            def evidence(r):
+                if overlay_sleeve:
+                    return "Verified portfolio overlay allocation"
+                return "Portfolio-risk adjustment only" if r.get("risk_adjustment") else signal_cell(r["etf"], record)
+            flow.append(table([["Action", "Position", "Held", "Target", "Change", header], *[
+                [ACTION_WORDS.get(action_of(r), action_of(r)), position_name(r, release),
+                 pct(r["held"]), pct(r["target"]), pp(r["delta"]), evidence(r)]
+                for r in shift["changed"]]], [54,160,46,48,52,151], style="cell", align=(2,3,4)))
+        scheme = sizing_note(v["shifts"], book)
+        if scheme:
+            flow.append(p(scheme, "note"))
+    else:
         flow.append(p("No position changes."))
+    flow.append(p("Strategy D: " + v["wording"]["d_instruction"]))
     flow += [PageBreak(),p("03 / Complete proposed book", "head"),
              p("Model-held baseline, not broker holdings. Targets are for the next fill, not trades already completed. "
                "Exit lines remain visible at zero target weight. All weights are percentages of total NAV.")]
     flow.append(table([["Fund / strategy", "Held", "Target", "Change"], *[
         [f"{position_name(r,release)} / {r['sleeve']}",pct(r['held']),pct(r['target']),pp(r['delta'])]
-        for r in sorted(v["rows"],key=lambda r:(-r["target"],r["sleeve"],r["etf"]))]], [265,80,80,85]))
+        for r in sorted(v["rows"],key=lambda r:(-r["target"],r["sleeve"],r["etf"]))]], [265,80,80,85], align=(1,2,3)))
     flow.append(p(f"Explicit non-trading rounding residual: {book.get('rounding_residual_nav',0):.8f} NAV. It is not a cash leg or an order.", "note"))
     flow += [PageBreak(),p("04 / Readiness, timing and provenance", "head")]
     for s in book["sleeves"]:
-        flow += [p(f"Strategy {s['sleeve']} / {NAMES[s['sleeve']]}: {s['status']}", "head"),
+        flow += [p(f"Strategy {s['sleeve']} / {NAMES[s['sleeve']]}: {s['status']}", "sub"),
                  p(f"Observed decision: {s['decision_session']}; required: {s['decision_session_for_fill']}. "
                    f"Proposed fill: {long_date(s['fill_date'])}, {s['venue']} closing auction.")]
         if s["status"]=="HOLD":
             flow.append(p("No Thursday substitution or new ranking. " + (s.get("reason") or "Data pending.")))
     overlay=book["overlay_decision"]
     if ctx.get('watchlist'):
-        flow.append(p("Watchlist / recorded rule thresholds",'head'))
+        flow.append(p("Watchlist / recorded rule thresholds",'sub'))
         flow.extend(p(text) for text in ctx['watchlist'])
     flow += [p(f"Breadth gate: {'RISK OFF' if overlay['gate_on'] else 'RISK ON'}; EM tilt: {'ON' if overlay['tilt_on'] else 'OFF'}. "
                f"Inputs verified to {release['anchor']}."),

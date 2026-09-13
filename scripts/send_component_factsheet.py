@@ -9,22 +9,27 @@ from __future__ import annotations
 
 import argparse
 import base64
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from email.message import EmailMessage
 from email.utils import getaddresses, formataddr
 import os
 from pathlib import Path
+import re
 import smtplib
 import ssl
 import subprocess
 
-from component_publication import Snapshot, email_decision, email_wording
+from component_publication import SGT, Snapshot, email_decision, email_wording, review_window
 from component_release import ROOT, MANIFEST, read, write, digest, verify
 from nyse_sessions import week_final_anchor
 
 LEDGER = "docs/component_delivery.json"
 OUT = ".component-mail"
 SEND_ACTIONS = {"preview", "regular", "d_update"}
+# A presentation revision is not one of the ordinary stages. It never enters
+# SEND_ACTIONS: the scheduled sender must not be able to reach this path.
+REVISION_ACTION = "revision"
+REVISION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 
 def ledger_at(root):
@@ -131,6 +136,8 @@ def send(root=ROOT, now=None, transport=smtp_send, env=None, committed=False):
     candidate = read(root / OUT / "candidate.json")
     if candidate["id"] != digest({k: v for k, v in candidate.items() if k != "id"}):
         raise ValueError("mail payload changed after reservation")
+    if candidate["decision"].get("action") not in SEND_ACTIONS:
+        raise ValueError("the prepared payload is not an ordinary factsheet stage")
     release = verify(root, now, committed=committed)
     if release["identity"] != candidate["release_identity"] or release["book"] != candidate["book"]:
         raise ValueError("release changed after reservation")
@@ -167,14 +174,158 @@ def send(root=ROOT, now=None, transport=smtp_send, env=None, committed=False):
         write(root / "docs/factsheet_published.json", {"anchor": release["anchor"], "published_at_utc": now.isoformat()})
 
 
+def blocked(reason):
+    return {"action": "blocked", "reason": reason}, None
+
+
+def plan_revision(root=ROOT, now=None, revision=None, committed=False, allow_pending=None):
+    """Authorise ONE relabelled restatement of an already-confirmed anchor.
+
+    Every branch refuses by default. This path cannot change an instruction,
+    a recipient list, a schedule or an existing receipt: it re-sends the same
+    sealed book under an explicit revision subject, once, and records that
+    fact beside the untouched original confirmation.
+    """
+    now = now or datetime.now(timezone.utc)
+    revision = str(revision or "").strip()
+    if not REVISION_ID.match(revision):
+        return blocked("a revision identifier of [A-Za-z0-9._-] is required")
+    if (root / "docs/factsheet_hold.json").exists():
+        return blocked("operator hold is in place")
+    anchor = week_final_anchor(now).isoformat()
+    ledger = ledger_at(root)
+    outstanding = [s["pending"] for s in ledger["anchors"].values() if s.get("pending")]
+    # Only this revision's own durable reservation may be outstanding; any
+    # other unresolved attempt means delivery is uncertain somewhere.
+    if any(not (allow_pending and p.get("id") == allow_pending
+                and p.get("action") == REVISION_ACTION and p.get("revision") == revision)
+           for p in outstanding):
+        return blocked("an unconfirmed delivery attempt is outstanding; reconcile before revising")
+    state = ledger["anchors"].get(anchor)
+    if not state or state.get("anchor") != anchor:
+        return blocked("no confirmed delivery exists for the current anchor")
+    if not state.get("regular"):
+        return blocked("the ordinary weekly delivery has not completed for this anchor")
+    if state["regular"] == "d_hold" and not state.get("d_update"):
+        return blocked("the D follow-up is still outstanding; revise only a settled week")
+    already = sorted(state.get("revisions") or {})
+    if already:
+        return blocked(f"a presentation revision was already delivered for this anchor: {already}")
+    if not (root / MANIFEST).exists() or read(root / MANIFEST).get("anchor") != anchor:
+        return blocked("the sealed release is absent or belongs to another week")
+    release = verify(root, now, committed=committed)
+    if not release["d_ready"]:
+        return blocked("D is not verified; a revision must restate a settled book")
+    if (state.get("core") != release["core_identity"]
+            or state.get("europe") != release["europe_identity"]):
+        return blocked("the sealed instruction identities differ from what was delivered")
+    local = now.astimezone(SGT)
+    if local > review_window(now)[1]:
+        return blocked("the weekend review checkpoint has passed")
+    if any(date.fromisoformat(s["fill_date"]) < local.date() for s in release["book"]["sleeves"]):
+        return blocked("a proposed fill date has passed; the instruction would be stale")
+    return {"action": REVISION_ACTION, "audience": "distribution", "anchor": anchor,
+            "revision": revision, "d_hold": False,
+            "core_identity": release["core_identity"],
+            "europe_identity": release["europe_identity"],
+            "reason": "presentation revision of the confirmed all-ready book"}, release
+
+
+def prepare_revision(root=ROOT, now=None, revision=None, reserve=False, committed=False):
+    now = now or datetime.now(timezone.utc)
+    decision, release = plan_revision(root, now, revision, committed=committed)
+    if decision["action"] != REVISION_ACTION:
+        return decision
+    from component_factsheet_view import verified_context, render_pdf, render_text
+    release = {**release, "presentation": verified_context(root, release, committed)}
+    html = render(decision, release)
+    wording = email_wording(decision)
+    candidate = {"decision": decision, "release_identity": release["identity"],
+        "subject": f"{wording['subject']} · USD Multi-Strategy ETF Portfolio · {release['anchor']}",
+        "html": html, "book_html": render(decision, release, include_unchanged=True),
+        "book": release["book"]}
+    candidate["text"] = render_text(decision, release)
+    candidate["pdf_base64"] = base64.b64encode(render_pdf(decision, release)).decode("ascii")
+    candidate["pdf_filename"] = f"factsheet_{release['anchor']}_revision-{decision['revision']}.pdf"
+    candidate["id"] = digest(candidate)
+    write(root / OUT / "candidate.json", candidate)
+    (root / OUT / "preview.html").write_text(html, encoding="utf-8")
+    (root / OUT / candidate["pdf_filename"]).write_bytes(base64.b64decode(candidate["pdf_base64"]))
+    if reserve:
+        ledger = ledger_at(root)
+        state = ledger["anchors"][release["anchor"]]
+        # The same durable reservation the ordinary stages use, so an
+        # interrupted revision blocks every later send until reconciled.
+        state["pending"] = {"id": candidate["id"], "action": REVISION_ACTION,
+                            "revision": decision["revision"], "reserved_at": now.isoformat()}
+        write(root / LEDGER, ledger)
+    return decision
+
+
+def send_revision(root=ROOT, now=None, revision=None, transport=smtp_send, env=None, committed=False):
+    now = now or datetime.now(timezone.utc)
+    candidate = read(root / OUT / "candidate.json")
+    if candidate["id"] != digest({k: v for k, v in candidate.items() if k != "id"}):
+        raise ValueError("mail payload changed after reservation")
+    decision = candidate["decision"]
+    if decision.get("action") != REVISION_ACTION:
+        raise ValueError("the prepared payload is not a presentation revision")
+    revision = str(revision or "").strip() or decision.get("revision")
+    if revision != decision.get("revision"):
+        raise ValueError("revision identifier does not match the reserved payload")
+    rechecked, release = plan_revision(root, now, revision, committed=committed,
+                                       allow_pending=candidate["id"])
+    if rechecked["action"] != REVISION_ACTION:
+        raise ValueError(f"revision eligibility changed after reservation: {rechecked['reason']}")
+    if release["identity"] != candidate["release_identity"] or release["book"] != candidate["book"]:
+        raise ValueError("release changed after reservation")
+    ledger = ledger_at(root)
+    state = ledger["anchors"][release["anchor"]]
+    pending = state.get("pending") or {}
+    if pending.get("id") != candidate["id"] or pending.get("revision") != revision:
+        raise ValueError("no matching durable reservation")
+    if committed:
+        # The reservation must already be on the remote, exactly as the
+        # ordinary stages require, so a crash after SMTP cannot lose the lock.
+        import json
+        remote = subprocess.run(["git", "show", f"origin/main:{LEDGER}"], cwd=root,
+                                capture_output=True, check=True).stdout
+        remote_pending = json.loads(remote)["anchors"][release["anchor"]].get("pending", {})
+        if remote_pending.get("id") != candidate["id"] or remote_pending.get("revision") != revision:
+            raise ValueError("reservation is not present on the remote tracking branch")
+    transport(candidate, os.environ if env is None else env)
+    # The original confirmation is evidence of a delivered instruction and is
+    # left exactly as it stands; the revision is recorded beside it.
+    state.pop("pending")
+    state.setdefault("revisions", {})[revision] = {
+        "candidate": candidate["id"], "release": release["identity"],
+        "subject": candidate["subject"], "confirmed_at": now.isoformat()}
+    write(root / LEDGER, ledger)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("plan", "send"))
+    parser.add_argument("operation", choices=("plan", "send", "revise", "revise-send"))
     parser.add_argument("--reserve", action="store_true")
+    parser.add_argument("--revision", default="")
     args = parser.parse_args()
     if args.operation == "send":
         send(committed=True)
         print("SMTP accepted the factsheet for all configured recipients; delivery ledger updated.")
+        return
+    if args.operation == "revise-send":
+        send_revision(revision=args.revision, committed=True)
+        print("SMTP accepted the revised presentation for all configured recipients; revision recorded.")
+        return
+    if args.operation == "revise":
+        decision = prepare_revision(revision=args.revision, reserve=args.reserve, committed=True)
+        print(f"{decision['action']}: {decision['reason']}")
+        output = os.environ.get("GITHUB_OUTPUT")
+        if output:
+            with open(output, "a", encoding="utf-8") as handle:
+                handle.write(f"send={'true' if args.reserve and decision['action'] == REVISION_ACTION else 'false'}\n")
+        if decision["action"] != REVISION_ACTION:
+            raise SystemExit(1)
         return
     decision = prepare(reserve=args.reserve, committed=True)
     print(f"{decision['action']}: {decision['reason']}")

@@ -15,7 +15,7 @@ import component_release as cr
 from component_factsheet_view import verified_context, render_html, render_pdf
 
 
-def preview(revision, name):
+def preview(revision, name, action=None):
     def archive(path):
         return json.loads(subprocess.run(["git","show",f"{revision}:{path}"],cwd=cr.ROOT,
                           check=True,capture_output=True).stdout)
@@ -27,7 +27,8 @@ def preview(revision, name):
         cr.write(root/cr.MANIFEST,release)
         release=cr.verify(root,datetime.fromisoformat(release["sealed_at"]))
         release={**release,"presentation":verified_context(root,release),"preview_only":True}
-        decision={"action":"regular" if release["d_ready"] else "preview","d_hold":not release["d_ready"]}
+        decision={"action":action or ("regular" if release["d_ready"] else "preview"),
+                  "d_hold":not release["d_ready"] and action is None,"revision":"preview"}
         out=cr.ROOT/".component-mail"
         out.mkdir(exist_ok=True)
         for full,suffix in ((False,""),(True,"-book")):
@@ -40,5 +41,6 @@ if __name__=="__main__":
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("revision")
     parser.add_argument("name")
+    parser.add_argument("--action",choices=("preview","regular","d_update","revision"),default=None)
     args=parser.parse_args()
-    preview(args.revision,args.name)
+    preview(args.revision,args.name,args.action)

@@ -30,18 +30,48 @@ const http = require('node:http');
             const visible = [...document.querySelectorAll('main *')].filter(e => e.checkVisibility());
             const overflow = visible.filter(e => e.getBoundingClientRect().right>viewport+1 || e.getBoundingClientRect().left<0).length;
             const fonts = visible.filter(e=>e.textContent.trim()).map(e=>parseFloat(getComputedStyle(e).fontSize));
-            const p = document.querySelector('main p');
-            const c = document.createElement('canvas').getContext('2d');
-            c.font = getComputedStyle(p).font;
-            const sample = 'The quick brown fox jumps over the lazy dog. ';
-            const chars = p.getBoundingClientRect().width / (c.measureText(sample).width/sample.length);
+            // Contrast, not only size. An inline colour survives a client that
+            // strips the stylesheet, which is why it is inline — and that same
+            // inline colour ignores the dark-theme rule unless it is overridden.
+            // Measuring it here is the only thing that catches the second case.
+            const rgb = s => (s.match(/[\d.]+/g)||[]).map(Number);
+            const lum = ([r,g,b]) => {
+              const f = v => { v/=255; return v<=0.03928 ? v/12.92 : ((v+0.055)/1.055)**2.4; };
+              return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b);
+            };
+            const ground = el => {
+              for (let n=el; n; n=n.parentElement) {
+                const c = rgb(getComputedStyle(n).backgroundColor);
+                if (c.length>=3 && (c[3]===undefined || c[3]>0)) return c;
+              }
+              return rgb(getComputedStyle(document.body).backgroundColor);
+            };
+            const texts = visible.filter(e => [...e.childNodes].some(n => n.nodeType===3 && n.textContent.trim()));
+            const ratios = texts.map(e => {
+              const style = getComputedStyle(e), size = parseFloat(style.fontSize);
+              const a = lum(rgb(style.color)) + 0.05, b = lum(ground(e)) + 0.05;
+              const large = size>=24 || (size>=18.66 && parseInt(style.fontWeight,10)>=700);
+              return {ratio: Math.max(a,b)/Math.min(a,b), floor: large?3:4.5,
+                      text: e.textContent.trim().slice(0,40)};
+            });
+            const failed = ratios.filter(r => r.ratio < r.floor - 0.01);
             return {viewport,scrollWidth:document.documentElement.scrollWidth,overflow,
-              minFont:Math.min(...fonts),charsPerLine:Number(chars.toFixed(1)),
+              minFont:Math.min(...fonts),charsPerLine:Number(chars(document)),
+              minContrast:Number(Math.min(...ratios.map(r=>r.ratio)).toFixed(2)),
+              contrastFailures:failed.map(r=>`${r.text} (${r.ratio.toFixed(2)}:1)`),
               positions:document.querySelectorAll('.position').length,
               background:getComputedStyle(document.body).backgroundColor};
+            function chars(doc){
+              const p = doc.querySelector('main p');
+              const c = doc.createElement('canvas').getContext('2d');
+              c.font = getComputedStyle(p).font;
+              const sample = 'The quick brown fox jumps over the lazy dog. ';
+              return (p.getBoundingClientRect().width / (c.measureText(sample).width/sample.length)).toFixed(1);
+            }
           });
           results.push({file,width,theme,...result});
-          if(result.viewport!==width || result.scrollWidth>width+1 || result.overflow || result.minFont<11)
+          if(result.viewport!==width || result.scrollWidth>width+1 || result.overflow || result.minFont<11
+             || result.contrastFailures.length)
             throw new Error(JSON.stringify(results.at(-1)));
           const measure = width===390 ? [40,50] : [65,75];
           if(result.charsPerLine<measure[0] || result.charsPerLine>measure[1])
