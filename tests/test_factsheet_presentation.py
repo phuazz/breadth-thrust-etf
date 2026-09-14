@@ -262,12 +262,58 @@ def test_email_sleeve_colours_cannot_drift_from_the_dashboard_palette():
     publication stop looking like one publication.
     """
     import build_factsheet as house
-    from component_factsheet_view import SLEEVE_HEX, SLEEVE_KEY
+    from component_factsheet_view import SLEEVE_HEX, SLEEVE_KEY, TONE
     assert set(SLEEVE_HEX) == set(SLEEVE_KEY)
     for sleeve, key in SLEEVE_KEY.items():
         assert SLEEVE_HEX[sleeve].lower() == getattr(house, key).lower(), sleeve
     # The two overlays must not wear a ranked strategy's hue.
     assert len({SLEEVE_HEX[s] for s in ("A", "B", "C", "D", "TILT", "GATE")}) == 6
+    for tone, source in (("up", house.GOOD), ("down", house.BAD), ("warn", house.WARN)):
+        assert TONE[tone].lower() == source.hexval().replace("0x", "#"), tone
+
+
+def test_no_house_hue_carries_two_meanings():
+    """PALETTE_SPY was byte-identical to PALETTE_A: one blue, two meanings.
+
+    Every line series the factsheet can draw in one document has to be
+    separable from every other, or the legend on page five contradicts the
+    attribution chart on page two.
+    """
+    import build_factsheet as house
+    series = {name: getattr(house, "PALETTE_" + name)
+              for name in ("BLEND", "SPY", "BENCH", "DD", "A", "B", "C", "D")}
+    assert len(set(v.lower() for v in series.values())) == len(series), series
+    # The per-ETF chart's own map is where the second instance hid, as a bare
+    # literal equal to PALETTE_C. Every band in one figure must be separable.
+    bars = house._SLEEVE_PALETTE
+    assert len(set(v.lower() for v in bars.values())) == len(bars), bars
+    assert set(bars.values()) <= set(series.values()), "chart colours must come from the palette"
+
+
+@pytest.mark.parametrize("name,floor", [("GOOD", 4.5), ("BAD", 4.5), ("WARN", 4.5),
+                                        ("INK", 4.5), ("INK_SOFT", 4.5)])
+def test_house_text_colours_clear_wcag_aa_on_both_grounds(name, floor):
+    """WARN is a text colour, so it answers to the text threshold.
+
+    It was #b76e00 at 4.00:1 on white and 3.77:1 on the panel, used for the
+    RESIZE action at 7.5pt and the watchlist badge at 8pt. Both grounds are
+    checked because the badge sits on BG_PANEL, not on the page.
+    """
+    import build_factsheet as house
+
+    def luminance(hexcode):
+        channels = (int(hexcode[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+                  for c in channels]
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+    def contrast(a, b):
+        first, second = luminance(a) + 0.05, luminance(b) + 0.05
+        return max(first, second) / min(first, second)
+
+    ink = getattr(house, name).hexval()[2:]
+    for ground in (house.WHITE.hexval()[2:], house.BG_PANEL.hexval()[2:]):
+        assert contrast(ink, ground) >= floor, (name, ground, contrast(ink, ground))
 
 
 def test_every_colour_carries_a_word_and_a_dark_override(tmp_path,monkeypatch):

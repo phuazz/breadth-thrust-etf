@@ -426,12 +426,12 @@ REVISION_BANNER = (
     "reviewed that email.")
 
 
-# Text tones. The light values are the dashboard factsheet's GOOD and BAD;
-# the amber is darkened from its #b76e00, which measures 4.02:1 on white and
-# fails AA at label size. The dark values exist because an inline colour
+# Text tones, from the dashboard factsheet's GOOD, BAD and AMBER. They are
+# literals because the email must not import matplotlib; a test holds them
+# equal to their source. The dark values exist because an inline colour
 # survives a client that strips the stylesheet and therefore also survives
 # the dark-theme rule unless that rule overrides it.
-TONE = {"up": "#1a6b34", "down": "#a3201a", "warn": "#8a5200"}
+TONE = {"up": "#1d7a3a", "down": "#b3261e", "warn": "#9a5b00"}
 ACTION_TONE = {"ENTER": "up", "EXIT": "down", "ADD": "warn", "TRIM": "warn"}
 # The dashboard factsheet's sleeve hues, as literals because the email must
 # not import matplotlib. build_factsheet.py remains the source of truth; the
@@ -701,7 +701,7 @@ def render_text(decision, release):
 CHART_DPI = 200
 # A ranked sleeve gets its own hue; the two overlays are neutral, because they
 # are not ranked and must not read as a fifth and sixth strategy. PALETTE_SPY
-# is deliberately unused here: it is identical to PALETTE_A.
+# is not used here: this book holds no benchmark line.
 SLEEVE_KEY = {"A": "PALETTE_A", "B": "PALETTE_B", "C": "PALETTE_C",
               "D": "PALETTE_D", "TILT": "PALETTE_BENCH", "GATE": "PALETTE_ZERO"}
 
@@ -828,7 +828,7 @@ def render_pdf(decision, release):
     INK, SOFT, FAINT = house.INK, house.INK_SOFT, house.INK_FAINT
     PANEL, BORDER, STRONG = house.BG_PANEL, house.BORDER, house.BORDER_STRONG
     GOOD, BAD, BAND = house.GOOD, house.BAD, house.BG_HEADER
-    WARN = colors.HexColor("#8a5200")
+    WARN = house.WARN
     width = A4[0] - 30 * mm
 
     v, book, stats = view_model(decision, release), release["book"], release["performance"]

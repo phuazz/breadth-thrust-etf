@@ -83,7 +83,12 @@ plt.rcParams.update({
 
 # Desaturated print-safe palette (per navigo-systematic-trend audit).
 PALETTE_BLEND   = "#1a8754"  # green — the deployed blend / model line
-PALETTE_SPY     = "#2563eb"  # blue  — SPY / primary benchmark
+# Slate, not blue. This was #2563eb, byte-identical to PALETTE_A, so one hue
+# carried two meanings across the document: "SPY" on the performance chart and
+# "Strategy A" on the attribution charts. A benchmark is also conventionally
+# neutral against a coloured strategy line, which the dashed style already
+# assumes. 7.6:1 on white, and no longer collides with any sleeve.
+PALETTE_SPY     = "#475569"  # slate — SPY / primary benchmark
 PALETTE_BENCH   = "#8a8a82"  # grey  — secondary benchmarks
 PALETTE_DD      = "#b91c1c"  # red   — drawdown
 PALETTE_A       = "#2563eb"  # blue  — Strategy A (US sectors)
@@ -119,7 +124,15 @@ BORDER_STRONG = colors.HexColor("#c8ccd2")
 ACCENT = colors.HexColor("#1351b4")
 GOOD = colors.HexColor("#1d7a3a")
 BAD = colors.HexColor("#b3261e")
-WARN = colors.HexColor("#b76e00")
+# Amber, darkened from #b76e00. WARN is a TEXT colour — the RESIZE action at
+# 7.5pt, the watchlist status badge at 8pt, the EM tilt state — and #b76e00
+# measures 4.00:1 on white and 3.77:1 on BG_PANEL, under the 4.5:1 that
+# normal-size text requires. #9a5b00 reaches 5.4:1 and 5.1:1, which also puts
+# it alongside GOOD (5.4:1) and BAD (6.5:1) so the three action colours carry
+# comparable weight in the same table. Held as a string so the risk-off
+# shading below cannot drift away from it.
+AMBER = "#9a5b00"
+WARN = colors.HexColor(AMBER)
 ZEBRA = colors.HexColor("#fafbfc")
 WHITE = colors.white
 
@@ -412,11 +425,11 @@ def chart_performance_dual(deployed_series, spy_series, overlay, width_pts):
                 if span_end >= chart_start and off_start <= chart_end:
                     ax_eq.axvspan(max(off_start, chart_start),
                                    min(span_end, chart_end),
-                                   color="#b76e00", alpha=0.08, zorder=1)
+                                   color=AMBER, alpha=0.08, zorder=1)
                 off_start = None
         if off_start is not None and off_start <= chart_end:
             ax_eq.axvspan(max(off_start, chart_start), chart_end,
-                           color="#b76e00", alpha=0.08, zorder=1)
+                           color=AMBER, alpha=0.08, zorder=1)
     ax_eq.axhline(0, color=PALETTE_ZERO, linewidth=0.6, zorder=1)
     ax_eq.yaxis.set_major_formatter(
         plt.FuncFormatter(lambda v, _: f"{v:.0f}%")
@@ -664,8 +677,14 @@ def _etf_return_from_date(holdings_prices, etf, start_date, asof=None):
 
 
 # Map sleeve letter -> palette colour for the per-ETF chart.
+# TILT was the bare literal "#b45309", byte-identical to PALETTE_C, so the EEM
+# bar and every thematic bar were one colour IN THE SAME FIGURE — the same
+# defect as PALETTE_SPY against PALETTE_A, and harder to see because it hid in
+# a literal rather than a named constant. The tilt is an overlay, not a fifth
+# ranked strategy, so it takes the neutral, as it does on the component
+# factsheet. Named constants only here: a literal is what let this drift.
 _SLEEVE_PALETTE = {"A": PALETTE_A, "B": PALETTE_B, "C": PALETTE_C,
-                    "D": PALETTE_D, "TILT": "#b45309"}
+                    "D": PALETTE_D, "TILT": PALETTE_BENCH}
 
 
 def _honest_tick_locator(ax, decimals: int, nbins: int = 7) -> None:
