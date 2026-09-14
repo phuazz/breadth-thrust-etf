@@ -43,7 +43,9 @@ SIGNAL_UNITS = {"breadth_relative": ("breadth versus the sector average", "pp", 
                 "breadth": ("constituent breadth", "%", False),
                 "ma_distance": ("price distance from the 200-day average", "%", True)}
 OVERLAY_SLEEVES = ("TILT", "GATE")
-ACTION_WORDS = {"ENTER": "Enter", "EXIT": "Exit", "ADD": "Increase", "TRIM": "Reduce"}
+# The dashboard factsheet's own vocabulary, so the two surfaces read alike.
+# Direction is not lost: the signed, coloured change sits in the next column.
+ACTION_WORDS = {"ENTER": "Enter", "EXIT": "Exit", "ADD": "Resize", "TRIM": "Resize"}
 
 
 def pct(value, signed=False, dp=2):
@@ -75,7 +77,7 @@ def exact_return(dates, values, start, end):
 
 def context_from_sources(release, reader):
     """Supporting facts are read from the same hashed sources as the release."""
-    from build_email_body import _sleeve_series
+    from build_email_body import _sleeve_series, _get_deployed_series
     book, stats = release["book"], release["performance"]
     start, end = stats["wtd_start"], stats["as_of"]
     weights = book["overlay_decision"]["weights"]
@@ -124,6 +126,17 @@ def context_from_sources(release, reader):
         entry = prices.get(proxy) or prices.get(line["etf"], {})
         ret = exact_return(entry.get("dates"), entry.get("prices"), start, end)
         holding_returns.append({**line, "ret": ret, "price_key": proxy})
+    # The equity path the chart draws comes from the same hashed sources as
+    # the headline figures, never from a newer file, and is rebased on the
+    # deployed-model history the Sharpe and drawdown already describe. If a
+    # snapshot cannot supply it the chart is simply dropped: it illustrates
+    # figures that the tables state independently.
+    try:
+        _key, equity_dates, equity_values = _get_deployed_series(
+            reader("data/multi_strategy.json"), reader("data/risk_overlay.json"),
+            reader("data/live_track.json"))
+    except (KeyError, TypeError, ValueError, IndexError):
+        equity_dates, equity_values = [], []
     return {"start": start, "end": end, "attribution": rows, "coverage_complete": covered,
             "attribution_sum": total, "residual": stats["values"]["WTD"] - total
             if covered and stats["values"].get("WTD") is not None else None,
@@ -131,6 +144,7 @@ def context_from_sources(release, reader):
             # despite gate_feed_last_bar being newer. Do not label that scalar
             # as a verified current gate observation. The book owns gate state.
             "holding_returns": holding_returns,
+            "equity_dates": list(equity_dates), "equity_values": list(equity_values),
             "watchlist":watchlist}
 
 
@@ -412,18 +426,39 @@ REVISION_BANNER = (
     "reviewed that email.")
 
 
-def _tag(action):
-    """Entries and exits are named, not merely coloured.
+# Text tones. The light values are the dashboard factsheet's GOOD and BAD;
+# the amber is darkened from its #b76e00, which measures 4.02:1 on white and
+# fails AA at label size. The dark values exist because an inline colour
+# survives a client that strips the stylesheet and therefore also survives
+# the dark-theme rule unless that rule overrides it.
+TONE = {"up": "#1a6b34", "down": "#a3201a", "warn": "#8a5200"}
+ACTION_TONE = {"ENTER": "up", "EXIT": "down", "ADD": "warn", "TRIM": "warn"}
+# The dashboard factsheet's sleeve hues, as literals because the email must
+# not import matplotlib. build_factsheet.py remains the source of truth; the
+# PDF reads them from it directly and a test holds the two in agreement.
+SLEEVE_HEX = {"A": "#2563eb", "B": "#7c3aed", "C": "#b45309",
+              "D": "#0891b2", "TILT": "#8a8a82", "GATE": "#cfcdc4"}
 
-    The colour is inline so it survives a client that strips the stylesheet;
-    the dark-theme rule overrides it, because these two values fall to roughly
-    2.5:1 on the dark ground and the word alone must not be the fallback.
-    """
-    colour = {"ENTER": "#1a6b34", "EXIT": "#a3201a"}.get(action)
-    if not colour:
+
+def _toned(text, tone, weight=""):
+    """Colour a figure, never as its only signal: the sign or word stays."""
+    if tone not in TONE:
+        return escape(text)
+    return (f"<span class='tone {tone}' style='color:{TONE[tone]}{weight}'>"
+            f"{escape(text)}</span>")
+
+
+def _tag(action):
+    """Every row states its action in words, coloured the house way."""
+    word, tone = ACTION_WORDS.get(action), ACTION_TONE.get(action)
+    if not word or not tone:
         return ""
-    return (f" <span class='tag {action.lower()}' style='font-size:13px;font-weight:bold;"
-            f"letter-spacing:.04em;color:{colour}'>{escape(action)}</span>")
+    return (" <span class='tag tone " + tone + "' style='font-size:13px;font-weight:bold;"
+            f"letter-spacing:.04em;color:{TONE[tone]}'>{escape(word.upper())}</span>")
+
+
+def _money_tone(value):
+    return "up" if value > CHANGE_EPSILON else "down" if value < -CHANGE_EPSILON else None
 
 
 def _change_table(shifts, release, decision=None, limit=None, unchanged=False):
@@ -450,7 +485,9 @@ def _change_table(shifts, release, decision=None, limit=None, unchanged=False):
                 continue
         story = sleeve_story(shift, release)
         detail = f"<br><span class='note' style='font-size:13px;line-height:1.5'>{book_e(story)}</span>" if story else ""
-        parts.append("<tr class='group'><td colspan='4' style='padding:16px 6px 6px;font-size:13px;"
+        # The strategy's own hue, as a rule down the side of its heading.
+        parts.append(f"<tr class='group'><td colspan='4' style='padding:12px 6px 8px 10px;font-size:13px;"
+                     f"border-left:4px solid {SLEEVE_HEX.get(shift['sleeve'], '#8a8a82')};"
                      f"border-bottom:1px solid #b5c3d3'><strong>{book_e(group_heading(shift, book, decision))}</strong>{detail}</td></tr>")
         for row in rows:
             shown += 1
@@ -459,8 +496,8 @@ def _change_table(shifts, release, decision=None, limit=None, unchanged=False):
                 f"<strong>{e(row['traded'])}</strong>{_tag(action_of(row))}<br>"
                 f"<span class='note' style='font-size:13px'>{e(release['labels'].get(row['etf'], row['etf']))}</span></td>"
                 f"<td style='{right}'>{e(pct(row['held']))}</td>"
-                f"<td style='{right}'>{e(pct(row['target']))}</td>"
-                f"<td style='{right}'>{e(pp(row['delta']))}</td></tr>")
+                f"<td style='{right}'><strong>{e(pct(row['target']))}</strong></td>"
+                f"<td style='{right}'>{_toned(pp(row['delta']), _money_tone(row['delta']), ';font-weight:bold')}</td></tr>")
     parts.append("</tbody></table>")
     return "".join(parts), shown
 
@@ -487,7 +524,9 @@ def render_html(decision, release, include_unchanged=False):
         value = stats["values"].get(key)
         text = "Unavailable" if value is None else f"{value:.2f}" if key == "Sharpe" else pct(value, True)
         label = {"WTD": "This week", "1Y": "One year"}.get(key, key)
-        parts.append(f"<div class='metric'><span>{e(label)}</span><strong>{e(text)}</strong></div>")
+        tone = None if key == "Sharpe" or value is None else _money_tone(value)
+        parts.append(f"<div class='metric'><span>{e(label)}</span>"
+                     f"<strong>{_toned(text, tone)}</strong></div>")
     parts += ["</div>", f"<p class='note'>Model valuation: {e(long_date(stats['as_of']))}. "
               f"Week: {e(stats['wtd_start'] or 'Unavailable')} to {e(stats['as_of'])}. "
               "YTD starts at the prior year-end close; 1Y is the trailing calendar year. "
@@ -597,7 +636,7 @@ a{color:#164cb2}.button{display:inline-block;padding:12px 16px;background:#eef4f
 @media(max-width:480px){body{padding:16px}h1{font-size:23px}.metric{flex-basis:80px}.metric strong{font-size:21px}}
 html[data-theme=dark]{color-scheme:dark}html[data-theme=dark] body{background:#111827;color:#f3f4f6}html[data-theme=dark] .note,html[data-theme=dark] .eyebrow,html[data-theme=dark] .changes thead th,html[data-theme=dark] .shifts th{color:#cbd5e1}
 html[data-theme=dark] .status,html[data-theme=dark] .metric,html[data-theme=dark] .button,html[data-theme=dark] .changes tr.group td{background:#1e293b;color:#f3f4f6}html[data-theme=dark] a{color:#93c5fd}
-html[data-theme=dark] .tag.enter{color:#86efac!important}html[data-theme=dark] .tag.exit{color:#fca5a5!important}
+html[data-theme=dark] .tone.up{color:#86efac!important}html[data-theme=dark] .tone.down{color:#fca5a5!important}html[data-theme=dark] .tone.warn{color:#fcd34d!important}
 """
     # Critical email styling is inline as well as in the stylesheet. No scripts,
     # remote images or fonts are required; information survives stripped CSS —
@@ -654,132 +693,535 @@ def render_text(decision, release):
     return '\n'.join(line for line in lines if line)
 
 
+# ------------------------------------------------------------ PDF design ---
+# The design system is build_factsheet.py's, imported rather than copied: the
+# weekly dashboard factsheet and this verified component factsheet are the same
+# publication to a reader, and a second private palette would let them drift.
+
+CHART_DPI = 200
+# A ranked sleeve gets its own hue; the two overlays are neutral, because they
+# are not ranked and must not read as a fifth and sixth strategy. PALETTE_SPY
+# is deliberately unused here: it is identical to PALETTE_A.
+SLEEVE_KEY = {"A": "PALETTE_A", "B": "PALETTE_B", "C": "PALETTE_C",
+              "D": "PALETTE_D", "TILT": "PALETTE_BENCH", "GATE": "PALETTE_ZERO"}
+
+
+def _house():
+    """build_factsheet owns the palette, the chart style and the page furniture."""
+    import build_factsheet as house
+    return house
+
+
+def _sleeve_hex(house, sleeve):
+    return getattr(house, SLEEVE_KEY.get(sleeve, "PALETTE_BENCH"))
+
+
+def _bar_chart(rows, width_pts, axis_label, unit, height_per_row=.30, min_height=1.5):
+    """Horizontal bars from (label, value, colour, annotation) rows.
+
+    Values arrive as NAV fractions and are drawn in display units, so the
+    axis reads in the same unit the annotation and the tables use. A missing
+    value is dropped rather than drawn at zero.
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import FuncFormatter
+    house = _house()
+    rows = [r for r in rows if r[1] is not None]
+    if not rows:
+        return None
+    labels = [r[0] for r in rows]
+    values = [float(r[1]) * 100 for r in rows]
+    fig, ax = plt.subplots(figsize=(width_pts / 72.0,
+                                    max(min_height, height_per_row * len(rows) + .55)))
+    ax.barh(range(len(rows)), values, color=[r[2] for r in rows], height=.62)
+    ax.set_yticks(range(len(rows)))
+    ax.set_yticklabels(labels, fontsize=7.5)
+    ax.invert_yaxis()
+    ax.axvline(0, color=house.PALETTE_ZERO, lw=.8)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+    ax.tick_params(axis="y", length=0)
+    ax.set_xlabel(axis_label, fontsize=7)
+    decimals = 0 if max(abs(v) for v in values) >= 4 else 2
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _pos: f"{v:.{decimals}f}{unit}"))
+    span = max(abs(v) for v in values) or 1
+    low, high = min(0, min(values)), max(0, max(values))
+    ax.set_xlim(low - span * .45, high + span * .45)
+    for i, (_, value, _colour, note) in enumerate(rows):
+        right = float(value) >= 0
+        ax.annotate(note, (float(value) * 100, i), xytext=(4 if right else -4, 0),
+                    textcoords="offset points", va="center",
+                    ha="left" if right else "right", fontsize=7, color="#3a4148")
+    fig.tight_layout()
+    return house._chart_to_image(fig, width_pts, dpi=CHART_DPI)
+
+
+def sleeve_contribution_chart(context, width_pts):
+    house = _house()
+    rows = [(NAMES[r["sleeve"]], r["contribution"], _sleeve_hex(house, r["sleeve"]),
+             pp(r["contribution"]) if r["contribution"] is not None else "")
+            for r in context.get("attribution", [])]
+    return _bar_chart(rows, width_pts, "Contribution to the week", "pp")
+
+
+def holding_move_chart(context, width_pts, limit=10):
+    """Weekly quote move per held line. A price move, never a contribution."""
+    house = _house()
+    priced = [r for r in context.get("holding_returns", []) if r["ret"] is not None]
+    priced = sorted(priced, key=lambda r: -abs(r["ret"]))[:limit]
+    priced = sorted(priced, key=lambda r: -r["ret"])
+    rows = [(f"{r['traded']} ({r['sleeve']})", r["ret"], _sleeve_hex(house, r["sleeve"]),
+             pct(r["ret"], True)) for r in priced]
+    return _bar_chart(rows, width_pts, "Quote / proxy move over the week", "%")
+
+
+def equity_chart(context, width_pts):
+    """Deployed-model path and drawdown, the same history Sharpe describes."""
+    dates, values = context.get("equity_dates") or [], context.get("equity_values") or []
+    if len(dates) != len(values) or len(dates) < 20:
+        return None
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    house = _house()
+    series = pd.Series([float(v) for v in values], index=pd.to_datetime(dates), dtype=float)
+    series = series[series > 0]
+    if len(series) < 20:
+        return None
+    growth = series / float(series.iloc[0]) - 1
+    drawdown = series / series.cummax() - 1
+    fig, (top, low) = plt.subplots(2, 1, figsize=(width_pts / 72.0, 2.45), sharex=True,
+                                   gridspec_kw={"height_ratios": [3, 1], "hspace": .10})
+    top.plot(growth.index, growth.values, color=house.PALETTE_BLEND, lw=1.1)
+    top.fill_between(growth.index, growth.values, 0, color=house.PALETTE_FILL)
+    top.axhline(0, color=house.PALETTE_ZERO, lw=.8)
+    top.yaxis.set_major_formatter(lambda v, _pos: f"{v*100:.0f}%")
+    low.fill_between(drawdown.index, drawdown.values, 0, color=house.PALETTE_DD, alpha=.28)
+    low.plot(drawdown.index, drawdown.values, color=house.PALETTE_DD, lw=.7)
+    low.yaxis.set_major_formatter(lambda v, _pos: f"{v*100:.0f}%")
+    low.set_ylabel("Drawdown", fontsize=7)
+    for ax in (top, low):
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.tick_params(labelsize=7)
+    # Shared-axis figures are not tight_layout compatible; set the margins.
+    fig.subplots_adjust(left=.085, right=.995, top=.97, bottom=.12)
+    return house._chart_to_image(fig, width_pts, dpi=CHART_DPI)
+
+
 def render_pdf(decision, release):
-    """Deterministic PDF, built from the identical release as the email."""
+    """Deterministic PDF, built from the identical release as the email.
+
+    Same reader-facing design as the weekly dashboard factsheet: navy header
+    band, KPI strip, sleeve-coloured charts, coloured action column, state
+    cards. Section 02 keeps the portfolio-first order the email uses.
+    """
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, PageBreak
-    output = BytesIO()
-    styles = {k: ParagraphStyle(k, fontName="Helvetica-Bold" if k in ("title", "head") else "Helvetica",
-              fontSize=size, leading=size*1.4, spaceAfter=8, textColor=colors.HexColor("#17212f"))
-              for k, size in (("title", 21), ("head", 14), ("body", 10), ("note", 9))}
-    styles['head'].keepWithNext=True
-    styles['sub']=ParagraphStyle('sub',parent=styles['body'],fontName="Helvetica-Bold",fontSize=11,
-                                 leading=15,spaceBefore=10,spaceAfter=3,keepWithNext=True)
-    styles['table']=ParagraphStyle('table',parent=styles['body'],fontSize=9.5,leading=12,spaceAfter=0)
-    styles['cell']=ParagraphStyle('cell',parent=styles['table'],fontSize=8.5,leading=11)
-    def p(text, style="body"):
-        # Built-in PDF fonts: use printable ASCII punctuation, keep names intact.
-        text = text.replace("→", " to ").replace("—", "-").replace("–", "-").replace("’", "'").replace("·", " / ").replace("×", " x ")
-        return Paragraph(escape(text), styles[style])
-    def table(rows, widths, style="table", align=()):
-        body = [[p(str(c), style) for c in row] for row in rows]
-        t = Table(body, colWidths=widths, repeatRows=1, hAlign="LEFT")
-        commands = [("BACKGROUND",(0,0),(-1,0),colors.HexColor("#edf2f7")),
-                    ("VALIGN",(0,0),(-1,-1),"TOP"),("BOTTOMPADDING",(0,0),(-1,-1),4),
-                    ("TOPPADDING",(0,0),(-1,-1),4),("LINEBELOW",(0,0),(-1,-1),.3,colors.HexColor("#d5dce5"))]
-        commands += [("ALIGN",(c,0),(c,-1),"RIGHT") for c in align]
-        t.setStyle(TableStyle(commands))
-        return t
-    v, book, stats = view_model(decision,release), release["book"], release["performance"]
+    from reportlab.lib.units import mm
+    from reportlab.lib.enums import TA_LEFT, TA_RIGHT
+    from reportlab.pdfgen import canvas as pdfcanvas
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Table, TableStyle,
+                                    PageBreak, Spacer, KeepTogether)
+    house = _house()
+    INK, SOFT, FAINT = house.INK, house.INK_SOFT, house.INK_FAINT
+    PANEL, BORDER, STRONG = house.BG_PANEL, house.BORDER, house.BORDER_STRONG
+    GOOD, BAD, BAND = house.GOOD, house.BAD, house.BG_HEADER
+    WARN = colors.HexColor("#8a5200")
+    width = A4[0] - 30 * mm
+
+    v, book, stats = view_model(decision, release), release["book"], release["performance"]
     ctx = release.get("presentation", {})
-    flow = [p("USD Multi-Strategy ETF Portfolio", "title"), p(v["wording"]["heading"], "head"),
-            p(f"Decision close {long_date(release['anchor'])}. Proposed model positions; not executed trades."),
-            p(v["wording"]["difference"])]
-    if decision.get("action") == "revision":
-        flow.insert(0, p(REVISION_BANNER, "head"))
+    overlay = book["overlay_decision"]
+    stage = ("REVISED PRESENTATION" if decision.get("action") == "revision" else
+             "INITIAL REVIEW · A-C VERIFIED" if decision["action"] == "preview" else
+             "WEEKLY FACTSHEET")
+
+    def ascii_text(text):
+        # Built-in PDF fonts: printable ASCII punctuation, names kept intact.
+        return (str(text).replace("→", " to ").replace("—", "-").replace("–", "-")
+                .replace("’", "'").replace("·", " / ").replace("×", " x ")
+                .replace("–", "-").replace("‑", "-"))
+
+    def st(name, size, colour=INK, bold=False, mono=False, align=TA_LEFT,
+           leading=None, space=4, italic=False):
+        font = ("Courier-Bold" if bold else "Courier") if mono else (
+            "Helvetica-Oblique" if italic else ("Helvetica-Bold" if bold else "Helvetica"))
+        return ParagraphStyle(name, fontName=font, fontSize=size,
+                              leading=leading or size * 1.35, textColor=colour,
+                              alignment=align, spaceBefore=0, spaceAfter=space)
+
+    body = st("body", 9, INK, space=6)
+    note = st("note", 7.5, FAINT, space=4)
+    lead = st("lead", 10, INK, leading=14, space=8)
+
+    def p(text, style=None):
+        return Paragraph(escape(ascii_text(text)), style or body)
+
+    def cell(text, colour=INK, size=8.5, bold=False, mono=False, align=TA_LEFT):
+        return Paragraph(escape(ascii_text(text)),
+                         st("c", size, colour, bold=bold, mono=mono, align=align, space=0))
+
+    def section(title, sub=None):
+        rule = Table([[""]], colWidths=[width], rowHeights=[0.5], style=TableStyle([
+            ("LINEABOVE", (0, 0), (-1, 0), 0.5, STRONG),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
+        out = [Paragraph(escape(ascii_text(title.upper())), st("s", 10, INK, bold=True, space=1))]
+        if sub:
+            out.append(Paragraph(escape(ascii_text(sub)), st("ss", 8, FAINT, italic=True, space=4)))
+        return out + [rule, Spacer(1, 4)]
+
+    def grid(rows, widths, align=(), header=True, pad=4):
+        style = [("VALIGN", (0, 0), (-1, -1), "TOP"),
+                 ("TOPPADDING", (0, 0), (-1, -1), pad),
+                 ("BOTTOMPADDING", (0, 0), (-1, -1), pad),
+                 ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                 ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                 ("LINEBELOW", (0, 0), (-1, -1), 0.3, BORDER)]
+        if header:
+            style += [("BACKGROUND", (0, 0), (-1, 0), PANEL),
+                      ("LINEBELOW", (0, 0), (-1, 0), 0.5, STRONG)]
+        style += [("ALIGN", (c, 0), (c, -1), "RIGHT") for c in align]
+        table = Table(rows, colWidths=widths, repeatRows=1 if header else 0, hAlign="LEFT")
+        table.setStyle(TableStyle(style))
+        return table
+
+    def money(weight):
+        # Weights are abstract; a $1.0M book makes them concrete. House rule:
+        # every figure of 1,000 or more is comma-grouped.
+        return f"${weight * 1_000_000:,.0f}"
+
+    # ---- page furniture -----------------------------------------------
+    provenance = f"Sealed release {release['identity'][:12]} / decision {release['anchor']}"
+
+    class Furnished(pdfcanvas.Canvas):
+        """Two-pass canvas so the band can print 'Page n of m'."""
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._pages = []
+
+        def showPage(self):
+            self._pages.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            total = len(self._pages)
+            for number, state in enumerate(self._pages, start=1):
+                self.__dict__.update(state)
+                page_w, page_h = A4
+                self.setFillColor(BAND)
+                self.rect(0, page_h - 12 * mm, page_w, 12 * mm, fill=1, stroke=0)
+                self.setFillColor(colors.white)
+                self.setFont("Helvetica-Bold", 9)
+                self.drawString(15 * mm, page_h - 7.6 * mm,
+                                f"USD MULTI-STRATEGY ETF PORTFOLIO   ·   {stage}")
+                self.setFillColor(colors.HexColor("#c8ccd2"))
+                self.setFont("Helvetica", 8)
+                self.drawRightString(page_w - 15 * mm, page_h - 7.6 * mm,
+                                     f"Decision {release['anchor']}   ·   Page {number} of {total}")
+                self.setFillColor(PANEL)
+                self.rect(0, 0, page_w, 9 * mm, fill=1, stroke=0)
+                self.setStrokeColor(BORDER)
+                self.setLineWidth(0.4)
+                self.line(0, 9 * mm, page_w, 9 * mm)
+                self.setFillColor(FAINT)
+                self.setFont("Helvetica", 6.5)
+                self.drawString(15 * mm, 4.4 * mm,
+                                "Personal research artefact · NOT investment advice · "
+                                "Proposed model positions, not executed trades")
+                self.drawRightString(page_w - 15 * mm, 4.4 * mm, provenance)
+                super().showPage()
+            super().save()
+
+    # ---- banners --------------------------------------------------------
+    flow = []
+
+    def banner(text, edge, fill):
+        return Table([[Paragraph(f"<b>{escape(ascii_text(text))}</b>",
+                                 st("b", 9, INK, leading=12, space=0))]],
+                     colWidths=[width], style=TableStyle([
+                         ("BACKGROUND", (0, 0), (-1, -1), fill),
+                         ("LINEBEFORE", (0, 0), (0, -1), 3, edge),
+                         ("TOPPADDING", (0, 0), (-1, -1), 9),
+                         ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+                         ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                         ("RIGHTPADDING", (0, 0), (-1, -1), 12)]))
+
     if release.get("preview_only") or stats["series"].startswith("synthetic"):
-        flow.insert(0,p("NO-SEND PREVIEW - not a new instruction", "head"))
-    flow += [p("01 / Performance and return drivers", "head")]
-    if decision['d_hold']:
-        flow.append(p("Performance is provisional while D data is incomplete. Full-portfolio figures may change when D completes; A-C and overlay instructions are verified."))
-    flow.append(table([["Measure", "Model result"], *[[k, "Unavailable" if stats['values'].get(k) is None else f"{stats['values'][k]:.2f}" if k=="Sharpe" else pct(stats['values'][k],True)] for k in ('WTD','YTD','1Y','Sharpe','Max drawdown')]], [280,230]))
-    flow += [p(f"Valuation {stats['as_of']}; weekly window {stats['wtd_start']} to {stats['as_of']}. "
-               "YTD: prior year-end close. One year: trailing calendar year. Sharpe and drawdown: full model history. "
-               "Proposed trades are not included.", "note")]
-    if ctx.get("attribution"):
-        flow.append(table([["Strategy", "Allocation", "Week return", "Contribution"], *[
-            [NAMES[r["sleeve"]],pct(r["weight"]),pct(r["ret"],True),"Unavailable" if r["contribution"] is None else pp(r["contribution"])]
-            for r in ctx["attribution"]]], [175,100,110,125]))
-        flow.append(p("Approximate decision-date allocation x sleeve model return, using exact weekly endpoints. "
-                      "Not realised attribution; missing endpoints are not filled. Difference from blend: "
-                      + (pp(ctx["residual"]) if ctx["residual"] is not None else "unavailable because coverage is incomplete") + ".", "note"))
-    if ctx.get("holding_returns"):
-        flow += [PageBreak(),p("Holding-price moves over the same week", "head"),
-                 p(f"{ctx['start']} to {ctx['end']}. Quote/proxy returns, not portfolio contributions. "
-                   "Held weights identify exposure, not weights held throughout the window. Europe FX is not added. "
-                   "All held lines shown; missing exact endpoints are unavailable.", "note")]
-        flow.append(table([["Fund / price proxy", "Model-held NAV", "Week return"], *[
-            [f"{position_name(r,release)} / {r['price_key']}",pct(r['held']),pct(r['ret'],True)]
-            for r in sorted(ctx['holding_returns'],key=lambda r: (r['ret'] is None,-abs(r['ret'] or 0))) ]], [310,100,100]))
-    # ---- 02: portfolio first, then one compact table per strategy ----------
-    flow += [PageBreak(),p("02 / What changes and why", "head"),
-             p(f"{len(v['changed'])} proposed changes; {pct(v['turnover'])} one-way turnover (half the sum of "
-               f"absolute NAV changes). {v['entries']} new position(s); {v['exits']} closed. " + budget_sentence(v))]
-    flow.append(table([["Strategy", "Held", "Target", "Net shift", "Changes"], *[
-        [f"{s['sleeve']} / {s['name']}", pct(s["held"]), pct(s["target"]), pp(s["net"]), str(len(s["changed"]))]
-        for s in v["shifts"]]], [175,80,80,90,86], align=(1,2,3,4)))
-    flow.append(p("Net shift is the strategy's change in NAV share. A shift within the model rounding bound "
-                  f"of {pct(MODEL_ROUNDING_NAV, dp=2)} is rounding, not a budget decision.", "note"))
+        flow += [banner("NO-SEND PREVIEW - not a new instruction.", BAD,
+                        colors.HexColor("#fdeceb")), Spacer(1, 8)]
+    if decision.get("action") == "revision":
+        flow += [banner(REVISION_BANNER, colors.HexColor("#2563eb"),
+                        colors.HexColor("#eef4fa")), Spacer(1, 8)]
+    flow += [Paragraph(escape(ascii_text(v["wording"]["heading"])),
+                       st("t", 17, INK, bold=True, leading=21, space=3)),
+             p(v["wording"]["difference"], st("d", 9, SOFT, space=10))]
+
+    # ---- 01 the week ----------------------------------------------------
+    flow += section("01 / The week in numbers",
+                    f"Model valuation {stats['as_of']}; week {stats['wtd_start']} to {stats['as_of']}. "
+                    "Proposed trades are not included.")
+    if decision["d_hold"]:
+        flow += [banner("Performance is provisional while D data is incomplete. Full-portfolio "
+                        "figures may change when D completes; A-C and overlay instructions are verified.",
+                        WARN, colors.HexColor("#fff7ea")), Spacer(1, 8)]
+    tiles = []
+    for key, label in (("WTD", "THIS WEEK"), ("YTD", "YEAR TO DATE"), ("1Y", "ONE YEAR"),
+                       ("Sharpe", "SHARPE"), ("Max drawdown", "MAX DRAWDOWN")):
+        value = stats["values"].get(key)
+        if key == "Sharpe":
+            text, colour = ("Unavailable" if value is None else f"{value:.2f}"), INK
+        else:
+            text = "Unavailable" if value is None else pct(value, True)
+            colour = SOFT if value is None else (GOOD if value > 0 else BAD if value < 0 else SOFT)
+        tiles.append(Table([[cell(label, FAINT, 7.5, bold=True)],
+                            [cell(text, colour, 17 if value is not None else 10, bold=True)]],
+                           colWidths=[width / 5 - 10], style=TableStyle([
+                               ("LEFTPADDING", (0, 0), (-1, -1), 9),
+                               ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                               ("TOPPADDING", (0, 0), (0, 0), 2),
+                               ("BOTTOMPADDING", (0, 0), (0, 0), 3),
+                               ("TOPPADDING", (0, 1), (0, 1), 0),
+                               ("BOTTOMPADDING", (0, 1), (0, 1), 2)])))
+    flow.append(Table([tiles], colWidths=[width / 5] * 5, style=TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), PANEL), ("BOX", (0, 0), (-1, -1), 0.6, BORDER),
+        ("LINEAFTER", (0, 0), (-2, -1), 0.6, BORDER), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 9), ("BOTTOMPADDING", (0, 0), (-1, -1), 9)])))
+    flow += [Spacer(1, 4),
+             p("YTD anchors to the prior year-end close; one year is the trailing calendar year. "
+               "Sharpe and maximum drawdown cover the full deployed-model history.", note)]
+
+    # ---- portfolio state, before the charts that explain it ----------
+    gate_on = overlay["gate_on"]
+    cards = [("BREADTH GATE", "RISK OFF" if gate_on else "RISK ON", BAD if gate_on else GOOD,
+              f"Verified to {release['anchor']}"),
+             ("EM TILT", "ON" if overlay["tilt_on"] else "OFF",
+              colors.HexColor("#2563eb") if overlay["tilt_on"] else SOFT,
+              f"{pct(overlay['weights'].get('tilt_nav', 0), dp=1)} of NAV"),
+             ("TARGET BLEND", " / ".join(f"{s['target']*100:.0f}"
+                                         for s in v["shifts"] if s["target"]),
+              INK, " / ".join(s["sleeve"] for s in v["shifts"] if s["target"]) + ", per cent of NAV")]
+    flow += [Spacer(1, 12), Table([[Table([[cell(label, FAINT, 7.5, bold=True)],
+                                           [cell(value, colour, 13 if len(value) < 16 else 9, bold=True)],
+                                           [cell(sub, SOFT, 7)]],
+                                          colWidths=[width / 3 - 10], style=TableStyle([
+                                              ("LEFTPADDING", (0, 0), (-1, -1), 9),
+                                              ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                                              ("TOPPADDING", (0, 0), (-1, -1), 1),
+                                              ("BOTTOMPADDING", (0, 0), (-1, -1), 2)]))
+                                   for label, value, colour, sub in cards]],
+                                  colWidths=[width / 3] * 3, style=TableStyle([
+                                      ("BACKGROUND", (0, 0), (-1, -1), PANEL),
+                                      ("BOX", (0, 0), (-1, -1), 0.6, BORDER),
+                                      ("LINEAFTER", (0, 0), (-2, -1), 0.6, BORDER),
+                                      ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                                      ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                                      ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                                      ("TOPPADDING", (0, 0), (-1, -1), 9),
+                                      ("BOTTOMPADDING", (0, 0), (-1, -1), 9)]))]
+
+
+    # ---- 02 what changes and why ---------------------------------------
+    # No page break: the decision starts on page one, under the numbers and
+    # the state that qualify it. That is the order the reader needs it in.
+    flow += [Spacer(1, 14)] + section(
+        "02 / What changes and why",
+        "The portfolio first, then the strategies, then the lines. Held and target are "
+        "percentages of total NAV; changes are percentage points.")
+    flow.append(p(f"{len(v['changed'])} proposed changes  ·  {pct(v['turnover'])} one-way turnover  ·  "
+                  f"{v['entries']} new  ·  {v['exits']} closed. " + budget_sentence(v), lead))
+    flow.append(grid([[cell("STRATEGY", FAINT, 7.5, bold=True), cell("HELD", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                       cell("TARGET", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                       cell("NET SHIFT", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                       cell("CHANGES", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                       cell("$ ON $1.0M", FAINT, 7.5, bold=True, align=TA_RIGHT)],
+                      *[[cell(f"{s['sleeve']} · {s['name']}", _sleeve_hex(house, s["sleeve"]), 9, bold=True),
+                         cell(pct(s["held"]), SOFT, 8.5, mono=True, align=TA_RIGHT),
+                         cell(pct(s["target"]), INK, 8.5, bold=True, mono=True, align=TA_RIGHT),
+                         cell(pp(s["net"]),
+                              SOFT if abs(s["net"]) <= MODEL_ROUNDING_NAV else (GOOD if s["net"] > 0 else BAD),
+                              8.5, mono=True, align=TA_RIGHT),
+                         cell(str(len(s["changed"])), SOFT, 8.5, mono=True, align=TA_RIGHT),
+                         cell(money(s["target"]), SOFT, 8.5, mono=True, align=TA_RIGHT)]
+                        for s in v["shifts"]]],
+                     [165, 62, 62, 68, 60, 94], align=(1, 2, 3, 4, 5)))
+    flow.append(p(f"Net shift is the strategy's change in NAV share. A shift within the model rounding "
+                  f"bound of {pct(MODEL_ROUNDING_NAV)} is rounding, not a budget decision. Dollar column "
+                  "sizes the proposed weight at full precision for a $1.0M book, so it can differ slightly from the rounded percentage beside it.", note))
+
     if v["changed"]:
-        flow.append(p("The largest moves at a glance", "sub"))
-        flow.append(table([[label, text] for label, text in highlight_rows(v, release)], [90, 421]))
+        flow += [Spacer(1, 10)] + section("The largest moves at a glance", None)
+        flow.append(grid([[cell(label.upper() or " ", FAINT, 7.5, bold=True), cell(text, INK, 8.5)]
+                          for label, text in highlight_rows(v, release)],
+                         [86, width - 86], header=False, pad=5))
         for shift in v["shifts"]:
             if not shift["changed"]:
                 continue
-            flow.append(p(group_heading(shift, book, decision), "sub"))
-            story = sleeve_story(shift, release)
-            if story:
-                flow.append(p(story, "note"))
             record = sleeve_record(book, shift["sleeve"])
             overlay_sleeve = shift["sleeve"] in OVERLAY_SLEEVES
-            name, suffix, _ = signal_terms(record)
-            header = ("Basis" if overlay_sleeve else f"Signal: {name}"
-                      + (f" ({'percentage points' if suffix == 'pp' else 'percentages'})" if suffix else ""))
-            def evidence(r):
-                if overlay_sleeve:
-                    return "Verified portfolio overlay allocation"
-                return "Portfolio-risk adjustment only" if r.get("risk_adjustment") else signal_cell(r["etf"], record)
-            flow.append(table([["Action", "Position", "Held", "Target", "Change", header], *[
-                [ACTION_WORDS.get(action_of(r), action_of(r)), position_name(r, release),
-                 pct(r["held"]), pct(r["target"]), pp(r["delta"]), evidence(r)]
-                for r in shift["changed"]]], [54,160,46,48,52,151], style="cell", align=(2,3,4)))
+            name, suffix, _signed = signal_terms(record)
+            head = ("Basis" if overlay_sleeve else
+                    "Signal: " + name + (f" ({'percentage points' if suffix == 'pp' else 'per cent'})"
+                                         if suffix else ""))
+            story = sleeve_story(shift, release)
+            colour = _sleeve_hex(house, shift["sleeve"])
+            block = [Spacer(1, 12),
+                     Table([[cell(group_heading(shift, book, decision), INK, 9.5, bold=True)]],
+                           colWidths=[width], style=TableStyle([
+                               ("LINEBEFORE", (0, 0), (0, -1), 3, colors.HexColor(colour)),
+                               ("BACKGROUND", (0, 0), (-1, -1), PANEL),
+                               ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                               ("TOPPADDING", (0, 0), (-1, -1), 6),
+                               ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))]
+            if story:
+                block += [Spacer(1, 3), p(story, note)]
+            rows = [[cell("ACTION", FAINT, 7.5, bold=True), cell("POSITION", FAINT, 7.5, bold=True),
+                     cell("HELD", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                     cell("TARGET", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                     cell("CHANGE", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                     cell(head.upper(), FAINT, 7.5, bold=True)]]
+            for row in shift["changed"]:
+                action = action_of(row)
+                rows.append([
+                    cell(ACTION_WORDS.get(action, action).upper(),
+                         {"ENTER": GOOD, "EXIT": BAD}.get(action, WARN), 7.5, bold=True),
+                    cell(f"{row['traded']}  {release['labels'].get(row['etf'], row['etf'])}", INK, 8.5),
+                    cell(pct(row["held"]), SOFT, 8.5, mono=True, align=TA_RIGHT),
+                    cell(pct(row["target"]), INK, 8.5, bold=True, mono=True, align=TA_RIGHT),
+                    cell(pp(row["delta"]), GOOD if row["delta"] > 0 else BAD, 8.5, bold=True,
+                         mono=True, align=TA_RIGHT),
+                    cell("Verified portfolio overlay allocation" if overlay_sleeve else
+                         "Portfolio-risk adjustment only" if row.get("risk_adjustment") else
+                         signal_cell(row["etf"], record), SOFT, 7.5)])
+            block.append(grid(rows, [52, 150, 48, 50, 54, width - 354], align=(2, 3, 4)))
+            # A strategy's coloured chip, its driver and its lines are one
+            # unit: a heading stranded at the foot of a page is the defect
+            # this whole section exists to remove.
+            flow.append(KeepTogether(block))
         scheme = sizing_note(v["shifts"], book)
         if scheme:
-            flow.append(p(scheme, "note"))
+            flow.append(p(scheme, note))
     else:
         flow.append(p("No position changes."))
-    flow.append(p("Strategy D: " + v["wording"]["d_instruction"]))
-    flow += [PageBreak(),p("03 / Complete proposed book", "head"),
-             p("Model-held baseline, not broker holdings. Targets are for the next fill, not trades already completed. "
-               "Exit lines remain visible at zero target weight. All weights are percentages of total NAV.")]
-    flow.append(table([["Fund / strategy", "Held", "Target", "Change"], *[
-        [f"{position_name(r,release)} / {r['sleeve']}",pct(r['held']),pct(r['target']),pp(r['delta'])]
-        for r in sorted(v["rows"],key=lambda r:(-r["target"],r["sleeve"],r["etf"]))]], [265,80,80,85], align=(1,2,3)))
-    flow.append(p(f"Explicit non-trading rounding residual: {book.get('rounding_residual_nav',0):.8f} NAV. It is not a cash leg or an order.", "note"))
-    flow += [PageBreak(),p("04 / Readiness, timing and provenance", "head")]
+    flow.append(p("Strategy D: " + v["wording"]["d_instruction"], body))
+
+    # ---- 03 holding moves ------------------------------------------------
+    # ---- 03 performance and what moved it -------------------------------
+    # The charts sit behind the decision, not in front of it: this factsheet
+    # exists to get orders reviewed, and section 02 is the thing to read first.
+    # Flows rather than breaks: each block below is a KeepTogether unit, so
+    # letting them fill the page cannot strand a header from its figure.
+    flow += [Spacer(1, 14)] + section(
+        "03 / Performance and what moved it",
+        "Model results, not broker execution records.")
+    curve = equity_chart(ctx, width)
+    if curve is not None:
+        flow.append(KeepTogether(section(
+            "Deployed-model path", "Growth from the start of the deployed history, with its "
+            "drawdown beneath. The same history Sharpe and maximum drawdown describe.") + [curve]))
+    chart = sleeve_contribution_chart(ctx, width)
+    if chart is not None:
+        residual = (pp(ctx["residual"]) if ctx.get("residual") is not None
+                    else "unavailable because endpoint coverage is incomplete")
+        flow.append(KeepTogether([Spacer(1, 10)] + section(
+            "What drove this week", "Decision-date sleeve allocation x sleeve model return over the "
+            "exact weekly window. An approximation, not realised attribution.") + [chart,
+            p(f"Difference from the blend: {residual}. No missing endpoint is filled.", note)]))
+    else:
+        flow.append(p("Return-driver detail is unavailable in this snapshot.", note))
+    if ctx.get("holding_returns"):
+        moves = holding_move_chart(ctx, width)
+        block = [Spacer(1, 10)] + section(
+            "Holding moves over the same week",
+            f"{ctx['start']} to {ctx['end']}. Quote and proxy returns, not portfolio contributions. "
+            "Held weights identify exposure, not weights held throughout the window. Europe FX is not added.")
+        if moves is not None:
+            block += [moves, Spacer(1, 8)]
+        flow.append(KeepTogether(block))
+        flow.append(grid([[cell("FUND / PRICE PROXY", FAINT, 7.5, bold=True),
+                           cell("STRATEGY", FAINT, 7.5, bold=True),
+                           cell("MODEL-HELD", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                           cell("WEEK MOVE", FAINT, 7.5, bold=True, align=TA_RIGHT)],
+                          *[[cell(f"{position_name(r, release)} / {r['price_key']}", INK, 8.5),
+                             cell(r["sleeve"], _sleeve_hex(house, r["sleeve"]), 8.5, bold=True),
+                             cell(pct(r["held"]), SOFT, 8.5, mono=True, align=TA_RIGHT),
+                             cell(pct(r["ret"], True) if r["ret"] is not None else "Unavailable",
+                                  SOFT if r["ret"] is None else (GOOD if r["ret"] > 0 else BAD),
+                                  8.5, bold=r["ret"] is not None, mono=True, align=TA_RIGHT)]
+                            for r in sorted(ctx["holding_returns"],
+                                            key=lambda r: (r["ret"] is None, -(r["ret"] or 0)))]],
+                         [width - 240, 70, 82, 88], align=(2, 3), pad=2.5))
+        flow.append(p("All held lines are shown; a line without both exact weekly endpoints reads "
+                      "Unavailable and is never filled. The chart shows the largest moves only.", note))
+
+    # ---- 04 complete book ------------------------------------------------
+    flow += [PageBreak()] + section(
+        "04 / Complete proposed book",
+        "Model-held baseline, not broker holdings. Targets are for the next fill, not trades already "
+        "completed. Exit lines remain visible at zero target weight.")
+    flow.append(grid([[cell("TICKER", FAINT, 7.5, bold=True), cell("FUND", FAINT, 7.5, bold=True),
+                       cell("STR", FAINT, 7.5, bold=True),
+                       cell("HELD", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                       cell("TARGET", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                       cell("CHANGE", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                       cell("$ ON $1.0M", FAINT, 7.5, bold=True, align=TA_RIGHT)],
+                      *[[cell(r["traded"], INK, 8.5, bold=True, mono=True),
+                         cell(release["labels"].get(r["etf"], r["etf"]), SOFT, 8.5),
+                         cell(r["sleeve"], _sleeve_hex(house, r["sleeve"]), 8.5, bold=True),
+                         cell(pct(r["held"]), SOFT, 8.5, mono=True, align=TA_RIGHT),
+                         cell(pct(r["target"]), INK, 8.5, bold=True, mono=True, align=TA_RIGHT),
+                         cell(pp(r["delta"]),
+                              SOFT if abs(r["delta"]) <= CHANGE_EPSILON else (GOOD if r["delta"] > 0 else BAD),
+                              8.5, mono=True, align=TA_RIGHT),
+                         cell(money(r["target"]), SOFT, 8.5, mono=True, align=TA_RIGHT)]
+                        for r in sorted(v["rows"], key=lambda r: (-r["target"], r["sleeve"], r["etf"]))]],
+                     [56, width - 394, 34, 60, 62, 68, 84], align=(3, 4, 5, 6)))
+    flow.append(p(f"Explicit non-trading rounding residual: {book.get('rounding_residual_nav', 0):.8f} NAV. "
+                  "It is not a cash leg or an order. The dollar column sizes the proposed weights for a "
+                  "$1.0M book at full precision, so it can differ slightly from the rounded percentage beside it; it is arithmetic on the weight, not an order value.", note))
+
+    # ---- 05 readiness ----------------------------------------------------
+    flow += [PageBreak()] + section(
+        "05 / Readiness, timing and provenance",
+        "Venue-specific dates. An email review checkpoint is not an order cutoff.")
+    ready_rows = [[cell("STRATEGY", FAINT, 7.5, bold=True), cell("STATUS", FAINT, 7.5, bold=True),
+                   cell("OBSERVED", FAINT, 7.5, bold=True), cell("REQUIRED", FAINT, 7.5, bold=True),
+                   cell("PROPOSED FILL", FAINT, 7.5, bold=True)]]
     for s in book["sleeves"]:
-        flow += [p(f"Strategy {s['sleeve']} / {NAMES[s['sleeve']]}: {s['status']}", "sub"),
-                 p(f"Observed decision: {s['decision_session']}; required: {s['decision_session_for_fill']}. "
-                   f"Proposed fill: {long_date(s['fill_date'])}, {s['venue']} closing auction.")]
-        if s["status"]=="HOLD":
-            flow.append(p("No Thursday substitution or new ranking. " + (s.get("reason") or "Data pending.")))
-    overlay=book["overlay_decision"]
-    if ctx.get('watchlist'):
-        flow.append(p("Watchlist / recorded rule thresholds",'sub'))
-        flow.extend(p(text) for text in ctx['watchlist'])
-    flow += [p(f"Breadth gate: {'RISK OFF' if overlay['gate_on'] else 'RISK ON'}; EM tilt: {'ON' if overlay['tilt_on'] else 'OFF'}. "
-               f"Inputs verified to {release['anchor']}."),
-             p("Confirm broker deadlines in the dashboard's Execution Timing tab. Dates and closing-auction times are venue-specific; an email checkpoint is not an order cutoff."),
-             p(f"Performance source: {stats['series']}. Sealed release: {release['identity']}. "
-               f"Model-held baseline as of {release['basis']['model_as_of']}.", "note"),p(DISCLAIMER,"note")]
-    def footer(canvas, doc):
-        canvas.setFont("Helvetica",8)
-        canvas.setFillColor(colors.HexColor("#475569"))
-        canvas.drawString(42,25,f"Model research / Decision {release['anchor']} / Not executed trades")
-        canvas.drawRightString(A4[0]-42,25,f"Page {doc.page}")
-    doc=SimpleDocTemplate(output,pagesize=A4,rightMargin=42,leftMargin=42,topMargin=40,bottomMargin=45,
-                          title="Verified weekly portfolio factsheet",author="Portfolio research",invariant=1)
-    doc.build(flow,onFirstPage=footer,onLaterPages=footer)
+        ready = s["status"] == "READY"
+        ready_rows.append([
+            cell(f"{s['sleeve']} · {NAMES[s['sleeve']]}", _sleeve_hex(house, s["sleeve"]), 9, bold=True),
+            cell(s["status"], GOOD if ready else WARN, 8.5, bold=True),
+            cell(s["decision_session"], SOFT, 8.5, mono=True),
+            cell(s["decision_session_for_fill"], SOFT, 8.5, mono=True),
+            cell(f"{long_date(s['fill_date'])}, {s['venue']}", INK, 8.5)])
+    flow.append(grid(ready_rows, [150, 62, 82, 82, width - 376]))
+    for s in book["sleeves"]:
+        if s["status"] == "HOLD":
+            flow.append(p("No Thursday substitution or new ranking for " + s["sleeve"] + ". "
+                          + (s.get("reason") or "Data pending."), note))
+    if ctx.get("watchlist"):
+        flow += [Spacer(1, 10)] + section("Recorded rule thresholds", None)
+        flow.extend(p(text) for text in ctx["watchlist"])
+    flow += [Spacer(1, 10)] + section("Provenance", None)
+    flow.append(grid([[cell(k, FAINT, 7.5, bold=True), cell(value, SOFT, 8, mono=mono)]
+                      for k, value, mono in (
+                          ("PERFORMANCE SERIES", stats["series"], True),
+                          ("SEALED RELEASE", release["identity"], True),
+                          ("MODEL-HELD BASELINE", release["basis"]["model_as_of"], True),
+                          ("BREADTH GATE", "RISK OFF" if gate_on else "RISK ON", False),
+                          ("EM TILT", "ON" if overlay["tilt_on"] else "OFF", False))],
+                     [150, width - 150], header=False))
+    flow.append(Spacer(1, 8))
+    flow.append(p(DISCLAIMER, note))
+
+    output = BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=15 * mm, leftMargin=15 * mm,
+                            topMargin=18 * mm, bottomMargin=14 * mm,
+                            title="Verified weekly portfolio factsheet",
+                            author="Portfolio research", invariant=1)
+    doc.build(flow, canvasmaker=Furnished)
     return output.getvalue()

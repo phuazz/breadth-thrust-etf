@@ -254,6 +254,36 @@ def test_only_a_d_follow_up_may_claim_an_earlier_email(tmp_path,monkeypatch):
     assert "All D changes are shown here" in single
 
 
+def test_email_sleeve_colours_cannot_drift_from_the_dashboard_palette():
+    """The email cannot import matplotlib, so its hues are literals.
+
+    build_factsheet.py owns them. This is the guard that keeps the copy
+    honest, since a silent divergence is exactly how two surfaces of one
+    publication stop looking like one publication.
+    """
+    import build_factsheet as house
+    from component_factsheet_view import SLEEVE_HEX, SLEEVE_KEY
+    assert set(SLEEVE_HEX) == set(SLEEVE_KEY)
+    for sleeve, key in SLEEVE_KEY.items():
+        assert SLEEVE_HEX[sleeve].lower() == getattr(house, key).lower(), sleeve
+    # The two overlays must not wear a ranked strategy's hue.
+    assert len({SLEEVE_HEX[s] for s in ("A", "B", "C", "D", "TILT", "GATE")}) == 6
+
+
+def test_every_colour_carries_a_word_and_a_dark_override(tmp_path,monkeypatch):
+    """Colour is never the only signal, and never only a light-theme signal."""
+    from component_factsheet_view import TONE
+    release=install(tmp_path,monkeypatch,ready=True,gate=True)
+    html=render_html({"action":"regular","d_hold":False},release)
+    for tone,hexcode in TONE.items():
+        if f"tone {tone}" not in html:
+            continue
+        assert hexcode in html
+        assert f"html[data-theme=dark] .tone.{tone}{{color:" in html
+    # An ENTER or EXIT is readable with every colour stripped.
+    assert "ENTER" in html or "EXIT" in html or "RESIZE" in html
+
+
 def test_sleeve_story_is_absent_without_a_change(tmp_path,monkeypatch):
     release=install(tmp_path,monkeypatch,ready=True)
     shift=next(s for s in sleeve_shifts(release["book"]) if not s["changed"])
