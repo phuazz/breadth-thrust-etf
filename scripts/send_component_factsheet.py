@@ -178,13 +178,23 @@ def blocked(reason):
     return {"action": "blocked", "reason": reason}, None
 
 
-def plan_revision(root=ROOT, now=None, revision=None, committed=False, allow_pending=None):
-    """Authorise ONE relabelled restatement of an already-confirmed anchor.
+def plan_revision(root=ROOT, now=None, revision=None, committed=False, allow_pending=None,
+                  late_authority=None):
+    """Authorise a relabelled restatement of an already-confirmed anchor.
 
     Every branch refuses by default. This path cannot change an instruction,
     a recipient list, a schedule or an existing receipt: it re-sends the same
-    sealed book under an explicit revision subject, once, and records that
-    fact beside the untouched original confirmation.
+    sealed book under an explicit revision subject and records that fact
+    beside the untouched original confirmation.
+
+    late_authority is a named owner waiver, recorded in the receipt, of TWO
+    guards and no others: the one-revision-per-anchor limit and the weekend
+    review checkpoint. It is a reason string, not a boolean, because a
+    receipt that cannot say WHY a guard was stood down is not a receipt. It
+    is not a force-send: unchanged core and Europe identities, a verifying
+    release, a settled D, no operator hold, no outstanding attempt, the
+    current anchor and an unexpired fill date all still refuse, and the
+    waiver raises the ceiling to two revisions, not to any number.
     """
     now = now or datetime.now(timezone.utc)
     revision = str(revision or "").strip()
@@ -209,8 +219,12 @@ def plan_revision(root=ROOT, now=None, revision=None, committed=False, allow_pen
     if state["regular"] == "d_hold" and not state.get("d_update"):
         return blocked("the D follow-up is still outstanding; revise only a settled week")
     already = sorted(state.get("revisions") or {})
-    if already:
+    if revision in already:
+        return blocked(f"revision {revision!r} was already delivered for this anchor")
+    if already and not late_authority:
         return blocked(f"a presentation revision was already delivered for this anchor: {already}")
+    if len(already) >= 2:
+        return blocked(f"two presentation revisions already stand for this anchor: {already}")
     if not (root / MANIFEST).exists() or read(root / MANIFEST).get("anchor") != anchor:
         return blocked("the sealed release is absent or belongs to another week")
     release = verify(root, now, committed=committed)
@@ -220,7 +234,7 @@ def plan_revision(root=ROOT, now=None, revision=None, committed=False, allow_pen
             or state.get("europe") != release["europe_identity"]):
         return blocked("the sealed instruction identities differ from what was delivered")
     local = now.astimezone(SGT)
-    if local > review_window(now)[1]:
+    if local > review_window(now)[1] and not late_authority:
         return blocked("the weekend review checkpoint has passed")
     if any(date.fromisoformat(s["fill_date"]) < local.date() for s in release["book"]["sleeves"]):
         return blocked("a proposed fill date has passed; the instruction would be stale")
@@ -228,12 +242,17 @@ def plan_revision(root=ROOT, now=None, revision=None, committed=False, allow_pen
             "revision": revision, "d_hold": False,
             "core_identity": release["core_identity"],
             "europe_identity": release["europe_identity"],
-            "reason": "presentation revision of the confirmed all-ready book"}, release
+            "late_authority": late_authority or None,
+            "reason": ("presentation revision of the confirmed all-ready book"
+                       + (f"; late second revision on owner authority: {late_authority}"
+                          if late_authority else ""))}, release
 
 
-def prepare_revision(root=ROOT, now=None, revision=None, reserve=False, committed=False):
+def prepare_revision(root=ROOT, now=None, revision=None, reserve=False, committed=False,
+                     late_authority=None):
     now = now or datetime.now(timezone.utc)
-    decision, release = plan_revision(root, now, revision, committed=committed)
+    decision, release = plan_revision(root, now, revision, committed=committed,
+                                      late_authority=late_authority)
     if decision["action"] != REVISION_ACTION:
         return decision
     from component_factsheet_view import verified_context, render_pdf, render_text
@@ -262,7 +281,8 @@ def prepare_revision(root=ROOT, now=None, revision=None, reserve=False, committe
     return decision
 
 
-def send_revision(root=ROOT, now=None, revision=None, transport=smtp_send, env=None, committed=False):
+def send_revision(root=ROOT, now=None, revision=None, transport=smtp_send, env=None,
+                  committed=False, late_authority=None):
     now = now or datetime.now(timezone.utc)
     candidate = read(root / OUT / "candidate.json")
     if candidate["id"] != digest({k: v for k, v in candidate.items() if k != "id"}):
@@ -273,8 +293,14 @@ def send_revision(root=ROOT, now=None, revision=None, transport=smtp_send, env=N
     revision = str(revision or "").strip() or decision.get("revision")
     if revision != decision.get("revision"):
         raise ValueError("revision identifier does not match the reserved payload")
+    # The waiver must match what was reserved: a payload prepared without
+    # authority cannot acquire it at send time, and vice versa.
+    late_authority = late_authority or decision.get("late_authority")
+    if (late_authority or None) != (decision.get("late_authority") or None):
+        raise ValueError("late authority does not match the reserved payload")
     rechecked, release = plan_revision(root, now, revision, committed=committed,
-                                       allow_pending=candidate["id"])
+                                       allow_pending=candidate["id"],
+                                       late_authority=late_authority)
     if rechecked["action"] != REVISION_ACTION:
         raise ValueError(f"revision eligibility changed after reservation: {rechecked['reason']}")
     if release["identity"] != candidate["release_identity"] or release["book"] != candidate["book"]:
@@ -297,9 +323,13 @@ def send_revision(root=ROOT, now=None, revision=None, transport=smtp_send, env=N
     # The original confirmation is evidence of a delivered instruction and is
     # left exactly as it stands; the revision is recorded beside it.
     state.pop("pending")
-    state.setdefault("revisions", {})[revision] = {
-        "candidate": candidate["id"], "release": release["identity"],
-        "subject": candidate["subject"], "confirmed_at": now.isoformat()}
+    receipt = {"candidate": candidate["id"], "release": release["identity"],
+               "subject": candidate["subject"], "confirmed_at": now.isoformat()}
+    if late_authority:
+        # A stood-down guard that leaves no trace is indistinguishable from a
+        # guard that never ran. The reason travels with the receipt.
+        receipt["late_authority"] = late_authority
+    state.setdefault("revisions", {})[revision] = receipt
     write(root / LEDGER, ledger)
 
 
@@ -308,17 +338,22 @@ def main():
     parser.add_argument("operation", choices=("plan", "send", "revise", "revise-send"))
     parser.add_argument("--reserve", action="store_true")
     parser.add_argument("--revision", default="")
+    parser.add_argument("--authorised-late", dest="late_authority", default="",
+                        help="Owner reason for standing down the one-revision limit and the "
+                             "review checkpoint. Recorded in the delivery receipt.")
     args = parser.parse_args()
     if args.operation == "send":
         send(committed=True)
         print("SMTP accepted the factsheet for all configured recipients; delivery ledger updated.")
         return
     if args.operation == "revise-send":
-        send_revision(revision=args.revision, committed=True)
+        send_revision(revision=args.revision, committed=True,
+                      late_authority=args.late_authority.strip() or None)
         print("SMTP accepted the revised presentation for all configured recipients; revision recorded.")
         return
     if args.operation == "revise":
-        decision = prepare_revision(revision=args.revision, reserve=args.reserve, committed=True)
+        decision = prepare_revision(revision=args.revision, reserve=args.reserve, committed=True,
+                                    late_authority=args.late_authority.strip() or None)
         print(f"{decision['action']}: {decision['reason']}")
         output = os.environ.get("GITHUB_OUTPUT")
         if output:

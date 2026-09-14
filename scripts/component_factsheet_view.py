@@ -424,6 +424,16 @@ REVISION_BANNER = (
     "weights are identical to the factsheet already delivered for this week. It is not a new "
     "instruction and not a second set of orders; no action is required if you have already "
     "reviewed that email.")
+# A revision sent after the weekend review checkpoint has to say so. By then
+# the reader may already have submitted, and an email that looks like a
+# factsheet arriving on fill day must not be mistaken for a change of mind.
+LATE_REVISION_NOTE = (
+    "It also arrives after this week's review checkpoint, on the day the orders fill. If you "
+    "have already submitted them, nothing here changes them and nothing needs revisiting.")
+
+
+def revision_banner(decision):
+    return REVISION_BANNER + (" " + LATE_REVISION_NOTE if decision.get("late_authority") else "")
 
 
 # Text tones, from the dashboard factsheet's GOOD, BAD and AMBER. They are
@@ -514,7 +524,7 @@ def render_html(decision, release, include_unchanged=False):
              "<h1>USD Multi-Strategy ETF Portfolio</h1>",
              f"<div class='status'><h2>{e(w['heading'])}</h2><p>{e(w['difference'])}</p></div>"]
     if revision:
-        parts.insert(0, f"<p><strong>{e(REVISION_BANNER)}</strong></p>")
+        parts.insert(0, f"<p><strong>{e(revision_banner(decision))}</strong></p>")
     if stats["series"].startswith("synthetic"):
         parts.insert(0, "<p><strong>SYNTHETIC NO-SEND REHEARSAL — not a live instruction.</strong></p>")
     if release.get("preview_only"):
@@ -953,7 +963,7 @@ def render_pdf(decision, release):
         flow += [banner("NO-SEND PREVIEW - not a new instruction.", BAD,
                         colors.HexColor("#fdeceb")), Spacer(1, 8)]
     if decision.get("action") == "revision":
-        flow += [banner(REVISION_BANNER, colors.HexColor("#2563eb"),
+        flow += [banner(revision_banner(decision), colors.HexColor("#2563eb"),
                         colors.HexColor("#eef4fa")), Spacer(1, 8)]
     flow += [Paragraph(escape(ascii_text(v["wording"]["heading"])),
                        st("t", 17, INK, bold=True, leading=21, space=3)),

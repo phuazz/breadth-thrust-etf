@@ -202,3 +202,89 @@ def test_revision_workflow_is_manual_and_reserves_before_send():
     assert workflow.index("Send the revised") < workflow.index("Record the confirmed revision")
     assert "secrets.RECIPIENT_EMAIL" in workflow and "default: true" in workflow
     assert "revise-send" in workflow and "--revision" in workflow
+
+
+# --- the named late-revision waiver -------------------------------------
+# Owner-authorised on 2026-09-14 to re-send the redesigned presentation after
+# the review checkpoint. It stands down TWO guards and is recorded doing so.
+
+AUTHORITY = "owner approved the redesigned presentation on 2026-09-14"
+SECOND = "presentation-visual"
+
+
+def test_waiver_is_off_by_default_and_only_lifts_its_two_guards(tmp_path, monkeypatch):
+    # Guard one, on its own: the checkpoint, with no prior revision in play.
+    settled(tmp_path, monkeypatch)
+    assert "checkpoint has passed" in sender.plan_revision(
+        tmp_path, AFTER_CHECKPOINT, SECOND)[0]["reason"]
+    assert sender.plan_revision(tmp_path, AFTER_CHECKPOINT, SECOND,
+                                late_authority=AUTHORITY)[0]["action"] == sender.REVISION_ACTION
+    # Guard two, on its own: the one-revision limit, inside the window.
+    deliver(tmp_path)
+    assert "already delivered" in sender.plan_revision(tmp_path, NOW, SECOND)[0]["reason"]
+    # With the waiver, a second, differently identified revision is allowed, late.
+    decision, _ = sender.plan_revision(tmp_path, AFTER_CHECKPOINT, SECOND,
+                                       late_authority=AUTHORITY)
+    assert decision["action"] == sender.REVISION_ACTION
+    assert decision["late_authority"] == AUTHORITY
+    assert AUTHORITY in decision["reason"]
+
+
+def test_waiver_does_not_lift_any_other_guard(tmp_path, monkeypatch):
+    """It is a waiver of two named checks, not a force-send."""
+    release = settled(tmp_path, monkeypatch, core="an-instruction-that-was-never-sent")
+    assert "identities differ" in sender.plan_revision(
+        tmp_path, AFTER_CHECKPOINT, SECOND, late_authority=AUTHORITY)[0]["reason"]
+    settled(tmp_path, monkeypatch, regular="d_hold")
+    assert "D follow-up" in sender.plan_revision(
+        tmp_path, AFTER_CHECKPOINT, SECOND, late_authority=AUTHORITY)[0]["reason"]
+    settled(tmp_path, monkeypatch, pending={"id": "someone-elses", "action": "regular"})
+    assert "unconfirmed delivery attempt" in sender.plan_revision(
+        tmp_path, AFTER_CHECKPOINT, SECOND, late_authority=AUTHORITY)[0]["reason"]
+    settled(tmp_path, monkeypatch)
+    cr.write(tmp_path / "docs/factsheet_hold.json", {"reason": "operator review"})
+    assert "operator hold" in sender.plan_revision(
+        tmp_path, AFTER_CHECKPOINT, SECOND, late_authority=AUTHORITY)[0]["reason"]
+    assert release is not None
+
+
+def test_waiver_raises_the_ceiling_to_two_not_to_any_number(tmp_path, monkeypatch):
+    settled(tmp_path, monkeypatch)
+    deliver(tmp_path)
+    sender.prepare_revision(tmp_path, AFTER_CHECKPOINT, SECOND, reserve=True,
+                            late_authority=AUTHORITY)
+    sender.send_revision(tmp_path, AFTER_CHECKPOINT, SECOND, transport=lambda *_: None,
+                         env={}, late_authority=AUTHORITY)
+    state = cr.read(tmp_path / sender.LEDGER)["anchors"]["2026-09-11"]
+    assert sorted(state["revisions"]) == [REVISION, SECOND]
+    # The waiver is on the receipt: a stood-down guard leaves a trace.
+    assert state["revisions"][SECOND]["late_authority"] == AUTHORITY
+    assert "late_authority" not in state["revisions"][REVISION]
+    # A third is refused even with authority, and the same id never repeats.
+    assert "two presentation revisions already stand" in sender.plan_revision(
+        tmp_path, AFTER_CHECKPOINT, "presentation-third", late_authority=AUTHORITY)[0]["reason"]
+    assert "was already delivered" in sender.plan_revision(
+        tmp_path, AFTER_CHECKPOINT, SECOND, late_authority=AUTHORITY)[0]["reason"]
+
+
+def test_authority_cannot_be_acquired_between_reservation_and_send(tmp_path, monkeypatch):
+    settled(tmp_path, monkeypatch)
+    deliver(tmp_path)
+    sender.prepare_revision(tmp_path, AFTER_CHECKPOINT, SECOND, reserve=True,
+                            late_authority=AUTHORITY)
+    with pytest.raises(ValueError, match="late authority does not match"):
+        sender.send_revision(tmp_path, AFTER_CHECKPOINT, SECOND,
+                             transport=lambda *_: pytest.fail("transport reached"),
+                             env={}, late_authority="a different reason entirely")
+
+
+def test_a_late_revision_says_that_it_is_late(tmp_path, monkeypatch):
+    from html import escape
+    from component_factsheet_view import render_html, LATE_REVISION_NOTE
+    release = settled(tmp_path, monkeypatch)
+    ordinary = render_html({"action": "revision", "d_hold": False, "revision": REVISION}, release)
+    late = render_html({"action": "revision", "d_hold": False, "revision": SECOND,
+                        "late_authority": AUTHORITY}, release)
+    assert escape(LATE_REVISION_NOTE) not in ordinary
+    assert escape(LATE_REVISION_NOTE) in late
+    assert "already submitted them, nothing here changes them" in late

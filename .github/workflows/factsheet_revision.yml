@@ -15,6 +15,15 @@ on:
         description: 'No-send rehearsal: validate and render without reserving or emailing'
         type: boolean
         default: true
+      authorised_late:
+        description: >-
+          Owner reason for standing down TWO guards and no others: the
+          one-revision-per-anchor limit and the weekend review checkpoint.
+          Leave empty for an ordinary in-window revision. Recorded verbatim in
+          the delivery receipt, because a guard stood down without a trace is
+          indistinguishable from a guard that never ran.
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -42,13 +51,13 @@ jobs:
         env:
           DRY_RUN: ${{ inputs.dry_run }}
           REVISION: ${{ inputs.revision }}
+          LATE: ${{ inputs.authorised_late }}
         shell: bash
         run: |
-          if [ "$DRY_RUN" = "true" ]; then
-            python scripts/send_component_factsheet.py revise --revision "$REVISION"
-          else
-            python scripts/send_component_factsheet.py revise --revision "$REVISION" --reserve
-          fi
+          RESERVE=""
+          if [ "$DRY_RUN" != "true" ]; then RESERVE="--reserve"; fi
+          python scripts/send_component_factsheet.py revise --revision "$REVISION" \
+            --authorised-late "$LATE" $RESERVE
       - name: Persist revision reservation before contacting Gmail
         if: steps.plan.outputs.send == 'true'
         shell: bash
@@ -69,7 +78,10 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
           REVISION: ${{ inputs.revision }}
-        run: python scripts/send_component_factsheet.py revise-send --revision "$REVISION"
+          LATE: ${{ inputs.authorised_late }}
+        run: |
+          python scripts/send_component_factsheet.py revise-send --revision "$REVISION" \
+            --authorised-late "$LATE"
       - name: Record the confirmed revision beside the original receipt
         if: steps.plan.outputs.send == 'true'
         shell: bash
