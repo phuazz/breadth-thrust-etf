@@ -327,6 +327,65 @@ Nothing can send again for this anchor by either path.
 every configured recipient; whether it renders as intended in each reader's
 client is a separate question that only opening it can answer.
 
+## Addendum, 2026-09-14: the visual rework
+
+The owner compared the delivered factsheet with the weekly dashboard factsheet
+(`factsheet_2026-09-04.pdf`) and asked how it was better. On information
+architecture it was; on visual design it plainly was not, and that was a miss
+rather than a trade-off. `build_factsheet.py` already held a complete design
+system — navy header band, KPI tiles, sleeve palette, coloured action column,
+matplotlib chart style, `_chart_to_image`, `section_header` — on the same
+ReportLab stack, and the first pass built a parallel monochrome one beside it.
+The verification compounded it: contrast, overflow, font size and line length
+all measure whether text is *legible* and none asks whether the page is worth
+looking at.
+
+`ef1462f` imports that design rather than copying it:
+
+- Navy header band and footer rule on every page, "Page n of m" from a
+  two-pass canvas; a five-tile KPI strip coloured by sign; three state cards.
+- An equity curve with its drawdown beneath, rebased on the deployed-model
+  history Sharpe and maximum drawdown already describe, read through the same
+  hash-checked reader as every other figure. Dropped, not faked, if absent.
+- Sleeve-coloured horizontal bars for weekly contribution by strategy and for
+  the largest holding moves, each bar annotated with its own figure.
+- A coloured ACTION column, Courier numerals, direction-coloured changes, and
+  a `$ on $1.0M` column disclosed as full-precision arithmetic on the weight.
+- The same colour vocabulary in the email, within mail-client limits.
+
+Section 02 now begins on page one beneath the numbers and the state, and the
+charts follow as section 03: this artefact exists to get orders reviewed.
+
+Colour is never the only signal. Every tone sits beside a word or a sign,
+every inline colour has a dark-theme override, and a test holds the email's
+hex literals equal to `build_factsheet`'s constants, because the email cannot
+import matplotlib.
+
+**Two upstream defects found, flagged not fixed here.** `build_factsheet`'s
+RESIZE amber `#b76e00` measures 4.02:1 on white and fails AA at label size —
+the component factsheet uses `#8a5200` (6.3:1) instead. And `PALETTE_SPY` is
+byte-identical to `PALETTE_A`, so anything drawn with it collides with
+Strategy A; the EM tilt is drawn in the neutral grey here. Both are worth
+correcting at source in `build_factsheet.py`.
+
+Verification: full suite **2,400 passed, 27 skipped**. 64 rendered checks —
+zero overflow, 13 px minimum, 49.5 / 73.8 / 73.8 / 73.8 characters per line,
+minimum contrast **6.06:1 light and 7.71:1 dark**, zero contrast failures.
+Static check clean on all eight surfaces. All 24 PDF pages rendered and read;
+that is how three stranded section headers and two near-empty pages were
+found, all fixed. Figures reconciled against the sealed book, 0 failures.
+Stripped-stylesheet re-measurement clean. CI green on `ef1462f`.
+
+**Nothing was emailed for this rework, and nothing can be.** By the time it
+was finished it was Monday 14 September, 08:00 SGT: the weekend review
+checkpoint (Monday 06:00 SGT) had passed and the proposed fill was that day's
+closing auction. `plan_revision` refuses on two independent grounds — the
+revision for this anchor was already delivered, and the checkpoint has gone —
+and the ordinary sender still returns "already distributed". The rework ships
+with the next ordinary factsheet, anchor 2026-09-18. That is the correct
+outcome: a formatting improvement is not a reason to put a third email about
+unchanged orders in front of anyone, least of all after the review window.
+
 ## Open decisions for the owner
 
 1. **The email now lists every change, not six.** For a typical week that is one
