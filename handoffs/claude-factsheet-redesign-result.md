@@ -445,3 +445,74 @@ Notes:
   keeping and worth copying: it is what caught a defect that eight surfaces of
   overflow and font-size checking could not see.
 - No recipient address or credential appears in this handoff.
+
+---
+
+## Addendum, 2026-09-14: visual rework and a second, late revision
+
+The owner compared the delivered PDF against the dashboard factsheet
+(`factsheet_2026-09-04.pdf`) and judged it worse: no colour, no charts, no KPI
+tiles. That was correct. The information architecture of section 02 was the
+thing fixed on 13 September; the visual language was left as the draft's plain
+ReportLab defaults, while a complete design system already existed in
+`build_factsheet.py` — same rendering stack, one directory away. The rework
+imports that system rather than copying it: navy header band, KPI strip, state
+cards, sleeve-coloured charts, a coloured action column, Courier numerals, and
+a `$ on $1.0M` column. Section 02 keeps its portfolio-first order and now opens
+on page one, under the numbers that qualify it.
+
+Three palette defects were found by measuring rather than looking, and fixed in
+`build_factsheet.py` (`a341123`):
+
+- `WARN` was `#b76e00`, a TEXT colour at 4.00:1 on white and 3.77:1 on the
+  panel, below the 4.5:1 that normal-size text requires. Now `#9a5b00`, 5.4:1
+  and 5.1:1, held as the string `AMBER` so the two risk-off `axvspan` literals
+  cannot drift from it again.
+- `PALETTE_SPY` was byte-identical to `PALETTE_A`, so one blue meant "SPY" on
+  page five and "Strategy A" on page two. Now the slate `#475569`.
+- `_SLEEVE_PALETTE["TILT"]` was the bare literal `"#b45309"`, byte-identical to
+  `PALETTE_C`, so the EEM bar and every thematic bar were one colour **in the
+  same figure**. Now `PALETTE_BENCH`. This was not one of the two reported; it
+  was found while verifying the rebuilt PDF and is the worse instance.
+
+**Still open and NOT fixed:** `INK_FAINT` `#7c8590` measures 3.74:1 on white and
+3.52:1 on the panel. It carries the section subtitles, card labels, table
+headers and footer, so fixing it darkens almost every label on the live
+factsheet. That is the owner's call, not a silent change.
+
+### The second revision
+
+The owner authorised re-sending on 2026-09-14, by which time both the
+one-revision-per-anchor limit and the weekend review checkpoint (Monday 06:00
+SGT) refused. They were shown the timing — that today's fills had not yet
+happened, XETR closing about four hours later — and chose to send anyway.
+
+Rather than defeat the guards, `late_authority` was added (`f42d484`): a reason
+string, not a boolean, threaded through plan/prepare/send and written into the
+receipt. It stands down exactly two guards — the revision limit, raised to two
+and no further, and the checkpoint. Changed identities, an unfinished D
+follow-up, any outstanding pending, an operator hold, a non-verifying release,
+a wrong anchor and a passed fill date all still refuse with the waiver in hand,
+each with a test. The waiver cannot be acquired between reservation and send.
+A revision carrying authority says so in its own banner: it arrives after the
+checkpoint, on fill day, and changes nothing already submitted.
+
+Send evidence: run
+<https://github.com/phuazz/breadth-thrust-etf/actions/runs/34846375381>,
+success. `SMTP accepted the revised presentation for all configured recipients`
+at **2026-09-14T12:59:12Z (20:59 SGT, Monday 14 September 2026)** — about 2.5
+hours before the XETR close and 7 before NYSE. Subject unchanged from the first
+revision. Candidate `6e94f8c9…`, identical to the rehearsed payload, so the
+bytes inspected are the bytes delivered. Receipt records `late_authority`
+verbatim beside the revision; `core`, `europe`, `preview`, `regular`,
+`last_confirmed_at` and `docs/factsheet_published.json` are untouched.
+
+Re-probed after the send: the same identifier, a third identifier, an
+unauthorised attempt and the ordinary sender are all refused.
+
+Verification for this addendum: 2,411 passed, 27 skipped; 64 rendered checks,
+zero overflow, 13 px minimum, 4.97:1 light and 7.71:1 dark, zero contrast
+failures; 32 stripped-CSS checks; every figure reconciled to the sealed book;
+all PDF pages of all four stages inspected; and the dashboard factsheet rebuilt
+from live data and read to confirm the palette fixes. `docs/` was not
+republished — the next scheduled refresh picks the palette up.
