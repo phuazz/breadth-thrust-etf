@@ -19,9 +19,11 @@ name: Daily live mark-to-market
 # (weekly_factsheet.yml is push-triggered by that refresh commit since
 # 2026-07-25; it no longer runs on a Friday cron).
 #
-# Typical run time: 1-2 minutes (yfinance fetch for ~17 tickers + 2 FX
-# pairs + a pipeline rebuild). The factsheet PDF is rebuilt too so the
-# Pages-published PDF is also current.
+# Run time: the publish work itself is ~1 minute (yfinance fetch for ~17
+# tickers + 2 FX pairs + a pipeline rebuild). The factsheet PDF is rebuilt
+# too so the Pages-published PDF is also current. The regression suite
+# below dominates the job: ~1.5 minutes on 10 September, ~9 minutes by 14
+# September, and it is the reason the cap moved from 8 to 20.
 
 on:
   schedule:
@@ -35,7 +37,17 @@ permissions:
 jobs:
   mark-to-market:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    # ----- Raised 8 -> 20 (2026-09-15) -----
+    # The publish was blocked from Friday 12 September. Every step up to the
+    # regression suite finished in ~57s, the suite then ran past the 8-minute
+    # cap, and the job was cancelled before 'Commit refreshed outputs' — so
+    # nothing was published on 14 or 15 September (runs 34910938014 and
+    # 34922328532). The suite itself had grown: 1m30s on 10 September, 3m10s
+    # on 11 September, past 7m15s and still running when the cap cut it off.
+    # 20 leaves real headroom over the ~9-minute suite plus ~1 minute of
+    # publish work; the step-level cap below is what actually bounds the
+    # suite, and this is the backstop for everything else.
+    timeout-minutes: 20
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -264,7 +276,18 @@ jobs:
       - name: Rebuild public portfolio page
         run: python scripts/build_simple_page.py
 
+      # ----- Step cap below the job cap (2026-09-15) -----
+      # A JOB timeout reports as cancelled, and cancelled is not failure — so
+      # the alert at the bottom of this file, gated on if: failure(), stayed
+      # silent through both blocked runs. That gate is now widened, but the
+      # better fix is upstream: a STEP timeout fails the step, which is a
+      # genuine failure() the alert catches on the normal path, and it leaves
+      # the remaining 8 minutes of job budget for the alert itself to send.
+      # Sized to roughly double the present ~9-minute suite. If this ever
+      # fires, the suite has regressed again — profile it with
+      # `python -m pytest tests/ -q --durations=20`, do not just raise it.
       - name: Run regression tests
+        timeout-minutes: 12
         run: python -m pytest tests/ -q
 
       # ----- Hard-fail publish push (2026-08-13, external review F1) -----
@@ -305,12 +328,26 @@ jobs:
           echo "::error::Could not push refreshed outputs after 3 attempts."
           exit 1
 
-      # ----- Failure alert (2026-07-03) -----
+      # ----- Failure alert (2026-07-03; widened 2026-09-15) -----
       # Four consecutive scheduled failures (26 Jun - 1 Jul) went unseen
       # for a week because nothing emailed. if: failure() fires when any
       # earlier step failed, so a frozen dashboard is now loud.
+      #
+      # It was not loud enough. A job that exceeds timeout-minutes is
+      # CANCELLED, not failed, so failure() is false and this step was
+      # skipped — verified on run 34910938014, where step 18 shows as
+      # skipped. Two runs were cut off before the commit step, three
+      # publish days passed, and the only signal was a cross in the
+      # Actions tab. Exactly the incident the alert was built for, in the
+      # one state it could not see.
+      #
+      # cancelled() covers a job-level timeout and an operator cancel
+      # alike. The operator cancel is a known false positive and is
+      # accepted: a missed publish costs more than a stray email, and the
+      # step cap on the suite means a timeout now normally arrives as
+      # failure() anyway.
       - name: Email failure alert
-        if: failure()
+        if: failure() || cancelled()
         continue-on-error: true
         uses: dawidd6/action-send-mail@v18
         with:
@@ -323,9 +360,16 @@ jobs:
           to: ${{ secrets.GMAIL_USER }}
           from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
           body: |
-            The scheduled daily mark-to-market run failed. The deployed
-            dashboard stays at its last committed as-of until a run
-            succeeds.
+            The scheduled daily mark-to-market run did not publish. The
+            deployed dashboard stays at its last committed as-of until a
+            run succeeds.
+
+            If the job ended as CANCELLED rather than failed, it hit a
+            timeout, not a fault. Check the regression-test step first:
+            it is the long pole, it is capped below the job cap, and it
+            has grown before. Profile it with
+            `python -m pytest tests/ -q --durations=20` and fix the slow
+            tests. Raising the cap again only buys time.
 
             If the log shows the breadth_csp1 freshness guard, the fix is
             local: python scripts/refresh_all.py, then commit and push,

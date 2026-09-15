@@ -122,7 +122,16 @@ jobs:
       - name: Build the page
         run: python scripts/build_scanner_page.py
 
+      # Step cap below the job cap, for the reason daily_live_track.yml gives
+      # at length (2026-09-15): a JOB timeout reports as cancelled, and the
+      # alert below is gated on failure(), so an overrun here would go out
+      # silently exactly as it did there. This job is not hypothetically
+      # exposed — the suite grew from ~1.5 to ~9 minutes between 10 and 14
+      # September and carried these runs from ~3 to 12 minutes against a
+      # 20-minute cap. Capping the step keeps an overrun loud and leaves the
+      # rest of the budget for the alert to send.
       - name: Run regression tests
+        timeout-minutes: 12
         run: python -m pytest tests/ -q
 
       # Explicit paths only, never `git add data/ docs/`. Several sessions and
@@ -152,8 +161,12 @@ jobs:
           echo "::error::Could not push scanner outputs after 3 attempts."
           exit 1
 
+      # cancelled() as well as failure(): a job-level timeout is a cancel, not
+      # a failure, and daily_live_track lost three publish days to that blind
+      # spot before anyone noticed. An operator cancel is an accepted false
+      # positive here on the same reasoning.
       - name: Email failure alert
-        if: failure()
+        if: failure() || cancelled()
         continue-on-error: true
         uses: dawidd6/action-send-mail@v18
         with:

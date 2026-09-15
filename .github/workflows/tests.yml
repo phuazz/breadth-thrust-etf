@@ -53,7 +53,15 @@ concurrency:
 jobs:
   pytest:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 15 -> 25 (2026-09-15). The suite ran in ~2 minutes through 10 September
+    # and ~9-10 minutes by 14 September, which left this cap closer than it
+    # looks. A job timeout here would be silent for the same reason it was
+    # silent in daily_live_track: a timeout is a cancel, and the alert below
+    # is gated on failure(). This job cannot use failure() || cancelled() as
+    # the fix, because cancel-in-progress above cancels superseded pushes
+    # routinely and every one of them would email. The step cap below is the
+    # fix instead — it turns an overrun into a real failure the gate catches.
+    timeout-minutes: 25
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -74,6 +82,10 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run test suite
+        # Capped below the job cap so an overrun fails this step — and so the
+        # failure summary and alert below still have budget to send. If it
+        # fires, profile with `--durations=20` rather than raising it.
+        timeout-minutes: 18
         # `shell: bash` is load-bearing, not decoration: it runs the block
         # under -eo pipefail, so the pipe into tee reports pytest's status
         # rather than tee's. A piped pytest without pipefail exits 0 over a
