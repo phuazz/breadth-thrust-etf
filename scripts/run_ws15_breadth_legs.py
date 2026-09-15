@@ -33,9 +33,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pandas_market_calendars as mcal
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 from compute_breadth import (  # noqa: E402
     COMPOSITE_HIGH_PCT, COMPOSITE_LOW_PCT, HIGH_PERIOD, MA_PERIOD,
     MIN_BREADTH_NAMES, PRICE_WARMUP_CALENDAR_DAYS, RSI_OVERBOUGHT, RSI_PERIOD,
@@ -103,7 +103,7 @@ def compute(cache_path: Path, barriers: dict[str, str]) -> dict:
     rsi_overbought = (rsi > RSI_OVERBOUGHT) & rsi.notna()
 
     cal_name = get_etf(consts["etf"]).get("trading_calendar", "NYSE")
-    cal = mcal.get_calendar(cal_name)
+    cal = _venue_cal(cal_name)
     schedule = cal.schedule(start_date=start_friday, end_date=end_friday)
     trading_days = pd.DatetimeIndex(schedule.index.normalize().tz_localize(None))
 

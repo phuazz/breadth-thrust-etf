@@ -27,10 +27,10 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import pandas_market_calendars as mcal
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 from rebalance_calendar import DEFAULT_MODE, engine_rebalance_dates  # noqa: E402
 
 # Sleeve -> the venue it TRADES on. A/B/C are US-listed; D is Xetra.
@@ -39,7 +39,7 @@ START, END = "2018-11-08", "2026-08-21"
 
 
 def _sessions(cal_name: str) -> pd.DatetimeIndex:
-    sched = mcal.get_calendar(cal_name).schedule(start_date=START, end_date=END)
+    sched = _venue_cal(cal_name).schedule(start_date=START, end_date=END)
     return pd.DatetimeIndex([pd.Timestamp(d).normalize() for d in sched.index])
 
 

@@ -3,12 +3,12 @@ import json
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
-import pandas_market_calendars as mcal
 import pytest
 
 from scripts.check_pretrade_ready import build_book_report, main
 from scripts.etf_registry import UNIVERSE_ETFS, UNIVERSE_EUROPE_SECTORS
 from scripts.session_bounds import last_completed_session_on
+from scripts.venue_calendars import get_calendar as _venue_cal
 
 
 NOW = datetime(2026, 9, 13, 6, tzinfo=timezone.utc)
@@ -17,7 +17,7 @@ NOW = datetime(2026, 9, 13, 6, tzinfo=timezone.utc)
 def write_book(root, now=NOW):
     sleeves = []
     for name in "ABCD":
-        cal = mcal.get_calendar("XETR" if name == "D" else "NYSE")
+        cal = _venue_cal("XETR" if name == "D" else "NYSE")
         last = last_completed_session_on(cal, now)
         fill = cal.schedule(start_date=last + pd.Timedelta(days=1),
                             end_date=last + pd.Timedelta(days=10)).index[0]

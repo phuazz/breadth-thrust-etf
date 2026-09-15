@@ -73,7 +73,6 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timedelta, timezone
-from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -701,12 +700,18 @@ def reinstate_vendor_gaps(ticker: str,
 VENUE_BY_SUFFIX = {".DE": "XETR", ".SZ": "XSHG", ".SS": "XSHG"}
 
 
-@lru_cache(maxsize=8)
 def _venue_calendar(name: str):
     """Cached calendar handle — building one per ticker costs more than the
-    whole export."""
-    import pandas_market_calendars as mcal
-    return mcal.get_calendar(name)
+    whole export.
+
+    The cache moved to venue_calendars (2026-09-15) once it turned out the
+    same cost was being paid, uncached, at twenty-odd other call sites. This
+    name is kept because callers here read better for it; the maxsize=8 bound
+    went with the move, the shared cache being unbounded over a small fixed
+    set of venues.
+    """
+    from venue_calendars import get_calendar
+    return get_calendar(name)
 
 
 def venue_calendar_for(ticker: str) -> str | None:

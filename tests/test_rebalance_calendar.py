@@ -267,8 +267,8 @@ def _signal_bars_are_weekly_closes(idx, rebalance_dates) -> tuple[int, int]:
 
 def test_holiday_aware_next_signal_bar_is_always_a_weekly_close():
     """The property the mode exists for, on a real NYSE session index."""
-    import pandas_market_calendars as mcal
-    sched = mcal.get_calendar("NYSE").schedule("2024-01-01", "2026-08-07")
+    from venue_calendars import get_calendar as _venue_cal
+    sched = _venue_cal("NYSE").schedule("2024-01-01", "2026-08-07")
     idx = pd.DatetimeIndex([pd.Timestamp(d.date()) for d in sched.index])
 
     fwd = weekly_rebalance_dates(idx, idx[0], "W-MON",

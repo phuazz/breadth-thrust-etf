@@ -106,13 +106,13 @@ def expected_tail(index, through, calendar="NYSE", lookback_days=10):
     Bounded to the probe window; older gaps remain visible to freshness checks.
     Python datetime months are 1-indexed.
     """
-    import pandas_market_calendars as mcal
+    from venue_calendars import get_calendar as _venue_cal
     if through is None or len(index) == 0:
         return pd.DatetimeIndex([])
     end = pd.Timestamp(through).normalize()
     start = max(pd.Timestamp(index.min()).normalize(),
                 end - pd.Timedelta(days=lookback_days - 1))
-    return mcal.get_calendar(calendar).schedule(start_date=start, end_date=end).index
+    return _venue_cal(calendar).schedule(start_date=start, end_date=end).index
 
 
 def has_required_session(frame, names, through):

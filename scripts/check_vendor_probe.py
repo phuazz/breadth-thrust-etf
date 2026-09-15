@@ -135,8 +135,8 @@ def previous_session(venue: str, day: date) -> date | None:
     calendar is unknown here. pandas_market_calendars does the calendar
     arithmetic — never a weekday count."""
     try:
-        import pandas_market_calendars as mcal
-        cal = mcal.get_calendar(venue)
+        from venue_calendars import get_calendar as _venue_cal
+        cal = _venue_cal(venue)
     except Exception:  # noqa: BLE001 — unknown venue, or the library absent
         return None
     sched = cal.schedule(start_date=day - timedelta(days=21),

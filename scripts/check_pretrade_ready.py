@@ -84,7 +84,7 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
     No cache downloads occur in this CI check. Python months are 1-indexed.
     """
     import pandas as pd
-    import pandas_market_calendars as mcal
+    from venue_calendars import get_calendar as _venue_cal
     from session_bounds import last_completed_session_on
     from etf_registry import UNIVERSE_ETFS, UNIVERSE_EUROPE_SECTORS
 
@@ -121,7 +121,7 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
         for sl in sleeves:
             name = sl.get("sleeve")
             venue = "XETR" if name == "D" else "NYSE"
-            cal = mcal.get_calendar(venue)
+            cal = _venue_cal(venue)
             last = last_completed_session_on(cal, now_utc)
             if last is None:
                 raise ValueError(f"no completed session for {venue}")
@@ -192,7 +192,7 @@ def build_book_report(panel_path: Path, now_utc: datetime, phase: str = "deadlin
     try:
         for name, universe, venue in (("A", UNIVERSE_ETFS, "NYSE"),
                                       ("D", UNIVERSE_EUROPE_SECTORS, "XETR")):
-            last = last_completed_session_on(mcal.get_calendar(venue), now_utc)
+            last = last_completed_session_on(_venue_cal(venue), now_utc)
             paths = {data_dir / f"breadth_{etf.lower()}.json" for etf in universe}
             if name == "A":
                 paths.add(panel_path)

@@ -55,7 +55,7 @@ def core_identity(book):
 
 def validate_book(book, basis, now):
     import pandas as pd
-    import pandas_market_calendars as mcal
+    from venue_calendars import get_calendar as _venue_cal
     from live_targets import decision_session_for, next_fill_date
     from session_bounds import last_completed_session_on
 
@@ -72,7 +72,7 @@ def validate_book(book, basis, now):
     d_ready = False
     for s in sleeves:
         venue = "XETR" if s["sleeve"] == "D" else "NYSE"
-        calendar = mcal.get_calendar(venue)
+        calendar = _venue_cal(venue)
         last = last_completed_session_on(calendar, now)
         expected = str(last.date())
         close = calendar.schedule(start_date=last, end_date=last).iloc[0]["market_close"]

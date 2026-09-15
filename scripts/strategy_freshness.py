@@ -83,10 +83,10 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-import pandas_market_calendars as mcal
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 from etf_registry import (  # noqa: E402
     UNIVERSE_ETFS,
     UNIVERSE_EUROPE_SECTORS,
@@ -133,7 +133,7 @@ def sessions_between(cal_name: str, start: str, end: str) -> int | None:
     except (TypeError, ValueError):
         return None
     lo, hi, sign = (s, e, 1) if s <= e else (e, s, -1)
-    sched = mcal.get_calendar(cal_name).schedule(
+    sched = _venue_cal(cal_name).schedule(
         start_date=lo.strftime("%Y-%m-%d"), end_date=hi.strftime("%Y-%m-%d"))
     # The schedule includes both endpoints; the gap is the count between them.
     return sign * max(0, len(sched) - 1)
@@ -284,7 +284,7 @@ def build(now_utc: datetime | None = None) -> dict:
             source: str, why: str | None = None,
             why_plain: str | None = None, *, inputs: str = "inputs",
             carried: bool = False) -> None:
-        cal = mcal.get_calendar(venue)
+        cal = _venue_cal(venue)
         lcs = last_completed_session_on(cal, now)
         venue_last = str(lcs.date()) if lcs is not None else None
         status, gap = classify(reach, venue_last, venue)
@@ -425,7 +425,7 @@ def verdict_has_lapsed(report: dict | None,
         if not seen or not venue:
             continue
         try:
-            lcs = last_completed_session_on(mcal.get_calendar(venue), now)
+            lcs = last_completed_session_on(_venue_cal(venue), now)
         except Exception:
             return True
         if lcs is not None and str(lcs.date()) > seen:

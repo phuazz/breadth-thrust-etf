@@ -62,10 +62,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-import pandas_market_calendars as mcal
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 from build_factsheet import _collect_deployed_holdings, load_all  # noqa: E402
 from etf_registry import (  # noqa: E402
     UNIVERSE_ETFS,
@@ -132,7 +132,7 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
     not exist even transiently, because the ranked artefact is exactly the
     thing that gets trusted.
     """
-    cal = mcal.get_calendar(venue)
+    cal = _venue_cal(venue)
     lcs = last_completed_session_on(cal, now_utc)
     rows = signal.dropna(how="all")
     usable = rows.index[rows.index <= pd.Timestamp(lcs)] if lcs is not None else rows.index
@@ -465,7 +465,7 @@ def decision_session_for(venue: str, fill_date: str,
     Python datetime months are 1-indexed; no weekday is ever derived by hand.
     """
     start = (pd.Timestamp(fill_date) - pd.Timedelta(days=lookback_days)).strftime("%Y-%m-%d")
-    sched = mcal.get_calendar(venue).schedule(start_date=start, end_date=fill_date)
+    sched = _venue_cal(venue).schedule(start_date=start, end_date=fill_date)
     if not len(sched):
         return None
     target = pd.Timestamp(fill_date).date()
@@ -490,7 +490,7 @@ def next_fill_date(venue: str, now_utc: datetime,
     import run_topk_robustness as tk
     start = (now_utc - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
     end = (now_utc + pd.Timedelta(days=horizon_days)).strftime("%Y-%m-%d")
-    sched = mcal.get_calendar(venue).schedule(start_date=start, end_date=end)
+    sched = _venue_cal(venue).schedule(start_date=start, end_date=end)
     if not len(sched):
         return None
     idx = pd.DatetimeIndex(sched.index)

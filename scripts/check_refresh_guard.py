@@ -151,10 +151,10 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
-import pandas_market_calendars as mcal
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 from etf_registry import (  # noqa: E402
     UNIVERSE_ETFS,
     UNIVERSE_EUROPE_SECTORS,
@@ -404,7 +404,7 @@ def expected_panel_end(cal_name: str, end_friday: date) -> date:
     that Friday is a holiday ON THAT ETF'S OWN CALENDAR (a Friday-holiday
     panel dated Thursday is correct, not stale — cadence rule).
     """
-    cal = mcal.get_calendar(cal_name)
+    cal = _venue_cal(cal_name)
     # 10 calendar days comfortably spans any run of weekend + holidays
     # around a single Friday.
     sched = cal.schedule(
@@ -429,13 +429,13 @@ def latest_admissible_panel_end(cal_name: str, now_utc: datetime) -> date | None
     drops the upper bound rather than failing, matching every other
     last_completed_session_on caller.
     """
-    ts = last_completed_session_on(mcal.get_calendar(cal_name), now_utc)
+    ts = last_completed_session_on(_venue_cal(cal_name), now_utc)
     return None if ts is None else ts.date()
 
 
 def is_session(cal_name: str, day: date) -> bool:
     """Is ``day`` an actual trading session on ``cal_name``?"""
-    sched = mcal.get_calendar(cal_name).schedule(
+    sched = _venue_cal(cal_name).schedule(
         start_date=day.isoformat(), end_date=day.isoformat())
     return not sched.empty
 

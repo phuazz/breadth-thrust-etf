@@ -145,9 +145,9 @@ def _sessions_between(start_iso: str | None, end_iso: str | None) -> int | None:
     """
     if not start_iso or not end_iso:
         return None
-    import pandas_market_calendars as mcal
+    from venue_calendars import get_calendar as _venue_cal
     lo, hi = sorted((start_iso, end_iso))
-    sched = mcal.get_calendar("NYSE").schedule(start_date=lo, end_date=hi)
+    sched = _venue_cal("NYSE").schedule(start_date=lo, end_date=hi)
     n = max(len(sched) - 1, 0)
     return n if end_iso >= start_iso else -n
 

@@ -214,9 +214,9 @@ def test_pretrade_refuses_a_current_panel_without_instruction(tmp_path):
 def test_pretrade_checks_complete_book_and_rejects_one_hold(tmp_path, now, end):
     from etf_registry import UNIVERSE_ETFS, UNIVERSE_EUROPE_SECTORS
     instant = datetime.fromisoformat(now).replace(hour=6, tzinfo=timezone.utc)
-    import pandas_market_calendars as mcal
+    from venue_calendars import get_calendar as _venue_cal
     from session_bounds import last_completed_session_on
-    ends = {v: str(last_completed_session_on(mcal.get_calendar(v), instant).date())
+    ends = {v: str(last_completed_session_on(_venue_cal(v), instant).date())
             for v in ("NYSE", "XETR")}
     for etf in set(UNIVERSE_ETFS) | set(UNIVERSE_EUROPE_SECTORS) | {"CSP1"}:
         venue = "XETR" if etf in UNIVERSE_EUROPE_SECTORS else "NYSE"

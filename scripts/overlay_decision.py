@@ -8,7 +8,7 @@ import math
 from datetime import datetime, timezone
 from pathlib import Path
 import pandas as pd
-import pandas_market_calendars as mcal
+from venue_calendars import get_calendar as _venue_cal
 
 from session_bounds import last_completed_session_on
 from overlay_state import sleeve_nav_weights
@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def build(now=None):
     import run_risk_overlay as ro
     now = now or datetime.now(timezone.utc)
-    required = pd.Timestamp(last_completed_session_on(mcal.get_calendar("NYSE"), now))
+    required = pd.Timestamp(last_completed_session_on(_venue_cal("NYSE"), now))
     panel = json.loads((ROOT / "data/breadth_csp1.json").read_text(encoding="utf-8"))
     breadth = pd.Series(panel["series"]["ma_breadth"],
                         index=pd.to_datetime(panel["series"]["dates"]), dtype=float)

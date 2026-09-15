@@ -36,10 +36,10 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pandas_market_calendars as mcal
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 from backtest import download_soxx_ohlc, download_spy_close  # noqa: E402
 from etf_registry import get_etf, UNIVERSE_ETFS as ETFS  # noqa: E402
 from run_improvements import compute_stats  # noqa: E402
@@ -122,7 +122,7 @@ def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, 
         # Historically a no-op — every bar in a finished session is complete —
         # so this removes a tail and cannot move a backtest.
         ohlc, _dropped = trim_to_completed(
-            ohlc, mcal.get_calendar(cfg.get("trading_calendar", "NYSE")),
+            ohlc, _venue_cal(cfg.get("trading_calendar", "NYSE")),
             datetime.now(timezone.utc), label=f"{etf} ({proxy}) closes")
         closes[etf] = ohlc["Close"].astype(float)
         breadths[etf] = ma200_b
@@ -152,7 +152,7 @@ def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, 
         cal_names = {get_etf(e).get("trading_calendar", "NYSE") for e in used}
         for cn in sorted(cal_names):
             decision_session_report(
-                closes_df, mcal.get_calendar(cn), datetime.now(timezone.utc),
+                closes_df, _venue_cal(cn), datetime.now(timezone.utc),
                 label=f"{'/'.join(used[:3])}{'...' if len(used) > 3 else ''} "
                       f"closes [{cn}]")
     return closes_df, breadths_df, used

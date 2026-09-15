@@ -19,19 +19,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-import pandas_market_calendars as mcal
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
+from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 from session_bounds import (  # noqa: E402
     decision_session_report,
     last_completed_session_on,
     trim_to_completed,
 )
 
-NYSE = mcal.get_calendar("NYSE")
-XETR = mcal.get_calendar("XETR")
+NYSE = _venue_cal("NYSE")
+XETR = _venue_cal("XETR")
 
 
 def _utc(y, m, d, hh=0, mm=0):
@@ -130,7 +130,7 @@ def test_names_the_hole_that_redated_the_decision():
 
 def test_a_healthy_panel_reports_clean():
     dates = [d.strftime("%Y-%m-%d") for d in
-             mcal.get_calendar("NYSE").schedule(
+             _venue_cal("NYSE").schedule(
                  start_date="2026-06-01", end_date="2026-08-13").index]
     rep = decision_session_report(_frame(dates), NYSE, _utc(2026, 8, 14, 13, 15))
     assert rep["reaches_decision_session"] is True

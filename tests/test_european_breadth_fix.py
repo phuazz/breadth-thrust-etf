@@ -232,9 +232,9 @@ def test_registry_europe_sector_funds_use_xetr():
 
 
 def test_xetr_grid_keeps_european_days_and_drops_us_only_holidays():
-    import pandas_market_calendars as mcal
+    from venue_calendars import get_calendar as _venue_cal
 
-    xetr = mcal.get_calendar("XETR")
+    xetr = _venue_cal("XETR")
     sched = xetr.schedule(start_date="2023-01-01", end_date="2023-12-31")
     days = set(sched.index.strftime("%Y-%m-%d"))
     # 2023-07-04 was a Tuesday: US Independence Day, normal European session.

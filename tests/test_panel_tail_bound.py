@@ -19,15 +19,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-import pandas_market_calendars as mcal
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
+from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 from compute_breadth import last_completed_session_on  # noqa: E402
 
-NYSE = mcal.get_calendar("NYSE")
-XETR = mcal.get_calendar("XETR")
+NYSE = _venue_cal("NYSE")
+XETR = _venue_cal("XETR")
 
 
 def _utc(y, m, d, hh=0, mm=0):

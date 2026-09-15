@@ -32,8 +32,8 @@ def _exchange_sessions(calendar: str, start: str, end: str) -> frozenset:
     Cached because the engines call this once per K x cadence cell and the
     schedule build is the expensive part.
     """
-    import pandas_market_calendars as mcal
-    sched = mcal.get_calendar(calendar).schedule(start_date=start,
+    from venue_calendars import get_calendar as _venue_cal
+    sched = _venue_cal(calendar).schedule(start_date=start,
                                                   end_date=end)
     return frozenset(d.date() for d in sched.index)
 

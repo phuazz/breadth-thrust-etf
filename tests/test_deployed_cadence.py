@@ -24,12 +24,12 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import pandas_market_calendars as mcal
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 import rebalance_calendar as rc  # noqa: E402
 
 ENGINES = ["run_topk_robustness", "run_asset_class_rotation",
@@ -65,7 +65,7 @@ def test_a_holiday_monday_does_not_roll_back_onto_the_prior_friday():
     rebalance lands on Friday 2019-05-24 — before the Saturday decision that
     produces it. It must land AFTER the scheduled Monday, not before.
     """
-    sched = mcal.get_calendar("NYSE").schedule(start_date="2019-05-01",
+    sched = _venue_cal("NYSE").schedule(start_date="2019-05-01",
                                                end_date="2019-06-15")
     idx = pd.DatetimeIndex([pd.Timestamp(d).normalize() for d in sched.index])
     rd = rc.weekly_rebalance_dates(idx, idx[0], "W-MON",
@@ -85,7 +85,7 @@ def test_no_rebalance_lacks_a_prior_session():
     Every engine ranks at get_loc(rd) - 1, so a rebalance on the first index
     entry would rank on nothing."""
     for venue in ("NYSE", "XETR"):
-        sched = mcal.get_calendar(venue).schedule(start_date="2018-11-08",
+        sched = _venue_cal(venue).schedule(start_date="2018-11-08",
                                                   end_date="2026-08-21")
         idx = pd.DatetimeIndex([pd.Timestamp(d).normalize() for d in sched.index])
         rd = rc.weekly_rebalance_dates(idx, idx[0], "W-MON",

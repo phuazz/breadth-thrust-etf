@@ -37,9 +37,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-import pandas_market_calendars as mcal
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 from session_bounds import last_completed_session_on  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -97,7 +97,7 @@ def probe(now_utc: datetime | None = None) -> dict:
 
     rows = []
     for tk, venue, role in PROBES:
-        cal = mcal.get_calendar(venue)
+        cal = _venue_cal(venue)
         lcs = last_completed_session_on(cal, now)
         last_bar = None
         if tk in close.columns:

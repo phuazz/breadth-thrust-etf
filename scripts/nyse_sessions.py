@@ -17,9 +17,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 
-import pandas_market_calendars as mcal
+from venue_calendars import get_calendar as _venue_cal
 
-_NYSE = mcal.get_calendar("NYSE")
+_NYSE = _venue_cal("NYSE")
 
 
 def last_completed_session(now_utc: datetime) -> date:
@@ -166,5 +166,5 @@ def cap_to_last_completed_session(frame, now_utc: datetime | None = None):
         return frame
     from session_bounds import trim_to_completed  # local: avoids import cycle
     capped, _dropped = trim_to_completed(
-        frame, mcal.get_calendar("NYSE"), now_utc, label="NYSE frame")
+        frame, _venue_cal("NYSE"), now_utc, label="NYSE frame")
     return capped

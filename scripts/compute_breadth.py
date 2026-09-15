@@ -70,10 +70,10 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pandas_market_calendars as mcal
 import yfinance as yf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 from etf_registry import get_etf  # noqa: E402
 # last_completed_session_on moved to session_bounds when the strategy
 # engines needed it too; re-exported here so existing callers and tests
@@ -1227,7 +1227,7 @@ def main() -> int:
         cal_name = get_etf(consts["etf"]).get("trading_calendar", "NYSE")
     except KeyError:
         cal_name = "NYSE"  # synthetic / test ETFs not present in the registry
-    cal = mcal.get_calendar(cal_name)
+    cal = _venue_cal(cal_name)
 
     # WHY THE PANEL NO LONGER STOPS AT THE ROSTER'S LAST FRIDAY.
     #
