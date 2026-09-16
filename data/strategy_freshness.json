@@ -1,61 +1,61 @@
 {
- "computed_at_utc": "2026-09-15T23:34:31.370895+00:00",
+ "computed_at_utc": "2026-09-16T23:42:29.978090+00:00",
  "strategies": [
   {
    "sleeve": "A",
    "label": "US sectors",
    "venue": "NYSE",
    "data_through": "2026-09-11",
-   "venue_last_session": "2026-09-15",
-   "sessions_behind": 2,
+   "venue_last_session": "2026-09-16",
+   "sessions_behind": 3,
    "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
    "carried": false,
-   "why": "every one of the breadth panels stops at 2026-09-11 while NYSE has completed 2026-09-15 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-09-11, while the market has traded to 2026-09-15 \u2014 it has not been rebuilt since."
+   "why": "every one of the breadth panels stops at 2026-09-11 while NYSE has completed 2026-09-16 \u2014 none lags the others, so they have not been rebuilt since.",
+   "why_plain": "the data behind this strategy stops on 2026-09-11, while the market has traded to 2026-09-16 \u2014 it has not been rebuilt since."
   },
   {
    "sleeve": "B",
    "label": "Asset classes",
    "venue": "NYSE",
    "data_through": "2026-09-11",
-   "venue_last_session": "2026-09-15",
-   "sessions_behind": 2,
+   "venue_last_session": "2026-09-16",
+   "sessions_behind": 3,
    "status": "behind",
    "laggards": [],
-   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-09-15T05:33Z; the cache is not present on this checkout",
+   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-09-15T23:34Z; the cache is not present on this checkout",
    "carried": true,
-   "why": "every one of the cached price series stops at 2026-09-11 while NYSE has completed 2026-09-15 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-09-11, while the market has traded to 2026-09-15 \u2014 it has not been rebuilt since."
+   "why": "every one of the cached price series stops at 2026-09-11 while NYSE has completed 2026-09-16 \u2014 none lags the others, so they have not been rebuilt since.",
+   "why_plain": "the data behind this strategy stops on 2026-09-11, while the market has traded to 2026-09-16 \u2014 it has not been rebuilt since."
   },
   {
    "sleeve": "C",
    "label": "Thematic",
    "venue": "NYSE",
    "data_through": "2026-09-11",
-   "venue_last_session": "2026-09-15",
-   "sessions_behind": 2,
+   "venue_last_session": "2026-09-16",
+   "sessions_behind": 3,
    "status": "behind",
    "laggards": [],
-   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-09-15T05:33Z; the cache is not present on this checkout",
+   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-09-15T23:34Z; the cache is not present on this checkout",
    "carried": true,
-   "why": "every one of the cached price series stops at 2026-09-11 while NYSE has completed 2026-09-15 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-09-11, while the market has traded to 2026-09-15 \u2014 it has not been rebuilt since."
+   "why": "every one of the cached price series stops at 2026-09-11 while NYSE has completed 2026-09-16 \u2014 none lags the others, so they have not been rebuilt since.",
+   "why_plain": "the data behind this strategy stops on 2026-09-11, while the market has traded to 2026-09-16 \u2014 it has not been rebuilt since."
   },
   {
    "sleeve": "D",
    "label": "Europe sectors",
    "venue": "XETR",
    "data_through": "2026-09-11",
-   "venue_last_session": "2026-09-15",
-   "sessions_behind": 2,
+   "venue_last_session": "2026-09-16",
+   "sessions_behind": 3,
    "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
    "carried": false,
-   "why": "every one of the breadth panels stops at 2026-09-11 while XETR has completed 2026-09-15 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-09-11, while the market has traded to 2026-09-15 \u2014 it has not been rebuilt since."
+   "why": "every one of the breadth panels stops at 2026-09-11 while XETR has completed 2026-09-16 \u2014 none lags the others, so they have not been rebuilt since.",
+   "why_plain": "the data behind this strategy stops on 2026-09-11, while the market has traded to 2026-09-16 \u2014 it has not been rebuilt since."
   }
  ],
  "all_current": false,
