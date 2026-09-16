@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-09-15T23:36:54+00:00",
+  "built_at_utc": "2026-09-16T01:37:11+00:00",
   "as_of": "2026-09-15",
   "as_of_modal": "2026-09-15",
   "as_of_modal_share": "49/54",
@@ -2340,6 +2340,7 @@
     "failures": [],
     "stale": [],
     "notes": [
+      "snapshots not refreshed this run (--skip-snapshots)",
       "naive-recompute check passed on EXH4.DE, EXH9.DE, EXV1.DE"
     ],
     "stale_threshold_sessions": 3
