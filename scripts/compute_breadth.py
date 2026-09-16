@@ -85,6 +85,7 @@ from stall_guard import (  # noqa: E402
 )
 import vendor_tail  # noqa: E402  (the single-ticker request, shared with B/C)
 import price_source as price_source_mod  # noqa: E402
+import price_revisions  # noqa: E402  (before/after capture on the cache write)
 from capture_status import describe_capture  # noqa: E402
 
 # Force UTF-8 stdout for Windows console.
@@ -995,6 +996,22 @@ def download_prices(
     close = close[list(tickers)]
     close.index = pd.to_datetime(close.index).tz_localize(None)
 
+    # ----- Vendor observation (2026-09-16), BEFORE anything transforms it ---
+    # This is the only point in the function where the frame IS what the
+    # vendor served. Everything below changes it: the cell-preservation
+    # merge refills what the vendor withdrew from the cache's own previous
+    # value, the Norgate overlay replaces whole columns, and the tail
+    # verification drops or heals the newest row. Captured before the write
+    # instead, as the first version of this was, a raw withdrawal is already
+    # masked by its own preserved value and reads as no change at all.
+    #
+    # The basis here is unambiguous: this frame is the yfinance download,
+    # whatever --price-source was requested. Never raises.
+    price_revisions.record_vendor_observation(
+        close, panel=cache_path.stem,
+        root=Path(cache_path).resolve().parent.parent,
+        source=price_revisions.YFINANCE,
+        required_through=required_through)
 
     # PRESERVE CELLS YFINANCE CANNOT SERVE. The frame above is built purely
     # from the download, so anything the vendor no longer serves would be
@@ -1147,6 +1164,18 @@ def download_prices(
             print(f"  Missing active-name recovery: {missing_recovery}", flush=True)
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
+    # ----- Cache-change diagnostic (2026-09-16), BEFORE the write -----
+    # The line below destroys the only copy of what this cache held last
+    # run. This records what actually CHANGED IN THE CACHE, which is worth
+    # having on its own terms - but it is not vendor behaviour, because
+    # everything above it has already run. The vendor question is answered
+    # by the observation recorded at the download. The sidecar handed over
+    # describes the write that is about to happen, so the resolved basis of
+    # each column is known rather than assumed. Never raises.
+    price_revisions.capture_cache_change(
+        cache_path, close,
+        {"source": price_source, "columns_from_norgate": list(norgate_columns)},
+        panel=cache_path.stem)
     close.to_parquet(cache_path)
     price_source_mod.write_cache_source(cache_path, price_source,
                                         {"replaced": norgate_columns,

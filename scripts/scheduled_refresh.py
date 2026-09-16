@@ -153,6 +153,49 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_factsheet_gate import build_gate_report  # noqa: E402
 from check_roster_integrity import evaluate as roster_integrity  # noqa: E402
 from nyse_sessions import last_completed_session, week_final_anchor  # noqa: E402
+import publication_debt  # noqa: E402  (what this cadence still owes)
+import run_status  # noqa: E402  (durable, machine-readable run + alert state)
+
+
+def _safe(log, what: str, fn, *args, **kwargs):
+    """Run a DIAGNOSTIC and swallow anything it does.
+
+    The diagnostics added on 2026-09-16 are called from inside ``fail()``
+    and from ``_email``, which is itself called from ``fail()``. A
+    diagnostic that raises there does not merely lose its own record: it
+    unwinds out of the failure handler and replaces the refresh's actual
+    failure with a traceback about the instrument. That is not
+    hypothetical - a corrupt ``alert_delivery.json`` holding a JSON array
+    raised AttributeError on exactly that path. The writers are themselves
+    written not to raise; this is the belt to that pair of braces, and it
+    records the fact in the log rather than hiding it.
+    """
+    try:
+        return fn(*args, **kwargs)
+    except Exception as exc:  # noqa: BLE001 - a diagnostic never breaks a run
+        try:
+            log.write(f"\n[diagnostic '{what}' failed, ignored: "
+                      f"{type(exc).__name__}: {exc}]\n")
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+
+
+def _durable_state_enabled() -> bool:
+    """Whether this process may write the operational state under logs/.
+
+    False under pytest, and the reason is not squeamishness about test
+    pollution in general. ``tests/test_europe_capture_recovery.py`` calls
+    ``main()`` IN-PROCESS against the real REPO_ROOT, so without this a
+    full suite run rewrites logs/alert_delivery.json with an UNCONFIGURED
+    verdict produced by a process that was never going to send anything.
+    The health readout would then be corrupted by the act of testing it —
+    the same shape of defect as the incident that prompted the file.
+
+    run_status itself stays pure and is tested directly against tmp_path;
+    the awareness lives here, in the module the tests drive.
+    """
+    return not os.environ.get("PYTEST_CURRENT_TEST")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PANEL = REPO_ROOT / "data" / "breadth_csp1.json"
@@ -289,11 +332,25 @@ def _git(args: list[str], log, cwd: Path = REPO_ROOT) -> subprocess.CompletedPro
 
 def _email(subject: str, body: str, log) -> None:
     """Best-effort operator email; never raises. Uses the same variable
-    names as the CI secrets so one convention covers both sides."""
+    names as the CI secrets so one convention covers both sides.
+
+    EVERY outcome is also written to logs/alert_delivery.json (2026-09-16).
+    Until then the only record was the prose line below, and on 15 and 16
+    September five consecutive failures each wrote "[email skipped]" into a
+    text file nothing reads. The machine-readable record exists so an
+    INDEPENDENT process can see that the alerting channel is dead; the log
+    line is kept because a human reading the log should see it too.
+    """
     user = os.environ.get("GMAIL_USER")
     pw = os.environ.get("GMAIL_APP_PASSWORD")
     if not user or not pw:
-        log.write("\n[email skipped: GMAIL_USER / GMAIL_APP_PASSWORD not set]\n")
+        missing = ", ".join(run_status.credential_state()["missing"])
+        log.write(f"\n[email skipped: {missing} not set]\n")
+        if _durable_state_enabled():
+            _safe(log, "alert record (unconfigured)", run_status.record_alert,
+                  run_status.alert_state_path(REPO_ROOT),
+                  subject=subject, status=run_status.UNCONFIGURED,
+                  detail=f"missing: {missing}")
         return
     try:
         msg = MIMEText(body)
@@ -304,8 +361,17 @@ def _email(subject: str, body: str, log) -> None:
             s.login(user, pw)
             s.send_message(msg)
         log.write(f"\n[email sent: {subject}]\n")
+        if _durable_state_enabled():
+            _safe(log, "alert record (sent)", run_status.record_alert,
+                  run_status.alert_state_path(REPO_ROOT),
+                  subject=subject, status=run_status.SENT)
     except Exception as exc:
         log.write(f"\n[email FAILED: {exc}]\n")
+        if _durable_state_enabled():
+            _safe(log, "alert record (failed)", run_status.record_alert,
+                  run_status.alert_state_path(REPO_ROOT),
+                  subject=subject, status=run_status.FAILED,
+                  detail=f"{type(exc).__name__}: {exc}")
 
 
 # RESTORE THE CLONE AFTER A FAILED REFRESH (2026-09-03).
@@ -403,6 +469,54 @@ def record_green_run(marker: Path, cadence: str, started_utc: datetime,
     return marker
 
 
+# A green run that leaves the fill still unpublished — 2026-09-13, exactly —
+# used to be indistinguishable from a healthy one, because the marker only
+# ever answered "did a green run happen today". Outstanding debt now
+# overrides the marker, but BOUNDEDLY: an unbounded override would re-run a
+# one-to-four hour refresh on every hourly firing for the rest of the
+# window against a condition — a vendor mid-retraction — that no number of
+# retries clears. One extra attempt per local day is a retry; six is a loop.
+MAX_DEBT_RERUNS_PER_DAY = 1
+
+
+def debt_reruns_today(marker: Path, cadence: str, now_utc: datetime,
+                      tz=None) -> int:
+    """How many debt-driven re-runs have already fired on this local date."""
+    try:
+        rec = json.loads(Path(marker).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return 0
+    if not isinstance(rec, dict) or rec.get("cadence") != cadence:
+        return 0
+    if rec.get("debt_rerun_date") != _local_date(now_utc, tz):
+        return 0
+    try:
+        return int(rec.get("debt_reruns") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def record_debt_rerun(marker: Path, cadence: str, now_utc: datetime,
+                      tz=None) -> int:
+    """Count one debt-driven override of the green marker. Never raises."""
+    try:
+        rec = json.loads(Path(marker).read_text(encoding="utf-8"))
+        rec = rec if isinstance(rec, dict) else {}
+    except (OSError, ValueError):
+        rec = {}
+    today = _local_date(now_utc, tz)
+    n = (int(rec.get("debt_reruns") or 0) + 1
+         if rec.get("debt_rerun_date") == today and rec.get("cadence") == cadence
+         else 1)
+    rec.update(cadence=cadence, debt_rerun_date=today, debt_reruns=n)
+    try:
+        Path(marker).parent.mkdir(parents=True, exist_ok=True)
+        Path(marker).write_text(json.dumps(rec, indent=2), encoding="utf-8")
+    except OSError:
+        pass
+    return n
+
+
 def component_sequence(run_child, *, armed: bool, recover_first: bool = False) -> int:
     """One bounded recovery, with no publication from collection-only work."""
     if recover_first:
@@ -443,6 +557,14 @@ def main(argv: list[str] | None = None) -> int:
                         help="Run the git preflight and the gate preview "
                              "only — no refresh. Smoke test for the "
                              "scheduled task setup.")
+    parser.add_argument("--catch-up", action="store_true",
+                        help="Proceed ONLY when this cadence still owes a "
+                             "publication (publication_debt). A firing with "
+                             "nothing owed exits 0 in seconds without "
+                             "touching the refresh. This is what makes a "
+                             "trigger outside the original Tue/Wed window "
+                             "safe to add: the extra firings are free on a "
+                             "healthy week and do the work on a broken one.")
     parser.add_argument("--cadence", choices=CADENCES, default="weekend",
                         help="Which pair this run belongs to. Affects the "
                              "commit message only — every guard is identical. "
@@ -479,6 +601,28 @@ def main(argv: list[str] | None = None) -> int:
               f"{now.astimezone():%Y-%m-%d %H:%M %Z} (= {now.isoformat()}) "
               f"(push={args.push}, preflight_only={args.preflight_only})\n{'='*72}\n")
 
+    # ----- Alerting configuration, probed at START (2026-09-16) -----
+    # Recorded before anything can fail, so an unconfigured channel is
+    # visible to the independent watcher on the FIRST firing rather than
+    # only once something has already gone wrong and failed to alert.
+    # Names and presence only — never a value, never a length.
+    creds = _safe(log, "credential probe", run_status.credential_state) or {
+        "configured": False, "missing": list(run_status.CREDENTIAL_VARS)}
+    log.write(f"\nalert configuration: {json.dumps(creds)}\n")
+    if not creds["configured"] and _durable_state_enabled():
+        _safe(log, "startup alert record", run_status.record_alert,
+              run_status.alert_state_path(REPO_ROOT),
+              subject="(startup probe)", status=run_status.UNCONFIGURED,
+              detail=f"missing at start: {', '.join(creds['missing'])}")
+
+    def _record_run(*a, **kw):
+        if _durable_state_enabled():
+            _safe(log, "run outcome record", run_status.record_run, *a, **kw)
+
+    # Set once the debt is known; ``fail`` closes over the holder so a
+    # failure recorded before that point simply carries no debt field.
+    debt_seen: dict = {}
+
     def fail(code: int, subject: str, body: str) -> int:
         print(f"FAILED ({subject}) - see {log_path}")
         log.write(f"\nFAILED exit {code}: {subject}\n{body}\n")
@@ -487,6 +631,12 @@ def main(argv: list[str] | None = None) -> int:
         if code in RESTORE_ON_EXIT_CODES:
             restore_tracked_outputs(log)
         _email(f"[FAIL] Scheduled refresh - {subject}", body + f"\n\nLog: {log_path}", log)
+        # Durable and machine-readable, in logs/ which the restore above
+        # deliberately does not touch. Until this existed, a failed run
+        # restored the tree and left no trace a program could read.
+        _record_run(run_status.run_ledger_path(REPO_ROOT),
+                              cadence=args.cadence, exit_code=code,
+                              subject=subject, debt=debt_seen or None)
         log.close()
         return code
 
@@ -574,6 +724,12 @@ def main(argv: list[str] | None = None) -> int:
         def run_child(component, *, capture_only):
             child_args = [sys.executable, str(Path(__file__).resolve()), "--component", component,
                           "--cadence", args.cadence, "--price-source", args.price_source]
+            # The flag travels. A parent that proceeded because something was
+            # owed must not hand its children a plain run that then suppresses
+            # itself on the green marker: the debt gate has to hold end to
+            # end or it holds nowhere.
+            if args.catch_up:
+                child_args.append("--catch-up")
             if capture_only:
                 child_args.append("--capture-only")
             elif args.push:
@@ -601,6 +757,62 @@ def main(argv: list[str] | None = None) -> int:
             except Exception:
                 pass  # Changed sources require a new guarded refresh.
 
+    # ----- Publication debt (2026-09-16) -----
+    #
+    # Read AFTER the pull, so the question is asked of what ORIGIN actually
+    # carries rather than of whatever this clone was left holding, and read
+    # BEFORE the green-run marker is consulted.
+    #
+    # The order is the whole point. The marker answers "did a green run
+    # happen TODAY", which is the right gate for an hourly retry and says
+    # nothing at all about whether the fill the pair exists to record ever
+    # reached main. On 13 September a green run left Monday's fill
+    # unpublished and the marker suppressed everything behind it; on 15 and
+    # 16 September both windows closed on failures and the schedule moved on
+    # to the following Tuesday with the hole still open. Nothing was owed,
+    # because nothing tracked owing. Evaluating the debt after the marker —
+    # which is where this check first went — reproduces that exactly.
+    #
+    # UNKNOWN IS NOT NOTHING. A debt verdict that could not read its
+    # evidence makes the run PROCEED. The defect being repaired here is an
+    # unreadable state reading green.
+    debt = _safe(log, "publication debt", publication_debt.current_debt,
+                 REPO_ROOT, now.astimezone().date(), cadence=args.cadence,
+                 persist=_durable_state_enabled())
+    if debt is None:
+        log.write("\npublication debt: UNREADABLE; proceeding as if owed\n")
+    else:
+        debt_seen.update(debt.as_dict())
+        log.write(f"\npublication debt: {json.dumps(debt.as_dict())}\n")
+    debt_requires_run = (debt is None) or debt.should_run
+
+    if debt is not None and debt.escalate:
+        # Escalate through the alert channel, whose own health is now
+        # independently observed. A missed publication deadline is not a
+        # retry, and the run continues: the escalation is a notification,
+        # not a refusal. Deduplicated per obligation per day and capped, so
+        # an obligation that cannot be discharged does not train the
+        # operator to ignore the channel.
+        due = _safe(log, "escalation dedupe", publication_debt.escalation_due,
+                    debt, now.astimezone().date()) or []
+        if due:
+            _email(f"[ESCALATION] {args.cadence} publication overdue - "
+                   f"fill {debt.oldest_owed_fill} unrecorded for "
+                   f"{debt.age_days} day(s)",
+                   f"{debt.reason}\n\nGrace is {debt.grace_days} day(s). The "
+                   f"published book and the traded book disagree until a "
+                   f"{args.cadence} refresh publishes the sleeve rebalance "
+                   f"records for fill {debt.oldest_owed_fill}.\n\n"
+                   f"This measures PUBLICATION only. It says nothing about "
+                   f"whether the broker filled anything.\n\n"
+                   f"Obligations: {json.dumps(list(debt.obligations), indent=2)}"
+                   f"\n\nLog: {log_path}", log)
+            if _durable_state_enabled():
+                _safe(log, "escalation record",
+                      publication_debt.mark_escalated,
+                      publication_debt.ledger_path(REPO_ROOT), due,
+                      now.astimezone().date())
+
     # ----- Already done today? -----
     # The scheduled task retries hourly and starts as soon as the machine is
     # available, so that a Saturday with the laptop shut still gets its
@@ -610,14 +822,58 @@ def main(argv: list[str] | None = None) -> int:
     # already current", which silently swallowed the SUNDAY run once Saturday
     # had succeeded — see the note above GREEN_MARKER. It is now "a green run
     # of this cadence already completed on this local date". Checked AFTER
-    # the pull, so a rewritten wrapper is the one making the decision.
+    # the pull, so a rewritten wrapper is the one making the decision, and
+    # after the debt, which can override it a bounded number of times a day.
     if not args.preflight_only and already_ran_today(marker,
                                                      args.cadence, now):
-        msg = (f"ALREADY RAN TODAY - a green {args.cadence} run completed on "
-               f"{now.astimezone().date().isoformat()} (local); this firing "
-               f"is an hourly retry. Nothing to do.")
+        if debt_requires_run:
+            spent = debt_reruns_today(marker, args.cadence, now)
+            if spent >= MAX_DEBT_RERUNS_PER_DAY:
+                msg = (f"ALREADY RAN TODAY; debt re-run budget spent "
+                       f"({spent}/{MAX_DEBT_RERUNS_PER_DAY}) for "
+                       f"{now.astimezone().date().isoformat()}. STILL OWED: "
+                       f"fill {debt.oldest_owed_fill if debt else 'unknown'} - "
+                       f"{debt.reason if debt else 'debt unreadable'}")
+                print(msg)
+                log.write(f"\n{msg}\n")
+                _record_run(run_status.run_ledger_path(REPO_ROOT),
+                            cadence=args.cadence, exit_code=0,
+                            subject="already ran today; debt rerun budget spent",
+                            debt=debt.as_dict() if debt else None)
+                log.close()
+                return 0
+            n = record_debt_rerun(marker, args.cadence, now)
+            log.write(f"\na green {args.cadence} run already completed today, "
+                      f"but the publication it owed is still outstanding; "
+                      f"running again (debt re-run {n}/"
+                      f"{MAX_DEBT_RERUNS_PER_DAY})\n")
+        else:
+            msg = (f"ALREADY RAN TODAY - a green {args.cadence} run completed "
+                   f"on {now.astimezone().date().isoformat()} (local); this "
+                   f"firing is an hourly retry. Nothing to do.")
+            print(msg)
+            log.write(f"\n{msg}\n")
+            _record_run(run_status.run_ledger_path(REPO_ROOT),
+                        cadence=args.cadence, exit_code=0,
+                        subject="already ran today",
+                        debt=debt.as_dict() if debt else None)
+            log.close()
+            return 0
+
+    # --catch-up inverts the default: a firing outside the original window
+    # runs ONLY if something is still owed, and exits in seconds otherwise.
+    # That is what makes extra triggers safe to add — without it, widening
+    # the schedule means re-running a 1-4 hour refresh against a book that
+    # is already published, which is how a duplicate publication happens.
+    if args.catch_up and not debt_requires_run and not args.preflight_only:
+        msg = (f"NOTHING OWED - {debt.reason}. Catch-up firing exits without "
+               f"running the refresh.")
         print(msg)
         log.write(f"\n{msg}\n")
+        _record_run(run_status.run_ledger_path(REPO_ROOT),
+                    cadence=args.cadence, exit_code=0,
+                    subject="catch-up: nothing owed",
+                    debt=debt.as_dict())
         log.close()
         return 0
 
@@ -781,10 +1037,19 @@ def main(argv: list[str] | None = None) -> int:
                             "rebased onto origin. Resolve by hand.\n"
                             + rb.stderr)
         if not pushed:
+            # The debt is deliberately NOT discharged by this state. The
+            # commit exists locally and nothing was published, and the
+            # obligation reads origin/main precisely so the next firing
+            # still sees the work as owed and retries the push rather than
+            # exiting on evidence that never left this machine.
+            unpushed = publication_debt.unpushed_commits(REPO_ROOT,
+                                                         "origin/main")
             return fail(5, "git push failed after 3 attempts",
-                        "Refresh is committed locally in the automation "
-                        "clone but not pushed after three rebase-and-retry "
-                        "attempts; push manually. " + cp.stderr)
+                        f"Refresh is committed locally in the automation "
+                        f"clone but not pushed after three rebase-and-retry "
+                        f"attempts; push manually. {unpushed} local commit(s) "
+                        f"are not on origin/main, and the publication debt "
+                        f"stays outstanding until they are. " + cp.stderr)
         print(f"PUSHED - {msg}")
         log.write(f"\npushed: {msg}\n")
         _email("[OK] Scheduled refresh pushed - factsheet publishing",
@@ -836,6 +1101,23 @@ def main(argv: list[str] | None = None) -> int:
                   f"({args.cadence}, {run_started.astimezone().date().isoformat()})\n")
     else:
         log.write("\nD remains HOLD; do not suppress later Europe retries today.\n")
+    # The debt AFTER the publication, so the ledger records whether this
+    # green run actually discharged what it owed. A green run that leaves
+    # the debt standing is the case the old green-run marker could not
+    # express, and it is exactly what happened on 2026-09-13.
+    after = _safe(log, "publication debt (after run)",
+                  publication_debt.current_debt, REPO_ROOT,
+                  now.astimezone().date(), cadence=args.cadence,
+                  persist=_durable_state_enabled())
+    if after is not None:
+        log.write(f"\npublication debt after run: {json.dumps(after.as_dict())}\n")
+        if after.should_run:
+            log.write("\nNOTE: this run was green and the publication it owed "
+                      "is STILL outstanding. That is the 2026-09-13 shape, and "
+                      "it is now recorded rather than inferred.\n")
+    _record_run(run_status.run_ledger_path(REPO_ROOT),
+                cadence=args.cadence, exit_code=0,
+                subject="green", debt=after.as_dict() if after else None)
     log.close()
     return 0
 

@@ -604,3 +604,168 @@ def test_restore_is_wired_to_the_in_run_failures_only():
     assert "restore_tracked_outputs(log)" in src
     fail_body = src[src.index("def fail("):src.index("# ----- Preflight")]
     assert "RESTORE_ON_EXIT_CODES" in fail_body
+
+
+# ---------------------------------------------------------------------------
+# Publication debt, wired into the run (2026-09-16)
+#
+# tests/test_publication_debt.py pins the verdict. These pin the WIRING,
+# which is where the original defect lived: the debt was evaluated after the
+# green-run marker had already returned.
+# ---------------------------------------------------------------------------
+import json as _json                                        # noqa: E402
+from types import SimpleNamespace as _NS                     # noqa: E402
+
+import publication_debt as _pd                               # noqa: E402
+
+
+def _report(**kw):
+    base = dict(owed=False, unknown=False, escalate=False, cadence="post-fill",
+                asof="2026-09-16", oldest_owed_fill=None, age_days=None,
+                grace_days=3, obligations=(), problems=(), evidence={},
+                reason="fixture")
+    base.update(kw)
+    return _pd.DebtReport(**base)
+
+
+def _local_today() -> str:
+    """The local date main() will compute, so a marker fixture matches it."""
+    return datetime.now(timezone.utc).astimezone().date().isoformat()
+
+
+def _drive(monkeypatch, tmp_path, *, debt, argv, marker_day=None,
+           debt_reruns=0):
+    """Run main() as far as the refresh, and report what it decided."""
+    monkeypatch.setattr(_sr, "LOG_DIR", tmp_path)
+    monkeypatch.setattr(_sr, "GREEN_MARKER", tmp_path / "last_green_run.json")
+    monkeypatch.setattr(_sr, "log_path_for", lambda now: tmp_path / "run.log")
+    monkeypatch.setattr(_sr, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(_sr, "price_source_preflight",
+                        lambda source: (True, "fixture"))
+    monkeypatch.setattr(_sr, "_email", lambda *a, **kw: None)
+    monkeypatch.setattr(_sr, "_git", lambda args, log, **kw: _NS(
+        returncode=0, stdout="", stderr=""))
+    if marker_day is not None:
+        rec = {"cadence": "post-fill", "local_date": marker_day,
+               "started_utc": "2026-09-16T01:00:00+00:00"}
+        if debt_reruns:
+            rec.update(debt_rerun_date=marker_day, debt_reruns=debt_reruns)
+        (tmp_path / "last_green_run.json").write_text(_json.dumps(rec),
+                                                      encoding="utf-8")
+    if isinstance(debt, BaseException):
+        def _debt(*a, **kw):
+            raise debt
+    else:
+        def _debt(*a, **kw):
+            return debt
+    monkeypatch.setattr(_sr.publication_debt, "current_debt", _debt)
+    monkeypatch.setattr(_sr.publication_debt, "escalation_due",
+                        lambda rep, on: ["NYSE|2026-09-14"])
+    monkeypatch.setattr(_sr.publication_debt, "mark_escalated",
+                        lambda *a, **kw: True)
+    ran = []
+    monkeypatch.setattr(_sr.subprocess, "run",
+                        lambda cmd, **kw: ran.append(cmd) or _NS(returncode=9))
+    rc = _sr.main(argv)
+    return rc, ran, (tmp_path / "run.log").read_text(encoding="utf-8")
+
+
+def test_catch_up_with_nothing_owed_exits_without_running(monkeypatch, tmp_path):
+    rc, ran, log = _drive(monkeypatch, tmp_path, debt=_report(owed=False),
+                          argv=["--cadence", "post-fill", "--catch-up"])
+    assert rc == 0
+    assert ran == []
+    assert "NOTHING OWED" in log
+
+
+def test_catch_up_with_something_owed_runs(monkeypatch, tmp_path):
+    rc, ran, log = _drive(monkeypatch, tmp_path,
+                          debt=_report(owed=True, oldest_owed_fill="2026-09-14",
+                                       age_days=2),
+                          argv=["--cadence", "post-fill", "--catch-up"])
+    assert ran, "a catch-up that owed a publication did not run the refresh"
+
+
+def test_catch_up_with_an_unknown_verdict_runs(monkeypatch, tmp_path):
+    """Unknown must not be spelled "nothing owed". The defect being repaired
+    is an unreadable state reading green."""
+    rc, ran, log = _drive(monkeypatch, tmp_path,
+                          debt=_report(owed=False, unknown=True,
+                                       reason="evidence unreadable"),
+                          argv=["--cadence", "post-fill", "--catch-up"])
+    assert ran, "an unknown debt verdict suppressed the run"
+
+
+def test_a_debt_evaluation_that_raises_does_not_suppress_the_run(
+        monkeypatch, tmp_path):
+    rc, ran, log = _drive(monkeypatch, tmp_path,
+                          debt=RuntimeError("git exploded"),
+                          argv=["--cadence", "post-fill", "--catch-up"])
+    assert ran, "a broken debt check suppressed the refresh"
+    assert "UNREADABLE" in log
+    assert "git exploded" in log
+
+
+def test_the_green_marker_still_suppresses_an_hourly_retry(monkeypatch, tmp_path):
+    rc, ran, log = _drive(monkeypatch, tmp_path, debt=_report(owed=False),
+                          argv=["--cadence", "post-fill"],
+                          marker_day=_local_today())
+    assert rc == 0 and ran == []
+    assert "ALREADY RAN TODAY" in log
+
+
+def test_outstanding_debt_overrides_a_green_marker_once(monkeypatch, tmp_path):
+    """THE REPRODUCED DEFECT, in its wiring form. On 2026-09-13 a green run
+    left Monday's fill unpublished and the marker suppressed everything
+    behind it."""
+    rc, ran, log = _drive(monkeypatch, tmp_path,
+                          debt=_report(owed=True, oldest_owed_fill="2026-09-14",
+                                       age_days=2),
+                          argv=["--cadence", "post-fill"],
+                          marker_day=_local_today())
+    assert ran, "the marker suppressed a run that still owed a publication"
+    assert "debt re-run 1/" in log
+    marker = _json.loads((tmp_path / "last_green_run.json").read_text(
+        encoding="utf-8"))
+    assert marker["debt_reruns"] == 1
+
+
+def test_the_debt_override_is_bounded_to_one_a_day(monkeypatch, tmp_path):
+    """A vendor mid-retraction is not cleared by retrying, and an unbounded
+    override would re-run a four-hour refresh every hour until the window
+    closed."""
+    rc, ran, log = _drive(monkeypatch, tmp_path,
+                          debt=_report(owed=True, oldest_owed_fill="2026-09-14",
+                                       age_days=2),
+                          argv=["--cadence", "post-fill"],
+                          marker_day=_local_today(),
+                          debt_reruns=_sr.MAX_DEBT_RERUNS_PER_DAY)
+    assert rc == 0 and ran == []
+    assert "debt re-run budget spent" in log
+    assert "STILL OWED: fill 2026-09-14" in log, \
+        "the outstanding obligation must still be named when the budget stops"
+
+
+def test_the_debt_is_evaluated_before_the_marker_is_consulted():
+    src = inspect.getsource(_sr.main)
+    assert src.index("Publication debt (2026-09-16)") < \
+        src.index("already_ran_today(marker"), \
+        "the debt must be read BEFORE the green-run marker short-circuits"
+
+
+def test_catch_up_propagates_to_component_children(monkeypatch, tmp_path):
+    seen = []
+    monkeypatch.setattr(_sr, "LOG_DIR", tmp_path)
+    monkeypatch.setattr(_sr, "log_path_for", lambda now: tmp_path / "run.log")
+    monkeypatch.setattr(_sr, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(_sr, "price_source_preflight",
+                        lambda source: (True, "fixture"))
+    monkeypatch.setattr(_sr, "_email", lambda *a, **kw: None)
+    monkeypatch.setattr(_sr, "_git", lambda args, log, **kw: _NS(
+        returncode=0, stdout="", stderr=""))
+    monkeypatch.setattr(_sr.subprocess, "run",
+                        lambda cmd, **kw: seen.append(cmd) or _NS(returncode=0))
+    _sr.main(["--cadence", "weekend", "--catch-up", "--push"])
+    assert seen, "no child was started"
+    assert all("--catch-up" in cmd for cmd in seen), \
+        "a child without the flag suppresses itself on its own green marker"
