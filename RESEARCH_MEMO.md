@@ -2230,3 +2230,88 @@ OUTSTANDING, and adoption is conditional on it: the gated-and-tilted comparison
 (Amendment 2). A common exposure overlay is not a monotone transform of a Sharpe
 difference, so this ordering is not guaranteed to carry to the deployed variant. NO CODE
 HAS CHANGED.
+
+## WS20 — within-panel trend dispersion (2026-09-18, CLOSED at Layer A)
+
+**VERDICT NO-INFORMATION. All three Layer A gates fail. Layer B never opened. Zero
+deployed changes, no panel, no scanner column.**
+
+Commissioned 2026-09-17 from a SentimenTrader note on semiconductor breadth. Three
+routes were put to the owner — a dashboard panel, a scanner group view, a
+pre-registered study — and the study was chosen. Registration
+`C:\dev\KICKOFF_ws20-trend-dispersion.md`, frozen at vault-docs `1cd0626` before the
+module existed; ten drafter decisions confirmed at sign-off the same day. Engine,
+runner and 24 selftests committed at `412e3af` before any figure was computed.
+
+### The question
+
+Sleeve A rotates on the breadth LEVEL. WS20 asked whether the SPREAD of trend across a
+panel's names carries information the level does not: whether a 56% breadth reading
+built from names clustered together differs from the same reading built from names
+pulling apart. The statistic is the cross-sectional interquartile range of
+`close/SMA200 - 1` over the names valid on the deployed `min_periods` 180 mask,
+converted to its percentile within that panel's own strictly-prior history (expanding,
+minimum 252 sessions). The IQR because the trend distance is unbounded above and one
+extreme name would own a standard deviation; the within-panel standardisation because
+the panels run 21 to 602 constituents.
+
+### What ran
+
+One scripted pass. 14 sleeve A panels, 375 weekly decision dates from 2019-03-29 to
+2026-05-29 — the realised start being the first session on which every panel carried
+252 sessions of dispersion history, earlier than the Q3 2019 the registration expected
+because the constituent caches begin 2017-06-30 rather than 2018-01. Every week carried
+all 14 panels (minimum and median both 14). Norgate per-column basis, forward windows
+required to complete by 2026-06-30 so the holdout was never touched, not even to finish
+a return.
+
+| Leg | Mean weekly coefficient | Halves |
+|---|---|---|
+| **Primary — IQR, 4-week horizon** | **+0.00027**, CI95 [-0.00918, +0.01022] | -0.00104 / +0.00158 |
+| 1-week horizon | -0.00069 | -0.00361 / +0.00223 |
+| 13-week horizon | -0.00128 | -0.01136 / +0.00880 |
+| Standard deviation, not IQR | +0.00025 | -0.00747 / +0.00792 |
+| With `ln(n)` panel-size control | -0.00138 | — |
+| No breadth control (confounded) | -0.00202 | — |
+
+Shuffle null (1,000 paths, seed 20260918, permuting dispersion across panels within each
+week): median +0.000027, sd 0.00256, central 95% [-0.00497, +0.00470]. The realised
+estimate sits at the **54th percentile** — the middle of the distribution built by
+deliberately destroying the pairing being tested.
+
+- **G-A1 FAIL** — the interval straddles zero and is 37 times the point estimate.
+- **G-A2 FAIL** — the sign flips between halves, and flips in every reported leg too.
+- **G-A3 FAIL** — 54th percentile of the null.
+
+### Three things worth carrying
+
+**The confound the design was built against turned out to be weak.** Pooled over 5,250
+panel-weeks the correlation between the standardised dispersion and demeaned breadth is
+-0.040, and between raw dispersion and breadth -0.102. The mechanical relation argued in
+§3 of the registration is real in principle but small here, so the conditional and
+univariate estimates are close — both null. The guard was not wrong to exist; it simply
+was not load-bearing, and saying so is cheaper than letting a future reader assume the
+control did the killing.
+
+**The thinness gate returned no usable reading, by construction.** G-A4 scores each
+panel's and each year's share of the total coefficient. With a total of +0.00027 and
+contributions an order of magnitude larger in both directions, the shares explode
+(top panel -12.3, top year +12.5) and the flag reads THIN meaninglessly. It did not
+enter the verdict — G-A1 to G-A3 already failed — but the lesson is general: a share-of-
+total decomposition is undefined when the total is approximately zero, and any future
+registration using one should say it is evaluated only on a pass.
+
+**Reproducibility was checked, not assumed.** The pass was run twice — the second time
+after amending the runner to persist the null draws and the weekly coefficient series,
+under §7's restatement provision. Every figure in the results file was byte-identical to
+the first pass. The charts are built by `scripts/plot_ws20_summary.py` from that file, so
+the record cannot drift from the run.
+
+### Consequences
+
+Nothing is adopted, proposed or built. The relative leg (`2026-07-10-breadth-thrust-etf-1`)
+and the standing divergence panel (`-2`) stay dead, and WS20 adds a third object to that
+list. The vendor lead-triage filter `2026-08-08-event-studies-3` — only price-based vendor
+leads reproduce on our data — is consistent with this outcome and was declared as a prior
+before the run. Reopening needs a genuinely new per-name object and a new registration,
+not a neighbour of this one.

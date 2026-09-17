@@ -205,6 +205,12 @@ def main() -> int:
     }
     pctile = ws20.percentile_of(float(coef.mean()), null)
     primary["null_percentile"] = _safe(pctile)
+    # Persisted so the record's charts are built from the run's own output
+    # rather than a second computation of the same quantity.
+    primary["null_draws"] = [_safe(v) for v in null]
+    primary["weekly_coefficients"] = {
+        d.strftime("%Y-%m-%d"): _safe(v) for d, v in coef.items()
+    }
 
     dec = ws20.decompose(coef, contrib)
     thin = ws20.thinness_flag(dec)
