@@ -92,6 +92,41 @@ def read_cache_source(cache_path: Path) -> str | None:
         return None
 
 
+def read_cache_tail_heal(cache_path: Path) -> dict | None:
+    """The tail-heal record the run that BUILT this cache left beside it.
+
+    A cache hit returns without probing the vendor, so the frame it hands
+    back carries no tail verification of its own and the panel JSON written
+    from it had none - erasing the record left by the run that did settle the
+    tail (2026-09-17). This lets that reader restore the provenance instead
+    of publishing a blank where evidence existed. Never raises; a missing,
+    unparseable or wrong-shaped sidecar is None.
+
+    THE SHAPE IS CHECKED, NOT ASSUMED. The first version accepted any dict,
+    which is not a test of anything: the sidecar is a file on disk that a
+    half-finished write, a hand edit or a future schema change can leave in
+    any state, and what comes back here is published as provenance in the
+    panel JSON. A record that does not carry the whole minimum shape is
+    treated exactly as a missing one - absent rather than partial, because a
+    partial record read as evidence is worse than no record at all.
+    """
+    path = sidecar_path(cache_path)
+    if not path.exists():
+        return None
+    try:
+        heal = json.loads(path.read_text(encoding="utf-8")).get("tail_heal")
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return None
+    if not isinstance(heal, dict):
+        return None
+    expected = {"checked_at_utc": str, "probe": str, "last_populated": str,
+                "rows": list, "dropped": list}
+    for field, kind in expected.items():
+        if not isinstance(heal.get(field), kind):
+            return None
+    return heal
+
+
 def write_cache_source(cache_path: Path, source: str,
                        report: dict | None = None) -> Path:
     """Record beside the cache which source built it and, for Norgate, which

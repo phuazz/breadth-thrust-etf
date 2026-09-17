@@ -845,12 +845,67 @@ def verify_price_tail(
                         continue
                 filled += 1
             populated = ts in priced_sessions(close, roster)
+            not_attempted = [t for t in unpriced if t not in requested]
             rec.update(filled=filled, refused=refused,
                        requested=requested, unserved=unserved,
                        no_answer=no_answer,
-                       not_attempted=[t for t in unpriced if t not in requested],
-                       heal_timed_out=timed_out,
-                       verdict="healed" if populated else "partial")
+                       not_attempted=not_attempted,
+                       heal_timed_out=timed_out)
+            # A PARTIAL PLACEHOLDER IS STILL A PLACEHOLDER (2026-09-17).
+            #
+            # This branch could only ever end "healed" or "partial", so a row
+            # carrying a handful of residual prices was always retained. On
+            # 2026-09-15 EXH3 held 1 roster price of 107: the sample carried
+            # no bar for the date, the other 106 were then re-requested, every
+            # one of them ANSWERED, not one carried the date, and the row was
+            # kept as "partial". G1 then refused publication - correctly, on
+            # the evidence in front of it - and did so on every firing
+            # afterwards, because nothing in the loop could ever remove the
+            # row. EXV1 and EXH9 failed the same way, and the 14 September
+            # fill went unpublished.
+            #
+            # WHAT THE CONDITION ESTABLISHES, AND WHAT IT DOES NOT. Every
+            # live name answering without a bar for the date establishes that
+            # the VENDOR is not serving this row - nothing more. It is not
+            # evidence that the exchange was shut, and this code must never
+            # be read as saying so: the venue calendar is the only thing that
+            # can answer that question and it is not consulted here. What is
+            # dropped is a row that is not usable as a vendor-priced row, and
+            # the residual handful on it is what the batch download left
+            # behind rather than a priced session. Full non-service is the
+            # strongest evidence the vendor can give about its own data, and
+            # the row is dropped on that alone. Every weaker answer keeps it:
+            #
+            #   a request that timed out      - the roster was not asked
+            #   a name that did not answer    - no verdict from that name
+            #   a bar refused by WS15         - a bar EXISTS; it was rejected
+            #   any genuine fill              - the session is real
+            #
+            # Row presence never becomes evidence of a priced session here,
+            # and no coverage floor, forward-fill or construction rule is
+            # touched: a dropped row simply is not in the frame.
+            placeholder = (not populated
+                           and bool(requested)
+                           and filled == 0
+                           and not timed_out
+                           and not no_answer
+                           and not refused
+                           and not not_attempted
+                           and len(unserved) == len(requested))
+            if placeholder:
+                dropped.append(ts)
+                rec.update(
+                    verdict="unserved_placeholder",
+                    reason=(f"{len(requested)} live name(s) re-requested "
+                            f"single-ticker, all answered, none carries a "
+                            f"{ts.date()} bar: the vendor is not serving this "
+                            f"row for this roster. The {rec['roster_priced']} "
+                            f"residual price(s) are what the batch left "
+                            f"behind, so the row is not usable as a "
+                            f"vendor-priced row. This says nothing about "
+                            f"whether the exchange traded"))
+            else:
+                rec["verdict"] = "healed" if populated else "partial"
         elif len(answered) == len(sample) and rec["roster_priced"] == 0:
             dropped.append(ts)
             rec["verdict"] = "unserved"
@@ -884,6 +939,14 @@ def _report_tail_verification(v: dict | None) -> None:
                   f"the bar -> the vendor is not serving {r['date']} for this "
                   f"roster; placeholder row dropped (vendor lag, not a batch "
                   f"defect).", flush=True)
+        elif verdict == "unserved_placeholder":
+            print(f"{head}; {len(r['requested'])} live name(s) re-requested, "
+                  f"{len(r['unserved'])} answered without the bar, 0 filled, "
+                  f"0 refused, 0 unanswered, no timeout -> the vendor is not "
+                  f"serving {r['date']} for this roster, so the row is not "
+                  f"usable as a vendor-priced row; dropped. (Vendor "
+                  f"non-service only - whether the exchange traded is not "
+                  f"asked here.)", flush=True)
         elif verdict in ("healed", "partial"):
             print(f"{head}; {r['sample_served']} of {len(r['sampled'])} "
                   f"sampled names carry the bar single-ticker; "
@@ -941,7 +1004,35 @@ def download_prices(
                                 and vendor_tail.has_required_session(cached, roster, required_through)))
             if covers_dates and covers_tickers and source_matches and covers_required:
                 print(f"  Using cached prices: {cache_path.name}", flush=True)
-                return cached[list(tickers)].loc[start_ts:end_ts]
+                # No download happens on this path, so the vendor is never
+                # asked and no observation exists for this run. Recorded, so
+                # the evidence summary can report MEASURED coverage rather
+                # than a footnote saying coverage may be incomplete.
+                price_revisions.record_cache_skip(
+                    cache_path.stem, Path(cache_path).resolve().parent.parent)
+                # CARRY THE PROVENANCE FORWARD (2026-09-17). The frame
+                # returned here never passed through verify_price_tail, so
+                # ``tail_verification`` was absent and main() wrote a panel
+                # JSON with none - erasing the record left by the run that
+                # DID settle the tail. That is why all three blocked panels
+                # showed an empty tail_verification while G1 was reporting a
+                # hollow tail against them: the evidence had been overwritten
+                # by a later cached run, and the one artefact an operator is
+                # told to read said nothing.
+                #
+                # It is restored from the sidecar and marked as a RE-READ, not
+                # as an observation: no vendor was asked on this path, and
+                # ``checked_at_utc`` continues to mean when the probe actually
+                # ran. Never raises - missing or malformed provenance leaves
+                # the attribute absent, exactly as before.
+                out = cached[list(tickers)].loc[start_ts:end_ts]
+                heal = price_source_mod.read_cache_tail_heal(cache_path)
+                if heal is not None:
+                    out.attrs["tail_verification"] = {
+                        **heal, "from_cache": True,
+                        "reread_at_utc": datetime.now(timezone.utc).isoformat(
+                            timespec="seconds")}
+                return out
         except Exception as e:
             print(f"  Cache read failed ({e}); re-downloading.", flush=True)
 
