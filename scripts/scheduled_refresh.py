@@ -330,9 +330,16 @@ def _git(args: list[str], log, cwd: Path = REPO_ROOT) -> subprocess.CompletedPro
     return cp
 
 
-def _email(subject: str, body: str, log) -> None:
+def _email(subject: str, body: str, log) -> str:
     """Best-effort operator email; never raises. Uses the same variable
     names as the CI secrets so one convention covers both sides.
+
+    RETURNS THE OUTCOME (2026-09-17, eighth review): ``run_status.SENT``,
+    ``UNCONFIGURED`` or ``FAILED``. It returned nothing before, so a caller
+    that needed to know whether the message had actually gone anywhere could
+    not ask - and the notice dedupe, which is the one caller that does,
+    treated an unconfigured mailer as a delivered alert. SENT means the SMTP
+    server accepted the message; it is not evidence that anybody read it.
 
     EVERY outcome is also written to logs/alert_delivery.json (2026-09-16).
     Until then the only record was the prose line below, and on 15 and 16
@@ -351,7 +358,7 @@ def _email(subject: str, body: str, log) -> None:
                   run_status.alert_state_path(REPO_ROOT),
                   subject=subject, status=run_status.UNCONFIGURED,
                   detail=f"missing: {missing}")
-        return
+        return run_status.UNCONFIGURED
     try:
         msg = MIMEText(body)
         msg["Subject"] = subject
@@ -365,13 +372,20 @@ def _email(subject: str, body: str, log) -> None:
             _safe(log, "alert record (sent)", run_status.record_alert,
                   run_status.alert_state_path(REPO_ROOT),
                   subject=subject, status=run_status.SENT)
+        return run_status.SENT
     except Exception as exc:
-        log.write(f"\n[email FAILED: {exc}]\n")
+        # REDACTED (2026-09-16). SMTPRecipientsRefused stringifies to a dict
+        # keyed by the recipient address, which IS GMAIL_USER, and an
+        # authentication failure can echo the password back from the server.
+        # Both used to be written verbatim here and into the durable record.
+        detail = run_status.redact(f"{type(exc).__name__}: {exc}")
+        log.write(f"\n[email FAILED: {detail}]\n")
         if _durable_state_enabled():
             _safe(log, "alert record (failed)", run_status.record_alert,
                   run_status.alert_state_path(REPO_ROOT),
                   subject=subject, status=run_status.FAILED,
-                  detail=f"{type(exc).__name__}: {exc}")
+                  detail=detail)
+        return run_status.FAILED
 
 
 # RESTORE THE CLONE AFTER A FAILED REFRESH (2026-09-03).
@@ -453,62 +467,114 @@ def already_ran_today(marker: Path, cadence: str, now_utc: datetime,
             and rec.get("local_date") == _local_date(now_utc, tz))
 
 
+def _read_marker(marker: Path) -> dict:
+    try:
+        rec = json.loads(Path(marker).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return rec if isinstance(rec, dict) else {}
+
+
 def record_green_run(marker: Path, cadence: str, started_utc: datetime,
                      tz=None) -> Path:
     """Write the marker for a run that STARTED at ``started_utc`` — the
     firing's own date, so a run that crosses midnight is filed under the
-    day it was scheduled for."""
+    day it was scheduled for.
+
+    THE DAILY ATTEMPT BUDGET IS PRESERVED THROUGH THIS WRITE (2026-09-16).
+    It used to replace the record wholesale, which zeroed the counter: a
+    green run that left its debt standing therefore restored the budget it
+    had just spent, and the "bounded" daily override was not bounded at all.
+    Reproduced by looping green-run / debt-rerun / green-run three times and
+    reading the counter back at zero each cycle. The budget belongs to the
+    DAY, not to the run, so a completion never refunds it.
+    """
     marker = Path(marker)
     marker.parent.mkdir(parents=True, exist_ok=True)
-    marker.write_text(json.dumps({
+    prior = _read_marker(marker)
+    rec = {
         "cadence": cadence,
         "local_date": _local_date(started_utc, tz),
         "started_utc": started_utc.isoformat(timespec="seconds"),
         "recorded_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    }, indent=2), encoding="utf-8")
+    }
+    if (prior.get("cadence") == cadence
+            and prior.get("debt_attempt_date") == _local_date(started_utc, tz)):
+        rec["debt_attempt_date"] = prior["debt_attempt_date"]
+        rec["debt_attempts"] = _marker_int(prior.get("debt_attempts"))
+    marker.write_text(json.dumps(rec, indent=2), encoding="utf-8")
     return marker
 
 
 # A green run that leaves the fill still unpublished — 2026-09-13, exactly —
 # used to be indistinguishable from a healthy one, because the marker only
-# ever answered "did a green run happen today". Outstanding debt now
-# overrides the marker, but BOUNDEDLY: an unbounded override would re-run a
-# one-to-four hour refresh on every hourly firing for the rest of the
-# window against a condition — a vendor mid-retraction — that no number of
-# retries clears. One extra attempt per local day is a retry; six is a loop.
-MAX_DEBT_RERUNS_PER_DAY = 1
+# ever answered "did a green run happen today". Outstanding or unreadable
+# debt now makes a run proceed, but BOUNDEDLY: a vendor mid-retraction is
+# not cleared by retrying, and an unbounded rule would re-run a one-to-four
+# hour refresh on every firing for the rest of the window. Two attempts is a
+# recovery plus one retry; six is a loop.
+#
+# The budget covers EVERY debt-driven proceed decision, not only the ones
+# that override a green marker. A persistent UNKNOWN verdict with no marker
+# present — an unreadable ledger, an unresolvable remote — would otherwise
+# authorise a full refresh on all twelve catch-up firings of a Thursday and
+# Friday, which is the same unbounded-work failure wearing the fail-safe
+# direction as a disguise.
+#
+# ITS SCOPE, STATED EXACTLY (2026-09-16, third review, correcting an earlier
+# description of it as global):
+#
+#   * PER MARKER, and each component keeps its own. The weekend pair writes
+#     last_green_core.json and last_green_europe.json, so a catch-up day in
+#     which the diagnostics keep failing allows two CORE attempts and two
+#     EUROPE attempts, not two in total. That is the intended shape - the
+#     two halves publish independently - and it is four full refreshes, not
+#     two, on the worst day.
+#   * PER LOCAL DATE and per cadence. Deleting the marker resets it, which
+#     is the escape hatch the marker has always had.
+#   * CAPTURE-ONLY WORK IS OUTSIDE IT. A --capture-only child returns before
+#     the debt is read: it publishes nothing, so it owes nothing, and six
+#     recover-europe-first firings legitimately produce six captures. That
+#     is deliberate. Bringing collection under a publication budget would
+#     stop the one activity that clears a vendor retraction.
+#   * The re-exec after a pull rewrites this script does NOT double-spend:
+#     it happens in the preflight, before any attempt is counted, and the
+#     waited child spends exactly one.
+MAX_DEBT_ATTEMPTS_PER_DAY = 2
 
 
-def debt_reruns_today(marker: Path, cadence: str, now_utc: datetime,
-                      tz=None) -> int:
-    """How many debt-driven re-runs have already fired on this local date."""
+def _marker_int(value, default: int = 0) -> int:
     try:
-        rec = json.loads(Path(marker).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return 0
-    if not isinstance(rec, dict) or rec.get("cadence") != cadence:
-        return 0
-    if rec.get("debt_rerun_date") != _local_date(now_utc, tz):
-        return 0
-    try:
-        return int(rec.get("debt_reruns") or 0)
+        return int(value)
     except (TypeError, ValueError):
+        return default
+
+
+def debt_attempts_today(marker: Path, cadence: str, now_utc: datetime,
+                        tz=None) -> int:
+    """How many debt-driven attempts have already fired on this local date."""
+    rec = _read_marker(marker)
+    if rec.get("cadence") != cadence:
         return 0
+    if rec.get("debt_attempt_date") != _local_date(now_utc, tz):
+        return 0
+    return _marker_int(rec.get("debt_attempts"))
 
 
-def record_debt_rerun(marker: Path, cadence: str, now_utc: datetime,
-                      tz=None) -> int:
-    """Count one debt-driven override of the green marker. Never raises."""
-    try:
-        rec = json.loads(Path(marker).read_text(encoding="utf-8"))
-        rec = rec if isinstance(rec, dict) else {}
-    except (OSError, ValueError):
-        rec = {}
+def record_debt_attempt(marker: Path, cadence: str, now_utc: datetime,
+                        tz=None) -> int:
+    """Count one debt-driven attempt against today's budget. Never raises.
+
+    Written BEFORE the work, so a run that dies mid-refresh still spends its
+    attempt. A budget that only counted completions would be refilled by
+    every crash, which is the failure mode it exists to bound.
+    """
+    rec = _read_marker(marker)
     today = _local_date(now_utc, tz)
-    n = (int(rec.get("debt_reruns") or 0) + 1
-         if rec.get("debt_rerun_date") == today and rec.get("cadence") == cadence
-         else 1)
-    rec.update(cadence=cadence, debt_rerun_date=today, debt_reruns=n)
+    n = (_marker_int(rec.get("debt_attempts")) + 1
+         if rec.get("debt_attempt_date") == today
+         and rec.get("cadence") == cadence else 1)
+    rec.update(cadence=cadence, debt_attempt_date=today, debt_attempts=n)
     try:
         Path(marker).parent.mkdir(parents=True, exist_ok=True)
         Path(marker).write_text(json.dumps(rec, indent=2), encoding="utf-8")
@@ -786,7 +852,19 @@ def main(argv: list[str] | None = None) -> int:
         log.write(f"\npublication debt: {json.dumps(debt.as_dict())}\n")
     debt_requires_run = (debt is None) or debt.should_run
 
-    if debt is not None and debt.escalate:
+    # NOT ON A PREFLIGHT-ONLY RUN, FOR EITHER ALERT TYPE (2026-09-17, ninth
+    # review). The eighth pass suppressed NOTICES under --preflight-only and
+    # left escalations mailing and marking, so the documented smoke test still
+    # raised an overdue-publication alert and spent that obligation's
+    # escalation budget for the day. A rehearsal must not consume the state the
+    # performance depends on, and there is no reading under which one alert
+    # type is a side effect and the other is not. The verdict is still written
+    # to the log and still printed, so the smoke test still SHOWS what it
+    # found.
+    if debt is not None and debt.escalate and args.preflight_only:
+        log.write("\n[preflight-only: escalation suppressed; the verdict "
+                  "above is the whole output of this run]\n")
+    if debt is not None and debt.escalate and not args.preflight_only:
         # Escalate through the alert channel, whose own health is now
         # independently observed. A missed publication deadline is not a
         # retry, and the run continues: the escalation is a notification,
@@ -813,6 +891,108 @@ def main(argv: list[str] | None = None) -> int:
                       publication_debt.ledger_path(REPO_ROOT), due,
                       now.astimezone().date())
 
+    # ----- Notices (2026-09-17) -----
+    #
+    # A condition an operator must hear about that is NOT an overdue
+    # publication, and therefore can never escalate. A venue whose book has
+    # stopped advancing owes nothing by construction: it produced a
+    # catch-up run and a line in a log file nobody reads, which is the
+    # shape of silence this whole workstream exists to remove. Bounded and
+    # deduplicated exactly as an escalation is.
+    # NOT ON A PREFLIGHT-ONLY RUN (2026-09-17, eighth review). --preflight-only
+    # is the documented smoke test, invoked by hand to check that the clone is
+    # clean and the gate preview works. It ran the notice block, so a smoke
+    # test mailed an operational alert and spent a day of that notice's
+    # dedupe - after which the real firing an hour later said nothing. A
+    # rehearsal must not consume the state the performance depends on. The
+    # condition is still printed and still in the verdict the run prints.
+    if debt is not None and debt.notices and not args.preflight_only:
+        ledger = publication_debt.ledger_path(REPO_ROOT)
+        today = now.astimezone().date()
+        # Stamp every LIVE condition first, whether or not it is due. A
+        # condition that has spent its budget is never attempted again, so
+        # without this its record would stop being refreshed and the retention
+        # rule would eventually evict the very count that is keeping it quiet.
+        observed = True
+        if _durable_state_enabled():
+            observed = bool(_safe(log, "notice conditions",
+                                  publication_debt.record_notice_conditions,
+                                  ledger, [n["key"] for n in debt.notices],
+                                  today))
+            if not observed:
+                # A LEDGER THAT CANNOT BE WRITTEN AUTHORISES NOTHING
+                # (2026-09-17, tenth review). The claim file bounds
+                # repetition, but the attempt and delivery counts - the
+                # budget that stops an unfixable condition training the
+                # operator to ignore the channel - live in the ledger. A
+                # successful claim over a dead ledger would mail on a budget
+                # nothing is keeping.
+                log.write("\n[notices withheld: the obligation ledger could "
+                          "not record this run's observation, so the notice "
+                          "budget cannot be maintained]\n")
+        pending = ([] if not observed else
+                   _safe(log, "notice dedupe", publication_debt.notices_due,
+                         debt, ledger, today) or [])
+        for notice in pending:
+            # CLAIM, THEN SEND. ``notices_due`` is a read, so two overlapping
+            # firings - which an hourly schedule over a one-to-four-hour
+            # refresh produces routinely - can both select the same notice.
+            # The claim is an O_EXCL file create: exactly one process wins it,
+            # and only the winner mails. A claim that cannot be created at all
+            # means nothing would bound the repetition, so nothing is sent.
+            key = notice["key"]
+            if _durable_state_enabled():
+                claim = _safe(log, "notice claim", publication_debt.claim_notice,
+                              ledger, key, today)
+                if claim != publication_debt.NOTICE_CLAIMED:
+                    log.write(f"\n[notice not sent: {key} - "
+                              f"{claim or publication_debt.NOTICE_UNCLAIMABLE}"
+                              f"]\n")
+                    continue
+                # Written before the send so the budget the next firing reads
+                # is never behind the mail already gone out - and if it does
+                # not persist, the claim alone does not authorise the send.
+                # The claim is handed back so a later firing the same day can
+                # take it once writes recover.
+                if not _safe(log, "notice attempt",
+                             publication_debt.record_notice_attempt, ledger,
+                             [key], today):
+                    log.write(f"\n[notice not sent: {key} - the attempt could "
+                              f"not be recorded, so the send budget cannot be "
+                              f"maintained; claim released]\n")
+                    _safe(log, "notice claim release",
+                          publication_debt.release_notice_claim, ledger, key,
+                          today)
+                    continue
+            outcome = _email(
+                f"[NOTICE] {args.cadence} - {notice['venue']} book has "
+                f"stopped advancing",
+                f"{notice['detail']}\n\nThe schedule cannot tell which "
+                f"{notice['venue']} fills have occurred since, so the "
+                f"publication debt reads UNKNOWN and every firing does the "
+                f"work rather than trusting the book.\n\nThis measures the "
+                f"BOOK, not the broker: it says live_targets.json stopped "
+                f"moving, nothing about what traded.\n\nLog: {log_path}",
+                log)
+            # Only a message the server accepted spends the delivered budget.
+            # An unconfigured or refused channel has told nobody anything, and
+            # must not exhaust the budget that exists to stop the channel
+            # being muted.
+            #
+            # If the server accepted it and THIS write fails, the mail is gone
+            # and the ledger does not know: the notice goes out again on a
+            # later day and the operator may receive it twice. The guarantee
+            # is AT MOST ONCE WITHIN A DAY - the claim is exclusive - with a
+            # cross-day retry only while the condition is still reported. It
+            # is the direction to fail in; the alternative loses alerts.
+            if _durable_state_enabled():
+                _safe(log, "notice outcome",
+                      publication_debt.record_notice_delivery, ledger, [key],
+                      today,
+                      publication_debt.NOTICE_DELIVERED
+                      if outcome == run_status.SENT
+                      else publication_debt.NOTICE_UNCONFIRMED)
+
     # ----- Already done today? -----
     # The scheduled task retries hourly and starts as soon as the machine is
     # available, so that a Saturday with the laptop shut still gets its
@@ -824,47 +1004,15 @@ def main(argv: list[str] | None = None) -> int:
     # of this cadence already completed on this local date". Checked AFTER
     # the pull, so a rewritten wrapper is the one making the decision, and
     # after the debt, which can override it a bounded number of times a day.
-    if not args.preflight_only and already_ran_today(marker,
-                                                     args.cadence, now):
-        if debt_requires_run:
-            spent = debt_reruns_today(marker, args.cadence, now)
-            if spent >= MAX_DEBT_RERUNS_PER_DAY:
-                msg = (f"ALREADY RAN TODAY; debt re-run budget spent "
-                       f"({spent}/{MAX_DEBT_RERUNS_PER_DAY}) for "
-                       f"{now.astimezone().date().isoformat()}. STILL OWED: "
-                       f"fill {debt.oldest_owed_fill if debt else 'unknown'} - "
-                       f"{debt.reason if debt else 'debt unreadable'}")
-                print(msg)
-                log.write(f"\n{msg}\n")
-                _record_run(run_status.run_ledger_path(REPO_ROOT),
-                            cadence=args.cadence, exit_code=0,
-                            subject="already ran today; debt rerun budget spent",
-                            debt=debt.as_dict() if debt else None)
-                log.close()
-                return 0
-            n = record_debt_rerun(marker, args.cadence, now)
-            log.write(f"\na green {args.cadence} run already completed today, "
-                      f"but the publication it owed is still outstanding; "
-                      f"running again (debt re-run {n}/"
-                      f"{MAX_DEBT_RERUNS_PER_DAY})\n")
-        else:
-            msg = (f"ALREADY RAN TODAY - a green {args.cadence} run completed "
-                   f"on {now.astimezone().date().isoformat()} (local); this "
-                   f"firing is an hourly retry. Nothing to do.")
-            print(msg)
-            log.write(f"\n{msg}\n")
-            _record_run(run_status.run_ledger_path(REPO_ROOT),
-                        cadence=args.cadence, exit_code=0,
-                        subject="already ran today",
-                        debt=debt.as_dict() if debt else None)
-            log.close()
-            return 0
+    ran_today = (not args.preflight_only
+                 and already_ran_today(marker, args.cadence, now))
 
     # --catch-up inverts the default: a firing outside the original window
-    # runs ONLY if something is still owed, and exits in seconds otherwise.
-    # That is what makes extra triggers safe to add — without it, widening
-    # the schedule means re-running a 1-4 hour refresh against a book that
-    # is already published, which is how a duplicate publication happens.
+    # runs ONLY if something is still owed or unreadable, and exits in
+    # seconds otherwise. That is what makes extra triggers safe to add —
+    # without it, widening the schedule means re-running a 1-4 hour refresh
+    # against a book that is already published, which is how a duplicate
+    # publication happens.
     if args.catch_up and not debt_requires_run and not args.preflight_only:
         msg = (f"NOTHING OWED - {debt.reason}. Catch-up firing exits without "
                f"running the refresh.")
@@ -876,6 +1024,52 @@ def main(argv: list[str] | None = None) -> int:
                     debt=debt.as_dict())
         log.close()
         return 0
+
+    if ran_today and not debt_requires_run:
+        msg = (f"ALREADY RAN TODAY - a green {args.cadence} run completed "
+               f"on {now.astimezone().date().isoformat()} (local); this "
+               f"firing is an hourly retry. Nothing to do.")
+        print(msg)
+        log.write(f"\n{msg}\n")
+        _record_run(run_status.run_ledger_path(REPO_ROOT),
+                    cadence=args.cadence, exit_code=0,
+                    subject="already ran today",
+                    debt=debt.as_dict() if debt else None)
+        log.close()
+        return 0
+
+    # ----- The daily budget on debt-driven work (2026-09-16) -----
+    #
+    # Applies to EVERY firing that proceeds because of debt: a catch-up
+    # firing, and a firing that overrides its own green marker. It used to
+    # cover only the second, and only until the next green run rewrote the
+    # marker and refunded the counter. Both holes are closed: the counter
+    # survives ``record_green_run``, and an UNKNOWN verdict with no marker
+    # at all is bounded by the same budget rather than authorising a full
+    # refresh on every catch-up firing of the day.
+    debt_driven = debt_requires_run and (args.catch_up or ran_today)
+    if debt_driven and not args.preflight_only:
+        spent = debt_attempts_today(marker, args.cadence, now)
+        if spent >= MAX_DEBT_ATTEMPTS_PER_DAY:
+            outstanding = (debt.oldest_owed_fill if debt and debt.oldest_owed_fill
+                           else "unknown")
+            msg = (f"DEBT ATTEMPT BUDGET SPENT "
+                   f"({spent}/{MAX_DEBT_ATTEMPTS_PER_DAY}) for "
+                   f"{now.astimezone().date().isoformat()}. STILL OWED: fill "
+                   f"{outstanding} - "
+                   f"{debt.reason if debt else 'debt unreadable'}")
+            print(msg)
+            log.write(f"\n{msg}\n")
+            _record_run(run_status.run_ledger_path(REPO_ROOT),
+                        cadence=args.cadence, exit_code=0,
+                        subject="debt attempt budget spent",
+                        debt=debt.as_dict() if debt else None)
+            log.close()
+            return 0
+        n = record_debt_attempt(marker, args.cadence, now)
+        log.write(f"\nproceeding on publication debt "
+                  f"({'green marker overridden' if ran_today else 'catch-up'}); "
+                  f"attempt {n}/{MAX_DEBT_ATTEMPTS_PER_DAY} today\n")
 
     # ----- Refresh (the ~4.3 hour part) -----
     if not args.preflight_only:

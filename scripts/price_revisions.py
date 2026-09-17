@@ -80,9 +80,23 @@ SCHEMA = 1
 # times over while keeping a 500-name panel's state file in the low
 # hundreds of kilobytes.
 WINDOW_SESSIONS = 8
-# Hard ceiling on cells held per panel. Oldest admitted dates are dropped
-# first, and the drop is recorded.
+# Cells admitted in ONE observation. A 750-name panel over an eight-session
+# window is exactly 6000, and that working set is what the next run must
+# compare against.
 MAX_CELLS = 6000
+# Out-of-window cells kept for open cycles, over and above the working set.
+#
+# THE WORKING SET IS NEVER EVICTED TO MAKE ROOM (2026-09-16, third review).
+# A single accumulated ceiling of 6000 evicted 750 SERVED cells that were
+# still inside the observation window, and a later withdrawal of those cells
+# was then recorded as "absent" - the withdrawal count stayed at 750 where
+# it should have reached 1500. Forgotten prior state is not evidence that a
+# cell was never served, so the cap is now layered: the window always fits,
+# retained cycles have their own budget, and only a pathological panel
+# reaches the hard ceiling - where the loss of DETECTION, not merely of
+# storage, is counted and constrains the verdict.
+MAX_RETAINED_CELLS = 1500
+MAX_CELLS_HARD = 24000
 # A cell left WITHHELD is kept past the window for this long, so a cycle
 # that spans the window boundary is not lost to eviction. One evicted
 # while still withheld is counted: it is a cycle we will never close.
@@ -91,19 +105,35 @@ WITHHELD_RETENTION_DAYS = 30
 EVENT_CAP = 2000
 # Cache-diff per-cell detail. Counts are exact regardless.
 SAMPLE_CAP = 40
+# Rows of the CACHE diff actually walked cell by cell. The full CSP1 cache is
+# 2309 x 727, and diffing it whole measured 16.4 seconds for ONE panel on
+# 2026-09-16 - minutes across the book, on every refresh, for a SECONDARY
+# diagnostic. Shape changes and lost populated cells are still counted over
+# the whole frame, because those are set operations and a masked sum; only
+# the per-cell walk is bounded, and the bound is reported on the record.
+CACHE_DIFF_SESSIONS = 60
 
 # Relative tolerance for "the same price". Parquet round-trips float64
 # exactly, so an unchanged cell compares equal bit for bit and this never
 # fires on one. It exists to stop a last-place difference from a vendor's
 # own float formatting reading as a revision.
 REL_TOL = 1e-12
-# A whole-column re-adjustment shows up as a CONSTANT ratio across every
-# historical cell. Three cells is the least that can distinguish a
-# proportional re-adjustment from coincidence; the tolerance is loose
-# enough to survive float64 rounding on a ratio and far tighter than any
-# real price move.
+# A uniform ratio is the SHAPE of a re-adjustment and not evidence of one.
+# Three cells is the least that can even raise the question; below it a
+# change is simply a revision. Whether a uniform ratio IS a corporate action
+# can only be settled by an independent source, and none is wired - see
+# _classify_changes.
 ADJUSTMENT_MIN_CELLS = 3
 ADJUSTMENT_REL_TOL = 1e-6
+
+# Change classes. AMBIGUOUS is not a hedge: it is the honest answer when a
+# single ratio runs across cells that do not form a prefix, which is neither
+# a re-adjustment nor plainly a set of independent restatements. It never
+# counts towards revision evidence AND never counts as clean - a summary
+# carrying ambiguous changes cannot return a "no revision observed" verdict.
+ADJUSTMENT = "adjustment"
+REVISION = "revision"
+AMBIGUOUS = "ambiguous"
 
 # Basis vocabulary. "auto" is a SELECTION POLICY and never appears here.
 YFINANCE = "yfinance"
@@ -149,16 +179,24 @@ def _atomic_write(path: Path, text: str) -> bool:
         return False
 
 
-def _append_bounded(path: Path, record: dict, cap: int) -> bool:
+def _append_bounded(path: Path, records, cap: int) -> bool:
+    """Append one record or a batch, trimming to ``cap`` lines. ONE rewrite.
+
+    Takes a batch because the caller has a run's worth of events at once and
+    appending them singly rewrote the whole ledger per event.
+    """
+    batch = [records] if isinstance(records, dict) else list(records or ())
+    if not batch:
+        return True
     try:
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
         lines = []
         if p.exists():
             lines = [ln for ln in p.read_text(encoding="utf-8").splitlines()
-                     if ln.strip()][-(cap - 1):]
-        lines.append(json.dumps(record))
-        return _atomic_write(p, "\n".join(lines) + "\n")
+                     if ln.strip()]
+        lines.extend(json.dumps(r) for r in batch)
+        return _atomic_write(p, "\n".join(lines[-cap:]) + "\n")
     except (OSError, ValueError):
         return False
 
@@ -237,7 +275,8 @@ def observe_vendor_frame(raw, *, panel: str, source: str = YFINANCE,
                          now_utc: datetime | None = None,
                          required_through=None,
                          window: int = WINDOW_SESSIONS,
-                         max_cells: int = MAX_CELLS) -> dict:
+                         max_cells: int = MAX_CELLS,
+                         also_admit=None) -> dict:
     """One bounded, provenanced observation of what the vendor SERVED.
 
     Takes the raw download frame, before any preservation, overlay or tail
@@ -245,11 +284,20 @@ def observe_vendor_frame(raw, *, panel: str, source: str = YFINANCE,
     nothing at all - a dead endpoint, a timeout swallowed upstream - from a
     vendor that answered and declared specific bars missing. The two cannot
     be conflated: the first is our failure and the second is evidence.
+
+    ``also_admit`` carries dates OUTSIDE the rolling window that a retained
+    open cycle still needs. Without it a withdrawal could be retained for
+    thirty days and never close: once its date left the eight-session
+    window it was never read again, so the vendor could serve the restored
+    value in every subsequent frame while the cell stayed "withheld" for
+    ever. Reproduced 2026-09-16. The set is bounded by the retained cells,
+    which are themselves capped.
     """
     now_utc = now_utc or _now()
     rec = {"schema": SCHEMA, "panel": str(panel), "source": str(source),
            "asof": now_utc.isoformat(timespec="seconds"),
-           "answered": False, "dates": [], "cells": {},
+           "answered": False, "dates": [], "window_dates": [],
+           "reopened_dates": [], "cells": {},
            "unanswered_columns": [], "columns_observed": 0,
            "truncated_dates": 0, "window": int(window),
            "max_cells": int(max_cells)}
@@ -276,6 +324,15 @@ def observe_vendor_frame(raw, *, panel: str, source: str = YFINANCE,
             keep = max(1, int(max_cells // max(1, len(cols))))
             rec["truncated_dates"] = len(dates) - keep
             dates = dates[-keep:]
+        rec["window_dates"] = list(dates)
+        # Dates the rolling window has passed but an open cycle still needs.
+        if also_admit:
+            have = {str(pd.Timestamp(d).date()) for d in raw.index}
+            reopened = sorted({str(d) for d in also_admit}
+                              & have - set(dates))
+            if reopened:
+                rec["reopened_dates"] = reopened
+                dates = sorted(set(dates) | set(reopened))
         rec["dates"] = dates
         sub = raw.loc[[pd.Timestamp(d) for d in dates], cols] if cols else None
         cells: dict[str, dict[str, float | None]] = {}
@@ -302,35 +359,92 @@ def observe_vendor_frame(raw, *, panel: str, source: str = YFINANCE,
 
 def _empty_state(panel: str) -> dict:
     return {"schema": SCHEMA, "panel": str(panel), "runs": 0,
-            "runs_unanswered": 0, "cells": {},
+            "runs_unanswered": 0, "runs_cache_skipped": 0, "cells": {},
             "counters": {"first_served": 0, "withdrawals": 0,
                          "restorations": 0, "restorations_identical": 0,
-                         "restorations_changed": 0, "revisions": 0,
-                         "adjustments": 0, "adjustment_columns": 0,
-                         "cells_evicted_while_withheld": 0},
+                         "restorations_changed": 0,
+                         "restorations_changed_by_adjustment": 0,
+                         "restorations_changed_ambiguous": 0,
+                         "revisions": 0, "adjustments": 0, "ambiguous": 0,
+                         "adjustment_columns": 0,
+                         "cells_evicted_while_withheld": 0,
+                         "cells_evicted_at_cap": 0,
+                         "working_set_evictions": 0,
+                         "prior_state_forgotten": 0,
+                         "comparison_opportunities": 0,
+                         "withdrawals_undetectable": 0,
+                         "unanswered_ticker_observations": 0},
             "retention": {"window_sessions": WINDOW_SESSIONS,
                           "max_cells": MAX_CELLS,
                           "withheld_retention_days": WITHHELD_RETENTION_DAYS}}
 
 
-def _classify_revisions(pending: dict[str, list[tuple]]) -> dict[str, str]:
-    """{column: 'adjustment'|'revision'} for this run's value changes.
+def _change_shape(dates: list[str], comparable: list[str] | None) -> str:
+    """``whole`` | ``prefix`` | ``scatter`` for the cells that changed.
 
-    A vendor re-adjusting a column applies ONE ratio to every historical
-    cell in it. That is a basis event for the series, not a restatement of
-    individual closes, and pooling the two would let a single split
-    dominate the evidence the module exists to gather.
+    Recorded on the event for an investigator. It is NOT a cause: a
+    retroactive split does produce a prefix, but so can a coincidence, and
+    a prefix is not evidence of a corporate action - see
+    ``_classify_changes``.
+    """
+    seen = sorted(comparable or dates)
+    if len(dates) == len(seen):
+        return "whole"
+    return "prefix" if seen[:len(dates)] == sorted(dates) else "scatter"
+
+
+def _classify_changes(pending: dict[str, list[tuple]],
+                      comparable: dict[str, list[str]] | None = None,
+                      adjustment_evidence=None) -> dict[str, str]:
+    """{column: ADJUSTMENT | REVISION | AMBIGUOUS} for this run's changes.
+
+    ``pending`` maps column -> [(date, old, new), ...] for every cell whose
+    populated value changed, INCLUDING cells restored after a withdrawal.
+    Restorations used to bypass this entirely, so a column halved by a split
+    while seven of its eight bars were withheld came back as seven changed
+    restorations and read as REVISION OBSERVED - a corporate action
+    presented as evidence that the vendor restates prices.
+
+    ``comparable`` maps column -> every date compared for it this run, which
+    is what makes "contiguous prefix" decidable. Without it the rule falls
+    back to the changed cells alone.
+
+    A CONSTANT RATIO IS NOT EVIDENCE OF A CORPORATE ACTION (2026-09-16,
+    third review). The previous version called a uniform ratio over a
+    contiguous prefix an ADJUSTMENT and excluded it from the revision
+    evidence. That is the shape a split produces, but the shape does not
+    establish the cause: eight cells uniformly restated by 1.01, seven of
+    them restored after a withdrawal, were classified as eight adjustments,
+    zero revisions and a clean BOUNDED, NOT PROVEN - a vendor restating a
+    whole column disappearing into the one category that is excluded from
+    the question this module exists to answer.
+
+    ADJUSTMENT is therefore assigned only when ``adjustment_evidence``
+    - an independent source, a corporate-actions feed - says so for that
+    column and ratio. NOTHING IS WIRED TO IT, so in the deployed
+    configuration no change is ever classified as an adjustment. A uniform
+    ratio whose cause cannot be established is AMBIGUOUS, which blocks any
+    clean verdict without asserting a revision either. The shape (whole,
+    prefix or scatter) is recorded for an investigator and decides nothing.
     """
     out: dict[str, str] = {}
     for col, items in pending.items():
         ratios = [new / old for _, old, new in items if old]
-        if (len(items) >= ADJUSTMENT_MIN_CELLS and len(ratios) == len(items)
-                and ratios):
-            lo, hi = min(ratios), max(ratios)
-            if lo > 0 and (hi / lo - 1.0) <= ADJUSTMENT_REL_TOL:
-                out[col] = "adjustment"
-                continue
-        out[col] = "revision"
+        if len(items) < ADJUSTMENT_MIN_CELLS or len(ratios) != len(items):
+            out[col] = REVISION
+            continue
+        lo, hi = min(ratios), max(ratios)
+        uniform = lo > 0 and (hi / lo - 1.0) <= ADJUSTMENT_REL_TOL
+        if not uniform:
+            out[col] = REVISION
+            continue
+        explained = False
+        if adjustment_evidence is not None:
+            try:
+                explained = bool(adjustment_evidence(col, ratios[0], items))
+            except Exception:  # noqa: BLE001 - evidence never breaks the build
+                explained = False
+        out[col] = ADJUSTMENT if explained else AMBIGUOUS
     return out
 
 
@@ -354,29 +468,72 @@ def update_state(state: dict | None, obs: dict,
     st["runs"] = int(st.get("runs") or 0) + 1
     st["updated_utc"] = now_utc.isoformat(timespec="seconds")
     st["retention"] = {"window_sessions": int(obs.get("window") or WINDOW_SESSIONS),
-                       "max_cells": int(obs.get("max_cells") or MAX_CELLS),
+                       "max_cells_per_observation": int(obs.get("max_cells")
+                                                        or MAX_CELLS),
+                       "max_retained_cells": MAX_RETAINED_CELLS,
+                       "max_cells_hard": MAX_CELLS_HARD,
                        "withheld_retention_days": WITHHELD_RETENTION_DAYS}
     events: list[dict] = []
+    # An entirely unanswered TICKER used to leave no trace at all: the run
+    # counted as answered, the column was skipped, and the fact that the
+    # vendor gave nothing for it was discarded. It is missing evidence and
+    # is now retained as such - never as a withdrawal.
+    st["counters"]["unanswered_ticker_observations"] += int(
+        obs.get("unanswered_column_count") or 0)
+    st["last_unanswered_columns"] = list(obs.get("unanswered_columns") or [])[:50]
     if not obs.get("answered"):
         st["runs_unanswered"] = int(st.get("runs_unanswered") or 0) + 1
         st["last_unanswered_reason"] = str(obs.get("reason") or "")[:200]
         return st, events
 
     cells = st["cells"]
+    # What the window held last run. A cell whose date was observed then but
+    # is absent from the state now was EVICTED, not never-served, and its
+    # prior value is gone: a withdrawal of it cannot be detected.
+    prior_window = set(st.get("last_window_dates") or ())
+    # A comparison OPPORTUNITY needs prior state for THAT ticker on THAT
+    # date, not merely a date the window carried (2026-09-16, fifth review).
+    # A ticker the vendor did not answer for on run one holds no prior
+    # value, so its first answer on run two is a first sighting - counting
+    # it as prior state lost reported four cells forgotten that were never
+    # held, and dragged coverage to 0.5 on a panel that had lost nothing.
+    prior_columns = set(st.get("last_observed_columns") or ())
+    # Per-run figures as well as lifetime ones: a lifetime ratio dilutes a
+    # loss that happened weeks ago, and an operator asking "is detection
+    # sound NOW" needs the run in front of them. Neither mixes units.
+    run_stats = {"opportunities": 0, "forgotten": 0}
     stamp = now_utc.isoformat(timespec="seconds")
     pending: dict[str, list[tuple]] = {}
+    comparable: dict[str, list[str]] = {}
     for d, row in (obs.get("cells") or {}).items():
         for col, value in row.items():
             key = f"{d}|{col}"
             cur = cells.get(key)
+            # Every cell whose date the window carried last run is a
+            # COMPARISON OPPORTUNITY, whether or not the prior state
+            # survived to be compared against. That is the denominator
+            # detection coverage needs; see cycle_summary.
+            if d in prior_window and col in prior_columns:
+                st["counters"]["comparison_opportunities"] += 1
+                run_stats["opportunities"] += 1
             if cur is None:
+                forgotten = d in prior_window and col in prior_columns
+                if forgotten:
+                    st["counters"]["prior_state_forgotten"] += 1
+                    run_stats["forgotten"] += 1
+                    if value is None:
+                        # We held this cell last run and no longer do, so
+                        # "missing now" cannot be told from "never served".
+                        st["counters"]["withdrawals_undetectable"] += 1
                 cells[key] = ({"status": "served", "value": value,
                                "first_seen": stamp, "last_served": stamp,
-                               "cycles": 0}
+                               "cycles": 0, **({"prior_forgotten": True}
+                                               if forgotten else {})}
                               if value is not None else
                               {"status": "absent", "value": None,
-                               "first_seen": stamp, "cycles": 0})
-                if value is not None:
+                               "first_seen": stamp, "cycles": 0,
+                               **({"prior_forgotten": True} if forgotten else {})})
+                if value is not None and not forgotten:
                     st["counters"]["first_served"] += 1
                 continue
             status = cur.get("status")
@@ -400,6 +557,15 @@ def update_state(state: dict | None, obs: dict,
                 st["counters"]["restorations"] += 1
                 st["counters"]["restorations_changed" if changed
                                else "restorations_identical"] += 1
+                if changed and isinstance(old, (int, float)):
+                    # A restored value that CHANGED is a value change like
+                    # any other and goes through the same classifier: a
+                    # split does not stop being a split because the bars it
+                    # rescaled were withheld in between.
+                    pending.setdefault(col, []).append(
+                        (d, float(old), float(value), "restored"))
+                if isinstance(old, (int, float)):
+                    comparable.setdefault(col, []).append(d)
                 events.append({"asof": stamp, "panel": st["panel"],
                                "kind": "restoration", "date": d, "column": col,
                                "old": old, "new": value, "changed": changed})
@@ -408,27 +574,43 @@ def update_state(state: dict | None, obs: dict,
                 st["counters"]["first_served"] += 1
             else:                                   # served -> served
                 old = cur.get("value")
-                if isinstance(old, (int, float)) and not _same(float(old),
-                                                               float(value)):
-                    pending.setdefault(col, []).append((d, float(old),
-                                                        float(value)))
+                if isinstance(old, (int, float)):
+                    comparable.setdefault(col, []).append(d)
+                    if not _same(float(old), float(value)):
+                        pending.setdefault(col, []).append(
+                            (d, float(old), float(value), "served"))
                 cur["value"] = value
                 cur["last_served"] = stamp
 
-    verdicts = _classify_revisions(pending)
+    verdicts = _classify_changes(
+        {c: [(d, o, n) for d, o, n, _ in items] for c, items in pending.items()},
+        comparable)
     for col, items in pending.items():
-        kind = verdicts.get(col, "revision")
-        if kind == "adjustment":
+        verdict = verdicts.get(col, REVISION)
+        if verdict == ADJUSTMENT:
             st["counters"]["adjustment_columns"] += 1
-        for d, old, new in items:
-            st["counters"]["adjustments" if kind == "adjustment"
-                           else "revisions"] += 1
-            events.append({"asof": stamp, "panel": st["panel"], "kind": kind,
-                           "date": d, "column": col, "old": old, "new": new,
+        for d, old, new, origin in items:
+            if verdict == ADJUSTMENT:
+                st["counters"]["adjustments"] += 1
+                if origin == "restored":
+                    st["counters"]["restorations_changed_by_adjustment"] += 1
+            elif verdict == AMBIGUOUS:
+                st["counters"]["ambiguous"] += 1
+                if origin == "restored":
+                    st["counters"]["restorations_changed_ambiguous"] += 1
+            elif origin == "served":
+                # A restored change is already counted as
+                # restorations_changed; counting it here too would double it.
+                st["counters"]["revisions"] += 1
+            events.append({"asof": stamp, "panel": st["panel"],
+                           "kind": verdict, "origin": origin, "date": d,
+                           "column": col, "old": old, "new": new,
+                           "shape": _change_shape(
+                               [x[0] for x in items], comparable.get(col)),
                            "rel_change": (abs(new - old) / abs(old)) if old else None})
 
     # --- eviction, and the cycles it costs -------------------------------
-    admitted = set(obs.get("dates") or [])
+    admitted = set(obs.get("window_dates") or obs.get("dates") or ())
     if admitted:
         floor = min(admitted)
         horizon = now_utc - timedelta(days=WITHHELD_RETENTION_DAYS)
@@ -444,7 +626,81 @@ def update_state(state: dict | None, obs: dict,
                     continue
                 st["counters"]["cells_evicted_while_withheld"] += 1
             cells.pop(key, None)
+
+    # --- the LAYERED cap on accumulated state (2026-09-16) ----------------
+    # The working set - every cell of the current observation window - is
+    # never evicted, because the next run must compare against it and a
+    # forgotten cell silently disables withdrawal detection for that cell.
+    # Retained out-of-window cycles have their own budget below.
+    window = set(obs.get("window_dates") or obs.get("dates") or ())
+
+    def _rank(item):
+        key, cur = item
+        status = cur.get("status")
+        tier = 0 if status == "absent" else (1 if status == "served" else 2)
+        return (tier, key)
+
+    retained = {k: v for k, v in cells.items()
+                if k.split("|", 1)[0] not in window}
+    if len(retained) > MAX_RETAINED_CELLS:
+        for key, cur in sorted(retained.items(), key=_rank):
+            if len(retained) <= MAX_RETAINED_CELLS:
+                break
+            if cur.get("status") == "withheld":
+                st["counters"]["cells_evicted_while_withheld"] += 1
+            st["counters"]["cells_evicted_at_cap"] += 1
+            cells.pop(key, None)
+            retained.pop(key, None)
+
+    # The backstop. Reaching it means the working set itself is being cut,
+    # so detection is incomplete from here on and the summary must say so.
+    if len(cells) > MAX_CELLS_HARD:
+        for key, cur in sorted(cells.items(), key=_rank):
+            if len(cells) <= MAX_CELLS_HARD:
+                break
+            if cur.get("status") == "withheld":
+                st["counters"]["cells_evicted_while_withheld"] += 1
+            st["counters"]["cells_evicted_at_cap"] += 1
+            st["counters"]["working_set_evictions"] += 1
+            cells.pop(key, None)
+
+    # What the NEXT run needs in order to tell "never served" from "we used
+    # to know and forgot".
+    st["last_window_dates"] = sorted(window)
+    # The columns that ANSWERED this run. An unanswered ticker holds no
+    # prior state, so it offers no comparison next run.
+    st["last_observed_columns"] = sorted(
+        {c for row in (obs.get("cells") or {}).values() for c in row})
+    st["last_run"] = run_stats
     return st, events
+
+
+def record_cache_skip(panel: str, root: Path,
+                      now_utc: datetime | None = None) -> bool:
+    """Record that this run reused the cache and made NO observation.
+
+    ``download_prices`` returns early when the cache already covers the
+    request, so no download happens and the vendor is never asked. The
+    summary used to carry a generic footnote about this; it now carries a
+    MEASURED count per panel, which is the difference between "we looked and
+    saw nothing" and "we did not look". Never raises.
+    """
+    try:
+        now_utc = now_utc or _now()
+        sp = state_path(root, panel)
+        try:
+            doc = json.loads(sp.read_text(encoding="utf-8"))
+            st = doc if isinstance(doc, dict) else _empty_state(panel)
+        except (OSError, ValueError):
+            st = _empty_state(panel)
+        st.setdefault("cells", {})
+        st.setdefault("counters", _empty_state(panel)["counters"])
+        st["panel"] = panel
+        st["runs_cache_skipped"] = int(st.get("runs_cache_skipped") or 0) + 1
+        st["last_cache_skip_utc"] = now_utc.isoformat(timespec="seconds")
+        return bool(_atomic_write(sp, json.dumps(st, sort_keys=True)))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def state_path(root: Path, panel: str) -> Path:
@@ -464,10 +720,6 @@ def record_vendor_observation(raw, *, panel: str, root: Path,
     """Observe, advance the state machine, persist. Never raises."""
     try:
         now_utc = now_utc or _now()
-        obs = observe_vendor_frame(raw, panel=panel, source=source,
-                                   now_utc=now_utc,
-                                   required_through=required_through,
-                                   window=window, max_cells=max_cells)
         sp = state_path(root, panel)
         prior = None
         try:
@@ -475,12 +727,24 @@ def record_vendor_observation(raw, *, panel: str, root: Path,
             prior = doc if isinstance(doc, dict) else None
         except (OSError, ValueError):
             prior = None
+        # Read the state FIRST, so the dates of any still-open cycle can be
+        # re-admitted even though the rolling window has passed them.
+        open_dates = {k.split("|", 1)[0]
+                      for k, v in ((prior or {}).get("cells") or {}).items()
+                      if isinstance(v, dict) and v.get("status") == "withheld"}
+        obs = observe_vendor_frame(raw, panel=panel, source=source,
+                                   now_utc=now_utc,
+                                   required_through=required_through,
+                                   window=window, max_cells=max_cells,
+                                   also_admit=open_dates)
         st, events = update_state(prior, obs, now_utc)
         _atomic_write(sp, json.dumps(st, sort_keys=True))
-        for ev in events:
-            _append_bounded(events_path(root), ev, EVENT_CAP)
+        # ONE rewrite per panel per run. Appending event by event rewrote
+        # the whole ledger each time, so a busy run paid O(events x file).
+        _append_bounded(events_path(root), events, EVENT_CAP)
         return {"panel": panel, "answered": obs.get("answered"),
-                "dates": obs.get("dates"), "events": len(events),
+                "dates": obs.get("dates"),
+                "reopened": obs.get("reopened_dates"), "events": len(events),
                 "counters": st.get("counters")}
     except Exception:  # noqa: BLE001 - a diagnostic never breaks a build
         return None
@@ -491,7 +755,8 @@ def record_vendor_observation(raw, *, panel: str, root: Path,
 # ---------------------------------------------------------------------------
 def diff_frames(old, new, *, old_sidecar: dict | None = None,
                 new_sidecar: dict | None = None,
-                sample_cap: int = SAMPLE_CAP) -> dict:
+                sample_cap: int = SAMPLE_CAP,
+                window_sessions: int | None = CACHE_DIFF_SESSIONS) -> dict:
     """Categorise every cell change between two versions of one CACHE.
 
     READ THIS AS CACHE BEHAVIOUR, NOT VENDOR BEHAVIOUR. It runs after the
@@ -516,15 +781,22 @@ def diff_frames(old, new, *, old_sidecar: dict | None = None,
         return {"kind": "cache_diff", "asof": now, "comparable": False,
                 "reason": "no incumbent cache to compare against",
                 "fills": 0, "withdrawals": 0, "removed_cells": 0,
-                "revisions": 0, "adjustments": 0, "basis_changes": 0,
-                "samples": {}}
+                "revisions": 0, "adjustments": 0, "ambiguous": 0,
+                "basis_changes": 0, "samples": {}}
     try:
         old_b = resolve_column_basis(old_sidecar)
         new_b = resolve_column_basis(new_sidecar)
-        rows = old.index.intersection(new.index)
+        all_rows = old.index.intersection(new.index)
+        # BOUNDED per-cell walk. Shape changes and lost populated cells below
+        # are still measured over the WHOLE frame; only this loop is capped,
+        # because 2309 x 727 took 16.4 seconds for one panel.
+        rows = (all_rows.sort_values()[-int(window_sessions):]
+                if window_sessions and len(all_rows) > window_sessions
+                else all_rows)
         cols = old.columns.intersection(new.columns)
         counts = {"fills": 0, "withdrawals": 0, "removed_cells": 0,
-                  "revisions": 0, "adjustments": 0, "basis_changes": 0}
+                  "revisions": 0, "adjustments": 0, "ambiguous": 0,
+                  "basis_changes": 0}
         samples: dict[str, list] = {k: [] for k in counts}
 
         # Populated cells lost with their row or column. A whole vanished
@@ -586,9 +858,13 @@ def diff_frames(old, new, *, old_sidecar: dict | None = None,
                                           "old": None if a_na else a,
                                           "new": None if b_na else b,
                                           "old_basis": ob, "new_basis": nb})
-        verdicts = _classify_revisions(pending)
+        comparable = {c: sorted(str(pd.Timestamp(t).date()) for t in rows)
+                      for c in pending}
+        verdicts = _classify_changes(pending, comparable)
         for col, items in pending.items():
-            kind = "adjustments" if verdicts.get(col) == "adjustment" else "revisions"
+            verdict = verdicts.get(col, REVISION)
+            kind = {ADJUSTMENT: "adjustments", AMBIGUOUS: "ambiguous"}.get(
+                verdict, "revisions")
             counts[kind] += len(items)
             ob, nb = basis_pairs.get(col, (UNKNOWN_BASIS, UNKNOWN_BASIS))
             for d, a, b in items:
@@ -603,6 +879,9 @@ def diff_frames(old, new, *, old_sidecar: dict | None = None,
             "caveat": ("post-preservation: a raw vendor withdrawal may be "
                        "masked by the cell-preservation merge"),
             "rows_compared": int(len(rows)),
+            "rows_in_common": int(len(all_rows)),
+            "cell_walk_window_sessions": (int(window_sessions)
+                                          if window_sessions else None),
             "columns_compared": int(len(cols)),
             "rows_added": int(len(new.index.difference(old.index))),
             "rows_removed": int(len(lost_rows)),
@@ -617,8 +896,8 @@ def diff_frames(old, new, *, old_sidecar: dict | None = None,
         return {"kind": "cache_diff", "asof": now, "comparable": False,
                 "reason": f"diff failed: {type(exc).__name__}: {exc}",
                 "fills": 0, "withdrawals": 0, "removed_cells": 0,
-                "revisions": 0, "adjustments": 0, "basis_changes": 0,
-                "samples": {}}
+                "revisions": 0, "adjustments": 0, "ambiguous": 0,
+                "basis_changes": 0, "samples": {}}
 
 
 def cache_ledger_path(root: Path) -> Path:
@@ -662,10 +941,16 @@ def cycle_summary(root: Path) -> dict:
     out: dict = {"panels": {}, "totals": {}, "as_at": _now().isoformat(timespec="seconds")}
     d = Path(root) / "logs" / "vendor_state"
     files = sorted(d.glob("*.json")) if d.is_dir() else []
-    totals = {"runs": 0, "runs_unanswered": 0, "withdrawals": 0,
-              "restorations": 0, "restorations_identical": 0,
-              "restorations_changed": 0, "revisions": 0, "adjustments": 0,
-              "cells_evicted_while_withheld": 0, "open_withdrawals": 0}
+    totals = {"runs": 0, "runs_unanswered": 0, "runs_cache_skipped": 0,
+              "withdrawals": 0, "restorations": 0, "restorations_identical": 0,
+              "restorations_changed": 0,
+              "restorations_changed_by_adjustment": 0,
+              "restorations_changed_ambiguous": 0,
+              "revisions": 0, "adjustments": 0, "ambiguous": 0,
+              "cells_evicted_while_withheld": 0, "cells_evicted_at_cap": 0,
+              "working_set_evictions": 0, "prior_state_forgotten": 0,
+              "comparison_opportunities": 0, "withdrawals_undetectable": 0,
+              "unanswered_ticker_observations": 0, "open_withdrawals": 0}
     for f in files:
         try:
             st = json.loads(f.read_text(encoding="utf-8"))
@@ -680,14 +965,50 @@ def cycle_summary(root: Path) -> dict:
                      if isinstance(v, dict) and v.get("status") == "withheld")
         row = {"runs": int(st.get("runs") or 0),
                "runs_unanswered": int(st.get("runs_unanswered") or 0),
+               "runs_cache_skipped": int(st.get("runs_cache_skipped") or 0),
                "cells_tracked": len(st.get("cells") or {}),
                "open_withdrawals": open_w,
                "complete_cycles": int(c.get("restorations") or 0),
+               "last_observation_utc": st.get("updated_utc"),
+               "last_cache_skip_utc": st.get("last_cache_skip_utc"),
                "retention": st.get("retention"),
                **{k: int(c.get(k) or 0) for k in
                   ("withdrawals", "restorations", "restorations_identical",
-                   "restorations_changed", "revisions", "adjustments",
-                   "cells_evicted_while_withheld")}}
+                   "restorations_changed",
+                   "restorations_changed_by_adjustment",
+                   "restorations_changed_ambiguous",
+                   "revisions", "adjustments", "ambiguous",
+                   "cells_evicted_while_withheld", "cells_evicted_at_cap",
+                   "working_set_evictions", "prior_state_forgotten",
+                   "comparison_opportunities", "withdrawals_undetectable",
+                   "unanswered_ticker_observations")}}
+        # Measured, not asserted: of the runs this panel took part in, how
+        # many actually asked the vendor anything.
+        firings = row["runs"] + row["runs_cache_skipped"]
+        # FIRING coverage: how often the vendor was asked at all.
+        row["observation_coverage"] = (round(row["runs"] / firings, 4)
+                                       if firings else None)
+        # DETECTION coverage: of the cells re-observed, how many still had
+        # the prior state a withdrawal must be measured against. A different
+        # question, and an eviction count alone does not answer it.
+        # DETECTION coverage: of the comparison OPPORTUNITIES this panel has
+        # had - cells whose date the previous window carried - how many still
+        # had the prior state a withdrawal must be measured against.
+        #
+        # Both terms are cumulative (2026-09-16, fourth review). The previous
+        # denominator added a lifetime counter to the CURRENT cell count, so
+        # observing four new cells moved coverage from 0.50 to 0.60 without
+        # restoring anything that had been lost. A ratio whose denominator
+        # grows for an unrelated reason is not a coverage measure.
+        opportunities = row["comparison_opportunities"]
+        row["detection_coverage"] = (
+            round(1 - row["prior_state_forgotten"] / opportunities, 4)
+            if opportunities else None)
+        last = st.get("last_run") or {}
+        last_opps = int(last.get("opportunities") or 0)
+        row["detection_coverage_last_run"] = (
+            round(1 - int(last.get("forgotten") or 0) / last_opps, 4)
+            if last_opps else None)
         out["panels"][f.stem] = row
         for k in totals:
             totals[k] += int(row.get(k) or 0)
@@ -696,29 +1017,71 @@ def cycle_summary(root: Path) -> dict:
                                "max_cells_per_panel": MAX_CELLS,
                                "withheld_retention_days": WITHHELD_RETENTION_DAYS,
                                "event_cap": EVENT_CAP}
+    firings = totals["runs"] + totals["runs_cache_skipped"]
     out["missing_evidence"] = {
         "panels_with_state": len(files),
         "runs_the_vendor_did_not_answer": totals["runs_unanswered"],
+        "runs_served_from_cache_no_observation": totals["runs_cache_skipped"],
+        "observation_coverage": (round(totals["runs"] / firings, 4)
+                                 if firings else None),
+        "unanswered_ticker_observations":
+            totals["unanswered_ticker_observations"],
         "cycles_lost_to_retention": totals["cells_evicted_while_withheld"],
+        "cells_evicted_at_cap": totals["cells_evicted_at_cap"],
+        "working_set_evictions": totals["working_set_evictions"],
+        "cells_whose_prior_state_was_forgotten":
+            totals["prior_state_forgotten"],
+        "comparison_opportunities": totals["comparison_opportunities"],
+        "detection_coverage": (
+            round(1 - totals["prior_state_forgotten"]
+                  / totals["comparison_opportunities"], 4)
+            if totals["comparison_opportunities"] else None),
+        "withdrawals_that_could_not_be_detected":
+            totals["withdrawals_undetectable"],
         "withdrawals_still_open": totals["open_withdrawals"],
+        "ambiguous_changes_unresolved": totals["ambiguous"],
         "note": ("a run served entirely from cache performs no download and "
-                 "therefore leaves no observation"),
+                 "therefore leaves no observation; observation_coverage is "
+                 "the measured share of firings that asked the vendor"),
     }
     cycles = totals["restorations"]
+    # A restoration that came back changed BY A SPLIT is not evidence that
+    # the vendor restates prices. Only the unexplained remainder is.
+    unexplained = max(0, totals["restorations_changed"]
+                      - totals["restorations_changed_by_adjustment"]
+                      - totals["restorations_changed_ambiguous"])
+    # Detection was incomplete if prior state was forgotten, so "no
+    # withdrawal was seen" cannot mean "none happened".
+    blind = (totals["withdrawals_undetectable"] or totals["working_set_evictions"]
+             or totals["prior_state_forgotten"])
     if not files:
         verdict = ("NO EVIDENCE: no vendor observation has been recorded. "
                    "The append-versus-revise question is untouched.")
-    elif totals["restorations_changed"] or totals["revisions"]:
+    elif unexplained or totals["revisions"]:
         # Two distinct findings, stated separately. A changed restoration
         # answers the question directly; a same-basis revision of a
         # populated cell shows the series is not append-only even where no
         # withdrawal was involved. An ADJUSTMENT is neither, and never
         # reaches this branch.
-        verdict = (f"REVISION OBSERVED: {totals['restorations_changed']} of "
-                   f"{cycles} complete cycle(s) came back with a different "
-                   f"value, and {totals['revisions']} same-basis revision(s) "
-                   f"of populated cells were seen outside a cycle. Prices "
-                   f"already served are not immutable.")
+        verdict = (f"REVISION OBSERVED: {unexplained} of {cycles} complete "
+                   f"cycle(s) came back with a different value that no column "
+                   f"re-adjustment explains, and {totals['revisions']} "
+                   f"same-basis revision(s) of populated cells were seen "
+                   f"outside a cycle. Prices already served are not immutable.")
+    elif totals["ambiguous"] or blind:
+        parts = []
+        if totals["ambiguous"]:
+            parts.append(f"{totals['ambiguous']} value change(s) carry a single "
+                         f"ratio whose cause no independent evidence explains, "
+                         f"so neither a corporate action nor a restatement is "
+                         f"established")
+        if blind:
+            parts.append(f"detection was incomplete: the prior state of "
+                         f"{totals['prior_state_forgotten']} cell(s) was "
+                         f"forgotten and {totals['withdrawals_undetectable']} "
+                         f"withdrawal(s) could not be detected")
+        verdict = (f"UNRESOLVED: {'; '.join(parts)}. {cycles} complete cycle(s) "
+                   f"observed. This is not a clean reading.")
     elif cycles == 0:
         verdict = (f"INSUFFICIENT EVIDENCE: {totals['withdrawals']} withdrawal(s) "
                    f"observed and {totals['open_withdrawals']} still open, but no "
@@ -728,10 +1091,10 @@ def cycle_summary(root: Path) -> dict:
                    f"excluded from the revision evidence by design.")
     else:
         verdict = (f"BOUNDED, NOT PROVEN: {cycles} complete cycle(s), none of "
-                   f"which changed the restored value, and no same-basis "
-                   f"revision of a populated cell. This bounds how often "
-                   f"restoration revises; it does not establish that it never "
-                   f"does.")
+                   f"which changed the restored value other than by a column "
+                   f"re-adjustment, and no same-basis revision of a populated "
+                   f"cell. This bounds how often restoration revises; it does "
+                   f"not establish that it never does.")
     out["verdict"] = verdict
     return out
 
@@ -758,10 +1121,11 @@ def summarise(ledger: Path, *, since: str | None = None) -> dict:
         p = out.setdefault(rec.get("panel", "?"),
                            {"runs": 0, "fills": 0, "withdrawals": 0,
                             "removed_cells": 0, "revisions": 0,
-                            "adjustments": 0, "basis_changes": 0})
+                            "adjustments": 0, "ambiguous": 0,
+                            "basis_changes": 0})
         p["runs"] += 1
         for k in ("fills", "withdrawals", "removed_cells", "revisions",
-                  "adjustments", "basis_changes"):
+                  "adjustments", "ambiguous", "basis_changes"):
             p[k] += int(rec.get(k) or 0)
     return out
 

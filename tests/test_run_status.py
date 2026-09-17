@@ -7,9 +7,19 @@ tests could not see: that ``scheduled_refresh`` survives a corrupt
 diagnostic and still reports its ORIGINAL failure.
 
 Python datetime months are 1-indexed (January = 1).
+
+PROVENANCE OF THE LABELS BELOW. Tests marked "DEFECT (predecessor)" pin a
+defect of the UNCOMMITTED draft that preceded commit 47d1b3a. All three
+modules are absent at 47d1b3a^, so those cases cannot be demonstrated as
+behavioural failures against any commit: the draft existed only as untracked
+working-tree files, and the reproductions were run against it in session on
+2026-09-16 before it was overwritten. Tests marked "REPRODUCED 2026-09-16"
+are different - they were reproduced against 47d1b3a itself, which is in the
+history, and they fail there.
 """
 from __future__ import annotations
 
+import io
 import json
 import sys
 from datetime import datetime, timedelta, timezone
@@ -93,7 +103,7 @@ def test_coerce_int_never_raises(value, expected):
 # 2. Health: unknown is visibly an error
 # ---------------------------------------------------------------------------
 def test_an_unrecognised_status_is_an_ERROR_not_OK():
-    """THE REPRODUCED DEFECT. A record whose status was a word the module
+    """DEFECT (predecessor). A record whose status was a word the module
     had never heard of returned OK, which is the one answer it cannot
     honestly give."""
     status, detail = rs.alert_health(_rec(status="nonsense"), NOW)
@@ -287,6 +297,202 @@ def test_the_failure_path_writes_a_durable_run_record(monkeypatch, tmp_path):
     rec = json.loads(ledger.read_text(encoding="utf-8").splitlines()[-1])
     assert rec["exit_code"] == 2
     assert rec["cadence"] == "post-fill"
+
+
+# ---------------------------------------------------------------------------
+# 6. Credential VALUES must not ride out on an exception (finding 7)
+#
+# Synthetic sentinels only. Nothing here reads, prints or sends a real
+# credential, and no message leaves the machine.
+# ---------------------------------------------------------------------------
+SENTINEL_USER = "sentinel-user@invalid.example"
+SENTINEL_PW = "SENTINEL-PASSWORD-abcd-efgh"
+
+
+@pytest.fixture
+def sentinel_credentials(monkeypatch):
+    monkeypatch.setenv("GMAIL_USER", SENTINEL_USER)
+    monkeypatch.setenv("GMAIL_APP_PASSWORD", SENTINEL_PW)
+    return SENTINEL_USER, SENTINEL_PW
+
+
+def test_redact_removes_both_credential_values(sentinel_credentials):
+    text = (f"SMTPRecipientsRefused: {{'{SENTINEL_USER}': (550, b'no such')}} "
+            f"and auth failed for {SENTINEL_PW}")
+    out = rs.redact(text)
+    assert SENTINEL_USER not in out and SENTINEL_PW not in out
+    assert "<GMAIL_USER>" in out and "<GMAIL_APP_PASSWORD>" in out
+    # The diagnostic survives the scrub.
+    assert "SMTPRecipientsRefused" in out and "550" in out
+
+
+def test_redact_removes_the_unspaced_form_of_a_four_block_password(monkeypatch):
+    monkeypatch.setenv("GMAIL_APP_PASSWORD", "abcd efgh ijkl mnop")
+    monkeypatch.delenv("GMAIL_USER", raising=False)
+    assert "abcdefghijklmnop" not in rs.redact("echo abcdefghijklmnop back")
+
+
+def test_redact_leaves_ordinary_text_alone(monkeypatch):
+    monkeypatch.delenv("GMAIL_USER", raising=False)
+    monkeypatch.delenv("GMAIL_APP_PASSWORD", raising=False)
+    assert rs.redact("connection refused by smtp.gmail.com") == \
+        "connection refused by smtp.gmail.com"
+    assert rs.redact(None) == ""
+
+
+def test_an_exception_naming_the_recipient_never_reaches_the_record(
+        monkeypatch, tmp_path, sentinel_credentials):
+    """REPRODUCED 2026-09-16 against 47d1b3a: SMTPRecipientsRefused stringifies to a dict keyed by the
+    recipient address, which IS GMAIL_USER, and it was written verbatim to
+    the text log and to logs/alert_delivery.json."""
+    import smtplib
+
+    class Refused:
+        def __init__(self, *a, **kw): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def login(self, u, p):
+            raise smtplib.SMTPRecipientsRefused({SENTINEL_USER: (550, b"no")})
+        def send_message(self, m): pass
+
+    monkeypatch.setattr(sr, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(sr.smtplib, "SMTP_SSL", Refused)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    log = io.StringIO()
+    sr._email("subject", "body", log)
+
+    rec = rs.read_json(rs.alert_state_path(tmp_path))
+    verdict = rs.observe(tmp_path, write_marker=False)
+    assert SENTINEL_USER not in log.getvalue()
+    assert SENTINEL_USER not in json.dumps(rec)
+    assert SENTINEL_USER not in json.dumps(verdict)
+    assert "SMTPRecipientsRefused" in rec["detail"], "the diagnostic was lost"
+    assert rec["status"] == rs.FAILED
+
+
+def test_a_transport_echoing_the_password_never_reaches_the_record(
+        monkeypatch, tmp_path, sentinel_credentials):
+    import smtplib
+
+    class Echo:
+        def __init__(self, *a, **kw): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def login(self, u, p):
+            raise smtplib.SMTPAuthenticationError(
+                535, f"auth failed for {p}".encode())
+        def send_message(self, m): pass
+
+    monkeypatch.setattr(sr, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(sr.smtplib, "SMTP_SSL", Echo)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    log = io.StringIO()
+    sr._email("subject", "body", log)
+    rec = rs.read_json(rs.alert_state_path(tmp_path))
+    assert SENTINEL_PW not in log.getvalue()
+    assert SENTINEL_PW not in json.dumps(rec)
+    assert SENTINEL_PW not in json.dumps(rs.observe(tmp_path, write_marker=False))
+
+
+def test_a_legacy_record_written_before_redaction_is_scrubbed_on_output(
+        tmp_path, sentinel_credentials):
+    """A record written by an older build may still carry a value. The
+    observer prints the record, so it scrubs on the way out too."""
+    rs._write_json(rs.alert_state_path(tmp_path), {
+        "schema": 1, "asof": NOW.isoformat(timespec="seconds"),
+        "status": rs.FAILED, "consecutive_failures": 2,
+        "subject": "x", "detail": f"refused for {SENTINEL_USER}",
+        "last_sent_utc": NOW.isoformat(timespec="seconds")})
+    verdict = rs.observe(tmp_path, NOW, write_marker=False)
+    assert SENTINEL_USER not in json.dumps(verdict)
+
+
+def test_a_credential_in_a_GENERATED_diagnostic_field_never_escapes(
+        tmp_path, sentinel_credentials):
+    """REPRODUCED 2026-09-16 against the second pass: a corrupt record whose
+    ``status`` held the password had that value interpolated into
+    ``prior_record_problems`` by the validator, written to the next record,
+    and echoed whole by the observer. Only ``subject`` and ``detail`` were
+    scrubbed, and this field was neither."""
+    rs._write_json(rs.alert_state_path(tmp_path),
+                   {"schema": 1, "status": SENTINEL_PW,
+                    "consecutive_failures": 0,
+                    "asof": NOW.isoformat(timespec="seconds")})
+    rec = rs.record_alert(rs.alert_state_path(tmp_path), subject="s",
+                          status=rs.FAILED)
+    assert rec["prior_record_problems"], "the corruption went unreported"
+    assert SENTINEL_PW not in json.dumps(rec)
+    assert SENTINEL_PW not in json.dumps(rs.observe(tmp_path, NOW,
+                                                    write_marker=False))
+    # The diagnostic still locates the fault.
+    assert "not one of" in rec["prior_record_problems"][0]
+    assert "length" in rec["prior_record_problems"][0]
+
+
+def test_a_validator_message_carries_no_value_at_all(monkeypatch):
+    """The structural half of the fix, and the one that holds when the
+    reader's environment differs from the writer's: an unknown value is
+    never echoed, so there is nothing for redaction to have to catch."""
+    monkeypatch.delenv("GMAIL_USER", raising=False)
+    monkeypatch.delenv("GMAIL_APP_PASSWORD", raising=False)
+    ok, problems = rs.validate_alert_record(
+        {"status": "hunter2-not-a-status", "asof": NOW.isoformat(),
+         "consecutive_failures": 0})
+    assert ok is False
+    assert "hunter2" not in " ".join(problems)
+
+
+def test_the_observer_scrubs_every_string_in_the_record(tmp_path,
+                                                        sentinel_credentials):
+    rs._write_json(rs.alert_state_path(tmp_path), {
+        "schema": 1, "asof": NOW.isoformat(timespec="seconds"),
+        "status": rs.FAILED, "consecutive_failures": 1,
+        "subject": "s", "detail": "d",
+        "last_sent_utc": NOW.isoformat(timespec="seconds"),
+        "nested": {"anything": [f"leaked {SENTINEL_USER}"]}})
+    verdict = rs.observe(tmp_path, NOW, write_marker=False)
+    assert SENTINEL_USER not in json.dumps(verdict)
+    assert "<GMAIL_USER>" in json.dumps(verdict)
+
+
+def test_redaction_is_bounded_in_depth_and_never_raises(sentinel_credentials):
+    deep = cur = {}
+    for _ in range(30):
+        cur["next"] = {"v": SENTINEL_USER}
+        cur = cur["next"]
+    assert rs.redact_obj(deep) is not None
+    assert rs.redact_obj(None) is None
+    assert rs.redact_obj(7) == 7
+
+
+def test_a_short_credential_is_below_the_redaction_floor(monkeypatch):
+    """STATED LIMIT. A value shorter than four characters is not scrubbed,
+    because at that length a "value" is more likely to be a substring of
+    ordinary prose and redacting it would corrupt the diagnostic. Not
+    echoing unknown values is what protects this case."""
+    monkeypatch.setenv("GMAIL_USER", "ab")
+    assert rs.redact("connection to ab refused") == "connection to ab refused"
+
+
+def test_an_observer_without_the_environment_cannot_scrub_by_value(
+        tmp_path, monkeypatch):
+    """STATED LIMIT. Redaction removes values this process can see. A record
+    written by a process holding the credential, read by one that does not,
+    is only protected by what the writer already scrubbed."""
+    monkeypatch.setenv("GMAIL_USER", SENTINEL_USER)
+    rs.record_alert(rs.alert_state_path(tmp_path), subject=f"to {SENTINEL_USER}",
+                    status=rs.FAILED, detail=f"refused {SENTINEL_USER}")
+    monkeypatch.delenv("GMAIL_USER", raising=False)
+    verdict = rs.observe(tmp_path, NOW, write_marker=False)
+    assert SENTINEL_USER not in json.dumps(verdict), \
+        "the WRITER must have scrubbed it, because the reader cannot"
+
+
+def test_the_run_ledger_outcome_is_redacted(tmp_path, sentinel_credentials):
+    rs.record_run(tmp_path / "runs.jsonl", cadence="post-fill", exit_code=5,
+                  subject=f"push failed for {SENTINEL_USER}")
+    assert SENTINEL_USER not in (tmp_path / "runs.jsonl").read_text(
+        encoding="utf-8")
 
 
 def test_the_startup_probe_records_an_unconfigured_channel(monkeypatch, tmp_path):

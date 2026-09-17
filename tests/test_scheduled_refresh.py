@@ -268,6 +268,8 @@ def test_log_name_month_and_year_boundaries():
 import inspect  # noqa: E402
 
 from scripts import scheduled_refresh as _sr  # noqa: E402
+from scripts import publication_debt as _pd  # noqa: E402
+from scripts import run_status  # noqa: E402
 
 
 def _commit_branch() -> str:
@@ -623,7 +625,7 @@ def _report(**kw):
     base = dict(owed=False, unknown=False, escalate=False, cadence="post-fill",
                 asof="2026-09-16", oldest_owed_fill=None, age_days=None,
                 grace_days=3, obligations=(), problems=(), evidence={},
-                reason="fixture")
+                reason="fixture", notices=())
     base.update(kw)
     return _pd.DebtReport(**base)
 
@@ -634,24 +636,45 @@ def _local_today() -> str:
 
 
 def _drive(monkeypatch, tmp_path, *, debt, argv, marker_day=None,
-           debt_reruns=0):
-    """Run main() as far as the refresh, and report what it decided."""
+           debt_reruns=0, child_rc=9, green_on_success=False,
+           reset_marker=True, email_sink=None, email_outcome=None):
+    """Drive main() through the gate and report what it decided.
+
+    The refresh body itself is stubbed - ``subprocess.run`` returns
+    ``child_rc`` - because what is under test is the SEQUENCE: debt, marker,
+    daily budget, and the marker write that follows a green completion.
+    ``green_on_success`` calls the real ``record_green_run`` afterwards, so a
+    multi-firing test exercises the same marker the production path writes
+    rather than a fixture standing in for it.
+    """
     monkeypatch.setattr(_sr, "LOG_DIR", tmp_path)
     monkeypatch.setattr(_sr, "GREEN_MARKER", tmp_path / "last_green_run.json")
     monkeypatch.setattr(_sr, "log_path_for", lambda now: tmp_path / "run.log")
     monkeypatch.setattr(_sr, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(_sr, "price_source_preflight",
                         lambda source: (True, "fixture"))
-    monkeypatch.setattr(_sr, "_email", lambda *a, **kw: None)
+    # ``email_sink`` collects (subject, body) instead of dropping the mail,
+    # for the tests whose subject IS the mail. Nothing is ever sent.
+    #
+    # The stub returns an OUTCOME, because the real ``_email`` does
+    # (2026-09-17, eighth review) and the notice path branches on it.
+    # ``email_outcome`` makes an unconfigured or refused channel testable;
+    # the default is the sent case, which is what most callers assume.
+    outcome = email_outcome or run_status.SENT
+    monkeypatch.setattr(_sr, "_email",
+                        (lambda subject, body, log:
+                         (email_sink.append((subject, body)), outcome)[1])
+                        if email_sink is not None
+                        else (lambda *a, **kw: outcome))
     monkeypatch.setattr(_sr, "_git", lambda args, log, **kw: _NS(
         returncode=0, stdout="", stderr=""))
-    if marker_day is not None:
+    marker_path = tmp_path / "last_green_run.json"
+    if marker_day is not None and reset_marker:
         rec = {"cadence": "post-fill", "local_date": marker_day,
                "started_utc": "2026-09-16T01:00:00+00:00"}
         if debt_reruns:
-            rec.update(debt_rerun_date=marker_day, debt_reruns=debt_reruns)
-        (tmp_path / "last_green_run.json").write_text(_json.dumps(rec),
-                                                      encoding="utf-8")
+            rec.update(debt_attempt_date=marker_day, debt_attempts=debt_reruns)
+        marker_path.write_text(_json.dumps(rec), encoding="utf-8")
     if isinstance(debt, BaseException):
         def _debt(*a, **kw):
             raise debt
@@ -665,8 +688,13 @@ def _drive(monkeypatch, tmp_path, *, debt, argv, marker_day=None,
                         lambda *a, **kw: True)
     ran = []
     monkeypatch.setattr(_sr.subprocess, "run",
-                        lambda cmd, **kw: ran.append(cmd) or _NS(returncode=9))
+                        lambda cmd, **kw: ran.append(cmd) or _NS(
+                            returncode=child_rc))
     rc = _sr.main(argv)
+    if green_on_success and ran:
+        # The production path: a run that completes green writes the marker.
+        _sr.record_green_run(marker_path, "post-fill",
+                             datetime.now(timezone.utc))
     return rc, ran, (tmp_path / "run.log").read_text(encoding="utf-8")
 
 
@@ -715,22 +743,24 @@ def test_the_green_marker_still_suppresses_an_hourly_retry(monkeypatch, tmp_path
 
 
 def test_outstanding_debt_overrides_a_green_marker_once(monkeypatch, tmp_path):
-    """THE REPRODUCED DEFECT, in its wiring form. On 2026-09-13 a green run
+    """DEFECT (predecessor), in its wiring form. On 2026-09-13 a green run
     left Monday's fill unpublished and the marker suppressed everything
-    behind it."""
+    behind it. Reproduced in session on 2026-09-16 against the uncommitted
+    draft; the modules are absent at 47d1b3a^, so this cannot be shown as a
+    behavioural failure against a commit."""
     rc, ran, log = _drive(monkeypatch, tmp_path,
                           debt=_report(owed=True, oldest_owed_fill="2026-09-14",
                                        age_days=2),
                           argv=["--cadence", "post-fill"],
                           marker_day=_local_today())
     assert ran, "the marker suppressed a run that still owed a publication"
-    assert "debt re-run 1/" in log
+    assert "attempt 1/" in log
     marker = _json.loads((tmp_path / "last_green_run.json").read_text(
         encoding="utf-8"))
-    assert marker["debt_reruns"] == 1
+    assert marker["debt_attempts"] == 1
 
 
-def test_the_debt_override_is_bounded_to_one_a_day(monkeypatch, tmp_path):
+def test_the_debt_override_is_bounded_per_day(monkeypatch, tmp_path):
     """A vendor mid-retraction is not cleared by retrying, and an unbounded
     override would re-run a four-hour refresh every hour until the window
     closed."""
@@ -739,9 +769,9 @@ def test_the_debt_override_is_bounded_to_one_a_day(monkeypatch, tmp_path):
                                        age_days=2),
                           argv=["--cadence", "post-fill"],
                           marker_day=_local_today(),
-                          debt_reruns=_sr.MAX_DEBT_RERUNS_PER_DAY)
+                          debt_reruns=_sr.MAX_DEBT_ATTEMPTS_PER_DAY)
     assert rc == 0 and ran == []
-    assert "debt re-run budget spent" in log
+    assert "DEBT ATTEMPT BUDGET SPENT" in log
     assert "STILL OWED: fill 2026-09-14" in log, \
         "the outstanding obligation must still be named when the budget stops"
 
@@ -751,6 +781,394 @@ def test_the_debt_is_evaluated_before_the_marker_is_consulted():
     assert src.index("Publication debt (2026-09-16)") < \
         src.index("already_ran_today(marker"), \
         "the debt must be read BEFORE the green-run marker short-circuits"
+
+
+def test_the_budget_survives_a_green_completion_over_a_whole_day(
+        monkeypatch, tmp_path):
+    """REPRODUCED 2026-09-16 against 47d1b3a, driven through main().
+
+    ``record_green_run`` replaced the marker wholesale, which zeroed the
+    debt counter. A green run that left its debt standing therefore refunded
+    the attempt it had just spent, and the bounded daily override was not
+    bounded: every firing of the day ran the full refresh again.
+
+    Here the refresh SUCCEEDS each time and the debt stays owed - the
+    2026-09-13 shape. The budget must still run out.
+    """
+    today = _local_today()
+    owed = _report(owed=True, oldest_owed_fill="2026-09-14", age_days=2)
+    started = []
+    for _ in range(4):
+        rc, ran, log = _drive(monkeypatch, tmp_path, debt=owed,
+                              argv=["--cadence", "post-fill", "--catch-up"],
+                              green_on_success=True, reset_marker=False)
+        started.append(bool(ran))
+    assert started[:_sr.MAX_DEBT_ATTEMPTS_PER_DAY] == \
+        [True] * _sr.MAX_DEBT_ATTEMPTS_PER_DAY
+    assert not any(started[_sr.MAX_DEBT_ATTEMPTS_PER_DAY:]), \
+        "a green completion refunded the daily debt budget"
+    marker = _json.loads((tmp_path / "last_green_run.json").read_text(
+        encoding="utf-8"))
+    assert marker["debt_attempts"] == _sr.MAX_DEBT_ATTEMPTS_PER_DAY
+    assert marker["local_date"] == today, "the green marker was lost"
+
+
+def test_a_persistent_unknown_verdict_is_bounded_too(monkeypatch, tmp_path):
+    """An unreadable diagnostic must not authorise unlimited multi-hour
+    catch-up attempts. UNKNOWN proceeds - that is the fail-safe direction -
+    but it spends the same daily budget as owed work."""
+    unknown = _report(owed=False, unknown=True, reason="evidence unreadable")
+    started = []
+    for _ in range(4):
+        rc, ran, log = _drive(monkeypatch, tmp_path, debt=unknown,
+                              argv=["--cadence", "post-fill", "--catch-up"])
+        started.append(bool(ran))
+    assert sum(started) == _sr.MAX_DEBT_ATTEMPTS_PER_DAY
+    assert "DEBT ATTEMPT BUDGET SPENT" in log
+
+
+def test_the_budget_resets_on_the_next_local_day(monkeypatch, tmp_path):
+    owed = _report(owed=True, oldest_owed_fill="2026-09-14", age_days=2)
+    for _ in range(_sr.MAX_DEBT_ATTEMPTS_PER_DAY):
+        _drive(monkeypatch, tmp_path, debt=owed,
+               argv=["--cadence", "post-fill", "--catch-up"])
+    rc, ran, log = _drive(monkeypatch, tmp_path, debt=owed,
+                          argv=["--cadence", "post-fill", "--catch-up"])
+    assert ran == [], "the budget did not bind within the day"
+    # Roll the marker's stamp back a day; the next firing must be free again.
+    marker = tmp_path / "last_green_run.json"
+    rec = _json.loads(marker.read_text(encoding="utf-8"))
+    rec["debt_attempt_date"] = "2026-01-01"
+    marker.write_text(_json.dumps(rec), encoding="utf-8")
+    rc, ran, log = _drive(monkeypatch, tmp_path, debt=owed,
+                          argv=["--cadence", "post-fill", "--catch-up"],
+                          reset_marker=False)
+    assert ran, "the budget did not reset on a new local date"
+
+
+def test_a_failed_debt_driven_run_still_spends_its_attempt(monkeypatch, tmp_path):
+    """The attempt is recorded BEFORE the work. A budget that only counted
+    completions would be refilled by every crash."""
+    owed = _report(owed=True, oldest_owed_fill="2026-09-14", age_days=2)
+    rc, ran, log = _drive(monkeypatch, tmp_path, debt=owed,
+                          argv=["--cadence", "post-fill", "--catch-up"],
+                          child_rc=9)
+    assert ran and rc != 0
+    marker = _json.loads((tmp_path / "last_green_run.json").read_text(
+        encoding="utf-8"))
+    assert marker["debt_attempts"] == 1
+
+
+def test_the_re_exec_does_not_double_spend_the_budget(monkeypatch, tmp_path):
+    """Confirmed by the third review and pinned here. When the preflight
+    pull rewrites this script, main() re-runs itself as a waited child. That
+    happens BEFORE any attempt is counted, so the child spends exactly one."""
+    src = inspect.getsource(_sr.main)
+    assert src.index("BTE_SCHED_REEXEC") < src.index("record_debt_attempt("), \
+        "the re-exec now happens after an attempt is spent"
+    # And behaviourally: one firing spends exactly one attempt.
+    owed = _report(owed=True, oldest_owed_fill="2026-09-14", age_days=2)
+    rc, ran, log = _drive(monkeypatch, tmp_path, debt=owed,
+                          argv=["--cadence", "post-fill", "--catch-up"])
+    assert ran
+    marker = _json.loads((tmp_path / "last_green_run.json").read_text(
+        encoding="utf-8"))
+    assert marker["debt_attempts"] == 1
+
+
+def test_the_budget_is_per_marker_so_components_have_their_own(monkeypatch,
+                                                              tmp_path):
+    """Corrected scope. Core and Europe keep separate green markers, so a
+    catch-up day allows two attempts EACH, not two in total. Four full
+    refreshes on the worst day is the intended shape, not a leak."""
+    owed = _report(owed=True, oldest_owed_fill="2026-09-14", age_days=2)
+    started = {"core": 0, "europe": 0}
+    for component in ("core", "europe"):
+        for _ in range(3):
+            rc, ran, log = _drive(
+                monkeypatch, tmp_path, debt=owed,
+                argv=["--cadence", "post-fill", "--catch-up",
+                      "--component", component])
+            started[component] += bool(ran)
+    assert started == {"core": _sr.MAX_DEBT_ATTEMPTS_PER_DAY,
+                       "europe": _sr.MAX_DEBT_ATTEMPTS_PER_DAY}
+    assert (tmp_path / "last_green_core.json").exists()
+    assert (tmp_path / "last_green_europe.json").exists()
+
+
+def test_capture_only_work_is_outside_the_publication_budget(monkeypatch,
+                                                             tmp_path):
+    """Corrected scope. A collection run publishes nothing, so it owes
+    nothing and returns before the debt is read. Six recover-europe-first
+    firings legitimately produce six captures: bringing collection under a
+    publication budget would stop the one activity that clears a vendor
+    retraction."""
+    ran = []
+    for _ in range(6):
+        monkeypatch.setattr(_sr, "LOG_DIR", tmp_path)
+        monkeypatch.setattr(_sr, "log_path_for", lambda now: tmp_path / "c.log")
+        monkeypatch.setattr(_sr, "REPO_ROOT", tmp_path)
+        monkeypatch.setattr(_sr, "price_source_preflight",
+                            lambda source: (True, "fixture"))
+        monkeypatch.setattr(_sr, "_email", lambda *a, **kw: None)
+        monkeypatch.setattr(_sr, "_git", lambda args, log, **kw: _NS(
+            returncode=0, stdout="", stderr=""))
+        monkeypatch.setattr(_sr, "restore_tracked_outputs", lambda log: True)
+        monkeypatch.setattr(_sr.publication_debt, "current_debt",
+                            lambda *a, **kw: pytest.fail(
+                                "a collection run read the publication debt"))
+        monkeypatch.setattr(_sr.subprocess, "run",
+                            lambda cmd, **kw: ran.append(cmd) or _NS(returncode=0))
+        _sr.main(["--component", "europe", "--capture-only"])
+    assert len(ran) == 6, "a collection firing was suppressed by a debt budget"
+
+
+def test_a_frozen_book_notice_reaches_the_operator(monkeypatch, tmp_path):
+    """A frozen venue owes nothing, so `escalate` is false and the old code
+    emailed only on escalation: the condition produced catch-up work and a
+    log line that nothing read (2026-09-17, seventh review). It is now a
+    bounded, deduplicated NOTICE on the same channel."""
+    notice = {"kind": "frozen_book", "key": "frozen_book|XETR|2026-09-14",
+              "venue": "XETR", "fill": "2026-09-14", "age_days": 31,
+              "detail": "XETR has stopped advancing"}
+    sent, marked = [], []
+    monkeypatch.setattr(_sr.publication_debt, "notices_due",
+                        lambda rep, led, on: list(rep.notices))
+    monkeypatch.setattr(_sr.publication_debt, "record_notice_delivery",
+                        lambda led, keys, on, outcome:
+                        marked.append((list(keys), outcome)) or True)
+    # The record is gated on durable state like every other write, so the
+    # production path has to be exercised. REPO_ROOT is tmp_path here, so
+    # nothing outside the test directory is touched.
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    rc, ran, log = _drive(
+        monkeypatch, tmp_path,
+        debt=_report(owed=False, unknown=True, escalate=False,
+                     notices=(notice,)),
+        argv=["--cadence", "post-fill", "--catch-up"], email_sink=sent)
+    assert any("[NOTICE]" in subject and "XETR" in subject
+               for subject, _ in sent), "a frozen venue reached no one"
+    assert marked == [(["frozen_book|XETR|2026-09-14"], _pd.NOTICE_DELIVERED)], \
+        "the notice was not recorded, so it would mail again tomorrow"
+    # The attempt was written BEFORE the send, into the real ledger under
+    # tmp_path, and that is what bounds an hourly schedule.
+    book, _ = _pd.load_ledger(_pd.ledger_path(tmp_path))
+    assert book["notices"]["frozen_book|XETR|2026-09-14"]["attempts"] == 1
+
+
+def test_an_unconfigured_mailer_does_not_spend_the_delivered_budget(
+        monkeypatch, tmp_path):
+    """The defect the whole workstream exists for was GMAIL_USER unset, and
+    the seventh pass reproduced it inside its own repair (2026-09-17, eighth
+    review): ``_email`` returned nothing, so the notice path recorded a
+    delivery whatever happened, and five silent firings exhausted
+    MAX_NOTICES without an operator being told once."""
+    notice = {"kind": "frozen_book", "key": "frozen_book|XETR|2026-09-14",
+              "venue": "XETR", "fill": "2026-09-14", "age_days": 31,
+              "detail": "XETR has stopped advancing"}
+    monkeypatch.setattr(_sr.publication_debt, "notices_due",
+                        lambda rep, led, on: list(rep.notices))
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    sent = []
+    _drive(monkeypatch, tmp_path,
+           debt=_report(owed=False, unknown=True, escalate=False,
+                        notices=(notice,)),
+           argv=["--cadence", "post-fill", "--catch-up"], email_sink=sent,
+           email_outcome=run_status.UNCONFIGURED)
+    assert sent, "the attempt was not even made"
+    rec = _pd.load_ledger(_pd.ledger_path(tmp_path))[0]["notices"][notice["key"]]
+    assert rec["attempts"] == 1, "the attempt was not recorded"
+    assert rec["count"] == 0, \
+        "an unconfigured mailer spent the budget that exists to stop the " \
+        "channel being muted"
+    assert rec["last_outcome"] == _pd.NOTICE_UNCONFIRMED
+    assert "notified_on" not in rec, "it claimed an operator was told"
+
+
+def test_a_notice_is_withheld_when_its_dedupe_cannot_be_persisted(
+        monkeypatch, tmp_path):
+    """Twelve hourly firings against a ledger that cannot be written sent
+    twelve identical emails, because the record came AFTER the send and
+    nothing survived it. Nothing durable to bound the repetition means
+    nothing is sent - the claim is what carries that now."""
+    notice = {"kind": "frozen_book", "key": "frozen_book|XETR|2026-09-14",
+              "venue": "XETR", "fill": "2026-09-14", "age_days": 31,
+              "detail": "XETR has stopped advancing"}
+    monkeypatch.setattr(_sr.publication_debt, "notices_due",
+                        lambda rep, led, on: list(rep.notices))
+    monkeypatch.setattr(_sr.publication_debt, "claim_notice",
+                        lambda *a, **kw: _pd.NOTICE_UNCLAIMABLE)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    sent = []
+    for _ in range(12):
+        _drive(monkeypatch, tmp_path,
+               debt=_report(owed=False, unknown=True, escalate=False,
+                            notices=(notice,)),
+               argv=["--cadence", "post-fill", "--catch-up"], email_sink=sent)
+    assert [s for s, _ in sent if "[NOTICE]" in s] == [], \
+        "an unbounded mailer is what trains an operator to ignore the channel"
+    assert "notice not sent" in (tmp_path / "run.log").read_text(), \
+        "it was withheld silently, which is the defect in the other direction"
+
+
+def test_a_claim_alone_does_not_authorise_a_send(monkeypatch, tmp_path):
+    """The claim file bounds REPETITION; the attempt and delivery counts,
+    which are the budget that stops an unfixable condition training the
+    operator to ignore the channel, live in the ledger. A successful claim
+    over a ledger that cannot be written would mail on a budget nothing is
+    keeping (2026-09-17, tenth review)."""
+    notice = {"kind": "frozen_book", "key": "frozen_book|XETR|2026-09-14",
+              "venue": "XETR", "fill": "2026-09-14", "age_days": 31,
+              "detail": "XETR has stopped advancing"}
+    monkeypatch.setattr(_sr.publication_debt, "notices_due",
+                        lambda rep, led, on: list(rep.notices))
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    released = []
+    monkeypatch.setattr(_sr.publication_debt, "release_notice_claim",
+                        lambda led, key, on: released.append(key) or True)
+    # The claim succeeds. The ledger write does not.
+    monkeypatch.setattr(_sr.publication_debt, "claim_notice",
+                        lambda *a, **kw: _pd.NOTICE_CLAIMED)
+    monkeypatch.setattr(_sr.publication_debt, "record_notice_attempt",
+                        lambda *a, **kw: False)
+    sent = []
+    _drive(monkeypatch, tmp_path,
+           debt=_report(owed=False, unknown=True, escalate=False,
+                        notices=(notice,)),
+           argv=["--cadence", "post-fill", "--catch-up"], email_sink=sent)
+    assert [s for s, _ in sent if "[NOTICE]" in s] == [], \
+        "a claim alone authorised the send"
+    log = (tmp_path / "run.log").read_text()
+    assert "the attempt could not be recorded" in log, "withheld silently"
+    assert released == [notice["key"]], \
+        "the claim was kept, burning the whole day for a transient failure"
+
+
+def test_a_failed_observation_withholds_every_notice(monkeypatch, tmp_path):
+    """Same rule one step earlier: if this run cannot record its observation
+    of the live conditions, the budget cannot be maintained for any of them."""
+    notice = {"kind": "frozen_book", "key": "frozen_book|XETR|2026-09-14",
+              "venue": "XETR", "fill": "2026-09-14", "age_days": 31,
+              "detail": "XETR has stopped advancing"}
+    monkeypatch.setattr(_sr.publication_debt, "notices_due",
+                        lambda rep, led, on: list(rep.notices))
+    monkeypatch.setattr(_sr.publication_debt, "record_notice_conditions",
+                        lambda *a, **kw: False)
+    claimed = []
+    monkeypatch.setattr(_sr.publication_debt, "claim_notice",
+                        lambda led, key, on: claimed.append(key) or
+                        _pd.NOTICE_CLAIMED)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    sent = []
+    _drive(monkeypatch, tmp_path,
+           debt=_report(owed=False, unknown=True, escalate=False,
+                        notices=(notice,)),
+           argv=["--cadence", "post-fill", "--catch-up"], email_sink=sent)
+    assert [s for s, _ in sent if "[NOTICE]" in s] == []
+    assert claimed == [], "a claim was taken although nothing could be sent"
+    assert "notices withheld" in (tmp_path / "run.log").read_text()
+
+
+def test_a_preflight_only_run_raises_no_escalation_and_marks_nothing(
+        monkeypatch, tmp_path):
+    """The eighth pass suppressed NOTICES under --preflight-only and left
+    escalations mailing and marking, so the documented smoke test still raised
+    an overdue-publication alert and spent that obligation's escalation budget
+    (2026-09-17, ninth review). There is no reading under which one alert type
+    is a side effect and the other is not."""
+    marked = []
+    monkeypatch.setattr(_sr.publication_debt, "mark_escalated",
+                        lambda *a, **kw: marked.append(a) or True)
+    sent = []
+    _drive(monkeypatch, tmp_path,
+           debt=_report(owed=True, escalate=True),
+           argv=["--cadence", "post-fill", "--preflight-only"],
+           email_sink=sent)
+    assert [s for s, _ in sent if "[ESCALATION]" in s] == [], \
+        "a smoke test mailed an overdue-publication alert"
+    assert marked == [], "a smoke test spent the escalation budget"
+    log = (tmp_path / "run.log").read_text()
+    assert "escalation suppressed" in log, \
+        "it was suppressed silently; the smoke test must still SHOW what it " \
+        "found"
+    assert "publication debt" in log, "the verdict left the log too"
+    # And a real firing still escalates.
+    _drive(monkeypatch, tmp_path, debt=_report(owed=True, escalate=True),
+           argv=["--cadence", "post-fill", "--catch-up"], email_sink=sent)
+    assert any("[ESCALATION]" in s for s, _ in sent)
+
+
+def test_two_overlapping_firings_send_one_notice_between_them(monkeypatch,
+                                                              tmp_path):
+    """The scheduled task retries hourly and a refresh takes one to four
+    hours, so overlapping firings are routine. Both pass notices_due - it is
+    a read - and the eighth pass let both mail."""
+    notice = {"kind": "frozen_book", "key": "frozen_book|XETR|2026-09-14",
+              "venue": "XETR", "fill": "2026-09-14", "age_days": 31,
+              "detail": "XETR has stopped advancing"}
+    monkeypatch.setattr(_sr.publication_debt, "notices_due",
+                        lambda rep, led, on: list(rep.notices))
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    sent = []
+    for _ in range(2):
+        _drive(monkeypatch, tmp_path,
+               debt=_report(owed=False, unknown=True, escalate=False,
+                            notices=(notice,)),
+               argv=["--cadence", "post-fill", "--catch-up"], email_sink=sent)
+    assert len([s for s, _ in sent if "[NOTICE]" in s]) == 1, \
+        "the same notice was mailed twice on the same day"
+    assert "already_claimed" in (tmp_path / "run.log").read_text()
+
+
+def test_a_preflight_only_run_sends_no_notice_and_spends_no_state(
+        monkeypatch, tmp_path):
+    """--preflight-only is the documented smoke test. It ran the notice
+    block, so a rehearsal mailed an operational alert and consumed the day's
+    dedupe, leaving the real firing silent."""
+    notice = {"kind": "frozen_book", "key": "frozen_book|XETR|2026-09-14",
+              "venue": "XETR", "fill": "2026-09-14", "age_days": 31,
+              "detail": "XETR has stopped advancing"}
+    monkeypatch.setattr(_sr.publication_debt, "notices_due",
+                        lambda rep, led, on: list(rep.notices))
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    sent = []
+    _drive(monkeypatch, tmp_path,
+           debt=_report(owed=False, unknown=True, escalate=False,
+                        notices=(notice,)),
+           argv=["--cadence", "post-fill", "--preflight-only"],
+           email_sink=sent)
+    assert [s for s, _ in sent if "[NOTICE]" in s] == [], \
+        "a smoke test mailed an operational notice"
+    assert not _pd.ledger_path(tmp_path).exists() or not _pd.load_ledger(
+        _pd.ledger_path(tmp_path))[0]["notices"], \
+        "a smoke test spent the day's dedupe"
+    # And the real firing that follows still says it.
+    _drive(monkeypatch, tmp_path,
+           debt=_report(owed=False, unknown=True, escalate=False,
+                        notices=(notice,)),
+           argv=["--cadence", "post-fill", "--catch-up"], email_sink=sent)
+    assert any("[NOTICE]" in s for s, _ in sent)
+
+
+def test_no_notice_means_no_mail(monkeypatch, tmp_path):
+    sent = []
+    _drive(monkeypatch, tmp_path, debt=_report(owed=False),
+           argv=["--cadence", "post-fill", "--catch-up"], email_sink=sent)
+    assert sent == [], "a healthy book mailed anyway"
+
+
+def test_the_notice_says_nothing_about_the_broker(monkeypatch, tmp_path):
+    """Publication is not execution, and the one surface that reaches a
+    person must not blur them."""
+    notice = {"kind": "frozen_book", "key": "k", "venue": "XETR",
+              "fill": "2026-09-14", "age_days": 31, "detail": "stopped"}
+    sent = []
+    monkeypatch.setattr(_sr.publication_debt, "notices_due",
+                        lambda rep, led, on: list(rep.notices))
+    _drive(monkeypatch, tmp_path,
+           debt=_report(owed=False, unknown=True, notices=(notice,)),
+           argv=["--cadence", "post-fill", "--catch-up"], email_sink=sent)
+    assert sent and "not the broker" in sent[0][1]
 
 
 def test_catch_up_propagates_to_component_children(monkeypatch, tmp_path):
