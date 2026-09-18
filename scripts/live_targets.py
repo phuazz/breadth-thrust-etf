@@ -113,6 +113,14 @@ def _breadth_panel(universe: list[str]) -> tuple[pd.DataFrame, list[str]]:
     return pd.DataFrame(cols).reindex(columns=universe).sort_index(), list(universe)
 
 
+def _with_cash(tickers, cash_proxy: str) -> list[str]:
+    """The sleeve's ranked names, then its cash proxy — appended only if the
+    engine does not already rank it (sleeve B ranks IEF and holds SHY as cash;
+    a duplicated column would be a duplicated signal)."""
+    cols = list(tickers)
+    return cols if cash_proxy in cols else cols + [cash_proxy]
+
+
 def _venue(universe: list[str]) -> str:
     cals = {get_etf(e).get("trading_calendar", "NYSE") for e in universe}
     return sorted(cals)[0] if len(cals) == 1 else "NYSE"
@@ -121,7 +129,8 @@ def _venue(universe: list[str]) -> str:
 def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
           label: str, coverage_floor: float = ROW_COVERAGE_FLOOR,
           signal_kind: str = "breadth", top_k: int | None = None,
-          prev_session: str | None = None) -> dict:
+          prev_session: str | None = None,
+          cash_proxy: str | None = None, gate_fn=None) -> dict:
     """Rank on the last signal session at or before the venue's last close.
 
     Refuses twice, for two different failures. A row that stops SHORT of the
@@ -131,10 +140,30 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
     BEFORE the weight function runs — a book ranked on a partial panel must
     not exist even transiently, because the ranked artefact is exactly the
     thing that gets trusted.
+
+    THE CASH PROXY IS IN THE PANEL BUT OUT OF THE RANK (2026-09-18). Sleeves
+    B and C put unfilled weight into SHY — C's sleeve-breadth gate sends the
+    WHOLE sleeve there — and both engines express that as `w[CASH_PROXY] = ...`
+    on the weight row. Guarded by `if CASH_PROXY in w.index`, so a panel
+    reindexed to TICKERS alone silently drops the allocation: on the
+    2026-09-16 rank C's gate fired, the engine's own path would have booked
+    SHY at 1.0, and the target book instead came back empty — five SELL ALLs,
+    no buy, 90% of NAV. `cash_proxy` names that column so the weight function
+    can reach it, while coverage, the emitted signals and therefore every
+    "rank 4 of 25" downstream stay on the ranked names only: SHY is the
+    destination, not a candidate, and both engines already drop it from their
+    eligible sets.
+
+    `gate_fn` records a sleeve-level override beside the weights, on THE SAME
+    row the weights were computed from. Sleeve C's gate is the only one today.
+    Without it the commentary can see five exits and no buy but not why, and
+    it filled the gap by attributing each exit to the name's own rank — which
+    on 2026-09-16 read "ARKG exits (rank 1 → 1, out of the top 5)".
     """
     cal = _venue_cal(venue)
     lcs = last_completed_session_on(cal, now_utc)
-    rows = signal.dropna(how="all")
+    ranked = [c for c in signal.columns if c != cash_proxy]
+    rows = signal[ranked].dropna(how="all")
     usable = rows.index[rows.index <= pd.Timestamp(lcs)] if lcs is not None else rows.index
     if len(usable) == 0:
         return {"sleeve": label, "venue": venue, "status": "HOLD",
@@ -143,11 +172,12 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
                     str(lcs.date()) if lcs is not None else None, "weights": {}}
     decided = usable[-1]
     row = signal.loc[decided]
+    ranked_row = row[ranked]
     # `decided` survived dropna(how="all"), so the panel has at least one
     # column and the share below is always well defined.
-    have, total = int(row.notna().sum()), int(signal.shape[1])
+    have, total = int(ranked_row.notna().sum()), len(ranked)
     if have < total * coverage_floor:
-        missing_names = [str(name) for name in row.index[row.isna()]]
+        missing_names = [str(name) for name in ranked_row.index[ranked_row.isna()]]
         return {"sleeve": label, "venue": venue, "status": "HOLD",
                 "reason": (
                     f"decision row carries {have} of {total} names — below "
@@ -174,7 +204,7 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
         try:
             ts = pd.Timestamp(prev_session)
             if ts in signal.index:
-                prev_row = _row_dict(signal.loc[ts])
+                prev_row = _row_dict(signal.loc[ts][ranked])
         except Exception:  # noqa: BLE001 — an unparseable date is simply "no prior row"
             prev_row = {}
     return {
@@ -190,9 +220,10 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
         "weights": {k: round(float(v), 6) for k, v in w.items()},
         "signal_kind": signal_kind,
         "top_k": top_k,
-        "signals": _row_dict(row),
+        "signals": _row_dict(ranked_row),
         "signals_prev": prev_row,
         "decision_session_prev": prev_session if prev_row else None,
+        "gate": gate_fn(row) if gate_fn else None,
     }
 
 
@@ -242,17 +273,23 @@ def build(now_utc: datetime | None = None) -> dict:
                          signal_kind="breadth_relative", top_k=tk.HEADLINE_K,
                          prev_session=prev.get("A")))
 
-    cb = ac.download_prices().reindex(columns=list(ac.TICKERS))
+    # B and C carry their cash proxy as an extra COLUMN, never as a ranked
+    # name — see _rank. Without it their engines' `w[CASH_PROXY] = ...` is a
+    # no-op and the unfilled weight vanishes from the book.
+    cb = ac.download_prices().reindex(columns=_with_cash(ac.TICKERS, ac.CASH_PROXY))
     sleeves.append(_rank(ac.compute_signal(cb),
                          ac.top_k_by_signal(ac.HEADLINE_K), "NYSE", now, "B",
                          signal_kind="ma_distance", top_k=ac.HEADLINE_K,
-                         prev_session=prev.get("B")))
+                         prev_session=prev.get("B"),
+                         cash_proxy=ac.CASH_PROXY))
 
-    cc = th.download_prices().reindex(columns=list(th.TICKERS))
+    cc = th.download_prices().reindex(columns=_with_cash(th.TICKERS, th.CASH_PROXY))
     sleeves.append(_rank(th.compute_signal(cc),
                          th.top_k_equal_weight(th.HEADLINE_K), "NYSE", now, "C",
                          signal_kind="ma_distance", top_k=th.HEADLINE_K,
-                         prev_session=prev.get("C")))
+                         prev_session=prev.get("C"),
+                         cash_proxy=th.CASH_PROXY,
+                         gate_fn=th.sleeve_gate_state))
 
     bd, used_d = _breadth_panel(UNIVERSE_EUROPE_SECTORS)
     sleeves.append(_rank(bd, eu.top_k_breadth_weight(eu.HEADLINE_K),

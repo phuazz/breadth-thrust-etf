@@ -161,23 +161,55 @@ def _fmt_signal(kind: str | None, v: float | None) -> str:
     return f"{v * 100:+.1f}"
 
 
-def _story(sleeve: str, moves: list[dict], top_k: int | None) -> str:
+def _rank_clause(m: dict, top_k: int | None) -> str:
+    """The rank movement, and a top-K claim ONLY where the rank crossed it.
+
+    Both clauses were appended to every entry and exit that carried ranks,
+    without checking. On 2026-09-16 that printed "ARKG exits (rank 1 → 1, out
+    of the top 5)" beside a rank-1 signal that had IMPROVED +34.9% → +40.6%:
+    the exit was the sleeve-breadth gate's, and the story asserted a cut that
+    had not happened. A move can leave the book for three reasons — the rank,
+    the signal floor, the sleeve gate — and only the first is a rank story.
+    """
+    rp, rn = m.get("rank_prev"), m.get("rank_now")
+    if not rp or not rn:
+        return ""
+    body = f"rank {rp} → {rn}" if rp != rn else f"rank {rn}"
+    if top_k:
+        if rp <= top_k < rn:
+            body += f", out of the top {top_k}"
+        elif rn <= top_k < rp:
+            body += f", into the top {top_k}"
+    return f" ({body})"
+
+
+def _gate_sentence(gate: dict, cash: list[dict]) -> str:
+    """The sleeve-level override, stated once with its own arithmetic."""
+    dest = f" to {cash[0]['traded']}" if cash else " to cash"
+    return (f"Sleeve-breadth gate on: {gate['n_above']} of {gate['n_universe']} "
+            f"names above the {gate['floor'] * 100:+.0f}% floor, under the "
+            f"{gate['threshold'] * 100:.0f}% threshold — the whole sleeve moves"
+            f"{dest} and every holding exits regardless of rank")
+
+
+def _story(sleeve: str, moves: list[dict], top_k: int | None,
+           gate: dict | None = None) -> str:
     """One sentence per sleeve: what entered, what left, the largest add and
-    trim, and how many small resizes followed the signal."""
+    trim, and how many small resizes followed the signal. A fired sleeve gate
+    replaces the per-name account, because under it no name was decided on."""
     entries = [m for m in moves if m["action"] == "BUY"]
     exits = [m for m in moves if m["action"] == "SELL ALL"]
     resizes = [m for m in moves if m["action"] in ("ADD", "TRIM")]
     big = [m for m in resizes if abs(m["delta"]) >= MATERIAL_MOVE]
     small = [m for m in resizes if abs(m["delta"]) < MATERIAL_MOVE]
+    if gate and gate.get("fired"):
+        return _gate_sentence(gate, [m for m in entries if m["cash_proxy"]]) + "."
     parts = []
     for m in entries:
-        cut = f" (rank {m['rank_prev']} → {m['rank_now']}, into the top {top_k})" \
-            if m.get("rank_prev") and m.get("rank_now") and top_k else ""
-        parts.append(f"{m['traded']} enters at {_pct(m['target'])} of NAV{cut}")
+        parts.append(f"{m['traded']} enters at {_pct(m['target'])} of NAV"
+                     f"{_rank_clause(m, top_k)}")
     for m in exits:
-        cut = f" (rank {m['rank_prev']} → {m['rank_now']}, out of the top {top_k})" \
-            if m.get("rank_prev") and m.get("rank_now") and top_k else ""
-        parts.append(f"{m['traded']} exits{cut}")
+        parts.append(f"{m['traded']} exits{_rank_clause(m, top_k)}")
     adds = sorted([m for m in big if m["delta"] > 0], key=lambda m: -m["delta"])
     trims = sorted([m for m in big if m["delta"] < 0], key=lambda m: m["delta"])
     if adds:
@@ -206,13 +238,23 @@ def moves_commentary(lt: dict, labels: dict, sleeve_labels: dict | None = None) 
         s = sleeves.get(ln["sleeve"], {})
         sig, prev = s.get("signals") or {}, s.get("signals_prev") or {}
         kind, k = s.get("signal_kind"), s.get("top_k")
+        gate = s.get("gate") or {}
+        gated = bool(gate.get("fired"))
         rn, rp = _ranks(sig), _ranks(prev)
         etf = ln["etf"]
         act = _action(ln)
         sym = ln.get("traded") or display_ticker(etf)
         name = _label(etf, labels)
         who = f"{sym}" + (f" ({name})" if name else "")
-        if etf in ("SHY", "IEF"):
+        cash_proxy = etf in ("SHY", "IEF")
+        # ORDER MATTERS. A gated sleeve was not decided name by name, so the
+        # name's own signal is not its driver and must not be printed as one.
+        if gated:
+            why = ("the cash proxy takes the whole sleeve while the "
+                   "sleeve-breadth gate is on" if cash_proxy else
+                   "the sleeve-breadth gate is on, so every holding exits "
+                   "regardless of rank")
+        elif cash_proxy:
             why = "the cash proxy takes the weight the signal floor leaves unfilled"
         else:
             why = _signal_phrase(kind, sig.get(etf), prev.get(etf),
@@ -238,7 +280,8 @@ def moves_commentary(lt: dict, labels: dict, sleeve_labels: dict | None = None) 
                     "signal_now_fmt": _fmt_signal(kind, sig.get(etf)),
                     "signal_prev_fmt": _fmt_signal(kind, prev.get(etf)),
                     "rank_now": rank_now, "rank_prev": rank_prev, "n": len(rn) or None,
-                    "cut": cut, "cash_proxy": etf in ("SHY", "IEF"),
+                    "cut": cut, "cash_proxy": cash_proxy,
+                    "driver": "sleeve_gate" if gated else "signal",
                     "signal_kind": kind, "text": text})
 
     # Grouped by sleeve, in sleeve order, for the tabular rendering.
@@ -249,12 +292,14 @@ def moves_commentary(lt: dict, labels: dict, sleeve_labels: dict | None = None) 
         unit, desc = _signal_unit(kind)
         ms = [m for m in out if m["sleeve"] == sl]
         n = ms[0]["n"] if ms else None
+        gate = s.get("gate") or None
         groups.append({
             "sleeve": sl, "label": sleeve_labels.get(sl, ""), "signal_kind": kind,
             "signal_unit": unit, "signal_desc": desc, "top_k": k, "n": n,
             "heading": (f"Sleeve {sl} · {sleeve_labels.get(sl, '')}"
                         + (f" · ranks {n} on {desc}, holds the top {k}" if n and k and desc else "")),
-            "story": _story(sl, ms, k),
+            "story": _story(sl, ms, k, gate),
+            "gate": gate,
             "moves": ms,
         })
 

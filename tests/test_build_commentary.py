@@ -139,6 +139,101 @@ def test_moves_are_grouped_by_sleeve_with_the_unit_once_and_a_story():
     assert shy["cash_proxy"] is True
 
 
+GATED_LABELS = {**LABELS, "ARKG": "ARK Genomic Revolution",
+                "SKYY": "First Trust Cloud Computing", "XBI": "SPDR S&P Biotech",
+                "COPX": "Global X Copper Miners"}
+
+
+def _gated_lt():
+    """Sleeve C for the 2026-09-21 fill, ranked on 2026-09-16.
+
+    The Phase 27 sleeve-breadth gate fired: 6 of 25 names above the +5% floor,
+    under the 30% threshold, so all five holdings exit and the cash proxy takes
+    the sleeve. Only the six names that move carry signals here; the gate's own
+    record states the full universe it counted.
+    """
+    return {
+        "as_of": "2026-09-16",
+        "one_way_turnover": 0.1603,
+        "next_fill": {"by_venue": {"NYSE": "2026-09-21"}},
+        "sleeves": [
+            {"sleeve": "C", "status": "READY", "decision_session": "2026-09-16",
+             "signal_kind": "ma_distance", "top_k": 5,
+             "signals": {"ARKG": 0.4063, "CIBR": 0.2837, "SKYY": 0.2382,
+                         "XBI": 0.1284, "COPX": 0.0342, "GDX": 0.0255},
+             "signals_prev": {"ARKG": 0.3489, "CIBR": 0.2147, "SKYY": 0.2169,
+                              "XBI": 0.1476, "COPX": 0.0927, "GDX": 0.0757},
+             "gate": {"enabled": True, "n_above": 6, "n_universe": 25,
+                      "breadth": 0.24, "floor": 0.05, "threshold": 0.30,
+                      "fired": True}},
+        ],
+        "lines": [
+            {"sleeve": "C", "etf": "SHY", "traded": "SHY", "held": 0.0,
+             "target": 0.10, "delta": 0.10, "status": "READY"},
+        ] + [
+            {"sleeve": "C", "etf": t, "traded": t, "held": 0.02, "target": 0.0,
+             "delta": -0.02, "status": "READY"}
+            for t in ("ARKG", "CIBR", "SKYY", "XBI", "COPX")
+        ],
+    }
+
+
+def test_a_gated_sleeve_names_the_gate_rather_than_the_ranks():
+    """What shipped on 2026-09-16: "ARKG exits (rank 1 → 1, out of the top 5)",
+    beside a rank-1 signal that had IMPROVED +34.9% → +40.6%. Three claims, all
+    false — it did not leave the top 5, its rank did not move, and its signal
+    was not the reason."""
+    nf = bc.moves_commentary(_gated_lt(), GATED_LABELS)
+    g = next(x for x in nf["sleeves"] if x["sleeve"] == "C")
+    assert g["story"] == (
+        "Sleeve-breadth gate on: 6 of 25 names above the +5% floor, under the "
+        "30% threshold — the whole sleeve moves to SHY and every holding exits "
+        "regardless of rank.")
+    assert "out of the top" not in g["story"]
+    assert g["gate"]["fired"] is True
+    arkg = next(m for m in g["moves"] if m["etf"] == "ARKG")
+    assert arkg["driver"] == "sleeve_gate"
+    assert arkg["text"] == ("ARKG (ARK Genomic Revolution) exits from 2.0% of NAV: "
+                            "the sleeve-breadth gate is on, so every holding exits "
+                            "regardless of rank.")
+    assert "rank 1" not in arkg["text"] and "200-day" not in arkg["text"]
+
+
+def test_a_gated_cash_line_says_the_gate_and_not_the_floor():
+    """The cash proxy has two reasons to be there and they are different: an
+    unfilled top-K, or the gate taking the whole sleeve."""
+    nf = bc.moves_commentary(_gated_lt(), GATED_LABELS)
+    shy = next(m for m in nf["moves"] if m["etf"] == "SHY")
+    assert shy["action"] == "BUY" and shy["cash_proxy"] is True
+    assert "sleeve-breadth gate" in shy["text"]
+    assert "leaves unfilled" not in shy["text"]
+
+
+def test_a_gated_sleeve_buys_its_cash_proxy():
+    """The symptom that started this: five SELL ALLs, no buy, 90% of NAV."""
+    nf = bc.moves_commentary(_gated_lt(), GATED_LABELS)
+    assert "1 new name" in nf["summary"] and "5 exits" in nf["summary"]
+
+
+def test_an_exit_that_kept_its_rank_does_not_claim_a_cut():
+    """A name can leave the book for three reasons — the rank, the signal
+    floor, the sleeve gate — and the story asserted the first for all three."""
+    lt = _lt()
+    lt["lines"] = [{"sleeve": "A", "etf": "IUES", "traded": "IUES",
+                    "held": 0.0977, "target": 0.0, "delta": -0.0977,
+                    "status": "READY"}]
+    a = next(g for g in bc.moves_commentary(lt, LABELS)["sleeves"] if g["sleeve"] == "A")
+    assert a["story"] == "IUES exits (rank 2 → 1)."
+
+
+def test_an_entry_that_did_not_cross_the_cut_does_not_claim_one():
+    lt = _lt()
+    lt["lines"] = [{"sleeve": "A", "etf": "IUES", "traded": "IUES",
+                    "held": 0.0, "target": 0.05, "delta": 0.05, "status": "READY"}]
+    a = next(g for g in bc.moves_commentary(lt, LABELS)["sleeves"] if g["sleeve"] == "A")
+    assert a["story"] == "IUES enters at 5.0% of NAV (rank 2 → 1)."
+
+
 def test_small_resizes_are_counted_in_the_story_not_listed():
     lt = _lt()
     lt["lines"] = [

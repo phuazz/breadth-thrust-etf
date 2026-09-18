@@ -694,6 +694,39 @@ def compute_signal(closes: pd.DataFrame) -> pd.DataFrame:
     return ma_distance_signal(closes, MA_PERIOD)
 
 
+def sleeve_gate_state(s_row: pd.Series) -> dict:
+    """The Phase 27 gate's arithmetic, as a record — ONE definition.
+
+    top_k_equal_weight calls this rather than counting for itself, so the
+    reason a surface prints and the weights that actually decided can never
+    disagree. That mattered on 2026-09-16: the gate fired at 6 of 25 names
+    above the +5% floor (24%, under the 30% threshold) and every reader-facing
+    surface instead attributed the exit to the individual names, one of which
+    (ARKG) was rank 1 of 25 and improving.
+
+    The cash proxy is excluded from the denominator — it is the destination,
+    not a member of the universe being measured. NaN names are excluded from
+    both sides: in the early history that is genuine insufficient history, but
+    a vendor gap at the tail shrinks the denominator and so biases the gate
+    OFF. live_targets refuses such a row outright on its coverage floor.
+    """
+    valid = s_row.dropna()
+    univ = valid.drop(CASH_PROXY, errors="ignore")
+    n_universe = int(len(univ))
+    n_above = int((univ > SIGNAL_FLOOR).sum())
+    breadth = (n_above / n_universe) if n_universe else float("nan")
+    return {
+        "enabled": SLEEVE_GATE_ENABLED,
+        "n_above": n_above,
+        "n_universe": n_universe,
+        "breadth": breadth,
+        "floor": SIGNAL_FLOOR,
+        "threshold": SLEEVE_GATE_THRESHOLD,
+        "fired": bool(SLEEVE_GATE_ENABLED and n_universe > 0
+                      and breadth < SLEEVE_GATE_THRESHOLD),
+    }
+
+
 def top_k_equal_weight(K: int):
     """Strategy C weight function — Phase 6 (equal-weight) + Phase 27
     sleeve-breadth gate.
@@ -734,16 +767,10 @@ def top_k_equal_weight(K: int):
         # the same signal panel — fraction of non-cash universe above
         # SIGNAL_FLOOR. Below threshold = sleeve in regime change,
         # exit all positions to cash.
-        if SLEEVE_GATE_ENABLED:
-            univ = valid.drop(CASH_PROXY, errors="ignore")
-            n_universe = len(univ)
-            if n_universe > 0:
-                n_above = (univ > SIGNAL_FLOOR).sum()
-                sleeve_breadth = n_above / n_universe
-                if sleeve_breadth < SLEEVE_GATE_THRESHOLD:
-                    if CASH_PROXY in w.index:
-                        w[CASH_PROXY] = 1.0
-                    return w
+        if sleeve_gate_state(s_row)["fired"]:
+            if CASH_PROXY in w.index:
+                w[CASH_PROXY] = 1.0
+            return w
 
         eligible = valid[valid > SIGNAL_FLOOR]
         # Phase 19.1: CASH_PROXY (SHY) is downloaded for the cash floor

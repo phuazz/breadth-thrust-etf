@@ -106,6 +106,136 @@ def test_partial_signal_names_missing_inputs_without_ranking():
     assert "2 of 3" in r["reason"]
 
 
+# ---------------------------------------------------------------------------
+# The cash proxy — the destination, never a candidate
+# ---------------------------------------------------------------------------
+
+def _thematic_row(n_above: int, n_total: int = 25, cash: bool = True):
+    """A sleeve C signal row with ``n_above`` names clear of the +5% floor."""
+    import run_thematic_rotation as th
+    vals = {f"T{i}": (0.20 if i < n_above else -0.10) for i in range(n_total)}
+    if cash:
+        vals[th.CASH_PROXY] = 0.001
+    return pd.Series(vals)
+
+
+def _nonzero(w):
+    return dict(w[w > 0])
+
+
+def test_the_thematic_gate_fires_on_the_count_not_on_what_is_held():
+    """7 of 25 is 28% and gates; 8 of 25 is 32% and does not. The 2026-09-16
+    book exited ARKG at rank 1 of 25 and improving, because the gate counts
+    the universe, not the holdings."""
+    import run_thematic_rotation as th
+    f = th.top_k_equal_weight(th.HEADLINE_K)
+    assert _nonzero(f(_thematic_row(7))) == {th.CASH_PROXY: 1.0}
+    ungated = _nonzero(f(_thematic_row(8)))
+    assert len(ungated) == th.HEADLINE_K and th.CASH_PROXY not in ungated
+
+
+def test_the_gate_record_and_the_weights_cannot_disagree():
+    """One definition: top_k_equal_weight calls sleeve_gate_state rather than
+    counting for itself, so a surface quoting the record can never describe a
+    book the weights did not produce."""
+    import run_thematic_rotation as th
+    f = th.top_k_equal_weight(th.HEADLINE_K)
+    for n_above in range(0, 12):
+        row = _thematic_row(n_above)
+        assert th.sleeve_gate_state(row)["fired"] == \
+            (_nonzero(f(row)) == {th.CASH_PROXY: 1.0}), n_above
+
+
+def test_the_gate_record_carries_what_the_commentary_reads():
+    """Cross-module contract: build_commentary._gate_sentence states the gate's
+    own arithmetic, so a renamed field must break here rather than in a
+    sentence nobody re-reads."""
+    import run_thematic_rotation as th
+    import build_commentary as bc
+    gate = th.sleeve_gate_state(_thematic_row(6))
+    assert set(gate) >= {"fired", "n_above", "n_universe", "floor", "threshold"}
+    assert bc._gate_sentence(gate, [{"traded": "SHY"}]).startswith(
+        "Sleeve-breadth gate on: 6 of 25 names above the +5% floor, under the "
+        "30% threshold")
+
+
+def test_a_gate_with_no_usable_names_does_not_divide_by_zero():
+    import run_thematic_rotation as th
+    gate = th.sleeve_gate_state(pd.Series({"X": float("nan")}))
+    assert gate["fired"] is False and gate["n_universe"] == 0
+
+
+def test_the_engines_place_their_cash_only_when_the_column_exists():
+    """Both cash allocations are guarded by `if CASH_PROXY in w.index`, so a
+    panel reindexed to TICKERS alone drops them silently — which is why
+    live_targets has to carry the column. Pins the mechanism, not the bug."""
+    import run_thematic_rotation as th
+    f = th.top_k_equal_weight(th.HEADLINE_K)
+    assert _nonzero(f(_thematic_row(6))) == {th.CASH_PROXY: 1.0}
+    assert _nonzero(f(_thematic_row(6, cash=False))) == {}
+
+
+def test_a_gated_sleeve_books_its_cash_proxy_rather_than_an_empty_rank():
+    """2026-09-16: sleeve C's gate fired, the engine's own path books SHY at
+    1.0, and the target book came back {} — five SELL ALLs, no buy, 90% of
+    NAV."""
+    def gate_to_cash(row):
+        w = pd.Series(0.0, index=row.index)
+        if "SHY" in w.index:
+            w["SHY"] = 1.0
+        return w
+
+    sig = _signal(["2026-09-15", "2026-09-16"], cols=("X", "Y", "SHY"))
+    r = lt._rank(sig, gate_to_cash, "NYSE", _utc(2026, 9, 17, 2), "C",
+                 cash_proxy="SHY")
+    assert r["status"] == "READY"
+    assert r["weights"] == {"SHY": 1.0}
+
+
+def test_the_cash_proxy_is_not_a_ranked_name():
+    """It must not appear in the emitted signal, or every downstream "rank 4
+    of 25" silently becomes "of 26" and the ranks below it shift."""
+    sig = _signal(["2026-09-15", "2026-09-16"], cols=("X", "Y", "SHY"))
+    r = lt._rank(sig, _top2, "NYSE", _utc(2026, 9, 17, 2), "C", cash_proxy="SHY")
+    assert set(r["signals"]) == {"X", "Y"}
+
+
+def test_the_cash_proxy_is_outside_the_coverage_floor():
+    """SHY is the destination, not part of the signal: its absence cannot
+    change the rank, so it must not be able to force a HOLD either."""
+    sig = _signal(["2026-09-15", "2026-09-16"], cols=("X", "Y", "SHY"))
+    sig.loc[pd.Timestamp("2026-09-16"), "SHY"] = float("nan")
+    r = lt._rank(sig, _top2, "NYSE", _utc(2026, 9, 17, 2), "C", cash_proxy="SHY")
+    assert r["status"] == "READY"
+
+    sig.loc[pd.Timestamp("2026-09-16"), "Y"] = float("nan")
+    r = lt._rank(sig, _top2, "NYSE", _utc(2026, 9, 17, 2), "C", cash_proxy="SHY")
+    assert r["status"] == "HOLD" and "1 of 2" in r["reason"]
+
+
+def test_a_ranked_cash_ticker_is_not_duplicated():
+    """Sleeve B ranks IEF and holds SHY as cash; if an engine ever ranked its
+    own proxy, a second column would be a second signal."""
+    assert lt._with_cash(["SPY", "IEF"], "SHY") == ["SPY", "IEF", "SHY"]
+    assert lt._with_cash(["SPY", "SHY"], "SHY") == ["SPY", "SHY"]
+
+
+def test_the_intended_book_of_a_gated_sleeve_is_fully_invested():
+    """The 90%-of-NAV regression: before the cash column, the five exits had
+    no matching buy and a tenth of the book was unallocated and unlabelled,
+    while mark_to_market_live booked the residual into SHY regardless."""
+    sleeves = [{"sleeve": "C", "status": "READY", "weights": {"SHY": 1.0}}]
+    held = {("C", t): 0.02 for t in ("CIBR", "SKYY", "XBI", "ARKG", "COPX")}
+    nav = {"a": 0.35, "b": 0.25, "c": 0.10, "d": 0.20,
+           "tilt_nav": 0.0, "shy_overlay": 0.0}
+    lines = lt._intended_lines(sleeves, held, nav)
+    buys = [ln for ln in lines if ln["held"] == 0 and ln["target"] > 0]
+    assert [ln["etf"] for ln in buys] == ["SHY"]
+    assert abs(buys[0]["target"] - 0.10) < 1e-9
+    assert abs(sum(ln["target"] for ln in lines)
+               - sum(ln["held"] for ln in lines)) < 1e-9
+
+
 def test_breadth_panel_is_not_collapsed_onto_the_execution_calendar():
     """The whole point of the module. _build_panels_for aligns breadth onto
     closes.index, which deletes a signal the vendor did publish whenever the
