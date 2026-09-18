@@ -179,8 +179,9 @@ def _rebuild_with_weights(tmp_path, monkeypatch, live, overlay, weights):
     return bsp.build_payload()
 
 
+@pytest.mark.parametrize("tilt_held", (True, False), ids=("tilt_on", "tilt_off"))
 def test_derisk_reserve_is_shown_at_both_ends_of_its_range(
-        tmp_path, monkeypatch, live, overlay):
+        tmp_path, monkeypatch, live, overlay, tilt_held):
     """The overlay's de-risk instrument must reach the page whether it holds
     one basis point or half the book.
 
@@ -190,12 +191,26 @@ def test_derisk_reserve_is_shown_at_both_ends_of_its_range(
     stop summing to NAV the moment the gate fired. The residual case is the
     one that occurs in calm markets and the large case is the one that occurs
     when a reader most needs the page to be right, so both are pinned.
+
+    BOTH TILT STATES ARE NOW CONSTRUCTED (2026-09-18). This read the tilt leg
+    out of whatever the live book happened to hold, so it only ever exercised
+    the state of the day. The EEM tilt crossed to EM_TILT_OFF on 2026-09-15,
+    EEM left `effective_weights`, and the assertion below stopped being an
+    assertion at all — it raised KeyError on `weights["EEM"]` before it could
+    compare anything. The tilt is a signal that switches; a test over the
+    reserve bucket has to hold on both sides of it, and a refresh that trips
+    over the switch blocks the scheduled publish for the whole book.
     """
     fallback = (overlay.get("gate_parameters") or {}).get("fallback_ticker")
     assert fallback, "risk_overlay.json carries no gate_parameters.fallback_ticker"
 
     sleeve_only = {t: w for t, w in live["effective_weights"].items()
-                   if t != fallback}
+                   if t not in (fallback, bsp.TILT_TICKER)}
+    assert sleeve_only, "live book carries no sleeve weights to rescale"
+    if tilt_held:
+        # A tenth of NAV is the deployed tilt size. The figure is immaterial —
+        # what is pinned is that the bucket accounts for exactly it.
+        sleeve_only[bsp.TILT_TICKER] = 0.10
     scale = sum(sleeve_only.values())
 
     for reserve_w in (0.0001, 0.5):
@@ -215,8 +230,15 @@ def test_derisk_reserve_is_shown_at_both_ends_of_its_range(
         # assertions above still use TOL, which is where it belongs.
         assert sum(split.values()) == pytest.approx(1.0, abs=TOL * len(split))
         # It must not be quietly filed under the tilt: that bucket carries the
-        # tilt's own weight and nothing else.
-        assert split.get("tilt") == pytest.approx(weights[bsp.TILT_TICKER], abs=TOL)
+        # tilt's own weight and nothing else. With the tilt off there is no
+        # such bucket, and an empty one appearing would mean the reserve or a
+        # sleeve had been filed there.
+        if bsp.TILT_TICKER in weights:
+            assert split.get("tilt") == pytest.approx(weights[bsp.TILT_TICKER], abs=TOL)
+        else:
+            assert "tilt" not in split, (
+                f"tilt bucket present at {split.get('tilt')} of NAV with no "
+                f"{bsp.TILT_TICKER} held — something else has been filed under it")
         held = {h["panel_key"] for h in payload["holdings"]}
         assert fallback in held, f"{fallback} dropped from holdings at {reserve_w:.2%}"
 
