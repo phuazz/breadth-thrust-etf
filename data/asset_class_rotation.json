@@ -64,7 +64,7 @@
     },
     {
       "etf": "SHY",
-      "label": "iShares 1-3y US Treasury (Strategy B cash floor)",
+      "label": "iShares 1-3y US Treasury (sleeve cash floor)",
       "asset_class": "Cash / Treasury"
     }
   ],

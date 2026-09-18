@@ -130,7 +130,9 @@
    "reason": null,
    "decision_session": "2026-09-16",
    "last_completed_session": "2026-09-16",
-   "weights": {},
+   "weights": {
+    "SHY": 1.0
+   },
    "signal_kind": "ma_distance",
    "top_k": 5,
    "signals": {
@@ -189,7 +191,16 @@
    },
    "decision_session_prev": "2026-09-11",
    "fill_date": "2026-09-21",
-   "decision_session_for_fill": "2026-09-18"
+   "decision_session_for_fill": "2026-09-18",
+   "gate": {
+    "enabled": true,
+    "n_above": 6,
+    "n_universe": 25,
+    "breadth": 0.24,
+    "floor": 0.05,
+    "threshold": 0.3,
+    "fired": true
+   }
   },
   {
    "sleeve": "D",
@@ -387,6 +398,16 @@
   },
   {
    "sleeve": "C",
+   "etf": "SHY",
+   "traded": "SHY",
+   "within": 1.0,
+   "target": 0.1,
+   "held": 0.0,
+   "status": "READY",
+   "delta": 0.1
+  },
+  {
+   "sleeve": "C",
    "etf": "CIBR",
    "traded": "CIBR",
    "within": 0.0,
@@ -476,5 +497,5 @@
    "delta": 0.0
   }
  ],
- "one_way_turnover": 0.16031957500000002
+ "one_way_turnover": 0.210319575
 }

@@ -928,8 +928,12 @@ def main() -> int:
             # but appear in attribution / weights whenever the cash floor is
             # active. Without an asset_class entry the dashboard renders an
             # empty Asset Class cell — same bug Phase 21 fixed for IEF in C.
+            # The label is sleeve-NEUTRAL (2026-09-18). It read "Strategy B
+            # cash floor" while only B could reach it; sleeve C's gate sends
+            # its whole 10% here too, and the target book then printed a
+            # sleeve C line named after sleeve B.
             {"etf": "SHY",
-             "label": "iShares 1-3y US Treasury (Strategy B cash floor)",
+             "label": "iShares 1-3y US Treasury (sleeve cash floor)",
              "asset_class": "Cash / Treasury"},
         ],
         "ma_period": MA_PERIOD,

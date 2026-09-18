@@ -1,9 +1,31 @@
 {
-  "computed_at_utc": "2026-09-17T12:47:09+00:00",
+  "computed_at_utc": "2026-09-18T02:57:22+00:00",
   "as_of": "2026-09-16",
   "next_fill": {
-    "summary": "22 moves at the next fill (NYSE Mon 21 Sep 2026, XETR Mon 21 Sep 2026), ranked on the Wed 16 Sep 2026 close; one-way turnover 16.03% of NAV; 2 new names; 6 exits. Signals compared with the previous decision close.",
+    "summary": "23 moves at the next fill (NYSE Mon 21 Sep 2026, XETR Mon 21 Sep 2026), ranked on the Wed 16 Sep 2026 close; one-way turnover 21.03% of NAV; 3 new names; 6 exits. Signals compared with the previous decision close.",
     "moves": [
+      {
+        "sleeve": "C",
+        "etf": "SHY",
+        "traded": "SHY",
+        "name": "iShares 1-3y US Treasury (sleeve cash floor)",
+        "action": "BUY",
+        "held": 0.0,
+        "target": 0.1,
+        "delta": 0.1,
+        "signal_now": null,
+        "signal_prev": null,
+        "signal_now_fmt": "\u2014",
+        "signal_prev_fmt": "\u2014",
+        "rank_now": null,
+        "rank_prev": null,
+        "n": 25,
+        "cut": null,
+        "cash_proxy": true,
+        "driver": "sleeve_gate",
+        "signal_kind": "ma_distance",
+        "text": "SHY (iShares 1-3y US Treasury (sleeve cash floor)) enters at 10.0% of NAV: the cash proxy takes the whole sleeve while the sleeve-breadth gate is on."
+      },
       {
         "sleeve": "A",
         "etf": "IUHC",
@@ -22,6 +44,7 @@
         "n": 14,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "breadth_relative",
         "text": "IUHC (iShares S&P 500 Health Care) 6.3% \u2192 13.1% of NAV (+6.7pp): breadth +15.9pp \u2192 +24.6pp against the sector average, rank 3 \u2192 1 of 14."
       },
@@ -43,6 +66,7 @@
         "n": 14,
         "cut": "out",
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "breadth_relative",
         "text": "IUSP (iShares US Property Yield (REITs)) exits from 2.9% of NAV: breadth +7.1pp \u2192 -0.7pp against the sector average, rank 5 \u2192 10 of 14, out of the top 7."
       },
@@ -64,6 +88,7 @@
         "n": 14,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "breadth_relative",
         "text": "IUES (iShares S&P 500 Energy) 12.4% \u2192 9.9% of NAV (-2.6pp): breadth +31.2pp \u2192 +18.6pp against the sector average, rank 1 \u2192 2 of 14."
       },
@@ -85,6 +110,7 @@
         "n": 14,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "breadth_relative",
         "text": "SOXX (iShares Semiconductors) 4.4% \u2192 2.4% of NAV (-2.0pp): breadth +11.0pp \u2192 +4.5pp against the sector average, rank 4 of 14."
       },
@@ -106,8 +132,9 @@
         "n": 25,
         "cut": null,
         "cash_proxy": false,
+        "driver": "sleeve_gate",
         "signal_kind": "ma_distance",
-        "text": "CIBR (First Trust Cybersecurity) exits from 2.0% of NAV: +21.5% \u2192 +28.4% against its 200-day average, rank 3 \u2192 2 of 25."
+        "text": "CIBR (First Trust Cybersecurity) exits from 2.0% of NAV: the sleeve-breadth gate is on, so every holding exits regardless of rank."
       },
       {
         "sleeve": "C",
@@ -127,8 +154,9 @@
         "n": 25,
         "cut": null,
         "cash_proxy": false,
+        "driver": "sleeve_gate",
         "signal_kind": "ma_distance",
-        "text": "SKYY (First Trust Cloud Computing) exits from 2.0% of NAV: +21.7% \u2192 +23.8% against its 200-day average, rank 2 \u2192 3 of 25."
+        "text": "SKYY (First Trust Cloud Computing) exits from 2.0% of NAV: the sleeve-breadth gate is on, so every holding exits regardless of rank."
       },
       {
         "sleeve": "C",
@@ -148,8 +176,9 @@
         "n": 25,
         "cut": null,
         "cash_proxy": false,
+        "driver": "sleeve_gate",
         "signal_kind": "ma_distance",
-        "text": "XBI (SPDR S&P Biotech (eq-weight)) exits from 2.0% of NAV: +14.8% \u2192 +12.8% against its 200-day average, rank 4 of 25."
+        "text": "XBI (SPDR S&P Biotech (eq-weight)) exits from 2.0% of NAV: the sleeve-breadth gate is on, so every holding exits regardless of rank."
       },
       {
         "sleeve": "C",
@@ -169,8 +198,9 @@
         "n": 25,
         "cut": null,
         "cash_proxy": false,
+        "driver": "sleeve_gate",
         "signal_kind": "ma_distance",
-        "text": "ARKG (ARK Genomic Revolution) exits from 2.0% of NAV: +34.9% \u2192 +40.6% against its 200-day average, rank 1 of 25."
+        "text": "ARKG (ARK Genomic Revolution) exits from 2.0% of NAV: the sleeve-breadth gate is on, so every holding exits regardless of rank."
       },
       {
         "sleeve": "C",
@@ -190,8 +220,9 @@
         "n": 25,
         "cut": "out",
         "cash_proxy": false,
+        "driver": "sleeve_gate",
         "signal_kind": "ma_distance",
-        "text": "COPX (Global X Copper Miners) exits from 2.0% of NAV: +9.3% \u2192 +3.4% against its 200-day average, rank 5 \u2192 7 of 25, out of the top 5."
+        "text": "COPX (Global X Copper Miners) exits from 2.0% of NAV: the sleeve-breadth gate is on, so every holding exits regardless of rank."
       },
       {
         "sleeve": "A",
@@ -211,6 +242,7 @@
         "n": 14,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "breadth_relative",
         "text": "IUFS (iShares S&P 500 Financials) 8.6% \u2192 6.8% of NAV (-1.8pp): breadth +21.4pp \u2192 +12.8pp against the sector average, rank 2 \u2192 3 of 14."
       },
@@ -232,6 +264,7 @@
         "n": 12,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "ma_distance",
         "text": "DBC (Broad Commodities) 8.2% \u2192 9.7% of NAV (+1.5pp): +21.2% \u2192 +20.4% against its 200-day average, rank 1 of 12."
       },
@@ -253,6 +286,7 @@
         "n": 14,
         "cut": "in",
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "breadth_relative",
         "text": "CNDX (iShares NASDAQ-100) enters at 1.5% of NAV: breadth -0.8pp \u2192 +2.8pp against the sector average, rank 8 \u2192 5 of 14, into the top 7."
       },
@@ -274,6 +308,7 @@
         "n": 14,
         "cut": "in",
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "breadth_relative",
         "text": "IUCM (iShares S&P 500 Communication Services) enters at 0.7% of NAV: breadth -7.7pp \u2192 +1.3pp against the sector average, rank 9 \u2192 6 of 14, into the top 7."
       },
@@ -295,6 +330,7 @@
         "n": 12,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "ma_distance",
         "text": "VGK (FTSE Europe) 1.8% \u2192 1.3% of NAV (-0.5pp): +4.5% \u2192 +2.7% against its 200-day average, rank 7 of 12."
       },
@@ -316,6 +352,7 @@
         "n": 12,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "ma_distance",
         "text": "IJR (S&P 600 (US small)) 2.4% \u2192 2.0% of NAV (-0.4pp): +6.1% \u2192 +4.2% against its 200-day average, rank 5 of 12."
       },
@@ -337,6 +374,7 @@
         "n": 12,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "ma_distance",
         "text": "EFA (MSCI EAFE (Intl developed)) 2.3% \u2192 1.9% of NAV (-0.4pp): +6.0% \u2192 +4.1% against its 200-day average, rank 6 of 12."
       },
@@ -358,6 +396,7 @@
         "n": 14,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "breadth_relative",
         "text": "CSP1 (iShares Core S&P 500) 0.4% \u2192 0.7% of NAV (+0.3pp): breadth +0.9pp \u2192 +1.3pp against the sector average, rank 6 \u2192 7 of 14."
       },
@@ -379,6 +418,7 @@
         "n": 5,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "breadth",
         "text": "EXV1 (STOXX Europe 600 Banks) 7.8% \u2192 8.1% of NAV (+0.3pp): breadth 92.5% \u2192 93.9%, rank 1 of 5."
       },
@@ -400,6 +440,7 @@
         "n": 5,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "breadth",
         "text": "EXV3 (STOXX Europe 600 Technology) 5.7% \u2192 5.5% of NAV (-0.2pp): breadth 67.9% \u2192 64.1%, rank 3 of 5."
       },
@@ -421,6 +462,7 @@
         "n": 12,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "ma_distance",
         "text": "SPY (S&P 500 (US large)) 2.8% \u2192 2.7% of NAV (-0.1pp): +7.3% \u2192 +5.7% against its 200-day average, rank 4 of 12."
       },
@@ -442,6 +484,7 @@
         "n": 5,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "breadth",
         "text": "EXH1 (STOXX Europe 600 Oil & Gas) 6.5% \u2192 6.4% of NAV (-0.1pp): breadth 78.1% \u2192 75.0%, rank 2 of 5."
       },
@@ -463,6 +506,7 @@
         "n": 12,
         "cut": null,
         "cash_proxy": false,
+        "driver": "signal",
         "signal_kind": "ma_distance",
         "text": "QQQ (NASDAQ-100 (US tech-heavy)) 3.3% \u2192 3.2% of NAV (-0.1pp): +8.4% \u2192 +6.7% against its 200-day average, rank 3 of 12."
       }
@@ -478,6 +522,7 @@
         "n": 14,
         "heading": "Sleeve A \u00b7 US sectors \u00b7 ranks 14 on share of constituents above their 200-day average, minus the average across the sectors, holds the top 7",
         "story": "CNDX enters at 1.5% of NAV (rank 8 \u2192 5, into the top 7); IUCM enters at 0.7% of NAV (rank 9 \u2192 6, into the top 7); IUSP exits (rank 5 \u2192 10, out of the top 7); largest add IUHC +6.7pp; largest trim IUES -2.6pp, SOXX -2.0pp; 1 smaller resize under 0.5pp of NAV follow the signal.",
+        "gate": null,
         "moves": [
           {
             "sleeve": "A",
@@ -497,6 +542,7 @@
             "n": 14,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "breadth_relative",
             "text": "IUHC (iShares S&P 500 Health Care) 6.3% \u2192 13.1% of NAV (+6.7pp): breadth +15.9pp \u2192 +24.6pp against the sector average, rank 3 \u2192 1 of 14."
           },
@@ -518,6 +564,7 @@
             "n": 14,
             "cut": "out",
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "breadth_relative",
             "text": "IUSP (iShares US Property Yield (REITs)) exits from 2.9% of NAV: breadth +7.1pp \u2192 -0.7pp against the sector average, rank 5 \u2192 10 of 14, out of the top 7."
           },
@@ -539,6 +586,7 @@
             "n": 14,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "breadth_relative",
             "text": "IUES (iShares S&P 500 Energy) 12.4% \u2192 9.9% of NAV (-2.6pp): breadth +31.2pp \u2192 +18.6pp against the sector average, rank 1 \u2192 2 of 14."
           },
@@ -560,6 +608,7 @@
             "n": 14,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "breadth_relative",
             "text": "SOXX (iShares Semiconductors) 4.4% \u2192 2.4% of NAV (-2.0pp): breadth +11.0pp \u2192 +4.5pp against the sector average, rank 4 of 14."
           },
@@ -581,6 +630,7 @@
             "n": 14,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "breadth_relative",
             "text": "IUFS (iShares S&P 500 Financials) 8.6% \u2192 6.8% of NAV (-1.8pp): breadth +21.4pp \u2192 +12.8pp against the sector average, rank 2 \u2192 3 of 14."
           },
@@ -602,6 +652,7 @@
             "n": 14,
             "cut": "in",
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "breadth_relative",
             "text": "CNDX (iShares NASDAQ-100) enters at 1.5% of NAV: breadth -0.8pp \u2192 +2.8pp against the sector average, rank 8 \u2192 5 of 14, into the top 7."
           },
@@ -623,6 +674,7 @@
             "n": 14,
             "cut": "in",
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "breadth_relative",
             "text": "IUCM (iShares S&P 500 Communication Services) enters at 0.7% of NAV: breadth -7.7pp \u2192 +1.3pp against the sector average, rank 9 \u2192 6 of 14, into the top 7."
           },
@@ -644,6 +696,7 @@
             "n": 14,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "breadth_relative",
             "text": "CSP1 (iShares Core S&P 500) 0.4% \u2192 0.7% of NAV (+0.3pp): breadth +0.9pp \u2192 +1.3pp against the sector average, rank 6 \u2192 7 of 14."
           }
@@ -659,6 +712,7 @@
         "n": 12,
         "heading": "Sleeve B \u00b7 Asset classes \u00b7 ranks 12 on distance of the price above its 200-day average, holds the top 7",
         "story": "Largest add DBC +1.5pp; 5 smaller resizes under 0.5pp of NAV follow the signal.",
+        "gate": null,
         "moves": [
           {
             "sleeve": "B",
@@ -678,6 +732,7 @@
             "n": 12,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "ma_distance",
             "text": "DBC (Broad Commodities) 8.2% \u2192 9.7% of NAV (+1.5pp): +21.2% \u2192 +20.4% against its 200-day average, rank 1 of 12."
           },
@@ -699,6 +754,7 @@
             "n": 12,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "ma_distance",
             "text": "VGK (FTSE Europe) 1.8% \u2192 1.3% of NAV (-0.5pp): +4.5% \u2192 +2.7% against its 200-day average, rank 7 of 12."
           },
@@ -720,6 +776,7 @@
             "n": 12,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "ma_distance",
             "text": "IJR (S&P 600 (US small)) 2.4% \u2192 2.0% of NAV (-0.4pp): +6.1% \u2192 +4.2% against its 200-day average, rank 5 of 12."
           },
@@ -741,6 +798,7 @@
             "n": 12,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "ma_distance",
             "text": "EFA (MSCI EAFE (Intl developed)) 2.3% \u2192 1.9% of NAV (-0.4pp): +6.0% \u2192 +4.1% against its 200-day average, rank 6 of 12."
           },
@@ -762,6 +820,7 @@
             "n": 12,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "ma_distance",
             "text": "SPY (S&P 500 (US large)) 2.8% \u2192 2.7% of NAV (-0.1pp): +7.3% \u2192 +5.7% against its 200-day average, rank 4 of 12."
           },
@@ -783,6 +842,7 @@
             "n": 12,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "ma_distance",
             "text": "QQQ (NASDAQ-100 (US tech-heavy)) 3.3% \u2192 3.2% of NAV (-0.1pp): +8.4% \u2192 +6.7% against its 200-day average, rank 3 of 12."
           }
@@ -797,8 +857,39 @@
         "top_k": 5,
         "n": 25,
         "heading": "Sleeve C \u00b7 Thematic \u00b7 ranks 25 on distance of the price above its 200-day average, holds the top 5",
-        "story": "CIBR exits (rank 3 \u2192 2, out of the top 5); SKYY exits (rank 2 \u2192 3, out of the top 5); XBI exits (rank 4 \u2192 4, out of the top 5); ARKG exits (rank 1 \u2192 1, out of the top 5); COPX exits (rank 5 \u2192 7, out of the top 5).",
+        "story": "Sleeve-breadth gate on: 6 of 25 names above the +5% floor, under the 30% threshold \u2014 the whole sleeve moves to SHY and every holding exits regardless of rank.",
+        "gate": {
+          "enabled": true,
+          "n_above": 6,
+          "n_universe": 25,
+          "breadth": 0.24,
+          "floor": 0.05,
+          "threshold": 0.3,
+          "fired": true
+        },
         "moves": [
+          {
+            "sleeve": "C",
+            "etf": "SHY",
+            "traded": "SHY",
+            "name": "iShares 1-3y US Treasury (sleeve cash floor)",
+            "action": "BUY",
+            "held": 0.0,
+            "target": 0.1,
+            "delta": 0.1,
+            "signal_now": null,
+            "signal_prev": null,
+            "signal_now_fmt": "\u2014",
+            "signal_prev_fmt": "\u2014",
+            "rank_now": null,
+            "rank_prev": null,
+            "n": 25,
+            "cut": null,
+            "cash_proxy": true,
+            "driver": "sleeve_gate",
+            "signal_kind": "ma_distance",
+            "text": "SHY (iShares 1-3y US Treasury (sleeve cash floor)) enters at 10.0% of NAV: the cash proxy takes the whole sleeve while the sleeve-breadth gate is on."
+          },
           {
             "sleeve": "C",
             "etf": "CIBR",
@@ -817,8 +908,9 @@
             "n": 25,
             "cut": null,
             "cash_proxy": false,
+            "driver": "sleeve_gate",
             "signal_kind": "ma_distance",
-            "text": "CIBR (First Trust Cybersecurity) exits from 2.0% of NAV: +21.5% \u2192 +28.4% against its 200-day average, rank 3 \u2192 2 of 25."
+            "text": "CIBR (First Trust Cybersecurity) exits from 2.0% of NAV: the sleeve-breadth gate is on, so every holding exits regardless of rank."
           },
           {
             "sleeve": "C",
@@ -838,8 +930,9 @@
             "n": 25,
             "cut": null,
             "cash_proxy": false,
+            "driver": "sleeve_gate",
             "signal_kind": "ma_distance",
-            "text": "SKYY (First Trust Cloud Computing) exits from 2.0% of NAV: +21.7% \u2192 +23.8% against its 200-day average, rank 2 \u2192 3 of 25."
+            "text": "SKYY (First Trust Cloud Computing) exits from 2.0% of NAV: the sleeve-breadth gate is on, so every holding exits regardless of rank."
           },
           {
             "sleeve": "C",
@@ -859,8 +952,9 @@
             "n": 25,
             "cut": null,
             "cash_proxy": false,
+            "driver": "sleeve_gate",
             "signal_kind": "ma_distance",
-            "text": "XBI (SPDR S&P Biotech (eq-weight)) exits from 2.0% of NAV: +14.8% \u2192 +12.8% against its 200-day average, rank 4 of 25."
+            "text": "XBI (SPDR S&P Biotech (eq-weight)) exits from 2.0% of NAV: the sleeve-breadth gate is on, so every holding exits regardless of rank."
           },
           {
             "sleeve": "C",
@@ -880,8 +974,9 @@
             "n": 25,
             "cut": null,
             "cash_proxy": false,
+            "driver": "sleeve_gate",
             "signal_kind": "ma_distance",
-            "text": "ARKG (ARK Genomic Revolution) exits from 2.0% of NAV: +34.9% \u2192 +40.6% against its 200-day average, rank 1 of 25."
+            "text": "ARKG (ARK Genomic Revolution) exits from 2.0% of NAV: the sleeve-breadth gate is on, so every holding exits regardless of rank."
           },
           {
             "sleeve": "C",
@@ -901,8 +996,9 @@
             "n": 25,
             "cut": "out",
             "cash_proxy": false,
+            "driver": "sleeve_gate",
             "signal_kind": "ma_distance",
-            "text": "COPX (Global X Copper Miners) exits from 2.0% of NAV: +9.3% \u2192 +3.4% against its 200-day average, rank 5 \u2192 7 of 25, out of the top 5."
+            "text": "COPX (Global X Copper Miners) exits from 2.0% of NAV: the sleeve-breadth gate is on, so every holding exits regardless of rank."
           }
         ]
       },
@@ -916,6 +1012,7 @@
         "n": 5,
         "heading": "Sleeve D \u00b7 Europe sectors \u00b7 ranks 5 on share of constituents above their 200-day average, holds the top 3",
         "story": "3 smaller resizes under 0.5pp of NAV follow the signal.",
+        "gate": null,
         "moves": [
           {
             "sleeve": "D",
@@ -935,6 +1032,7 @@
             "n": 5,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "breadth",
             "text": "EXV1 (STOXX Europe 600 Banks) 7.8% \u2192 8.1% of NAV (+0.3pp): breadth 92.5% \u2192 93.9%, rank 1 of 5."
           },
@@ -956,6 +1054,7 @@
             "n": 5,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "breadth",
             "text": "EXV3 (STOXX Europe 600 Technology) 5.7% \u2192 5.5% of NAV (-0.2pp): breadth 67.9% \u2192 64.1%, rank 3 of 5."
           },
@@ -977,6 +1076,7 @@
             "n": 5,
             "cut": null,
             "cash_proxy": false,
+            "driver": "signal",
             "signal_kind": "breadth",
             "text": "EXH1 (STOXX Europe 600 Oil & Gas) 6.5% \u2192 6.4% of NAV (-0.1pp): breadth 78.1% \u2192 75.0%, rank 2 of 5."
           }
@@ -992,8 +1092,8 @@
     }
   },
   "week": {
-    "text": "Week Fri 11 Sep 2026 close \u2192 Wed 16 Sep 2026 close: the blend returned -0.86% against SPY -1.35%. By sleeve: Sleeve C +0.14pp (+1.42% at 10% of NAV), Sleeve B -0.26pp (-1.06% at 25% of NAV), Sleeve A -0.36pp (-1.02% at 35% of NAV), Sleeve D -0.37pp (-1.84% at 20% of NAV). Largest contributors: EXH1.DE (STOXX Europe 600 Oil & Gas) +0.08pp (+1.3% at 6.5%); ARKG (ARK Genomic Revolution) +0.04pp (+2.2% at 2.0%); SOXX (iShares Semiconductors) +0.04pp (+1.0% at 4.4%). Largest detractors: XLF (iShares S&P 500 Financials) -0.17pp (-1.9% at 8.6%); XLE (iShares S&P 500 Energy) -0.10pp (-0.8% at 12.4%); EXV1.DE (STOXX Europe 600 Banks) -0.07pp (-0.9% at 7.8%). Holding contributions are weight \u00d7 return from the Mon 14 Sep 2026 close to the Wed 16 Sep 2026 close, 22 of 23 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 35.3% above the 50-day average (-3.8pp on the week).",
-    "headline": "Blend -0.86% \u00b7 SPY -1.35% \u00b7 Fri 11 Sep 2026 \u2192 Wed 16 Sep 2026 close",
+    "text": "Week Fri 11 Sep 2026 close \u2192 Thu 17 Sep 2026 close: the blend returned +0.07% against SPY -0.22%. By sleeve: Sleeve C +0.14pp (+1.42% at 10% of NAV), Sleeve B -0.26pp (-1.06% at 25% of NAV), Sleeve A -0.36pp (-1.02% at 35% of NAV), Sleeve D -0.37pp (-1.84% at 20% of NAV). Largest contributors: ARKG (ARK Genomic Revolution) +0.20pp (+10.2% at 2.0%); SOXX (iShares Semiconductors) +0.19pp (+4.4% at 4.4%); EXV1.DE (STOXX Europe 600 Banks) +0.05pp (+0.7% at 7.8%). Largest detractors: XLF (iShares S&P 500 Financials) -0.17pp (-2.0% at 8.6%); DBC (Broad Commodities) -0.02pp (-0.3% at 8.2%); IJR (S&P 600 (US small)) -0.02pp (-0.9% at 2.4%). Holding contributions are weight \u00d7 return from the Mon 14 Sep 2026 close to the Thu 17 Sep 2026 close, 22 of 23 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 35.3% above the 50-day average (-3.8pp on the week).",
+    "headline": "Blend +0.07% \u00b7 SPY -0.22% \u00b7 Fri 11 Sep 2026 \u2192 Thu 17 Sep 2026 close",
     "lines": [
       {
         "label": "By sleeve",
@@ -1001,39 +1101,30 @@
       },
       {
         "label": "Helped",
-        "text": "STOXX Europe 600 Oil & Gas +0.08pp (+1.3%) \u00b7 ARK Genomic Revolution +0.04pp (+2.2%) \u00b7 iShares Semiconductors +0.04pp (+1.0%)"
+        "text": "ARK Genomic Revolution +0.20pp (+10.2%) \u00b7 iShares Semiconductors +0.19pp (+4.4%) \u00b7 STOXX Europe 600 Banks +0.05pp (+0.7%)"
       },
       {
         "label": "Hurt",
-        "text": "iShares S&P 500 Financials -0.17pp (-1.9%) \u00b7 iShares S&P 500 Energy -0.10pp (-0.8%) \u00b7 STOXX Europe 600 Banks -0.07pp (-0.9%)"
+        "text": "iShares S&P 500 Financials -0.17pp (-2.0%) \u00b7 Broad Commodities -0.02pp (-0.3%) \u00b7 S&P 600 (US small) -0.02pp (-0.9%)"
       },
       {
         "label": "Regime",
         "text": "RISK_ON since Tue 14 Apr 2026 \u00b7 S&P 500 breadth 35.3% (-3.8pp on the week)"
       }
     ],
-    "basis": "Holding contributions are weight \u00d7 return from the Mon 14 Sep 2026 close to the Wed 16 Sep 2026 close, 22 of 23 holdings priced from the one-year price panel.",
+    "basis": "Holding contributions are weight \u00d7 return from the Mon 14 Sep 2026 close to the Thu 17 Sep 2026 close, 22 of 23 holdings priced from the one-year price panel.",
     "start": "2026-09-11",
-    "end": "2026-09-16",
-    "blend_return": -0.008552922408656793,
-    "spy_return": -0.013476383618997723,
+    "end": "2026-09-17",
+    "blend_return": 0.0007033864042758076,
+    "spy_return": -0.0022242574905141366,
     "holdings": [
-      {
-        "etf": "EXH1",
-        "traded": "EXH1.DE",
-        "sleeve": "D",
-        "weight": 0.06548000000000001,
-        "ret": 0.012733142037302692,
-        "contrib": 0.0008337661406025804,
-        "from": "2026-09-14"
-      },
       {
         "etf": "ARKG",
         "traded": "ARKG",
         "sleeve": "C",
         "weight": 0.020000000000000004,
-        "ret": 0.022435897435897578,
-        "contrib": 0.00044871794871795164,
+        "ret": 0.10235042735042743,
+        "contrib": 0.002047008547008549,
         "from": "2026-09-14"
       },
       {
@@ -1041,26 +1132,26 @@
         "traded": "SOXX",
         "sleeve": "A",
         "weight": 0.043995,
-        "ret": 0.010058338362502584,
-        "contrib": 0.00044251659625830115,
+        "ret": 0.0442566887950111,
+        "contrib": 0.0019470730235365134,
         "from": "2026-09-14"
       },
       {
-        "etf": "CIBR",
-        "traded": "CIBR",
-        "sleeve": "C",
-        "weight": 0.020000000000000004,
-        "ret": 0.0019980019980019303,
-        "contrib": 3.996003996003861e-05,
+        "etf": "EXV1",
+        "traded": "EXV1.DE",
+        "sleeve": "D",
+        "weight": 0.07758000000000001,
+        "ret": 0.007047216349541863,
+        "contrib": 0.0005467230443974578,
         "from": "2026-09-14"
       },
       {
-        "etf": "DBC",
-        "traded": "DBC",
-        "sleeve": "B",
-        "weight": 0.08199999999999999,
-        "ret": 0.0003016591251885359,
-        "contrib": 2.473604826545994e-05,
+        "etf": "EXV3",
+        "traded": "EXV3.DE",
+        "sleeve": "D",
+        "weight": 0.056940000000000004,
+        "ret": 0.009193927731451668,
+        "contrib": 0.000523502245028858,
         "from": "2026-09-14"
       },
       {
@@ -1068,26 +1159,44 @@
         "traded": "XLV",
         "sleeve": "A",
         "weight": 0.06341999999999999,
-        "ret": 0.0,
-        "contrib": 0.0,
+        "ret": 0.005959475566150285,
+        "contrib": 0.00037794994040525105,
         "from": "2026-09-14"
       },
       {
-        "etf": "IDP6",
-        "traded": "IJR",
-        "sleeve": "A",
-        "weight": 0.00035,
-        "ret": -0.009232954545454586,
-        "contrib": -3.231534090909105e-06,
+        "etf": "QQQ",
+        "traded": "QQQ",
+        "sleeve": "B",
+        "weight": 0.032674999999999996,
+        "ret": 0.010857304004512125,
+        "contrib": 0.0003547624083474336,
         "from": "2026-09-14"
       },
       {
-        "etf": "CSP1",
-        "traded": "SPY",
-        "sleeve": "A",
-        "weight": 0.0036049999999999997,
-        "ret": -0.009068208700223401,
-        "contrib": -3.269089236430536e-05,
+        "etf": "CIBR",
+        "traded": "CIBR",
+        "sleeve": "C",
+        "weight": 0.020000000000000004,
+        "ret": 0.01598401598401611,
+        "contrib": 0.00031968031968032223,
+        "from": "2026-09-14"
+      },
+      {
+        "etf": "EXH1",
+        "traded": "EXH1.DE",
+        "sleeve": "D",
+        "weight": 0.06548000000000001,
+        "ret": 0.0035868005738881603,
+        "contrib": 0.00023486370157819677,
+        "from": "2026-09-14"
+      },
+      {
+        "etf": "COPX",
+        "traded": "COPX",
+        "sleeve": "C",
+        "weight": 0.020000000000000004,
+        "ret": 0.011562718990890009,
+        "contrib": 0.00023125437981780022,
         "from": "2026-09-14"
       },
       {
@@ -1095,42 +1204,33 @@
         "traded": "SKYY",
         "sleeve": "C",
         "weight": 0.020000000000000004,
-        "ret": -0.005528255528255532,
-        "contrib": -0.00011056511056511067,
+        "ret": 0.009828009828009687,
+        "contrib": 0.0001965601965601938,
         "from": "2026-09-14"
       },
       {
-        "etf": "VGK",
-        "traded": "VGK",
+        "etf": "EWJ",
+        "traded": "EWJ",
         "sleeve": "B",
-        "weight": 0.017574999999999997,
-        "ret": -0.006724195898240581,
-        "contrib": -0.00011817774291157819,
+        "weight": 0.04267499999999999,
+        "ret": 0.003381840541094361,
+        "contrib": 0.00014432004509120182,
         "from": "2026-09-14"
       },
       {
-        "etf": "EFA",
-        "traded": "EFA",
-        "sleeve": "B",
-        "weight": 0.023174999999999998,
-        "ret": -0.007561436672967825,
-        "contrib": -0.00017523629489602934,
-        "from": "2026-09-14"
-      },
-      {
-        "etf": "IUSP",
-        "traded": "XLRE",
-        "sleeve": "A",
-        "weight": 0.02856,
-        "ret": -0.007189239332096364,
-        "contrib": -0.00020532467532467216,
+        "etf": "XBI",
+        "traded": "XBI",
+        "sleeve": "C",
+        "weight": 0.020000000000000004,
+        "ret": 0.003807106598984644,
+        "contrib": 7.61421319796929e-05,
         "from": "2026-09-14"
       }
     ],
     "notes": [],
     "n_priced": 22,
     "n_held": 23,
-    "as_of": "2026-09-16"
+    "as_of": "2026-09-17"
   },
   "notes": [],
   "basis": "Signals from live_targets.json at the decision close, compared with the previous decision close; week figures from the deployed blend series and the one-year holdings price panel."

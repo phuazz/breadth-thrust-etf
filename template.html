@@ -1515,6 +1515,15 @@
          and it keeps the card itself within the viewport. */
       .prev-card { min-width: 0; }
       .prev-card > table.prev-table { display: block; overflow-x: auto; }
+      /* The commentary's per-sleeve move tables need the same remedy and were
+         not getting it: they are .prev-table too, but they sit in .nf-why, not
+         in a .prev-card, so the selector above never reached them. Measured
+         2026-09-18 at a 390px viewport with the target book expanded — sleeve
+         A's table held its 570px min-content and scrolled the BODY to 602px.
+         check_page.py cannot see this one: the width comes from cell content,
+         not from a declared min-width. Collapsed by default, which is why it
+         survived this long. */
+      .nf-why .nf-why-t { display: block; overflow-x: auto; }
     }
     /* NEXT FILL card (2026-08-23). Full width and leading, because "what is
        coming" is the question the Monitor tab is opened to answer. It is the
