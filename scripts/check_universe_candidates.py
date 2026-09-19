@@ -82,6 +82,10 @@ SIGNAL_GATE_MAX_CORR = 0.85     # Rule 1, weekly signal basis
 OVERLAP_RULE_MAX_CORR = 0.90    # Rule 2, weekly return basis
 MIN_YEARS_HISTORY = 5
 MIN_PAIR_WEEKS = 52
+# Capture-integrity tolerance. The panel spans NYSE, Xetra, Shenzhen and a
+# 24x7 crypto line, so last bars legitimately differ by a few days; a
+# truncated cache is behind by weeks or months, not days.
+STALE_TOL_DAYS = 10
 MA_PERIOD = 200
 PANEL_START = "2018-01-01"
 FX_CACHE = DATA / "ws1_fx_eurusd_cache.parquet"
@@ -248,9 +252,104 @@ def proxy_identity_pairs() -> set[frozenset[str]]:
 # Modes
 # ---------------------------------------------------------------------------
 
+def capture_integrity(panel: pd.DataFrame, wret: pd.DataFrame,
+                      sleeves: dict[str, list[str]]) -> dict:
+    """Refuse to report "no breaches" from a panel that was never captured.
+
+    WS8 (2026-08-05) left this open in terms: the `--audit` sweep "needs a
+    capture-integrity check on its input panel first (a truncated panel reads
+    as 'no breaches')". Every failure mode below is silent in the audit
+    output, because a pair that cannot be measured is simply not printed.
+
+      - a line resolve_universe() produced but the panel never got, or got
+        empty: its pairs vanish;
+      - a column whose own last bar is far behind the panel's newest: its
+        recent overlap collapses and long-history pairs drop below
+        MIN_PAIR_WEEKS;
+      - a pair skipped for want of overlap although BOTH legs individually
+        carry enough history — that is an alignment or truncation bug, not a
+        young line, and it is the exact shape of the WS8 warning.
+
+    Raises on the first and third, and on any empty column: each can hide a
+    breach outright. Staleness is REPORTED, not raised. A line a few weeks
+    behind loses a handful of weekly observations out of several hundred and
+    cannot push a pair below MIN_PAIR_WEEKS, so raising on it would block the
+    audit for something that does not change what the audit can see — and the
+    case where staleness DOES bite is already caught as an alignment failure.
+    A young line with genuinely short history is likewise reported, not
+    raised: that is the legitimate reason to skip a pair.
+    """
+    expected = set(sleeves)
+    got = set(panel.columns)
+    missing = sorted(expected - got)
+    empty = sorted(c for c in got if int(panel[c].notna().sum()) == 0)
+
+    last_bar = {c: panel[c].last_valid_index() for c in got
+                if c not in empty}
+    newest = max(last_bar.values())
+    stale = sorted(
+        (c, str(d.date()), int((newest - d).days))
+        for c, d in last_bar.items() if (newest - d).days > STALE_TOL_DAYS)
+
+    own_weeks = {c: int(wret[c].notna().sum()) for c in wret.columns}
+    cols = list(wret.columns)
+    thin_pairs, alignment_failures = [], []
+    for i, a in enumerate(cols):
+        for b in cols[i + 1:]:
+            n = int(wret[[a, b]].dropna().shape[0])
+            if n >= MIN_PAIR_WEEKS:
+                continue
+            rec = {"a": a, "b": b, "overlap_weeks": n,
+                   "own_weeks_a": own_weeks[a], "own_weeks_b": own_weeks[b]}
+            thin_pairs.append(rec)
+            if (own_weeks[a] >= MIN_PAIR_WEEKS
+                    and own_weeks[b] >= MIN_PAIR_WEEKS):
+                alignment_failures.append(rec)
+
+    report = {
+        "n_lines_expected": len(expected), "n_lines_in_panel": len(got),
+        "missing_lines": missing, "empty_lines": empty,
+        "panel_last_row": str(panel.index.max().date()),
+        "newest_last_bar": str(newest.date()),
+        "stale_tolerance_days": STALE_TOL_DAYS,
+        "stale_lines": [{"line": c, "last_bar": d, "days_behind": n}
+                        for c, d, n in stale],
+        "pairs_skipped_for_thin_overlap": len(thin_pairs),
+        "pairs_skipped_despite_both_legs_long": alignment_failures,
+        "thin_pairs": thin_pairs,
+    }
+    problems = []
+    if missing:
+        problems.append(f"lines resolved but absent from the panel: {missing}")
+    if empty:
+        problems.append(f"lines present but with no observations: {empty}")
+    if alignment_failures:
+        problems.append(
+            f"{len(alignment_failures)} pair(s) skipped for want of overlap "
+            "although both legs individually carry enough history: "
+            + ", ".join(f"{p['a']}~{p['b']}" for p in alignment_failures))
+    if problems:
+        raise RuntimeError(
+            "capture integrity FAILED — the audit would under-report "
+            "breaches:\n  - " + "\n  - ".join(problems))
+
+    report["warnings"] = [
+        f"{c} last bar {d}, {n} days behind {newest.date()}"
+        for c, d, n in stale]
+    for w in report["warnings"]:
+        print(f"  capture integrity WARN — stale line: {w}")
+    return report
+
+
 def audit_incumbents(panel: pd.DataFrame, sleeves: dict[str, list[str]],
                      json_out: Path | None = None) -> int:
     wret = weekly_returns(panel)
+    integrity = capture_integrity(panel, wret, sleeves)
+    print(f"capture integrity OK — {integrity['n_lines_in_panel']} of "
+          f"{integrity['n_lines_expected']} lines, newest bar "
+          f"{integrity['newest_last_bar']}, "
+          f"{integrity['pairs_skipped_for_thin_overlap']} pair(s) skipped on "
+          "short history (none with two long legs)")
     cols = list(wret.columns)
     identity = proxy_identity_pairs()
     breaches = []
@@ -303,6 +402,7 @@ def audit_incumbents(panel: pd.DataFrame, sleeves: dict[str, list[str]],
                        "end": str(panel.index.max().date())},
             "rule": (f"weekly return correlation > {OVERLAP_RULE_MAX_CORR} "
                      "(WS2 2026-07-02, prospective — incumbents never tested)"),
+            "capture_integrity": integrity,
             "n_lines": len(cols),
             "pairs": [{"a": a, "b": b, "corr": round(c, 4),
                        "sleeves_a": sleeves.get(a, []),

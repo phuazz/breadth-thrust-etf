@@ -25,6 +25,8 @@ from check_universe_candidates import (  # noqa: E402
     MA_PERIOD,
     OVERLAP_RULE_MAX_CORR,
     SIGNAL_GATE_MAX_CORR,
+    STALE_TOL_DAYS,
+    capture_integrity,
     pairwise,
     proxy_identity_pairs,
     weekly_returns,
@@ -107,3 +109,81 @@ def test_proxy_identity_pairs_cover_the_known_a_sleeve_duplicates():
                           ("IUSP", "XLRE")):
         assert frozenset({engine, proxy}) in pairs, (
             f"{engine} -> {proxy} is no longer a registry trading proxy")
+
+
+# ---------------------------------------------------------------------------
+# Capture integrity (WS8 reopen condition: "a truncated panel reads as
+# 'no breaches'"). These pin which failures stop the audit and which only
+# annotate it — the distinction is the whole point of the guard.
+# ---------------------------------------------------------------------------
+
+def _panel(cols: dict[str, pd.Series]) -> pd.DataFrame:
+    return pd.DataFrame(cols).sort_index()
+
+
+def _book(n: int = 400, start: str = "2020-01-01") -> pd.DataFrame:
+    return _panel({"AAA": _series(n, start, "C", seed=11),
+                   "BBB": _series(n, start, "C", seed=12)})
+
+
+def test_capture_integrity_passes_a_well_formed_panel():
+    p = _book()
+    rep = capture_integrity(p, weekly_returns(p), {"AAA": ["A"], "BBB": ["B"]})
+    assert rep["n_lines_expected"] == rep["n_lines_in_panel"] == 2
+    assert rep["pairs_skipped_for_thin_overlap"] == 0
+    assert rep["warnings"] == []
+
+
+def test_a_resolved_line_missing_from_the_panel_raises():
+    """The pairs of an absent line vanish from the breach list in silence."""
+    p = _book()
+    sleeves = {"AAA": ["A"], "BBB": ["B"], "CCC": ["C"]}
+    with pytest.raises(RuntimeError, match="absent from the panel"):
+        capture_integrity(p, weekly_returns(p), sleeves)
+
+
+def test_a_present_but_empty_line_raises():
+    p = _book()
+    p["CCC"] = np.nan
+    with pytest.raises(RuntimeError, match="no observations"):
+        capture_integrity(p, weekly_returns(p),
+                          {"AAA": ["A"], "BBB": ["B"], "CCC": ["C"]})
+
+
+def test_truncation_that_starves_a_long_pair_raises():
+    """The WS8 failure mode itself.
+
+    Both legs carry years of their own history, but they are truncated onto
+    disjoint spans, so their overlap falls under MIN_PAIR_WEEKS and the pair
+    is skipped. That is an alignment bug, not a young line, and the audit
+    would silently report one fewer pair.
+    """
+    a = _series(400, "2015-01-01", "C", seed=21)
+    b = _series(400, "2022-01-01", "C", seed=22)
+    p = _panel({"AAA": a, "BBB": b})
+    with pytest.raises(RuntimeError, match="both legs individually carry"):
+        capture_integrity(p, weekly_returns(p), {"AAA": ["A"], "BBB": ["B"]})
+
+
+def test_a_genuinely_young_line_is_reported_not_raised():
+    """A short history is the legitimate reason to skip a pair."""
+    a = _series(400, "2020-01-01", "C", seed=31)
+    b = _series(20, "2020-01-01", "C", seed=32)      # under MIN_PAIR_WEEKS
+    p = _panel({"AAA": a, "BBB": b})
+    rep = capture_integrity(p, weekly_returns(p), {"AAA": ["A"], "BBB": ["B"]})
+    assert rep["pairs_skipped_for_thin_overlap"] == 1
+    assert rep["pairs_skipped_despite_both_legs_long"] == []
+
+
+def test_staleness_warns_and_does_not_raise():
+    """A line weeks behind loses a handful of weekly observations out of
+    hundreds; it cannot push a pair below the floor, so it must not block the
+    audit. It must still be visible — this is the live EEM case."""
+    a = _series(400, "2020-01-01", "C", seed=41)
+    b = _series(400 - 30, "2020-01-01", "C", seed=42)
+    p = _panel({"AAA": a, "BBB": b})
+    days_behind = (a.index.max() - b.index.max()).days
+    assert days_behind > STALE_TOL_DAYS, "fixture must actually be stale"
+    rep = capture_integrity(p, weekly_returns(p), {"AAA": ["A"], "BBB": ["B"]})
+    assert [w["line"] for w in rep["stale_lines"]] == ["BBB"]
+    assert len(rep["warnings"]) == 1 and "BBB" in rep["warnings"][0]
