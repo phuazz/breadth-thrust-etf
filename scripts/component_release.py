@@ -53,6 +53,27 @@ def core_identity(book):
                         key=lambda r: (r["sleeve"], r["etf"]))})
 
 
+def held_sleeves_of(payload):
+    """The sleeves a sealed release records on an authorised HOLD.
+
+    A seal written before 2026-09-19 carries no ``held_sleeves``, and its
+    ``d_ready`` IS that list in lossy form - losslessly so for any book that
+    passed the contract of the day, because that contract admitted a HOLD only
+    for D: ``d_ready`` False means D was held, True means nothing was.
+
+    READ IT RATHER THAN REFUSING IT. Comparing the new key against a legacy
+    payload made every seal predating it fail verification outright, which
+    strips the exemption from any held sleeve and leaves it OBLIGED until the
+    next successful publication writes a fresh seal. That is a false
+    publication debt, undischargeable in the meantime - the exact failure
+    publication_debt was repaired for on 2026-09-16, and the live 2026-09-11
+    seal reproduced it.
+    """
+    if "held_sleeves" in payload:
+        return list(payload["held_sleeves"])
+    return [] if payload.get("d_ready") else ["D"]
+
+
 def validate_book(book, basis, now):
     import pandas as pd
     from venue_calendars import get_calendar as _venue_cal
@@ -335,10 +356,12 @@ def verify(root=ROOT, now=None, committed=False):
     verdict = validate_book(payload["book"], payload["basis"], now)
     if payload["book"]["overlay_decision"] != reader(root / "data/overlay_decision.json"):
         raise ValueError("overlay decision differs from source")
-    # `.get`, not `[...]`: a seal written before a verdict key existed must be
-    # REFUSED, which is what a mismatch already does, rather than raising a
-    # KeyError that reads as a crash in the verifier.
-    if any(payload.get(k) != v for k, v in verdict.items()):
+    # `held_sleeves` is read through held_sleeves_of so a seal predating the key
+    # is TRANSLATED rather than refused; every other key is compared with `.get`
+    # so an absent one is a clean mismatch rather than a KeyError out of the
+    # verifier.
+    if any((held_sleeves_of(payload) if k == "held_sleeves" else payload.get(k)) != v
+           for k, v in verdict.items()):
         raise ValueError("release verdict mismatch")
     if payload["guards"] != ["core"] + (["europe"] if payload["d_ready"] else []):
         raise ValueError("missing scoped guard receipt")

@@ -326,3 +326,64 @@ def test_a_held_sleeves_lines_are_audited_by_risk_only_not_by_the_ranking():
     # check requires a positive weight. Pre-existing, and out of scope here.
     book["lines"][-1].update(target=0.0, delta=0.0)
     assert cr.validate_book(book, basis, NOW)["held_sleeves"] == ["C"]
+
+
+# ---------------------------------------------------------------------------
+# A seal predating `held_sleeves` must be TRANSLATED, not refused (2026-09-19)
+#
+# CAUGHT BY CHECKING, NOT BY THE SUITE. Adding the key to the verdict made
+# every seal written before it fail verification outright - the live
+# 2026-09-11 release went from verifying to "release verdict mismatch" - which
+# strips the exemption from any held sleeve and leaves it OBLIGED until the
+# next successful publication writes a fresh seal. That is a false publication
+# debt, undischargeable in the meantime, and it is the exact failure
+# publication_debt was repaired for on 2026-09-16.
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("payload,expected", [
+    ({"d_ready": False}, ["D"]),                     # legacy: D was held
+    ({"d_ready": True}, []),                         # legacy: nothing held
+    ({"d_ready": True, "held_sleeves": []}, []),
+    ({"d_ready": True, "held_sleeves": ["C"]}, ["C"]),
+    ({"d_ready": False, "held_sleeves": ["C", "D"]}, ["C", "D"]),
+])
+def test_a_legacy_seal_reads_its_held_sleeves_off_d_ready(payload, expected):
+    """Lossless for any book that passed the contract of the day: it admitted
+    a HOLD only for D, so d_ready fully determined which sleeve was held."""
+    assert cr.held_sleeves_of(payload) == expected
+
+
+def test_a_sealed_release_without_the_key_still_verifies(tmp_path, monkeypatch):
+    """End to end, on a real seal with the key removed."""
+    real_run = subprocess.run
+    install(tmp_path, monkeypatch)          # D holds in this fixture
+    monkeypatch.setattr(cr.subprocess, "run", real_run)
+
+    manifest = tmp_path / cr.MANIFEST
+    payload = cr.read(manifest)
+    assert payload["held_sleeves"] == ["D"], "the fixture seals a held D"
+    legacy = {k: v for k, v in payload.items() if k != "held_sleeves"}
+    legacy["identity"] = cr.digest({k: v for k, v in legacy.items() if k != "identity"})
+    cr.write(manifest, legacy)
+
+    for args in (["init", "-q"], ["config", "user.name", "Fixture"],
+                 ["config", "user.email", "fixture@example.invalid"],
+                 ["add", "."], ["commit", "-qm", "Legacy release"]):
+        real_run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+    assert cr.verify(tmp_path, NOW, committed=True)["anchor"] == "2026-09-11"
+
+
+def test_a_legacy_seal_still_authorises_the_hold_it_recorded(tmp_path, monkeypatch):
+    """The point of the translation: the held sleeve keeps its exemption."""
+    import publication_debt as pd_
+    release = {"verified": True, "anchor": "2026-09-11",
+               "d_ready": False,
+               "held_sleeves": cr.held_sleeves_of({"d_ready": False})}
+    ok, why = pd_.hold_is_authorised(
+        {"sleeve": "D", "status": "HOLD", "reason": "vendor tail incomplete"},
+        "2026-09-11", release, None)
+    assert ok is True, why
+    # And it authorises nothing it did not record.
+    ok_c, why_c = pd_.hold_is_authorised(
+        {"sleeve": "C", "status": "HOLD", "reason": "coverage floor"},
+        "2026-09-11", release, None)
+    assert ok_c is False and "sleeve C" in why_c

@@ -533,12 +533,13 @@ def release_authorisation(repo_root: Path, now: datetime | None = None) -> dict:
         out.update(verified=True, anchor=payload.get("anchor"),
                    d_ready=payload.get("d_ready"),
                    # Which sleeves the verified release records on an
-                   # authorised HOLD (2026-09-19). `.get` with a list default:
-                   # a seal written before this key existed carries no
-                   # authorisation for anything, and the sleeve stays OBLIGED,
-                   # which is the conservative direction this module takes
-                   # everywhere else.
-                   held_sleeves=payload.get("held_sleeves") or [],
+                   # authorised HOLD (2026-09-19). Through the release module's
+                   # own reader, so a seal predating the key is translated from
+                   # `d_ready` rather than silently authorising nothing - which
+                   # would strip the exemption from a held sleeve and leave it
+                   # OBLIGED until the next publication, a false debt of
+                   # exactly the kind this module exists to refuse.
+                   held_sleeves=component_release.held_sleeves_of(payload),
                    identity=payload.get("identity"),
                    verified_at=sealed.isoformat())
     except Exception as exc:  # noqa: BLE001 - an unverifiable release is a no
