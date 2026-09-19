@@ -59,9 +59,15 @@ def test_product_id_matches_the_swept_value(symbol):
 
 
 def test_product_ids_are_unique_across_the_whole_registry():
-    """Two keys pointing at one fund would make their panels identical."""
+    """Two keys pointing at one fund would make their panels identical.
+
+    Across the members that HAVE a panel: WS21's BTC-USD entry names a traded
+    fund and carries no product_id, deliberately — see test_display_ticker.
+    """
+    from etf_registry import constituent_panels
+
     seen: dict[str, str] = {}
-    for symbol, cfg in ETF_REGISTRY.items():
+    for symbol, cfg in constituent_panels().items():
         pid = cfg["product_id"]
         assert pid not in seen, (
             f"{symbol} and {seen[pid]} share product_id {pid}"

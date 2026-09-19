@@ -84,9 +84,21 @@ def test_the_candidate_supersectors_keep_their_own_label():
 
 
 def test_the_split_accounts_for_every_registry_panel():
+    """Over the registry members that ARE panels.
+
+    `build()` enumerates data/constituents_*.json, so only a member with a
+    roster ever reaches the page. WS21's BTC-USD entry has no roster — it names
+    the fund the sleeve C Bitcoin line trades — so counting it here would assert
+    a row the page cannot render, and would label it `monitored` when the line
+    is in fact traded. `constituent_panels` is the declared filter and
+    test_display_ticker pins its membership at exactly {BTC-USD}.
+    """
     from collections import Counter
-    counts = Counter(bda._role(e) for e in ETF_REGISTRY)
+
+    from etf_registry import constituent_panels
+    panels = constituent_panels()
+    counts = Counter(bda._role(e) for e in panels)
     assert counts["deployed"] == 19
     assert counts["candidate"] == 14
     assert counts["monitored"] == 5
-    assert sum(counts.values()) == len(ETF_REGISTRY) == 38
+    assert sum(counts.values()) == len(panels) == 38

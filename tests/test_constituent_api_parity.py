@@ -123,10 +123,16 @@ def test_exchange_suffixes_resolve_identically(symbol, stamp):
 
 
 def test_every_registry_etf_builds_valid_request_params():
-    """Params must be derivable from the registry alone, for both regions."""
-    from etf_registry import ETF_REGISTRY
+    """Params must be derivable from the registry alone, for both regions.
 
-    for symbol, cfg in ETF_REGISTRY.items():
+    Over the members with a constituent panel: WS21 added BTC-USD, a key that
+    names a traded fund (IBIT) and has no roster to fetch. `constituent_panels`
+    is the declared filter, and test_display_ticker pins its membership so a
+    future entry cannot slip out of this contract unnoticed.
+    """
+    from etf_registry import constituent_panels
+
+    for symbol, cfg in constituent_panels().items():
         params = fc.product_data_params(date(2026, 7, 10), cfg)
         assert params["portfolioId"] == str(cfg["product_id"])
         assert params["asOfDate"] == "20260710"

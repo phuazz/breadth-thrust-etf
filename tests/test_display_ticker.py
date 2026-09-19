@@ -73,8 +73,34 @@ def test_us_listed_proxies_are_not_mistaken_for_holdings():
 
 def test_unknown_symbols_pass_through():
     """Most held tickers (SPY, QQQ, thematics) are not registry members."""
-    for key in ("SPY", "QQQ", "EEM", "SHY", "ARKG", "BTC-USD"):
+    for key in ("SPY", "QQQ", "EEM", "SHY", "ARKG"):
         assert display_ticker(key) == key
+
+
+def test_the_bitcoin_line_prints_the_fund_it_trades():
+    """RE-PINNED 2026-09-19 (WS21). BTC-USD used to sit in the list above as a
+    non-member that passed through unchanged, which printed a spot pair where
+    the book holds a fund. It is now a registry member whose key is a SERIES
+    name, the second kind of key that is not a traded symbol, and it resolves
+    through the same rule as EXH3 rather than a second one."""
+    assert display_ticker("BTC-USD") == "IBIT"
+    assert ETF_REGISTRY["BTC-USD"]["yfinance_trading_proxy"] == "IBIT"
+    assert ETF_REGISTRY["BTC-USD"]["name"] == "iShares Bitcoin Trust ETF"
+
+
+def test_the_bitcoin_entry_declares_that_it_has_no_constituent_panel():
+    """The registry's other 38 members each have an iShares roster behind
+    them. This one has none and never will, so the absence is declared — and
+    the declaration is what the roster-facing guards filter on, rather than a
+    missing product_id that could equally be an oversight."""
+    from etf_registry import constituent_panels, has_constituent_panel
+    assert has_constituent_panel("BTC-USD") is False
+    assert "product_id" not in ETF_REGISTRY["BTC-USD"]
+    panel_less = {k for k in ETF_REGISTRY if not has_constituent_panel(k)}
+    assert panel_less == {"BTC-USD"}, (
+        "a new panel-less member would silently leave every roster contract; "
+        "add it here deliberately or give it a panel")
+    assert set(constituent_panels()) == set(ETF_REGISTRY) - panel_less
 
 
 def test_no_xetr_member_would_resolve_by_suffix_appending():

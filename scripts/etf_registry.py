@@ -791,7 +791,57 @@ ETF_REGISTRY: dict[str, dict] = {
         "trading_calendar": "XETR",
         "yfinance_trading_proxy": "EXV9.DE",
     },
+    # -----------------------------------------------------------------------
+    # WS21 (2026-09-19) — the sleeve C Bitcoin line names the fund it trades.
+    #
+    # THE FIRST PANEL-LESS ENTRY, and the reason the field list at the top of
+    # this file no longer describes every member. Sleeve C's Bitcoin line is
+    # keyed `BTC-USD` in the universe, the cache and every published JSON, but
+    # what the book actually holds is IBIT. Printing `BTC-USD` on a holdings
+    # table names an instrument the book does not own — the same reader-facing
+    # defect as EXH3, arriving from the other direction: there the key was a
+    # panel id for a fund with a different ticker, here it is a series name for
+    # a fund with a different ticker. One mechanism answers both.
+    #
+    # There is no constituent panel behind this key and there never will be —
+    # a spot bitcoin trust has no roster to fetch, no breadth to compute and no
+    # product page this pipeline reads. `constituent_panel: False` says so, and
+    # `has_constituent_panel()` below is what the roster-facing guards filter
+    # on, so the absence is declared rather than inferred from a missing field.
+    # NO product_id is recorded: IBIT has one, but inventing or guessing it
+    # here would hand the constituent fetcher a fund it must never fetch.
+    #
+    # Independent of BTE_C_BTC_BASIS. This entry changes what surfaces PRINT
+    # and which symbol the price exporter fetches for evidence; it does not
+    # touch what sleeve C ranks on, which stays the incumbent spot proxy until
+    # the WS7 verdict (see scripts/btc_basis.py).
+    "BTC-USD": {
+        "symbol": "BTC-USD",
+        "name": "iShares Bitcoin Trust ETF",
+        "constituent_panel": False,
+        "trading_calendar": "crypto_24x7",
+        "yfinance_trading_proxy": "IBIT",
+    },
 }
+
+
+def has_constituent_panel(symbol: str) -> bool:
+    """Does this registry key have an iShares roster behind it?
+
+    True for every member the constituent fetcher, the breadth panels and the
+    data-audit page are about. False for a key that names a traded line and
+    nothing else — see the BTC-USD entry. Guards that sweep the registry for
+    roster properties (product ids, endpoint params, panel roles) filter on
+    this, so a panel-less member cannot silently escape a contract that DOES
+    apply to it.
+    """
+    return bool((ETF_REGISTRY.get(str(symbol).upper()) or {}).get(
+        "constituent_panel", True))
+
+
+def constituent_panels() -> dict[str, dict]:
+    """``ETF_REGISTRY`` restricted to members with a constituent panel."""
+    return {k: v for k, v in ETF_REGISTRY.items() if has_constituent_panel(k)}
 
 # Supersectors registered above but NOT part of the deployed Europe sleeve.
 # Strategy engines iterate their own explicit lists, so adding a registry
@@ -819,10 +869,18 @@ def get_etf(symbol: str) -> dict:
     return ETF_REGISTRY[sym]
 
 
-# The exchange whose members' registry keys are internal panel ids rather than
+# The calendars whose members' registry keys are internal ids rather than
 # tradeable symbols. Named rather than inlined so the rule below reads as a
-# statement about Xetra, not as a magic string.
-_PANEL_ID_CALENDAR = "XETR"
+# statement about two venue classes, not as a pair of magic strings.
+#
+#   XETR         the Europe sleeve: the key is a panel id (EXH3 -> EXH4.DE).
+#   crypto_24x7  the sleeve C Bitcoin line: the key is a SERIES name, the
+#                spot pair the sleeve ranks on, and the book holds IBIT
+#                (WS21, 2026-09-19).
+#
+# Different reasons, identical consequence — printing the key names something
+# the book does not own — so one rule, not two.
+_PANEL_ID_CALENDARS = frozenset({"XETR", "crypto_24x7"})
 
 
 def display_ticker(panel_key: str) -> str:
@@ -834,12 +892,13 @@ def display_ticker(panel_key: str) -> str:
     ``EXH3.DE`` is a different fund in a different sector. Printing the key on
     a holdings table therefore names a fund the book does not own. That is the
     reader-facing half of the defect ``check_pair_integrity.py`` guards the
-    pricing half of.
+    pricing half of. ``BTC-USD`` is the same defect from the other direction:
+    a series name standing where the traded fund, IBIT, belongs.
 
     Everywhere else the key IS the traded line and the proxy is a price source,
     not a holding: sleeve A holds the S&P 500 sector UCITS (``IUFS``) and prices
     them off the US-listed SPDRs (``XLF``). Swapping those would be a new error,
-    so the rewrite is confined to the panel-id calendar.
+    so the rewrite is confined to the panel-id calendars.
 
     Returns the symbol without its exchange suffix — surfaces that need the
     fully-qualified symbol for a price lookup want ``yfinance_trading_proxy``
@@ -847,18 +906,20 @@ def display_ticker(panel_key: str) -> str:
 
     >>> display_ticker("EXH3")
     'EXH4'
+    >>> display_ticker("BTC-USD")
+    'IBIT'
     >>> display_ticker("IUFS")
     'IUFS'
     >>> display_ticker("SPY")          # not in the registry at all
     'SPY'
     """
     entry = ETF_REGISTRY.get(panel_key)
-    if entry is None or entry.get("trading_calendar") != _PANEL_ID_CALENDAR:
+    if entry is None or entry.get("trading_calendar") not in _PANEL_ID_CALENDARS:
         return panel_key
     proxy = entry.get("yfinance_trading_proxy")
     if not proxy:
         raise KeyError(
-            f"{panel_key} is a {_PANEL_ID_CALENDAR} entry with no "
+            f"{panel_key} is a {entry.get('trading_calendar')} entry with no "
             f"yfinance_trading_proxy; its traded ticker cannot be resolved and "
             f"must not be guessed by appending an exchange suffix to the key"
         )
