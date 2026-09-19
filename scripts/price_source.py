@@ -146,8 +146,35 @@ def write_cache_source(cache_path: Path, source: str,
         # than guessed at.
         if report.get("tail_heal"):
             payload["tail_heal"] = report["tail_heal"]
+        # A column whose CONSTRUCTION differs from the vendor download it came
+        # from (WS21, 2026-09-19). The source fields above answer "which feed",
+        # which is not the same question: sleeve C's Bitcoin line under
+        # BTE_C_BTC_BASIS=ibit is a frozen proxy segment spliced onto IBIT, and
+        # a rebuild changes every populated cell from the cut-over onward. Named
+        # here so price_revisions classifies that as a basis change rather than
+        # warning of a 430-cell vendor retraction.
+        if report.get("column_basis"):
+            payload["column_basis"] = dict(report["column_basis"])
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
+
+
+def read_cache_column_basis(cache_path: Path) -> dict[str, str]:
+    """``{column: declared basis}`` from a cache's sidecar, or ``{}``.
+
+    An absent entry means the column carries whatever the feed served, which is
+    how every cache written before 2026-09-19 reads.
+    """
+    path = sidecar_path(cache_path)
+    if not path.exists():
+        return {}
+    try:
+        blob = json.loads(path.read_text(encoding="utf-8")).get("column_basis")
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return {}
+    if not isinstance(blob, dict):
+        return {}
+    return {str(k): str(v) for k, v in blob.items()}
 
 
 def cache_matches(recorded: str | None, effective: str) -> bool:

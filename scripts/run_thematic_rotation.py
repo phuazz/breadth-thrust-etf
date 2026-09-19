@@ -81,6 +81,7 @@ EFFECTIVE_PRICE_SOURCE: str | None = None
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 from rebalance_calendar import engine_rebalance_dates  # noqa: E402
 from rebalance_records import latest_rebalance_record  # noqa: E402
+import btc_basis  # noqa: E402
 import price_source as price_source_mod  # noqa: E402
 import vendor_tail  # noqa: E402
 from nyse_sessions import (  # noqa: E402
@@ -520,6 +521,56 @@ def _fx_convert_to_usd(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _splice_btc_column(df: pd.DataFrame) -> pd.DataFrame:
+    """Replace the fetched ``IBIT`` column with the composite ``BTC-USD`` one.
+
+    WS21 §4, staged behind ``BTE_C_BTC_BASIS=ibit``. The frozen proxy segment
+    carries the series to 2024-01-11 inclusive; from there it is
+    ``S_c * IBIT_t / IBIT_c``. The traded symbol does not survive as a column,
+    so no downstream surface can start ranking or pricing two Bitcoin lines.
+
+    Three things are checked rather than assumed, because each would be silent:
+    the cut-over value is preserved exactly; the live segment keeps every
+    session IBIT was priced for; and any frozen session the frame's calendar
+    does not carry is counted out loud (the frame takes its calendar from the
+    cash proxy, and history silently lost at the join would move the warm-up).
+    """
+    if btc_basis.TRADED not in df.columns:
+        raise RuntimeError(
+            f"{btc_basis.ENV_VAR}=ibit but the frame has no "
+            f"{btc_basis.TRADED} column to splice onto")
+    traded = df[btc_basis.TRADED].dropna()
+    column, _tag = btc_basis.build_column(traded)
+    cut = pd.Timestamp(btc_basis.CUTOVER)
+    frozen_missing = int(column.loc[column.index <= cut].index.difference(
+        df.index).size)
+    if frozen_missing:
+        print(f"  WARN: {frozen_missing} frozen pre-cut-over session(s) are "
+              f"outside this frame's calendar and were dropped at the join",
+              flush=True)
+    # Keep the traded symbol's SLOT, not just its values: the cache is written
+    # from this frame and an incumbent-basis cache has BTC-USD in that column
+    # position, so preserving it keeps the two frames diffable column by column.
+    order = [btc_basis.SPOT_KEY if c == btc_basis.TRADED else c
+             for c in df.columns]
+    out = df.drop(columns=[btc_basis.TRADED])
+    out[btc_basis.SPOT_KEY] = column.reindex(out.index)
+    out = out.reindex(columns=order)
+    if cut in out.index and not np.isclose(
+            float(out.at[cut, btc_basis.SPOT_KEY]), float(column.loc[cut]),
+            rtol=0.0, atol=0.0):
+        raise RuntimeError("the cut-over value was not preserved by the join")
+    live = traded.loc[traded.index > cut].index.intersection(out.index)
+    if len(live) and out.loc[live, btc_basis.SPOT_KEY].isna().any():
+        raise RuntimeError(
+            f"the spliced column is blank on sessions {btc_basis.TRADED} was "
+            f"priced for")
+    print(f"  {btc_basis.SPOT_KEY}: frozen proxy to {btc_basis.CUTOVER}, "
+          f"{btc_basis.TRADED} after ({int(len(live))} live session(s))",
+          flush=True)
+    return out
+
+
 def download_prices() -> pd.DataFrame:
     """Download adjusted-close prices for the thematic universe + cash proxy.
 
@@ -529,6 +580,20 @@ def download_prices() -> pd.DataFrame:
     rule could serve a days-old panel to an ad-hoc midweek run.
     """
     needed = TICKERS + [CASH_PROXY]
+    # WS21 (2026-09-19), staged and inert unless BTE_C_BTC_BASIS=ibit. The
+    # ENGINE's column set is ``needed`` on either basis — the Bitcoin line keeps
+    # its BTC-USD key so history labels do not move — but the VENDOR is asked
+    # for a different symbol under the flag: IBIT replaces the spot ticker in
+    # the download list, and so in the Norgate selection, the missing-column
+    # recovery and the tail heal, none of which need to know why. The composite
+    # column is built from IBIT further down and IBIT never survives as a
+    # column of its own.
+    btc_declared = btc_basis.declared_basis()      # None under the incumbent
+    fetch_names = btc_basis.fetch_list(needed)
+    if btc_declared:
+        print(f"  {btc_basis.ENV_VAR}=ibit — sleeve C ranks Bitcoin on "
+              f"{btc_basis.TRADED} from {btc_basis.CUTOVER}, frozen proxy "
+              f"before ({btc_declared})", flush=True)
     current_through = last_completed_session(datetime.now(timezone.utc))
     # Resolved FIRST, so a request for Norgate that cannot be met fails here
     # rather than after a silent fallback (price_source.py, 2026-09-03).
@@ -563,32 +628,43 @@ def download_prices() -> pd.DataFrame:
               and vendor_tail.has_required_session(cached, needed, current_through)):
             # A current cache built from the OTHER source is not this run's
             # cache (WS19 found the Norgate switch vacuous for this reason).
-            if price_source_mod.cache_matches(cache_source, price_source):
+            # The same rule for the Bitcoin column's CONSTRUCTION (WS21): a
+            # cache whose BTC-USD column was spliced onto IBIT is not an
+            # incumbent-basis cache, and vice versa, however current it is.
+            cache_btc = price_source_mod.read_cache_column_basis(
+                PRICE_CACHE).get(btc_basis.SPOT_KEY)
+            if not price_source_mod.cache_matches(cache_source, price_source):
+                print(f"  Cache is current but was built from "
+                      f"{cache_source or 'yfinance (unrecorded)'}; this run is on "
+                      f"{price_source} — refreshing")
+            elif cache_btc != btc_declared:
+                print(f"  Cache is current but its {btc_basis.SPOT_KEY} column "
+                      f"is on basis {cache_btc or 'incumbent'}; this run is on "
+                      f"{btc_declared or 'incumbent'} — refreshing")
+            else:
                 print(f"  Using cached prices ({cached.index.min().date()} -> "
                       f"{cache_end}, current through {current_through}, "
                       f"built from {cache_source or 'yfinance (unrecorded)'})")
                 return cached[needed]
-            print(f"  Cache is current but was built from "
-                  f"{cache_source or 'yfinance (unrecorded)'}; this run is on "
-                  f"{price_source} — refreshing")
         else:
             print(f"  Cache's least current column ends {cache_end} < last "
                   f"completed session {current_through}, or universe "
                   f"expanded — refreshing")
 
-    print(f"  Downloading {len(needed)} tickers from yfinance "
+    print(f"  Downloading {len(fetch_names)} tickers from yfinance "
           f"({START_DATE} -> {END_DATE})"
           + (" as the base frame; Norgate column selection follows"
              if price_source == "norgate" else "") + " ...", flush=True)
-    raw = yf.download(needed, start=START_DATE, end=END_DATE, auto_adjust=True,
-                      progress=False, threads=True, group_by="ticker")
+    raw = yf.download(fetch_names, start=START_DATE, end=END_DATE,
+                      auto_adjust=True, progress=False, threads=True,
+                      group_by="ticker")
     closes = {}
-    for t in needed:
+    for t in fetch_names:
         if (t, "Close") in raw.columns:
             closes[t] = raw[(t, "Close")]
         elif "Close" in raw.columns:
             closes[t] = raw["Close"]
-    df = pd.DataFrame(closes).reindex(columns=needed)
+    df = pd.DataFrame(closes).reindex(columns=fetch_names)
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.sort_index()
 
@@ -612,7 +688,13 @@ def download_prices() -> pd.DataFrame:
         # the service answers; a strict run must also have TAKEN every US
         # line (the Shenzhen and crypto lines are never expected), or it
         # would record a yfinance frame as Norgate-built.
-        price_source_mod.assert_norgate_complete(_ngrep, needed, "Strategy C")
+        # Measured against the FETCH list, not the engine's column set. That
+        # inverts correctly under WS21 without a special case: the spot ticker
+        # is never a plain US listing and was never expected, while IBIT is one
+        # and must be TAKEN — otherwise a Yahoo frame would be recorded as
+        # Norgate-built (registration §8.3). Unresolved goes 2 -> 1 accordingly.
+        price_source_mod.assert_norgate_complete(_ngrep, fetch_names,
+                                                 "Strategy C")
 
     # ----- Blank tail cells (2026-09-06) -----
     # The batch can leave one NAME's newest cell empty on a row that exists:
@@ -623,12 +705,12 @@ def download_prices() -> pd.DataFrame:
     # stays partial, and live_targets' coverage floor makes that a HOLD.
     # Norgate-owned columns are never touched (WS19b: whole column or none).
     df, _missing = vendor_tail.recover_missing_columns(
-        df, needed, exclude=(_ngrep or {}).get("replaced", []))
+        df, fetch_names, exclude=(_ngrep or {}).get("replaced", []))
     if _missing:
         print(f"  Missing required-name recovery: {_missing}", flush=True)
     df = df.loc[START_DATE:END_DATE]
     df, _heal = vendor_tail.heal_hollow_tail(
-        df, needed, through=current_through,
+        df, fetch_names, through=current_through,
         exclude=(_ngrep or {}).get("replaced", []))
     vendor_tail.report_heal(_heal, label="Strategy C")
 
@@ -646,6 +728,15 @@ def download_prices() -> pd.DataFrame:
     # the expense-ratio drag, so the drag compounds on USD prices.
     df = _fx_convert_to_usd(df)
     df = _apply_expense_ratio_drag(df)
+    # WS21: build the composite Bitcoin column AFTER the crypto reindex, the FX
+    # pass and the drag, and deliberately so. Each of those three loops keys off
+    # a UNIVERSE entry that is not in the frame at this point — the spot ticker
+    # never arrived and IBIT is not a UNIVERSE key — so the spliced column skips
+    # all three by construction rather than by three separate exemptions. The
+    # frozen segment already carries the drag; IBIT's price is already net of
+    # the same fee, so charging it again here would double-count it.
+    if btc_declared:
+        df = _splice_btc_column(df)
     # REFUSE A DEGENERATE WRITE. Same rule as the SOXX OHLC path and the
     # sibling in run_asset_class_rotation: an empty or shrunken fetch is a
     # sourcing fault and must not replace a good cache.
@@ -662,6 +753,19 @@ def download_prices() -> pd.DataFrame:
                     f"built from {cache_src}; a Norgate-basis run cannot fall "
                     f"back onto it. Re-run once the fetch is healthy, or set "
                     f"BTE_PRICE_SOURCE=yfinance to accept that basis explicitly.")
+            # The same rule for the Bitcoin column (WS21). Handing back an
+            # incumbent-basis cache under the staged flag — or the reverse —
+            # would measure the basis it was asked to replace, which is the
+            # vacuous switch WS19 recorded, in a third costume.
+            cache_btc = price_source_mod.read_cache_column_basis(
+                PRICE_CACHE).get(btc_basis.SPOT_KEY)
+            if cache_btc != btc_declared:
+                raise RuntimeError(
+                    f"price fetch refused ({worse}) and the cache on disk "
+                    f"carries {btc_basis.SPOT_KEY} on basis "
+                    f"{cache_btc or 'incumbent'}; this run is on "
+                    f"{btc_declared or 'incumbent'} and cannot fall back onto "
+                    f"it. Re-run once the fetch is healthy.")
             print(f"  REFUSED cache write: {worse}. Falling back to the "
                   f"cache on disk (built from {cache_src}).")
             EFFECTIVE_PRICE_SOURCE = cache_src
@@ -672,6 +776,21 @@ def download_prices() -> pd.DataFrame:
     _sidecar = dict(_ngrep or {})
     if _heal:
         _sidecar["tail_heal"] = _heal
+    if btc_declared:
+        # The declared per-column basis. Without it the first rebuild under the
+        # flag changes every populated cell from the cut-over onward and the
+        # revision guard reads ~430 cells as a vendor retraction or, worse,
+        # logs them ambiguous and moves on (registration §8.2).
+        _sidecar["column_basis"] = {btc_basis.SPOT_KEY: btc_declared}
+        # The fetch list carried IBIT; the cache does not. Drop the traded
+        # symbol from the Norgate bookkeeping rather than renaming it to
+        # BTC-USD: that column is a frozen Yahoo segment spliced onto an IBIT
+        # segment, so "taken from Norgate" would be a half-truth about half the
+        # series. The column_basis entry above is the whole statement.
+        for key in ("replaced", "kept", "unresolved"):
+            if key in _sidecar:
+                _sidecar[key] = [c for c in _sidecar[key]
+                                 if c != btc_basis.TRADED]
     price_source_mod.write_cache_source(PRICE_CACHE, price_source,
                                         _sidecar or None)
     print(f"  Downloaded {df.shape[0]} rows x {df.shape[1]} tickers "

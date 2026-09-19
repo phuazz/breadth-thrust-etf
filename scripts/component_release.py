@@ -222,6 +222,14 @@ def seal(root=ROOT, component="core", now=None):
         raise ValueError(report["detail"])
     if os.environ.get("BTE_APPLY_STAGED_ROSTER", "").strip() == "1":
         raise ValueError("staged roster promotion cannot auto-publish")
+    # WS21, mirroring the rule above. The staged sleeve C Bitcoin basis is a
+    # measurement instrument until the WS7 verdict is filed; a run under it must
+    # not be able to reach the published book by any route, including an
+    # operator who set the flag in one shell and sealed in the same one.
+    # Anything other than the incumbent refuses, including a misspelling — a
+    # value this guard does not recognise is not a value it may wave through.
+    if os.environ.get("BTE_C_BTC_BASIS", "").strip().lower() not in ("", "incumbent"):
+        raise ValueError("staged sleeve C Bitcoin basis cannot auto-publish")
     guards = ["core"] + (["europe"] if verdict["d_ready"] else [])
     for scope in guards:
         subprocess.run([sys.executable, "scripts/check_refresh_guard.py", "--component", scope],

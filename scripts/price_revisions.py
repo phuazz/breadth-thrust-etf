@@ -219,6 +219,15 @@ def resolve_column_basis(sidecar: dict | None) -> dict[str, str]:
     it did not take is UNKNOWN rather than yfinance. Unknown never compares
     equal to anything, so such a cell is withheld from the revision
     evidence instead of admitted on an assumption.
+
+    ``column_basis`` WINS OVER EVERYTHING (WS21, 2026-09-19). The three fields
+    above answer "which feed served this column", which stops being the whole
+    answer once a column is CONSTRUCTED rather than downloaded: sleeve C's
+    Bitcoin line under ``BTE_C_BTC_BASIS=ibit`` is a frozen proxy segment
+    spliced onto IBIT, carried under the same ``BTC-USD`` key, and the vendor
+    behind it is neither here nor there. An explicit per-column declaration is
+    the only thing that can express that, and it takes precedence so a
+    construction change is never read as a same-basis revision of ~430 cells.
     """
     if not isinstance(sidecar, dict):
         return {"__default__": UNKNOWN_BASIS}
@@ -228,6 +237,11 @@ def resolve_column_basis(sidecar: dict | None) -> dict[str, str]:
         out[str(col)] = NORGATE
     for col in (sidecar.get("columns_kept_on_incumbent") or []):
         out.setdefault(str(col), YFINANCE)
+    declared = sidecar.get("column_basis")
+    if isinstance(declared, dict):
+        for col, basis in declared.items():
+            if basis:
+                out[str(col)] = str(basis)
     if policy in ("yfinance", "auto"):
         default = YFINANCE
     elif policy == "norgate":
