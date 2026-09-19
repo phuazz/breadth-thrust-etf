@@ -177,6 +177,12 @@ def heal_hollow_tail(df: pd.DataFrame, names, through: date | None,
 
     Returns the frame (a copy when anything was asked) and a record of what
     was asked and what came back, or None when there was nothing to ask.
+
+    The vendor is ASKED newest row first, so a ``budget_s`` that binds leaves
+    an older row unasked rather than the newest one. Rows are filled and
+    reported oldest first regardless, each answer is fetched once and reused
+    by every row that wants it, and a name the budget stopped is recorded in
+    ``not_attempted`` rather than left to look unserved.
     """
     held = list(names)
     if not held or len(df) == 0:
@@ -213,6 +219,30 @@ def heal_hollow_tail(df: pd.DataFrame, names, through: date | None,
         return answers[n]
 
     started = clock()
+
+    def out_of_budget() -> bool:
+        return clock() - started > budget_s
+
+    # WHICH ROW THE BUDGET IS SPENT ON (2026-09-19), the same note as in
+    # compute_breadth.verify_price_tail. Taking the tail oldest row first on
+    # one shared clock gives the OLDEST row first claim on the requests, and
+    # an older row the vendor is not serving at all will spend the whole
+    # budget on answers that cannot help — leaving the NEWEST row, the row
+    # the refresh guard and live_targets judge, asked for nothing. EXH1
+    # failed exactly that way on 2026-09-19.
+    #
+    # This pass decides nothing. It fills the shared answer cache newest row
+    # first, and every answer it collects is reused by the rows below at no
+    # cost, so no request is made that the old order would not also have
+    # made.
+    for ts in reversed(tail):
+        for n in hollow_by_row[ts]:
+            if n in answers:
+                continue
+            if out_of_budget():
+                break
+            ask(n)
+
     rows: list[dict] = []
     exhausted = False
     for ts in tail:
@@ -220,11 +250,19 @@ def heal_hollow_tail(df: pd.DataFrame, names, through: date | None,
         if not hollow:
             continue
         rec = {"date": str(pd.Timestamp(ts).date()), "hollow": list(hollow),
-               "filled": [], "unserved": [], "no_answer": []}
+               "filled": [], "unserved": [], "no_answer": [],
+               "not_attempted": []}
         for n in hollow:
-            if clock() - started > budget_s:
+            # An answer in hand is free and is never refused: only a request
+            # that would still have to reach the vendor can be stopped, and
+            # a name stopped that way is NAMED rather than dropped silently,
+            # so the record separates "the vendor has no bar" from "nobody
+            # asked". A row further down the tail may be wholly answered
+            # already, so an exhausted budget no longer abandons it.
+            if n not in answers and out_of_budget():
                 exhausted = True
-                break
+                rec["not_attempted"].append(n)
+                continue
             s = ask(n)
             if s is None:
                 rec["no_answer"].append(n)
@@ -234,8 +272,6 @@ def heal_hollow_tail(df: pd.DataFrame, names, through: date | None,
             else:
                 rec["unserved"].append(n)
         rows.append(rec)
-        if exhausted:
-            break
     stamp = (now_utc or datetime.now(timezone.utc)).isoformat(timespec="seconds")
     return df, {
         "checked_at_utc": stamp,
@@ -264,6 +300,10 @@ def report_heal(record: dict | None, label: str = "") -> None:
         if r["no_answer"]:
             parts.append(f"{len(r['no_answer'])} unanswered "
                          f"({', '.join(r['no_answer'][:6])}) — left blank")
+        if r.get("not_attempted"):
+            parts.append(f"{len(r['not_attempted'])} never asked, the budget "
+                         f"ran out first ({', '.join(r['not_attempted'][:6])}) "
+                         f"— left blank, and not evidence about the vendor")
         print(f"  {tag}tail row {r['date']} had {len(r['hollow'])} blank "
               f"cell(s) the batch left behind: " + "; ".join(parts) + ".",
               flush=True)

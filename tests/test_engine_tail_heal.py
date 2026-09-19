@@ -193,14 +193,52 @@ def test_names_blank_on_the_last_full_row_cannot_be_healed_into_existence():
 
 
 def test_budget_exhaustion_stops_asking_and_says_so():
+    """What the budget stops is named, not left looking unserved: a cell
+    nobody asked about is not evidence that the vendor has no bar for it."""
     f = _frame(["N1", "N2", "N3"], blank_on_last=["N1", "N2", "N3"])
-    ticks = iter([0.0, 0.0, 1000.0, 1000.0, 1000.0])
+    ticks = iter([0.0, 0.0] + [1000.0] * 500)
     out, rec = vt.heal_hollow_tail(f, ["N1", "N2", "N3"], through=FRI.date(),
                                    fetch_single=_serving(f), budget_s=10.0,
                                    clock=lambda: next(ticks))
     assert rec["budget_exhausted"] is True
     assert rec["rows"][0]["filled"] == ["N1"]
+    assert rec["rows"][0]["not_attempted"] == ["N2", "N3"]
+    assert rec["rows"][0]["unserved"] == [] and rec["rows"][0]["no_answer"] == []
     assert pd.isna(out.loc[FRI, "N3"])
+
+
+def test_the_newest_row_is_asked_before_an_older_one():
+    """THE EXH1 FAILURE OF 2026-09-19, on the engine side. Two hollow rows and
+    a budget that covers neither: the requests belong to the newest row, the
+    one live_targets and the refresh guard judge. The older row keeps every
+    answer the newer one's requests happened to supply, and names the rest as
+    never asked."""
+    names = ["N1", "N2", "N3", "N4"]
+    f = _frame(names, blank_on_last=names)
+    f.loc[THU, names] = np.nan
+    now = {"t": 0.0}
+
+    def fetch(t):
+        now["t"] += 30.0                       # a throttling vendor
+        return f[t].ffill().drop(THU)          # THU is a real vendor hole
+    # 60s buys three of the four requests. Oldest-first spent them on
+    # Thursday and abandoned Friday without so much as a record.
+    out, rec = vt.heal_hollow_tail(f, names, through=FRI.date(),
+                                   fetch_single=fetch, budget_s=60.0,
+                                   clock=lambda: now["t"])
+    assert [r["date"] for r in rec["rows"]] == [str(THU.date()), str(FRI.date())]
+    friday = rec["rows"][1]
+    thursday = rec["rows"][0]
+    assert rec["budget_exhausted"] is True
+    assert friday["filled"] == ["N1", "N2", "N3"]
+    assert friday["not_attempted"] == ["N4"]
+    assert out.loc[FRI, ["N1", "N2", "N3"]].notna().all()
+    assert pd.isna(out.loc[FRI, "N4"])
+    # Thursday is settled from the very same answers at no further cost: the
+    # vendor has no bar for it, which is a verdict, not a budget failure.
+    assert thursday["unserved"] == ["N1", "N2", "N3"]
+    assert thursday["not_attempted"] == ["N4"]
+    assert out.loc[THU, names].isna().all()
 
 
 @pytest.mark.parametrize("last_full, blank", [
