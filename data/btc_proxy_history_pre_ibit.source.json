@@ -1,0 +1,70 @@
+{
+  "column": "BTC-USD",
+  "sha256": "7ab4a26a7dcf5f1471063702e6404bdee867ad8c02e6c9620eb153c26e7966b2",
+  "rows": 1517,
+  "first": "2018-01-02",
+  "last": "2024-01-11",
+  "S_c": 45674.257342138306,
+  "cutover": "2024-01-11",
+  "derivation": "Incumbent synthetic sleeve C Bitcoin series exactly as the main clone's data/thematic_prices_cache.parquet carried it at the freeze commit: Yahoo BTC-USD UTC-day close, reindexed to the NYSE calendar, compounded drag (1 - 0.0025)^(days/365) from its 2018 first bar. Covers NYSE sessions strictly before 2024-01-11 plus the 2024-01-11 value (S_c). Frozen and never refetched: a later Yahoo revision of pre-2024 Bitcoin history deliberately does not reach the record (WS21 \u00a74, \u00a78.1).",
+  "source_cache": "thematic_prices_cache.parquet",
+  "source_cache_sidecar": {
+    "source": "norgate",
+    "written_at_utc": "2026-09-18T02:47:57+00:00",
+    "columns_from_norgate": [
+      "ARKG",
+      "ARKK",
+      "BLOK",
+      "BOTZ",
+      "CIBR",
+      "COPX",
+      "CQQQ",
+      "GDX",
+      "ICLN",
+      "IHI",
+      "ITA",
+      "JETS",
+      "LIT",
+      "MOO",
+      "PAVE",
+      "PHO",
+      "REMX",
+      "SHY",
+      "SKYY",
+      "TAN",
+      "URA",
+      "WOOD",
+      "XBI",
+      "XME"
+    ],
+    "columns_kept_on_incumbent": [],
+    "unresolved": [
+      "159801.SZ",
+      "BTC-USD"
+    ],
+    "tail_heal": {
+      "checked_at_utc": "2026-09-18T02:47:56+00:00",
+      "probe": "yfinance single-ticker history",
+      "last_full_row": "2026-09-16",
+      "rows": [
+        {
+          "date": "2026-09-17",
+          "hollow": [
+            "159801.SZ",
+            "BTC-USD"
+          ],
+          "filled": [],
+          "unserved": [
+            "159801.SZ",
+            "BTC-USD"
+          ],
+          "no_answer": []
+        }
+      ],
+      "budget_exhausted": false
+    }
+  },
+  "frozen_at_utc": "2026-09-19T04:01:54+00:00",
+  "registration": "KICKOFF_ws21-c-bitcoin-basis.md \u00a74",
+  "never_refetch": "Frozen by registration. A later vendor revision of pre-2024 Bitcoin history deliberately does not reach the record. Do not re-run this script to make a hash guard pass."
+}
