@@ -190,18 +190,94 @@ def test_partial_row_unavailable_prices_are_preserved_and_reported():
 
 
 def test_partial_row_retry_respects_budget():
+    """A spent budget stops requests that would still go to the vendor — and
+    only those. The sample is asked before the clock is consulted (five calls,
+    bounded), so its answers are in hand; they are used, and the names that
+    were never asked are reported as not attempted."""
     f = _frame(roster=WIDE)
     f.iloc[-1, 0] = f.iloc[-2, 0]
-    ticks = iter([0.0, 301.0])
+    ticks = iter([0.0] + [301.0] * 500)   # started, then every check is over
     out, record = cb.verify_price_tail(
         f, WIDE, fetch_single=_serving(f, through=_last_ok(f)),
         clock=lambda: next(ticks))
     row = record["rows"][0]
+    sample = cb._spread(WIDE[1:], cb.TAIL_PROBE_SAMPLE)
     assert row["heal_timed_out"]
-    assert row["requested"] == []
-    assert row["not_attempted"] == WIDE[1:]
+    assert row["requested"] == [t for t in WIDE[1:] if t in sample]
+    assert set(row["not_attempted"]) == set(WIDE[1:]) - set(sample)
     assert record["dropped"] == []
     pd.testing.assert_frame_equal(out, f)
+
+
+# ---------------------------------------------------------------------------
+# Which row the budget is spent on (2026-09-19)
+# ---------------------------------------------------------------------------
+def _metered(frame_like: pd.DataFrame, cost_s: float, now: dict,
+             serve_on=None, drop=()):
+    """A single-ticker stub that charges ``cost_s`` to ``now['t']`` per call —
+    a throttling vendor, where the budget is spent in requests rather than in
+    real seconds. ``drop`` are dates the vendor does not serve for any name."""
+    def fetch(t):
+        now["t"] += cost_s
+        s = frame_like[t].ffill().copy()
+        return s.drop([pd.Timestamp(d) for d in drop], errors="ignore")
+    return fetch
+
+
+def test_the_newest_tail_row_is_asked_before_an_older_one():
+    """THE EXH1 FAILURE OF 2026-09-19. Thursday is a vendor hole, Friday is a
+    batch defect the vendor would serve, and the budget covers neither roster
+    in full. The requests belong to Friday: it is the row the refresh guard
+    judges, and the only one that can be healed."""
+    f = _frame(n_days=7)
+    thu, fri = f.index[-2], f.index[-1]
+    f.loc[thu, ROSTER] = np.nan
+    f.loc[thu, ROSTER[0]] = 100.0          # the residual the batch left
+    f.loc[fri, ROSTER[0]] = 100.0
+    now = {"t": 0.0}
+    asked: list[str] = []
+    meter = _metered(f, cost_s=30.0, now=now, drop=[thu])
+
+    def fetch(t):
+        asked.append(t)
+        return meter(t)
+
+    out, v = cb.verify_price_tail(f, ROSTER, fetch_single=fetch,
+                                  heal_budget_s=250.0, clock=lambda: now["t"])
+    # Every name the roster needs is asked once, for Friday, before Thursday
+    # gets anything beyond its own five-name sample.
+    assert len(asked) == len(set(asked))
+    assert out.loc[fri, ROSTER].notna().all(), "the newest row was not healed"
+    assert thu not in out.index, "the vendor hole was not established"
+    assert [r["verdict"] for r in v["rows"]] == ["unserved_placeholder", "healed"]
+
+
+def test_an_older_row_cannot_starve_the_newest_one():
+    """The same shape with a budget tight enough that something must go
+    unasked: what goes unasked is the older row, never the newest."""
+    f = _frame(roster=WIDE, n_days=7)
+    thu, fri = f.index[-2], f.index[-1]
+    f.loc[thu, WIDE] = np.nan
+    f.loc[thu, WIDE[0]] = 100.0
+    f.loc[fri, WIDE[0]] = 100.0
+    now = {"t": 0.0}
+    asked: list[str] = []
+    meter = _metered(f, cost_s=40.0, now=now, drop=[thu])
+
+    def fetch(t):
+        asked.append(t)
+        return meter(t)
+
+    out, v = cb.verify_price_tail(f, WIDE, fetch_single=fetch,
+                                  heal_budget_s=120.0, clock=lambda: now["t"])
+    friday = next(r for r in v["rows"] if r["date"] == str(fri.date()))
+    thursday = next(r for r in v["rows"] if r["date"] == str(thu.date()))
+    assert friday["filled"] > 0, "the newest row was never asked"
+    assert friday["filled"] == len(set(asked) & set(WIDE[1:]))
+    assert thursday["not_attempted"], "the older row should be the one cut short"
+    assert thursday["heal_timed_out"] and thu in out.index
+    # Below the floor either way, so both rows stay for the guard to judge.
+    assert v["dropped"] == [] and friday["verdict"] == "partial"
 
 
 def test_a_raising_probe_is_no_answer():

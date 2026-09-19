@@ -745,6 +745,11 @@ def verify_price_tail(
     to settle). ``exclude`` names columns that must not be touched (taken
     whole from another source). ``fetch_single`` is the single-ticker
     request, stubbed in tests. Pure given those two.
+
+    The vendor is ASKED newest row first, so a ``heal_budget_s`` that binds
+    starves an older row rather than the newest — the one the refresh guard
+    judges. Rows are settled, decided and reported oldest first regardless,
+    and each answer is fetched once and reused by every row that wants it.
     """
     fetch = fetch_single or _single_ticker_closes
     held = [t for t in roster if t in close.columns]
@@ -788,6 +793,44 @@ def verify_price_tail(
         return answers[t]
 
     started = clock()
+
+    def out_of_budget() -> bool:
+        return clock() - started > heal_budget_s
+
+    # WHICH ROW THE BUDGET IS SPENT ON (2026-09-19).
+    #
+    # The settling loop below takes the tail oldest row first and shares one
+    # wall clock across every row of it, so the OLDEST row has first claim on
+    # the requests. On 2026-09-19 EXH1 carried two tail rows: Thursday, which
+    # the vendor was not serving at all (0 of 5 sampled names carried the
+    # bar), and Friday, which it WAS serving (2 of 5). The vendor was
+    # throttling, so 300s bought eight single-ticker requests and every one of
+    # them went to Thursday. Friday — the row the refresh guard judges, and
+    # the row the evidence in the same log says was healable — was asked for
+    # nothing, stayed hollow, and failed the run.
+    #
+    # This pass DECIDES NOTHING. It fills the shared answer cache in the order
+    # the settling loop will want it, newest row first, and a row the sample
+    # alone settles (nothing served single-ticker and no residual price left
+    # on the row) is still left to the sample, so the ordinary Saturday shape
+    # costs the same five requests it did before. Every verdict below is
+    # reached on the same evidence and by the same rules; what changed is only
+    # which row goes unasked when the budget binds.
+    for ts in reversed(tail):
+        ahead = [t for t in live if pd.isna(close.at[ts, t])]
+        if not ahead:
+            continue
+        served_ahead = [t for t in _spread(ahead, sample_size)
+                        if _has_close(ask(t), ts)]
+        if not served_ahead and not close.loc[ts, held].notna().any():
+            continue
+        for t in ahead:
+            if t in answers:
+                continue
+            if out_of_budget():
+                break
+            ask(t)
+
     rows: list[dict] = []
     dropped: list[pd.Timestamp] = []
     for ts in tail:
@@ -817,9 +860,18 @@ def verify_price_tail(
             filled, refused, timed_out = 0, [], False
             requested, unserved, no_answer = [], [], []
             for t in unpriced:
-                if clock() - started > heal_budget_s:
+                # AN ANSWER IN HAND IS NEVER REFUSED. The cache is shared by
+                # every tail row, so a name the pass above already asked costs
+                # nothing here and must be used: on 2026-09-19 EXH1's Friday
+                # row held eight answers, two of them carrying the bar, and
+                # filled none of them because the clock had run out on
+                # requests it no longer needed to make. Only a request that
+                # would still have to go to the vendor can end this loop.
+                # Skipping, not breaking: a name further down the roster may
+                # already be answered, and an answer in hand is free.
+                if t not in answers and out_of_budget():
                     timed_out = True
-                    break
+                    continue
                 requested.append(t)
                 s = ask(t)
                 if s is None:
@@ -950,8 +1002,8 @@ def _report_tail_verification(v: dict | None) -> None:
         elif verdict in ("healed", "partial"):
             print(f"{head}; {r['sample_served']} of {len(r['sampled'])} "
                   f"sampled names carry the bar single-ticker; "
-                  f"re-requested {len(r.get('requested', r['sampled']))} "
-                  f"unpriced names, filled {r['filled']}"
+                  f"re-requested {len(r.get('requested', r['sampled']))} of "
+                  f"{r['live_unpriced']} unpriced names, filled {r['filled']}"
                   + (f", refused {len(r['refused'])}" if r.get("refused") else "")
                   + (" (heal budget exhausted)" if r.get("heal_timed_out") else "")
                   + (". Row now populated." if verdict == "healed" else
