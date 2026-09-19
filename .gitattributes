@@ -4,3 +4,9 @@
 *.json text eol=lf
 *.txt text eol=lf
 *.bat text eol=crlf
+# Parquet is binary and must round-trip byte for byte. `* text=auto` above
+# leaves that to git's NUL-byte heuristic, which is fine until it is not — and
+# data/btc_proxy_history_pre_ibit.parquet is hash-verified on every read as the
+# anchor for every sleeve C Bitcoin value after 2024-01-11 (WS21). A line
+# ending silently rewritten there would move S_c and restate the record.
+*.parquet binary
