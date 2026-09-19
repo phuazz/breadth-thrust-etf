@@ -309,3 +309,44 @@ All six §11 gates countersigned by the owner. Frozen at this commit. One
 clarification was resolved before any result was computed and is recorded in
 §4: leg 3 of the keep bar is read conjunctively for the two-sleeve arm V3.
 Nothing else in §4 moved.
+
+**2026-09-19 (Saturday — weekday verified). Built, run, VERDICT KEEP BOTH.**
+`scripts/run_ws22_broad_beta_overlap.py` (commit 421c370), output
+`data/ws22_broad_beta_overlap.json`. Window 2018-11-08 → 2026-09-16 (panel
+intersection), baselines rebuilt on the deployed configuration, both staging
+flags asserted unset, breadth subset equivalence asserted exact before the
+null used the fast path. Baseline blend Sharpe +1.1550 (test +1.4196); drift
+against the cached WS2 meta A −0.1031 / B +0.0021 / C −0.0385 / D +0.046 /
+blend −0.0411, printed rather than absorbed.
+
+**No arm is adoption-eligible.** Nine of ten fail the keep bar outright; the
+worst is V3_P2 (both drop the NASDAQ-100 line) at −0.0396 blend test half,
+1 of 6 sub-periods. V1_P3 (sleeve B drops IJR) clears all three legs
+(+0.0396 test, 5 of 6) and is recorded NOT ADOPTED under the §4 coherence
+requirement — it passes on one pair of three. Reading it as a double-count
+result would be wrong on the facts in any case: IDP6 and IJR are held
+together in only 2.7% of weeks, so that arm asks whether sleeve B wants
+small caps, not whether the second line is redundant.
+
+**H2 is refuted rather than unproven.** V4 is −0.0259 on the blend test half
+and sits at the **44.2nd percentile** of N1 against the p90 gate of +0.0351.
+N1 itself runs −0.1441 to +0.0848 with a median of −0.0187, so a three-name
+drop from sleeve A is usually mildly negative — and dropping the three broad
+lines specifically is below the median. The structural argument said they
+were the redundant ones; on this evidence they are better than the average
+sleeve A line to keep. That is a finding, not a null.
+
+**§8 look-through.** P1 mean 3.67% / max 10.49% / both 39.8% of weeks; P2
+5.95% / 24.06% / 35.9%; P3 (first measurement, no filed figure) 2.14% /
+14.17% / 2.7%. The NASDAQ-100 peak reproduces WS2's filed 24.08% at 24.06%
+on an independently rebuilt baseline. The means and both-held shares sit
+below WS2's filed figures, which is drift in the deployed book since
+2026-07-02, reported and not reconciled here.
+
+**§8 audit.** `check_universe_candidates.py --audit` re-run at the freeze
+commit into `data/overlap_audit.json` with the capture-integrity check WS8's
+reopen condition asked for (commit de51bbc): 57 of 57 lines, zero thin
+pairs, 16 pairs above 0.90. One warning surfaced and NOT actioned — EEM's
+cache ends 2026-08-26 against SPY and QQQ at 2026-09-18, 23 days behind.
+EEM is the Phase 22 overlay line, outside every arm here; the staleness is
+recorded for the owner, not repaired under this registration.
