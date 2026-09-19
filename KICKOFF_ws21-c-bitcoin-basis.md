@@ -213,3 +213,27 @@ weekend publication failure of the same morning (release contract refusing a
 sleeve C coverage-floor HOLD; fixed separately). The 2026-08-22 decline of
 IBIT as the series was read before registration and is answered in §2, not
 overturned by silence.
+
+**2026-09-19 (Saturday — weekday verified). Instrumented, measured and filed.**
+§4 and §10 are untouched by this entry; §10 remains PROPOSED in full and no
+default has moved. Built: the frozen pre-`c` artefact (1,517 NYSE sessions
+2018-01-02 → 2024-01-11, `S_c` = 45674.257342138306, SHA-256
+`7ab4a26a7dcf5f1471063702e6404bdee867ad8c02e6c9620eb153c26e7966b2`, committed
+and re-hashed on every read); the `BTE_C_BTC_BASIS` path, bit-identical to the
+incumbent with the flag unset and pinned as such; the `component_release.seal`
+refusal; the per-column basis tag in the price-cache sidecar; and the registry
+entry naming IBIT, which is reader-facing, independent of the flip and
+committed separately. §5 run once on the seen window: **M1 PASS** (median
+−0.002%, p5 −0.203%, p95 +0.208%, worst +0.676% on 2024-01-12, against the
+±1.0% band), **M4 PASS** (0.00e+00 over 620 sessions — shared float32
+quantisation, not an approached tolerance, and no evidence about
+distributions), M2 two of 129 weekly baskets differing with zero gate flips
+(sleeve C Sharpe +0.784 → +0.774, blend +1.7776 → +1.7723), M3 maximum
+absolute signal difference 0.0704 on 2024-02-28. Nothing after 2026-07-02 was
+computed under the new basis. Two promotion prerequisites closed the same day:
+`repair_price_gaps` now refuses any column whose sidecar declares a basis,
+rather than splicing a UTC-day return onto a 16:00 ET series, and the
+published artefact states its own Bitcoin basis. Two remain open and are
+promotion steps by design: removing `expense_ratio_bps` and `trading_calendar`
+from the universe entry, which are load-bearing while the default is the
+incumbent, and declaring an IBIT secondary for the gap repair.
