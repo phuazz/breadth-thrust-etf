@@ -1,34 +1,33 @@
 {
-  "computed_at_utc": "2026-09-18 23:25 UTC",
+  "computed_at_utc": "2026-09-19 08:01 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-09-15",
-  "anchor_equity": 2.960129,
+  "anchor_equity": 2.951,
   "regime_state": "RISK_ON",
-  "eem_tilt_active": true,
+  "eem_tilt_active": false,
   "eem_tilt_signal_as_of": "2026-09-15",
   "eem_tilt_signal_stale": false,
   "effective_weights": {
     "IUES": 0.124437,
-    "EEM": 0.1,
+    "DBC": 0.114789,
     "IUFS": 0.085619,
-    "DBC": 0.081992,
     "EXV1": 0.07758,
     "EXH1": 0.06548,
     "IUHC": 0.063426,
+    "EWJ": 0.059739,
     "EXV3": 0.05694,
+    "QQQ": 0.04574,
     "SOXX": 0.043999,
-    "EWJ": 0.042671,
-    "QQQ": 0.032672,
+    "SPY": 0.039756,
+    "IJR": 0.032932,
+    "EFA": 0.032442,
     "IUSP": 0.028563,
-    "SPY": 0.028397,
-    "IJR": 0.023523,
-    "EFA": 0.023173,
+    "VGK": 0.024603,
     "CIBR": 0.02,
     "SKYY": 0.02,
     "XBI": 0.02,
     "ARKG": 0.02,
     "COPX": 0.02,
-    "VGK": 0.017573,
     "CSP1": 0.003605,
     "IDP6": 0.00035
   },
@@ -38,9 +37,9 @@
     "2026-09-18"
   ],
   "live_equity": [
-    2.940373,
-    2.969588,
-    2.96627
+    2.929607,
+    2.955034,
+    2.95041
   ],
   "sleeve_extensions": {
     "strategy_a": {
@@ -63,7 +62,7 @@
       "equity": [
         3.227774,
         3.253932,
-        3.258089
+        3.258173
       ]
     },
     "strategy_b": {
@@ -86,7 +85,7 @@
       "equity": [
         2.312522,
         2.32548,
-        2.315407
+        2.316471
       ]
     },
     "strategy_c": {
