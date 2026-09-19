@@ -1,0 +1,144 @@
+{
+  "study": "WS21 \u2014 sleeve C Bitcoin line on IBIT",
+  "registration": "KICKOFF_ws21-c-bitcoin-basis.md",
+  "as_of": "2026-09-19",
+  "computed_at_utc": "2026-09-19T04:21:52+00:00",
+  "window": {
+    "start": "2024-01-11",
+    "end": "2026-07-02",
+    "nyse_sessions": 620
+  },
+  "hard_cap": "2026-07-02",
+  "after_ws7": false,
+  "M1": {
+    "sessions_matched": 620,
+    "sessions_expected": 620,
+    "return_pairs": 619,
+    "ibit_feed": "norgate TOTALRETURN",
+    "spot_source": "Binance BTCUSDT 1h klines (data-api.binance.vision)",
+    "median": -2.2863380255255805e-05,
+    "p5": -0.0020280407494670527,
+    "p95": 0.0020784913898317836,
+    "worst_abs": 0.0067572589478652745,
+    "worst_date": "2024-01-12",
+    "cumulative_ratio_min": 0.9809131969117337,
+    "cumulative_ratio_max": 1.0,
+    "stop_band": 0.01,
+    "stop_condition": "PASS",
+    "verdict": "p5-p95 inside +/-1.0% \u2014 no halt",
+    "note": "The DISPERSION is what the stop condition reads, and that is what this measures: both legs are taken at the same instant, so the day-to-day spread is premium/discount and nothing else. The CUMULATIVE ratio is NOT attributable from this measurement and must not be read as a premium/discount drift: it bundles IBIT's expense accrual (25 bp/yr, waived to 12 bp for the first twelve months on the first USD 5 bn \u2014 from memory, unverified against the prospectus), any change in IBIT's own premium/discount, and the BTCUSDT-against-USD basis, Binance quoting Tether rather than dollars. Decomposing it was not in scope and was not done."
+  },
+  "M2": {
+    "window": {
+      "start": "2024-01-11",
+      "end": "2026-07-02",
+      "nyse_sessions": 620
+    },
+    "provenance": {
+      "cache": "thematic_prices_cache.parquet",
+      "cache_source": "norgate",
+      "rows": 2136,
+      "columns": 26,
+      "index_start": "2018-01-02",
+      "index_end": "2026-07-02",
+      "ibit_feed": "norgate TOTALRETURN",
+      "column_basis": "ibit-spliced@7ab4a26a7dcf",
+      "pre_cutover_max_abs_difference": 0.0
+    },
+    "eligible_start": "2018-10-31",
+    "weekly_decisions": 129,
+    "baskets_differing": 2,
+    "basket_dates": [
+      {
+        "date": "2024-07-15",
+        "incumbent": [
+          "BLOK",
+          "BTC-USD",
+          "COPX",
+          "GDX",
+          "XBI"
+        ],
+        "ibit": [
+          "BLOK",
+          "BOTZ",
+          "COPX",
+          "GDX",
+          "XBI"
+        ],
+        "names_changed": true
+      },
+      {
+        "date": "2024-11-11",
+        "incumbent": [
+          "159801.SZ",
+          "BLOK",
+          "CQQQ",
+          "JETS",
+          "SKYY"
+        ],
+        "ibit": [
+          "159801.SZ",
+          "BLOK",
+          "BTC-USD",
+          "CQQQ",
+          "JETS"
+        ],
+        "names_changed": true
+      }
+    ],
+    "gate_flips": 0,
+    "gate_flip_dates": [],
+    "sleeve_c": {
+      "incumbent": {
+        "sharpe": 0.7843781147191193,
+        "cagr": 0.19511221634454845,
+        "max_dd": -0.2505103112311466,
+        "total_return": 0.5537312057707027,
+        "annual_turnover": 21.680398671096345,
+        "n_flips": 78
+      },
+      "ibit": {
+        "sharpe": 0.7736665354519385,
+        "cagr": 0.19275368166069295,
+        "max_dd": -0.2531599969958241,
+        "total_return": 0.5461615556262509,
+        "annual_turnover": 22.003986710963456,
+        "n_flips": 78
+      }
+    },
+    "blend_35_35_10_20": {
+      "source": "multi_strategy.json",
+      "weights": "A 35 / B 35 / C 10 / D 20",
+      "incumbent": 1.777584556237291,
+      "sessions": 607,
+      "ibit": 1.7723242193192494,
+      "difference": -0.005260336918041508
+    }
+  },
+  "M3": {
+    "window": {
+      "start": "2024-01-11",
+      "end": "2024-10-25",
+      "sessions": 200
+    },
+    "max_abs_signal_difference": 0.07037705143658501,
+    "max_abs_signal_difference_date": "2024-02-28",
+    "median_abs_signal_difference": 0.007681990399237809,
+    "incumbent_signal_at_max": 0.8282818574101187,
+    "ibit_signal_at_max": 0.7579048059735337,
+    "note": "The 200-session window straddles the cut-over until 2024-10-25 (the 200th NYSE session counting the cut-over as the first), so a difference here is the join, not the series."
+  },
+  "M4": {
+    "comparable": true,
+    "sessions": 620,
+    "cells_bit_identical": 620,
+    "norgate_only": [],
+    "yahoo_only": [],
+    "max_relative_difference": 0.0,
+    "max_relative_difference_date": "2024-01-11",
+    "median_relative_difference": 0.0,
+    "stop_threshold": 0.0001,
+    "stop_condition": "PASS",
+    "note": "Read the zero for what it is. Both feeds carry the same cent-level close at float32 precision (Norgate stores float32; Yahoo's chart API serves float32-quantised values), so after the cast to float64 every cell is bit-identical rather than merely close \u2014 26.6299991607666 on both sides at the cut-over. The measurement's floor is that shared quantisation, not a tolerance this result approached. It does NOT evidence that IBIT has paid no distribution: a distribution would be adjusted by both the TOTALRETURN and the auto_adjust basis, and the two would still agree."
+  }
+}
