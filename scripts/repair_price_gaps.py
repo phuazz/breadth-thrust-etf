@@ -51,8 +51,33 @@ US-listed lines default to the locally licensed Norgate feed as their
 secondary, which carried 2026-08-28 for every one of them; non-US and synthetic
 lines still need an explicit SECONDARY entry, because absence is meaningful.
 
+A DECLARED COLUMN BASIS IS A REFUSAL, added 2026-09-19 (WS21).
+
+The return-splice above is safe because each ticker's sources are declared
+against the construction its column actually carries. BTC-USD's Binance entry
+is the clearest case: the cached series is the UTC-day spot close, and Binance
+BTCUSDT is quoted on the same clock, so its return is the right return for
+that column even though its level is 2.19% away.
+
+That correspondence breaks the moment a column's construction changes. Under
+BTE_C_BTC_BASIS=ibit the BTC-USD column follows IBIT at the 16:00 ET close,
+and BOTH sources here would then be wrong in the same way: the primary
+(yfinance BTC-USD) and the secondary (Binance BTCUSDT) each measure a UTC-day
+return, so splicing either across a gap would print a move IBIT did not make,
+missing its premium/discount entirely. A one-session Bitcoin return can differ
+by a few per cent between those two clocks, on a sleeve whose eligibility
+floor is +5%.
+
+So a column whose cache sidecar DECLARES a basis is reported and not filled.
+The right secondary for an IBIT-spliced column is IBIT itself, but choosing it
+is a construction decision, and WS21 fixed one construction at registration
+with no menu. Declaring that source belongs in a dated commit at promotion,
+not in a repair script reaching for the nearest series. Caches with no
+declared basis — every cache today — are unaffected.
+
 WHAT IT REFUSES TO DO.
 
+  - It will not fill a column whose cache sidecar declares a basis (above).
   - It will not fill a RUN of missing bars. A single absent print is a vendor
     hiccup; a run is an outage or a delisting, and inventing a week of prices
     from a second venue is a different and much worse decision.
@@ -317,12 +342,33 @@ def repair_cache(key: str, only_ticker: str | None = None,
     frame = pd.read_parquet(path)
     if sessions is None:
         sessions = nyse_sessions_for(frame)
+    # What the cache says each column's CONSTRUCTION is. Empty for every cache
+    # written before 2026-09-19, and empty today; see the module docstring on
+    # why a declared basis is a refusal rather than a different source.
+    import price_source  # sibling module
+    declared = price_source.read_cache_column_basis(path)
     tickers = [only_ticker] if only_ticker else list(frame.columns)
     repairs: list[dict] = []
 
     for t in tickers:
         gaps = find_gaps(frame, t, sessions=sessions)
         if not gaps:
+            continue
+        basis = declared.get(t)
+        if basis:
+            for g, prev in gaps:
+                repairs.append({
+                    "cache": key, "ticker": t, "date": str(g.date()),
+                    "prev_date": str(prev.date()),
+                    "prev_value": float(frame.loc[prev, t]),
+                    "declared_basis": basis, "source": None, "method": None,
+                    "refused": (
+                        f"the column declares basis {basis!r}; this module's "
+                        f"sources for {t} are declared against the incumbent "
+                        f"construction and would splice a return measured on "
+                        f"another clock. Declaring a source for this basis is "
+                        f"a construction decision and belongs in a dated "
+                        f"commit, not here")})
             continue
         lo = min(g for g, _ in gaps) - pd.Timedelta(days=10)
         hi = max(g for g, _ in gaps) + pd.Timedelta(days=2)

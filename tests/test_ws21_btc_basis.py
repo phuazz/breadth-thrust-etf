@@ -638,6 +638,93 @@ def test_the_registry_names_the_fund_the_book_holds():
     assert get_etf(btc_basis.SPOT_KEY)["name"] == "iShares Bitcoin Trust ETF"
 
 
+def test_the_gap_repair_refuses_a_declared_basis_and_still_fills_an_incumbent_one(
+        tmp_path, monkeypatch):
+    """A PROMOTION PREREQUISITE, pinned rather than left to review.
+
+    repair_price_gaps splices the RETURN of a source onto the cached level,
+    which is safe only because each ticker's sources are declared against the
+    construction its column carries: BTC-USD's cached series is the UTC-day
+    spot close and Binance BTCUSDT is quoted on the same clock. Under the
+    staged basis the column follows IBIT at the 16:00 ET close, so BOTH the
+    primary (yfinance BTC-USD) and the secondary (Binance) would splice a
+    return measured on another clock — a move IBIT did not make, missing its
+    premium/discount entirely, on a sleeve whose floor is +5%.
+
+    The answer is a refusal, not a different source: choosing one is a
+    construction decision, and WS21 fixed one construction with no menu.
+    """
+    import numpy as np
+    import repair_price_gaps as rp
+
+    sessions = nyse("2026-06-01", "2026-08-31")
+    frame = pd.DataFrame(
+        {btc_basis.SPOT_KEY: np.linspace(40000.0, 44000.0, len(sessions)),
+         "ARKK": np.linspace(50.0, 55.0, len(sessions))}, index=sessions)
+    gap, prev = sessions[-3], sessions[-4]
+    frame.loc[gap, btc_basis.SPOT_KEY] = np.nan
+    cache = tmp_path / "unit.parquet"
+    frame.to_parquet(cache)
+    monkeypatch.setattr(rp, "DATA_DIR", tmp_path)
+    monkeypatch.setitem(rp.CACHES, "unit", ("unit.parquet", "n/a"))
+    spot = pd.Series({prev: 100.0, gap: 104.0})
+    monkeypatch.setattr(rp, "fetch_primary", lambda t, s, e: spot)
+    monkeypatch.setattr(rp, "fetch_secondary",
+                        lambda t, s, e: (spot, "binance:BTCUSDT"))
+
+    # No declared basis — every cache today. Behaviour is unchanged.
+    ps.write_cache_source(cache, "norgate", {"replaced": ["ARKK"]})
+    (before,) = rp.repair_cache("unit", only_ticker=btc_basis.SPOT_KEY,
+                                apply=False, sessions=sessions)
+    assert before["source"] == "primary:yfinance"
+    assert before["value"] == pytest.approx(
+        float(frame.loc[prev, btc_basis.SPOT_KEY]) * 1.04)
+    assert "declared_basis" not in before
+
+    # Declared ibit-spliced — reported, not filled, and the reason names why.
+    ps.write_cache_source(cache, "norgate", {
+        "replaced": ["ARKK"],
+        "column_basis": {btc_basis.SPOT_KEY: "ibit-spliced@7ab4a26a7dcf"}})
+    (after,) = rp.repair_cache("unit", only_ticker=btc_basis.SPOT_KEY,
+                               apply=False, sessions=sessions)
+    assert after.get("value") is None, "a refused column must print no number"
+    assert after["declared_basis"] == "ibit-spliced@7ab4a26a7dcf"
+    assert "another clock" in after["refused"]
+    assert after["date"] == str(gap.date())
+
+    # And --apply writes nothing for a refused column.
+    digest_before = cache.read_bytes()
+    rp.repair_cache("unit", only_ticker=btc_basis.SPOT_KEY, apply=True,
+                    sessions=sessions)
+    assert cache.read_bytes() == digest_before
+
+
+def test_the_published_label_never_describes_a_construction_not_in_use(monkeypatch):
+    """The prose half of what the registry entry fixes on the ticker half."""
+    import run_thematic_rotation as th
+    monkeypatch.delenv(btc_basis.ENV_VAR, raising=False)
+    assert th._universe_label(btc_basis.SPOT_KEY) == \
+        th.UNIVERSE[btc_basis.SPOT_KEY]["label"]
+    assert "CoinDesk spot" in th._universe_label(btc_basis.SPOT_KEY)
+    monkeypatch.setenv(btc_basis.ENV_VAR, "ibit")
+    assert th._universe_label(btc_basis.SPOT_KEY) == btc_basis.LABEL
+    assert "IBIT from 2024-01-11" in btc_basis.LABEL
+    # Every other member has one label under either basis.
+    for t in ("ARKK", "XBI", "159801.SZ"):
+        assert th._universe_label(t) == th.UNIVERSE[t]["label"]
+
+
+def test_the_universe_entry_keeps_the_fields_the_incumbent_basis_needs():
+    """Removing them is a PROMOTION step, not a tidy-up. While the default is
+    the incumbent, the drag and the calendar alignment are load-bearing: the
+    series would silently lose its modelled fee and its NYSE reindex."""
+    import run_thematic_rotation as th
+    entry = th.UNIVERSE[btc_basis.SPOT_KEY]
+    assert entry["expense_ratio_bps"] == 25
+    assert entry["trading_calendar"] == "crypto_24x7"
+    assert btc_basis.DEFAULT == btc_basis.INCUMBENT
+
+
 def test_the_price_exporter_fetches_ibit_for_the_bitcoin_line():
     """component_release.price_evidence looks the changed position up by its
     registry trading proxy, so the exporter has to publish that key or the seal

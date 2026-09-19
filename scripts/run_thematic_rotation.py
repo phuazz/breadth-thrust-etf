@@ -204,6 +204,17 @@ UNIVERSE: dict[str, dict] = {
     # NAV from 2015-2024, so GBTC-price momentum would have captured
     # GBTC-discount narrative rather than BTC momentum. BTC-USD has none
     # of that fund-structure noise.
+    #
+    # WS21 (2026-09-19): BOTH FIELDS BELOW DESCRIBE THE INCUMBENT BASIS ONLY.
+    # Under BTE_C_BTC_BASIS=ibit the column is built from IBIT after the crypto
+    # reindex and the drag have already run, so neither field is read — the
+    # spot ticker never enters the frame and IBIT is not a UNIVERSE key. They
+    # are correct as written and must NOT be removed while the default is the
+    # incumbent: deleting them there would drop the modelled fee and the
+    # calendar alignment from the live series. At promotion they go, in the
+    # same dated commit that flips the default. `_universe_label` below prints
+    # the registered label under the flag so the artefact never describes a
+    # construction it is not using.
     "BTC-USD": {
         "label": "Bitcoin (CoinDesk spot — deployed via IBIT, 25bps ER)",
         "theme": "Crypto / Digital Assets",
@@ -519,6 +530,19 @@ def _fx_convert_to_usd(df: pd.DataFrame) -> pd.DataFrame:
         df[ticker] = align_series_to_index(usd_native, equity_cal,
                                             max_stale_days=10)
     return df
+
+
+def _universe_label(ticker: str) -> str:
+    """The label to publish for a universe member, under THIS run's basis.
+
+    Only the Bitcoin line has two. Its UNIVERSE label describes the incumbent
+    construction — spot with a modelled fee — and printing that on a book
+    ranked on IBIT would describe a series the run is not using, which is the
+    prose half of the defect the registry entry fixes on the ticker half.
+    """
+    if ticker == btc_basis.SPOT_KEY and btc_basis.is_ibit():
+        return btc_basis.LABEL
+    return UNIVERSE[ticker]["label"]
 
 
 def _splice_btc_column(df: pd.DataFrame) -> pd.DataFrame:
@@ -1392,8 +1416,13 @@ def main() -> int:
         # The basis this run priced on (2026-09-03): a reader of the artefact
         # can tell a Norgate-basis book from a yfinance one without the log.
         "price_source": EFFECTIVE_PRICE_SOURCE,
+        # The Bitcoin line's construction, for the same reason as the line
+        # above: a reader of the artefact can tell which series sleeve C
+        # ranked its Bitcoin position on without reading the log. Reads
+        # "incumbent" on every published book until the default flips.
+        "c_btc_basis": btc_basis.requested_basis(),
         "universe": [
-            {"etf": t, "label": UNIVERSE[t]["label"], "theme": UNIVERSE[t]["theme"]}
+            {"etf": t, "label": _universe_label(t), "theme": UNIVERSE[t]["theme"]}
             for t in TICKERS
         ] + [
             # CASH_PROXY (IEF) is not in TICKERS but appears in the attribution
