@@ -69,7 +69,33 @@ def validate_book(book, basis, now):
     sleeves = book["sleeves"]
     if len(sleeves) != 4 or {s["sleeve"] for s in sleeves} != set("ABCD"):
         raise ValueError("exactly four sleeves are required")
+    # AN AUTHORISED HOLD IS THE SAME OBJECT ON EVERY SLEEVE (2026-09-19).
+    #
+    # This admitted a HOLD only for D. The contract was written with the
+    # two-stage sender (addeb8b, 2026-09-12) on the assumption that the three
+    # NYSE sleeves are always READY by the time a weekend release is sealed,
+    # and that assumption is false for C: its universe carries BTC-USD and
+    # 159801.SZ, whose yfinance bars arrive hours after the session, and
+    # live_targets' 100% coverage floor turns one missing name into a HOLD.
+    # On Saturday 2026-09-19 Yahoo served no 2026-09-18 BTC-USD bar at all,
+    # C held on 24 of 25 names, and every hourly firing of the publication job
+    # died here - so sleeve A's and B's trades and the overlay's tilt exit
+    # went unpublished because a THIRD sleeve had correctly declined to rank.
+    #
+    # A coverage-floor HOLD is the right book, not a data fault: the intended
+    # book IS the held book, and the floor must never be loosened (a partial
+    # row is a different signal, not a smaller one). So the fix is here, in the
+    # contract, and not in the data - a manual repair_price_gaps --apply does
+    # not survive the engine's next cache rebuild in any case.
+    #
+    # Everything downstream was already sleeve-generic and needed no change:
+    # live_targets._build_lines scales or preserves a held sleeve by name,
+    # _targets_final already means "every sleeve READY", and the factsheet
+    # reads the sleeve's own status. Only this validator and publication_debt
+    # hard-coded D.
     d_ready = False
+    # NOT `held`: the position loop further down rebinds that name to a float.
+    held_sleeves: list[str] = []
     for s in sleeves:
         venue = "XETR" if s["sleeve"] == "D" else "NYSE"
         calendar = _venue_cal(venue)
@@ -91,10 +117,27 @@ def validate_book(book, basis, now):
                 raise ValueError("invalid ranked weights")
             if s["sleeve"] == "D":
                 d_ready = True
-        elif s["sleeve"] != "D" or s["status"] != "HOLD" or not s.get("reason") or not risk_only_hold(book, "D"):
-            raise ValueError("core is not READY or D HOLD is inconsistent")
-    if book["targets_final"] is not d_ready:
-        raise ValueError("finality conflicts with D status")
+        # One message per condition. The single message this replaced - "core
+        # is not READY or D HOLD is inconsistent" - covered four different
+        # failures, and the operator reading the 2026-09-19 log could not tell
+        # which had fired without opening the book.
+        elif s["status"] != "HOLD":
+            raise ValueError(f"{s['sleeve']}: status {s['status']!r} is neither READY nor HOLD")
+        elif not s.get("reason"):
+            raise ValueError(f"{s['sleeve']}: a HOLD must carry a reason")
+        elif not risk_only_hold(book, s["sleeve"]):
+            raise ValueError(f"{s['sleeve']}: HOLD is not risk-only against the held basis")
+        else:
+            held_sleeves.append(s["sleeve"])
+    # Finality is a statement about EVERY sleeve, which is what live_targets
+    # has meant by it since 2026-09-02 (_targets_final: every sleeve READY and
+    # ranked on the close its fill will use). Reading it off D alone was the
+    # same D-shaped assumption: with C held and D ready it raised, and with D
+    # held and C ready it would have passed a book that was not final.
+    if book["targets_final"] is not (not held_sleeves):
+        raise ValueError(
+            f"finality conflicts with sleeve statuses "
+            f"(held: {sorted(held_sleeves) or 'none'})")
     overlay = book["overlay_decision"]
     if any(overlay[k] != anchor for k in ("as_of", "gate_input_date", "tilt_input_date")):
         raise ValueError("overlay source session mismatch")
@@ -126,7 +169,12 @@ def validate_book(book, basis, now):
                 or not math.isclose(held, prior.get(key, 0), abs_tol=1e-9)
                 or not math.isclose(delta, target - held, abs_tol=1e-9)):
             raise ValueError("invalid position weights or changed held basis")
-        if key[0] != "D" or d_ready:
+        # A held sleeve's lines are its HELD book, proportionally rescaled to
+        # its risk budget - they are not in `expected`, which is built from
+        # READY weights only. Skipping by sleeve NAME rather than by `d_ready`
+        # is the same rule as before for D and the correct one for any sleeve;
+        # risk_only_hold above is what audits those lines instead.
+        if key[0] not in held_sleeves:
             if not math.isclose(target, expected.get(key, 0), abs_tol=1e-8):
                 raise ValueError("position disagrees with verified ranking or overlay")
     if any(v > 0 and k not in keys for mapping in (prior, expected) for k, v in mapping.items()):
@@ -138,7 +186,13 @@ def validate_book(book, basis, now):
     d = next(s for s in sleeves if s["sleeve"] == "D")
     d_fields = ("sleeve", "venue", "status", "weights", "decision_session",
                 "decision_session_for_fill", "fill_date")
-    return {"anchor": anchor, "d_ready": d_ready, "core_identity": core_identity(book),
+    # `held_sleeves` is what publication_debt reads to decide whether a HOLD is
+    # authorised. It used `d_ready is False` as a proxy for "D is held", which
+    # cannot express a held C at all and would have left one OBLIGED, escalating
+    # a false missed fill from the following Tuesday.
+    return {"anchor": anchor, "d_ready": d_ready,
+            "held_sleeves": sorted(held_sleeves),
+            "core_identity": core_identity(book),
             "europe_identity": digest({"decision": {k: d[k] for k in d_fields},
                 "lines": sorted([r for r in rows if r["sleeve"] == "D"], key=lambda r: r["etf"])})}
 
@@ -281,7 +335,10 @@ def verify(root=ROOT, now=None, committed=False):
     verdict = validate_book(payload["book"], payload["basis"], now)
     if payload["book"]["overlay_decision"] != reader(root / "data/overlay_decision.json"):
         raise ValueError("overlay decision differs from source")
-    if any(payload[k] != v for k, v in verdict.items()):
+    # `.get`, not `[...]`: a seal written before a verdict key existed must be
+    # REFUSED, which is what a mismatch already does, rather than raising a
+    # KeyError that reads as a crash in the verifier.
+    if any(payload.get(k) != v for k, v in verdict.items()):
         raise ValueError("release verdict mismatch")
     if payload["guards"] != ["core"] + (["europe"] if payload["d_ready"] else []):
         raise ValueError("missing scoped guard receipt")

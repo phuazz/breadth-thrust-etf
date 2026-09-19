@@ -557,8 +557,9 @@ def test_a_walk_without_an_anchor_can_never_establish_a_negative(repo):
 # ---------------------------------------------------------------------------
 # 10. An authorised HOLD is not a missed fill (2026-09-16)
 #
-# component_release.verify admits a HOLD only for sleeve D, only with a
-# reason, and only when it is risk-only. Such a sleeve is not going to trade
+# component_release.verify admits a HOLD on any sleeve the sealed release
+# names among held_sleeves, only with a reason, and only when it is
+# risk-only. Such a sleeve is not going to trade
 # the fill, so its rebalance record is not obliged to advance and counting it
 # as unpublished would redefine a sanctioned decision as an operational miss.
 # ---------------------------------------------------------------------------
@@ -588,7 +589,7 @@ def _write_marker(repo, *, anchor=ANCHOR, d_ready=False):
 
 
 def _seal_release(monkeypatch, *, anchor=ANCHOR, d_ready=False, verified=True,
-                  error=""):
+                  error="", held=("D",)):
     """Stand in for a release that component_release.verify ACCEPTS.
 
     The debt module's job is to require that verification and to read its
@@ -599,7 +600,11 @@ def _seal_release(monkeypatch, *, anchor=ANCHOR, d_ready=False, verified=True,
     monkeypatch.setattr(pd_, "release_authorisation",
                         lambda repo_root, now=None: {
                             "verified": verified, "anchor": anchor,
-                            "d_ready": d_ready, "error": error})
+                            "d_ready": d_ready, "error": error,
+                            # Which sleeves the seal AUTHORISES (2026-09-19).
+                            # d_ready was a proxy for "D is held" and cannot
+                            # express a held C, which is the common case.
+                            "held_sleeves": list(held)})
 
 
 def test_a_venue_whose_only_sleeve_is_on_hold_carries_no_debt(repo, monkeypatch):
@@ -953,8 +958,8 @@ def _release_verified_at(monkeypatch, sealed_at, *, anchor=ANCHOR):
         from nyse_sessions import week_final_anchor
         if week_final_anchor(now).isoformat() != anchor:
             raise ValueError("wrong week or executed book")
-        return {"anchor": anchor, "d_ready": False, "identity": "x",
-                "sealed_at": sealed_at}
+        return {"anchor": anchor, "d_ready": False, "held_sleeves": ["D"],
+                "identity": "x", "sealed_at": sealed_at}
 
     import component_release
     monkeypatch.setattr(component_release, "verify", fake_verify)
@@ -1079,7 +1084,8 @@ def test_the_exemption_expires_across_the_week_turn(repo, monkeypatch, asof,
     ok, why = pd_.hold_is_authorised(
         {"sleeve": "D", "status": "HOLD", "reason": "risk-only"},
         "2026-09-11",
-        {"verified": True, "anchor": "2026-09-11", "d_ready": False}, asof)
+        {"verified": True, "anchor": "2026-09-11", "d_ready": False,
+         "held_sleeves": ["D"]}, asof)
     assert ok is exempt, why
     if not exempt:
         assert "frozen book" in why
@@ -1088,8 +1094,8 @@ def test_the_exemption_expires_across_the_week_turn(repo, monkeypatch, asof,
 def test_an_unreadable_release_anchor_cannot_be_aged_and_is_refused():
     ok, why = pd_.hold_is_authorised(
         {"sleeve": "D", "status": "HOLD", "reason": "risk-only"}, None,
-        {"verified": True, "anchor": "not-a-date", "d_ready": False},
-        date(2026, 9, 16))
+        {"verified": True, "anchor": "not-a-date", "d_ready": False,
+         "held_sleeves": ["D"]}, date(2026, 9, 16))
     assert ok is False and "age cannot be established" in why
 
 
@@ -1139,7 +1145,7 @@ def test_a_frozen_venue_is_unknown_even_while_the_other_advances(repo):
     with _mock.patch.object(pd_, "release_authorisation",
                             lambda root, now=None: {
                                 "verified": True, "anchor": "2026-09-11",
-                                "d_ready": False}):
+                                "d_ready": False, "held_sleeves": ["D"]}):
         write("2026-09-14", "2026-09-11", ("READY",) * 3 + ("HOLD",))
         granted = _debt(repo, date(2026, 9, 16))
     states = {r["key"]: r["state"] for r in granted.obligations}
@@ -1798,27 +1804,56 @@ def test_an_unrecovered_gap_never_ages_out(repo):
 # ---------------------------------------------------------------------------
 # 15. HOLD authorisation and provisional READY (finding 2)
 # ---------------------------------------------------------------------------
-def test_only_sleeve_D_may_be_exempted_by_a_hold(repo, monkeypatch):
+def test_a_raw_hold_the_seal_does_not_name_is_not_an_exemption(repo, monkeypatch):
     """REPRODUCED 2026-09-16: any sleeve's raw ``status: HOLD`` was accepted
-    as an authorised exemption, which is weaker than component_release."""
-    _seal_release(monkeypatch)
+    as an authorised exemption, which is weaker than component_release.
+
+    RE-PINNED 2026-09-19. The protection is unchanged and the rule it rests on
+    has moved: what disqualifies this HOLD is that the sealed release does not
+    NAME sleeve A, not that A is spelled differently from D. A book can still
+    not exempt itself by writing HOLD in its own file.
+    """
+    _seal_release(monkeypatch, held=("D",))
     (repo / "data" / "live_targets.json").write_text(json.dumps(
         _targets_with_status({"NYSE": "2026-09-14"},
                              {"A": "NYSE", "B": "NYSE", "C": "NYSE"},
                              {"A": "HOLD"})), encoding="utf-8")
     rep = _debt(repo, date(2026, 9, 16))
     assert rep.owed is True
-    assert any("may not HOLD" in p for p in rep.problems)
+    assert any("does not record sleeve A on an authorised HOLD" in p
+               for p in rep.problems)
+
+
+def test_a_held_sleeve_C_the_seal_names_is_exempt(repo, monkeypatch):
+    """THE 2026-09-19 CASE. Sleeve C holds whenever the coverage floor refuses
+    a partial decision row - a late BTC-USD bar is enough - and before this it
+    could not be authorised at any price, so it acquired a publication debt and
+    would have escalated a false missed fill from the Tuesday after."""
+    _seal_release(monkeypatch, held=("C",))
+    (repo / "data" / "live_targets.json").write_text(json.dumps(
+        _targets_with_status({"NYSE": "2026-09-14"},
+                             {"A": "NYSE", "B": "NYSE", "C": "NYSE"},
+                             {"C": "HOLD"})), encoding="utf-8")
+    rep = _debt(repo, date(2026, 9, 16))
+    assert not any("authorised HOLD" in p for p in rep.problems), rep.problems
 
 
 @pytest.mark.parametrize("release,why", [
     (None, "does not verify against its own contract"),
-    ({"verified": True, "anchor": "2026-09-04", "d_ready": False},
+    ({"verified": True, "anchor": "2026-09-04", "d_ready": False,
+      "held_sleeves": ["D"]},
      "not '2026-09-11'"),
-    ({"verified": True, "anchor": "2026-09-11", "d_ready": True},
-     "does not record D as not ready"),
+    # RE-PINNED 2026-09-19: the refusal is now that the seal does not NAME
+    # this sleeve, which is the direct question. Reading D's status off
+    # d_ready could not express a held C at all.
+    ({"verified": True, "anchor": "2026-09-11", "d_ready": True,
+      "held_sleeves": []},
+     "does not record sleeve D on an authorised HOLD"),
+    ({"verified": True, "anchor": "2026-09-11", "d_ready": False,
+      "held_sleeves": ["C"]},
+     "does not record sleeve D on an authorised HOLD"),
     ({"verified": False, "error": "sealed source changed: data/x.json",
-      "anchor": "2026-09-11", "d_ready": False},
+      "anchor": "2026-09-11", "d_ready": False, "held_sleeves": ["D"]},
      "sealed source changed"),
 ])
 def test_a_d_hold_without_a_verified_release_is_not_authorised(

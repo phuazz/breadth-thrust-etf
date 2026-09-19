@@ -52,8 +52,10 @@ sleeves publish. Three conditions sit outside that and are handled
 explicitly rather than by silence:
 
   * AN AUTHORISED HOLD IS NOT A MISSED FILL. ``component_release.verify``
-    admits a HOLD only for sleeve D, only with a reason, and only when it
-    is risk-only. Such a sleeve is not going to trade, so it is not obliged
+    admits a HOLD on any sleeve, only with a reason, only when it is
+    risk-only, and only when the sealed release names that sleeve among
+    the ones it authorises. Such a sleeve is not going to trade, so it is
+    not obliged
     to advance its record, and a venue whose every sleeve is on HOLD
     carries no debt at all. A sleeve ever observed READY for a fill stays
     obliged: an obligation that was once real is not retired by a later
@@ -254,8 +256,9 @@ class Obligation:
     ``on_hold`` names the sleeves observed on an AUTHORISED HOLD for this
     fill and never observed READY for it. Those sleeves are not obliged to
     advance their rebalance record, because they are not going to trade:
-    ``component_release.verify`` admits a HOLD only for sleeve D, only with
-    a reason, and only when it is risk-only. Counting one as an unpublished
+    ``component_release.verify`` admits a HOLD on any sleeve the sealed
+    release names, only with a reason, and only when it is risk-only.
+    Counting one as an unpublished
     fill would redefine a sanctioned decision as an operational miss.
 
     The direction is deliberately one-way. A sleeve ever observed READY for
@@ -529,6 +532,13 @@ def release_authorisation(repo_root: Path, now: datetime | None = None) -> dict:
         payload = component_release.verify(root, sealed, committed=True)
         out.update(verified=True, anchor=payload.get("anchor"),
                    d_ready=payload.get("d_ready"),
+                   # Which sleeves the verified release records on an
+                   # authorised HOLD (2026-09-19). `.get` with a list default:
+                   # a seal written before this key existed carries no
+                   # authorisation for anything, and the sleeve stays OBLIGED,
+                   # which is the conservative direction this module takes
+                   # everywhere else.
+                   held_sleeves=payload.get("held_sleeves") or [],
                    identity=payload.get("identity"),
                    verified_at=sealed.isoformat())
     except Exception as exc:  # noqa: BLE001 - an unverifiable release is a no
@@ -542,14 +552,21 @@ def hold_is_authorised(sleeve: dict, book_anchor, release: dict | None,
 
     Weaker than ``component_release.verify`` by construction - this module
     does not re-run the release - but it refuses everything that contract
-    refuses: a HOLD on any sleeve but D, a HOLD with no reason, and a HOLD
-    with no sealed release for THIS anchor saying D was not ready. An
+    refuses: a HOLD the sealed release does not record as authorised, a HOLD
+    with no reason, and a HOLD with no sealed release for THIS anchor. An
     unauthorised HOLD leaves the sleeve OBLIGED, which is the conservative
     direction: an incomplete or invalid book is not an exemption.
+
+    ANY SLEEVE MAY HOLD (2026-09-19). This read ``name != "D"`` and then
+    ``d_ready is False``, which was two ways of asking the same D-shaped
+    question and could not express a held C at all. Sleeve C holds whenever
+    the coverage floor refuses a partial decision row - a late BTC-USD bar is
+    enough - so a held C stayed OBLIGED and would have escalated a false
+    missed fill from the Tuesday after. The release now names the sleeves it
+    authorises, and membership replaces both tests: it is the direct question,
+    and it does not infer one sleeve's status from another's.
     """
     name = str(sleeve.get("sleeve") or "")
-    if name != "D":
-        return False, f"sleeve {name} may not HOLD under the release contract"
     if not str(sleeve.get("reason") or "").strip():
         return False, "the HOLD carries no reason"
     if not isinstance(release, dict):
@@ -557,8 +574,10 @@ def hold_is_authorised(sleeve: dict, book_anchor, release: dict | None,
     if release.get("verified") is not True:
         return False, (f"the component release does not verify against its "
                        f"own contract ({release.get('error') or 'unverified'})")
-    if release.get("d_ready") is not False:
-        return False, "the verified release does not record D as not ready"
+    authorised = release.get("held_sleeves")
+    if not isinstance(authorised, list) or name not in authorised:
+        return False, (f"the verified release does not record sleeve {name} "
+                       f"on an authorised HOLD")
     if book_anchor and release.get("anchor") != book_anchor:
         return False, (f"the verified release is for anchor "
                        f"{release.get('anchor')!r}, not {book_anchor!r}")

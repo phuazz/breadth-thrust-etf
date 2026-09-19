@@ -23,7 +23,8 @@ from nyse_sessions import week_final_anchor
 NOW = datetime(2026, 9, 12, 6, tzinfo=timezone.utc)
 
 
-def fixture_book(now=NOW, d_ready=False, gate=False, tilt=False, rounded_d=False):
+def fixture_book(now=NOW, d_ready=False, gate=False, tilt=False, rounded_d=False,
+                 hold=()):
     anchor = week_final_anchor(now).isoformat()
     overlay = {"as_of": anchor, "gate_input_date": anchor, "tilt_input_date": anchor,
                "gate_on": gate, "tilt_on": tilt, "gate_feed": "fixture"}
@@ -41,7 +42,10 @@ def fixture_book(now=NOW, d_ready=False, gate=False, tilt=False, rounded_d=False
         venue = "XETR" if s == "D" else "NYSE"
         fill = next_fill_date(venue, now)
         decision = decision_session_for(venue, fill)
-        ready = s != "D" or d_ready
+        # `hold` puts a CORE sleeve on HOLD (2026-09-19). Until then the
+        # fixture could only express a held D, which is why the contract
+        # could assume one for a year without a test noticing.
+        ready = (s != "D" or d_ready) and s not in hold
         sleeves.append({"sleeve": s, "venue": venue, "status": "READY" if ready else "HOLD",
             "decision_session": decision if ready else (datetime.fromisoformat(decision) - timedelta(days=1)).date().isoformat(),
             "decision_session_for_fill": decision, "last_completed_session": decision,
@@ -49,7 +53,8 @@ def fixture_book(now=NOW, d_ready=False, gate=False, tilt=False, rounded_d=False
     basis = {"anchor": anchor, "model_as_of": anchor,
              "lines": [{"sleeve": s, "etf": e, "held": w} for (s, e), w in held.items()]}
     book = {"as_of": anchor, "computed_at_utc": now.isoformat(), "executed": False,
-            "targets_final": d_ready, "sleeves": sleeves, "overlay_decision": overlay,
+            "targets_final": bool(d_ready and not hold), "sleeves": sleeves,
+            "overlay_decision": overlay,
             "lines": _intended_lines(sleeves, held, overlay["weights"], adjust_overlays=True)}
     book["rounding_residual_nav"] = hold_rounding_residual(sleeves, book["lines"], overlay["weights"])
     return book, basis
@@ -234,3 +239,90 @@ def test_local_capture_guard_failure_prevents_seal(tmp_path, monkeypatch):
     with pytest.raises(subprocess.CalledProcessError):
         cr.seal(tmp_path, now=NOW)
     assert not (tmp_path / cr.MANIFEST).exists()
+
+
+# ---------------------------------------------------------------------------
+# An authorised HOLD is the same object on every sleeve (2026-09-19)
+#
+# THE INCIDENT. Yahoo served no 2026-09-18 BTC-USD bar, sleeve C held on 24 of
+# 25 names at the coverage floor, and every firing of the weekend publication
+# job died in validate_book with "core is not READY or D HOLD is inconsistent".
+# Sleeve A's and B's trades and the overlay's tilt exit went unpublished
+# because a third sleeve had correctly declined to rank. The producer was
+# already generic; only the validator assumed the holder was D.
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("sleeve", ["A", "B", "C"])
+def test_a_core_sleeve_may_hold_and_the_book_still_validates(sleeve):
+    book, basis = fixture_book(d_ready=True, hold=(sleeve,))
+    verdict = cr.validate_book(book, basis, NOW)
+    assert verdict["held_sleeves"] == [sleeve]
+    assert verdict["d_ready"] is True
+    assert math.isclose(sum(r["target"] for r in book["lines"]), 1.0, abs_tol=1e-6)
+
+
+def test_the_2026_09_19_shape_validates_c_held_while_d_is_ready():
+    """The exact shape that failed: D ranked, C on a coverage-floor HOLD."""
+    book, basis = fixture_book(d_ready=True, hold=("C",))
+    assert [s["status"] for s in book["sleeves"]] == ["READY", "READY", "HOLD", "READY"]
+    assert cr.validate_book(book, basis, NOW)["held_sleeves"] == ["C"]
+
+
+def test_a_held_sleeve_makes_the_book_not_final():
+    """Finality is every sleeve's answer, not D's. Read off d_ready it raised
+    with C held and D ready, and would have passed a book that was not final
+    with D held and C ready."""
+    book, basis = fixture_book(d_ready=True, hold=("C",))
+    assert book["targets_final"] is False
+    book["targets_final"] = True
+    with pytest.raises(ValueError, match="finality conflicts"):
+        cr.validate_book(book, basis, NOW)
+
+
+def test_two_sleeves_may_hold_at_once():
+    book, basis = fixture_book(hold=("C",))          # D holds by default
+    assert cr.validate_book(book, basis, NOW)["held_sleeves"] == ["C", "D"]
+
+
+@pytest.mark.parametrize("mutation,match", [
+    ("no_reason", "must carry a reason"),
+    ("not_risk_only", "not risk-only"),
+    ("bad_status", "neither READY nor HOLD"),
+])
+def test_a_core_hold_must_still_earn_its_exemption(mutation, match):
+    """WHAT MUST STILL FAIL. Admitting a HOLD on any sleeve must not become a
+    way to publish a book nobody ranked."""
+    book, basis = fixture_book(d_ready=True, hold=("C",))
+    if mutation == "no_reason":
+        next(s for s in book["sleeves"] if s["sleeve"] == "C")["reason"] = ""
+    if mutation == "not_risk_only":
+        line = next(r for r in book["lines"] if r["sleeve"] == "C")
+        line["target"] += 0.01
+        line["delta"] = line["target"] - line["held"]
+    if mutation == "bad_status":
+        next(s for s in book["sleeves"] if s["sleeve"] == "C")["status"] = "PENDING"
+    with pytest.raises(ValueError, match=match):
+        cr.validate_book(book, basis, NOW)
+
+
+def test_a_held_sleeves_lines_are_audited_by_risk_only_not_by_the_ranking():
+    """The held sleeve's lines are its held book and are not in `expected`, so
+    the ranking check skips them by NAME. That skip must not become a hole:
+    risk_only_hold is what audits them instead, and it refuses a new selection.
+    """
+    book, basis = fixture_book(d_ready=True, hold=("C",))
+    held_line = next(r for r in book["lines"] if r["sleeve"] == "C")
+    # A BUY of a name the sleeve does not hold: the thing a HOLD must never
+    # order. It is invisible to the ranking check (the sleeve is skipped there)
+    # and risk_only_hold is what has to catch it.
+    book["lines"].append({**held_line, "etf": "ARKK", "traded": "ARKK",
+                          "held": 0.0, "target": 0.02, "delta": 0.02})
+    with pytest.raises(ValueError, match="not risk-only"):
+        cr.validate_book(book, basis, NOW)
+
+    # NOTED, NOT FIXED: a zero/zero line (held 0, target 0, delta 0) IS
+    # admitted, on a held sleeve and on a READY one alike - it matches
+    # `expected.get(key, 0)` exactly. It orders nothing, never reaches the
+    # change table at the 1e-8 threshold, and cannot mask an omission, whose
+    # check requires a positive weight. Pre-existing, and out of scope here.
+    book["lines"][-1].update(target=0.0, delta=0.0)
+    assert cr.validate_book(book, basis, NOW)["held_sleeves"] == ["C"]
