@@ -55,7 +55,8 @@ def review_window(now: datetime) -> tuple[datetime, datetime]:
 
 def email_decision(now: datetime, *, anchor: str, core: Snapshot,
                    europe: Snapshot, sent: dict[str, str],
-                   operator_hold: bool = False) -> dict:
+                   operator_hold: bool = False,
+                   core_held: tuple = ()) -> dict:
     """Choose one notification; no implicit permission to send or publish.
 
     Core includes A/B/C AND both overlay decisions. ``sent`` is the durable
@@ -68,7 +69,14 @@ def email_decision(now: datetime, *, anchor: str, core: Snapshot,
     """
     regular_at, final_check = review_window(now)
     local = now.astimezone(SGT)
+    # `core_held` names the A/B/C sleeves the VERIFIED release records on an
+    # authorised HOLD (2026-09-19). A verified core no longer means three
+    # ranked sleeves - C holds whenever the coverage floor refuses a partial
+    # decision row - and the cover text said "A-C ready" regardless. It
+    # changes no decision, only what the reader is told: routing, ledger keys
+    # and deduplication are untouched.
     result = {"action": "wait", "audience": None, "d_hold": not europe.ready,
+              "core_held": tuple(sorted(core_held)),
               "anchor": anchor, "core_identity": core.identity,
               "europe_identity": europe.identity}
     if not anchor or operator_hold:
@@ -113,6 +121,48 @@ def email_decision(now: datetime, *, anchor: str, core: Snapshot,
     return {**result, "reason": "preview already sent; waiting for Europe"}
 
 
+CORE_SLEEVES = ("A", "B", "C")
+
+
+def _core_phrase(held):
+    """(short phrase, sentence) describing the core sleeves' readiness.
+
+    A verified core may now contain a held sleeve, and saying "A-C ready" then
+    names three ranked sleeves when one declined to rank. The held sleeve is
+    also invisible in the changes table - its positions did not move, so every
+    line falls under the 1e-8 change threshold - which means prose is the only
+    place the reader can learn about it.
+    """
+    held = tuple(sorted(h for h in held if h in CORE_SLEEVES))
+    if not held:
+        return "A-C ready", "Strategies A-C and the portfolio overlays are verified."
+    ready = [s for s in CORE_SLEEVES if s not in held]
+    held_txt = held[0] if len(held) == 1 else ", ".join(held[:-1]) + " and " + held[-1]
+    verb = "is" if len(held) == 1 else "are"
+    noun = "Strategy" if len(held) == 1 else "Strategies"
+    if not ready:
+        return ("A-C on HOLD",
+                "Strategies A-C are all on HOLD for selection; the portfolio "
+                "overlays are verified. No new ranking is proposed for them "
+                "and their existing positions stand.")
+    ready_txt = ready[0] if len(ready) == 1 else ", ".join(ready[:-1]) + " and " + ready[-1]
+    ready_noun = "Strategy" if len(ready) == 1 else "Strategies"
+    return (ready_txt + " ready; " + held_txt + " on HOLD",
+            ready_noun + " " + ready_txt + " and the portfolio overlays are "
+            "verified. " + noun + " " + held_txt + " " + verb + " on HOLD for "
+            "selection: the data needed was incomplete, so no new ranking is "
+            "proposed and the existing positions stand unchanged.")
+
+
+def _core_instruction(held):
+    """The instruction for a held core sleeve, which no table row will carry."""
+    held = sorted(h for h in held if h in CORE_SLEEVES)
+    if not held:
+        return ""
+    return (" Keep the existing selection for " + ", ".join(held)
+            + "; any portfolio-level risk adjustment is shown separately.")
+
+
 def email_wording(decision: dict) -> dict[str, str]:
     """Plain-language cover text for a verified snapshot, never a new signal.
 
@@ -120,6 +170,13 @@ def email_wording(decision: dict) -> dict[str, str]:
     lines must come from the sealed snapshot checked by the eventual sender.
     """
     action = decision.get("action")
+    held = tuple(decision.get("core_held") or ())
+    phrase, core_sentence = _core_phrase(held)
+    core_instruction = _core_instruction(held)
+    # The instruction goes into core_status, not only the summary: the factsheet
+    # renders heading / core_status / difference, and `summary` reaches no
+    # surface at all. An instruction nobody renders is not an instruction.
+    core_sentence = core_sentence + core_instruction
     if action == "revision":
         # A presentation revision of an already-delivered anchor. It restates
         # the same sealed book; it never proposes, supersedes or adds an order.
@@ -130,37 +187,44 @@ def email_wording(decision: dict) -> dict[str, str]:
                        "in a clearer layout. The proposed positions, signals and dates are identical.",
             "difference": "Nothing here supersedes or adds to what has already been sent. If you have "
                           "reviewed the earlier email, no further action is required.",
+            "core_status": core_sentence,
             "d_instruction": "Unchanged from the factsheet already delivered; no new D selection is proposed.",
         }
     if action == "preview":
         return {
-            "subject": "Initial factsheet — A–C ready; D pending",
-            "heading": "A–C and portfolio overlays are ready for review",
-            "summary": "Strategies A–C, the EM tilt and the breadth gate have been verified. "
-                       "Strategy D is still waiting for complete data.",
+            "subject": "Initial factsheet - " + phrase + "; D pending",
+            "heading": phrase + "; portfolio overlays verified",
+            "summary": core_sentence + " Strategy D is still waiting for complete data."
+                       + core_instruction,
             "difference": "This is the initial update. A later email will confirm D's status "
                           "and clearly identify any changes.",
+            "core_status": core_sentence,
             "d_instruction": "Keep D's existing selection. Any portfolio-level risk adjustment "
                              "is shown separately; no new D selection is proposed.",
         }
     if action in ("regular", "d_update"):
         if decision.get("d_hold") is True:
             return {
-                "subject": "Weekly factsheet — D remains on HOLD",
-                "heading": "A–C ready; D remains on HOLD",
-                "summary": "Strategies A–C and the portfolio overlays are verified. "
-                           "D's data is still incomplete, so no new D selection is proposed.",
-                "difference": "If you received the initial update, the verified A–C and overlay "
+                "subject": "Weekly factsheet - " + phrase + "; D remains on HOLD",
+                "heading": phrase + "; D remains on HOLD",
+                "summary": core_sentence + " D's data is still incomplete, so no new D "
+                           "selection is proposed." + core_instruction,
+                "difference": "If you received the initial update, the verified core and overlay "
                               "instructions are unchanged. This email confirms D remains on HOLD.",
+                "core_status": core_sentence,
                 "d_instruction": "Keep D's existing selection. Any portfolio-level risk adjustment "
                                  "is shown separately.",
             }
         return {
-            "subject": "Weekly factsheet — all strategies ready",
-            "heading": "D is now ready; all strategies are verified",
-            "summary": "Strategy D's required data is complete. Its proposed changes are now included.",
-            "difference": "If you received an earlier update, the verified A–C and overlay "
+            "subject": ("Weekly factsheet - all strategies ready" if not held
+                        else "Weekly factsheet - D ready; " + phrase),
+            "heading": ("D is now ready; all strategies are verified" if not held
+                        else "D is now ready; " + phrase),
+            "summary": "Strategy D's required data is complete. Its proposed changes are now "
+                       "included. " + core_sentence + core_instruction,
+            "difference": "If you received an earlier update, the verified core and overlay "
                           "instructions are unchanged. Review the D changes in this email.",
+            "core_status": core_sentence,
             "d_instruction": "Review D's proposed changes alongside the previously verified instructions.",
         }
     raise ValueError("factsheet wording requires an approved send decision")

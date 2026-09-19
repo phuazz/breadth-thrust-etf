@@ -65,8 +65,21 @@ def plan(root=ROOT, now=None, committed=False):
     decision = email_decision(now, anchor=anchor,
         core=Snapshot(release["core_identity"], True, anchor, anchor),
         europe=Snapshot(release["europe_identity"], release["d_ready"],
-                        europe["last_completed_session"], europe["decision_session_for_fill"]), sent=sent)
+                        europe["last_completed_session"], europe["decision_session_for_fill"]),
+        sent=sent, core_held=_core_held(release))
     return decision, release
+
+
+def _core_held(release) -> tuple:
+    """The A/B/C sleeves the VERIFIED release records on an authorised HOLD.
+
+    Read off the release rather than the book on disk: the release is what was
+    verified, and `held_sleeves_of` translates a seal written before the key
+    existed. D is excluded because `d_hold` already carries it and the cover
+    text speaks about D separately.
+    """
+    from component_release import held_sleeves_of
+    return tuple(s for s in held_sleeves_of(release) if s in ("A", "B", "C"))
 
 
 def render(decision, release, include_unchanged=False):
@@ -160,7 +173,8 @@ def send(root=ROOT, now=None, transport=smtp_send, env=None, committed=False):
     rechecked = email_decision(now, anchor=release["anchor"],
         core=Snapshot(release["core_identity"], True, release["anchor"], release["anchor"]),
         europe=Snapshot(release["europe_identity"], release["d_ready"],
-                        europe["last_completed_session"], europe["decision_session_for_fill"]), sent=state)
+                        europe["last_completed_session"], europe["decision_session_for_fill"]),
+        sent=state, core_held=_core_held(release))
     if rechecked["action"] != decision["action"]:
         raise ValueError("send eligibility changed after reservation; reconcile without sending")
     transport(candidate, os.environ if env is None else env)

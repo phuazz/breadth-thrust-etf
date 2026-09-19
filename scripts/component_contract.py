@@ -14,17 +14,43 @@ def expected_budgets(decision):
     return {**weights, "tilt_nav": tilt, "shy_overlay": 1 - scale}
 
 
-def unchanged_hold_budget(sleeve, total_held, target_budget):
-    """Recognise rounded model weights at an unchanged registered D budget.
+def registered_budgets(sleeve):
+    """Every NAV budget the overlay can put a sleeve on, in ascending order.
 
-    This is not a trade-size threshold. Only the two registered D risk budgets
-    qualify; moving between them, or to any other budget, is a real resize.
-    The residual bound is the same one already accepted for the held basis.
+    Derived from ``expected_budgets`` over the four overlay states rather than
+    restated as constants, so the two can never disagree. B carries four
+    because the EM tilt comes out of B and scales with the gate; A, C and D
+    carry two each, gated and ungated.
+
+    The smallest gap between two registered budgets is B's 0.05, five hundred
+    times the rounding tolerance below, so no genuine transition can be
+    mistaken for rounding.
     """
-    if sleeve != "D" or not math.isfinite(total_held) or total_held <= 0:
+    key = str(sleeve).lower()
+    return sorted({expected_budgets({"gate_on": g, "tilt_on": t})[key]
+                   for g in (False, True) for t in (False, True)})
+
+
+def unchanged_hold_budget(sleeve, total_held, target_budget):
+    """Recognise rounded model weights at an unchanged registered budget.
+
+    This is not a trade-size threshold. Only a REGISTERED budget qualifies, and
+    only when the held basket already sits on that same budget: moving between
+    two registered budgets, or to any other number, is a real resize and stays
+    a trade. The residual bound is the one already accepted for the held basis.
+
+    GENERALISED 2026-09-19 with hold_rounding_residual, not before it. The two
+    are one contract: this decides whether a held basket is preserved exactly,
+    and that one accounts for the NAV residual which preserving it leaves
+    behind. Generalising this alone would have preserved a held C or B basket
+    while the residual still counted D only, and the target book would have
+    failed to conserve NAV - a refusal to publish, but for the wrong reason and
+    at the worst moment. D's 20%/10% behaviour and tolerance are unchanged:
+    registered_budgets("d") is exactly the pair this used to hard-code.
+    """
+    if not math.isfinite(total_held) or total_held <= 0:
         return False
-    base = BASE_SLEEVE_WEIGHTS["d"]
-    for nominal in (base, base * (1 - DEFAULT_DERISK_FRACTION)):
+    for nominal in registered_budgets(sleeve):
         if (math.isclose(target_budget, nominal, rel_tol=0, abs_tol=1e-12)
                 and math.isclose(total_held, nominal, rel_tol=0,
                                  abs_tol=MODEL_WEIGHT_ROUNDING_TOL)):
@@ -33,11 +59,22 @@ def unchanged_hold_budget(sleeve, total_held, target_budget):
 
 
 def hold_rounding_residual(sleeves, rows, budgets):
-    """Derive the non-trading NAV residual, independently of its declared value."""
-    if not any(s["sleeve"] == "D" and s["status"] == "HOLD" for s in sleeves):
-        return 0.0
-    total = math.fsum(float(r["held"]) for r in rows if r["sleeve"] == "D")
-    return total - budgets["d"] if unchanged_hold_budget("D", total, budgets["d"]) else 0.0
+    """Derive the non-trading NAV residual, independently of its declared value.
+
+    Summed over EVERY held sleeve whose budget is unchanged, because more than
+    one sleeve can hold at once - C on a coverage floor and D on a vendor
+    retraction was the 2026-09-19 case, and each contributes its own residual.
+    """
+    residual = 0.0
+    for s in sleeves:
+        if s.get("status") != "HOLD":
+            continue
+        name = s["sleeve"]
+        budget = budgets[name.lower()]
+        total = math.fsum(float(r["held"]) for r in rows if r["sleeve"] == name)
+        if unchanged_hold_budget(name, total, budget):
+            residual += total - budget
+    return residual
 
 
 def validate_target_nav(sleeves, rows, budgets, declared_residual=None):

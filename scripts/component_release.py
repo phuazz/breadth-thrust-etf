@@ -53,6 +53,35 @@ def core_identity(book):
                         key=lambda r: (r["sleeve"], r["etf"]))})
 
 
+def assert_incumbent_construction(root, reader=read):
+    """Refuse a book built on a STAGED construction, read off the artefact.
+
+    ``seal`` checks ``BTE_C_BTC_BASIS`` in its own environment, which only
+    catches an operator who set the flag in the shell they sealed from. The
+    engine can be run under the flag in one shell and sealed from another, and
+    the staged output persists: ``thematic_rotation.json`` then declares
+    ``c_btc_basis: "ibit"`` while the sealing environment is clean. The flag is
+    the intent; the artefact is the evidence, and the evidence is what binds.
+
+    WS21 is staged until the WS7 verdict is filed, so a book carrying its
+    construction may not be published by any route. Checked at seal AND at
+    verify, because a release is re-verified before it is sent.
+
+    A legacy artefact written before the key existed carries no declaration and
+    is the incumbent by construction - that is the only absence admitted.
+    """
+    path = root / "data" / "thematic_rotation.json"
+    try:
+        declared = (reader(path) or {}).get("c_btc_basis")
+    except (OSError, ValueError, KeyError):
+        return                      # unreadable is the sealed-digest's problem
+    if declared is not None and str(declared).strip().lower() != "incumbent":
+        raise ValueError(
+            f"thematic_rotation.json declares c_btc_basis={declared!r}; the "
+            f"staged sleeve C Bitcoin basis cannot be published before the WS7 "
+            f"verdict is filed. Rebuild the sleeve with BTE_C_BTC_BASIS unset.")
+
+
 def held_sleeves_of(payload):
     """The sleeves a sealed release records on an authorised HOLD.
 
@@ -243,8 +272,33 @@ def price_evidence(root, book, reader=read):
             proxy = get_etf(key).get("yfinance_trading_proxy") or key
         except KeyError:
             proxy = key
-        entry = prices.get(proxy) or prices.get(key)
+        # EVIDENCE FOR THE INSTRUMENT, OR NO EVIDENCE (2026-09-19).
+        #
+        # This read `prices.get(proxy) or prices.get(key)` and then labelled
+        # the result `price_key: proxy`. Where the two differ that is a quote
+        # for one instrument filed under another's name, and the registry's
+        # BTC-USD entry made it concrete: with no IBIT series exported yet, a
+        # spot Bitcoin quote of ~60,000 was accepted and recorded as IBIT's
+        # price - a fund trading near 35. Every consumer downstream reads
+        # price_key as a statement of what was priced.
+        #
+        # ONE alias survives, because its equivalence is established rather
+        # than assumed: a proxy that is the key plus a venue suffix is the SAME
+        # fund quoted on its exchange (EXV1 -> EXV1.DE), which is how
+        # resolve_book_symbol builds it. Everything else is a different
+        # instrument and must bring its own quote - EXH3 -> EXH4.DE is a
+        # different fund in a different sector, IUFS -> XLF a different
+        # domicile, BTC-USD -> IBIT a fund against spot.
+        entry = prices.get(proxy)
+        if not entry and proxy.split(".")[0] == key:
+            entry = prices.get(key)
         required = sessions.get(r["sleeve"], book["as_of"])
+        if not entry and key in prices and proxy != key:
+            raise ValueError(
+                f"price evidence for {key} must be a quote for the instrument "
+                f"it trades as ({proxy}); the export carries only {key}, which "
+                f"is a different instrument, and filing it under {proxy} would "
+                f"misstate what was priced")
         if not entry or len(entry["dates"]) != len(entry["prices"]) or required not in entry["dates"]:
             raise ValueError(f"missing price observation for changed position {key}")
         value = float(entry["prices"][entry["dates"].index(required)])
@@ -305,6 +359,10 @@ def seal(root=ROOT, component="core", now=None):
     # value this guard does not recognise is not a value it may wave through.
     if os.environ.get("BTE_C_BTC_BASIS", "").strip().lower() not in ("", "incumbent"):
         raise ValueError("staged sleeve C Bitcoin basis cannot auto-publish")
+    # The environment is the intent; the artefact is the evidence. A sleeve
+    # run under the flag in another shell persists its construction, and the
+    # check above cannot see it.
+    assert_incumbent_construction(root)
     guards = ["core"] + (["europe"] if verdict["d_ready"] else [])
     for scope in guards:
         subprocess.run([sys.executable, "scripts/check_refresh_guard.py", "--component", scope],
@@ -354,6 +412,10 @@ def verify(root=ROOT, now=None, committed=False):
     if payload["book"] != reader(root / "data/live_targets.json") or payload["basis"] != reader(root / "data/component_held_basis.json"):
         raise ValueError("sealed book or held basis disagrees with source")
     verdict = validate_book(payload["book"], payload["basis"], now)
+    # Re-checked here too: a release is verified again before it is sent, and
+    # a staged construction must not become publishable by surviving to the
+    # second gate.
+    assert_incumbent_construction(root, reader)
     if payload["book"]["overlay_decision"] != reader(root / "data/overlay_decision.json"):
         raise ValueError("overlay decision differs from source")
     # `held_sleeves` is read through held_sleeves_of so a seal predating the key

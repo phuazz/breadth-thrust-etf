@@ -123,7 +123,15 @@ def context_from_sources(release, reader):
             proxy = get_etf(line["etf"]).get("yfinance_trading_proxy") or line["etf"]
         except KeyError:
             proxy = line["etf"]
-        entry = prices.get(proxy) or prices.get(line["etf"], {})
+        # Same rule as component_release.price_evidence (2026-09-19): a return
+        # labelled `price_key: proxy` must be that instrument's return. The
+        # fallback to the registry KEY put a spot Bitcoin series behind an
+        # "IBIT" label; here it would print a holding return the position never
+        # earned. No entry means no return - `exact_return` already handles
+        # None, and the row prints as unavailable rather than as wrong.
+        entry = prices.get(proxy) or {}
+        if not entry and proxy.split(".")[0] == line["etf"]:
+            entry = prices.get(line["etf"], {})      # same fund, venue-suffixed
         ret = exact_return(entry.get("dates"), entry.get("prices"), start, end)
         holding_returns.append({**line, "ret": ret, "price_key": proxy})
     # The equity path the chart draws comes from the same hashed sources as
@@ -522,7 +530,12 @@ def render_html(decision, release, include_unchanged=False):
              "D UPDATE" if decision["action"] == "d_update" else "WEEKLY FACTSHEET")
     parts = [f"<p class='eyebrow'>{stage} · {e(long_date(release['anchor']))}</p>",
              "<h1>USD Multi-Strategy ETF Portfolio</h1>",
-             f"<div class='status'><h2>{e(w['heading'])}</h2><p>{e(w['difference'])}</p></div>"]
+             f"<div class='status'><h2>{e(w['heading'])}</h2>"
+             # The held core sleeve has no row in the changes table - its
+             # positions did not move - so this sentence is the only place a
+             # reader learns it held (2026-09-19).
+             + (f"<p>{e(w['core_status'])}</p>" if w.get("core_status") else "")
+             + f"<p>{e(w['difference'])}</p></div>"]
     if revision:
         parts.insert(0, f"<p><strong>{e(revision_banner(decision))}</strong></p>")
     if stats["series"].startswith("synthetic"):
@@ -543,7 +556,8 @@ def render_html(decision, release, include_unchanged=False):
               "Sharpe and maximum drawdown cover the full deployed-model history. Proposed trades are not included.</p>"]
     if decision['d_hold']:
         parts.append("<p><strong>Performance is provisional while D data is incomplete.</strong> "
-                     "The full-portfolio figures may change when D completes; the A–C and overlay instructions are verified.</p>")
+                     "The full-portfolio figures may change when D completes. "
+                     + e(w.get("core_status", "")) + "</p>")
     if context.get("attribution"):
         parts.append("<h3>Return drivers by strategy</h3>")
         max_abs = max((abs(r["contribution"] or 0) for r in context["attribution"]), default=0) or 1
@@ -619,7 +633,23 @@ def render_html(decision, release, include_unchanged=False):
     if decision["d_hold"]:
         parts.append("<p>D remains on HOLD for selection. No Thursday-close substitute or new D ranking is used.</p>")
     if abs(book.get("rounding_residual_nav", 0.0)) > 1e-12:
-        parts.append("<p>D holdings are unchanged; small rounding differences in totals are not trades.</p>")
+        # Name the sleeves it is actually about (2026-09-19). The residual is
+        # summed over every held sleeve whose budget is unchanged, so saying
+        # "D" is wrong the moment C holds too - and C holds whenever a vendor
+        # bar is late.
+        rounded = sorted(s["sleeve"] for s in book["sleeves"]
+                         if s.get("status") == "HOLD")
+        # No possessive: `escape` turns an apostrophe into &#x27; and the
+        # sentence stops being greppable by anything reading the rendered page.
+        if not rounded:
+            who = "the held strategies"
+        elif len(rounded) == 1:
+            who = f"Strategy {rounded[0]}"
+        else:
+            who = ("Strategies " + ", ".join(rounded[:-1])
+                   + f" and {rounded[-1]}")
+        parts.append(f"<p>Holdings in {e(who)} are unchanged; small rounding "
+                     "differences in totals are not trades.</p>")
     parts += ["<h2>03 · Positioning and review</h2>",
               f"<p><strong>Breadth gate: {'RISK OFF' if overlay['gate_on'] else 'RISK ON'} · "
               f"EM tilt: {'ON' if overlay['tilt_on'] else 'OFF'}</strong><br>Both inputs verified to {e(release['anchor'])}.</p>"]
@@ -968,6 +998,10 @@ def render_pdf(decision, release):
     flow += [Paragraph(escape(ascii_text(v["wording"]["heading"])),
                        st("t", 17, INK, bold=True, leading=21, space=3)),
              p(v["wording"]["difference"], st("d", 9, SOFT, space=10))]
+    # Same sentence in the attachment, for the same reason.
+    if v["wording"].get("core_status"):
+        flow.insert(len(flow) - 1,
+                    p(v["wording"]["core_status"], st("c", 9, SOFT, space=6)))
 
     # ---- 01 the week ----------------------------------------------------
     flow += section("01 / The week in numbers",

@@ -72,7 +72,11 @@ def test_no_send_rounding_rehearsal_reaches_preview_and_remains_deduplicated(tmp
     decision = sender.prepare(tmp_path, NOW, reserve=True)
     html = sender.render(decision, release)
     assert "portfolio-risk adjustment only" not in html
-    assert "D holdings are unchanged; small rounding differences in totals are not trades." in html
+    # RE-PINNED 2026-09-19: the sentence now names the sleeves that actually
+    # held, because the residual is summed over every held sleeve and saying
+    # "D" is wrong the moment C holds too.
+    assert ("Holdings in Strategy D are unchanged; small rounding differences "
+            "in totals are not trades.") in html
     sent = []
     sender.send(tmp_path, NOW, transport=lambda *a: sent.append(a), env={})
     assert len(sent) == 1
