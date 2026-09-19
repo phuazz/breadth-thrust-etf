@@ -75,6 +75,27 @@ CUTOVER = date(2024, 1, 11)
 FROZEN_PARQUET = DATA_DIR / "btc_proxy_history_pre_ibit.parquet"
 FROZEN_SIDECAR = DATA_DIR / "btc_proxy_history_pre_ibit.source.json"
 
+#: The production artefact's digest, REGISTERED IN CODE (2026-09-19).
+#:
+#: The sidecar is a writable file beside a writable parquet, so re-running the
+#: freezer rewrote both together and the loader's hash check passed against a
+#: replacement anchor - the guard verified internal consistency, not identity.
+#: This constant is the second, independent witness: it lives in the source
+#: tree, moves only through a reviewed commit, and pins the exact 1,517-session
+#: segment ending 2024-01-11 at S_c = 45674.257342138306.
+#:
+#: If this ever has to change, the change IS the restatement, and the WS21
+#: registration's frozen §4 is what it has to be argued against.
+REGISTERED_SHA256 = (
+    "7ab4a26a7dcf5f1471063702e6404bdee867ad8c02e6c9620eb153c26e7966b2")
+
+#: The path the registered digest is ABOUT. Separate from FROZEN_PARQUET on
+#: purpose: a test redirects FROZEN_PARQUET at a synthetic artefact, and if the
+#: production check keyed on that it would fire against every fixture and say
+#: nothing about production. This constant is never redirected, so the check
+#: applies to exactly one file - the committed one.
+PRODUCTION_PARQUET = DATA_DIR / "btc_proxy_history_pre_ibit.parquet"
+
 #: Verbatim from registration §4, written into the frozen sidecar so the
 #: derivation travels with the artefact rather than only with this file.
 DERIVATION = (
@@ -188,6 +209,20 @@ def load_frozen_segment(parquet: Path | None = None,
             f"anchor for every value after 2024-01-11 — refusing to build on "
             f"bytes nobody signed. Restore the committed artefact; do NOT "
             f"re-freeze to make this pass.")
+    # THE SECOND WITNESS. The check above proves the parquet and its sidecar
+    # agree; re-running the freezer rewrites BOTH, so agreement alone cannot
+    # tell the registered anchor from a replacement. For the production
+    # artefact the digest must also equal the one registered in this file,
+    # which only a reviewed commit can move. A test pointing the constants at
+    # a temporary pair is exempt: it is not the production anchor.
+    if path == PRODUCTION_PARQUET and actual != REGISTERED_SHA256:
+        raise BasisError(
+            f"{path.name} has sha256 {actual}, but the digest registered in "
+            f"btc_basis.REGISTERED_SHA256 is {REGISTERED_SHA256}. The sidecar "
+            f"agreeing with the file proves only that both were written "
+            f"together. Restore the committed artefact; changing the "
+            f"registered digest is a restatement of the WS21 record and needs "
+            f"the argument that goes with one.")
     frame = pd.read_parquet(path)
     if list(frame.columns) != [SPOT_KEY]:
         raise BasisError(

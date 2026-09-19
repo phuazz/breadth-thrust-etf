@@ -26,7 +26,7 @@
     "stop_band": 0.01,
     "stop_condition": "PASS",
     "verdict": "p5-p95 inside +/-1.0% \u2014 no halt",
-    "note": "The DISPERSION is what the stop condition reads, and that is what this measures: both legs are taken at the same instant, so the day-to-day spread is premium/discount and nothing else. The CUMULATIVE ratio is NOT attributable from this measurement and must not be read as a premium/discount drift: it bundles IBIT's expense accrual (25 bp/yr, waived to 12 bp for the first twelve months on the first USD 5 bn \u2014 from memory, unverified against the prospectus), any change in IBIT's own premium/discount, and the BTCUSDT-against-USD basis, Binance quoting Tether rather than dollars. Decomposing it was not in scope and was not done."
+    "note": "WHAT THE DAILY DIFFERENCE CONTAINS. Both legs are taken at the same instant, so the timing offset between the two clocks is controlled and removed. What remains is NOT premium/discount alone: it also carries day-to-day movement in the USDT/USD basis (Binance quotes Tether, not dollars) and the daily accrual of IBIT's expense ratio. Both are small against a spread whose middle 90% is about a fifth of a per cent, and neither is separated here - the registered stop condition reads the DISPERSION of this combined difference, which is what it was written against, and no decomposition was performed. Read the band as bounding premium/discount plus those two terms together, not premium/discount on its own. The CUMULATIVE ratio is NOT attributable from this measurement and must not be read as a premium/discount drift: it bundles IBIT's expense accrual (25 bp/yr, waived to 12 bp for the first twelve months on the first USD 5 bn \u2014 from memory, unverified against the prospectus), any change in IBIT's own premium/discount, and the BTCUSDT-against-USD basis, Binance quoting Tether rather than dollars. Decomposing it was not in scope and was not done."
   },
   "M2": {
     "window": {
@@ -140,5 +140,6 @@
     "stop_threshold": 0.0001,
     "stop_condition": "PASS",
     "note": "Read the zero for what it is. Both feeds carry the same cent-level close at float32 precision (Norgate stores float32; Yahoo's chart API serves float32-quantised values), so after the cast to float64 every cell is bit-identical rather than merely close \u2014 26.6299991607666 on both sides at the cut-over. The measurement's floor is that shared quantisation, not a tolerance this result approached. It does NOT evidence that IBIT has paid no distribution: a distribution would be adjusted by both the TOTALRETURN and the auto_adjust basis, and the two would still agree."
-  }
+  },
+  "disclosure_corrected_utc": "2026-09-19T10:10:58+00:00"
 }

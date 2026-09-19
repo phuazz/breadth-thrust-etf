@@ -141,7 +141,25 @@ def build_segment(series: pd.Series) -> pd.Series:
 def freeze(cache: Path = SOURCE_CACHE,
            parquet: Path = btc_basis.FROZEN_PARQUET,
            sidecar: Path = btc_basis.FROZEN_SIDECAR,
-           write: bool = True, now=None) -> dict:
+           write: bool = True, now=None, force: bool = False) -> dict:
+    # ONE-OFF MEANS ONCE (2026-09-19). This overwrote the parquet and its
+    # sidecar together, so a second run replaced the anchor AND the hash that
+    # certified it, and the loader's check passed on the replacement. Every
+    # sleeve C Bitcoin value after 2024-01-11 is a ratio off S_c, so that is a
+    # silent restatement of the whole post-cut-over segment.
+    #
+    # An existing artefact is therefore a refusal, not a target. `--force`
+    # exists for the genuine re-freeze, which is a restatement either way and
+    # still has to move btc_basis.REGISTERED_SHA256 through a reviewed commit
+    # before the loader will accept the result.
+    if write and not force and Path(parquet).exists():
+        raise FreezeRefused(
+            f"{Path(parquet).name} already exists. It is frozen by "
+            f"registration and never refetched, and overwriting it would move "
+            f"S_c and restate every value after {btc_basis.CUTOVER} with "
+            f"nothing in any diff to show for it. Use --check to compare, or "
+            f"--force if a restatement is genuinely intended - which also "
+            f"needs btc_basis.REGISTERED_SHA256 updated in a reviewed commit.")
     series, source_sidecar = check_source(cache)
     seg = build_segment(series)
     cut = pd.Timestamp(btc_basis.CUTOVER)
@@ -186,9 +204,12 @@ def main(argv=None) -> int:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true",
                         help="report what would be frozen and write nothing")
+    parser.add_argument("--force", action="store_true",
+                        help="overwrite an existing frozen artefact — a "
+                             "restatement; also needs REGISTERED_SHA256 moved")
     args = parser.parse_args(argv)
     try:
-        report = freeze(write=not args.check)
+        report = freeze(write=not args.check, force=args.force)
     except (FreezeRefused, btc_basis.BasisError) as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 1

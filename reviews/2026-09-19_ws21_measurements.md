@@ -9,6 +9,8 @@ Seen window 2024-01-11 to 2026-07-02, 620 NYSE sessions. Disclosure only: no per
 | **M3** join behaviour, 2024-01-11 to 2024-10-25 | max absolute signal difference 0.0704 on 2024-02-28 (+0.8283 vs +0.7579), median 0.0077 over 200 sessions | disclosure, no gate |
 | **M4** source agreement, Norgate vs Yahoo on IBIT | max relative difference 0.00e+00 over 620 sessions, 620 of them bit-identical — both feeds carry the same cent-level close at float32 precision, so the floor here is quantisation, not a tolerance approached | **PASS** (threshold 1e-4) |
 
+**Reading M1.** Both legs are taken at the same instant, so the timing offset is controlled. The remaining daily difference is not premium/discount alone — it also carries movement in the USDT/USD basis (Binance quotes Tether) and IBIT's daily expense accrual, neither separated here. The stop band bounds the three together. The cumulative ratio (0.9809 to 1.0000) is NOT attributable from this measurement and must not be read as a premium/discount drift: it bundles the same three terms over the whole window. Decomposing them was out of scope and was not done.
+
 Hard cap: nothing after 2026-07-02 is computed under the staged basis before the WS7 verdict is filed.
 
 Sources: thematic_prices_cache.parquet (norgate), IBIT from norgate TOTALRETURN, column basis `ibit-spliced@7ab4a26a7dcf`.

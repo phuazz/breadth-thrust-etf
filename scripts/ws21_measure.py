@@ -238,6 +238,31 @@ def close_instants(start: date, end: date) -> pd.Series:
     return pd.Series(out).sort_index()
 
 
+def _m1_note() -> str:
+    """The M1 disclosure prose. ONE definition, so a correction reaches the
+    filed result through --render-only without recomputing a figure."""
+    return (
+            "WHAT THE DAILY DIFFERENCE CONTAINS. Both legs are taken at the "
+            "same instant, so the timing offset between the two clocks is "
+            "controlled and removed. What remains is NOT premium/discount "
+            "alone: it also carries day-to-day movement in the USDT/USD basis "
+            "(Binance quotes Tether, not dollars) and the daily accrual of "
+            "IBIT's expense ratio. Both are small against a spread whose "
+            "middle 90% is about a fifth of a per cent, and neither is "
+            "separated here - the registered stop condition reads the "
+            "DISPERSION of this combined difference, which is what it was "
+            "written against, and no decomposition was performed. Read the "
+            "band as bounding premium/discount plus those two terms together, "
+            "not premium/discount on its own. The "
+            "CUMULATIVE ratio is NOT attributable from this measurement and "
+            "must not be read as a premium/discount drift: it bundles IBIT's "
+            "expense accrual (25 bp/yr, waived to 12 bp for the first twelve "
+            "months on the first USD 5 bn — from memory, unverified against "
+            "the prospectus), any change in IBIT's own premium/discount, and "
+            "the BTCUSDT-against-USD basis, Binance quoting Tether rather "
+            "than dollars. Decomposing it was not in scope and was not done.")
+
+
 def measure_m1(start: date, end: date) -> dict:
     instants = close_instants(start, end)
     ibit, feed = ibit_closes(start, end)
@@ -284,17 +309,7 @@ def measure_m1(start: date, end: date) -> dict:
         "verdict": ("p5-p95 outside +/-1.0% — the flip halts pending owner "
                     "review" if breached else
                     "p5-p95 inside +/-1.0% — no halt"),
-        "note": (
-            "The DISPERSION is what the stop condition reads, and that is "
-            "what this measures: both legs are taken at the same instant, so "
-            "the day-to-day spread is premium/discount and nothing else. The "
-            "CUMULATIVE ratio is NOT attributable from this measurement and "
-            "must not be read as a premium/discount drift: it bundles IBIT's "
-            "expense accrual (25 bp/yr, waived to 12 bp for the first twelve "
-            "months on the first USD 5 bn — from memory, unverified against "
-            "the prospectus), any change in IBIT's own premium/discount, and "
-            "the BTCUSDT-against-USD basis, Binance quoting Tether rather "
-            "than dollars. Decomposing it was not in scope and was not done."),
+        "note": _m1_note(),
     }
 
 
@@ -596,6 +611,21 @@ def markdown(payload: dict) -> str:
     elif m4:
         lines.append(f"| **M4** source agreement | not measured "
                      f"({m4.get('reason')}) | — |")
+    if m1.get("note"):
+        lines += [
+            "",
+            "**Reading M1.** Both legs are taken at the same instant, so the "
+            "timing offset is controlled. The remaining daily difference is "
+            "not premium/discount alone — it also carries movement in the "
+            "USDT/USD basis (Binance quotes Tether) and IBIT's daily expense "
+            "accrual, neither separated here. The stop band bounds the three "
+            "together. The cumulative ratio "
+            f"({m1.get('cumulative_ratio_min', float('nan')):.4f} to "
+            f"{m1.get('cumulative_ratio_max', float('nan')):.4f}) is NOT "
+            "attributable from this measurement and must not be read as a "
+            "premium/discount drift: it bundles the same three terms over the "
+            "whole window. Decomposing them was out of scope and was not done.",
+        ]
     lines += [
         "",
         f"Hard cap: nothing after {HARD_CAP} is computed under the staged "
@@ -618,7 +648,31 @@ def main(argv=None) -> int:
     parser.add_argument("--end", default=None,
                         help="last session to read (default: the hard cap)")
     parser.add_argument("--skip", default="", help="comma-separated: m1,m2,m3,m4")
+    parser.add_argument("--render-only", action="store_true",
+                        help="re-render the filed disclosure from the stored "
+                             "JSON; recomputes nothing")
     args = parser.parse_args(argv)
+
+    if args.render_only:
+        # CORRECT THE DISCLOSURE WITHOUT TOUCHING A FIGURE (2026-09-19).
+        # The prose in a filed result can be wrong while every number in it is
+        # right, and re-running to fix a sentence would refetch Binance and
+        # recompute a measurement that is already filed. This re-renders the
+        # markdown from the stored JSON and refreshes only the prose notes.
+        payload = json.loads(OUT_JSON.read_text(encoding="utf-8"))
+        before = {k: (payload.get(k) or {}).get("note") for k in ("M1", "M4")}
+        payload.setdefault("M1", {})
+        payload["M1"]["note"] = _m1_note()
+        payload["disclosure_corrected_utc"] = datetime.now(
+            timezone.utc).isoformat(timespec="seconds")
+        OUT_JSON.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        OUT_MD.write_text(markdown(payload), encoding="utf-8")
+        print("  re-rendered the disclosure from the stored result; "
+              "no figure recomputed")
+        for key, was in before.items():
+            now_note = (payload.get(key) or {}).get("note")
+            print(f"    {key} note {'changed' if was != now_note else 'unchanged'}")
+        return 0
 
     skip = {s.strip().lower() for s in args.skip.split(",") if s.strip()}
     end = date.fromisoformat(args.end) if args.end else None
