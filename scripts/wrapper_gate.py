@@ -223,6 +223,73 @@ def crossover_turnover(a: Route, b: Route, gross_yield: float):
     return t if t > 0 else None
 
 
+def run_exposure(path: pathlib.Path, turnover: float) -> None:
+    """Rank N candidate wrappers for ONE exposure, from a T1-format file.
+
+    Used where the choice is between funds rather than between a fund and its
+    constituents — the EM tilt, where the direct route is infeasible and the
+    file says so rather than leaving it implied.
+    """
+    p = json.loads(path.read_text(encoding="utf-8"))
+    print(f"Exposure: {p['exposure']}")
+    print(f"Context : {p['context']}\n")
+
+    us_comm, _ = _val(p, "us_commission_bps")
+    scored = []
+    for code, r in p["routes"].items():
+        ter, ter_u = _val(r, "ter")
+        y, y_u = _val(r, "distribution_yield_12m")
+        wht, _ = _val(r, "investor_wht_on_distribution")
+        spread, spread_u = _val(r, "half_spread_bps")
+        comm, comm_u = _val(r, "commission_bps")
+        if comm is None:
+            comm, comm_u = us_comm, True
+        y = y or 0.0
+        tax = wht * y
+        trade = 2.0 * turnover * (comm + spread) / 10_000.0
+        total = ter + tax + trade
+        unc = [n for n, u in (("TER", ter_u), ("yield", y_u),
+                              ("spread", spread_u), ("commission", comm_u)) if u]
+        scored.append((total, code, r, ter, tax, trade, unc))
+    scored.sort()
+    best = scored[0][0]
+
+    hdr = (f"{'Route':7} {'Domicile':9} {'TER':>6} {'Investor tax':>13} "
+           f"{'Trading':>8} {'TOTAL':>7} {'vs best':>8} {'situs':>6}")
+    print(hdr)
+    print("-" * len(hdr))
+    for total, code, r, ter, tax, trade, unc in scored:
+        print(f"{code:7} {r['domicile'][:9]:9} {ter*100:5.2f}% {tax*100:12.3f}% "
+              f"{trade*100:7.3f}% {total*100:6.3f}% {(total-best)*100:+7.3f}% "
+              f"{str(r['us_situs']):>6}")
+        if unc:
+            print(f"{'':7} {'':9} unverified: {', '.join(unc)}")
+    print(f"\nAdvantage of {scored[0][1]} over {scored[-1][1]}: "
+          f"{(scored[-1][0]-best)*100:.2f}% a year at {turnover:.2f}x turnover.")
+
+    # Turnover at which the ranking could flip, so the result is not quoted
+    # as if it held everywhere.
+    a, b = scored[0], scored[-1]
+    fixed = (b[3] + b[4]) - (a[3] + a[4])
+    ra = a[2]
+    rb = b[2]
+    ca = (_val(ra, "commission_bps")[0] or us_comm) + _val(ra, "half_spread_bps")[0]
+    cb = (_val(rb, "commission_bps")[0] or us_comm) + _val(rb, "half_spread_bps")[0]
+    per_turn = 2.0 * (ca - cb) / 10_000.0
+    if per_turn > 0:
+        print(f"Ranking flips above {fixed / per_turn:.1f}x one-way turnover a year.")
+    else:
+        print("No crossover: the ranking holds at every turnover.")
+
+    if "direct_route_rejected" in p:
+        d = p["direct_route_rejected"]
+        print(f"\nDirect replication: {d['verdict']} — {d['note']}")
+    if "not_quantified" in p:
+        print("\nDeliberately NOT netted into the figures above:")
+        for k, v in p["not_quantified"].items():
+            print(f"  - {k}: {v['note']}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--turnover", type=float, default=DEFAULT_TURNOVER,
@@ -231,7 +298,14 @@ def main() -> None:
                     help="include every panel in the holdings archive")
     ap.add_argument("--crossover", action="store_true",
                     help="report the turnover at which the routes swap rank")
+    ap.add_argument("--exposure", type=str, default=None,
+                    help="path to a T1 exposure file comparing wrappers "
+                         "(e.g. data/em_wrapper_params.json)")
     args = ap.parse_args()
+
+    if args.exposure:
+        run_exposure(pathlib.Path(args.exposure), args.turnover)
+        return
 
     p = load_params()
     lines, sched, spreads = p["lines"], p["broker_schedules"], p["half_spread_bps"]

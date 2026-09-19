@@ -1,0 +1,124 @@
+{
+  "_README": "EM tilt wrapper T1. Same discipline as data/ws6b_params.json: every figure carries its source, and 'uncertain': true means the pull could NOT confirm it from a published source and it is a stated assumption, NOT a verified figure - such a figure must be reported as uncertain wherever it propagates. Retrieval date for all pulls: 2026-09-19. This file compares WRAPPERS for one exposure (MSCI Emerging Markets), not a fund against its own constituents: direct replication of EM is infeasible and is recorded as such under 'direct_route_rejected'.",
+  "exposure": "MSCI Emerging Markets Index (Net), Bloomberg NDUEEGF",
+  "context": "Personal. The deployed tilt instrument is EEM, overlay-only since Phase 29 (scripts/build_simple_page.py TILT_TICKER).",
+  "investor": {
+    "residence": "Singapore individual",
+    "us_wht_on_us_source": {
+      "value": 0.30,
+      "source": "IRS Pub 515; no US-SG income tax treaty (carried over from ws6b_params.json, retrieved 2026-07-19)"
+    },
+    "irish_wht_on_distribution": {
+      "value": 0.0,
+      "source": "Irish exit tax exempt for non-residents, TCA 1997 s739D (carried over from ws6b_params.json)"
+    }
+  },
+  "routes": {
+    "EEM": {
+      "name": "iShares MSCI Emerging Markets ETF",
+      "domicile": "United States",
+      "listing": "NYSE Arca",
+      "cusip": "464287234",
+      "us_situs": true,
+      "benchmark": {
+        "value": "MSCI Emerging Markets Index (Net)",
+        "source": "ishares.com US product 239637 Key Facts, retrieved 2026-09-19"
+      },
+      "ter": {
+        "value": 0.0072,
+        "source": "ishares.com US product 239637 'Expense Ratio: Fees as stated in the prospectus 0.72%' AND Yahoo Finance / Morningstar 'Annual Report Expense Ratio (net) 0.72%' - two sources AGREE, retrieved 2026-09-19"
+      },
+      "distribution_yield_12m": {
+        "value": 0.0166,
+        "source": "ishares.com US product 239637 '12m Trailing Yield 1.66%' as of 2026-08-31 AND Yahoo Finance 'Yield 1.66%' - two sources AGREE, retrieved 2026-09-19",
+        "note": "Distribution yield on NAV, already net of the fund's own foreign withholding and of fund expenses. The 30 Day SEC Yield on the same date is 0.98%; the 12m figure is used because the investor-level charge applies to what is actually distributed over a year."
+      },
+      "investor_wht_on_distribution": {
+        "value": 0.30,
+        "source": "US-domiciled distributing fund - the SG individual suffers 30% on the distribution, IRS Pub 515 (same treatment ws6b_params.json assigns to SOXX)"
+      },
+      "half_spread_bps": {
+        "value": 0.5,
+        "source": "ishares.com US product 239637 '30 Day Median Bid/Ask Spread 0.01%' as of 2026-09-17; half of 1bp",
+        "note": "A published spread figure, unlike the LSE sector lines in ws6b_params.json where the equivalent is marked NOT FOUND."
+      },
+      "fund_size_usd": {
+        "value": 31274777620,
+        "source": "ishares.com US product 239637 Net Assets of Fund, 2026-09-18"
+      },
+      "holdings_count": {
+        "value": 1185,
+        "source": "ishares.com US product 239637, 2026-09-17"
+      }
+    },
+    "SEMA": {
+      "name": "iShares MSCI EM UCITS ETF USD (Acc)",
+      "domicile": "Ireland",
+      "isin": "IE00B4L5YC18",
+      "us_situs": false,
+      "benchmark": {
+        "value": "MSCI Emerging Markets Index (Net)",
+        "source": "ishares.com UK product 251858 Key Facts, retrieved 2026-09-19",
+        "note": "SAME index as EEM. This is an index match, not an approximate substitute - the IMI variant (EIMI, IE00BKM4GZ66) tracks MSCI EM IMI and would NOT be like-for-like."
+      },
+      "ter": {
+        "value": 0.0018,
+        "source": "ishares.com UK product 251858 'Total Expense Ratio 0.18%' AND justETF profile for the sister distributing class IE00B0M63177 'TER 0.18% p.a.' - two sources AGREE, retrieved 2026-09-19"
+      },
+      "use_of_income": {
+        "value": "Accumulating",
+        "source": "ishares.com UK product 251858 'Use of Income Accumulating'"
+      },
+      "investor_wht_on_distribution": {
+        "value": 0.0,
+        "source": "Accumulating share class - no distribution; Irish exit tax exempt for non-residents, TCA 1997 s739D"
+      },
+      "half_spread_bps": {
+        "value": 5.0,
+        "uncertain": true,
+        "source": "NOT FOUND - no published spread statistic located for the LSE-listed line",
+        "note": "Carried at the same 5.0 bps ws6b_params.json uses for the LSE sector UCITS lines, where it is flagged as the least-verified parameter in that stack. justETF shows a 0.46% spread on gettex for the sister distributing class IE00B0M63177, but that is a German retail venue and is NOT the LSE figure. This is a genuine gap."
+      },
+      "commission_bps": {
+        "value": 5.0,
+        "uncertain": true,
+        "source": "ibkr LSE Tiered 0.05% of trade value, carried from ws6b_params.json broker_schedules.ibkr_lse_etf",
+        "note": "Same uncertainty as ws6b: WHICH LSE schedule applies to a USD-denominated line is unconfirmed."
+      },
+      "availability": {
+        "value": null,
+        "uncertain": true,
+        "source": "NOT VERIFIED - whether IBKR Singapore offers this specific line to a retail SG client was not checked. The book already holds LSE UCITS lines, so it is plausible, but plausible is not verified."
+      },
+      "fund_size": {
+        "value": null,
+        "uncertain": true,
+        "source": "NOT PULLED for the Acc share class. justETF gives EUR 8,793m for the sister distributing class IE00B0M63177, which is a different share class of a different fund and must not be read as this one's size."
+      }
+    }
+  },
+  "us_commission_bps": {
+    "value": 0.5,
+    "uncertain": true,
+    "source": "IBKR Fixed US stocks $0.005/share capped at 1% of value (ws6b_params.json broker_schedules.ibkr_fixed_us_stocks); 0.5bp is that rate on a large-cap print",
+    "note": "Price-dependent. Stated explicitly rather than embedded silently."
+  },
+  "not_quantified": {
+    "source_country_withholding_differential": {
+      "uncertain": true,
+      "note": "THE ONE MATERIAL GAP. Both funds hold non-US stocks and both suffer withholding in each source country at whatever rate that country's treaty with the fund's domicile allows. Ireland's and the United States' treaty networks over the large MSCI EM weights - Taiwan 25.7%, China 20.3%, South Korea 17.6%, India 12.3% (justETF country weights for IE00B0M63177 as of 2026-07-30) - are NOT the same, and this pull did not establish either. The differential could run in either direction and is deliberately NOT netted into the headline. Closing it needs treaty texts or a specialist, not a product page."
+    },
+    "us_estate_tax": {
+      "uncertain": true,
+      "note": "EEM is us_situs true and an Irish UCITS is not. US estate tax applies to US-situs assets of non-resident aliens above a USD 60,000 exemption, and Singapore has no US estate tax treaty. This is a LARGE asymmetric benefit of the Irish route that is deliberately left unpriced here. The vault already carries a caution that estate-tax figures in the ETF Starter work were not primary-sourced; the same caution applies. Needs counsel."
+    },
+    "switching_cost": {
+      "uncertain": true,
+      "note": "One-off: sell EEM, buy the Irish line, crossing two spreads plus commission, plus any capital gains consequence (none for a SG individual on equities, not verified here) and time out of the market."
+    }
+  },
+  "direct_route_rejected": {
+    "verdict": "INFEASIBLE",
+    "note": "Direct replication of EM constituents is rejected before any tax argument. From the holdings archive: ICHN needs 216 names to reach 90% of fund weight, IJPN 164, NDIA 75, ITWN 53. Norgate carries no non-US equity data, so the basket could be neither backtested nor tracked; the vault already established that Norgate sells no European product at any tier. Several of these markets also gate foreign investors behind registration. No further work proposed."
+  }
+}
