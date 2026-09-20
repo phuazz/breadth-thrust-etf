@@ -117,6 +117,21 @@
       "note": "One-off: sell EEM, buy the Irish line, crossing two spreads plus commission, plus any capital gains consequence (none for a SG individual on equities, not verified here) and time out of the market."
     }
   },
+  "holding_vehicle_invariance": {
+    "asked": "2026-09-20 - would holding through a Cayman SPV make the US-domiciled ETF or the direct stocks more attractive than the Irish UCITS?",
+    "answer": "NO, and the ranking does not move at all.",
+    "reasoning": "A holding vehicle changes withholding only if it changes the TREATY that applies. Cayman has no US income tax treaty, so a Cayman entity receiving US-source dividends suffers the same statutory 30% as a Singapore individual - no improvement on the direct-stock or US-ETF route. The Irish UCITS keeps its 15% fund-level rate regardless of who owns it, because a fund's treaty position is the fund's own and not its holders', and Ireland does not withhold on distributions to non-residents (TCA 1997 s739D), so a Cayman holder sits at 0% at investor level just as an SG individual does. Every verdict in this file and in the 2026-09-19 WS6b amendment is driven by the 15%-versus-30% step, which is untouched.",
+    "treaty_check": {
+      "source": "IRS 'United States income tax treaties - A to Z', irs.gov, retrieved 2026-09-20",
+      "cayman_islands": "NOT LISTED - no US income tax treaty",
+      "singapore": "NOT LISTED - confirms the 30% direct rate used throughout",
+      "ireland": "LISTED - basis for the 15% fund-level rate",
+      "note": "Absence verified as real rather than a render artefact: the C section of the same page returns Canada, China and Czech Republic."
+    },
+    "what_a_blocker_does_change": "US estate tax only. That applies to US-situs assets of a non-resident INDIVIDUAL; a corporation does not die, so a non-US corporate blocker removes the exposure. It is listed under not_quantified above and was deliberately never netted into any headline, so removing it changes no ranking - it removes a tiebreaker, not a result.",
+    "what_a_blocker_adds": "Recurring Cayman administration, audit, directors, registered office and economic-substance cost, plus FATCA/CRS obligations. Every figure in this file is 20-100 bps; the fixed cost is five figures a year and must be compared against the TOTAL pool it covers, not one sleeve. SEPARATE RISK, NOT RESOLVED: if the vehicle is managed and controlled from Singapore it may be SG tax-resident, and the s13(9) foreign-sourced income exemption requires a foreign headline rate of at least 15% - Cayman has none - so the structure could be tax-negative. A legal question, flagged not answered.",
+    "what_would_change_it": "Only a vehicle domiciled somewhere with a better US treaty rate than Ireland's 15%, which for a pooled equity vehicle does not exist at this scale. Ireland is already near the best available."
+  },
   "direct_route_rejected": {
     "verdict": "INFEASIBLE",
     "note": "Direct replication of EM constituents is rejected before any tax argument. From the holdings archive: ICHN needs 216 names to reach 90% of fund weight, IJPN 164, NDIA 75, ITWN 53. Norgate carries no non-US equity data, so the basket could be neither backtested nor tracked; the vault already established that Norgate sells no European product at any tier. Several of these markets also gate foreign investors behind registration. No further work proposed."
