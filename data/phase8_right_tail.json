@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-09-19T07:59:48.128044+00:00",
+  "computed_at_utc": "2026-09-20T01:30:49.339110+00:00",
   "common_monthly_window": [
     "2018-11-30",
     "2026-09-30"
@@ -117,16 +117,16 @@
       "label": "Strategy D \u2014 Europe sector breadth (standalone)",
       "date_range": [
         "2018-10-02",
-        "2026-09-15"
+        "2026-09-18"
       ],
-      "n_days": 2018,
+      "n_days": 2021,
       "n_months": 95,
-      "sharpe": 0.9207015981186427,
-      "sortino": 0.8482295424657996,
-      "calmar": 0.48790274761862507,
-      "skew_daily": -0.8694834134985943,
-      "skew_monthly": -0.1779334328098368,
-      "cagr": 0.1709306058578004,
+      "sharpe": 0.9170688588885372,
+      "sortino": 0.8446734387900333,
+      "calmar": 0.48553657252716675,
+      "skew_daily": -0.8691460279765602,
+      "skew_monthly": -0.1756320582291932,
+      "cagr": 0.1701016461031717,
       "max_dd": -0.3503374528880709,
       "rolling_12m_best": 0.8853713230444533,
       "rolling_12m_worst": -0.2911061773540552,
@@ -138,9 +138,9 @@
         "2021-10-19",
         "2022-10-12"
       ],
-      "hit_rate_12m_pct": 82.21970554926388,
-      "hit_rate_12m_n_windows": 1766,
-      "hit_rate_12m_n_positive": 1452,
+      "hit_rate_12m_pct": 82.24985867721877,
+      "hit_rate_12m_n_windows": 1769,
+      "hit_rate_12m_n_positive": 1455,
       "longest_dd_depth": -0.3212021303575957,
       "longest_dd_duration_days": 518,
       "longest_dd_duration_months": 17.0,
@@ -153,16 +153,16 @@
       "label": "35% A + 35% B + 10% C + 20% D (Phase 4 ungated reference \u2014 overlay disabled)",
       "date_range": [
         "2018-10-31",
-        "2026-09-15"
+        "2026-09-18"
       ],
-      "n_days": 1942,
+      "n_days": 1945,
       "n_months": 95,
-      "sharpe": 1.181370204110258,
-      "sortino": 1.0774135357996857,
-      "calmar": 0.7018061995409345,
-      "skew_daily": -0.7942817670669625,
-      "skew_monthly": 0.1282379194566605,
-      "cagr": 0.15294055478521584,
+      "sharpe": 1.1781002785388612,
+      "sortino": 1.0749595559302307,
+      "calmar": 0.6998171548190517,
+      "skew_daily": -0.7929496655653177,
+      "skew_monthly": 0.12944924029521407,
+      "cagr": 0.15250709380488203,
       "max_dd": -0.21792420027816414,
       "rolling_12m_best": 0.7217961542736466,
       "rolling_12m_worst": -0.12429433521510613,
@@ -174,9 +174,9 @@
         "2019-03-13",
         "2020-03-23"
       ],
-      "hit_rate_12m_pct": 88.52071005917159,
-      "hit_rate_12m_n_windows": 1690,
-      "hit_rate_12m_n_positive": 1496,
+      "hit_rate_12m_pct": 88.54105138806851,
+      "hit_rate_12m_n_windows": 1693,
+      "hit_rate_12m_n_positive": 1499,
       "longest_dd_depth": -0.14244416732796739,
       "longest_dd_duration_days": 233,
       "longest_dd_duration_months": 7.7,
@@ -189,16 +189,16 @@
       "label": "45% A + 45% B + 10% C (3-way baseline \u2014 pre-Europe)",
       "date_range": [
         "2018-10-31",
-        "2026-09-15"
+        "2026-09-18"
       ],
-      "n_days": 1942,
+      "n_days": 1945,
       "n_months": 95,
-      "sharpe": 1.0906360906708497,
-      "sortino": 1.0034718475927933,
-      "calmar": 0.7691637913583108,
-      "skew_daily": -0.6362237174058809,
-      "skew_monthly": 0.1058220199540291,
-      "cagr": 0.14289000176273148,
+      "sharpe": 1.0873242185550624,
+      "sortino": 1.000858476848408,
+      "calmar": 0.7668342108375066,
+      "skew_daily": -0.6350504515232955,
+      "skew_monthly": 0.10723782462329723,
+      "cagr": 0.14245722818646067,
       "max_dd": -0.18577317779142172,
       "rolling_12m_best": 0.6547452332220187,
       "rolling_12m_worst": -0.08891942290705657,
@@ -210,9 +210,9 @@
         "2019-03-13",
         "2020-03-23"
       ],
-      "hit_rate_12m_pct": 91.77514792899409,
-      "hit_rate_12m_n_windows": 1690,
-      "hit_rate_12m_n_positive": 1551,
+      "hit_rate_12m_pct": 91.78972238629652,
+      "hit_rate_12m_n_windows": 1693,
+      "hit_rate_12m_n_positive": 1554,
       "longest_dd_depth": -0.12373471984069917,
       "longest_dd_duration_days": 391,
       "longest_dd_duration_months": 12.8,
@@ -225,16 +225,16 @@
       "label": "50% A + 50% B (no thematic)",
       "date_range": [
         "2018-10-31",
-        "2026-09-15"
+        "2026-09-18"
       ],
-      "n_days": 1942,
+      "n_days": 1945,
       "n_months": 95,
-      "sharpe": 1.0797345804920797,
-      "sortino": 0.9907387282678163,
-      "calmar": 0.7107659814259073,
-      "skew_daily": -0.6650236818326782,
-      "skew_monthly": -0.15710978639589113,
-      "cagr": 0.14035565889927848,
+      "sharpe": 1.0737167149884503,
+      "sortino": 0.9854594376303747,
+      "calmar": 0.7065048344416186,
+      "skew_daily": -0.6640763396711099,
+      "skew_monthly": -0.15298801831140169,
+      "cagr": 0.13951420600440767,
       "max_dd": -0.19747098562272655,
       "rolling_12m_best": 0.5722846441947567,
       "rolling_12m_worst": -0.09147955681929609,
@@ -246,9 +246,9 @@
         "2019-03-13",
         "2020-03-23"
       ],
-      "hit_rate_12m_pct": 95.14792899408285,
-      "hit_rate_12m_n_windows": 1690,
-      "hit_rate_12m_n_positive": 1608,
+      "hit_rate_12m_pct": 95.15652687536917,
+      "hit_rate_12m_n_windows": 1693,
+      "hit_rate_12m_n_positive": 1611,
       "longest_dd_depth": -0.13509519749928955,
       "longest_dd_duration_days": 372,
       "longest_dd_duration_months": 12.2,
@@ -436,7 +436,7 @@
         "strategy_d": {
           "total_return": 0.07203619909502268,
           "max_dd": -0.11170914999492228,
-          "sharpe": 0.5729712811185731,
+          "sharpe": 0.5729875959690207,
           "n_days": 254
         },
         "blend_35_35_10_20": {
@@ -486,12 +486,12 @@
     "matrix": {
       "strategy_a": {
         "strategy_a": 1.0,
-        "strategy_b": 0.537,
+        "strategy_b": 0.538,
         "strategy_c": 0.372,
         "strategy_d": 0.51
       },
       "strategy_b": {
-        "strategy_a": 0.537,
+        "strategy_a": 0.538,
         "strategy_b": 1.0,
         "strategy_c": 0.594,
         "strategy_d": 0.337
@@ -511,9 +511,9 @@
     },
     "common_window": [
       "2018-11-01",
-      "2026-09-15"
+      "2026-09-18"
     ],
-    "n_days": 1941,
+    "n_days": 1944,
     "most_diversifying_pair": {
       "a": "strategy_c",
       "b": "strategy_d",

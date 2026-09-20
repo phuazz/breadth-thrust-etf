@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-09-19T08:01:29.359270+00:00",
+ "computed_at_utc": "2026-09-20T01:31:57.559689+00:00",
  "strategies": [
   {
    "sleeve": "A",
@@ -47,19 +47,19 @@
    "sleeve": "D",
    "label": "Europe sectors",
    "venue": "XETR",
-   "data_through": "2026-09-16",
+   "data_through": "2026-09-18",
    "venue_last_session": "2026-09-18",
-   "sessions_behind": 2,
-   "status": "behind",
+   "sessions_behind": 0,
+   "status": "current",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
    "carried": false,
-   "why": "every one of the breadth panels stops at 2026-09-16 while XETR has completed 2026-09-18 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-09-16, while the market has traded to 2026-09-18 \u2014 it has not been rebuilt since."
+   "why": null,
+   "why_plain": null
   }
  ],
- "all_current": false,
+ "all_current": true,
  "n_unknown": 0,
- "stalest": "2026-09-16",
- "n_behind": 1
+ "stalest": "2026-09-18",
+ "n_behind": 0
 }

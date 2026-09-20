@@ -1,8 +1,8 @@
 {
-  "computed_at_utc": "2026-09-19T08:01:39+00:00",
+  "computed_at_utc": "2026-09-20T01:32:08+00:00",
   "as_of": "2026-09-18",
   "next_fill": {
-    "summary": "17 moves at the next fill (NYSE Mon 21 Sep 2026, XETR Mon 21 Sep 2026), ranked on the Fri 18 Sep 2026 close; one-way turnover 19.18% of NAV; 2 new names; 3 exits. Signals compared with the previous decision close.",
+    "summary": "19 moves at the next fill (NYSE Mon 21 Sep 2026, XETR Mon 21 Sep 2026), ranked on the Fri 18 Sep 2026 close; one-way turnover 19.42% of NAV; 2 new names; 3 exits. Signals compared with the previous decision close.",
     "moves": [
       {
         "sleeve": "TILT",
@@ -127,14 +127,14 @@
         "signal_prev": 0.1102,
         "signal_now_fmt": "+16.1",
         "signal_prev_fmt": "+11.0",
-        "rank_now": 3,
+        "rank_now": 4,
         "rank_prev": 4,
         "n": 14,
         "cut": null,
         "cash_proxy": false,
         "driver": "signal",
         "signal_kind": "breadth_relative",
-        "text": "SOXX (iShares Semiconductors) 4.4% \u2192 6.9% of NAV (+2.5pp): breadth +11.0pp \u2192 +16.1pp against the sector average, rank 4 \u2192 3 of 14."
+        "text": "SOXX (iShares Semiconductors) 4.4% \u2192 6.9% of NAV (+2.5pp): breadth +11.0pp \u2192 +16.1pp against the sector average, rank 4 of 14."
       },
       {
         "sleeve": "A",
@@ -215,14 +215,14 @@
         "signal_prev": 0.2144,
         "signal_now_fmt": "+16.1",
         "signal_prev_fmt": "+21.4",
-        "rank_now": 4,
+        "rank_now": 3,
         "rank_prev": 2,
         "n": 14,
         "cut": null,
         "cash_proxy": false,
         "driver": "signal",
         "signal_kind": "breadth_relative",
-        "text": "IUFS (iShares S&P 500 Financials) 8.6% \u2192 6.9% of NAV (-1.7pp): breadth +21.4pp \u2192 +16.1pp against the sector average, rank 2 \u2192 4 of 14."
+        "text": "IUFS (iShares S&P 500 Financials) 8.6% \u2192 6.9% of NAV (-1.7pp): breadth +21.4pp \u2192 +16.1pp against the sector average, rank 2 \u2192 3 of 14."
       },
       {
         "sleeve": "B",
@@ -291,6 +291,28 @@
         "text": "CNDX (iShares NASDAQ-100) enters at 0.7% of NAV: breadth -0.8pp \u2192 +1.6pp against the sector average, rank 8 \u2192 5 of 14, into the top 7."
       },
       {
+        "sleeve": "D",
+        "etf": "EXV3",
+        "traded": "EXV3",
+        "name": "STOXX Europe 600 Technology",
+        "action": "TRIM",
+        "held": 0.056940000000000004,
+        "target": 0.0545438,
+        "delta": -0.002396200000000001,
+        "signal_now": 0.6226,
+        "signal_prev": 0.6792,
+        "signal_now_fmt": "62.3",
+        "signal_prev_fmt": "67.9",
+        "rank_now": 3,
+        "rank_prev": 3,
+        "n": 5,
+        "cut": null,
+        "cash_proxy": false,
+        "driver": "signal",
+        "signal_kind": "breadth",
+        "text": "EXV3 (STOXX Europe 600 Technology) 5.7% \u2192 5.5% of NAV (-0.2pp): breadth 67.9% \u2192 62.3%, rank 3 of 5."
+      },
+      {
         "sleeve": "B",
         "etf": "EFA",
         "traded": "EFA",
@@ -311,6 +333,28 @@
         "driver": "signal",
         "signal_kind": "ma_distance",
         "text": "EFA (MSCI EAFE (Intl developed)) 2.3% \u2192 2.5% of NAV (+0.2pp): +6.0% \u2192 +3.9% against its 200-day average, rank 6 \u2192 5 of 12."
+      },
+      {
+        "sleeve": "D",
+        "etf": "EXV1",
+        "traded": "EXV1",
+        "name": "STOXX Europe 600 Banks",
+        "action": "ADD",
+        "held": 0.07758000000000001,
+        "target": 0.0797558,
+        "delta": 0.0021757999999999916,
+        "signal_now": 0.9104,
+        "signal_prev": 0.9254,
+        "signal_now_fmt": "91.0",
+        "signal_prev_fmt": "92.5",
+        "rank_now": 1,
+        "rank_prev": 1,
+        "n": 5,
+        "cut": null,
+        "cash_proxy": false,
+        "driver": "signal",
+        "signal_kind": "breadth",
+        "text": "EXV1 (STOXX Europe 600 Banks) 7.8% \u2192 8.0% of NAV (+0.2pp): breadth 92.5% \u2192 91.0%, rank 1 of 5."
       },
       {
         "sleeve": "B",
@@ -449,14 +493,14 @@
             "signal_prev": 0.1102,
             "signal_now_fmt": "+16.1",
             "signal_prev_fmt": "+11.0",
-            "rank_now": 3,
+            "rank_now": 4,
             "rank_prev": 4,
             "n": 14,
             "cut": null,
             "cash_proxy": false,
             "driver": "signal",
             "signal_kind": "breadth_relative",
-            "text": "SOXX (iShares Semiconductors) 4.4% \u2192 6.9% of NAV (+2.5pp): breadth +11.0pp \u2192 +16.1pp against the sector average, rank 4 \u2192 3 of 14."
+            "text": "SOXX (iShares Semiconductors) 4.4% \u2192 6.9% of NAV (+2.5pp): breadth +11.0pp \u2192 +16.1pp against the sector average, rank 4 of 14."
           },
           {
             "sleeve": "A",
@@ -493,14 +537,14 @@
             "signal_prev": 0.2144,
             "signal_now_fmt": "+16.1",
             "signal_prev_fmt": "+21.4",
-            "rank_now": 4,
+            "rank_now": 3,
             "rank_prev": 2,
             "n": 14,
             "cut": null,
             "cash_proxy": false,
             "driver": "signal",
             "signal_kind": "breadth_relative",
-            "text": "IUFS (iShares S&P 500 Financials) 8.6% \u2192 6.9% of NAV (-1.7pp): breadth +21.4pp \u2192 +16.1pp against the sector average, rank 2 \u2192 4 of 14."
+            "text": "IUFS (iShares S&P 500 Financials) 8.6% \u2192 6.9% of NAV (-1.7pp): breadth +21.4pp \u2192 +16.1pp against the sector average, rank 2 \u2192 3 of 14."
           },
           {
             "sleeve": "A",
@@ -727,13 +771,13 @@
         "heading": "Sleeve C \u00b7 Thematic \u00b7 ranks 25 on distance of the price above its 200-day average, holds the top 5",
         "story": "ARKK enters at 2.0% of NAV (rank 6 \u2192 5, into the top 5); COPX exits (rank 5 \u2192 8, out of the top 5).",
         "gate": {
+          "breadth": 0.4,
           "enabled": true,
+          "fired": false,
+          "floor": 0.05,
           "n_above": 10,
           "n_universe": 25,
-          "breadth": 0.4,
-          "floor": 0.05,
-          "threshold": 0.3,
-          "fired": false
+          "threshold": 0.3
         },
         "moves": [
           {
@@ -783,6 +827,64 @@
         ]
       },
       {
+        "sleeve": "D",
+        "label": "Europe sectors",
+        "signal_kind": "breadth",
+        "signal_unit": "breadth (%)",
+        "signal_desc": "share of constituents above their 200-day average",
+        "top_k": 3,
+        "n": 5,
+        "heading": "Sleeve D \u00b7 Europe sectors \u00b7 ranks 5 on share of constituents above their 200-day average, holds the top 3",
+        "story": "2 smaller resizes under 0.5pp of NAV follow the signal.",
+        "gate": null,
+        "moves": [
+          {
+            "sleeve": "D",
+            "etf": "EXV3",
+            "traded": "EXV3",
+            "name": "STOXX Europe 600 Technology",
+            "action": "TRIM",
+            "held": 0.056940000000000004,
+            "target": 0.0545438,
+            "delta": -0.002396200000000001,
+            "signal_now": 0.6226,
+            "signal_prev": 0.6792,
+            "signal_now_fmt": "62.3",
+            "signal_prev_fmt": "67.9",
+            "rank_now": 3,
+            "rank_prev": 3,
+            "n": 5,
+            "cut": null,
+            "cash_proxy": false,
+            "driver": "signal",
+            "signal_kind": "breadth",
+            "text": "EXV3 (STOXX Europe 600 Technology) 5.7% \u2192 5.5% of NAV (-0.2pp): breadth 67.9% \u2192 62.3%, rank 3 of 5."
+          },
+          {
+            "sleeve": "D",
+            "etf": "EXV1",
+            "traded": "EXV1",
+            "name": "STOXX Europe 600 Banks",
+            "action": "ADD",
+            "held": 0.07758000000000001,
+            "target": 0.0797558,
+            "delta": 0.0021757999999999916,
+            "signal_now": 0.9104,
+            "signal_prev": 0.9254,
+            "signal_now_fmt": "91.0",
+            "signal_prev_fmt": "92.5",
+            "rank_now": 1,
+            "rank_prev": 1,
+            "n": 5,
+            "cut": null,
+            "cash_proxy": false,
+            "driver": "signal",
+            "signal_kind": "breadth",
+            "text": "EXV1 (STOXX Europe 600 Banks) 7.8% \u2192 8.0% of NAV (+0.2pp): breadth 92.5% \u2192 91.0%, rank 1 of 5."
+          }
+        ]
+      },
+      {
         "sleeve": "TILT",
         "label": "",
         "signal_kind": null,
@@ -819,9 +921,7 @@
         ]
       }
     ],
-    "holds": [
-      "Sleeve D is held and its book is unchanged: signal reaches 2026-09-16 but the last completed XETR session is 2026-09-18 \u2014 ranking now would use an earlier session."
-    ],
+    "holds": [],
     "notes": [
       "no signal recorded for EEM in sleeve TILT; the move is stated without its driver"
     ],
@@ -832,30 +932,30 @@
     }
   },
   "week": {
-    "text": "Week Fri 11 Sep 2026 close \u2192 Fri 18 Sep 2026 close: the blend returned -0.51% against SPY -0.09%. By sleeve: Sleeve C +0.40pp (+4.02% at 10% of NAV), Sleeve A -0.04pp (-0.12% at 35% of NAV), Sleeve B -0.31pp (-0.89% at 35% of NAV), Sleeve D -0.37pp (-1.84% at 20% of NAV). Largest contributors: SOXX (iShares Semiconductors) +0.32pp (+7.2% at 4.4%); ARKG (ARK Genomic Revolution) +0.21pp (+10.3% at 2.0%); QQQ (NASDAQ-100 (US tech-heavy)) +0.08pp (+1.7% at 4.6%). Largest detractors: XLF (iShares S&P 500 Financials) -0.18pp (-2.1% at 8.6%); DBC (Broad Commodities) -0.08pp (-0.7% at 11.5%); IJR (S&P 600 (US small)) -0.04pp (-1.3% at 3.3%). Holding contributions are weight \u00d7 return from the Mon 14 Sep 2026 close to the Fri 18 Sep 2026 close, 22 of 22 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 35.3% above the 50-day average (-3.8pp on the week).",
-    "headline": "Blend -0.51% \u00b7 SPY -0.09% \u00b7 Fri 11 Sep 2026 \u2192 Fri 18 Sep 2026 close",
+    "text": "Week Fri 11 Sep 2026 close \u2192 Fri 18 Sep 2026 close: the blend returned -0.72% against SPY -0.09%. By sleeve: Sleeve C +0.40pp (+4.02% at 10% of NAV), Sleeve A -0.04pp (-0.12% at 35% of NAV), Sleeve B -0.31pp (-0.89% at 35% of NAV), Sleeve D -0.45pp (-2.27% at 20% of NAV). Largest contributors: SOXX (iShares Semiconductors) +0.32pp (+7.2% at 4.4%); ARKG (ARK Genomic Revolution) +0.21pp (+10.3% at 2.0%); EXV3.DE (STOXX Europe 600 Technology) +0.09pp (+1.6% at 5.7%). Largest detractors: XLF (iShares S&P 500 Financials) -0.18pp (-2.1% at 8.6%); EXV1.DE (STOXX Europe 600 Banks) -0.09pp (-1.2% at 7.8%); DBC (Broad Commodities) -0.08pp (-0.7% at 11.5%). Holding contributions are weight \u00d7 return from the Mon 14 Sep 2026 close to the Fri 18 Sep 2026 close, 22 of 22 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 28.5% above the 50-day average (-10.6pp on the week).",
+    "headline": "Blend -0.72% \u00b7 SPY -0.09% \u00b7 Fri 11 Sep 2026 \u2192 Fri 18 Sep 2026 close",
     "lines": [
       {
         "label": "By sleeve",
-        "text": "C +0.40pp (+4.0% on 10%) \u00b7 A -0.04pp (-0.1% on 35%) \u00b7 B -0.31pp (-0.9% on 35%) \u00b7 D -0.37pp (-1.8% on 20%)"
+        "text": "C +0.40pp (+4.0% on 10%) \u00b7 A -0.04pp (-0.1% on 35%) \u00b7 B -0.31pp (-0.9% on 35%) \u00b7 D -0.45pp (-2.3% on 20%)"
       },
       {
         "label": "Helped",
-        "text": "iShares Semiconductors +0.32pp (+7.2%) \u00b7 ARK Genomic Revolution +0.21pp (+10.3%) \u00b7 NASDAQ-100 (US tech-heavy) +0.08pp (+1.7%)"
+        "text": "iShares Semiconductors +0.32pp (+7.2%) \u00b7 ARK Genomic Revolution +0.21pp (+10.3%) \u00b7 STOXX Europe 600 Technology +0.09pp (+1.6%)"
       },
       {
         "label": "Hurt",
-        "text": "iShares S&P 500 Financials -0.18pp (-2.1%) \u00b7 Broad Commodities -0.08pp (-0.7%) \u00b7 S&P 600 (US small) -0.04pp (-1.3%)"
+        "text": "iShares S&P 500 Financials -0.18pp (-2.1%) \u00b7 STOXX Europe 600 Banks -0.09pp (-1.2%) \u00b7 Broad Commodities -0.08pp (-0.7%)"
       },
       {
         "label": "Regime",
-        "text": "RISK_ON since Tue 14 Apr 2026 \u00b7 S&P 500 breadth 35.3% (-3.8pp on the week)"
+        "text": "RISK_ON since Tue 14 Apr 2026 \u00b7 S&P 500 breadth 28.5% (-10.6pp on the week)"
       }
     ],
     "basis": "Holding contributions are weight \u00d7 return from the Mon 14 Sep 2026 close to the Fri 18 Sep 2026 close, 22 of 22 holdings priced from the one-year price panel.",
     "start": "2026-09-11",
     "end": "2026-09-18",
-    "blend_return": -0.005139846097975687,
+    "blend_return": -0.007241573022341741,
     "spy_return": -0.000918153200419658,
     "holdings": [
       {
@@ -877,39 +977,21 @@
         "from": "2026-09-14"
       },
       {
+        "etf": "EXV3",
+        "traded": "EXV3.DE",
+        "sleeve": "D",
+        "weight": 0.056940000000000004,
+        "ret": 0.015608295916185622,
+        "contrib": 0.0008887363694676094,
+        "from": "2026-09-14"
+      },
+      {
         "etf": "QQQ",
         "traded": "QQQ",
         "sleeve": "B",
         "weight": 0.045745,
         "ret": 0.017343485617597132,
         "contrib": 0.0007933777495769808,
-        "from": "2026-09-14"
-      },
-      {
-        "etf": "EXV3",
-        "traded": "EXV3.DE",
-        "sleeve": "D",
-        "weight": 0.056940000000000004,
-        "ret": 0.011866581141757537,
-        "contrib": 0.0006756831302116742,
-        "from": "2026-09-14"
-      },
-      {
-        "etf": "EXH1",
-        "traded": "EXH1.DE",
-        "sleeve": "D",
-        "weight": 0.06548000000000001,
-        "ret": 0.009505021520803458,
-        "contrib": 0.0006223888091822106,
-        "from": "2026-09-14"
-      },
-      {
-        "etf": "EXV1",
-        "traded": "EXV1.DE",
-        "sleeve": "D",
-        "weight": 0.07758000000000001,
-        "ret": 0.007282123561193288,
-        "contrib": 0.0005649471458773754,
         "from": "2026-09-14"
       },
       {
@@ -940,6 +1022,15 @@
         "from": "2026-09-14"
       },
       {
+        "etf": "EXH1",
+        "traded": "EXH1.DE",
+        "sleeve": "D",
+        "weight": 0.06548000000000001,
+        "ret": 0.0007173601147776321,
+        "contrib": 4.6972740315639355e-05,
+        "from": "2026-09-14"
+      },
+      {
         "etf": "CSP1",
         "traded": "SPY",
         "sleeve": "A",
@@ -964,6 +1055,15 @@
         "weight": 0.020000000000000004,
         "ret": -0.002297702297702209,
         "contrib": -4.595404595404419e-05,
+        "from": "2026-09-14"
+      },
+      {
+        "etf": "SKYY",
+        "traded": "SKYY",
+        "sleeve": "C",
+        "weight": 0.020000000000000004,
+        "ret": -0.004914004914004955,
+        "contrib": -9.828009828009911e-05,
         "from": "2026-09-14"
       }
     ],
