@@ -259,13 +259,34 @@ def test_the_freezer_refuses_to_overwrite_an_existing_artefact(tmp_path):
 
 
 def test_check_mode_still_works_over_an_existing_artefact(tmp_path):
-    """--check must stay usable: it is how you compare without overwriting."""
+    """--check must stay usable: it is how you compare without overwriting.
+
+    THE SOURCE IS SYNTHETIC, AND HAS TO BE (2026-09-20). This called freeze()
+    without a cache, so it read the default — data/thematic_prices_cache.parquet,
+    the gitignored sleeve C cache. That file exists on the main clone and can
+    never exist on a runner, so the test passed locally and failed CI on every
+    push, whatever the push contained. The sibling above passes in CI only
+    because its refusal fires before check_source() is reached. A test may read
+    a committed artefact; it may not read an ignored one.
+    """
+    import numpy as np
+    import pandas as pd
     import freeze_btc_proxy_history as fz
+    cut = pd.Timestamp(btc_basis.CUTOVER)
+    # Built from the same calendar build_segment() reindexes to, so the
+    # segment is the whole series and the cut-over row is its last.
+    idx = fz._nyse_sessions(cut - pd.Timedelta(days=30), cut)
+    source = tmp_path / "thematic_prices_cache.parquet"
+    pd.DataFrame({btc_basis.SPOT_KEY: np.linspace(40000.0, 45000.0, len(idx))},
+                 index=idx).to_parquet(source)
     parquet = tmp_path / "frozen.parquet"
     parquet.write_bytes(b"x")
-    report = fz.freeze(parquet=parquet, sidecar=tmp_path / "frozen.json",
-                       write=False)
-    assert report["rows"] > 0 and report["sha256"] is None
+    report = fz.freeze(cache=source, parquet=parquet,
+                       sidecar=tmp_path / "frozen.json", write=False)
+    assert report["rows"] == len(idx) and report["sha256"] is None
+    assert report["last"] == str(cut.date())
+    assert report["S_c"] == 45000.0
+    assert parquet.read_bytes() == b"x", "--check wrote to the artefact"
 
 
 def test_the_production_anchor_is_pinned_independently_of_its_sidecar():
