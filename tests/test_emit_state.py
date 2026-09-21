@@ -12,8 +12,14 @@ The shape itself is checked against the field list the consumer validates on,
 because a drift there is rejected on that side and the rejection is easier to
 diagnose here, beside the data.
 
-Synthetic payloads stand in for the on-disk JSON; nothing here reads the live
-data files, so the tests do not move with the market.
+Synthetic payloads stand in for the on-disk JSON, so the tests do not move with
+the market — with one deliberate exception at the foot of this file. Synthetic
+inputs alone let a real defect lie dormant: the tilt's off-label mismatch sat
+unexercised from 2025-04-07 to 2026-09-15 because no fixture carried an off
+state and the live one never was one. The last two tests therefore read the
+engine's own COMMITTED `risk_overlay.json` and assert the emitter can carry
+whatever is in it. They do not assert which state is live, only that it has a
+contract label, so they stay stable as the market moves.
 
 Python datetime months are 1-indexed (January = 1).
 """
@@ -177,6 +183,113 @@ def test_a_tilt_state_outside_its_vocabulary_is_refused(files):
     files["risk_overlay.json"]["phase22_eem_tilt"]["current_state"] = "ON"
     with pytest.raises(emit_state.EmitError, match="ON"):
         emit_state.build()
+
+
+def test_the_contracts_own_off_label_is_not_accepted_from_the_engine(files):
+    """`OFF` is what the CONSUMER is given, not what the engine writes. If it
+    ever appears in risk_overlay.json the engine has changed underneath this
+    script, and the emission should stop rather than coincidentally work."""
+    files["risk_overlay.json"]["phase22_eem_tilt"]["current_state"] = "OFF"
+    with pytest.raises(emit_state.EmitError, match="OFF"):
+        emit_state.build()
+
+
+# --- the tilt off branch: engine label EM_TILT_OFF -> contract label OFF -----
+# This mapping sat unexercised from 2025-04-07 to 2026-09-15 because the tilt
+# was continuously on. When it flipped, the check refused to emit and the
+# published state.json froze carrying a superseded EM_TILT_ON. Every test below
+# exists so that cannot lie dormant a second time.
+
+def test_the_engine_off_label_is_translated_to_the_contract_label(files):
+    files["risk_overlay.json"]["phase22_eem_tilt"]["current_state"] = "EM_TILT_OFF"
+    assert emit_state.build()["signals"]["engine_phase22_em_tilt"]["state"] == "OFF"
+
+
+def test_the_engine_on_label_passes_through_unchanged(files):
+    assert emit_state.build()["signals"]["engine_phase22_em_tilt"]["state"] == "EM_TILT_ON"
+
+
+def test_the_tilt_off_branch_writes_a_file_the_consumer_accepts(files, monkeypatch, tmp_path):
+    """End to end: a genuine off state must emit, not refuse. The live failure
+    was a refusal, so asserting the mapped value alone would not reproduce it —
+    the run has to reach exit 0 with a file on disk."""
+    files["risk_overlay.json"]["phase22_eem_tilt"].update(
+        {"current_state": "EM_TILT_OFF", "current_state_since": "2026-09-15",
+         "current_ratio": 0.088})
+    out = tmp_path / "state.json"
+    monkeypatch.setattr(emit_state, "OUT", out)
+
+    assert emit_state.main([]) == 0
+    block = json.loads(out.read_text(encoding="utf-8"))["signals"]["engine_phase22_em_tilt"]
+    assert block["state"] == "OFF"
+    assert block["state"] in emit_state.TILT_STATES
+    assert block["value"] == 0.088
+    assert block["zone"] == "since 2026-09-15"
+
+
+def test_the_gate_off_branch_writes_a_file_the_consumer_accepts(files, monkeypatch, tmp_path):
+    """The same end-to-end check on the gate. Its labels happen to match the
+    contract's, but that is a fact to pin, not one to keep assuming."""
+    files["risk_overlay.json"]["current_state"] = "RISK_OFF"
+    out = tmp_path / "state.json"
+    monkeypatch.setattr(emit_state, "OUT", out)
+
+    assert emit_state.main([]) == 0
+    block = json.loads(out.read_text(encoding="utf-8"))["signals"]["engine_phase19_gate"]
+    assert block["state"] == "RISK_OFF"
+    assert block["state"] in emit_state.GATE_STATES
+
+
+def test_every_state_the_map_produces_is_in_the_contract_vocabulary():
+    """A mis-edit of the map could translate a label into another value the
+    consumer also rejects. The map's outputs are the contract, by definition."""
+    assert set(emit_state.TILT_FROM_ENGINE.values()) <= set(emit_state.TILT_STATES)
+
+
+def test_both_engine_tilt_labels_are_mapped():
+    """The map must be exhaustive against the engine, not against whichever
+    state is live. Both branches, named explicitly."""
+    assert set(emit_state.TILT_FROM_ENGINE) == {"EM_TILT_ON", "EM_TILT_OFF"}
+
+
+# --- the committed engine output must be emittable as it stands --------------
+
+def test_the_live_committed_overlay_carries_states_this_emitter_can_publish():
+    """The guard that ends the dormancy.
+
+    Every test above runs on synthetic payloads, which is why a label the
+    engine had genuinely started writing could sit unnoticed. This one reads
+    the engine's own committed output and asserts the emitter can carry what is
+    actually in it. It goes red on the first commit that introduces a state
+    outside the contract — in this repo's CI, beside the data, rather than as
+    an ERROR row on the consumer's board days later.
+
+    `data/risk_overlay.json` is a committed artefact, not a generated one, so
+    this reads a file the repo guarantees (commits 0a4e3837 / d14026ac).
+
+    It is not a market test: it does not care WHICH state is live, only that
+    whichever one is live has a contract label.
+    """
+    ro = json.loads((emit_state.REPO / "data" / "risk_overlay.json")
+                    .read_text(encoding="utf-8"))
+
+    gate = ro["current_state"]
+    assert gate in emit_state.GATE_STATES, (
+        f"the engine's committed gate state {gate!r} has no contract label")
+
+    tilt = ro["phase22_eem_tilt"]["current_state"]
+    assert tilt in emit_state.TILT_FROM_ENGINE, (
+        f"the engine's committed tilt state {tilt!r} has no contract label; add it to "
+        "TILT_FROM_ENGINE — do not widen the contract vocabulary to accept it")
+
+
+def test_the_live_committed_overlay_emits_without_error():
+    """The same file, through the real build() rather than a field check — so a
+    future pointer rename is caught here too, not only a state rename."""
+    payload = emit_state.build()
+    assert set(payload["signals"]) == SIGNALS
+    assert payload["signals"]["engine_phase22_em_tilt"]["state"] in emit_state.TILT_STATES
+    assert payload["signals"]["engine_phase19_gate"]["state"] in emit_state.GATE_STATES
 
 
 def test_an_empty_deployed_blend_is_refused(files):

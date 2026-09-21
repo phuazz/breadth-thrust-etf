@@ -69,6 +69,45 @@ SOURCE = "breadth-thrust-etf"
 COMMON = {"role": "engine-internal", "evidence_grade": "deployed-engine",
           "licence": "public", "cadence": "daily", "action_hint": "none"}
 
+# --- state vocabularies, and where they differ from the engine's -------------
+# These enums belong to the CONSUMER. The command centre freezes them per
+# signal (`command-centre/scripts/refresh_states.py`, the `states` key on each
+# registry entry) and `command-centre/STATE_CONTRACT.md` §2.3 records them. A
+# value outside them is not a rendered state there; it is an ERROR row.
+#
+# The GATE's labels are shared. The engine writes RISK_ON/RISK_OFF
+# (`run_risk_overlay.py` `current_state = "RISK_ON" if ... else "RISK_OFF"`) and
+# the contract takes RISK_ON/RISK_OFF, so the gate passes through unchanged.
+# That was checked, not assumed.
+#
+# The TILT's are NOT shared, and this is the asymmetry that bit. The engine's
+# own off-label is `EM_TILT_OFF`; the contract takes a bare `OFF`. So the label
+# is TRANSLATED here rather than the contract being widened to accept both
+# spellings, for three reasons:
+#   * The consumer keys its plain-language sentence off the exact string
+#     (`plain['OFF']`) and its colour class off a set membership test that
+#     contains `OFF` and not `EM_TILT_OFF`. A passed-through `EM_TILT_OFF`
+#     would not be loudly wrong there — it would render uncoloured and with no
+#     sentence, which is worse than a refusal.
+#   * Widening here would move the failure from this repo to the consumer's,
+#     which inverts the whole purpose of this script (see the module docstring:
+#     the repo that renames a label should be the repo that breaks).
+#   * A bare off-label is the house convention across the sibling emitters on
+#     this contract; no emitter in the vault publishes a signal-prefixed OFF.
+GATE_STATES = ("RISK_ON", "RISK_OFF")
+TILT_STATES = ("EM_TILT_ON", "OFF")
+
+# Engine label -> contract label. EVERY state the engine can write must appear
+# as a key; an unmapped label stops the emission rather than travelling as-is.
+# Keep this exhaustive against `run_risk_overlay.py`, not against whichever
+# state happens to be live — the off branch sat unexercised from 2025-04-07 to
+# 2026-09-15 and the mismatch only surfaced on the day it flipped.
+TILT_FROM_ENGINE = {"EM_TILT_ON": "EM_TILT_ON", "EM_TILT_OFF": "OFF"}
+
+
+def _vocab(states) -> str:
+    return "{" + ", ".join(states) + "}"
+
 
 class EmitError(Exception):
     """A required input was missing or malformed. Never emit a guess."""
@@ -113,7 +152,7 @@ def build() -> dict:
     breadth = require(ro, "current_breadth", (int, float))
     ro_computed = ro.get("computed_at_utc")
 
-    tilt_state = require(ro, "phase22_eem_tilt.current_state", str)
+    tilt_engine_state = require(ro, "phase22_eem_tilt.current_state", str)
     tilt_since = require(ro, "phase22_eem_tilt.current_state_since", str)
     ratio = require(ro, "phase22_eem_tilt.current_ratio", (int, float))
 
@@ -123,11 +162,17 @@ def build() -> dict:
 
     # State vocabularies are fixed on the consumer side. Emitting something
     # outside them would be rejected there; catching it here names the file.
-    if gate_state not in ("RISK_ON", "RISK_OFF"):
-        raise EmitError(f"risk_overlay.current_state {gate_state!r} outside {{RISK_ON, RISK_OFF}}")
-    if tilt_state not in ("EM_TILT_ON", "OFF"):
+    # The gate shares its labels with the engine; the tilt does not, and is
+    # translated. See the TILT_FROM_ENGINE block above for why.
+    if gate_state not in GATE_STATES:
         raise EmitError(
-            f"phase22_eem_tilt.current_state {tilt_state!r} outside {{EM_TILT_ON, OFF}}")
+            f"risk_overlay.current_state {gate_state!r} outside {_vocab(GATE_STATES)}")
+    if tilt_engine_state not in TILT_FROM_ENGINE:
+        raise EmitError(
+            f"phase22_eem_tilt.current_state {tilt_engine_state!r} is not a state this "
+            f"engine writes {_vocab(TILT_FROM_ENGINE)} — the contract takes "
+            f"{_vocab(TILT_STATES)}")
+    tilt_state = TILT_FROM_ENGINE[tilt_engine_state]
     if not weights:
         raise EmitError("live_track.effective_weights is empty — nothing is deployed")
 
