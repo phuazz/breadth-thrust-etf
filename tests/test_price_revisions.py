@@ -759,11 +759,84 @@ def cb(monkeypatch):
     return compute_breadth
 
 
-def _recent_sessions(n=3):
-    """Business days ending two days ago, so every one is a finished
-    session whatever day this test runs."""
-    end = pd.Timestamp(datetime.now(timezone.utc).date()) - pd.Timedelta(days=2)
-    return pd.bdate_range(end=end, periods=n)
+def _recent_sessions(n=3, today=None):
+    """Exactly `n` business days ending on or before two days ago, so every
+    one is a finished session whatever day this test runs.
+
+    `today` overrides the run date (any date-like); the default is the UTC
+    date. Python datetime months are 1-indexed (January = 1).
+
+    The rollback is load-bearing. `pd.bdate_range(end=..., periods=n)` drops
+    a non-business `end` instead of snapping back to the preceding business
+    day, so it returns FEWER than `n` dates - `end` is a Saturday on a Monday
+    run and a Sunday on a Tuesday run, and the three integration tests below
+    then raise "Length of values (3) does not match length of index (2)".
+    Rolling `end` back first makes the length independent of the run date.
+
+    Weekday calendar, no exchange holidays: these dates only index synthetic
+    frames served by a monkeypatched vendor, so no real session calendar is
+    involved.
+    """
+    base = (pd.Timestamp(today) if today is not None
+            else pd.Timestamp(datetime.now(timezone.utc).date()))
+    end = pd.offsets.BDay().rollback(base - pd.Timedelta(days=2))
+    idx = pd.bdate_range(end=end, periods=n)
+    assert len(idx) == n, f"helper returned {len(idx)} sessions, wanted {n}"
+    return idx
+
+
+# ---------------------------------------------------------------------------
+# 15a. The helper itself
+#
+# Date logic gets edge-case tests and a frozen clock - `today` is passed
+# explicitly so these cannot pass or fail on the day the suite happens to
+# run, which is the whole defect being pinned. Expected dates were derived
+# with pandas, not from memory.
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("run_date, weekday, expected", [
+    # The two run dates that produced only 2 of 3 sessions before the fix.
+    ("2026-09-21", "Monday",
+     ["2026-09-16", "2026-09-17", "2026-09-18"]),   # end was Sat 2026-09-19
+    ("2026-09-22", "Tuesday",
+     ["2026-09-16", "2026-09-17", "2026-09-18"]),   # end was Sun 2026-09-20
+    # Wednesday-to-Sunday runs were already correct and must stay put.
+    ("2026-09-23", "Wednesday",
+     ["2026-09-17", "2026-09-18", "2026-09-21"]),
+    ("2026-09-20", "Sunday",
+     ["2026-09-16", "2026-09-17", "2026-09-18"]),
+    # MONTH BOUNDARY. A Monday run in early October reaches back into
+    # September (months are 1-indexed: 9 = September, 10 = October).
+    ("2026-10-05", "Monday",
+     ["2026-09-30", "2026-10-01", "2026-10-02"]),
+    ("2026-10-01", "Thursday",
+     ["2026-09-25", "2026-09-28", "2026-09-29"]),
+    # YEAR BOUNDARY. A Tuesday run in the first week of January reaches back
+    # into the previous December.
+    ("2027-01-05", "Tuesday",
+     ["2026-12-30", "2026-12-31", "2027-01-01"]),
+    ("2026-01-05", "Monday",
+     ["2025-12-31", "2026-01-01", "2026-01-02"]),
+])
+def test_recent_sessions_returns_n_sessions_on_every_run_date(run_date, weekday,
+                                                              expected):
+    # Verify the weekday against the calendar date rather than trusting the
+    # label in the table above.
+    assert pd.Timestamp(run_date).day_name() == weekday
+    idx = _recent_sessions(3, today=run_date)
+    assert [str(d.date()) for d in idx] == expected
+
+
+def test_recent_sessions_length_holds_across_a_year_of_run_dates():
+    """The defect was a length, so sweep the length. Every run date across a
+    full year, every n the call sites use - and the sessions must be business
+    days, ordered, and finished (at least two days behind the run date)."""
+    for run in pd.date_range("2026-06-01", "2027-06-01", freq="D"):
+        for n in (1, 2, 3, 5):
+            idx = _recent_sessions(n, today=run)
+            assert len(idx) == n, f"{run.date()} n={n} gave {len(idx)}"
+            assert list(idx) == sorted(idx)
+            assert all(d.weekday() < 5 for d in idx)
+            assert idx[-1] <= run - pd.Timedelta(days=2)
 
 
 def _multi(frame: pd.DataFrame) -> pd.DataFrame:
