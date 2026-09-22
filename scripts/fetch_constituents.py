@@ -1367,9 +1367,14 @@ def quarantine_retained_payload(path: Path) -> str | None:
     the very routine that exists to preserve it. The name now carries a random
     suffix as well as the stamp, and the move claims the name exclusively.
 
-    Returns the new name, or None when the move failed entirely. Never raises:
-    the caller is already raising a refusal, and a failure to file the
-    evidence must not replace it.
+    Returns (name, removed). ``removed`` is False when the copy was filed but
+    the ORIGINAL could not be deleted — a file lock on Windows will do it. The
+    caller must not then report the evidence as moved, and must not quarantine
+    it again on the next run: doing both produced one fresh copy per run,
+    forever, while the source sat there being re-detected.
+
+    Never raises: the caller is already handling a refusal, and a failure to
+    file the evidence must not replace it.
     """
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     for _ in range(64):
@@ -1388,16 +1393,16 @@ def quarantine_retained_payload(path: Path) -> str | None:
                 if target.exists():
                     continue
                 os.replace(path, target)
-                return target.name
+                return target.name, True
             except OSError:
-                return None
+                return None, False
         else:
             try:
                 os.unlink(path)
             except OSError:
-                pass
-            return target.name
-    return None
+                return target.name, False
+            return target.name, True
+    return None, False
 
 
 def unresolved_marker_path(symbol: str, target: date) -> Path:
@@ -1406,7 +1411,8 @@ def unresolved_marker_path(symbol: str, target: date) -> Path:
 
 
 def write_unresolved_marker(path: Path, symbol: str, source_date: date,
-                            reason: str, quarantined: str | None) -> bool:
+                            reason: str, quarantined: str | None,
+                            source_remains: bool = False) -> bool:
     """Record an unresolved refusal that has no re-parseable payload left.
 
     WHY THIS EXISTS. Quarantining a corrupt sidecar moved it out of the way of
@@ -1433,6 +1439,9 @@ def write_unresolved_marker(path: Path, symbol: str, source_date: date,
             "source_date": source_date.isoformat(),
             "reason": reason,
             "quarantined": quarantined,
+            # True when the damaged original could NOT be deleted. Read on the
+            # next run so the same evidence is never filed twice.
+            "source_remains": source_remains,
             "first_seen_utc": datetime.now(timezone.utc).isoformat(),
             "note": ("Unresolved roster refusal with no re-parseable vendor "
                      "response. Cleared ONLY by resolving this source date."),
@@ -1470,51 +1479,110 @@ def clear_unresolved_state(symbol: str, target: date) -> None:
             pass
 
 
-def load_retained_payload(path: Path, symbol: str, target: date) -> dict:
-    """Read a retained refusal back, or refuse the date explicitly.
+def read_retained_payload(path: Path) -> tuple[dict | None, str | None]:
+    """Read a retained refusal back. Returns (payload, damage_reason).
 
-    The previous version unlinked a corrupt sidecar and fell through to the
-    endpoint. That turned damaged evidence into an ordinary vendor gap: a
-    truncated file, a quiet Friday and a parseable Thursday produced status
-    "walkback" with no refusal raised and the only record destroyed.
-
-    A refusal we cannot read is still a refusal.
-
-    QUARANTINING LEAVES A MARKER BEHIND. Moving the corrupt file aside also
-    moved it out of the loader's sight, so the NEXT run found nothing, took a
-    Thursday walkback and exited 0 with an empty refusal list. The quarantine
-    was clearing the refusal on its own. write_unresolved_marker is what keeps
-    the date refused until it is actually resolved.
+    NEVER RAISES, and that is the change. It used to raise
+    RefusalEvidenceError straight out of the recovery routine, which meant a
+    date whose local evidence was damaged never reached the endpoint at all:
+    every run re-detected the damage, re-raised, and made zero network calls
+    while a corrected issuer response sat there unfetched. Damaged LOCAL
+    evidence is a reason to distrust the file, not a reason to stop asking the
+    vendor.
     """
-
-    def _refuse(message: str, cause: Exception | None = None):
-        quarantined = quarantine_retained_payload(path)
-        detail = message + (
-            f" Evidence quarantined as {quarantined}." if quarantined
-            else " Evidence could NOT be quarantined; inspect it by hand.")
-        marker = unresolved_marker_path(symbol, target)
-        if not write_unresolved_marker(marker, symbol, target, detail,
-                                       quarantined) and not marker.exists():
-            detail += (" WARNING: the unresolved marker could not be written "
-                       "either; this date may read as clean on the next run.")
-        err = RefusalEvidenceError(detail, symbol=symbol, as_of=target,
-                                   quarantined=quarantined)
-        raise err from cause
-
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        _refuse(
-            f"{symbol} {target.isoformat()}: a retained refusal exists for "
-            f"this date but could not be read ({type(exc).__name__}: {exc}). "
-            f"The date stays REFUSED — unreadable evidence is not evidence of "
-            f"absence.", exc)
+        return None, f"could not be read ({type(exc).__name__}: {exc})"
     if not isinstance(payload, dict):
-        _refuse(
-            f"{symbol} {target.isoformat()}: the retained refusal is "
-            f"{type(payload).__name__}, not a vendor payload. The date stays "
-            f"REFUSED.")
-    return payload
+        return None, f"is {type(payload).__name__}, not a vendor payload"
+    return payload, None
+
+
+def record_damaged_evidence(symbol: str, source_date: date, reason: str
+                            ) -> RefusalEvidenceError:
+    """Keep the date refused when its retained evidence is unusable.
+
+    ORDER MATTERS, AND IT USED TO BE WRONG. The evidence was quarantined
+    first and the marker written second, so a successful quarantine followed
+    by a failed marker write left NO active refusal state at all: the payload
+    had been renamed out of the loader's sight and nothing had replaced it.
+    The marker is the authoritative record, so it is written FIRST, and the
+    original is moved only once the marker is safely on disk. If the marker
+    cannot be written, the damaged file STAYS exactly where it is — it is then
+    the only unresolved state there is, and destroying it would clear the
+    refusal.
+
+    NEVER FILES THE SAME EVIDENCE TWICE. When the marker already records a
+    quarantine, the copy has been taken; if the original is still present
+    (its deletion was denied) this retries the deletion and reports honestly,
+    rather than taking another copy. One fresh copy per run, forever, was the
+    defect.
+
+    Returns the refusal to treat as pending. Does not raise: the caller
+    continues to endpoint recovery, which is the whole point.
+    """
+    refused_path = refused_payload_path(symbol, source_date)
+    marker_path = unresolved_marker_path(symbol, source_date)
+    detail = f"{symbol} {source_date.isoformat()}: retained refusal {reason}."
+
+    marker = read_unresolved_marker(marker_path)
+    already_filed = bool(marker.get("quarantined"))
+
+    if not marker_path.exists():
+        if not write_unresolved_marker(marker_path, symbol, source_date,
+                                       detail, None):
+            # No durable marker. The damaged file is now the only record that
+            # this date is unresolved, so it must not be touched.
+            return RefusalEvidenceError(
+                detail + " The unresolved marker could NOT be written, so the "
+                "damaged evidence has been left in place as the only record "
+                "of this refusal. Free disk space or fix permissions under "
+                "data/raw_ishares/.",
+                symbol=symbol, as_of=source_date)
+        marker = read_unresolved_marker(marker_path)
+
+    quarantined = marker.get("quarantined")
+    if already_filed:
+        # The copy exists. If the original is still here its removal was
+        # denied last time; retry once, quietly, and take no further copies.
+        if refused_path.exists():
+            try:
+                refused_path.unlink()
+            except OSError:
+                detail += (f" Evidence was already filed as {quarantined}; the "
+                           f"damaged original could not be removed and remains "
+                           f"at {refused_path.name}.")
+            else:
+                detail += (f" Evidence filed as {quarantined}; the damaged "
+                           f"original has now been removed.")
+        else:
+            detail += f" Evidence filed as {quarantined}."
+    elif refused_path.exists():
+        quarantined, removed = quarantine_retained_payload(refused_path)
+        if quarantined and removed:
+            detail += f" Evidence quarantined as {quarantined}."
+        elif quarantined:
+            detail += (f" Evidence COPIED to {quarantined}; the damaged "
+                       f"original could not be removed and remains at "
+                       f"{refused_path.name}.")
+        else:
+            detail += (" Evidence could NOT be quarantined and remains in "
+                       "place; inspect it by hand.")
+        # Record what actually happened, once, so the next run does not file
+        # the same bytes again. The marker is write-once, so this rewrites it
+        # deliberately now that the outcome is known.
+        try:
+            _write_json_atomic(marker_path, {
+                **marker,
+                "quarantined": quarantined,
+                "source_remains": bool(quarantined) and not removed,
+            })
+        except OSError:
+            pass
+
+    return RefusalEvidenceError(detail, symbol=symbol, as_of=source_date,
+                                quarantined=quarantined)
 
 
 def has_unresolved_refusal(symbol: str, target: date) -> bool:
@@ -1601,19 +1669,35 @@ def attempt_refusal_recovery(symbol: str, etf_cfg: dict, source_date: date,
     pending: RosterRefusal | None = None
 
     if refused_path.exists():
-        retained = load_retained_payload(refused_path, symbol, source_date)
-        try:
-            names = _parse(retained)
-        except UnmappedExchangeError as exc:
-            pending = exc
+        retained, damage = read_retained_payload(refused_path)
+        if damage is not None:
+            # Damaged LOCAL evidence. Recorded, filed — and then we carry on to
+            # the endpoint. Raising here was what left these dates permanently
+            # unresolvable: three retries produced three quarantine copies and
+            # zero network calls while a corrected response was available.
+            pending = record_damaged_evidence(symbol, source_date, damage)
         else:
-            if names:
-                return _resolved(retained, names,
-                                 "re-parsed under the current map")
-            pending = RefusalEvidenceError(
-                f"{symbol} {source_date.isoformat()}: the retained refusal no "
-                f"longer parses to a roster for its own date.",
-                symbol=symbol, as_of=source_date)
+            try:
+                names = _parse(retained)
+            except UnmappedExchangeError as exc:
+                pending = exc
+            except PayloadContractError as exc:
+                # A RETAINED payload that no longer satisfies the contract is
+                # damaged local evidence, NOT an endpoint outage. Classifying
+                # it as an outage sent it up the transport path and stopped
+                # recovery dead: {"broken_contract": true} passed the
+                # is-a-dict check, raised here, and did so again on every
+                # retry. The endpoint is not the thing that is broken.
+                pending = record_damaged_evidence(
+                    symbol, source_date,
+                    f"no longer satisfies the holdings contract ({exc})")
+            else:
+                if names:
+                    return _resolved(retained, names,
+                                     "re-parsed under the current map")
+                pending = record_damaged_evidence(
+                    symbol, source_date,
+                    "no longer parses to a roster for its own date")
 
     if pending is None:
         marker = read_unresolved_marker(marker_path)
@@ -1649,7 +1733,10 @@ def attempt_refusal_recovery(symbol: str, etf_cfg: dict, source_date: date,
 
 def unresolved_refusal_records(symbol: str, etf_cfg: dict,
                                already_recorded: set[str],
-                               *, allow_network: bool = True) -> list[dict]:
+                               *, allow_network: bool = True,
+                               latency=None,
+                               circuit: "EndpointCircuit | None" = None,
+                               ) -> list[dict]:
     """Every retained refusal for `symbol` that the walk did not resolve.
 
     THE WALK PATH IS NOT A GUARANTEE. A refusal is recorded when a walk step
@@ -1673,22 +1760,29 @@ def unresolved_refusal_records(symbol: str, etf_cfg: dict,
     known dead, so this cannot hammer an endpoint the walk has given up on.
     """
     out: list[dict] = []
+    network = allow_network and not (circuit is not None and circuit.dead)
     for source in unresolved_source_dates(symbol):
         if source.isoformat() in already_recorded:
             continue
         try:
             attempt_refusal_recovery(symbol, etf_cfg, source,
-                                     allow_network=allow_network)
+                                     latency=latency,
+                                     allow_network=network)
         except RosterRefusal as exc:
             out.append(exc.as_record(source))
         except (EndpointUnavailable, PayloadContractError) as exc:
-            # The transport is the root cause and outranks the refusal, but
-            # the date is still unresolved and must still be recorded.
-            rec = RefusalEvidenceError(
+            # THE OUTAGE IS ESTABLISHED ONCE, NOT PER DATE. Every remaining
+            # date used to pay the full retry ladder against a transport
+            # already known to be dead — three unresolved dates, three
+            # ladders. The circuit is tripped here exactly as the walk trips
+            # it, and the rest are recorded without touching the network.
+            network = False
+            if circuit is not None and not circuit.dead:
+                circuit.trip(source, str(exc))
+            out.append(RefusalEvidenceError(
                 f"{symbol} {source.isoformat()}: unresolved, and the endpoint "
                 f"could not be reached to resolve it ({type(exc).__name__}: "
-                f"{exc}).", symbol=symbol, as_of=source).as_record(source)
-            out.append(rec)
+                f"{exc}).", symbol=symbol, as_of=source).as_record(source))
     return out
 
 
@@ -2212,13 +2306,23 @@ def main() -> int:
     # unresolved_refusal_records. Anything still refusing is added here, so
     # "no refusal recorded" means "none is unresolved", not "the walk did not
     # happen to look".
-    reconciled = unresolved_refusal_records(
-        symbol, etf_cfg,
-        {r["source_date"] for r in refusals if r.get("source_date")},
-        # No point asking a transport the walk has already given up on; the
-        # dates are still recorded as unresolved either way.
-        allow_network=not circuit.dead,
-    )
+    # Recovery traffic here is REAL traffic and is accounted for exactly as
+    # the walk's is: the same LatencyCircuit, the same EndpointCircuit. A
+    # recovery fetch that is slow must be able to trip the latency guard, and
+    # one that fails must trip the breaker for the dates behind it. Wrapped so
+    # that a degraded endpoint declared during reconciliation still leaves the
+    # refusals in the log, since no payload is written on that path.
+    try:
+        reconciled = unresolved_refusal_records(
+            symbol, etf_cfg,
+            {r["source_date"] for r in refusals if r.get("source_date")},
+            allow_network=not circuit.dead,
+            latency=latency, circuit=circuit,
+        )
+    except EndpointDegraded:
+        _print_refusals_so_far("the endpoint was declared degraded during "
+                               "refusal reconciliation")
+        raise
     if reconciled:
         print(f"  {len(reconciled)} retained refusal(s) for {symbol} are "
               f"still unresolved on disk and were not reached by this walk; "

@@ -32,7 +32,7 @@ import inspect
 import json
 import os
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -528,14 +528,18 @@ def test_corrupt_sidecar_refuses_and_is_quarantined(monkeypatch, raw_dir):
     path = fc.refused_payload_path("EXV1", FRI_2)
     path.write_text("{not json", encoding="utf-8")
     called = []
+    # The endpoint has nothing for this date, so recovery cannot resolve it.
     monkeypatch.setattr(fc, "fetch_product_data",
                         lambda t, c: called.append(t) or _payload_for(
-                            FRI_2, [("A", "Equity", "Nasdaq")]))
+                            date(1990, 1, 1), []))
 
     with pytest.raises(fc.RefusalEvidenceError) as exc:
         fc.load_snapshot_tickers(FRI_2, _cfg())
 
-    assert called == [], "a corrupt sidecar must not fall through to the vendor"
+    # The vendor IS asked — damaged local evidence is a reason to distrust the
+    # file, not to stop seeking a correction. What must never happen is the
+    # date degrading into an ordinary walkback.
+    assert called == [FRI_2], "damaged evidence must still reach recovery"
     assert not path.exists(), "the corrupt file should have been moved aside"
     quarantined = list(raw_dir.glob("EXV1_20260918.refused.json.corrupt.*"))
     assert len(quarantined) == 1, "evidence must be quarantined, not deleted"
@@ -544,12 +548,15 @@ def test_corrupt_sidecar_refuses_and_is_quarantined(monkeypatch, raw_dir):
     assert exc.value.as_of == FRI_2
 
 
-def test_non_object_sidecar_refuses_and_is_quarantined(raw_dir):
+def test_non_object_sidecar_refuses_and_is_quarantined(raw_dir, monkeypatch):
     path = fc.refused_payload_path("EXV1", FRI_2)
     path.write_text("[1, 2, 3]", encoding="utf-8")
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_for(date(1990, 1, 1), []))
     with pytest.raises(fc.RefusalEvidenceError):
         fc.load_snapshot_tickers(FRI_2, _cfg())
     assert list(raw_dir.glob("EXV1_20260918.refused.json.corrupt.*"))
+    assert fc.unresolved_marker_path("EXV1", FRI_2).exists()
 
 
 @pytest.mark.parametrize("day,stamp", [
@@ -1251,6 +1258,285 @@ def test_valid_records_with_absent_optional_fields_still_pass():
     assert len(recs) == 3
     results = guard.check_roster_refusals({"EXV1": recs})
     assert all(r["status"] == guard.FAIL for r in results)
+
+
+# ===========================================================================
+# THIRD-ROUND REVIEW FINDINGS (against fccdb98e)
+# ===========================================================================
+
+def _deny_unlink_of(monkeypatch, name: str):
+    """Deterministic fault injection: deleting one file is always refused."""
+    real = os.unlink
+
+    def denied(p, *a, **k):
+        if str(p).endswith(name):
+            raise PermissionError(f"{name} is locked by another handle")
+        return real(p, *a, **k)
+
+    monkeypatch.setattr(fc.os, "unlink", denied)
+    return real
+
+
+# --- R3-F1: quarantine deletion failure blocked recovery indefinitely ------
+def test_undeletable_evidence_is_filed_once_and_recovery_still_runs(
+        monkeypatch, raw_dir):
+    """os.link succeeds, the unlink is denied.
+
+    Against fccdb98e this produced one fresh quarantine copy per run for ever,
+    left the corrupt source in place, reported it as moved, and made ZERO
+    endpoint calls — so a corrected issuer response could never be fetched.
+    """
+    sidecar = fc.refused_payload_path("EXV1", FRI_2)
+    sidecar.write_text("{truncated", encoding="utf-8")
+    _deny_unlink_of(monkeypatch, "EXV1_20260918.refused.json")
+
+    calls = []
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: calls.append(t) or _payload_for(
+                            date(1990, 1, 1), []))
+
+    for _ in range(3):
+        with pytest.raises(fc.RefusalEvidenceError) as exc:
+            fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2)
+
+    copies = list(raw_dir.glob("EXV1_20260918.refused.json.corrupt.*"))
+    assert len(copies) == 1, f"evidence filed {len(copies)} times, not once"
+    assert sidecar.exists(), "the fixture should still be undeletable"
+    assert len(calls) == 3, "recovery never reached the endpoint"
+    assert "remains at" in str(exc.value), \
+        "the refusal claims the original was moved when it was not"
+    assert fc.unresolved_marker_path("EXV1", FRI_2).exists()
+
+
+def test_undeletable_evidence_still_recovers_from_a_corrected_response(
+        monkeypatch, raw_dir):
+    """The point of the fix: a corrected issuer response must get through."""
+    sidecar = fc.refused_payload_path("EXV1", FRI_2)
+    sidecar.write_text("{truncated", encoding="utf-8")
+    _deny_unlink_of(monkeypatch, "EXV1_20260918.refused.json")
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_for(
+                            FRI_2, [("A", "Equity", MAPPED_VENUE)]))
+
+    assert fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2) == ["A.L"]
+    assert not fc.unresolved_marker_path("EXV1", FRI_2).exists(), \
+        "a resolved date must clear its marker"
+
+
+def test_marker_is_written_before_the_evidence_is_moved(monkeypatch, raw_dir):
+    """Quarantine-then-marker left NO active refusal state when the marker
+    write failed: the payload had been renamed out of sight and nothing had
+    replaced it. The damaged file must stay put instead."""
+    sidecar = fc.refused_payload_path("EXV1", FRI_2)
+    sidecar.write_text("{truncated", encoding="utf-8")
+    monkeypatch.setattr(fc, "write_unresolved_marker",
+                        lambda *a, **k: False)
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_for(date(1990, 1, 1), []))
+
+    with pytest.raises(fc.RefusalEvidenceError) as exc:
+        fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2)
+
+    assert sidecar.exists(), \
+        "evidence was destroyed while no durable marker existed"
+    assert not list(raw_dir.glob("*corrupt*")), \
+        "evidence must not be filed when the marker could not be written"
+    assert "could NOT be written" in str(exc.value)
+
+
+def test_marker_write_failure_still_leaves_unresolved_state_for_the_next_run(
+        monkeypatch, tmp_path):
+    """Across runs: the next run must still see the date as unresolved."""
+    raw = tmp_path / "data" / "raw_ishares"
+    raw.mkdir(parents=True)
+    (raw / "EXV1_20260918.refused.json").write_text("{truncated",
+                                                    encoding="utf-8")
+    monkeypatch.setattr(fc, "write_unresolved_marker", lambda *a, **k: False)
+    good = {FRI_1: _payload_for(FRI_1, [("A", "Equity", MAPPED_VENUE)]),
+            date(2026, 9, 17): _payload_for(date(2026, 9, 17),
+                                            [("A", "Equity", MAPPED_VENUE)])}
+
+    code1, payload1, _ = run_live_walk(monkeypatch, tmp_path, dict(good))
+    assert code1 == fc.EXIT_ROSTER_REFUSED
+    # The damaged file is the only record, so it must have survived.
+    assert (raw / "EXV1_20260918.refused.json").exists()
+
+    code2, payload2, _ = run_live_walk(monkeypatch, tmp_path, dict(good))
+    assert code2 == fc.EXIT_ROSTER_REFUSED, \
+        "a failed marker write let the refusal lapse on the next run"
+    assert payload2["roster_refusals"]
+
+
+# --- R3-F2: invalid retained contract never reached recovery ---------------
+def test_invalid_retained_contract_is_local_damage_not_an_outage(
+        monkeypatch, raw_dir):
+    """{"broken_contract": true} passes the is-a-dict check.
+
+    Against fccdb98e it then raised PayloadContractError — the ENDPOINT-outage
+    class — before recovery, on every retry, while a valid issuer response was
+    available.
+    """
+    sidecar = fc.refused_payload_path("EXV1", FRI_2)
+    sidecar.write_text(json.dumps({"broken_contract": True}), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: calls.append(t) or _payload_for(
+                            date(1990, 1, 1), []))
+
+    for _ in range(2):
+        with pytest.raises(fc.RefusalEvidenceError):
+            fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2)
+
+    assert len(calls) == 2, "local corruption was treated as an outage"
+    assert fc.unresolved_marker_path("EXV1", FRI_2).exists()
+    assert len(list(raw_dir.glob("*corrupt*"))) == 1
+
+
+def test_invalid_retained_contract_resolves_on_a_valid_correction(
+        monkeypatch, raw_dir):
+    fc.refused_payload_path("EXV1", FRI_2).write_text(
+        json.dumps({"broken_contract": True}), encoding="utf-8")
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_for(
+                            FRI_2, [("A", "Equity", MAPPED_VENUE)]))
+    assert fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2) == ["A.L"]
+    assert not fc.has_unresolved_refusal("EXV1", FRI_2)
+
+
+def test_a_network_contract_error_is_still_an_outage(monkeypatch, raw_dir):
+    """The distinction must cut one way only: a bad response from the
+    ENDPOINT is still a transport problem."""
+    fc.write_unresolved_marker(fc.unresolved_marker_path("EXV1", FRI_2),
+                               "EXV1", FRI_2, "quarantined", None)
+    monkeypatch.setattr(fc, "fetch_product_data", lambda t, c: {"nope": 1})
+    with pytest.raises(fc.PayloadContractError):
+        fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2)
+
+
+# --- R3-F3: reconciliation bypassed latency and outage controls ------------
+def test_reconciliation_stops_calling_the_endpoint_after_an_outage(
+        monkeypatch, raw_dir):
+    """Three unresolved dates against a dead endpoint made three full
+    attempts, each able to exhaust the retry ladder."""
+    dates = [date(2026, 9, 4), FRI_1, FRI_2]
+    for d in dates:
+        fc.write_unresolved_marker(fc.unresolved_marker_path("EXV1", d),
+                                   "EXV1", d, "quarantined", None)
+    calls = []
+
+    def dead(t, c):
+        calls.append(t)
+        raise fc.EndpointUnavailable("connection reset")
+
+    monkeypatch.setattr(fc, "fetch_product_data", dead)
+    circuit = fc.EndpointCircuit()
+    recs = fc.unresolved_refusal_records("EXV1", _cfg(), set(),
+                                         circuit=circuit)
+
+    assert len(calls) == 1, f"kept calling a dead endpoint: {len(calls)} calls"
+    assert len(recs) == 3, "later dates were not recorded after the outage"
+    assert circuit.dead, "the outage was not established on the shared circuit"
+
+
+def test_reconciliation_requests_are_latency_accounted(monkeypatch, raw_dir):
+    """Recovery traffic is real traffic. Excluding it would let a slow
+    endpoint hide behind the reconciliation pass."""
+    from stall_guard import LatencyCircuit
+
+    fc.write_unresolved_marker(fc.unresolved_marker_path("EXV1", FRI_2),
+                               "EXV1", FRI_2, "quarantined", None)
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_for(date(1990, 1, 1), []))
+    latency = LatencyCircuit(label="test")
+    fc.unresolved_refusal_records("EXV1", _cfg(), set(), latency=latency)
+    assert latency.n_served == 1, \
+        "the recovery request bypassed latency accounting"
+
+
+def test_loader_recovery_is_latency_accounted_too(monkeypatch, raw_dir):
+    from stall_guard import LatencyCircuit
+
+    fc.write_unresolved_marker(fc.unresolved_marker_path("EXV1", FRI_2),
+                               "EXV1", FRI_2, "quarantined", None)
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_for(date(1990, 1, 1), []))
+    latency = LatencyCircuit(label="test")
+    with pytest.raises(fc.RosterRefusal):
+        fc.load_snapshot_tickers(FRI_2, _cfg(), latency=latency)
+    assert latency.n_served == 1
+
+
+def test_latency_guard_is_not_weakened_by_recovery(monkeypatch, raw_dir):
+    """Slow-but-successful recoveries may legitimately trip the guard.
+
+    The promotions persist, so that is not a permanent denial — it is the
+    guard doing its job, and the next run starts from the resolved state.
+    """
+    from stall_guard import LatencyCircuit
+
+    for i in range(3):
+        d = date(2026, 9, 4) + timedelta(days=7 * i)
+        fc.write_unresolved_marker(fc.unresolved_marker_path("EXV1", d),
+                                   "EXV1", d, "quarantined", None)
+
+    def slow(t, c):
+        return _payload_for(t, [("A", "Equity", MAPPED_VENUE)])
+
+    monkeypatch.setattr(fc, "fetch_product_data", slow)
+    latency = LatencyCircuit(label="test")
+    recs = fc.unresolved_refusal_records("EXV1", _cfg(), set(),
+                                         latency=latency)
+    assert recs == [], "successful recoveries should clear every refusal"
+    assert latency.n_served == 3
+    # The resolutions are durable regardless of what the circuit decides.
+    for i in range(3):
+        d = date(2026, 9, 4) + timedelta(days=7 * i)
+        assert not fc.has_unresolved_refusal("EXV1", d)
+
+
+# --- R3-F4: the top-level payload root was never validated -----------------
+@pytest.mark.parametrize("root", ["[]", "null", '"text"', "7", "true"])
+def test_invalid_payload_root_is_rejected(root):
+    with pytest.raises(guard.RefusalStateError):
+        guard.read_roster_refusals(json.loads(root))
+
+
+@pytest.mark.parametrize("root", ["[]", "null"])
+def test_invalid_root_fails_through_the_pre_calculation_gate(monkeypatch,
+                                                              tmp_path, root):
+    """`[]` returned no failures; `null` raised TypeError."""
+    import refresh_all
+
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "constituents_csp1.json").write_text(root, encoding="utf-8")
+    monkeypatch.setattr(refresh_all, "REPO_ROOT", tmp_path)
+    failures = refresh_all._check_refusals_on_disk(["CSP1"])
+    assert failures, f"root {root} read as clean"
+    assert any("CSP1" in f for f in failures)
+
+
+@pytest.mark.parametrize("root", ["[]", "null"])
+def test_invalid_root_fails_through_the_final_guard(monkeypatch, tmp_path,
+                                                     root):
+    data = tmp_path / "data"
+    data.mkdir()
+    for etf in guard.ETFS_ALL:
+        blob = root if etf == "EXV1" else json.dumps({
+            "end_friday": "2026-09-18", "snapshots": {},
+            "endpoint_health": {"status": "ok"},
+            "staleness": {"status": "fresh"}, "roster_refusals": []})
+        (data / f"constituents_{etf.lower()}.json").write_text(
+            blob, encoding="utf-8")
+        (data / f"breadth_{etf.lower()}.json").write_text(
+            json.dumps({"end_date": "2026-09-18"}), encoding="utf-8")
+    monkeypatch.setattr(guard, "DATA_DIR", data)
+    assert guard.main(["--end-friday", "2026-09-18"]) == 1
+
+
+def test_a_legacy_object_without_the_field_is_still_clean():
+    """The deliberate compatibility must survive the root check."""
+    assert guard.read_roster_refusals({"etf": "EXV1", "snapshots": {}}) == []
 
 
 # ---------------------------------------------------------------------------

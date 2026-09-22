@@ -410,6 +410,16 @@ def read_roster_refusals(consts: dict) -> list[dict]:
     roster_refusals — a plausible shape for hand-edited or half-migrated state
     — produced a clean G8. Malformed state is not clean state.
     """
+    # THE ROOT IS CHECKED BEFORE THE LEGACY RULE, not after. `"x" not in obj`
+    # is a membership test on any container, so a payload of `[]` satisfied
+    # "the field is absent" and read as clean, and a payload of `null` raised
+    # TypeError out of the gate. The legacy allowance is for a roster payload
+    # that predates the field — it was never meant to cover a file that is not
+    # a roster payload at all.
+    if not isinstance(consts, dict):
+        raise RefusalStateError(
+            f"the constituents payload is {type(consts).__name__}, expected an "
+            f"object; refusal state cannot be read from it")
     if "roster_refusals" not in consts:
         return []
     refusals = consts["roster_refusals"]
@@ -986,6 +996,16 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, json.JSONDecodeError) as exc:
             results.append(verdict(f"G0 {etf} readable", FAIL,
                                    f"panel unreadable: {exc}"))
+            continue
+        # Valid JSON of the wrong SHAPE is not a readable panel. Every check
+        # below calls .get on these, so a list or a null reached them as an
+        # AttributeError or a TypeError — a traceback out of the guard rather
+        # than a verdict from it.
+        if not isinstance(consts, dict) or not isinstance(breadth, dict):
+            results.append(verdict(
+                f"G0 {etf} readable", FAIL,
+                f"panel root is constituents={type(consts).__name__}, "
+                f"breadth={type(breadth).__name__}; both must be objects"))
             continue
         end_fridays[etf] = consts.get("end_friday", "<absent>")
         health[etf] = (consts.get("endpoint_health") or {}).get(
