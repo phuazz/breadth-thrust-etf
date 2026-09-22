@@ -5,7 +5,8 @@
 **Reviewed commit:** `e1e6d445`
 **Model / effort:** Claude Opus 5, high effort
 **Prepared:** 2026-09-22 (Tuesday), SGT
-**Status:** COMPLETE and pushed. Not merged, not published. No live refresh run.
+**Status:** COMPLETE. Independently reviewed and ACCEPTED (see §5a), then
+merged into `main`. No live refresh run; no dashboard published.
 
 Sixth and shortest handoff on this branch — one finding, one narrow patch.
 Prior handoffs: `…refused-roster-failure-class.md` (design),
@@ -111,6 +112,50 @@ Unchanged from `…refusal-fourth-round-closed.md` §5, plus one narrowed:
    that panel. The 24 sampled stored responses show no such shape, but the
    sample is not a contract guarantee. If an issuer ever does vary there, the
    symptom will be a panel-wide outage rather than a dropped row.
+
+## 5a. Independent review outcome (sixth round) — ACCEPTED
+
+`ad30011b` was reviewed independently and **accepted: no new actionable
+findings**, and the remaining P2 from the fifth round is closed. Recorded
+verbatim from that review:
+
+- 310 focused tests passed.
+- **800 valid-input comparisons against the previous parser: zero
+  differences.** The cell check does not alter any well-formed payload.
+- Three malformed-cell recovery sequences verified end to end: the refusal
+  persists during vendor absence, then clears after a valid issuer
+  correction.
+- The publication-lag probe records errors without aborting — the failure
+  mode that produced the original 2026-09-22 alert, and that was made
+  non-strict once already, does not return.
+- **76 stored responses sampled across 38 funds, covering 7,612 rows:** the
+  affected cells were strings or nulls throughout. **Sampled evidence only,
+  not a vendor contract guarantee.**
+- The previously documented limitations (§5 above) remain.
+
+**This supersedes the "24 sampled stored responses" figure in §2.** That
+number was not reproducible from the repository, because `data/raw_ishares/`
+is gitignored and absent off the capture machine. The 76/38/7,612 sample is
+the figure of record.
+
+A reproducible corroboration exists in-repo and is worth knowing about: the
+eight committed captures under `tests/fixtures/constituents_parity/` carry
+**1,726 rows across 8 funds with zero non-string non-null cells** in
+`assetClass`, `exchange` and `countryOfRisk`, while containing 59 null
+`exchange`, 4 null `countryOfRisk` and 2 null `ticker` values — the nulls the
+fix explicitly handles. That audit runs from a clean checkout. Its limitation
+is that all eight fixtures share one as-of date (`20260710`), so it is breadth
+across funds, not across time.
+
+**One minor item left open, deliberately not actioned** (no further
+implementation work at close-out): the asymmetry in `text_cell` coverage is
+undocumented. `assetClass` is validated on every row; `exchange` and
+`countryOfRisk` only on equity rows carrying a real ticker. This was checked
+and is *deterministic* — the visited row set is a pure function of
+`assetClass` and `ticker`, both of which live inside the payload, so a frozen
+retained payload's parse outcome is stable across venue-mapping, ticker-
+override and exclusion changes. It is correct, but a future reader will
+wonder; one sentence in the docstring would close it.
 
 ## 6. Boundaries observed
 
