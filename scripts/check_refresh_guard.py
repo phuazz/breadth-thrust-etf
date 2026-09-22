@@ -427,6 +427,26 @@ def read_roster_refusals(consts: dict) -> list[dict]:
             raise RefusalStateError(
                 f"roster_refusals[{i}] has no usable target_friday "
                 f"({target!r}); the record names no week")
+        # EVERY FIELD THE VERDICT FORMATTER CONSUMES is validated here, not
+        # just the ones that identify the record. Validating target_friday
+        # alone let {"target_friday": "...", "exchanges": [{}]} through, and
+        # the gate then died on `sorted({...})` with "unhashable type: dict" —
+        # an uncontrolled traceback out of the very check whose job is to turn
+        # bad state into a verdict.
+        for field in ("exchanges", "affected_symbols"):
+            value = rec.get(field)
+            if value is None:
+                continue
+            if not isinstance(value, list):
+                raise RefusalStateError(
+                    f"roster_refusals[{i}].{field} is "
+                    f"{type(value).__name__}, expected a list")
+            bad = [v for v in value if not isinstance(v, str)]
+            if bad:
+                raise RefusalStateError(
+                    f"roster_refusals[{i}].{field} holds non-string entries "
+                    f"({', '.join(type(v).__name__ for v in bad[:3])}); the "
+                    f"record cannot be reported")
     return list(refusals)
 
 
