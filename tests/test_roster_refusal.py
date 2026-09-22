@@ -1539,6 +1539,358 @@ def test_a_legacy_object_without_the_field_is_still_clean():
     assert guard.read_roster_refusals({"etf": "EXV1", "snapshots": {}}) == []
 
 
+# ===========================================================================
+# FOURTH-ROUND REVIEW FINDINGS (against 61b09318)
+# ===========================================================================
+
+# --- R4-F1: a recorded latency breach was never enforced -------------------
+def _slow_clock(monkeypatch, seconds_per_call=13.0):
+    """Deterministic timing: every fetch appears to take `seconds_per_call`."""
+    state = {"n": 0}
+    monkeypatch.setattr(fc.time, "monotonic",
+                        lambda: state["n"] * seconds_per_call)
+
+    def tick():
+        state["n"] += 1
+
+    return tick
+
+
+def test_reconciliation_latency_breach_aborts_the_run(monkeypatch, tmp_path):
+    """Thirteen slow recoveries set latency.dead — and the run exited 0.
+
+    The walk tests latency.dead at the top of each Friday, but reconciliation
+    runs AFTER the walk, so a breach raised by recovery traffic was recorded
+    on the circuit and then ignored: against 61b09318 the run wrote the
+    constituents payload and exited 0 on a transport it had itself declared
+    degraded.
+    """
+    data_dir = tmp_path / "data"
+    raw = data_dir / "raw_ishares"
+    raw.mkdir(parents=True)
+    monkeypatch.setattr(fc, "DATA_DIR", data_dir)
+    monkeypatch.setattr(fc, "RAW_DIR", raw)
+    monkeypatch.setattr(fc, "PROJECT_ROOT", tmp_path)
+    cfg = {"symbol": "EXV1", "start_friday": FRI_1,
+           "apply_exchange_suffix": True, "product_id": "x"}
+    monkeypatch.setattr(fc, "get_etf", lambda _s: cfg)
+    monkeypatch.setattr(fc, "latest_completed_friday", lambda _t: FRI_2)
+    monkeypatch.setattr(fc, "parse_args",
+                        lambda: type("A", (), {"etf": "EXV1",
+                                               "carry_forward_on_outage": False})())
+
+    for i in range(13):
+        d = FRI_1 - timedelta(days=7 * (i + 1))
+        fc.write_unresolved_marker(fc.unresolved_marker_path("EXV1", d),
+                                   "EXV1", d, "quarantined", None)
+
+    tick = _slow_clock(monkeypatch)
+    calls = []
+
+    def slow(target, cfg_):
+        calls.append(target)
+        tick()
+        return _payload_for(target, [("A", "Equity", MAPPED_VENUE)])
+
+    monkeypatch.setattr(fc, "fetch_product_data", slow)
+
+    rc = fc.cli()
+    assert rc == fc.EXIT_ENDPOINT_DEGRADED, \
+        "a declared latency breach did not fail the run"
+    assert not (data_dir / "constituents_exv1.json").exists(), \
+        "a roster was written on a transport declared degraded"
+
+    before = len(calls)
+    assert before < 15, "recovery kept calling after the breach"
+
+
+def test_successful_promotions_persist_across_a_degraded_abort(monkeypatch,
+                                                                tmp_path):
+    """The abort must not undo work that already resolved."""
+    data_dir = tmp_path / "data"
+    raw = data_dir / "raw_ishares"
+    raw.mkdir(parents=True)
+    monkeypatch.setattr(fc, "DATA_DIR", data_dir)
+    monkeypatch.setattr(fc, "RAW_DIR", raw)
+    monkeypatch.setattr(fc, "PROJECT_ROOT", tmp_path)
+    cfg = {"symbol": "EXV1", "start_friday": FRI_1,
+           "apply_exchange_suffix": True, "product_id": "x"}
+    monkeypatch.setattr(fc, "get_etf", lambda _s: cfg)
+    monkeypatch.setattr(fc, "latest_completed_friday", lambda _t: FRI_2)
+    monkeypatch.setattr(fc, "parse_args",
+                        lambda: type("A", (), {"etf": "EXV1",
+                                               "carry_forward_on_outage": False})())
+    # Dates are recovered OLDEST FIRST, so the oldest marker is the one
+    # certain to have resolved before the breach aborts the run.
+    resolved_date = FRI_1 - timedelta(days=7 * 13)
+    for i in range(13):
+        d = FRI_1 - timedelta(days=7 * (i + 1))
+        fc.write_unresolved_marker(fc.unresolved_marker_path("EXV1", d),
+                                   "EXV1", d, "quarantined", None)
+
+    tick = _slow_clock(monkeypatch)
+
+    def slow(target, cfg_):
+        tick()
+        return _payload_for(target, [("A", "Equity", MAPPED_VENUE)])
+
+    monkeypatch.setattr(fc, "fetch_product_data", slow)
+    assert fc.cli() == fc.EXIT_ENDPOINT_DEGRADED
+    assert not fc.has_unresolved_refusal("EXV1", resolved_date), \
+        "a resolution completed before the abort was lost"
+
+
+def test_degraded_abort_prints_the_refusals_gathered_so_far(monkeypatch,
+                                                             tmp_path, capsys):
+    """No payload is written on that path, so the log is the only record."""
+    data_dir = tmp_path / "data"
+    raw = data_dir / "raw_ishares"
+    raw.mkdir(parents=True)
+    monkeypatch.setattr(fc, "DATA_DIR", data_dir)
+    monkeypatch.setattr(fc, "RAW_DIR", raw)
+    monkeypatch.setattr(fc, "PROJECT_ROOT", tmp_path)
+    cfg = {"symbol": "EXV1", "start_friday": FRI_1,
+           "apply_exchange_suffix": True, "product_id": "x"}
+    monkeypatch.setattr(fc, "get_etf", lambda _s: cfg)
+    monkeypatch.setattr(fc, "latest_completed_friday", lambda _t: FRI_2)
+    monkeypatch.setattr(fc, "parse_args",
+                        lambda: type("A", (), {"etf": "EXV1",
+                                               "carry_forward_on_outage": False})())
+    for i in range(13):
+        d = FRI_1 - timedelta(days=7 * (i + 1))
+        fc.write_unresolved_marker(fc.unresolved_marker_path("EXV1", d),
+                                   "EXV1", d, "quarantined", None)
+
+    tick = _slow_clock(monkeypatch)
+
+    def slow_and_absent(target, cfg_):
+        tick()
+        return _payload_for(date(1990, 1, 1), [])   # nothing resolves
+
+    monkeypatch.setattr(fc, "fetch_product_data", slow_and_absent)
+    assert fc.cli() == fc.EXIT_ENDPOINT_DEGRADED
+    err = capsys.readouterr().err
+    assert "ROSTER REFUSALS already encountered" in err
+    assert "complete refusal records" in err or "source_date" in err
+
+
+# --- R4-F2: nested malformed retained data blocked recovery ----------------
+def _payload_with_broken_datapoint(kind):
+    p = _payload_for(FRI_2, [("A", "Equity", MAPPED_VENUE)])
+    dps = p["componentsByNameMap"]["holdings"]["containersByNameMap"]["all"][
+        "dataPointsByNameMap"]
+    if kind == "asofdate_list":
+        dps["asOfDate"] = []
+    elif kind == "ticker_not_object":
+        dps["ticker"] = "nope"
+    elif kind == "column_not_list":
+        dps["exchange"] = {"value": "not-a-list"}
+    return p
+
+
+@pytest.mark.parametrize("kind", ["asofdate_list", "ticker_not_object",
+                                  "column_not_list"])
+def test_nested_malformed_retained_data_enters_damaged_recovery(
+        monkeypatch, raw_dir, kind):
+    """asOfDate of [] raised AttributeError — a class nobody handles.
+
+    Against 61b09318 that propagated out of recovery before the endpoint was
+    contacted, on every retry, while a valid correction was available.
+    """
+    fc.refused_payload_path("EXV1", FRI_2).write_text(
+        json.dumps(_payload_with_broken_datapoint(kind)), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: calls.append(t) or _payload_for(
+                            date(1990, 1, 1), []))
+
+    for _ in range(2):
+        with pytest.raises(fc.RefusalEvidenceError):
+            fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2)
+
+    assert len(calls) == 2, "malformed nested data blocked recovery"
+    assert fc.unresolved_marker_path("EXV1", FRI_2).exists()
+
+
+@pytest.mark.parametrize("kind", ["asofdate_list", "ticker_not_object",
+                                  "column_not_list"])
+def test_nested_malformed_retained_data_resolves_on_a_correction(
+        monkeypatch, raw_dir, kind):
+    fc.refused_payload_path("EXV1", FRI_2).write_text(
+        json.dumps(_payload_with_broken_datapoint(kind)), encoding="utf-8")
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_for(
+                            FRI_2, [("A", "Equity", MAPPED_VENUE)]))
+    assert fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2) == ["A.L"]
+    assert not fc.has_unresolved_refusal("EXV1", FRI_2)
+
+
+def test_malformed_shape_is_a_contract_error_not_a_swallowed_exception():
+    """Validated explicitly, so genuine programming errors are NOT swallowed."""
+    with pytest.raises(fc.PayloadContractError):
+        fc.parse_holdings_json(
+            _payload_with_broken_datapoint("asofdate_list"), FRI_2,
+            apply_exchange_suffix=True, symbol="EXV1")
+
+
+# --- R4-F3: "already filed" did not establish evidence identity ------------
+def test_a_different_response_at_the_same_path_is_archived_separately(
+        monkeypatch, raw_dir):
+    """Recovery legitimately retains a LATER refusing issuer response.
+
+    If that later response is itself damaged, the marker already named a
+    quarantine, so against 61b09318 the second file was deleted without ever
+    being archived. Two different responses, one surviving copy.
+    """
+    path = fc.refused_payload_path("EXV1", FRI_2)
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_for(date(1990, 1, 1), []))
+
+    path.write_text("FIRST-DAMAGED", encoding="utf-8")
+    with pytest.raises(fc.RefusalEvidenceError):
+        fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2)
+
+    path.write_text("SECOND-DIFFERENT-DAMAGED", encoding="utf-8")
+    with pytest.raises(fc.RefusalEvidenceError):
+        fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2)
+
+    kept = sorted(f.read_text(encoding="utf-8")
+                  for f in raw_dir.glob("*corrupt*"))
+    assert kept == ["FIRST-DAMAGED", "SECOND-DIFFERENT-DAMAGED"], \
+        f"distinct evidence was lost: {kept}"
+
+
+def test_the_same_bytes_re_presented_are_not_archived_twice(monkeypatch,
+                                                             raw_dir):
+    """The other half: identical content must not multiply copies."""
+    path = fc.refused_payload_path("EXV1", FRI_2)
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_for(date(1990, 1, 1), []))
+    for _ in range(3):
+        path.write_text("SAME-DAMAGED", encoding="utf-8")
+        with pytest.raises(fc.RefusalEvidenceError):
+            fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2)
+    assert len(list(raw_dir.glob("*corrupt*"))) == 1
+
+
+# --- R4-F4: failed outcome persistence defeated file-once ------------------
+def test_file_once_holds_when_both_unlink_and_marker_rewrite_fail(
+        monkeypatch, raw_dir):
+    """Deletion denied AND the outcome rewrite denied.
+
+    Against 61b09318 the marker never recorded the quarantine, so
+    "already filed" was False every run and three attempts made three copies.
+    Identity is now read from the archives on disk, which no failed write can
+    erase.
+    """
+    path = fc.refused_payload_path("EXV1", FRI_2)
+    path.write_text("{truncated", encoding="utf-8")
+    _deny_unlink_of(monkeypatch, "EXV1_20260918.refused.json")
+
+    real_atomic = fc._write_json_atomic
+
+    def deny_rewrite(p, payload):
+        if p.name.endswith(".unresolved.json") and p.exists():
+            raise OSError("outcome rewrite denied")
+        return real_atomic(p, payload)
+
+    monkeypatch.setattr(fc, "_write_json_atomic", deny_rewrite)
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_for(date(1990, 1, 1), []))
+
+    for _ in range(3):
+        with pytest.raises(fc.RefusalEvidenceError):
+            fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2)
+
+    copies = list(raw_dir.glob("*corrupt*"))
+    assert len(copies) == 1, f"file-once broke: {len(copies)} copies"
+    assert fc.unresolved_marker_path("EXV1", FRI_2).exists(), \
+        "refusal persistence must still hold"
+
+
+def test_archive_identity_is_recoverable_without_the_marker(raw_dir):
+    """find_archived_evidence answers from disk, not from recorded state."""
+    path = fc.refused_payload_path("EXV1", FRI_2)
+    path.write_text("EVIDENCE", encoding="utf-8")
+    name, removed = fc.quarantine_retained_payload(path)
+    assert name and removed
+    path.write_text("EVIDENCE", encoding="utf-8")   # same bytes re-presented
+    assert fc.find_archived_evidence(path, fc._file_sha256(path)) == name
+    path.write_text("DIFFERENT", encoding="utf-8")
+    assert fc.find_archived_evidence(path, fc._file_sha256(path)) is None
+
+
+# --- Related small corrections ---------------------------------------------
+def test_an_unreadable_marker_is_rebuilt_with_its_identifying_fields(
+        monkeypatch, raw_dir):
+    """It used to be reduced to two outcome flags."""
+    marker = fc.unresolved_marker_path("EXV1", FRI_2)
+    marker.write_text("{not json", encoding="utf-8")
+    path = fc.refused_payload_path("EXV1", FRI_2)
+    path.write_text("{truncated", encoding="utf-8")
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_for(date(1990, 1, 1), []))
+
+    with pytest.raises(fc.RefusalEvidenceError):
+        fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2)
+
+    rebuilt = json.loads(marker.read_text(encoding="utf-8"))
+    assert rebuilt["symbol"] == "EXV1"
+    assert rebuilt["source_date"] == "2026-09-18"
+    assert rebuilt["reason"] and "2026-09-18" in rebuilt["reason"]
+    assert rebuilt["first_seen_utc"]
+
+
+def test_refusal_report_isolates_one_malformed_file_from_the_others(tmp_path):
+    """A root of [] discarded the ENTIRE report through _safe."""
+    import scheduled_refresh
+
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "constituents_exv1.json").write_text("[]", encoding="utf-8")
+    rec = make_refusal(symbol="CSP1").as_record(FRI_2)
+    (data / "constituents_csp1.json").write_text(
+        json.dumps({"etf": "CSP1", "roster_refusals": [rec]}),
+        encoding="utf-8")
+
+    report = scheduled_refresh.refusal_report(tmp_path)
+    assert "CSP1" in report and ATHENS in report, \
+        "a valid panel's refusals were discarded by a malformed neighbour"
+    assert "MALFORMED" in report and "constituents_exv1.json" in report
+
+
+def test_refusal_report_isolates_one_malformed_record(tmp_path):
+    import scheduled_refresh
+
+    data = tmp_path / "data"
+    data.mkdir()
+    good = make_refusal(symbol="EXV1").as_record(FRI_2)
+    (data / "constituents_exv1.json").write_text(
+        json.dumps({"etf": "EXV1", "roster_refusals": ["not a record", good]}),
+        encoding="utf-8")
+    report = scheduled_refresh.refusal_report(tmp_path)
+    assert ATHENS in report, "the valid record was lost"
+    assert "MALFORMED" in report
+
+
+def test_reconciliation_outage_message_does_not_claim_to_stop_the_walk(
+        monkeypatch, raw_dir, capsys):
+    """The walk is over by then; saying it is short-circuited is false."""
+    fc.write_unresolved_marker(fc.unresolved_marker_path("EXV1", FRI_2),
+                               "EXV1", FRI_2, "quarantined", None)
+
+    def dead(t, c):
+        raise fc.EndpointUnavailable("connection reset")
+
+    monkeypatch.setattr(fc, "fetch_product_data", dead)
+    circuit = fc.EndpointCircuit()
+    fc.unresolved_refusal_records("EXV1", _cfg(), set(), circuit=circuit)
+    out = capsys.readouterr().out
+    assert "Short-circuiting the remaining Fridays" not in out
+    assert "no further endpoint calls" in out
+    assert circuit.dead, "exit 3 and failed endpoint health remain correct"
+
+
 # ---------------------------------------------------------------------------
 # G8 — the state-based gate
 # ---------------------------------------------------------------------------
@@ -1818,13 +2170,18 @@ def test_refusal_report_is_empty_when_nothing_is_refused(tmp_path):
 
 
 def test_refusal_report_survives_a_corrupt_payload(tmp_path):
-    """A diagnostic must never replace the failure it is reporting on."""
+    """A diagnostic must never replace the failure it is reporting on.
+
+    It no longer goes silent either: a malformed payload is NAMED. Dropping
+    it quietly is how a bad file could hide beside good ones.
+    """
     import scheduled_refresh
 
     data = tmp_path / "data"
     data.mkdir()
     (data / "constituents_exv1.json").write_text("{broken", encoding="utf-8")
-    assert scheduled_refresh.refusal_report(tmp_path) == ""
+    report = scheduled_refresh.refusal_report(tmp_path)
+    assert "MALFORMED" in report and "constituents_exv1.json" in report
 
 
 def test_retained_evidence_is_gitignored_so_it_survives_the_rollback():

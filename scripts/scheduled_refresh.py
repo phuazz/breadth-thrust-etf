@@ -428,40 +428,78 @@ def refusal_report(repo_root: Path = REPO_ROOT) -> str:
     Returns "" when nothing is refused, so the caller can skip the section.
     """
     lines: list[str] = []
+    malformed: list[str] = []
     for path in sorted((repo_root / "data").glob("constituents_*.json")):
+        # ISOLATED PER FILE. This whole function is called through _safe, so a
+        # single bad payload used to take the ENTIRE report down — one panel
+        # whose root was `[]` raised AttributeError on .get and discarded every
+        # valid refusal from every other panel, right before the rollback
+        # destroyed them. A malformed input is reported as malformed; it does
+        # not silence its neighbours.
         try:
             blob = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            if not isinstance(blob, dict):
+                malformed.append(f"{path.name} (root is "
+                                 f"{type(blob).__name__}, expected an object)")
+                continue
+            recs = blob.get("roster_refusals")
+            if not isinstance(recs, list):
+                if recs is not None:
+                    malformed.append(f"{path.name} (roster_refusals is "
+                                     f"{type(recs).__name__})")
+                continue
+            if not recs:
+                continue
+            etf = (blob.get("etf")
+                   or path.stem.replace("constituents_", "").upper())
+        except (OSError, json.JSONDecodeError) as exc:
+            malformed.append(f"{path.name} ({type(exc).__name__})")
             continue
-        recs = blob.get("roster_refusals")
-        if not isinstance(recs, list) or not recs:
+        except Exception as exc:  # noqa: BLE001 — one file must not take the report
+            malformed.append(f"{path.name} ({type(exc).__name__}: {exc})")
             continue
-        etf = blob.get("etf") or path.stem.replace("constituents_", "").upper()
         lines.append(f"  {etf}: {len(recs)} refused target Friday(s)")
-        for r in recs:
-            lines.append(
-                f"    target {r.get('target_friday')} "
-                f"(source {r.get('source_date')}): "
-                f"{r.get('n_affected')} of {r.get('n_equity_rows')} equity "
-                f"rows")
-            lines.append(f"      venues:  "
-                         f"{', '.join(r.get('exchanges') or []) or '<none>'}")
-            syms = r.get("affected_symbols") or []
-            shown = ", ".join(syms[:12])
-            more = f" (+{len(syms) - 12} more)" if len(syms) > 12 else ""
-            lines.append(f"      symbols: {shown}{more}")
-            if r.get("evidence_unreadable"):
+        for i, r in enumerate(recs):
+            # ISOLATED PER RECORD, for the same reason as per file: one
+            # malformed record must not discard its valid neighbours.
+            if not isinstance(r, dict):
+                lines.append(f"    [record {i} is {type(r).__name__}, not an "
+                             f"object; cannot be reported]")
+                malformed.append(f"{path.name} record {i}")
+                continue
+            try:
                 lines.append(
-                    f"      EVIDENCE UNREADABLE, quarantined as "
-                    f"{r.get('evidence_quarantined') or '<rename failed>'}")
-            if r.get("evidence_retained") is False:
-                lines.append(f"      EVIDENCE NOT RETAINED: "
-                             f"{r.get('evidence_error')}")
-            # THE COMPLETE RECORD, not the readable summary above. The
-            # rollback restores data/ from HEAD, so this log becomes the only
-            # copy, and a symbol list truncated at twelve is not a record of
-            # what was refused.
-            lines.append("      record: " + json.dumps(r, sort_keys=True))
+                    f"    target {r.get('target_friday')} "
+                    f"(source {r.get('source_date')}): "
+                    f"{r.get('n_affected')} of {r.get('n_equity_rows')} equity "
+                    f"rows")
+                venues = [str(v) for v in (r.get("exchanges") or [])]
+                lines.append(f"      venues:  "
+                             f"{', '.join(venues) or '<none>'}")
+                syms = [str(v) for v in (r.get("affected_symbols") or [])]
+                shown = ", ".join(syms[:12])
+                more = f" (+{len(syms) - 12} more)" if len(syms) > 12 else ""
+                lines.append(f"      symbols: {shown}{more}")
+                if r.get("evidence_unreadable"):
+                    lines.append(
+                        f"      EVIDENCE UNREADABLE, quarantined as "
+                        f"{r.get('evidence_quarantined') or '<rename failed>'}")
+                if r.get("evidence_retained") is False:
+                    lines.append(f"      EVIDENCE NOT RETAINED: "
+                                 f"{r.get('evidence_error')}")
+                # THE COMPLETE RECORD, not the readable summary above. The
+                # rollback restores data/ from HEAD, so this log becomes the
+                # only copy, and a symbol list truncated at twelve is not a
+                # record of what was refused.
+                lines.append("      record: "
+                             + json.dumps(r, sort_keys=True, default=str))
+            except Exception as exc:  # noqa: BLE001 — one record, not the report
+                lines.append(f"    [record {i} could not be formatted: "
+                             f"{type(exc).__name__}: {exc}]")
+                malformed.append(f"{path.name} record {i}")
+    if malformed:
+        lines.append("  MALFORMED refusal state, reported rather than "
+                     "silently dropped: " + "; ".join(malformed))
     if not lines:
         return ""
     return (
