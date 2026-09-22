@@ -77,6 +77,11 @@ OBSERVED_VENUES: list[tuple[str, str, str]] = [
     ("Wiener Boerse Ag", "OMV", "OMV.VI"),
     ("Warsaw Stock Exchange/Equities/Main Market", "PKO", "PKO.WA"),
     ("Prague Stock Exchange", "CEZ", "CEZ.PR"),
+    # Athens under both spellings. The second arrived on the 2026-09-18
+    # roster with the STOXX reclassification of Greece from EM to DM, and
+    # cost EXV1 its roster for that Friday before it was mapped.
+    ("Athens Stock Exchange", "ETE", "ETE.AT"),
+    ("Athens Exchange S.A. Cash Market", "ALPHA", "ALPHA.AT"),
     # --- Asia ----------------------------------------------------------
     ("Tokyo Stock Exchange", "6592", "6592.T"),
     ("Hong Kong Exchanges And Clearing Ltd", "700", "700.HK"),
@@ -155,6 +160,28 @@ def test_unknown_exchange_is_recorded_not_swallowed():
     assert _resolve_yf_symbol("1234", "Nagoya Stock Exchange",
                               unmapped=sink) == "1234"
     assert sink == {"Nagoya Stock Exchange": ["1234"]}
+
+
+def test_greek_banks_do_not_trip_the_guard():
+    """The 2026-09-18 EXV1 roster, in the shape that actually failed.
+
+    STOXX moved Greece from EM to DM and four Greek banks entered SX7P.
+    They arrived on "Athens Exchange S.A. Cash Market", which the map did
+    not carry, so 4 of 61 equity rows (6.6%) fell through to the assume-US
+    branch, the guard refused the roster, and the fetcher carried the
+    2026-09-11 snapshot forward — 57 names, no Greek banks — while
+    reporting the step OK. The publication-lag probe, which parses the same
+    payload with no carry-forward to fall back on, failed outright.
+    """
+    sink: dict[str, list[str]] = {}
+    venue = "Athens Exchange S.A. Cash Market"
+    resolved = [_resolve_yf_symbol(t, venue, unmapped=sink)
+                for t in ("ALPHA", "ETE", "EUROB", "TPEIR")]
+    assert resolved == ["ALPHA.AT", "ETE.AT", "EUROB.AT", "TPEIR.AT"]
+    assert sink == {}
+    # 4 of 61 was 6.6%, past the 2% bound: with the venue unmapped this
+    # call is what raised.
+    report_unmapped_exchanges(sink, "EXV1", n_equity_rows=61)
 
 
 def test_unmapped_exchange_raises_above_threshold():

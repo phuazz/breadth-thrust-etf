@@ -606,6 +606,19 @@ _EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
     "Warsaw Stock Exchange/Equities/Main Market": ".WA",
     "Prague Stock Exchange":          ".PR",
     "Athens Stock Exchange":          ".AT",
+    # The venue's current name in the iShares feed. It arrived on the
+    # 2026-09-18 roster, when STOXX reclassified Greece from EM to DM and
+    # four Greek banks entered SX7P: EXV1 carried ALPHA, ETE, EUROB and
+    # TPEIR on an unrecognised venue, 4 of 61 equity rows (6.6%), which is
+    # past the bound, so the roster was refused and the fetcher carried the
+    # 2026-09-11 snapshot forward instead. MOH (EXH1) and MTLN / PPC (EXH9)
+    # took the same venue below the bound and only warned.
+    # Suffix verified against yfinance 1.1.0 on 2026-09-22: all seven names
+    # resolve under .AT with a full year of daily closes to that day's bar,
+    # priced in EUR, exchange "Athens", and longName matching the issuer in
+    # every case (Alpha Bank, National Bank of Greece, Eurobank, Piraeus
+    # Bank, Motor Oil Hellas, Metlen Energy & Metals, Public Power).
+    "Athens Exchange S.A. Cash Market": ".AT",
     "Irish Stock Exchange":           ".IR",
     "Irish Stock Exchange - All Market": ".IR",
     # Asia

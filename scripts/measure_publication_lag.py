@@ -95,6 +95,7 @@ from etf_registry import get_etf  # noqa: E402
 from fetch_constituents import (  # noqa: E402
     EndpointUnavailable,
     PayloadContractError,
+    UnmappedExchangeError,
     _holdings_datapoints,
     fetch_product_data,
     parse_holdings_json,
@@ -225,11 +226,43 @@ def probe_etf(symbol: str, dates: list[date]) -> dict:
         if d == dates[-1]:
             newest_payload = payload
         try:
+            # strict_exchanges=False because this probe measures PUBLICATION
+            # TIMING, not breadth. The strict bound exists to stop a roster
+            # whose venues are partly unrecognised from being turned into a
+            # breadth ratio over a smaller universe; here the roster is only
+            # ever counted, and an unmapped venue does not change how many
+            # rows the issuer published. Left strict, it took the whole
+            # measurement window down instead: on 2026-09-22 four Greek banks
+            # entered EXV1 on a venue the map did not carry, the resulting
+            # UnmappedExchangeError escaped this function, and the probe
+            # recorded nothing for ANY of its ETFs — the one state this
+            # function's contract says cannot happen. The breadth path keeps
+            # strict=True, which is where the guard belongs.
+            #
+            # KNOWN RESIDUAL GAP, deliberately left for the owner to rule on.
+            # This probe's failure was, in practice, the only EMAIL a newly
+            # unrecognised venue produced. On the breadth side the same raise
+            # is caught per date, the fetcher carries the previous snapshot
+            # forward, and the step still reports OK — so that path is loud
+            # in its log body and silent everywhere an operator looks. The
+            # 2026-09-18 EXV1 roster sat wrong for four days on exactly that
+            # asymmetry. Making a refusal-then-carry-forward fail the refresh
+            # step is the principled fix, and it is a production behaviour
+            # change, so it is not made here. Until it is, the backstop is
+            # the fetcher's own 14-day staleness warning.
+            # `symbol` is passed so an error names the ETF; without it the
+            # 2026-09-22 alert read "? 2026-09-18" and cost a diagnosis.
             tickers = parse_holdings_json(
                 payload, d, ticker_overrides=overrides,
                 apply_exchange_suffix=apply_suffix,
+                symbol=symbol, strict_exchanges=False,
             )
-        except PayloadContractError as exc:
+        except (PayloadContractError, UnmappedExchangeError) as exc:
+            # UnmappedExchangeError cannot arise while strict_exchanges is
+            # False. It is caught anyway so that restoring strictness here,
+            # or a new raise inside the parser, degrades to a recorded
+            # observation rather than an unhandled exit — the behaviour the
+            # docstring above promises.
             errors[d.isoformat()] = str(exc)
             continue
         has_data[d] = bool(tickers)

@@ -102,6 +102,51 @@ def test_echoed_iso_raises_on_contract_drift():
 
 
 # ---------------------------------------------------------------------------
+# probe_etf — the "never raises" contract
+# ---------------------------------------------------------------------------
+def _roster_payload(as_of: str, venues: list[str]) -> dict:
+    """A holdings payload whose equity rows sit on the given venues."""
+    n = len(venues)
+    return {"componentsByNameMap": {"holdings": {"containersByNameMap": {
+        "all": {"dataPointsByNameMap": {
+            "ticker": {"value": [f"T{i}" for i in range(n)]},
+            "assetClass": {"value": ["Equity"] * n},
+            "exchange": {"value": venues},
+            "asOfDate": {"value": as_of},
+        }}}}}}
+
+
+def test_probe_etf_records_an_unmapped_venue_instead_of_raising(monkeypatch):
+    """A roster the breadth guard would refuse is still an observation.
+
+    On 2026-09-22 four Greek banks entered EXV1 on "Athens Exchange S.A.
+    Cash Market", which the venue map did not carry. The resulting
+    UnmappedExchangeError escaped probe_etf, and the scheduled run recorded
+    nothing for ANY ETF — the state this function's docstring says cannot
+    happen. The probe counts published rows; it does not compute breadth,
+    so an unrecognised venue must not cost it the window.
+    """
+    target = date(2026, 9, 18)
+    # 4 of 8 rows on a venue no map carries: 50%, far past the 2% bound.
+    venues = ["Xetra"] * 4 + ["Nowhere Exchange Cash Market"] * 4
+    payload = _roster_payload(target.strftime("%Y%m%d"), venues)
+
+    monkeypatch.setattr(mpl, "resolve_target",
+                        lambda sym: {"symbol": sym, "ishares_region": "uk",
+                                     "apply_exchange_suffix": True})
+    monkeypatch.setattr(mpl, "fetch_product_data", lambda d, cfg: payload)
+
+    row = mpl.probe_etf("EXV1", [target])
+
+    assert row["etf"] == "EXV1"
+    assert row["latest_with_data"] == target.isoformat()
+    # All 8 published rows are counted, including the 4 on the venue the
+    # breadth path would refuse: the probe measures what was published.
+    assert row["n_tickers_latest"] == 8
+    assert row["errors"] == {}
+
+
+# ---------------------------------------------------------------------------
 # cross_check_mismatch
 # ---------------------------------------------------------------------------
 def test_cross_check_agreement_and_disagreement():
