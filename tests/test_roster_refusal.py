@@ -1891,6 +1891,126 @@ def test_reconciliation_outage_message_does_not_claim_to_stop_the_walk(
     assert circuit.dead, "exit 3 and failed endpoint health remain correct"
 
 
+# ===========================================================================
+# FIFTH-ROUND REVIEW FINDING (against e1e6d445)
+# ===========================================================================
+#
+# The round-four validation checked datapoint objects, column lists and column
+# lengths — the SHAPE of a payload — but not the cells inside it. A single
+# numeric value in a correctly sized column reached .strip() and raised
+# AttributeError, which no caller handles, so a retained payload carrying one
+# was stuck: two attempts, two AttributeErrors, and the endpoint never
+# contacted although a valid issuer correction was available.
+
+CELL_FIELDS = ["assetClass", "exchange", "countryOfRisk"]
+BAD_CELLS = [123, 4.5, True, {}, [], ("x",)]
+
+
+def _payload_with_bad_cell(field, bad=123, as_of=FRI_2):
+    """A valid payload with ONE malformed cell; column length intact."""
+    p = _payload_for(as_of, [("A", "Equity", MAPPED_VENUE),
+                             ("B", "Equity", MAPPED_VENUE)])
+    dps = p["componentsByNameMap"]["holdings"]["containersByNameMap"]["all"][
+        "dataPointsByNameMap"]
+    dps[field]["value"] = [bad, dps[field]["value"][1]]
+    return p
+
+
+@pytest.mark.parametrize("field", CELL_FIELDS)
+@pytest.mark.parametrize("bad", BAD_CELLS)
+def test_malformed_cell_is_a_contract_error_not_an_attribute_error(field, bad):
+    """Raised as a contract failure, so both routes have a policy for it."""
+    with pytest.raises(fc.PayloadContractError):
+        fc.parse_holdings_json(_payload_with_bad_cell(field, bad), FRI_2,
+                               apply_exchange_suffix=True, symbol="EXV1")
+
+
+@pytest.mark.parametrize("field", CELL_FIELDS)
+def test_malformed_retained_cell_does_not_escape_as_attribute_error(
+        monkeypatch, raw_dir, field):
+    """The reported reproduction: two attempts, endpoint never contacted."""
+    fc.refused_payload_path("EXV1", FRI_2).write_text(
+        json.dumps(_payload_with_bad_cell(field)), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: calls.append(t) or _payload_for(
+                            date(1990, 1, 1), []))
+
+    for _ in range(2):
+        with pytest.raises(fc.RefusalEvidenceError):
+            fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2)
+
+    assert len(calls) == 2, "a malformed cell blocked endpoint recovery"
+    assert fc.has_unresolved_refusal("EXV1", FRI_2), \
+        "vendor absence must preserve the refusal across runs"
+
+
+@pytest.mark.parametrize("field", CELL_FIELDS)
+def test_malformed_retained_cell_resolves_on_a_valid_correction(
+        monkeypatch, raw_dir, field):
+    """The correction is actually FETCHED, resolves, and clears the state."""
+    fc.refused_payload_path("EXV1", FRI_2).write_text(
+        json.dumps(_payload_with_bad_cell(field)), encoding="utf-8")
+    calls = []
+
+    def corrected(t, c):
+        calls.append(t)
+        return _payload_for(FRI_2, [("A", "Equity", MAPPED_VENUE)])
+
+    monkeypatch.setattr(fc, "fetch_product_data", corrected)
+    assert fc.attempt_refusal_recovery("EXV1", _cfg(), FRI_2) == ["A.L"]
+    assert calls == [FRI_2], "the correction was never fetched"
+    assert not fc.has_unresolved_refusal("EXV1", FRI_2)
+
+
+@pytest.mark.parametrize("field", CELL_FIELDS)
+def test_malformed_fresh_network_cell_is_a_contract_failure(monkeypatch,
+                                                             raw_dir, field):
+    """Malformed NETWORK data keeps the existing contract-failure policy."""
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: _payload_with_bad_cell(field))
+    with pytest.raises(fc.PayloadContractError):
+        fc.load_snapshot_tickers(FRI_2, _cfg())
+    assert not fc.refused_payload_path("EXV1", FRI_2).exists(), \
+        "a malformed response must not be retained as holdings evidence"
+
+
+@pytest.mark.parametrize("field", CELL_FIELDS)
+def test_null_and_empty_cells_remain_legitimate(field, raw_dir):
+    """Null and "" are ordinary values and must keep working."""
+    for value in (None, ""):
+        p = _payload_with_bad_cell(field, bad=value)
+        names = fc.parse_holdings_json(p, FRI_2, apply_exchange_suffix=True,
+                                       symbol="EXV1")
+        assert isinstance(names, list)
+    # A null exchange resolves to the assume-US branch, exactly as before.
+    p = _payload_for(FRI_2, [("A", "Equity", MAPPED_VENUE)])
+    dps = p["componentsByNameMap"]["holdings"]["containersByNameMap"]["all"][
+        "dataPointsByNameMap"]
+    dps["exchange"]["value"] = [None]
+    assert fc.parse_holdings_json(p, FRI_2, apply_exchange_suffix=True,
+                                  symbol="EXV1", strict_exchanges=False) == ["A"]
+
+
+def test_valid_payload_behaviour_is_unchanged(raw_dir):
+    """The control: an ordinary payload parses exactly as it did."""
+    p = _payload_for(FRI_2, [("A", "Equity", MAPPED_VENUE),
+                             ("B", "Equity", MAPPED_VENUE),
+                             ("C", "Bond", MAPPED_VENUE)])
+    assert fc.parse_holdings_json(p, FRI_2, apply_exchange_suffix=True,
+                                  symbol="EXV1") == ["A.L", "B.L"]
+
+
+def test_numeric_ticker_normalisation_is_preserved(raw_dir):
+    """`ticker` keeps its str() handling and is NOT routed through the check."""
+    p = _payload_for(FRI_2, [("A", "Equity", MAPPED_VENUE)])
+    dps = p["componentsByNameMap"]["holdings"]["containersByNameMap"]["all"][
+        "dataPointsByNameMap"]
+    dps["ticker"]["value"] = [600519]
+    assert fc.parse_holdings_json(p, FRI_2, apply_exchange_suffix=True,
+                                  symbol="EXV1") == ["600519.L"]
+
+
 # ---------------------------------------------------------------------------
 # G8 — the state-based gate
 # ---------------------------------------------------------------------------

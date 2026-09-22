@@ -513,6 +513,33 @@ def parse_holdings_json(
         values = columns[key]
         return values[i] if values is not None else None
 
+    def text_cell(key: str, i: int) -> str:
+        """A cell that string operations are about to be applied to.
+
+        The datapoint, column and length checks above validate the SHAPE of a
+        payload; nothing validated the cells inside it, so a single numeric
+        value in a correctly sized column reached .strip() and raised
+        AttributeError — a class no caller handles. For a RETAINED payload
+        that meant recovery never reached the endpoint at all: the date was
+        stuck on a Python error rather than on anything about the roster, on
+        every retry, with a valid issuer correction available.
+
+        Returns "" for null, which is a legitimate value the callers already
+        treat as absent. Anything that is neither text nor null is a contract
+        failure, raised as one here rather than being caught as a stray
+        exception later — that would swallow genuine programming errors with
+        it. ``ticker`` keeps its existing str() normalisation and is
+        deliberately not routed through this.
+        """
+        value = cell(key, i)
+        if value is None:
+            return ""
+        if not isinstance(value, str):
+            raise PayloadContractError(
+                f"holdings column {key!r} row {i} is {type(value).__name__}, "
+                f"expected a string or null")
+        return value
+
     overrides = ticker_overrides or {}
     excluded = exclude_symbols or frozenset()
     tickers: list[str] = []
@@ -520,7 +547,7 @@ def parse_holdings_json(
     unmapped: dict[str, list[str]] = {}
     n_equity = 0
     for i in range(n):
-        if (cell("assetClass", i) or "").strip() != "Equity":
+        if text_cell("assetClass", i).strip() != "Equity":
             continue
         raw = str(cell("ticker", i) or "").strip()
         # Mirrors the CSV parser: iShares emits a "-" placeholder row that
@@ -528,12 +555,12 @@ def parse_holdings_json(
         if raw in {"", "-"}:
             continue
         n_equity += 1
-        exchange = cell("exchange", i)
-        location = cell("countryOfRisk", i)
+        exchange = text_cell("exchange", i)
+        location = text_cell("countryOfRisk", i)
         if apply_exchange_suffix:
             sym = _resolve_yf_symbol(
-                raw, (exchange or "").strip() or None, overrides,
-                location=(location or "").strip() or None,
+                raw, exchange.strip() or None, overrides,
+                location=location.strip() or None,
                 unmapped=unmapped,
             )
         else:
