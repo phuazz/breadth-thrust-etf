@@ -409,6 +409,114 @@ RESTORE_ON_EXIT_CODES = (3, 4)
 RESTORE_PATHS = ("data/", "docs/", "build/portfolio.html", "template.html")
 
 
+def refusal_report(repo_root: Path = REPO_ROOT) -> str:
+    """Every roster refusal currently on disk, as text for the run log.
+
+    WHY THIS RUNS BEFORE THE ROLLBACK. ``data/constituents_*.json`` is
+    TRACKED, so restore_tracked_outputs checks it back out to HEAD and the
+    ``roster_refusals`` array the failing run wrote is gone. The run log is
+    under logs/, which is gitignored and therefore survives — so the refusal
+    detail has to be copied into it while it still exists. Without this, the
+    one artefact naming the venue to map is destroyed by the cleanup that
+    makes the next firing a retry.
+
+    The retained vendor responses under data/raw_ishares/*.refused.json also
+    survive: that path is gitignored, and the rollback's `git clean -fd`
+    deliberately omits -x. This function names them so the operator knows the
+    dates can be rebuilt from disk.
+
+    Returns "" when nothing is refused, so the caller can skip the section.
+    """
+    lines: list[str] = []
+    malformed: list[str] = []
+    for path in sorted((repo_root / "data").glob("constituents_*.json")):
+        # ISOLATED PER FILE. This whole function is called through _safe, so a
+        # single bad payload used to take the ENTIRE report down — one panel
+        # whose root was `[]` raised AttributeError on .get and discarded every
+        # valid refusal from every other panel, right before the rollback
+        # destroyed them. A malformed input is reported as malformed; it does
+        # not silence its neighbours.
+        try:
+            blob = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(blob, dict):
+                malformed.append(f"{path.name} (root is "
+                                 f"{type(blob).__name__}, expected an object)")
+                continue
+            recs = blob.get("roster_refusals")
+            if not isinstance(recs, list):
+                if recs is not None:
+                    malformed.append(f"{path.name} (roster_refusals is "
+                                     f"{type(recs).__name__})")
+                continue
+            if not recs:
+                continue
+            etf = (blob.get("etf")
+                   or path.stem.replace("constituents_", "").upper())
+        except (OSError, json.JSONDecodeError) as exc:
+            malformed.append(f"{path.name} ({type(exc).__name__})")
+            continue
+        except Exception as exc:  # noqa: BLE001 — one file must not take the report
+            malformed.append(f"{path.name} ({type(exc).__name__}: {exc})")
+            continue
+        lines.append(f"  {etf}: {len(recs)} refused target Friday(s)")
+        for i, r in enumerate(recs):
+            # ISOLATED PER RECORD, for the same reason as per file: one
+            # malformed record must not discard its valid neighbours.
+            if not isinstance(r, dict):
+                lines.append(f"    [record {i} is {type(r).__name__}, not an "
+                             f"object; cannot be reported]")
+                malformed.append(f"{path.name} record {i}")
+                continue
+            try:
+                lines.append(
+                    f"    target {r.get('target_friday')} "
+                    f"(source {r.get('source_date')}): "
+                    f"{r.get('n_affected')} of {r.get('n_equity_rows')} equity "
+                    f"rows")
+                venues = [str(v) for v in (r.get("exchanges") or [])]
+                lines.append(f"      venues:  "
+                             f"{', '.join(venues) or '<none>'}")
+                syms = [str(v) for v in (r.get("affected_symbols") or [])]
+                shown = ", ".join(syms[:12])
+                more = f" (+{len(syms) - 12} more)" if len(syms) > 12 else ""
+                lines.append(f"      symbols: {shown}{more}")
+                if r.get("evidence_unreadable"):
+                    lines.append(
+                        f"      EVIDENCE UNREADABLE, quarantined as "
+                        f"{r.get('evidence_quarantined') or '<rename failed>'}")
+                if r.get("evidence_retained") is False:
+                    lines.append(f"      EVIDENCE NOT RETAINED: "
+                                 f"{r.get('evidence_error')}")
+                # THE COMPLETE RECORD, not the readable summary above. The
+                # rollback restores data/ from HEAD, so this log becomes the
+                # only copy, and a symbol list truncated at twelve is not a
+                # record of what was refused.
+                lines.append("      record: "
+                             + json.dumps(r, sort_keys=True, default=str))
+            except Exception as exc:  # noqa: BLE001 — one record, not the report
+                lines.append(f"    [record {i} could not be formatted: "
+                             f"{type(exc).__name__}: {exc}]")
+                malformed.append(f"{path.name} record {i}")
+    if malformed:
+        lines.append("  MALFORMED refusal state, reported rather than "
+                     "silently dropped: " + "; ".join(malformed))
+    if not lines:
+        return ""
+    return (
+        "\nROSTER REFUSALS recorded by this run (copied here BEFORE the "
+        "rollback, which restores data/ from HEAD and would otherwise "
+        "destroy them):\n"
+        + "\n".join(lines)
+        + "\n  The row counts above are ROW shares, not portfolio weights.\n"
+        "  Remedy: map the venue in "
+        "fetch_constituents._EXCHANGE_TO_YF_SUFFIX, then re-run. The refused\n"
+        "  vendor responses are retained under "
+        "data/raw_ishares/*.refused.json, which the rollback does not touch\n"
+        "  (gitignored; `git clean -fd` omits -x), so the dates rebuild from "
+        "disk rather than from the vendor.\n"
+    )
+
+
 def restore_tracked_outputs(log, repo_root: Path = REPO_ROOT) -> bool:
     """Discard what a failed refresh wrote: tracked files under the output
     paths back to HEAD, untracked (never ignored) files under data/ and docs/
@@ -692,6 +800,14 @@ def main(argv: list[str] | None = None) -> int:
     def fail(code: int, subject: str, body: str) -> int:
         print(f"FAILED ({subject}) - see {log_path}")
         log.write(f"\nFAILED exit {code}: {subject}\n{body}\n")
+        # BEFORE the rollback: the refusal detail lives in tracked files that
+        # restore_tracked_outputs is about to check back out. See
+        # refusal_report. Best-effort — a failure to read a roster must never
+        # stop the restore that makes the next firing a retry.
+        refusals = _safe(log, "roster refusal report", refusal_report) or ""
+        if refusals:
+            log.write(refusals)
+            body = body + "\n" + refusals
         # A failure inside the refresh must not poison every later firing;
         # see restore_tracked_outputs.
         if code in RESTORE_ON_EXIT_CODES:

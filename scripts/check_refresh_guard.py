@@ -34,6 +34,14 @@ asserts over the whole 24-panel deployed set:
   G2  no panel reports endpoint_health.status != "ok";
   G3  no panel is critically stale (staleness.status == "critical" or
       "no_real_fetches" fails; "warning" warns);
+  G8  no panel carries an unresolved roster refusal (2026-09-22). The
+      fetcher's own exit code is the primary control; this reads the state
+      on disk, because an exit code is the thing that gets lost — a manual
+      run, --skip-soxx-fetch, or a re-run served from cache can all leave a
+      refused roster committed with nothing having failed. It is the same
+      shape as check_roster_integrity.py: an array the fetcher wrote and
+      nothing consumed. Historical refusals fail as well as recent ones, and
+      a newer good Friday does not clear an older refusal;
   G4  every breadth panel's end_date is a real session on that ETF's OWN
       trading calendar, and lands in the band the writer is allowed to
       produce: at least the last session on or before the shared
@@ -376,6 +384,135 @@ def check_endpoint_health(health: dict[str, str]) -> list[dict]:
                         f"panels with unhealthy transport: {bad}")]
     return [verdict("G2 endpoint health", OK,
                     f"{len(health)} panels report ok")]
+
+
+class RefusalStateError(ValueError):
+    """The roster_refusals field is PRESENT but not valid refusal state.
+
+    Distinct from the field being absent. Absence is a legacy payload written
+    before 2026-09-22 and is deliberately read as clean; a present-but-invalid
+    field is a payload nobody can interpret, and reading that as clean is how
+    a refusal would pass the gate while looking like an answer.
+    """
+
+
+def read_roster_refusals(consts: dict) -> list[dict]:
+    """The refusal records in one constituents payload.
+
+    ABSENT field -> []. A payload written before 2026-09-22 has no
+    ``roster_refusals`` array, and that means "not recorded", not "none
+    happened". This gate cannot distinguish the two and does not try, which is
+    why the FETCHER's exit code is the primary control and this the secondary
+    one. That compatibility is deliberate and is kept.
+
+    PRESENT but invalid -> RefusalStateError. The previous version returned []
+    for every non-list value, so a payload carrying a non-empty DICT under
+    roster_refusals — a plausible shape for hand-edited or half-migrated state
+    — produced a clean G8. Malformed state is not clean state.
+    """
+    # THE ROOT IS CHECKED BEFORE THE LEGACY RULE, not after. `"x" not in obj`
+    # is a membership test on any container, so a payload of `[]` satisfied
+    # "the field is absent" and read as clean, and a payload of `null` raised
+    # TypeError out of the gate. The legacy allowance is for a roster payload
+    # that predates the field — it was never meant to cover a file that is not
+    # a roster payload at all.
+    if not isinstance(consts, dict):
+        raise RefusalStateError(
+            f"the constituents payload is {type(consts).__name__}, expected an "
+            f"object; refusal state cannot be read from it")
+    if "roster_refusals" not in consts:
+        return []
+    refusals = consts["roster_refusals"]
+    if not isinstance(refusals, list):
+        raise RefusalStateError(
+            f"roster_refusals is {type(refusals).__name__}, expected a list; "
+            f"the panel's refusal state cannot be read")
+    for i, rec in enumerate(refusals):
+        if not isinstance(rec, dict):
+            raise RefusalStateError(
+                f"roster_refusals[{i}] is {type(rec).__name__}, expected an "
+                f"object")
+        target = rec.get("target_friday")
+        if not isinstance(target, str) or not target:
+            raise RefusalStateError(
+                f"roster_refusals[{i}] has no usable target_friday "
+                f"({target!r}); the record names no week")
+        # EVERY FIELD THE VERDICT FORMATTER CONSUMES is validated here, not
+        # just the ones that identify the record. Validating target_friday
+        # alone let {"target_friday": "...", "exchanges": [{}]} through, and
+        # the gate then died on `sorted({...})` with "unhashable type: dict" —
+        # an uncontrolled traceback out of the very check whose job is to turn
+        # bad state into a verdict.
+        for field in ("exchanges", "affected_symbols"):
+            value = rec.get(field)
+            if value is None:
+                continue
+            if not isinstance(value, list):
+                raise RefusalStateError(
+                    f"roster_refusals[{i}].{field} is "
+                    f"{type(value).__name__}, expected a list")
+            bad = [v for v in value if not isinstance(v, str)]
+            if bad:
+                raise RefusalStateError(
+                    f"roster_refusals[{i}].{field} holds non-string entries "
+                    f"({', '.join(type(v).__name__ for v in bad[:3])}); the "
+                    f"record cannot be reported")
+    return list(refusals)
+
+
+def check_roster_refusals(refusals: dict[str, list[dict]],
+                          errors: dict[str, str] | None = None) -> list[dict]:
+    """G8: no panel may carry an unresolved roster refusal.
+
+    A refusal means the transport was healthy and the issuer published, but
+    too much of the roster resolved at no vendor, so the fetcher declined it
+    and (where a prior snapshot existed) carried the previous week forward.
+    Unlike a vendor gap, this does not heal on its own — a venue string will
+    not map itself — so it fails rather than warns.
+
+    HISTORICAL REFUSALS FAIL TOO, and a newer good Friday does not clear an
+    older refusal. A refusal on any Friday in the history being rebuilt means
+    that week's breadth was computed on the wrong roster, and the newest
+    snapshot being healthy says nothing about it. The record is not sticky:
+    the payload is rewritten wholesale on every run, so the moment the venue
+    is mapped the re-parse succeeds and the array comes back empty.
+
+    Pure: takes {etf: [refusal records]} exactly as the payloads carry them,
+    plus {etf: message} for panels whose refusal state could not be read at
+    all. An unreadable panel FAILS — it is the state this gate exists to
+    distrust, and calling it clean would be the original defect wearing a
+    different hat.
+    """
+    out = []
+    for etf in sorted(errors or {}):
+        out.append(verdict(
+            f"G8 refusal state {etf}", FAIL,
+            f"roster_refusals is present but unreadable: {errors[etf]}. "
+            f"Malformed refusal state is not clean state; re-run "
+            f"fetch_constituents --etf {etf} to rewrite the payload"))
+
+    affected = {k: v for k, v in (refusals or {}).items() if v}
+    if not affected:
+        if not out:
+            out.append(verdict("G8 roster refusals", OK,
+                               f"{len(refusals or {})} panels carry no "
+                               f"refused roster"))
+        return out
+    for etf in sorted(affected):
+        recs = affected[etf]
+        venues = sorted({v for r in recs for v in (r.get("exchanges") or [])})
+        fridays = sorted(str(r.get("target_friday")) for r in recs)
+        shown = ", ".join(fridays[:4])
+        more = f" (+{len(fridays) - 4} more)" if len(fridays) > 4 else ""
+        out.append(verdict(
+            f"G8 roster refusal {etf}", FAIL,
+            f"{len(recs)} refused target Friday(s) [{shown}{more}] on "
+            f"unrecognised venue(s) {venues or ['<unrecorded>']} — the roster "
+            f"for those weeks is NOT the published one. Map the venue in "
+            f"fetch_constituents._EXCHANGE_TO_YF_SUFFIX and re-run "
+            f"fetch_constituents --etf {etf}; the refused responses are "
+            f"retained under data/raw_ishares/*.refused.json"))
+    return out
 
 
 def check_staleness(staleness: dict[str, str]) -> list[dict]:
@@ -841,6 +978,8 @@ def main(argv: list[str] | None = None) -> int:
     coverages: dict[str, float | None] = {}
     latest_actuals: dict[str, str] = {}
     price_sides: dict[str, dict] = {}
+    refusals: dict[str, list[dict]] = {}
+    refusal_errors: dict[str, str] = {}
 
     baseline_missing: list[str] = []
     n_baseline_checked = 0
@@ -858,11 +997,25 @@ def main(argv: list[str] | None = None) -> int:
             results.append(verdict(f"G0 {etf} readable", FAIL,
                                    f"panel unreadable: {exc}"))
             continue
+        # Valid JSON of the wrong SHAPE is not a readable panel. Every check
+        # below calls .get on these, so a list or a null reached them as an
+        # AttributeError or a TypeError — a traceback out of the guard rather
+        # than a verdict from it.
+        if not isinstance(consts, dict) or not isinstance(breadth, dict):
+            results.append(verdict(
+                f"G0 {etf} readable", FAIL,
+                f"panel root is constituents={type(consts).__name__}, "
+                f"breadth={type(breadth).__name__}; both must be objects"))
+            continue
         end_fridays[etf] = consts.get("end_friday", "<absent>")
         health[etf] = (consts.get("endpoint_health") or {}).get(
             "status", "<absent>")
         staleness[etf] = (consts.get("staleness") or {}).get(
             "status", "<absent>")
+        try:
+            refusals[etf] = read_roster_refusals(consts)
+        except RefusalStateError as exc:
+            refusal_errors[etf] = str(exc)
         breadth_ends[etf] = breadth.get("end_date", "<absent>")
         tail_caps[etf] = breadth.get("tail_cap")
         coverages[etf] = panel_roster_coverage(breadth)
@@ -906,6 +1059,7 @@ def main(argv: list[str] | None = None) -> int:
     results.extend(check_shared_end_friday(end_fridays, expected_friday,
                                            price_sides=price_sides))
     results.extend(check_endpoint_health(health))
+    results.extend(check_roster_refusals(refusals, refusal_errors))
     results.extend(check_staleness(staleness))
     results.extend(check_roster_coverage(coverages,
                                          MIN_ROSTER_COVERAGE_WARN))
