@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-09-22 00:12 UTC",
+  "computed_at_utc": "2026-09-22 23:41 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-09-18",
   "anchor_equity": 2.944178,
@@ -31,8 +31,14 @@
     "CSP1": 0.003605,
     "IDP6": 0.00035
   },
-  "live_dates": [],
-  "live_equity": [],
+  "live_dates": [
+    "2026-09-21",
+    "2026-09-22"
+  ],
+  "live_equity": [
+    2.962215,
+    2.963024
+  ],
   "sleeve_extensions": {
     "strategy_a": {
       "anchor_date": "2026-09-18",
@@ -46,8 +52,14 @@
         "CSP1": 0.0103,
         "IDP6": 0.001
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-09-21",
+        "2026-09-22"
+      ],
+      "equity": [
+        3.261928,
+        3.246723
+      ]
     },
     "strategy_b": {
       "anchor_date": "2026-09-18",
@@ -61,8 +73,14 @@
         "EFA": 0.0927,
         "VGK": 0.0703
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-09-21",
+        "2026-09-22"
+      ],
+      "equity": [
+        2.329882,
+        2.334298
+      ]
     },
     "strategy_c": {
       "anchor_date": "2026-09-18",
@@ -74,8 +92,14 @@
         "ARKG": 0.2,
         "COPX": 0.2
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-09-21",
+        "2026-09-22"
+      ],
+      "equity": [
+        2.999186,
+        3.035787
+      ]
     },
     "strategy_d": {
       "anchor_date": "2026-09-18",
@@ -85,8 +109,14 @@
         "EXH1": 0.3274,
         "EXV3": 0.2847
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-09-21",
+        "2026-09-22"
+      ],
+      "equity": [
+        3.715318,
+        3.715318
+      ]
     }
   },
   "notes": "Daily mark-to-market overlay. Deployed-blend section uses the same effective NAV weights as renderPositionsPreview (EEM tilt + breadth-gate aware). Per-sleeve extensions (strategy_a/b/c/d) use within-sleeve weights anchored at each sleeve's multi.strategies last-date, so the Performance chart lines all advance through the live week."
