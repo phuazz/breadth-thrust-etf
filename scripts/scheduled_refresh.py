@@ -409,6 +409,64 @@ RESTORE_ON_EXIT_CODES = (3, 4)
 RESTORE_PATHS = ("data/", "docs/", "build/portfolio.html", "template.html")
 
 
+def refusal_report(repo_root: Path = REPO_ROOT) -> str:
+    """Every roster refusal currently on disk, as text for the run log.
+
+    WHY THIS RUNS BEFORE THE ROLLBACK. ``data/constituents_*.json`` is
+    TRACKED, so restore_tracked_outputs checks it back out to HEAD and the
+    ``roster_refusals`` array the failing run wrote is gone. The run log is
+    under logs/, which is gitignored and therefore survives — so the refusal
+    detail has to be copied into it while it still exists. Without this, the
+    one artefact naming the venue to map is destroyed by the cleanup that
+    makes the next firing a retry.
+
+    The retained vendor responses under data/raw_ishares/*.refused.json also
+    survive: that path is gitignored, and the rollback's `git clean -fd`
+    deliberately omits -x. This function names them so the operator knows the
+    dates can be rebuilt from disk.
+
+    Returns "" when nothing is refused, so the caller can skip the section.
+    """
+    lines: list[str] = []
+    for path in sorted((repo_root / "data").glob("constituents_*.json")):
+        try:
+            blob = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        recs = blob.get("roster_refusals")
+        if not isinstance(recs, list) or not recs:
+            continue
+        etf = blob.get("etf") or path.stem.replace("constituents_", "").upper()
+        lines.append(f"  {etf}: {len(recs)} refused target Friday(s)")
+        for r in recs:
+            lines.append(
+                f"    target {r.get('target_friday')} "
+                f"(source {r.get('source_date')}): "
+                f"{r.get('n_affected')} of {r.get('n_equity_rows')} equity "
+                f"rows")
+            lines.append(f"      venues:  "
+                         f"{', '.join(r.get('exchanges') or []) or '<none>'}")
+            syms = r.get("affected_symbols") or []
+            shown = ", ".join(syms[:12])
+            more = f" (+{len(syms) - 12} more)" if len(syms) > 12 else ""
+            lines.append(f"      symbols: {shown}{more}")
+    if not lines:
+        return ""
+    return (
+        "\nROSTER REFUSALS recorded by this run (copied here BEFORE the "
+        "rollback, which restores data/ from HEAD and would otherwise "
+        "destroy them):\n"
+        + "\n".join(lines)
+        + "\n  The row counts above are ROW shares, not portfolio weights.\n"
+        "  Remedy: map the venue in "
+        "fetch_constituents._EXCHANGE_TO_YF_SUFFIX, then re-run. The refused\n"
+        "  vendor responses are retained under "
+        "data/raw_ishares/*.refused.json, which the rollback does not touch\n"
+        "  (gitignored; `git clean -fd` omits -x), so the dates rebuild from "
+        "disk rather than from the vendor.\n"
+    )
+
+
 def restore_tracked_outputs(log, repo_root: Path = REPO_ROOT) -> bool:
     """Discard what a failed refresh wrote: tracked files under the output
     paths back to HEAD, untracked (never ignored) files under data/ and docs/
@@ -692,6 +750,14 @@ def main(argv: list[str] | None = None) -> int:
     def fail(code: int, subject: str, body: str) -> int:
         print(f"FAILED ({subject}) - see {log_path}")
         log.write(f"\nFAILED exit {code}: {subject}\n{body}\n")
+        # BEFORE the rollback: the refusal detail lives in tracked files that
+        # restore_tracked_outputs is about to check back out. See
+        # refusal_report. Best-effort — a failure to read a roster must never
+        # stop the restore that makes the next firing a retry.
+        refusals = _safe(log, "roster refusal report", refusal_report) or ""
+        if refusals:
+            log.write(refusals)
+            body = body + "\n" + refusals
         # A failure inside the refresh must not poison every later firing;
         # see restore_tracked_outputs.
         if code in RESTORE_ON_EXIT_CODES:

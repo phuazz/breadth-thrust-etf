@@ -50,13 +50,24 @@ Transport (Phase 27, 2026-08-07):
   data/raw_ishares/ remain the source of truth for history and are read
   cache-first; only new dates go to the API.
 
-  Failure taxonomy — the point of Phase 27 is that these three are no
-  longer interchangeable:
+  Failure taxonomy — the point of Phase 27 is that these are no longer
+  interchangeable (extended 2026-09-22; see EXIT_PRECEDENCE for which code
+  wins when several fire at once):
     - walkback / carry_forward : this Friday has no holdings (holiday, data
-                                 gap). Endpoint healthy. Exit 0.
+                                 gap). Endpoint healthy. Exit 0. The ONLY
+                                 soft class, because it is the only one that
+                                 heals without anyone doing anything.
     - endpoint_unavailable     : the transport is dead. The walk
                                  short-circuits on the first failure, no
                                  carry-forwards are emitted, exit 3.
+    - roster_refused           : the transport is healthy and the issuer
+                                 published, but too much of the roster
+                                 resolves at no vendor. Recorded in
+                                 roster_refusals, exit 6. Does not heal on
+                                 its own: map the venue.
+    - unexpected_error         : the walk raised something none of the above
+                                 describes. Recorded in walk_errors, exit 7.
+                                 Never relabelled as a vendor gap.
     - staleness critical       : the roster has aged past policy. Exit 2.
 
 Run:
@@ -158,6 +169,85 @@ EXIT_ENDPOINT_UNAVAILABLE = 3
 # data is fine and the operator's action is different: wait for the network,
 # then re-run. Nothing needs repairing.
 EXIT_ENDPOINT_DEGRADED = 5
+# 2026-09-22 — the transport is healthy, the issuer published, the payload is
+# well-formed and FOR the date requested, and we declined to use it because
+# too much of it resolves at no vendor (UnmappedExchangeError). A fourth
+# class, because the operator's action differs from all three above and is
+# small and definite: map the venue in _EXCHANGE_TO_YF_SUFFIX.
+#
+# WHY THIS IS NOT SOFT, WHICH IS THE WHOLE POINT OF THE CLASS. A vendor gap
+# heals on its own; a refusal never does. Carry-forward is the right answer
+# to a transient absence that will resolve itself, which is exactly why
+# no_data_in_walkback keeps exiting 0. A venue string will not map itself, so
+# every further day of carry-forward drifts the roster with no prospect of
+# self-repair, and the only backstop is a 14-day staleness warning. On
+# 2026-09-18 that asymmetry left EXV1 — sleeve D's largest line — ranking a
+# fill week on the previous week's roster, green throughout.
+EXIT_ROSTER_REFUSED = 6
+# 2026-09-22 — the walk raised something none of the classes above describes.
+# Previously every such exception was caught by a blanket handler and written
+# as cause "no_data_in_walkback", i.e. an unknown failure was recorded as a
+# routine vendor absence and exited 0. An unclassified failure is not evidence
+# that the issuer published nothing; it is evidence that we do not know what
+# happened, and it must not wear a healthy label.
+EXIT_UNEXPECTED_WALK_ERROR = 7
+
+# EXIT PRECEDENCE (2026-09-22), highest first. Stated once, applied once, in
+# ``walk_exit_code`` below.
+#
+#   EXIT_ENDPOINT_UNAVAILABLE (3)  transport dead
+#   EXIT_ROSTER_REFUSED       (6)  roster refused
+#   EXIT_UNEXPECTED_WALK_ERROR(7)  unclassified failure
+#   EXIT_STALENESS_CRITICAL   (2)  roster aged past policy
+#   EXIT_OK                   (0)
+#
+# EXIT_ENDPOINT_DEGRADED (5) sits outside this ladder: it unwinds as an
+# exception from the walk and is handled in cli(), before any roster is
+# written.
+#
+# Causes outrank symptoms, which is the rule the pre-existing "a dead endpoint
+# outranks stale data" comment already applied: a dead transport is why a
+# refusal cannot even be assessed, and a refusal is one of the things that
+# produces staleness in the first place.
+#
+# THE GUARANTEE THIS LADDER MUST NOT BREAK. The exit code names ONE class.
+# Every class that fired still prints its own alert block on stderr AND writes
+# its own array into the roster payload, so a lower-precedence class is never
+# hidden by a higher one — in particular, a refusal's venue strings and
+# affected symbols are recorded and printed whether or not the refusal wins
+# the exit code. Nothing downstream may infer "no refusal" from an exit code
+# that is not 6; that question is answered by ``roster_refusals``.
+EXIT_PRECEDENCE = (
+    EXIT_ENDPOINT_UNAVAILABLE,
+    EXIT_ROSTER_REFUSED,
+    EXIT_UNEXPECTED_WALK_ERROR,
+    EXIT_STALENESS_CRITICAL,
+)
+
+
+def walk_exit_code(*, endpoint_dead: bool, n_refusals: int,
+                   n_unexpected: int, staleness_status: str) -> int:
+    """The single exit code for a completed walk, by EXIT_PRECEDENCE.
+
+    Pure, so the precedence is unit-testable without a walk. Returns EXIT_OK
+    only when no failure class fired at all — a run with a refusal can never
+    report success, whatever else is or is not wrong with it.
+    """
+    # Only "critical" is a failing staleness status HERE, deliberately.
+    # check_refresh_guard's G3 additionally fails "no_real_fetches", but that
+    # is a cross-panel commit gate reading committed state; the fetcher has
+    # always exited 0 on it, and widening that is a separate decision from
+    # this one. Leave it where it is rather than changing two things at once.
+    fired = {
+        EXIT_ENDPOINT_UNAVAILABLE: endpoint_dead,
+        EXIT_ROSTER_REFUSED: n_refusals > 0,
+        EXIT_UNEXPECTED_WALK_ERROR: n_unexpected > 0,
+        EXIT_STALENESS_CRITICAL: staleness_status == "critical",
+    }
+    for code in EXIT_PRECEDENCE:
+        if fired[code]:
+            return code
+    return EXIT_OK
 
 
 def resolve_staleness_thresholds(etf_cfg: dict) -> tuple[int, int]:
@@ -741,7 +831,57 @@ class UnmappedExchangeError(RuntimeError):
     is worse than a roster that failed to build, because breadth is a ratio
     and a dropped name leaves BOTH the numerator and the denominator, so
     the figure stays plausible while measuring a different universe.
+
+    CARRIES ITS OWN EVIDENCE (2026-09-22). The attributes below exist so
+    that every consumer reads STRUCTURED fields rather than re-deriving the
+    facts by parsing ``str(exc)``. A message-text parser is a second,
+    unversioned copy of the schema: it breaks the moment the sentence is
+    reworded, and it breaks silently, which is the failure class this
+    module exists to prevent.
+
+    ``share`` is the share of the roster's EQUITY ROWS that fell through,
+    which is the trigger the threshold is written against. It is NOT the
+    share of the fund by weight, and it is NOT a bound on how much of the
+    fund the missing names represent — a 2% row share can carry far more
+    or far less than 2% of NAV. Nothing downstream may read it as a
+    portfolio weight.
     """
+
+    def __init__(self, message: str, *, symbol: str | None = None,
+                 as_of: date | None = None,
+                 exchanges: list[str] | None = None,
+                 affected_symbols: list[str] | None = None,
+                 n_affected: int = 0, n_equity_rows: int = 0,
+                 share: float | None = None) -> None:
+        super().__init__(message)
+        self.symbol = symbol
+        self.as_of = as_of
+        self.exchanges = list(exchanges or [])
+        self.affected_symbols = list(affected_symbols or [])
+        self.n_affected = n_affected
+        self.n_equity_rows = n_equity_rows
+        self.share = share
+
+    def as_record(self, target_friday: date) -> dict:
+        """The refusal as it is written into the roster payload.
+
+        ``target_friday`` is the Friday the walk was serving; ``as_of`` is
+        the date actually attempted, which differs whenever the walkback
+        had already stepped back from the Friday. Both are recorded: a
+        reader repairing the venue needs the second, and a reader auditing
+        which week was affected needs the first.
+        """
+        return {
+            "target_friday": target_friday.isoformat(),
+            "source_date": self.as_of.isoformat() if self.as_of else None,
+            "exchanges": sorted(self.exchanges),
+            "affected_symbols": sorted(self.affected_symbols),
+            "n_affected": self.n_affected,
+            "n_equity_rows": self.n_equity_rows,
+            # Row share, not portfolio weight. See the class docstring.
+            "share_of_equity_rows": self.share,
+            "detail": str(self),
+        }
 
 
 # An unrecognised exchange is only visible as a coverage figure someone
@@ -803,7 +943,14 @@ def report_unmapped_exchanges(
             f"({share:.1%}) carry an unrecognised exchange "
             f"({', '.join(sorted(sink))}), above the "
             f"{UNMAPPED_EXCHANGE_MAX_SHARE:.0%} bound. Breadth computed on "
-            f"this roster would silently measure a smaller universe."
+            f"this roster would silently measure a smaller universe.",
+            symbol=symbol,
+            as_of=as_of,
+            exchanges=sorted(sink),
+            affected_symbols=sorted(t for v in sink.values() for t in v),
+            n_affected=n_affected,
+            n_equity_rows=n_equity_rows,
+            share=share,
         )
 
 
@@ -910,6 +1057,7 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
                      symbol: str | None = None,
                      strict_exchanges: bool = True,
                      exclude_symbols: frozenset[str] | set[str] | None = None,
+                     as_of: date | None = None,
                      ) -> list[str]:
     """Parse iShares CSV body and return Equity-only yfinance-ready ticker list,
     or [] if the file is empty.
@@ -1003,7 +1151,7 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
         seen.add(sym)
         tickers.append(sym)
     report_unmapped_exchanges(unmapped, symbol or "?", n_equity,
-                              strict=strict_exchanges)
+                              as_of=as_of, strict=strict_exchanges)
     return tickers
 
 
@@ -1028,6 +1176,48 @@ def latest_completed_friday(today: date) -> date:
     if days_since_friday == 0:
         days_since_friday = 7
     return today - timedelta(days=days_since_friday)
+
+
+def refused_payload_path(symbol: str, target: date) -> Path:
+    """Where a REFUSED vendor response for one date is retained.
+
+    A sidecar beside the positive caches rather than the positive cache
+    itself, because the two are read on different terms: ``SYM_YYYYMMDD.json``
+    is trusted unconditionally by every later run, and a response we could
+    not fully resolve must never acquire that standing.
+    """
+    return RAW_DIR / f"{symbol}_{target.strftime('%Y%m%d')}.refused.json"
+
+
+def retain_refused_payload(path: Path, payload: dict) -> bool:
+    """Keep a refused vendor response so the date can be rebuilt later.
+
+    WHY THIS EXISTS. ``load_snapshot_tickers`` parsed before it cached, so a
+    payload that raised UnmappedExchangeError was discarded: every later run
+    re-fetched the date, re-raised and threw the response away again. iShares
+    serves a bounded history window, so once that window closes the date is
+    unrecoverable even after the venue is mapped — which would remove the
+    remedy the whole refusal class depends on. The 2026-09-18 EXV1 roster was
+    recovered on 2026-09-22 only because the window was still open.
+
+    WHY RETAINING IT IS SAFE, AND WHY ONLY HERE. This is called from the
+    UnmappedExchangeError handler and nowhere else. That raise happens at the
+    END of ``parse_holdings_json``, after the payload has already cleared the
+    contract check, the asOfDate parity check and the column-length check. A
+    payload that reaches this function is therefore well-formed, non-empty and
+    FOR the date requested. A wrong-date, malformed or empty response cannot
+    reach here, and so cannot be laundered into a holdings cache by this path.
+
+    Returns False without writing when a sidecar already exists. The first
+    capture is the one contemporaneous with the refusal that was recorded
+    against it; a later identical write buys nothing, and a later DIFFERENT
+    write would quietly replace the evidence under an unchanged record.
+    """
+    if path.exists():
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return True
 
 
 def load_snapshot_tickers(target: date, etf_cfg: dict,
@@ -1076,7 +1266,8 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
                 latency.record_cache_hit()
             return parse_holdings(cached, ticker_overrides=overrides,
                                    apply_exchange_suffix=apply_suffix,
-                                   symbol=symbol, exclude_symbols=excluded)
+                                   symbol=symbol, exclude_symbols=excluded,
+                                   as_of=target)
         # Poisoned by an earlier run's anti-bot HTML — drop and fall through.
         csv_path.unlink()
 
@@ -1102,6 +1293,50 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
                     return cached_tickers
             # An empty or wrong-date response is not a permanent positive cache.
 
+    # RETAINED REFUSAL (2026-09-22). A response we refused for this date, kept
+    # so the date can be rebuilt from disk once the venue is mapped rather
+    # than re-fetched from a history window that may have closed. Read here —
+    # after both positive caches, before the network — because it is only
+    # relevant when no good cache exists for the date.
+    #
+    # Skipped under refresh=True: that flag means "revalidate this date
+    # against the endpoint", and answering it from a stored response would
+    # defeat it. A repaired mapping still reaches the promote path below, via
+    # the network success that refresh=True exists to obtain.
+    refused_path = refused_payload_path(symbol, target)
+    if refused_path.exists() and not refresh:
+        try:
+            retained = json.loads(refused_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            refused_path.unlink()
+        else:
+            if latency is not None:
+                latency.record_cache_hit()
+            # Re-parsed under the CURRENT mapping. Still unmapped -> raises
+            # again and the date stays refused, which is the correct outcome
+            # until someone maps the venue. Now resolvable -> the response is
+            # promoted to the ordinary positive cache and the sidecar is
+            # dropped, so the repair is permanent rather than re-derived on
+            # every run.
+            rebuilt = parse_holdings_json(
+                retained, target, ticker_overrides=overrides,
+                apply_exchange_suffix=apply_suffix, symbol=symbol,
+                exclude_symbols=excluded,
+            )
+            if rebuilt:
+                json_path.write_text(json.dumps(retained), encoding="utf-8")
+                refused_path.unlink()
+                print(
+                    f"  REBUILT {symbol} {target.isoformat()} from the "
+                    f"retained refused response: {len(rebuilt)} names now "
+                    f"resolve. Promoted to the positive cache.",
+                    flush=True,
+                )
+                return rebuilt
+            # An empty re-parse means the retained response no longer echoes
+            # this date under the current checks. Leave the sidecar alone —
+            # it is evidence — and fall through to the endpoint.
+
     if latency is None:
         payload = fetch_product_data(target, etf_cfg)
     else:
@@ -1114,13 +1349,26 @@ def load_snapshot_tickers(target: date, etf_cfg: dict,
             # job, but a run that mixes failures and slow successes is nobody
             # else's, and dropping the failures would flatter the mean.
             latency.record_served(time.monotonic() - t0, item=target)
-    tickers = parse_holdings_json(
-        payload, target, ticker_overrides=overrides,
-        apply_exchange_suffix=apply_suffix, symbol=symbol,
-        exclude_symbols=excluded,
-    )
+    try:
+        tickers = parse_holdings_json(
+            payload, target, ticker_overrides=overrides,
+            apply_exchange_suffix=apply_suffix, symbol=symbol,
+            exclude_symbols=excluded,
+        )
+    except UnmappedExchangeError:
+        # Keep the vendor's response before the refusal unwinds past it. See
+        # retain_refused_payload for why a payload that reaches here is
+        # already proven well-formed and date-correct.
+        if retain_refused_payload(refused_path, payload):
+            print(f"  Retained the refused {symbol} {target.isoformat()} "
+                  f"response at {refused_path.name} for rebuild once the "
+                  f"venue is mapped.", flush=True)
+        raise
     if tickers:
         json_path.write_text(json.dumps(payload), encoding="utf-8")
+        # This date now resolves, so any sidecar for it is superseded.
+        if refused_path.exists():
+            refused_path.unlink()
     elif (date.today() - target).days > NEGATIVE_CACHE_MIN_AGE_DAYS:
         # Settled no-data date — record a marker so we never pay for it
         # again. Storing the full payload would be pure waste: it is the
@@ -1152,6 +1400,14 @@ def get_snapshot(
       - "walkback"  : an earlier weekday in the same week returned data
       - "not_found" : endpoint healthy, no data within MAX_WALKBACK_DAYS days
       - "endpoint_unavailable" : the transport is dead (see EndpointCircuit)
+
+    UnmappedExchangeError is deliberately NOT caught here and aborts the
+    walkback for this Friday rather than stepping back a day. A venue the map
+    does not hold on Friday is not held on Thursday either, and a walkback
+    that happened to find a parseable older date would return an OLDER roster
+    under a "walkback" label — a carry-forward wearing a capture's clothes,
+    which is the thing this module exists to prevent. The caller classifies
+    it as a refusal.
 
     Note on the walkback: the previous version let a transport exception
     propagate out of this loop, so a failed fetch on the target Friday
@@ -1219,6 +1475,11 @@ def main() -> int:
     carry_forwards: list[dict] = []
     edgar_used: list[dict] = []  # Phase 26.2 — audit trail
     unavailable: list[dict] = []  # Phase 27 — endpoint-outage audit trail
+    # 2026-09-22 — kept INDEPENDENT of carry_forwards, because a refusal can
+    # be followed by an outcome that writes no carry-forward at all (no prior
+    # snapshot, an EDGAR fallback, or a later successful Friday).
+    refusals: list[dict] = []
+    walk_errors: list[dict] = []
     circuit = EndpointCircuit()
     latency = LatencyCircuit(label=f"{etf_cfg['symbol']} holdings endpoint")
     prev_tickers: list[str] | None = None
@@ -1292,9 +1553,44 @@ def main() -> int:
             tickers, actual, status = get_snapshot(friday, etf_cfg, circuit,
                                                    latency=latency,
                                                    refresh=friday == end_friday)
-        except Exception as e:
-            print(f"  ERROR on {friday}: {e}", flush=True)
-            tickers, actual, status = None, None, "not_found"
+        except UnmappedExchangeError as e:
+            # A REFUSAL, not an absence (2026-09-22). This used to fall into
+            # the blanket handler below and be written as "no_data_in_walkback"
+            # — the same label a public holiday gets — so nothing downstream
+            # could tell a roster we declined from one the issuer never
+            # published.
+            #
+            # Recorded here and NOT inside the carry-forward block, because
+            # three of the outcomes that follow a refusal write no
+            # carry-forward at all: a refusal with no prior snapshot is
+            # skipped, an EDGAR fallback writes a real snapshot over it, and a
+            # later successful Friday leaves the newest snapshot healthy. In
+            # each of those the carry-forward array is silent and the refusal
+            # would vanish with it.
+            refusals.append(e.as_record(friday))
+            print(f"  ROSTER REFUSED on {friday}: {e}", flush=True)
+            tickers, actual, status = None, None, "roster_refused"
+        except EndpointDegraded:
+            # Never classified here. cli() documents that this unwinds past
+            # everything between the walk and the entry point, which is what
+            # guarantees no roster is written on a stalled endpoint. Today it
+            # can only be raised at the top of the loop, outside this try;
+            # re-raising keeps that contract if it ever moves deeper.
+            raise
+        except Exception as e:  # noqa: BLE001 — classified, then re-raised as a failure
+            # UNCLASSIFIED, and it must not wear a healthy label. The previous
+            # handler turned every unexpected exception into "not_found",
+            # which the record then called a vendor gap and the run exited 0
+            # on. An exception we cannot name is not evidence that the issuer
+            # published nothing.
+            walk_errors.append({
+                "target_friday": friday.isoformat(),
+                "error_type": type(e).__name__,
+                "detail": str(e),
+            })
+            print(f"  UNEXPECTED ERROR on {friday}: "
+                  f"{type(e).__name__}: {e}", flush=True)
+            tickers, actual, status = None, None, "unexpected_error"
 
         # Phase 26.2 — when primary fails for this Friday and an EDGAR
         # source is registered, try EDGAR. Only USE EDGAR if its
@@ -1337,12 +1633,29 @@ def main() -> int:
                     # No snapshot and no carry-forward: the honest record of
                     # an outage is absence, not a fabricated roster.
                     continue
-            cause = "endpoint_unavailable" if outage else "no_data_in_walkback"
-            gap = (
-                "upstream endpoint unavailable — see endpoint_health"
-                if outage else
+            # FOUR CLASSES, NOT TWO (2026-09-22). "no_data_in_walkback" is
+            # reserved for the one case it actually describes: the endpoint was
+            # healthy and had nothing for this date. A refusal and an
+            # unclassified error each keep their own label so that a reader of
+            # the payload — and the guard in check_refresh_guard — can tell
+            # which of them produced a given carry-forward.
+            cause = {
+                "endpoint_unavailable": "endpoint_unavailable",
+                "roster_refused": "roster_refused",
+                "unexpected_error": "unexpected_error",
+            }.get(status, "no_data_in_walkback")
+            gap = {
+                "endpoint_unavailable": (
+                    "upstream endpoint unavailable — see endpoint_health"),
+                "roster_refused": (
+                    "roster refused: unrecognised exchange above the bound — "
+                    "see roster_refusals"),
+                "unexpected_error": (
+                    "unclassified failure during the walk — see walk_errors"),
+            }.get(
+                status,
                 f"no holdings data within {MAX_WALKBACK_DAYS} days back from "
-                "target Friday"
+                "target Friday",
             )
             if prev_tickers is None or prev_actual is None or prev_target is None:
                 carry_forwards.append({
@@ -1447,6 +1760,17 @@ def main() -> int:
         "staged_roster_changes_applied": roster_rules(etf_cfg)["staged_applied"],
         "walkbacks": walkbacks,
         "carry_forwards": carry_forwards,
+        # Every Friday whose roster was REFUSED, with the venue strings and
+        # the symbols that carried them. Written whatever the walk did next,
+        # so an EDGAR fallback or a later good Friday cannot erase it. An
+        # empty list is the only healthy reading; check_refresh_guard's G8
+        # reads exactly this. Note share_of_equity_rows is a ROW share and
+        # never a portfolio weight.
+        "roster_refusals": refusals,
+        # Failures the walk could not classify. Never folded into
+        # carry_forwards' "no_data_in_walkback", which means something
+        # specific and healthy.
+        "walk_errors": walk_errors,
         "edgar_used": edgar_used,
         # Phase 27 — every Friday the transport could not serve, and why.
         # An empty list with status "ok" is the only healthy reading.
@@ -1548,6 +1872,67 @@ def main() -> int:
     threshold_label = (
         " (per-ETF override)" if staleness_override else " (global default)"
     )
+    # Roster-refusal alert (2026-09-22). Printed in full whether or not the
+    # refusal wins the exit code — see EXIT_PRECEDENCE. The venue strings and
+    # the affected symbols are the whole remedy, so they go to the operator
+    # rather than only into the payload.
+    if refusals:
+        bar = "!" * 72
+        print(file=sys.stderr)
+        print(bar, file=sys.stderr)
+        print(
+            f"ROSTER REFUSED: {symbol} — {len(refusals)} target Friday(s) "
+            f"carry an unrecognised exchange above the "
+            f"{UNMAPPED_EXCHANGE_MAX_SHARE:.0%} bound.",
+            file=sys.stderr,
+        )
+        for rec in refusals:
+            print(
+                f"  {rec['target_friday']} (source {rec['source_date']}): "
+                f"{rec['n_affected']} of {rec['n_equity_rows']} equity rows"
+                + (f" ({rec['share_of_equity_rows']:.1%} of rows)"
+                   if rec["share_of_equity_rows"] is not None else ""),
+                file=sys.stderr,
+            )
+            print(f"      venues:  {', '.join(rec['exchanges'])}",
+                  file=sys.stderr)
+            shown = ", ".join(rec["affected_symbols"][:12])
+            more = (f" (+{len(rec['affected_symbols']) - 12} more)"
+                    if len(rec["affected_symbols"]) > 12 else "")
+            print(f"      symbols: {shown}{more}", file=sys.stderr)
+        print(
+            "  The row share above is NOT a portfolio weight; the affected "
+            "names may be a larger or smaller share of NAV.",
+            file=sys.stderr,
+        )
+        print(
+            "  Operator action: map the venue in _EXCHANGE_TO_YF_SUFFIX once "
+            "its yfinance suffix is verified, then re-run. The refused "
+            "responses are retained under data/raw_ishares/*.refused.json, so "
+            "the dates rebuild from disk.",
+            file=sys.stderr,
+        )
+        print(bar, file=sys.stderr)
+
+    if walk_errors:
+        bar = "!" * 72
+        print(file=sys.stderr)
+        print(bar, file=sys.stderr)
+        print(
+            f"UNCLASSIFIED WALK FAILURE: {symbol} — {len(walk_errors)} "
+            f"target Friday(s) raised an error the walk could not classify.",
+            file=sys.stderr,
+        )
+        for rec in walk_errors:
+            print(f"  {rec['target_friday']}: {rec['error_type']}: "
+                  f"{rec['detail']}", file=sys.stderr)
+        print(
+            "  Not recorded as a vendor gap. Diagnose before trusting any "
+            "roster this run produced.",
+            file=sys.stderr,
+        )
+        print(bar, file=sys.stderr)
+
     if staleness_status == "critical":
         bar = "!" * 72
         print(file=sys.stderr)
@@ -1564,11 +1949,7 @@ def main() -> int:
             file=sys.stderr,
         )
         print(bar, file=sys.stderr)
-        # A dead endpoint outranks stale data: it is the cause, not the
-        # symptom, and it is what the operator has to fix.
-        return (EXIT_ENDPOINT_UNAVAILABLE if circuit.dead
-                else EXIT_STALENESS_CRITICAL)
-    if staleness_status == "warning":
+    elif staleness_status == "warning":
         print(
             f"  WARNING: {symbol} roster is {days_since_real} days stale "
             f"(last real fetch {last_real_fetch_date}). "
@@ -1576,12 +1957,22 @@ def main() -> int:
             f"{threshold_label}."
         )
     elif staleness_status == "fresh" and last_real_fetch_date is not None:
-        print(
-            f"  Staleness OK: last real fetch {last_real_fetch_date} "
-            f"({days_since_real} days ago, "
-            f"under {warn_days}-day warning threshold{threshold_label})."
-        )
-    return EXIT_ENDPOINT_UNAVAILABLE if circuit.dead else EXIT_OK
+        # Deliberately NOT printed when a refusal fired. "Staleness OK" beside
+        # a refused roster is the exact sentence that made 2026-09-18 read as
+        # a healthy run: the carried roster was indeed only days old, and
+        # saying so was true and entirely beside the point.
+        if not refusals:
+            print(
+                f"  Staleness OK: last real fetch {last_real_fetch_date} "
+                f"({days_since_real} days ago, "
+                f"under {warn_days}-day warning threshold{threshold_label})."
+            )
+    return walk_exit_code(
+        endpoint_dead=circuit.dead,
+        n_refusals=len(refusals),
+        n_unexpected=len(walk_errors),
+        staleness_status=staleness_status,
+    )
 
 
 def cli() -> int:

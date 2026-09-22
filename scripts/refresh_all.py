@@ -16,6 +16,16 @@ Runs the complete dependency chain in the right order:
        deployed 24 get) and is the reason this step now dominates the run.
        They are REFRESHED but not DEPLOYED — see ETFS_ALL vs ETFS_REFRESH.
 
+    1b. Roster refusal gate (2026-09-22): check_refresh_guard's G8, run
+       against the rosters on disk BEFORE anything calculates on them. A
+       refused roster is one the issuer published and the fetcher declined
+       (unrecognised venue above the bound), and until 2026-09-22 it was
+       written under the same label as a public holiday and exited 0. The
+       fetcher now fails on it; this gate is what catches the state when no
+       fetch ran in this process — --skip-soxx-fetch, a cache-served re-run,
+       or a manual invocation whose exit code nobody kept. Same pure function
+       as step 7, one definition.
+
     2. Aggregated breadth: run_ma200_sweep
        (produces ma200_sweep.json, which feeds the Live Signal chart
         and several Method-tab tables. Easy to forget — the original
@@ -212,6 +222,46 @@ def run_step(label: str, cmd: list[str], cwd: Path = REPO_ROOT,
     return ok, elapsed
 
 
+def _check_refusals_on_disk(panels: list[str]) -> list[str]:
+    """Run check_refresh_guard's G8 over the rosters currently on disk.
+
+    Returns the step labels to record as failures, printing each verdict. The
+    verdict logic itself is imported rather than restated: one definition of
+    "this roster was refused", checked in both places, is the only way the
+    pre-calculation gate and the pre-commit gate cannot drift apart.
+
+    A panel whose payload is unreadable is NOT silently treated as clean —
+    that is the state this gate exists to distrust — so it is reported and
+    left to the step-7 G0 check to name precisely.
+    """
+    import json
+
+    from check_refresh_guard import FAIL, check_roster_refusals, read_roster_refusals
+
+    refusals: dict[str, list[dict]] = {}
+    unreadable: list[str] = []
+    for etf in panels:
+        path = REPO_ROOT / "data" / f"constituents_{etf.lower()}.json"
+        try:
+            refusals[etf] = read_roster_refusals(
+                json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError) as exc:
+            unreadable.append(f"{etf} ({exc.__class__.__name__})")
+
+    out: list[str] = []
+    print(f"\n{'='*72}\nroster refusal gate (pre-calculation)\n{'='*72}",
+          flush=True)
+    for r in check_roster_refusals(refusals):
+        print(f"  {r['status']:<4} {r['check']}: {r['evidence']}", flush=True)
+        if r["status"] == FAIL:
+            out.append(r["check"])
+    if unreadable:
+        print(f"  FAIL roster payload unreadable: {', '.join(unreadable)}",
+              flush=True)
+        out.append("roster payload unreadable")
+    return out
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--component", choices=("all", "core", "europe"), default="all",
@@ -355,6 +405,29 @@ def main() -> int:
                           "--refresh-caches-only", "--component", "europe"])
         print("Europe collection finished; publication was not attempted.", flush=True)
         return 0 if ok and not failures else 1
+
+    # ----- Step 1b: roster refusals, before anything reads a roster -----
+    #
+    # The SAME pure gate the VERIFY block runs at step 7, run here as well
+    # (2026-09-22). Not redundant: step 7 asks whether the finished state is
+    # committable, and by then every engine has already ranked on the roster.
+    # This asks whether a roster is fit to calculate on at all, and it costs
+    # one JSON read per panel.
+    #
+    # It reads STATE, not exit codes, which is the point. A refused roster can
+    # be sitting on disk with nothing having failed in this run: --skip-soxx-
+    # fetch skips the fetch entirely, a re-run can be served from cache, and a
+    # manual fetch_constituents invocation leaves its exit code in a terminal
+    # nobody kept. The fetcher's exit code is the primary control; this is
+    # what survives its absence.
+    #
+    # Scope is ETFS_ALL under the active component, identical to
+    # check_refresh_guard's — the 14 screening candidates sit outside it for
+    # the reason given in that module's scope note, and a refusal on one of
+    # them is caught by the fetcher's own exit code in step 1 above.
+    _refusal_failures = _check_refusals_on_disk(
+        select_panels(ETFS_ALL, args.component))
+    failures.extend(_refusal_failures)
 
     if failures:
         print("Capture failed; downstream calculations were not started: " + ", ".join(failures), flush=True)
