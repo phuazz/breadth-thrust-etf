@@ -450,6 +450,18 @@ def refusal_report(repo_root: Path = REPO_ROOT) -> str:
             shown = ", ".join(syms[:12])
             more = f" (+{len(syms) - 12} more)" if len(syms) > 12 else ""
             lines.append(f"      symbols: {shown}{more}")
+            if r.get("evidence_unreadable"):
+                lines.append(
+                    f"      EVIDENCE UNREADABLE, quarantined as "
+                    f"{r.get('evidence_quarantined') or '<rename failed>'}")
+            if r.get("evidence_retained") is False:
+                lines.append(f"      EVIDENCE NOT RETAINED: "
+                             f"{r.get('evidence_error')}")
+            # THE COMPLETE RECORD, not the readable summary above. The
+            # rollback restores data/ from HEAD, so this log becomes the only
+            # copy, and a symbol list truncated at twelve is not a record of
+            # what was refused.
+            lines.append("      record: " + json.dumps(r, sort_keys=True))
     if not lines:
         return ""
     return (

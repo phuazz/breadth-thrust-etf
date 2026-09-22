@@ -236,22 +236,34 @@ def _check_refusals_on_disk(panels: list[str]) -> list[str]:
     """
     import json
 
-    from check_refresh_guard import FAIL, check_roster_refusals, read_roster_refusals
+    from check_refresh_guard import (
+        FAIL,
+        RefusalStateError,
+        check_roster_refusals,
+        read_roster_refusals,
+    )
 
     refusals: dict[str, list[dict]] = {}
+    errors: dict[str, str] = {}
     unreadable: list[str] = []
     for etf in panels:
         path = REPO_ROOT / "data" / f"constituents_{etf.lower()}.json"
         try:
-            refusals[etf] = read_roster_refusals(
-                json.loads(path.read_text(encoding="utf-8")))
+            blob = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             unreadable.append(f"{etf} ({exc.__class__.__name__})")
+            continue
+        try:
+            refusals[etf] = read_roster_refusals(blob)
+        except RefusalStateError as exc:
+            # Present but unreadable refusal state fails, exactly as an
+            # unresolved refusal does. Reading it as clean is the defect.
+            errors[etf] = str(exc)
 
     out: list[str] = []
-    print(f"\n{'='*72}\nroster refusal gate (pre-calculation)\n{'='*72}",
+    print(f"\n{'='*72}\nroster refusal gate ({', '.join(panels)})\n{'='*72}",
           flush=True)
-    for r in check_roster_refusals(refusals):
+    for r in check_roster_refusals(refusals, errors):
         print(f"  {r['status']:<4} {r['check']}: {r['evidence']}", flush=True)
         if r["status"] == FAIL:
             out.append(r["check"])
@@ -352,6 +364,9 @@ def main() -> int:
     _panels = ETFS_ALL if args.deployed_only or args.capture_only else ETFS_REFRESH
     from component_scope import select_panels
     _panels = select_panels(_panels, args.component)
+    # The panels the refusal gate covers: the deployed set under the active
+    # component, the same scope check_refresh_guard reads.
+    _gate_panels = set(select_panels(ETFS_ALL, args.component))
     for i, etf in enumerate(_panels, start=1):
         # Pace the loop so the price vendor's rate limiter can refill.
         # Skipped before the first ETF, and skipped when the previous
@@ -377,6 +392,24 @@ def main() -> int:
                 # Preserve the dependency: an old roster left on disk is not
                 # a successful input to this run's breadth calculation.
                 continue
+
+        # THE REFUSAL GATE RUNS HERE, BEFORE THIS PANEL'S compute_breadth.
+        #
+        # It was a single post-loop pass, which was too late by a whole step:
+        # with --skip-soxx-fetch and a refused SOXX roster already on disk,
+        # no fetch ran, nothing failed, and compute_breadth computed breadth
+        # on the refused roster before the gate ever looked. Per-panel and
+        # ahead of the calculation is the only placement that actually
+        # prevents the calculation.
+        #
+        # Scope is the deployed set under the active component, matching
+        # check_refresh_guard's. A candidate panel is covered by the fetcher's
+        # own exit code above; widening the gate to candidates is a policy
+        # change and needs a demonstrated defect, not a tidy-up.
+        if etf in _gate_panels and _check_refusals_on_disk([etf]):
+            failures.append(f"roster refusal {etf}")
+            continue
+
         # BTE_PRICE_SOURCE=norgate is honoured by the sleeve engines directly
         # (they read the env var), but compute_breadth takes it as a flag, so
         # the orchestrator translates. Without this the panels would stay on
@@ -406,13 +439,13 @@ def main() -> int:
         print("Europe collection finished; publication was not attempted.", flush=True)
         return 0 if ok and not failures else 1
 
-    # ----- Step 1b: roster refusals, before anything reads a roster -----
+    # ----- Step 1b: roster refusals across the whole deployed set -----
     #
-    # The SAME pure gate the VERIFY block runs at step 7, run here as well
-    # (2026-09-22). Not redundant: step 7 asks whether the finished state is
-    # committable, and by then every engine has already ranked on the roster.
-    # This asks whether a roster is fit to calculate on at all, and it costs
-    # one JSON read per panel.
+    # The per-panel gate above already stopped any refused panel before its
+    # own compute_breadth. This sweep is the cross-panel backstop: it covers
+    # deployed panels that step 1 did not walk at all under --deployed-only or
+    # a component scope, so a refusal recorded by an earlier run cannot reach
+    # the engines just because this run had no reason to visit its panel.
     #
     # It reads STATE, not exit codes, which is the point. A refused roster can
     # be sitting on disk with nothing having failed in this run: --skip-soxx-

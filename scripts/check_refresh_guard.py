@@ -386,20 +386,52 @@ def check_endpoint_health(health: dict[str, str]) -> list[dict]:
                     f"{len(health)} panels report ok")]
 
 
-def read_roster_refusals(consts: dict) -> list[dict]:
-    """The refusal records in one constituents payload, or [].
+class RefusalStateError(ValueError):
+    """The roster_refusals field is PRESENT but not valid refusal state.
 
-    Tolerant of the key's absence: a payload written before 2026-09-22 has no
-    ``roster_refusals`` array, and that means "not recorded", not "none
-    happened". The gate below cannot distinguish the two and does not try —
-    absence reads as clean, which is why the FETCHER's exit code is the
-    primary control and this is the secondary one.
+    Distinct from the field being absent. Absence is a legacy payload written
+    before 2026-09-22 and is deliberately read as clean; a present-but-invalid
+    field is a payload nobody can interpret, and reading that as clean is how
+    a refusal would pass the gate while looking like an answer.
     """
-    refusals = consts.get("roster_refusals")
-    return list(refusals) if isinstance(refusals, list) else []
 
 
-def check_roster_refusals(refusals: dict[str, list[dict]]) -> list[dict]:
+def read_roster_refusals(consts: dict) -> list[dict]:
+    """The refusal records in one constituents payload.
+
+    ABSENT field -> []. A payload written before 2026-09-22 has no
+    ``roster_refusals`` array, and that means "not recorded", not "none
+    happened". This gate cannot distinguish the two and does not try, which is
+    why the FETCHER's exit code is the primary control and this the secondary
+    one. That compatibility is deliberate and is kept.
+
+    PRESENT but invalid -> RefusalStateError. The previous version returned []
+    for every non-list value, so a payload carrying a non-empty DICT under
+    roster_refusals — a plausible shape for hand-edited or half-migrated state
+    — produced a clean G8. Malformed state is not clean state.
+    """
+    if "roster_refusals" not in consts:
+        return []
+    refusals = consts["roster_refusals"]
+    if not isinstance(refusals, list):
+        raise RefusalStateError(
+            f"roster_refusals is {type(refusals).__name__}, expected a list; "
+            f"the panel's refusal state cannot be read")
+    for i, rec in enumerate(refusals):
+        if not isinstance(rec, dict):
+            raise RefusalStateError(
+                f"roster_refusals[{i}] is {type(rec).__name__}, expected an "
+                f"object")
+        target = rec.get("target_friday")
+        if not isinstance(target, str) or not target:
+            raise RefusalStateError(
+                f"roster_refusals[{i}] has no usable target_friday "
+                f"({target!r}); the record names no week")
+    return list(refusals)
+
+
+def check_roster_refusals(refusals: dict[str, list[dict]],
+                          errors: dict[str, str] | None = None) -> list[dict]:
     """G8: no panel may carry an unresolved roster refusal.
 
     A refusal means the transport was healthy and the issuer published, but
@@ -415,14 +447,27 @@ def check_roster_refusals(refusals: dict[str, list[dict]]) -> list[dict]:
     the payload is rewritten wholesale on every run, so the moment the venue
     is mapped the re-parse succeeds and the array comes back empty.
 
-    Pure: takes {etf: [refusal records]} exactly as the payloads carry them.
+    Pure: takes {etf: [refusal records]} exactly as the payloads carry them,
+    plus {etf: message} for panels whose refusal state could not be read at
+    all. An unreadable panel FAILS — it is the state this gate exists to
+    distrust, and calling it clean would be the original defect wearing a
+    different hat.
     """
+    out = []
+    for etf in sorted(errors or {}):
+        out.append(verdict(
+            f"G8 refusal state {etf}", FAIL,
+            f"roster_refusals is present but unreadable: {errors[etf]}. "
+            f"Malformed refusal state is not clean state; re-run "
+            f"fetch_constituents --etf {etf} to rewrite the payload"))
+
     affected = {k: v for k, v in (refusals or {}).items() if v}
     if not affected:
-        return [verdict("G8 roster refusals", OK,
-                        f"{len(refusals or {})} panels carry no refused "
-                        f"roster")]
-    out = []
+        if not out:
+            out.append(verdict("G8 roster refusals", OK,
+                               f"{len(refusals or {})} panels carry no "
+                               f"refused roster"))
+        return out
     for etf in sorted(affected):
         recs = affected[etf]
         venues = sorted({v for r in recs for v in (r.get("exchanges") or [])})
@@ -904,6 +949,7 @@ def main(argv: list[str] | None = None) -> int:
     latest_actuals: dict[str, str] = {}
     price_sides: dict[str, dict] = {}
     refusals: dict[str, list[dict]] = {}
+    refusal_errors: dict[str, str] = {}
 
     baseline_missing: list[str] = []
     n_baseline_checked = 0
@@ -926,7 +972,10 @@ def main(argv: list[str] | None = None) -> int:
             "status", "<absent>")
         staleness[etf] = (consts.get("staleness") or {}).get(
             "status", "<absent>")
-        refusals[etf] = read_roster_refusals(consts)
+        try:
+            refusals[etf] = read_roster_refusals(consts)
+        except RefusalStateError as exc:
+            refusal_errors[etf] = str(exc)
         breadth_ends[etf] = breadth.get("end_date", "<absent>")
         tail_caps[etf] = breadth.get("tail_cap")
         coverages[etf] = panel_roster_coverage(breadth)
@@ -970,7 +1019,7 @@ def main(argv: list[str] | None = None) -> int:
     results.extend(check_shared_end_friday(end_fridays, expected_friday,
                                            price_sides=price_sides))
     results.extend(check_endpoint_health(health))
-    results.extend(check_roster_refusals(refusals))
+    results.extend(check_roster_refusals(refusals, refusal_errors))
     results.extend(check_staleness(staleness))
     results.extend(check_roster_coverage(coverages,
                                          MIN_ROSTER_COVERAGE_WARN))

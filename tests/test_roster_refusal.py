@@ -29,6 +29,7 @@ were confirmed against the date library, not from memory:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -516,14 +517,38 @@ def test_negative_cache_behaviour_is_preserved(monkeypatch, raw_dir):
     assert marker["_no_holdings"] is True
 
 
-def test_corrupt_sidecar_is_discarded_not_trusted(monkeypatch, raw_dir):
+def test_corrupt_sidecar_refuses_and_is_quarantined(monkeypatch, raw_dir):
+    """FINDING 2. A damaged sidecar used to be deleted and read as absence.
+
+    The old behaviour unlinked it and fell through to the endpoint, so a
+    truncated file plus a quiet Friday plus a parseable Thursday produced an
+    ordinary "walkback" with the only record of the refusal destroyed.
+    """
     path = fc.refused_payload_path("EXV1", FRI_2)
     path.write_text("{not json", encoding="utf-8")
-    monkeypatch.setattr(
-        fc, "fetch_product_data",
-        lambda t, c: _payload_for(FRI_2, [("A", "Equity", "Nasdaq")]))
-    assert fc.load_snapshot_tickers(FRI_2, _cfg()) == ["A"]
-    assert not path.exists()
+    called = []
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: called.append(t) or _payload_for(
+                            FRI_2, [("A", "Equity", "Nasdaq")]))
+
+    with pytest.raises(fc.RefusalEvidenceError) as exc:
+        fc.load_snapshot_tickers(FRI_2, _cfg())
+
+    assert called == [], "a corrupt sidecar must not fall through to the vendor"
+    assert not path.exists(), "the corrupt file should have been moved aside"
+    quarantined = list(raw_dir.glob("EXV1_20260918.refused.json.corrupt.*"))
+    assert len(quarantined) == 1, "evidence must be quarantined, not deleted"
+    assert quarantined[0].read_text(encoding="utf-8") == "{not json"
+    assert exc.value.evidence_unreadable is True
+    assert exc.value.as_of == FRI_2
+
+
+def test_non_object_sidecar_refuses_and_is_quarantined(raw_dir):
+    path = fc.refused_payload_path("EXV1", FRI_2)
+    path.write_text("[1, 2, 3]", encoding="utf-8")
+    with pytest.raises(fc.RefusalEvidenceError):
+        fc.load_snapshot_tickers(FRI_2, _cfg())
+    assert list(raw_dir.glob("EXV1_20260918.refused.json.corrupt.*"))
 
 
 @pytest.mark.parametrize("day,stamp", [
@@ -542,6 +567,416 @@ def test_sidecar_path_stamps_across_month_and_year_boundaries(day, stamp,
     rec = make_refusal(as_of=day).as_record(day)
     assert rec["source_date"] == day.isoformat()
     assert rec["target_friday"] == day.isoformat()
+
+
+# ---------------------------------------------------------------------------
+# FINDING 1 — an unresolved refusal is authoritative until the date resolves
+#
+# END TO END: these drive the REAL loader, the REAL get_snapshot and the REAL
+# main(). Only fetch_product_data is stubbed. A stubbed get_snapshot cannot
+# prove any of this, because the defect lived inside the resolution order the
+# stub replaces.
+# ---------------------------------------------------------------------------
+def run_live_walk(monkeypatch, tmp_path, responses, *, start=FRI_1, end=FRI_2,
+                  symbol="EXV1"):
+    """main() over a short Friday range with ONLY the transport stubbed.
+
+    ``responses`` maps a date to a payload, or to an Exception to raise, or to
+    None meaning "the endpoint has nothing for this date". Anything absent
+    from the mapping is also "nothing".
+    Returns (exit_code, payload_dict, list_of_dates_fetched).
+    """
+    data_dir = tmp_path / "data"
+    raw_dir = data_dir / "raw_ishares"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(fc, "DATA_DIR", data_dir)
+    monkeypatch.setattr(fc, "RAW_DIR", raw_dir)
+    monkeypatch.setattr(fc, "PROJECT_ROOT", tmp_path)
+
+    cfg = {"symbol": symbol, "start_friday": start,
+           "apply_exchange_suffix": True, "product_id": "x"}
+    monkeypatch.setattr(fc, "get_etf", lambda _s: cfg)
+    monkeypatch.setattr(fc, "latest_completed_friday", lambda _t: end)
+    monkeypatch.setattr(fc, "parse_args",
+                        lambda: type("A", (), {"etf": symbol,
+                                               "carry_forward_on_outage": False})())
+
+    fetched: list[date] = []
+
+    def fake_fetch(target, etf_cfg):
+        fetched.append(target)
+        outcome = responses.get(target)
+        if isinstance(outcome, Exception):
+            raise outcome
+        if outcome is None:
+            # The endpoint's own "no holdings here" shape: a date echo that
+            # does not match what was asked for.
+            return _payload_for(date(1990, 1, 1), [])
+        return outcome
+
+    monkeypatch.setattr(fc, "fetch_product_data", fake_fetch)
+    code = fc.main()
+    payload = json.loads(
+        (data_dir / f"constituents_{symbol.lower()}.json").read_text("utf-8"))
+    return code, payload, fetched
+
+
+def test_retry_with_vendor_absence_does_not_clear_the_refusal(monkeypatch,
+                                                              tmp_path):
+    """FINDING 1, the reported reproduction, end to end.
+
+    Run 1: the newest Friday refuses, is retained, exit 6.
+    Run 2: the vendor now serves nothing for that Friday, and Thursday has a
+    perfectly good cached roster. The old code took the Thursday walkback,
+    wrote roster_refusals=[] and exited 0 with the sidecar still unresolved.
+    """
+    good_thursday = _payload_for(date(2026, 9, 17),
+                                 [("A", "Equity", MAPPED_VENUE)])
+    refusing_friday = _payload_for(FRI_2, _rows_with_unmapped_venue())
+
+    code, payload, _ = run_live_walk(monkeypatch, tmp_path, {
+        FRI_1: _payload_for(FRI_1, [("A", "Equity", MAPPED_VENUE)]),
+        FRI_2: refusing_friday,
+        date(2026, 9, 17): good_thursday,
+    })
+    assert code == fc.EXIT_ROSTER_REFUSED
+    sidecar = tmp_path / "data" / "raw_ishares" / "EXV1_20260918.refused.json"
+    assert sidecar.exists()
+
+    # Run 2: the vendor has nothing for Friday. Thursday is cached and good.
+    code, payload, _ = run_live_walk(monkeypatch, tmp_path, {
+        FRI_1: _payload_for(FRI_1, [("A", "Equity", MAPPED_VENUE)]),
+        FRI_2: None,
+        date(2026, 9, 17): good_thursday,
+    })
+
+    assert code == fc.EXIT_ROSTER_REFUSED, \
+        "vendor absence cleared an unresolved refusal"
+    assert payload["roster_refusals"], "the refusal vanished from the payload"
+    assert payload["roster_refusals"][0]["source_date"] == "2026-09-18"
+    assert sidecar.exists(), "unresolved evidence was dropped"
+    # And it must NOT have been rebuilt as an ordinary Thursday walkback.
+    assert "2026-09-18" not in payload["snapshots"] or \
+        payload["snapshots"]["2026-09-18"].get("carried_forward_from")
+
+
+def test_older_positive_cache_does_not_mask_a_later_refusal(monkeypatch,
+                                                            tmp_path):
+    """FINDING 1, second half: revalidation creates cache + sidecar together.
+
+    Date D resolves and is cached. A later revalidation of D serves a REVISED
+    response that refuses. The sidecar is written while the earlier good cache
+    is still in place, and the old resolution order served that cache ahead of
+    the sidecar for every subsequent run.
+    """
+    raw = tmp_path / "data" / "raw_ishares"
+    raw.mkdir(parents=True)
+    monkeypatch.setattr(fc, "RAW_DIR", raw)
+
+    # The earlier good capture for this date.
+    good = _payload_for(FRI_2, [("A", "Equity", MAPPED_VENUE)])
+    (raw / "EXV1_20260918.json").write_text(json.dumps(good), encoding="utf-8")
+    # ...and a refusal retained for the SAME date by a later revalidation.
+    revised = _payload_for(FRI_2, _rows_with_unmapped_venue())
+    fc.retain_refused_payload(fc.refused_payload_path("EXV1", FRI_2), revised)
+
+    monkeypatch.setattr(fc, "fetch_product_data",
+                        lambda t, c: pytest.fail("must not reach the vendor"))
+
+    with pytest.raises(fc.UnmappedExchangeError):
+        fc.load_snapshot_tickers(FRI_2, _cfg())
+
+
+def test_refresh_true_revalidates_but_cannot_be_cleared_by_absence(
+        monkeypatch, raw_dir):
+    """Revalidation is preserved; it just cannot clear an unresolved refusal."""
+    refusing = _payload_for(FRI_2, _rows_with_unmapped_venue())
+    fc.retain_refused_payload(fc.refused_payload_path("EXV1", FRI_2), refusing)
+
+    seen = []
+
+    def endpoint(target, cfg):
+        seen.append(target)
+        return _payload_for(date(1990, 1, 1), [])   # nothing for this date
+
+    monkeypatch.setattr(fc, "fetch_product_data", endpoint)
+    with pytest.raises(fc.UnmappedExchangeError):
+        fc.load_snapshot_tickers(FRI_2, _cfg(), refresh=True)
+    assert seen == [FRI_2], "refresh=True must still ask the endpoint"
+
+
+def test_refresh_true_resolves_when_the_vendor_serves_a_clean_response(
+        monkeypatch, raw_dir):
+    """The legitimate clearing path: the date actually resolves."""
+    refusing = _payload_for(FRI_2, _rows_with_unmapped_venue())
+    sidecar = fc.refused_payload_path("EXV1", FRI_2)
+    fc.retain_refused_payload(sidecar, refusing)
+
+    clean = _payload_for(FRI_2, [("A", "Equity", MAPPED_VENUE),
+                                 ("B", "Equity", MAPPED_VENUE)])
+    monkeypatch.setattr(fc, "fetch_product_data", lambda t, c: clean)
+
+    assert fc.load_snapshot_tickers(FRI_2, _cfg(), refresh=True) == ["A.L", "B.L"]
+    assert not sidecar.exists(), "a resolved date must clear its refusal"
+    assert (raw_dir / "EXV1_20260918.json").exists()
+
+
+def test_unresolved_sidecar_the_walk_never_visits_is_still_recorded(
+        monkeypatch, tmp_path):
+    """FINDING 1: the walk path is not a guarantee.
+
+    A sidecar for a THURSDAY the walkback reached only once. Every later walk
+    finds a good Friday and never looks at that Thursday again, so no walk
+    step can record it. The end-of-walk reconciliation is what keeps it
+    authoritative.
+    """
+    data_dir = tmp_path / "data"
+    raw = data_dir / "raw_ishares"
+    raw.mkdir(parents=True)
+    fc.retain_refused_payload(
+        raw / "EXV1_20260917.refused.json",
+        _payload_for(date(2026, 9, 17), _rows_with_unmapped_venue()))
+
+    code, payload, _ = run_live_walk(monkeypatch, tmp_path, {
+        FRI_1: _payload_for(FRI_1, [("A", "Equity", MAPPED_VENUE)]),
+        FRI_2: _payload_for(FRI_2, [("A", "Equity", MAPPED_VENUE)]),
+    })
+
+    assert code == fc.EXIT_ROSTER_REFUSED
+    assert [r["source_date"] for r in payload["roster_refusals"]] == \
+        ["2026-09-17"]
+    # Both Fridays captured cleanly; the refusal is the Thursday's alone.
+    assert payload["snapshots"]["2026-09-18"]["n_tickers"] == 1
+
+
+def test_reconciliation_does_not_double_count_a_recorded_refusal(monkeypatch,
+                                                                 tmp_path):
+    code, payload, _ = run_live_walk(monkeypatch, tmp_path, {
+        FRI_1: _payload_for(FRI_1, [("A", "Equity", MAPPED_VENUE)]),
+        FRI_2: _payload_for(FRI_2, _rows_with_unmapped_venue()),
+    })
+    assert code == fc.EXIT_ROSTER_REFUSED
+    sources = [r["source_date"] for r in payload["roster_refusals"]]
+    assert sources == ["2026-09-18"], f"double counted: {sources}"
+
+
+def test_mapping_repair_resolves_and_the_gate_clears_end_to_end(monkeypatch,
+                                                                tmp_path):
+    """The full recovery, with the vendor no longer serving the date."""
+    code, payload, _ = run_live_walk(monkeypatch, tmp_path, {
+        FRI_1: _payload_for(FRI_1, [("A", "Equity", MAPPED_VENUE)]),
+        FRI_2: _payload_for(FRI_2, _rows_with_unmapped_venue()),
+    })
+    assert code == fc.EXIT_ROSTER_REFUSED
+
+    # Venue mapped; endpoint now dead for every date.
+    monkeypatch.setitem(fc._EXCHANGE_TO_YF_SUFFIX, UNMAPPED_VENUE, ".AT")
+    dead = fc.EndpointUnavailable("history window closed")
+    code, payload, _ = run_live_walk(monkeypatch, tmp_path, {
+        FRI_1: dead, FRI_2: dead,
+    })
+
+    assert payload["roster_refusals"] == [], "the repair did not clear it"
+    # Exit 0 with the endpoint DEAD is the point: the refused Friday was
+    # rebuilt from its retained response and the earlier Friday from its
+    # positive cache, so the vendor was never needed at all. This is the
+    # property the retention exists for — recovery after the history window
+    # has closed.
+    assert code == fc.EXIT_OK
+    assert payload["snapshots"]["2026-09-18"]["n_tickers"] == 54
+    assert not (tmp_path / "data" / "raw_ishares"
+                / "EXV1_20260918.refused.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# FINDING 2 — evidence integrity
+# ---------------------------------------------------------------------------
+def test_retention_is_atomic_no_partial_file_is_left_as_evidence(monkeypatch,
+                                                                 raw_dir):
+    """An interrupted write must leave no sidecar, not a truncated one."""
+    path = fc.refused_payload_path("EXV1", FRI_2)
+    real_dump = json.dump
+
+    def exploding_dump(obj, fh, *a, **k):
+        fh.write('{"partial": ')
+        raise OSError("disk full")
+
+    monkeypatch.setattr(fc.json, "dump", exploding_dump)
+    with pytest.raises(OSError):
+        fc.retain_refused_payload(path, {"x": 1})
+    assert not path.exists(), "a truncated file was left as evidence"
+    assert not list(raw_dir.glob("*.tmp")), "temporary file not cleaned up"
+
+    monkeypatch.setattr(fc.json, "dump", real_dump)
+    assert fc.retain_refused_payload(path, {"x": 1}) is True
+
+
+def test_storage_failure_reports_but_preserves_the_original_refusal(
+        monkeypatch, raw_dir, capsys):
+    """The refusal must survive a failure to store its evidence."""
+    monkeypatch.setattr(
+        fc, "fetch_product_data",
+        lambda t, c: _payload_for(FRI_2, _rows_with_unmapped_venue()))
+
+    def failing_retain(path, payload):
+        raise OSError("read-only file system")
+
+    monkeypatch.setattr(fc, "retain_refused_payload", failing_retain)
+
+    with pytest.raises(fc.UnmappedExchangeError) as exc:
+        fc.load_snapshot_tickers(FRI_2, _cfg())
+
+    assert exc.value.evidence_retained is False
+    assert "read-only file system" in (exc.value.evidence_error or "")
+    assert exc.value.exchanges == [UNMAPPED_VENUE], \
+        "the original refusal detail was lost"
+    assert "EVIDENCE NOT RETAINED" in capsys.readouterr().err
+    rec = exc.value.as_record(FRI_2)
+    assert rec["evidence_retained"] is False and rec["evidence_error"]
+
+
+def test_concurrent_writer_cannot_overwrite_existing_evidence(monkeypatch,
+                                                              raw_dir):
+    """Write-once under a race: the loser must not replace the winner."""
+    path = fc.refused_payload_path("EXV1", FRI_2)
+    real_fsync = os.fsync
+
+    def racing_fsync(fd):
+        # Another process claims the sidecar while this one is mid-write.
+        if not path.exists():
+            path.write_text(json.dumps({"winner": True}), encoding="utf-8")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(fc.os, "fsync", racing_fsync)
+    assert fc.retain_refused_payload(path, {"loser": True}) is False
+    assert json.loads(path.read_text("utf-8")) == {"winner": True}
+    assert not list(raw_dir.glob("*.tmp"))
+
+
+def test_promotion_failure_keeps_the_retained_response(monkeypatch, raw_dir):
+    """If the positive cache cannot be written, the evidence stays put."""
+    sidecar = fc.refused_payload_path("EXV1", FRI_2)
+    fc.retain_refused_payload(
+        sidecar, _payload_for(FRI_2, _rows_with_unmapped_venue()))
+    monkeypatch.setitem(fc._EXCHANGE_TO_YF_SUFFIX, UNMAPPED_VENUE, ".AT")
+
+    def failing_write(path, payload):
+        raise OSError("cannot write the positive cache")
+
+    monkeypatch.setattr(fc, "_write_json_atomic", failing_write)
+    with pytest.raises(OSError):
+        fc.load_snapshot_tickers(FRI_2, _cfg())
+    assert sidecar.exists(), "evidence lost when promotion failed"
+
+
+# ---------------------------------------------------------------------------
+# JSON retention eligibility, pinned behaviourally
+# ---------------------------------------------------------------------------
+def test_malformed_columns_beat_the_refusal_and_nothing_is_retained(raw_dir,
+                                                                    monkeypatch):
+    """A payload can be BOTH column-malformed and full of unmapped venues.
+
+    The contract check must win, so the refusal never fires and nothing is
+    retained. This pins the ordering the retention safety argument rests on:
+    report_unmapped_exchanges runs last, after the contract, date-parity and
+    column-length checks.
+    """
+    rows = _rows_with_unmapped_venue()
+    bad = _payload_for(FRI_2, rows)
+    dps = bad["componentsByNameMap"]["holdings"]["containersByNameMap"]["all"][
+        "dataPointsByNameMap"]
+    dps["exchange"]["value"] = dps["exchange"]["value"][:-2]   # length mismatch
+
+    monkeypatch.setattr(fc, "fetch_product_data", lambda t, c: bad)
+    with pytest.raises(fc.PayloadContractError):
+        fc.load_snapshot_tickers(FRI_2, _cfg())
+    assert not fc.refused_payload_path("EXV1", FRI_2).exists()
+
+
+def test_wrong_date_beats_the_refusal_and_nothing_is_retained(raw_dir,
+                                                              monkeypatch):
+    """Unmapped venues AND a wrong date echo: parity wins, no retention."""
+    monkeypatch.setattr(
+        fc, "fetch_product_data",
+        lambda t, c: _payload_for(FRI_3, _rows_with_unmapped_venue()))
+    assert fc.load_snapshot_tickers(FRI_2, _cfg()) == []
+    assert not fc.refused_payload_path("EXV1", FRI_2).exists()
+    assert not (raw_dir / "EXV1_20260918.json").exists()
+
+
+def test_refusal_is_raised_after_the_checks_so_retained_payloads_are_valid(
+        raw_dir, monkeypatch):
+    """The positive case: a valid, date-correct, unmapped payload IS kept."""
+    payload = _payload_for(FRI_2, _rows_with_unmapped_venue())
+    monkeypatch.setattr(fc, "fetch_product_data", lambda t, c: payload)
+    with pytest.raises(fc.UnmappedExchangeError):
+        fc.load_snapshot_tickers(FRI_2, _cfg())
+    kept = json.loads(
+        fc.refused_payload_path("EXV1", FRI_2).read_text("utf-8"))
+    dps = kept["componentsByNameMap"]["holdings"]["containersByNameMap"]["all"][
+        "dataPointsByNameMap"]
+    assert dps["asOfDate"]["value"] == "20260918", \
+        "a retained payload must be for the date it was retained under"
+
+
+# ---------------------------------------------------------------------------
+# EndpointDegraded: no payload is written, so the log must carry the evidence
+# ---------------------------------------------------------------------------
+def test_degraded_endpoint_prints_refusals_before_unwinding(monkeypatch,
+                                                            tmp_path, capsys):
+    """The one path that reaches no exit ladder and writes no array."""
+    from stall_guard import EndpointDegraded
+
+    data_dir = tmp_path / "data"
+    (data_dir / "raw_ishares").mkdir(parents=True)
+    monkeypatch.setattr(fc, "DATA_DIR", data_dir)
+    monkeypatch.setattr(fc, "RAW_DIR", data_dir / "raw_ishares")
+    monkeypatch.setattr(fc, "PROJECT_ROOT", tmp_path)
+    cfg = {"symbol": "EXV1", "start_friday": FRI_1,
+           "apply_exchange_suffix": True, "product_id": "x"}
+    monkeypatch.setattr(fc, "get_etf", lambda _s: cfg)
+    monkeypatch.setattr(fc, "latest_completed_friday", lambda _t: FRI_3)
+    monkeypatch.setattr(fc, "parse_args",
+                        lambda: type("A", (), {"etf": "EXV1",
+                                               "carry_forward_on_outage": False})())
+
+    state = {"n": 0}
+
+    def snapshots(friday, etf_cfg, circuit=None, latency=None, refresh=False):
+        state["n"] += 1
+        if friday == FRI_1:
+            raise make_refusal(as_of=FRI_1)
+        if latency is not None:          # degrade after the refusal is seen
+            latency.dead = True
+            latency.reason = "stalled"
+        return None, None, "not_found"
+
+    monkeypatch.setattr(fc, "get_snapshot", snapshots)
+
+    with pytest.raises(EndpointDegraded):
+        fc.main()
+
+    err = capsys.readouterr().err
+    assert "ROSTER REFUSALS already encountered" in err
+    assert ATHENS in err, "the refusal detail did not reach the log"
+    assert not (data_dir / "constituents_exv1.json").exists(), \
+        "a degraded endpoint must still write no roster"
+
+
+def test_complete_records_are_printed_not_only_the_truncated_summary(
+        monkeypatch, tmp_path, capsys):
+    """Thirteen symbols: the summary truncates, the record must not."""
+    many = [f"SYM{i:02d}" for i in range(13)]
+    code, payload = run_walk(monkeypatch, tmp_path, {
+        FRI_1: ["A", "B", "C"],
+        FRI_2: make_refusal(affected=many, n_equity=100),
+    })
+    assert code == fc.EXIT_ROSTER_REFUSED
+    err = capsys.readouterr().err
+    assert "+1 more" in err, "the readable summary should stay concise"
+    assert "complete refusal records:" in err
+    assert all(s in err for s in many), "the complete record was truncated"
+    assert payload["roster_refusals"][0]["affected_symbols"] == sorted(many)
 
 
 # ---------------------------------------------------------------------------
@@ -573,12 +1008,87 @@ def test_g8_reads_an_absent_array_as_clean():
 
     Absence means "not recorded", which this gate cannot distinguish from
     "none happened" — which is exactly why the fetcher's exit code is the
-    primary control and this is the secondary one.
+    primary control and this is the secondary one. That compatibility is
+    deliberate and is kept.
     """
     assert guard.read_roster_refusals({}) == []
-    assert guard.read_roster_refusals({"roster_refusals": None}) == []
+    assert guard.read_roster_refusals({"etf": "EXV1"}) == []
     (r,) = guard.check_roster_refusals({"EXV1": []})
     assert r["status"] == guard.OK
+
+
+# --- FINDING 4: malformed refusal state must not read as clean -------------
+@pytest.mark.parametrize("value", [
+    None,                                   # present but null
+    {},                                     # empty dict — falsy, the trap
+    {"2026-09-18": ["ALPHA"]},              # non-empty dict
+    "none",                                 # a string
+    0,
+])
+def test_malformed_refusal_field_is_rejected(value):
+    """FINDING 4. `[] if not isinstance(list) else ...` read all of these clean.
+
+    The non-empty dict is the one that matters: a plausible shape for
+    hand-edited or half-migrated state, carrying real refusals, that produced
+    a clean G8.
+    """
+    with pytest.raises(guard.RefusalStateError):
+        guard.read_roster_refusals({"roster_refusals": value})
+
+
+@pytest.mark.parametrize("records", [
+    ["not a dict"],
+    [{"exchanges": ["X"]}],                 # no target_friday
+    [{"target_friday": None}],
+    [{"target_friday": ""}],
+    [{"target_friday": 20260918}],          # not a string
+])
+def test_malformed_refusal_records_are_rejected(records):
+    with pytest.raises(guard.RefusalStateError):
+        guard.read_roster_refusals({"roster_refusals": records})
+
+
+def test_g8_fails_on_unreadable_refusal_state():
+    """Malformed state FAILS; it is not silently absent and not a traceback."""
+    results = guard.check_roster_refusals(
+        {"CSP1": []}, {"EXV1": "roster_refusals is dict, expected a list"})
+    assert any(r["status"] == guard.FAIL and "EXV1" in r["check"]
+               for r in results)
+
+
+def test_guard_main_fails_on_malformed_refusal_state(monkeypatch, tmp_path):
+    """End to end through the final guard, not just the pure function."""
+    data = tmp_path / "data"
+    data.mkdir()
+    for etf in guard.ETFS_ALL:
+        blob = {"end_friday": "2026-09-18", "snapshots": {},
+                "endpoint_health": {"status": "ok"},
+                "staleness": {"status": "fresh"},
+                "roster_refusals": ({"2026-09-18": ["ALPHA"]}
+                                    if etf == "EXV1" else [])}
+        (data / f"constituents_{etf.lower()}.json").write_text(
+            json.dumps(blob), encoding="utf-8")
+        (data / f"breadth_{etf.lower()}.json").write_text(
+            json.dumps({"end_date": "2026-09-18"}), encoding="utf-8")
+    monkeypatch.setattr(guard, "DATA_DIR", data)
+    assert guard.main(["--end-friday", "2026-09-18"]) == 1
+
+
+def test_refresh_all_gate_fails_on_malformed_refusal_state(monkeypatch,
+                                                           tmp_path):
+    """And through the pre-calculation path, which reads the same payloads."""
+    import refresh_all
+
+    data = tmp_path / "data"
+    data.mkdir()
+    for etf in refresh_all.ETFS_ALL:
+        (data / f"constituents_{etf.lower()}.json").write_text(
+            json.dumps({"roster_refusals": ({"2026-09-18": ["ALPHA"]}
+                                            if etf == "SOXX" else [])}),
+            encoding="utf-8")
+    monkeypatch.setattr(refresh_all, "REPO_ROOT", tmp_path)
+    failures = refresh_all._check_refusals_on_disk(refresh_all.ETFS_ALL)
+    assert failures and any("SOXX" in f for f in failures)
 
 
 def test_g8_is_wired_into_the_guard_run(monkeypatch, tmp_path):
@@ -644,6 +1154,69 @@ def test_refresh_all_gate_does_not_read_an_unreadable_panel_as_clean(
     monkeypatch.setattr(refresh_all, "REPO_ROOT", tmp_path)
     failures = refresh_all._check_refusals_on_disk(["CSP1"])
     assert failures == ["roster payload unreadable"]
+
+
+# --- FINDING 3: the gate must run BEFORE that panel's compute_breadth ------
+def _drive_refresh_all(monkeypatch, tmp_path, refused, argv):
+    """Run refresh_all.main() with every subprocess step recorded, not run.
+
+    Calling the helper directly cannot establish ORDERING, which is the whole
+    of finding 3 — the gate existed, it simply ran a step too late.
+    """
+    import refresh_all
+
+    data = tmp_path / "data"
+    data.mkdir()
+    rec = make_refusal(symbol="SOXX").as_record(FRI_2)
+    for etf in refresh_all.ETFS_REFRESH:
+        (data / f"constituents_{etf.lower()}.json").write_text(
+            json.dumps({"roster_refusals": [rec] if etf in refused else []}),
+            encoding="utf-8")
+    monkeypatch.setattr(refresh_all, "REPO_ROOT", tmp_path)
+
+    steps: list[str] = []
+
+    def fake_run_step(label, cmd, cwd=None, timeout_s=None):
+        steps.append(label)
+        return True, 0.0
+
+    monkeypatch.setattr(refresh_all, "run_step", fake_run_step)
+    monkeypatch.setattr(sys, "argv", ["refresh_all.py", *argv])
+    rc = refresh_all.main()
+    return rc, steps
+
+
+def test_compute_breadth_never_runs_for_a_refused_panel(monkeypatch, tmp_path):
+    """The reported reproduction: --skip-soxx-fetch over a refused SOXX."""
+    rc, steps = _drive_refresh_all(
+        monkeypatch, tmp_path, refused={"SOXX"},
+        argv=["--skip-soxx-fetch", "--no-tests", "--throttle", "0"])
+
+    assert rc == 1
+    soxx_breadth = [s for s in steps
+                    if "compute_breadth" in s and "SOXX" in s]
+    assert soxx_breadth == [], \
+        f"compute_breadth ran on a refused roster: {soxx_breadth}"
+    # The run stopped at capture; no engine or page step was reached.
+    assert not any("Strategy" in s or "pipeline" in s for s in steps)
+
+
+def test_a_clean_panel_still_computes_breadth(monkeypatch, tmp_path):
+    """The control: the gate must not block panels that are fine."""
+    rc, steps = _drive_refresh_all(
+        monkeypatch, tmp_path, refused=set(),
+        argv=["--skip-soxx-fetch", "--no-tests", "--throttle", "0"])
+    assert any("compute_breadth" in s and "SOXX" in s for s in steps)
+    assert rc == 0 or any("Strategy" in s for s in steps)
+
+
+def test_one_refused_panel_does_not_block_the_others_computing(monkeypatch,
+                                                               tmp_path):
+    """Scope check: the refusal stops its own panel, not every panel."""
+    _, steps = _drive_refresh_all(
+        monkeypatch, tmp_path, refused={"SOXX"},
+        argv=["--skip-soxx-fetch", "--no-tests", "--throttle", "0"])
+    assert any("compute_breadth" in s and "CSP1" in s for s in steps)
 
 
 # ---------------------------------------------------------------------------
