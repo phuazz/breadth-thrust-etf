@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-09-22T23:44:42+00:00",
+  "built_at_utc": "2026-09-23T01:43:52+00:00",
   "as_of": "2026-09-22",
   "as_of_modal": "2026-09-22",
   "as_of_modal_share": "49/54",
@@ -1530,7 +1530,7 @@
       "ret_1d": 0.001685431906257806,
       "vol_ratio": 0.828960464196406,
       "ret_1m": 0.013644102844584394,
-      "rs_1m": 0.003597864266861364,
+      "rs_1m": 0.003597864266861362,
       "dev_200d": -0.05014701642060981,
       "rsi14": 50.623002323754044,
       "n_bars": 3199,
@@ -2316,6 +2316,7 @@
     "failures": [],
     "stale": [],
     "notes": [
+      "snapshots not refreshed this run (--skip-snapshots)",
       "naive-recompute check passed on EWJ, EXH1.DE, EXH4.DE"
     ],
     "stale_threshold_sessions": 3
