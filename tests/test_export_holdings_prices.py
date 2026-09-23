@@ -810,3 +810,162 @@ def test_a_local_run_that_sees_the_universe_still_retires(tmp_path, monkeypatch)
     published = json.loads(out_path.read_text(encoding="utf-8"))["prices"]
     assert "EXH3.DE" not in published, "a genuinely retired line must still go"
     assert "SPY" in published
+
+
+# ---------------------------------------------------------------------------
+# The retraction race, re-sourced from Norgate (2026-09-23)
+#
+# CI publishes the panel near 23:40 UTC, before Yahoo's overnight withdrawal;
+# the local post-fill refresh runs 01:00-06:00 UTC, inside it. On 2026-09-23
+# INDA/MCHI/XLK read a session behind the panel CI had just published, the
+# yfinance re-fetch returned the same NaN placeholder, and the guard failed
+# the whole post-fill publication. A Norgate run now re-sources a regression
+# yfinance cannot restore. The guard itself is unchanged: every path Norgate
+# cannot fully repair must still exit REGRESSION_EXIT_CODE.
+# ---------------------------------------------------------------------------
+import norgate_prices  # noqa: E402
+
+_RACE_DATES = pd.bdate_range("2025-06-02", "2026-09-22")
+
+
+@pytest.fixture(autouse=True)
+def _no_inherited_price_source(monkeypatch):
+    """refresh_all exports BTE_PRICE_SOURCE to every child, pytest included;
+    no test in this file may reach a live Norgate feed through it."""
+    monkeypatch.delenv("BTE_PRICE_SOURCE", raising=False)
+
+
+def _race_setup(tmp_path, monkeypatch, ticker="INDA"):
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    out_path = tmp_path / "holdings_prices_1y.json"
+    monkeypatch.setattr(ehp, "OUT_PATH", out_path)
+    monkeypatch.setattr(ehp, "collect_all_tickers", lambda: {ticker})
+    monkeypatch.setattr(ehp, "collect_book_symbols", lambda: set())
+    monkeypatch.setattr(ehp, "NETWORK_FALLBACK_TICKERS", [])
+    # The retraction: yfinance restores nothing.
+    monkeypatch.setattr(ehp, "fetch_missing_from_yfinance",
+                        lambda tks, gaps_out=None: {})
+    dates = [d.strftime("%Y-%m-%d") for d in _RACE_DATES]
+    prices = [50.0 + i * 0.01 for i in range(len(dates))]
+    out_path.write_text(json.dumps({
+        "computed_at_utc": "2026-09-22T23:41:04+00:00", "lookback_days": 252,
+        "prices": {ticker: _panel_entry(dates[-252:], prices[-252:])},
+    }), encoding="utf-8")
+    # The local cache is one session short of what CI published.
+    short = _RACE_DATES[:-1]
+    pd.DataFrame({"Close": np.linspace(50.0, 55.0, len(short))},
+                 index=short).to_parquet(tmp_path / f"{ticker.lower()}_ohlc_cache.parquet")
+    return out_path
+
+
+def _stub_norgate(monkeypatch, *, reachable=True, last="2026-09-22", calls=None,
+                  scale=1.0, drop=()):
+    """Norgate on the published scale (50 + 0.01 per session) unless told
+    otherwise: ``scale`` moves the level, ``drop`` removes sessions."""
+    monkeypatch.setattr(norgate_prices, "available", lambda: reachable)
+
+    def fetch(tickers, start, end, verbose=True):
+        if calls is not None:
+            calls.append((list(tickers), start, end))
+        idx = pd.bdate_range("2025-06-02", last)
+        vals = (50.0 + np.arange(len(idx)) * 0.01) * scale
+        frame = pd.DataFrame({t: vals for t in tickers}, index=idx)
+        frame = frame.drop(index=[pd.Timestamp(d) for d in drop])
+        return frame, sorted(tickers), []
+    monkeypatch.setattr(norgate_prices, "fetch_closes", fetch)
+
+
+def test_norgate_run_restores_a_retracted_regression(tmp_path, monkeypatch):
+    out_path = _race_setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
+    _stub_norgate(monkeypatch)
+    assert ehp.main([]) == 0
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["prices"]["INDA"]["dates"][-1] == "2026-09-22"
+    # The replacement is recorded in the artefact, not only in the log.
+    assert payload["resourced_from_norgate"] == {"INDA": "2026-09-22"}
+
+
+def test_norgate_on_another_scale_is_refused(tmp_path, monkeypatch):
+    """A wrong symbol match or a moved adjustment vintage: dates line up, the
+    level does not. 0.1% apart is twice the tolerance; it must fail closed."""
+    out_path = _race_setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
+    _stub_norgate(monkeypatch, scale=1.001)
+    assert ehp.main([]) == ehp.REGRESSION_EXIT_CODE
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["resourced_from_norgate"] == {}
+
+
+def test_norgate_missing_a_published_session_is_refused(tmp_path, monkeypatch):
+    """The WS19b date-superset rule: a published session Norgate lacks would
+    reach the panel as a hole."""
+    _race_setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
+    _stub_norgate(monkeypatch, drop=("2026-09-01",))
+    assert ehp.main([]) == ehp.REGRESSION_EXIT_CODE
+
+
+def test_norgate_disagreement_passes_the_live_2026_09_22_closes():
+    """The live probe of 2026-09-23 against CI's published 4-sig-fig panel:
+    XLK 196.27 vs 196.3 is 1.5e-4, inside the rounding the tolerance allows."""
+    dates = ["2026-09-18", "2026-09-21", "2026-09-22"]
+    close = pd.Series([189.38, 194.85, 196.27], index=pd.to_datetime(dates))
+    prev = {"dates": dates, "prices": [189.4, 194.9, 196.3]}
+    assert ehp.norgate_disagreement(close, prev) is None
+
+
+def test_yfinance_run_never_calls_norgate_and_still_fails(tmp_path, monkeypatch):
+    """CI and any unflagged run: the guard behaves exactly as before."""
+    out_path = _race_setup(tmp_path, monkeypatch)
+    calls = []
+    _stub_norgate(monkeypatch, calls=calls)
+    assert ehp.main([]) == ehp.REGRESSION_EXIT_CODE
+    assert calls == []
+    published = json.loads(out_path.read_text(encoding="utf-8"))["prices"]["INDA"]
+    assert published["dates"][-1] == "2026-09-22"
+
+
+def test_norgate_short_of_the_published_bar_is_still_held_back(tmp_path, monkeypatch):
+    """Norgate a session behind too: no replacement, the guard fails."""
+    out_path = _race_setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
+    _stub_norgate(monkeypatch, last="2026-09-21")
+    assert ehp.main([]) == ehp.REGRESSION_EXIT_CODE
+    published = json.loads(out_path.read_text(encoding="utf-8"))["prices"]["INDA"]
+    assert published["dates"][-1] == "2026-09-22"
+    assert published["prices"][-1] == pytest.approx(50.0 + (len(_RACE_DATES) - 1) * 0.01, rel=1e-3)
+
+
+def test_unreachable_norgate_fails_closed(tmp_path, monkeypatch):
+    _race_setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
+    _stub_norgate(monkeypatch, reachable=False)
+    assert ehp.main([]) == ehp.REGRESSION_EXIT_CODE
+
+
+def test_non_us_listing_is_never_sent_to_norgate(monkeypatch):
+    calls = []
+    _stub_norgate(monkeypatch, calls=calls)
+    got = ehp.resource_regressions_from_norgate(
+        ["EXV1.DE", "BTC-USD", "INDA"], env={"BTE_PRICE_SOURCE": "auto"})
+    assert [c[0] for c in calls] == [["INDA"]]
+    assert set(got) == {"INDA"}
+
+
+def test_norgate_window_across_a_month_boundary(monkeypatch):
+    calls = []
+    _stub_norgate(monkeypatch, calls=calls)
+    ehp.resource_regressions_from_norgate(
+        ["INDA"], now_utc=_utc("2026-02-28T02:00:00+00:00"),
+        env={"BTE_PRICE_SOURCE": "norgate"})
+    assert calls[0][1:] == ("2024-02-28", "2026-03-01")
+
+
+def test_norgate_window_across_a_year_boundary(monkeypatch):
+    calls = []
+    _stub_norgate(monkeypatch, calls=calls)
+    ehp.resource_regressions_from_norgate(
+        ["INDA"], now_utc=_utc("2026-12-31T02:00:00+00:00"),
+        env={"BTE_PRICE_SOURCE": "norgate"})
+    assert calls[0][1:] == ("2024-12-31", "2027-01-01")

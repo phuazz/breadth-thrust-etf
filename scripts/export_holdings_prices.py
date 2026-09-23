@@ -478,6 +478,68 @@ def fallback_fetch_start(tickers: list[str],
     return min(starts).strftime("%Y-%m-%d")
 
 
+def resource_regressions_from_norgate(tickers: list[str],
+                                      now_utc: datetime | None = None,
+                                      env: dict | None = None
+                                      ) -> dict[str, pd.Series]:
+    """Norgate closes for regressed tickers yfinance could not restore.
+
+    THE RETRACTION RACE, found 2026-09-23. The CI export publishes near
+    23:40 UTC, before Yahoo's overnight withdrawal; the local post-fill
+    refresh runs 01:00-06:00 UTC, inside it. On 2026-09-22 Yahoo withdrew the
+    US session (SPY, XLF, LIN, INDA, MCHI, XLK all NaN on the dated row), so
+    the local run read INDA/MCHI/XLK a session behind the panel CI had just
+    published, the yfinance re-fetch returned the same placeholder, and the
+    never-go-backwards guard failed the whole post-fill publication over
+    three lines the book does not hold. Norgate does not withdraw settled
+    bars, and a scheduled run is already on it.
+
+    Only when the run asked for Norgate (``BTE_PRICE_SOURCE`` norgate or
+    auto) and the feed is reachable, and only for plain US listings — the
+    lines Norgate covers. Anything else returns {} and the caller's guard
+    holds the published series and fails exactly as before; this never
+    loosens it. The WHOLE series comes from Norgate, never a splice onto the
+    yfinance history, so each ticker in the panel stays on one basis. Nothing
+    is written to a cache: the engines' caches are not this module's to
+    re-base.
+
+    Dates via pandas DateOffset; months are 1-INDEXED (Python convention).
+    """
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    try:
+        import price_source  # noqa: PLC0415
+        requested = price_source.requested_source(env)
+    except Exception:
+        return {}
+    if requested not in ("norgate", "auto"):
+        return {}
+    plain = [t for t in tickers if price_source.plain_us_listing(t)]
+    if not plain:
+        return {}
+    try:
+        import norgate_prices  # noqa: PLC0415
+        if not norgate_prices.available():
+            print(f"  WARN: Norgate unreachable; cannot re-source "
+                  f"{', '.join(plain)}")
+            return {}
+        now = now_utc or datetime.now(timezone.utc)
+        today = pd.Timestamp(now.date())
+        start = (today - pd.DateOffset(years=FALLBACK_FETCH_YEARS)).strftime("%Y-%m-%d")
+        end = (today + pd.DateOffset(days=1)).strftime("%Y-%m-%d")
+        frame, served, _unserved = norgate_prices.fetch_closes(
+            plain, start, end, verbose=False)
+    except Exception as exc:
+        print(f"  WARN: Norgate re-source failed for {', '.join(plain)}: {exc}")
+        return {}
+    out: dict[str, pd.Series] = {}
+    for tk in served:
+        ser = frame[tk].dropna() if tk in frame.columns else None
+        if ser is not None and not ser.empty:
+            out[tk] = ser
+    return out
+
+
 def fetch_missing_from_yfinance(tickers: list[str],
                                 gaps_out: dict[str, list[str]] | None = None
                                 ) -> dict[str, pd.Series]:
@@ -703,6 +765,48 @@ VENDOR_GAP_OVERLAP_BARS = 10
 # behaviour being caught lasts 12-20 hours, so two trading weeks is generous;
 # the limit exists to keep ordinary market holidays out of the evidence.
 VENDOR_GAP_LOOKBACK_ROWS = 10
+
+
+def norgate_disagreement(close: "pd.Series",
+                         prev_entry: dict | None) -> str | None:
+    """Reason to REFUSE a Norgate series in place of the published one, or None.
+
+    The same two tests the rest of the codebase applies before trusting a
+    second source, so a wrong symbol match or a moved adjustment vintage fails
+    closed instead of publishing cleanly:
+
+      * DATE SUPERSET (the WS19b rule, ``norgate_prices.select_columns``):
+        every published session inside Norgate's span must be in Norgate.
+        A missing one would otherwise reach the panel as a hole, visible only
+        as a WARN in ``interior_gaps``.
+      * PRICE AGREEMENT, as ``reinstate_vendor_gaps`` requires of a splice:
+        the last ``VENDOR_GAP_OVERLAP_BARS`` shared bars, the published last
+        bar among them, within ``VENDOR_GAP_RTOL``. The published prices are
+        rounded to four significant figures, which that tolerance absorbs;
+        the two feeds were measured 6.3e-5 apart at worst.
+    """
+    if close is None or close.empty or not prev_entry:
+        return "no Norgate series or no published series to check it against"
+    prev_dates = prev_entry.get("dates") or []
+    prev_prices = prev_entry.get("prices") or []
+    if not prev_dates or len(prev_dates) != len(prev_prices):
+        return "published series is malformed"
+    by_date = {str(pd.Timestamp(d).date()): float(v) for d, v in close.items()}
+    first = min(by_date)
+    missing = [d for d in prev_dates if d >= first and d not in by_date]
+    if missing:
+        return (f"Norgate lacks {len(missing)} published session(s), "
+                f"e.g. {', '.join(missing[:3])}")
+    published = {d: p for d, p in zip(prev_dates, prev_prices) if p is not None}
+    shared = [d for d in prev_dates if d in by_date and d in published]
+    if len(shared) < 2 or shared[-1] != prev_dates[-1]:
+        return "too little overlap with the published series to verify the scale"
+    for d in shared[-VENDOR_GAP_OVERLAP_BARS:]:
+        a, b = by_date[d], float(published[d])
+        if b == 0 or abs(a - b) / abs(b) > VENDOR_GAP_RTOL:
+            return (f"Norgate and published closes disagree on {d} "
+                    f"({b} vs {round(a, 6)})")
+    return None
 
 
 def reinstate_vendor_gaps(ticker: str,
@@ -1219,6 +1323,34 @@ def main(argv: list[str] | None = None) -> int:
               "session): " + ", ".join(f"{t} ({', '.join(d)})"
                                        for t, d in sorted(reinstated.items())))
 
+    # Third repair: Norgate, for a regression the yfinance re-fetch could not
+    # restore — the overnight retraction race, see
+    # ``resource_regressions_from_norgate``. It replaces a series only when
+    # Norgate reaches at least the published last bar, so it can never be the
+    # thing that moves a panel backwards, and only when it agrees with the
+    # published series (``norgate_disagreement``); anything it cannot restore
+    # falls through to the guard below unchanged. Each replacement is recorded
+    # in the artefact, not only in the log.
+    pending = find_regressions(out, prev_prices)
+    resourced: dict[str, str] = {}
+    if pending:
+        for tk, close in resource_regressions_from_norgate(
+                sorted(pending), now_utc).items():
+            entry = build_entry(close)
+            if entry is None or last_date(entry) < pending[tk][0]:
+                continue
+            why = norgate_disagreement(close, prev_prices.get(tk))
+            if why:
+                print(f"  NOT RE-SOURCED: {tk} — {why}")
+                continue
+            series[tk] = close
+            out[tk] = entry
+            resourced[tk] = last_date(entry)
+        if resourced:
+            print("  RE-SOURCED from Norgate (yfinance could not restore the "
+                  "published last bar): " + ", ".join(
+                      f"{t} ({d})" for t, d in sorted(resourced.items())))
+
     # Never-go-backwards. Any regression the re-fetch did not repair keeps the
     # PREVIOUSLY published series: it is the more truthful of the two, and a
     # shrinking date range under an advancing as-of stamp is precisely the
@@ -1284,6 +1416,9 @@ def main(argv: list[str] | None = None) -> int:
         "computed_at_utc": now_utc.isoformat(timespec="seconds"),
         "lookback_days": LOOKBACK_DAYS,
         "interior_gaps": holes,
+        # {ticker: last bar} for each series this run re-sourced from Norgate
+        # because yfinance withheld the published last bar. Empty on a normal run.
+        "resourced_from_norgate": resourced,
         "prices": out,
     }
     OUT_PATH.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
