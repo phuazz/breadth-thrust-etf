@@ -357,6 +357,131 @@ def test_yfinance_backfill_refuses_to_truncate_history(tmp_path, monkeypatch):
     assert (tmp_path / "exh1.de_ohlc_cache.parquet").exists()
 
 
+# ---------------------------------------------------------------------------
+# The fetch window (2026-09-19). The two rules above are right and stay; this
+# is about the window they were being applied to. A fixed ``period="2y"``
+# against the start rule makes this writer single-shot — every later window
+# starts later than the file the previous one wrote — so a cache written
+# yesterday is already unrepairable today. 17 of the 36 per-ticker caches on
+# disk were each frozen on the day they were written.
+# ---------------------------------------------------------------------------
+
+def _utc(iso: str):
+    from datetime import datetime, timezone
+    return datetime.fromisoformat(iso).replace(tzinfo=timezone.utc)
+
+
+def test_fetch_window_reaches_back_to_the_oldest_cache_in_the_batch(tmp_path,
+                                                                    monkeypatch):
+    """The fix itself: start at the earliest span the batch already holds, so
+    the span rule has nothing to refuse."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    long_idx = pd.bdate_range("2017-06-30", "2026-08-26")
+    pd.DataFrame({"Close": 100.0 + np.arange(len(long_idx)) * 0.01},
+                 index=long_idx).to_parquet(tmp_path / "eem_ohlc_cache.parquet")
+    short_idx = pd.bdate_range("2024-08-05", "2026-08-03")
+    pd.DataFrame({"Close": 50.0 + np.arange(len(short_idx)) * 0.01},
+                 index=short_idx).to_parquet(tmp_path / "arkg_ohlc_cache.parquet")
+
+    assert ehp.fallback_fetch_start(["EEM", "ARKG"],
+                                    _utc("2026-09-19")) == "2017-06-30"
+
+
+def test_a_cache_written_yesterday_is_still_repairable_today(tmp_path,
+                                                             monkeypatch):
+    """The single-shot shape, stated as the property that must not return.
+
+    Under ``period="2y"`` the window moved one day later than the file every
+    day, so the write was refused for ever. Checked against the canonical
+    rule, not a paraphrase of it.
+    """
+    from price_panel_guard import fetched_frame_is_worse
+
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    cache_idx = pd.bdate_range("2024-09-18", "2026-09-18")
+    on_disk = pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0,
+                            "Close": 100.0 + np.arange(len(cache_idx)) * 0.01},
+                           index=cache_idx)
+    on_disk.to_parquet(tmp_path / "arkg_ohlc_cache.parquet")
+
+    start = ehp.fallback_fetch_start(["ARKG"], _utc("2026-09-19"))
+    assert start == "2024-09-18", "the window must not start after the file"
+    fetched_idx = pd.bdate_range(start, "2026-09-21")
+    fetched = pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0,
+                            "Close": 100.0 + np.arange(len(fetched_idx)) * 0.01},
+                           index=fetched_idx)
+    assert fetched_frame_is_worse(fetched, on_disk) is None
+
+
+def test_fetch_window_floors_at_two_years_with_no_cache(tmp_path, monkeypatch):
+    """The CI-runner case: no cache to extend, so the 200d MA floor governs."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    assert ehp.FALLBACK_FETCH_YEARS == 2
+    assert ehp.fallback_fetch_start(["ARKG"], _utc("2026-09-19")) == "2024-09-19"
+
+
+def test_fetch_window_floor_across_a_month_boundary(tmp_path, monkeypatch):
+    """Month-boundary edge case. Python/pandas months are 1-INDEXED, so the
+    offset holds the day-of-month rather than shifting it."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    assert ehp.fallback_fetch_start([], _utc("2026-03-01")) == "2024-03-01"
+    assert ehp.fallback_fetch_start([], _utc("2026-03-31")) == "2024-03-31"
+    # 29 February has no counterpart two years earlier; DateOffset clamps.
+    assert ehp.fallback_fetch_start([], _utc("2028-02-29")) == "2026-02-28"
+
+
+def test_fetch_window_floor_across_a_year_boundary(tmp_path, monkeypatch):
+    """Year-boundary edge case."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    assert ehp.fallback_fetch_start([], _utc("2027-01-01")) == "2025-01-01"
+    assert ehp.fallback_fetch_start([], _utc("2026-12-31")) == "2024-12-31"
+
+
+def test_fetch_window_ignores_an_unreadable_or_empty_cache(tmp_path,
+                                                           monkeypatch):
+    """A corrupt file must not be able to widen the window to 1970 or crash
+    the (soft-fail) backfill step."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    (tmp_path / "arkg_ohlc_cache.parquet").write_bytes(b"not a parquet file")
+    pd.DataFrame({"Close": []}, index=pd.DatetimeIndex([])).to_parquet(
+        tmp_path / "cibr_ohlc_cache.parquet")
+    assert ehp.fallback_fetch_start(["ARKG", "CIBR"],
+                                    _utc("2026-09-19")) == "2024-09-19"
+
+
+def test_backfill_asks_the_vendor_for_the_widened_window(tmp_path, monkeypatch):
+    """End to end through the fetch: the batched call must carry `start`,
+    not a rolling `period`, or the window fix never reaches the vendor."""
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    full_idx = pd.bdate_range("2017-06-30", "2026-08-26")
+    pd.DataFrame({"Close": 100.0 + np.arange(len(full_idx)) * 0.01},
+                 index=full_idx).to_parquet(tmp_path / "eem_ohlc_cache.parquet")
+
+    seen: dict = {}
+
+    def _download(tickers, **kwargs):
+        seen.update(kwargs)
+        idx = pd.bdate_range(kwargs["start"], "2026-09-18")
+        frame = pd.DataFrame(
+            {("EEM", "Close"): 100.0 + np.arange(len(idx)) * 0.01,
+             ("SPY", "Close"): 400.0 + np.arange(len(idx)) * 0.01},
+            index=idx)
+        frame.columns = pd.MultiIndex.from_tuples(frame.columns)
+        return frame
+
+    monkeypatch.setitem(sys.modules, "yfinance",
+                        type("_YF", (), {"download": staticmethod(_download)}))
+    got = ehp.fetch_missing_from_yfinance(["EEM", "SPY"])
+
+    assert "period" not in seen
+    assert seen["start"] == "2017-06-30"
+    on_disk = pd.read_parquet(tmp_path / "eem_ohlc_cache.parquet")["Close"].dropna()
+    assert str(on_disk.index[0].date()) == "2017-06-30", "history was truncated"
+    assert str(on_disk.index[-1].date()) == "2026-09-18", (
+        "the widened window must let a healthy refetch ADVANCE the cache")
+    assert str(got["EEM"].index[-1].date()) == "2026-09-18"
+
+
 def test_the_live_panel_has_no_exh3_ghost():
     """Regression pin on the committed artefact: the industrials line is
     published as EXH4.DE and the food-and-beverage ticker is absent."""

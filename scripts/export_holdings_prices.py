@@ -159,6 +159,11 @@ DEFAULT_OHLC_START = "2015-01-01"
 # would quietly strip a column set that nothing rebuilds.
 OHLC_COLUMNS = ["Open", "High", "Low", "Close"]
 
+# Floor on the yfinance fallback's fetch window, in years. Two years
+# comfortably covers 200 trading sessions plus the 1Y export window, which is
+# what populates the 200d MA for a ticker with no cache at all.
+FALLBACK_FETCH_YEARS = 2
+
 # Exit code for a cache refresh that finished with at least one engine-facing
 # series still unusable. Distinct from 1 (transient vendor error) and from
 # REGRESSION_EXIT_CODE so refresh_all can say which of the three happened.
@@ -423,16 +428,69 @@ def build_entry(close: "pd.Series | None") -> dict | None:
     }
 
 
+def fallback_fetch_start(tickers: list[str],
+                         now_utc: datetime | None = None) -> str:
+    """Start date for the fallback fetch: never later than a cache on disk.
+
+    THE SINGLE-SHOT WRITER, found 2026-09-19. This function used to be a
+    literal ``period="2y"``. Since the span rule landed on 2026-08-19
+    (``price_panel_guard.fetched_frame_is_worse``: refuse a fetch that starts
+    later than the file it would replace), a rolling two-year window makes
+    this writer single-shot — every later window starts later than the file
+    the previous one wrote, so the write is refused FOR EVER. Tested against
+    the real guard: a cache written yesterday is already unrepairable today
+    ("the fetch starts 2024-09-19 but the cache already starts 2024-09-18").
+
+    The evidence is on disk. Of 36 per-ticker OHLC caches, the 19 the refresh
+    repairs at step 2b are current; the other 17 are each frozen on the day
+    they were written — five on 2026-08-03/04, three on 2026-08-14/15, five on
+    2026-08-25/26, one on 2026-08-27. Nothing said so, because a refetch that
+    never triggers never reaches the refusal.
+
+    Both guards are right and both stay. This removes the reason they fire:
+    start at the earliest span any cache in this batch already holds, so a
+    refetch EXTENDS a file rather than being refused by it. A ticker with no
+    cache (the CI-runner case) keeps the two-year floor.
+
+    Dates are computed with pandas Timestamps and DateOffset throughout —
+    months are 1-INDEXED here, as in Python's datetime, not 0-indexed as in
+    JavaScript. ``DateOffset(years=2)`` is calendar arithmetic, so it holds
+    the day-of-month across month and year boundaries and clamps 29 February
+    to the 28th in a non-leap year.
+    """
+    now = now_utc or datetime.now(timezone.utc)
+    floor = pd.Timestamp(now.date()) - pd.DateOffset(years=FALLBACK_FETCH_YEARS)
+    starts = [pd.Timestamp(floor)]
+    for tk in tickers:
+        path = DATA_DIR / f"{tk.lower()}_ohlc_cache.parquet"
+        if not path.exists():
+            continue
+        try:
+            df = pd.read_parquet(path)
+        except Exception:
+            continue
+        if not len(df):
+            continue
+        try:
+            starts.append(pd.Timestamp(df.index.min()))
+        except Exception:
+            continue
+    return min(starts).strftime("%Y-%m-%d")
+
+
 def fetch_missing_from_yfinance(tickers: list[str],
                                 gaps_out: dict[str, list[str]] | None = None
                                 ) -> dict[str, pd.Series]:
     """Last-resort fetch for book-critical tickers whose local caches are
-    absent (the CI-runner case — those caches are gitignored). Downloads ~2
-    calendar years of daily closes in one batched call so the 200d MA is
-    populated, writes each back to its ``{ticker}_ohlc_cache.parquet`` so
-    subsequent runs are cheap, and returns {ticker: Close series}. Any
-    failure degrades gracefully to an empty mapping — the caller then simply
-    reports the ticker as skipped rather than crashing the (soft-fail) step.
+    absent (the CI-runner case — those caches are gitignored) or stale.
+    Downloads daily closes in one batched call over the window
+    ``fallback_fetch_start`` returns — at least 2 calendar years so the 200d
+    MA is populated, and further back where a cache in the batch already
+    holds more, so the span rule cannot refuse the write. Writes each back to
+    its ``{ticker}_ohlc_cache.parquet`` so subsequent runs are cheap, and
+    returns {ticker: Close series}. Any failure degrades gracefully to an
+    empty mapping — the caller then simply reports the ticker as skipped
+    rather than crashing the (soft-fail) step.
 
     ``gaps_out``, when supplied, is filled with {ticker: [ISO dates]} for every
     session the VENDOR ITSELF returned empty — the date is in the response's
@@ -449,15 +507,19 @@ def fetch_missing_from_yfinance(tickers: list[str],
     except Exception as exc:  # pragma: no cover - env without yfinance
         print(f"  WARN: yfinance unavailable, cannot backfill {tickers}: {exc}")
         return {}
-    # ~2y of calendar days comfortably covers 200 trading sessions + the 1Y
-    # window. auto_adjust=True matches the convention used by the Strategy B/C
+    # The window starts no later than the earliest cache this batch would
+    # write over, so the span rule cannot refuse the write — see
+    # ``fallback_fetch_start``. Two years is the floor, which comfortably
+    # covers 200 trading sessions + the 1Y window for a ticker with no cache.
+    # auto_adjust=True matches the convention used by the Strategy B/C
     # rotations and the EEM loader (adjusted closes).
+    start = fallback_fetch_start(tickers)
     print(f"  Backfilling {len(tickers)} ticker(s) from yfinance "
-          f"(yfinance {getattr(yf, '__version__', 'unknown')}): "
+          f"(yfinance {getattr(yf, '__version__', 'unknown')}, from {start}): "
           f"{', '.join(tickers)}")
     out: dict[str, pd.Series] = {}
     try:
-        raw = yf.download(tickers, period="2y", auto_adjust=True,
+        raw = yf.download(tickers, start=start, auto_adjust=True,
                           progress=False, threads=True, group_by="ticker")
     except Exception as exc:
         print(f"  WARN: yfinance batch download failed: {exc}")
@@ -536,12 +598,15 @@ def fetch_missing_from_yfinance(tickers: list[str],
                     out[tk] = on_disk
                     continue
                 # ... and never overwrite one that already starts EARLIER.
-                # The 2y fetch above is always fresh at the tail, so the end
-                # rule cannot catch it; on 2026-08-13/14 it overwrote the five
-                # sleeve-D Xetra caches' 2017 history, and the next cold
-                # rebuild collapsed onto the surviving two years (blend Sharpe
-                # +1.99). The fetched series still feeds the export — freshest
-                # wins for the panel — only the FILE keeps its longer span.
+                # The fetch above is always fresh at the tail, so the end
+                # rule cannot catch it; on 2026-08-13/14 the then-fixed 2y
+                # window overwrote the five sleeve-D Xetra caches' 2017
+                # history, and the next cold rebuild collapsed onto the
+                # surviving two years (blend Sharpe +1.99). The fetched series
+                # still feeds the export — freshest wins for the panel — only
+                # the FILE keeps its longer span. This rule stays exactly as
+                # it is; ``fallback_fetch_start`` removes the reason it fired
+                # on a healthy refetch (2026-09-19), it does not soften it.
                 # Canonical rule: price_panel_guard.fetched_frame_is_worse,
                 # applied at every OHLC cache write site.
                 if on_disk is not None and on_disk.index[0] < ser.index[0]:
