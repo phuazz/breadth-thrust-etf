@@ -2,7 +2,7 @@
   "etf": "EXH1",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251954/ishares-stoxx-europe-600-oil-gas-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXH1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-20T01:01:38.912616+00:00",
+  "fetched_at_utc": "2026-09-23T06:47:37.115235+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-09-18",
   "n_target_fridays": 455,
@@ -30,15 +30,11 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-09-18",
-      "fallback_date": "2026-09-17",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
+  "roster_refusals": [],
+  "walk_errors": [],
   "edgar_used": [],
   "endpoint_unavailable": [],
   "endpoint_health": {
@@ -52,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-17",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-09-18",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -12655,8 +12651,8 @@
       ]
     },
     "2026-09-18": {
-      "actual_date": "2026-09-17",
-      "n_tickers": 26,
+      "actual_date": "2026-09-18",
+      "n_tickers": 27,
       "tickers": [
         "SHELL.AS",
         "TTE.PA",
@@ -12664,8 +12660,8 @@
         "BP.L",
         "ENI.MI",
         "REP.MC",
-        "EQNR.OL",
         "VWS.CO",
+        "EQNR.OL",
         "PKN.WA",
         "NESTE.HE",
         "SRG.MI",
@@ -12679,9 +12675,10 @@
         "NDX1.DE",
         "SBMO.AS",
         "VAR.OL",
+        "MOH.AT",
+        "VK.PA",
         "TE.PA",
         "ENG.MC",
-        "VK.PA",
         "TGS.OL",
         "VPK.AS"
       ]

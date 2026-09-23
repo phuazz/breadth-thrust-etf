@@ -2,7 +2,7 @@
   "etf": "IUHC",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/280507/ishares-sp-500-health-care-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUHC_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-19T07:11:33.741597+00:00",
+  "fetched_at_utc": "2026-09-23T06:37:39.837118+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-09-18",
   "n_target_fridays": 455,
@@ -30,15 +30,11 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-09-18",
-      "fallback_date": "2026-09-17",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
+  "roster_refusals": [],
+  "walk_errors": [],
   "edgar_used": [],
   "endpoint_unavailable": [],
   "endpoint_health": {
@@ -52,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-17",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-09-18",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -31111,8 +31107,8 @@
       ]
     },
     "2026-09-18": {
-      "actual_date": "2026-09-17",
-      "n_tickers": 60,
+      "actual_date": "2026-09-18",
+      "n_tickers": 61,
       "tickers": [
         "LLY",
         "JNJ",
@@ -31126,8 +31122,8 @@
         "PFE",
         "ISRG",
         "DHR",
-        "VRTX",
         "BMY",
+        "VRTX",
         "MDT",
         "CVS",
         "MCK",
@@ -31143,15 +31139,16 @@
         "EW",
         "BDX",
         "HUM",
-        "IQV",
         "A",
+        "IQV",
         "WAT",
         "IDXX",
         "VEEV",
+        "ILMN",
         "DXCM",
         "RMD",
-        "BIIB",
         "CNC",
+        "BIIB",
         "ZTS",
         "GEHC",
         "MTD",
@@ -31169,8 +31166,8 @@
         "TECH",
         "COO",
         "ALGN",
-        "UHS",
         "PODD",
+        "UHS",
         "HSIC",
         "DVA",
         "HOLX"

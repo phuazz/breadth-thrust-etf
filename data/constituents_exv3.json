@@ -2,7 +2,7 @@
   "etf": "EXV3",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251961/ishares-stoxx-europe-600-technology-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV3_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-20T01:02:33.380356+00:00",
+  "fetched_at_utc": "2026-09-23T06:48:32.969504+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-09-18",
   "n_target_fridays": 455,
@@ -30,15 +30,11 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-09-18",
-      "fallback_date": "2026-09-17",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
+  "roster_refusals": [],
+  "walk_errors": [],
   "edgar_used": [],
   "endpoint_unavailable": [],
   "endpoint_health": {
@@ -52,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-17",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-09-18",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -17293,8 +17289,8 @@
       ]
     },
     "2026-09-18": {
-      "actual_date": "2026-09-17",
-      "n_tickers": 34,
+      "actual_date": "2026-09-18",
+      "n_tickers": 35,
       "tickers": [
         "ASML.AS",
         "SAP.DE",
@@ -17304,31 +17300,32 @@
         "ASM.AS",
         "STMMI.MI",
         "AMS.MC",
-        "CAP.PA",
         "HEXA-B.ST",
+        "CAP.PA",
         "DSY.PA",
         "BESI.AS",
         "LOGN.SW",
         "SGE.L",
         "IDR.MC",
-        "G24.DE",
         "TPRO.MI",
+        "G24.DE",
         "AUTO.L",
-        "MYCR.ST",
         "ATS.VI",
-        "SOI.PA",
+        "MYCR.ST",
         "CCC.L",
-        "NEM.DE",
+        "SOI.PA",
         "AIXA.DE",
         "LAGR-B.ST",
-        "VEND.OL",
         "TEMN.SW",
+        "NEM.DE",
+        "VEND.OL",
         "OCTV-SDB.ST",
         "NOD.OL",
+        "SCT.L",
         "ACP.WA",
         "COTN.SW",
-        "BC8.DE",
         "REY.MI",
+        "BC8.DE",
         "SOP.PA"
       ]
     }
