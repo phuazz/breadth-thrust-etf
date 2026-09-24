@@ -127,6 +127,28 @@ def read_cache_tail_heal(cache_path: Path) -> dict | None:
     return heal
 
 
+def read_cache_tail_from_norgate(cache_path: Path) -> dict | None:
+    """The Norgate tail re-source record beside a cache, or None.
+
+    Same contract as ``read_cache_tail_heal``: a cache hit restores it rather
+    than publishing a panel whose Norgate cells are unexplained, and a record
+    missing its minimum shape is treated as absent. Never raises.
+    """
+    path = sidecar_path(cache_path)
+    if not path.exists():
+        return None
+    try:
+        rec = json.loads(path.read_text(encoding="utf-8")).get("tail_from_norgate")
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return None
+    if not isinstance(rec, dict):
+        return None
+    for field in ("filled", "declined"):
+        if not isinstance(rec.get(field), dict):
+            return None
+    return rec
+
+
 def write_cache_source(cache_path: Path, source: str,
                        report: dict | None = None) -> Path:
     """Record beside the cache which source built it and, for Norgate, which
@@ -146,6 +168,11 @@ def write_cache_source(cache_path: Path, source: str,
         # than guessed at.
         if report.get("tail_heal"):
             payload["tail_heal"] = report["tail_heal"]
+        # Trailing cells of kept US columns taken from Norgate (2026-09-24,
+        # compute_breadth.resource_tail_from_norgate): the one place a
+        # yfinance column carries Norgate cells, so it is named.
+        if report.get("tail_from_norgate"):
+            payload["tail_from_norgate"] = report["tail_from_norgate"]
         # A column whose CONSTRUCTION differs from the vendor download it came
         # from (WS21, 2026-09-19). The source fields above answer "which feed",
         # which is not the same question: sleeve C's Bitcoin line under

@@ -1015,6 +1015,143 @@ def _report_tail_verification(v: dict | None) -> None:
                   f"refresh guard will judge it.", flush=True)
 
 
+# ---------------------------------------------------------------------------
+# Norgate tail re-source for kept US columns (2026-09-24)
+# ---------------------------------------------------------------------------
+#
+# THE GAP. On a Norgate run the panels take a column from Norgate only when
+# Norgate's dates are a SUPERSET of the incumbent's (WS19b, whole column or
+# nothing). A US line whose yfinance series reaches back past its US listing
+# (a predecessor or home-market history Yahoo splices on) can never pass that
+# test, so it stays on yfinance for good. On 2026-09-23 IUMS carried four such
+# lines - LIN (Norgate from 2018-10-31), CRH (2023-09-25), SW (2024-07-08),
+# AMCR (2019-06-11). The 06:43 UTC post-fill run fell inside Yahoo's overnight
+# retraction, all four answered single-ticker without the 2026-09-22 bar, the
+# tail check dropped the row as a placeholder, and sleeve A went to HOLD on a
+# session Norgate had been carrying for all four since the night before.
+#
+# THE FIX IS A TAIL CELL, NOT A COLUMN. The trailing cells a kept column lacks
+# are taken from Norgate, and only when:
+#
+#   * the run asked for 'auto' (Norgate primary) - never a yfinance run;
+#   * the name is on the current roster and is a plain US listing
+#     (price_source.plain_us_listing). A '.L'/'.PA'/'.DE' name is never
+#     touched: Norgate does not carry it, and a resolved-by-accident symbol is
+#     exactly the wrong-match case the guard exists for;
+#   * the cells are TRAILING: after the incumbent's last observation, on rows
+#     the frame already has. No interior gap is filled and no row is added;
+#   * the trailing run is at most NORGATE_TAIL_MAX_SESSIONS rows. A column
+#     yfinance stopped serving weeks ago is not a vendor lag and is left to
+#     the guards that exist for it;
+#   * the last NORGATE_TAIL_OVERLAP_BARS shared closes, the incumbent's last
+#     bar among them, agree within NORGATE_TAIL_RTOL - the agreement test
+#     fb5122d6 applies before re-sourcing a regression. A moved adjustment
+#     vintage (a dividend going ex on the tail session re-scales Norgate's
+#     TOTALRETURN history) fails it and the cell stays blank: fail closed.
+#
+# Under those conditions the junction invents no return, which is why WS19b's
+# ban on mid-column basis changes does not bite: that rule exists because a
+# junction between two sources at DIFFERENT levels fabricates a day move, and
+# this one is only taken where the levels were just measured equal. The
+# 100% coverage floor in _rank() and the tail verification's verdict rules are
+# not touched; a filled cell is a real close, and anything this declines is
+# settled downstream exactly as before.
+NORGATE_TAIL_MAX_SESSIONS = 5
+# Mirrors export_holdings_prices.VENDOR_GAP_RTOL / VENDOR_GAP_OVERLAP_BARS
+# (pinned equal by test_norgate_tail_resource.py).
+NORGATE_TAIL_RTOL = 5e-4
+NORGATE_TAIL_OVERLAP_BARS = 10
+
+
+def resource_tail_from_norgate(
+    close: pd.DataFrame,
+    norgate: pd.DataFrame | None,
+    candidates,
+    roster,
+    through=None,
+    max_sessions: int = NORGATE_TAIL_MAX_SESSIONS,
+    rtol: float = NORGATE_TAIL_RTOL,
+    overlap: int = NORGATE_TAIL_OVERLAP_BARS,
+) -> tuple[pd.DataFrame, dict | None]:
+    """Fill the trailing cells of kept US columns from Norgate, guarded.
+
+    ``candidates`` are the columns Norgate SERVED but WS19b kept on the
+    incumbent. Returns ``(frame, record)``; the frame is a copy when anything
+    was filled, and the record is None when there was nothing to consider.
+    Pure: no fetch, no clock.
+    """
+    if norgate is None or norgate.empty or not roster:
+        return close, None
+    on_roster = set(roster)
+    names = [t for t in candidates
+             if t in on_roster and t in close.columns and t in norgate.columns
+             and price_source_mod.plain_us_listing(t)]
+    if not names:
+        return close, None
+    cap = pd.Timestamp(through) if through is not None else None
+    out = close
+    filled: dict[str, dict] = {}
+    declined: dict[str, str] = {}
+    for t in names:
+        inc = close[t].dropna()
+        ng = norgate[t].dropna()
+        if inc.empty or ng.empty:
+            declined[t] = "no incumbent or no Norgate series"
+            continue
+        last_inc = inc.index.max()
+        trailing = close.index[close.index > last_inc]
+        if cap is not None:
+            trailing = trailing[trailing <= cap]
+        if not len(trailing):
+            continue                       # nothing missing at the tail
+        # The contiguous run from the incumbent's last bar only: a later
+        # session Norgate carries past one it lacks would leave a hole
+        # behind the fill, which is an interior gap by another name.
+        run = []
+        for ts in trailing:
+            if ts not in ng.index:
+                break
+            run.append(ts)
+        want = pd.DatetimeIndex(run)
+        if want.empty:
+            declined[t] = (f"Norgate does not carry the first trailing "
+                           f"session {trailing[0].date()} either")
+            continue
+        if len(trailing) > max_sessions:
+            declined[t] = (f"{len(trailing)} trailing session(s) missing, more "
+                           f"than {max_sessions}: not a vendor lag")
+            continue
+        shared = inc.index.intersection(ng.index)
+        if not len(shared) or shared.max() != last_inc:
+            declined[t] = (f"Norgate lacks the incumbent's last bar "
+                           f"{last_inc.date()}; scale unverified")
+            continue
+        check = shared[-overlap:]
+        if len(check) < overlap:
+            declined[t] = (f"only {len(check)} shared bar(s), {overlap} "
+                           f"required to verify the scale")
+            continue
+        rel = (ng.loc[check] / inc.loc[check] - 1.0).abs()
+        worst = float(rel.max())
+        if not math.isfinite(worst) or worst > rtol:
+            declined[t] = (f"Norgate and the incumbent disagree by {worst:.2e} "
+                           f"on the last {overlap} shared closes (limit "
+                           f"{rtol:.0e}); two bases, not spliced")
+            continue
+        if out is close:
+            out = close.copy()
+        out.loc[want, t] = ng.loc[want].astype(float).values
+        filled[t] = {"dates": [str(d.date()) for d in want],
+                     "overlap_bars": int(len(check)),
+                     "max_rel_diff": worst}
+    if not filled and not declined:
+        return close, None
+    return out, {"filled": filled, "declined": declined,
+                 "rule": (f"trailing <= {max_sessions} session(s), plain US "
+                          f"listing on the roster, last {overlap} shared "
+                          f"closes within {rtol:.0e}")}
+
+
 def download_prices(
     tickers: list[str],
     start: str,
@@ -1084,6 +1221,9 @@ def download_prices(
                         **heal, "from_cache": True,
                         "reread_at_utc": datetime.now(timezone.utc).isoformat(
                             timespec="seconds")}
+                resourced = price_source_mod.read_cache_tail_from_norgate(cache_path)
+                if resourced is not None:
+                    out.attrs["tail_from_norgate"] = {**resourced, "from_cache": True}
                 return out
         except Exception as e:
             print(f"  Cache read failed ({e}); re-downloading.", flush=True)
@@ -1223,6 +1363,9 @@ def download_prices(
     # Default is 'yfinance', i.e. deployed behaviour byte for byte. Nothing
     # adopts until WS19's H1 is adjudicated.
     norgate_columns: list[str] = []   # taken whole from Norgate: never re-touched
+    norgate_kept: list[str] = []      # served, not a date superset: incumbent
+    norgate_unresolved: list[str] = []
+    norgate_frame: pd.DataFrame | None = None
     if price_source in ("norgate", "auto"):
         import norgate_prices
         if not norgate_prices.available():
@@ -1235,6 +1378,7 @@ def download_prices(
         else:
             ng, served, unserved = norgate_prices.fetch_closes(
                 list(tickers), start, end)
+            norgate_unresolved = list(unserved)
             if served:
                 ng = ng.reindex(close.index.union(ng.index))
                 close = close.reindex(ng.index)
@@ -1271,6 +1415,8 @@ def download_prices(
                     else:
                         kept.append(t)
                 norgate_columns = list(replaced)
+                norgate_kept = list(kept)
+                norgate_frame = ng
                 if price_source == "norgate":
                     for t in unserved:
                         if t in close.columns:
@@ -1290,6 +1436,24 @@ def download_prices(
     verification = None
     if required_through is not None:
         close = close.loc[:pd.Timestamp(required_through)]
+    # Norgate tail re-source for kept US columns - the block above
+    # resource_tail_from_norgate. Before the tail verification, so a row it
+    # completes is simply a priced row there; after the WS19b selection and
+    # the cell merge, so nothing later re-splices it. 'auto' only.
+    tail_from_norgate = None
+    if price_source == "auto" and roster and norgate_kept:
+        close, tail_from_norgate = resource_tail_from_norgate(
+            close, norgate_frame, norgate_kept, roster,
+            through=min(pd.Timestamp(required_through) if required_through
+                        is not None else pd.Timestamp.max,
+                        pd.Timestamp(end) - pd.Timedelta(days=1)))
+        if tail_from_norgate:
+            for t, f in tail_from_norgate["filled"].items():
+                print(f"  Norgate tail re-source {t}: {', '.join(f['dates'])} "
+                      f"(last {f['overlap_bars']} shared closes within "
+                      f"{f['max_rel_diff']:.1e})", flush=True)
+            for t, why in tail_from_norgate["declined"].items():
+                print(f"  Norgate tail re-source {t} DECLINED: {why}", flush=True)
     if roster and tail_probe and price_source != "norgate":
         close, missing_recovery = vendor_tail.recover_missing_columns(
             close, roster, exclude=norgate_columns,
@@ -1320,12 +1484,18 @@ def download_prices(
         {"source": price_source, "columns_from_norgate": list(norgate_columns)},
         panel=cache_path.stem)
     close.to_parquet(cache_path)
+    # kept/unresolved were omitted until 2026-09-24, so every panel sidecar
+    # recorded "0 kept" while the log reported the columns WS19b kept.
     price_source_mod.write_cache_source(cache_path, price_source,
                                         {"replaced": norgate_columns,
-                                         "tail_heal": verification})
+                                         "kept": norgate_kept,
+                                         "unresolved": norgate_unresolved,
+                                         "tail_heal": verification,
+                                         "tail_from_norgate": tail_from_norgate})
     # Carried on the returned frame for main() to record in the panel JSON;
     # the parquet does not need it.
     close.attrs["tail_verification"] = verification
+    close.attrs["tail_from_norgate"] = tail_from_norgate
     return close
 
 
@@ -1445,6 +1615,7 @@ def main() -> int:
         required_through=panel_end, calendar=cal_name,
         tail_probe=os.environ.get("BTE_TAIL_PROBE", "1").strip() != "0")
     verification = getattr(prices, "attrs", {}).get("tail_verification")
+    tail_from_norgate = getattr(prices, "attrs", {}).get("tail_from_norgate")
     n_with_any_data = int((prices.notna().any(axis=0)).sum())
     print(f"  Prices shape: {prices.shape}, tickers with any data: "
           f"{n_with_any_data}/{len(universe)}")
@@ -1784,6 +1955,9 @@ def main() -> int:
         # batch defect leaves the panel full-length and this is the only
         # record that it happened.
         "tail_verification": verification,
+        # Trailing cells of kept US columns taken from Norgate, and what was
+        # declined and why (resource_tail_from_norgate). None when not asked.
+        "tail_from_norgate": tail_from_norgate,
         "current_capture": describe_capture(
             consts, prices, panel_end, df.index[-1].strftime("%Y-%m-%d"),
             args.price_source),
