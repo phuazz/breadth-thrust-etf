@@ -307,3 +307,133 @@ def test_download_prices_auto_declined_falls_through_to_the_placeholder_drop(
     assert out.index.max() == idx[-2]
     assert set(out.attrs["tail_from_norgate"]["declined"]) == set(KEPT)
     assert out.attrs["tail_verification"]["rows"][0]["verdict"] == "unserved_placeholder"
+
+
+# ---------------------------------------------------------------------------
+# Red-team follow-ups (2026-09-24): guards that had no failing test
+# ---------------------------------------------------------------------------
+def test_the_agreement_window_includes_the_incumbent_last_bar():
+    """A disagreement ONLY on the incumbent's last bar must decline: the
+    window may not slide off the bar the fill joins onto."""
+    inc, ng, idx = _frames()
+    ng.at[idx[-2], "LIN"] = ng.at[idx[-2], "LIN"] * 1.01
+    out, rec = cb.resource_tail_from_norgate(inc, ng, ["LIN"], ROSTER)
+    assert pd.isna(out.at[idx[-1], "LIN"])
+    assert "disagree" in rec["declined"]["LIN"]
+
+
+def test_a_bad_norgate_print_on_the_filled_day_is_declined():
+    """The agreement test reads only closes before the fill; the step check
+    is the one test of the filled print itself."""
+    inc, ng, idx = _frames()
+    ng.at[idx[-1], "LIN"] = ng.at[idx[-1], "LIN"] * 1.30
+    out, rec = cb.resource_tail_from_norgate(inc, ng, ["LIN"], ROSTER)
+    assert pd.isna(out.at[idx[-1], "LIN"])
+    assert "steps" in rec["declined"]["LIN"]
+
+
+def test_a_zero_or_non_finite_print_is_declined():
+    inc, ng, idx = _frames()
+    ng.at[idx[-1], "LIN"] = 0.0
+    out, rec = cb.resource_tail_from_norgate(inc, ng, ["LIN"], ROSTER)
+    assert pd.isna(out.at[idx[-1], "LIN"])
+    assert "LIN" in rec["declined"]
+
+
+def test_download_prices_caps_the_fill_at_the_day_before_end(tmp_path, monkeypatch):
+    """Norgate's end is inclusive and yfinance's exclusive: a Norgate row ON
+    the end date must not be filled into a kept column (tail probe off, so
+    the later end-1 slice cannot hide a missing cap)."""
+    inc, ng, idx = _frames()
+    nxt = idx[-1] + pd.offsets.BDay(1)
+    ng_ext = ng.reindex(ng.index.union([nxt]))
+    for t in KEPT:
+        ng_ext.at[nxt, t] = ng.at[idx[-1], t] + 1.0
+    inc_ng = inc.reindex(inc.index.union([nxt]))
+    for t in NG_ROSTER:
+        inc_ng.at[nxt, t] = inc.at[idx[-1], t] + 1.0
+    cache = tmp_path / "px.parquet"
+    monkeypatch.setattr(cb, "yf", _yf(inc))
+    _stub_norgate(monkeypatch, inc_ng, ng_ext)
+    out = cb.download_prices(ROSTER, str(idx[0].date()), str(nxt.date()),
+                             cache_path=cache, roster=ROSTER,
+                             price_source="auto", tail_probe=False)
+    assert out.loc[idx[-1], KEPT].notna().all()
+    assert out.loc[nxt, KEPT].isna().all(), "the end date is not a completed session"
+
+
+def test_the_record_survives_the_next_run_until_yfinance_serves_the_date(
+        tmp_path, monkeypatch):
+    """Red-team S2-1. Run 1 fills D from Norgate. Run 2: yfinance serves D+1
+    but still withholds D, the cell merge carries the Norgate close forward
+    as an interior cell, and the record must still name it. Run 3: yfinance
+    serves D, and the record lets it go."""
+    import price_source
+    inc, ng, idx = _frames()
+    d = idx[-1]
+    cache = tmp_path / "prices_cache_iums.parquet"
+    monkeypatch.setattr(cb, "_single_ticker_closes", _unserving(inc))
+
+    # Run 1
+    monkeypatch.setattr(cb, "yf", _yf(inc))
+    _stub_norgate(monkeypatch, inc, ng)
+    start, end = _span(idx)
+    cb.download_prices(ROSTER, start, end, cache_path=cache, roster=ROSTER,
+                       price_source="auto")
+    norgate_d = pd.read_parquet(cache).at[d, "LIN"]
+    assert norgate_d == ng.at[d, "LIN"]
+
+    # Run 2: one more session, yfinance serves it but still not D
+    nxt = d + pd.offsets.BDay(1)
+    inc2 = inc.reindex(inc.index.union([nxt]))
+    ng2 = ng.reindex(ng.index.union([nxt]))
+    for t in ROSTER:
+        inc2.at[nxt, t] = 500.0 + ROSTER.index(t)
+    for t in KEPT:
+        ng2.at[nxt, t] = inc2.at[nxt, t]
+    monkeypatch.setattr(cb, "yf", _yf(inc2))
+    _stub_norgate(monkeypatch, inc2, ng2)
+    monkeypatch.setattr(cb, "_single_ticker_closes", _unserving(inc2))
+    end2 = str((nxt + pd.Timedelta(days=3)).date())
+    out2 = cb.download_prices(ROSTER, start, end2, cache_path=cache,
+                              roster=ROSTER, price_source="auto")
+    assert out2.at[d, "LIN"] == norgate_d, "the merge keeps the Norgate close"
+    rec2 = out2.attrs["tail_from_norgate"]
+    assert rec2["carried"]["LIN"] == [str(d.date())]
+    assert price_source.read_cache_tail_from_norgate(cache)["carried"]["LIN"] == [str(d.date())]
+
+    # Run 3: yfinance now serves D
+    inc3 = inc2.copy()
+    for t in KEPT:
+        inc3.at[d, t] = ng.at[d, t]
+    monkeypatch.setattr(cb, "yf", _yf(inc3))
+    _stub_norgate(monkeypatch, inc3, ng2)
+    out3 = cb.download_prices(ROSTER, start, end2, cache_path=cache,
+                              roster=ROSTER, price_source="auto")
+    assert out3.attrs["tail_from_norgate"] is None
+
+
+def test_price_revisions_counts_a_norgate_cell_change_as_a_basis_change():
+    """Red-team S2-2. yfinance later serving a Norgate-filled cell at a
+    slightly different close is a feed switch at that cell, not a revision.
+    Without the sidecar record the same change IS counted as a revision,
+    which is what the record is for."""
+    import price_revisions as pr
+    idx = pd.bdate_range(start="2026-09-14", periods=7)
+    old = pd.DataFrame({"LIN": np.arange(7, dtype=float) + 460.0}, index=idx)
+    new = old.copy()
+    new.iloc[-1, 0] = old.iloc[-1, 0] * (1 + 1e-5)
+    d = str(idx[-1].date())
+    named = {"source": "auto", "columns_from_norgate": [],
+             "columns_kept_on_incumbent": ["LIN"],
+             "tail_from_norgate": {"filled": {"LIN": {"dates": [d]}}, "declined": {}}}
+    bare = {k: v for k, v in named.items() if k != "tail_from_norgate"}
+    with_rec = pr.diff_frames(old, new, old_sidecar=named, new_sidecar=bare)
+    assert with_rec["basis_changes"] == 1 and with_rec["revisions"] == 0
+    carried = {**bare, "tail_from_norgate": {"filled": {}, "declined": {},
+                                             "carried": {"LIN": [d]}}}
+    assert pr.diff_frames(old, new, old_sidecar=carried,
+                          new_sidecar=bare)["basis_changes"] == 1
+    without = pr.diff_frames(old, new, old_sidecar=bare, new_sidecar=bare)
+    assert without["revisions"] + without["adjustments"] + without["ambiguous"] == 1
+    assert without["basis_changes"] == 0

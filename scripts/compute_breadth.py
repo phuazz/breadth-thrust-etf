@@ -1039,7 +1039,11 @@ def _report_tail_verification(v: dict | None) -> None:
 #     touched: Norgate does not carry it, and a resolved-by-accident symbol is
 #     exactly the wrong-match case the guard exists for;
 #   * the cells are TRAILING: after the incumbent's last observation, on rows
-#     the frame already has. No interior gap is filled and no row is added;
+#     the frame already has. No interior gap is filled and this step adds no
+#     row. Those rows exist because the WS19b block unions every Norgate
+#     date into the frame, so on a day yfinance withholds a whole session a
+#     row can end up made entirely of Norgate closes - which is what 'auto'
+#     (Norgate primary) means, and is disclosed rather than prevented;
 #   * the trailing run is at most NORGATE_TAIL_MAX_SESSIONS rows. A column
 #     yfinance stopped serving weeks ago is not a vendor lag and is left to
 #     the guards that exist for it;
@@ -1047,7 +1051,15 @@ def _report_tail_verification(v: dict | None) -> None:
 #     bar among them, agree within NORGATE_TAIL_RTOL - the agreement test
 #     fb5122d6 applies before re-sourcing a regression. A moved adjustment
 #     vintage (a dividend going ex on the tail session re-scales Norgate's
-#     TOTALRETURN history) fails it and the cell stays blank: fail closed.
+#     TOTALRETURN history) fails it and the cell stays blank: fail closed;
+#   * no filled close steps VENDOR_STEP_LOG_RETURN or more from the close
+#     before it. The agreement test reads only closes BEFORE the fill, so
+#     this is the one check on the filled print itself (red-team S3): a bad
+#     Norgate bar is declined rather than published.
+#
+# The fill runs before the yfinance single-ticker heal, so Norgate wins a
+# cell Yahoo would also have answered. On a Norgate run that is the declared
+# primary; the step check above bounds the case where the primary is wrong.
 #
 # Under those conditions the junction invents no return, which is why WS19b's
 # ban on mid-column basis changes does not bite: that rule exists because a
@@ -1138,6 +1150,13 @@ def resource_tail_from_norgate(
                            f"on the last {overlap} shared closes (limit "
                            f"{rtol:.0e}); two bases, not spliced")
             continue
+        path = pd.concat([inc.iloc[-1:], ng.loc[want]]).astype(float)
+        steps = np.log(path / path.shift(1)).dropna().abs()
+        if len(steps) and (not np.isfinite(steps).all()
+                           or float(steps.max()) >= VENDOR_STEP_LOG_RETURN):
+            declined[t] = (f"a filled close steps |ln r| = {float(steps.max()):.3f} "
+                           f">= {VENDOR_STEP_LOG_RETURN} from the close before it")
+            continue
         if out is close:
             out = close.copy()
         out.loc[want, t] = ng.loc[want].astype(float).values
@@ -1150,6 +1169,46 @@ def resource_tail_from_norgate(
                  "rule": (f"trailing <= {max_sessions} session(s), plain US "
                           f"listing on the roster, last {overlap} shared "
                           f"closes within {rtol:.0e}")}
+
+
+def _carry_norgate_cells(fresh: dict | None, prior: dict | None,
+                         close: pd.DataFrame, yf_served: pd.DataFrame,
+                         norgate_columns) -> dict | None:
+    """This run's Norgate tail record plus the prior run's Norgate cells that
+    are still in the cache and still unserved by yfinance, as ``carried``.
+
+    Pure. Returns ``fresh`` unchanged when nothing is carried, and a minimal
+    record when only carried cells remain.
+    """
+    if not prior:
+        return fresh
+    whole = set(norgate_columns or ())
+    new_cells = {(t, d) for t, f in ((fresh or {}).get("filled") or {}).items()
+                 for d in f.get("dates", [])}
+    earlier: dict[str, list[str]] = {}
+    for t, f in (prior.get("filled") or {}).items():
+        earlier.setdefault(t, []).extend(f.get("dates", []) if isinstance(f, dict) else [])
+    for t, dates in (prior.get("carried") or {}).items():
+        earlier.setdefault(t, []).extend(dates or [])
+    carried: dict[str, list[str]] = {}
+    for t, dates in earlier.items():
+        if t in whole or t not in close.columns:
+            continue
+        for d in sorted(set(dates)):
+            ts = pd.Timestamp(d)
+            if (t, d) in new_cells or ts not in close.index:
+                continue
+            if pd.isna(close.at[ts, t]):
+                continue
+            served = (t in yf_served.columns and ts in yf_served.index
+                      and bool(yf_served.at[ts, t]))
+            if not served:
+                carried.setdefault(t, []).append(d)
+    if not carried:
+        return fresh
+    out = dict(fresh) if fresh else {"filled": {}, "declined": {}}
+    out["carried"] = carried
+    return out
 
 
 def download_prices(
@@ -1295,6 +1354,11 @@ def download_prices(
         root=Path(cache_path).resolve().parent.parent,
         source=price_revisions.YFINANCE,
         required_through=required_through)
+    # What yfinance itself served this run, kept for the Norgate tail record:
+    # a Norgate-filled cell stays named until yfinance serves that date.
+    yf_served = close.notna()
+    prior_tail_from_norgate = (None if force else
+                               price_source_mod.read_cache_tail_from_norgate(cache_path))
 
     # PRESERVE CELLS YFINANCE CANNOT SERVE. The frame above is built purely
     # from the download, so anything the vendor no longer serves would be
@@ -1470,6 +1534,19 @@ def download_prices(
         if missing_recovery:
             print(f"  Missing active-name recovery: {missing_recovery}", flush=True)
 
+    # CARRY THE NORGATE CELLS' PROVENANCE FORWARD (red-team S2, 2026-09-24).
+    # A filled cell outlives the run that wrote it: while yfinance keeps
+    # withholding that date, the cell-preservation merge carries the Norgate
+    # value forward as an interior cell, and the fill above - which only
+    # sees trailing gaps - no longer names it. Without this the record would
+    # vanish after one run while the Norgate close stayed in the cache. A
+    # prior cell stays named while it is still in the frame, still priced,
+    # and yfinance has not served its date; a column since taken whole from
+    # Norgate needs no per-cell record.
+    tail_from_norgate = _carry_norgate_cells(
+        tail_from_norgate, prior_tail_from_norgate, close, yf_served,
+        norgate_columns)
+
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     # ----- Cache-change diagnostic (2026-09-16), BEFORE the write -----
     # The line below destroys the only copy of what this cache held last
@@ -1481,7 +1558,9 @@ def download_prices(
     # each column is known rather than assumed. Never raises.
     price_revisions.capture_cache_change(
         cache_path, close,
-        {"source": price_source, "columns_from_norgate": list(norgate_columns)},
+        {"source": price_source, "columns_from_norgate": list(norgate_columns),
+         "columns_kept_on_incumbent": list(norgate_kept),
+         "tail_from_norgate": tail_from_norgate},
         panel=cache_path.stem)
     close.to_parquet(cache_path)
     # kept/unresolved were omitted until 2026-09-24, so every panel sidecar

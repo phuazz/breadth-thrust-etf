@@ -146,6 +146,8 @@ def read_cache_tail_from_norgate(cache_path: Path) -> dict | None:
     for field in ("filled", "declined"):
         if not isinstance(rec.get(field), dict):
             return None
+    if "carried" in rec and not isinstance(rec["carried"], dict):
+        return None
     return rec
 
 

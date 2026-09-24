@@ -251,6 +251,31 @@ def resolve_column_basis(sidecar: dict | None) -> dict[str, str]:
     return {"__default__": default, **out}
 
 
+def norgate_tail_cells(sidecar: dict | None) -> set[tuple[str, str]]:
+    """``{(column, ISO date)}`` a sidecar names as Norgate-filled inside a
+    column whose resolved basis is yfinance (compute_breadth's tail
+    re-source, 2026-09-24: ``tail_from_norgate`` filled + carried).
+
+    The per-column basis map cannot say that one cell of a column came from
+    another feed, so without this a later yfinance close at that cell would
+    be counted as a same-basis revision. Never raises; bad shapes give {}.
+    """
+    out: set[tuple[str, str]] = set()
+    rec = sidecar.get("tail_from_norgate") if isinstance(sidecar, dict) else None
+    if not isinstance(rec, dict):
+        return out
+    try:
+        for t, f in (rec.get("filled") or {}).items():
+            for d in (f.get("dates") or []) if isinstance(f, dict) else []:
+                out.add((str(t), str(d)[:10]))
+        for t, dates in (rec.get("carried") or {}).items():
+            for d in dates or []:
+                out.add((str(t), str(d)[:10]))
+    except (AttributeError, TypeError):
+        return set()
+    return out
+
+
 def basis_of(basis_map: dict[str, str], col: str) -> str:
     if not basis_map:
         return UNKNOWN_BASIS
@@ -800,6 +825,9 @@ def diff_frames(old, new, *, old_sidecar: dict | None = None,
     try:
         old_b = resolve_column_basis(old_sidecar)
         new_b = resolve_column_basis(new_sidecar)
+        # Cells either side names as Norgate-filled in a yfinance column: a
+        # change there is a feed switch at that cell, never a revision.
+        ng_cells = norgate_tail_cells(old_sidecar) | norgate_tail_cells(new_sidecar)
         all_rows = old.index.intersection(new.index)
         # BOUNDED per-cell walk. Shape changes and lost populated cells below
         # are still measured over the WHOLE frame; only this loop is capped,
@@ -859,7 +887,8 @@ def diff_frames(old, new, *, old_sidecar: dict | None = None,
                 elif _same(a, b):
                     continue
                 else:
-                    if ob != nb or ob == UNKNOWN_BASIS:
+                    if (ob != nb or ob == UNKNOWN_BASIS
+                            or (str(col), str(pd.Timestamp(ts).date())) in ng_cells):
                         kind = "basis_changes"
                     else:
                         pending.setdefault(str(col), []).append(
