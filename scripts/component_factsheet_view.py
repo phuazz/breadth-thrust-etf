@@ -1077,7 +1077,7 @@ def render_pdf(decision, release):
         "percentages of total NAV; changes are percentage points.")
     flow.append(p(f"{len(v['changed'])} proposed changes  ·  {pct(v['turnover'])} one-way turnover  ·  "
                   f"{v['entries']} new  ·  {v['exits']} closed. " + budget_sentence(v), lead))
-    flow.append(grid([[cell("STRATEGY", FAINT, 7.5, bold=True), cell("HELD", FAINT, 7.5, bold=True, align=TA_RIGHT),
+    flow.append(KeepTogether([grid([[cell("STRATEGY", FAINT, 7.5, bold=True), cell("HELD", FAINT, 7.5, bold=True, align=TA_RIGHT),
                        cell("TARGET", FAINT, 7.5, bold=True, align=TA_RIGHT),
                        cell("NET SHIFT", FAINT, 7.5, bold=True, align=TA_RIGHT),
                        cell("CHANGES", FAINT, 7.5, bold=True, align=TA_RIGHT),
@@ -1091,10 +1091,10 @@ def render_pdf(decision, release):
                          cell(str(len(s["changed"])), SOFT, 8.5, mono=True, align=TA_RIGHT),
                          cell(money(s["target"]), SOFT, 8.5, mono=True, align=TA_RIGHT)]
                         for s in v["shifts"]]],
-                     [165, 62, 62, 68, 60, 94], align=(1, 2, 3, 4, 5)))
-    flow.append(p(f"Net shift is the strategy's change in NAV share. A shift within the model rounding "
-                  f"bound of {pct(MODEL_ROUNDING_NAV)} is rounding, not a budget decision. Dollar column "
-                  "sizes the proposed weight at full precision for a $1.0M book, so it can differ slightly from the rounded percentage beside it.", note))
+                     [165, 62, 62, 68, 60, 94], align=(1, 2, 3, 4, 5)),
+        p(f"Net shift is the strategy's change in NAV share. A shift within the model rounding "
+          f"bound of {pct(MODEL_ROUNDING_NAV)} is rounding, not a budget decision. Dollar column "
+          "sizes the proposed weight at full precision for a $1.0M book, so it can differ slightly from the rounded percentage beside it.", note)]))
 
     if v["changed"]:
         flow += [Spacer(1, 10)] + section("The largest moves at a glance", None)
@@ -1185,7 +1185,10 @@ def render_pdf(decision, release):
         if moves is not None:
             block += [moves, Spacer(1, 8)]
         flow.append(KeepTogether(block))
-        flow.append(grid([[cell("FUND / PRICE PROXY", FAINT, 7.5, bold=True),
+        # The table and its note are one unit: a header and a single row left
+        # at the foot of a page, with the rest overleaf, is the defect this
+        # removes. KeepTogether still splits a table longer than a page.
+        flow.append(KeepTogether([grid([[cell("FUND / PRICE PROXY", FAINT, 7.5, bold=True),
                            cell("STRATEGY", FAINT, 7.5, bold=True),
                            cell("MODEL-HELD", FAINT, 7.5, bold=True, align=TA_RIGHT),
                            cell("WEEK MOVE", FAINT, 7.5, bold=True, align=TA_RIGHT)],
@@ -1197,16 +1200,16 @@ def render_pdf(decision, release):
                                   8.5, bold=r["ret"] is not None, mono=True, align=TA_RIGHT)]
                             for r in sorted(ctx["holding_returns"],
                                             key=lambda r: (r["ret"] is None, -(r["ret"] or 0)))]],
-                         [width - 240, 70, 82, 88], align=(2, 3), pad=2.5))
-        flow.append(p("All held lines are shown; a line without both exact weekly endpoints reads "
-                      "Unavailable and is never filled. The chart shows the largest moves only.", note))
+                         [width - 240, 70, 82, 88], align=(2, 3), pad=2.5),
+            p("All held lines are shown; a line without both exact weekly endpoints reads "
+              "Unavailable and is never filled. The chart shows the largest moves only.", note)]))
 
     # ---- 04 complete book ------------------------------------------------
     flow += [PageBreak()] + section(
         "04 / Complete proposed book",
         "Model-held baseline, not broker holdings. Targets are for the next fill, not trades already "
         "completed. Exit lines remain visible at zero target weight.")
-    flow.append(grid([[cell("TICKER", FAINT, 7.5, bold=True), cell("FUND", FAINT, 7.5, bold=True),
+    flow.append(KeepTogether([grid([[cell("TICKER", FAINT, 7.5, bold=True), cell("FUND", FAINT, 7.5, bold=True),
                        cell("STR", FAINT, 7.5, bold=True),
                        cell("HELD", FAINT, 7.5, bold=True, align=TA_RIGHT),
                        cell("TARGET", FAINT, 7.5, bold=True, align=TA_RIGHT),
@@ -1222,10 +1225,10 @@ def render_pdf(decision, release):
                               8.5, mono=True, align=TA_RIGHT),
                          cell(money(r["target"]), SOFT, 8.5, mono=True, align=TA_RIGHT)]
                         for r in sorted(v["rows"], key=lambda r: (-r["target"], r["sleeve"], r["etf"]))]],
-                     [56, width - 394, 34, 60, 62, 68, 84], align=(3, 4, 5, 6)))
-    flow.append(p(f"Explicit non-trading rounding residual: {book.get('rounding_residual_nav', 0):.8f} NAV. "
-                  "It is not a cash leg or an order. The dollar column sizes the proposed weights for a "
-                  "$1.0M book at full precision, so it can differ slightly from the rounded percentage beside it; it is arithmetic on the weight, not an order value.", note))
+                     [56, width - 394, 34, 60, 62, 68, 84], align=(3, 4, 5, 6)),
+        p(f"Explicit non-trading rounding residual: {book.get('rounding_residual_nav', 0):.8f} NAV. "
+          "It is not a cash leg or an order. The dollar column sizes the proposed weights for a "
+          "$1.0M book at full precision, so it can differ slightly from the rounded percentage beside it; it is arithmetic on the weight, not an order value.", note)]))
 
     # ---- 05 readiness ----------------------------------------------------
     flow += [PageBreak()] + section(
@@ -1242,7 +1245,7 @@ def render_pdf(decision, release):
             cell(s["decision_session"], SOFT, 8.5, mono=True),
             cell(s["decision_session_for_fill"], SOFT, 8.5, mono=True),
             cell(f"{long_date(s['fill_date'])}, {s['venue']}", INK, 8.5)])
-    flow.append(grid(ready_rows, [150, 62, 82, 82, width - 376]))
+    flow.append(KeepTogether([grid(ready_rows, [150, 62, 82, 82, width - 376])]))
     for s in book["sleeves"]:
         if s["status"] == "HOLD":
             flow.append(p("No Thursday substitution or new ranking for " + s["sleeve"] + ". "
