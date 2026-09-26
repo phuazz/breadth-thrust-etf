@@ -1,9 +1,8 @@
 # Holdings monitor repair handover
 
-Status: local repair and local armed-publication verification complete. The
-external push to `origin/main` remains pending explicit approval. Dates below
-are copied from scheduler, log, payload and commit evidence and require owner
-confirmation before this handover is circulated.
+Status: repair and guarded external publication complete. The dates below were
+confirmed by the owner's 2026-09-26 instruction to proceed and are copied from
+scheduler, log, payload and commit evidence.
 
 ## Root cause
 
@@ -108,8 +107,13 @@ After the repair, in the isolated armed-path test against a local bare origin:
   remote.
 
 The heartbeat therefore advanced after capture, guard, build, commit, rebase
-and local publication. The external remote remains unmodified by this repair
-session.
+and local publication. The subsequent authorised external run completed the
+same sequence against GitHub:
+
+- Payload `built_at_utc`: `2026-09-26T08:20:06+00:00`.
+- Success heartbeat: `2026-09-26T08:20:23+00:00`.
+- Commit: `1eac83b2`, `monitor: holdings capture 2026-09-26`.
+- Remote `origin/main`: `1eac83b20c41fd9a180f95d88c5f80947e3ea8af`.
 
 ## Remaining limitations and next run
 
@@ -118,8 +122,10 @@ session.
 - XBI G7 is intentionally a warning because it is an inactive index fund;
   source age, as-of monotonicity, roster size, weights, price coverage and
   dropped-row guards still block on failure.
-- External GitHub publication is pending explicit approval for the existing
-  `--push` authority. Do not treat the local bare-origin test as end-to-end
-  recovery.
+- External publication completed at 2026-09-26 08:20:23 UTC: remote
+  `origin/main` now points to `1eac83b20c41fd9a180f95d88c5f80947e3ea8af`.
+- The external capture payload was built at 2026-09-26 08:20:06 UTC and the
+  success heartbeat advanced at 2026-09-26 08:20:23 UTC. The heartbeat is
+  later than the payload and the wrapper reported `RESULT: OK`.
 - The next expected scheduled run is 2026-09-27 09:00 SGT, subject to owner
-  confirmation of the dated handover and any required external-push approval.
+  confirmation of the dated handover.
