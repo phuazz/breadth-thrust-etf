@@ -82,6 +82,14 @@ OBSERVED_VENUES: list[tuple[str, str, str]] = [
     # cost EXV1 its roster for that Friday before it was mapped.
     ("Athens Stock Exchange", "ETE", "ETE.AT"),
     ("Athens Exchange S.A. Cash Market", "ALPHA", "ALPHA.AT"),
+    # ISO 10383 MICs in place of venue names: the EXH2 2020-04-17 payload,
+    # refused on the 2026-09-26 Europe pass. XVTX is the expired SIX
+    # blue-chips segment, so it prices on SIX like XSWX.
+    ("XETR", "DB1", "DB1.DE"),
+    ("XLON", "III", "III.L"),
+    ("XPAR", "AMUN", "AMUN.PA"),
+    ("XSWX", "PARG", "PARG.SW"),
+    ("XVTX", "PGHN", "PGHN.SW"),
     # --- Asia ----------------------------------------------------------
     ("Tokyo Stock Exchange", "6592", "6592.T"),
     ("Hong Kong Exchanges And Clearing Ltd", "700", "700.HK"),
@@ -182,6 +190,21 @@ def test_greek_banks_do_not_trip_the_guard():
     # 4 of 61 was 6.6%, past the 2% bound: with the venue unmapped this
     # call is what raised.
     report_unmapped_exchanges(sink, "EXV1", n_equity_rows=61)
+
+
+def test_mic_coded_exh2_roster_does_not_trip_the_guard():
+    """The EXH2 2020-04-17 roster: 21 of 30 equity rows on MIC codes (70%)."""
+    sink: dict[str, list[str]] = {}
+    rows = ([("XLON", t) for t in ("LSE", "III", "SLA", "HL.", "MNG", "SDR",
+                                    "ICP", "IGG", "TCAP", "QLT", "EMG",
+                                    "ASHM", "INVP")]
+            + [("XPAR", t) for t in ("ENX", "AMUN", "MF", "RF")]
+            + [("XETR", t) for t in ("DB1", "GLJ")]
+            + [("XSWX", "PARG"), ("XVTX", "PGHN")])
+    for venue, ticker in rows:
+        _resolve_yf_symbol(ticker, venue, unmapped=sink)
+    assert sink == {}
+    report_unmapped_exchanges(sink, "EXH2", n_equity_rows=30)
 
 
 def test_unmapped_exchange_raises_above_threshold():

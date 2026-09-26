@@ -784,6 +784,22 @@ _EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
     # every case (Alpha Bank, National Bank of Greece, Eurobank, Piraeus
     # Bank, Motor Oil Hellas, Metlen Energy & Metals, Public Power).
     "Athens Exchange S.A. Cash Market": ".AT",
+    # ISO 10383 MICs in place of venue names. One stored payload carries them
+    # (EXH2 2020-04-17, 21 of 30 equity rows), and PR #3 made the refusal a
+    # hard failure, so the Europe pass on 2026-09-26 stopped on a six-year-old
+    # roster. Verified 2026-09-26 against two sources: the ISO 10383 register
+    # (XETR Xetra; XLON London Stock Exchange; XPAR Euronext Paris; XSWX SIX
+    # Swiss Exchange; XVTX SIX blue-chips segment, expired, operating MIC
+    # XSWX) and Yahoo's suffix table (.DE Xetra, .L London, .PA Paris, .SW
+    # SIX). Under these suffixes the roster yields the same 30 tickers as
+    # 2020-04-10 and 2020-04-24; 16 of the 21 names return yfinance 1.1.0
+    # closes for that week, and the other five (LSE, SLA, HL., ICP, PARG) fail
+    # on the ticker, identically on the neighbouring weeks.
+    "XETR":                           ".DE",
+    "XLON":                           ".L",
+    "XPAR":                           ".PA",
+    "XSWX":                           ".SW",
+    "XVTX":                           ".SW",
     "Irish Stock Exchange":           ".IR",
     "Irish Stock Exchange - All Market": ".IR",
     # Asia
