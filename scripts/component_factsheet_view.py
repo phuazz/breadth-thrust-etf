@@ -520,6 +520,68 @@ def _change_table(shifts, release, decision=None, limit=None, unchanged=False):
     return "".join(parts), shown
 
 
+_ROW = "border-bottom:1px solid #e3e8ee;vertical-align:top"
+_LABEL = f"padding:8px 8px 8px 0;font-size:13px;font-weight:bold;color:#475569;{_ROW}"
+
+
+def _budget_strip(shifts):
+    """The strategy budgets once, as four cells in each strategy's own hue."""
+    cells = []
+    for s in shifts:
+        if not s["target"] and not s["held"]:
+            continue
+        value = (pct(s["target"], dp=1) if abs(s["net"]) <= MODEL_ROUNDING_NAV
+                 else f"{pct(s['held'], dp=1)} → {pct(s['target'], dp=1)}")
+        cells.append(f"<td style='padding:6px 8px;background:#f3f6f9;vertical-align:top;"
+                     f"border-left:4px solid {SLEEVE_HEX.get(s['sleeve'], '#8a8a82')}'>"
+                     f"<span style='display:block;font-size:12px;line-height:1.3;color:#475569'>"
+                     f"{escape(s['sleeve'])} · {escape(s['name'])}</span>"
+                     f"<strong style='font-size:15px;white-space:nowrap'>{escape(value)}</strong></td>")
+    return ("<table class='budgets' role='presentation' style='width:100%;table-layout:fixed;"
+            "border-collapse:collapse;margin:10px 0 14px'><tr>" + "".join(cells) + "</tr></table>")
+
+
+def _highlight_table(v, release):
+    """The largest moves, one row per position, change and target aligned."""
+    e = escape
+    cell = f"padding:8px 6px;font-size:14px;{_ROW};overflow-wrap:anywhere"
+    num = f"padding:8px 0 8px 6px;font-size:13px;{_ROW};text-align:right;white-space:nowrap"
+    head = "padding:0 6px 4px;font-size:12px;color:#475569;text-align:right;border-bottom:1px solid #b5c3d3"
+    out = ["<table class='shifts' style='width:100%;table-layout:fixed;border-collapse:collapse;margin:6px 0 14px'>"
+           f"<tr><th style='{head};width:20%'></th><th style='{head};text-align:left'>Position</th>"
+           f"<th style='{head};width:17%'>Change</th><th style='{head};width:17%'>Target</th></tr>"]
+    groups = (("Increased", v["increases"][:3]), ("Reduced", v["reductions"][:3]),
+              ("Enters", v["entering"]), ("Exits", v["exiting"]))
+    for label, rows in groups:
+        for i, r in enumerate(rows):
+            out.append(f"<tr><th style='{_LABEL};text-align:left'>{e(label) if i == 0 else ''}</th>"
+                       f"<td style='{cell}'><strong>{e(r['traded'])}</strong> "
+                       f"<span style='color:#475569'>{e(release['labels'].get(r['etf'], r['etf']))}</span></td>"
+                       f"<td style='{num}'>{_toned(pp(r['delta']), _money_tone(r['delta']), ';font-weight:bold')}</td>"
+                       f"<td style='{num}'>{e(pct(r['target']))}</td></tr>")
+    edges = v["entering"] + v["exiting"]
+    if edges and all(max(r["held"], r["target"]) < MATERIAL_NAV for r in edges):
+        tail = (f"Every entry and exit is below {pct(MATERIAL_NAV, dp=1)} of NAV: "
+                "ranking-tail positions, not a change of stance.")
+        out.append(f"<tr><th style='{_LABEL}'></th><td colspan='3' style='{cell};font-size:13px;color:#475569'>"
+                   f"{e(tail)}</td></tr>")
+    out.append(f"<tr><th style='{_LABEL};text-align:left'>Unchanged</th><td colspan='3' style='{cell}'>"
+               f"{e(unchanged_sentence(v, release['book']))}</td></tr>")
+    return "".join(out) + "</table>"
+
+
+def _kv_table(rows):
+    """Label/value rows; an optional grey note under the value."""
+    out = []
+    for label, value, note in rows:
+        extra = (f"<br><span class='note' style='font-size:13px;color:#475569'>{escape(note)}</span>"
+                 if note else "")
+        out.append(f"<tr><th style='{_LABEL};text-align:left;width:28%'>{escape(label)}</th>"
+                   f"<td style='padding:8px 0;font-size:14px;{_ROW}'>{value}{extra}</td></tr>")
+    return ("<table class='kv' role='presentation' style='width:100%;table-layout:fixed;"
+            "border-collapse:collapse;margin:6px 0 14px'>" + "".join(out) + "</table>")
+
+
 def render_html(decision, release, include_unchanged=False):
     e, book, stats = escape, release["book"], release["performance"]
     v = view_model(decision, release)
@@ -542,15 +604,24 @@ def render_html(decision, release, include_unchanged=False):
         parts.insert(0, "<p><strong>SYNTHETIC NO-SEND REHEARSAL — not a live instruction.</strong></p>")
     if release.get("preview_only"):
         parts.insert(0, "<p><strong>DESIGN PREVIEW — already-sent snapshot; no new email or trade instruction.</strong></p>")
-    parts += ["<h2>01 · The week in numbers</h2><div class='metrics'>"]
+    # A fixed five-cell table, not flexbox: Gmail drops flex and the <main>
+    # width cap, which left five uneven boxes and a Sharpe figure twice the
+    # size of the others (2026-09-26). Every value carries one inline size.
+    parts += ["<h2>01 · The week in numbers</h2>"
+              "<table class='metrics' role='presentation' style='width:100%;table-layout:fixed;"
+              "border-collapse:collapse;margin:8px 0'><tr>"]
     for key in ("WTD", "YTD", "1Y", "Sharpe", "Max drawdown"):
         value = stats["values"].get(key)
         text = "Unavailable" if value is None else f"{value:.2f}" if key == "Sharpe" else pct(value, True)
         label = {"WTD": "This week", "1Y": "One year"}.get(key, key)
         tone = None if key == "Sharpe" or value is None else _money_tone(value)
-        parts.append(f"<div class='metric'><span>{e(label)}</span>"
-                     f"<strong>{_toned(text, tone)}</strong></div>")
-    parts += ["</div>", f"<p class='note'>Model valuation: {e(long_date(stats['as_of']))}. "
+        size = "13px" if value is None else "17px"
+        parts.append(f"<td class='metric' style='width:20%;padding:10px 8px;vertical-align:top;"
+                     f"background:#f3f6f9;border:1px solid #d5dce5'>"
+                     f"<span class='label' style='display:block;font-size:12px;line-height:1.3;color:#475569'>{e(label)}</span>"
+                     f"<strong class='value' style='display:block;font-size:{size};line-height:1.35;"
+                     f"white-space:nowrap'>{_toned(text, tone)}</strong></td>")
+    parts += ["</tr></table>", f"<p class='note'>Model valuation: {e(long_date(stats['as_of']))}. "
               f"Week: {e(stats['wtd_start'] or 'Unavailable')} to {e(stats['as_of'])}. "
               "YTD starts at the prior year-end close; 1Y is the trailing calendar year. "
               "Sharpe and maximum drawdown cover the full deployed-model history. Proposed trades are not included.</p>"]
@@ -561,12 +632,24 @@ def render_html(decision, release, include_unchanged=False):
     if context.get("attribution"):
         parts.append("<h3>Return drivers by strategy</h3>")
         max_abs = max((abs(r["contribution"] or 0) for r in context["attribution"]), default=0) or 1
+        # Label, bar and figure share one row of the same 600px column as the
+        # text; a bare div bar ran the full window width in Gmail.
+        rows = []
         for row in context["attribution"]:
             c = row["contribution"]
             text = "Unavailable" if c is None else pp(c)
             bar = 0 if c is None else abs(c)/max_abs*100
-            parts.append(f"<div class='driver'><p>{e(NAMES[row['sleeve']])} <strong>{e(text)}</strong></p>"
-                         f"<div class='track'><div style='height:6px;width:{bar:.2f}%;background:#55718e'></div></div></div>")
+            fill = TONE["down"] if c is not None and c < 0 else "#55718e"
+            rows.append(f"<tr class='driver'><td style='width:34%;padding:6px 8px 6px 0;font-size:14px;"
+                        f"border-bottom:1px solid #eef2f6'>{e(NAMES[row['sleeve']])}</td>"
+                        f"<td style='padding:6px 0;border-bottom:1px solid #eef2f6'>"
+                        f"<div class='track' style='height:8px;background:#eef2f6'>"
+                        f"<div style='height:8px;width:{bar:.2f}%;background:{fill}'></div></div></td>"
+                        f"<td style='width:24%;padding:6px 0 6px 8px;text-align:right;white-space:nowrap;"
+                        f"font-size:{'13px' if c is None else '14px'};font-weight:bold;"
+                        f"border-bottom:1px solid #eef2f6'>{e(text)}</td></tr>")
+        parts.append("<table class='drivers' role='presentation' style='width:100%;table-layout:fixed;"
+                     "border-collapse:collapse;margin:8px 0'>" + "".join(rows) + "</table>")
         residual = "Not calculated: at least one endpoint is missing." if context["residual"] is None else pp(context["residual"])
         parts.append(f"<p class='note'>Approximation: decision-date sleeve allocation × sleeve model return over "
                      f"{e(context['start'] or 'Unavailable')} to {e(context['end'])}. Not realised attribution. "
@@ -584,19 +667,21 @@ def render_html(decision, release, include_unchanged=False):
         parts.append(f"<p class='note'>{len(priced)} of {len(context['holding_returns'])} model-held lines have both weekly endpoints. "
                      "Quote/proxy returns, not portfolio contributions; Europe FX is not added. The PDF identifies each price proxy.</p>")
     overlay = book["overlay_decision"]
+    # ---- 02: count, budgets, moves at a glance, the table, one note ------
+    # Rows and aligned columns rather than "·"-joined prose, which wrapped
+    # mid-name; the budget list is printed once, here, not again in 03; the
+    # three stacked notes are one (2026-09-26).
     parts += ["<h2>02 · What changes and why</h2>",
               f"<p><strong>{len(v['changed'])} proposed changes · {pct(v['turnover'])} one-way turnover · "
-              f"{v['entries']} new · {v['exits']} closed.</strong> {e(budget_sentence(v))}</p>"]
+              f"{v['entries']} new · {v['exits']} closed.</strong></p>",
+              "<p>" + e("The strategy budgets do not change; every proposed move is a rotation inside a strategy."
+                        if v["budgets_held"] else budget_sentence(v)) + "</p>",
+              _budget_strip(v["shifts"])]
     if v["changed"]:
-        rows = "".join(f"<tr><th style='text-align:left;padding:7px 8px 7px 0;width:26%;font-size:13px;"
-                       f"vertical-align:top;border-bottom:1px solid #e3e8ee'>{e(label)}</th>"
-                       f"<td style='padding:7px 0;font-size:13px;vertical-align:top;"
-                       f"border-bottom:1px solid #e3e8ee;overflow-wrap:anywhere'>{e(text)}</td></tr>"
-                       for label, text in highlight_rows(v, release))
-        parts.append("<table class='shifts' style='width:100%;table-layout:fixed;border-collapse:collapse'>"
-                     f"<tbody>{rows}</tbody></table>")
-    parts.append("<p class='note'>Proposed positions, not executed trades. Held and target are percentages of total NAV; "
-                 "changes are percentage points. The held baseline is the model portfolio, not confirmation of broker holdings.</p>")
+        parts.append(_highlight_table(v, release))
+    notes = ["Proposed positions, not executed trades. Held and target are percentages of total NAV; "
+             "changes are percentage points. The held baseline is the model portfolio, not confirmation "
+             "of broker holdings."]
     if include_unchanged:
         parts.append("<h3>Complete proposed book</h3>")
         table, _ = _change_table(v["shifts"], release, decision, unchanged=True)
@@ -604,18 +689,24 @@ def render_html(decision, release, include_unchanged=False):
     elif v["changed"]:
         table, shown = _change_table(v["shifts"], release, decision, limit=EMAIL_CHANGE_LIMIT)
         parts.append(table)
-        scheme = sizing_note(v["shifts"], book)
         if shown < len(v["changed"]):
-            parts.append(f"<p class='note'>{shown} of {len(v['changed'])} changes shown, the largest within each strategy. "
-                         "Every change and unchanged position is in the attached PDF and complete HTML book.</p>")
+            notes.append(f"{shown} of {len(v['changed'])} changes shown, the largest within each strategy. "
+                         "Every change and unchanged position is in the attached PDF and complete HTML book.")
         else:
-            parts.append(f"<p class='note'>All {len(v['changed'])} proposed changes are listed above; none is omitted. "
-                         "Unchanged positions are in the attached PDF and complete HTML book.</p>")
+            notes.append(f"All {len(v['changed'])} proposed changes are listed above; none is omitted. "
+                         "Unchanged positions are in the attached PDF and complete HTML book.")
+        scheme = sizing_note(v["shifts"], book)
         if scheme:
-            parts.append(f"<p class='note'>{e(scheme)}</p>")
+            notes.append(scheme)
     else:
         parts.append("<p>No position changes.</p>")
-    parts.append(f"<p><strong>Strategy D:</strong> {e(w['d_instruction'])}</p>")
+    parts.append("<p class='note'>" + e(" ".join(notes)) + "</p>")
+    held = []
+    if decision["d_hold"]:
+        held.append(f"<p style='margin:8px 0;font-size:14px'><strong>Strategy D · HOLD.</strong> "
+                    f"{e(w['d_instruction'])} No Thursday-close substitute or new D ranking is used.</p>")
+    else:
+        parts.append(f"<p><strong>Strategy D:</strong> {e(w['d_instruction'])}</p>")
     if not include_unchanged and not decision['d_hold']:
         parts.append("<h3>D confirmation</h3>")
         d_changes = [r for r in v['changed'] if r['sleeve']=='D']
@@ -630,8 +721,6 @@ def render_html(decision, release, include_unchanged=False):
                    if decision["action"] == "d_update" else "")
         parts.append("<p class='note'>All D changes are shown here, including any repeated in the table above."
                      + e(earlier) + "</p>")
-    if decision["d_hold"]:
-        parts.append("<p>D remains on HOLD for selection. No Thursday-close substitute or new D ranking is used.</p>")
     if abs(book.get("rounding_residual_nav", 0.0)) > 1e-12:
         # Name the sleeves it is actually about (2026-09-19). The residual is
         # summed over every held sleeve whose budget is unchanged, so saying
@@ -648,18 +737,29 @@ def render_html(decision, release, include_unchanged=False):
         else:
             who = ("Strategies " + ", ".join(rounded[:-1])
                    + f" and {rounded[-1]}")
-        parts.append(f"<p>Holdings in {e(who)} are unchanged; small rounding "
-                     "differences in totals are not trades.</p>")
-    parts += ["<h2>03 · Positioning and review</h2>",
-              f"<p><strong>Breadth gate: {'RISK OFF' if overlay['gate_on'] else 'RISK ON'} · "
-              f"EM tilt: {'ON' if overlay['tilt_on'] else 'OFF'}</strong><br>Both inputs verified to {e(release['anchor'])}.</p>"]
-    for text in context.get('watchlist',[]):
-        parts.append(f"<p class='note'>{e(text)}</p>")
-    parts.append(f"<p>{e(allocation_strip(v['shifts']))}</p>")
+        held.append(f"<p style='margin:8px 0;font-size:14px'>Holdings in {e(who)} are unchanged; small rounding "
+                    "differences in totals are not trades.</p>")
+    if held:
+        # Everything a reader does NOT act on this week, in one amber box.
+        parts.append(f"<div class='held' style='border-left:4px solid {TONE['warn']};background:#fdf6ea;"
+                     "padding:4px 14px;margin:14px 0'>" + "".join(held) + "</div>")
+
+    # ---- 03: the overlays and the fills, as one label/value table -------
+    watch = context.get('watchlist', [])
+    gate_note = " ".join(t for t in watch if t.startswith("Breadth rule"))
+    tilt_note = " ".join(t for t in watch if not t.startswith("Breadth rule"))
+    kv = [("Breadth gate", f"<strong>{'RISK OFF' if overlay['gate_on'] else 'RISK ON'}</strong>"
+                           f" · verified to {e(release['anchor'])}", gate_note),
+          ("EM tilt", f"<strong>{'ON' if overlay['tilt_on'] else 'OFF'}</strong>"
+                      f" · verified to {e(release['anchor'])}", tilt_note)]
     for venue in sorted({s["venue"] for s in book["sleeves"]}):
         rows = [s for s in book["sleeves"] if s["venue"] == venue]
-        parts.append(f"<p><strong>{e(venue)}: {e(long_date(rows[0]['fill_date']))} closing auction</strong><br>"
-                     + e(' · '.join(f"Strategy {s['sleeve']}: {s['status']}" for s in rows)) + "</p>")
+        tags = " · ".join(
+            f"<span style='white-space:nowrap'>Strategy {e(s['sleeve'])} <span style='font-weight:bold;color:"
+            f"{TONE['up'] if s['status'] == 'READY' else TONE['warn']}'>{e(s['status'])}</span></span>" for s in rows)
+        kv.append((f"{venue} fill", f"<strong>{e(long_date(rows[0]['fill_date']))}</strong>, closing auction"
+                                    f"<br>{tags}", ""))
+    parts += ["<h2>03 · Positioning and review</h2>", _kv_table(kv)]
     parts += ["<p>Confirm broker submission times in the dashboard’s Execution Timing tab. "
               "An email review checkpoint is not an order cutoff. Review against actual holdings before submitting orders.</p>",
               "<p><a class='button' href='https://phuazz.github.io/breadth-thrust-etf/'>Open dashboard and Execution Timing</a></p>",
@@ -667,15 +767,15 @@ def render_html(decision, release, include_unchanged=False):
               "PDF: complete weekly brief and proposed book. HTML: accessible full book. JSON: exact proposed model weights.</p>",
               f"<p class='note'>{e(DISCLAIMER)}</p>"]
     css = """html{-webkit-text-size-adjust:100%;color-scheme:light}body{margin:0;background:#fff;color:#17212f;font:16px/1.6 Arial,sans-serif;padding:20px}
-main{max-width:60ch;margin:auto}p{max-width:60ch;overflow-wrap:anywhere;margin:10px 0}h1{font-size:26px;line-height:1.25;margin:12px 0 24px}h2{font-size:20px;line-height:1.4;margin:28px 0 12px}h3{font-size:16px;margin:0}
+main{max-width:600px;margin:0 auto}p{overflow-wrap:anywhere;margin:10px 0}h1{font-size:26px;line-height:1.25;margin:12px 0 24px}h2{font-size:20px;line-height:1.4;margin:28px 0 12px}h3{font-size:16px;margin:0}
 .eyebrow{font-size:13px;color:#475569;letter-spacing:.04em}.status{border-left:4px solid #245c94;background:#eef4fa;padding:14px 18px}.status h2{margin:0;font-size:19px}.status p{margin-bottom:0}
-.metrics{display:flex;flex-wrap:wrap;gap:8px}.metric{flex:1 1 90px;min-width:0;padding:12px;background:#f3f6f9;border:1px solid #d5dce5}.metric span{display:block;font-size:13px}.metric strong{display:block;font-size:23px}
-.note{font-size:13px;color:#475569}.driver{margin:8px 0}.driver p{margin:0}.driver strong{float:right}.track{height:6px;background:#eef2f6}
+.metric .label{display:block;font-size:12px}.metric .value{display:block;font-size:17px}
+.note{font-size:13px;color:#475569}.track{height:8px;background:#eef2f6}
 table{margin:12px 0}.changes thead th{color:#475569;letter-spacing:.03em}.changes tr.group td{background:#f3f6f9}.shifts th{color:#475569;letter-spacing:.03em}
 a{color:#164cb2}.button{display:inline-block;padding:12px 16px;background:#eef4fa;font-weight:bold;border:1px solid #b5c9dd}
-@media(max-width:480px){body{padding:16px}h1{font-size:23px}.metric{flex-basis:80px}.metric strong{font-size:21px}}
+@media(max-width:480px){body{padding:16px}h1{font-size:23px}.metric{padding:8px 4px!important}.metric .value{font-size:14px!important}.metric .label{font-size:11px!important;min-height:2.6em}}
 html[data-theme=dark]{color-scheme:dark}html[data-theme=dark] body{background:#111827;color:#f3f4f6}html[data-theme=dark] .note,html[data-theme=dark] .eyebrow,html[data-theme=dark] .changes thead th,html[data-theme=dark] .shifts th{color:#cbd5e1}
-html[data-theme=dark] .status,html[data-theme=dark] .metric,html[data-theme=dark] .button,html[data-theme=dark] .changes tr.group td{background:#1e293b;color:#f3f4f6}html[data-theme=dark] a{color:#93c5fd}
+html[data-theme=dark] .held,html[data-theme=dark] .budgets td,html[data-theme=dark] .kv th,html[data-theme=dark] .shifts th,html[data-theme=dark] .status,html[data-theme=dark] .metric,html[data-theme=dark] .button,html[data-theme=dark] .changes tr.group td{background:#1e293b;color:#f3f4f6}html[data-theme=dark] a{color:#93c5fd}
 html[data-theme=dark] .tone.up{color:#86efac!important}html[data-theme=dark] .tone.down{color:#fca5a5!important}html[data-theme=dark] .tone.warn{color:#fcd34d!important}
 """
     # Critical email styling is inline as well as in the stylesheet. No scripts,
@@ -683,14 +783,17 @@ html[data-theme=dark] .tone.up{color:#86efac!important}html[data-theme=dark] .to
     # a table without its stylesheet is still a table.
     html = ("<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>{e(w['subject'])}</title><style>{css}</style></head>"
-            "<body><main style='max-width:540px;margin:auto;font-family:Arial,sans-serif;line-height:1.6'>" + "".join(parts) + "</main></body></html>")
+            "<body><main style='max-width:600px;margin:0 auto;font-family:Arial,sans-serif;line-height:1.6'>"
+            # Gmail strips <main>'s style; the inner div keeps the 600px column.
+            "<div class='column' style='max-width:600px;margin:0 auto;text-align:left'>"
+            + "".join(parts) + "</div></main></body></html>")
     # Inline essential layout and type for mail clients that strip the head.
     replacements = {"<body>": "<body style='margin:0;padding:16px;font:16px/1.6 Arial,sans-serif'>",
                     "<h1>": "<h1 style='font-size:26px;line-height:1.25'>",
                     "<h2>": "<h2 style='font-size:20px;line-height:1.4;margin-top:28px'>",
                     "<h3>": "<h3 style='font-size:16px'>",
                     "<p class='note'>": "<p class='note' style='font-size:13px;line-height:1.6'>",
-                    "<div class='metric'>": "<div class='metric' style='display:inline-block;padding:12px;border:1px solid #d5dce5'>"}
+                    }
     for old,new in replacements.items():
         html=html.replace(old,new)
     return html
@@ -714,7 +817,8 @@ def render_text(decision, release):
                 self.cell+=1
             # Inside a cell a line break is a separator, not a new line: the
             # plain-text table must keep one row on one line.
-            if tag in ('p','h1','h2','h3','section','div','tr') or (tag=='br' and not self.cell):
+            # A div inside a cell is a drawn bar, not a block of text.
+            if (tag in ('p','h1','h2','h3','section','tr') or (tag in ('br','div') and not self.cell)):
                 self.parts.append('\n')
             elif tag in ('br','span','strong'):
                 self.parts.append(' ')
@@ -723,7 +827,9 @@ def render_text(decision, release):
                 self.hidden=False
             if tag in ('td','th') and not self.hidden:
                 self.cell=max(0,self.cell-1)
-                self.parts.append(' · ')
+                # An empty cell (the bar) adds no second separator.
+                if not self.parts or self.parts[-1] != ' · ':
+                    self.parts.append(' · ')
         def handle_data(self,data):
             if not self.hidden:
                 self.parts.append(data)
