@@ -1,13 +1,13 @@
 {
- "computed_at_utc": "2026-09-24T23:56:29.057961+00:00",
+ "computed_at_utc": "2026-09-26T00:00:35.653283+00:00",
  "strategies": [
   {
    "sleeve": "A",
    "label": "US sectors",
    "venue": "NYSE",
    "data_through": "2026-09-21",
-   "venue_last_session": "2026-09-24",
-   "sessions_behind": 3,
+   "venue_last_session": "2026-09-25",
+   "sessions_behind": 4,
    "status": "behind",
    "laggards": [
     "IUMS"
@@ -22,27 +22,27 @@
    "label": "Asset classes",
    "venue": "NYSE",
    "data_through": "2026-09-22",
-   "venue_last_session": "2026-09-24",
-   "sessions_behind": 2,
+   "venue_last_session": "2026-09-25",
+   "sessions_behind": 3,
    "status": "behind",
    "laggards": [],
-   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-09-23T23:49Z; the cache is not present on this checkout",
+   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-09-24T23:56Z; the cache is not present on this checkout",
    "carried": true,
-   "why": "every one of the cached price series stops at 2026-09-22 while NYSE has completed 2026-09-24 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-09-22, while the market has traded to 2026-09-24 \u2014 it has not been rebuilt since."
+   "why": "every one of the cached price series stops at 2026-09-22 while NYSE has completed 2026-09-25 \u2014 none lags the others, so they have not been rebuilt since.",
+   "why_plain": "the data behind this strategy stops on 2026-09-22, while the market has traded to 2026-09-25 \u2014 it has not been rebuilt since."
   },
   {
    "sleeve": "C",
    "label": "Thematic",
    "venue": "NYSE",
    "data_through": "2026-09-21",
-   "venue_last_session": "2026-09-24",
-   "sessions_behind": 3,
+   "venue_last_session": "2026-09-25",
+   "sessions_behind": 4,
    "status": "behind",
    "laggards": [
     "BTC-USD"
    ],
-   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-09-23T23:49Z; the cache is not present on this checkout",
+   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-09-24T23:56Z; the cache is not present on this checkout",
    "carried": true,
    "why": null,
    "why_plain": null
@@ -52,8 +52,8 @@
    "label": "Europe sectors",
    "venue": "XETR",
    "data_through": "2026-09-21",
-   "venue_last_session": "2026-09-24",
-   "sessions_behind": 3,
+   "venue_last_session": "2026-09-25",
+   "sessions_behind": 4,
    "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
