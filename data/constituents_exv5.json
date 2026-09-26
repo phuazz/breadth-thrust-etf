@@ -2,11 +2,11 @@
   "etf": "EXV5",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-09-20T01:07:26.542689+00:00",
+  "fetched_at_utc": "2026-09-26T05:09:14.104736+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-09-18",
-  "n_target_fridays": 455,
-  "n_snapshots_written": 455,
+  "end_friday": "2026-09-25",
+  "n_target_fridays": 456,
+  "n_snapshots_written": 456,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -32,13 +32,15 @@
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-09-18",
-      "fallback_date": "2026-09-17",
+      "target_friday": "2026-09-25",
+      "fallback_date": "2026-09-24",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
+  "roster_refusals": [],
+  "walk_errors": [],
   "edgar_used": [],
   "endpoint_unavailable": [],
   "endpoint_health": {
@@ -52,7 +54,7 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-17",
+    "last_real_fetch_date": "2026-09-24",
     "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
@@ -9192,7 +9194,7 @@
       ]
     },
     "2026-09-18": {
-      "actual_date": "2026-09-17",
+      "actual_date": "2026-09-18",
       "n_tickers": 14,
       "tickers": [
         "RACE.MI",
@@ -9209,6 +9211,25 @@
         "FR.PA",
         "PIRC.MI",
         "AMV0.DE"
+      ]
+    },
+    "2026-09-25": {
+      "actual_date": "2026-09-24",
+      "n_tickers": 13,
+      "tickers": [
+        "RACE.MI",
+        "ML.PA",
+        "MBG.DE",
+        "BMW.DE",
+        "VOW3.DE",
+        "STLAM.MI",
+        "CON.DE",
+        "RNO.PA",
+        "P911.DE",
+        "PAH3.DE",
+        "DIE.BR",
+        "FR.PA",
+        "PIRC.MI"
       ]
     }
   }

@@ -2,11 +2,11 @@
   "etf": "EXH9",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251967/ishares-stoxx-europe-600-utilities-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXH9_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-23T06:51:10.003621+00:00",
+  "fetched_at_utc": "2026-09-26T05:07:25.231946+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-09-18",
-  "n_target_fridays": 455,
-  "n_snapshots_written": 455,
+  "end_friday": "2026-09-25",
+  "n_target_fridays": 456,
+  "n_snapshots_written": 456,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -30,6 +30,12 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-09-25",
+      "fallback_date": "2026-09-24",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -48,8 +54,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-18",
-    "days_since_last_real_fetch": 0,
+    "last_real_fetch_date": "2026-09-24",
+    "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -15672,6 +15678,41 @@
         "BKW.SW",
         "PNN.L",
         "TPE.WA"
+      ]
+    },
+    "2026-09-25": {
+      "actual_date": "2026-09-24",
+      "n_tickers": 29,
+      "tickers": [
+        "IBE.MC",
+        "NG.L",
+        "ENEL.MI",
+        "ENGI.PA",
+        "RWE.DE",
+        "EOAN.DE",
+        "SSE.L",
+        "VIE.PA",
+        "NTGY.MC",
+        "EDP.LS",
+        "TRN.MI",
+        "ELE.MC",
+        "UU.L",
+        "FORTUM.HE",
+        "SVT.L",
+        "ORSTED.CO",
+        "CNA.L",
+        "PPC.AT",
+        "RED.MC",
+        "ELI.BR",
+        "IG.MI",
+        "MTLN.AT",
+        "VER.VI",
+        "EDPR.LS",
+        "A2A.MI",
+        "DRX.L",
+        "HER.MI",
+        "BKW.SW",
+        "PNN.L"
       ]
     }
   }

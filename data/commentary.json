@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-09-26T03:16:57+00:00",
+  "computed_at_utc": "2026-09-26T05:35:35+00:00",
   "as_of": "2026-09-25",
   "next_fill": {
     "summary": "14 moves at the next fill (NYSE Mon 28 Sep 2026, XETR Mon 28 Sep 2026), ranked on the Fri 25 Sep 2026 close; one-way turnover 10.05% of NAV. Signals compared with the previous decision close.",
@@ -653,7 +653,7 @@
     ],
     "holds": [
       "Sleeve C is held and its book is unchanged: decision row carries 24 of 25 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one; missing signal inputs: BTC-USD.",
-      "Sleeve D is held and its book is unchanged: signal reaches 2026-09-21 but the last completed XETR session is 2026-09-25 \u2014 ranking now would use an earlier session."
+      "Sleeve D is held and its book is unchanged: signal reaches 2026-09-24 but the last completed XETR session is 2026-09-25 \u2014 ranking now would use an earlier session."
     ],
     "notes": [],
     "decision_session": "2026-09-25",
@@ -663,12 +663,12 @@
     }
   },
   "week": {
-    "text": "Week Fri 18 Sep 2026 close \u2192 Fri 25 Sep 2026 close: the blend returned +0.43% against SPY +1.26%. By sleeve: Sleeve B +0.19pp (+0.55% at 35% of NAV), Sleeve D +0.19pp (+0.96% at 20% of NAV), Sleeve A +0.13pp (+0.38% at 35% of NAV), Sleeve C +0.11pp (+1.09% at 10% of NAV). Largest contributors: SOXX (iShares Semiconductors) +0.17pp (+2.4% at 7.1%); EXH1.DE (STOXX Europe 600 Oil & Gas) +0.16pp (+2.4% at 6.6%); XLV (iShares S&P 500 Health Care) +0.10pp (+1.0% at 9.8%). Largest detractors: EXV1.DE (STOXX Europe 600 Banks) -0.16pp (-2.0% at 8.0%); XLF (iShares S&P 500 Financials) -0.13pp (-1.9% at 6.8%); XLE (iShares S&P 500 Energy) -0.07pp (-0.7% at 10.0%). Holding contributions are weight \u00d7 return from the Mon 21 Sep 2026 close to the Fri 25 Sep 2026 close, 22 of 22 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 31.3% above the 50-day average (+2.2pp on the week).",
-    "headline": "Blend +0.43% \u00b7 SPY +1.26% \u00b7 Fri 18 Sep 2026 \u2192 Fri 25 Sep 2026 close",
+    "text": "Week Fri 18 Sep 2026 close \u2192 Fri 25 Sep 2026 close: the blend returned +0.45% against SPY +1.26%. By sleeve: Sleeve B +0.19pp (+0.55% at 35% of NAV), Sleeve A +0.13pp (+0.38% at 35% of NAV), Sleeve C +0.11pp (+1.09% at 10% of NAV), Sleeve D +0.01pp (+0.05% at 20% of NAV). Largest contributors: SOXX (iShares Semiconductors) +0.17pp (+2.4% at 7.1%); EXH1.DE (STOXX Europe 600 Oil & Gas) +0.16pp (+2.4% at 6.6%); XLV (iShares S&P 500 Health Care) +0.10pp (+1.0% at 9.8%). Largest detractors: EXV1.DE (STOXX Europe 600 Banks) -0.16pp (-2.0% at 8.0%); XLF (iShares S&P 500 Financials) -0.13pp (-1.9% at 6.8%); XLE (iShares S&P 500 Energy) -0.07pp (-0.7% at 10.0%). Holding contributions are weight \u00d7 return from the Mon 21 Sep 2026 close to the Fri 25 Sep 2026 close, 22 of 22 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 27.5% above the 50-day average (-1.6pp on the week).",
+    "headline": "Blend +0.45% \u00b7 SPY +1.26% \u00b7 Fri 18 Sep 2026 \u2192 Fri 25 Sep 2026 close",
     "lines": [
       {
         "label": "By sleeve",
-        "text": "B +0.19pp (+0.6% on 35%) \u00b7 D +0.19pp (+1.0% on 20%) \u00b7 A +0.13pp (+0.4% on 35%) \u00b7 C +0.11pp (+1.1% on 10%)"
+        "text": "B +0.19pp (+0.6% on 35%) \u00b7 A +0.13pp (+0.4% on 35%) \u00b7 C +0.11pp (+1.1% on 10%) \u00b7 D +0.01pp (+0.1% on 20%)"
       },
       {
         "label": "Helped",
@@ -680,13 +680,13 @@
       },
       {
         "label": "Regime",
-        "text": "RISK_ON since Tue 14 Apr 2026 \u00b7 S&P 500 breadth 31.3% (+2.2pp on the week)"
+        "text": "RISK_ON since Tue 14 Apr 2026 \u00b7 S&P 500 breadth 27.5% (-1.6pp on the week)"
       }
     ],
     "basis": "Holding contributions are weight \u00d7 return from the Mon 21 Sep 2026 close to the Fri 25 Sep 2026 close, 22 of 22 holdings priced from the one-year price panel.",
     "start": "2026-09-18",
     "end": "2026-09-25",
-    "blend_return": 0.004348881062407939,
+    "blend_return": 0.004503380853706052,
     "spy_return": 0.012603387160299295,
     "holdings": [
       {

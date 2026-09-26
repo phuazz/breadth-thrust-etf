@@ -2,11 +2,11 @@
   "etf": "EXH7",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-09-20T01:21:01.591967+00:00",
+  "fetched_at_utc": "2026-09-26T05:24:20.456017+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-09-18",
-  "n_target_fridays": 455,
-  "n_snapshots_written": 455,
+  "end_friday": "2026-09-25",
+  "n_target_fridays": 456,
+  "n_snapshots_written": 456,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -32,13 +32,15 @@
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-09-18",
-      "fallback_date": "2026-09-17",
+      "target_friday": "2026-09-25",
+      "fallback_date": "2026-09-24",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
+  "roster_refusals": [],
+  "walk_errors": [],
   "edgar_used": [],
   "endpoint_unavailable": [],
   "endpoint_health": {
@@ -52,7 +54,7 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-17",
+    "last_real_fetch_date": "2026-09-24",
     "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
@@ -18610,7 +18612,7 @@
       ]
     },
     "2026-09-18": {
-      "actual_date": "2026-09-17",
+      "actual_date": "2026-09-18",
       "n_tickers": 30,
       "tickers": [
         "ULVR.L",
@@ -18626,9 +18628,9 @@
         "ESSITY-B.ST",
         "MONC.MI",
         "PNDORA.CO",
+        "LPP.WA",
         "GAW.L",
         "BEI.DE",
-        "LPP.WA",
         "UHR.SW",
         "BTRW.L",
         "PSN.L",
@@ -18643,6 +18645,41 @@
         "PUM.DE",
         "PUIG.MC",
         "THULE.ST"
+      ]
+    },
+    "2026-09-25": {
+      "actual_date": "2026-09-24",
+      "n_tickers": 29,
+      "tickers": [
+        "ULVR.L",
+        "BATS.L",
+        "MC.PA",
+        "CFR.SW",
+        "OR.PA",
+        "RMS.PA",
+        "RKT.L",
+        "ADS.DE",
+        "IMB.L",
+        "KER.PA",
+        "ESSITY-B.ST",
+        "MONC.MI",
+        "PNDORA.CO",
+        "LPP.WA",
+        "BEI.DE",
+        "GAW.L",
+        "UHR.SW",
+        "BTRW.L",
+        "BRBY.L",
+        "PSN.L",
+        "CDR.WA",
+        "BKG.L",
+        "TW.L",
+        "RAA.DE",
+        "DLG.MI",
+        "BC.MI",
+        "BWY.L",
+        "PUIG.MC",
+        "PUM.DE"
       ]
     }
   }
