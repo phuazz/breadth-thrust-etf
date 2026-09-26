@@ -1181,8 +1181,12 @@ def render_pdf(decision, release):
         "02 / What changes and why",
         "The portfolio first, then the strategies, then the lines. Held and target are "
         "percentages of total NAV; changes are percentage points.")
+    # The count in bold, then one budget sentence. The budgets themselves are
+    # in the strategy table directly below, so they are not listed twice.
     flow.append(p(f"{len(v['changed'])} proposed changes  ·  {pct(v['turnover'])} one-way turnover  ·  "
-                  f"{v['entries']} new  ·  {v['exits']} closed. " + budget_sentence(v), lead))
+                  f"{v['entries']} new  ·  {v['exits']} closed.", st("leadb", 10, INK, bold=True, leading=14, space=2)))
+    flow.append(p("The strategy budgets do not change; every proposed move is a rotation inside a strategy."
+                  if v["budgets_held"] else budget_sentence(v), lead))
     flow.append(KeepTogether([grid([[cell("STRATEGY", FAINT, 7.5, bold=True), cell("HELD", FAINT, 7.5, bold=True, align=TA_RIGHT),
                        cell("TARGET", FAINT, 7.5, bold=True, align=TA_RIGHT),
                        cell("NET SHIFT", FAINT, 7.5, bold=True, align=TA_RIGHT),
@@ -1204,9 +1208,32 @@ def render_pdf(decision, release):
 
     if v["changed"]:
         flow += [Spacer(1, 10)] + section("The largest moves at a glance", None)
-        flow.append(grid([[cell(label.upper() or " ", FAINT, 7.5, bold=True), cell(text, INK, 8.5)]
-                          for label, text in highlight_rows(v, release)],
-                         [86, width - 86], header=False, pad=5))
+        # One row per position with change and target in aligned columns, as
+        # in the email; the old "·"-joined sentences wrapped mid-name.
+        moves = [[cell(" ", FAINT, 7.5), cell("POSITION", FAINT, 7.5, bold=True),
+                  cell("CHANGE", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                  cell("TARGET", FAINT, 7.5, bold=True, align=TA_RIGHT)]]
+        spans = []
+        for label, rows_ in (("INCREASED", v["increases"][:3]), ("REDUCED", v["reductions"][:3]),
+                             ("ENTERS", v["entering"]), ("EXITS", v["exiting"])):
+            for i, r in enumerate(rows_):
+                moves.append([cell(label if i == 0 else " ", FAINT, 7.5, bold=True),
+                              cell(f"{r['traded']}  {release['labels'].get(r['etf'], r['etf'])}", INK, 8.5),
+                              cell(pp(r["delta"]), GOOD if r["delta"] > 0 else BAD, 8.5, bold=True,
+                                   mono=True, align=TA_RIGHT),
+                              cell(pct(r["target"]), INK, 8.5, mono=True, align=TA_RIGHT)])
+        edges = v["entering"] + v["exiting"]
+        if edges and all(max(r["held"], r["target"]) < MATERIAL_NAV for r in edges):
+            moves.append([cell(" ", FAINT, 7.5),
+                          cell(f"Every entry and exit is below {pct(MATERIAL_NAV, dp=1)} of NAV: "
+                               "ranking-tail positions, not a change of stance.", SOFT, 8), "", ""])
+            spans.append(len(moves) - 1)
+        moves.append([cell("UNCHANGED", FAINT, 7.5, bold=True),
+                      cell(unchanged_sentence(v, book), INK, 8.5), "", ""])
+        spans.append(len(moves) - 1)
+        table = grid(moves, [70, width - 190, 60, 60], align=(2, 3), pad=4)
+        table.setStyle(TableStyle([("SPAN", (1, r), (3, r)) for r in spans]))
+        flow.append(KeepTogether([table]))
         for shift in v["shifts"]:
             if not shift["changed"]:
                 continue
@@ -1256,7 +1283,12 @@ def render_pdf(decision, release):
             flow.append(p(scheme, note))
     else:
         flow.append(p("No position changes."))
-    flow.append(p("Strategy D: " + v["wording"]["d_instruction"], body))
+    if decision["d_hold"]:
+        flow += [Spacer(1, 10), banner("Strategy D · HOLD. " + v["wording"]["d_instruction"]
+                                       + " No Thursday-close substitute or new D ranking is used.",
+                                       WARN, colors.HexColor("#fff7ea"))]
+    else:
+        flow.append(p("Strategy D: " + v["wording"]["d_instruction"], body))
 
     # ---- 03 holding moves ------------------------------------------------
     # ---- 03 performance and what moved it -------------------------------
@@ -1264,14 +1296,18 @@ def render_pdf(decision, release):
     # exists to get orders reviewed, and section 02 is the thing to read first.
     # Flows rather than breaks: each block below is a KeepTogether unit, so
     # letting them fill the page cannot strand a header from its figure.
-    flow += [Spacer(1, 14)] + section(
+    # The section heading travels with its first chart: on 2026-09-25 it was
+    # left alone at the foot of page 2 with the chart overleaf.
+    head03 = [Spacer(1, 14)] + section(
         "03 / Performance and what moved it",
         "Model results, not broker execution records.")
     curve = equity_chart(ctx, width)
     if curve is not None:
-        flow.append(KeepTogether(section(
+        flow.append(KeepTogether(head03 + section(
             "Deployed-model path", "Growth from the start of the deployed history, with its "
             "drawdown beneath. The same history Sharpe and maximum drawdown describe.") + [curve]))
+    else:
+        flow += head03
     chart = sleeve_contribution_chart(ctx, width)
     if chart is not None:
         residual = (pp(ctx["residual"]) if ctx.get("residual") is not None
