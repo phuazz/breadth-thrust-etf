@@ -2,11 +2,11 @@
   "etf": "IUES",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/280503/ishares-sp-500-energy-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUES_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-23T06:34:24.169396+00:00",
+  "fetched_at_utc": "2026-09-26T02:22:35.476542+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-09-18",
-  "n_target_fridays": 455,
-  "n_snapshots_written": 455,
+  "end_friday": "2026-09-25",
+  "n_target_fridays": 456,
+  "n_snapshots_written": 456,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {
@@ -35,6 +35,12 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-09-25",
+      "fallback_date": "2026-09-24",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -53,8 +59,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-18",
-    "days_since_last_real_fetch": 0,
+    "last_real_fetch_date": "2026-09-24",
+    "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -13893,6 +13899,33 @@
         "HAL",
         "TPL",
         "EXE",
+        "APA"
+      ]
+    },
+    "2026-09-25": {
+      "actual_date": "2026-09-24",
+      "n_tickers": 21,
+      "tickers": [
+        "XOM",
+        "CVX",
+        "COP",
+        "VLO",
+        "MPC",
+        "PSX",
+        "WMB",
+        "SLB",
+        "EOG",
+        "KMI",
+        "TRGP",
+        "OKE",
+        "BKR",
+        "DVN",
+        "OXY",
+        "FANG",
+        "EQT",
+        "HAL",
+        "EXE",
+        "TPL",
         "APA"
       ]
     }
