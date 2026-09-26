@@ -1,8 +1,8 @@
 {
-  "computed_at_utc": "2026-09-26 06:23 UTC",
+  "computed_at_utc": "2026-09-26 07:23 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-09-25",
-  "anchor_equity": 2.95169,
+  "anchor_equity": 2.951689,
   "regime_state": "RISK_ON",
   "eem_tilt_active": false,
   "eem_tilt_signal_as_of": "2026-09-25",
