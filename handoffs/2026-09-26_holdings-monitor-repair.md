@@ -113,7 +113,7 @@ same sequence against GitHub:
 - Payload `built_at_utc`: `2026-09-26T08:20:06+00:00`.
 - Success heartbeat: `2026-09-26T08:20:23+00:00`.
 - Commit: `1eac83b2`, `monitor: holdings capture 2026-09-26`.
-- Remote `origin/main`: `1eac83b20c41fd9a180f95d88c5f80947e3ea8af`.
+- Capture commit pushed to `origin/main`: `1eac83b20c41fd9a180f95d88c5f80947e3ea8af`.
 
 ## Remaining limitations and next run
 
@@ -122,8 +122,9 @@ same sequence against GitHub:
 - XBI G7 is intentionally a warning because it is an inactive index fund;
   source age, as-of monotonicity, roster size, weights, price coverage and
   dropped-row guards still block on failure.
-- External publication completed at 2026-09-26 08:20:23 UTC: remote
-  `origin/main` now points to `1eac83b20c41fd9a180f95d88c5f80947e3ea8af`.
+- External capture publication completed at 2026-09-26 08:20:23 UTC. The
+  handover update followed; remote `origin/main` now points to
+  `abc4d03ee1e6b4bea5f47e9f5ce6c93351bdbbbd`.
 - The external capture payload was built at 2026-09-26 08:20:06 UTC and the
   success heartbeat advanced at 2026-09-26 08:20:23 UTC. The heartbeat is
   later than the payload and the wrapper reported `RESULT: OK`.
