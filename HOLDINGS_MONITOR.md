@@ -167,7 +167,9 @@ upstream file and publishes a confident, wrong table.
 
 A FAIL blocks the page build and the push. G5's floor (0.85) is imported from
 `compute_breadth` rather than restated, so there is one definition of "thin"
-in the repository.
+in the repository. G7 remains blocking for active funds. XBI is registered as
+an inactive equal-weight index fund, so broad changes at mechanical index
+rebalancing are retained as a warning rather than treated as manager turnover.
 
 ---
 

@@ -22,11 +22,14 @@ invisible on the rendered page:
                      read as "nothing happening"
   G6 dropped share   a spike in rejected rows is an upstream format change
                      announcing itself
-  G7 flow turnover   if most of a fund's names change status overnight, the
-                     comparison basis is wrong, not the portfolio. Statuses
-                     are netted of the fund's own creation or redemption
-                     before they get here, so this counts MANAGER activity;
-                     a creation moves every share count and is not turnover
+  G7 flow turnover   if most of an ACTIVE fund's names change status
+                     overnight, the comparison basis is wrong, not the
+                     portfolio. Statuses are netted of the fund's own
+                     creation or redemption before they get here, so this
+                     counts MANAGER activity; a creation moves every share
+                     count and is not turnover. Inactive index funds are
+                     WARN-only because their broad changes are mechanical
+                     rebalancing, not manager activity.
   G8 payload age     the page is only as good as its last successful build
 
 Usage:
@@ -81,6 +84,35 @@ class Result:
     @property
     def failed(self) -> bool:
         return any(r["status"] == "FAIL" for r in self.rows)
+
+
+def flow_turnover_check(etf: str, cfg: dict, fund: dict) -> tuple[str, str]:
+    """Return the G7 status and detail for one registered fund.
+
+    ``MONITOR_FUNDS["XBI"]["active"]`` is deliberately false: XBI is an
+    equal-weight index fund, so broad share-count changes at index
+    rebalancing are expected mechanical activity. Keep the turnover
+    diagnostic visible as a warning, but do not make it block a current
+    roster from publishing. Active funds retain the blocking threshold.
+    """
+    basis = fund.get("flow_basis")
+    if not basis:
+        return ("WARN", "no prior snapshot yet, so flow is unavailable "
+                "(expected on the first run only)")
+
+    rows = fund.get("rows", [])
+    moved = sum(1 for r in rows
+                if r.get("fs") in ("new", "added", "trimmed"))
+    moved += len(fund.get("exits", []))
+    frac = moved / max(1, len(rows))
+    ff = fund.get("fund_flow_pct")
+    suffix = "" if ff is None else f", fund flow {ff:+.2f}%"
+    detail = (f"{frac:.1%} of names moved vs {basis} "
+              f"(cap {FLOW_TURNOVER_MAX:.0%}){suffix}")
+    if not cfg["active"]:
+        return ("WARN", detail + "; index-fund mechanical rebalancing is "
+                "not treated as manager turnover")
+    return ("FAIL" if frac > FLOW_TURNOVER_MAX else "OK", detail)
 
 
 def _stored_as_ofs(etf: str) -> list[date]:
@@ -156,22 +188,8 @@ def run_checks(today: date | None = None) -> Result:
                 f"{n_drop} rows rejected ({share:.1%} of file, "
                 f"cap {DROPPED_SHARE_MAX:.0%})")
 
-        rows = f.get("rows", [])
-        basis = f.get("flow_basis")
-        if not basis:
-            res.add("G7", etf, "WARN",
-                    "no prior snapshot yet, so flow is unavailable "
-                    "(expected on the first run only)")
-        else:
-            moved = sum(1 for r in rows
-                        if r.get("fs") in ("new", "added", "trimmed"))
-            moved += len(f.get("exits", []))
-            frac = moved / max(1, len(rows))
-            ff = f.get("fund_flow_pct")
-            res.add("G7", etf, "FAIL" if frac > FLOW_TURNOVER_MAX else "OK",
-                    f"{frac:.1%} of names moved vs {basis} "
-                    f"(cap {FLOW_TURNOVER_MAX:.0%})"
-                    + ("" if ff is None else f", fund flow {ff:+.2f}%"))
+        status, detail = flow_turnover_check(etf, cfg, f)
+        res.add("G7", etf, status, detail)
     return res
 
 
