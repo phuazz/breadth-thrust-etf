@@ -1029,6 +1029,27 @@ def inject(template_text: str, data: dict) -> str:
     )
 
 
+def stale_cache_fails_capture(stale_etfs, component: str | None = None) -> bool:
+    """Whether a stale-cache refusal should fail a --strict-capture run.
+
+    Only a deployed panel INSIDE the component being refreshed counts. A core
+    run does not refresh the Europe caches, so on 2026-09-26 the Saturday core
+    pass failed because five deployed Europe panels had aged four sessions over
+    a Thursday and Friday with no refresh, and nothing core could do would have
+    cleared it. The Europe run that follows judges its own panels. An empty
+    list means the refusal named nothing, which still fails, since the scope
+    cannot be established.
+    """
+    import os
+    from component_scope import select_panels
+    from refresh_all import ETFS_ALL
+    if component is None:
+        component = os.environ.get("BTE_COMPONENT_REFRESH") or "all"
+    if not stale_etfs:
+        return True
+    return bool(set(stale_etfs) & set(select_panels(ETFS_ALL, component)))
+
+
 def main(dashboard_only: bool = False, strict_capture: bool = False) -> int:
     # Freshness guard: every derived JSON the dashboard renders live must
     # not lag its sources by more than a week. Catches the silent-
@@ -1630,8 +1651,7 @@ def main(dashboard_only: bool = False, strict_capture: bool = False) -> int:
                 fn()
             except build_panel_series.StalePriceCacheError as exc:
                 stale.append(str(exc))
-                from refresh_all import ETFS_ALL
-                if not exc.etfs or set(exc.etfs) & set(ETFS_ALL):
+                if stale_cache_fails_capture(exc.etfs):
                     capture_failed = True
             except Exception as exc:
                 print(f"  WARN: {label} build failed (non-fatal): {exc}",
