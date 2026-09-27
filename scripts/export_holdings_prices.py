@@ -634,11 +634,18 @@ def fetch_missing_from_yfinance(tickers: list[str],
 
     for tk in tickers:
         try:
-            if len(tickers) == 1:
-                # Single-ticker downloads are not MultiIndex-keyed by ticker.
-                ser = raw["Close"] if "Close" in raw.columns else None
+            # The ticker-keyed column first, whatever the batch size. The
+            # single-ticker branch assumed a flat frame, but with
+            # group_by="ticker" yfinance 1.1.0 keys even one ticker as
+            # (ticker, field), so every one-ticker refetch came back empty.
+            # Found 2026-09-27 when IBIT was the only line to refetch and the
+            # release preflight refused the book for want of its quote.
+            if (tk, "Close") in raw.columns:
+                ser = raw[(tk, "Close")]
+            elif len(tickers) == 1 and "Close" in raw.columns:
+                ser = raw["Close"]
             else:
-                ser = raw[(tk, "Close")] if (tk, "Close") in raw.columns else None
+                ser = None
             if ser is None:
                 continue
             if isinstance(ser, pd.DataFrame):
