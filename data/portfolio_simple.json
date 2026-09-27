@@ -6256,7 +6256,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-09-25",
- "computed_at_utc": "2026-09-27 01:16 UTC",
+ "computed_at_utc": "2026-09-27 09:07 UTC",
  "holdings": [
   {
    "ticker": "DBC",
@@ -6460,7 +6460,7 @@
  "n_positions": 22,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-09-27T01:16:56.141520+00:00",
+  "computed_at_utc": "2026-09-27T09:07:57.259721+00:00",
   "all_current": true,
   "strategies": [
    {

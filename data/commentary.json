@@ -1,8 +1,8 @@
 {
-  "computed_at_utc": "2026-09-27T01:17:03+00:00",
+  "computed_at_utc": "2026-09-27T09:08:04+00:00",
   "as_of": "2026-09-25",
   "next_fill": {
-    "summary": "17 moves at the next fill (NYSE Mon 28 Sep 2026, XETR Mon 28 Sep 2026), ranked on the Fri 25 Sep 2026 close; one-way turnover 15.54% of NAV; 1 new name; 1 exit. Signals compared with the previous decision close.",
+    "summary": "19 moves at the next fill (NYSE Mon 28 Sep 2026, XETR Mon 28 Sep 2026), ranked on the Fri 25 Sep 2026 close; one-way turnover 17.54% of NAV; 2 new names; 2 exits. Signals compared with the previous decision close.",
     "moves": [
       {
         "sleeve": "D",
@@ -91,6 +91,50 @@
         "driver": "signal",
         "signal_kind": "breadth_relative",
         "text": "SOXX (iShares Semiconductors) 7.1% \u2192 11.7% of NAV (+4.6pp): breadth +16.6pp \u2192 +28.3pp against the sector average, rank 3 \u2192 1 of 14."
+      },
+      {
+        "sleeve": "C",
+        "etf": "BTC-USD",
+        "traded": "IBIT",
+        "name": "Bitcoin (CoinDesk spot \u2014 deployed via IBIT, 25bps ER)",
+        "action": "BUY",
+        "held": 0.0,
+        "target": 0.020000000000000004,
+        "delta": 0.020000000000000004,
+        "signal_now": 0.1324,
+        "signal_prev": 0.0878,
+        "signal_now_fmt": "+13.2",
+        "signal_prev_fmt": "+8.8",
+        "rank_now": 5,
+        "rank_prev": 7,
+        "n": 25,
+        "cut": "in",
+        "cash_proxy": false,
+        "driver": "signal",
+        "signal_kind": "ma_distance",
+        "text": "IBIT (Bitcoin (CoinDesk spot \u2014 deployed via IBIT, 25bps ER)) enters at 2.0% of NAV: +8.8% \u2192 +13.2% against its 200-day average, rank 7 \u2192 5 of 25, into the top 5."
+      },
+      {
+        "sleeve": "C",
+        "etf": "XBI",
+        "traded": "XBI",
+        "name": "SPDR S&P Biotech (eq-weight)",
+        "action": "SELL ALL",
+        "held": 0.020000000000000004,
+        "target": 0.0,
+        "delta": -0.020000000000000004,
+        "signal_now": 0.1243,
+        "signal_prev": 0.144,
+        "signal_now_fmt": "+12.4",
+        "signal_prev_fmt": "+14.4",
+        "rank_now": 6,
+        "rank_prev": 4,
+        "n": 25,
+        "cut": "out",
+        "cash_proxy": false,
+        "driver": "signal",
+        "signal_kind": "ma_distance",
+        "text": "XBI (SPDR S&P Biotech (eq-weight)) exits from 2.0% of NAV: +14.4% \u2192 +12.4% against its 200-day average, rank 4 \u2192 6 of 25, out of the top 5."
       },
       {
         "sleeve": "A",
@@ -717,6 +761,72 @@
         ]
       },
       {
+        "sleeve": "C",
+        "label": "Thematic",
+        "signal_kind": "ma_distance",
+        "signal_unit": "vs 200-day avg (%)",
+        "signal_desc": "distance of the price above its 200-day average",
+        "top_k": 5,
+        "n": 25,
+        "heading": "Sleeve C \u00b7 Thematic \u00b7 ranks 25 on distance of the price above its 200-day average, holds the top 5",
+        "story": "IBIT enters at 2.0% of NAV (rank 7 \u2192 5, into the top 5); XBI exits (rank 4 \u2192 6, out of the top 5).",
+        "gate": {
+          "enabled": true,
+          "n_above": 9,
+          "n_universe": 25,
+          "breadth": 0.36,
+          "floor": 0.05,
+          "threshold": 0.3,
+          "fired": false
+        },
+        "moves": [
+          {
+            "sleeve": "C",
+            "etf": "BTC-USD",
+            "traded": "IBIT",
+            "name": "Bitcoin (CoinDesk spot \u2014 deployed via IBIT, 25bps ER)",
+            "action": "BUY",
+            "held": 0.0,
+            "target": 0.020000000000000004,
+            "delta": 0.020000000000000004,
+            "signal_now": 0.1324,
+            "signal_prev": 0.0878,
+            "signal_now_fmt": "+13.2",
+            "signal_prev_fmt": "+8.8",
+            "rank_now": 5,
+            "rank_prev": 7,
+            "n": 25,
+            "cut": "in",
+            "cash_proxy": false,
+            "driver": "signal",
+            "signal_kind": "ma_distance",
+            "text": "IBIT (Bitcoin (CoinDesk spot \u2014 deployed via IBIT, 25bps ER)) enters at 2.0% of NAV: +8.8% \u2192 +13.2% against its 200-day average, rank 7 \u2192 5 of 25, into the top 5."
+          },
+          {
+            "sleeve": "C",
+            "etf": "XBI",
+            "traded": "XBI",
+            "name": "SPDR S&P Biotech (eq-weight)",
+            "action": "SELL ALL",
+            "held": 0.020000000000000004,
+            "target": 0.0,
+            "delta": -0.020000000000000004,
+            "signal_now": 0.1243,
+            "signal_prev": 0.144,
+            "signal_now_fmt": "+12.4",
+            "signal_prev_fmt": "+14.4",
+            "rank_now": 6,
+            "rank_prev": 4,
+            "n": 25,
+            "cut": "out",
+            "cash_proxy": false,
+            "driver": "signal",
+            "signal_kind": "ma_distance",
+            "text": "XBI (SPDR S&P Biotech (eq-weight)) exits from 2.0% of NAV: +14.4% \u2192 +12.4% against its 200-day average, rank 4 \u2192 6 of 25, out of the top 5."
+          }
+        ]
+      },
+      {
         "sleeve": "D",
         "label": "Europe sectors",
         "signal_kind": "breadth",
@@ -797,9 +907,7 @@
         ]
       }
     ],
-    "holds": [
-      "Sleeve C is held and its book is unchanged: decision row carries 24 of 25 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one; missing signal inputs: BTC-USD."
-    ],
+    "holds": [],
     "notes": [],
     "decision_session": "2026-09-25",
     "fill_by_venue": {
