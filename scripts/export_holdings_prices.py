@@ -121,6 +121,37 @@ INDIVIDUAL_OHLC_TICKERS = [
 # ``collect_book_symbols``.
 NETWORK_FALLBACK_TICKERS = sorted(set(INDIVIDUAL_OHLC_TICKERS))
 
+
+def registry_trading_proxies() -> set[str]:
+    """The trading proxy of every DEPLOYED universe member, held or not.
+
+    ``collect_book_symbols`` reads the LAST EXECUTED trade, so it names what is
+    held, not what the next fill buys. A new buy is normally still exported
+    because the fund is a column of its sleeve's price cache. The exception is
+    a line whose cache key is not the instrument it trades as: sleeve C keys
+    Bitcoin as BTC-USD and trades IBIT. On 2026-09-27 C ranked Bitcoin in for
+    the first time under the component release contract, no IBIT series had
+    been exported, and the release preflight refused the book (a quote for
+    BTC-USD filed under IBIT would misstate what was priced). Every other
+    proxy was already in the hand-kept list above; this derives the set from
+    the registry so the next proxy cannot be missed the same way.
+
+    Deployed members only. A screening candidate's proxy (EXFB trades as
+    EXH3.DE) would become book-critical here, and a vendor gap on a fund the
+    book cannot hold must not be able to fail the export.
+    """
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from etf_registry import (  # noqa: PLC0415
+        ETF_REGISTRY, UNIVERSE_ETFS, UNIVERSE_EUROPE_SECTORS,
+    )
+    import run_asset_class_rotation as ac  # noqa: PLC0415
+    import run_thematic_rotation as th  # noqa: PLC0415
+    deployed = (set(UNIVERSE_ETFS) | set(UNIVERSE_EUROPE_SECTORS)
+                | set(ac.TICKERS) | set(th.TICKERS))
+    return {(ETF_REGISTRY.get(key) or {}).get("yfinance_trading_proxy")
+            for key in deployed} - {None, ""}
+
 # Maximum age of a cache-sourced series before the yfinance fallback re-fetches
 # it anyway. em_regime_context.parquet (the only committed EEM source after
 # Phase 29) froze at 2026-07-06 and every panel vintage shipped a 9-session-old
@@ -378,6 +409,7 @@ def collect_all_tickers() -> set[str]:
         except Exception:
             pass
     tickers.update(NETWORK_FALLBACK_TICKERS)
+    tickers.update(registry_trading_proxies())
     tickers.update(collect_book_symbols())
     return tickers
 
@@ -1208,7 +1240,7 @@ def main(argv: list[str] | None = None) -> int:
           f"{now_utc.isoformat(timespec='seconds')} ...")
     tickers = sorted(collect_all_tickers())
     book = collect_book_symbols()
-    critical = sorted(set(NETWORK_FALLBACK_TICKERS) | book)
+    critical = sorted(set(NETWORK_FALLBACK_TICKERS) | registry_trading_proxies() | book)
     print(f"  Candidate tickers: {len(tickers)} "
           f"(book-critical: {len(critical)})")
 
