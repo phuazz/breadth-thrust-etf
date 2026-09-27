@@ -334,3 +334,19 @@ def test_sleeve_story_is_absent_without_a_change(tmp_path,monkeypatch):
     release=install(tmp_path,monkeypatch,ready=True)
     shift=next(s for s in sleeve_shifts(release["book"]) if not s["changed"])
     assert sleeve_story(shift,release) is None
+
+
+def test_d_confirmation_is_a_table_of_every_d_change(tmp_path, monkeypatch):
+    """The D block uses the changes-table component, all D rows, no truncation,
+    and carries the D instruction once under its own heading (2026-09-27)."""
+    release = install(tmp_path, monkeypatch, ready=True, gate=True)
+    decision = {"action": "regular", "d_hold": False}
+    v = view_model(decision, release)
+    html = render_html(decision, release)
+    block = html.split("D confirmation")[1]
+    d_rows = [r for r in v["changed"] if r["sleeve"] == "D"]
+    assert d_rows
+    assert "<table class='changes'" in block
+    assert block.count("class='d-confirm'") == len(d_rows)
+    assert "<strong>Strategy D:</strong>" not in html
+    assert " → target " not in block

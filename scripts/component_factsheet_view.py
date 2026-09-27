@@ -558,7 +558,7 @@ def _money_tone(value):
     return "up" if value > CHANGE_EPSILON else "down" if value < -CHANGE_EPSILON else None
 
 
-def _change_table(shifts, release, decision=None, limit=None, unchanged=False):
+def _change_table(shifts, release, decision=None, limit=None, unchanged=False, row_class="position"):
     """One compact held-to-target table, grouped by strategy, names and units."""
     e = book_e = escape
     book = release["book"]
@@ -589,7 +589,7 @@ def _change_table(shifts, release, decision=None, limit=None, unchanged=False):
         for row in rows:
             shown += 1
             parts.append(
-                f"<tr class='position'><td style='{cell};overflow-wrap:anywhere'>"
+                f"<tr class='{row_class}'><td style='{cell};overflow-wrap:anywhere'>"
                 f"<strong>{e(row['traded'])}</strong>{_tag(action_of(row))}<br>"
                 f"<span class='note' style='font-size:13px'>{e(display_label(row['etf'], release))}</span></td>"
                 f"<td style='{right}'>{e(pct(row['held']))}</td>"
@@ -790,16 +790,22 @@ def render_html(decision, release, include_unchanged=False):
     if decision["d_hold"]:
         held.append(f"<p style='margin:8px 0;font-size:14px'><strong>Strategy D · HOLD.</strong> "
                     f"{e(w['d_instruction'])} No Thursday-close substitute or new D ranking is used.</p>")
-    else:
+    elif include_unchanged:
         parts.append(f"<p><strong>Strategy D:</strong> {e(w['d_instruction'])}</p>")
     if not include_unchanged and not decision['d_hold']:
+        # The same table component as the changes above, limited to D and
+        # never truncated, with the D instruction under its heading. It was one
+        # bare paragraph per line, "name: held x -> target y (+z)", beside a
+        # separate "Strategy D:" line repeating the instruction (2026-09-27).
         parts.append("<h3>D confirmation</h3>")
+        parts.append(f"<p>{e(w['d_instruction'])}</p>")
         d_changes = [r for r in v['changed'] if r['sleeve']=='D']
         if not d_changes:
             parts.append("<p>D is verified with no proposed weight changes.</p>")
-        for r in d_changes:
-            parts.append(f"<p>{e(position_name(r,release))}: held {pct(r['held'])} → target {pct(r['target'])} "
-                         f"({pp(r['delta'])}).</p>")
+        else:
+            d_table, _ = _change_table([s for s in v["shifts"] if s["sleeve"] == "D"],
+                                       release, decision, row_class="d-confirm")
+            parts.append(d_table)
         # Only a D follow-up can assert an earlier email; a single all-ready
         # factsheet has no predecessor, and a revision says so in its banner.
         earlier = (" A–C and the overlays are unchanged from the initial email; do not submit them a second time."
