@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-09-26T07:23:24.879819+00:00",
+ "computed_at_utc": "2026-09-27T01:16:58.869559+00:00",
  "as_of": "2026-09-25",
  "overlay_decision": {
   "as_of": "2026-09-25",
@@ -20,7 +20,7 @@
    "shy_overlay": 0.0
   }
  },
- "rounding_residual_nav": 2.0000000000006124e-05,
+ "rounding_residual_nav": 1.3877787807814457e-17,
  "executed": false,
  "targets_final": false,
  "next_fill": {
@@ -160,23 +160,23 @@
   {
    "sleeve": "D",
    "venue": "XETR",
-   "status": "HOLD",
-   "reason": "signal reaches 2026-09-24 but the last completed XETR session is 2026-09-25 \u2014 ranking now would use an earlier session",
-   "decision_session": "2026-09-24",
+   "status": "READY",
+   "reason": null,
+   "decision_session": "2026-09-25",
    "last_completed_session": "2026-09-25",
    "weights": {
-    "EXV1": 0.394165,
-    "EXH1": 0.33714,
-    "EXV3": 0.268694
+    "EXV1": 0.395206,
+    "EXH1": 0.332665,
+    "EXH3": 0.272129
    },
    "signal_kind": "breadth",
    "top_k": 3,
    "signals": {
-    "EXV1": 0.8857,
+    "EXV1": 0.9,
     "EXH1": 0.7576,
     "EXV3": 0.6038,
-    "EXH3": 0.5986,
-    "EXH9": 0.4571
+    "EXH3": 0.6197,
+    "EXH9": 0.4857
    },
    "signals_prev": {
     "EXV1": 0.9143,
@@ -389,37 +389,44 @@
   },
   {
    "sleeve": "D",
-   "etf": "EXV1",
-   "traded": "EXV1",
-   "within": 0.39846015398460155,
-   "target": 0.07970000000000001,
-   "held": 0.07970000000000001,
-   "risk_adjustment": false,
-   "status": "HOLD",
-   "delta": 0.0
-  },
-  {
-   "sleeve": "D",
-   "etf": "EXH1",
-   "traded": "EXH1",
-   "within": 0.3301669833016698,
-   "target": 0.06604,
-   "held": 0.06604,
-   "risk_adjustment": false,
-   "status": "HOLD",
-   "delta": 0.0
+   "etf": "EXH3",
+   "traded": "EXH4",
+   "within": 0.272129,
+   "target": 0.0544258,
+   "held": 0.0,
+   "status": "READY",
+   "delta": 0.0544258
   },
   {
    "sleeve": "D",
    "etf": "EXV3",
    "traded": "EXV3",
-   "within": 0.2713728627137286,
-   "target": 0.054279999999999995,
+   "within": 0.0,
+   "target": 0.0,
    "held": 0.054279999999999995,
-   "risk_adjustment": false,
-   "status": "HOLD",
-   "delta": 0.0
+   "status": "READY",
+   "delta": -0.054279999999999995
+  },
+  {
+   "sleeve": "D",
+   "etf": "EXV1",
+   "traded": "EXV1",
+   "within": 0.395206,
+   "target": 0.0790412,
+   "held": 0.07970000000000001,
+   "status": "READY",
+   "delta": -0.000658800000000001
+  },
+  {
+   "sleeve": "D",
+   "etf": "EXH1",
+   "traded": "EXH1",
+   "within": 0.332665,
+   "target": 0.066533,
+   "held": 0.06604,
+   "status": "READY",
+   "delta": 0.0004929999999999934
   }
  ],
- "one_way_turnover": 0.10050950000000002
+ "one_way_turnover": 0.1554383
 }
