@@ -53,6 +53,18 @@ def core_identity(book):
                         key=lambda r: (r["sleeve"], r["etf"]))})
 
 
+EUROPE_DECISION_FIELDS = ("sleeve", "venue", "status", "weights", "decision_session",
+                          "decision_session_for_fill", "fill_date")
+
+
+def europe_identity(book):
+    # The D decision and D lines only; the counterpart of core_identity.
+    d = next(s for s in book["sleeves"] if s["sleeve"] == "D")
+    return digest({"decision": {k: d[k] for k in EUROPE_DECISION_FIELDS},
+                   "lines": sorted([r for r in book["lines"] if r["sleeve"] == "D"],
+                                   key=lambda r: r["etf"])})
+
+
 def assert_incumbent_construction(root, reader=read):
     """Refuse a book built on a STAGED construction, read off the artefact.
 
@@ -233,9 +245,6 @@ def validate_book(book, basis, now):
     if declared_rounding is None or isinstance(declared_rounding, bool):
         raise ValueError("invalid declared HOLD rounding residual")
     validate_target_nav(sleeves, rows, budgets, declared_rounding)
-    d = next(s for s in sleeves if s["sleeve"] == "D")
-    d_fields = ("sleeve", "venue", "status", "weights", "decision_session",
-                "decision_session_for_fill", "fill_date")
     # `held_sleeves` is what publication_debt reads to decide whether a HOLD is
     # authorised. It used `d_ready is False` as a proxy for "D is held", which
     # cannot express a held C at all and would have left one OBLIGED, escalating
@@ -243,8 +252,7 @@ def validate_book(book, basis, now):
     return {"anchor": anchor, "d_ready": d_ready,
             "held_sleeves": sorted(held_sleeves),
             "core_identity": core_identity(book),
-            "europe_identity": digest({"decision": {k: d[k] for k in d_fields},
-                "lines": sorted([r for r in rows if r["sleeve"] == "D"], key=lambda r: r["etf"])})}
+            "europe_identity": europe_identity(book)}
 
 
 def source_paths(root):

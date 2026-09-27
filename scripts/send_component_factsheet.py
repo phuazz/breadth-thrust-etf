@@ -30,6 +30,12 @@ SEND_ACTIONS = {"preview", "regular", "d_update"}
 # SEND_ACTIONS: the scheduled sender must not be able to reach this path.
 REVISION_ACTION = "revision"
 REVISION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+# A restatement delivers a CHANGED instruction after distribution, on named
+# owner authority. Like the revision it is dispatch-only and never enters
+# SEND_ACTIONS. Its identifier follows the revision rule.
+RESTATEMENT_ACTION = "restatement"
+# The view's CHANGE_EPSILON: a target difference below this is arithmetic noise.
+RESTATED_EPSILON = 1e-8
 
 
 def ledger_at(root):
@@ -347,15 +353,289 @@ def send_revision(root=ROOT, now=None, revision=None, transport=smtp_send, env=N
     write(root / LEDGER, ledger)
 
 
+# ------------------------------------------------------------ restatement ---
+# The revision route re-sends the SAME book and refuses a changed identity;
+# email_decision alerts only the operator when core changes after delivery.
+# Neither can deliver a changed instruction. 2026-09-27 needed one: C was on
+# HOLD in Saturday's factsheet (anchor 2026-09-25) because the BTC-USD bar had
+# not been served, the factsheet said so, the bar arrived, and the owner had
+# the book restated. This route delivers that restated book once, on named
+# authority, and states exactly what differs from what was delivered.
+
+SLEEVE_SEQUENCE = ("A", "B", "C", "D", "TILT", "GATE")
+
+
+def delivered_release(root, anchor, core, europe):
+    """The committed seal whose identities are the ones the ledger delivered.
+
+    Walks the manifest's history newest first and stops at the first commit
+    belonging to an earlier week. None when no commit matches: the caller
+    must then refuse, because the difference cannot be derived.
+    """
+    import json
+    try:
+        revisions = subprocess.run(["git", "log", "--format=%H", "--", MANIFEST], cwd=root,
+                                   capture_output=True, text=True, check=True).stdout.split()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    for revision in revisions:
+        shown = subprocess.run(["git", "show", f"{revision}:{MANIFEST}"], cwd=root,
+                               capture_output=True)
+        if shown.returncode != 0:
+            continue
+        try:
+            payload = json.loads(shown.stdout)
+        except ValueError:
+            continue
+        seal_anchor = str(payload.get("anchor") or "")
+        if seal_anchor != anchor:
+            if seal_anchor < anchor:     # ISO dates order as strings
+                break
+            continue
+        if payload.get("core_identity") == core and payload.get("europe_identity") == europe:
+            return payload
+    return None
+
+
+def _reconstructs(prior, anchor, core, europe):
+    """True when `prior` is intact and IS the delivered instruction.
+
+    The identities are recomputed from the book rather than read off the
+    seal, so a reader cannot be handed a book under another book's label.
+    """
+    from component_release import core_identity, europe_identity
+    try:
+        body = {k: v for k, v in prior.items() if k != "identity"}
+        return (prior.get("anchor") == anchor and prior.get("identity") == digest(body)
+                and core_identity(prior["book"]) == core == prior.get("core_identity")
+                and europe_identity(prior["book"]) == europe == prior.get("europe_identity"))
+    except (KeyError, TypeError, ValueError, StopIteration, AttributeError):
+        return False
+
+
+def restatement_changes(prior, current):
+    """(released holds, imposed holds, restated lines), derived from two books.
+
+    Nothing here is asserted: a sleeve is released only if the delivered book
+    shows it on HOLD and the current one READY, and a line is restated only
+    if its target differs by more than arithmetic noise.
+    """
+    before = {s["sleeve"]: s["status"] for s in prior["book"]["sleeves"]}
+    after = {s["sleeve"]: s["status"] for s in current["book"]["sleeves"]}
+    released = sorted(s for s in after if before.get(s) == "HOLD" and after[s] == "READY")
+    imposed = sorted(s for s in after if before.get(s) == "READY" and after[s] == "HOLD")
+    old = {(r["sleeve"], r["etf"]): r for r in prior["book"]["lines"]}
+    new = {(r["sleeve"], r["etf"]): r for r in current["book"]["lines"]}
+    labels = {**(prior.get("labels") or {}), **(current.get("labels") or {})}
+    order = {s: i for i, s in enumerate(SLEEVE_SEQUENCE)}
+    lines = []
+    for key in sorted(set(old) | set(new), key=lambda k: (order.get(k[0], len(order)), k[1])):
+        was = float(old[key]["target"]) if key in old else 0.0
+        now = float(new[key]["target"]) if key in new else 0.0
+        if abs(now - was) <= RESTATED_EPSILON:
+            continue
+        row = new.get(key) or old[key]
+        lines.append({"sleeve": key[0], "etf": key[1], "traded": row["traded"],
+                      "label": labels.get(key[1], key[1]),
+                      "prior_target": was, "new_target": now})
+    return released, imposed, lines
+
+
+def plan_restatement(root=ROOT, now=None, restatement=None, authority=None, committed=False,
+                     allow_pending=None, prior_release=None):
+    """Authorise one restated instruction for an already-delivered anchor.
+
+    Every branch refuses by default. Unlike a revision this route exists to
+    carry a CHANGED instruction, so it has no review-checkpoint guard: the
+    change arrives after the window by construction, and the banner says so.
+    It requires named owner authority, a settled delivered week, a verifying
+    all-ready release, an identity that actually differs, the delivered book
+    reconstructed from Git (or injected in tests) so the difference is
+    derived rather than asserted, at most one restatement per anchor and an
+    unexpired fill date. There is no waiver.
+    """
+    now = now or datetime.now(timezone.utc)
+    restatement = str(restatement or "").strip()
+    if not REVISION_ID.match(restatement):
+        return blocked("a restatement identifier of [A-Za-z0-9._-] is required")
+    authority = str(authority or "").strip()
+    if not authority:
+        return blocked("the owner authority for a restatement is required")
+    if (root / "docs/factsheet_hold.json").exists():
+        return blocked("operator hold is in place")
+    anchor = week_final_anchor(now).isoformat()
+    ledger = ledger_at(root)
+    outstanding = [s["pending"] for s in ledger["anchors"].values() if s.get("pending")]
+    if any(not (allow_pending and p.get("id") == allow_pending
+                and p.get("action") == RESTATEMENT_ACTION and p.get("restatement") == restatement)
+           for p in outstanding):
+        return blocked("an unconfirmed delivery attempt is outstanding; reconcile before restating")
+    state = ledger["anchors"].get(anchor)
+    if not state or state.get("anchor") != anchor:
+        return blocked("no confirmed delivery exists for the current anchor")
+    if not state.get("regular"):
+        return blocked("the ordinary weekly delivery has not completed for this anchor")
+    if state["regular"] == "d_hold" and not state.get("d_update"):
+        return blocked("the D follow-up is still outstanding; restate only a settled week")
+    already = sorted(state.get("restatements") or {})
+    if restatement in already:
+        return blocked(f"restatement {restatement!r} was already delivered for this anchor")
+    if already:
+        return blocked(f"a restatement was already delivered for this anchor: {already}")
+    if not (root / MANIFEST).exists() or read(root / MANIFEST).get("anchor") != anchor:
+        return blocked("the sealed release is absent or belongs to another week")
+    release = verify(root, now, committed=committed)
+    if not release["d_ready"]:
+        return blocked("D is not verified; restate only a settled book")
+    if (state.get("core") == release["core_identity"]
+            and state.get("europe") == release["europe_identity"]):
+        return blocked("instruction unchanged; use a presentation revision")
+    local = now.astimezone(SGT)
+    if any(date.fromisoformat(s["fill_date"]) < local.date() for s in release["book"]["sleeves"]):
+        return blocked("a proposed fill date has passed; the instruction would be stale")
+    prior = (prior_release if prior_release is not None else
+             delivered_release(root, anchor, state.get("core"), state.get("europe"))
+             if committed else None)
+    if prior is None or not _reconstructs(prior, anchor, state.get("core"), state.get("europe")):
+        return blocked("the delivered instruction cannot be reconstructed")
+    released, imposed, lines = restatement_changes(prior, release)
+    if not (released or imposed or lines):
+        # The identities differ but nothing a reader acts on does. An email
+        # announcing a restatement that lists nothing would mislead.
+        return blocked("the identities differ but no sleeve status or line target does; "
+                       "review required")
+    return {"action": RESTATEMENT_ACTION, "audience": "distribution", "anchor": anchor,
+            "restatement": restatement, "authority": authority, "d_hold": False,
+            "core_held": _core_held(release),
+            "core_identity": release["core_identity"],
+            "europe_identity": release["europe_identity"],
+            "supersedes": {"core": state.get("core"), "europe": state.get("europe")},
+            "prior_release": prior["identity"],
+            "released_holds": released, "imposed_holds": imposed, "restated_lines": lines,
+            "reason": f"restated instruction on owner authority: {authority}"}, release
+
+
+def prepare_restatement(root=ROOT, now=None, restatement=None, authority=None, reserve=False,
+                        committed=False, prior_release=None):
+    now = now or datetime.now(timezone.utc)
+    decision, release = plan_restatement(root, now, restatement, authority, committed=committed,
+                                         prior_release=prior_release)
+    if decision["action"] != RESTATEMENT_ACTION:
+        return decision
+    from component_factsheet_view import verified_context, render_pdf, render_text
+    release = {**release, "presentation": verified_context(root, release, committed)}
+    html = render(decision, release)
+    wording = email_wording(decision)
+    candidate = {"decision": decision, "release_identity": release["identity"],
+        "subject": f"{wording['subject']} · USD Multi-Strategy ETF Portfolio · {release['anchor']}",
+        "html": html, "book_html": render(decision, release, include_unchanged=True),
+        "book": release["book"]}
+    candidate["text"] = render_text(decision, release)
+    candidate["pdf_base64"] = base64.b64encode(render_pdf(decision, release)).decode("ascii")
+    candidate["pdf_filename"] = f"factsheet_{release['anchor']}_restatement-{decision['restatement']}.pdf"
+    candidate["id"] = digest(candidate)
+    write(root / OUT / "candidate.json", candidate)
+    (root / OUT / "preview.html").write_text(html, encoding="utf-8")
+    (root / OUT / candidate["pdf_filename"]).write_bytes(base64.b64decode(candidate["pdf_base64"]))
+    if reserve:
+        ledger = ledger_at(root)
+        state = ledger["anchors"][release["anchor"]]
+        # The ordinary durable reservation: an interrupted restatement blocks
+        # every later send, scheduled or manual, until it is reconciled.
+        state["pending"] = {"id": candidate["id"], "action": RESTATEMENT_ACTION,
+                            "restatement": decision["restatement"], "reserved_at": now.isoformat()}
+        write(root / LEDGER, ledger)
+    return decision
+
+
+def send_restatement(root=ROOT, now=None, restatement=None, authority=None, transport=smtp_send,
+                     env=None, committed=False, prior_release=None):
+    now = now or datetime.now(timezone.utc)
+    candidate = read(root / OUT / "candidate.json")
+    if candidate["id"] != digest({k: v for k, v in candidate.items() if k != "id"}):
+        raise ValueError("mail payload changed after reservation")
+    decision = candidate["decision"]
+    if decision.get("action") != RESTATEMENT_ACTION:
+        raise ValueError("the prepared payload is not a restatement")
+    restatement = str(restatement or "").strip() or decision.get("restatement")
+    if restatement != decision.get("restatement"):
+        raise ValueError("restatement identifier does not match the reserved payload")
+    # The authority is part of what was reserved; it cannot change at send time.
+    authority = str(authority or "").strip()
+    if not authority or authority != decision.get("authority"):
+        raise ValueError("authority does not match the reserved payload")
+    rechecked, release = plan_restatement(root, now, restatement, authority, committed=committed,
+                                          allow_pending=candidate["id"],
+                                          prior_release=prior_release)
+    if rechecked["action"] != RESTATEMENT_ACTION:
+        raise ValueError(f"restatement eligibility changed after reservation: {rechecked['reason']}")
+    if release["identity"] != candidate["release_identity"] or release["book"] != candidate["book"]:
+        raise ValueError("release changed after reservation")
+    derived = ("supersedes", "prior_release", "released_holds", "imposed_holds", "restated_lines")
+    if digest({k: rechecked[k] for k in derived}) != digest({k: decision.get(k) for k in derived}):
+        raise ValueError("the derived difference changed after reservation")
+    ledger = ledger_at(root)
+    state = ledger["anchors"][release["anchor"]]
+    pending = state.get("pending") or {}
+    if pending.get("id") != candidate["id"] or pending.get("restatement") != restatement:
+        raise ValueError("no matching durable reservation")
+    if committed:
+        import json
+        remote = subprocess.run(["git", "show", f"origin/main:{LEDGER}"], cwd=root,
+                                capture_output=True, check=True).stdout
+        remote_pending = json.loads(remote)["anchors"][release["anchor"]].get("pending", {})
+        if (remote_pending.get("id") != candidate["id"]
+                or remote_pending.get("restatement") != restatement):
+            raise ValueError("reservation is not present on the remote tracking branch")
+    transport(candidate, os.environ if env is None else env)
+    state.pop("pending")
+    # The receipt first, carrying what it superseded; THEN the delivered
+    # identities move to the restated book. The scheduled sender reads them,
+    # so it stops alerting "core changed after distribution" and cannot
+    # resend. regular and d_update are the ordinary stages' evidence and stay.
+    state.setdefault("restatements", {})[restatement] = {
+        "candidate": candidate["id"], "release": release["identity"],
+        "subject": candidate["subject"], "confirmed_at": now.isoformat(),
+        "authority": authority,
+        "supersedes": {"core": state.get("core"), "europe": state.get("europe")},
+        "prior_release": decision["prior_release"],
+        "released_holds": decision["released_holds"],
+        "imposed_holds": decision["imposed_holds"],
+        "restated_lines": decision["restated_lines"]}
+    state["core"] = release["core_identity"]
+    state["europe"] = release["europe_identity"]
+    write(root / LEDGER, ledger)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("plan", "send", "revise", "revise-send"))
+    parser.add_argument("operation", choices=("plan", "send", "revise", "revise-send",
+                                              "restate", "restate-send"))
     parser.add_argument("--reserve", action="store_true")
     parser.add_argument("--revision", default="")
     parser.add_argument("--authorised-late", dest="late_authority", default="",
                         help="Owner reason for standing down the one-revision limit and the "
                              "review checkpoint. Recorded in the delivery receipt.")
+    parser.add_argument("--restatement", default="")
+    parser.add_argument("--authority", default="",
+                        help="Owner reason for a restated instruction. Required for restate and "
+                             "restate-send; recorded verbatim in the delivery receipt.")
     args = parser.parse_args()
+    if args.operation == "restate-send":
+        send_restatement(restatement=args.restatement, authority=args.authority, committed=True)
+        print("SMTP accepted the restated instruction for all configured recipients; restatement recorded.")
+        return
+    if args.operation == "restate":
+        decision = prepare_restatement(restatement=args.restatement, authority=args.authority,
+                                       reserve=args.reserve, committed=True)
+        print(f"{decision['action']}: {decision['reason']}")
+        output = os.environ.get("GITHUB_OUTPUT")
+        if output:
+            with open(output, "a", encoding="utf-8") as handle:
+                handle.write(f"send={'true' if args.reserve and decision['action'] == RESTATEMENT_ACTION else 'false'}\n")
+        if decision["action"] != RESTATEMENT_ACTION:
+            raise SystemExit(1)
+        return
     if args.operation == "send":
         send(committed=True)
         print("SMTP accepted the factsheet for all configured recipients; delivery ledger updated.")

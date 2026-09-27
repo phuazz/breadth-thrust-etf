@@ -163,6 +163,58 @@ def _core_instruction(held):
             + "; any portfolio-level risk adjustment is shown separately.")
 
 
+def _strategies(sleeves):
+    """('Strategy C', 'is', 'its') or ('Strategies C and D', 'are', 'their')."""
+    sleeves = list(sleeves)
+    if len(sleeves) == 1:
+        return "Strategy " + sleeves[0], "is", "its"
+    return ("Strategies " + ", ".join(sleeves[:-1]) + " and " + sleeves[-1], "are", "their")
+
+
+def _restatement_wording(decision, core_sentence):
+    """Cover text for a restated instruction, derived from the decision.
+
+    The earlier factsheet disclosed its HOLD and the reason, so nothing here
+    may read as a correction of it: the data arrived later and the book was
+    rebuilt on the same close. Every sleeve named is read off the derived
+    difference, never written in.
+    """
+    released = sorted(decision.get("released_holds") or ())
+    imposed = sorted(decision.get("imposed_holds") or ())
+    lined = {r["sleeve"] for r in decision.get("restated_lines") or ()}
+    touched = sorted((lined | set(released) | set(imposed)) & set("ABCD"))
+    supersede = ("This email supersedes the earlier instructions for this week. Only the lines "
+                 "listed as restated differ; every other instruction is unchanged.")
+    if released:
+        names, verb, their = _strategies(released)
+        heading = f"Restated for this week: {names} {verb} now ready"
+        difference = (f"The factsheet sent earlier for this week showed {names} on HOLD because "
+                      f"{their} required data was incomplete, as it stated. That data has since "
+                      "been published and the book was rebuilt on the same close. " + supersede)
+    elif imposed:
+        names, verb, _ = _strategies(imposed)
+        heading = f"Restated for this week: {names} {verb} now on HOLD"
+        difference = (f"The factsheet sent earlier for this week showed {names} ranked. The book "
+                      f"was rebuilt on the same close and {names} {verb} now on HOLD. " + supersede)
+    else:
+        names = _strategies(touched)[0] if touched else "the portfolio overlays"
+        heading = f"Restated for this week: revised instructions for {names}"
+        difference = ("The book for this week was rebuilt on the same close after the factsheet "
+                      f"was sent, and the instructions for {names} differ. " + supersede)
+    return {
+        "subject": "Restated instruction - supersedes this week's factsheet",
+        "heading": heading,
+        "summary": f"This email restates this week's instructions for {names}. The restated "
+                   "lines are listed first; every other instruction stands as sent.",
+        "difference": difference,
+        "core_status": core_sentence,
+        "d_instruction": ("Review the restated D lines; they supersede the earlier D instruction."
+                          if "D" in touched else
+                          "Unchanged from the factsheet already delivered; no new D selection "
+                          "is proposed."),
+    }
+
+
 def email_wording(decision: dict) -> dict[str, str]:
     """Plain-language cover text for a verified snapshot, never a new signal.
 
@@ -190,6 +242,8 @@ def email_wording(decision: dict) -> dict[str, str]:
             "core_status": core_sentence,
             "d_instruction": "Unchanged from the factsheet already delivered; no new D selection is proposed.",
         }
+    if action == "restatement":
+        return _restatement_wording(decision, core_sentence)
     if action == "preview":
         return {
             "subject": "Initial factsheet - " + phrase + "; D pending",

@@ -444,6 +444,58 @@ def revision_banner(decision):
     return REVISION_BANNER + (" " + LATE_REVISION_NOTE if decision.get("late_authority") else "")
 
 
+def _strategy_list(sleeves):
+    sleeves = list(sleeves)
+    if not sleeves:
+        return ""
+    if len(sleeves) == 1:
+        return "Strategy " + sleeves[0]
+    return "Strategies " + ", ".join(sleeves[:-1]) + " and " + sleeves[-1]
+
+
+def restatement_banner(decision, release):
+    """Every restated line with its delivered and restated target, and what stands.
+
+    Read off the decision's derived difference, never off the book alone: the
+    changes table shows held to target, which cannot tell a reader which lines
+    differ from the email already sent. Each position is named through
+    position_name, so no ticker is printed bare.
+    """
+    lines = decision.get("restated_lines") or []
+    labels = {**{r["etf"]: r["label"] for r in lines if r.get("label")},
+              **(release.get("labels") or {})}
+    named = {"labels": labels}
+    listed = "; ".join(
+        f"{_strategy_list([r['sleeve']]) if r['sleeve'] in ('A', 'B', 'C', 'D') else NAMES.get(r['sleeve'], r['sleeve'])}: "
+        f"{position_name(r, named)} from {pct(r['prior_target'])} to {pct(r['new_target'])} of NAV"
+        for r in lines)
+    parts = [f"RESTATED INSTRUCTION for the week of {long_date(decision.get('anchor') or release['anchor'])}. "
+             "This email arrives after the factsheet already sent for this week and supersedes "
+             "its instructions."]
+    if listed:
+        parts.append(f"Restated lines: {listed}.")
+    released = sorted(decision.get("released_holds") or [])
+    imposed = sorted(decision.get("imposed_holds") or [])
+    if released:
+        parts.append(f"{_strategy_list(released)} {'was' if len(released) == 1 else 'were'} on "
+                     "HOLD in the earlier factsheet and "
+                     f"{'is' if len(released) == 1 else 'are'} now ready.")
+    if imposed:
+        parts.append(f"{_strategy_list(imposed)} {'was' if len(imposed) == 1 else 'were'} ranked "
+                     f"in the earlier factsheet and {'is' if len(imposed) == 1 else 'are'} now on HOLD.")
+    touched = {r["sleeve"] for r in lines} | set(released) | set(imposed)
+    standing = [s for s in ("A", "B", "C", "D") if s not in touched]
+    overlays = not touched & set(OVERLAY_SLEEVES)
+    stand = _strategy_list(standing)
+    if overlays:
+        stand = (f"{stand}, and the portfolio overlays," if len(standing) > 1 else
+                 f"{stand} and the portfolio overlays" if standing else "The portfolio overlays")
+    if stand:
+        single = len(standing) == 1 and not overlays
+        parts.append(f"{stand} {'stands' if single else 'stand'} as sent.")
+    return " ".join(parts)
+
+
 # Text tones, from the dashboard factsheet's GOOD, BAD and AMBER. They are
 # literals because the email must not import matplotlib; a test holds them
 # equal to their source. The dark values exist because an inline colour
@@ -587,7 +639,9 @@ def render_html(decision, release, include_unchanged=False):
     v = view_model(decision, release)
     w, context = v["wording"], release.get("presentation", {})
     revision = decision.get("action") == "revision"
+    restated = decision.get("action") == "restatement"
     stage = ("REVISED PRESENTATION" if revision else
+             "RESTATED INSTRUCTION" if restated else
              "INITIAL REVIEW" if decision["action"] == "preview" else
              "D UPDATE" if decision["action"] == "d_update" else "WEEKLY FACTSHEET")
     parts = [f"<p class='eyebrow'>{stage} · {e(long_date(release['anchor']))}</p>",
@@ -600,6 +654,10 @@ def render_html(decision, release, include_unchanged=False):
              + f"<p>{e(w['difference'])}</p></div>"]
     if revision:
         parts.insert(0, f"<p><strong>{e(revision_banner(decision))}</strong></p>")
+    if restated:
+        parts.insert(0, f"<div class='restated' style='border-left:4px solid {TONE['warn']};"
+                        "background:#fdf6ea;padding:8px 14px;margin:0 0 12px'><p style='margin:4px 0;"
+                        f"font-size:14px'><strong>{e(restatement_banner(decision, release))}</strong></p></div>")
     if stats["series"].startswith("synthetic"):
         parts.insert(0, "<p><strong>SYNTHETIC NO-SEND REHEARSAL — not a live instruction.</strong></p>")
     if release.get("preview_only"):
@@ -775,7 +833,7 @@ table{margin:12px 0}.changes thead th{color:#475569;letter-spacing:.03em}.change
 a{color:#164cb2}.button{display:inline-block;padding:12px 16px;background:#eef4fa;font-weight:bold;border:1px solid #b5c9dd}
 @media(max-width:480px){body{padding:16px}h1{font-size:23px}.metric{padding:8px 4px!important}.metric .value{font-size:14px!important}.metric .label{font-size:11px!important;min-height:2.6em}}
 html[data-theme=dark]{color-scheme:dark}html[data-theme=dark] body{background:#111827;color:#f3f4f6}html[data-theme=dark] .note,html[data-theme=dark] .eyebrow,html[data-theme=dark] .changes thead th,html[data-theme=dark] .shifts th{color:#cbd5e1}
-html[data-theme=dark] .held,html[data-theme=dark] .budgets td,html[data-theme=dark] .kv th,html[data-theme=dark] .shifts th,html[data-theme=dark] .status,html[data-theme=dark] .metric,html[data-theme=dark] .button,html[data-theme=dark] .changes tr.group td{background:#1e293b;color:#f3f4f6}html[data-theme=dark] a{color:#93c5fd}
+html[data-theme=dark] .held,html[data-theme=dark] .restated,html[data-theme=dark] .budgets td,html[data-theme=dark] .kv th,html[data-theme=dark] .shifts th,html[data-theme=dark] .status,html[data-theme=dark] .metric,html[data-theme=dark] .button,html[data-theme=dark] .changes tr.group td{background:#1e293b;color:#f3f4f6}html[data-theme=dark] a{color:#93c5fd}
 html[data-theme=dark] .tone.up{color:#86efac!important}html[data-theme=dark] .tone.down{color:#fca5a5!important}html[data-theme=dark] .tone.warn{color:#fcd34d!important}
 """
     # Critical email styling is inline as well as in the stylesheet. No scripts,
@@ -987,6 +1045,7 @@ def render_pdf(decision, release):
     ctx = release.get("presentation", {})
     overlay = book["overlay_decision"]
     stage = ("REVISED PRESENTATION" if decision.get("action") == "revision" else
+             "RESTATED INSTRUCTION" if decision.get("action") == "restatement" else
              "INITIAL REVIEW · A-C VERIFIED" if decision["action"] == "preview" else
              "WEEKLY FACTSHEET")
 
@@ -1107,6 +1166,9 @@ def render_pdf(decision, release):
     if decision.get("action") == "revision":
         flow += [banner(revision_banner(decision), colors.HexColor("#2563eb"),
                         colors.HexColor("#eef4fa")), Spacer(1, 8)]
+    if decision.get("action") == "restatement":
+        flow += [banner(restatement_banner(decision, release), WARN,
+                        colors.HexColor("#fff7ea")), Spacer(1, 8)]
     flow += [Paragraph(escape(ascii_text(v["wording"]["heading"])),
                        st("t", 17, INK, bold=True, leading=21, space=3)),
              p(v["wording"]["difference"], st("d", 9, SOFT, space=10))]

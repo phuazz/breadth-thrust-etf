@@ -1,0 +1,105 @@
+name: Factsheet restated instruction — manual, once per anchor
+
+# Delivers a CHANGED instruction for an anchor whose weekly factsheet was
+# already confirmed, on named owner authority. The presentation revision
+# cannot do this (it refuses a changed identity) and the scheduled sender only
+# alerts the operator. There is no push or schedule trigger: a human
+# dispatches it with an identifier and a reason, every eligibility check is
+# rerun immediately before SMTP, and the difference from the delivered book is
+# derived from Git history, never asserted. Dry run is the default.
+on:
+  workflow_dispatch:
+    inputs:
+      restatement:
+        description: 'Restatement identifier, e.g. restated-c-2026-09-25 (one per anchor)'
+        type: string
+        required: true
+      authority:
+        description: >-
+          Owner reason for the restated instruction. Required. Recorded
+          verbatim in the delivery receipt.
+        type: string
+        required: true
+      dry_run:
+        description: 'No-send rehearsal: validate and render without reserving or emailing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+concurrency:
+  # The ordinary weekly sender's group, so the two can never overlap.
+  group: weekly-factsheet
+  cancel-in-progress: false
+
+jobs:
+  restate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          # Full history: the delivered release is reconstructed from the
+          # manifest's commits.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Verify the delivered anchor and render the restatement
+        id: plan
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          RESTATEMENT: ${{ inputs.restatement }}
+          AUTHORITY: ${{ inputs.authority }}
+        shell: bash
+        run: |
+          RESERVE=""
+          if [ "$DRY_RUN" != "true" ]; then RESERVE="--reserve"; fi
+          python scripts/send_component_factsheet.py restate --restatement "$RESTATEMENT" \
+            --authority "$AUTHORITY" $RESERVE
+      - name: Persist restatement reservation before contacting Gmail
+        if: steps.plan.outputs.send == 'true'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/component_delivery.json
+          git commit -m 'Reserve restated factsheet instruction'
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main || exit 1
+          done
+          exit 1
+      - name: Send the restated instruction once to all existing recipients
+        if: steps.plan.outputs.send == 'true'
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          RESTATEMENT: ${{ inputs.restatement }}
+          AUTHORITY: ${{ inputs.authority }}
+        run: |
+          python scripts/send_component_factsheet.py restate-send --restatement "$RESTATEMENT" \
+            --authority "$AUTHORITY"
+      - name: Record the confirmed restatement and the restated identities
+        if: steps.plan.outputs.send == 'true'
+        shell: bash
+        run: |
+          git add docs/component_delivery.json
+          git commit -m 'Record confirmed restated factsheet instruction'
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main || exit 1
+          done
+          exit 1
+      - name: Preserve the rendered or attempted payload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factsheet-restatement-payload
+          path: .component-mail/*
+          include-hidden-files: true
+          if-no-files-found: ignore
