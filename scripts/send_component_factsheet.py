@@ -441,8 +441,18 @@ def restatement_changes(prior, current):
     return released, imposed, lines
 
 
+def first_issue_sleeves(value):
+    """Normalise the owner's first-issue list: sleeves the earlier factsheet is
+    to be treated as never having carried, so their instructions are stated in
+    full rather than described as standing. None when the value is invalid."""
+    if isinstance(value, str):
+        value = value.replace(",", " ").split()
+    out = sorted({str(v).strip().upper() for v in (value or ()) if str(v).strip()})
+    return out if set(out) <= set("ABCD") else None
+
+
 def plan_restatement(root=ROOT, now=None, restatement=None, authority=None, committed=False,
-                     allow_pending=None, prior_release=None):
+                     allow_pending=None, prior_release=None, first_issue=None):
     """Authorise one restated instruction for an already-delivered anchor.
 
     Every branch refuses by default. Unlike a revision this route exists to
@@ -461,6 +471,9 @@ def plan_restatement(root=ROOT, now=None, restatement=None, authority=None, comm
     authority = str(authority or "").strip()
     if not authority:
         return blocked("the owner authority for a restatement is required")
+    fresh = first_issue_sleeves(first_issue)
+    if fresh is None:
+        return blocked("first-issue sleeves must be among A, B, C and D")
     if (root / "docs/factsheet_hold.json").exists():
         return blocked("operator hold is in place")
     anchor = week_final_anchor(now).isoformat()
@@ -512,14 +525,15 @@ def plan_restatement(root=ROOT, now=None, restatement=None, authority=None, comm
             "supersedes": {"core": state.get("core"), "europe": state.get("europe")},
             "prior_release": prior["identity"],
             "released_holds": released, "imposed_holds": imposed, "restated_lines": lines,
+            "first_issue": fresh,
             "reason": f"restated instruction on owner authority: {authority}"}, release
 
 
 def prepare_restatement(root=ROOT, now=None, restatement=None, authority=None, reserve=False,
-                        committed=False, prior_release=None):
+                        committed=False, prior_release=None, first_issue=None):
     now = now or datetime.now(timezone.utc)
     decision, release = plan_restatement(root, now, restatement, authority, committed=committed,
-                                         prior_release=prior_release)
+                                         prior_release=prior_release, first_issue=first_issue)
     if decision["action"] != RESTATEMENT_ACTION:
         return decision
     from component_factsheet_view import verified_context, render_pdf, render_text
@@ -549,7 +563,7 @@ def prepare_restatement(root=ROOT, now=None, restatement=None, authority=None, r
 
 
 def send_restatement(root=ROOT, now=None, restatement=None, authority=None, transport=smtp_send,
-                     env=None, committed=False, prior_release=None):
+                     env=None, committed=False, prior_release=None, first_issue=None):
     now = now or datetime.now(timezone.utc)
     candidate = read(root / OUT / "candidate.json")
     if candidate["id"] != digest({k: v for k, v in candidate.items() if k != "id"}):
@@ -564,9 +578,12 @@ def send_restatement(root=ROOT, now=None, restatement=None, authority=None, tran
     authority = str(authority or "").strip()
     if not authority or authority != decision.get("authority"):
         raise ValueError("authority does not match the reserved payload")
+    # So is the first-issue list: it changes what the email tells a reader to do.
+    if first_issue_sleeves(first_issue) != decision.get("first_issue"):
+        raise ValueError("first-issue sleeves do not match the reserved payload")
     rechecked, release = plan_restatement(root, now, restatement, authority, committed=committed,
                                           allow_pending=candidate["id"],
-                                          prior_release=prior_release)
+                                          prior_release=prior_release, first_issue=first_issue)
     if rechecked["action"] != RESTATEMENT_ACTION:
         raise ValueError(f"restatement eligibility changed after reservation: {rechecked['reason']}")
     if release["identity"] != candidate["release_identity"] or release["book"] != candidate["book"]:
@@ -601,7 +618,8 @@ def send_restatement(root=ROOT, now=None, restatement=None, authority=None, tran
         "prior_release": decision["prior_release"],
         "released_holds": decision["released_holds"],
         "imposed_holds": decision["imposed_holds"],
-        "restated_lines": decision["restated_lines"]}
+        "restated_lines": decision["restated_lines"],
+        "first_issue": decision["first_issue"]}
     state["core"] = release["core_identity"]
     state["europe"] = release["europe_identity"]
     write(root / LEDGER, ledger)
@@ -620,14 +638,19 @@ def main():
     parser.add_argument("--authority", default="",
                         help="Owner reason for a restated instruction. Required for restate and "
                              "restate-send; recorded verbatim in the delivery receipt.")
+    parser.add_argument("--first-issue", dest="first_issue", default="",
+                        help="Sleeves to state in full, as if no earlier factsheet carried them "
+                             "(e.g. D). Part of the reserved payload and the receipt.")
     args = parser.parse_args()
     if args.operation == "restate-send":
-        send_restatement(restatement=args.restatement, authority=args.authority, committed=True)
+        send_restatement(restatement=args.restatement, authority=args.authority, committed=True,
+                         first_issue=args.first_issue)
         print("SMTP accepted the restated instruction for all configured recipients; restatement recorded.")
         return
     if args.operation == "restate":
         decision = prepare_restatement(restatement=args.restatement, authority=args.authority,
-                                       reserve=args.reserve, committed=True)
+                                       reserve=args.reserve, committed=True,
+                                       first_issue=args.first_issue)
         print(f"{decision['action']}: {decision['reason']}")
         output = os.environ.get("GITHUB_OUTPUT")
         if output:

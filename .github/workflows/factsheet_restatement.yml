@@ -20,6 +20,13 @@ on:
           verbatim in the delivery receipt.
         type: string
         required: true
+      first_issue:
+        description: >-
+          Sleeves to state in full, as if no earlier factsheet carried them
+          (e.g. D). Empty for none. Part of the reserved payload and receipt.
+        type: string
+        required: false
+        default: ''
       dry_run:
         description: 'No-send rehearsal: validate and render without reserving or emailing'
         type: boolean
@@ -54,12 +61,13 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
           RESTATEMENT: ${{ inputs.restatement }}
           AUTHORITY: ${{ inputs.authority }}
+          FIRST_ISSUE: ${{ inputs.first_issue }}
         shell: bash
         run: |
           RESERVE=""
           if [ "$DRY_RUN" != "true" ]; then RESERVE="--reserve"; fi
           python scripts/send_component_factsheet.py restate --restatement "$RESTATEMENT" \
-            --authority "$AUTHORITY" $RESERVE
+            --authority "$AUTHORITY" --first-issue "$FIRST_ISSUE" $RESERVE
       - name: Persist restatement reservation before contacting Gmail
         if: steps.plan.outputs.send == 'true'
         shell: bash
@@ -81,9 +89,10 @@ jobs:
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
           RESTATEMENT: ${{ inputs.restatement }}
           AUTHORITY: ${{ inputs.authority }}
+          FIRST_ISSUE: ${{ inputs.first_issue }}
         run: |
           python scripts/send_component_factsheet.py restate-send --restatement "$RESTATEMENT" \
-            --authority "$AUTHORITY"
+            --authority "$AUTHORITY" --first-issue "$FIRST_ISSUE"
       - name: Record the confirmed restatement and the restated identities
         if: steps.plan.outputs.send == 'true'
         shell: bash

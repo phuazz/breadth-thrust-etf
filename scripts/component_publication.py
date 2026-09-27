@@ -183,8 +183,15 @@ def _restatement_wording(decision, core_sentence):
     imposed = sorted(decision.get("imposed_holds") or ())
     lined = {r["sleeve"] for r in decision.get("restated_lines") or ()}
     touched = sorted((lined | set(released) | set(imposed)) & set("ABCD"))
-    supersede = ("This email supersedes the earlier instructions for this week. Only the lines "
-                 "listed as restated differ; every other instruction is unchanged.")
+    fresh = sorted(decision.get("first_issue") or ())
+    if fresh:
+        f_names, f_verb, f_their = _strategies(fresh)
+        supersede = ("This email supersedes the earlier instructions for this week. Only the "
+                     f"lines listed as restated differ from them, and {f_names} {f_verb} stated "
+                     "in full here; every other instruction is unchanged.")
+    else:
+        supersede = ("This email supersedes the earlier instructions for this week. Only the lines "
+                     "listed as restated differ; every other instruction is unchanged.")
     if released:
         names, verb, their = _strategies(released)
         heading = f"Restated for this week: {names} {verb} now ready"
@@ -208,7 +215,9 @@ def _restatement_wording(decision, core_sentence):
                    "lines are listed first; every other instruction stands as sent.",
         "difference": difference,
         "core_status": core_sentence,
-        "d_instruction": ("Review the restated D lines; they supersede the earlier D instruction."
+        "d_instruction": ("Strategy D's proposed changes are stated in full in this email; act "
+                          "on them as shown." if "D" in fresh else
+                          "Review the restated D lines; they supersede the earlier D instruction."
                           if "D" in touched else
                           "Unchanged from the factsheet already delivered; no new D selection "
                           "is proposed."),

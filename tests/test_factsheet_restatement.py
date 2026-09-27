@@ -394,7 +394,8 @@ def test_the_banner_lists_prior_and_new_targets_and_what_stands(tmp_path, delive
     for row in decision["restated_lines"]:
         assert (f"{position_name(row, current)} from {pct(row['prior_target'])} to "
                 f"{pct(row['new_target'])} of NAV") in banner
-    assert "(IBIT)" in banner and "Synthetic fund BTC-USD" in banner
+    # The registry names the traded line, not the model's working label.
+    assert "iShares Bitcoin Trust ETF (IBIT)" in banner and "Synthetic fund BTC-USD" not in banner
     assert "arrives after the factsheet already sent for this week" in banner
     assert "supersedes" in banner
     assert "Strategy C was on HOLD in the earlier factsheet and is now ready." in banner
@@ -420,3 +421,67 @@ def test_restatement_workflow_is_manual_dry_by_default_and_reserves_before_send(
     assert "default: true" in dry.split("\n\n", 1)[0]
     assert "restate-send" in workflow and "--authority" in workflow and "--restatement" in workflow
     assert "if: always()" in workflow
+
+
+# --- first-issue sleeves (owner input 2026-09-27) ------------------------
+
+def test_first_issue_is_normalised_and_invalid_values_refused(tmp_path, delivered):
+    prior, _ = delivered
+    settle(tmp_path, prior)
+    assert plan(tmp_path, prior, first_issue="d")["first_issue"] == ["D"]
+    assert plan(tmp_path, prior, first_issue="")["first_issue"] == []
+    assert plan(tmp_path, prior, first_issue="D, B")["first_issue"] == ["B", "D"]
+    refused = plan(tmp_path, prior, first_issue="E")
+    assert refused["action"] == "blocked" and "first-issue" in refused["reason"]
+
+
+def test_first_issue_d_states_d_in_full_and_not_as_standing(tmp_path, delivered):
+    from component_factsheet_view import restatement_banner
+    prior, current = delivered
+    settle(tmp_path, prior)
+    decision = plan(tmp_path, prior, first_issue="D")
+    wording = email_wording(decision)
+    assert "Strategy D is stated in full here" in wording["difference"]
+    assert wording["d_instruction"].startswith("Strategy D's proposed changes are stated in full")
+    banner = restatement_banner(decision, current)
+    assert "Strategy D is stated in full in this email; act on its proposed changes as shown below." in banner
+    assert "Strategies A and B, and the portfolio overlays, stand as sent." in banner
+    for text in list(wording.values()) + [banner]:
+        assert not CONTRACTION.search(text), text
+        assert not any(w in text.lower() for w in ERROR_WORDS), text
+
+
+def test_first_issue_is_reserved_and_recorded(tmp_path, delivered):
+    prior, _ = delivered
+    settle(tmp_path, prior)
+    sender.prepare_restatement(tmp_path, NOW, RESTATEMENT, AUTHORITY, reserve=True,
+                               prior_release=prior, first_issue="D")
+    with pytest.raises(ValueError, match="first-issue sleeves do not match"):
+        sender.send_restatement(tmp_path, NOW, RESTATEMENT, AUTHORITY,
+                                transport=lambda *_: pytest.fail("transport reached"),
+                                env={}, prior_release=prior, first_issue="")
+    sent = []
+    sender.send_restatement(tmp_path, NOW, RESTATEMENT, AUTHORITY,
+                            transport=lambda c, _: sent.append(c), env={},
+                            prior_release=prior, first_issue="D")
+    assert len(sent) == 1
+    receipt = cr.read(tmp_path / sender.LEDGER)["anchors"][prior["anchor"]]["restatements"][RESTATEMENT]
+    assert receipt["first_issue"] == ["D"]
+
+
+def test_the_workflow_passes_first_issue_to_both_steps():
+    workflow = (Path(__file__).resolve().parents[1]
+                / ".github/workflows/factsheet_restatement.yml").read_text(encoding="utf-8")
+    assert "first_issue:" in workflow
+    assert workflow.count('--first-issue "$FIRST_ISSUE"') == 2
+
+
+def test_a_panel_less_registry_key_prints_its_traded_name():
+    from component_factsheet_view import position_name
+    row = {"etf": "BTC-USD", "traded": "IBIT"}
+    release = {"labels": {"BTC-USD": "Bitcoin (CoinDesk spot - deployed via IBIT, 25bps ER)"}}
+    assert position_name(row, release) == "iShares Bitcoin Trust ETF (IBIT)"
+    # A key with a constituent panel keeps its sealed label.
+    assert position_name({"etf": "XBI", "traded": "XBI"},
+                         {"labels": {"XBI": "SPDR S&P Biotech (eq-weight)"}}) == \
+        "SPDR S&P Biotech (eq-weight) (XBI)"

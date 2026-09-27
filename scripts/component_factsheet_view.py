@@ -314,8 +314,30 @@ def view_model(decision, release):
             "exits": sum(r["held"] > 0 and r["target"] == 0 for r in changed)}
 
 
+def label_for(etf, labels, fallback=None):
+    """The reader-facing name for a book key, at render time only.
+
+    The sealed labels are the model's own descriptions. For a registry key with
+    no constituent panel - a key that names a traded line and nothing else,
+    today only BTC-USD - the registry ``name`` IS the traded instrument's name,
+    and the model label ("Bitcoin (CoinDesk spot - deployed via IBIT, 25bps
+    ER)") reads as working notes to a recipient. Substituted here rather than in
+    the sealed labels, which are part of the release identity and cannot change
+    under a sealed book.
+    """
+    from etf_registry import ETF_REGISTRY
+    cfg = ETF_REGISTRY.get(etf) or {}
+    if cfg.get("constituent_panel") is False and cfg.get("name"):
+        return cfg["name"]
+    return (labels or {}).get(etf, fallback or etf)
+
+
+def display_label(etf, release):
+    return label_for(etf, release["labels"])
+
+
 def position_name(row, release):
-    return f"{release['labels'].get(row['etf'], row['etf'])} ({row['traded']})"
+    return f"{display_label(row['etf'], release)} ({row['traded']})"
 
 
 def allocation_strip(shifts):
@@ -484,7 +506,12 @@ def restatement_banner(decision, release):
         parts.append(f"{_strategy_list(imposed)} {'was' if len(imposed) == 1 else 'were'} ranked "
                      f"in the earlier factsheet and {'is' if len(imposed) == 1 else 'are'} now on HOLD.")
     touched = {r["sleeve"] for r in lines} | set(released) | set(imposed)
-    standing = [s for s in ("A", "B", "C", "D") if s not in touched]
+    fresh = sorted(decision.get("first_issue") or [])
+    if fresh:
+        one = len(fresh) == 1
+        parts.append(f"{_strategy_list(fresh)} {'is' if one else 'are'} stated in full in this "
+                     f"email; act on {'its' if one else 'their'} proposed changes as shown below.")
+    standing = [s for s in ("A", "B", "C", "D") if s not in touched and s not in fresh]
     overlays = not touched & set(OVERLAY_SLEEVES)
     stand = _strategy_list(standing)
     if overlays:
@@ -564,7 +591,7 @@ def _change_table(shifts, release, decision=None, limit=None, unchanged=False):
             parts.append(
                 f"<tr class='position'><td style='{cell};overflow-wrap:anywhere'>"
                 f"<strong>{e(row['traded'])}</strong>{_tag(action_of(row))}<br>"
-                f"<span class='note' style='font-size:13px'>{e(release['labels'].get(row['etf'], row['etf']))}</span></td>"
+                f"<span class='note' style='font-size:13px'>{e(display_label(row['etf'], release))}</span></td>"
                 f"<td style='{right}'>{e(pct(row['held']))}</td>"
                 f"<td style='{right}'><strong>{e(pct(row['target']))}</strong></td>"
                 f"<td style='{right}'>{_toned(pp(row['delta']), _money_tone(row['delta']), ';font-weight:bold')}</td></tr>")
@@ -608,7 +635,7 @@ def _highlight_table(v, release):
         for i, r in enumerate(rows):
             out.append(f"<tr><th style='{_LABEL};text-align:left'>{e(label) if i == 0 else ''}</th>"
                        f"<td style='{cell}'><strong>{e(r['traded'])}</strong> "
-                       f"<span style='color:#475569'>{e(release['labels'].get(r['etf'], r['etf']))}</span></td>"
+                       f"<span style='color:#475569'>{e(display_label(r['etf'], release))}</span></td>"
                        f"<td style='{num}'>{_toned(pp(r['delta']), _money_tone(r['delta']), ';font-weight:bold')}</td>"
                        f"<td style='{num}'>{e(pct(r['target']))}</td></tr>")
     edges = v["entering"] + v["exiting"]
@@ -981,7 +1008,7 @@ def holding_move_chart(context, width_pts, limit=10, labels=None):
     priced = [r for r in context.get("holding_returns", []) if r["ret"] is not None]
     priced = sorted(priced, key=lambda r: -abs(r["ret"]))[:limit]
     priced = sorted(priced, key=lambda r: -r["ret"])
-    rows = [(f"{labels.get(r['etf'], r['traded'])} ({r['traded']}, {r['sleeve']})", r["ret"],
+    rows = [(f"{label_for(r['etf'], labels, r['traded'])} ({r['traded']}, {r['sleeve']})", r["ret"],
              _sleeve_hex(house, r["sleeve"]), pct(r["ret"], True)) for r in priced]
     return _bar_chart(rows, width_pts, "Quote / proxy move over the week", "%")
 
@@ -1286,7 +1313,7 @@ def render_pdf(decision, release):
                              ("ENTERS", v["entering"]), ("EXITS", v["exiting"])):
             for i, r in enumerate(rows_):
                 moves.append([cell(label if i == 0 else " ", FAINT, 7.5, bold=True),
-                              cell(f"{r['traded']}  {release['labels'].get(r['etf'], r['etf'])}", INK, 8.5),
+                              cell(f"{r['traded']}  {display_label(r['etf'], release)}", INK, 8.5),
                               cell(pp(r["delta"]), GOOD if r["delta"] > 0 else BAD, 8.5, bold=True,
                                    mono=True, align=TA_RIGHT),
                               cell(pct(r["target"]), INK, 8.5, mono=True, align=TA_RIGHT)])
@@ -1333,7 +1360,7 @@ def render_pdf(decision, release):
                 rows.append([
                     cell(ACTION_WORDS.get(action, action).upper(),
                          {"ENTER": GOOD, "EXIT": BAD}.get(action, WARN), 7.5, bold=True),
-                    cell(f"{row['traded']}  {release['labels'].get(row['etf'], row['etf'])}", INK, 8.5),
+                    cell(f"{row['traded']}  {display_label(row['etf'], release)}", INK, 8.5),
                     cell(pct(row["held"]), SOFT, 8.5, mono=True, align=TA_RIGHT),
                     cell(pct(row["target"]), INK, 8.5, bold=True, mono=True, align=TA_RIGHT),
                     cell(pp(row["delta"]), GOOD if row["delta"] > 0 else BAD, 8.5, bold=True,
@@ -1426,7 +1453,7 @@ def render_pdf(decision, release):
                        cell("CHANGE", FAINT, 7.5, bold=True, align=TA_RIGHT),
                        cell("$ ON $1.0M", FAINT, 7.5, bold=True, align=TA_RIGHT)],
                       *[[cell(r["traded"], INK, 8.5, bold=True, mono=True),
-                         cell(release["labels"].get(r["etf"], r["etf"]), SOFT, 8.5),
+                         cell(display_label(r["etf"], release), SOFT, 8.5),
                          cell(r["sleeve"], _sleeve_hex(house, r["sleeve"]), 8.5, bold=True),
                          cell(pct(r["held"]), SOFT, 8.5, mono=True, align=TA_RIGHT),
                          cell(pct(r["target"]), INK, 8.5, bold=True, mono=True, align=TA_RIGHT),
