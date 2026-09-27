@@ -911,14 +911,20 @@ def sleeve_contribution_chart(context, width_pts):
     return _bar_chart(rows, width_pts, "Contribution to the week", "pp")
 
 
-def holding_move_chart(context, width_pts, limit=10):
-    """Weekly quote move per held line. A price move, never a contribution."""
+def holding_move_chart(context, width_pts, limit=10, labels=None):
+    """Weekly quote move per held line. A price move, never a contribution.
+
+    Bars are labelled by fund name as well as ticker (owner, 2026-09-27: a
+    bare "EXV1 (D)" does not say which sector it is); the sleeve letter stays
+    because the bar colours carry no legend.
+    """
     house = _house()
+    labels = labels or {}
     priced = [r for r in context.get("holding_returns", []) if r["ret"] is not None]
     priced = sorted(priced, key=lambda r: -abs(r["ret"]))[:limit]
     priced = sorted(priced, key=lambda r: -r["ret"])
-    rows = [(f"{r['traded']} ({r['sleeve']})", r["ret"], _sleeve_hex(house, r["sleeve"]),
-             pct(r["ret"], True)) for r in priced]
+    rows = [(f"{labels.get(r['etf'], r['traded'])} ({r['traded']}, {r['sleeve']})", r["ret"],
+             _sleeve_hex(house, r["sleeve"]), pct(r["ret"], True)) for r in priced]
     return _bar_chart(rows, width_pts, "Quote / proxy move over the week", "%")
 
 
@@ -1319,7 +1325,7 @@ def render_pdf(decision, release):
     else:
         flow.append(p("Return-driver detail is unavailable in this snapshot.", note))
     if ctx.get("holding_returns"):
-        moves = holding_move_chart(ctx, width)
+        moves = holding_move_chart(ctx, width, labels=release.get("labels"))
         block = [Spacer(1, 10)] + section(
             "Holding moves over the same week",
             f"{ctx['start']} to {ctx['end']}. Quote and proxy returns, not portfolio contributions. "
