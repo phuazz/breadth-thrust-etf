@@ -110,6 +110,7 @@ def test_shipped_exporter_refetches_recent_but_incomplete_component_quote(monkey
     monkeypatch.setattr(prices, "collect_all_tickers", lambda: {"EXV1.DE"})
     monkeypatch.setattr(prices, "collect_book_symbols", lambda: {"EXV1.DE"})
     monkeypatch.setattr(prices, "NETWORK_FALLBACK_TICKERS", ["EXV1.DE"])
+    monkeypatch.setattr(prices, "registry_trading_proxies", lambda: set())
     series = pd.Series(100.0, index=pd.bdate_range(end="2026-09-10", periods=400))
     monkeypatch.setattr(prices, "load_close_series", lambda ticker: series)
     fetched = []
