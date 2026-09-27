@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-09-27T09:08:04+00:00",
+  "computed_at_utc": "2026-09-27T09:47:59+00:00",
   "as_of": "2026-09-25",
   "next_fill": {
     "summary": "19 moves at the next fill (NYSE Mon 28 Sep 2026, XETR Mon 28 Sep 2026), ranked on the Fri 25 Sep 2026 close; one-way turnover 17.54% of NAV; 2 new names; 2 exits. Signals compared with the previous decision close.",
@@ -771,13 +771,13 @@
         "heading": "Sleeve C \u00b7 Thematic \u00b7 ranks 25 on distance of the price above its 200-day average, holds the top 5",
         "story": "IBIT enters at 2.0% of NAV (rank 7 \u2192 5, into the top 5); XBI exits (rank 4 \u2192 6, out of the top 5).",
         "gate": {
+          "breadth": 0.36,
           "enabled": true,
+          "fired": false,
+          "floor": 0.05,
           "n_above": 9,
           "n_universe": 25,
-          "breadth": 0.36,
-          "floor": 0.05,
-          "threshold": 0.3,
-          "fired": false
+          "threshold": 0.3
         },
         "moves": [
           {
