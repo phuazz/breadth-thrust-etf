@@ -324,7 +324,17 @@ def build_payload() -> dict:
     holdings = []
     missing_names = []
     for ticker, weight in sorted(effective.items(), key=lambda kv: -kv[1]):
-        name = names.get(ticker)
+        # A registry key with no constituent panel names a traded line and
+        # nothing else (today only BTC-USD, traded as IBIT), so the registry
+        # name IS the instrument's name, the same rule as the factsheet's
+        # component_factsheet_view.label_for. etf_names.json is fetched per
+        # vendor symbol and holds no BTC-USD row: the 2026-09-29 post-fill
+        # refresh refused the page on it the first time C ranked Bitcoin in.
+        cfg = ETF_REGISTRY.get(ticker) or {}
+        if cfg.get("constituent_panel") is False and cfg.get("name"):
+            name = cfg["name"]
+        else:
+            name = names.get(ticker)
         if not name:
             missing_names.append(ticker)
             continue

@@ -179,6 +179,30 @@ def _rebuild_with_weights(tmp_path, monkeypatch, live, overlay, weights):
     return bsp.build_payload()
 
 
+def test_a_traded_line_key_takes_the_registry_name(tmp_path, monkeypatch, live, overlay):
+    """BTC-USD is a book key with no constituent panel, traded as IBIT.
+
+    etf_names.json carries no row for it, and the 2026-09-29 post-fill refresh
+    refused the page the first time sleeve C ranked Bitcoin in. The name must
+    come from the registry and describe what is bought, beside the traded
+    ticker, never the panel key.
+    """
+    key = "BTC-USD"
+    cfg = ETF_REGISTRY[key]
+    assert cfg.get("constituent_panel") is False
+    ext = {k: dict(v) for k, v in live["sleeve_extensions"].items()}
+    ext["strategy_c"]["weights"] = {**ext["strategy_c"]["weights"], key: 0.02}
+    weights = {t: w * 0.98 for t, w in live["effective_weights"].items()
+               if t != key}
+    weights[key] = 0.02
+    live = {**live, "sleeve_extensions": ext}
+    payload = _rebuild_with_weights(tmp_path, monkeypatch, live, overlay, weights)
+    row = next(h for h in payload["holdings"] if h["panel_key"] == key)
+    assert row["name"] == cfg["name"]
+    assert row["ticker"] == cfg["yfinance_trading_proxy"]
+    assert row["name"] != key
+
+
 @pytest.mark.parametrize("tilt_held", (True, False), ids=("tilt_on", "tilt_off"))
 def test_derisk_reserve_is_shown_at_both_ends_of_its_range(
         tmp_path, monkeypatch, live, overlay, tilt_held):
