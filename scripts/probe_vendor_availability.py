@@ -85,31 +85,87 @@ def _sessions_behind(cal, last_bar, lcs) -> int | None:
     return n if pd.Timestamp(last_bar) <= pd.Timestamp(lcs) else -n
 
 
-def probe(now_utc: datetime | None = None) -> dict:
-    import yfinance as yf
+# SINGLE-TICKER RE-FETCH (2026-09-30). Every null last_bar in the log up to
+# 2026-09-30 (12 in ~180 probes) was ONE ticker returned empty by the batch
+# download while its venue peers were served, and every one was back on the
+# next probe. check_vendor_probe reads a null after a recorded bar as a total
+# withdrawal, so each of these mailed a [WARN] retraction (SIE.DE, 2026-09-30
+# 03:46 UTC, while EXV1/EXH4/EXV3/SAP took the routine one-session step). A
+# line that comes back empty is asked again on its own before a null is
+# written. A whole-venue outage still returns nothing on the re-fetch and is
+# still recorded as null, which is the shape the tripwire exists to catch.
+REFETCH_ATTEMPTS = 2
+REFETCH_PAUSE_SECONDS = 3.0
+
+
+def _last_bar(close: pd.DataFrame, tk: str) -> pd.Timestamp | None:
+    if tk not in close.columns:
+        return None
+    s = close[tk].dropna()
+    return pd.Timestamp(s.index.max()).normalize() if len(s) else None
+
+
+def _close_frame(raw: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
+    if raw is None or raw.empty:
+        return pd.DataFrame()
+    if isinstance(raw.columns, pd.MultiIndex):
+        return raw["Close"]
+    return raw[["Close"]].rename(columns={"Close": tickers[0]})
+
+
+def _refetch_single(download, tk: str, start: str, end: str,
+                    attempts: int = REFETCH_ATTEMPTS,
+                    pause: float = REFETCH_PAUSE_SECONDS,
+                    sleep=None) -> pd.Timestamp | None:
+    """Ask for one ticker alone, a few times, before recording it unserved."""
+    import time
+    sleep = sleep or time.sleep
+    for i in range(attempts):
+        if i:
+            sleep(pause)
+        try:
+            raw = download([tk], start=start, end=end, auto_adjust=True,
+                           progress=False, group_by="column")
+        except Exception:  # noqa: BLE001 — a failed re-fetch is still unserved
+            continue
+        bar = _last_bar(_close_frame(raw, [tk]), tk)
+        if bar is not None:
+            return bar
+    return None
+
+
+def probe(now_utc: datetime | None = None, download=None) -> dict:
+    if download is None:
+        import yfinance as yf
+        download = yf.download
     now = now_utc or datetime.now(timezone.utc)
     start = (now - pd.Timedelta(days=20)).strftime("%Y-%m-%d")
     end = (now + pd.Timedelta(days=2)).strftime("%Y-%m-%d")
     tickers = [t for t, _, _ in PROBES]
-    raw = yf.download(tickers, start=start, end=end, auto_adjust=True,
-                      progress=False, group_by="column")
-    close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
+    raw = download(tickers, start=start, end=end, auto_adjust=True,
+                   progress=False, group_by="column")
+    close = _close_frame(raw, tickers)
 
     rows = []
     for tk, venue, role in PROBES:
         cal = _venue_cal(venue)
         lcs = last_completed_session_on(cal, now)
-        last_bar = None
-        if tk in close.columns:
-            s = close[tk].dropna()
-            if len(s):
-                last_bar = pd.Timestamp(s.index.max()).normalize()
-        rows.append({
+        last_bar = _last_bar(close, tk)
+        refetched = False
+        if last_bar is None:
+            last_bar = _refetch_single(download, tk, start, end)
+            refetched = last_bar is not None
+        row = {
             "ticker": tk, "venue": venue, "role": role,
             "last_bar": str(last_bar.date()) if last_bar is not None else None,
             "last_completed_session": str(lcs.date()) if lcs is not None else None,
             "sessions_behind": _sessions_behind(cal, last_bar, lcs),
-        })
+        }
+        # Recorded so the series stays honest about which bars the batch
+        # call missed; absent on the ordinary path.
+        if refetched:
+            row["refetched"] = True
+        rows.append(row)
     return {"probed_at_utc": now.isoformat(timespec="seconds"), "rows": rows}
 
 
