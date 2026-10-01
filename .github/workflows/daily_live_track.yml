@@ -365,6 +365,17 @@ jobs:
               echo "Pushed on attempt $attempt."
               exit 0
             fi
+            # A LOCAL refresh may have landed while this run was in flight
+            # (2026-10-01): it rewrites the same generated files with a
+            # re-anchored, fully guarded book, and rebasing this forward-only
+            # extension over it conflicts or hunk-merges two regenerated
+            # versions of one artefact. If origin's live track already
+            # reaches the expected session, this run has nothing to add.
+            git fetch origin main
+            if python scripts/live_track_superseded.py --ref origin/main; then
+              echo "::notice title=Superseded::origin already carries a live track at the expected session (a local refresh landed during this run); nothing to publish"
+              exit 0
+            fi
             echo "Push rejected on attempt $attempt — rebasing onto origin/main."
             git pull --rebase --autostash origin main || exit 1
           done

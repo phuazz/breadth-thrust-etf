@@ -10,6 +10,7 @@ months are 1-indexed (January = 1).
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -159,3 +160,62 @@ def test_daily_workflow_keeps_its_post_close_slot_and_withholds_the_warning_ther
     assert "github.event.schedule == '30 21 * * 1-5'" in wf
     assert "reason:" in wf                    # the dispatch input the slot fills
     assert "group: daily-live-track" in wf
+    # A rejected push asks whether a local refresh already carried the
+    # session before it rebases (2026-10-01).
+    commit_step = wf[wf.index("Commit refreshed outputs"):]
+    assert "live_track_superseded.py --ref origin/main" in commit_step
+    assert commit_step.index("live_track_superseded.py") < commit_step.index(
+        "git pull --rebase --autostash")
+
+
+# ---------------------------------------------------------------------------
+# live_track_superseded: the CI side of the same collision
+# ---------------------------------------------------------------------------
+
+from scripts.live_track_superseded import main as superseded_main  # noqa: E402
+
+
+def _committed_live_track(tmp_path: Path, monkeypatch, blob: dict | None) -> Path:
+    """A throwaway repository whose HEAD commits ``blob`` as the live track
+    (or no live track at all when ``blob`` is None)."""
+    cfg = tmp_path / "gitconfig"
+    cfg.write_text("[user]\n\tname = t\n\temail = t@t.test\n"
+                   "[core]\n\tlongpaths = true\n\tautocrlf = false\n"
+                   "[init]\n\tdefaultBranch = main\n", encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(cfg))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    repo = tmp_path / "repo"
+    (repo / "data").mkdir(parents=True)
+    if blob is None:
+        (repo / "data" / "other.json").write_text("{}", encoding="utf-8")
+    else:
+        (repo / "data" / "live_track.json").write_text(json.dumps(blob),
+                                                       encoding="utf-8")
+
+    def git(*args):
+        subprocess.run(["git", *args], cwd=repo, capture_output=True,
+                       text=True, check=True)
+
+    git("init", "-q")
+    git("add", "-A")
+    git("commit", "-q", "-m", "state on origin")
+    return repo
+
+
+def test_a_local_re_anchor_on_origin_supersedes_this_run(tmp_path, monkeypatch):
+    repo = _committed_live_track(tmp_path, monkeypatch, {
+        "anchor_date": "2026-07-02", "live_dates": [], "live_equity": [],
+        "deployed_series_end": "2026-07-02"})
+    assert superseded_main(["--ref", "HEAD"], repo_root=repo, now_utc=NOW) == 0
+
+
+def test_an_origin_still_behind_does_not_supersede(tmp_path, monkeypatch):
+    repo = _committed_live_track(tmp_path, monkeypatch, {
+        "anchor_date": "2026-06-26", "live_equity": [1.0, 1.01, 1.02],
+        "live_dates": ["2026-06-29", "2026-06-30", "2026-07-01"]})
+    assert superseded_main(["--ref", "HEAD"], repo_root=repo, now_utc=NOW) == 1
+
+
+def test_an_unreadable_origin_file_is_not_superseded(tmp_path, monkeypatch):
+    repo = _committed_live_track(tmp_path, monkeypatch, None)
+    assert superseded_main(["--ref", "HEAD"], repo_root=repo, now_utc=NOW) == 2
