@@ -2867,7 +2867,7 @@
     662.0,
     665.9,
     664.0,
-    646.0,
+    646.1,
     656.0,
     655.2,
     658.1,
@@ -5999,7 +5999,7 @@
     662.0,
     665.9,
     664.0,
-    646.0,
+    646.1,
     656.0,
     655.2,
     658.1,
@@ -6252,7 +6252,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-09-30",
- "computed_at_utc": "2026-10-01 08:05 UTC",
+ "computed_at_utc": "2026-10-01 09:23 UTC",
  "holdings": [
   {
    "ticker": "SOXX",
@@ -6456,7 +6456,7 @@
  "n_positions": 22,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-10-01T08:05:06.586011+00:00",
+  "computed_at_utc": "2026-10-01T09:23:28.313181+00:00",
   "all_current": false,
   "strategies": [
    {
