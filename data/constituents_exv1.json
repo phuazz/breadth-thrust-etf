@@ -2,7 +2,7 @@
   "etf": "EXV1",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251934/ishares-stoxx-europe-600-banks-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-09-27T09:19:12.920833+00:00",
+  "fetched_at_utc": "2026-10-01T01:15:20.773604+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-09-25",
   "n_target_fridays": 456,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-09-25",
-      "fallback_date": "2026-09-24",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-24",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-09-25",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -23518,7 +23512,7 @@
       ]
     },
     "2026-09-25": {
-      "actual_date": "2026-09-24",
+      "actual_date": "2026-09-25",
       "n_tickers": 61,
       "tickers": [
         "HSBA.L",
@@ -23544,8 +23538,8 @@
         "ABN.AS",
         "BMPS.MI",
         "PKO.WA",
-        "DNB.OL",
         "A5G.IR",
+        "DNB.OL",
         "BPE.MI",
         "SHB-A.ST",
         "ACA.PA",
@@ -23556,11 +23550,11 @@
         "ETE.AT",
         "BG.VI",
         "FBK.MI",
-        "PEO.WA",
         "EUROB.AT",
+        "PEO.WA",
         "TPEIR.AT",
-        "BKT.MC",
         "BCP.LS",
+        "BKT.MC",
         "RBI.VI",
         "EBP.WA",
         "ALPHA.AT",
@@ -23574,8 +23568,8 @@
         "UNI.MC",
         "BCVN.SW",
         "BGN.MI",
-        "INVP.L",
         "KBCA.BR",
+        "INVP.L",
         "ING.WA",
         "MIL.WA",
         "TBCG.L",
