@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-10-01 01:34 UTC",
+  "computed_at_utc": "2026-10-01 08:05 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-09-30",
   "anchor_equity": 2.933969,
@@ -33,6 +33,7 @@
   },
   "live_dates": [],
   "live_equity": [],
+  "deployed_series_end": "2026-09-30",
   "sleeve_extensions": {
     "strategy_a": {
       "anchor_date": "2026-09-30",
