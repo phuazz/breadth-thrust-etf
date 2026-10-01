@@ -1,0 +1,117 @@
+name: Daily live track repair slot
+
+# The daily mark-to-market cron (daily_live_track.yml, 21:30 UTC) fired 1h54m
+# to 3h35m late on every weekday from 15 to 30 September 2026, and from 25
+# September its start sat past 00:00 UTC - the hour Yahoo withdraws the
+# just-completed US daily bar for its overnight rebuild (served as a NaN row
+# until about 03:45 UTC). A run that fetches inside that window captures the
+# PREVIOUS session, emails "[WARN] Capture lag", and publishes a close a day
+# old; five of the eight weekday runs for the sessions 21-30 September did.
+# The vendor probe never sees the gap: its slots (about 21:xx and 03:45 UTC)
+# straddle it.
+#
+# This workflow asks one question of the COMMITTED data/live_track.json,
+# using check_capture_integrity's own evaluator: does the deployed series
+# already reach the last completed NYSE session? If yes it stops, and nothing
+# downstream runs (no rebuild, no scanner, no state emission, no commit
+# churn). If no it dispatches the daily workflow (reason=repair-slot), which
+# re-marks from the anchor under the same guards as the scheduled slot and
+# emails the capture warning only if the bar is STILL missing after the
+# vendor window - the real "feed stuck" signal.
+#
+# Schedule: Tue-Fri 08:17 UTC (16:17 SGT), i.e. the sessions Mon-Thu.
+#   - after about 03:45 UTC, when Yahoo has restored the bar;
+#   - after the local scheduled refresh's window: its clone runs from 01:00
+#     UTC with hourly catch-up firings to 06:00 UTC and a run has taken 77
+#     minutes, and a CI commit landing between one of those runs' preflight
+#     pull and its push rejects the local push, whose retry then has to
+#     rebase two versions of the same data files (scheduled_refresh.py exit
+#     5, by hand);
+#   - never Saturday: the weekend refresh re-anchors Friday between 01:00 and
+#     07:35 UTC, and Monday's 21:30 slot marks Friday regardless;
+#   - an odd minute, because GitHub's delay is worst on the hour and half
+#     hour.
+#   Xetra is open at this hour. That is safe for the daily job, which never
+#   ranks: mark_to_market_live caps at the last completed NYSE session and
+#   export_holdings_prices trims each line to its own venue's last completed
+#   session (tests/test_session_bounds.py). The README's "never refresh after
+#   15:00 SGT" rule is about the engines, which this never runs.
+#
+# Verification: dispatch by hand with force=true to prove the plumbing once
+# (it costs one full publish); without it, a manual dispatch only reports.
+# Watched by the vault's fleet_watch.json as a run heartbeat: this workflow
+# commits nothing itself.
+
+on:
+  schedule:
+    - cron: '17 8 * * 2-5'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Dispatch the daily run even if the committed live track is current (plumbing test; costs one full publish)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: daily-live-track-repair
+  cancel-in-progress: false
+
+jobs:
+  decide:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install calendar dependency
+        # The verdict needs only the NYSE calendar (as the sentinel does);
+        # the daily job installs the full requirements when it is dispatched.
+        run: pip install "pandas_market_calendars>=4.4"
+
+      - name: Does the committed live track reach the last completed session?
+        id: decide
+        env:
+          LIVE_TRACK_REPAIR_FORCE: ${{ inputs.force }}
+        run: python scripts/live_track_repair_slot.py
+
+      - name: Dispatch the daily mark-to-market run
+        if: steps.decide.outputs.dispatch == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run daily_live_track.yml --ref main -f reason=repair-slot
+          echo "dispatched daily_live_track.yml: ${{ steps.decide.outputs.summary }}"
+
+      - name: Email failure alert
+        if: failure()
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[FAIL] Live track repair slot did not run'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            The 08:17 UTC repair slot could not decide or could not dispatch
+            daily_live_track.yml. The dashboard keeps whatever the 21:30 UTC
+            slot published (one session behind on a late-firing day) until
+            the next 21:30 run, which marks the session this slot would have.
+
+            Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

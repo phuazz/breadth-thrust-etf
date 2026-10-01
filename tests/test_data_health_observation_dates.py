@@ -408,3 +408,73 @@ def test_live_health_report_has_no_future_or_weekend_dates():
                if r["last_data_date"]
                and date.fromisoformat(r["last_data_date"]).weekday() >= 5]
     assert weekend == [], f"weekend observation dates: {weekend}"
+
+
+# ---------------------------------------------------------------------------
+# 7. live_track: an empty splice on a current anchor is a current feed
+# ---------------------------------------------------------------------------
+#
+# After a local refresh re-anchors the deployed series on the latest completed
+# session there is nothing to extend, so live_dates is legitimately empty. With
+# live_dates.* as the only selector that state resolved to nothing, and the
+# published page reported the row broken ("field renamed or no longer written")
+# with the whole badge STALE on every such build from 2026-09-26 to 2026-10-01.
+# The writer now emits deployed_series_end (the later of anchor_date and the
+# last live point) and the registry reads it; anchor_date itself stays on the
+# blocklist above.
+
+def _live_track_check() -> dict:
+    return next(c for c in P.DATA_HEALTH_CHECKS if c["key"] == "live_track")
+
+
+def test_live_track_registry_reads_the_series_end_the_writer_emits():
+    assert "deployed_series_end" in _live_track_check()["obs"]
+
+
+def test_live_track_empty_splice_on_a_current_anchor_is_ok_not_broken(
+        tmp_path, monkeypatch):
+    blob = {
+        "computed_at_utc": "2026-09-09 21:40 UTC",
+        "anchor_date": "2026-09-09",
+        "live_dates": [],
+        "live_equity": [],
+        "deployed_series_end": "2026-09-09",
+    }
+    health = _health_for(tmp_path, monkeypatch, {"live_track.json": blob},
+                         [_live_track_check()], BUILD)
+    row = _row(health, "live_track.json")
+    assert row["status"] == "ok"
+    assert row["last_data_date"] == "2026-09-09"
+    assert row["days_old"] == 0
+
+
+def test_live_track_splice_end_is_the_observation_when_marks_exist(
+        tmp_path, monkeypatch):
+    blob = {
+        "anchor_date": "2026-09-04",
+        "live_dates": ["2026-09-08", "2026-09-09"],
+        "live_equity": [1.0, 1.01],
+        "deployed_series_end": "2026-09-09",
+    }
+    health = _health_for(tmp_path, monkeypatch, {"live_track.json": blob},
+                         [_live_track_check()], BUILD)
+    row = _row(health, "live_track.json")
+    assert row["status"] == "ok"
+    assert row["last_data_date"] == "2026-09-09"
+
+
+def test_live_track_file_from_the_old_writer_still_resolves_on_its_splice(
+        tmp_path, monkeypatch):
+    """A file written before 2026-10-01 has no deployed_series_end; while it
+    carries live points it resolves on them, as before. Only the empty-splice
+    state was ever broken, and that is what the new field settles."""
+    blob = {
+        "anchor_date": "2026-09-04",
+        "live_dates": ["2026-09-08"],
+        "live_equity": [1.0],
+    }
+    health = _health_for(tmp_path, monkeypatch, {"live_track.json": blob},
+                         [_live_track_check()], BUILD)
+    row = _row(health, "live_track.json")
+    assert row["status"] == "ok"
+    assert row["last_data_date"] == "2026-09-08"

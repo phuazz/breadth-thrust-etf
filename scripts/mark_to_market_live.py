@@ -391,6 +391,22 @@ def _fetch_usd_prices(
     return df
 
 
+def deployed_series_end(anchor_date: str, live_dates: list[str]) -> str:
+    """Latest session the deployed series reaches: the last live point, or the
+    anchor itself when the splice is empty.
+
+    An empty splice is a legitimate state, not a missing field. A local
+    refresh that re-anchors on the latest completed session leaves nothing to
+    extend, and check_capture_integrity judges that case on exactly this
+    effective end. Data Health reads the field written here so the same state
+    reports the anchor's date rather than "field renamed or no longer
+    written", which is what the published page said after every local refresh
+    from 2026-09-26 to 2026-10-01 (badge STALE, row BROKEN, data current).
+    ISO dates sort chronologically, so max() is the later date.
+    """
+    return max([anchor_date, *live_dates])
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--out", default=str(DATA_DIR / "live_track.json"))
@@ -565,6 +581,9 @@ def main() -> int:
         # Backwards-compatible flat fields used by older pipeline.py:
         "live_dates": daily_dates,
         "live_equity": [round(v, 6) for v in daily_equity],
+        # The latest session the deployed series reaches (the anchor when the
+        # splice is empty). Data Health's observation selector for this file.
+        "deployed_series_end": deployed_series_end(anchor_date, daily_dates),
         # New per-sleeve block for the Performance chart's sleeve lines:
         "sleeve_extensions": sleeve_extensions,
         "notes": (

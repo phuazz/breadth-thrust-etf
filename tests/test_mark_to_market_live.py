@@ -20,6 +20,7 @@ from scripts.mark_to_market_live import (
     _build_effective_weights,
     _project_daily_equity,
     _resolve_yf_symbol,
+    deployed_series_end,
 )
 
 
@@ -453,3 +454,25 @@ def test_an_under_filled_sleeve_is_left_alone_not_normalised():
     assert w["SPY"] == pytest.approx(0.35 * 0.3)
     assert w["SHY"] == pytest.approx(0.35 * 0.7)
     assert sum(w.values()) == pytest.approx(1.0, abs=1e-9)
+
+
+# ---------------------------------------------------------------------------
+# deployed_series_end — the Data Health observation for live_track.json
+# ---------------------------------------------------------------------------
+
+def test_deployed_series_end_is_the_anchor_when_the_splice_is_empty():
+    """A local refresh that re-anchors on the latest completed session leaves
+    nothing to extend. The series still reaches the anchor: current, not
+    broken (the published page said broken from 2026-09-26 to 2026-10-01)."""
+    assert deployed_series_end("2026-09-30", []) == "2026-09-30"
+
+
+def test_deployed_series_end_is_the_last_live_point_when_the_splice_has_marks():
+    assert deployed_series_end(
+        "2026-09-25", ["2026-09-28", "2026-09-29"]) == "2026-09-29"
+
+
+def test_deployed_series_end_never_falls_behind_the_anchor():
+    """Defensive: a splice older than the anchor cannot pull the end back.
+    ISO dates sort chronologically, so the later date wins."""
+    assert deployed_series_end("2026-09-30", ["2026-09-28"]) == "2026-09-30"

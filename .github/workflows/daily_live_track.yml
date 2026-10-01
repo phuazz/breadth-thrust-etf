@@ -24,12 +24,39 @@ name: Daily live mark-to-market
 # too so the Pages-published PDF is also current. The regression suite
 # below dominates the job: ~1.5 minutes on 10 September, ~9 minutes by 14
 # September, and it is the reason the cap moved from 8 to 20.
+#
+# ----- Repair slot (2026-10-01) -----
+# GitHub fired this cron 1h54m to 3h35m late on every weekday from 15 to 30
+# September, and from 25 September the start sat past 00:00 UTC, where Yahoo
+# withdraws the just-completed US bar for its overnight rebuild (a NaN row
+# until about 03:45 UTC). Five of the eight weekday runs for the sessions
+# 21-30 September captured the previous session and emailed the capture
+# warning below, which reads as "feed stuck". It was the vendor's clock.
+# daily_live_track_repair.yml now runs Tue-Fri 08:17 UTC, checks the
+# COMMITTED live track against the calendar, and dispatches this workflow
+# (reason=repair-slot) only when it is behind. The 21:30 slot therefore no
+# longer emails a 1-session lag: it prints a notice and publishes the latest
+# populated close as before. The email is reserved for a run that is still
+# behind AFTER the vendor window, which is the signal worth reading. This
+# cron stays at 21:30: from the first Sunday of November the NYSE close is
+# 21:00 UTC, and before the close there is nothing new to mark.
 
 on:
   schedule:
     # Mon-Fri 21:30 UTC = early morning SGT next day (after US close)
     - cron: '30 21 * * 1-5'
   workflow_dispatch:  # manual trigger button
+    inputs:
+      reason:
+        description: 'Who dispatched this run (the repair slot passes repair-slot)'
+        type: string
+        default: 'operator'
+
+# A late 21:30 run and a repair-slot dispatch must not interleave their
+# pushes: the second queues behind the first.
+concurrency:
+  group: daily-live-track
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -122,8 +149,19 @@ jobs:
         id: capture
         run: python scripts/check_capture_integrity.py --targets live
 
-      - name: Email capture warning (1 session behind, still publishing)
-        if: steps.capture.outputs.capture_warn == 'true'
+      # The 21:30 slot withholds this email (2026-10-01): GitHub's delay puts
+      # its fetch inside Yahoo's overnight withdrawal of the US bar, so a
+      # 1-session lag there is the vendor's clock, not a fault, and the repair
+      # slot (daily_live_track_repair.yml, Tue-Fri 08:17 UTC) re-marks it. A
+      # lag on any other trigger - the repair slot's dispatch, or an
+      # operator's - is measured after the window and is emailed as before.
+      - name: Note the withheld capture warning (21:30 slot)
+        if: steps.capture.outputs.capture_warn == 'true' && github.event.schedule == '30 21 * * 1-5'
+        run: |
+          echo "::notice title=Capture lag on the 21:30 slot::${{ steps.capture.outputs.summary }} - inside the vendor window, email withheld; daily_live_track_repair.yml re-marks at 08:17 UTC if still behind"
+
+      - name: Email capture warning (1 session behind after the vendor window, still publishing)
+        if: steps.capture.outputs.capture_warn == 'true' && github.event.schedule != '30 21 * * 1-5'
         continue-on-error: true
         uses: dawidd6/action-send-mail@v18
         with:
@@ -138,9 +176,14 @@ jobs:
           body: |
             ${{ steps.capture.outputs.detail }}
 
+            Trigger: ${{ inputs.reason || github.event.schedule || github.event_name }}
+
             The run continues and publishes the latest populated close.
-            If this repeats tomorrow, the upstream feed is stuck — the
-            2-session threshold will then fail the job.
+            This run fetched after Yahoo's overnight window (00:00 to about
+            03:45 UTC), so the vendor had not restored the bar hours after
+            the close. If the repair slot reports this again tomorrow, the
+            upstream feed is stuck - the 2-session threshold then fails the
+            next 21:30 run and its failure alert fires.
 
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 

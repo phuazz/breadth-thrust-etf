@@ -639,9 +639,19 @@ DATA_HEALTH_CHECKS: list[dict] = [
     {"key": "live_track", "file": "live_track.json", "group": "live",
      "label": "Live mark-to-market (intra-week NAV splice)",
      "warn": 3, "stale": 7,
-     # live_dates is the intra-week splice of real marks; anchor_date is the
-     # prior Friday close it splices onto. The splice is the observation.
-     "obs": ["live_dates.*"],
+     # The observation is the latest session the deployed series reaches.
+     # live_dates (the intra-week splice of real marks) used to be the only
+     # selector, and after a local refresh re-anchors on the latest completed
+     # session the splice is legitimately EMPTY: from 2026-09-26 to 2026-10-01
+     # every such build published this row as broken ("field renamed or no
+     # longer written") and the whole badge as STALE over current data. The
+     # writer now emits deployed_series_end, the later of anchor_date and the
+     # last live point, which is the effective end check_capture_integrity
+     # already judges. anchor_date itself stays off the selector list (the
+     # blocklist in tests/test_data_health_observation_dates.py); live_dates.*
+     # is kept so a file written before 2026-10-01 still resolves while it
+     # has live points.
+     "obs": ["live_dates.*", "deployed_series_end"],
      "fix": "GitHub Actions daily_live_track or `python scripts/mark_to_market_live.py`"},
     {"key": "holdings_prices", "file": "holdings_prices_1y.json", "group": "live",
      "label": "Holdings 1Y price series (for click-expand mini-charts)",
