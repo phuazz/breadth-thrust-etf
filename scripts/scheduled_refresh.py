@@ -125,6 +125,29 @@ refuse - the weekend silently collapsing to one run. That failure is not
 hypothetical: six consecutive catch-up firings were consumed exactly that way
 on 2026-08-14, each refusing in turn while the window closed.
 
+PUSHING OVER A MOVED ORIGIN (2026-10-01). Origin moves under nearly every
+run: three probes a day, the scanner, the holdings monitor and the daily live
+track all push to main, and the rejected-push retry fired on nine run days in
+September alone. Until 2026-10-01 the retry was `git pull --rebase`, which is
+right when the other writer touched other files and wrong in the one case
+that matters: the daily live-track workflow rewrites the same generated
+outputs this run rewrites (live_track.json, the dashboard, the holdings panel,
+the freshness report), and GitHub now fires it two to four hours late, into
+this run's window - on 2026-09-29 it pushed at 01:08 UTC, eight minutes after
+this run's preflight pull. A rebase over that commit either stops on
+conflicts, leaving the clone mid-rebase so every later firing refuses the
+dirty tree, or auto-merges two regenerated versions of one artefact into a
+split vintage and publishes it. The retry now REPLAYS the run's own commits
+onto the new origin (replay_onto_origin): every path the commit touched is
+taken whole from it - generated files are never hunk-merged, the run's set is
+the consistent one - except template.html, which people edit and which is
+merged three-way; the commit keeps its message, and what the run did not
+touch keeps origin's version. A firing that finds an earlier firing's
+unpushed refresh commits publishes them the same way before pulling
+(reconcile_unpushed_commits), and a rebase or merge an earlier firing left in
+progress is aborted first (abort_stuck_operation), so the clone cannot be
+wedged by a lost race.
+
 Usage:
     python scripts/scheduled_refresh.py                  # soak: no push
     python scripts/scheduled_refresh.py --push           # armed
@@ -144,6 +167,7 @@ import os
 import smtplib
 import subprocess
 import sys
+import tempfile
 from datetime import date, datetime, timezone
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -542,6 +566,210 @@ def restore_tracked_outputs(log, repo_root: Path = REPO_ROOT) -> bool:
     return clean
 
 
+# ---------------------------------------------------------------------------
+# PUBLISHING OVER A MOVED ORIGIN (2026-10-01)
+#
+# See the module docstring. Three pieces: abort whatever an earlier firing
+# left in progress; replay this clone's own commits onto the moved origin
+# without hunk-merging generated outputs; and, at preflight, publish an
+# earlier firing's commits that lost their push race.
+# ---------------------------------------------------------------------------
+
+# The one tracked output a person also edits. It is merged three-way on
+# replay, and taken whole from the run's commit (with a warning) only when the
+# two changes touch the same lines. Every other path the run commits - data/,
+# docs/, build/portfolio.html - is generated as one consistent set and is
+# always taken whole.
+MERGED_OUTPUT_PATHS = ("template.html",)
+SCHEDULED_SUBJECT_MARKER = "(scheduled)"
+
+
+def is_scheduled_commit_subject(subject: str) -> bool:
+    """True for a commit this script wrote (see scheduled_commit_message).
+    Anything else sitting unpushed in the automation clone is a person's
+    work, and the preflight refuses to publish it rather than guess."""
+    return subject.startswith("Local ") and SCHEDULED_SUBJECT_MARKER in subject
+
+
+def abort_stuck_operation(log, repo_root: Path = REPO_ROOT) -> list[str]:
+    """Abort a rebase, merge or cherry-pick an earlier firing left in
+    progress. Returns one entry per operation aborted (empty when none).
+
+    The retry used to be `git pull --rebase`; a conflict stops it half-way,
+    and the clean-tree preflight then refuses every later firing, each one
+    emailing "working tree not clean" over a tree no person touched."""
+    cp = _git(["rev-parse", "--git-dir"], log, cwd=repo_root)
+    if cp.returncode != 0 or not cp.stdout.strip():
+        return []
+    git_dir = Path(cp.stdout.strip())
+    if not git_dir.is_absolute():
+        git_dir = repo_root / git_dir
+    aborted: list[str] = []
+    for marker, cmd in (("rebase-merge", ["rebase", "--abort"]),
+                        ("rebase-apply", ["rebase", "--abort"]),
+                        ("MERGE_HEAD", ["merge", "--abort"]),
+                        ("CHERRY_PICK_HEAD", ["cherry-pick", "--abort"])):
+        if (git_dir / marker).exists():
+            rc = _git(cmd, log, cwd=repo_root).returncode
+            aborted.append(f"{cmd[0]} {'aborted' if rc == 0 else 'abort FAILED'}")
+    return aborted
+
+
+def _three_way(commit: str, path: str, log, repo_root: Path) -> bool:
+    """Apply ``commit``'s change to ``path`` onto the current index with a
+    three-way merge. False when the two changes collide; the caller then
+    takes the run's version whole and says so."""
+    patch = subprocess.run(
+        ["git", "diff", "--binary", f"{commit}^", commit, "--", path],
+        cwd=repo_root, capture_output=True)
+    if patch.returncode != 0:
+        return False
+    if not patch.stdout.strip():
+        return True                     # the commit did not change this path
+    fd, tmp = tempfile.mkstemp(prefix="replay_", suffix=".patch")
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(patch.stdout)
+        return _git(["apply", "--3way", tmp], log, cwd=repo_root).returncode == 0
+    finally:
+        os.unlink(tmp)
+
+
+def replay_onto_origin(log, repo_root: Path = REPO_ROOT) -> tuple[bool, str]:
+    """Put this clone's unpushed commits on top of origin/main, taking every
+    output whole from the run's commit. Returns (ok, detail).
+
+    Never a rebase. ``git reset --hard origin/main``, then for each local
+    commit, oldest first: check out each path it touched from that commit
+    (delete what it deleted; merge template.html three-way) and commit with
+    its original message. Anything the run did not touch keeps origin's
+    version - the scanner page, the probe log, a code change pushed from the
+    main tree all survive. A commit origin already carries whole is dropped
+    rather than duplicated. On any error the clone is put back exactly as it
+    was, commits intact and tree clean, so the next firing can retry."""
+    cp = _git(["fetch", "origin", "main"], log, cwd=repo_root)
+    if cp.returncode != 0:
+        return False, "fetch failed: " + (cp.stderr or cp.stdout).strip()
+    porcelain = _git(["status", "--porcelain"], log, cwd=repo_root)
+    if porcelain.returncode != 0 or porcelain.stdout.strip():
+        return False, ("tree not clean before replay; not touching it:\n"
+                       + porcelain.stdout)
+
+    def rev(ref: str) -> str:
+        out = _git(["rev-parse", ref], log, cwd=repo_root)
+        return out.stdout.strip() if out.returncode == 0 else ""
+
+    head, upstream = rev("HEAD"), rev("origin/main")
+    base = _git(["merge-base", "HEAD", "origin/main"], log,
+                cwd=repo_root).stdout.strip()
+    if not (head and upstream and base):
+        return False, "could not resolve HEAD, origin/main or their merge base"
+    if upstream == head:
+        return True, "already at origin/main; nothing to replay"
+    if base == upstream:
+        return True, "origin has not moved; nothing to replay"
+    commits = _git(["rev-list", "--reverse", f"{base}..HEAD"], log,
+                   cwd=repo_root).stdout.split()
+    if not commits:
+        cp = _git(["reset", "--hard", upstream], log, cwd=repo_root)
+        return cp.returncode == 0, "no local commits; moved to origin/main"
+    subjects = {c: _git(["log", "-1", "--format=%s", c], log,
+                        cwd=repo_root).stdout.strip() for c in commits}
+    log.write(f"\nreplaying {len(commits)} local commit(s) onto origin/main "
+              f"{upstream[:8]} (base {base[:8]}):\n"
+              + "".join(f"  {c[:8]} {subjects[c]}\n" for c in commits))
+
+    def check(args: list[str]) -> subprocess.CompletedProcess:
+        out = _git(args, log, cwd=repo_root)
+        if out.returncode != 0:
+            raise RuntimeError(f"git {' '.join(args[:2])} failed: "
+                               + (out.stderr or out.stdout).strip())
+        return out
+
+    notes: list[str] = []
+    replayed = 0
+    try:
+        check(["reset", "--hard", upstream])
+        for c in commits:
+            entries = check(["diff-tree", "--no-commit-id", "--name-status",
+                             "-r", f"{c}^", c])
+            for line in entries.stdout.splitlines():
+                status, _, path = line.partition("\t")
+                if not path:
+                    continue
+                if status.startswith("D"):
+                    check(["rm", "-q", "--ignore-unmatch", "--", path])
+                elif path in MERGED_OUTPUT_PATHS:
+                    if not _three_way(c, path, log, repo_root):
+                        check(["checkout", c, "--", path])
+                        notes.append(
+                            f"{path}: the change in {c[:8]} collides with "
+                            f"origin's; the run's version was taken whole - "
+                            f"review it against origin's")
+                else:
+                    check(["checkout", c, "--", path])
+            staged = _git(["diff", "--cached", "--quiet"], log, cwd=repo_root)
+            if staged.returncode == 0:
+                log.write(f"\n{c[:8]}: nothing left to replay, origin "
+                          f"already carries it\n")
+                continue
+            check(["commit", "-q", "-C", c])
+            replayed += 1
+    except RuntimeError as exc:
+        _git(["reset", "--hard", head], log, cwd=repo_root)
+        return False, (f"replay failed and was undone (clone back at "
+                       f"{head[:8]}): {exc}")
+    detail = (f"replayed {replayed} of {len(commits)} local commit(s) onto "
+              f"origin/main {upstream[:8]}")
+    if notes:
+        detail += "\nWARN " + "\nWARN ".join(notes)
+    return True, detail
+
+
+def reconcile_unpushed_commits(log, repo_root: Path = REPO_ROOT, *,
+                               push: bool) -> tuple[bool, str, int]:
+    """At preflight: commits an earlier firing could not push are put on top
+    of origin (replay_onto_origin) and, in armed mode, pushed. Returns
+    (ok, detail, count). Refuses to touch commits this script did not write.
+
+    The exit-5 path leaves a fully guarded refresh committed on a clean tree,
+    and the publication debt reads origin, so the work is still owed until it
+    lands; publishing it first is what "the next firing retries the push"
+    has always meant."""
+    cp = _git(["fetch", "origin", "main"], log, cwd=repo_root)
+    if cp.returncode != 0:
+        return False, "fetch failed: " + (cp.stderr or cp.stdout).strip(), 0
+    counted = _git(["rev-list", "--count", "origin/main..HEAD"], log,
+                   cwd=repo_root)
+    if counted.returncode != 0:
+        return False, ("could not count unpushed commits: "
+                       + (counted.stderr or counted.stdout).strip()), 0
+    n = int(counted.stdout.strip() or 0)
+    if n == 0:
+        return True, "no unpushed commits", 0
+    subjects = _git(["log", "--format=%s", "origin/main..HEAD"], log,
+                    cwd=repo_root).stdout.strip().splitlines()
+    foreign = [s for s in subjects if not is_scheduled_commit_subject(s)]
+    if foreign:
+        return False, ("unpushed commit(s) in the automation clone were not "
+                       "written by this script; not touching them:\n  "
+                       + "\n  ".join(foreign)), n
+    ok, detail = replay_onto_origin(log, repo_root)
+    if not ok:
+        return False, detail, n
+    listing = "\n  ".join(subjects)
+    if not push:
+        return True, (f"{n} unpushed commit(s) from an earlier firing kept on "
+                      f"top of origin/main (not armed, not pushed):\n  "
+                      f"{listing}\n{detail}"), n
+    cp = _git(["push", "origin", "main"], log, cwd=repo_root)
+    if cp.returncode != 0:
+        return False, ("push of the recovered commit(s) was rejected: "
+                       + (cp.stderr or cp.stdout).strip()), n
+    return True, (f"published {n} commit(s) an earlier firing could not "
+                  f"push:\n  {listing}\n{detail}"), n
+
+
 # ONE GREEN RUN PER LOCAL DAY PER CADENCE (2026-09-03).
 #
 # The hourly repeats need a way to tell "the day's work is done" from "this
@@ -827,6 +1055,18 @@ def main(argv: list[str] | None = None) -> int:
     log.write(f"\n{msg}\n")
     if not ok:
         return fail(2, "price source unavailable", msg)
+    # Captured before ANY step that can move the working tree: the recovery
+    # below may reset the clone to origin, which rewrites this file just as
+    # the pull can, and the re-exec guard further down compares against it.
+    _self_before = Path(__file__).read_bytes()
+    # A rebase or merge an earlier firing left in progress (its push lost a
+    # race and the old `pull --rebase` retry stopped on a conflict) is
+    # aborted before the clean-tree check reads the conflict as a person's
+    # work. See replay_onto_origin.
+    aborted = abort_stuck_operation(log)
+    if aborted:
+        log.write("\nan earlier firing left git mid-operation; "
+                  + ", ".join(aborted) + "\n")
     cp = _git(["status", "--porcelain"], log)
     if cp.returncode != 0:
         return fail(2, "git status failed", cp.stderr)
@@ -835,7 +1075,17 @@ def main(argv: list[str] | None = None) -> int:
                     "The automation clone has local changes; a human or "
                     "another process interfered. Not touching anything.\n"
                     + cp.stdout)
-    _self_before = Path(__file__).read_bytes()
+    # Commits an earlier firing could not push (exit 5) are published now,
+    # before anything else: they passed every guard and only lost the push
+    # race, and the debt reads origin, so they are still owed until they
+    # land. Not armed: they are put on top of origin and left there.
+    ok, detail, pending = reconcile_unpushed_commits(log, push=args.push)
+    log.write(f"\nunpushed commits: {detail}\n")
+    if not ok:
+        return fail(2, "could not publish an earlier firing's commits", detail)
+    if pending and args.push:
+        _email("[OK] Scheduled refresh pushed - recovered from an earlier "
+               "firing", detail, log)
     cp = _git(["pull", "--rebase", "origin", "main"], log)
     if cp.returncode != 0:
         return fail(2, "git pull --rebase failed", cp.stderr)
@@ -1311,23 +1561,30 @@ def main(argv: list[str] | None = None) -> int:
                               "local commits\n")
                     break
                 return fail(5, f"git {step[0]} failed", cp.stderr or cp.stdout)
-        # RETRY, REBASING BETWEEN ATTEMPTS (2026-09-02).
+        # RETRY BY REPLAYING OVER THE MOVED ORIGIN (2026-09-02, reworked
+        # 2026-10-01).
         #
         # This run takes 40 minutes and the repo is written by several other
-        # things — three probes a day, the scanner, the daily live track, and
-        # whoever is at the keyboard. Origin therefore moves UNDER a healthy
-        # run as a matter of course, and the first push comes back
-        # "non-fast-forward" through no fault of the refresh. On 2026-09-02
-        # that lost a complete, correct, fully-guarded post-fill run at the
-        # final step; the commit sat in the clone until someone rebased it by
-        # hand. A run that did everything right must not need a human for the
-        # last thirty seconds.
+        # things — three probes a day, the scanner, the holdings monitor, the
+        # daily live track, and whoever is at the keyboard. Origin therefore
+        # moves UNDER a healthy run as a matter of course (nine run days in
+        # September), and the first push comes back "non-fast-forward"
+        # through no fault of the refresh. On 2026-09-02 that lost a complete,
+        # correct, fully-guarded post-fill run at the final step; the commit
+        # sat in the clone until someone rebased it by hand.
         #
-        # Same shape the workflows already use (daily_live_track, scanner,
-        # universe_monitor): push, and on rejection rebase onto origin and try
-        # again. --autostash because the build may have left tracked outputs
-        # dirty. Three attempts, then fail loudly — a push that cannot land
-        # after three rebases is not a race, it is something else.
+        # The retry was `git pull --rebase --autostash`, which is right when
+        # the other writer touched other files and wrong in the one case that
+        # matters: the daily live-track workflow rewrites the same generated
+        # outputs this run rewrites, and GitHub now fires it two to four hours
+        # late, into this window. A rebase over that commit stops on conflicts
+        # and leaves the clone mid-rebase, or auto-merges two regenerated
+        # versions of one artefact and publishes the hybrid.
+        # replay_onto_origin takes every output whole from this run's commit
+        # instead. Three attempts, then fail loudly — a push that cannot land
+        # after three replays is not a race, it is something else; the clone
+        # keeps the commit on a clean tree and the next firing publishes it
+        # before running anything else.
         pushed = False
         for attempt in (1, 2, 3):
             cp = _git(["push", "origin", "main"], log)
@@ -1337,15 +1594,18 @@ def main(argv: list[str] | None = None) -> int:
                     log.write(f"\npushed on attempt {attempt} "
                               f"(origin moved during the run)\n")
                 break
-            log.write(f"\npush rejected on attempt {attempt}; rebasing onto "
-                      f"origin/main and retrying\n")
-            rb = _git(["pull", "--rebase", "--autostash", "origin", "main"], log)
-            if rb.returncode != 0:
-                return fail(5, "git push failed, and the rebase failed too",
+            log.write(f"\npush rejected on attempt {attempt}; replaying this "
+                      f"run's commit(s) onto origin/main and retrying\n")
+            ok, detail = replay_onto_origin(log)
+            log.write(f"\n{detail}\n")
+            if not ok:
+                return fail(5, "git push failed, and the replay onto origin "
+                               "failed too",
                             "Refresh is committed locally in the automation "
                             "clone but not pushed, and it could not be "
-                            "rebased onto origin. Resolve by hand.\n"
-                            + rb.stderr)
+                            "replayed onto origin. The clone keeps the commit "
+                            "on a clean tree; the next firing publishes it "
+                            "before running anything else.\n" + detail)
         if not pushed:
             # The debt is deliberately NOT discharged by this state. The
             # commit exists locally and nothing was published, and the
@@ -1356,10 +1616,11 @@ def main(argv: list[str] | None = None) -> int:
                                                          "origin/main")
             return fail(5, "git push failed after 3 attempts",
                         f"Refresh is committed locally in the automation "
-                        f"clone but not pushed after three rebase-and-retry "
-                        f"attempts; push manually. {unpushed} local commit(s) "
-                        f"are not on origin/main, and the publication debt "
-                        f"stays outstanding until they are. " + cp.stderr)
+                        f"clone but not pushed after three replay-and-retry "
+                        f"attempts. {unpushed} local commit(s) are not on "
+                        f"origin/main; the next firing publishes them before "
+                        f"running anything else, and the publication debt "
+                        f"stays outstanding until they land. " + cp.stderr)
         print(f"PUSHED - {msg}")
         log.write(f"\npushed: {msg}\n")
         _email("[OK] Scheduled refresh pushed - factsheet publishing",

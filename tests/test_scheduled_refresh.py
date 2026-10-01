@@ -405,28 +405,34 @@ def test_a_pull_that_rewrites_this_script_re_execs_once():
         "compared AFTER it, or the skew is invisible")
 
 
-def test_the_push_retries_after_rebasing():
+def test_the_push_retries_by_replaying_over_the_moved_origin():
     """A 40-minute run races every other writer in the repo (2026-09-02).
 
-    Three probes a day, the scanner, the daily live track and whoever is at
-    the keyboard all push to the same ref, so origin moves UNDER a healthy run
-    as a matter of course and the first push comes back non-fast-forward
-    through no fault of the refresh. On 2026-09-02 that lost a complete,
-    correct, fully-guarded post-fill run at the final step — the commit sat in
-    the automation clone until it was rebased by hand.
+    Three probes a day, the scanner, the holdings monitor, the daily live
+    track and whoever is at the keyboard all push to the same ref, so origin
+    moves UNDER a healthy run as a matter of course (nine run days in
+    September 2026) and the first push comes back non-fast-forward through no
+    fault of the refresh. On 2026-09-02 that lost a complete, correct,
+    fully-guarded post-fill run at the final step — the commit sat in the
+    automation clone until it was rebased by hand.
 
-    A run that did everything right must not need a human for the last thirty
-    seconds. Same shape the workflows already use.
+    The retry used to rebase. Over the daily live track's commit — the same
+    generated files this run rewrites, now landing two to four hours late,
+    inside this window — a rebase either stops mid-way and wedges the clone or
+    auto-merges two regenerated versions into one artefact. Since 2026-10-01
+    the retry replays this run's commits whole over origin
+    (test_scheduled_refresh_replay.py pins the behaviour); bounded as before.
     """
     src = inspect.getsource(_sr.main)
     push_at = src.index('"push", "origin", "main"')
     tail = src[push_at:]
-    assert "--autostash" in tail, (
-        "the retry must rebase onto origin, and --autostash because the build "
-        "may have left tracked outputs dirty")
+    assert "replay_onto_origin(" in tail, (
+        "the retry must replay this run's commits over origin")
+    assert "--autostash" not in tail and '"pull", "--rebase"' not in tail, (
+        "a rebase hunk-merges generated outputs; never retry with one")
     assert "attempt" in tail, "the push must retry, not fail on the first race"
     # ...and it must still give up rather than loop for ever: a push that
-    # cannot land after three rebases is not a race, it is something else.
+    # cannot land after three replays is not a race, it is something else.
     assert "3 attempts" in tail or "(1, 2, 3)" in tail, (
         "the retry must be bounded")
 

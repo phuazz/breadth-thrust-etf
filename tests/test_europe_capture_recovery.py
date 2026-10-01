@@ -154,7 +154,14 @@ def test_scheduler_collection_restores_unsealed_outputs_without_publication(monk
     assert sr.main(["--component", "europe", "--capture-only"]) == expected
     assert restored == [True]
     assert len(commands) == 1 and "--capture-only" in commands[0]
-    assert all(c[0] in {"status", "pull"} for c in git_calls)
+    # Read-only git only. The preflight's recovery LOOKS (rev-parse for a
+    # stuck operation, fetch and rev-list for an earlier firing's unpushed
+    # commits; 2026-10-01) but a collection never commits, pushes or rewrites
+    # the tree.
+    assert all(c[0] in {"status", "pull", "rev-parse", "fetch", "rev-list"}
+               for c in git_calls)
+    assert not any(c[0] in {"commit", "push", "reset", "checkout", "rebase"}
+                   for c in git_calls)
 
 
 def test_collection_rejects_push():
