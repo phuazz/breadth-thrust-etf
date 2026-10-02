@@ -2093,6 +2093,11 @@
          description column left a bare ticker carrying only a sleeve
          tag. The fund name comes back as a sub-line. */
       table.holdings .row-sub { display: block; }
+      /* EM vs US gauge (EM tilt tab): a two-column label / value table that
+         fits a phone outright. Under the 480px floor it widened the whole
+         card, so its heading and explanatory prose scrolled sideways too
+         (61ch at 390px). MOBILE_CHECK reading measure, 2026-10-02. */
+      table.gauge-table { min-width: 0; }
       table.heat thead th, table.heat tbody td,
       table.small-table thead th, table.small-table tbody td,
       table.trade-table thead th, table.trade-table tbody td,
@@ -7134,7 +7139,7 @@ function renderRiskOverlay() {
           (negative) over the named window. Computed from the daily EEM÷SPY price
           ratio: if the ratio is higher today than N days ago, EM has outperformed.
         </p>
-        <table class="small-table" style="font-size:13.5px;">
+        <table class="small-table gauge-table" style="font-size:13.5px;">
           <tbody>
             <tr><td>EM vs US, past 1 month</td>
                 <td style="text-align:right;font-weight:600;">${fmtRel(r1m)}</td></tr>
