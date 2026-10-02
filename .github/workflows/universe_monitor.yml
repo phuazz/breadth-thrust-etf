@@ -80,7 +80,9 @@ jobs:
       # left the listed universe. The report and snapshot are written before
       # that check, so the trail lands on the month the alarm fires.
       - name: Run the monitor
-        run: python scripts/run_universe_monitor.py --write-snapshot --fail-on-alert
+        # Engine parquet caches are local/gitignored. Download the complete
+        # comparison universe explicitly; incomplete prices fail closed.
+        run: python scripts/run_universe_monitor.py --price-source yfinance --write-snapshot --fail-on-alert
 
       # Explicit paths only, never `git add data/`. Several sessions and
       # workflows share this tree and a broad add would sweep up whatever

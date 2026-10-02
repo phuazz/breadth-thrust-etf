@@ -69,6 +69,7 @@ Usage:
     python scripts/run_universe_monitor.py                 # report only
     python scripts/run_universe_monitor.py --write-snapshot  # and commit the new baseline
     python scripts/run_universe_monitor.py --max-screen 40   # cap the history fetch
+    python scripts/run_universe_monitor.py --price-source yfinance  # cache-free CI
 """
 
 from __future__ import annotations
@@ -381,12 +382,65 @@ def screen_launches(symbols: list[str], panel: pd.DataFrame,
 # Main
 # ---------------------------------------------------------------------------
 
+def downloaded_deployed_panel() -> tuple[pd.DataFrame, dict[str, list[str]]]:
+    """Complete ranked universe for runners without local price caches.
+
+    Both comparison legs use adjusted closes. Retain engine tickers, rather
+    than the scanner's shorter execution histories. Never write engine caches.
+    """
+    from alignment import align_series_to_index
+    from check_universe_candidates import capture_integrity
+    from etf_registry import ETF_REGISTRY
+    from scanner_universe import resolve_universe
+
+    specs = {}
+    sleeves: dict[str, list[str]] = {}
+    for row in resolve_universe():
+        for origin in row.origins:
+            ticker = origin.engine_ticker
+            sleeves.setdefault(ticker, [])
+            if origin.sleeve not in sleeves[ticker]:
+                sleeves[ticker].append(origin.sleeve)
+            proxy = (ETF_REGISTRY.get(ticker, {}) or {}).get(
+                "yfinance_trading_proxy") or ticker
+            specs[ticker] = (proxy, row.fx_ticker, row.fx_direction)
+    symbols = {proxy for proxy, _, _ in specs.values()}
+    symbols.update(fx for _, fx, _ in specs.values() if fx)
+    raw = fetch_candidates(sorted(symbols))
+    missing = sorted(s for s in symbols
+                     if s not in raw or raw[s].dropna().empty)
+    if missing:
+        raise FeedIntegrityError(f"incomplete comparison-price download: {missing}")
+    closes = {}
+    for ticker, (proxy, fx, direction) in specs.items():
+        close = raw[proxy].dropna()
+        if fx:
+            rate = align_series_to_index(raw[fx].dropna(), close.index,
+                                         max_stale_days=10)
+            if direction == "multiply":
+                close = close * rate
+            elif direction == "divide":
+                close = close / rate
+            else:
+                raise FeedIntegrityError(f"unknown FX direction for {ticker}")
+            if close.isna().any():
+                raise FeedIntegrityError(f"incomplete FX coverage for {ticker}")
+        closes[ticker] = close
+    panel = pd.DataFrame(closes).sort_index()
+    integrity = capture_integrity(panel, weekly_returns(panel), sleeves)
+    if integrity["stale_lines"]:
+        raise FeedIntegrityError(f"stale comparison prices: {integrity['stale_lines']}")
+    return panel, sleeves
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--write-snapshot", action="store_true",
                     help="update the committed baseline after reporting")
     ap.add_argument("--max-screen", type=int, default=DEFAULT_MAX_SCREEN,
                     help="cap how many launches get a history fetch")
+    ap.add_argument("--price-source", choices=("cache", "yfinance"),
+                    default="cache", help="comparison prices; CI has no local caches")
     ap.add_argument("--today", default=None,
                     help="ISO date override for the freshness check (testing)")
     ap.add_argument("--fail-on-alert", action="store_true",
@@ -423,7 +477,8 @@ def main() -> int:
         print(f"\n  {len(launches)} launch(es), {len(closures)} closure(s) "
               f"since the last snapshot")
 
-    panel, sleeves = deployed_panel()
+    panel, sleeves = (downloaded_deployed_panel() if args.price_source == "yfinance"
+                      else deployed_panel())
     held = {t for t in panel.columns}
     closed_and_held = sorted(t for t in closures if t in held)
     if closed_and_held:
@@ -449,6 +504,7 @@ def main() -> int:
         "feed": {"url": FEED_URL, "file_creation_time": stamp.isoformat(),
                  "etf_lines": len(rows), "prior_etf_lines": n_prev},
         "baseline_run": baseline,
+        "comparison_price_source": args.price_source,
         "launches": launches,
         "closures": closures,
         "closures_held_by_book": closed_and_held,

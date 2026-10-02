@@ -13,11 +13,73 @@ import json
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
+
+
+@pytest.fixture
+def downloaded_book(monkeypatch):
+    import run_universe_monitor as monitor
+    import scanner_universe
+    import etf_registry
+
+    def row(ticker, sleeve, fx=None, direction=None):
+        return SimpleNamespace(origins=[SimpleNamespace(
+            engine_ticker=ticker, sleeve=sleeve)],
+            fx_ticker=fx, fx_direction=direction)
+
+    monkeypatch.setattr(scanner_universe, "resolve_universe", lambda: [
+        row("EURO", "D", "FXE", "multiply"),
+        row("CHINA", "B", "FXC", "divide"),
+        row("CRYPTO", "C")])
+    monkeypatch.setitem(etf_registry.ETF_REGISTRY, "EURO",
+                        {"yfinance_trading_proxy": "EURO.DE"})
+    # ISO dates use calendar months 1-12; cross both year and month boundaries.
+    idx = pd.bdate_range("2023-12-01", periods=600)
+    raw = pd.DataFrame({"EURO.DE": 20.0, "CHINA": 70.0,
+                        "CRYPTO": 100.0, "FXE": 1.2, "FXC": 7.0}, index=idx)
+    calls = []
+    monkeypatch.setattr(monitor, "fetch_candidates",
+                        lambda tickers: calls.append(tickers) or raw)
+    return monitor, raw, calls
+
+
+def test_downloaded_book_uses_engine_symbols_and_correct_fx(downloaded_book):
+    monitor, raw, calls = downloaded_book
+    panel, sleeves = monitor.downloaded_deployed_panel()
+    assert set(calls[0]) == set(raw.columns)
+    assert set(panel.columns) == {"EURO", "CHINA", "CRYPTO"}
+    assert (panel["EURO"] == 24).all()
+    assert (panel["CHINA"] == 10).all()
+    assert (panel["CRYPTO"] == 100).all()
+    assert sleeves == {"EURO": ["D"], "CHINA": ["B"], "CRYPTO": ["C"]}
+
+
+@pytest.mark.parametrize("missing", ["CRYPTO", "FXE"])
+def test_downloaded_book_refuses_missing_prices_or_fx(downloaded_book, missing):
+    monitor, raw, _ = downloaded_book
+    raw.drop(columns=missing, inplace=True)
+    with pytest.raises(monitor.FeedIntegrityError, match="incomplete comparison"):
+        monitor.downloaded_deployed_panel()
+
+
+def test_downloaded_book_refuses_stalled_fx(downloaded_book):
+    monitor, raw, _ = downloaded_book
+    raw.loc[raw.index[-30:], "FXE"] = float("nan")
+    with pytest.raises(monitor.FeedIntegrityError, match="incomplete FX"):
+        monitor.downloaded_deployed_panel()
+
+
+def test_downloaded_book_refuses_stale_comparison_line(downloaded_book):
+    monitor, raw, _ = downloaded_book
+    raw.loc[raw.index[-30:], "CRYPTO"] = float("nan")
+    with pytest.raises(monitor.FeedIntegrityError, match="stale comparison"):
+        monitor.downloaded_deployed_panel()
 
 from run_universe_monitor import (  # noqa: E402
     MAX_FEED_AGE_DAYS,
