@@ -2,7 +2,6 @@
  "as_of": "2026-09-30",
  "calendars": {
   "c0": [
-   "2025-09-30",
    "2025-10-01",
    "2025-10-02",
    "2025-10-03",
@@ -506,14 +505,14 @@
    "2026-09-24",
    "2026-09-25",
    "2026-09-28",
-   "2026-09-29"
+   "2026-09-29",
+   "2026-09-30"
   ]
  },
  "charts": {
   "SOXX": {
    "cal": "c0",
    "px": [
-    270.3,
     275.5,
     280.8,
     279.1,
@@ -774,7 +773,6 @@
   "DBC": {
    "cal": "c0",
    "px": [
-    21.8,
     21.76,
     21.61,
     21.68,
@@ -1035,7 +1033,6 @@
   "IUHC": {
    "cal": "c0",
    "px": [
-    136.9,
     141.1,
     140.8,
     142.4,
@@ -1296,7 +1293,6 @@
   "IUES": {
    "cal": "c0",
    "px": [
-    43.43,
     43.43,
     42.99,
     43.22,
@@ -1807,17 +1803,17 @@
     41.87,
     42.38,
     42.37,
-    42.15
+    42.15,
+    41.82
    ],
-   "last": "2026-09-29",
+   "last": "2026-09-30",
    "currency": "EUR",
    "priced_via": null,
-   "lag_days": 1
+   "lag_days": 0
   },
   "QQQ": {
    "cal": "c0",
    "px": [
-    597.6,
     600.4,
     602.9,
     600.4,
@@ -2328,17 +2324,17 @@
     56.87,
     56.2,
     56.65,
-    55.79
+    55.79,
+    55.36
    ],
-   "last": "2026-09-29",
+   "last": "2026-09-30",
    "currency": "EUR",
    "priced_via": null,
-   "lag_days": 1
+   "lag_days": 0
   },
   "EWJ": {
    "cal": "c0",
    "px": [
-    76.9,
     76.9,
     76.84,
     78.4,
@@ -2849,17 +2845,17 @@
     116.8,
     117.4,
     116.7,
-    117.4
+    117.4,
+    116.6
    ],
-   "last": "2026-09-29",
+   "last": "2026-09-30",
    "currency": "EUR",
    "priced_via": null,
-   "lag_days": 1
+   "lag_days": 0
   },
   "SPY": {
    "cal": "c0",
    "px": [
-    659.1,
     661.3,
     662.1,
     662.1,
@@ -2867,7 +2863,7 @@
     662.0,
     665.9,
     664.0,
-    646.1,
+    646.0,
     656.0,
     655.2,
     658.1,
@@ -3120,7 +3116,6 @@
   "EFA": {
    "cal": "c0",
    "px": [
-    90.28,
     91.02,
     91.17,
     91.93,
@@ -3381,7 +3376,6 @@
   "CNDX": {
    "cal": "c0",
    "px": [
-    597.6,
     600.4,
     602.9,
     600.4,
@@ -3642,7 +3636,6 @@
   "IUFS": {
    "cal": "c0",
    "px": [
-    53.03,
     52.56,
     52.52,
     52.89,
@@ -3903,7 +3896,6 @@
   "ARKK": {
    "cal": "c0",
    "px": [
-    86.3,
     86.92,
     89.22,
     88.32,
@@ -4164,7 +4156,6 @@
   "CIBR": {
    "cal": "c0",
    "px": [
-    75.6,
     76.12,
     76.68,
     76.29,
@@ -4425,7 +4416,6 @@
   "SKYY": {
    "cal": "c0",
    "px": [
-    134.4,
     134.5,
     135.8,
     135.1,
@@ -4686,7 +4676,6 @@
   "ARKG": {
    "cal": "c0",
    "px": [
-    27.77,
     28.85,
     29.81,
     30.04,
@@ -4947,7 +4936,6 @@
   "IBIT": {
    "cal": "c0",
    "px": [
-    65.0,
     66.74,
     68.77,
     69.81,
@@ -5208,7 +5196,6 @@
   "IJR": {
    "cal": "c0",
    "px": [
-    117.3,
     117.7,
     118.0,
     118.5,
@@ -5469,7 +5456,6 @@
   "VGK": {
    "cal": "c0",
    "px": [
-    77.43,
     78.33,
     78.51,
     78.94,
@@ -5730,7 +5716,6 @@
   "IDP6": {
    "cal": "c0",
    "px": [
-    117.3,
     117.7,
     118.0,
     118.5,
@@ -5991,7 +5976,6 @@
   "CSP1": {
    "cal": "c0",
    "px": [
-    659.1,
     661.3,
     662.1,
     662.1,
@@ -5999,7 +5983,7 @@
     662.0,
     665.9,
     664.0,
-    646.1,
+    646.0,
     656.0,
     655.2,
     658.1,
@@ -6252,7 +6236,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-09-30",
- "computed_at_utc": "2026-10-01 09:23 UTC",
+ "computed_at_utc": "2026-10-02 13:24 UTC",
  "holdings": [
   {
    "ticker": "SOXX",
@@ -6456,15 +6440,15 @@
  "n_positions": 22,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-10-01T09:23:28.313181+00:00",
+  "computed_at_utc": "2026-10-02T13:25:03.693209+00:00",
   "all_current": false,
   "strategies": [
    {
     "sleeve": "A",
     "label": "US sectors",
     "data_through": "2026-09-29",
-    "venue_last_session": "2026-09-30",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-01",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [
      "IUMS"
@@ -6475,18 +6459,18 @@
     "sleeve": "B",
     "label": "Asset classes",
     "data_through": "2026-09-30",
-    "venue_last_session": "2026-09-30",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-10-01",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-09-30, while the market has traded to 2026-10-01 — it has not been rebuilt since."
    },
    {
     "sleeve": "C",
     "label": "Thematic",
     "data_through": "2026-09-29",
-    "venue_last_session": "2026-09-30",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-01",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [
      "BTC-USD"
@@ -6497,8 +6481,8 @@
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-09-29",
-    "venue_last_session": "2026-09-30",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-01",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
     "why_plain": "the shares held inside these funds are priced up to 2026-09-29, while the exchange itself has traded to 2026-09-30 — the newest day's prices were not available when this was built."

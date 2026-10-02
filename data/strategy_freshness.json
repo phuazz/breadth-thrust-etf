@@ -1,13 +1,13 @@
 {
- "computed_at_utc": "2026-10-01T09:23:28.313181+00:00",
+ "computed_at_utc": "2026-10-02T13:25:03.693209+00:00",
  "strategies": [
   {
    "sleeve": "A",
    "label": "US sectors",
    "venue": "NYSE",
    "data_through": "2026-09-29",
-   "venue_last_session": "2026-09-30",
-   "sessions_behind": 1,
+   "venue_last_session": "2026-10-01",
+   "sessions_behind": 2,
    "status": "behind",
    "laggards": [
     "IUMS"
@@ -22,27 +22,27 @@
    "label": "Asset classes",
    "venue": "NYSE",
    "data_through": "2026-09-30",
-   "venue_last_session": "2026-09-30",
-   "sessions_behind": 0,
-   "status": "current",
+   "venue_last_session": "2026-10-01",
+   "sessions_behind": 1,
+   "status": "behind",
    "laggards": [],
-   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-10-01T08:05Z; the cache is not present on this checkout",
+   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-10-01T09:23Z; the cache is not present on this checkout",
    "carried": true,
-   "why": null,
-   "why_plain": null
+   "why": "every one of the cached price series stops at 2026-09-30 while NYSE has completed 2026-10-01 \u2014 none lags the others, so they have not been rebuilt since.",
+   "why_plain": "the data behind this strategy stops on 2026-09-30, while the market has traded to 2026-10-01 \u2014 it has not been rebuilt since."
   },
   {
    "sleeve": "C",
    "label": "Thematic",
    "venue": "NYSE",
    "data_through": "2026-09-29",
-   "venue_last_session": "2026-09-30",
-   "sessions_behind": 1,
+   "venue_last_session": "2026-10-01",
+   "sessions_behind": 2,
    "status": "behind",
    "laggards": [
     "BTC-USD"
    ],
-   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-10-01T08:05Z; the cache is not present on this checkout",
+   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-10-01T09:23Z; the cache is not present on this checkout",
    "carried": true,
    "why": null,
    "why_plain": null
@@ -52,8 +52,8 @@
    "label": "Europe sectors",
    "venue": "XETR",
    "data_through": "2026-09-29",
-   "venue_last_session": "2026-09-30",
-   "sessions_behind": 1,
+   "venue_last_session": "2026-10-01",
+   "sessions_behind": 2,
    "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
@@ -65,5 +65,5 @@
  "all_current": false,
  "n_unknown": 0,
  "stalest": "2026-09-29",
- "n_behind": 3
+ "n_behind": 4
 }
