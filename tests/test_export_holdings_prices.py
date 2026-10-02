@@ -702,6 +702,126 @@ def test_same_run_without_vendor_evidence_still_fails(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# Unclosed sessions — the 2026-10-01 intraday Xetra bars
+#
+# The repair slot (daily_live_track_repair.yml, 08:17 UTC) runs while Xetra is
+# open. The export fetched with no end date, so the run that committed at
+# 09:26 UTC on 2026-10-01 published the five Xetra lines with an INTRADAY bar
+# dated 10-01 (and a hole at 09-30, which the vendor was withholding). The
+# next night's regression guard then defended that intraday bar as if it were
+# a close. Python date months are 1-indexed; 2026-10-01 is a Thursday.
+# ---------------------------------------------------------------------------
+def _xetra_dates_through(end: str, n: int = 260) -> list[str]:
+    return [str(d.date()) for d in pd.bdate_range(end=end, periods=n)]
+
+
+@pytest.mark.parametrize("now, bars, dropped", [
+    # Month boundary: 10-01 is mid-session at 09:23 UTC, closed by 16:00 UTC.
+    ("2026-10-01T09:23:23+00:00", ["2026-09-29", "2026-09-30", "2026-10-01"],
+     ["2026-10-01"]),
+    ("2026-10-01T16:00:00+00:00", ["2026-09-29", "2026-09-30", "2026-10-01"],
+     []),
+    # Year boundary: Monday 2027-01-04 is mid-session at 09:00 UTC.
+    ("2027-01-04T09:00:00+00:00", ["2026-12-29", "2026-12-30", "2027-01-04"],
+     ["2027-01-04"]),
+])
+def test_unclosed_xetra_bar_is_trimmed(now, bars, dropped):
+    from datetime import datetime
+    close = _series(bars, [100.0, 101.0, 102.0])
+    got, gone = ehp.completed_sessions_only(
+        "EXV1.DE", close, datetime.fromisoformat(now))
+    assert gone == dropped
+    assert [str(d.date()) for d in got.index] == [
+        b for b in bars if b not in dropped]
+
+
+def test_crypto_and_unknown_venues_are_never_trimmed():
+    from datetime import datetime
+    close = _series(["2026-10-01", "2026-10-02"], [1.0, 2.0])
+    now = datetime.fromisoformat("2026-10-02T00:30:00+00:00")
+    for tk in ("BTC-USD", "BRK-B"):
+        got, gone = ehp.completed_sessions_only(tk, close, now)
+        assert gone == [] and len(got) == 2
+
+
+def test_published_bar_from_an_open_session_is_not_a_baseline():
+    """A panel computed at 09:23 UTC cannot hold a 10-01 Xetra CLOSE. The
+    published US bar from the same panel is a real close and stays."""
+    prev = {"EXV1.DE": _panel_entry(["2026-09-29", "2026-10-01"], [42.15, 40.78]),
+            "SPY": _panel_entry(["2026-09-29", "2026-09-30"], [764.2, 762.6])}
+    base, dropped = ehp.drop_unclosed_published_bars(
+        prev, "2026-10-01T09:23:23+00:00")
+    assert dropped == {"EXV1.DE": ["2026-10-01"]}
+    assert base["EXV1.DE"]["dates"] == ["2026-09-29"]
+    assert base["EXV1.DE"]["prices"] == [42.15]
+    assert base["SPY"] is prev["SPY"]
+    # A panel computed after the close is a baseline in full.
+    base, dropped = ehp.drop_unclosed_published_bars(
+        prev, "2026-10-01T16:00:00+00:00")
+    assert dropped == {} and base["EXV1.DE"] is prev["EXV1.DE"]
+    # No usable stamp: nothing is discarded, the guard keeps its old baseline.
+    for stamp in (None, "", "not-a-date"):
+        base, dropped = ehp.drop_unclosed_published_bars(prev, stamp)
+        assert dropped == {} and base == prev
+
+
+def _intraday_panel_run(tmp_path, monkeypatch, computed_at, gaps):
+    monkeypatch.setattr(ehp, "DATA_DIR", tmp_path)
+    out_path = tmp_path / "holdings_prices_1y.json"
+    monkeypatch.setattr(ehp, "OUT_PATH", out_path)
+    monkeypatch.setattr(ehp, "collect_all_tickers", lambda: {"EXV1.DE"})
+    monkeypatch.setattr(ehp, "collect_book_symbols", lambda: {"EXV1.DE"})
+    monkeypatch.setattr(ehp, "NETWORK_FALLBACK_TICKERS", ["EXV1.DE"])
+    from datetime import datetime
+    monkeypatch.setattr(ehp, "_utcnow", lambda: datetime.fromisoformat(
+        "2026-10-02T13:30:00+00:00"))        # Friday, Xetra open
+
+    hist = _xetra_dates_through("2026-09-29")
+    prices = [40.0 + i * 0.01 for i in range(len(hist))]
+    # The published shape: 09-30 withheld, 10-01 taken mid-session.
+    out_path.write_text(json.dumps({
+        "computed_at_utc": computed_at, "lookback_days": 252,
+        "prices": {"EXV1.DE": _panel_entry(hist + ["2026-10-01"],
+                                           prices + [40.78])},
+    }), encoding="utf-8")
+
+    def _fetch(tks, gaps_out=None):
+        if gaps_out is not None and gaps:
+            gaps_out["EXV1.DE"] = list(gaps)
+        # 09-30 served again, 10-01 withheld, 10-02 an intraday print.
+        return {"EXV1.DE": _series(hist + ["2026-09-30", "2026-10-02"],
+                                   prices + [42.10, 42.40])}
+
+    monkeypatch.setattr(ehp, "fetch_missing_from_yfinance", _fetch)
+    rc = ehp.main([])
+    return rc, json.loads(out_path.read_text(encoding="utf-8"))
+
+
+def test_intraday_published_bar_is_neither_defended_nor_reinstated(tmp_path,
+                                                                    monkeypatch):
+    rc, payload = _intraday_panel_run(
+        tmp_path, monkeypatch, "2026-10-01T09:23:23+00:00", ["2026-10-01"])
+    dates = payload["prices"]["EXV1.DE"]["dates"]
+    assert rc == 0
+    assert dates[-1] == "2026-09-30", dates[-3:]
+    assert "2026-10-01" not in dates, "the intraday print was spliced in as a close"
+    assert "2026-10-02" not in dates, "a bar from an open session was published"
+    assert payload["unclosed_bars_dropped"] == {
+        "published": {"EXV1.DE": ["2026-10-01"]},
+        "fetched": {"EXV1.DE": ["2026-10-02"]}}
+
+
+def test_a_published_close_is_still_defended(tmp_path, monkeypatch):
+    """Control: the same panel computed AFTER the Xetra close holds a real
+    10-01 close. With no vendor evidence the fetch is a regression and must
+    still be held back with exit 2."""
+    rc, payload = _intraday_panel_run(
+        tmp_path, monkeypatch, "2026-10-01T16:00:00+00:00", [])
+    assert rc == ehp.REGRESSION_EXIT_CODE
+    assert payload["prices"]["EXV1.DE"]["dates"][-1] == "2026-10-01"
+
+
+# ---------------------------------------------------------------------------
 # Interior gaps — the hole find_regressions cannot see
 # ---------------------------------------------------------------------------
 def test_interior_gap_is_detected():

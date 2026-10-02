@@ -962,6 +962,88 @@ def interior_gaps(entry: dict | None, ticker: str) -> list[str]:
 
 
 # --------------------------------------------------------------------------
+# Unclosed sessions (2026-10-01)
+#
+# The repair slot (daily_live_track_repair.yml, cron 08:17 UTC) runs while
+# Xetra is open, and its header said this export "trims each line to its own
+# venue's last completed session". It did not: the backfill fetches with no
+# end date, so the run that committed at 09:26 UTC on 2026-10-01 published the
+# five Xetra lines with an INTRADAY bar dated 10-01. The next night's
+# regression guard then defended that print as if it were a close, and the
+# vendor-gap repair would have spliced it back in as one.
+#
+# Two rules, both narrow. Every series is cut at its venue's last completed
+# session before it is exported. And a bar the PREVIOUS panel published before
+# its own session had closed (judged by that panel's computed_at_utc) is not a
+# baseline: it was never a close, so it can neither be defended by
+# find_regressions nor reinstated by reinstate_vendor_gaps. A bar published
+# after its close is untouched, so the never-go-backwards guard is unchanged
+# for every real close.
+# --------------------------------------------------------------------------
+def _utcnow() -> datetime:
+    """The run clock; a function so tests can pin it."""
+    return datetime.now(timezone.utc)
+
+
+def completed_sessions_only(ticker: str, close: "pd.Series | None",
+                            now_utc: datetime) -> tuple["pd.Series | None", list[str]]:
+    """Drop bars from sessions that have not closed on the ticker's venue.
+
+    Returns ``(series, dropped ISO dates)``. A ticker with no known venue
+    calendar (crypto, unmapped suffixes) is returned unchanged.
+    """
+    name = venue_calendar_for(ticker)
+    if close is None or name is None or close.empty:
+        return close, []
+    from session_bounds import trim_to_completed
+    trimmed, dropped = trim_to_completed(close, _venue_calendar(name), now_utc,
+                                         label=ticker)
+    return trimmed, [d.isoformat() for d in dropped]
+
+
+def drop_unclosed_published_bars(prev_prices: dict[str, dict],
+                                 computed_at: str | None,
+                                 ) -> tuple[dict[str, dict], dict[str, list[str]]]:
+    """Baseline view of the previous panel without bars it published before
+    their session closed.
+
+    Only ``dates`` and ``prices`` are cut, which is all the regression,
+    reinstatement and Norgate checks read. Without a parseable
+    ``computed_at`` nothing is discarded and the old baseline stands.
+    """
+    if not computed_at:
+        return prev_prices, {}
+    try:
+        stamp = pd.Timestamp(str(computed_at))
+    except (TypeError, ValueError):
+        return prev_prices, {}
+    if pd.isna(stamp):
+        return prev_prices, {}
+    if stamp.tz is None:
+        stamp = stamp.tz_localize("UTC")
+    from session_bounds import last_completed_session_on
+    base = dict(prev_prices)
+    dropped: dict[str, list[str]] = {}
+    for tk, entry in prev_prices.items():
+        name = venue_calendar_for(tk)
+        dates = (entry or {}).get("dates") or []
+        prices = (entry or {}).get("prices") or []
+        if name is None or not dates or len(dates) != len(prices):
+            continue
+        cap = last_completed_session_on(_venue_calendar(name), stamp)
+        if cap is None:
+            continue
+        cap_iso = cap.date().isoformat()
+        keep = [i for i, d in enumerate(dates) if d <= cap_iso]
+        if len(keep) == len(dates):
+            continue
+        base[tk] = {**entry, "dates": [dates[i] for i in keep],
+                    "prices": [prices[i] for i in keep]}
+        dropped[tk] = [d for d in dates if d > cap_iso]
+    return base, dropped
+
+
+# --------------------------------------------------------------------------
 # Cache-refresh half — runs BEFORE the strategy engines (refresh_all step 2b)
 # --------------------------------------------------------------------------
 def engine_ohlc_tickers() -> dict[str, str]:
@@ -1242,7 +1324,7 @@ def main(argv: list[str] | None = None) -> int:
             return refresh_ohlc_caches(mapping)
         return refresh_ohlc_caches()
 
-    now_utc = datetime.now(timezone.utc)
+    now_utc = _utcnow()
     print(f"Exporting holdings 1Y price series at "
           f"{now_utc.isoformat(timespec='seconds')} ...")
     tickers = sorted(collect_all_tickers())
@@ -1254,12 +1336,26 @@ def main(argv: list[str] | None = None) -> int:
     # The previously published panel, read up front: it is the baseline both
     # for the never-go-backwards check and for the carry-forward guard.
     prev_prices: dict[str, dict] = {}
+    prev_computed_at = None
     if OUT_PATH.exists():
         try:
-            prev_prices = (json.loads(OUT_PATH.read_text(encoding="utf-8"))
-                           .get("prices") or {})
+            prev_payload = json.loads(OUT_PATH.read_text(encoding="utf-8"))
+            prev_prices = prev_payload.get("prices") or {}
+            prev_computed_at = prev_payload.get("computed_at_utc")
         except Exception as exc:
             print(f"  WARN: could not read previous panel: {exc}")
+    # What the guards compare against: the published panel less any bar it
+    # took from a session that had not closed. prev_prices itself is still
+    # what a held-back or carried-forward ticker publishes.
+    baseline, unclosed_published = drop_unclosed_published_bars(
+        prev_prices, prev_computed_at)
+    if unclosed_published:
+        print("  UNCLOSED: the previous panel (computed "
+              f"{prev_computed_at}) published bars from sessions that had not "
+              "closed; they are not a baseline: " + ", ".join(
+                  f"{t} ({', '.join(d)})"
+                  for t, d in sorted(unclosed_published.items())))
+    unclosed_fetched: dict[str, list[str]] = {}
 
     out: dict[str, dict] = {}
     # The close series behind each entry, kept so a repair can be applied to
@@ -1268,7 +1364,10 @@ def main(argv: list[str] | None = None) -> int:
     series: dict[str, "pd.Series"] = {}
     n_skipped: list[str] = []
     for ticker in tickers:
-        close = load_close_series(ticker)
+        close, gone = completed_sessions_only(
+            ticker, load_close_series(ticker), now_utc)
+        if gone:
+            unclosed_fetched[ticker] = gone
         entry = build_entry(close)
         if entry is None:
             n_skipped.append(ticker)
@@ -1288,7 +1387,7 @@ def main(argv: list[str] | None = None) -> int:
     # deliberately loose enough to span a weekend + holiday cluster) yet can
     # still be older than what has already been published. EEM lost four
     # sessions inside that tolerance and no guard fired.
-    regressed = find_regressions(out, prev_prices)
+    regressed = find_regressions(out, baseline)
     if regressed:
         print("  REGRESSION: last bar moved backwards vs the published "
               "panel for " + ", ".join(
@@ -1315,8 +1414,16 @@ def main(argv: list[str] | None = None) -> int:
                   + ", ".join(f"{t} ({', '.join(d)})"
                               for t, d in sorted(vendor_gaps.items())))
         for tk, close in fetched.items():
+            # The backfill has no end date: cut today's print from a venue
+            # that is still open before anything compares or publishes it.
+            close, gone = completed_sessions_only(tk, close, now_utc)
+            if gone:
+                unclosed_fetched[tk] = sorted(
+                    set(unclosed_fetched.get(tk, [])) | set(gone))
+            if close is None or close.empty:
+                continue
             close, filled, refused = reinstate_vendor_gaps(
-                tk, close, prev_prices.get(tk), vendor_gaps.get(tk))
+                tk, close, baseline.get(tk), vendor_gaps.get(tk))
             if filled:
                 reinstated[tk] = filled
             if refused:
@@ -1344,7 +1451,7 @@ def main(argv: list[str] | None = None) -> int:
         if not gap_dates or tk not in series or series[tk] is None:
             continue
         repaired, filled, refused = reinstate_vendor_gaps(
-            tk, series[tk], prev_prices.get(tk), gap_dates)
+            tk, series[tk], baseline.get(tk), gap_dates)
         if refused:
             print(f"  NOT SPLICED: {tk} — {refused}")
             continue
@@ -1370,7 +1477,7 @@ def main(argv: list[str] | None = None) -> int:
     # published series (``norgate_disagreement``); anything it cannot restore
     # falls through to the guard below unchanged. Each replacement is recorded
     # in the artefact, not only in the log.
-    pending = find_regressions(out, prev_prices)
+    pending = find_regressions(out, baseline)
     resourced: dict[str, str] = {}
     if pending:
         for tk, close in resource_regressions_from_norgate(
@@ -1378,7 +1485,7 @@ def main(argv: list[str] | None = None) -> int:
             entry = build_entry(close)
             if entry is None or last_date(entry) < pending[tk][0]:
                 continue
-            why = norgate_disagreement(close, prev_prices.get(tk))
+            why = norgate_disagreement(close, baseline.get(tk))
             if why:
                 print(f"  NOT RE-SOURCED: {tk} — {why}")
                 continue
@@ -1394,7 +1501,7 @@ def main(argv: list[str] | None = None) -> int:
     # PREVIOUSLY published series: it is the more truthful of the two, and a
     # shrinking date range under an advancing as-of stamp is precisely the
     # failure this guard exists to stop.
-    unrepaired = find_regressions(out, prev_prices)
+    unrepaired = find_regressions(out, baseline)
     for tk, (prev_last, new_last) in sorted(unrepaired.items()):
         out[tk] = prev_prices[tk]
         print(f"  HELD BACK: {tk} re-fetch did not restore it "
@@ -1458,6 +1565,10 @@ def main(argv: list[str] | None = None) -> int:
         # {ticker: last bar} for each series this run re-sourced from Norgate
         # because yfinance withheld the published last bar. Empty on a normal run.
         "resourced_from_norgate": resourced,
+        # Bars cut because their session had not closed: from the previous
+        # panel's baseline, and from this run's sources. Empty on a normal run.
+        "unclosed_bars_dropped": {"published": unclosed_published,
+                                  "fetched": unclosed_fetched},
         "prices": out,
     }
     OUT_PATH.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
