@@ -8308,13 +8308,26 @@ function _pendingFillNote(sleeve, heldDate) {
       + (to ? `${sym(to)} takes the whole ${nav(to.target)}` : 'the sleeve moves to cash'));
   } else {
     const sig = s.signals || {};
-    exits.forEach(l => parts.push(`${sym(l)} exits` + (sig[l.etf] != null
-      ? ` (signal ${sig[l.etf] >= 0 ? '+' : ''}${(sig[l.etf] * 100).toFixed(2)}%)` : '')));
+    const prev = s.signals_prev || {};
+    // Each engine's eligibility rule: B strictly above its 200-day average,
+    // C +5% (mirrors ELIGIBILITY_FLOOR in component_factsheet_view.py).
+    const floor = ({ B: 0, C: 0.05 })[sleeve];
+    const below = floor === 0 ? 'its 200-day average' : `the +${Math.round((floor || 0) * 100)}% floor`;
+    const fmt = (v) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(2)}%`;
+    const fell = (l) => floor != null && sig[l.etf] != null && prev[l.etf] != null
+      && prev[l.etf] > floor && sig[l.etf] <= floor;
+    exits.forEach(l => parts.push(`${sym(l)} exits` + (fell(l)
+      ? ` (signal ${fmt(prev[l.etf])} to ${fmt(sig[l.etf])}, below ${below})`
+      : sig[l.etf] != null ? ` (signal ${fmt(sig[l.etf])})` : '')));
     entries.filter(l => !CASH.has(l.etf)).forEach(l => parts.push(`${sym(l)} enters at ${nav(l.target)}`));
     entries.filter(l => CASH.has(l.etf)).forEach(l => {
       const filled = Object.keys(s.weights || {}).filter(e => !CASH.has(e)).length;
       const open = s.top_k ? s.top_k - filled : 0;
-      parts.push(`${sym(l)} takes ${open === 1 ? 'the unfilled slot' : open > 1 ? `the ${open} unfilled slots` : 'the unfilled weight'} at ${nav(l.target)}`);
+      const ranked = Object.keys(sig).length;
+      const why = (open > 0 && floor != null)
+        ? `: only ${filled} of ${ranked} ranked ETFs ${filled === 1 ? 'is' : 'are'} above ${floor === 0 ? 'their 200-day average' : below} for ${s.top_k} slots`
+        : '';
+      parts.push(`${sym(l)} takes ${open === 1 ? 'the unfilled slot' : open > 1 ? `the ${open} unfilled slots` : 'the unfilled weight'} at ${nav(l.target)}${why}`);
     });
     if (resized.length) parts.push(`${resized.length} other holding${resized.length === 1 ? '' : 's'} reweighted`);
   }

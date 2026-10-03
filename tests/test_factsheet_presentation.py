@@ -443,3 +443,27 @@ def test_complete_book_holds_one_line_per_instrument(tmp_path,monkeypatch):
     assert shy[0]["target"]==pytest.approx(.15) and shy[0]["split"]=="B 5.00% + C 10.00%"
     assert len(rows)==len({r["traded"] for r in release["book"]["lines"]})
     assert render_pdf({"action":"regular","d_hold":False},release).startswith(b"%PDF-")
+
+
+def test_b_cash_slot_names_the_name_that_fell_below_the_floor(tmp_path,monkeypatch):
+    """SHY's B slot opened because VGK crossed below its 200-day average (2026-10-03)."""
+    import component_factsheet_view as view
+    assert view.ELIGIBILITY_FLOOR=={"B":0.0,"C":0.05}
+    release=install(tmp_path,monkeypatch,ready=True)
+    book=release["book"]
+    b=next(s for s in book["sleeves"] if s["sleeve"]=="B")
+    qqq=next(r for r in book["lines"] if r["etf"]=="QQQ")
+    b.update(top_k=2,weights={"VGKX":.5,"SHY":.5},
+             signals={"QQQ":-.0021,"VGKX":.05,"EFAX":-.03},signals_prev={"QQQ":.0259,"VGKX":.06,"EFAX":-.02})
+    qqq.update(target=0.0,delta=-qqq["held"])
+    book["lines"]+=[{"sleeve":"B","etf":"VGKX","traded":"VGKX","held":.175,"target":.175,"delta":0.0,"status":"READY"},
+                    {"sleeve":"B","etf":"SHY","traded":"SHY","held":0.0,"target":.175,"delta":.175,"status":"READY"}]
+    shy=book["lines"][-1]
+    assert view.floor_fallers("B",book)==[qqq]
+    assert view.cash_reason(shy,book,short=True)=="cash floor: QQQ fell below its 200-day average; 1 of 2 slots filled"
+    assert view.cash_reason(shy,book)==("cash floor: only 1 of the 3 ranked ETFs are above their 200-day average "
+                                        "for 2 slots after QQQ fell below it, +2.59% to -0.21%; SHY takes the unfilled slot")
+    assert view.line_evidence(qqq,book).endswith("fell below its 200-day average; its slot goes to SHY")
+    story=sleeve_story(next(s for s in view_model({"action":"regular"},release)["shifts"] if s["sleeve"]=="B"),release)
+    assert "fell below its 200-day average, +2.59% to -0.21%, and exits" in story
+    assert "so SHY takes the unfilled weight at 17.50% of NAV" in story

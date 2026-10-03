@@ -267,6 +267,38 @@ def gate_terms(gate):
             f"threshold ({need} needed)")
 
 
+# Each engine's eligibility rule, for naming the cause of a cash floor.
+# B ranks only names strictly above their 200-day average (valid > 0,
+# run_asset_class_rotation.py); C requires +5% (SIGNAL_FLOOR,
+# run_thematic_rotation.py). The release records signals and weights, not
+# the rule, so the rule is stated here and pinned by a test.
+ELIGIBILITY_FLOOR = {"B": 0.0, "C": 0.05}
+
+
+def floor_fallers(sleeve, book):
+    """Held lines that exit because their signal crossed the eligibility floor.
+
+    These are what open a cash-floor slot: VGK went +2.59% to -0.21% on the
+    2 Oct close and B's seventh slot went to SHY, yet the factsheet printed
+    the exit and the SHY entry as two unrelated facts (owner, 2026-10-03).
+    """
+    record = sleeve_record(book, sleeve)
+    floor = ELIGIBILITY_FLOOR.get(sleeve)
+    now, prev = record.get("signals") or {}, record.get("signals_prev") or {}
+    if floor is None:
+        return []
+    return [r for r in book["lines"]
+            if r["sleeve"] == sleeve and action_of(r) == "EXIT" and r["etf"] in now
+            and prev.get(r["etf"]) is not None and prev[r["etf"]] > floor >= now[r["etf"]]]
+
+
+def floor_phrase(sleeve, plural):
+    floor = ELIGIBILITY_FLOOR.get(sleeve, 0.0)
+    if floor == 0:
+        return "their 200-day average" if plural else "its 200-day average"
+    return f"the {floor * 100:+.0f}% floor"
+
+
 def cash_reason(row, book, short=False):
     """Why a strategy holds its cash proxy, from that strategy's own record.
 
@@ -288,9 +320,25 @@ def cash_reason(row, book, short=False):
         return f"sleeve-breadth gate: {gate_terms(gate)}"
     k = record.get("top_k")
     filled = sum(1 for etf in (record.get("weights") or {}) if etf not in CASH_PROXIES)
-    if k and filled < k:
+    if not k or filled >= k:
+        return "cash floor: the weight the signal floor leaves unfilled"
+    fallen = floor_fallers(row["sleeve"], book)
+    names = " and ".join(r["traded"] for r in fallen)
+    signals, prev = record.get("signals") or {}, record.get("signals_prev") or {}
+    if short:
+        if fallen:
+            return (f"cash floor: {names} fell below {floor_phrase(row['sleeve'], len(fallen) > 1)}; "
+                    f"{filled} of {k} slots filled")
         return f"cash floor: {filled} of {k} slots qualify; {k - filled} unfilled"
-    return "cash floor: the weight the signal floor leaves unfilled"
+    text = (f"cash floor: only {filled} of the {len(signals)} ranked ETFs are above "
+            f"{floor_phrase(row['sleeve'], True)} for {k} slots")
+    if fallen:
+        moves = ", ".join((f"{r['traded']} " if len(fallen) > 1 else "")
+                          + f"{prev[r['etf']] * 100:+.2f}% to {signals[r['etf']] * 100:+.2f}%"
+                          for r in fallen)
+        text += f" after {names} fell below {'them' if len(fallen) > 1 else 'it'}, {moves}"
+    open_ = k - filled
+    return text + f"; {row['traded']} takes the " + ("unfilled slot" if open_ == 1 else f"{open_} unfilled slots")
 
 
 def row_context(row, book):
@@ -298,6 +346,8 @@ def row_context(row, book):
     reason = cash_reason(row, book, short=True)
     if not reason and action_of(row) == "EXIT" and gate_of(sleeve_record(book, row["sleeve"])):
         reason = "exits on the sleeve-breadth gate"
+    elif not reason and row in floor_fallers(row["sleeve"], book):
+        reason = f"fell below {floor_phrase(row['sleeve'], False)}"
     return f"Strategy {row['sleeve']} · {NAMES[row['sleeve']]}" + (f" · {reason}" if reason else "")
 
 
@@ -310,6 +360,11 @@ def line_evidence(row, book):
     cell = signal_cell(row["etf"], record)
     if gate_of(record) and action_of(row) == "EXIT":
         return f"{cell} · exits on the sleeve-breadth gate, not on rank"
+    if row in floor_fallers(row["sleeve"], book):
+        cash = next((r for r in book["lines"] if r["sleeve"] == row["sleeve"]
+                     and r["etf"] in CASH_PROXIES and r["delta"] > 0), None)
+        return (f"{cell} · fell below {floor_phrase(row['sleeve'], False)}"
+                + (f"; its slot goes to {cash['traded']}" if cash else ""))
     return cell
 
 
@@ -474,9 +529,25 @@ def sleeve_story(shift, release):
         return (f"Sleeve-breadth gate on: {gate_terms(gate)}. The whole strategy moves{dest} "
                 "and every holding exits regardless of rank.")
     name = signal_terms(record)[0]
+    parts = [f"Re-ranked on {name}."]
+    fallen = floor_fallers(shift["sleeve"], book)
+    cash = next((r for r in changed if r["etf"] in CASH_PROXIES and r["delta"] > 0), None)
+    if fallen and cash:
+        signals, prev = record.get("signals") or {}, record.get("signals_prev") or {}
+        k = record.get("top_k")
+        filled = sum(1 for etf in (record.get("weights") or {}) if etf not in CASH_PROXIES)
+        moves = "; ".join(f"{position_name(r, release)} fell below {floor_phrase(shift['sleeve'], False)}, "
+                          f"{prev[r['etf']] * 100:+.2f}% to {signals[r['etf']] * 100:+.2f}%, and exits"
+                          for r in fallen)
+        parts.append(f"{moves}. That leaves {filled} of the {len(signals)} ranked ETFs above "
+                     f"{floor_phrase(shift['sleeve'], True)} for {k} slots, so {cash['traded']} takes "
+                     f"the unfilled weight at {pct(cash['target'])} of NAV.")
+        # The remaining moves are reweights among the names still eligible.
+        changed = [r for r in changed if r is not cash and r not in fallen]
+        if not changed:
+            return " ".join(parts)
     up = max(changed, key=lambda r: r["delta"])
     down = min(changed, key=lambda r: r["delta"])
-    parts = [f"Re-ranked on {name}."]
     if up["delta"] > 0:
         parts.append(f"Largest addition: {position_name(up, release)}, {pp(up['delta'])} to "
                      f"{pct(up['target'])} ({cash_reason(up, book) or signal_cell(up['etf'], record)}).")
