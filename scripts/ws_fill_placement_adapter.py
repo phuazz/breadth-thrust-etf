@@ -23,8 +23,9 @@ shapes.
            (ignored), with a manifest of hashes.
   freeze   step 3. Prices each fill at the fetched unadjusted close on its
            fill date, applies guard 2 (the fill date must be a session in the
-           line's series) and the parity guard, and writes
-           engine/results/fills.json, book_meta.json and bars_used.json.
+           line's series) and the parity guard on each fill's seven-session
+           window (PREREG amendment 8), and writes engine/results/fills.json,
+           book_meta.json and bars_used.json.
 
 A fill is every line whose target weight changes on a rebalance date, side B
 when the weight rises and S when it falls, size |dw| x NAV, dated on the
@@ -91,6 +92,10 @@ CODE_TZ = {"ARCA": "America/New_York", "NYQ": "America/New_York", "NGM": "Americ
 SESSION_OPEN = {"America/New_York": (9, 30), "Europe/Berlin": (9, 0), "Asia/Shanghai": (9, 30)}
 PARITY_TOL = 0.001
 PARITY_STOP_SHARE = 0.10
+# PREREG amendment 8: a line whose engine panel is on another basis is excluded whole and counted
+BASIS_MISMATCH_LINES = {("C", "159801.SZ"): "basis mismatch: the engine's panel holds the line in another currency (PREREG amendment 8)"}
+FACTOR_CHECK_MONTH = "2026-09"   # guard 1's sampled month for the six-decimal factor comparison (the reproduction month)
+WINDOW_K = 3
 CONFIRMATORY_FROM = "2018-10-31"   # the deployed blend's inception, a Wednesday (PREREG amendment 5)
 # the automation clone holds the engine panels of the frozen vintage (its HEAD is the vintage commit)
 CLONE = Path(r"C:/dev/breadth-thrust-etf-sched")
@@ -641,26 +646,6 @@ def fetch(derived: dict, refetch: list[str] | None = None) -> dict:
     return manifest
 
 
-def parity_check(fetched_adj: dict[str, float], reference: dict[str, float], dates: list[str], tol: float = PARITY_TOL) -> dict:
-    """The registered parity guard for one line: on every fill date the fetched
-    unadjusted close times its adjustment factor (the fetched adjusted close)
-    must agree with the engine's price panel within `tol` (relative). A date
-    absent from either series fails. Returns agreement statistics only, never
-    a price (the reference may be licensed)."""
-    worst, failures = 0.0, []
-    for d in dates:
-        a, r = fetched_adj.get(d), reference.get(d)
-        if a is None or r is None or not (r > 0):
-            failures.append({"date": d, "reason": "missing"})
-            continue
-        rel = abs(a / r - 1)
-        worst = max(worst, rel)
-        if rel > tol:
-            failures.append({"date": d, "rel": rel})
-    return {"dates": len(dates), "failures": len(failures), "worst_rel": worst, "passes": not failures,
-            "first_failures": failures[:5]}
-
-
 class ParityReferenceUnavailable(Exception):
     pass
 
@@ -778,10 +763,137 @@ def engine_inputs(priced: list[dict], raw: dict) -> tuple[list[dict], dict, dict
     return rows, meta, extract, record
 
 
+def price_fills(fills: list[dict], raw: dict) -> tuple[list[dict], list[dict]]:
+    """Guard 2 and pricing: a fill whose date is not a session with a close in
+    its line's fetched series is excluded and counted; every other fill is
+    priced at that session's unadjusted close (the engines' modelled fill)."""
+    priced, guard2, bars_by = [], [], {}
+    for r in fills:
+        sym = r["symbol"]
+        if sym not in bars_by:
+            bars_by[sym] = {b["date"]: b for b in raw[sym]["bars"]}
+        b = bars_by[sym].get(r["date"])
+        if b is None or b.get("Close") is None:
+            guard2.append(dict(r, reason="guard 2: the fill date is not a session in the line's fetched series"))
+        else:
+            priced.append(dict(r, price=b["Close"]))
+    return priced, guard2
+
+
+def _median(xs: list[float]) -> float:
+    ys = sorted(xs)
+    m = len(ys) // 2
+    return ys[m] if len(ys) % 2 else (ys[m - 1] + ys[m]) / 2
+
+
+def window_parity(priced: list[dict], raw: dict, panel_for, tol: float = PARITY_TOL,
+                  basis_mismatch: dict = BASIS_MISMATCH_LINES, k: int = WINDOW_K,
+                  factor_month: str = FACTOR_CHECK_MONTH) -> tuple[list[dict], list[dict], dict]:
+    """PREREG amendment 8. For every fill, the fetched window's price ratios
+    (each bar's close over the fill-session close on the dividend-rebased
+    basis, that is the fetched adjusted closes) against the engine panel's
+    ratios over the same 2k+1 sessions: any ratio off by more than `tol`, or a
+    panel bar missing in the window, excludes the fill and is counted. Lines in
+    `basis_mismatch` are excluded whole and counted. The level drift (fetched
+    adjusted close against the panel on each fill date) is tabulated by line
+    and calendar year, and guard 1's six-decimal factor comparison is run on
+    the sampled month; neither gates. `panel_for(sleeve, line, symbol)`
+    returns {date: panel close} or raises ParityReferenceUnavailable. Returns
+    (kept, excluded, record); the record holds agreement statistics only."""
+    by_line = defaultdict(list)
+    for r in priced:
+        by_line[(r["sleeve"], r["line"], r["symbol"])].append(r)
+    kept, excluded, lines, unchecked, basis, drift, factor = [], [], {}, [], [], {}, {}
+    tot = Counter()
+    for (s_, line, sym), rows in sorted(by_line.items()):
+        key = f"{s_}:{line}"
+        if (s_, line) in basis_mismatch:
+            excluded.extend(dict(r, reason=basis_mismatch[(s_, line)]) for r in rows)
+            basis.append({"line": key, "fills": len(rows)})
+            lines[key] = {"symbol": sym, "basis_mismatch": True, "fills": len(rows)}
+            continue
+        try:
+            ref = panel_for(s_, line, sym)
+        except ParityReferenceUnavailable as exc:
+            unchecked.append({"line": key, "reason": str(exc), "fills": len(rows)})
+            lines[key] = {"symbol": sym, "checked": False, "fills": len(rows)}
+            kept.extend(rows)            # declared unchecked and counted, never silently passed
+            continue
+        bars = raw[sym]["bars"]
+        dates = [b["date"] for b in bars]
+        idx = {d: i for i, d in enumerate(dates)}
+        adj = [b.get("Adj Close") for b in bars]
+        status = {}
+        for d in sorted({r["date"] for r in rows}):
+            i = idx[d]                   # present: guard 2 ran first
+            if i < k or i + k >= len(dates):
+                status[d] = ("edge", None)
+                continue
+            a_t, p_t = adj[i], ref.get(d)
+            if a_t is None or p_t is None or not (a_t > 0 and p_t > 0):
+                status[d] = ("missing", None)
+                continue
+            dev, missing = 0.0, False
+            for j in range(i - k, i + k + 1):
+                a_j, p_j = adj[j], ref.get(dates[j])
+                if a_j is None or p_j is None or not (p_j > 0):
+                    missing = True
+                    break
+                dev = max(dev, abs((a_j / a_t) / (p_j / p_t) - 1))
+            status[d] = ("missing", None) if missing else (("over", dev) if dev > tol else ("ok", dev))
+        per = Counter(st for st, _ in status.values())
+        compared = [dv for st, dv in status.values() if st in ("ok", "over")]
+        lines[key] = {"symbol": sym, "checked": True, "fills": len(rows), "windows": len(status),
+                      "windows_ok": per["ok"], "windows_over_tol": per["over"], "windows_missing_a_panel_bar": per["missing"],
+                      "windows_at_series_edge": per["edge"],
+                      "worst_ratio_dev_compared": max(compared) if compared else None,
+                      "worst_ratio_dev_kept": max((dv for st, dv in status.values() if st == "ok"), default=None)}
+        tot.update(per)
+        for r in rows:
+            st, dv = status[r["date"]]
+            if st == "over":
+                excluded.append(dict(r, reason="parity: a within-window price ratio off by more than 0.1 per cent", ratio_dev=dv))
+            elif st == "missing":
+                excluded.append(dict(r, reason="parity: a panel bar missing in the window"))
+            else:
+                kept.append(r)           # "edge" windows are left to the engine's own window rule
+        # level drift, a disclosure (never a gate)
+        by_year = defaultdict(list)
+        for d in status:
+            a_t, p_t = adj[idx[d]], ref.get(d)
+            if a_t is not None and p_t is not None and p_t > 0:
+                by_year[d[:4]].append(abs(a_t / p_t - 1))
+        drift[key] = {y: {"fill_dates": len(v), "worst_rel": max(v), "median_rel": _median(v)} for y, v in sorted(by_year.items())}
+        # guard 1: the six-decimal adjustment factor against the engine's own on the sampled month
+        diffs = []
+        for b in bars:
+            if b["date"].startswith(factor_month) and b.get("Close") and b.get("Adj Close") and ref.get(b["date"]):
+                diffs.append(abs(b["Adj Close"] / b["Close"] - ref[b["date"]] / b["Close"]))
+        factor[key] = {"sessions": len(diffs), "max_abs_diff": max(diffs) if diffs else None,
+                       "agree_6dp": sum(1 for x in diffs if x < 0.5e-6)}
+    n_priced = len(priced)
+    record = {
+        "rule": "PREREG amendment 8: each fill's seven-session window, fetched adjusted-close ratios to the fill session against the engine panel's, tolerance 0.1 per cent; a failing or incomplete window excludes the fill; basis-mismatch lines excluded whole; the level drift a disclosure",
+        "tolerance_rel": tol, "lines": len(by_line), "lines_checked": sum(1 for v in lines.values() if v.get("checked")),
+        "lines_unchecked": len(unchecked), "unchecked": unchecked, "basis_mismatch_excluded": basis,
+        "windows": sum(v.get("windows", 0) for v in lines.values()),
+        "windows_ok": tot["ok"], "windows_over_tol": tot["over"], "windows_missing_a_panel_bar": tot["missing"],
+        "windows_at_series_edge": tot["edge"],
+        "fills_priced": n_priced, "fills_excluded": len(excluded), "excluded_share": round(len(excluded) / n_priced, 6) if n_priced else 0.0,
+        "fills_excluded_by_reason": dict(Counter(r["reason"] for r in excluded)),
+        "worst_ratio_dev_kept": max((v["worst_ratio_dev_kept"] for v in lines.values() if v.get("worst_ratio_dev_kept") is not None), default=None),
+        "by_line": lines,
+        "level_drift_disclosure": drift,
+        "factor_check": {"month": factor_month, "by_line": factor,
+                         "lines_all_sessions_agree_6dp": sum(1 for v in factor.values() if v["sessions"] and v["agree_6dp"] == v["sessions"])},
+    }
+    return kept, excluded, record
+
+
 def freeze(derived: dict) -> dict:
-    """Step 3: price the fills, apply guard 2 and the parity guard, and write
-    the engine's inputs to engine/results/. Stops, writing nothing, if the
-    parity guard excludes more than a tenth of the fills."""
+    """Step 3: guard 2, the amended parity guard (PREREG amendment 8) and the
+    engine's inputs written to engine/results/. Stops, writing nothing, if
+    more than a tenth of the priced fills are excluded."""
     manifest = load_json(RAW / "manifest.json")
     raw = {}
     for sym in sorted({r["symbol"] for r in derived["fills"]}):
@@ -793,62 +905,23 @@ def freeze(derived: dict) -> dict:
     clone = clone_state()
     if clone["head"] != vintage:
         stop(f"the automation clone's HEAD {clone['head'][:8]} is not the frozen vintage {vintage[:8]}")
-    # guard 2 and pricing
-    by_line = defaultdict(list)
-    for r in derived["fills"]:
-        by_line[(r["sleeve"], r["line"], r["symbol"])].append(r)
-    guard2, priced = [], []
-    for (s_, line, sym), rows in sorted(by_line.items()):
-        bars = {b["date"]: b for b in raw[sym]["bars"]}
-        for r in rows:
-            b = bars.get(r["date"])
-            if b is None or b.get("Close") is None:
-                guard2.append(r)
-                continue
-            priced.append(dict(r, price=b["Close"]))
-    # parity guard, line by line, over every fill date of the line (all kinds)
-    lines, unchecked, failed = {}, [], []
-    priced_by_line = defaultdict(list)
-    for r in priced:
-        priced_by_line[(r["sleeve"], r["line"], r["symbol"])].append(r)
-    for (s_, line, sym), rows in sorted(priced_by_line.items()):
-        key = f"{s_}:{line}"
-        try:
-            ref = engine_panel_reference(s_, line, sym, vintage)
-        except ParityReferenceUnavailable as exc:
-            unchecked.append({"line": key, "reason": str(exc)})
-            lines[key] = {"symbol": sym, "checked": False, "fills": len(rows)}
-            continue
-        fetched_adj = {b["date"]: b.get("Adj Close") for b in raw[sym]["bars"]}
-        pc = parity_check(fetched_adj, ref, sorted({r["date"] for r in rows}))
-        lines[key] = {"symbol": sym, "checked": True, "fills": len(rows), "fill_dates_compared": pc["dates"],
-                      "failures": pc["failures"], "worst_rel": pc["worst_rel"], "passes": pc["passes"],
-                      "first_failures": [{k: v for k, v in x.items()} for x in pc["first_failures"]]}
-        if not pc["passes"]:
-            failed.append(key)
-    kept = [r for r in priced if f"{r['sleeve']}:{r['line']}" not in failed]
-    n_excluded = len(priced) - len(kept)
-    share = n_excluded / len(priced) if priced else 0.0
-    checked = [v for v in lines.values() if v["checked"]]
-    parity = {"reference": "the engine's own price panels, read locally from the automation clone at the frozen vintage "
-                           "(Norgate-built panels included), the tilt's EEM leg from its committed panel (PREREG amendment 1); "
-                           "agreement statistics only",
-              "clone_head": clone["head"], "clone_tracked_changes": clone["tracked_changes"], "tolerance_rel": PARITY_TOL,
-              "lines_checked": len(checked), "lines_unchecked": len(unchecked), "lines_failed": len(failed),
-              "fills_compared": sum(v["fills"] for v in checked),
-              "fill_dates_compared": sum(v["fill_dates_compared"] for v in checked),
-              "worst_rel_overall": max((v["worst_rel"] for v in checked), default=None),
-              "fills_excluded": n_excluded, "excluded_share": round(share, 6),
-              "unchecked": unchecked, "failed": failed, "by_line": lines}
-    if share > PARITY_STOP_SHARE:
+    priced, guard2 = price_fills(derived["fills"], raw)
+    kept, excluded, parity = window_parity(priced, raw, lambda s_, l_, y_: engine_panel_reference(s_, l_, y_, vintage))
+    parity.update({"reference": "the engine's own price panels, read locally from the automation clone at the frozen vintage "
+                                "(Norgate-built panels included), the tilt's EEM leg from its committed panel (PREREG amendment 1); "
+                                "agreement statistics only",
+                   "clone_head": clone["head"], "clone_tracked_changes": clone["tracked_changes"]})
+    if parity["excluded_share"] > PARITY_STOP_SHARE:
         write_json(LOCAL / "freeze_parity_stop.json", {"parity": parity, "guard2_excluded": len(guard2)})
-        stop(f"the parity guard excludes {n_excluded} of {len(priced)} priced fills ({share:.1%}), more than a tenth; "
-             f"nothing written to engine/results. Detail: {(LOCAL / 'freeze_parity_stop.json').relative_to(REPO)}")
+        stop(f"the parity guard excludes {parity['fills_excluded']} of {parity['fills_priced']} priced fills "
+             f"({parity['excluded_share']:.1%}), more than a tenth; nothing written to engine/results")
     rows, meta, extract, record = engine_inputs(kept, raw)
     fetched_at = sorted(rec["fetched_at_utc"] for rec in raw.values())
+    first = next(iter(raw.values()))
     extract = {"_provenance": {"source": "yfinance Ticker.history (Yahoo chart API), unadjusted OHLC and adjusted close",
-                               "yfinance_version": next(iter(raw.values()))["yfinance_version"],
-                               "request": next(iter(raw.values()))["request"] | {"start": "per symbol", "end_exclusive": "per symbol"},
+                               "yfinance_version": first["yfinance_version"],
+                               "request": {k: v for k, v in first["request"].items() if k not in ("start", "end_exclusive")}
+                                          | {"start": "260 calendar days before each symbol's earliest fill", "end_exclusive": first["request"]["end_exclusive"]},
                                "fetched_at_utc": {"first": fetched_at[0], "last": fetched_at[-1]},
                                "raw_files": "data_local/ws_fill_placement/raw/ (ignored), one file per symbol",
                                "raw_sha256": {sym: manifest["symbols"][sym]["sha256"] for sym in sorted(raw)},
@@ -858,20 +931,22 @@ def freeze(derived: dict) -> dict:
                **extract}
     rec_ok = bool(derived["reconciliation"]["reconciled"] and derived["reproduction"]["code_path_reproduced_4dp"])
     latest = derived["reproduction"].get("latest_pdf") or {}
-    by_kind_kept = Counter(r["kind"] for r in kept)
+    def brief(r):
+        return {"line": f"{r['sleeve']}:{r['line']}", "date": r["date"], "side": r["side"], "kind": r["kind"], "reason": r["reason"]}
     book = {"meta": meta, "_provenance": {
         "adapter": "scripts/ws_fill_placement_adapter.py", "adapter_sha256": sha256_of(Path(__file__)),
         "vintage": derived["_provenance"]["published"],
         "derive_counts": {k: v for k, v in derived["counts"].items() if k != "symbols"},
-        "excluded_btc_usd": len(derived["excluded"]),
-        "guard2_excluded": [{"line": f"{r['sleeve']}:{r['line']}", "date": r["date"], "side": r["side"], "kind": r["kind"]} for r in guard2],
+        "excluded_btc_usd": {"fills": len(derived["excluded"]), "by_kind": dict(Counter(r["kind"] for r in derived["excluded"]))},
+        "guard2_excluded": [brief(r) for r in guard2],
         "parity": parity,
+        "parity_excluded": [brief(r) for r in excluded],
         "reproduction": {"reconciled": rec_ok,
                          "trade_history_reconciled": derived["reconciliation"]["reconciled"],
                          "code_path": {k: v for k, v in derived["reproduction"]["code_path"].items() if k in ("comparisons", "exact", "max_abs_diff")}
                                       | {"sessions": len(derived["reproduction"]["code_path"]["asof_dates"]), "month": derived["reproduction"]["month"]},
                          "latest_pdf": {k: latest.get(k) for k in ("pdf", "asof", "rows", "matched", "agree_4dp", "agree_6dp", "sha256")}},
-        "rows_written": len(rows), "by_kind_written": dict(sorted(by_kind_kept.items())),
+        "rows_written": len(rows), "by_kind_written": dict(sorted(Counter(r["kind"] for r in kept).items())),
         "confirmatory_from": CONFIRMATORY_FROM,
         "confirmatory_written": sum(1 for r in kept if r["date"] >= CONFIRMATORY_FROM),
         "pre_blend_written": sum(1 for r in kept if r["date"] < CONFIRMATORY_FROM),
@@ -880,7 +955,11 @@ def freeze(derived: dict) -> dict:
     write_json(ENGINE_RESULTS / "fills.json", rows, compact=True)
     write_json(ENGINE_RESULTS / "book_meta.json", book)
     write_json(ENGINE_RESULTS / "bars_used.json", extract, compact=True)
-    out = {"fills": len(rows), "guard2_excluded": len(guard2), "parity": {k: v for k, v in parity.items() if k not in ("by_line",)},
+    out = {"rows_written": len(rows), "guard2_excluded": len(guard2),
+           "parity": {k: v for k, v in parity.items() if k not in ("by_line", "level_drift_disclosure", "factor_check")}
+                     | {"factor_check_lines_all_sessions_agree_6dp": parity["factor_check"]["lines_all_sessions_agree_6dp"]},
+           "confirmatory_written": book["_provenance"]["confirmatory_written"], "pre_blend_written": book["_provenance"]["pre_blend_written"],
+           "by_kind_written": book["_provenance"]["by_kind_written"],
            "sha256": {f: sha256_of(ENGINE_RESULTS / f) for f in ("fills.json", "book_meta.json", "bars_used.json")}}
     print(json.dumps(out, indent=1, default=str))
     return out
