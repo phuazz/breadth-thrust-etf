@@ -105,6 +105,15 @@ def context_from_sources(release, reader):
         ret = exact_return(entry.get("dates"), entry.get("prices"), start, end)
         rows.append(dict(sleeve=sleeve, weight=weight, ret=ret,
                          contribution=None if ret is None else weight * ret))
+    # A strategy in the book with no attribution source (a future Strategy E
+    # before its series is wired in) is listed as Unavailable, which also
+    # withholds the reconciliation, rather than vanishing from the chart and
+    # leaving a total that silently omits it (owner, 2026-10-03).
+    known = set(files) | set(OVERLAY_SLEEVES)
+    for record in book["sleeves"]:
+        if record["sleeve"] not in known:
+            rows.append(dict(sleeve=record["sleeve"], weight=weights.get(record["sleeve"].lower(), 0),
+                             ret=None, contribution=None))
     covered = all(r["contribution"] is not None or r["weight"] == 0 for r in rows)
     total = math.fsum(r["contribution"] for r in rows if r["contribution"] is not None)
     overlay = reader("data/risk_overlay.json")
@@ -422,6 +431,33 @@ def sleeve_shifts(book):
 def budgets_held(shifts):
     """True when no strategy's NAV share moves beyond the model rounding bound."""
     return all(abs(s["net"]) <= MODEL_ROUNDING_NAV for s in shifts)
+
+
+def driver_label(sleeve):
+    """Return-driver row label: the strategy letter as everywhere else in the
+    factsheet, and an overlay marked as one so it cannot read as a fifth
+    strategy."""
+    if sleeve in OVERLAY_SLEEVES:
+        return f"Overlay · {NAMES[sleeve]}" + (" (SHY)" if sleeve == "GATE" else "")
+    return f"{sleeve} · {NAMES.get(sleeve, f'Strategy {sleeve}')}"
+
+
+def inactive_overlays(book):
+    """Name the overlays that contributed nothing because they were off.
+
+    An overlay row appears only when it holds weight, so in a week like
+    2026-10-02 both drop out without a word and a reader cannot tell "off"
+    from "forgotten".
+    """
+    overlay = book["overlay_decision"]
+    weights = overlay["weights"]
+    off = []
+    if not weights.get("tilt_nav"):
+        off.append("EM tilt (off)")
+    if not weights.get("shy_overlay"):
+        off.append("defensive allocation (portfolio breadth gate "
+                   + ("risk off" if overlay["gate_on"] else "risk on") + ")")
+    return ("Overlays not active this week, so no overlay contribution: " + "; ".join(off) + ".") if off else ""
 
 
 def view_model(decision, release):
@@ -927,7 +963,7 @@ def render_html(decision, release, include_unchanged=False):
             bar = 0 if c is None else abs(c)/max_abs*100
             neg, gain = (bar, 0) if c is not None and c < 0 else (0, bar)
             rows.append(f"<tr class='driver'><td style='width:34%;padding:6px 8px 6px 0;font-size:14px;"
-                        f"border-bottom:1px solid #eef2f6'>{e(NAMES[row['sleeve']])}</td>"
+                        f"border-bottom:1px solid #eef2f6'>{e(driver_label(row['sleeve']))}</td>"
                         f"<td style='padding:6px 0;border-bottom:1px solid #eef2f6'>"
                         f"<table class='track' role='presentation' style='width:100%;table-layout:fixed;"
                         f"border-collapse:collapse;background:#eef2f6'><tr>"
@@ -942,7 +978,8 @@ def render_html(decision, release, include_unchanged=False):
         residual = "Not calculated: at least one endpoint is missing." if context["residual"] is None else pp(context["residual"])
         parts.append(f"<p class='note'>Approximation: decision-date sleeve allocation × sleeve model return over "
                      f"{e(context['start'] or 'Unavailable')} to {e(context['end'])}. Not realised attribution. "
-                     f"Difference from the blend: {e(residual)} No missing endpoint is filled.</p>")
+                     f"Difference from the blend: {e(residual.rstrip('.'))}. No missing endpoint is filled. "
+                     f"{e(inactive_overlays(book))}</p>")
     else:
         parts.append("<p class='note'>Return-driver detail is unavailable in this snapshot.</p>")
     priced = [r for r in context.get("holding_returns", []) if r["ret"] is not None]
@@ -1204,7 +1241,7 @@ def sleeve_contribution_chart(context, width_pts):
     # Gains green, losses red, matching the email's driver bars (owner,
     # 2026-10-03); the strategy is named on the axis, so no sleeve hue is needed.
     house = _house()
-    rows = [(NAMES[r["sleeve"]], r["contribution"],
+    rows = [(driver_label(r["sleeve"]), r["contribution"],
              house.PALETTE_BENCH if not r["contribution"] else TONE["up" if r["contribution"] > 0 else "down"],
              pp(r["contribution"]) if r["contribution"] is not None else "")
             for r in context.get("attribution", [])]
@@ -1628,7 +1665,8 @@ def render_pdf(decision, release):
         flow.append(KeepTogether([Spacer(1, 10)] + section(
             "What drove this week", "Decision-date sleeve allocation x sleeve model return over the "
             "exact weekly window. An approximation, not realised attribution.") + [chart,
-            p(f"Difference from the blend: {residual}. No missing endpoint is filled.", note)]))
+            p(f"Difference from the blend: {residual}. No missing endpoint is filled. "
+              f"{inactive_overlays(book)}", note)]))
     else:
         flow.append(p("Return-driver detail is unavailable in this snapshot.", note))
     if ctx.get("holding_returns"):

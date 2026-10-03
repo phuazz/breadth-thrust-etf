@@ -467,3 +467,30 @@ def test_b_cash_slot_names_the_name_that_fell_below_the_floor(tmp_path,monkeypat
     story=sleeve_story(next(s for s in view_model({"action":"regular"},release)["shifts"] if s["sleeve"]=="B"),release)
     assert "fell below its 200-day average, +2.59% to -0.21%, and exits" in story
     assert "so SHY takes the unfilled weight at 17.50% of NAV" in story
+
+
+def test_return_drivers_carry_strategy_letters_and_mark_overlays():
+    from component_factsheet_view import driver_label, inactive_overlays
+    assert [driver_label(s) for s in "ABCD"]==["A · US sectors","B · Asset classes",
+                                              "C · Thematic","D · Europe sectors"]
+    assert driver_label("TILT")=="Overlay · EM tilt"
+    assert driver_label("GATE")=="Overlay · Defensive allocation (SHY)"
+    assert driver_label("E")=="E · Strategy E"
+    off={"overlay_decision":{"gate_on":False,"weights":{"tilt_nav":0.0,"shy_overlay":0.0}}}
+    assert inactive_overlays(off)==("Overlays not active this week, so no overlay contribution: "
+                                    "EM tilt (off); defensive allocation (portfolio breadth gate risk on).")
+    on={"overlay_decision":{"gate_on":True,"weights":{"tilt_nav":.05,"shy_overlay":.2}}}
+    assert inactive_overlays(on)==""
+
+
+def test_a_strategy_without_an_attribution_source_is_shown_not_dropped(tmp_path,monkeypatch):
+    """A future Strategy E must surface as Unavailable and withhold the total."""
+    release=install(tmp_path,monkeypatch)
+    release['performance']['wtd_start']='2026-09-04'
+    release['book']['sleeves'].append({"sleeve":"E","status":"READY","weights":{}})
+    release['book']['overlay_decision']['weights']['e']=.05
+    source={'dates':['2026-09-04','2026-09-11'],'equity':[100,110]}
+    context=context_from_sources(release,lambda path: source if 'json' in path and 'holdings' not in path else {})
+    e=next(r for r in context['attribution'] if r['sleeve']=='E')
+    assert e['weight']==.05 and e['contribution'] is None
+    assert not context['coverage_complete'] and context['residual'] is None
