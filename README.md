@@ -261,6 +261,7 @@ Three equal-weighted breadth components, each computed across the ETF's point-in
 - Snapshots taken weekly (last business day of week); membership held static between snapshots. Documented in `scripts/fetch_constituents.py`.
 - All RSI / MA / highs use only price data available at the signal date.
 - yfinance is the price source. Coverage of delisted historical names was validated against the 2009 / 2017 / 2024 constituent snapshots before the backtest window was finalised — see "Backtest window" below.
+- A constituent column's **price basis is held across corporate actions** (`scripts/basis_guard.py`, 2026-10-03, `DATA_INTEGRITY_POLICY.md` §5f). A history that arrives re-scaled by one split-sized ratio against the cache is admitted only on a committed declaration in `data/corporate_action_basis.json` or a matching vendor split; otherwise the cached history is kept and new sessions are appended across an exact seam. Every decision prints in the refresh log and travels in `logs/cache_changes.jsonl` and the cache sidecar.
 
 ## Backtest window
 

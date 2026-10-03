@@ -920,9 +920,18 @@ def cache_ledger_path(root: Path) -> Path:
 
 def capture_cache_change(cache_path: Path, new, new_sidecar: dict | None,
                          *, ledger: Path | None = None, panel: str = "",
-                         max_records: int = 400) -> dict | None:
+                         max_records: int = 400,
+                         basis_guard: dict | None = None) -> dict | None:
     """Diff the INCUMBENT cache at ``cache_path`` against ``new`` and append
-    the verdict to the cache-change ledger. Never raises."""
+    the verdict to the cache-change ledger. Never raises.
+
+    ``basis_guard`` is the record the basis guard left for this write
+    (basis_guard.py, 2026-10-03), carried on the ledger line as
+    ``basis_guard``: the bounded cell walk above saw a whole-history
+    re-basing as 60 ambiguous cells, and the guard's record is what says
+    which columns were re-based over their FULL shared history and what was
+    done about each.
+    """
     try:
         old = pd.read_parquet(cache_path) if Path(cache_path).exists() else None
     except Exception:  # noqa: BLE001
@@ -934,6 +943,8 @@ def capture_cache_change(cache_path: Path, new, new_sidecar: dict | None,
         old_sidecar = None
     rec = diff_frames(old, new, old_sidecar=old_sidecar, new_sidecar=new_sidecar)
     rec["panel"] = panel or Path(cache_path).stem
+    if basis_guard is not None:
+        rec["basis_guard"] = basis_guard
     if ledger is None:
         ledger = cache_ledger_path(Path(cache_path).resolve().parent.parent)
     _append_bounded(Path(ledger), rec, max_records)
@@ -1136,11 +1147,16 @@ def summarise(ledger: Path, *, since: str | None = None) -> dict:
                            {"runs": 0, "fills": 0, "withdrawals": 0,
                             "removed_cells": 0, "revisions": 0,
                             "adjustments": 0, "ambiguous": 0,
-                            "basis_changes": 0})
+                            "basis_changes": 0, "basis_refused": 0,
+                            "basis_admitted": 0})
         p["runs"] += 1
         for k in ("fills", "withdrawals", "removed_cells", "revisions",
                   "adjustments", "ambiguous", "basis_changes"):
             p[k] += int(rec.get(k) or 0)
+        guard = rec.get("basis_guard")
+        if isinstance(guard, dict):
+            p["basis_refused"] += len(guard.get("refused") or [])
+            p["basis_admitted"] += len(guard.get("admitted") or [])
     return out
 
 
