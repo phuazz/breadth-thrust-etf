@@ -229,6 +229,24 @@ def test_missing_d_endpoint_is_not_invented_for_return_drivers(tmp_path,monkeypa
     assert 'breadth' not in context
 
 
+def test_return_driver_bars_diverge_red_left_green_right(tmp_path,monkeypatch):
+    """A loss draws in the left half in red, a gain in the right half in green."""
+    import re
+    from component_factsheet_view import TONE
+    release=install(tmp_path,monkeypatch,ready=True)
+    release.setdefault('presentation',{}).update(
+        attribution=[dict(sleeve='A',weight=.35,ret=None,contribution=.0022),
+                     dict(sleeve='D',weight=.20,ret=None,contribution=-.0063)],
+        residual=0.0,start='2026-09-25',end='2026-10-02')
+    html=render_html({"action":"regular","d_hold":False},release)
+    bars=re.findall(r"text-align:(left|right);[^']*'><div style='[^']*width:([\d.]+)%;background:(#\w+)",html)
+    assert bars==[('right','0.00',TONE['down']),('left','34.92',TONE['up']),
+                  ('right','100.00',TONE['down']),('left','0.00',TONE['up'])]
+    # A missing headline figure is short in its cell and named in the note.
+    assert "Unavailable</strong>" not in html and ">n/a<" in html
+    assert "Not available in this snapshot: One year." in html
+
+
 def test_rounding_sized_shift_is_not_reported_as_a_budget_decision(tmp_path,monkeypatch):
     """The HOLD rounding residual must not read as a strategy reallocation."""
     release=install(tmp_path,monkeypatch,rounded_d=True)

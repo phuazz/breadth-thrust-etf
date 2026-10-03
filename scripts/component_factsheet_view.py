@@ -704,21 +704,27 @@ def render_html(decision, release, include_unchanged=False):
     parts += ["<h2>01 · The week in numbers</h2>"
               "<table class='metrics' role='presentation' style='width:100%;table-layout:fixed;"
               "border-collapse:collapse;margin:8px 0'><tr>"]
+    # A missing figure prints "n/a" in the cell and is named in the note below:
+    # "Unavailable" at 13px is wider than a fifth of a 390px phone column and
+    # ran into the next cell (2026-10-03).
+    missing = []
     for key in ("WTD", "YTD", "1Y", "Sharpe", "Max drawdown"):
         value = stats["values"].get(key)
-        text = "Unavailable" if value is None else f"{value:.2f}" if key == "Sharpe" else pct(value, True)
+        text = "n/a" if value is None else f"{value:.2f}" if key == "Sharpe" else pct(value, True)
         label = {"WTD": "This week", "1Y": "One year"}.get(key, key)
+        if value is None:
+            missing.append(label)
         tone = None if key == "Sharpe" or value is None else _money_tone(value)
-        size = "13px" if value is None else "17px"
         parts.append(f"<td class='metric' style='width:20%;padding:10px 8px;vertical-align:top;"
                      f"background:#f3f6f9;border:1px solid #d5dce5'>"
                      f"<span class='label' style='display:block;font-size:12px;line-height:1.3;color:#475569'>{e(label)}</span>"
-                     f"<strong class='value' style='display:block;font-size:{size};line-height:1.35;"
+                     f"<strong class='value' style='display:block;font-size:17px;line-height:1.35;"
                      f"white-space:nowrap'>{_toned(text, tone)}</strong></td>")
     parts += ["</tr></table>", f"<p class='note'>Model valuation: {e(long_date(stats['as_of']))}. "
               f"Week: {e(stats['wtd_start'] or 'Unavailable')} to {e(stats['as_of'])}. "
               "YTD starts at the prior year-end close; 1Y is the trailing calendar year. "
-              "Sharpe and maximum drawdown cover the full deployed-model history. Proposed trades are not included.</p>"]
+              "Sharpe and maximum drawdown cover the full deployed-model history. Proposed trades are not included."
+              + (f" Not available in this snapshot: {e(', '.join(missing))}." if missing else "") + "</p>"]
     if decision['d_hold']:
         parts.append("<p><strong>Performance is provisional while D data is incomplete.</strong> "
                      "The full-portfolio figures may change when D completes. "
@@ -727,18 +733,26 @@ def render_html(decision, release, include_unchanged=False):
         parts.append("<h3>Return drivers by strategy</h3>")
         max_abs = max((abs(r["contribution"] or 0) for r in context["attribution"]), default=0) or 1
         # Label, bar and figure share one row of the same 600px column as the
-        # text; a bare div bar ran the full window width in Gmail.
+        # text; a bare div bar ran the full window width in Gmail. The bar is
+        # diverging about a centre zero line: losses run left in red, gains
+        # right in green (owner, 2026-10-03). Inline-block divs in two half
+        # cells, because Gmail drops flex and margin:auto.
+        half = ("<td style='width:50%;padding:0;font-size:0;line-height:0;text-align:{align};{edge}'>"
+                "<div style='display:inline-block;height:8px;width:{w:.2f}%;background:{fill}'></div></td>")
         rows = []
         for row in context["attribution"]:
             c = row["contribution"]
             text = "Unavailable" if c is None else pp(c)
             bar = 0 if c is None else abs(c)/max_abs*100
-            fill = TONE["down"] if c is not None and c < 0 else "#55718e"
+            neg, gain = (bar, 0) if c is not None and c < 0 else (0, bar)
             rows.append(f"<tr class='driver'><td style='width:34%;padding:6px 8px 6px 0;font-size:14px;"
                         f"border-bottom:1px solid #eef2f6'>{e(NAMES[row['sleeve']])}</td>"
                         f"<td style='padding:6px 0;border-bottom:1px solid #eef2f6'>"
-                        f"<div class='track' style='height:8px;background:#eef2f6'>"
-                        f"<div style='height:8px;width:{bar:.2f}%;background:{fill}'></div></div></td>"
+                        f"<table class='track' role='presentation' style='width:100%;table-layout:fixed;"
+                        f"border-collapse:collapse;background:#eef2f6'><tr>"
+                        + half.format(align="right", edge="border-right:1px solid #94a3b8", w=neg, fill=TONE["down"])
+                        + half.format(align="left", edge="", w=gain, fill=TONE["up"])
+                        + "</tr></table></td>"
                         f"<td style='width:24%;padding:6px 0 6px 8px;text-align:right;white-space:nowrap;"
                         f"font-size:{'13px' if c is None else '14px'};font-weight:bold;"
                         f"border-bottom:1px solid #eef2f6'>{e(text)}</td></tr>")
