@@ -56,7 +56,12 @@ def pct(value, signed=False, dp=2):
 
 def pp(value):
     # Do not label a non-zero, sub-display-precision change as a zero trade.
-    return f"{value*100:+.6f}".rstrip('0') + "pp" if 0 < abs(value) < .00005 else f"{value*100:+.2f}pp"
+    # Below six decimals it is float noise: "-0." + "pp" printed for a
+    # -1e-17 net shift (2026-10-03).
+    if 0 < abs(value) < .00005:
+        text = f"{value*100:+.6f}".rstrip('0')
+        return "+0.00pp" if text.endswith(".") else text + "pp"
+    return f"{value*100:+.2f}pp"
 
 
 def long_date(iso):
@@ -244,6 +249,70 @@ def sizing_scheme(record):
     return None
 
 
+CASH_PROXIES = ("SHY", "IEF")
+
+
+def gate_of(record):
+    """The sleeve-level override recorded beside the weights, if it fired."""
+    gate = record.get("gate") or {}
+    return gate if gate.get("fired") else None
+
+
+def gate_terms(gate):
+    # Fires on breadth < threshold, so clearing it takes ceil(threshold x N)
+    # names; the epsilon stops 0.3 x 20 = 6.0000000001 asking for 7.
+    need = math.ceil(gate["threshold"] * gate["n_universe"] - 1e-9)
+    return (f"{gate['n_above']} of {gate['n_universe']} names above the "
+            f"{gate['floor'] * 100:+.0f}% floor, under the {gate['threshold'] * 100:.0f}% "
+            f"threshold ({need} needed)")
+
+
+def cash_reason(row, book, short=False):
+    """Why a strategy holds its cash proxy, from that strategy's own record.
+
+    Two strategies can hold SHY in one book for different reasons: B's
+    unfilled slots and C's sleeve-breadth gate. The sealed label said
+    "sleeve cash floor" for both, and two identical SHY rows read as a
+    duplicate (owner, 2026-10-03).
+    """
+    if row["etf"] not in CASH_PROXIES or row["sleeve"] in OVERLAY_SLEEVES:
+        return None
+    record = sleeve_record(book, row["sleeve"])
+    gate = gate_of(record)
+    if gate:
+        if short:
+            # The at-a-glance column is a fifth of a phone screen wide.
+            need = math.ceil(gate["threshold"] * gate["n_universe"] - 1e-9)
+            return (f"sleeve-breadth gate: {gate['n_above']} of {gate['n_universe']} "
+                    f"above {gate['floor'] * 100:+.0f}%, {need} needed")
+        return f"sleeve-breadth gate: {gate_terms(gate)}"
+    k = record.get("top_k")
+    filled = sum(1 for etf in (record.get("weights") or {}) if etf not in CASH_PROXIES)
+    if k and filled < k:
+        return f"cash floor: {filled} of {k} slots qualify; {k - filled} unfilled"
+    return "cash floor: the weight the signal floor leaves unfilled"
+
+
+def row_context(row, book):
+    """Strategy, and for a cash line its reason: what tells two SHY rows apart."""
+    reason = cash_reason(row, book, short=True)
+    if not reason and action_of(row) == "EXIT" and gate_of(sleeve_record(book, row["sleeve"])):
+        reason = "exits on the sleeve-breadth gate"
+    return f"Strategy {row['sleeve']} · {NAMES[row['sleeve']]}" + (f" · {reason}" if reason else "")
+
+
+def line_evidence(row, book):
+    """The signal column: a cash line's reason, a gated exit's cause, else the signal."""
+    record = sleeve_record(book, row["sleeve"])
+    reason = cash_reason(row, book)
+    if reason:
+        return reason[0].upper() + reason[1:]
+    cell = signal_cell(row["etf"], record)
+    if gate_of(record) and action_of(row) == "EXIT":
+        return f"{cell} · exits on the sleeve-breadth gate, not on rank"
+    return cell
+
+
 def rationale(row, book):
     """Full-sentence driver for one line, used in the reference edition."""
     if row.get("risk_adjustment"):
@@ -255,6 +324,8 @@ def rationale(row, book):
         return "Allocation follows the verified portfolio overlay."
     if abs(row["delta"]) <= CHANGE_EPSILON:
         return "No change to the model-held weight."
+    if cash_reason(row, book) or gate_of(record):
+        return line_evidence(row, book) + "."
     move = signal_move(row["etf"], record)
     if move is None:
         return "No comparable signal recorded; proposed weight shown without an inferred driver."
@@ -306,8 +377,10 @@ def view_model(decision, release):
     return {"wording": email_wording(decision), "rows": rows, "changed": changed,
             "shifts": shifts, "budgets_held": budgets_held(shifts),
             "turnover": math.fsum(abs(r["delta"]) for r in rows)/2,
-            "increases": [r for r in changed if r["delta"] > 0],
-            "reductions": [r for r in changed if r["delta"] < 0],
+            # Resizes only: an entry sat under both Increased and Enters, an
+            # exit under both Reduced and Exits (2026-10-03).
+            "increases": [r for r in changed if action_of(r) == "ADD"],
+            "reductions": [r for r in changed if action_of(r) == "TRIM"],
             "entering": [r for r in changed if action_of(r) == "ENTER"],
             "exiting": [r for r in changed if action_of(r) == "EXIT"],
             "entries": sum(r["held"] == 0 and r["target"] > 0 for r in changed),
@@ -329,7 +402,9 @@ def label_for(etf, labels, fallback=None):
     cfg = ETF_REGISTRY.get(etf) or {}
     if cfg.get("constituent_panel") is False and cfg.get("name"):
         return cfg["name"]
-    return (labels or {}).get(etf, fallback or etf)
+    # "(sleeve cash floor)" is wrong for a gated C line; the reason is stated
+    # per row by cash_reason instead.
+    return (labels or {}).get(etf, fallback or etf).removesuffix(" (sleeve cash floor)")
 
 
 def display_label(etf, release):
@@ -368,13 +443,20 @@ def sleeve_story(shift, release):
         return "Selection held pending complete data; no new ranking was run."
     if all(r.get("risk_adjustment") for r in changed):
         return "Portfolio-risk resize only; the selection is unchanged."
+    gate = gate_of(record)
+    if gate:
+        # Under the gate no name was decided on, so no rank is a driver.
+        cash = next((r for r in changed if r["etf"] in CASH_PROXIES and r["delta"] > 0), None)
+        dest = f" to {cash['traded']}" if cash else " to cash"
+        return (f"Sleeve-breadth gate on: {gate_terms(gate)}. The whole strategy moves{dest} "
+                "and every holding exits regardless of rank.")
     name = signal_terms(record)[0]
     up = max(changed, key=lambda r: r["delta"])
     down = min(changed, key=lambda r: r["delta"])
     parts = [f"Re-ranked on {name}."]
     if up["delta"] > 0:
         parts.append(f"Largest addition: {position_name(up, release)}, {pp(up['delta'])} to "
-                     f"{pct(up['target'])} ({signal_cell(up['etf'], record)}).")
+                     f"{pct(up['target'])} ({cash_reason(up, book) or signal_cell(up['etf'], record)}).")
     if down["delta"] < 0:
         parts.append(f"Largest reduction: {position_name(down, release)}, {pp(down['delta'])} to "
                      f"{pct(down['target'])} ({signal_cell(down['etf'], record)}).")
@@ -417,9 +499,11 @@ def unchanged_sentence(v, book):
         parts.append(f"{shift['name']} {pct(shift['target'], dp=1)}"
                      + (f" across {count} positions" if count > 1 else ""))
     overlay = book["overlay_decision"]
-    parts.append(f"breadth gate {'RISK OFF' if overlay['gate_on'] else 'RISK ON'}")
+    # "Portfolio" because Strategy C has a breadth gate of its own, and
+    # "no defensive allocation" read as false beside strategy-level SHY.
+    parts.append(f"portfolio breadth gate {'RISK OFF' if overlay['gate_on'] else 'RISK ON'}")
     if not overlay["weights"].get("shy_overlay"):
-        parts.append("no defensive allocation")
+        parts.append("no portfolio-level defensive allocation")
     return " · ".join(parts)
 
 
@@ -600,7 +684,8 @@ def _change_table(shifts, release, decision=None, limit=None, unchanged=False, r
             parts.append(
                 f"<tr class='{row_class}'><td style='{cell};overflow-wrap:anywhere'>"
                 f"<strong>{e(row['traded'])}</strong>{_tag(action_of(row))}<br>"
-                f"<span class='note' style='font-size:13px'>{e(display_label(row['etf'], release))}</span></td>"
+                f"<span class='note' style='font-size:13px'>{e(display_label(row['etf'], release))}"
+                + (f" · {e(cash_reason(row, book))}" if cash_reason(row, book) else "") + "</span></td>"
                 f"<td style='{right}'>{e(pct(row['held']))}</td>"
                 f"<td style='{right}'><strong>{e(pct(row['target']))}</strong></td>"
                 f"<td style='{right}'>{_toned(pp(row['delta']), _money_tone(row['delta']), ';font-weight:bold')}</td></tr>")
@@ -644,7 +729,9 @@ def _highlight_table(v, release):
         for i, r in enumerate(rows):
             out.append(f"<tr><th style='{_LABEL};text-align:left'>{e(label) if i == 0 else ''}</th>"
                        f"<td style='{cell}'><strong>{e(r['traded'])}</strong> "
-                       f"<span style='color:#475569'>{e(display_label(r['etf'], release))}</span></td>"
+                       f"<span style='color:#475569'>{e(display_label(r['etf'], release))}</span>"
+                       f"<br><span class='note' style='font-size:12px;color:#475569'>"
+                       f"{e(row_context(r, release['book']))}</span></td>"
                        f"<td style='{num}'>{_toned(pp(r['delta']), _money_tone(r['delta']), ';font-weight:bold')}</td>"
                        f"<td style='{num}'>{e(pct(r['target']))}</td></tr>")
     edges = v["entering"] + v["exiting"]
@@ -862,7 +949,7 @@ def render_html(decision, release, include_unchanged=False):
     watch = context.get('watchlist', [])
     gate_note = " ".join(t for t in watch if t.startswith("Breadth rule"))
     tilt_note = " ".join(t for t in watch if not t.startswith("Breadth rule"))
-    kv = [("Breadth gate", f"<strong>{'RISK OFF' if overlay['gate_on'] else 'RISK ON'}</strong>"
+    kv = [("Portfolio breadth gate", f"<strong>{'RISK OFF' if overlay['gate_on'] else 'RISK ON'}</strong>"
                            f" · verified to {e(release['anchor'])}", gate_note),
           ("EM tilt", f"<strong>{'ON' if overlay['tilt_on'] else 'OFF'}</strong>"
                       f" · verified to {e(release['anchor'])}", tilt_note)]
@@ -1275,7 +1362,7 @@ def render_pdf(decision, release):
 
     # ---- portfolio state, before the charts that explain it ----------
     gate_on = overlay["gate_on"]
-    cards = [("BREADTH GATE", "RISK OFF" if gate_on else "RISK ON", BAD if gate_on else GOOD,
+    cards = [("PORTFOLIO BREADTH GATE", "RISK OFF" if gate_on else "RISK ON", BAD if gate_on else GOOD,
               f"Verified to {release['anchor']}"),
              ("EM TILT", "ON" if overlay["tilt_on"] else "OFF",
               colors.HexColor("#2563eb") if overlay["tilt_on"] else SOFT,
@@ -1324,7 +1411,9 @@ def render_pdf(decision, release):
                       *[[cell(f"{s['sleeve']} · {s['name']}", _sleeve_hex(house, s["sleeve"]), 9, bold=True),
                          cell(pct(s["held"]), SOFT, 8.5, mono=True, align=TA_RIGHT),
                          cell(pct(s["target"]), INK, 8.5, bold=True, mono=True, align=TA_RIGHT),
-                         cell(pp(s["net"]),
+                         # Within the rounding bound the note calls it rounding, so
+                         # print 0.00pp, not "-0.003535pp" wrapped over two lines.
+                         cell("0.00pp" if abs(s["net"]) <= MODEL_ROUNDING_NAV else pp(s["net"]),
                               SOFT if abs(s["net"]) <= MODEL_ROUNDING_NAV else (GOOD if s["net"] > 0 else BAD),
                               8.5, mono=True, align=TA_RIGHT),
                          cell(str(len(s["changed"])), SOFT, 8.5, mono=True, align=TA_RIGHT),
@@ -1347,7 +1436,8 @@ def render_pdf(decision, release):
                              ("ENTERS", v["entering"]), ("EXITS", v["exiting"])):
             for i, r in enumerate(rows_):
                 moves.append([cell(label if i == 0 else " ", FAINT, 7.5, bold=True),
-                              cell(f"{r['traded']}  {display_label(r['etf'], release)}", INK, 8.5),
+                              [cell(f"{r['traded']}  {display_label(r['etf'], release)}", INK, 8.5),
+                               cell(row_context(r, book), SOFT, 7.5)],
                               cell(pp(r["delta"]), GOOD if r["delta"] > 0 else BAD, 8.5, bold=True,
                                    mono=True, align=TA_RIGHT),
                               cell(pct(r["target"]), INK, 8.5, mono=True, align=TA_RIGHT)])
@@ -1401,7 +1491,7 @@ def render_pdf(decision, release):
                          mono=True, align=TA_RIGHT),
                     cell("Verified portfolio overlay allocation" if overlay_sleeve else
                          "Portfolio-risk adjustment only" if row.get("risk_adjustment") else
-                         signal_cell(row["etf"], record), SOFT, 7.5)])
+                         line_evidence(row, book), SOFT, 7.5)])
             block.append(grid(rows, [52, 150, 48, 50, 54, width - 354], align=(2, 3, 4)))
             # A strategy's coloured chip, its driver and its lines are one
             # unit: a heading stranded at the foot of a page is the defect
@@ -1530,7 +1620,7 @@ def render_pdf(decision, release):
                           ("PERFORMANCE SERIES", stats["series"], True),
                           ("SEALED RELEASE", release["identity"], True),
                           ("MODEL-HELD BASELINE", release["basis"]["model_as_of"], True),
-                          ("BREADTH GATE", "RISK OFF" if gate_on else "RISK ON", False),
+                          ("PORTFOLIO BREADTH GATE", "RISK OFF" if gate_on else "RISK ON", False),
                           ("EM TILT", "ON" if overlay["tilt_on"] else "OFF", False))],
                      [150, width - 150], header=False))
     flow.append(Spacer(1, 8))

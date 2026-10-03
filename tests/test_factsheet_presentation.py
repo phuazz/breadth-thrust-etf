@@ -73,7 +73,8 @@ def test_portfolio_answer_precedes_the_fund_list(tmp_path,monkeypatch):
     release=install(tmp_path,monkeypatch,gate=True)
     html=render_html({"action":"preview","d_hold":True},release)
     assert html.index("The week in numbers") < html.index("What changes and why")
-    assert html.index("What changes and why") < html.index("Increased") < html.index("class='changes'")
+    # The at-a-glance table; a de-risk book has entries and trims but no resize up.
+    assert html.index("What changes and why") < html.index("class='shifts'") < html.index("class='changes'")
     assert "Unchanged" in html
 
 
@@ -277,7 +278,8 @@ def test_only_a_d_follow_up_may_claim_an_earlier_email(tmp_path,monkeypatch):
     assert "already sent in the initial email" in follow_up
     assert "unchanged from the initial email; do not submit them a second time" in follow_up
     # D itself is the new content, so its own heading never claims otherwise.
-    d_heading="Strategy D · Europe sectors"+follow_up.split("Strategy D · Europe sectors")[1].split("</strong>")[0]
+    # The group heading, not a summary row's "Strategy D · Europe sectors" context line.
+    d_heading="Strategy D · Europe sectors"+follow_up.split("<strong>Strategy D · Europe sectors")[1].split("</strong>")[0]
     assert "newly verified this week" in d_heading and "already sent" not in d_heading
     single=render_html({"action":"regular","d_hold":False},release)
     assert "initial email" not in single
@@ -380,3 +382,52 @@ def test_d_confirmation_is_a_table_of_every_d_change(tmp_path, monkeypatch):
     assert block.count("class='d-confirm'") == len(d_rows)
     assert "<strong>Strategy D:</strong>" not in html
     assert " → target " not in block
+
+
+def _two_cash_lines(release):
+    """B's cash floor and C's fired sleeve gate in one book: two SHY lines."""
+    book=release["book"]
+    b=next(s for s in book["sleeves"] if s["sleeve"]=="B")
+    c=next(s for s in book["sleeves"] if s["sleeve"]=="C")
+    b.update(top_k=7,weights={**{f"B{i}":.12 for i in range(6)},"SHY":.142857})
+    c.update(top_k=5,weights={"SHY":1.0},gate={"enabled":True,"fired":True,"n_above":6,
+             "n_universe":25,"breadth":.24,"floor":.05,"threshold":.3})
+    smh=next(r for r in book["lines"] if r["etf"]=="SMH")
+    smh.update(target=0.0,delta=-smh["held"])
+    book["lines"]+=[{"sleeve":"C","etf":"SHY","traded":"SHY","held":0.0,"target":.1,"delta":.1,"status":"READY"},
+                    {"sleeve":"B","etf":"SHY","traded":"SHY","held":0.0,"target":.05,"delta":.05,"status":"READY"}]
+    release["labels"]["SHY"]="iShares 1-3y US Treasury (sleeve cash floor)"
+    return release
+
+
+def test_two_cash_lines_carry_their_strategy_and_reason(tmp_path,monkeypatch):
+    """Two SHY rows read as a duplicate when neither named its strategy (2026-10-03)."""
+    import re
+    release=_two_cash_lines(install(tmp_path,monkeypatch,ready=True))
+    html=render_html({"action":"regular","d_hold":False},release)
+    glance=re.search(r"<table class='shifts'.*?</table>",html,re.S).group(0)
+    assert glance.count(">SHY</strong>")==2
+    assert "Strategy C · Thematic · sleeve-breadth gate: 6 of 25 above +5%, 8 needed" in glance
+    assert "sleeve-breadth gate: 6 of 25 names above the +5% floor, under the 30% threshold (8 needed)" in html
+    assert "Strategy B · Asset classes · cash floor: 6 of 7 slots qualify; 1 unfilled" in glance
+    assert "Strategy C · Thematic · exits on the sleeve-breadth gate" in glance
+    # One reason for two lines is gone from every surface.
+    assert "sleeve cash floor" not in html
+    # Under a fired gate no name was decided on, so no rank is the driver.
+    story=sleeve_story(next(s for s in view_model({"action":"regular"},release)["shifts"] if s["sleeve"]=="C"),release)
+    assert story.startswith("Sleeve-breadth gate on: 6 of 25") and "Re-ranked" not in story
+    assert "No comparable signal recorded" not in html
+
+
+def test_an_entry_or_exit_is_listed_once_at_a_glance(tmp_path,monkeypatch):
+    release=_two_cash_lines(install(tmp_path,monkeypatch,ready=True))
+    v=view_model({"action":"regular"},release)
+    grouped=v["increases"]+v["reductions"]+v["entering"]+v["exiting"]
+    assert len(grouped)==len({id(r) for r in grouped})
+    assert all(action_of(r)=="ADD" for r in v["increases"])
+    assert all(action_of(r)=="TRIM" for r in v["reductions"])
+
+
+def test_float_noise_never_prints_a_bare_decimal_point():
+    assert pp(-1e-17)=="+0.00pp" and pp(1e-17)=="+0.00pp"
+    assert pp(-.00003535)=="-0.003535pp"
