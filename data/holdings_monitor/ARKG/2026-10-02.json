@@ -1,0 +1,279 @@
+{
+ "etf": "ARKG",
+ "as_of": "2026-10-02",
+ "source": "ark_csv",
+ "url": "https://assets.ark-funds.com/fund-documents/funds-etf-csv/ARK_GENOMIC_REVOLUTION_ETF_ARKG_HOLDINGS.csv",
+ "fetched_at_utc": "2026-10-03T01:00:03+00:00",
+ "n_holdings": 32,
+ "weight_sum_pct": 99.86,
+ "holdings": [
+  {
+   "ticker": "TWST",
+   "name": "TWIST BIOSCIENCE CORP",
+   "weight_pct": 10.23,
+   "shares": 1205843.0,
+   "cusip": "90184D100",
+   "sector": null
+  },
+  {
+   "ticker": "TXG",
+   "name": "10X GENOMICS INC-CLASS A",
+   "weight_pct": 10.04,
+   "shares": 2507459.0,
+   "cusip": "88025U109",
+   "sector": null
+  },
+  {
+   "ticker": "TEM",
+   "name": "TEMPUS AI INC-CL A",
+   "weight_pct": 8.51,
+   "shares": 2465703.0,
+   "cusip": "88023B103",
+   "sector": null
+  },
+  {
+   "ticker": "CRSP",
+   "name": "CRISPR THERAPEUTICS AG",
+   "weight_pct": 5.36,
+   "shares": 2141685.0,
+   "cusip": "H17182108",
+   "sector": null
+  },
+  {
+   "ticker": "ABSI",
+   "name": "ABSCI CORP",
+   "weight_pct": 5.15,
+   "shares": 10619341.0,
+   "cusip": "00091E109",
+   "sector": null
+  },
+  {
+   "ticker": "PSNL",
+   "name": "PERSONALIS INC",
+   "weight_pct": 4.94,
+   "shares": 6779035.0,
+   "cusip": "71535D106",
+   "sector": null
+  },
+  {
+   "ticker": "GH",
+   "name": "GUARDANT HEALTH INC",
+   "weight_pct": 4.61,
+   "shares": 584688.0,
+   "cusip": "40131M109",
+   "sector": null
+  },
+  {
+   "ticker": "NTRA",
+   "name": "NATERA INC",
+   "weight_pct": 4.57,
+   "shares": 247867.0,
+   "cusip": "632307104",
+   "sector": null
+  },
+  {
+   "ticker": "CDNA",
+   "name": "CAREDX INC",
+   "weight_pct": 4.51,
+   "shares": 1510284.0,
+   "cusip": "14167L103",
+   "sector": null
+  },
+  {
+   "ticker": "ILMN",
+   "name": "ILLUMINA INC",
+   "weight_pct": 4.45,
+   "shares": 371371.0,
+   "cusip": "452327109",
+   "sector": null
+  },
+  {
+   "ticker": "LLY",
+   "name": "ELI LILLY & CO",
+   "weight_pct": 3.4,
+   "shares": 65530.0,
+   "cusip": "532457108",
+   "sector": null
+  },
+  {
+   "ticker": "SDGR",
+   "name": "SCHRODINGER INC",
+   "weight_pct": 3.1,
+   "shares": 2253609.0,
+   "cusip": "80810D103",
+   "sector": null
+  },
+  {
+   "ticker": "BEAM",
+   "name": "BEAM THERAPEUTICS INC",
+   "weight_pct": 2.98,
+   "shares": 2706703.0,
+   "cusip": "07373V105",
+   "sector": null
+  },
+  {
+   "ticker": "RXRX",
+   "name": "RECURSION PHARMACEUTICALS-A",
+   "weight_pct": 2.58,
+   "shares": 14078307.0,
+   "cusip": "75629V104",
+   "sector": null
+  },
+  {
+   "ticker": "CMPS",
+   "name": "COMPASS PATHWAYS PLC",
+   "weight_pct": 2.48,
+   "shares": 4607681.0,
+   "cusip": "20451W101",
+   "sector": null
+  },
+  {
+   "ticker": "ADPT",
+   "name": "ADAPTIVE BIOTECHNOLOGIES",
+   "weight_pct": 2.26,
+   "shares": 1831930.0,
+   "cusip": "00650F109",
+   "sector": null
+  },
+  {
+   "ticker": "VCYT",
+   "name": "VERACYTE INC",
+   "weight_pct": 2.11,
+   "shares": 1060107.0,
+   "cusip": "92337F107",
+   "sector": null
+  },
+  {
+   "ticker": "BFLY",
+   "name": "BUTTERFLY NETWORK INC",
+   "weight_pct": 1.89,
+   "shares": 4924495.0,
+   "cusip": "124155102",
+   "sector": null
+  },
+  {
+   "ticker": "NRIX",
+   "name": "NURIX THERAPEUTICS INC",
+   "weight_pct": 1.83,
+   "shares": 1736238.0,
+   "cusip": "67080M103",
+   "sector": null
+  },
+  {
+   "ticker": "IONS",
+   "name": "IONIS PHARMACEUTICALS INC",
+   "weight_pct": 1.74,
+   "shares": 875168.0,
+   "cusip": "462222100",
+   "sector": null
+  },
+  {
+   "ticker": "ARCT",
+   "name": "ARCTURUS THERAPEUTICS HOLDIN",
+   "weight_pct": 1.69,
+   "shares": 2829419.0,
+   "cusip": "03969T109",
+   "sector": null
+  },
+  {
+   "ticker": "WGS",
+   "name": "GENEDX HOLDINGS CORP",
+   "weight_pct": 1.66,
+   "shares": 517233.0,
+   "cusip": "81663L200",
+   "sector": null
+  },
+  {
+   "ticker": "NTLA",
+   "name": "INTELLIA THERAPEUTICS INC",
+   "weight_pct": 1.57,
+   "shares": 2880302.0,
+   "cusip": "45826J105",
+   "sector": null
+  },
+  {
+   "ticker": "ALMR",
+   "name": "ALAMAR BIOSCIENCES INC",
+   "weight_pct": 1.45,
+   "shares": 988014.0,
+   "cusip": "010911105",
+   "sector": null
+  },
+  {
+   "ticker": "PACB",
+   "name": "PACIFIC BIOSCIENCES OF CALIF",
+   "weight_pct": 1.24,
+   "shares": 10972735.0,
+   "cusip": "69404D108",
+   "sector": null
+  },
+  {
+   "ticker": "MASS",
+   "name": "908 DEVICES INC",
+   "weight_pct": 1.11,
+   "shares": 1966718.0,
+   "cusip": "65443P102",
+   "sector": null
+  },
+  {
+   "ticker": "PRME",
+   "name": "PRIME MEDICINE INC",
+   "weight_pct": 1.05,
+   "shares": 7755545.0,
+   "cusip": "74168J101",
+   "sector": null
+  },
+  {
+   "ticker": "GENB",
+   "name": "GENERATE BIOMEDICINES INC",
+   "weight_pct": 0.98,
+   "shares": 1577560.0,
+   "cusip": "370920100",
+   "sector": null
+  },
+  {
+   "ticker": "CERS",
+   "name": "CERUS CORP",
+   "weight_pct": 0.81,
+   "shares": 7715584.0,
+   "cusip": "157085101",
+   "sector": null
+  },
+  {
+   "ticker": "SCTX",
+   "name": "SCRIBE THERAPEUTICS INC",
+   "weight_pct": 0.58,
+   "shares": 746342.0,
+   "cusip": "811033109",
+   "sector": null
+  },
+  {
+   "ticker": "FRNM",
+   "name": "FREENOME INC",
+   "weight_pct": 0.53,
+   "shares": 744717.0,
+   "cusip": "35661P100",
+   "sector": null
+  },
+  {
+   "ticker": "QSI",
+   "name": "QUANTUM-SI INC",
+   "weight_pct": 0.45,
+   "shares": 6978605.0,
+   "cusip": "74765K105",
+   "sector": null
+  }
+ ],
+ "dropped": [
+  {
+   "raw": "nan",
+   "name": "GOLDMAN FS TRSY OBLIG INST 468",
+   "reason": "non-equity row"
+  },
+  {
+   "raw": "nan",
+   "name": "nan",
+   "reason": "non-equity row"
+  }
+ ]
+}
