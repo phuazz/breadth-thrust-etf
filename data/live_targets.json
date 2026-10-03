@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-10-03T01:56:20.712520+00:00",
+ "computed_at_utc": "2026-10-03T02:38:06.182444+00:00",
  "as_of": "2026-10-02",
  "overlay_decision": {
   "as_of": "2026-10-02",
@@ -38,107 +38,107 @@
  },
  "sleeves": [
   {
-   "sleeve": "A",
-   "venue": "NYSE",
-   "status": "HOLD",
-   "reason": "decision row carries 13 of 14 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one; missing signal inputs: IUMS",
+   "decision_session": "2026-10-02",
+   "decision_session_for_fill": "2026-10-02",
+   "fill_date": "2026-10-05",
+   "last_completed_session": "2026-10-02",
    "missing_signal_inputs": [
     "IUMS"
    ],
-   "decision_session": "2026-10-02",
-   "last_completed_session": "2026-10-02",
-   "weights": {},
-   "fill_date": "2026-10-05",
-   "decision_session_for_fill": "2026-10-02"
+   "reason": "decision row carries 13 of 14 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one; missing signal inputs: IUMS",
+   "sleeve": "A",
+   "status": "HOLD",
+   "venue": "NYSE",
+   "weights": {}
   },
   {
-   "sleeve": "B",
-   "venue": "NYSE",
-   "status": "READY",
-   "reason": null,
    "decision_session": "2026-10-02",
+   "decision_session_for_fill": "2026-10-02",
+   "decision_session_prev": "2026-09-25",
+   "fill_date": "2026-10-05",
+   "gate": null,
    "last_completed_session": "2026-10-02",
-   "weights": {
-    "DBC": 0.267003,
-    "QQQ": 0.211646,
-    "EWJ": 0.167913,
-    "SHY": 0.142857,
-    "SPY": 0.125802,
-    "IJR": 0.045424,
-    "EFA": 0.039355
-   },
+   "reason": null,
    "signal_kind": "ma_distance",
-   "top_k": 7,
    "signals": {
-    "SPY": 0.0734,
+    "DBC": 0.1557,
+    "EFA": 0.0229,
+    "EWJ": 0.0979,
+    "GLD": -0.0865,
+    "IEF": -0.0408,
     "IJR": 0.0265,
     "QQQ": 0.1234,
-    "EFA": 0.0229,
-    "VGK": -0.0021,
-    "EWJ": 0.0979,
-    "VNQ": -0.0349,
-    "GLD": -0.0865,
-    "DBC": 0.1557,
+    "SPY": 0.0734,
+    "TIP": -0.0273,
     "TLT": -0.0746,
-    "IEF": -0.0408,
-    "TIP": -0.0273
+    "VGK": -0.0021,
+    "VNQ": -0.0349
    },
    "signals_prev": {
-    "SPY": 0.0791,
+    "DBC": 0.1691,
+    "EFA": 0.0414,
+    "EWJ": 0.092,
+    "GLD": -0.0553,
+    "IEF": -0.0349,
     "IJR": 0.0276,
     "QQQ": 0.121,
-    "EFA": 0.0414,
-    "VGK": 0.0259,
-    "EWJ": 0.092,
-    "VNQ": -0.0178,
-    "GLD": -0.0553,
-    "DBC": 0.1691,
+    "SPY": 0.0791,
+    "TIP": -0.0238,
     "TLT": -0.0584,
-    "IEF": -0.0349,
-    "TIP": -0.0238
+    "VGK": 0.0259,
+    "VNQ": -0.0178
    },
-   "decision_session_prev": "2026-09-25",
-   "gate": null,
-   "fill_date": "2026-10-05",
-   "decision_session_for_fill": "2026-10-02"
+   "sleeve": "B",
+   "status": "READY",
+   "top_k": 7,
+   "venue": "NYSE",
+   "weights": {
+    "DBC": 0.267003,
+    "EFA": 0.039355,
+    "EWJ": 0.167913,
+    "IJR": 0.045424,
+    "QQQ": 0.211646,
+    "SHY": 0.142857,
+    "SPY": 0.125802
+   }
   },
   {
-   "sleeve": "C",
-   "venue": "NYSE",
-   "status": "HOLD",
-   "reason": "decision row carries 24 of 25 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one; missing signal inputs: BTC-USD",
+   "decision_session": "2026-10-02",
+   "decision_session_for_fill": "2026-10-02",
+   "fill_date": "2026-10-05",
+   "last_completed_session": "2026-10-02",
    "missing_signal_inputs": [
     "BTC-USD"
    ],
-   "decision_session": "2026-10-02",
-   "last_completed_session": "2026-10-02",
-   "weights": {},
-   "fill_date": "2026-10-05",
-   "decision_session_for_fill": "2026-10-02"
+   "reason": "decision row carries 24 of 25 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one; missing signal inputs: BTC-USD",
+   "sleeve": "C",
+   "status": "HOLD",
+   "venue": "NYSE",
+   "weights": {}
   },
   {
    "sleeve": "D",
    "venue": "XETR",
    "status": "HOLD",
-   "reason": "signal reaches 2026-09-29 but the last completed XETR session is 2026-10-02 \u2014 ranking now would use an earlier session",
-   "decision_session": "2026-09-29",
+   "reason": "signal reaches 2026-10-01 but the last completed XETR session is 2026-10-02 \u2014 ranking now would use an earlier session",
+   "decision_session": "2026-10-01",
    "last_completed_session": "2026-10-02",
    "weights": {
-    "EXV1": 0.393043,
-    "EXH1": 0.33557,
-    "EXH3": 0.271387
+    "EXV1": 0.385603,
+    "EXH1": 0.331009,
+    "EXV3": 0.283388
    },
    "signal_kind": "breadth",
    "top_k": 3,
    "signals": {
-    "EXV1": 0.8873,
-    "EXH1": 0.7576,
-    "EXV3": 0.5849,
-    "EXH3": 0.6127,
-    "EXH9": 0.4571
+    "EXV1": 0.8472,
+    "EXH1": 0.7273,
+    "EXV3": 0.6226,
+    "EXH3": 0.5211,
+    "EXH9": 0.4857
    },
    "signals_prev": {
-    "EXV1": 0.9,
+    "EXV1": 0.9014,
     "EXH1": 0.7576,
     "EXV3": 0.6038,
     "EXH3": 0.6197,

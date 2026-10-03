@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-10-03T01:56:37+00:00",
+  "computed_at_utc": "2026-10-03T02:38:19+00:00",
   "as_of": "2026-10-02",
   "next_fill": {
     "summary": "8 moves at the next fill (NYSE Mon 5 Oct 2026, XETR Mon 5 Oct 2026), ranked on the Fri 2 Oct 2026 close; one-way turnover 5.08% of NAV; 1 new name; 1 exit. Signals compared with the previous decision close.",
@@ -376,7 +376,7 @@
     "holds": [
       "Sleeve A is held and its book is unchanged: decision row carries 13 of 14 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one; missing signal inputs: IUMS.",
       "Sleeve C is held and its book is unchanged: decision row carries 24 of 25 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one; missing signal inputs: BTC-USD.",
-      "Sleeve D is held and its book is unchanged: signal reaches 2026-09-29 but the last completed XETR session is 2026-10-02 \u2014 ranking now would use an earlier session."
+      "Sleeve D is held and its book is unchanged: signal reaches 2026-10-01 but the last completed XETR session is 2026-10-02 \u2014 ranking now would use an earlier session."
     ],
     "notes": [],
     "decision_session": "2026-10-02",
@@ -386,12 +386,12 @@
     }
   },
   "week": {
-    "text": "Week Fri 25 Sep 2026 close \u2192 Fri 2 Oct 2026 close: the blend returned -0.04% against SPY -0.22%. By sleeve: Sleeve A +0.22pp (+0.64% at 35% of NAV), Sleeve C +0.17pp (+1.71% at 10% of NAV), Sleeve B +0.01pp (+0.03% at 35% of NAV), Sleeve D -0.09pp (-0.43% at 20% of NAV). Largest contributors: SOXX (iShares Semiconductors) +0.59pp (+5.0% at 11.7%); QQQ (NASDAQ-100 (US tech-heavy)) +0.14pp (+1.8% at 7.6%); EWJ (MSCI Japan) +0.13pp (+2.2% at 5.8%). Largest detractors: EXV1.DE (STOXX Europe 600 Banks) -0.39pp (-4.9% at 7.9%); XLV (iShares S&P 500 Health Care) -0.27pp (-3.0% at 9.2%); EXH1.DE (STOXX Europe 600 Oil & Gas) -0.14pp (-2.1% at 6.7%). Holding contributions are weight \u00d7 return from the Mon 28 Sep 2026 close to the Fri 2 Oct 2026 close, 22 of 22 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 21.4% above the 50-day average (-6.2pp on the week).",
-    "headline": "Blend -0.04% \u00b7 SPY -0.22% \u00b7 Fri 25 Sep 2026 \u2192 Fri 2 Oct 2026 close",
+    "text": "Week Fri 25 Sep 2026 close \u2192 Fri 2 Oct 2026 close: the blend returned -0.23% against SPY -0.22%. By sleeve: Sleeve A +0.22pp (+0.64% at 35% of NAV), Sleeve C +0.17pp (+1.71% at 10% of NAV), Sleeve B +0.01pp (+0.03% at 35% of NAV), Sleeve D -0.63pp (-3.17% at 20% of NAV). Largest contributors: SOXX (iShares Semiconductors) +0.59pp (+5.0% at 11.7%); QQQ (NASDAQ-100 (US tech-heavy)) +0.14pp (+1.8% at 7.6%); EWJ (MSCI Japan) +0.13pp (+2.2% at 5.8%). Largest detractors: EXV1.DE (STOXX Europe 600 Banks) -0.39pp (-4.9% at 7.9%); XLV (iShares S&P 500 Health Care) -0.27pp (-3.0% at 9.2%); EXH1.DE (STOXX Europe 600 Oil & Gas) -0.14pp (-2.1% at 6.7%). Holding contributions are weight \u00d7 return from the Mon 28 Sep 2026 close to the Fri 2 Oct 2026 close, 22 of 22 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 25.1% above the 50-day average (-2.4pp on the week).",
+    "headline": "Blend -0.23% \u00b7 SPY -0.22% \u00b7 Fri 25 Sep 2026 \u2192 Fri 2 Oct 2026 close",
     "lines": [
       {
         "label": "By sleeve",
-        "text": "A +0.22pp (+0.6% on 35%) \u00b7 C +0.17pp (+1.7% on 10%) \u00b7 B +0.01pp (+0.0% on 35%) \u00b7 D -0.09pp (-0.4% on 20%)"
+        "text": "A +0.22pp (+0.6% on 35%) \u00b7 C +0.17pp (+1.7% on 10%) \u00b7 B +0.01pp (+0.0% on 35%) \u00b7 D -0.63pp (-3.2% on 20%)"
       },
       {
         "label": "Helped",
@@ -403,13 +403,13 @@
       },
       {
         "label": "Regime",
-        "text": "RISK_ON since Tue 14 Apr 2026 \u00b7 S&P 500 breadth 21.4% (-6.2pp on the week)"
+        "text": "RISK_ON since Tue 14 Apr 2026 \u00b7 S&P 500 breadth 25.1% (-2.4pp on the week)"
       }
     ],
     "basis": "Holding contributions are weight \u00d7 return from the Mon 28 Sep 2026 close to the Fri 2 Oct 2026 close, 22 of 22 holdings priced from the one-year price panel.",
     "start": "2026-09-25",
     "end": "2026-10-02",
-    "blend_return": -0.0003917660726517891,
+    "blend_return": -0.002342709362508133,
     "spy_return": -0.002204071048878431,
     "holdings": [
       {

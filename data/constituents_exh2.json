@@ -2,11 +2,11 @@
   "etf": "EXH2",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-09-27T09:31:40.892144+00:00",
+  "fetched_at_utc": "2026-10-03T02:22:41.587343+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-09-25",
-  "n_target_fridays": 456,
-  "n_snapshots_written": 456,
+  "end_friday": "2026-10-02",
+  "n_target_fridays": 457,
+  "n_snapshots_written": 457,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -32,8 +32,8 @@
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-09-25",
-      "fallback_date": "2026-09-24",
+      "target_friday": "2026-10-02",
+      "fallback_date": "2026-10-01",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
@@ -54,7 +54,7 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-24",
+    "last_real_fetch_date": "2026-10-01",
     "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
@@ -17565,7 +17565,7 @@
       ]
     },
     "2026-09-25": {
-      "actual_date": "2026-09-24",
+      "actual_date": "2026-09-25",
       "n_tickers": 38,
       "tickers": [
         "UBSG.SW",
@@ -17591,8 +17591,8 @@
         "IGG.L",
         "SAVE.ST",
         "SQN.SW",
-        "EMG.L",
         "AZM.MI",
+        "EMG.L",
         "SOF.BR",
         "LUND-B.ST",
         "AKER.OL",
@@ -17600,11 +17600,54 @@
         "CVC.AS",
         "TCAP.L",
         "PLUS.L",
-        "FTK.DE",
         "XTB.WA",
         "VZN.SW",
+        "FTK.DE",
         "ALLFG.AS",
         "BPT.L",
+        "QLT.L"
+      ]
+    },
+    "2026-10-02": {
+      "actual_date": "2026-10-01",
+      "n_tickers": 37,
+      "tickers": [
+        "UBSG.SW",
+        "INVE-B.ST",
+        "DB1.DE",
+        "LSEG.L",
+        "III.L",
+        "EQT.ST",
+        "PST.MI",
+        "BAER.SW",
+        "PGHN.SW",
+        "ENX.PA",
+        "INDU-C.ST",
+        "MNG.L",
+        "EXO.AS",
+        "STJ.L",
+        "ICG.L",
+        "AMUN.PA",
+        "ABDN.L",
+        "BMED.MI",
+        "SAVE.ST",
+        "GBLB.BR",
+        "IGG.L",
+        "SQN.SW",
+        "AZM.MI",
+        "EMG.L",
+        "SOF.BR",
+        "LUND-B.ST",
+        "MANTA.HE",
+        "AKER.OL",
+        "BPT.L",
+        "CVC.AS",
+        "PLUS.L",
+        "TCAP.L",
+        "ALLFG.AS",
+        "VZN.SW",
+        "XTB.WA",
+        "FTK.DE",
         "QLT.L"
       ]
     }
