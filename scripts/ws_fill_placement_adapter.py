@@ -522,6 +522,10 @@ def fetch(derived: dict, refetch: list[str] | None = None) -> dict:
     """Fetch every priced symbol once. A symbol already on disk is not fetched
     again unless named in --refetch, and any refetch is recorded."""
     import yfinance as yf  # noqa: PLC0415
+    try:   # raise vendor errors instead of returning an empty frame (yfinance 1.x)
+        yf.config.debug.hide_exceptions = False
+    except AttributeError:
+        pass
     RAW.mkdir(parents=True, exist_ok=True)
     manifest_path = RAW / "manifest.json"
     manifest = load_json(manifest_path) if manifest_path.exists() else {"symbols": {}, "refetches": []}
@@ -540,7 +544,9 @@ def fetch(derived: dict, refetch: list[str] | None = None) -> dict:
         start = (dt.date.fromisoformat(earliest[sym]) - dt.timedelta(days=260)).isoformat()
         t = yf.Ticker(sym)
         df = t.history(start=start, end=end, interval="1d", auto_adjust=False, back_adjust=False,
-                       actions=True, repair=False, raise_errors=True)
+                       actions=True, repair=False)
+        if df is None or df.empty or "Adj Close" not in df.columns:
+            stop(f"{sym}: the vendor returned no usable bars; nothing written for it")
         meta = dict(t.history_metadata or {})
         tz = meta.get("exchangeTimezoneName")
         bars = []
@@ -550,7 +556,7 @@ def fetch(derived: dict, refetch: list[str] | None = None) -> dict:
         rec = {"symbol": sym, "fetched_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
                "source": "yfinance Ticker.history (Yahoo chart API)", "yfinance_version": yf.__version__,
                "request": {"start": start, "end_exclusive": end, "interval": "1d", "auto_adjust": False,
-                           "back_adjust": False, "actions": True, "repair": False},
+                           "back_adjust": False, "actions": True, "repair": False, "hide_exceptions": False},
                "metadata": {k: meta.get(k) for k in ("exchangeName", "fullExchangeName", "exchangeTimezoneName",
                                                      "currency", "instrumentType", "longName", "shortName")},
                "index_tz": str(df.index.tz) if len(df) else None, "bars": bars}
@@ -588,13 +594,24 @@ class ParityReferenceUnavailable(Exception):
     pass
 
 
-def engine_panel_reference(sleeve: str, line: str, symbol: str) -> dict[str, float]:
+def engine_panel_reference(sleeve: str, line: str, symbol: str, vintage: str | None = None) -> dict[str, float]:
     """The engine's price panel for a line, read only where reading it reads
     nothing licensed. Sleeves B and C read their engine caches, whose sidecars
     name the source; sleeves A and D read the per-proxy OHLC caches, which carry
     no sidecar, so only the Xetra lines (no Norgate product exists for them)
-    can be shown not to be Norgate-built. Anything else refuses."""
+    can be shown not to be Norgate-built. The tilt's EEM leg is priced from
+    data/em_regime_context.parquet, which run_risk_overlay fetches from yfinance
+    and the refresh commits, so it is read as committed at the vintage; the
+    gate's SHY leg is priced from sleeve B's Norgate-built cache. Anything that
+    cannot be shown unlicensed refuses."""
     import pandas as pd  # noqa: PLC0415
+    if sleeve == "TILT":
+        blob = _git("show", f"{vintage or 'HEAD'}:data/em_regime_context.parquet")
+        df = pd.read_parquet(io.BytesIO(blob))
+        return {ix.date().isoformat(): float(v) for ix, v in df[symbol].dropna().items()}
+    if sleeve == "GATE":
+        raise ParityReferenceUnavailable(f"{sleeve}:{line}: run_risk_overlay prices the fallback leg from "
+                                         "asset_class_prices_cache.parquet, which is Norgate-built")
     if sleeve in ("B", "C"):
         stem = "asset_class_prices_cache" if sleeve == "B" else "thematic_prices_cache"
         side = load_json(DATA / f"{stem}.source.json")
@@ -607,7 +624,66 @@ def engine_panel_reference(sleeve: str, line: str, symbol: str) -> dict[str, flo
                                              "scheduled refresh takes Norgate for US proxies, so it may be licensed")
         df = pd.read_parquet(DATA / f"{symbol.lower()}_ohlc_cache.parquet")
         return {ix.date().isoformat(): float(v) for ix, v in df["Close"].items()}
-    raise ParityReferenceUnavailable(f"{sleeve}:{line}: no engine price panel for an overlay leg in the published files")
+    raise ParityReferenceUnavailable(f"{sleeve}:{line}: no engine price panel is known for this line")
+
+
+def session_open_ts(date_iso: str, tz: str) -> int:
+    """UTC seconds of the regular-session open on the date in the exchange's own
+    time zone (Yahoo's chart convention), so the engine's tz mapping returns the
+    same calendar date. Months 1-indexed (Python datetime)."""
+    y, m, d = (int(x) for x in date_iso.split("-"))
+    hh, mm = SESSION_OPEN[tz]
+    return int(dt.datetime(y, m, d, hh, mm, tzinfo=ZoneInfo(tz)).timestamp())
+
+
+def line_bars(raw_rec: dict, earliest_fill: str, sessions_before: int = SESSIONS_BEFORE_EARLIEST_FILL) -> tuple[list[dict], int]:
+    """The line's bars in the engine's extract shape, from `sessions_before`
+    sessions before its earliest fill (or the first bar the vendor holds) to
+    the latest session. Returns (bars, sessions available before the earliest
+    fill)."""
+    bars = raw_rec["bars"]
+    dates = [b["date"] for b in bars]
+    i0 = next((i for i, d in enumerate(dates) if d >= earliest_fill), len(dates))
+    start = max(0, i0 - sessions_before)
+    tz = raw_rec["metadata"]["exchangeTimezoneName"]
+    out = []
+    for b in bars[start:]:
+        out.append({"d": session_open_ts(b["date"], tz), "o": b.get("Open"), "h": b.get("High"), "l": b.get("Low"),
+                    "c": b.get("Close"), "ac": b.get("Adj Close")})
+    return out, i0 - start
+
+
+def engine_inputs(priced: list[dict], raw: dict) -> tuple[list[dict], dict, dict, dict]:
+    """(fills rows, book meta, bars extract, per-line bar record) in the PCC
+    engine's shapes. The book meta's exchange code is the vendor's exchange
+    for the priced symbol, so the engine's time-zone and proxy-feed tables see
+    the instrument that is filled; the time zone it implies must equal the
+    vendor's."""
+    rows, meta, extract, record = [], {}, {}, {}
+    earliest = {}
+    for r in priced:
+        k = (r["sleeve"], r["line"], r["symbol"])
+        earliest[k] = min(earliest.get(k, r["date"]), r["date"])
+    for (s, line, sym), first in sorted(earliest.items()):
+        rec = raw[sym]
+        md = rec["metadata"]
+        code = YAHOO_EXCHANGE_TO_CODE.get(md.get("exchangeName"))
+        if code is None:
+            stop(f"{sym}: unmapped exchange {md.get('exchangeName')}")
+        if CODE_TZ[code] != md.get("exchangeTimezoneName"):
+            stop(f"{sym}: exchange {code} implies {CODE_TZ[code]}, the vendor says {md.get('exchangeTimezoneName')}")
+        t, yf_key = line_keys(s, line, sym)
+        bars, before = line_bars(rec, first)
+        extract[yf_key] = {"name": md.get("longName") or md.get("shortName") or sym, "history": bars}
+        meta[t] = {"name": md.get("longName") or sym, "yf": yf_key, "exchange": code, "ccy": md.get("currency"),
+                   "type": "ETF", "sleeve": s, "line": line, "symbol": sym}
+        record[yf_key] = {"bars": len(bars), "sessions_before_earliest_fill": before, "earliest_fill": first,
+                          "first_bar": rec["bars"][0]["date"], "last_bar": rec["bars"][-1]["date"]}
+    for r in priced:
+        t, yf_key = line_keys(r["sleeve"], r["line"], r["symbol"])
+        rows.append({"d": r["date"], "a": r["side"], "t": t, "q": r["notional_nav"] / r["price"], "p": r["price"],
+                     "ccy": meta[t]["ccy"], "yf": yf_key, "th": r["sleeve"], "fee": None, "ref": None})
+    return rows, meta, extract, record
 
 
 def freeze(derived: dict, allow_unverified_parity: bool = False) -> dict:
@@ -638,7 +714,7 @@ def freeze(derived: dict, allow_unverified_parity: bool = False) -> dict:
     parity_lines, blocked = {}, []
     for (s, line, sym), rows in sorted(by_line.items()):
         try:
-            ref = engine_panel_reference(s, line, sym)
+            ref = engine_panel_reference(s, line, sym, (derived.get("_provenance") or {}).get("published", {}).get("vintage_commit"))
         except ParityReferenceUnavailable as exc:
             blocked.append(str(exc))
             continue
