@@ -1,6 +1,6 @@
 {
   "etf": "EXV3",
-  "computed_at_utc": "2026-10-03T04:05:01.506798+00:00",
+  "computed_at_utc": "2026-10-03T05:04:37.697746+00:00",
   "constituents_source": "data\\constituents_exv3.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
@@ -11,7 +11,7 @@
     "constituents_priced_to": "2026-10-01",
     "roster_end_friday": "2026-10-02",
     "vendor_probe": {
-      "checked_at_utc": "2026-10-03T04:04:29+00:00",
+      "checked_at_utc": "2026-10-03T05:04:03+00:00",
       "probe": "yfinance single-ticker history",
       "last_populated": "2026-10-01",
       "rows": [
@@ -116,7 +116,7 @@
     }
   },
   "tail_verification": {
-    "checked_at_utc": "2026-10-03T04:04:29+00:00",
+    "checked_at_utc": "2026-10-03T05:04:03+00:00",
     "probe": "yfinance single-ticker history",
     "last_populated": "2026-10-01",
     "rows": [
