@@ -1,6 +1,8 @@
 # Fill-placement diagnostic: do the engines' modelled Monday rebalance-close fills sit anywhere unusual in their week, and do the bought lines give anything back after the fill?
 
-Context: Personal. Prepared and signed off on Saturday 2026-10-03 (Owner decisions, below); amended before the freeze on Sunday 2026-10-04 (Amendments before the freeze, below); weekdays verified with the Python `datetime` library. NOT FROZEN, NOT RUN. Workstream number assigned at the freeze. Nothing here changes any engine, parameter, published number or operating rule.
+Context: Personal. Prepared and signed off on Saturday 2026-10-03 (Owner decisions, below); amended before the freeze on Sunday 2026-10-04 (Amendments before the freeze, below); weekdays verified with the Python `datetime` library. NOT FROZEN, NOT RUN. Workstream number assigned at the freeze.
+
+Coverage, outcome-blind (step 5, `engine/results/coverage.json`): 7,989 confirmatory fills (from 2018-10-31) on 58 lines in 489 rebalance-date clusters (the largest 36 fills); 3,986 pre-blend fills in a disclosure cell; 380 confirmatory units carry an overlay-induced fill and 30 an overlay leg. Excluded before the engine: 44 BTC-USD fills, 159801.SZ whole (25 fills, a basis mismatch, after guard 2's 4), and 26 fills whose window failed the parity test; the engine drops 6 more for incomplete windows. Blocked null (10,000 sets): sd of the mean post leg 0.0335 per cent of price (3.35 bp), minimum detectable effect at 0.80 power 8.33 bp; H-D2 floor δ₂ = 10 bp, power at it 0.910. H-D1: sd of the mean u 0.0032, MDE 0.0079, reference floor 0.01, power 0.932. Nothing here changes any engine, parameter, published number or operating rule.
 
 ## Question and prior work
 
@@ -24,7 +26,7 @@ Null: the same fill at the close of a random session 4 to 60 bars either side, b
 
 Two clauses, one verdict-bearing.
 
-- **H-D2, the post-fill give-back (verdict-bearing).** Across the confirmatory fills, the mean post leg exceeds the placebo mean by at least δ₂ = 10 bp of price (0.0010 of price, an economic floor: amendment 3), one-sided α 0.05; the blocked null's minimum detectable effect at 0.80 power and the power at 10 bp are reported beside it. This is the component a delay could recover, and the only one; a pass proposes a delay-rule registration, a powered fail closes the question at diagnostic grade.
+- **H-D2, the post-fill give-back (verdict-bearing).** Across the confirmatory fills, the mean post leg exceeds the placebo mean by at least δ₂ = 10 bp of price (0.0010 of price, an economic floor: amendment 3), one-sided α 0.05; the blocked null's minimum detectable effect at 0.80 power and the power at 10 bp are reported beside it. Coverage: 7,989 confirmatory fills in 489 clusters; null sd of the mean post leg 3.35 bp; MDE 8.33 bp; power at δ₂ = 10 bp 0.910, so H-D2 is powered and the demotion rule does not fire on it. This is the component a delay could recover, and the only one; a pass proposes a delay-rule registration, a powered fail closes the question at diagnostic grade.
 - **H-D1, placement (headline, descriptive).** The mean u of the confirmatory fills against the placebo mean, with its p and cluster-bootstrap interval, by sleeve and by side; its reference floor is the null's MDE at 0.80 power rounded up to 0.01 in u, descriptive only. A momentum rotation buys strength by construction, so a high buy-side u is expected and decides nothing; it is reported so the picture is complete and comparable with the discretionary book's 0.639.
 - Disclosures: the pre leg; buys and sells separately; by sleeve; by calendar year; notional-weighted; the sleeve-D fills in EUR; the uniform-intraday placebo variant; the overlay legs (EEM, SHY) and the overlay-induced fills as rows of their own; the pre-blend fills (before 2018-10-31) as a cell of their own; H-D2 and H-D1 against the independent-per-fill null and the chained same-line null; leave-one-line-out and leave-one-year-out thinness. Any clause below 0.80 power at its floor is demoted (a demoted fail reads UNRESOLVED, a demoted pass SUGGESTIVE). H-D2's floor is economic, so its power is a measurement, stated in the coverage record; H-D1's reference floor is its MDE rounded up, so its power is a construction and is said to be one.
 
@@ -201,3 +203,16 @@ Written to `engine/results/` (to be committed with the freeze): `fills.json` (12
 - amendment 8's guard: a level shift between vendors passes, a planted 1 per cent ratio error inside a window excludes that fill and is counted, a 0.09 per cent one is kept, a missing panel bar excludes;
 - 159801.SZ excluded whole without its panel being read;
 - a line without a panel declared unchecked and counted, not passed silently.
+
+### Step 5, coverage (outcome-blind; Sunday 2026-10-04)
+
+`engine/fill_timing.py coverage` on the step-3 inputs wrote `engine/results/coverage.json`; it computes no u, pre leg or post leg on any fill. The engine read 12,018 rows as 11,981 units (37 dates on which a sleeve fill and an overlay-induced fill on one line and side form one unit, carried with both kinds), kept 11,975 (6 dropped for incomplete windows, 3 of them first re-dated by the alignment rule off a defective bar; none dropped for alignment), and split them into 7,989 confirmatory fills and 3,986 pre-blend fills (B 3,952, A 22, D 12).
+
+- Confirmatory set: 3,984 buys and 4,005 sells; A 3,031, B 2,909, C 646, D 1,368, TILT 17, GATE 18; units by kind: 7,579 sleeve fills only, 343 overlay-induced only, 37 both, 30 overlay legs; 677 windows hold an ex-date; 489 rebalance dates, every fill sharing its date with another, clusters of 3 to 36 fills.
+- Blocked null on the confirmatory set (10,000 sets, seed 20261003, close-priced placebo, offsets 4 to 60 sessions, at least 57 eligible per fill and a median of 114, 19 fills with one-sided pools, no cluster without a common offset): mean u 0.4988 (sd of the mean 0.0032); mean post leg −0.0043 per cent (sd 0.0335); mean pre leg −0.0127 per cent; 9.4 per cent of placebo windows hold an ex-date.
+- H-D2: δ₂ = 0.0010 of price; MDE at 0.80 power 0.00083; δ₂ is 1.2 times the MDE; power at δ₂ 0.910. H-D1: MDE 0.0079 in u; reference floor 0.01; power 0.932 (a construction).
+- Disclosure nulls on the confirmatory set (1,000 sets each): independent per fill, mean post leg −0.0051 per cent, sd 0.0264, power at δ₂ 0.984; chained same-line (the relation amendment 2 dropped), 2 clusters across all 11,975 fills, whose common eligible offsets reduce to one, so the null has no spread (sd 0) and its mean post leg sits at −0.69 per cent, which is the degenerate structure amendment 2 removed. It is printed as a disclosure and decides nothing.
+- Pre-blend disclosure cell (3,986 fills): sd of the mean post leg 0.0329 per cent, power at δ₂ 0.919.
+- Window width: median range over close 3.9 per cent (25th to 75th percentile 2.7 to 5.5), so δ₂ is about a fortieth of the median seven-session range.
+
+Provenance in the record: engine sha256 `2b4d1c81…4a26`, spec `53163daa…aaa5`, bars `e390a6f4…0126`, fills `7e5ccea6…6353`, book meta `37b42e70…978b`, last session 2026-10-02.

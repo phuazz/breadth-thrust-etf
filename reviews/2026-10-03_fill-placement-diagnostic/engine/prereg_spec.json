@@ -47,7 +47,7 @@
   "verdict_bearing": "H-D2 alone, on the confirmatory set; H-D1 is the descriptive headline and decides nothing",
   "floors": {
     "H_D2_delta_price": 0.001,
-    "H_D2_floor_basis": "an economic floor of 10 bp of price (amendment 3); the reason as ruled is the lab's modelled one-way cost per unit of traded notional, recorded with the correction that 10 bp is the blend's modelled round trip (5 bp each way)",
+    "H_D2_floor_basis": "an economic floor of 10 bp of price (amendment 3, with the correction accepted on 2026-10-04): 10 bp is the blend's modelled round trip, 5 bp each way on blend-level weight change (the factsheet's cost line), kept as the economic floor",
     "H_D1_reference_floor_rounding_unit": 0.01,
     "H_D1_note": "descriptive: the reference floor is the blocked null's MDE at 0.80 power rounded up to 0.01 in u"
   },

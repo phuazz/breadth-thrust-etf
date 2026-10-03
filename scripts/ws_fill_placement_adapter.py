@@ -759,7 +759,7 @@ def engine_inputs(priced: list[dict], raw: dict) -> tuple[list[dict], dict, dict
     for r in priced:
         t, yf_key = line_keys(r["sleeve"], r["line"], r["symbol"])
         rows.append({"d": r["date"], "a": r["side"], "t": t, "q": r["notional_nav"] / r["price"], "p": r["price"],
-                     "ccy": meta[t]["ccy"], "yf": yf_key, "th": r["sleeve"], "fee": None, "ref": None})
+                     "ccy": meta[t]["ccy"], "yf": yf_key, "th": r["sleeve"], "kind": r["kind"], "fee": None, "ref": None})
     return rows, meta, extract, record
 
 

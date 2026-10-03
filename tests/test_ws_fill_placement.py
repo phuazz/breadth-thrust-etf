@@ -315,3 +315,27 @@ def test_a_line_without_a_panel_is_declared_unchecked_and_counted_not_passed_sil
     kept, excluded, rec = ad.window_parity(fills, raw, panel_for, basis_mismatch={})
     assert len(kept) == 3 and not excluded
     assert rec["lines_unchecked"] == 1 and rec["unchecked"][0]["line"] == "B:SYM" and rec["lines_checked"] == 0
+
+
+def test_engine_inputs_carry_the_kind_and_a_same_side_pair_is_one_unit_with_both_kinds(tmp_path):
+    """A sleeve fill and an overlay-induced fill on one line, date and side are
+    one unit (rebalance date x line x side) carried with both kinds, so the
+    overlay rows can be shown on their own (amendment 6)."""
+    days, arr = _line(30, dt.date(2026, 3, 2), "America/New_York", (9, 30), 20.0, 5)
+    bars = [{"date": d.isoformat(), "Open": float(arr["o"][i]), "High": float(arr["h"][i]), "Low": float(arr["l"][i]),
+             "Close": float(arr["c"][i]), "Adj Close": float(arr["c"][i])} for i, d in enumerate(days)]
+    raw = {"SPY": {"bars": bars, "metadata": {"exchangeName": "PCX", "exchangeTimezoneName": "America/New_York",
+                                              "currency": "USD", "longName": "toy"}}}
+    d = days[15].isoformat()
+    base = {"sleeve": "B", "line": "SPY", "symbol": "SPY", "date": d, "side": "S", "price": float(arr["c"][15])}
+    priced = [dict(base, kind="sleeve", notional_nav=0.01), dict(base, kind="overlay_induced", notional_nav=0.02),
+              dict(base, date=days[20].isoformat(), side="B", price=float(arr["c"][20]), kind="overlay_leg", notional_nav=0.05)]
+    rows, meta, extract, record = ad.engine_inputs(priced, raw)
+    assert [r["kind"] for r in rows] == ["sleeve", "overlay_induced", "overlay_leg"]
+    (tmp_path / "f.json").write_text(json.dumps(rows), encoding="utf-8")
+    (tmp_path / "b.json").write_text(json.dumps({"meta": meta}), encoding="utf-8")
+    (tmp_path / "h.json").write_text(json.dumps(extract), encoding="utf-8")
+    units, excluded = eng.load_fills(SPEC, rows, {"meta": meta}, extract)
+    assert not excluded and len(units) == 2
+    assert units[0]["kinds"] == ["overlay_induced", "sleeve"] and units[0]["qty"] == pytest.approx(0.03 / base["price"])
+    assert units[1]["kinds"] == ["overlay_leg"]
