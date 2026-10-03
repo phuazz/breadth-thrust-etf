@@ -8268,6 +8268,59 @@ function _renderAHoldings() {
   }
 }
 
+// Pending next fill, under a selection table (owner, 2026-10-03). The table
+// is the HELD book from the last rebalance and stays true until the fill, so
+// "All K slots were filled, so no cash is held" read as next week's book on
+// the weekend the 2 Oct close sent VGK out of B and all of C to SHY. This
+// line states what the decided-but-unfilled rebalance changes, from the same
+// live_targets the Next Fill card reads, under the card's lapse rule: nothing
+// once the fill date has passed on the reader's clock. Dates are ISO strings
+// compared as text; no month arithmetic.
+function _pendingFillNote(sleeve, heldDate) {
+  const lt = (window.DATA || {}).live_targets;
+  if (!lt || !Array.isArray(lt.sleeves) || !Array.isArray(lt.lines)) return '';
+  const s = lt.sleeves.find(x => x.sleeve === sleeve);
+  if (!s || !s.fill_date || !heldDate || !(s.fill_date > heldDate)) return '';
+  const today = new Date().toISOString().slice(0, 10);
+  if (s.fill_date < today) return '';
+  const when = `<strong>Next fill ${fmtDateLongSafe(s.fill_date)}</strong>`
+    + (s.decision_session ? ` (decided on the ${fmtDateLongSafe(s.decision_session)} close)` : '');
+  const wrap = (body) => `<div class="pending-fill-note" style="margin-top:8px;padding:4px 0 4px 10px;`
+    + `border-left:3px solid var(--accent);">${when}: ${body}. See the Next Fill card.</div>`;
+  if (s.status !== 'READY') return wrap('selection held pending complete data; no new ranking');
+  const EPS = 1e-6;
+  const CASH = new Set(['SHY', 'IEF']);
+  const lines = lt.lines.filter(l => l.sleeve === sleeve);
+  const sym = (l) => l.traded || _displaySym(l.etf);
+  const nav = (v) => `${(v * 100).toFixed(1)}% of NAV`;
+  const exits = lines.filter(l => l.held > EPS && l.target <= EPS);
+  const entries = lines.filter(l => l.held <= EPS && l.target > EPS);
+  const resized = lines.filter(l => l.held > EPS && l.target > EPS && Math.abs(l.target - l.held) > EPS);
+  const parts = [];
+  const g = s.gate;
+  if (g && g.fired) {
+    // Fires on breadth < threshold, so clearing it takes ceil(threshold x N).
+    const need = Math.ceil(g.threshold * g.n_universe - 1e-9);
+    const to = entries.find(l => CASH.has(l.etf));
+    parts.push(`sleeve-breadth gate on: ${g.n_above} of ${g.n_universe} themes above the `
+      + `+${Math.round(g.floor * 100)}% floor, ${need} needed. All ${exits.length} holdings exit `
+      + `(${exits.map(sym).join(', ')}) and `
+      + (to ? `${sym(to)} takes the whole ${nav(to.target)}` : 'the sleeve moves to cash'));
+  } else {
+    const sig = s.signals || {};
+    exits.forEach(l => parts.push(`${sym(l)} exits` + (sig[l.etf] != null
+      ? ` (signal ${sig[l.etf] >= 0 ? '+' : ''}${(sig[l.etf] * 100).toFixed(2)}%)` : '')));
+    entries.filter(l => !CASH.has(l.etf)).forEach(l => parts.push(`${sym(l)} enters at ${nav(l.target)}`));
+    entries.filter(l => CASH.has(l.etf)).forEach(l => {
+      const filled = Object.keys(s.weights || {}).filter(e => !CASH.has(e)).length;
+      const open = s.top_k ? s.top_k - filled : 0;
+      parts.push(`${sym(l)} takes ${open === 1 ? 'the unfilled slot' : open > 1 ? `the ${open} unfilled slots` : 'the unfilled weight'} at ${nav(l.target)}`);
+    });
+    if (resized.length) parts.push(`${resized.length} other holding${resized.length === 1 ? '' : 's'} reweighted`);
+  }
+  return wrap(parts.length ? parts.join('; ') : 'no change to the selection');
+}
+
 function _renderCHoldings() {
   const tbl = document.getElementById('c-holdings-table');
   if (!tbl) return;
@@ -8331,9 +8384,9 @@ function _renderCHoldings() {
     if (sleeveOff) {
       txt = `<strong>Entire sleeve in SHY this week</strong> — either the V6 sleeve-breadth gate tripped (fewer than 30% of the 25-theme universe above +5%) or no themes cleared the +5% floor. The whole 10% sleeve sits in 1-3y Treasuries until the next rebal.`;
     } else if (lowest) {
-      txt = `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day MA — well above the +5% hard floor. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in SHY because fewer than K=${K} themes cleared the floor at the ${latest.date} rebalance.` : `All K=${K} slots are filled, so no cash is held.`} Any theme whose live signal has since crossed +5% (or a held one that has since fallen below) is not acted on until the next rebal.`;
+      txt = `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day MA — well above the +5% hard floor. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in SHY because fewer than K=${K} themes cleared the floor at the ${latest.date} rebalance.` : `All K=${K} slots were filled at the ${latest.date} rebalance, so no cash is held.`} Any theme whose live signal has since crossed +5% (or a held one that has since fallen below) is not acted on until the next rebal.`;
     }
-    noteEl.innerHTML = txt;
+    noteEl.innerHTML = txt + _pendingFillNote('C', latest.date);
   }
 }
 
@@ -8434,8 +8487,9 @@ function _renderBHoldings() {
   if (noteEl) {
     const lowest = holds.length ? holds[holds.length - 1] : null;
     noteEl.innerHTML = lowest
-      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day average. Any positive-trend asset class ranked below it — or above the line only after ${latest.date} — is excluded until the next rebalance. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in cash because fewer than K=${K} names were in an uptrend.` : `All K=${K} slots are filled, so no cash is held.`}`
+      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day average. Any positive-trend asset class ranked below it — or above the line only after ${latest.date} — is excluded until the next rebalance. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in cash because fewer than K=${K} names were in an uptrend.` : `All K=${K} slots were filled at the ${latest.date} rebalance, so no cash is held.`}`
       : '';
+    noteEl.innerHTML += _pendingFillNote('B', latest.date);
   }
 }
 
