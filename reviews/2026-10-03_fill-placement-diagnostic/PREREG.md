@@ -52,6 +52,6 @@ The fills are modelled, not executed; the diagnostic describes the engines' conv
 
 `scripts/ws_fill_placement_adapter.py`: reads the engines' published weekly weight vectors and NAV, derives the fills, fetches and freezes the OHLC bars with hashes, runs the parity guard, and writes `fills.json` and `bars_used.json` in the PCC engine's shapes; a copy of the PCC engine with the placebo-price amendment, its hash recorded; a `tests/test_ws_fill_placement.py` with the fixture of guard 2 and a planted-fills fixture whose expected u the engine must reproduce; the outcome-blind coverage record (fills, clusters, null sd, power, δ₂) committed at the freeze with the red-team review at the spec-freeze gate.
 
-## Owner decisions open at the draft
+## Owner decisions
 
-Whether to run the diagnostic at all given the prior (the analyst's reading: cheap, closes a question cleanly, expected result NO-GIVE-BACK); BTC-USD excluded as proposed; sleeve A on proxies as proposed; the history start per sleeve (the engines' deployed starts, as published); whether sleeve D's EUR fills are pooled with the USD fills (proposed: pooled on u and per-cent legs, which are unit-free, with the EUR fills shown separately).
+Ruled on Saturday 2026-10-03 at the proposed values: run the diagnostic and close the question; BTC-USD excluded; sleeve A on its registry proxies; the history start per sleeve at the engines' deployed starts as published; sleeve D's EUR fills pooled with the USD fills on u and the per-cent legs, which are unit-free, and shown separately. The run brief is `PROMPT_RUN.md` beside this file: build and freeze on Opus, one run, then the verdict read and the filing on Fable in a separate session. Nothing in this section may change after the freeze.
