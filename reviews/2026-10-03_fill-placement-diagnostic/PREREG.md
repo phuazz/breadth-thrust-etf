@@ -187,3 +187,17 @@ The analyst proposes (b).
 - Guard 1's factor comparison on September 2026: the six-decimal adjustment factor agrees with the engine's own (panel over unadjusted close) within 2.8e-4 on every session of every line; on 31 of 58 lines it agrees to six decimals on every session.
 
 Written to `engine/results/` (to be committed with the freeze): `fills.json` (12,018 rows: 11,608 sleeve fills, 30 overlay legs, 380 overlay-induced; 8,032 confirmatory and 3,986 pre-blend), `book_meta.json` (the minimal book meta and the adapter's provenance: vintage, counts, exclusions by line and date, the parity statistics, the reproduction) and `bars_used.json` (58 lines; provenance header with the source, fetch times and each raw file's sha256). The content hashes are recorded at the freeze.
+
+### Step 4, tests
+
+`tests/test_ws_fill_placement.py`, 14 tests on synthetic data only, all passing (`pytest tests/test_ws_fill_placement.py`, run on this file alone):
+
+- the planted-fills fixture;
+- guard 2: a fill shifted one session is scored on another window and misses the expected u while the correct date reproduces it, and a fill dated on a non-session is excluded and counted;
+- the weight-to-fill derivation (a rise is B, a fall is S, an unchanged weight is no fill, a change below half a published unit is no fill, BTC-USD excluded and counted);
+- overlay-induced fills on a gate flip and on a tilt flip, including the tilt leg halving on a later gate flip;
+- the cluster relation by rebalance date only, against the chained relation of the disclosure null;
+- the confirmatory set starting on Wednesday 2018-10-31;
+- amendment 8's guard: a level shift between vendors passes, a planted 1 per cent ratio error inside a window excludes that fill and is counted, a 0.09 per cent one is kept, a missing panel bar excludes;
+- 159801.SZ excluded whole without its panel being read;
+- a line without a panel declared unchecked and counted, not passed silently.
