@@ -216,6 +216,8 @@ def build_gate_report(
                          if auto else
                          "; released for this anchor and not yet published"))
             )
+        elif published:
+            reason = "this week's factsheet was already published - not re-sending"
         elif not current:
             reason = "panel behind the anchor - refresh incomplete, holding the email"
         elif hold is not None:

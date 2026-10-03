@@ -162,8 +162,14 @@ def send(root=ROOT, now=None, transport=smtp_send, env=None, committed=False):
         raise ValueError("release changed after reservation")
     ledger = ledger_at(root)
     state = ledger["anchors"][release["anchor"]]
+    if any(k != release["anchor"] and v.get("pending") for k, v in ledger["anchors"].items()):
+        raise ValueError("another unconfirmed delivery is outstanding")
+    if candidate["id"] in state.get("delivery_receipts", {}):
+        raise ValueError("this exact delivery already has a confirmed receipt")
     if state.get("pending", {}).get("id") != candidate["id"]:
         raise ValueError("no matching durable reservation")
+    if state["pending"].get("attempted_at"):
+        raise ValueError("delivery was already attempted; reconcile before any retry")
     if committed:
         # The workflow must have pushed the reservation, not merely written it
         # in an ephemeral runner. A crash after SMTP then cannot lose the lock.
@@ -171,7 +177,7 @@ def send(root=ROOT, now=None, transport=smtp_send, env=None, committed=False):
         remote = subprocess.run(["git", "show", f"origin/main:{LEDGER}"], cwd=root,
                                 capture_output=True, check=True).stdout
         remote_state = json.loads(remote)["anchors"][release["anchor"]]
-        if remote_state.get("pending", {}).get("id") != candidate["id"]:
+        if remote_state.get("pending") != state.get("pending"):
             raise ValueError("reservation is not present on the remote tracking branch")
     # Recheck the actual send clock, not just the workflow start clock.
     decision = candidate["decision"]
@@ -183,12 +189,30 @@ def send(root=ROOT, now=None, transport=smtp_send, env=None, committed=False):
         sent=state, core_held=_core_held(release))
     if rechecked["action"] != decision["action"]:
         raise ValueError("send eligibility changed after reservation; reconcile without sending")
+    if committed:
+        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
+                               cwd=root, capture_output=True, text=True, check=True).stdout
+        if dirty.strip():
+            raise ValueError("tracked tree must be clean before recording delivery attempt")
+    state["pending"]["attempted_at"] = now.isoformat()
+    write(root / LEDGER, ledger)
+    if committed:
+        # An explicit retry from a fresh checkout must see the attempt too.
+        for command in (["git", "add", "--", LEDGER],
+                        ["git", "commit", "-m", "Record factsheet delivery attempt"],
+                        ["git", "push", "origin", "HEAD:main"]):
+            subprocess.run(command, cwd=root, check=True)
     transport(candidate, os.environ if env is None else env)
     state.pop("pending")
     state["core"] = release["core_identity"]
     state["europe"] = release["europe_identity"]
+    state["latest_delivery_release"] = release["identity"]
     state[decision["action"]] = ("d_hold" if decision["d_hold"] else "all_ready") if decision["action"] == "regular" else release["identity"]
     state["last_confirmed_at"] = now.isoformat()
+    state.setdefault("delivery_receipts", {})[candidate["id"]] = {
+        "release": release["identity"], "action": decision["action"],
+        "core": release["core_identity"], "europe": release["europe_identity"],
+        "d_hold": decision["d_hold"], "confirmed_at": now.isoformat()}
     write(root / LEDGER, ledger)
     if decision["action"] in ("regular", "d_update"):
         write(root / "docs/factsheet_published.json", {"anchor": release["anchor"], "published_at_utc": now.isoformat()})
@@ -622,6 +646,12 @@ def send_restatement(root=ROOT, now=None, restatement=None, authority=None, tran
         "first_issue": decision["first_issue"]}
     state["core"] = release["core_identity"]
     state["europe"] = release["europe_identity"]
+    state["latest_delivery_release"] = release["identity"]
+    if state.get("preview_supersession"):
+        # Routing summary only; every original correction receipt is immutable.
+        state["preview_supersession"].update(
+            core=release["core_identity"], europe=release["europe_identity"],
+            d_hold=False, effective_receipt="restatement:" + restatement)
     write(root / LEDGER, ledger)
 
 

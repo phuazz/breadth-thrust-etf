@@ -494,6 +494,15 @@ def restatement_banner(decision, release):
     parts = [f"RESTATED INSTRUCTION for the week of {long_date(decision.get('anchor') or release['anchor'])}. "
              "This email arrives after the factsheet already sent for this week and supersedes "
              "its instructions."]
+    if decision.get("delivery_mode") == "preview_supersession":
+        parts[0] = (f"RESTATED INSTRUCTION for the week of {long_date(release['anchor'])}. " +
+                    ("This instruction supersedes the latest delivered instruction. "
+                     if decision.get("is_late_correction") else
+                     "This instruction supersedes the initial preview. ") + "The original preview and "
+                    "its confirmed delivery receipt remain in the audit history.")
+        if decision.get("allowed_holds"):
+            parts.append("Remaining HOLDs: " + ", ".join(decision["allowed_holds"]) +
+                         "; the missing required observations have not been substituted.")
     if listed:
         parts.append(f"Restated lines: {listed}.")
     released = sorted(decision.get("released_holds") or [])
@@ -684,7 +693,7 @@ def render_html(decision, release, include_unchanged=False):
     if restated:
         parts.insert(0, f"<div class='restated' style='border-left:4px solid {TONE['warn']};"
                         "background:#fdf6ea;padding:8px 14px;margin:0 0 12px'><p style='margin:4px 0;"
-                        f"font-size:14px'><strong>{e(restatement_banner(decision, release))}</strong></p></div>")
+                        f"font-size:16px;max-width:31em'><strong>{e(restatement_banner(decision, release))}</strong></p></div>")
     if stats["series"].startswith("synthetic"):
         parts.insert(0, "<p><strong>SYNTHETIC NO-SEND REHEARSAL — not a live instruction.</strong></p>")
     if release.get("preview_only"):
@@ -867,6 +876,8 @@ a{color:#164cb2}.button{display:inline-block;padding:12px 16px;background:#eef4f
 @media(max-width:480px){body{padding:16px}h1{font-size:23px}.metric{padding:8px 4px!important}.metric .value{font-size:14px!important}.metric .label{font-size:11px!important;min-height:2.6em}}
 html[data-theme=dark]{color-scheme:dark}html[data-theme=dark] body{background:#111827;color:#f3f4f6}html[data-theme=dark] .note,html[data-theme=dark] .eyebrow,html[data-theme=dark] .changes thead th,html[data-theme=dark] .shifts th{color:#cbd5e1}
 html[data-theme=dark] .held,html[data-theme=dark] .restated,html[data-theme=dark] .budgets td,html[data-theme=dark] .kv th,html[data-theme=dark] .shifts th,html[data-theme=dark] .status,html[data-theme=dark] .metric,html[data-theme=dark] .button,html[data-theme=dark] .changes tr.group td{background:#1e293b;color:#f3f4f6}html[data-theme=dark] a{color:#93c5fd}
+html[data-theme=dark] .held,html[data-theme=dark] .restated,html[data-theme=dark] .budgets td,html[data-theme=dark] .kv th,html[data-theme=dark] .shifts th,html[data-theme=dark] .status,html[data-theme=dark] .metric,html[data-theme=dark] .button,html[data-theme=dark] .changes tr.group td{background:#1e293b!important;color:#f3f4f6!important}
+html[data-theme=dark] .column [style*="color:"]{color:#f3f4f6!important}
 html[data-theme=dark] .tone.up{color:#86efac!important}html[data-theme=dark] .tone.down{color:#fca5a5!important}html[data-theme=dark] .tone.warn{color:#fcd34d!important}
 """
     # Critical email styling is inline as well as in the stylesheet. No scripts,
@@ -1216,7 +1227,7 @@ def render_pdf(decision, release):
                     "Proposed trades are not included.")
     if decision["d_hold"]:
         flow += [banner("Performance is provisional while D data is incomplete. Full-portfolio "
-                        "figures may change when D completes; A-C and overlay instructions are verified.",
+                        "figures may change when D completes. " + v["wording"].get("core_status", ""),
                         WARN, colors.HexColor("#fff7ea")), Spacer(1, 8)]
     tiles = []
     for key, label in (("WTD", "THIS WEEK"), ("YTD", "YEAR TO DATE"), ("1Y", "ONE YEAR"),

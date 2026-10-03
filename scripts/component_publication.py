@@ -96,6 +96,43 @@ def email_decision(now: datetime, *, anchor: str, core: Snapshot,
     if sent.get("core") and sent["core"] != core.identity:
         return {**result, "action": "alert", "audience": "operator",
                 "reason": "core changed after distribution; review required"}
+    supersession = sent.get("preview_supersession")
+    if supersession:
+        # A correction receipt does not impersonate an ordinary delivery.
+        # Unchanged-mail suppression must not consume the D follow-up.
+        if (supersession.get("protocol_version") != 2
+                or not supersession.get("confirmed_at")
+                or supersession.get("core") != core.identity
+                or not isinstance(supersession.get("d_hold"), bool)
+                or supersession.get("followup_policy") not in ("suppress_unchanged", "ordinary_unchanged")):
+            return {**result, "action": "alert", "audience": "operator",
+                    "reason": "preview supersession receipt requires reconciliation"}
+        d_was_ready = (not supersession["d_hold"] or
+            ((sent.get("regular") == "all_ready" or sent.get("d_update"))
+             and sent.get("europe") != supersession.get("europe")))
+        if d_was_ready and not europe.ready:
+            return {**result, "action": "alert", "audience": "operator",
+                    "reason": "D verification regressed after its confirmed instruction; review required"}
+        earlier_ready_d = any(
+            r.get("decision", {}).get("d_hold") is False
+            for r in (sent.get("preview_supersessions") or {}).values())
+        if (d_was_ready or earlier_ready_d) and europe.ready and sent.get("europe") != europe.identity:
+            return {**result, "action": "alert", "audience": "operator",
+                    "reason": "D changed after its confirmed instruction; review required"}
+        if sent.get("regular") and not supersession["d_hold"]:
+            return {**result, "reason": "owner correction already delivered D; no duplicate follow-up"}
+        if not sent.get("regular"):
+            if sent.get("d_update"):
+                return {**result, "action": "alert", "audience": "operator",
+                        "reason": "D follow-up without ordinary receipt; reconcile"}
+            if not supersession["d_hold"] and europe.ready and sent.get("europe") != europe.identity:
+                return {**result, "action": "alert", "audience": "operator",
+                        "reason": "D changed after its confirmed instruction; review required"}
+            if (supersession["followup_policy"] == "suppress_unchanged"
+                    and not (supersession["d_hold"] and europe.ready)):
+                return {**result, "reason": "unchanged ordinary email suppressed; D follow-up remains eligible"}
+        # D recovered after a HOLD: fall through to the original ordinary/
+        # d_update rules and their unchanged Sunday/Monday deadlines.
     if sent.get("regular"):
         if (europe.ready and sent.get("europe") and sent["europe"] != europe.identity
                 and (sent["regular"] == "all_ready" or sent.get("d_update"))):
@@ -208,14 +245,29 @@ def _restatement_wording(decision, core_sentence):
         heading = f"Restated for this week: revised instructions for {names}"
         difference = ("The book for this week was rebuilt on the same close after the factsheet "
                       f"was sent, and the instructions for {names} differ. " + supersede)
+    preview = decision.get("delivery_mode") == "preview_supersession"
+    if preview:
+        if not decision.get("is_late_correction"):
+            difference = difference.replace("factsheet", "preview")
+        difference += " The original preview and every earlier delivery receipt remain in the audit history."
+        if decision.get("after_review_checkpoint"):
+            difference += " This is an explicitly owner-reviewed correction after the automatic review checkpoint."
+        if decision.get("allowed_holds"):
+            difference += " Remaining HOLDs: " + ", ".join(decision["allowed_holds"]) + "; no unavailable observation has been substituted."
+        difference += (" No unchanged ordinary factsheet will be resent. Newly verified D retains its normal automatic follow-up before the original review checkpoint; changed core instructions require a new owner-reviewed correction."
+                       if decision["followup_policy"] == "suppress_unchanged" else
+                       " The ordinary scheduled factsheet may repeat this instruction. Newly verified D retains its normal automatic follow-up before the original review checkpoint; changed core instructions require a new owner-reviewed correction.")
     return {
-        "subject": "Restated instruction - supersedes this week's factsheet",
+        "subject": ("Restated instruction - supersedes the latest delivered instruction" if preview and decision.get("is_late_correction") else
+                    "Restated instruction - supersedes the initial preview" if preview else
+                    "Restated instruction - supersedes this week's factsheet"),
         "heading": heading,
         "summary": f"This email restates this week's instructions for {names}. The restated "
                    "lines are listed first; every other instruction stands as sent.",
         "difference": difference,
         "core_status": core_sentence,
-        "d_instruction": ("Strategy D's proposed changes are stated in full in this email; act "
+        "d_instruction": ("Strategy D remains HOLD; retain existing holdings." if preview and decision.get("d_hold") else
+                          "Strategy D's proposed changes are stated in full in this email; act "
                           "on them as shown." if "D" in fresh else
                           "Review the restated D lines; they supersede the earlier D instruction."
                           if "D" in touched else

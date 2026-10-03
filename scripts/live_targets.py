@@ -108,7 +108,7 @@ def _breadth_panel(universe: list[str]) -> tuple[pd.DataFrame, list[str]]:
             cols[etf] = compute_ma200_breadth(load_constituent_prices(etf), MA_PERIOD)
             cols[etf] = cap_signal(cols[etf], validated_end(DATA_DIR, etf))
         except (FileNotFoundError, RosterMismatch):
-            cols[etf] = pd.Series(dtype=float)
+            cols[etf] = pd.Series(dtype=float, index=pd.DatetimeIndex([]))
             continue
     return pd.DataFrame(cols).reindex(columns=universe).sort_index(), list(universe)
 
@@ -164,6 +164,13 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
     lcs = last_completed_session_on(cal, now_utc)
     ranked = [c for c in signal.columns if c != cash_proxy]
     rows = signal[ranked].dropna(how="all")
+    if rows.empty:
+        return {"sleeve": label, "venue": venue, "status": "HOLD",
+                "reason": "no signal at or before the last completed session",
+                "decision_session": None, "last_completed_session":
+                    str(lcs.date()) if lcs is not None else None, "weights": {}}
+    if not isinstance(rows.index, pd.DatetimeIndex):
+        raise ValueError(f"{label}: nonempty signal requires a DatetimeIndex")
     usable = rows.index[rows.index <= pd.Timestamp(lcs)] if lcs is not None else rows.index
     if len(usable) == 0:
         return {"sleeve": label, "venue": venue, "status": "HOLD",
@@ -562,7 +569,19 @@ def _traded(etf: str) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--json", default=str(DATA_DIR / "live_targets.json"))
+    ap.add_argument("--preserve-on-missing-panels", action="store_true",
+                    help="Preserve the existing instruction when local constituent caches are absent (cache-free CI).")
     args = ap.parse_args(argv)
+    if args.preserve_on_missing_panels:
+        missing = [key for key in UNIVERSE_ETFS + UNIVERSE_EUROPE_SECTORS
+                   if not (DATA_DIR / f"prices_cache_{key.lower()}.parquet").is_file()]
+        if missing:
+            if not Path(args.json).is_file():
+                raise FileNotFoundError("local constituent panels unavailable and no existing target file to preserve")
+            print("::warning::Next-fill recomputation unavailable: local constituent caches missing for "
+                  + ", ".join(missing) + ". Existing targets preserved without changing their dates, "
+                  "finality or weights; current readiness is not established.")
+            return 0
     r = build()
 
     nf = r.get("next_fill", {})

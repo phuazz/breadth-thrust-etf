@@ -228,6 +228,36 @@ RELEASE = REPO_ROOT / "docs" / "factsheet_release.json"
 LOG_DIR = REPO_ROOT / "logs"
 
 
+def refresh_success_notice(message: str, cadence: str, gate: dict, anchor: date,
+                           delivery_path: Path) -> tuple[str, str]:
+    """Describe a completed push without asserting that an email was delivered."""
+    if cadence != "post-fill":
+        return ("[OK] Scheduled refresh pushed - delivery checked separately",
+                f"{message}\n\nThe component sender checks the sealed release and delivery ledger. "
+                f"This push notice does not confirm a factsheet email.\n\nGate preview:\n{gate['detail']}")
+    try:
+        ledger = json.loads(delivery_path.read_text(encoding="utf-8"))
+        entry = ledger.get("anchors", {}).get(anchor.isoformat(), {})
+        confirmations = [r.get("confirmed_at") for r in entry.get("restatements", {}).values()
+                         if r.get("confirmed_at")]
+        if confirmations:
+            status = f"Component restatement delivery confirmed at {max(confirmations)}."
+        elif entry.get("last_confirmed_at"):
+            status = f"Component delivery confirmed at {entry['last_confirmed_at']}."
+        elif entry.get("preview"):
+            status = "Initial component delivery is recorded; consolidated delivery is not confirmed."
+        else:
+            status = "No confirmed component delivery is recorded for this anchor."
+    except (OSError, ValueError, AttributeError, TypeError):
+        status = "Component delivery state is unavailable; inspect the delivery ledger."
+    return ("[OK] Post-fill valuation refresh pushed",
+            f"{message}\n\nPost-fill valuation outputs were pushed. "
+            f"This does not release or resend a weekly instruction.\n\n"
+            f"Factsheet anchor {anchor.isoformat()}: {status}\n\n"
+            "Weekly release eligibility is checked separately against the sealed component state. "
+            "The legacy release marker is not proof of component delivery.")
+
+
 def panel_is_current(panel_end: date, now_utc: datetime) -> bool:
     """True when the panel reaches the last COMPLETED trading session.
 
@@ -1623,9 +1653,10 @@ def main(argv: list[str] | None = None) -> int:
                         f"stays outstanding until they land. " + cp.stderr)
         print(f"PUSHED - {msg}")
         log.write(f"\npushed: {msg}\n")
-        _email("[OK] Scheduled refresh pushed - factsheet publishing",
-               f"{msg}\n\nThe push triggers the gated factsheet "
-               f"workflow.\n\nGate preview:\n{gate['detail']}", log)
+        subject, body = refresh_success_notice(msg, args.cadence, gate,
+                                              week_final_anchor(now),
+                                              REPO_ROOT / "docs" / "component_delivery.json")
+        _email(subject, body, log)
     elif args.commit:
         # COMMIT LOCALLY, PUSH NOTHING. Added 2026-08-22 with the two-run
         # weekend (Saturday for sleeves A/B/C, Sunday once the European close

@@ -120,7 +120,9 @@ def has_required_session(frame, names, through):
     stamp = pd.Timestamp(through)
     names = list(names)
     return bool(names and stamp in frame.index and set(names).issubset(frame.columns)
-                and frame.loc[stamp, names].notna().all())
+                and frame.loc[stamp, names].notna().all()
+                and (frame.loc[stamp, names] > 0).all()
+                and (frame.loc[stamp, names] < float("inf")).all())
 
 
 def recover_missing_columns(df, names, exclude=(), fetch_single=None,
@@ -266,7 +268,8 @@ def heal_hollow_tail(df: pd.DataFrame, names, through: date | None,
             s = ask(n)
             if s is None:
                 rec["no_answer"].append(n)
-            elif ts in s.index and pd.notna(s.loc[ts]):
+            elif (ts in s.index and pd.notna(s.loc[ts])
+                  and 0 < float(s.loc[ts]) < float("inf")):
                 df.at[ts, n] = float(s.loc[ts])
                 rec["filled"].append(n)
             else:

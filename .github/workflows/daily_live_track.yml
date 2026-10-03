@@ -303,7 +303,9 @@ jobs:
       # run a refresh" instead of taking the daily publish down.
       - name: Recompute the next-fill card
         continue-on-error: true
-        run: python scripts/live_targets.py
+        # Constituent caches are local-only. Preserve the verified instruction
+        # explicitly when unavailable; freshness is reported separately above.
+        run: python scripts/live_targets.py --preserve-on-missing-panels
 
       - name: Rebuild dashboard + factsheet with live extension
         run: python scripts/pipeline.py

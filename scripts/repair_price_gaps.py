@@ -104,6 +104,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 import urllib.request
 from datetime import datetime, timezone
@@ -235,8 +236,8 @@ def splice_value(prev_value: float, sec_prev: float, sec_now: float,
     Never the secondary's level: see the module docstring on the 2.19% fee
     basis. Any constant offset between the two sources cancels in the ratio.
     """
-    if not (prev_value > 0 and sec_prev > 0 and sec_now > 0):
-        raise RepairError("non-positive price in the splice inputs")
+    if not all(math.isfinite(v) and v > 0 for v in (prev_value, sec_prev, sec_now)):
+        raise RepairError("non-finite or non-positive price in the splice inputs")
     ret = sec_now / sec_prev - 1.0
     if abs(ret) > max_move:
         raise RepairError(
@@ -373,8 +374,15 @@ def repair_cache(key: str, only_ticker: str | None = None,
         lo = min(g for g, _ in gaps) - pd.Timedelta(days=10)
         hi = max(g for g, _ in gaps) + pd.Timedelta(days=2)
 
-        primary = fetch_primary(t, lo.strftime("%Y-%m-%d"), hi.strftime("%Y-%m-%d"))
-        sec, sec_label = fetch_secondary(t, lo, hi)
+        source_errors = {}
+        try:
+            primary = fetch_primary(t, lo.strftime("%Y-%m-%d"), hi.strftime("%Y-%m-%d"))
+        except Exception as exc:
+            # A transport failure is not evidence that a bar does not exist.
+            primary = pd.Series(dtype=float)
+            source_errors["primary"] = type(exc).__name__
+        sec = None
+        sec_label = ""
 
         for g, prev in gaps:
             prev_val = float(frame.loc[prev, t])
@@ -388,13 +396,24 @@ def repair_cache(key: str, only_ticker: str | None = None,
                 repairs.append(rec)
                 continue
 
+            # Only ask a secondary when the primary cannot repair this gap.
+            # An unavailable optional source cannot discard a valid primary.
+            if sec is None:
+                try:
+                    sec, sec_label = fetch_secondary(t, lo, hi)
+                except Exception as exc:
+                    sec = pd.Series(dtype=float)
+                    source_errors["secondary"] = type(exc).__name__
+            if source_errors:
+                rec["source_errors"] = dict(source_errors)
             # 2. Otherwise the secondary (declared, or Norgate for a US line).
             if _splice_from(sec, sec_label, g, prev, prev_val, rec):
                 repairs.append(rec)
                 continue
 
             rec.update(source=None, method=None,
-                       refused="no primary backfill and no usable secondary")
+                       refused=("source request failed; see source_errors" if source_errors
+                                else "no primary backfill and no usable secondary"))
             repairs.append(rec)
 
     usable = [r for r in repairs if r.get("value") is not None

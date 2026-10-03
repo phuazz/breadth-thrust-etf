@@ -365,7 +365,7 @@ def test_sleeve_c_reuses_a_genuinely_current_cache(thematic_site, monkeypatch, c
     full = frame.copy()
     full.loc[FRI, "BTC-USD"] = 123.0
     full.to_parquet(cache)
-    ps.write_cache_source(cache, "norgate")
+    ps.write_cache_source(cache, "norgate", {"completed_crypto_through": {"BTC-USD": str(FRI.date())}})
     monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
 
     def must_not(t):
@@ -397,3 +397,33 @@ def test_sleeve_b_heals_a_blank_spy_on_a_yfinance_run(monkeypatch, tmp_path):
     blob = json.loads(ps.sidecar_path(cache).read_text(encoding="utf-8"))
     assert blob["source"] == "yfinance" and "columns_from_norgate" not in blob
     assert blob["tail_heal"]["rows"][0]["filled"] == ["SPY"]
+
+@pytest.mark.parametrize('clock,complete', [('2024-01-19T22:00:00+00:00',False),('2024-01-20T00:00:00+00:00',True)])
+def test_crypto_close_is_not_certified_by_nyse_close(thematic_site, monkeypatch, clock, complete):
+    from datetime import datetime as real_datetime
+    th, cache, frame, needed = thematic_site
+    class Clock:
+        @staticmethod
+        def now(tz=None):
+            return real_datetime.fromisoformat(clock)
+    monkeypatch.setattr(th, 'datetime', Clock)
+    monkeypatch.setenv('BTE_PRICE_SOURCE', 'norgate')
+    monkeypatch.setattr(vt, 'single_ticker_closes', _serving(frame))
+    out = th.download_prices()
+    assert bool(pd.notna(out.loc[FRI, 'BTC-USD'])) is complete
+    assert out.loc[FRI, 'ARKK'] == frame.loc[FRI, 'ARKK']
+    assert ps.sidecar_path(cache).exists()
+    blob = json.loads(ps.sidecar_path(cache).read_text())
+    assert blob['completed_crypto_through']['BTC-USD'] == ('2024-01-19' if complete else '2024-01-18')
+
+
+def test_legacy_full_crypto_cache_requires_a_completed_refetch(thematic_site, monkeypatch, capsys):
+    th, cache, frame, needed = thematic_site
+    full = frame.copy()
+    full.loc[FRI, 'BTC-USD'] = 123.0
+    full.to_parquet(cache)
+    ps.write_cache_source(cache, 'norgate')
+    monkeypatch.setenv('BTE_PRICE_SOURCE', 'norgate')
+    monkeypatch.setattr(vt, 'single_ticker_closes', _serving(frame))
+    th.download_prices()
+    assert 'Using cached prices' not in capsys.readouterr().out

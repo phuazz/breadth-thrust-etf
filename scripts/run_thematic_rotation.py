@@ -82,6 +82,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 from rebalance_calendar import engine_rebalance_dates  # noqa: E402
 from rebalance_records import latest_rebalance_record  # noqa: E402
 import btc_basis  # noqa: E402
+import completed_prices  # noqa: E402
 import price_source as price_source_mod  # noqa: E402
 import vendor_tail  # noqa: E402
 from nyse_sessions import (  # noqa: E402
@@ -618,7 +619,11 @@ def download_prices() -> pd.DataFrame:
         print(f"  {btc_basis.ENV_VAR}=ibit — sleeve C ranks Bitcoin on "
               f"{btc_basis.TRADED} from {btc_basis.CUTOVER}, frozen proxy "
               f"before ({btc_declared})", flush=True)
-    current_through = last_completed_session(datetime.now(timezone.utc))
+    acquisition_started = datetime.now(timezone.utc)
+    current_through = last_completed_session(acquisition_started)
+    crypto_names = [t for t in fetch_names
+                    if UNIVERSE.get(t, {}).get("trading_calendar") == "crypto_24x7"]
+    crypto_bound = completed_prices.crypto_completed_through(acquisition_started)
     # Resolved FIRST, so a request for Norgate that cannot be met fails here
     # rather than after a silent fallback (price_source.py, 2026-09-03).
     price_source, why = price_source_mod.resolve_source(
@@ -628,8 +633,13 @@ def download_prices() -> pd.DataFrame:
     EFFECTIVE_PRICE_SOURCE = price_source
     cached = None
     cache_source = None
+    cache_crypto_ok = not crypto_names
     if PRICE_CACHE.exists():
         cached = pd.read_parquet(PRICE_CACHE)
+        cache_crypto_ok = completed_prices.cache_crypto_verified(
+            PRICE_CACHE, crypto_names, current_through)
+        cached = completed_prices.mask_uncompleted_crypto(
+            cached, crypto_names, acquisition_started)
         # An EMPTY cache must read as "no usable cache", not explode. See the
         # matching note in run_asset_class_rotation.download_prices: a zero-row
         # frame gives index.max() = NaT, and comparing NaT to a date raises.
@@ -665,6 +675,8 @@ def download_prices() -> pd.DataFrame:
                 print(f"  Cache is current but its {btc_basis.SPOT_KEY} column "
                       f"is on basis {cache_btc or 'incumbent'}; this run is on "
                       f"{btc_declared or 'incumbent'} — refreshing")
+            elif not cache_crypto_ok:
+                print("  Cache crypto completion is unverified - refreshing")
             else:
                 print(f"  Using cached prices ({cached.index.min().date()} -> "
                       f"{cache_end}, current through {current_through}, "
@@ -743,6 +755,9 @@ def download_prices() -> pd.DataFrame:
     # during market hours. Cap BEFORE the crypto/FX calendar work so
     # equity_cal is bounded too.
     df = cap_to_last_completed_session(df)
+    # The NYSE close cannot certify the later UTC-day Bitcoin close.
+    # Use the bound captured BEFORE acquisition, even if a fetch crosses midnight.
+    df = completed_prices.mask_uncompleted_crypto(df, crypto_names, acquisition_started)
     # Phase 15.2: reindex crypto to equity calendar BEFORE applying
     # expense-ratio drag, so the drag's elapsed-days arithmetic uses the
     # right base index.
@@ -770,6 +785,9 @@ def download_prices() -> pd.DataFrame:
             # The frame handed back is the CACHE'S basis, not this run's
             # (2026-09-03): a strict Norgate run may not fall back onto a
             # yfinance-built cache, and any run must label what it returns.
+            if not cache_crypto_ok:
+                raise RuntimeError("price fetch refused and cached crypto completion "
+                                   "is unverified; refusing an uncertified fallback")
             cache_src = cache_source or "yfinance"
             if price_source == "norgate" and cache_src != "norgate":
                 raise RuntimeError(
@@ -798,6 +816,9 @@ def download_prices() -> pd.DataFrame:
             f"price fetch unusable and no cache to fall back on: {worse}")
     df.to_parquet(PRICE_CACHE)
     _sidecar = dict(_ngrep or {})
+    if crypto_names:
+        _sidecar["completed_crypto_through"] = {
+            t: str(crypto_bound.date()) for t in crypto_names}
     if _heal:
         _sidecar["tail_heal"] = _heal
     if btc_declared:

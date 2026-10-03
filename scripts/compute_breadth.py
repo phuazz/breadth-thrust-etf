@@ -724,7 +724,8 @@ def _spread(items: list[str], k: int) -> list[str]:
 
 def _has_close(series: pd.Series | None, ts: pd.Timestamp) -> bool:
     return (series is not None and ts in series.index
-            and bool(pd.notna(series.loc[ts])))
+            and bool(pd.notna(series.loc[ts]))
+            and 0 < float(series.loc[ts]) < float("inf"))
 
 
 def verify_price_tail(

@@ -144,6 +144,8 @@ def write_cache_source(cache_path: Path, source: str,
         # What the tail heal asked the vendor and got back (2026-09-06), so
         # a blank cell in the cache can be traced to "not served" rather
         # than guessed at.
+        if report.get("completed_crypto_through"):
+            payload["completed_crypto_through"] = dict(report["completed_crypto_through"])
         if report.get("tail_heal"):
             payload["tail_heal"] = report["tail_heal"]
         # A column whose CONSTRUCTION differs from the vendor download it came
