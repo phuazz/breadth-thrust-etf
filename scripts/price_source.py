@@ -92,6 +92,23 @@ def read_cache_source(cache_path: Path) -> str | None:
         return None
 
 
+def read_cache_sidecar(cache_path: Path) -> dict | None:
+    """The whole sidecar as written, or None when absent or unreadable.
+
+    For readers that need the resolved per-column basis of the INCUMBENT
+    cache (price_revisions.resolve_column_basis takes this dict): the basis
+    guard compares a refused column's cached basis against the source it
+    arrived from this run. Never raises."""
+    path = sidecar_path(cache_path)
+    if not path.exists():
+        return None
+    try:
+        blob = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return blob if isinstance(blob, dict) else None
+
+
 def read_cache_tail_heal(cache_path: Path) -> dict | None:
     """The tail-heal record the run that BUILT this cache left beside it.
 
@@ -155,6 +172,13 @@ def write_cache_source(cache_path: Path, source: str,
         # warning of a 430-cell vendor retraction.
         if report.get("column_basis"):
             payload["column_basis"] = dict(report["column_basis"])
+        # What the basis guard decided at this write (2026-10-03): which
+        # columns arrived re-based against the cache, which were admitted
+        # on a declaration or a vendor split, and which kept the cached
+        # history across an exact seam. The columns_* fields above already
+        # carry a refused column under its CACHED basis.
+        if report.get("basis_guard"):
+            payload["basis_guard"] = report["basis_guard"]
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
 

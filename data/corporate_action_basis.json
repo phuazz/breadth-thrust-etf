@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "about": [
+    "The chosen price basis per constituent after a corporate action that re-bases a column's history: a spin-off, a split a vendor applies retroactively, a currency-unit change.",
+    "Read by scripts/basis_guard.py from compute_breadth.download_prices immediately before each constituent cache is written. A column whose history arrives re-scaled by one split-sized ratio against the incumbent cache is admitted whole only when a declaration here (or, for an ordinary split, the vendor's own split calendar) says that series is the chosen basis; otherwise the cached history is kept and new sessions are appended only across an exact seam.",
+    "Fields: ticker (the roster ticker); effective (ISO calendar date of the first session traded on the new basis); factor (the vendor's adjustment factor: under 'adjusted' every pre-event close is divided by it, so a 2-for-1 split is 2.0 and a 1-for-10 reverse split 0.1); basis ('adjusted' admits the continuous adjusted series and refuses the raw one with a cliff at the event, 'unadjusted' the reverse); decided_on, decided_by, note (provenance).",
+    "A declaration matches when the event sits between the last re-based session and the first unchanged one and the factor matches the observed ratio within 10% in log terms. Nothing here forward-fills or fabricates a bar; a declaration only decides which of two served series the cache carries."
+  ],
+  "declarations": [
+    {
+      "ticker": "CTVA",
+      "event": "spin-off: Corteva separated 2026-10-01; the symbol now carries Vylor, Inc.",
+      "effective": "2026-10-01",
+      "factor": 6.6652,
+      "basis": "adjusted",
+      "decided_on": "2026-10-03",
+      "decided_by": "owner",
+      "note": "Norgate (TOTALRETURN) serves the spin-adjusted continuous series, every pre-event close divided by 6.6652; yfinance serves the raw series with a 6.6x cliff on 2026-10-01 and no split event. The owner rejected the cliff on 2026-10-03 and asked for the established adjusted basis to be kept. Factor measured at 6.665236 over 1,848 shared sessions in the CSP1 and IUMS caches."
+    }
+  ]
+}

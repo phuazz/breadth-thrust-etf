@@ -86,6 +86,7 @@ from stall_guard import (  # noqa: E402
 import vendor_tail  # noqa: E402  (the single-ticker request, shared with B/C)
 import price_source as price_source_mod  # noqa: E402
 import price_revisions  # noqa: E402  (before/after capture on the cache write)
+import basis_guard  # noqa: E402  (a re-based history is chosen, not suffered)
 from capture_status import describe_capture  # noqa: E402
 
 # Force UTF-8 stdout for Windows console.
@@ -115,6 +116,10 @@ _paths = paths_for(DEFAULT_ETF)
 CONSTITUENTS_PATH = _paths["constituents"]
 PRICES_CACHE = _paths["prices_cache"]
 OUT_PATH = _paths["out"]
+# The chosen price basis per constituent after a corporate action that
+# re-bases history (basis_guard.py, 2026-10-03). Committed, so a dated
+# commit proves the decision predates the run that applied it.
+DECLARATIONS_PATH = DATA_DIR / basis_guard.DECLARATIONS_FILENAME
 
 # Indicator periods, all in trading days.
 RSI_PERIOD = 14
@@ -563,8 +568,12 @@ def priced_sessions(prices: pd.DataFrame, roster: list[str]) -> pd.DatetimeIndex
 # and the refresh says so loudly. A genuine crash has no matching split
 # and passes untouched. The referee fails OPEN (accept, with a warning):
 # a frozen column is also wrong, so only a CONFIRMED vendor artefact
-# justifies refusing fresh data.
-VENDOR_STEP_LOG_RETURN = 0.20      # |ln r| >= 0.20 — a 5:4 split or larger
+# justifies refusing fresh data. (The basis guard below the write path,
+# basis_guard.py, is the second line: a split-sized re-basing of the
+# HISTORY is caught against the cache whether or not the calendar answers.)
+# |ln r| >= 0.20 — a 5:4 split or larger. One definition, shared with the
+# basis guard so the two never disagree on what split-sized means.
+VENDOR_STEP_LOG_RETURN = basis_guard.SPLIT_SIZED_LOG_RATIO
 VENDOR_STEP_MATCH_TOL = 0.10      # |ln step| within this of |ln split ratio|
 VENDOR_STEP_WINDOW_SESSIONS = 5
 # Only the TAIL of the fresh series is examined. A mis-adjustment manifests
@@ -1169,6 +1178,7 @@ def download_prices(
     # values fill only the dates the download left NaN. A live ticker's
     # cached values are never preferred over a fresh close, so this cannot
     # freeze stale prices — the failure the staleness guards exist to catch.
+    prior = None   # the incumbent cache; the basis guard before the write reads it too
     if not force and cache_path.exists():
         try:
             prior = pd.read_parquet(cache_path)
@@ -1306,6 +1316,34 @@ def download_prices(
         if missing_recovery:
             print(f"  Missing active-name recovery: {missing_recovery}", flush=True)
 
+    # ----- Basis guard (2026-10-03) — the block at the top of basis_guard.py
+    # Runs LAST on the finished frame, after every path a basis can enter
+    # by: the download, the cell-preservation merge, the Norgate overlay and
+    # the tail heal. A column whose history arrives re-scaled by one
+    # split-sized ratio against the incumbent cache (CTVA, 2026-10-03:
+    # Norgate's spin-adjusted series, every pre-separation close / 6.6652,
+    # taken whole under the superset rule above) is admitted only on a
+    # declaration or a matching vendor split; otherwise the cached history
+    # is kept and new sessions are appended across an exact seam only. The
+    # decision prints below, travels in the cache-change ledger and in the
+    # sidecar, and a refused column that the overlay took from Norgate is
+    # recorded under its CACHED basis, which is what it now carries.
+    guard_record = None
+    held_on_incumbent: list[str] = []
+    if prior is not None:
+        declarations, declaration_warnings = basis_guard.load_declarations(
+            DECLARATIONS_PATH)
+        close, guard_record = basis_guard.hold_rebased_columns(
+            close, prior,
+            old_sidecar=price_source_mod.read_cache_sidecar(cache_path),
+            new_sidecar={"source": price_source,
+                         "columns_from_norgate": list(norgate_columns)},
+            declarations=declarations, declarations_path=DECLARATIONS_PATH,
+            declaration_warnings=declaration_warnings, splits_for=_splits_for)
+        basis_guard.report(guard_record)
+        norgate_columns, held_on_incumbent = basis_guard.split_provenance(
+            guard_record, norgate_columns)
+
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     # ----- Cache-change diagnostic (2026-09-16), BEFORE the write -----
     # The line below destroys the only copy of what this cache held last
@@ -1317,12 +1355,15 @@ def download_prices(
     # each column is known rather than assumed. Never raises.
     price_revisions.capture_cache_change(
         cache_path, close,
-        {"source": price_source, "columns_from_norgate": list(norgate_columns)},
-        panel=cache_path.stem)
+        {"source": price_source, "columns_from_norgate": list(norgate_columns),
+         "columns_kept_on_incumbent": list(held_on_incumbent)},
+        panel=cache_path.stem, basis_guard=guard_record)
     close.to_parquet(cache_path)
     price_source_mod.write_cache_source(cache_path, price_source,
                                         {"replaced": norgate_columns,
-                                         "tail_heal": verification})
+                                         "kept": held_on_incumbent,
+                                         "tail_heal": verification,
+                                         "basis_guard": guard_record})
     # Carried on the returned frame for main() to record in the panel JSON;
     # the parquet does not need it.
     close.attrs["tail_verification"] = verification
