@@ -1,8 +1,8 @@
 {
-  "computed_at_utc": "2026-10-03 00:35 UTC",
+  "computed_at_utc": "2026-10-03 01:56 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-09-30",
-  "anchor_equity": 2.933969,
+  "anchor_equity": 2.933921,
   "regime_state": "RISK_ON",
   "eem_tilt_active": false,
   "eem_tilt_signal_as_of": "2026-09-30",
@@ -32,12 +32,14 @@
     "CSP1": 0.002905
   },
   "live_dates": [
-    "2026-10-01"
+    "2026-10-01",
+    "2026-10-02"
   ],
   "live_equity": [
-    2.934603
+    2.934555,
+    2.952136
   ],
-  "deployed_series_end": "2026-10-01",
+  "deployed_series_end": "2026-10-02",
   "sleeve_extensions": {
     "strategy_a": {
       "anchor_date": "2026-09-30",
@@ -52,10 +54,12 @@
         "CSP1": 0.0083
       },
       "dates": [
-        "2026-10-01"
+        "2026-10-01",
+        "2026-10-02"
       ],
       "equity": [
-        3.254586
+        3.254586,
+        3.283786
       ]
     },
     "strategy_b": {
@@ -71,15 +75,17 @@
         "VGK": 0.0466
       },
       "dates": [
-        "2026-10-01"
+        "2026-10-01",
+        "2026-10-02"
       ],
       "equity": [
-        2.316229
+        2.316229,
+        2.329553
       ]
     },
     "strategy_c": {
       "anchor_date": "2026-09-30",
-      "anchor_equity": 2.9958,
+      "anchor_equity": 2.9953,
       "weights": {
         "ARKK": 0.2,
         "CIBR": 0.2,
@@ -88,10 +94,12 @@
         "BTC-USD": 0.2
       },
       "dates": [
-        "2026-10-01"
+        "2026-10-01",
+        "2026-10-02"
       ],
       "equity": [
-        3.003409
+        3.002908,
+        3.027228
       ]
     },
     "strategy_d": {
@@ -103,9 +111,11 @@
         "EXH3": 0.2721
       },
       "dates": [
-        "2026-10-01"
+        "2026-10-01",
+        "2026-10-02"
       ],
       "equity": [
+        3.578031,
         3.578031
       ]
     }

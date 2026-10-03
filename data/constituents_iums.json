@@ -2,11 +2,11 @@
   "etf": "IUMS",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/287104/ishares-s-p-500-materials-sector-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=IUMS_holdings&dataType=fund",
-  "fetched_at_utc": "2026-10-01T01:12:22.778877+00:00",
+  "fetched_at_utc": "2026-10-03T01:21:25.767146+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-09-25",
-  "n_target_fridays": 456,
-  "n_snapshots_written": 456,
+  "end_friday": "2026-10-02",
+  "n_target_fridays": 457,
+  "n_snapshots_written": 457,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -30,6 +30,12 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-10-02",
+      "fallback_date": "2026-10-01",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -48,8 +54,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-09-25",
-    "days_since_last_real_fetch": 0,
+    "last_real_fetch_date": "2026-10-01",
+    "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -15202,6 +15208,38 @@
         "LYB",
         "ALB",
         "AVY",
+        "MOS"
+      ]
+    },
+    "2026-10-02": {
+      "actual_date": "2026-10-01",
+      "n_tickers": 26,
+      "tickers": [
+        "LIN",
+        "NEM",
+        "FCX",
+        "SHW",
+        "ECL",
+        "APD",
+        "CRH",
+        "NUE",
+        "VYLR WI",
+        "VMC",
+        "STLD",
+        "MLM",
+        "PPG",
+        "SW",
+        "IFF",
+        "PKG",
+        "DOW",
+        "AMCR",
+        "CF",
+        "IP",
+        "BALL",
+        "LYB",
+        "AVY",
+        "ALB",
+        "CTVA",
         "MOS"
       ]
     }

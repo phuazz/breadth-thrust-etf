@@ -1,8 +1,26 @@
 {
- "computed_at_utc": "2026-10-01T01:34:49.224280+00:00",
- "as_of": "2026-09-30",
- "overlay_decision": null,
- "rounding_residual_nav": 0.0,
+ "computed_at_utc": "2026-10-03T01:56:20.712520+00:00",
+ "as_of": "2026-10-02",
+ "overlay_decision": {
+  "as_of": "2026-10-02",
+  "gate_feed": "norgate-local",
+  "gate_input_date": "2026-10-02",
+  "tilt_input_date": "2026-10-02",
+  "gate_on": false,
+  "tilt_on": false,
+  "weights": {
+   "a": 0.35,
+   "b": 0.35,
+   "c": 0.1,
+   "d": 0.2,
+   "tilt_on": false,
+   "derisk_on": false,
+   "equity_scaler": 1.0,
+   "tilt_nav": 0.0,
+   "shy_overlay": 0.0
+  }
+ },
+ "rounding_residual_nav": 3.5000000000021125e-05,
  "executed": false,
  "targets_final": false,
  "next_fill": {
@@ -27,8 +45,8 @@
    "missing_signal_inputs": [
     "IUMS"
    ],
-   "decision_session": "2026-09-30",
-   "last_completed_session": "2026-09-30",
+   "decision_session": "2026-10-02",
+   "last_completed_session": "2026-10-02",
    "weights": {},
    "fill_date": "2026-10-05",
    "decision_session_for_fill": "2026-10-02"
@@ -38,32 +56,32 @@
    "venue": "NYSE",
    "status": "READY",
    "reason": null,
-   "decision_session": "2026-09-30",
-   "last_completed_session": "2026-09-30",
+   "decision_session": "2026-10-02",
+   "last_completed_session": "2026-10-02",
    "weights": {
-    "DBC": 0.339828,
-    "QQQ": 0.247827,
-    "EWJ": 0.187071,
-    "SPY": 0.145053,
-    "EFA": 0.051908,
-    "IJR": 0.020682,
-    "VGK": 0.007631
+    "DBC": 0.267003,
+    "QQQ": 0.211646,
+    "EWJ": 0.167913,
+    "SHY": 0.142857,
+    "SPY": 0.125802,
+    "IJR": 0.045424,
+    "EFA": 0.039355
    },
    "signal_kind": "ma_distance",
    "top_k": 7,
    "signals": {
-    "SPY": 0.065,
-    "IJR": 0.0093,
-    "QQQ": 0.111,
-    "EFA": 0.0232,
-    "VGK": 0.0034,
-    "EWJ": 0.0838,
-    "VNQ": -0.0332,
-    "GLD": -0.0852,
-    "DBC": 0.1522,
-    "TLT": -0.0755,
-    "IEF": -0.0417,
-    "TIP": -0.0282
+    "SPY": 0.0734,
+    "IJR": 0.0265,
+    "QQQ": 0.1234,
+    "EFA": 0.0229,
+    "VGK": -0.0021,
+    "EWJ": 0.0979,
+    "VNQ": -0.0349,
+    "GLD": -0.0865,
+    "DBC": 0.1557,
+    "TLT": -0.0746,
+    "IEF": -0.0408,
+    "TIP": -0.0273
    },
    "signals_prev": {
     "SPY": 0.0791,
@@ -92,8 +110,8 @@
    "missing_signal_inputs": [
     "BTC-USD"
    ],
-   "decision_session": "2026-09-30",
-   "last_completed_session": "2026-09-30",
+   "decision_session": "2026-10-02",
+   "last_completed_session": "2026-10-02",
    "weights": {},
    "fill_date": "2026-10-05",
    "decision_session_for_fill": "2026-10-02"
@@ -102,9 +120,9 @@
    "sleeve": "D",
    "venue": "XETR",
    "status": "HOLD",
-   "reason": "signal reaches 2026-09-29 but the last completed XETR session is 2026-09-30 \u2014 ranking now would use an earlier session",
+   "reason": "signal reaches 2026-09-29 but the last completed XETR session is 2026-10-02 \u2014 ranking now would use an earlier session",
    "decision_session": "2026-09-29",
-   "last_completed_session": "2026-09-30",
+   "last_completed_session": "2026-10-02",
    "weights": {
     "EXV1": 0.393043,
     "EXH1": 0.33557,
@@ -212,73 +230,83 @@
   },
   {
    "sleeve": "B",
+   "etf": "SHY",
+   "traded": "SHY",
+   "within": 0.142857,
+   "target": 0.04999995,
+   "held": 0.0,
+   "status": "READY",
+   "delta": 0.04999995
+  },
+  {
+   "sleeve": "B",
    "etf": "VGK",
    "traded": "VGK",
-   "within": 0.007631,
-   "target": 0.00267085,
+   "within": 0.0,
+   "target": 0.0,
    "held": 0.01631,
    "status": "READY",
-   "delta": -0.013639150000000003
+   "delta": -0.01631
   },
   {
    "sleeve": "B",
    "etf": "DBC",
    "traded": "DBC",
-   "within": 0.339828,
-   "target": 0.1189398,
+   "within": 0.267003,
+   "target": 0.09345105,
    "held": 0.1064,
    "status": "READY",
-   "delta": 0.012539800000000004
-  },
-  {
-   "sleeve": "B",
-   "etf": "QQQ",
-   "traded": "QQQ",
-   "within": 0.247827,
-   "target": 0.08673945,
-   "held": 0.076125,
-   "status": "READY",
-   "delta": 0.010614449999999997
-  },
-  {
-   "sleeve": "B",
-   "etf": "IJR",
-   "traded": "IJR",
-   "within": 0.020682,
-   "target": 0.007238699999999999,
-   "held": 0.017395,
-   "status": "READY",
-   "delta": -0.010156300000000002
+   "delta": -0.01294895
   },
   {
    "sleeve": "B",
    "etf": "EFA",
    "traded": "EFA",
-   "within": 0.051908,
-   "target": 0.0181678,
+   "within": 0.039355,
+   "target": 0.01377425,
    "held": 0.026074999999999997,
    "status": "READY",
-   "delta": -0.007907199999999996
-  },
-  {
-   "sleeve": "B",
-   "etf": "EWJ",
-   "traded": "EWJ",
-   "within": 0.187071,
-   "target": 0.06547484999999999,
-   "held": 0.057925,
-   "status": "READY",
-   "delta": 0.00754984999999999
+   "delta": -0.012300749999999997
   },
   {
    "sleeve": "B",
    "etf": "SPY",
    "traded": "SPY",
-   "within": 0.145053,
-   "target": 0.050768549999999996,
+   "within": 0.125802,
+   "target": 0.0440307,
    "held": 0.049735,
    "status": "READY",
-   "delta": 0.0010335499999999942
+   "delta": -0.005704300000000002
+  },
+  {
+   "sleeve": "B",
+   "etf": "QQQ",
+   "traded": "QQQ",
+   "within": 0.211646,
+   "target": 0.07407609999999999,
+   "held": 0.076125,
+   "status": "READY",
+   "delta": -0.0020489000000000063
+  },
+  {
+   "sleeve": "B",
+   "etf": "IJR",
+   "traded": "IJR",
+   "within": 0.045424,
+   "target": 0.0158984,
+   "held": 0.017395,
+   "status": "READY",
+   "delta": -0.0014966000000000007
+  },
+  {
+   "sleeve": "B",
+   "etf": "EWJ",
+   "traded": "EWJ",
+   "within": 0.167913,
+   "target": 0.05876955,
+   "held": 0.057925,
+   "status": "READY",
+   "delta": 0.0008445499999999995
   },
   {
    "sleeve": "C",
@@ -369,5 +397,5 @@
    "delta": 0.0
   }
  ],
- "one_way_turnover": 0.031720149999999996
+ "one_way_turnover": 0.050827000000000004
 }
