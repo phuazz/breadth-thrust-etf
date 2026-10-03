@@ -255,7 +255,6 @@
    "2026-09-30"
   ],
   "c1": [
-   "2025-10-01",
    "2025-10-02",
    "2025-10-03",
    "2025-10-06",
@@ -1553,7 +1552,6 @@
   "EXV1": {
    "cal": "c1",
    "px": [
-    29.92,
     29.67,
     29.96,
     29.71,
@@ -2074,7 +2072,6 @@
   "EXH1": {
    "cal": "c1",
    "px": [
-    37.73,
     37.65,
     37.7,
     38.18,
@@ -2595,7 +2592,6 @@
   "EXH4": {
    "cal": "c1",
    "px": [
-    106.0,
     107.6,
     108.1,
     107.5,
@@ -6236,7 +6232,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-09-30",
- "computed_at_utc": "2026-10-02 13:24 UTC",
+ "computed_at_utc": "2026-10-03 00:35 UTC",
  "holdings": [
   {
    "ticker": "SOXX",
@@ -6440,15 +6436,15 @@
  "n_positions": 22,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-10-02T13:25:03.693209+00:00",
+  "computed_at_utc": "2026-10-03T00:35:18.489480+00:00",
   "all_current": false,
   "strategies": [
    {
     "sleeve": "A",
     "label": "US sectors",
     "data_through": "2026-09-29",
-    "venue_last_session": "2026-10-01",
-    "sessions_behind": 2,
+    "venue_last_session": "2026-10-02",
+    "sessions_behind": 3,
     "status": "behind",
     "laggards": [
      "IUMS"
@@ -6459,18 +6455,18 @@
     "sleeve": "B",
     "label": "Asset classes",
     "data_through": "2026-09-30",
-    "venue_last_session": "2026-10-01",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-02",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-09-30, while the market has traded to 2026-10-01 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-09-30, while the market has traded to 2026-10-02 — it has not been rebuilt since."
    },
    {
     "sleeve": "C",
     "label": "Thematic",
     "data_through": "2026-09-29",
-    "venue_last_session": "2026-10-01",
-    "sessions_behind": 2,
+    "venue_last_session": "2026-10-02",
+    "sessions_behind": 3,
     "status": "behind",
     "laggards": [
      "BTC-USD"
@@ -6481,8 +6477,8 @@
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-09-29",
-    "venue_last_session": "2026-10-01",
-    "sessions_behind": 2,
+    "venue_last_session": "2026-10-02",
+    "sessions_behind": 3,
     "status": "behind",
     "laggards": [],
     "why_plain": "the shares held inside these funds are priced up to 2026-09-29, while the exchange itself has traded to 2026-09-30 — the newest day's prices were not available when this was built."
