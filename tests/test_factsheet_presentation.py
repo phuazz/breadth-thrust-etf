@@ -431,3 +431,15 @@ def test_an_entry_or_exit_is_listed_once_at_a_glance(tmp_path,monkeypatch):
 def test_float_noise_never_prints_a_bare_decimal_point():
     assert pp(-1e-17)=="+0.00pp" and pp(1e-17)=="+0.00pp"
     assert pp(-.00003535)=="-0.003535pp"
+
+
+def test_complete_book_holds_one_line_per_instrument(tmp_path,monkeypatch):
+    """The account holds one SHY position, so the flat book shows one (2026-10-03)."""
+    from component_factsheet_view import book_by_instrument
+    release=_two_cash_lines(install(tmp_path,monkeypatch,ready=True))
+    rows=book_by_instrument(release["book"]["lines"])
+    shy=[r for r in rows if r["traded"]=="SHY"]
+    assert len(shy)==1 and shy[0]["sleeves"]==["B","C"]
+    assert shy[0]["target"]==pytest.approx(.15) and shy[0]["split"]=="B 5.00% + C 10.00%"
+    assert len(rows)==len({r["traded"] for r in release["book"]["lines"]})
+    assert render_pdf({"action":"regular","d_hold":False},release).startswith(b"%PDF-")

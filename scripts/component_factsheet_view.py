@@ -387,6 +387,29 @@ def view_model(decision, release):
             "exits": sum(r["held"] > 0 and r["target"] == 0 for r in changed)}
 
 
+def book_by_instrument(rows):
+    """One row per traded instrument for the flat complete book.
+
+    B and C can each hold SHY; the account holds one SHY position, so the
+    flat book reads "B+C" at the summed weight and states the split
+    (owner, 2026-10-03). Strategy-grouped tables keep one row per strategy.
+    """
+    merged = {}
+    for r in rows:
+        merged.setdefault(r["traded"], []).append(r)
+    out = []
+    for traded, parts in merged.items():
+        parts = sorted(parts, key=lambda r: r["sleeve"])
+        out.append({"traded": traded, "etf": parts[0]["etf"],
+                    "sleeves": [r["sleeve"] for r in parts],
+                    "held": math.fsum(r["held"] for r in parts),
+                    "target": math.fsum(r["target"] for r in parts),
+                    "delta": math.fsum(r["delta"] for r in parts),
+                    "split": " + ".join(f"{r['sleeve']} {pct(r['target'])}" for r in parts)
+                             if len(parts) > 1 else ""})
+    return sorted(out, key=lambda r: (-r["target"], r["sleeves"][0], r["etf"]))
+
+
 def label_for(etf, labels, fallback=None):
     """The reader-facing name for a book key, at render time only.
 
@@ -1569,7 +1592,8 @@ def render_pdf(decision, release):
     flow += [PageBreak()] + section(
         "04 / Complete proposed book",
         "Model-held baseline, not broker holdings. Targets are for the next fill, not trades already "
-        "completed. Exit lines remain visible at zero target weight.")
+        "completed. Exit lines remain visible at zero target weight. An instrument held by more "
+        "than one strategy is one line at the combined weight.")
     flow.append(KeepTogether([grid([[cell("TICKER", FAINT, 7.5, bold=True), cell("FUND", FAINT, 7.5, bold=True),
                        cell("STR", FAINT, 7.5, bold=True),
                        cell("HELD", FAINT, 7.5, bold=True, align=TA_RIGHT),
@@ -1577,15 +1601,18 @@ def render_pdf(decision, release):
                        cell("CHANGE", FAINT, 7.5, bold=True, align=TA_RIGHT),
                        cell("$ ON $1.0M", FAINT, 7.5, bold=True, align=TA_RIGHT)],
                       *[[cell(r["traded"], INK, 8.5, bold=True, mono=True),
-                         cell(display_label(r["etf"], release), SOFT, 8.5),
-                         cell(r["sleeve"], _sleeve_hex(house, r["sleeve"]), 8.5, bold=True),
+                         [cell(display_label(r["etf"], release), SOFT, 8.5)]
+                         + ([cell(f"Target by strategy: {r['split']}", SOFT, 7.5)] if r["split"] else []),
+                         cell("+".join(r["sleeves"]),
+                              _sleeve_hex(house, r["sleeves"][0]) if len(r["sleeves"]) == 1 else INK,
+                              8.5, bold=True),
                          cell(pct(r["held"]), SOFT, 8.5, mono=True, align=TA_RIGHT),
                          cell(pct(r["target"]), INK, 8.5, bold=True, mono=True, align=TA_RIGHT),
                          cell(pp(r["delta"]),
                               SOFT if abs(r["delta"]) <= CHANGE_EPSILON else (GOOD if r["delta"] > 0 else BAD),
                               8.5, mono=True, align=TA_RIGHT),
                          cell(money(r["target"]), SOFT, 8.5, mono=True, align=TA_RIGHT)]
-                        for r in sorted(v["rows"], key=lambda r: (-r["target"], r["sleeve"], r["etf"]))]],
+                        for r in book_by_instrument(v["rows"])]],
                      [56, width - 394, 34, 60, 62, 68, 84], align=(3, 4, 5, 6)),
         p(f"Explicit non-trading rounding residual: {book.get('rounding_residual_nav', 0):.8f} NAV. "
           "It is not a cash leg or an order. The dollar column sizes the proposed weights for a "
