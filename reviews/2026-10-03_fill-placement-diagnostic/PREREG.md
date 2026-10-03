@@ -55,3 +55,25 @@ The fills are modelled, not executed; the diagnostic describes the engines' conv
 ## Owner decisions
 
 Ruled on Saturday 2026-10-03 at the proposed values: run the diagnostic and close the question; BTC-USD excluded; sleeve A on its registry proxies; the history start per sleeve at the engines' deployed starts as published; sleeve D's EUR fills pooled with the USD fills on u and the per-cent legs, which are unit-free, and shown separately. The run brief is `PROMPT_RUN.md` beside this file: build and freeze on Opus, one run, then the verdict read and the filing on Fable in a separate session. Nothing in this section may change after the freeze.
+
+## Build record before the freeze (Opus session, started Saturday 2026-10-03, continued Sunday 2026-10-04; weekdays verified with the Python `datetime` library)
+
+Appended by the build session. The sections above are as signed off; nothing above this heading has been edited. Every interpretation the build had to make is listed under "Flagged" with the reading taken, so the owner and the red-team can overturn it before the freeze.
+
+### Step 1, engine
+
+`engine/fill_timing.py` and `engine/prereg_spec.json` are copies of the PCC engine and spec. The PCC originals hashed at the copy: engine sha256 `e762808c8d9fa251c75bab88dc7ae76383184167894604684e4f074e7bd6249c`, spec sha256 `c0e064048604820264fe5dcc308cf391adb000bb3649fadac019ad4454e71295`, both equal to the values the PCC memo records at its freeze. The copy carries these amendments, each marked in the code:
+
+- (a) placebo price = the placebo session's unadjusted close; the PCC's uniform-intraday rule is kept as a disclosure cell on the same offsets and the same random-number stream.
+- (b) unit FX: every rate 1.0; notional = q × p = |Δw| × NAV in NAV units.
+- (c) disabled: the P&L share and commission comparison (C1) and sell regret (X1), as the brief names; and, on the same principle (not declared here), the PCC's H2 tail share, S2, S4, S5, S6 and S8 cells.
+- (d) `--fills` and `--book` name the fills file and the minimal book meta; the extract mode is removed (the adapter writes the extracts).
+- (e) the cells this registration declares, computed with the PCC's own `cell()` arithmetic on masks: H-D2 (the PCC's S3 post-leg cell), H-D1 (the PCC's H1 cell), the pre leg, buys and sells, by sleeve, by calendar year, notional-weighted, the sleeve-D fills, the uniform-intraday variant, and leave-one-line-out and leave-one-year-out thinness (the PCC's S9 test applied to H-D2, and to H-D1 for description). The coverage mode computes the H-D2 floor and its power; the run mode maps the verdict exactly as "Decision criteria" above does.
+- (f) scale only, results unchanged up to floating-point summation order: the ex-date-in-window test by prefix sums, masked and weighted null means by matrix-vector products, the cluster bootstrap evaluated from per-cluster sums on the PCC's own resampling calls, and placebo matrices restricted to u, pre, post and the ex flag. With about 11,700 fills against the PCC study's 151, the PCC's nine full float64 matrices would need about 8 GB.
+- (g) the Shenzhen market (exchange `SHZ`, suffix `.SZ`, Asia/Shanghai) added to the time-zone and market tables, for sleeve C's 159801.SZ line.
+- (h) the cluster relations are read from the spec (`placebo.block_relations`); the spec holds the PCC pair, so behaviour is unchanged.
+- (i) the parity check treats a missing value on either path as a failure (the PCC form compared with `>`, which a missing value passes), and a zero-range fill session implies intraday position 0 instead of 0/0.
+
+Window (3 sessions each side), offsets (4 to 60), the blocked null and its default relations, the seed (20261003), 10,000 placebo sets, 2,000 bootstrap draws, the bar-defect rules, the alignment rule, dividend rebasing, the hash stop conditions and the parity tolerance (1e-9) are the PCC engine's.
+
+Planted-fills fixture (step 1): five fills planted on two synthetic lines (one New York, one Xetra, one window holding an ex-date), priced at their session closes. The copy's build and scoring path reproduces the hand-computed u, pre leg and post leg to 8.8e-15; the close-priced vectorised path at offset zero equals the actual fill; the PCC original's `score()` returns identical values on the same windows; the vectorised ex-date test equals the PCC form on every centre; the coverage and run code execute on the fixture with numerical warnings treated as errors. The fixture is carried into `tests/test_ws_fill_placement.py` at step 4.
