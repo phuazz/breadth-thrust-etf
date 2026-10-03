@@ -28,11 +28,16 @@ shapes.
 
 A fill is every line whose target weight changes on a rebalance date, side B
 when the weight rises and S when it falls, size |dw| x NAV, dated on the
-engine's own fill date. The overlay legs (TILT:EEM, GATE:SHY) fill on the
-overlay's own event dates, as the factsheet's TILT and GATE rows show them.
+engine's own fill date (kind "sleeve"). The overlay legs (TILT:EEM, GATE:SHY)
+fill on the overlay's own event dates, as the factsheet's TILT and GATE rows
+show them (kind "overlay_leg"), and every line held at the close before a
+flip is rescaled on the flip date (kind "overlay_induced"; PREREG amendment 6).
 
-Nothing here writes to data/, docs/ or any engine file, and nothing licensed
-is read: the parity guard refuses a reference panel built from Norgate.
+Nothing here writes to data/, docs/ or any engine file. The parity guard reads
+the engine's own price panels locally from the automation clone, Norgate-built
+panels included (PREREG amendment 1); only agreement statistics (lines checked,
+fills compared, worst relative difference, exclusions) are written to any file,
+and no panel value is written or printed.
 Dates: Python datetime, months 1-indexed; ISO date strings compare in date
 order.
 """
@@ -85,6 +90,10 @@ CODE_TZ = {"ARCA": "America/New_York", "NYQ": "America/New_York", "NGM": "Americ
            "NMS": "America/New_York", "BATS": "America/New_York", "XETR": "Europe/Berlin", "SHZ": "Asia/Shanghai"}
 SESSION_OPEN = {"America/New_York": (9, 30), "Europe/Berlin": (9, 0), "Asia/Shanghai": (9, 30)}
 PARITY_TOL = 0.001
+PARITY_STOP_SHARE = 0.10
+CONFIRMATORY_FROM = "2018-10-31"   # the deployed blend's inception, a Wednesday (PREREG amendment 5)
+# the automation clone holds the engine panels of the frozen vintage (its HEAD is the vintage commit)
+CLONE = Path(r"C:/dev/breadth-thrust-etf-sched")
 
 
 def sha256_of(path: Path) -> str:
@@ -172,7 +181,7 @@ def derive_line_fills(dates: list[str], alloc: dict[str, list[float]], sleeve: s
         for d, w in zip(dates, ws):
             dw = w - prev
             if abs(dw) >= tol:
-                rec = {"sleeve": sleeve, "line": line, "date": d, "side": "B" if dw > 0 else "S",
+                rec = {"sleeve": sleeve, "line": line, "date": d, "side": "B" if dw > 0 else "S", "kind": "sleeve",
                        "dw_abs": round(abs(dw), 6), "w_before": round(prev, 6), "w_after": round(w, 6)}
                 if (sleeve, line) in excluded_lines:
                     excluded.append(dict(rec, reason=excluded_lines[(sleeve, line)]))
@@ -234,10 +243,56 @@ def derive_overlay_fills(overlay: dict) -> list[dict]:
             if abs(dw) < 1e-12:
                 continue
             ticker = after["tilt_ticker"] if leg == "TILT" else after["fallback"]
-            out.append({"sleeve": leg, "line": ticker, "date": d, "side": "B" if dw > 0 else "S",
+            out.append({"sleeve": leg, "line": ticker, "date": d, "side": "B" if dw > 0 else "S", "kind": "overlay_leg",
                         "dw_abs": round(abs(dw), 6), "w_before": round(before[leg], 6), "w_after": round(after[leg], 6),
                         "event": ev.get("direction")})
     return out
+
+
+def derive_overlay_induced_fills(pub: dict, excluded_lines: dict = EXCLUDED_LINES) -> tuple[list[dict], list[dict]]:
+    """PREREG amendment 6: on every date a gate or tilt flip changes the
+    overlay state, each line held at the close before the flip (the latest
+    published vector dated before the flip date) is rescaled by the change in
+    its sleeve's NAV multiplier: side by the sign of that change, |dw| the
+    line's within-sleeve weight times the change, sized later on the blend's
+    NAV. The tilt's EEM leg is rescaled by a gate flip like any held line.
+    Returns (fills, excluded)."""
+    ov = pub["overlay"]
+    p22 = ov.get("phase22_eem_tilt") or {}
+    dates = sorted({e["date"] for e in (p22.get("events") or []) + (ov.get("events") or [])})
+    fills, excluded = [], []
+    for d in dates:
+        before_day = (dt.date.fromisoformat(d) - dt.timedelta(days=1)).isoformat()
+        lb, la = overlay_legs(ov, before_day), overlay_legs(ov, d)
+        if lb["tilt_on"] == la["tilt_on"] and lb["gate_on"] == la["gate_on"]:
+            continue                                     # the event left the state unchanged
+        events = [e.get("direction") for e in (p22.get("events") or []) + (ov.get("events") or []) if e["date"] == d]
+        for s, payload in pub["sleeves"].items():
+            dm = la["mult"][s] - lb["mult"][s]
+            if abs(dm) < 1e-12:
+                continue
+            h = payload["headline"]
+            vd = h["weekly_allocation_dates"]
+            i = max((j for j, x in enumerate(vd) if x < d), default=None)
+            if i is None:
+                continue
+            for line, ws in h["weekly_allocation"].items():
+                w = ws[i]
+                if w <= 1e-6:
+                    continue
+                rec = {"sleeve": s, "line": line, "date": d, "side": "B" if dm > 0 else "S", "kind": "overlay_induced",
+                       "dw_abs": round(w * abs(dm), 8), "w_within_held": round(w, 6),
+                       "mult_before": round(lb["mult"][s], 6), "mult_after": round(la["mult"][s], 6), "event": "+".join(events)}
+                if (s, line) in excluded_lines:
+                    excluded.append(dict(rec, reason=excluded_lines[(s, line)]))
+                else:
+                    fills.append(rec)
+        if lb["TILT"] > 0 and la["TILT"] > 0 and abs(la["TILT"] - lb["TILT"]) > 1e-12:
+            dm = la["TILT"] - lb["TILT"]
+            fills.append({"sleeve": "TILT", "line": la["tilt_ticker"], "date": d, "side": "B" if dm > 0 else "S",
+                          "kind": "overlay_induced", "dw_abs": round(abs(dm), 8), "w_within_held": 1.0,
+                          "mult_before": round(lb["TILT"], 6), "mult_after": round(la["TILT"], 6), "event": "+".join(events)})
+    return fills, excluded
 
 
 def nav_lookup(dates: list[str], values: list[float], label: str):
@@ -282,6 +337,8 @@ def derive(pub: dict) -> dict:
     for s, payload in pub["sleeves"].items():
         h = payload["headline"]
         f, e = derive_line_fills(h["weekly_allocation_dates"], h["weekly_allocation"], s)
+        for r in e:
+            r["kind"] = "sleeve"
         nav = nav_lookup(h["headline_equity_dates"], h["headline_equity"], f"sleeve {s} headline_equity")
         for r in f + e:
             r["nav"] = nav(r["date"])
@@ -294,22 +351,35 @@ def derive(pub: dict) -> dict:
     blend = ov["gated_variants"][DEPLOYED_BLEND_KEY]
     blend_nav = nav_lookup(blend["dates"], blend["equity"], f"{DEPLOYED_BLEND_KEY} equity")
     ofills = derive_overlay_fills(ov)
-    for r in ofills:
+    ifills, iexcl = derive_overlay_induced_fills(pub)
+    for r in ofills + ifills + iexcl:
         r["nav"] = blend_nav(r["date"])
         r["nav_source"] = f"{OVERLAY_FILE} gated_variants.{DEPLOYED_BLEND_KEY}.equity"
-    fills += ofills
+    fills += ofills + ifills
+    excluded += iexcl
     for r in fills + excluded:
         r["symbol"] = priced_symbol(r["sleeve"], r["line"])
         r["notional_nav"] = round(r["dw_abs"] * r["nav"], 8)
-    fills.sort(key=lambda r: (r["date"], r["sleeve"], r["line"]))
-    weekday = Counter(dt.date.fromisoformat(r["date"]).strftime("%a") for r in fills)
+    fills.sort(key=lambda r: (r["date"], r["sleeve"], r["line"], r["kind"]))
+    weekday = Counter(dt.date.fromisoformat(r["date"]).strftime("%a") for r in fills if r["kind"] == "sleeve")
+    units = Counter((r["sleeve"], r["line"], r["date"], r["side"]) for r in fills)
+    mixed = Counter()
+    for r in fills:
+        if units[(r["sleeve"], r["line"], r["date"], r["side"])] > 1:
+            mixed[(r["sleeve"], r["line"], r["date"], r["side"])] = 1
     return {
         "fills": fills, "excluded": excluded,
         "counts": {"fills": len(fills), "excluded": len(excluded),
                    "by_sleeve": dict(sorted(Counter(r["sleeve"] for r in fills).items())),
                    "by_side": dict(Counter(r["side"] for r in fills)),
                    "by_year": dict(sorted(Counter(r["date"][:4] for r in fills).items())),
-                   "fill_weekdays": dict(weekday),
+                   "by_kind": dict(sorted(Counter(r["kind"] for r in fills).items())),
+                   "confirmatory_from": CONFIRMATORY_FROM,
+                   "confirmatory": sum(1 for r in fills if r["date"] >= CONFIRMATORY_FROM),
+                   "pre_blend": sum(1 for r in fills if r["date"] < CONFIRMATORY_FROM),
+                   "pre_blend_by_sleeve": dict(sorted(Counter(r["sleeve"] for r in fills if r["date"] < CONFIRMATORY_FROM).items())),
+                   "units_aggregating_a_sleeve_and_an_induced_fill": len(mixed),
+                   "sleeve_fill_weekdays": dict(weekday),
                    "excluded_by_reason": dict(Counter(r["reason"] for r in excluded)),
                    "lines": len({(r["sleeve"], r["line"]) for r in fills}),
                    "symbols": sorted({r["symbol"] for r in fills}),
@@ -329,7 +399,7 @@ def reconcile_trade_history(pub: dict, derived: dict) -> dict:
     out = {}
     fills_by = defaultdict(set)
     for r in derived["fills"] + derived["excluded"]:
-        if r["sleeve"] in SLEEVE_FILES:
+        if r["sleeve"] in SLEEVE_FILES and r.get("kind", "sleeve") == "sleeve":   # induced fills fall on flip dates
             fills_by[r["sleeve"]].add(r["date"])
     for s, payload in pub["sleeves"].items():
         h = payload["headline"]
@@ -575,17 +645,18 @@ def parity_check(fetched_adj: dict[str, float], reference: dict[str, float], dat
     """The registered parity guard for one line: on every fill date the fetched
     unadjusted close times its adjustment factor (the fetched adjusted close)
     must agree with the engine's price panel within `tol` (relative). A date
-    absent from either series fails."""
+    absent from either series fails. Returns agreement statistics only, never
+    a price (the reference may be licensed)."""
     worst, failures = 0.0, []
     for d in dates:
         a, r = fetched_adj.get(d), reference.get(d)
         if a is None or r is None or not (r > 0):
-            failures.append({"date": d, "fetched": a, "reference": r, "reason": "missing"})
+            failures.append({"date": d, "reason": "missing"})
             continue
         rel = abs(a / r - 1)
         worst = max(worst, rel)
         if rel > tol:
-            failures.append({"date": d, "fetched": a, "reference": r, "rel": rel})
+            failures.append({"date": d, "rel": rel})
     return {"dates": len(dates), "failures": len(failures), "worst_rel": worst, "passes": not failures,
             "first_failures": failures[:5]}
 
@@ -594,37 +665,58 @@ class ParityReferenceUnavailable(Exception):
     pass
 
 
+_PANEL_CACHE: dict = {}
+
+
+def _clone_parquet(name: str):
+    import pandas as pd  # noqa: PLC0415
+    if name not in _PANEL_CACHE:
+        path = CLONE / "data" / name
+        if not path.exists():
+            raise ParityReferenceUnavailable(f"no engine panel {name} in the automation clone")
+        _PANEL_CACHE[name] = pd.read_parquet(path)
+    return _PANEL_CACHE[name]
+
+
 def engine_panel_reference(sleeve: str, line: str, symbol: str, vintage: str | None = None) -> dict[str, float]:
-    """The engine's price panel for a line, read only where reading it reads
-    nothing licensed. Sleeves B and C read their engine caches, whose sidecars
-    name the source; sleeves A and D read the per-proxy OHLC caches, which carry
-    no sidecar, so only the Xetra lines (no Norgate product exists for them)
-    can be shown not to be Norgate-built. The tilt's EEM leg is priced from
-    data/em_regime_context.parquet, which run_risk_overlay fetches from yfinance
-    and the refresh commits, so it is read as committed at the vintage; the
-    gate's SHY leg is priced from sleeve B's Norgate-built cache. Anything that
-    cannot be shown unlicensed refuses."""
+    """The engine's own price panel for a line (PREREG amendment 1), read
+    locally and never written anywhere: sleeve A's proxies and sleeve D's Xetra
+    lines from the per-proxy OHLC caches (`<proxy>_ohlc_cache.parquet`, Close,
+    which backtest.download_soxx_ohlc builds adjusted), B and the gate's SHY
+    from asset_class_prices_cache.parquet (run_risk_overlay prices the
+    fallback leg there), C from thematic_prices_cache.parquet, all in the
+    automation clone, whose HEAD is the frozen vintage's commit; the tilt's EEM
+    leg from data/em_regime_context.parquet as committed at the vintage. A line
+    with no panel raises ParityReferenceUnavailable and is declared unchecked."""
     import pandas as pd  # noqa: PLC0415
     if sleeve == "TILT":
         blob = _git("show", f"{vintage or 'HEAD'}:data/em_regime_context.parquet")
         df = pd.read_parquet(io.BytesIO(blob))
-        return {ix.date().isoformat(): float(v) for ix, v in df[symbol].dropna().items()}
-    if sleeve == "GATE":
-        raise ParityReferenceUnavailable(f"{sleeve}:{line}: run_risk_overlay prices the fallback leg from "
-                                         "asset_class_prices_cache.parquet, which is Norgate-built")
-    if sleeve in ("B", "C"):
-        stem = "asset_class_prices_cache" if sleeve == "B" else "thematic_prices_cache"
-        side = load_json(DATA / f"{stem}.source.json")
-        if side.get("source") == "norgate" and symbol in (side.get("columns_from_norgate") or []):
-            raise ParityReferenceUnavailable(f"{sleeve}:{line}: the engine panel column is Norgate-built ({stem}.source.json)")
-        raise ParityReferenceUnavailable(f"{sleeve}:{line}: the engine panel's source for {symbol} is not shown to be unlicensed")
-    if sleeve in ("A", "D"):
-        if not symbol.endswith(".DE"):
-            raise ParityReferenceUnavailable(f"{sleeve}:{line}: the proxy cache for {symbol} carries no source sidecar; the "
-                                             "scheduled refresh takes Norgate for US proxies, so it may be licensed")
-        df = pd.read_parquet(DATA / f"{symbol.lower()}_ohlc_cache.parquet")
-        return {ix.date().isoformat(): float(v) for ix, v in df["Close"].items()}
-    raise ParityReferenceUnavailable(f"{sleeve}:{line}: no engine price panel is known for this line")
+        ser = df[symbol]
+    elif sleeve in ("A", "D"):
+        ser = _clone_parquet(f"{symbol.lower()}_ohlc_cache.parquet")["Close"]
+    elif sleeve in ("B", "GATE"):
+        df = _clone_parquet("asset_class_prices_cache.parquet")
+        if symbol not in df.columns:
+            raise ParityReferenceUnavailable(f"{sleeve}:{line}: {symbol} is not a column of the sleeve-B panel")
+        ser = df[symbol]
+    elif sleeve == "C":
+        df = _clone_parquet("thematic_prices_cache.parquet")
+        if symbol not in df.columns:
+            raise ParityReferenceUnavailable(f"{sleeve}:{line}: {symbol} is not a column of the sleeve-C panel")
+        ser = df[symbol]
+    else:
+        raise ParityReferenceUnavailable(f"{sleeve}:{line}: no engine price panel is known for this line")
+    ser = ser.dropna()
+    return {pd.Timestamp(ix).date().isoformat(): float(v) for ix, v in ser.items()}
+
+
+def clone_state() -> dict:
+    """The automation clone's HEAD and cleanliness (metadata only)."""
+    head = subprocess.run(["git", "-C", str(CLONE), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    dirty = subprocess.run(["git", "-C", str(CLONE), "status", "--porcelain", "--untracked-files=no"], capture_output=True,
+                           text=True).stdout.strip()
+    return {"path": str(CLONE), "head": head, "tracked_changes": bool(dirty)}
 
 
 def session_open_ts(date_iso: str, tz: str) -> int:
@@ -686,10 +778,10 @@ def engine_inputs(priced: list[dict], raw: dict) -> tuple[list[dict], dict, dict
     return rows, meta, extract, record
 
 
-def freeze(derived: dict, allow_unverified_parity: bool = False) -> dict:
-    """Price the fills, apply guard 2 and the parity guard, write the engine's
-    inputs. Stops before writing anything when the parity guard cannot be run
-    as registered."""
+def freeze(derived: dict) -> dict:
+    """Step 3: price the fills, apply guard 2 and the parity guard, and write
+    the engine's inputs to engine/results/. Stops, writing nothing, if the
+    parity guard excludes more than a tenth of the fills."""
     manifest = load_json(RAW / "manifest.json")
     raw = {}
     for sym in sorted({r["symbol"] for r in derived["fills"]}):
@@ -697,37 +789,148 @@ def freeze(derived: dict, allow_unverified_parity: bool = False) -> dict:
         if sha256_of(path) != manifest["symbols"][sym]["sha256"]:
             stop(f"{sym}: raw file differs from its manifest hash")
         raw[sym] = load_json(path)
+    vintage = derived["_provenance"]["published"]["vintage_commit"]
+    clone = clone_state()
+    if clone["head"] != vintage:
+        stop(f"the automation clone's HEAD {clone['head'][:8]} is not the frozen vintage {vintage[:8]}")
     # guard 2 and pricing
     by_line = defaultdict(list)
     for r in derived["fills"]:
         by_line[(r["sleeve"], r["line"], r["symbol"])].append(r)
-    guard2_excluded, priced = [], []
-    for (s, line, sym), rows in sorted(by_line.items()):
+    guard2, priced = [], []
+    for (s_, line, sym), rows in sorted(by_line.items()):
         bars = {b["date"]: b for b in raw[sym]["bars"]}
         for r in rows:
             b = bars.get(r["date"])
             if b is None or b.get("Close") is None:
-                guard2_excluded.append(dict(r, reason="guard 2: the fill date is not a session in the line's fetched series"))
+                guard2.append(r)
                 continue
-            priced.append(dict(r, price=b["Close"], adj_close=b.get("Adj Close")))
-    # parity guard
-    parity_lines, blocked = {}, []
-    for (s, line, sym), rows in sorted(by_line.items()):
+            priced.append(dict(r, price=b["Close"]))
+    # parity guard, line by line, over every fill date of the line (all kinds)
+    lines, unchecked, failed = {}, [], []
+    priced_by_line = defaultdict(list)
+    for r in priced:
+        priced_by_line[(r["sleeve"], r["line"], r["symbol"])].append(r)
+    for (s_, line, sym), rows in sorted(priced_by_line.items()):
+        key = f"{s_}:{line}"
         try:
-            ref = engine_panel_reference(s, line, sym, (derived.get("_provenance") or {}).get("published", {}).get("vintage_commit"))
+            ref = engine_panel_reference(s_, line, sym, vintage)
         except ParityReferenceUnavailable as exc:
-            blocked.append(str(exc))
+            unchecked.append({"line": key, "reason": str(exc)})
+            lines[key] = {"symbol": sym, "checked": False, "fills": len(rows)}
             continue
         fetched_adj = {b["date"]: b.get("Adj Close") for b in raw[sym]["bars"]}
-        parity_lines[f"{s}:{line}"] = parity_check(fetched_adj, ref, sorted({r["date"] for r in rows}))
-    if blocked and not allow_unverified_parity:
-        report = {"parity_reference_unavailable": blocked, "lines_checked": parity_lines,
-                  "guard2_excluded": len(guard2_excluded), "priced": len(priced)}
-        write_json(LOCAL / "freeze_blocked.json", report)
-        stop(f"the registered parity guard cannot be run on {len(blocked)} of {len(by_line)} lines without reading "
-             f"licensed data (or a panel whose source is unrecorded); nothing written. Detail: "
-             f"{(LOCAL / 'freeze_blocked.json').relative_to(REPO)}")
-    raise NotImplementedError("freeze past the parity guard waits for the owner's ruling on the parity reference")
+        pc = parity_check(fetched_adj, ref, sorted({r["date"] for r in rows}))
+        lines[key] = {"symbol": sym, "checked": True, "fills": len(rows), "fill_dates_compared": pc["dates"],
+                      "failures": pc["failures"], "worst_rel": pc["worst_rel"], "passes": pc["passes"],
+                      "first_failures": [{k: v for k, v in x.items()} for x in pc["first_failures"]]}
+        if not pc["passes"]:
+            failed.append(key)
+    kept = [r for r in priced if f"{r['sleeve']}:{r['line']}" not in failed]
+    n_excluded = len(priced) - len(kept)
+    share = n_excluded / len(priced) if priced else 0.0
+    checked = [v for v in lines.values() if v["checked"]]
+    parity = {"reference": "the engine's own price panels, read locally from the automation clone at the frozen vintage "
+                           "(Norgate-built panels included), the tilt's EEM leg from its committed panel (PREREG amendment 1); "
+                           "agreement statistics only",
+              "clone_head": clone["head"], "clone_tracked_changes": clone["tracked_changes"], "tolerance_rel": PARITY_TOL,
+              "lines_checked": len(checked), "lines_unchecked": len(unchecked), "lines_failed": len(failed),
+              "fills_compared": sum(v["fills"] for v in checked),
+              "fill_dates_compared": sum(v["fill_dates_compared"] for v in checked),
+              "worst_rel_overall": max((v["worst_rel"] for v in checked), default=None),
+              "fills_excluded": n_excluded, "excluded_share": round(share, 6),
+              "unchecked": unchecked, "failed": failed, "by_line": lines}
+    if share > PARITY_STOP_SHARE:
+        write_json(LOCAL / "freeze_parity_stop.json", {"parity": parity, "guard2_excluded": len(guard2)})
+        stop(f"the parity guard excludes {n_excluded} of {len(priced)} priced fills ({share:.1%}), more than a tenth; "
+             f"nothing written to engine/results. Detail: {(LOCAL / 'freeze_parity_stop.json').relative_to(REPO)}")
+    rows, meta, extract, record = engine_inputs(kept, raw)
+    fetched_at = sorted(rec["fetched_at_utc"] for rec in raw.values())
+    extract = {"_provenance": {"source": "yfinance Ticker.history (Yahoo chart API), unadjusted OHLC and adjusted close",
+                               "yfinance_version": next(iter(raw.values()))["yfinance_version"],
+                               "request": next(iter(raw.values()))["request"] | {"start": "per symbol", "end_exclusive": "per symbol"},
+                               "fetched_at_utc": {"first": fetched_at[0], "last": fetched_at[-1]},
+                               "raw_files": "data_local/ws_fill_placement/raw/ (ignored), one file per symbol",
+                               "raw_sha256": {sym: manifest["symbols"][sym]["sha256"] for sym in sorted(raw)},
+                               "sessions_before_earliest_fill_target": SESSIONS_BEFORE_EARLIEST_FILL,
+                               "lines": record,
+                               "bar_timestamp": "the regular-session open in the exchange's own time zone, in UTC seconds"},
+               **extract}
+    rec_ok = bool(derived["reconciliation"]["reconciled"] and derived["reproduction"]["code_path_reproduced_4dp"])
+    latest = derived["reproduction"].get("latest_pdf") or {}
+    by_kind_kept = Counter(r["kind"] for r in kept)
+    book = {"meta": meta, "_provenance": {
+        "adapter": "scripts/ws_fill_placement_adapter.py", "adapter_sha256": sha256_of(Path(__file__)),
+        "vintage": derived["_provenance"]["published"],
+        "derive_counts": {k: v for k, v in derived["counts"].items() if k != "symbols"},
+        "excluded_btc_usd": len(derived["excluded"]),
+        "guard2_excluded": [{"line": f"{r['sleeve']}:{r['line']}", "date": r["date"], "side": r["side"], "kind": r["kind"]} for r in guard2],
+        "parity": parity,
+        "reproduction": {"reconciled": rec_ok,
+                         "trade_history_reconciled": derived["reconciliation"]["reconciled"],
+                         "code_path": {k: v for k, v in derived["reproduction"]["code_path"].items() if k in ("comparisons", "exact", "max_abs_diff")}
+                                      | {"sessions": len(derived["reproduction"]["code_path"]["asof_dates"]), "month": derived["reproduction"]["month"]},
+                         "latest_pdf": {k: latest.get(k) for k in ("pdf", "asof", "rows", "matched", "agree_4dp", "agree_6dp", "sha256")}},
+        "rows_written": len(rows), "by_kind_written": dict(sorted(by_kind_kept.items())),
+        "confirmatory_from": CONFIRMATORY_FROM,
+        "confirmatory_written": sum(1 for r in kept if r["date"] >= CONFIRMATORY_FROM),
+        "pre_blend_written": sum(1 for r in kept if r["date"] < CONFIRMATORY_FROM),
+    }}
+    ENGINE_RESULTS.mkdir(parents=True, exist_ok=True)
+    write_json(ENGINE_RESULTS / "fills.json", rows, compact=True)
+    write_json(ENGINE_RESULTS / "book_meta.json", book)
+    write_json(ENGINE_RESULTS / "bars_used.json", extract, compact=True)
+    out = {"fills": len(rows), "guard2_excluded": len(guard2), "parity": {k: v for k, v in parity.items() if k not in ("by_line",)},
+           "sha256": {f: sha256_of(ENGINE_RESULTS / f) for f in ("fills.json", "book_meta.json", "bars_used.json")}}
+    print(json.dumps(out, indent=1, default=str))
+    return out
+
+
+def parity_within_window(derived: dict) -> dict:
+    """Diagnostic, not the registered guard: for every fill, the seven-session
+    window's adjusted closes divided by the fill session's (the rebased prices
+    u, the pre leg and the post leg are computed from) in the fetched series
+    against the same ratios in the engine's own panel; the worst relative
+    difference per window. Statistics only; no panel value is written."""
+    import numpy as np  # noqa: PLC0415
+    vintage = derived["_provenance"]["published"]["vintage_commit"]
+    by_line = defaultdict(set)
+    for r in derived["fills"]:
+        by_line[(r["sleeve"], r["line"], r["symbol"])].add(r["date"])
+    raw, lines = {}, {}
+    for (s_, line, sym), dates in sorted(by_line.items()):
+        if sym not in raw:
+            raw[sym] = load_json(RAW / f"{sym}.json")
+        bars = raw[sym]["bars"]
+        bd = [b["date"] for b in bars]
+        idx = {x: i for i, x in enumerate(bd)}
+        a = np.array([b["Adj Close"] if b.get("Adj Close") is not None else np.nan for b in bars])
+        try:
+            ref = engine_panel_reference(s_, line, sym, vintage)
+        except ParityReferenceUnavailable as exc:
+            lines[f"{s_}:{line}"] = {"checked": False, "reason": str(exc)}
+            continue
+        rr_all = np.array([ref.get(x, np.nan) for x in bd])
+        devs, missing = [], 0
+        for t in sorted(dates):
+            i = idx.get(t)
+            if i is None or i < 3 or i + 3 >= len(bd):
+                continue
+            sl = slice(i - 3, i + 4)
+            ra, rr = a[sl] / a[i], rr_all[sl] / rr_all[i]
+            if np.isnan(ra).any() or np.isnan(rr).any():
+                missing += 1
+                continue
+            devs.append(float(np.max(np.abs(ra / rr - 1))))
+        devs = np.array(devs)
+        lines[f"{s_}:{line}"] = {"checked": True, "windows": int(len(devs)), "windows_missing_a_bar": missing,
+                                 "worst": float(devs.max()) if len(devs) else None,
+                                 "windows_over_tol": int((devs > PARITY_TOL).sum())}
+    chk = [v for v in lines.values() if v.get("checked")]
+    return {"tolerance_rel": PARITY_TOL, "windows": sum(v["windows"] for v in chk),
+            "windows_over_tol": sum(v["windows_over_tol"] for v in chk),
+            "lines_with_a_window_over_tol": sorted(k for k, v in lines.items() if v.get("windows_over_tol")),
+            "by_line": lines}
 
 
 def main():
@@ -740,6 +943,7 @@ def main():
     f = sub.add_parser("fetch")
     f.add_argument("--refetch", nargs="*", default=None)
     sub.add_parser("freeze")
+    sub.add_parser("parity-diagnostic")
     args = ap.parse_args()
     LOCAL.mkdir(parents=True, exist_ok=True)
     if args.cmd == "derive":
@@ -772,6 +976,10 @@ def main():
         return
     if args.cmd == "freeze":
         freeze(derived)
+    if args.cmd == "parity-diagnostic":
+        out = parity_within_window(derived)
+        write_json(LOCAL / "parity_within_window.json", out)
+        print(json.dumps({k: v for k, v in out.items() if k != "by_line"}, indent=1))
 
 
 if __name__ == "__main__":

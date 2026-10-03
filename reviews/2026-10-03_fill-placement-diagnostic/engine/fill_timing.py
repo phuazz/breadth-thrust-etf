@@ -33,9 +33,14 @@ Amendments to the PCC engine, each recorded in the PREREG:
       pre leg, buys and sells, by sleeve, by calendar year, notional-
       weighted, the sleeve-D (EUR) fills, the uniform-intraday variant,
       leave-one-line-out and leave-one-year-out thinness; the coverage record
-      carries the H-D2 floor (the blocked null's MDE of the mean post leg at
-      0.80 power, rounded up to the spec's unit of price) and the power at it;
-      the verdict mapping is the PREREG's.
+      carries the H-D2 floor and the power at it; the verdict mapping is the
+      PREREG's. As amended on 2026-10-04 (PREREG, Amendments before the
+      freeze): the cells are read on the confirmatory set (fills on or after
+      the blend's inception, 2018-10-31), the earlier fills a disclosure cell;
+      each unit carries the kinds of its rows (sleeve, overlay_leg,
+      overlay_induced) so the overlay rows can be shown on their own; the
+      independent and chained same-line nulls are computed as disclosures; the
+      H-D2 floor is the spec's economic 10 bp; thinness guards a pass only.
   (f) scale only, no change to any result beyond floating-point summation
       order: the ex-date-in-window test is vectorised by prefix sums, masked
       and weighted null means are matrix-vector products, the cluster
@@ -44,8 +49,9 @@ Amendments to the PCC engine, each recorded in the PREREG:
   (g) the Shenzhen market (exchange SHZ, suffix .SZ, Asia/Shanghai) is added
       to the time-zone and market tables for sleeve C's 159801.SZ line.
   (h) the cluster relations are read from the spec (placebo.block_relations);
-      the spec's value is the PCC engine's pair (same session date; same line
-      with overlapping seven-session windows).
+      amendment 2 of 2026-10-04 sets them to the session date alone, and the
+      PCC engine's pair (same session date; same line with overlapping
+      seven-session windows) is kept as the chained disclosure null.
 
 Modes
   coverage   outcome-blind: eligibility, date alignment, ex-dates, window
@@ -319,6 +325,10 @@ def load_fills(spec: dict, trades: list, book: dict, history: dict) -> tuple[lis
             "yf": yf, "ticker": rows[0]["t"], "date": d, "side": 1 if a == "B" else -1, "side_label": a,
             "qty": q, "price": vwap, "ccy": rows[0]["ccy"], "theme": rows[0].get("th"), "rows": len(rows),
             "fee": fee, "ref": any(bool(r.get("ref")) for r in rows),
+            # amendment 6: the kinds of the rows this unit aggregates (sleeve, overlay_leg,
+            # overlay_induced); a sleeve fill and an induced fill on one line, date and side
+            # are one unit carried with both tags
+            "kinds": sorted({r.get("kind", "sleeve") for r in rows}),
         }
         # the book is keyed by the trade's own ticker (GDX.US and GDX.GB share one feed symbol)
         m = meta.get(rows[0]["t"]) or (meta_by_yf.get(yf) if yf else None)
@@ -539,7 +549,7 @@ VARIANT_GROUPS = ("all", "B", "S")
 
 
 def simulate_placebo(ctx: dict, rng: np.random.Generator, draws: int, blocked: bool,
-                     uniform_variant: bool = False) -> dict:
+                     uniform_variant: bool = False, blocks: np.ndarray | None = None) -> dict:
     """Draw `draws` placebo sessions and prices for every complete fill and
     score them. Blocked: every fill in a cluster takes the same offset in each
     draw, from the offsets eligible for every member, so fills that share a
@@ -565,10 +575,11 @@ def simulate_placebo(ctx: dict, rng: np.random.Generator, draws: int, blocked: b
     out["ex"] = np.full((n, draws), np.nan, dtype=np.float32)
     variant = {key: {g: np.zeros(draws) for g in VARIANT_GROUPS} for key in keys} if uniform_variant else None
     variant_n = {g: 0 for g in VARIANT_GROUPS}
+    conf = confirmatory_mask(fills, spec)   # the variant cell is read on the confirmatory set (amendment 5)
     offsets_count = np.zeros(n, dtype=int)
     one_sided = np.zeros(n, dtype=bool)
     fallback_blocks = 0
-    blocks = ctx["blocks"] if blocked else np.arange(n)
+    blocks = ((ctx["blocks"] if blocks is None else blocks) if blocked else np.arange(n))
     for b in sorted(set(blocks.tolist())):
         members = np.where(blocks == b)[0]
         per = []
@@ -600,7 +611,7 @@ def simulate_placebo(ctx: dict, rng: np.random.Generator, draws: int, blocked: b
             for key in keys:
                 out[key][r, :] = sc[key]
             out["ex"][r, :] = sc["ex"]
-            if variant is not None:
+            if variant is not None and conf[r]:
                 scu = score_many(s, i + pick, unif, fills[r]["side"], k, price_rule="uniform")
                 g = "B" if fills[r]["side"] > 0 else "S"
                 for key in keys:
@@ -642,16 +653,40 @@ def n_for(sd_null: float, n: int, delta: float, alpha: float, power: float) -> i
 # ----------------------------------------------------------------------------
 # Coverage (outcome-blind)
 # ----------------------------------------------------------------------------
-def h_d2_floor(sd_post: float, alpha: float, power_target: float, unit: float) -> tuple[float, float]:
-    """The H-D2 floor: the blocked null's minimum detectable effect of the mean
-    post leg at the power target, rounded up to the next multiple of `unit`
-    (a share of price). Returns (mde, floor)."""
-    m = mde(sd_post, alpha, power_target)
-    steps = math.ceil(m / unit - 1e-9)
-    return m, round(max(1, steps) * unit, 10)
+def confirmatory_mask(fills: list, spec: dict) -> np.ndarray:
+    """Amendment 5: the confirmatory set is the fills dated (on the engines'
+    own fill date) on or after the blend's inception; the earlier fills are a
+    disclosure cell and never verdict-bearing."""
+    start = spec["confirmatory"]["from_fill_date"]
+    return np.array([f["date"] >= start for f in fills], dtype=bool)
 
 
-def coverage(ctx: dict, placebo: dict, placebo_indep: dict) -> dict:
+def has_kind(fills: list, kind: str) -> np.ndarray:
+    return np.array([kind in (f.get("kinds") or ["sleeve"]) for f in fills], dtype=bool)
+
+
+def masked_means(mat: np.ndarray, mask: np.ndarray, weights: np.ndarray | None = None) -> np.ndarray:
+    """Per-draw (weighted) mean over the fills in mask; amendment (f): a
+    matrix-vector product in place of mat[mask].mean(axis=0)."""
+    wv = mask.astype(float) if weights is None else weights * mask
+    return (wv @ mat) / wv.sum()
+
+
+def ceil_to(x: float, unit: float) -> float:
+    """x rounded up to the next multiple of unit (at least one unit)."""
+    return round(max(1, math.ceil(x / unit - 1e-9)) * unit, 10)
+
+
+def null_summary(pl: dict, mask: np.ndarray, alpha: float, power_target: float, delta2: float) -> dict:
+    mu, mp = masked_means(pl["u"], mask), masked_means(pl["post"], mask)
+    sd_u, sd_p = float(mu.std(ddof=1)), float(mp.std(ddof=1))
+    return {"draws": int(pl["draws"]), "mean_u": round(float(mu.mean()), 4), "sd_mean_u": round(sd_u, 5),
+            "mean_post_pct": round(float(mp.mean()) * 100, 4), "sd_mean_post_pct": round(sd_p * 100, 5),
+            "mde_post_at_target": round(mde(sd_p, alpha, power_target), 7),
+            "power_at_delta2": round(power_normal(delta2, sd_p, alpha), 4)}
+
+
+def coverage(ctx: dict, placebo: dict, placebo_indep: dict, placebo_chained: dict) -> dict:
     spec = ctx["spec"]
     alpha = spec["alpha_one_sided"]
     power_target = spec["power_target"]
@@ -660,33 +695,34 @@ def coverage(ctx: dict, placebo: dict, placebo_indep: dict) -> dict:
     for key in PLACEBO_KEYS:
         if np.isnan(placebo[key]).any():
             stop(f"placebo matrix {key} has a missing value")
+    conf = confirmatory_mask(fills, spec)
+    preb = ~conf
+    if not conf.any():
+        stop("no confirmatory fill")
     U, PRE, POST = placebo["u"], placebo["pre"], placebo["post"]
-    means_u, means_pre, means_post = U.mean(axis=0), PRE.mean(axis=0), POST.mean(axis=0)
+    mu, mpre, mpost = masked_means(U, conf), masked_means(PRE, conf), masked_means(POST, conf)
     w = np.array([f["notional_nav"] for f in fills])
-    wmeans_u = (w @ U) / w.sum()          # amendment (f): matrix-vector form of (U * w).sum(0) / w.sum()
-    wmeans_post = (w @ POST) / w.sum()
-    sd_u, sd_post = float(means_u.std(ddof=1)), float(means_post.std(ddof=1))
-    means_u_i, means_post_i = placebo_indep["u"].mean(axis=0), placebo_indep["post"].mean(axis=0)
-    sd_u_i, sd_post_i = float(means_u_i.std(ddof=1)), float(means_post_i.std(ddof=1))
-    unit = spec["floors"]["H_D2_floor_rounding_unit_of_price"]
-    mde_post, delta2 = h_d2_floor(sd_post, alpha, power_target, unit)
-    widths = []
+    wmu, wmpost = masked_means(U, conf, w), masked_means(POST, conf, w)
+    sd_u, sd_post = float(mu.std(ddof=1)), float(mpost.std(ddof=1))
+    delta2 = spec["floors"]["H_D2_delta_price"]
+    mde_post, mde_u = mde(sd_post, alpha, power_target), mde(sd_u, alpha, power_target)
+    d1_floor = ceil_to(mde_u, spec["floors"]["H_D1_reference_floor_rounding_unit"])
     k = spec["window_sessions_each_side"]
-    for f in fills:
-        s = ctx["series"][f["yf"]]
-        o, h, l, c = s.window(f["session_index"], k)
-        widths.append((h.max() - l.min()) / c[k])
+    widths = []
+    for f, c_ in zip(fills, conf):
+        if c_:
+            s = ctx["series"][f["yf"]]
+            o, h, l, c = s.window(f["session_index"], k)
+            widths.append((h.max() - l.min()) / c[k])
     widths = np.array(widths)
-    by_side = Counter(f["side_label"] for f in fills)
-    by_sleeve = Counter(f.get("theme") for f in fills)
-    by_year = Counter(f["session_date"][:4] for f in fills)
-    by_ccy = Counter(f["ccy"] for f in fills)
-    by_sym = Counter(f["yf"] for f in fills)
-    by_date = Counter(f["session_date"] for f in fills)
+    F_conf = [f for f, c_ in zip(fills, conf) if c_]
+    by_sym = Counter(f["yf"] for f in F_conf)
+    by_date = Counter(f["session_date"] for f in F_conf)
     blocks = ctx["blocks"]
-    block_counts = Counter(blocks.tolist())
-    block_sizes = Counter(block_counts.values())
-    bad_bars = [{"yf": yf, "date": s.dates[i].isoformat(), "reason": s.bad_reason[i], "c": float(s.c[i])}
+    conf_blocks = Counter(blocks[conf].tolist())
+    kinds_all = Counter("+".join(f.get("kinds") or ["sleeve"]) for f in fills)
+    kinds_conf = Counter("+".join(f.get("kinds") or ["sleeve"]) for f in F_conf)
+    bad_bars = [{"yf": yf, "date": s.dates[i].isoformat(), "reason": s.bad_reason[i]}
                 for yf, s in ctx["series"].items() for i in np.where(s.bad)[0]]
     prov_bars = [{"yf": yf, "date": s.dates[i].isoformat()} for yf, s in ctx["series"].items() for i in np.where(s.prov)[0]]
     aligned_all = ctx["aligned"] + ctx["drop_align"]
@@ -697,31 +733,39 @@ def coverage(ctx: dict, placebo: dict, placebo_indep: dict) -> dict:
             "rows": len(ctx["trades"]), "units": len(ctx["units"]) + len(ctx["excluded"]),
             "excluded_feed_or_type": len(ctx["excluded"]), "dropped_alignment": len(ctx["drop_align"]),
             "dropped_window": len(ctx["drop_window"]), "complete": n,
-            "by_side": dict(by_side), "by_sleeve": dict(sorted(by_sleeve.items())), "by_year": dict(sorted(by_year.items())),
-            "by_ccy": dict(by_ccy), "lines": len(by_sym),
+            "confirmatory": int(conf.sum()), "pre_blend": int(preb.sum()),
+            "confirmatory_from_fill_date": spec["confirmatory"]["from_fill_date"],
+            "pre_blend_by_sleeve": dict(sorted(Counter(str(f.get("theme")) for f, c_ in zip(fills, conf) if not c_).items())),
+            "by_kind_all": dict(sorted(kinds_all.items())), "by_kind_confirmatory": dict(sorted(kinds_conf.items())),
+            "overlay_induced_confirmatory": int((has_kind(fills, "overlay_induced") & conf).sum()),
+            "overlay_legs_confirmatory": int((has_kind(fills, "overlay_leg") & conf).sum()),
+            "by_side": dict(Counter(f["side_label"] for f in F_conf)),
+            "by_sleeve": dict(sorted(Counter(str(f.get("theme")) for f in F_conf).items())),
+            "by_year": dict(sorted(Counter(f["session_date"][:4] for f in F_conf).items())),
+            "by_ccy": dict(Counter(f["ccy"] for f in F_conf)), "lines": len(by_sym),
             "largest_line_shares": [{"yf": s_, "fills": c_} for s_, c_ in by_sym.most_common(5)],
-            "ex_date_in_window": int(sum(1 for f in fills if f.get("ex_in_window"))),
+            "ex_date_in_window": int(sum(1 for f in F_conf if f.get("ex_in_window"))),
             "session_dates": len(by_date),
-            "blocks": int(blocks.max()) + 1 if n else 0,
-            "block_size_distribution": {str(k_): v for k_, v in sorted(block_sizes.items())},
-            "largest_block_fills": int(max(block_counts.values())) if n else 0,
-            "largest_block_share": round(max(block_counts.values()) / n, 4) if n else None,
+            "blocks": len(conf_blocks),
+            "block_size_distribution": {str(k_): v for k_, v in sorted(Counter(conf_blocks.values()).items())},
+            "largest_block_fills": int(max(conf_blocks.values())),
+            "largest_block_share": round(max(conf_blocks.values()) / int(conf.sum()), 4),
             # amendment (f): a Counter in place of the PCC's quadratic scan; same count
-            "fills_sharing_a_date": int(sum(1 for f in fills if by_date[f["session_date"]] > 1)),
-            "notional_nav": {"total": round(float(w.sum()), 4),
-                             "buys": round(float(sum(f["notional_nav"] for f in fills if f["side"] > 0)), 4),
-                             "sells": round(float(sum(f["notional_nav"] for f in fills if f["side"] < 0)), 4)},
+            "fills_sharing_a_date": int(sum(1 for f in F_conf if by_date[f["session_date"]] > 1)),
+            "notional_nav": {"total": round(float((w * conf).sum()), 4),
+                             "buys": round(float(sum(f["notional_nav"] for f in F_conf if f["side"] > 0)), 4),
+                             "sells": round(float(sum(f["notional_nav"] for f in F_conf if f["side"] < 0)), 4)},
         },
         "exclusions_feed_or_type": [{k_: e[k_] for k_ in ("ticker", "date", "side_label", "reason")} for e in ctx["excluded"]],
         "alignment": {
             "tally": ctx["align_tally"],
             "share_outside_own_range": round(sum(1 for u in aligned_all if u.get("dated_session_exists") and not u.get("inside_own_range", True)) / max(1, len(aligned_all)), 4),
             "dated_on_non_session": [{k_: u[k_] for k_ in ("ticker", "date", "side_label", "alignment")} for u in aligned_all if not u.get("dated_session_exists")],
-            "outside_own_range": [{k_: u.get(k_) for k_ in ("ticker", "date", "side_label", "price", "alignment")} for u in aligned_all if u.get("dated_session_exists") and not u.get("inside_own_range", True)],
-            "dropped": [{k_: u[k_] for k_ in ("ticker", "date", "side_label", "price", "reason")} for u in ctx["drop_align"]],
+            "outside_own_range": [{k_: u.get(k_) for k_ in ("ticker", "date", "side_label", "alignment")} for u in aligned_all if u.get("dated_session_exists") and not u.get("inside_own_range", True)],
+            "dropped": [{k_: u[k_] for k_ in ("ticker", "date", "side_label", "reason")} for u in ctx["drop_align"]],
         },
         "dropped_window": [{k_: u[k_] for k_ in ("ticker", "date", "side_label", "reason")} for u in ctx["drop_window"]],
-        "ex_dates_in_windows": [{"ticker": f["ticker"], "date": f["session_date"], "side": f["side_label"], "ex": f["ex_dates"]} for f in fills if f.get("ex_in_window")],
+        "ex_dates_in_windows": [{"ticker": f["ticker"], "date": f["session_date"], "side": f["side_label"], "ex": f["ex_dates"]} for f in F_conf if f.get("ex_in_window")],
         "defective_bars": bad_bars,
         "provisional_bars": prov_bars,
         "range_repaired_bars": [{"yf": yf, "date": s.dates[i].isoformat()} for yf, s in ctx["series"].items() for i in np.where(s.range_repaired)[0]],
@@ -729,41 +773,39 @@ def coverage(ctx: dict, placebo: dict, placebo_indep: dict) -> dict:
         "window_width": {
             "median_range_over_close": round(float(np.median(widths)), 4),
             "p25": round(float(np.percentile(widths, 25)), 4), "p75": round(float(np.percentile(widths, 75)), 4),
-            "H_D2_floor_in_bps_of_price": round(delta2 * 1e4, 1),
+            "H_D2_floor_bps_of_price": round(delta2 * 1e4, 1),
         },
         "null": {
             "structure": spec["placebo"]["structure"],
-            "block_relations": list(spec["placebo"].get("block_relations", BLOCK_RELATIONS_PCC)),
+            "block_relations": list(spec["placebo"]["block_relations"]),
             "price_rule": placebo["price_rule"],
             "draws_per_fill": int(placebo["draws"]), "seed": spec["seed"],
-            "blocks": int(blocks.max()) + 1 if n else 0, "fallback_blocks_without_a_common_offset": int(placebo["fallback_blocks"]),
+            "blocks_all": int(blocks.max()) + 1 if n else 0, "fallback_blocks_without_a_common_offset": int(placebo["fallback_blocks"]),
             "placebo_offsets_per_fill_min": int(placebo["offsets_count"].min()), "median": int(np.median(placebo["offsets_count"])),
             "one_sided_pools": [{"ticker": fills[r]["ticker"], "date": fills[r]["session_date"]} for r in np.where(placebo["one_sided"])[0]],
-            "mean_u": round(float(means_u.mean()), 4), "sd_mean_u": round(sd_u, 5),
-            "mean_u_weighted": round(float(wmeans_u.mean()), 4), "sd_mean_u_weighted": round(float(wmeans_u.std(ddof=1)), 5),
-            "mean_pre_pct": round(float(means_pre.mean()) * 100, 4),
-            "mean_post_pct": round(float(means_post.mean()) * 100, 4), "sd_mean_post_pct": round(sd_post * 100, 5),
-            "mean_post_weighted_pct": round(float(wmeans_post.mean()) * 100, 4), "sd_mean_post_weighted_pct": round(float(wmeans_post.std(ddof=1)) * 100, 5),
-            "p05_mean_post_pct": round(float(np.percentile(means_post, 5)) * 100, 4), "p95_mean_post_pct": round(float(np.percentile(means_post, 95)) * 100, 4),
-            "p05_mean_u": round(float(np.percentile(means_u, 5)), 4), "p95_mean_u": round(float(np.percentile(means_u, 95)), 4),
-            "share_of_placebo_windows_with_ex_date": round(float(np.nanmean(placebo["ex"])), 4),
-            "independent_null_for_comparison": {
-                "draws_per_fill": int(placebo_indep["draws"]),
-                "mean_u": round(float(means_u_i.mean()), 4), "sd_mean_u": round(sd_u_i, 5),
-                "mean_post_pct": round(float(means_post_i.mean()) * 100, 4), "sd_mean_post_pct": round(sd_post_i * 100, 5),
-            },
+            "confirmatory": {"mean_u": round(float(mu.mean()), 4), "sd_mean_u": round(sd_u, 5),
+                             "mean_u_weighted": round(float(wmu.mean()), 4), "sd_mean_u_weighted": round(float(wmu.std(ddof=1)), 5),
+                             "mean_pre_pct": round(float(mpre.mean()) * 100, 4),
+                             "mean_post_pct": round(float(mpost.mean()) * 100, 4), "sd_mean_post_pct": round(sd_post * 100, 5),
+                             "mean_post_weighted_pct": round(float(wmpost.mean()) * 100, 4), "sd_mean_post_weighted_pct": round(float(wmpost.std(ddof=1)) * 100, 5),
+                             "p05_mean_post_pct": round(float(np.percentile(mpost, 5)) * 100, 4), "p95_mean_post_pct": round(float(np.percentile(mpost, 95)) * 100, 4),
+                             "p05_mean_u": round(float(np.percentile(mu, 5)), 4), "p95_mean_u": round(float(np.percentile(mu, 95)), 4),
+                             "share_of_placebo_windows_with_ex_date": round(float(np.nanmean(placebo["ex"][conf])), 4)},
+            "pre_blend": (null_summary(placebo, preb, alpha, power_target, delta2) | {"n": int(preb.sum())}) if preb.any() else None,
+            "disclosure_independent_per_fill": null_summary(placebo_indep, conf, alpha, power_target, delta2),
+            "disclosure_chained_same_line": null_summary(placebo_chained, conf, alpha, power_target, delta2)
+                                            | {"relations": list(BLOCK_RELATIONS_PCC), "clusters_all": int(placebo_chained["n_blocks"])},
         },
         "power": {
             "alpha_one_sided": alpha, "power_target": power_target,
-            "H_D2": {"sd_mean_post": round(sd_post, 7), "mde_at_target": round(mde_post, 7),
-                     "floor_rounding_unit_of_price": unit, "delta": delta2,
+            "H_D2": {"delta": delta2, "delta_basis": spec["floors"]["H_D2_floor_basis"],
+                     "sd_mean_post": round(sd_post, 7), "mde_at_target": round(mde_post, 7),
                      "delta_over_mde": round(delta2 / mde_post, 3) if mde_post > 0 else None,
                      "power_at_delta": round(power_normal(delta2, sd_post, alpha), 4),
-                     "power_at_delta_independent_null": round(power_normal(delta2, sd_post_i, alpha), 4),
-                     "mde_at_target_independent_null": round(mde(sd_post_i, alpha, power_target), 7),
-                     "note": "the floor is the blocked null's own MDE rounded up to the spec's unit of price, so power at the floor is at least the target by construction and the demotion rule cannot fire on H-D2"},
-            "H_D1": {"sd_mean_u": round(sd_u, 6), "mde_at_target": round(mde(sd_u, alpha, power_target), 5),
-                     "note": "descriptive headline; no floor and no verdict"},
+                     "note": "an economic floor (amendment 3), so the power at it is a measurement on the blocked null; the demotion rule binds if it is below the target"},
+            "H_D1": {"sd_mean_u": round(sd_u, 6), "mde_at_target": round(mde_u, 5),
+                     "reference_floor": d1_floor, "power_at_reference_floor": round(power_normal(d1_floor, sd_u, alpha), 4),
+                     "note": "descriptive headline; the reference floor is the MDE rounded up to 0.01 in u, so its power is a construction; no verdict"},
         },
     }
 
@@ -775,7 +817,7 @@ def pvalue_ge(null: np.ndarray, actual: float) -> float:
     return float((np.sum(null >= actual) + 1) / (len(null) + 1))
 
 
-def run(ctx: dict, placebo: dict, cov: dict, args) -> dict:
+def run(ctx: dict, placebo: dict, cov: dict, args, placebo_indep: dict, placebo_chained: dict) -> dict:
     spec = ctx["spec"]
     alpha = spec["alpha_one_sided"]
     k = spec["window_sessions_each_side"]
@@ -788,9 +830,10 @@ def run(ctx: dict, placebo: dict, cov: dict, args) -> dict:
             stop(f"{key} differs from the frozen coverage record")
     if n != cov["counts"]["complete"]:
         stop(f"fill count {n} differs from the frozen {cov['counts']['complete']}")
-    for key in PLACEBO_KEYS:
-        if np.isnan(placebo[key]).any():
-            stop(f"placebo matrix {key} has a missing value")
+    for pl in (placebo, placebo_indep, placebo_chained):
+        for key in PLACEBO_KEYS:
+            if np.isnan(pl[key]).any():
+                stop(f"placebo matrix {key} has a missing value")
     rng = np.random.default_rng(spec["seed"] + 1)
     # actual scores, with a parity check against the vectorised path
     for f in fills:
@@ -815,8 +858,9 @@ def run(ctx: dict, placebo: dict, cov: dict, args) -> dict:
     w = np.array([f["notional_nav"] for f in F]); side = np.array([f["side"] for f in F])
     sleeve = np.array([str(f.get("theme")) for f in F]); year = np.array([f["session_date"][:4] for f in F])
     line = np.array([f["yf"] for f in F])
+    conf = confirmatory_mask(F, spec)
+    preb = ~conf
     U = placebo["u"]; PRE = placebo["pre"]; POST = placebo["post"]
-    D = U.shape[1]
     nb = int(blocks.max()) + 1
     block_ids = sorted(set(blocks.tolist()))
 
@@ -841,11 +885,10 @@ def run(ctx: dict, placebo: dict, cov: dict, args) -> dict:
         mask = np.ones(len(actual_vec), dtype=bool) if mask is None else mask
         if weights is None:
             a = float(actual_vec[mask].mean())
-            nm = null_means if null_means is not None else (mask.astype(float) @ null_mat) / mask.sum()
         else:
             wv = weights * mask
             a = float((actual_vec * wv).sum() / wv.sum())
-            nm = null_means if null_means is not None else (wv @ null_mat) / wv.sum()
+        nm = null_means if null_means is not None else masked_means(null_mat, mask, weights)
         boots = boot_means(actual_vec, mask, weights, spec["bootstrap_draws"])
         a, nm, boots = a * scale, nm * scale, boots * scale
         return {
@@ -858,31 +901,43 @@ def run(ctx: dict, placebo: dict, cov: dict, args) -> dict:
             "null_p95": round(float(np.percentile(nm, 95)), 4),
         }
 
-    def legs(mask, tag, weights=None):
-        return {"u": cell(au, U, mask=mask, weights=weights, label=f"{tag}: mean u"),
-                "pre_pct": cell(apre, PRE, mask=mask, weights=weights, scale=100, label=f"{tag}: pre leg, adverse-oriented, per cent"),
-                "post_pct": cell(apost, POST, mask=mask, weights=weights, scale=100, label=f"{tag}: post leg, adverse-oriented, per cent")}
+    def legs(mask, tag, weights=None, pl=None):
+        pl = placebo if pl is None else pl
+        return {"u": cell(au, pl["u"], mask=mask, weights=weights, label=f"{tag}: mean u"),
+                "pre_pct": cell(apre, pl["pre"], mask=mask, weights=weights, scale=100, label=f"{tag}: pre leg, adverse-oriented, per cent"),
+                "post_pct": cell(apost, pl["post"], mask=mask, weights=weights, scale=100, label=f"{tag}: post leg, adverse-oriented, per cent")}
 
-    H_D2 = cell(apost, POST, scale=100, label="H-D2 post leg (fill to t+3 close), adverse-oriented, per cent, equal-weighted (verdict-bearing)")
-    H_D1 = cell(au, U, label="H-D1 mean u, equal-weighted (descriptive headline)")
-    PRE_LEG = cell(apre, PRE, scale=100, label="pre leg (t-3 close to fill), adverse-oriented, per cent")
+    H_D2 = cell(apost, POST, mask=conf, scale=100, label="H-D2 post leg (fill to t+3 close), adverse-oriented, per cent, equal-weighted, confirmatory set (verdict-bearing)")
+    H_D1 = cell(au, U, mask=conf, label="H-D1 mean u, equal-weighted, confirmatory set (descriptive headline)")
+    PRE_LEG = cell(apre, PRE, mask=conf, scale=100, label="pre leg (t-3 close to fill), adverse-oriented, per cent, confirmatory set")
     buys = side > 0
-    by_side = {"buys": legs(buys, "buys"), "sells": legs(~buys, "sells")}
-    by_sleeve = {sv: legs(sleeve == sv, f"sleeve {sv}") for sv in sorted(set(sleeve.tolist()))}
-    by_year = {y: legs(year == y, f"year {y}") for y in sorted(set(year.tolist()))}
-    notional_weighted = legs(np.ones(n, dtype=bool), "notional-weighted (|dw| x NAV)", weights=w)
+    by_side = {"buys": legs(buys & conf, "confirmatory buys"), "sells": legs(~buys & conf, "confirmatory sells")}
+    by_sleeve = {sv: legs((sleeve == sv) & conf, f"confirmatory, sleeve {sv}") for sv in sorted(set(sleeve[conf].tolist()))}
+    by_year = {y: legs((year == y) & conf, f"confirmatory, year {y}") for y in sorted(set(year[conf].tolist()))}
+    notional_weighted = legs(conf, "confirmatory, notional-weighted (|dw| x NAV)", weights=w)
+    ind, leg = has_kind(F, "overlay_induced"), has_kind(F, "overlay_leg")
+    by_kind = {"overlay_legs_EEM_SHY": legs(leg & conf, "confirmatory, overlay legs (EEM, SHY)") if (leg & conf).any() else None,
+               "overlay_induced": legs(ind & conf, "confirmatory, overlay-induced rescaling fills") if (ind & conf).any() else None,
+               "sleeve_rebalance_only": legs(~ind & ~leg & conf, "confirmatory, sleeve rebalance fills without an overlay tag")}
     uv = placebo["uniform_variant"]
     uniform_variant = {}
-    for g, mask in (("all", np.ones(n, dtype=bool)), ("B", buys), ("S", ~buys)):
+    for g, mask in (("all", conf), ("B", buys & conf), ("S", ~buys & conf)):
         if g not in uv["u"]:
             continue
         uniform_variant[g] = {
-            "u": cell(au, mask=mask, null_means=uv["u"][g], label=f"uniform-intraday placebo ({g}): mean u"),
-            "pre_pct": cell(apre, mask=mask, null_means=uv["pre"][g], scale=100, label=f"uniform-intraday placebo ({g}): pre leg, per cent"),
-            "post_pct": cell(apost, mask=mask, null_means=uv["post"][g], scale=100, label=f"uniform-intraday placebo ({g}): post leg, per cent"),
+            "u": cell(au, mask=mask, null_means=uv["u"][g], label=f"uniform-intraday placebo ({g}, confirmatory): mean u"),
+            "pre_pct": cell(apre, mask=mask, null_means=uv["pre"][g], scale=100, label=f"uniform-intraday placebo ({g}, confirmatory): pre leg, per cent"),
+            "post_pct": cell(apost, mask=mask, null_means=uv["post"][g], scale=100, label=f"uniform-intraday placebo ({g}, confirmatory): post leg, per cent"),
         }
+    pre_blend = legs(preb, "pre-blend fills (before the blend's inception; disclosure)") if preb.any() else None
+    disclosure_nulls = {
+        "independent_per_fill": {"H_D2_post_pct": cell(apost, placebo_indep["post"], mask=conf, scale=100, label="H-D2 against the independent-per-fill null (disclosure)"),
+                                 "H_D1_u": cell(au, placebo_indep["u"], mask=conf, label="H-D1 against the independent-per-fill null (disclosure)")},
+        "chained_same_line": {"H_D2_post_pct": cell(apost, placebo_chained["post"], mask=conf, scale=100, label="H-D2 against the chained same-line null (disclosure)"),
+                              "H_D1_u": cell(au, placebo_chained["u"], mask=conf, label="H-D1 against the chained same-line null (disclosure)")},
+    }
 
-    # thinness: the effect with each line, and each calendar year, dropped in turn
+    # thinness on the confirmatory set: the effect with each line, and each calendar year, dropped in turn
     post_null_by_fill = POST.mean(axis=1); u_null_by_fill = U.mean(axis=1)
 
     def leave_one_out(actual_vec, null_by_fill, groups, scale):
@@ -901,15 +956,17 @@ def run(ctx: dict, placebo: dict, cov: dict, args) -> dict:
                 "sign_flips": bool(min(vals) < 0 < max(vals)), "detail": effects}
 
     thinness = {
-        "H_D2": {"effect_full": H_D2["effect"], "line": leave_one_out(apost, post_null_by_fill, line, 100),
-                 "year": leave_one_out(apost, post_null_by_fill, year, 100)},
-        "H_D1": {"effect_full": H_D1["effect"], "line": leave_one_out(au, u_null_by_fill, line, 1),
-                 "year": leave_one_out(au, u_null_by_fill, year, 1)},
+        "H_D2": {"effect_full": H_D2["effect"], "line": leave_one_out(apost[conf], post_null_by_fill[conf], line[conf], 100),
+                 "year": leave_one_out(apost[conf], post_null_by_fill[conf], year[conf], 100)},
+        "H_D1": {"effect_full": H_D1["effect"], "line": leave_one_out(au[conf], u_null_by_fill[conf], line[conf], 1),
+                 "year": leave_one_out(au[conf], u_null_by_fill[conf], year[conf], 1)},
     }
 
     # verdict on H-D2 alone, as the PREREG maps it
     power_target = spec["power_target"]
-    delta2 = cov["power"]["H_D2"]["delta"]
+    delta2 = spec["floors"]["H_D2_delta_price"]
+    if cov["power"]["H_D2"]["delta"] != delta2:
+        stop("the H-D2 floor differs from the frozen coverage record")
     delta2_pct = round(delta2 * 100, 10)
     powered = cov["power"]["H_D2"]["power_at_delta"] >= power_target
 
@@ -927,14 +984,16 @@ def run(ctx: dict, placebo: dict, cov: dict, args) -> dict:
     reconciled = (adapter.get("reproduction") or {}).get("reconciled")
     thin_fires = thinness["H_D2"]["line"]["sign_flips"] or thinness["H_D2"]["year"]["sign_flips"]
     thin_scope = spec["thinness"]["scope"]
-    thin_applies = thin_fires and (thin_scope == "any_verdict" or st in ("PASS", "DETECTED-BELOW-FLOOR", "SUGGESTIVE", "SUGGESTIVE-BELOW-FLOOR"))
-    # Verdict mapping, fixed at the freeze (PREREG, decision criteria):
-    #   GIVE-BACK-AT-SIZE     H-D2 p <= alpha and effect at or above the floor, powered
+    passing = st in ("PASS", "DETECTED-BELOW-FLOOR", "SUGGESTIVE", "SUGGESTIVE-BELOW-FLOOR")
+    thin_applies = thin_fires and (thin_scope == "any_verdict" or passing)
+    # Verdict mapping, fixed at the freeze (PREREG, decision criteria, as amended 2026-10-04):
+    #   GIVE-BACK-AT-SIZE     H-D2 p <= alpha and effect at or above the 10 bp floor, powered
     #   GIVE-BACK-BELOW-SIZE  H-D2 p <= alpha, effect below the floor
     #   NO-GIVE-BACK          H-D2 p > alpha, powered
-    #   SUGGESTIVE / UNRESOLVED  a demoted pass / fail (cannot fire: the floor is the MDE rounded up)
-    #   INCONCLUSIVE          thinness fires (spec thinness.scope), or the adapter's parity guard
-    #                         excluded more than a tenth of fills
+    #   SUGGESTIVE / UNRESOLVED  a demoted pass / fail (power at the floor below the target)
+    #   INCONCLUSIVE          on a passing H-D2, thinness fires (amendment 4: thinness guards a pass
+    #                         only, and a failing H-D2 carries no thinness suffix); or the adapter's
+    #                         parity guard excluded more than a tenth of fills
     #   INFEASIBLE            the weight history could not be reconciled to the factsheet's tables
     if reconciled is False:
         verdict = "INFEASIBLE"
@@ -954,7 +1013,8 @@ def run(ctx: dict, placebo: dict, cov: dict, args) -> dict:
         verdict = "UNRESOLVED"
     return {
         "registered": spec["registered"], "run_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
-        "provenance": ctx["provenance"], "n": n, "counts": cov["counts"],
+        "provenance": ctx["provenance"], "n": n, "n_confirmatory": int(conf.sum()), "n_pre_blend": int(preb.sum()),
+        "counts": cov["counts"],
         "verdict": verdict,
         "verdict_inputs": {"H_D2_status": st, "powered": powered, "floor_delta_price": delta2, "floor_delta_pct": delta2_pct,
                            "thinness_fires": thin_fires, "thinness_scope": thin_scope, "thinness_applied": thin_applies,
@@ -964,21 +1024,39 @@ def run(ctx: dict, placebo: dict, cov: dict, args) -> dict:
         "H_D2": H_D2, "H_D1": H_D1, "pre_leg": PRE_LEG,
         "by_side": by_side, "by_sleeve": by_sleeve, "by_year": by_year,
         "notional_weighted": notional_weighted,
-        "sleeve_D_eur": {"note": "sleeve D's fills, priced on the Xetra lines in EUR; the same cells as by_sleeve.D", **by_sleeve.get("D", {})},
+        "sleeve_D_eur": {"note": "sleeve D's confirmatory fills, priced on the Xetra lines in EUR; the same cells as by_sleeve.D", **by_sleeve.get("D", {})},
+        "by_kind": by_kind,
         "uniform_intraday_variant": uniform_variant,
+        "pre_blend_disclosure": pre_blend,
+        "disclosure_nulls": disclosure_nulls,
         "thinness": thinness,
         "distribution": {"actual_u_hist_edges": [round(x, 2) for x in np.linspace(0, 1, 11)],
-                         "actual_u_hist": np.histogram(au, bins=np.linspace(0, 1, 11))[0].tolist(),
-                         "null_mean_u_draws": np.round(U.mean(axis=0), 5).tolist(),
-                         "null_mean_post_pct_draws": np.round(POST.mean(axis=0) * 100, 5).tolist(),
-                         "null_mean_pre_pct_draws": np.round(PRE.mean(axis=0) * 100, 5).tolist()},
-        "fills": [{key: f.get(key) for key in ("ticker", "yf", "theme", "name", "session_date", "date", "side_label", "qty", "price", "ccy",
-                                               "notional_nav", "alignment", "ex_in_window", "u", "pre", "post", "H", "L")} for f in F],
+                         "actual_u_hist_confirmatory": np.histogram(au[conf], bins=np.linspace(0, 1, 11))[0].tolist(),
+                         "null_mean_u_draws_confirmatory": np.round(masked_means(U, conf), 5).tolist(),
+                         "null_mean_post_pct_draws_confirmatory": np.round(masked_means(POST, conf) * 100, 5).tolist(),
+                         "null_mean_pre_pct_draws_confirmatory": np.round(masked_means(PRE, conf) * 100, 5).tolist()},
+        "fills": [{**{key: f.get(key) for key in ("ticker", "yf", "theme", "kinds", "name", "session_date", "date", "side_label", "qty", "price", "ccy",
+                                                   "notional_nav", "alignment", "ex_in_window", "u", "pre", "post", "H", "L")},
+                   "confirmatory": bool(c_)} for f, c_ in zip(F, conf)],
         "blocks": blocks.tolist(),
         "trial_register": {"declared_cells": spec["declared_cells"], "verdict_bearing": ["H-D2"],
                            "configurations_evaluated": 1, "undeclared_cells_run": 0,
                            "disabled_pcc_cells": spec["disabled_pcc_cells"]},
     }
+
+
+def disclosure_placebos(ctx: dict, spec: dict) -> tuple[dict, dict]:
+    """The two disclosure nulls (amendment 2): independent per fill, and the PCC
+    engine's chained same-line relation; neither is verdict-bearing."""
+    k = spec["window_sessions_each_side"]
+    dn = spec["placebo"]["disclosure_nulls"]
+    indep = simulate_placebo(ctx, np.random.default_rng(spec["seed"] + dn["independent_per_fill"]["seed_offset"]),
+                             dn["independent_per_fill"]["draws"], blocked=False)
+    chained_blocks = make_blocks(ctx["complete"], k, tuple(dn["chained_same_line"]["relations"]))
+    chained = simulate_placebo(ctx, np.random.default_rng(spec["seed"] + dn["chained_same_line"]["seed_offset"]),
+                               dn["chained_same_line"]["draws"], blocked=True, blocks=chained_blocks)
+    chained["n_blocks"] = int(chained_blocks.max()) + 1
+    return indep, chained
 
 
 def main():
@@ -994,9 +1072,9 @@ def main():
     rng = np.random.default_rng(spec["seed"])
     placebo = simulate_placebo(ctx, rng, spec["placebo"]["draws_per_fill"], blocked=True,
                                uniform_variant=(args.mode == "run"))
+    indep, chained = disclosure_placebos(ctx, spec)
     if args.mode == "coverage":
-        placebo_indep = simulate_placebo(ctx, np.random.default_rng(spec["seed"] + 2), spec["placebo"]["independent_null_draws_for_comparison"], blocked=False)
-        cov = coverage(ctx, placebo, placebo_indep)
+        cov = coverage(ctx, placebo, indep, chained)
         with open(RESULTS_DIR / "coverage.json", "w", encoding="utf-8") as fh:
             json.dump(cov, fh, indent=1, ensure_ascii=False)
         print(json.dumps({k: cov[k] for k in ("counts", "window_width", "null", "power")}, indent=1, ensure_ascii=False))
@@ -1004,10 +1082,10 @@ def main():
         print("outcome-blind: no actual statistic computed; coverage.json written; engine sha256", cov["provenance"]["engine_sha256"])
         return
     frozen = load_json(RESULTS_DIR / "coverage.json")
-    res = run(ctx, placebo, frozen, args)
+    res = run(ctx, placebo, frozen, args, indep, chained)
     with open(RESULTS_DIR / "results.json", "w", encoding="utf-8") as fh:
         json.dump(res, fh, indent=1, ensure_ascii=False, default=float)
-    summary = {k: res[k] for k in ("verdict", "verdict_inputs", "n", "H_D2", "H_D1", "pre_leg") if k in res}
+    summary = {k: res[k] for k in ("verdict", "verdict_inputs", "n", "n_confirmatory", "H_D2", "H_D1", "pre_leg") if k in res}
     summary["thinness"] = {c: {g: {k_: v for k_, v in res["thinness"][c][g].items() if k_ != "detail"} for g in ("line", "year")} for c in ("H_D2", "H_D1")}
     print(json.dumps(summary, indent=1, ensure_ascii=False, default=float))
 

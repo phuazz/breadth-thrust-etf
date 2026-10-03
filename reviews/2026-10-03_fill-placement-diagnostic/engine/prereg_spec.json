@@ -1,43 +1,67 @@
 {
   "study": "fill-placement-diagnostic",
-  "title": "Do the deployed engines' modelled closing fills sit anywhere unusual in their week, and do the lines bought give anything back after the fill?",
+  "title": "Do the deployed engines' modelled rebalance-close fills sit anywhere unusual in their week, and do the lines bought give anything back after the fill?",
   "registered": "2026-10-03",
   "context": "Personal",
   "repository": "breadth-thrust-etf",
-  "copied_from": {"spec": "Portfolio-Command-Centre/reviews/2026-10-03_fill-timing/prereg_spec.json", "spec_sha256_at_copy": "c0e064048604820264fe5dcc308cf391adb000bb3649fadac019ad4454e71295"},
-  "unit": "rebalance date x line x side; a line is one sleeve's universe member (sleeve A's panel ids priced on their registry trading proxies, B and C tickers, sleeve D's panel ids priced on the Xetra lines) or one overlay leg (TILT:EEM, GATE:SHY); the fills file carries one row per unit, so the engine's aggregation of several rows on one unit is a no-op",
+  "copied_from": {
+    "spec": "Portfolio-Command-Centre/reviews/2026-10-03_fill-timing/prereg_spec.json",
+    "spec_sha256_at_copy": "c0e064048604820264fe5dcc308cf391adb000bb3649fadac019ad4454e71295"
+  },
+  "unit": "rebalance date x line x side; a line is one sleeve's universe member (sleeve A's panel ids priced on their registry trading proxies, B and C tickers, sleeve D's panel ids priced on the Xetra lines) or one overlay leg (TILT:EEM, GATE:SHY); a sleeve fill and an overlay-induced fill on one line, date and side aggregate into one unit carried with both kinds (amendment 6)",
   "window_sessions_each_side": 3,
   "placebo": {
     "offset_min_sessions": 4,
     "offset_max_sessions": 60,
     "draws_per_fill": 10000,
-    "independent_null_draws_for_comparison": 1000,
     "price_rule_code": "close",
     "price_rule": "the placebo session's unadjusted close, on its own basis (amendment a: the fills are closes)",
     "price_rule_disclosure": "uniform inside the placebo session's unadjusted low-high range (the PCC study's primary rule), on the same offsets and the same random-number stream; a disclosure cell",
     "same_side_as_actual": true,
-    "block_relations": ["same_session_date", "same_line_overlapping_windows"],
-    "structure": "blocked: fills on one session date form one cluster, and fills on one line whose seven-session windows overlap (centres within six bars) join it; in each placebo set every member of a cluster takes the same offset, drawn from the offsets eligible for all of them; the independent-per-fill null is computed at 1,000 draws for comparison only"
+    "block_relations": [
+      "same_session_date"
+    ],
+    "structure": "blocked: fills on one rebalance date (session date) form one cluster (amendment 2); in each placebo set every member of a cluster takes the same offset, drawn from the offsets eligible for all of them; the independent-per-fill null and the PCC engine's chained same-line null (same-line seven-session windows that overlap joined) are computed at 1,000 draws as disclosures only. Stated limit: consecutive weekly fills on one line share two bars of their windows, a serial overlap the date blocks treat as independent; their post legs share no bar",
+    "disclosure_nulls": {
+      "independent_per_fill": {
+        "draws": 1000,
+        "seed_offset": 2,
+        "note": "the PCC engine's comparison null, same seed offset and draws"
+      },
+      "chained_same_line": {
+        "draws": 1000,
+        "seed_offset": 3,
+        "relations": [
+          "same_session_date",
+          "same_line_overlapping_windows"
+        ],
+        "note": "the relation first registered and dropped by amendment 2"
+      }
+    }
   },
   "seed": 20261003,
   "bootstrap_draws": 2000,
   "bootstrap_unit": "cluster (block bootstrap over the same clusters as the null)",
   "alpha_one_sided": 0.05,
-  "power_target": 0.80,
-  "verdict_bearing": "H-D2 alone; H-D1 is the descriptive headline and decides nothing",
+  "power_target": 0.8,
+  "verdict_bearing": "H-D2 alone, on the confirmatory set; H-D1 is the descriptive headline and decides nothing",
   "floors": {
-    "H_D2_floor_rule": "delta-2 is the blocked null's minimum detectable effect of the mean post leg at 0.80 power and one-sided alpha 0.05, rounded up to the next multiple of the unit below; fixed at the freeze in coverage.json",
-    "H_D2_floor_rounding_unit_of_price": 0.01,
-    "H_D2_floor_rounding_note": "0.01 of price as the PREREG registers it (one per cent of price); the coverage record states the unrounded MDE and the ratio of the floor to it"
+    "H_D2_delta_price": 0.001,
+    "H_D2_floor_basis": "an economic floor of 10 bp of price (amendment 3); the reason as ruled is the lab's modelled one-way cost per unit of traded notional, recorded with the correction that 10 bp is the blend's modelled round trip (5 bp each way)",
+    "H_D1_reference_floor_rounding_unit": 0.01,
+    "H_D1_note": "descriptive: the reference floor is the blocked null's MDE at 0.80 power rounded up to 0.01 in u"
   },
-  "power_rule": "a clause with power below 0.80 at its floor is demoted: a demoted fail reads UNRESOLVED, a demoted pass reads SUGGESTIVE; the H-D2 floor is the null's own MDE rounded up, so the rule cannot fire on H-D2",
+  "power_rule": "a clause with power below 0.80 at its floor is demoted: a demoted fail reads UNRESOLVED, a demoted pass reads SUGGESTIVE; H-D2's floor is economic, so its power is a measurement on the blocked null",
   "thinness": {
-    "groups": ["line", "calendar_year"],
-    "rule": "the H-D2 effect recomputed with each line, and each calendar year, dropped in turn; thinness fires when the leave-one-out effects straddle zero (the PCC engine's S9 test)",
-    "scope": "any_verdict",
-    "scope_note": "the PREREG's mapping reads 'INCONCLUSIVE if thinness fires' without restricting it to a pass; any_verdict is that literal reading, passes_only the PCC study's"
+    "groups": [
+      "line",
+      "calendar_year"
+    ],
+    "rule": "the H-D2 effect on the confirmatory set recomputed with each line, and each calendar year, dropped in turn; thinness fires when the leave-one-out effects straddle zero (the PCC engine's S9 test)",
+    "scope": "passes_only",
+    "scope_note": "amendment 4: thinness guards a pass only (GIVE-BACK-AT-SIZE or GIVE-BACK-BELOW-SIZE); a failing H-D2 carries no thinness suffix"
   },
-  "parity_inconclusive_share": 0.10,
+  "parity_inconclusive_share": 0.1,
   "dividend_handling": {
     "primary": "rebase every bar of the window to the fill session's adjustment factor f = ac / c, so prices on both sides of an ex-date are on one basis",
     "ex_date_tolerance_relative_change_in_f": 0.0002
@@ -52,13 +76,19 @@
     "range_repair": "a session's range must contain its own open and close; where the vendor prints a high below the open or a low above the close, the range is widened to the prints it reports and the bar is counted as repaired, not dropped",
     "bad_print_relative_jump": 0.5,
     "bad_print_rule": "a close more than the jump away from the last good close that the NEXT close reverts to within half the jump of that level; a move the next bar does not revert is a move, not a print",
-    "explicit_exclusions": [{"yf": "3010.HK", "date": "2025-10-24", "reason": "carried from the PCC spec; inert here (no such line)"}],
+    "explicit_exclusions": [
+      {
+        "yf": "3010.HK",
+        "date": "2025-10-24",
+        "reason": "carried from the PCC spec; inert here (no such line)"
+      }
+    ],
     "provisional_bar_flag": "p"
   },
   "exclusions": [
     "adapter: BTC-USD in sleeve C (seven-day calendar), counted",
-    "adapter (guard 2): a fill date that is not a bar in the line's fetched series, counted",
-    "adapter (parity guard): a line whose fetched adjusted close disagrees with the engine's price panel beyond 0.1 per cent on a fill date, counted",
+    "adapter (guard 2): a fill date that is not a session in the line's fetched series, counted",
+    "adapter (parity guard, amendment 1): a line whose fetched adjusted close disagrees with the engine's own price panel (read locally from the automation clone; the tilt's EEM leg from its committed panel) beyond 0.1 per cent on any of its fill dates, its fills excluded and counted; a line with no panel anywhere declared unchecked and counted",
     "engine: no feed symbol, or symbol absent from the bars extract",
     "engine: proxy feed (the book meta's exchange is not the market of the feed symbol's suffix)",
     "engine: alignment (price outside its dated session's range and both neighbours')",
@@ -79,22 +109,30 @@
     "any placebo matrix or any actual score holds a missing value",
     "the vectorised placebo path and the scalar actual path disagree beyond 1e-9 on any fill, a missing value on either path counting as a disagreement (parity)"
   ],
-  "notional_weighting": "|dw| x NAV on the fill date: sleeve fills in their engine's own NAV units (headline_equity), overlay legs in the deployed blend's NAV units",
+  "notional_weighting": "|dw| x NAV on the fill date: sleeve fills in their engine's own NAV units (headline_equity); overlay legs and overlay-induced fills in the deployed blend's NAV units",
   "declared_cells": [
-    "H-D2 post leg (fill to t+3 close), adverse-oriented, equal-weighted, against the blocked close-priced placebo (verdict-bearing)",
-    "H-D1 mean u, equal-weighted, against the same placebo (descriptive headline)",
-    "pre leg (t-3 close to fill), adverse-oriented",
-    "buys and sells separately (u, pre, post)",
-    "by sleeve (u, pre, post)",
-    "by calendar year (u, pre, post)",
-    "notional-weighted (u, pre, post)",
-    "sleeve-D fills in EUR (u, pre, post)",
-    "uniform-intraday placebo variant (u, pre, post; all fills, buys, sells)",
-    "leave-one-line-out and leave-one-year-out thinness of the H-D2 effect (and of the H-D1 effect, descriptive)"
+    "H-D2 post leg (fill to t+3 close), adverse-oriented, equal-weighted, confirmatory set, against the blocked close-priced placebo (verdict-bearing; floor 10 bp of price)",
+    "H-D1 mean u, equal-weighted, confirmatory set, against the same placebo (descriptive headline)",
+    "pre leg (t-3 close to fill), adverse-oriented, confirmatory set",
+    "buys and sells separately (u, pre, post), confirmatory set",
+    "by sleeve (u, pre, post), confirmatory set",
+    "by calendar year (u, pre, post), confirmatory set",
+    "notional-weighted (u, pre, post), confirmatory set",
+    "sleeve-D fills in EUR (u, pre, post), confirmatory set",
+    "overlay legs (EEM, SHY) and overlay-induced fills as rows of their own (u, pre, post), confirmatory set",
+    "uniform-intraday placebo variant (u, pre, post; all, buys, sells), confirmatory set",
+    "pre-blend fills (before 2018-10-31) as a cell of their own (u, pre, post)",
+    "H-D2 and H-D1 against the independent-per-fill null and the chained same-line null (disclosures)",
+    "leave-one-line-out and leave-one-year-out thinness of the H-D2 effect (and of the H-D1 effect, descriptive), confirmatory set"
   ],
   "disabled_pcc_cells": [
     "C1 cost anchor: P&L share and commission comparison (amendment c)",
     "X1 sell regret (amendment c)",
     "H2 tail share, S2 worse than six closes, S4 matched reversal, S5 intraday placement, S6 u at the close, S8 ex-date-excluded H1: not declared by this registration (amendment c, extended on the same principle)"
-  ]
+  ],
+  "amended": "2026-10-04: amendments 1 to 7 of the PREREG (section Amendments before the freeze)",
+  "confirmatory": {
+    "from_fill_date": "2018-10-31",
+    "basis": "the deployed blend's inception (Wednesday 2018-10-31); the earlier fills are a disclosure cell, never verdict-bearing (amendment 5)"
+  }
 }
