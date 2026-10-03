@@ -1020,8 +1020,11 @@ def _bar_chart(rows, width_pts, axis_label, unit, height_per_row=.30, min_height
 
 
 def sleeve_contribution_chart(context, width_pts):
+    # Gains green, losses red, matching the email's driver bars (owner,
+    # 2026-10-03); the strategy is named on the axis, so no sleeve hue is needed.
     house = _house()
-    rows = [(NAMES[r["sleeve"]], r["contribution"], _sleeve_hex(house, r["sleeve"]),
+    rows = [(NAMES[r["sleeve"]], r["contribution"],
+             house.PALETTE_BENCH if not r["contribution"] else TONE["up" if r["contribution"] > 0 else "down"],
              pp(r["contribution"]) if r["contribution"] is not None else "")
             for r in context.get("attribution", [])]
     return _bar_chart(rows, width_pts, "Contribution to the week", "pp")

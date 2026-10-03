@@ -247,6 +247,18 @@ def test_return_driver_bars_diverge_red_left_green_right(tmp_path,monkeypatch):
     assert "Not available in this snapshot: One year." in html
 
 
+def test_pdf_contribution_bars_are_green_for_gains_red_for_losses(monkeypatch):
+    import build_factsheet as house
+    import component_factsheet_view as view
+    from matplotlib.colors import to_hex
+    seen=[]
+    monkeypatch.setattr(house,"_chart_to_image",lambda fig,w,dpi=0: seen.extend(
+        (round(p.get_width(),2),to_hex(p.get_facecolor())) for p in fig.axes[0].patches))
+    ctx={"attribution":[dict(sleeve="A",contribution=.0022),dict(sleeve="D",contribution=-.0063)]}
+    view.sleeve_contribution_chart(ctx,480)
+    assert seen==[(.22,view.TONE["up"]),(-.63,view.TONE["down"])]
+
+
 def test_rounding_sized_shift_is_not_reported_as_a_budget_decision(tmp_path,monkeypatch):
     """The HOLD rounding residual must not read as a strategy reallocation."""
     release=install(tmp_path,monkeypatch,rounded_d=True)
