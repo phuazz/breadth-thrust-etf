@@ -444,3 +444,28 @@ Its three S3 notes, fixed before the freeze:
 1. **Two per-fill mutants survived.** One draws a fallback member from the first member's pool; the other makes one per-fill pick serve every draw. Neither can change a verdict here: no cluster lacks a common offset, and one confirmatory fill in 7,768 takes the per-fill draw. Two tests now catch them. A per-fill draw must range over its whole pool, and a cluster without a common offset must draw each member from its own pool. The suite holds 69 tests and `mutation_check.py` plants 57 mutants, each failing the suite.
 2. **`freeze_header.py` hard-coded the freeze date and the workstream number.** It now takes the date and weekday from the clock in Singapore (`datetime`, `Asia/Singapore`). It stops if WS23 appears in the vault's ledger or register, or anywhere in the repository, tracked or untracked, apart from this study's own files.
 3. **`step8_run.py` could leave `results.json` behind.** If the run mode failed after writing it, the file stayed in `engine/results/`. The script now holds whatever was written, and hashes the log, on every exit path once the marker is written.
+
+### Step 7, freeze (Sunday 2026-10-04)
+
+`freeze_header.py` wrote the header above. It took the date and weekday from the clock in Singapore and confirmed that WS23 is unused in the repository and in the vault's ledger and register. The header was committed locally with the frozen inputs and the coverage record:
+- commit `4c3bf5cee8a0ce4f8c0f27460598cfd2b4ab1de2`;
+- subject "Fill-placement diagnostic, step 7: freeze (WS23): content sha256 in the PREREG header; frozen inputs and the coverage record".
+
+As ruled, this session does not push it. The repository's scheduled capture will publish it under a new hash.
+
+**Line endings, corrected before the freeze stood.** The coverage record, written on Windows, carried CRLF endings, and the repository stores `*.json` with LF. The first freeze commit (`0627805a`, local, never published) therefore quoted a hash its own committed blob did not have. Four corrections followed:
+- the working copy was rewritten with the LF bytes the repository stores, the JSON unchanged;
+- the header's coverage hash was requoted as `953d8578…23cc`, with the CRLF hash `27193027…3bef` named beside it;
+- `step8_run.py` now rewrites held JSON outputs with LF before hashing them, and its hash was requoted;
+- the local freeze commit was amended, so that only one freeze commit exists.
+
+For all twelve frozen files, the working copy equals the committed blob.
+
+**Vault.**
+- **Entries.** A kickoff row after the last breadth-thrust-etf row of `STUDIES_LEDGER.md`, a `non_hypothesis_rows` kickoff entry in `studies/hypotheses.yaml`, and the index regenerated.
+- **Guards, all green:**
+  - `ledger_parse.py --check`: 186 of 186 rows well-formed;
+  - `check_register.py`: 297 records, 54 exempt, 177 of 177 strategy rows covered;
+  - `build_register_index.py`, then `--check`: current;
+  - the identifier gate.
+- **Commit.** `65f47f2d66f5eff885598bdb92fa16eba7b37b11`, naming its three files; fetched, not behind origin, and pushed. The row quotes the coverage record's sha256, which is the public timestamp of the freeze.
