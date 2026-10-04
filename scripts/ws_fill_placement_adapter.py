@@ -198,16 +198,46 @@ def derive_line_fills(dates: list[str], alloc: dict[str, list[float]], sleeve: s
     return fills, excluded
 
 
-def state_on(events: list[dict] | None, date_iso: str, on_direction: str) -> bool:
+def state_on(events: list[dict] | None, date_iso: str, on_direction: str, initial: bool = False) -> bool:
     """The direction of the latest event dated on or before the date; an event
-    dated D takes effect on D; before any event the overlay is inactive."""
-    active = False
+    dated D takes effect on D; before any event the overlay is in its initial
+    state (inactive unless `initial`)."""
+    active = initial
     for ev in sorted(events or [], key=lambda e: e.get("date") or ""):
         d = ev.get("date")
         if not d or d > date_iso:
             break
         active = ev.get("direction") == on_direction
     return active
+
+
+# PREREG amendment 11: run_risk_overlay starts the gate from its state file, RISK_OFF at
+# the deployed blend's first close; the published days_risk_off and n_switches reproduce
+# only under that reading (gate_counts() asserts it), so the first logged event (RISK_ON)
+# is a real flip. Before the blend exists the gate does not apply.
+GATE_STARTS_RISK_OFF = True
+
+
+def blend_start(overlay: dict) -> str | None:
+    gv = (overlay.get("gated_variants") or {}).get(DEPLOYED_BLEND_KEY) or {}
+    return (gv.get("dates") or [None])[0]
+
+
+def gate_active(overlay: dict, date_iso: str) -> bool:
+    start = blend_start(overlay)
+    if start is not None and date_iso < start:
+        return False
+    return state_on(overlay.get("events"), date_iso, "RISK_OFF",
+                    initial=GATE_STARTS_RISK_OFF if start is not None else False)
+
+
+def gate_counts(overlay: dict) -> tuple[int, int]:
+    """(days RISK_OFF over the blend's dates, state switches counting the
+    inception's), the published counts' definitions."""
+    dates = ((overlay.get("gated_variants") or {}).get(DEPLOYED_BLEND_KEY) or {}).get("dates") or []
+    states = [gate_active(overlay, d) for d in dates]
+    switches = sum(1 for a, b in zip(states, states[1:]) if a != b) + (1 if states and states[0] else 0)
+    return sum(states), switches
 
 
 def overlay_legs(overlay: dict, date_iso: str) -> dict:
@@ -221,7 +251,7 @@ def overlay_legs(overlay: dict, date_iso: str) -> dict:
     stale_after = p22.get("signal_as_of") if p22.get("signal_stale") else None
     tilt = bool(p22.get("enabled")) and state_on(p22.get("events"), date_iso, "EM_TILT_ON") \
         and not (stale_after and date_iso > stale_after)
-    gate = state_on(overlay.get("events"), date_iso, "RISK_OFF")
+    gate = gate_active(overlay, date_iso)
     scaler = (1.0 - d_frac) if gate else 1.0
     mult = {"A": BASE_SLEEVE_WEIGHTS["A"] * scaler,
             "B": (BASE_SLEEVE_WEIGHTS["B"] - tilt_w if tilt else BASE_SLEEVE_WEIGHTS["B"]) * scaler,
@@ -239,6 +269,16 @@ def derive_overlay_fills(overlay: dict) -> list[dict]:
     not change the state is no fill."""
     p22 = overlay.get("phase22_eem_tilt") or {}
     out = []
+    # PREREG amendment 11: on the blend's first close the gate is already RISK_OFF, so the
+    # SHY leg starts from zero (a buy, as a sleeve's inception is); no induced fill, since
+    # nothing was held before the blend existed
+    start = blend_start(overlay)
+    if start is not None:
+        legs0 = overlay_legs(overlay, start)
+        if legs0["GATE"] > 0:
+            out.append({"sleeve": "GATE", "line": legs0["fallback"], "date": start, "side": "B", "kind": "overlay_leg",
+                        "dw_abs": round(legs0["GATE"], 6), "w_before": 0.0, "w_after": round(legs0["GATE"], 6),
+                        "event": "inception (RISK_OFF from the blend's first close)"})
     for leg, events in (("TILT", p22.get("events") or []), ("GATE", overlay.get("events") or [])):
         for ev in sorted(events, key=lambda e: e["date"]):
             d = ev["date"]
@@ -355,6 +395,11 @@ def derive(pub: dict) -> dict:
     ov = pub["overlay"]
     blend = ov["gated_variants"][DEPLOYED_BLEND_KEY]
     blend_nav = nav_lookup(blend["dates"], blend["equity"], f"{DEPLOYED_BLEND_KEY} equity")
+    # PREREG amendment 11: the gate model must reproduce the engine's published counts
+    off_days, switches = gate_counts(ov)
+    if (off_days, switches) != (ov.get("days_risk_off"), ov.get("n_switches")):
+        stop(f"the gate model gives {off_days} days RISK_OFF and {switches} switches against the published "
+             f"{ov.get('days_risk_off')} and {ov.get('n_switches')}")
     ofills = derive_overlay_fills(ov)
     ifills, iexcl = derive_overlay_induced_fills(pub)
     for r in ofills + ifills + iexcl:
@@ -384,6 +429,8 @@ def derive(pub: dict) -> dict:
                    "pre_blend": sum(1 for r in fills if r["date"] < CONFIRMATORY_FROM),
                    "pre_blend_by_sleeve": dict(sorted(Counter(r["sleeve"] for r in fills if r["date"] < CONFIRMATORY_FROM).items())),
                    "units_aggregating_a_sleeve_and_an_induced_fill": len(mixed),
+                   "gate_model": {"starts_risk_off_at_blend_inception": GATE_STARTS_RISK_OFF, "blend_start": blend["dates"][0],
+                                  "days_risk_off": off_days, "switches": switches, "published": [ov.get("days_risk_off"), ov.get("n_switches")]},
                    "sleeve_fill_weekdays": dict(weekday),
                    "excluded_by_reason": dict(Counter(r["reason"] for r in excluded)),
                    "lines": len({(r["sleeve"], r["line"]) for r in fills}),

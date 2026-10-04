@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import importlib.util
 import json
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -22,7 +23,9 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts"))
 import ws_fill_placement_adapter as ad  # noqa: E402
 
-ENGINE = REPO / "reviews" / "2026-10-03_fill-placement-diagnostic" / "engine" / "fill_timing.py"
+# WS_FILL_ENGINE points the suite at a mutated copy of the engine (the mutation check of the
+# spec-freeze review); by default it is the registered engine
+ENGINE = Path(os.environ.get("WS_FILL_ENGINE") or (REPO / "reviews" / "2026-10-03_fill-placement-diagnostic" / "engine" / "fill_timing.py"))
 SPEC = json.loads((ENGINE.parent / "prereg_spec.json").read_text(encoding="utf-8"))
 
 
@@ -89,7 +92,8 @@ def _write_inputs(tmp: Path, lines: dict, fills: list[dict]):
         meta[key.split("|")[0]] = {"name": key, "yf": key, "exchange": exchange, "ccy": ccy, "type": "ETF"}
     (tmp / "bars.json").write_text(json.dumps(hist), encoding="utf-8")
     (tmp / "fills.json").write_text(json.dumps(fills), encoding="utf-8")
-    (tmp / "book.json").write_text(json.dumps({"meta": meta, "_provenance": {"fixture": True}}), encoding="utf-8")
+    (tmp / "book.json").write_text(json.dumps({"meta": meta, "_provenance": {"fixture": True, "parity": {"excluded_share": 0.0},
+                                                                              "reproduction": {"reconciled": True}}}), encoding="utf-8")
     return SimpleNamespace(history=str(tmp / "bars.json"), fills=str(tmp / "fills.json"), book=str(tmp / "book.json"))
 
 
@@ -339,3 +343,267 @@ def test_engine_inputs_carry_the_kind_and_a_same_side_pair_is_one_unit_with_both
     assert not excluded and len(units) == 2
     assert units[0]["kinds"] == ["overlay_induced", "sleeve"] and units[0]["qty"] == pytest.approx(0.03 / base["price"])
     assert units[1]["kinds"] == ["overlay_leg"]
+
+
+# ----------------------------------------------------------------------------
+# The verdict-deciding code (S2-3 of the spec-freeze review); each test below
+# fails against a planted mutant of the engine (the mutation check is recorded
+# in the PREREG's build record)
+# ----------------------------------------------------------------------------
+@pytest.mark.parametrize("p, effect, powered, thin, parity, reconciled, want", [
+    (0.010, 0.120, True, False, 0.0, True, "GIVE-BACK-AT-SIZE"),
+    (0.010, 0.100, True, False, 0.0, True, "GIVE-BACK-AT-SIZE"),        # the floor itself clears
+    (0.050, 0.120, True, False, 0.0, True, "GIVE-BACK-AT-SIZE"),        # p at alpha passes ("at or below 0.05")
+    (0.010, 0.0999, True, False, 0.0, True, "GIVE-BACK-BELOW-SIZE"),    # just below the floor
+    (0.010, 0.050, True, False, 0.0, True, "GIVE-BACK-BELOW-SIZE"),     # significant, below the 10 bp floor
+    (0.200, 0.050, True, False, 0.0, True, "NO-GIVE-BACK"),
+    (0.010, 0.120, False, False, 0.0, True, "SUGGESTIVE"),             # a demoted pass
+    (0.010, 0.050, False, False, 0.0, True, "SUGGESTIVE"),
+    (0.200, 0.050, False, False, 0.0, True, "UNRESOLVED"),             # a demoted fail
+    (0.010, 0.120, True, True, 0.0, True, "INCONCLUSIVE"),             # thinness on a pass
+    (0.010, 0.050, True, True, 0.0, True, "INCONCLUSIVE"),
+    (0.200, 0.050, True, True, 0.0, True, "NO-GIVE-BACK"),             # a failing H-D2 carries no thinness suffix
+    (0.010, 0.120, True, False, 0.11, True, "INCONCLUSIVE"),           # parity exclusions above a tenth
+    (0.200, 0.050, True, False, 0.11, True, "INCONCLUSIVE"),
+    (0.010, 0.120, True, True, 0.11, False, "INFEASIBLE"),             # INFEASIBLE takes precedence
+])
+def test_every_verdict_branch_and_its_precedence(p, effect, powered, thin, parity, reconciled, want):
+    st = eng.clause_status(p, effect, 0.10, powered, 0.05)
+    assert eng.map_verdict(st, thin, SPEC["thinness"]["scope"], parity, reconciled, SPEC["parity_inconclusive_share"]) == want
+
+
+def test_a_missing_reconciliation_or_parity_record_stops():
+    with pytest.raises(SystemExit):
+        eng.map_verdict("PASS", False, "passes_only", None, True, 0.10)
+    with pytest.raises(SystemExit):
+        eng.map_verdict("PASS", False, "passes_only", 0.0, None, 0.10)
+
+
+def test_a_disclosure_null_without_usable_spread_is_degenerate_and_not_computed():
+    ratio = SPEC["placebo"]["degenerate_below_sd_ratio"]
+    assert ratio == 0.01
+    assert eng.degenerate(0.0, 3.5e-4, ratio) and eng.degenerate(1.3e-7, 3.5e-4, ratio) and eng.degenerate(float("nan"), 3.5e-4, ratio)
+    assert not eng.degenerate(2.6e-4, 3.5e-4, ratio)
+    rng = np.random.default_rng(3)
+    mask = np.ones(4, dtype=bool)
+    flat = {"draws": 50, "direction": "both", "u": np.full((4, 50), 0.5), "post": 1e-9 * rng.random((4, 50))}
+    live = {"draws": 50, "direction": "both", "u": rng.random((4, 50)), "post": 1e-3 * rng.random((4, 50))}
+    rec_flat = eng.null_sds(flat, mask, 0.05, 0.001, 3.5e-4, ratio)
+    rec_live = eng.null_sds(live, mask, 0.05, 0.001, 3.5e-4, ratio)
+    assert rec_flat["status"].startswith("degenerate, not computed") and "power_at_delta2" not in rec_flat
+    assert "status" not in rec_live and "power_at_delta2" in rec_live
+
+
+def test_the_registered_parameters_are_the_amended_ones():
+    assert SPEC["thinness"]["scope"] == "passes_only"
+    assert SPEC["placebo"]["offset_direction"] == "forward"
+    assert SPEC["floors"]["H_D2_delta_price"] == 0.0010
+    assert (SPEC["placebo"]["offset_min_sessions"], SPEC["placebo"]["offset_max_sessions"]) == (4, 60)
+    assert SPEC["confirmatory"]["from_fill_date"] == "2018-10-31"
+
+
+def test_power_functions():
+    assert eng.mde(1.0, 0.05, 0.8) == pytest.approx(1.644854 + 0.841621, abs=1e-5)
+    assert eng.power_normal(eng.mde(1.0, 0.05, 0.8), 1.0, 0.05) == pytest.approx(0.80, abs=1e-9)
+    assert eng.power_normal(0.0, 1.0, 0.05) == pytest.approx(0.05, abs=1e-9)
+    assert eng.point_branch_size(10.0, 2.0, 0.8) == pytest.approx(10.0 + 0.841621 * 2.0, abs=1e-5)
+    assert eng.point_branch_size(10.0, 2.0, 0.5) == pytest.approx(10.0, abs=1e-9)
+
+
+def _series(n=300, start=dt.date(2025, 1, 6), prov_at=()):
+    days, arr = _line(n, start, "America/New_York", (9, 30), 60.0, 9)
+    bars = _bars(days, arr)
+    for j in prov_at:
+        bars[j]["p"] = True
+    return days, eng.Series("T:X|X", {"name": "x", "history": bars}, "America/New_York", SPEC)
+
+
+def test_forward_offsets_lie_after_the_fill_only():
+    days, s = _series()
+    fwd = eng.placebo_offsets(s, 100, SPEC, "forward")
+    both = eng.placebo_offsets(s, 100, SPEC, "both")
+    assert fwd.min() == 4 and fwd.max() == 60 and len(fwd) == 57
+    assert set(fwd.tolist()) < set(both.tolist()) and both.min() == -60
+    assert len(eng.placebo_offsets(s, 250, SPEC, "forward")) < 57          # near the end the forward pool is short
+
+
+def _three_set_run_inputs(tmp_path):
+    """Two lines from 2018-06: fills before the blend's inception, inside the
+    confirmatory window and too late for a full forward pool."""
+    da, aa = _line(260, dt.date(2018, 6, 4), "America/New_York", (9, 30), 80.0, 21)
+    db, ab = _line(230, dt.date(2018, 6, 4), "America/New_York", (9, 30), 30.0, 22)    # ends earlier
+    lines = {"A:AAA|AAA": (da, aa, "ARCA", "USD"), "B:BBB|BBB": (db, ab, "ARCA", "USD")}
+    fills = [_fill("A:AAA|AAA", da[i], s_, aa["c"][i], "USD") for i, s_ in ((60, 1), (120, -1), (150, 1), (180, -1), (220, 1))]
+    fills += [_fill("B:BBB|BBB", db[i], s_, ab["c"][i], "USD") for i, s_ in ((120, 1), (180, -1))]   # 180: same date, too late on B
+    return _write_inputs(tmp_path, lines, fills), da, db
+
+
+def test_the_end_rule_and_the_three_sets(tmp_path):
+    args, da, db = _three_set_run_inputs(tmp_path)
+    ctx = eng.build(SPEC, args)
+    sets = {(f["yf"], f["date"]): f["set"] for f in ctx["complete"]}
+    assert sets[("A:AAA|AAA", da[60].isoformat())] == "pre_blend"            # 2018-08, before 2018-10-31
+    assert sets[("A:AAA|AAA", da[120].isoformat())] == "confirmatory"
+    assert sets[("A:AAA|AAA", da[180].isoformat())] == "confirmatory"         # 180 + 63 <= 259
+    assert sets[("B:BBB|BBB", db[180].isoformat())] == "post_cutoff"          # 180 + 63 > 229
+    assert sets[("A:AAA|AAA", da[220].isoformat())] == "post_cutoff"
+
+
+def test_the_end_rule_boundary_is_the_last_bar_of_the_last_forward_window(tmp_path):
+    days, arr = _line(260, dt.date(2025, 1, 6), "America/New_York", (9, 30), 50.0, 41)
+    last = 259 - 60 - 3                                  # offset +60 needs bars to t+63
+    lines = {"A:AAA|AAA": (days, arr, "ARCA", "USD")}
+    args = _write_inputs(tmp_path, lines, [_fill("A:AAA|AAA", days[last], 1, arr["c"][last], "USD"),
+                                           _fill("A:AAA|AAA", days[last + 1], -1, arr["c"][last + 1], "USD")])
+    ctx = eng.build(SPEC, args)
+    sets = {f["date"]: (f["set"], f["full_forward_pool"]) for f in ctx["complete"]}
+    assert sets[days[last].isoformat()] == ("confirmatory", True)
+    assert sets[days[last + 1].isoformat()] == ("post_cutoff", False)
+
+
+def test_the_forward_null_draws_one_offset_per_rebalance_date_cluster(tmp_path):
+    days, arr = _line(260, dt.date(2025, 1, 6), "America/New_York", (9, 30), 50.0, 51)
+    lines = {"A:AAA|AAA": (days, arr, "ARCA", "USD"), "B:BBB|BBB": (days, arr, "ARCA", "USD")}   # identical bars
+    args = _write_inputs(tmp_path, lines, [_fill(key, days[100], 1, arr["c"][100], "USD") for key in lines])
+    small = _small_spec()
+    ctx = eng.build(small, args)
+    fwd, two, ind, ch = eng.simulate_all(ctx, small, uniform_variant=False)
+    assert ctx["blocks"][0] == ctx["blocks"][1]
+    assert np.array_equal(fwd["post"][0], fwd["post"][1])                  # one offset per draw for the cluster
+    assert not np.array_equal(ind["post"][0], ind["post"][1])              # the independent disclosure null differs
+
+
+def test_a_fill_with_no_placebo_on_either_side_stops_the_accumulated_null(tmp_path):
+    days, arr = _line(260, dt.date(2025, 1, 6), "America/New_York", (9, 30), 50.0, 33)
+    i = 100
+    lines = {"A:AAA|AAA": (days, arr, "ARCA", "USD")}
+    args = _write_inputs(tmp_path, lines, [_fill("A:AAA|AAA", days[i], 1, arr["c"][i], "USD")])
+    hist = json.loads(Path(args.history).read_text(encoding="utf-8"))
+    for j in list(range(i - 63, i - 6, 7)) + list(range(i + 7, i + 64, 7)):   # every window from -60 to +60 is dead
+        hist["A:AAA|AAA"]["history"][j]["p"] = True
+    Path(args.history).write_text(json.dumps(hist), encoding="utf-8")
+    small = _small_spec()
+    ctx = eng.build(small, args)
+    assert ctx["complete"][0]["set"] == "confirmatory"
+    with pytest.raises(SystemExit):
+        eng.simulate_all(ctx, small, uniform_variant=False)
+
+
+def test_a_post_cutoff_fill_does_not_narrow_its_cluster_in_the_forward_null(tmp_path):
+    args, da, db = _three_set_run_inputs(tmp_path)
+    ctx = eng.build(SPEC, args)
+    F = ctx["complete"]
+    conf, preb = eng.set_mask(F, "confirmatory"), eng.set_mask(F, "pre_blend")
+    fwd = eng.simulate_placebo(ctx, np.random.default_rng(1), 50, blocked=True, direction="forward", members_mask=conf | preb)
+    r_a = next(r for r, f in enumerate(F) if f["yf"] == "A:AAA|AAA" and f["date"] == da[180].isoformat())
+    r_b = next(r for r, f in enumerate(F) if f["yf"] == "B:BBB|BBB" and f["date"] == db[180].isoformat())
+    assert ctx["blocks"][r_a] == ctx["blocks"][r_b]                         # one rebalance date, one cluster
+    assert fwd["offsets_count"][r_a] == 57 and not np.isnan(fwd["post"][r_a]).any()
+    assert np.isnan(fwd["post"][r_b]).all()                                 # the post-cutoff fill is not simulated
+    picks_after = np.isfinite(fwd["post"][conf | preb]).all()
+    assert picks_after
+
+
+def test_a_missing_forward_placebo_stops_the_coverage(tmp_path):
+    days, arr = _line(260, dt.date(2025, 1, 6), "America/New_York", (9, 30), 50.0, 31)
+    i = 100
+    lines = {"A:AAA|AAA": (days, arr, "ARCA", "USD")}
+    args = _write_inputs(tmp_path, lines, [_fill("A:AAA|AAA", days[i], 1, arr["c"][i], "USD")])
+    hist = json.loads(Path(args.history).read_text(encoding="utf-8"))
+    for j in range(i + 7, i + 64, 7):              # a provisional bar every seventh session kills every forward window
+        hist["A:AAA|AAA"]["history"][j]["p"] = True
+    Path(args.history).write_text(json.dumps(hist), encoding="utf-8")
+    ctx = eng.build(SPEC, args)
+    assert ctx["complete"][0]["set"] == "confirmatory"
+    small = json.loads(json.dumps(SPEC))
+    small["placebo"]["draws_per_fill"] = 20
+    small["placebo"]["disclosure_nulls"]["two_sided_blocked"]["draws"] = 20
+    small["placebo"]["disclosure_nulls"]["independent_per_fill"]["draws"] = 20
+    small["placebo"]["disclosure_nulls"]["chained_same_line"]["draws"] = 20
+    ctx["spec"] = small
+    fwd, two, ind, ch = eng.simulate_all(ctx, small, uniform_variant=False)
+    with pytest.raises(SystemExit):
+        eng.coverage(ctx, fwd, two, ind, ch)
+
+
+def _small_spec():
+    small = json.loads(json.dumps(SPEC))
+    small["bootstrap_draws"] = 100
+    small["placebo"]["draws_per_fill"] = 300
+    for key in ("two_sided_blocked", "independent_per_fill", "chained_same_line"):
+        small["placebo"]["disclosure_nulls"][key]["draws"] = 100
+    return small
+
+
+def _full_synthetic_run(tmp_path):
+    args, da, db = _three_set_run_inputs(tmp_path)
+    small = _small_spec()
+    ctx = eng.build(small, args)
+    fwd, two, ind, ch = eng.simulate_all(ctx, small, uniform_variant=True)
+    cov = eng.coverage(ctx, fwd, two, ind, ch)
+    res = eng.run(ctx, fwd, cov, args, two, ind, ch)
+    return ctx, fwd, two, ind, cov, res
+
+
+def test_the_verdict_reads_the_forward_null_and_the_coverage_prints_no_centre(tmp_path):
+    ctx, fwd, two, ind, cov, res = _full_synthetic_run(tmp_path)
+    conf = eng.set_mask(ctx["complete"], "confirmatory")
+    nm = eng.masked_means(fwd["post"], conf) * 100
+    assert res["H_D2"]["null_mean"] == pytest.approx(round(float(nm.mean()), 4), abs=1e-12)
+    assert res["H_D2"]["null_sd"] == pytest.approx(round(float(nm.std(ddof=1)), 4), abs=1e-12)
+    mu = eng.masked_means(fwd["u"], conf)                                     # H-D1's headline null is the same forward null
+    assert res["H_D1"]["null_mean"] == pytest.approx(round(float(mu.mean()), 4), abs=1e-12)
+    assert "mean_post_pct" not in cov["null"]["confirmatory"] and "mean_u" not in cov["null"]["confirmatory"]
+    assert res["n_confirmatory"] == int(conf.sum()) and res["n_post_cutoff"] == 2 and res["n_pre_blend"] == 1
+    assert res["post_cutoff_disclosure"] is not None and res["pre_blend_disclosure"] is not None
+    assert "sleeve_rebalance_only" not in res.get("by_kind", {})
+
+
+def test_the_run_stops_when_the_frozen_null_is_not_drawn_again(tmp_path):
+    ctx, fwd, two, ind, cov, res = _full_synthetic_run(tmp_path)
+    bad = json.loads(json.dumps(cov))
+    bad["null"]["confirmatory"]["draws_sha256_mean_post"] = "0" * 64
+    with pytest.raises(SystemExit):
+        eng.run(ctx, fwd, bad, None, two, ind, ind)
+
+
+def test_the_demotion_binds_on_the_p_test_power(tmp_path):
+    ctx, fwd, two, ind, cov, res = _full_synthetic_run(tmp_path)
+    for power, powered, states in ((0.79, False, ("SUGGESTIVE", "SUGGESTIVE-BELOW-FLOOR", "UNRESOLVED")),
+                                   (0.81, True, ("PASS", "DETECTED-BELOW-FLOOR", "FAIL"))):
+        c = json.loads(json.dumps(cov))
+        c["power"]["H_D2"]["power_at_delta"] = power
+        r = eng.run(ctx, fwd, c, None, two, ind, ind)
+        assert r["verdict_inputs"]["powered_p_test"] is powered
+        assert r["verdict_inputs"]["H_D2_status"] in states
+
+
+def test_the_charts_pass_their_render_check_on_synthetic_results(tmp_path):
+    ctx, fwd, two, ind, cov, res = _full_synthetic_run(tmp_path)
+    rdir = tmp_path / "results"
+    rdir.mkdir()
+    (rdir / "results.json").write_text(json.dumps(res, default=float), encoding="utf-8")
+    (rdir / "coverage.json").write_text(json.dumps(cov), encoding="utf-8")
+    spec_c = importlib.util.spec_from_file_location("ws_fill_charts_under_test", ENGINE.parent / "charts.py")
+    charts = importlib.util.module_from_spec(spec_c)
+    spec_c.loader.exec_module(charts)
+    charts.RESULTS_DIR, charts.CHART_DIR = rdir, tmp_path / "charts"
+    charts.main()                                  # raises SystemExit if the render check fails
+    report = json.loads((tmp_path / "charts" / "render_check.json").read_text(encoding="utf-8"))
+    assert all(r["texts_outside_frame"] == 0 and r["tight_bbox_inside_frame"] for r in report.values())
+    assert report["fig2_u_by_sleeve.png"]["marks"] == res["n_confirmatory"]
+
+
+# ----------------------------------------------------------------------------
+# Adapter: the gate's initial state (amendment 11)
+# ----------------------------------------------------------------------------
+def test_the_gate_starts_risk_off_at_the_blend_inception():
+    pub = _toy_pub([{"date": "2026-03-25", "direction": "RISK_ON"}], [])
+    pub["overlay"]["gated_variants"] = {ad.DEPLOYED_BLEND_KEY: {"dates": ["2026-03-20", "2026-03-23", "2026-03-24", "2026-03-25", "2026-03-26"],
+                                                                "equity": [1.0, 1.0, 1.0, 1.0, 1.0]}}
+    assert ad.gate_counts(pub["overlay"]) == (3, 2)          # three sessions RISK_OFF; the inception and the 25 March switches
+    legs = ad.derive_overlay_fills(pub["overlay"])
+    assert [(r["date"], r["side"], r["dw_abs"]) for r in legs] == [("2026-03-20", "B", 0.5), ("2026-03-25", "S", 0.5)]
+    induced, _ = ad.derive_overlay_induced_fills(pub)
+    assert {r["date"] for r in induced} == {"2026-03-25"}    # no induced fill on the inception day
+    assert all(r["side"] == "B" for r in induced)

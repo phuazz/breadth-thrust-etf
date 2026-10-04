@@ -106,16 +106,22 @@ def main():
     first, last = min(f["session_date"] for f in F), max(f["session_date"] for f in F)
     vint = (res["provenance"].get("adapter_provenance") or {}).get("vintage") or {}
     vcommit = (vint.get("vintage_commit") or "")[:8]
-    asof = (f"Confirmatory fills {first} to {last} (from the blend's inception, 2018-10-31); bars to "
-            f"{res['provenance']['history_last_session']}; n = {n_conf} fills in {cov['counts']['blocks']} rebalance-date clusters; "
+    asof = (f"Confirmatory fills {first} to {last} (from the blend's inception, 2018-10-31, to the last fill with a full 60-session forward pool); "
+            f"bars to {res['provenance']['history_last_session']}; n = {n_conf} fills in {cov['counts']['blocks']} rebalance-date clusters; "
             f"weights as published at {vcommit}.")
     src = ("Source: the engines' published weekly weight vectors and overlay events (data/*.json at the 2026-10-03 refresh); "
            "Yahoo daily bars via yfinance, unadjusted, windows rebased for dividends.")
     adp = res["provenance"].get("adapter_provenance") or {}
     par = adp.get("parity") or {}
-    excl = (f"Modelled fills, not executed. Excluded from every figure: BTC-USD (seven-day calendar), 159801.SZ (basis mismatch, "
-            f"{sum(b['fills'] for b in par.get('basis_mismatch_excluded', []))} fills), {par.get('windows_over_tol', 0)} fills whose window failed "
-            f"the parity test, and the {res['n_pre_blend']} pre-blend fills (a disclosure cell).")
+    btc = (adp.get("excluded_btc_usd") or {}).get("fills", 0)
+    n_sz = sum(b["fills"] for b in par.get("basis_mismatch_excluded", []))
+    win = [x for x in adp.get("parity_excluded", []) if not str(x.get("reason", "")).startswith("basis mismatch")]
+    win_conf = sum(1 for x in win if "2018-10-31" <= x["date"] <= last)
+    g2 = len(adp.get("guard2_excluded", []))
+    excl = (f"Modelled fills, not executed. Excluded before the engine: BTC-USD {btc} fills (seven-day calendar); 159801.SZ {n_sz} fills "
+            f"(basis mismatch) and {g2} more on Chinese holidays (guard 2); {len(win)} fills failing the parity window test, {win_conf} of them "
+            f"in the confirmatory window; the engine dropped {cov['counts']['dropped_window']} for incomplete windows. Disclosure cells, "
+            f"not shown: {res['n_pre_blend']} pre-blend fills and {res['n_post_cutoff']} post-cutoff fills.")
     report = {}
 
     # 1. the verdict chart: the blocked null of the mean post leg, the actual and the floor
@@ -134,7 +140,7 @@ def main():
     draws = np.array(res["distribution"]["null_mean_post_pct_draws_confirmatory"])
     fig, ax = plt.subplots(figsize=(8.4, 4.1), dpi=150)
     ax.hist(draws, bins=60, color=GREY, alpha=0.85,
-            label=f"{len(draws):,} placebo sets: mean post leg of the same {n_conf} fills at the close of a random session 4 to 60 bars away")
+            label=f"{len(draws):,} placebo sets: mean post leg of the same {n_conf} fills at the close of a random session 4 to 60 bars after them")
     top = ax.get_ylim()[1]
     ax.axvline(H["actual"], color=NAVY, lw=2.2)
     right = H["actual"] > float(np.percentile(draws, 50))
@@ -148,7 +154,11 @@ def main():
     ax.set_title(wrap_title(title), fontsize=9.5)
     ax.legend(fontsize=7, frameon=False, loc="upper left")
     ax.spines[["top", "right"]].set_visible(False)
-    l1 = asof + " Null: one offset per rebalance date per set, seed 20261003; one-sided p, adverse direction."
+    pwr = cov["power"]["H_D2"]
+    l1 = (asof + " Null: the close of a random session 4 to 60 bars after the fill, one offset per rebalance date per set, seed 20261003; "
+          f"one-sided p, adverse direction. Floor 10 bp of price (the blend's modelled round trip); MDE {pwr['mde_at_target'] * 1e4:.1f} bp; "
+          f"p-test power at the floor {pwr['power_at_delta']:.2f}; the point estimate clears the floor with probability 0.50 at a true "
+          f"10 bp and 0.80 at {pwr['point_estimate_branch']['true_effect_for_0_80'] * 1e4:.1f} bp.")
     printed, bottom = footer(fig, l1, src, excl)
     fig.tight_layout(rect=(0, bottom, 0.975, 0.97))
     report["fig1_verdict_post_leg.png"] = verify(fig, printed)
@@ -178,7 +188,7 @@ def main():
     ax.set_xlabel("adverse rank u of each fill: the session close within its seven-session low-to-high range\n"
                   "(0 = the best price for the side, 1 = the worst)", fontsize=8)
     H1 = res["H_D1"]
-    ax.set_title(wrap_title(f"Where the closing fills sit in their week: mean u {H1['actual']:.3f} against placebo {H1['null_mean']:.3f} across {n_conf} fills ({fmt_p(H1['p_one_sided_worse'])})", 80), fontsize=9.5)
+    ax.set_title(wrap_title(f"Where the closing fills sit in their week (descriptive): mean u {H1['actual']:.3f} against placebo {H1['null_mean']:.3f} across {n_conf} fills", 80), fontsize=9.5)
     ax.spines[["top", "right", "left"]].set_visible(False)
     l1 = asof + " One mark per fill; grey band the interquartile range, grey line the median, red line the sleeve's placebo mean."
     printed, bottom = footer(fig, l1, src, excl)
@@ -198,7 +208,7 @@ def main():
     xs = np.arange(4)
     fig, ax = plt.subplots(figsize=(8.4, 4.4), dpi=150)
     ax.bar(xs - 0.18, a_vals, width=0.36, color=NAVY, label="actual fills (equal-weighted mean)")
-    ax.bar(xs + 0.18, n_vals, width=0.36, color=GREY, alpha=0.85, label="placebo (mean of the set means)")
+    ax.bar(xs + 0.18, n_vals, width=0.36, color=GREY, alpha=0.85, label="placebo, forward null (mean of the set means)")
     for i, c in enumerate(ci):
         ax.plot([xs[i] - 0.18] * 2, [n_vals[i] + c[0], n_vals[i] + c[1]], color="black", lw=1)
     ax.axhline(0, color="black", lw=0.6)

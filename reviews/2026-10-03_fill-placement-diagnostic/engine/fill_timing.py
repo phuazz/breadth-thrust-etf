@@ -432,10 +432,19 @@ def complete_windows(units: list, series: dict, spec: dict) -> tuple[list, list]
     return kept, dropped
 
 
-def placebo_offsets(s: Series, i: int, spec: dict) -> np.ndarray:
+def placebo_offsets(s: Series, i: int, spec: dict, direction: str = "both") -> np.ndarray:
+    """Eligible placebo offsets: lo to hi bars either side ("both", the PCC
+    engine's pool) or after the fill only ("forward", PREREG amendment 9), each
+    with a clean seven-session window."""
     k = spec["window_sessions_each_side"]
     lo, hi = spec["placebo"]["offset_min_sessions"], spec["placebo"]["offset_max_sessions"]
-    offs = [o for o in list(range(-hi, -lo + 1)) + list(range(lo, hi + 1)) if s.clean_window(i + o, k)]
+    if direction == "forward":
+        cand = list(range(lo, hi + 1))
+    elif direction == "both":
+        cand = list(range(-hi, -lo + 1)) + list(range(lo, hi + 1))
+    else:
+        raise ValueError(f"unknown offset direction {direction}")
+    offs = [o for o in cand if s.clean_window(i + o, k)]
     return np.array(offs, dtype=int)
 
 
@@ -516,6 +525,15 @@ def build(spec: dict, args) -> dict:
     if any(u["notional_nav"] is None for u in complete):
         stop("a complete fill has no notional")
     k = spec["window_sessions_each_side"]
+    # PREREG amendments 5 and 9: the confirmatory set is the fills dated on or after the
+    # blend's inception whose full forward pool exists (bars to t + offset_max + k, so every
+    # forward offset has its whole window); earlier fills are the pre-blend cell, later ones
+    # the post-cutoff cell, both disclosures
+    start, hi = spec["confirmatory"]["from_fill_date"], spec["placebo"]["offset_max_sessions"]
+    for u in complete:
+        n_bars = len(series[u["yf"]].dates)
+        u["full_forward_pool"] = bool(u["session_index"] + hi + k <= n_bars - 1)
+        u["set"] = "pre_blend" if u["date"] < start else ("confirmatory" if u["full_forward_pool"] else "post_cutoff")
     blocks = make_blocks(complete, k, tuple(spec["placebo"].get("block_relations", BLOCK_RELATIONS_PCC)))
     last_bar = max(s.dates[-1] for s in series.values()).isoformat()
     provenance = {
@@ -536,6 +554,7 @@ def build(spec: dict, args) -> dict:
         "engine_sha256": sha256_of(ENGINE_PATH),
         "rows_in_trades_json": len(trades),
         "adapter_provenance": book.get("_provenance"),
+        "python": sys.version.split()[0], "numpy": np.__version__,   # S3-6 of the spec-freeze review
     }
     return {
         "spec": spec, "trades": trades, "book": book, "series": series, "units": units, "excluded": excluded,
@@ -549,46 +568,60 @@ VARIANT_GROUPS = ("all", "B", "S")
 
 
 def simulate_placebo(ctx: dict, rng: np.random.Generator, draws: int, blocked: bool,
-                     uniform_variant: bool = False, blocks: np.ndarray | None = None) -> dict:
-    """Draw `draws` placebo sessions and prices for every complete fill and
+                     uniform_variant: bool = False, blocks: np.ndarray | None = None,
+                     direction: str | None = None, members_mask: np.ndarray | None = None,
+                     store: bool = True, accumulate: dict | None = None) -> dict:
+    """Draw `draws` placebo sessions and prices for the complete fills and
     score them. Blocked: every fill in a cluster takes the same offset in each
     draw, from the offsets eligible for every member, so fills that share a
-    session date or overlapping windows keep their common market move under
-    the null; the intraday uniform is independent per fill. Uses dates and
+    session date keep their common market move under the null. Uses dates and
     sides only; the actual price enters nowhere here.
 
-    Amendment (a): the primary placebo is priced at the placebo session's
-    close. The random-number stream is the PCC engine's (the cluster offset,
-    then per member its own offset when it has no common one, then its intraday
-    uniform), so the offsets drawn are the PCC procedure's; with
-    uniform_variant the same offsets are also priced by the PCC's uniform
-    intraday rule and accumulated as per-draw sums over all fills, buys and
-    sells (the disclosure cell). Amendment (f): only u, pre, post and the
-    ex-date flag are held per fill and draw."""
+    Amendment (a): the placebo is priced at the placebo session's close. The
+    random-number stream is the PCC engine's (the cluster offset, then per
+    member its own offset when it has no common one, then its intraday
+    uniform); with uniform_variant the same offsets are also priced by the
+    PCC's uniform intraday rule and accumulated over the confirmatory fills,
+    buys and sells (the disclosure cell). Amendment (f): only u, pre, post and
+    the ex-date flag are held per fill and draw, and with store=False only the
+    per-draw means over the masks in `accumulate` are kept.
+
+    PREREG amendment 9: `direction` "forward" draws offsets +lo..+hi only (the
+    verdict-bearing null), "both" the PCC engine's two-sided pool (a
+    disclosure). `members_mask` restricts the simulation to those fills: the
+    others are left missing and do not narrow any cluster's common offsets."""
     spec = ctx["spec"]
     k = spec["window_sessions_each_side"]
     price_rule = spec["placebo"].get("price_rule_code", "close")
+    direction = direction or spec["placebo"]["offset_direction"]
     fills = ctx["complete"]
     n = len(fills)
     keys = PLACEBO_KEYS
-    out = {key: np.full((n, draws), np.nan) for key in keys}
-    out["ex"] = np.full((n, draws), np.nan, dtype=np.float32)
+    members_mask = np.ones(n, dtype=bool) if members_mask is None else np.asarray(members_mask, dtype=bool)
+    out = {}
+    if store:
+        out = {key: np.full((n, draws), np.nan) for key in keys}
+        out["ex"] = np.full((n, draws), np.nan, dtype=np.float32)
+    accumulate = accumulate or {}
+    acc = {name: {key: np.zeros(draws) for key in keys} for name in accumulate}
+    acc_n = {name: 0 for name in accumulate}
     variant = {key: {g: np.zeros(draws) for g in VARIANT_GROUPS} for key in keys} if uniform_variant else None
     variant_n = {g: 0 for g in VARIANT_GROUPS}
     conf = confirmatory_mask(fills, spec)   # the variant cell is read on the confirmatory set (amendment 5)
     offsets_count = np.zeros(n, dtype=int)
-    one_sided = np.zeros(n, dtype=bool)
+    scored = np.zeros(n, dtype=bool)
     fallback_blocks = 0
     blocks = ((ctx["blocks"] if blocks is None else blocks) if blocked else np.arange(n))
     for b in sorted(set(blocks.tolist())):
-        members = np.where(blocks == b)[0]
+        members = [r for r in np.where(blocks == b)[0] if members_mask[r]]
+        if not members:
+            continue
         per = []
         for r in members:
             s = ctx["series"][fills[r]["yf"]]
-            offs = placebo_offsets(s, fills[r]["session_index"], spec)
+            offs = placebo_offsets(s, fills[r]["session_index"], spec, direction)
             per.append(set(offs.tolist()))
             offsets_count[r] = len(offs)
-            one_sided[r] = bool(len(offs) and (min(offs) > 0 or max(offs) < 0))
         common = set.intersection(*per) if per else set()
         if common and blocked and len(members) > 1:
             pick_block = rng.choice(np.array(sorted(common), dtype=int), size=draws, replace=True)
@@ -608,9 +641,16 @@ def simulate_placebo(ctx: dict, rng: np.random.Generator, draws: int, blocked: b
                 pick = pick_block
             unif = rng.random(draws)
             sc = score_many(s, i + pick, unif, fills[r]["side"], k, price_rule=price_rule)
-            for key in keys:
-                out[key][r, :] = sc[key]
-            out["ex"][r, :] = sc["ex"]
+            scored[r] = True
+            if store:
+                for key in keys:
+                    out[key][r, :] = sc[key]
+                out["ex"][r, :] = sc["ex"]
+            for name, mask in accumulate.items():
+                if mask[r]:
+                    for key in keys:
+                        acc[name][key] += sc[key]
+                    acc_n[name] += 1
             if variant is not None and conf[r]:
                 scu = score_many(s, i + pick, unif, fills[r]["side"], k, price_rule="uniform")
                 g = "B" if fills[r]["side"] > 0 else "S"
@@ -619,12 +659,15 @@ def simulate_placebo(ctx: dict, rng: np.random.Generator, draws: int, blocked: b
                     variant[key][g] += scu[key]
                 variant_n["all"] += 1
                 variant_n[g] += 1
-    out["offsets_count"] = offsets_count
-    out["one_sided"] = one_sided
-    out["fallback_blocks"] = fallback_blocks
-    out["blocked"] = blocked
-    out["draws"] = draws
-    out["price_rule"] = price_rule
+    out.update({"offsets_count": offsets_count, "scored": scored, "members": members_mask,
+                "fallback_blocks": fallback_blocks, "blocked": blocked, "draws": draws,
+                "price_rule": price_rule, "direction": direction})
+    if accumulate:
+        for name, mask in accumulate.items():
+            if acc_n[name] != int(np.asarray(mask, dtype=bool).sum()):
+                stop(f"a placebo is missing in the {direction} null for the {name} fills")
+        out["means"] = {name: {key: acc[name][key] / acc_n[name] for key in keys} for name in accumulate if acc_n[name]}
+        out["means_n"] = acc_n
     if variant is not None:
         # per-draw means of the uniform-intraday variant, by group
         out["uniform_variant"] = {key: {g: variant[key][g] / variant_n[g] for g in VARIANT_GROUPS if variant_n[g]}
@@ -650,15 +693,27 @@ def n_for(sd_null: float, n: int, delta: float, alpha: float, power: float) -> i
     return int(math.ceil(n * (sd_null / target_sd) ** 2))
 
 
+def point_branch_size(delta: float, sd_null: float, power: float = 0.8) -> float:
+    """PREREG amendment 10: the true effect at which the point estimate clears
+    the floor with the given probability (normal approximation); at the floor
+    itself the probability is one half."""
+    return delta + ND.inv_cdf(power) * sd_null
+
+
 # ----------------------------------------------------------------------------
 # Coverage (outcome-blind)
 # ----------------------------------------------------------------------------
+def set_mask(fills: list, name: str) -> np.ndarray:
+    return np.array([f.get("set") == name for f in fills], dtype=bool)
+
+
 def confirmatory_mask(fills: list, spec: dict) -> np.ndarray:
-    """Amendment 5: the confirmatory set is the fills dated (on the engines'
-    own fill date) on or after the blend's inception; the earlier fills are a
-    disclosure cell and never verdict-bearing."""
+    """Amendments 5 and 9: the confirmatory set is the fills dated (on the
+    engines' own fill date) on or after the blend's inception that have their
+    full forward placebo pool (build() tags each fill's set); a fill without a
+    tag is classed on its date alone."""
     start = spec["confirmatory"]["from_fill_date"]
-    return np.array([f["date"] >= start for f in fills], dtype=bool)
+    return np.array([(f["set"] == "confirmatory") if "set" in f else (f["date"] >= start) for f in fills], dtype=bool)
 
 
 def has_kind(fills: list, kind: str) -> np.ndarray:
@@ -667,9 +722,11 @@ def has_kind(fills: list, kind: str) -> np.ndarray:
 
 def masked_means(mat: np.ndarray, mask: np.ndarray, weights: np.ndarray | None = None) -> np.ndarray:
     """Per-draw (weighted) mean over the fills in mask; amendment (f): a
-    matrix-vector product in place of mat[mask].mean(axis=0)."""
-    wv = mask.astype(float) if weights is None else weights * mask
-    return (wv @ mat) / wv.sum()
+    matrix-vector product in place of mat[mask].mean(axis=0). Rows outside the
+    mask may hold missing values (a null that does not simulate them)."""
+    m = np.asarray(mask, dtype=bool)
+    wv = np.ones(int(m.sum())) if weights is None else np.asarray(weights)[m]
+    return (wv @ mat[m]) / wv.sum()
 
 
 def ceil_to(x: float, unit: float) -> float:
@@ -677,30 +734,52 @@ def ceil_to(x: float, unit: float) -> float:
     return round(max(1, math.ceil(x / unit - 1e-9)) * unit, 10)
 
 
-def null_summary(pl: dict, mask: np.ndarray, alpha: float, power_target: float, delta2: float) -> dict:
-    mu, mp = masked_means(pl["u"], mask), masked_means(pl["post"], mask)
+def draws_hash(arr: np.ndarray) -> str:
+    """A fingerprint of a null's per-draw means, so the run can prove it drew the
+    frozen null without the coverage record printing the null's centre."""
+    return hashlib.sha256(np.round(np.asarray(arr, dtype=float), 12).tobytes()).hexdigest()
+
+
+def degenerate(sd_null: float, sd_ref: float, ratio: float) -> bool:
+    """S3 of the spec-freeze review: a disclosure null whose per-draw means of
+    the post leg vary by less than `ratio` of the verdict-bearing forward null's
+    has no usable spread, so no cell is computed against it. Spreads only; a
+    missing spread counts as degenerate."""
+    return not sd_null >= ratio * sd_ref
+
+
+def null_sds(pl: dict, mask: np.ndarray, alpha: float, delta2: float, sd_ref: float, ratio: float) -> dict:
+    """Spread only (PREREG amendment 9: no null centre is printed before the run)."""
+    if "means" in pl:
+        mu, mp = pl["means"]["confirmatory"]["u"], pl["means"]["confirmatory"]["post"]
+    else:
+        mu, mp = masked_means(pl["u"], mask), masked_means(pl["post"], mask)
     sd_u, sd_p = float(mu.std(ddof=1)), float(mp.std(ddof=1))
-    return {"draws": int(pl["draws"]), "mean_u": round(float(mu.mean()), 4), "sd_mean_u": round(sd_u, 5),
-            "mean_post_pct": round(float(mp.mean()) * 100, 4), "sd_mean_post_pct": round(sd_p * 100, 5),
-            "mde_post_at_target": round(mde(sd_p, alpha, power_target), 7),
-            "power_at_delta2": round(power_normal(delta2, sd_p, alpha), 4)}
+    rec = {"draws": int(pl["draws"]), "direction": pl.get("direction"), "sd_mean_u": round(sd_u, 6), "sd_mean_post": round(sd_p, 8),
+           "sd_ratio_to_forward_null": round(sd_p / sd_ref, 6) if sd_ref > 0 else None}
+    if degenerate(sd_p, sd_ref, ratio):
+        rec["status"] = (f"degenerate, not computed: the per-draw means vary by less than {ratio:g} of the forward null's, "
+                         "so this null has no usable spread and no cell is computed against it")
+    else:
+        rec["power_at_delta2"] = round(power_normal(delta2, sd_p, alpha), 4)
+    return rec
 
 
-def coverage(ctx: dict, placebo: dict, placebo_indep: dict, placebo_chained: dict) -> dict:
+def coverage(ctx: dict, fwd: dict, two_sided: dict, placebo_indep: dict, placebo_chained: dict) -> dict:
     spec = ctx["spec"]
     alpha = spec["alpha_one_sided"]
     power_target = spec["power_target"]
     fills = ctx["complete"]
     n = len(fills)
-    for key in PLACEBO_KEYS:
-        if np.isnan(placebo[key]).any():
-            stop(f"placebo matrix {key} has a missing value")
-    conf = confirmatory_mask(fills, spec)
-    preb = ~conf
+    conf, preb, post = set_mask(fills, "confirmatory"), set_mask(fills, "pre_blend"), set_mask(fills, "post_cutoff")
+    members = conf | preb
     if not conf.any():
         stop("no confirmatory fill")
-    U, PRE, POST = placebo["u"], placebo["pre"], placebo["post"]
-    mu, mpre, mpost = masked_means(U, conf), masked_means(PRE, conf), masked_means(POST, conf)
+    for key in PLACEBO_KEYS:
+        if np.isnan(fwd[key][members]).any():
+            stop(f"a placebo is missing in the forward null ({key})")
+    U, PRE, POST = fwd["u"], fwd["pre"], fwd["post"]
+    mu, mpost = masked_means(U, conf), masked_means(POST, conf)
     w = np.array([f["notional_nav"] for f in fills])
     wmu, wmpost = masked_means(U, conf, w), masked_means(POST, conf, w)
     sd_u, sd_post = float(mu.std(ddof=1)), float(mpost.std(ddof=1))
@@ -708,24 +787,30 @@ def coverage(ctx: dict, placebo: dict, placebo_indep: dict, placebo_chained: dic
     mde_post, mde_u = mde(sd_post, alpha, power_target), mde(sd_u, alpha, power_target)
     d1_floor = ceil_to(mde_u, spec["floors"]["H_D1_reference_floor_rounding_unit"])
     k = spec["window_sessions_each_side"]
-    widths = []
-    for f, c_ in zip(fills, conf):
-        if c_:
-            s = ctx["series"][f["yf"]]
-            o, h, l, c = s.window(f["session_index"], k)
-            widths.append((h.max() - l.min()) / c[k])
-    widths = np.array(widths)
     F_conf = [f for f, c_ in zip(fills, conf) if c_]
+    widths = []
+    for f in F_conf:
+        s = ctx["series"][f["yf"]]
+        o, h, l, c = s.window(f["session_index"], k)
+        widths.append((h.max() - l.min()) / c[k])
+    widths = np.array(widths)
     by_sym = Counter(f["yf"] for f in F_conf)
+    by_year = Counter(f["session_date"][:4] for f in F_conf)
     by_date = Counter(f["session_date"] for f in F_conf)
     blocks = ctx["blocks"]
     conf_blocks = Counter(blocks[conf].tolist())
-    kinds_all = Counter("+".join(f.get("kinds") or ["sleeve"]) for f in fills)
-    kinds_conf = Counter("+".join(f.get("kinds") or ["sleeve"]) for f in F_conf)
+    pool = fwd["offsets_count"][conf]
+    full_pool = len(range(spec["placebo"]["offset_min_sessions"], spec["placebo"]["offset_max_sessions"] + 1))
+    N = int(conf.sum())
+    reach = {"line_max_fills": max(by_sym.values()), "year_max_fills": max(by_year.values()), "year_min_fills": min(by_year.values()),
+             "line_mean_effect_needed_bp": round(N * delta2 / max(by_sym.values()) * 1e4, 1),
+             "year_mean_effect_needed_bp": [round(N * delta2 / max(by_year.values()) * 1e4, 1), round(N * delta2 / min(by_year.values()) * 1e4, 1)],
+             "note": "the mean post-leg effect one line (or one calendar year) would have to carry, in the same direction as a pooled effect sitting exactly at the 10 bp floor, for the effect of the remaining fills to change sign when that line (or year) is dropped (N x floor / n of the largest group, and of the smallest year); from counts only"}
+    post_dates = sorted(f["date"] for f, p_ in zip(fills, post) if p_)
+    conf_dates = sorted(f["date"] for f in F_conf)
+    aligned_all = ctx["aligned"] + ctx["drop_align"]
     bad_bars = [{"yf": yf, "date": s.dates[i].isoformat(), "reason": s.bad_reason[i]}
                 for yf, s in ctx["series"].items() for i in np.where(s.bad)[0]]
-    prov_bars = [{"yf": yf, "date": s.dates[i].isoformat()} for yf, s in ctx["series"].items() for i in np.where(s.prov)[0]]
-    aligned_all = ctx["aligned"] + ctx["drop_align"]
     return {
         "registered": spec["registered"],
         "provenance": ctx["provenance"],
@@ -733,43 +818,36 @@ def coverage(ctx: dict, placebo: dict, placebo_indep: dict, placebo_chained: dic
             "rows": len(ctx["trades"]), "units": len(ctx["units"]) + len(ctx["excluded"]),
             "excluded_feed_or_type": len(ctx["excluded"]), "dropped_alignment": len(ctx["drop_align"]),
             "dropped_window": len(ctx["drop_window"]), "complete": n,
-            "confirmatory": int(conf.sum()), "pre_blend": int(preb.sum()),
+            "confirmatory": N, "pre_blend": int(preb.sum()), "post_cutoff": int(post.sum()),
             "confirmatory_from_fill_date": spec["confirmatory"]["from_fill_date"],
-            "pre_blend_by_sleeve": dict(sorted(Counter(str(f.get("theme")) for f, c_ in zip(fills, conf) if not c_).items())),
-            "by_kind_all": dict(sorted(kinds_all.items())), "by_kind_confirmatory": dict(sorted(kinds_conf.items())),
+            "confirmatory_last_fill_date": conf_dates[-1],
+            "post_cutoff_fill_dates": [post_dates[0], post_dates[-1]] if post_dates else None,
+            "pre_blend_by_sleeve": dict(sorted(Counter(str(f.get("theme")) for f, p_ in zip(fills, preb) if p_).items())),
+            "by_kind_confirmatory": dict(sorted(Counter("+".join(f.get("kinds") or ["sleeve"]) for f in F_conf).items())),
             "overlay_induced_confirmatory": int((has_kind(fills, "overlay_induced") & conf).sum()),
             "overlay_legs_confirmatory": int((has_kind(fills, "overlay_leg") & conf).sum()),
             "by_side": dict(Counter(f["side_label"] for f in F_conf)),
             "by_sleeve": dict(sorted(Counter(str(f.get("theme")) for f in F_conf).items())),
-            "by_year": dict(sorted(Counter(f["session_date"][:4] for f in F_conf).items())),
+            "by_year": dict(sorted(by_year.items())),
             "by_ccy": dict(Counter(f["ccy"] for f in F_conf)), "lines": len(by_sym),
-            "largest_line_shares": [{"yf": s_, "fills": c_} for s_, c_ in by_sym.most_common(5)],
             "ex_date_in_window": int(sum(1 for f in F_conf if f.get("ex_in_window"))),
             "session_dates": len(by_date),
             "blocks": len(conf_blocks),
             "block_size_distribution": {str(k_): v for k_, v in sorted(Counter(conf_blocks.values()).items())},
             "largest_block_fills": int(max(conf_blocks.values())),
-            "largest_block_share": round(max(conf_blocks.values()) / int(conf.sum()), 4),
             # amendment (f): a Counter in place of the PCC's quadratic scan; same count
             "fills_sharing_a_date": int(sum(1 for f in F_conf if by_date[f["session_date"]] > 1)),
-            "notional_nav": {"total": round(float((w * conf).sum()), 4),
-                             "buys": round(float(sum(f["notional_nav"] for f in F_conf if f["side"] > 0)), 4),
-                             "sells": round(float(sum(f["notional_nav"] for f in F_conf if f["side"] < 0)), 4)},
+            "notional_nav_confirmatory": round(float((w * conf).sum()), 4),
         },
         "exclusions_feed_or_type": [{k_: e[k_] for k_ in ("ticker", "date", "side_label", "reason")} for e in ctx["excluded"]],
         "alignment": {
             "tally": ctx["align_tally"],
-            "share_outside_own_range": round(sum(1 for u in aligned_all if u.get("dated_session_exists") and not u.get("inside_own_range", True)) / max(1, len(aligned_all)), 4),
-            "dated_on_non_session": [{k_: u[k_] for k_ in ("ticker", "date", "side_label", "alignment")} for u in aligned_all if not u.get("dated_session_exists")],
             "outside_own_range": [{k_: u.get(k_) for k_ in ("ticker", "date", "side_label", "alignment")} for u in aligned_all if u.get("dated_session_exists") and not u.get("inside_own_range", True)],
             "dropped": [{k_: u[k_] for k_ in ("ticker", "date", "side_label", "reason")} for u in ctx["drop_align"]],
         },
         "dropped_window": [{k_: u[k_] for k_ in ("ticker", "date", "side_label", "reason")} for u in ctx["drop_window"]],
-        "ex_dates_in_windows": [{"ticker": f["ticker"], "date": f["session_date"], "side": f["side_label"], "ex": f["ex_dates"]} for f in F_conf if f.get("ex_in_window")],
         "defective_bars": bad_bars,
-        "provisional_bars": prov_bars,
         "range_repaired_bars": [{"yf": yf, "date": s.dates[i].isoformat()} for yf, s in ctx["series"].items() for i in np.where(s.range_repaired)[0]],
-        "bar_timestamps_utc": {yf: s.utc_hours.most_common(2) for yf, s in ctx["series"].items()},
         "window_width": {
             "median_range_over_close": round(float(np.median(widths)), 4),
             "p25": round(float(np.percentile(widths, 25)), 4), "p75": round(float(np.percentile(widths, 75)), 4),
@@ -778,35 +856,39 @@ def coverage(ctx: dict, placebo: dict, placebo_indep: dict, placebo_chained: dic
         "null": {
             "structure": spec["placebo"]["structure"],
             "block_relations": list(spec["placebo"]["block_relations"]),
-            "price_rule": placebo["price_rule"],
-            "draws_per_fill": int(placebo["draws"]), "seed": spec["seed"],
-            "blocks_all": int(blocks.max()) + 1 if n else 0, "fallback_blocks_without_a_common_offset": int(placebo["fallback_blocks"]),
-            "placebo_offsets_per_fill_min": int(placebo["offsets_count"].min()), "median": int(np.median(placebo["offsets_count"])),
-            "one_sided_pools": [{"ticker": fills[r]["ticker"], "date": fills[r]["session_date"]} for r in np.where(placebo["one_sided"])[0]],
-            "confirmatory": {"mean_u": round(float(mu.mean()), 4), "sd_mean_u": round(sd_u, 5),
-                             "mean_u_weighted": round(float(wmu.mean()), 4), "sd_mean_u_weighted": round(float(wmu.std(ddof=1)), 5),
-                             "mean_pre_pct": round(float(mpre.mean()) * 100, 4),
-                             "mean_post_pct": round(float(mpost.mean()) * 100, 4), "sd_mean_post_pct": round(sd_post * 100, 5),
-                             "mean_post_weighted_pct": round(float(wmpost.mean()) * 100, 4), "sd_mean_post_weighted_pct": round(float(wmpost.std(ddof=1)) * 100, 5),
-                             "p05_mean_post_pct": round(float(np.percentile(mpost, 5)) * 100, 4), "p95_mean_post_pct": round(float(np.percentile(mpost, 95)) * 100, 4),
-                             "p05_mean_u": round(float(np.percentile(mu, 5)), 4), "p95_mean_u": round(float(np.percentile(mu, 95)), 4),
-                             "share_of_placebo_windows_with_ex_date": round(float(np.nanmean(placebo["ex"][conf])), 4)},
-            "pre_blend": (null_summary(placebo, preb, alpha, power_target, delta2) | {"n": int(preb.sum())}) if preb.any() else None,
-            "disclosure_independent_per_fill": null_summary(placebo_indep, conf, alpha, power_target, delta2),
-            "disclosure_chained_same_line": null_summary(placebo_chained, conf, alpha, power_target, delta2)
+            "price_rule": fwd["price_rule"], "direction": fwd["direction"],
+            "draws_per_fill": int(fwd["draws"]), "seed": spec["seed"],
+            "blocks_all": int(blocks.max()) + 1 if n else 0, "fallback_blocks_without_a_common_offset": int(fwd["fallback_blocks"]),
+            "forward_pool_confirmatory": {"full_pool": full_pool, "min": int(pool.min()), "median": int(np.median(pool)),
+                                          "fills_with_a_reduced_pool": int((pool < full_pool).sum())},
+            "confirmatory": {"sd_mean_u": round(sd_u, 6), "sd_mean_post": round(sd_post, 8),
+                             "sd_mean_u_weighted": round(float(wmu.std(ddof=1)), 6), "sd_mean_post_weighted": round(float(wmpost.std(ddof=1)), 8),
+                             "share_of_placebo_windows_with_ex_date": round(float(np.nanmean(fwd["ex"][conf])), 4),
+                             "draws_sha256_mean_post": draws_hash(mpost), "draws_sha256_mean_u": draws_hash(mu),
+                             "note": "spread only; the forward null's centre sits too close to the outcome to print before the run (PREREG amendment 9)"},
+            "pre_blend": ({"n": int(preb.sum()), "sd_mean_post": round(float(masked_means(POST, preb).std(ddof=1)), 8),
+                           "power_at_delta2": round(power_normal(delta2, float(masked_means(POST, preb).std(ddof=1)), alpha), 4)}
+                          if preb.any() else None),
+            "disclosure_degenerate_below_sd_ratio": spec["placebo"]["degenerate_below_sd_ratio"],
+            "disclosure_two_sided_blocked": null_sds(two_sided, conf, alpha, delta2, sd_post, spec["placebo"]["degenerate_below_sd_ratio"]),
+            "disclosure_independent_per_fill": null_sds(placebo_indep, conf, alpha, delta2, sd_post, spec["placebo"]["degenerate_below_sd_ratio"]),
+            "disclosure_chained_same_line": null_sds(placebo_chained, conf, alpha, delta2, sd_post, spec["placebo"]["degenerate_below_sd_ratio"])
                                             | {"relations": list(BLOCK_RELATIONS_PCC), "clusters_all": int(placebo_chained["n_blocks"])},
         },
         "power": {
             "alpha_one_sided": alpha, "power_target": power_target,
             "H_D2": {"delta": delta2, "delta_basis": spec["floors"]["H_D2_floor_basis"],
-                     "sd_mean_post": round(sd_post, 7), "mde_at_target": round(mde_post, 7),
+                     "sd_mean_post": round(sd_post, 8), "mde_at_target": round(mde_post, 7),
                      "delta_over_mde": round(delta2 / mde_post, 3) if mde_post > 0 else None,
                      "power_at_delta": round(power_normal(delta2, sd_post, alpha), 4),
-                     "note": "an economic floor (amendment 3), so the power at it is a measurement on the blocked null; the demotion rule binds if it is below the target"},
+                     "point_estimate_branch": {"probability_at_delta": 0.5,
+                                               "true_effect_for_0_80": round(point_branch_size(delta2, sd_post, 0.8), 7)},
+                     "note": "power_at_delta is the power of the p-test at the 10 bp floor and the demotion rule binds on it; GIVE-BACK-AT-SIZE also needs the point estimate at or above the floor, which a true give-back of exactly 10 bp clears with probability one half and a true give-back of true_effect_for_0_80 clears with probability 0.80 (PREREG amendment 10)"},
             "H_D1": {"sd_mean_u": round(sd_u, 6), "mde_at_target": round(mde_u, 5),
                      "reference_floor": d1_floor, "power_at_reference_floor": round(power_normal(d1_floor, sd_u, alpha), 4),
                      "note": "descriptive headline; the reference floor is the MDE rounded up to 0.01 in u, so its power is a construction; no verdict"},
         },
+        "thinness_reach": reach,
     }
 
 
@@ -817,7 +899,43 @@ def pvalue_ge(null: np.ndarray, actual: float) -> float:
     return float((np.sum(null >= actual) + 1) / (len(null) + 1))
 
 
-def run(ctx: dict, placebo: dict, cov: dict, args, placebo_indep: dict, placebo_chained: dict) -> dict:
+def clause_status(p_worse: float, effect: float, delta: float, powered: bool, alpha: float) -> str:
+    """The PCC engine's clause status on H-D2: PASS (p at or below alpha and
+    the effect at or above the floor), DETECTED-BELOW-FLOOR (p at or below
+    alpha, effect below the floor), FAIL; demoted forms when not powered."""
+    passed = p_worse <= alpha
+    if passed and effect >= delta:
+        return "PASS" if powered else "SUGGESTIVE"
+    if passed and effect < delta:
+        return "DETECTED-BELOW-FLOOR" if powered else "SUGGESTIVE-BELOW-FLOOR"
+    return "FAIL" if powered else "UNRESOLVED"
+
+
+PASSING_STATES = ("PASS", "DETECTED-BELOW-FLOOR", "SUGGESTIVE", "SUGGESTIVE-BELOW-FLOOR")
+
+
+def map_verdict(status: str, thin_fires: bool, thin_scope: str, parity_share, reconciled,
+                inconclusive_share: float) -> str:
+    """The PREREG's verdict mapping on H-D2 alone, in its precedence:
+    INFEASIBLE (the weight history not reconciled), INCONCLUSIVE (parity
+    exclusions above the share; thinness on a pass, or on any verdict if the
+    scope says so), then GIVE-BACK-AT-SIZE, GIVE-BACK-BELOW-SIZE, NO-GIVE-BACK,
+    SUGGESTIVE, UNRESOLVED. A missing reconciliation or parity record stops."""
+    if reconciled is None or parity_share is None:
+        stop("the adapter's provenance lacks the reconciliation or the parity record")
+    if thin_scope not in ("passes_only", "any_verdict"):
+        stop(f"unknown thinness scope {thin_scope}")
+    if reconciled is False:
+        return "INFEASIBLE"
+    if parity_share > inconclusive_share:
+        return "INCONCLUSIVE"
+    if thin_fires and (thin_scope == "any_verdict" or status in PASSING_STATES):
+        return "INCONCLUSIVE"
+    return {"PASS": "GIVE-BACK-AT-SIZE", "DETECTED-BELOW-FLOOR": "GIVE-BACK-BELOW-SIZE", "FAIL": "NO-GIVE-BACK",
+            "SUGGESTIVE": "SUGGESTIVE", "SUGGESTIVE-BELOW-FLOOR": "SUGGESTIVE", "UNRESOLVED": "UNRESOLVED"}[status]
+
+
+def run(ctx: dict, fwd: dict, cov: dict, args, two_sided: dict, placebo_indep: dict, placebo_chained: dict) -> dict:
     spec = ctx["spec"]
     alpha = spec["alpha_one_sided"]
     k = spec["window_sessions_each_side"]
@@ -830,10 +948,25 @@ def run(ctx: dict, placebo: dict, cov: dict, args, placebo_indep: dict, placebo_
             stop(f"{key} differs from the frozen coverage record")
     if n != cov["counts"]["complete"]:
         stop(f"fill count {n} differs from the frozen {cov['counts']['complete']}")
-    for pl in (placebo, placebo_indep, placebo_chained):
-        for key in PLACEBO_KEYS:
+    conf, preb, post = set_mask(fills, "confirmatory"), set_mask(fills, "pre_blend"), set_mask(fills, "post_cutoff")
+    if int(conf.sum()) != cov["counts"]["confirmatory"]:
+        stop("the confirmatory count differs from the frozen coverage record")
+    members = conf | preb
+    for key in PLACEBO_KEYS:
+        if np.isnan(fwd[key][members]).any():
+            stop(f"a placebo is missing in the forward null ({key})")
+        for pl in (placebo_indep, placebo_chained):
             if np.isnan(pl[key]).any():
                 stop(f"placebo matrix {key} has a missing value")
+    # S3-6 of the spec-freeze review: the run must draw the frozen null
+    if draws_hash(masked_means(fwd["post"], conf)) != cov["null"]["confirmatory"]["draws_sha256_mean_post"] \
+            or draws_hash(masked_means(fwd["u"], conf)) != cov["null"]["confirmatory"]["draws_sha256_mean_u"]:
+        stop("the forward null drawn at the run differs from the frozen coverage record")
+    adapter = ctx["book"].get("_provenance") or {}
+    parity_share = (adapter.get("parity") or {}).get("excluded_share")
+    reconciled = (adapter.get("reproduction") or {}).get("reconciled")
+    if reconciled is None or parity_share is None:
+        stop("the adapter's provenance lacks the reconciliation or the parity record")
     rng = np.random.default_rng(spec["seed"] + 1)
     # actual scores, with a parity check against the vectorised path
     for f in fills:
@@ -858,9 +991,7 @@ def run(ctx: dict, placebo: dict, cov: dict, args, placebo_indep: dict, placebo_
     w = np.array([f["notional_nav"] for f in F]); side = np.array([f["side"] for f in F])
     sleeve = np.array([str(f.get("theme")) for f in F]); year = np.array([f["session_date"][:4] for f in F])
     line = np.array([f["yf"] for f in F])
-    conf = confirmatory_mask(F, spec)
-    preb = ~conf
-    U = placebo["u"]; PRE = placebo["pre"]; POST = placebo["post"]
+    U = fwd["u"]; PRE = fwd["pre"]; POST = fwd["post"]
     nb = int(blocks.max()) + 1
     block_ids = sorted(set(blocks.tolist()))
 
@@ -901,44 +1032,57 @@ def run(ctx: dict, placebo: dict, cov: dict, args, placebo_indep: dict, placebo_
             "null_p95": round(float(np.percentile(nm, 95)), 4),
         }
 
-    def legs(mask, tag, weights=None, pl=None):
-        pl = placebo if pl is None else pl
-        return {"u": cell(au, pl["u"], mask=mask, weights=weights, label=f"{tag}: mean u"),
-                "pre_pct": cell(apre, pl["pre"], mask=mask, weights=weights, scale=100, label=f"{tag}: pre leg, adverse-oriented, per cent"),
-                "post_pct": cell(apost, pl["post"], mask=mask, weights=weights, scale=100, label=f"{tag}: post leg, adverse-oriented, per cent")}
+    def legs(mask, tag, weights=None):
+        return {"u": cell(au, U, mask=mask, weights=weights, label=f"{tag}: mean u"),
+                "pre_pct": cell(apre, PRE, mask=mask, weights=weights, scale=100, label=f"{tag}: pre leg, adverse-oriented, per cent"),
+                "post_pct": cell(apost, POST, mask=mask, weights=weights, scale=100, label=f"{tag}: post leg, adverse-oriented, per cent")}
 
-    H_D2 = cell(apost, POST, mask=conf, scale=100, label="H-D2 post leg (fill to t+3 close), adverse-oriented, per cent, equal-weighted, confirmatory set (verdict-bearing)")
-    H_D1 = cell(au, U, mask=conf, label="H-D1 mean u, equal-weighted, confirmatory set (descriptive headline)")
+    def legs_from_means(mask, means, tag):
+        return {"u": cell(au, mask=mask, null_means=means["u"], label=f"{tag}: mean u"),
+                "pre_pct": cell(apre, mask=mask, null_means=means["pre"], scale=100, label=f"{tag}: pre leg, per cent"),
+                "post_pct": cell(apost, mask=mask, null_means=means["post"], scale=100, label=f"{tag}: post leg, per cent")}
+
+    H_D2 = cell(apost, POST, mask=conf, scale=100, label="H-D2 post leg (fill to t+3 close), adverse-oriented, per cent, equal-weighted, confirmatory set, forward null (verdict-bearing)")
+    H_D1 = cell(au, U, mask=conf, label="H-D1 mean u, equal-weighted, confirmatory set, forward null (descriptive headline)")
     PRE_LEG = cell(apre, PRE, mask=conf, scale=100, label="pre leg (t-3 close to fill), adverse-oriented, per cent, confirmatory set")
     buys = side > 0
     by_side = {"buys": legs(buys & conf, "confirmatory buys"), "sells": legs(~buys & conf, "confirmatory sells")}
     by_sleeve = {sv: legs((sleeve == sv) & conf, f"confirmatory, sleeve {sv}") for sv in sorted(set(sleeve[conf].tolist()))}
     by_year = {y: legs((year == y) & conf, f"confirmatory, year {y}") for y in sorted(set(year[conf].tolist()))}
     notional_weighted = legs(conf, "confirmatory, notional-weighted (|dw| x NAV)", weights=w)
-    ind, leg = has_kind(F, "overlay_induced"), has_kind(F, "overlay_leg")
-    by_kind = {"overlay_legs_EEM_SHY": legs(leg & conf, "confirmatory, overlay legs (EEM, SHY)") if (leg & conf).any() else None,
-               "overlay_induced": legs(ind & conf, "confirmatory, overlay-induced rescaling fills") if (ind & conf).any() else None,
-               "sleeve_rebalance_only": legs(~ind & ~leg & conf, "confirmatory, sleeve rebalance fills without an overlay tag")}
-    uv = placebo["uniform_variant"]
+    ind_k, leg_k = has_kind(F, "overlay_induced"), has_kind(F, "overlay_leg")
+    by_kind = {"overlay_legs_EEM_SHY": legs(leg_k & conf, "confirmatory, overlay legs (EEM, SHY)") if (leg_k & conf).any() else None,
+               "overlay_induced": legs(ind_k & conf, "confirmatory, overlay-induced rescaling fills") if (ind_k & conf).any() else None}
+    uv = fwd["uniform_variant"]
     uniform_variant = {}
     for g, mask in (("all", conf), ("B", buys & conf), ("S", ~buys & conf)):
-        if g not in uv["u"]:
-            continue
-        uniform_variant[g] = {
-            "u": cell(au, mask=mask, null_means=uv["u"][g], label=f"uniform-intraday placebo ({g}, confirmatory): mean u"),
-            "pre_pct": cell(apre, mask=mask, null_means=uv["pre"][g], scale=100, label=f"uniform-intraday placebo ({g}, confirmatory): pre leg, per cent"),
-            "post_pct": cell(apost, mask=mask, null_means=uv["post"][g], scale=100, label=f"uniform-intraday placebo ({g}, confirmatory): post leg, per cent"),
-        }
-    pre_blend = legs(preb, "pre-blend fills (before the blend's inception; disclosure)") if preb.any() else None
-    disclosure_nulls = {
-        "independent_per_fill": {"H_D2_post_pct": cell(apost, placebo_indep["post"], mask=conf, scale=100, label="H-D2 against the independent-per-fill null (disclosure)"),
-                                 "H_D1_u": cell(au, placebo_indep["u"], mask=conf, label="H-D1 against the independent-per-fill null (disclosure)")},
-        "chained_same_line": {"H_D2_post_pct": cell(apost, placebo_chained["post"], mask=conf, scale=100, label="H-D2 against the chained same-line null (disclosure)"),
-                              "H_D1_u": cell(au, placebo_chained["u"], mask=conf, label="H-D1 against the chained same-line null (disclosure)")},
-    }
+        if g in uv["u"]:
+            uniform_variant[g] = legs_from_means(mask, {key: uv[key][g] for key in PLACEBO_KEYS},
+                                                 f"uniform-intraday placebo, forward offsets ({g}, confirmatory)")
+    pre_blend = legs(preb, "pre-blend fills (before the blend's inception; disclosure; forward null)") if preb.any() else None
+    two_means = two_sided.get("means") or {}
+    two_sided_cells = {"H_D2_post_pct": cell(apost, mask=conf, null_means=two_means["confirmatory"]["post"], scale=100,
+                                             label="H-D2 against the two-sided blocked null (disclosure)"),
+                       "H_D1_u": cell(au, mask=conf, null_means=two_means["confirmatory"]["u"],
+                                      label="H-D1 against the two-sided blocked null (disclosure)")}
+    post_cutoff = (legs_from_means(post, two_means["post_cutoff"], "post-cutoff fills (no full forward pool; disclosure; two-sided null)")
+                   if post.any() else None)
+
+    sd_forward = float(masked_means(POST, conf).std(ddof=1))
+    ratio = spec["placebo"]["degenerate_below_sd_ratio"]
+
+    def against(pl, tag):
+        if degenerate(float(masked_means(pl["post"], conf).std(ddof=1)), sd_forward, ratio):
+            return {"status": f"degenerate, not computed: the per-draw means vary by less than {ratio:g} of the forward null's"}
+        return {"H_D2_post_pct": cell(apost, pl["post"], mask=conf, scale=100, label=f"H-D2 against the {tag} null (disclosure)"),
+                "H_D1_u": cell(au, pl["u"], mask=conf, label=f"H-D1 against the {tag} null (disclosure)")}
+
+    disclosure_nulls = {"independent_per_fill": against(placebo_indep, "independent-per-fill"),
+                        "chained_same_line": against(placebo_chained, "chained same-line")}
 
     # thinness on the confirmatory set: the effect with each line, and each calendar year, dropped in turn
-    post_null_by_fill = POST.mean(axis=1); u_null_by_fill = U.mean(axis=1)
+    post_null_by_fill = np.full(n, np.nan); u_null_by_fill = np.full(n, np.nan)
+    post_null_by_fill[members] = POST[members].mean(axis=1); u_null_by_fill[members] = U[members].mean(axis=1)
 
     def leave_one_out(actual_vec, null_by_fill, groups, scale):
         effects = []
@@ -957,7 +1101,8 @@ def run(ctx: dict, placebo: dict, cov: dict, args, placebo_indep: dict, placebo_
 
     thinness = {
         "H_D2": {"effect_full": H_D2["effect"], "line": leave_one_out(apost[conf], post_null_by_fill[conf], line[conf], 100),
-                 "year": leave_one_out(apost[conf], post_null_by_fill[conf], year[conf], 100)},
+                 "year": leave_one_out(apost[conf], post_null_by_fill[conf], year[conf], 100),
+                 "reach": cov.get("thinness_reach")},
         "H_D1": {"effect_full": H_D1["effect"], "line": leave_one_out(au[conf], u_null_by_fill[conf], line[conf], 1),
                  "year": leave_one_out(au[conf], u_null_by_fill[conf], year[conf], 1)},
     }
@@ -968,56 +1113,20 @@ def run(ctx: dict, placebo: dict, cov: dict, args, placebo_indep: dict, placebo_
     if cov["power"]["H_D2"]["delta"] != delta2:
         stop("the H-D2 floor differs from the frozen coverage record")
     delta2_pct = round(delta2 * 100, 10)
-    powered = cov["power"]["H_D2"]["power_at_delta"] >= power_target
-
-    def status(cellv, delta, powered_):
-        passed = cellv["p_one_sided_worse"] <= alpha
-        if passed and cellv["effect"] >= delta:
-            return "PASS" if powered_ else "SUGGESTIVE"
-        if passed and cellv["effect"] < delta:
-            return "DETECTED-BELOW-FLOOR" if powered_ else "SUGGESTIVE-BELOW-FLOOR"
-        return "FAIL" if powered_ else "UNRESOLVED"
-
-    st = status(H_D2, delta2_pct, powered)
-    adapter = (ctx["book"].get("_provenance") or {})
-    parity_share = (adapter.get("parity") or {}).get("excluded_share")
-    reconciled = (adapter.get("reproduction") or {}).get("reconciled")
+    powered = cov["power"]["H_D2"]["power_at_delta"] >= power_target      # the p-test's power (amendment 10)
+    st = clause_status(H_D2["p_one_sided_worse"], H_D2["effect"], delta2_pct, powered, alpha)
     thin_fires = thinness["H_D2"]["line"]["sign_flips"] or thinness["H_D2"]["year"]["sign_flips"]
     thin_scope = spec["thinness"]["scope"]
-    passing = st in ("PASS", "DETECTED-BELOW-FLOOR", "SUGGESTIVE", "SUGGESTIVE-BELOW-FLOOR")
-    thin_applies = thin_fires and (thin_scope == "any_verdict" or passing)
-    # Verdict mapping, fixed at the freeze (PREREG, decision criteria, as amended 2026-10-04):
-    #   GIVE-BACK-AT-SIZE     H-D2 p <= alpha and effect at or above the 10 bp floor, powered
-    #   GIVE-BACK-BELOW-SIZE  H-D2 p <= alpha, effect below the floor
-    #   NO-GIVE-BACK          H-D2 p > alpha, powered
-    #   SUGGESTIVE / UNRESOLVED  a demoted pass / fail (power at the floor below the target)
-    #   INCONCLUSIVE          on a passing H-D2, thinness fires (amendment 4: thinness guards a pass
-    #                         only, and a failing H-D2 carries no thinness suffix); or the adapter's
-    #                         parity guard excluded more than a tenth of fills
-    #   INFEASIBLE            the weight history could not be reconciled to the factsheet's tables
-    if reconciled is False:
-        verdict = "INFEASIBLE"
-    elif parity_share is not None and parity_share > spec["parity_inconclusive_share"]:
-        verdict = "INCONCLUSIVE"
-    elif thin_applies:
-        verdict = "INCONCLUSIVE"
-    elif st == "PASS":
-        verdict = "GIVE-BACK-AT-SIZE"
-    elif st == "DETECTED-BELOW-FLOOR":
-        verdict = "GIVE-BACK-BELOW-SIZE"
-    elif st == "FAIL":
-        verdict = "NO-GIVE-BACK"
-    elif st.startswith("SUGGESTIVE"):
-        verdict = "SUGGESTIVE"
-    else:
-        verdict = "UNRESOLVED"
+    verdict = map_verdict(st, thin_fires, thin_scope, parity_share, reconciled, spec["parity_inconclusive_share"])
     return {
         "registered": spec["registered"], "run_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "provenance": ctx["provenance"], "n": n, "n_confirmatory": int(conf.sum()), "n_pre_blend": int(preb.sum()),
-        "counts": cov["counts"],
+        "n_post_cutoff": int(post.sum()), "counts": cov["counts"],
         "verdict": verdict,
-        "verdict_inputs": {"H_D2_status": st, "powered": powered, "floor_delta_price": delta2, "floor_delta_pct": delta2_pct,
-                           "thinness_fires": thin_fires, "thinness_scope": thin_scope, "thinness_applied": thin_applies,
+        "verdict_inputs": {"H_D2_status": st, "powered_p_test": powered, "floor_delta_price": delta2, "floor_delta_pct": delta2_pct,
+                           "point_estimate_branch": cov["power"]["H_D2"]["point_estimate_branch"],
+                           "thinness_fires": thin_fires, "thinness_scope": thin_scope,
+                           "thinness_applied": bool(thin_fires and (thin_scope == "any_verdict" or st in PASSING_STATES)),
                            "parity_excluded_share": parity_share, "weight_history_reconciled": reconciled},
         "alpha_one_sided": alpha,
         "better_than_placebo_H_D2_at_alpha": bool(H_D2["p_one_sided_better"] <= alpha),
@@ -1028,6 +1137,8 @@ def run(ctx: dict, placebo: dict, cov: dict, args, placebo_indep: dict, placebo_
         "by_kind": by_kind,
         "uniform_intraday_variant": uniform_variant,
         "pre_blend_disclosure": pre_blend,
+        "post_cutoff_disclosure": post_cutoff,
+        "two_sided_null_disclosure": two_sided_cells,
         "disclosure_nulls": disclosure_nulls,
         "thinness": thinness,
         "distribution": {"actual_u_hist_edges": [round(x, 2) for x in np.linspace(0, 1, 11)],
@@ -1035,7 +1146,7 @@ def run(ctx: dict, placebo: dict, cov: dict, args, placebo_indep: dict, placebo_
                          "null_mean_u_draws_confirmatory": np.round(masked_means(U, conf), 5).tolist(),
                          "null_mean_post_pct_draws_confirmatory": np.round(masked_means(POST, conf) * 100, 5).tolist(),
                          "null_mean_pre_pct_draws_confirmatory": np.round(masked_means(PRE, conf) * 100, 5).tolist()},
-        "fills": [{**{key: f.get(key) for key in ("ticker", "yf", "theme", "kinds", "name", "session_date", "date", "side_label", "qty", "price", "ccy",
+        "fills": [{**{key: f.get(key) for key in ("ticker", "yf", "theme", "kinds", "set", "name", "session_date", "date", "side_label", "qty", "price", "ccy",
                                                    "notional_nav", "alignment", "ex_in_window", "u", "pre", "post", "H", "L")},
                    "confirmatory": bool(c_)} for f, c_ in zip(F, conf)],
         "blocks": blocks.tolist(),
@@ -1046,17 +1157,36 @@ def run(ctx: dict, placebo: dict, cov: dict, args, placebo_indep: dict, placebo_
 
 
 def disclosure_placebos(ctx: dict, spec: dict) -> tuple[dict, dict]:
-    """The two disclosure nulls (amendment 2): independent per fill, and the PCC
-    engine's chained same-line relation; neither is verdict-bearing."""
+    """The two disclosure nulls of amendment 2 (two-sided pools, as first
+    registered): independent per fill, and the PCC engine's chained same-line
+    relation; neither is verdict-bearing."""
     k = spec["window_sessions_each_side"]
     dn = spec["placebo"]["disclosure_nulls"]
     indep = simulate_placebo(ctx, np.random.default_rng(spec["seed"] + dn["independent_per_fill"]["seed_offset"]),
-                             dn["independent_per_fill"]["draws"], blocked=False)
+                             dn["independent_per_fill"]["draws"], blocked=False, direction="both")
     chained_blocks = make_blocks(ctx["complete"], k, tuple(dn["chained_same_line"]["relations"]))
     chained = simulate_placebo(ctx, np.random.default_rng(spec["seed"] + dn["chained_same_line"]["seed_offset"]),
-                               dn["chained_same_line"]["draws"], blocked=True, blocks=chained_blocks)
+                               dn["chained_same_line"]["draws"], blocked=True, blocks=chained_blocks, direction="both")
     chained["n_blocks"] = int(chained_blocks.max()) + 1
     return indep, chained
+
+
+def simulate_all(ctx: dict, spec: dict, uniform_variant: bool) -> tuple[dict, dict, dict, dict]:
+    """The forward null (verdict-bearing; confirmatory and pre-blend fills), the
+    two-sided blocked null (a disclosure, per-draw means only; confirmatory and
+    post-cutoff fills) and the two disclosure nulls of amendment 2."""
+    F = ctx["complete"]
+    conf, preb, post = set_mask(F, "confirmatory"), set_mask(F, "pre_blend"), set_mask(F, "post_cutoff")
+    fwd = simulate_placebo(ctx, np.random.default_rng(spec["seed"]), spec["placebo"]["draws_per_fill"], blocked=True,
+                           uniform_variant=uniform_variant, direction="forward", members_mask=conf | preb)
+    ts = spec["placebo"]["disclosure_nulls"]["two_sided_blocked"]
+    accumulate = {"confirmatory": conf}
+    if post.any():
+        accumulate["post_cutoff"] = post
+    two = simulate_placebo(ctx, np.random.default_rng(spec["seed"] + ts["seed_offset"]), ts["draws"], blocked=True,
+                           direction="both", store=False, accumulate=accumulate)
+    indep, chained = disclosure_placebos(ctx, spec)
+    return fwd, two, indep, chained
 
 
 def main():
@@ -1069,20 +1199,17 @@ def main():
     spec = load_json(SPEC_PATH)
     RESULTS_DIR.mkdir(exist_ok=True)
     ctx = build(spec, args)
-    rng = np.random.default_rng(spec["seed"])
-    placebo = simulate_placebo(ctx, rng, spec["placebo"]["draws_per_fill"], blocked=True,
-                               uniform_variant=(args.mode == "run"))
-    indep, chained = disclosure_placebos(ctx, spec)
+    fwd, two, indep, chained = simulate_all(ctx, spec, uniform_variant=(args.mode == "run"))
     if args.mode == "coverage":
-        cov = coverage(ctx, placebo, indep, chained)
+        cov = coverage(ctx, fwd, two, indep, chained)
         with open(RESULTS_DIR / "coverage.json", "w", encoding="utf-8") as fh:
             json.dump(cov, fh, indent=1, ensure_ascii=False)
-        print(json.dumps({k: cov[k] for k in ("counts", "window_width", "null", "power")}, indent=1, ensure_ascii=False))
+        print(json.dumps({k: cov[k] for k in ("counts", "window_width", "null", "power", "thinness_reach")}, indent=1, ensure_ascii=False))
         print("dropped (window):", len(cov["dropped_window"]), "fills")
         print("outcome-blind: no actual statistic computed; coverage.json written; engine sha256", cov["provenance"]["engine_sha256"])
         return
     frozen = load_json(RESULTS_DIR / "coverage.json")
-    res = run(ctx, placebo, frozen, args, indep, chained)
+    res = run(ctx, fwd, frozen, args, two, indep, chained)
     with open(RESULTS_DIR / "results.json", "w", encoding="utf-8") as fh:
         json.dump(res, fh, indent=1, ensure_ascii=False, default=float)
     summary = {k: res[k] for k in ("verdict", "verdict_inputs", "n", "n_confirmatory", "H_D2", "H_D1", "pre_leg") if k in res}

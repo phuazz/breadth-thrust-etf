@@ -21,7 +21,7 @@
     "block_relations": [
       "same_session_date"
     ],
-    "structure": "blocked: fills on one rebalance date (session date) form one cluster (amendment 2); in each placebo set every member of a cluster takes the same offset, drawn from the offsets eligible for all of them; the independent-per-fill null and the PCC engine's chained same-line null (same-line seven-session windows that overlap joined) are computed at 1,000 draws as disclosures only. Stated limit: consecutive weekly fills on one line share two bars of their windows, a serial overlap the date blocks treat as independent; their post legs share no bar",
+    "structure": "blocked: fills on one rebalance date (session date) form one cluster (amendment 2); in each placebo set every member of a cluster takes the same offset, drawn from the forward offsets +4 to +60 eligible for all of them (amendment 9); only confirmatory and pre-blend fills enter the forward null, so a post-cutoff fill never narrows a cluster's offsets. Disclosures: the two-sided blocked null (offsets -60 to -4 and +4 to +60, 10,000 sets, per-draw means only) for both clauses and for the post-cutoff cell; and the independent-per-fill and chained same-line nulls of amendment 2 on two-sided pools at 1,000 sets. Stated limit: consecutive weekly fills on one line share two bars of their windows, a serial overlap the date blocks treat as independent; their post legs share no bar",
     "disclosure_nulls": {
       "independent_per_fill": {
         "draws": 1000,
@@ -36,8 +36,18 @@
           "same_line_overlapping_windows"
         ],
         "note": "the relation first registered and dropped by amendment 2"
+      },
+      "two_sided_blocked": {
+        "draws": 10000,
+        "seed_offset": 4,
+        "direction": "both",
+        "note": "amendment 9: the two-sided null first registered, kept as a disclosure for H-D2 and H-D1 and as the comparator of the post-cutoff cell"
       }
-    }
+    },
+    "degenerate_below_sd_ratio": 0.01,
+  "degenerate_note": "S3 of the spec-freeze review: a disclosure null whose per-draw means of the post leg vary by less than a hundredth of the forward null's has no usable spread, and its cells read 'degenerate, not computed'; decided on spreads only, never on a centre",
+  "offset_direction": "forward",
+    "offset_direction_note": "amendment 9: the verdict-bearing null (and H-D1's headline null) draws placebo sessions +4 to +60 bars after the fill only; for a signal-driven book the sessions before a fill lie in the run-up the weights react to, and a delay fills later, never earlier"
   },
   "seed": 20261003,
   "bootstrap_draws": 2000,
@@ -49,7 +59,8 @@
     "H_D2_delta_price": 0.001,
     "H_D2_floor_basis": "an economic floor of 10 bp of price (amendment 3, with the correction accepted on 2026-10-04): 10 bp is the blend's modelled round trip, 5 bp each way on blend-level weight change (the factsheet's cost line), kept as the economic floor",
     "H_D1_reference_floor_rounding_unit": 0.01,
-    "H_D1_note": "descriptive: the reference floor is the blocked null's MDE at 0.80 power rounded up to 0.01 in u"
+    "H_D1_note": "descriptive: the reference floor is the blocked null's MDE at 0.80 power rounded up to 0.01 in u",
+    "H_D2_power_note": "amendment 10: the power at the floor is the p-test's and the demotion rule binds on it; GIVE-BACK-AT-SIZE also needs the point estimate at or above 10 bp, which a true give-back of exactly 10 bp clears with probability one half"
   },
   "power_rule": "a clause with power below 0.80 at its floor is demoted: a demoted fail reads UNRESOLVED, a demoted pass reads SUGGESTIVE; H-D2's floor is economic, so its power is a measurement on the blocked null",
   "thinness": {
@@ -88,7 +99,7 @@
   "exclusions": [
     "adapter: BTC-USD in sleeve C (seven-day calendar), counted",
     "adapter (guard 2): a fill date that is not a session in the line's fetched series, counted",
-    "adapter (parity guard, amendment 1): a line whose fetched adjusted close disagrees with the engine's own price panel (read locally from the automation clone; the tilt's EEM leg from its committed panel) beyond 0.1 per cent on any of its fill dates, its fills excluded and counted; a line with no panel anywhere declared unchecked and counted",
+    "adapter (parity guard, amendments 1 and 8): for every fill, the window's price ratios (each bar's adjusted close over the fill session's) against the engine's own panel's ratios over the same seven sessions, read locally from the automation clone (the tilt's EEM leg from its committed panel); a ratio off by more than 0.1 per cent, or a missing panel bar, excludes that fill and is counted; 159801.SZ excluded whole as a basis mismatch; the level drift a disclosure table; more than a tenth of fills excluded stops the build",
     "engine: no feed symbol, or symbol absent from the bars extract",
     "engine: proxy feed (the book meta's exchange is not the market of the feed symbol's suffix)",
     "engine: alignment (price outside its dated session's range and both neighbours')",
@@ -105,14 +116,16 @@
     "engine (fill_timing.py) sha256 differs from coverage.json",
     "bars_used.json sha256 differs from coverage.json (the FX key compares the unit-FX constant)",
     "fills.json or book_meta.json sha256 differs from coverage.json",
-    "complete fill count differs from coverage.json",
-    "any placebo matrix or any actual score holds a missing value",
+    "complete fill count, or confirmatory count, differs from coverage.json",
+    "a forward-null placebo of a confirmatory or pre-blend fill, any other placebo value, or any actual score is missing",
+    "the forward null drawn at the run differs from the frozen one (the sha256 of its per-draw means, recorded in coverage.json without the centre)",
+    "the adapter's provenance lacks the weight-history reconciliation or the parity record",
     "the vectorised placebo path and the scalar actual path disagree beyond 1e-9 on any fill, a missing value on either path counting as a disagreement (parity)"
   ],
   "notional_weighting": "|dw| x NAV on the fill date: sleeve fills in their engine's own NAV units (headline_equity); overlay legs and overlay-induced fills in the deployed blend's NAV units",
   "declared_cells": [
-    "H-D2 post leg (fill to t+3 close), adverse-oriented, equal-weighted, confirmatory set, against the blocked close-priced placebo (verdict-bearing; floor 10 bp of price)",
-    "H-D1 mean u, equal-weighted, confirmatory set, against the same placebo (descriptive headline)",
+    "H-D2 post leg (fill to t+3 close), adverse-oriented, equal-weighted, confirmatory set, against the blocked forward close-priced placebo (verdict-bearing; floor 10 bp of price)",
+    "H-D1 mean u, equal-weighted, confirmatory set, against the same forward placebo (descriptive headline)",
     "pre leg (t-3 close to fill), adverse-oriented, confirmatory set",
     "buys and sells separately (u, pre, post), confirmatory set",
     "by sleeve (u, pre, post), confirmatory set",
@@ -120,19 +133,22 @@
     "notional-weighted (u, pre, post), confirmatory set",
     "sleeve-D fills in EUR (u, pre, post), confirmatory set",
     "overlay legs (EEM, SHY) and overlay-induced fills as rows of their own (u, pre, post), confirmatory set",
-    "uniform-intraday placebo variant (u, pre, post; all, buys, sells), confirmatory set",
-    "pre-blend fills (before 2018-10-31) as a cell of their own (u, pre, post)",
-    "H-D2 and H-D1 against the independent-per-fill null and the chained same-line null (disclosures)",
-    "leave-one-line-out and leave-one-year-out thinness of the H-D2 effect (and of the H-D1 effect, descriptive), confirmatory set"
+    "uniform-intraday placebo variant on the forward offsets (u, pre, post; all, buys, sells), confirmatory set",
+    "pre-blend fills (before 2018-10-31) as a cell of their own (u, pre, post), forward null",
+    "post-cutoff fills (no full forward pool) as a cell of their own (u, pre, post), against the two-sided blocked null",
+    "H-D2 and H-D1 against the two-sided blocked null (disclosure)",
+    "H-D2 and H-D1 against the independent-per-fill null and the chained same-line null (disclosures; a null whose per-draw means vary by less than a hundredth of the forward null's is reported as degenerate and not computed)",
+    "leave-one-line-out and leave-one-year-out thinness of the H-D2 effect (and of the H-D1 effect, descriptive), confirmatory set, with the guard's reach from counts"
   ],
   "disabled_pcc_cells": [
     "C1 cost anchor: P&L share and commission comparison (amendment c)",
     "X1 sell regret (amendment c)",
     "H2 tail share, S2 worse than six closes, S4 matched reversal, S5 intraday placement, S6 u at the close, S8 ex-date-excluded H1: not declared by this registration (amendment c, extended on the same principle)"
   ],
-  "amended": "2026-10-04: amendments 1 to 7 of the PREREG (section Amendments before the freeze)",
+  "amended": "2026-10-04: amendments 1 to 11 of the PREREG (section Amendments before the freeze)",
   "confirmatory": {
     "from_fill_date": "2018-10-31",
-    "basis": "the deployed blend's inception (Wednesday 2018-10-31); the earlier fills are a disclosure cell, never verdict-bearing (amendment 5)"
+    "basis": "the deployed blend's inception (Wednesday 2018-10-31); earlier fills are the pre-blend disclosure cell (amendment 5)",
+    "end_rule": "a confirmatory fill must have its full forward pool: bars to t + offset_max + 3, so every forward offset up to +60 has its whole window; later fills are the post-cutoff disclosure cell, with their count (amendment 9)"
   }
 }
