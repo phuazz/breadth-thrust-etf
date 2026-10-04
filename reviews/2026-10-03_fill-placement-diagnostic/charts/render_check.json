@@ -1,0 +1,41 @@
+{
+ "fig1_verdict_post_leg.png": {
+  "texts_outside_frame": 0,
+  "outside_boxes": [],
+  "tight_bbox_inside_frame": true,
+  "frame": [
+   1260,
+   615
+  ],
+  "footers_printed": 9,
+  "footers_expected": 9,
+  "marks": null,
+  "marks_expected": null
+ },
+ "fig2_u_by_sleeve.png": {
+  "texts_outside_frame": 0,
+  "outside_boxes": [],
+  "tight_bbox_inside_frame": true,
+  "frame": [
+   1260,
+   915
+  ],
+  "footers_printed": 8,
+  "footers_expected": 8,
+  "marks": 7768,
+  "marks_expected": 7768
+ },
+ "fig3_pre_post_by_side.png": {
+  "texts_outside_frame": 0,
+  "outside_boxes": [],
+  "tight_bbox_inside_frame": true,
+  "frame": [
+   1260,
+   660
+  ],
+  "footers_printed": 8,
+  "footers_expected": 8,
+  "marks": null,
+  "marks_expected": null
+ }
+}
