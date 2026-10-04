@@ -12,7 +12,7 @@ Prior work read before this draft (ledger check of 2026-10-03, ADJACENT). WS12 a
 
 ## Frozen comparison
 
-Unit: rebalance date × line × side, one fill for every line whose target weight changes on a rebalance date in the engines' own published weekly weight vectors (sleeves A, B, C, D as the factsheet's weight tables read them, plus the gate and tilt overlays' flips in the blend, both the overlay legs and the rescaling of every held line that a flip induces, tagged overlay-induced: amendment 6), with size |Δw| × NAV for notional weighting. The fill price is the engine's modelled fill: the line's unadjusted close on the rebalance session. Fill dates are taken from the engines' output, never reconstructed from a calendar, so the holiday-aware rolls and the `get_loc(rd)-1` signal convention are inherited exactly. The fills are the engines' modelled rebalance-close fills: the published history was re-run by the engines under the Monday cadence after the WS18 adoption (2026-08-22), so every sleeve fill in it is a Monday close or that week's holiday roll, while the live book filled at Friday closes before that adoption (amendment 7). The confirmatory set is the fills dated on or after Wednesday 2018-10-31, the blend's inception; the earlier fills (sleeve B's 2007 to 2018 series and a few A and D fills of October 2018) are a disclosure cell, never verdict-bearing (amendment 5).
+Unit: rebalance date × line × side, one fill for every line whose target weight changes on a rebalance date in the engines' own published weekly weight vectors (sleeves A, B, C, D as the factsheet's weight tables read them, plus the gate and tilt overlays' flips in the blend, both the overlay legs and the rescaling of every held line that a flip induces, tagged overlay-induced: amendment 6), with size |Δw| × NAV for notional weighting. The fill price is the engine's modelled fill: the line's unadjusted close on the rebalance session. Fill dates are taken from the engines' output, never reconstructed from a calendar, so the holiday-aware rolls and the `get_loc(rd)-1` signal convention are inherited exactly. The fills are the engines' modelled Monday rebalance-close fills, with holiday rolls as the engines output them: the published history was re-run by the engines under the Monday cadence after the WS18 adoption (2026-08-22), so it holds no Friday sleeve fill, while the live book filled at Friday closes before that adoption (amendment 7). The confirmatory set is the fills dated on or after Wednesday 2018-10-31, the blend's inception; the earlier fills (sleeve B's 2007 to 2018 series and a few A and D fills of October 2018) are a disclosure cell, never verdict-bearing (amendment 5).
 
 Lines priced as the engines price them: sleeve A through its registry trading proxies (the US lines behind CSP1, CNDX and the sector slices, as WS14 established the record survives that substitution), sleeves B and C on their own tickers (all US-listed except sleeve C's 159801.SZ, priced on its own Shenzhen series), sleeve D on the Xetra lines in EUR. BTC-USD in sleeve C is EXCLUDED: it trades on a seven-day calendar, so a three-session window is a different object there; the exclusion is stated on every table. Lines pruned from the universe over time appear only where the published weight history holds them (the history is the current universe's, so survivorship-limited, stated).
 
@@ -90,7 +90,7 @@ Appended by the build session. The sections above are as signed off, edited only
 - (e) the cells this registration declares, computed with the PCC's own `cell()` arithmetic on masks: H-D2 (the PCC's S3 post-leg cell), H-D1 (the PCC's H1 cell), the pre leg, buys and sells, by sleeve, by calendar year, notional-weighted, the sleeve-D fills, the uniform-intraday variant, and leave-one-line-out and leave-one-year-out thinness (the PCC's S9 test applied to H-D2, and to H-D1 for description). The coverage mode computes the H-D2 floor and its power; the run mode maps the verdict exactly as "Decision criteria" above does.
 - (f) scale only, results unchanged up to floating-point summation order: the ex-date-in-window test by prefix sums, masked and weighted null means by matrix-vector products, the cluster bootstrap evaluated from per-cluster sums on the PCC's own resampling calls, and placebo matrices restricted to u, pre, post and the ex flag. With about 11,700 fills against the PCC study's 151, the PCC's nine full float64 matrices would need about 8 GB.
 - (g) the Shenzhen market (exchange `SHZ`, suffix `.SZ`, Asia/Shanghai) added to the time-zone and market tables, for sleeve C's 159801.SZ line.
-- (h) the cluster relations are read from the spec (`placebo.block_relations`); the spec holds the PCC pair, so behaviour is unchanged.
+- (h) the cluster relations are read from the spec (`placebo.block_relations`); at step 1 the spec held the PCC pair, so behaviour was unchanged (amendment 2 later set it to the rebalance date alone, the PCC pair kept as the chained disclosure null).
 - (i) the parity check treats a missing value on either path as a failure (the PCC form compared with `>`, which a missing value passes), and a zero-range fill session implies intraday position 0 instead of 0/0.
 
 Window (3 sessions each side), offsets (4 to 60), the blocked null and its default relations, the seed (20261003), 10,000 placebo sets, 2,000 bootstrap draws, the bar-defect rules, the alignment rule, dividend rebasing, the hash stop conditions and the parity tolerance (1e-9) are the PCC engine's.
@@ -216,3 +216,39 @@ Written to `engine/results/` (to be committed with the freeze): `fills.json` (12
 - Window width: median range over close 3.9 per cent (25th to 75th percentile 2.7 to 5.5), so δ₂ is about a fortieth of the median seven-session range.
 
 Provenance in the record: engine sha256 `2b4d1c81…4a26`, spec `53163daa…aaa5`, bars `e390a6f4…0126`, fills `7e5ccea6…6353`, book meta `37b42e70…978b`, last session 2026-10-02.
+
+### Step 6, red-team at the spec-freeze gate (Sunday 2026-10-04): stopped for rulings
+
+The vault red-team reviewed the PREREG, the engine copy against the PCC original, the adapter, the tests, the charts code and the coverage record, under the step-5 prohibitions. It ran no run mode, computed no u, pre leg or post leg on any fill and read no licensed panel. It worked on synthetic books, re-derived the inputs from the vintage commit and planted four mutants against the tests. It verified sound:
+
+- every engine change maps to amendments (a) to (i) or to the declared-cell rewrite;
+- the hash binding of the five inputs, and the re-derivation of `fills.json` from `08cb2980`;
+- every fill price is its session's close, so the close-priced placebo is like-for-like;
+- the overlay dating, the parity reference and the verdict mapping's wording and precedence;
+- the power arithmetic, and the 489-cluster bootstrap;
+- all eleven catch classes of the PCC memo's section 1.12.
+
+Its findings, and the disposition of each:
+
+- **S1-1, placebo drawn from the selection window.** The offsets −60 to −4 place half the placebo post legs before the Friday-close signal, inside the run-up the weekly weights react to. On synthetic books with no give-back by construction, the registered null shows buy-side and sell-side effects of about ±15 bp and a pooled effect of up to 4 bp where entries, exits and overlay-induced fills do not cancel, against about zero for a null drawn only after the fill (+4 to +60). The 19 fills of 2026-09-28 have no post-side offset. Proposed fix: a verdict-bearing null drawn after the fill only, blocked by date, with an end rule for the last weeks, and the two-sided null as a disclosure; otherwise withdraw the side cells, P1, P3 and figure 3. **Disposition: needs a ruling** (the offsets are registered).
+- **S2-1, the deciding branch has power 0.50 at the floor.** The 0.910 is the power of the p ≤ 0.05 test alone; GIVE-BACK-AT-SIZE, the only verdict that drafts a delay kickoff, also needs the point estimate at or above 10 bp, which has power 0.50 at 10 bp and 0.80 only at about 12.8 bp. Proposed fix: one of three: state 0.50 and 12.8 bp beside 0.910; trigger the kickoff on the p-test with the floor as a size label; or trigger it on a lower confidence bound. **Disposition: needs a ruling.**
+- **S2-2, the gate's initial state.** `run_risk_overlay` starts the gate from its state file, RISK_OFF at the blend's first close; the published `days_risk_off` 255 and `n_switches` 20 reproduce only under that reading (236 and 18 under the adapter's "inactive before the first event"). The 2018-11-28 re-risk is therefore a real flip (a SHY sell of 0.5 of NAV and induced buys on every held line), and the step-2 record's "the gate's first event ... is none" is wrong. **Disposition: the adapter will seed the gate's start from the engine and assert the published counts; whether the blend's inception day (2018-10-31, RISK_OFF from the start) counts as a de-risk fill needs a ruling.**
+- **S2-3, nothing that decides the verdict is tested.** Four planted mutants each pass 15 of 15 tests: offsets starting at 1, thinness on every verdict, the 10 bp floor ignored, and the independent null made verdict-bearing. **Disposition: tests of every verdict branch and its precedence, offset eligibility, the stop on a missing placebo and the power functions, each failing against its mutant, to be added with the rulings.**
+- **S3, eleven minor items, to be fixed with the rulings.**
+  - The spec lists amendments 1 to 7 and the superseded level test.
+  - `sleeve_rebalance_only` is written though undeclared.
+  - The chained null is degenerate (one offset, sd 0), so its cells are to read "degenerate, not computed".
+  - The thinness guard's reach is to be stated: one line would need about 231 bp to flip a 10 bp effect, one year 39 to 71 bp.
+  - A missing `reconciled` or parity key currently passes and is to stop.
+  - The run is to stop if its null's sd differs from `coverage.json`, with the numpy and Python versions recorded.
+  - The parity guard checks closes only, on actual windows only, which is to be disclosed.
+  - Unit disclosures are to be stated: 34 line-dates carry opposite-side sleeve and induced fills (mirror units that cancel), non-Monday overlay dates share post-leg days with neighbouring clusters, and entries and exits have no cell of their own.
+  - Chart fixes:
+    - the exclusion footer on the confirmatory basis, with the incomplete windows, guard 2 and BTC-USD counted;
+    - figure 1 to carry the MDE and the power;
+    - figure 2's title without a p for the descriptive H-D1;
+    - the render check to go into the test suite.
+  - The null centres printed before the run (two-sided confirmatory mean post leg −0.0043 per cent, pre leg −0.0127 per cent, chained −0.69 per cent, and the step-3 diagnostic's −0.498 and −0.011 per cent) are recorded here as seen. A post-side null's centre would not be printed before the run.
+  - The step-4 record's test count is 15, not 14.
+
+The red-team appended four lines to the vault's catches log: two new classes (PLACEBO DRAWN FROM THE SELECTION WINDOW; EVENT LOG READ WITHOUT ITS INITIAL STATE) and two repeats of logged classes. Steps 7 and 8 are not started; nothing is frozen or run.
