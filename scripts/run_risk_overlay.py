@@ -87,6 +87,7 @@ from regime_publish import (  # noqa: E402
     detect_historical_revision,
 )
 from alignment import align_series_to_index  # noqa: E402
+from overlay_state import assert_initial_state_reproduces  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -206,6 +207,26 @@ def _compute_states(breadth: pd.Series, off: float, on: float) -> pd.Series:
             state = 1.0
         states.append(state)
     return pd.Series(states, index=breadth.index, dtype=float)
+
+
+def initial_state_fields(states: pd.Series) -> dict:
+    """S2-2 (2026-10-04): the gate's state on the first published close,
+    before any logged event, as the payload carries it. The events list
+    records transitions only, so a history that opens RISK_OFF (the
+    Norgate feed read RISK_OFF on 2018-10-31) is invisible to a reader
+    seeded RISK_ON: it reads the 19 sessions to 2018-11-27 as risk-on and
+    the 2018-11-28 RISK_ON as a no-op, giving 236 days / 18 switches
+    against the published 255 / 20. ``overlay_state`` reads both fields."""
+    return {
+        "history_start": states.index[0].strftime("%Y-%m-%d"),
+        "initial_state": "RISK_OFF" if states.iloc[0] == 0.0 else "RISK_ON",
+    }
+
+
+def tilt_initial_state(sig_aligned: pd.Series) -> str:
+    """The tilt's state on the first published close (S2-2), from the same
+    diagnostics series the tilt events are cut from."""
+    return "EM_TILT_ON" if sig_aligned.iloc[0] == 1.0 else "EM_TILT_OFF"
 
 
 def _load_norgate_states(
@@ -583,6 +604,10 @@ def main() -> int:
          "breadth": _round(breadth.loc[d])}
         for d in states.index[transitions != 0]
     ]
+    # S2-2 (2026-10-04): the state on the first close, before any logged
+    # event (see initial_state_fields); published beside the counts and
+    # checked against them at write time below.
+    initial_fields = initial_state_fields(states)
 
     ungated_stats = _stats(blend_ret, blend_eq)
     gated_stats = _stats(gated_ret, gated_eq)
@@ -677,6 +702,8 @@ def main() -> int:
                     },
                     "current_state": tilt_state,
                     "current_state_since": last_tilt_change.strftime("%Y-%m-%d"),
+                    # S2-2: state on the first close, before any logged event.
+                    "initial_state": tilt_initial_state(sig_aligned),
                     # D9 — freshness of the signal behind current_state. A
                     # consumer must treat signal_stale=True like the gate's
                     # stale-panel banner: last valid reading, not live.
@@ -718,6 +745,8 @@ def main() -> int:
         "current_state": current_state,
         "current_state_since": last_change_date.strftime("%Y-%m-%d"),
         "current_breadth": _round(breadth.iloc[-1]),
+        "history_start": initial_fields["history_start"],
+        "initial_state": initial_fields["initial_state"],
         "n_switches": n_switches,
         "days_risk_off": days_off,
         "pct_days_risk_off": _round(pct_off, 2),
@@ -788,6 +817,23 @@ def main() -> int:
         events=events,
         series_start_date=series_start,
     )
+
+    # S2-2 reconciliation (2026-10-04): a reader seeded from the payload's
+    # own initial_state and walking its own events list must reproduce the
+    # engine's daily states on every blend date, and the headline counts
+    # with them. Checked on the payload object that is written, never on
+    # a reconstruction of it. Hard-fail at write time like FM-2.
+    dates_iso = [d.strftime("%Y-%m-%d") for d in states.index]
+    assert_initial_state_reproduces(
+        payload, "RISK_OFF", dates_iso,
+        [bool(v == 0.0) for v in states.values],
+        n_switches=payload["n_switches"], days_active=payload["days_risk_off"],
+        label="Phase 19 gate")
+    if phase22_payload is not None:
+        assert_initial_state_reproduces(
+            payload["phase22_eem_tilt"], "EM_TILT_ON", dates_iso,
+            [bool(v == 1.0) for v in sig_aligned.values],
+            label="Phase 22 tilt")
 
     # Historical-revision detection: compare today's events list to the
     # previously-committed file. If past-date entries have appeared,
