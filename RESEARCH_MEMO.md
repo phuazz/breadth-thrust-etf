@@ -2316,6 +2316,56 @@ leads reproduce on our data — is consistent with this outcome and was declared
 before the run. Reopening needs a genuinely new per-name object and a new registration,
 not a neighbour of this one.
 
+## Strategy D fixed Thursday signal study (2026-09-26)
+
+Personal context; owner review and date confirmation pending. Archetype: decision aid.
+Keep Friday live. A pre-registered comparison of Thursday versus Friday information,
+both executed at the same Monday close, did not clear all study tolerances. This extends
+WS18 without repeating its whole-book execution-cadence question. No live change made.
+
+On 1 November 2018 to 17 September 2026, 1,943 common returns and 411 fills, USD with
+9bps per traded notional: D CAGR 18.10% Friday versus 16.99% Thursday (minus 1.11pp/year),
+Sharpe 0.979 versus 0.927; gated/tilted portfolio CAGR 14.73% versus 14.51% (minus
+0.22pp/year), Sharpe 1.231 versus 1.214. Maximum drawdowns are essentially unchanged.
+Thursday changes the selected set in 44/411 weeks. From 2023 onward D loses 2.04pp/year
+and 0.103 Sharpe. The extra D economic margins were analyst-set before computation,
+not previously owner-approved deployment limits; the CAGR and later-period failures
+are close to those bars. At 18bps costs, the same CAGR bar fails.
+
+Paired 60-observation circular bootstrap, 2,000 draws, seed 20260926: one-sided 95%
+lower Sharpe-difference bound -0.125 for D versus -0.10 margin (fail); portfolio -0.038
+versus -0.05 (pass). Both central 90% intervals include zero. No statistically significant
+loss is established, and D non-inferiority is not established either. Previously seen
+history throughout; no untouched OOS claim.
+
+Five weekly sample-line checkpoint observations show Friday ready 3/5 and Thursday
+4/5 at both Sunday 14:00 and Monday 06:00 SGT. These are not full-panel readiness or
+missed-trade rates; one late vendor withdrawal followed a sealed all-ready state.
+Historical Friday-plus-HOLD returns cannot be constructed honestly from this log.
+
+Important validation limit: exact engine parity on the same frozen inputs does not
+mean parity with published D. At 401/411 fills weights differ beyond rounding; 16/411
+select different sectors. Maximum daily return discrepancy is 1.405pp, mean absolute
+2.04bps/day. Local constituent caches end 18 September; published D was computed on
+23 September. Precise vintage/membership/source revision attribution remains unresolved.
+Thus the within-snapshot registered verdict is economic-tolerance failure; the adoption
+question is INCONCLUSIVE, not a definitive rejection of Thursday. Require a production-
+vintage replication and fuller readiness evidence before any adoption decision.
+
+Nine calendar/no-lookahead/accounting fixtures pass. Hashes frozen before calculation;
+independent accounting and marginal portfolio identity checked. One shared missing
+ETF valuation date (24 October 2025) is disclosed, not forward-filled. Actual Friday
+constituent signals are retained. The next observed return spans the price gap.
+Amendments 1/2 document the failed full-history repair and calendar-signal treatment;
+amendment 3 corrects an auxiliary overlay feed before its performance was inspected.
+Four invalid and four corrected configurations are retained: eight completed performance
+evaluations, one challenger, no tuning; separate parity runs are engineering controls.
+
+Sources and full limitations: reviews/2026-09-26_d-thursday/FINDINGS.md and results.json.
+Runner scripts/study_d_thursday.py; fixtures tests/test_study_d_thursday.py. Raw pinned
+bundle data_local/d_thursday_20260926 is ignored and must be retained for replication.
+No production files, signed construction, trading rules or existing unrelated edits changed.
+
 ## WS23 — fill-placement diagnostic (registered 2026-10-03, run and read 2026-10-04): NO-GIVE-BACK
 
 Pointer section; the record is `reviews/2026-10-03_fill-placement-diagnostic/PREREG.md` (registration,
