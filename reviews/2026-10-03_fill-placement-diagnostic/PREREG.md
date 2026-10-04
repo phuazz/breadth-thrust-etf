@@ -426,3 +426,19 @@ Under the coordinator's rule (any S1 or S2: fix, regenerate the coverage, re-che
   2. The freeze-header writer and the run script lived in the session's scratchpad, outside the record. Both are now in this folder as `freeze_header.py` and `step8_run.py`, and both are among the twelve files whose sha256 the header quotes. The run script refuses unless all twelve match.
   3. The read brief in `PROMPT_RUN.md`, kept as signed off, sends the verdict-read session to `results/results.json`. That session reads the run's outputs from `data_local/ws_fill_placement/held_outputs/` instead: `results.json`, and the charts under `charts/`. Before reading, it checks each file's sha256 against the step-8 entry of this record.
   4. The engine's printed summary of the run goes to the ignored log `data_local/ws_fill_placement/run_stdout.log`, a second, unread copy of the outcome. Its sha256 is recorded at step 8 with the outputs, and it is held, not committed, on the same footing.
+
+### Fifth red-team pass at the spec-freeze gate (Sunday 2026-10-04)
+
+A fifth check examined the fourth pass's fixes (local commit `dc020d1b`), with a bounded sweep of the placebo-draw lines, under the same prohibitions. It found no S1 and no S2. Under the coordinator's rule, the dispositions are recorded and the freeze proceeds without further review.
+
+It verified as sound:
+- **Tests and mutants.** 68 of 68 tests pass and 55 of 55 mutants are killed, the two fourth-pass mutants by assertion.
+- **Known answers.** The new tests' known answers hold exactly. Every forward placebo of the direction test reads 1 − 0.995³ = 0.0149251. Line B's pool is +4 to +17 and line A's +4 to +60.
+- **Its own mutants.** Thirteen of its fifteen, on eligibility, the intersection, the cluster-wide and per-fill picks and the scoring call, are killed by assertion.
+- **The scripts and the record.** Both scripts work as the record describes. The push condition matches the capture's code. The engine, spec and coverage hashes are unchanged.
+
+Its three S3 notes, fixed before the freeze:
+
+1. **Two per-fill mutants survived.** One draws a fallback member from the first member's pool; the other makes one per-fill pick serve every draw. Neither can change a verdict here: no cluster lacks a common offset, and one confirmatory fill in 7,768 takes the per-fill draw. Two tests now catch them. A per-fill draw must range over its whole pool, and a cluster without a common offset must draw each member from its own pool. The suite holds 69 tests and `mutation_check.py` plants 57 mutants, each failing the suite.
+2. **`freeze_header.py` hard-coded the freeze date and the workstream number.** It now takes the date and weekday from the clock in Singapore (`datetime`, `Asia/Singapore`). It stops if WS23 appears in the vault's ledger or register, or anywhere in the repository, tracked or untracked, apart from this study's own files.
+3. **`step8_run.py` could leave `results.json` behind.** If the run mode failed after writing it, the file stayed in `engine/results/`. The script now holds whatever was written, and hashes the log, on every exit path once the marker is written.

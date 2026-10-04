@@ -100,6 +100,9 @@ MUTANTS = {
                                              '            pick_block = -rng.choice(np.array(sorted(common), dtype=int), size=draws, replace=True)'),
     "the cluster's offsets the union of its members'": ('        common = set.intersection(*per) if per else set()',
                                                         '        common = set.union(*per) if per else set()'),
+    # the fifth spec-freeze pass: the per-fill branch
+    "a fallback member drawn from the first member's pool": ('offs = np.array(sorted(per[r_idx]), dtype=int)', 'offs = np.array(sorted(per[0]), dtype=int)'),
+    "one per-fill pick for every draw": ('                pick = rng.choice(offs, size=draws, replace=True)', '                pick = rng.choice(offs, size=1, replace=True)'),
 }
 # Not planted, by reading: the engine also applies thinness to a demoted pass (SUGGESTIVE), which amendment 4's
 # parenthetical does not name; it cannot arise at the frozen p-test power (0.883), and is flagged in the PREREG.

@@ -6,12 +6,19 @@ written.
 
     python reviews/2026-10-03_fill-placement-diagnostic/freeze_header.py
 """
+import datetime as dt
 import hashlib
 import json
+import re
+import subprocess
+import sys
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 STUDY = Path(__file__).resolve().parent
 REPO = STUDY.parents[1]
+VAULT = REPO.parent
+WS = "WS23"
 FILES = [("engine", STUDY / "engine/fill_timing.py"), ("spec", STUDY / "engine/prereg_spec.json"),
          ("charts", STUDY / "engine/charts.py"), ("adapter", REPO / "scripts/ws_fill_placement_adapter.py"),
          ("tests", REPO / "tests/test_ws_fill_placement.py"), ("fills", STUDY / "engine/results/fills.json"),
@@ -24,7 +31,24 @@ def sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+def freeze_date_and_free_number() -> str:
+    """The freeze date from the clock in Singapore (the fifth spec-freeze pass:
+    never hard-coded), and a check that the workstream number is still unused
+    in the repository, tracked or untracked (this study's own files aside), and
+    in the vault's ledger and register."""
+    today = dt.datetime.now(ZoneInfo("Asia/Singapore")).date()      # Python months are 1-indexed
+    hits = subprocess.run(["git", "grep", "--untracked", "-l", "-w", WS, "--", ".", ":!reviews/2026-10-03_fill-placement-diagnostic"],
+                          cwd=str(REPO), capture_output=True, text=True).stdout.split()
+    if hits:
+        sys.exit(f"STOP: {WS} is already used in {hits}")
+    for f in (VAULT / "STUDIES_LEDGER.md", VAULT / "studies" / "hypotheses.yaml"):
+        if re.search(rf"\b{WS}\b", f.read_text(encoding="utf-8")):
+            sys.exit(f"STOP: {WS} is already used in {f}")
+    return f"{today:%A} {today.isoformat()}"
+
+
 def main():
+    when = freeze_date_and_free_number()
     hashes = {name: sha(p) for name, p in FILES}
     cov = json.loads((STUDY / "engine/results/coverage.json").read_text(encoding="utf-8"))
     prov = cov["provenance"]
@@ -36,7 +60,7 @@ def main():
     assert prov["book_json_sha256"] == hashes["book meta"], "book meta differs from the coverage record"
     rel = {name: str(p.relative_to(REPO)).replace("\\", "/") for name, p in FILES}
     listing = "; ".join(f"{name} `{rel[name]}` `{hashes[name]}`" for name, _ in FILES)
-    header = ("**Freeze, Sunday 2026-10-04; workstream WS23** (the next number unused in the ledger and the repository). The frozen state is "
+    header = (f"**Freeze, {when}; workstream {WS}** (the next number unused in the ledger and the repository). The frozen state is "
               "the content sha256 below. Step 8 compares every file listed with them before the run mode starts, and the hash of `coverage.json` "
               "is also quoted in the vault's kickoff row, pushed at the freeze. The build session commits here locally only, as ruled, "
               "but the repository's scheduled capture rebases main and pushes it to the public origin (second spec-freeze review, S2-B), and a "
@@ -52,7 +76,7 @@ def main():
     pre = STUDY / "PREREG.md"
     s = pre.read_text(encoding="utf-8")
     old = "weekdays verified with the Python `datetime` library. NOT FROZEN, NOT RUN. Workstream number assigned at the freeze."
-    new = "weekdays verified with the Python `datetime` library. FROZEN on Sunday 2026-10-04 (below); NOT RUN.\n\n" + header
+    new = f"weekdays verified with the Python `datetime` library. FROZEN on {when} (below); NOT RUN.\n\n" + header
     assert s.count(old) == 1, "header anchor not found once (the header may already be written)"
     pre.write_text(s.replace(old, new), encoding="utf-8", newline="\n")
     print(json.dumps(hashes, indent=1))
