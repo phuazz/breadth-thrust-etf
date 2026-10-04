@@ -86,6 +86,15 @@ MUTANTS = {
     "the frozen-floor stop removed": ('    if cov["power"]["H_D2"]["delta"] != delta2:\n', '    if False:\n'),
     "the u draws hash not checked": ('            or draws_hash(masked_means(fwd["u"], conf)) != cov["null"]["confirmatory"]["draws_sha256_mean_u"]:',
                                      '            or False:'),
+    # the third spec-freeze pass: the verdict call's arguments, the masked-mean denominator, the placebo's direction, the relations key
+    "the verdict reads the raw mean": ('H_D2["p_one_sided_worse"], H_D2["effect"], delta2_pct, powered, alpha)',
+                                       'H_D2["p_one_sided_worse"], H_D2["actual"], delta2_pct, powered, alpha)'),
+    "the verdict's alpha replaced by the power target": ('H_D2["effect"], delta2_pct, powered, alpha)', 'H_D2["effect"], delta2_pct, powered, power_target)'),
+    "the masked mean over every fill": ('    return (wv @ mat[m]) / wv.sum()', '    return (wv @ mat[m]) / len(m)'),
+    "the placebo scored backwards": ('            sc = score_many(s, i + pick, unif, fills[r]["side"], k, price_rule=price_rule)',
+                                     '            sc = score_many(s, i - pick, unif, fills[r]["side"], k, price_rule=price_rule)'),
+    "the cluster relations key misread": ('spec["placebo"].get("block_relations", BLOCK_RELATIONS_PCC)',
+                                          'spec["placebo"].get("block_relation", BLOCK_RELATIONS_PCC)'),
 }
 # Not planted, by reading: the engine also applies thinness to a demoted pass (SUGGESTIVE), which amendment 4's
 # parenthetical does not name; it cannot arise at the frozen p-test power (0.883), and is flagged in the PREREG.

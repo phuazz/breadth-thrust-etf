@@ -78,7 +78,7 @@ Ruled by the registration's author on Fable on Sunday 2026-10-04, before any out
 
 Readings that stand as the build record took them: notional as the sleeve's own |Δw| times that sleeve's NAV (the overlay legs and the overlay-induced fills on the blend's NAV); each sleeve's line its own unit (A's CSP1 on SPY and B's SPY are two lines, disclosed); 159801.SZ on its own Shenzhen series with its four holiday fills excluded and counted; the undeclared PCC cells disabled; the results under `engine/results/`. The engine amendments (e) to (i) of the build record stand; the engine copy's hash at the freeze is in the header.
 
-Pushing, as ruled: the build session commits in this repository locally only (no pull, rebase or push; the tree holds other sessions' modified files and the automation's commits to main). That does not keep a commit local. The repository's scheduled holdings capture rebases main onto origin and pushes it, and the repository is public: at 09:00:33 SGT on Sunday 2026-10-04 it replayed this study's eleven commits, with its own capture commit, under new hashes and published them (second spec-freeze review, S2-B). The freeze is therefore the content sha256 in the header, which the run checks before it scores any fill. The commit that adds them is recorded by its local hash and is found on origin by its subject line, under the hash the capture gives it. What is committed, and so published, before the verdict read is set out in the build record (second spec-freeze review, S2-B).
+Pushing, as ruled: the build session commits in this repository locally only (no pull, rebase or push; the tree holds other sessions' modified files and the automation's commits to main). That does not keep a commit local. The repository's scheduled holdings capture rebases main onto origin and pushes it, and the repository is public: at 09:00:33 SGT on Sunday 2026-10-04 it replayed this study's eleven commits, with its own capture commit, under new hashes and published them (second spec-freeze review, S2-B). The freeze is therefore the content sha256 in the header, and it is enforced in two places. First, the run mode refuses to start unless the engine, the spec and the inputs hash to the values `coverage.json` records, and unless the forward null it draws hashes to the per-draw means recorded there. Second, the hash of `coverage.json` itself is quoted in the header and in the vault's kickoff row, which is pushed at step 7 and is the public timestamp before the run, and step 8 compares every frozen file with the header before the run mode starts. The commit that adds the header is recorded by its local hash and is found on origin by its subject line, under the hash the capture gives it. The capture pushes only when it has a capture of its own to commit, and it commits the whole index. This session therefore stages and commits its own paths in one command, naming them in the commit. What is committed, and so published, before the verdict read is set out in the build record (second and third spec-freeze passes).
 
 ## Build record before the freeze (Opus session, started Saturday 2026-10-03, continued Sunday 2026-10-04; weekdays verified with the Python `datetime` library)
 
@@ -342,7 +342,7 @@ Their findings, and the disposition of each:
   - the coverage power computed on the notional-weighted spread;
   - the thinness guard never firing, needing both line and year, ignoring the year, computed leave-one-in, or read from H-D1.
 
-  The engine lines were correct, so the fix is tests only and no hash in the coverage record moved. The suite now holds 63 tests.
+  The engine lines were correct, so the fix is tests only and no hash in the coverage record moved. The suite held 63 tests after this pass.
   - **Planted books.** Five run end to end through build, the nulls, coverage and run:
     - a 50 bp give-back on every fill reads GIVE-BACK-AT-SIZE;
     - a 5 bp give-back on every fill reads GIVE-BACK-BELOW-SIZE;
@@ -357,11 +357,11 @@ Their findings, and the disposition of each:
     - post-cutoff fills are absent from the forward null at the call site;
     - the demotion at a power of exactly 0.80;
     - the adapter's stop when the gate model misses the published counts.
-  - **Mutation check.** `mutation_check.py` now plants 48 mutants (the 22 above and 26 from the two reviewers' lists), and each fails the suite. One reviewer mutant is not planted, by reading; see flag 1 below.
+  - **Mutation check.** After this pass `mutation_check.py` planted 48 mutants (the 22 above and 26 from the two reviewers' lists), and each failed the suite. One reviewer mutant is not planted, by reading; see flag 1 below.
 - **S2-B, the freeze cannot stay local.** The scheduled capture rebases and pushes main; see the corrected "Pushing" paragraph above.
   - The freeze is the content sha256 in the header, which the run checks. The freeze commit is made locally, as ruled, and its subject line identifies it on origin after the capture's push.
   - The frozen inputs are committed with the freeze, as the run brief's step 7 lists them, together with `book_meta.json`, which the run also binds. They are published at the next capture, as the brief expected when it asked for the freeze to be pushed.
-  - The run's outputs differ: committing `results.json` and the charts on main would publish the outcome before the verdict read. They are written and hashed at step 8 and left uncommitted. Whether they are committed before the read, or held until the read session files them, is the owner's decision.
+  - The run's outputs differ: committing `results.json` and the charts on main would publish the outcome before the verdict read. They are written and hashed at step 8, moved to an ignored folder and left uncommitted (third pass, below). Whether they are committed before the read, or held until the read session files them, is the owner's decision.
 - **S3 notes.**
   1. Cells read against a two-sided null carry the selection-window bias that amendment 9 removed, the post-cutoff cell most: 70 per cent of its eligible offsets lie before the fill, as measured here. This is now stated beside the disclosures and added to the prohibited claims.
   2. The overlay engine's own accounting of the inception day differs from the ruled reading. Disclosed under amendment 11.
@@ -378,3 +378,31 @@ Flagged for the owner, not resolved here:
 1. **Thinness on a demoted pass.** The engine applies the thinness guard to SUGGESTIVE as well as to the two passes amendment 4 names. This cannot arise at the frozen p-test power (0.883 at the floor), so it is neither tested nor changed.
 2. **Consequences of the other verdicts.** "Consequences" fixes what follows NO-GIVE-BACK, GIVE-BACK-BELOW-SIZE and GIVE-BACK-AT-SIZE. For INCONCLUSIVE, SUGGESTIVE, UNRESOLVED and INFEASIBLE it states only that no engine, parameter, published number or operating rule changes. That gap predates the dispositions and lies outside them.
 3. **Publication of the run's outputs** (S2-B above).
+
+### Third red-team pass at the spec-freeze gate (Sunday 2026-10-04)
+
+The coordinator directed one more foreground check after the second pass's fixes, under the same prohibitions, scoped to those fixes (local commit `1e250cad`). It found no S1 and one S2, the residue of S2-A, with three S3 notes. It verified as sound:
+- the engine, spec and coverage hashes;
+- the 63 tests and the 48 kills;
+- the independence of the planted-book assertions from the lines they check;
+- the stop tests, the inception-day and demotion tests, and the adapter test;
+- the facts of S2-B.
+
+- **S2, the planted books all sat at one corner.** Every book had the minimum p, a power near one, a forward-null centre near zero and every fill confirmatory, and the expected spread came from the engine's own masked-mean helper. Three decision-bearing mutants therefore passed all 63 tests:
+  - the verdict reading the raw mean in place of the effect;
+  - the power target passed as alpha;
+  - the masked mean divided by every fill rather than the masked ones.
+
+  A placebo scored backwards was caught only by an index error. The engine lines are correct and the run binds the engine's hash, so no verdict on the frozen inputs was at risk. The fix is tests only:
+  - **A no-give-back book** on a seed that puts p mid-range (0.56), which must read NO-GIVE-BACK.
+  - **A momentum book** whose sides follow each line's drift, so that the forward null's centre sits near −30 bp and the raw mean and the effect fall on opposite sides of the floor. It must read GIVE-BACK-AT-SIZE.
+  - **Plain-numpy expected values.** The arithmetic assertions now compute their expected values with plain numpy, to within one unit of the last decimal, and also run on the three-set fixture, whose pre-blend and post-cutoff fills make the mask bite.
+  - **Two direct tests:**
+    - a forward null on a line that is flat to t+3 and falls afterwards must show an adverse mean post leg;
+    - weekly fills on one line must form one cluster per date when the relation is read through the spec.
+
+  The suite holds 67 tests and `mutation_check.py` plants 53 mutants, the five above added. Each fails the suite, the backwards placebo now by assertion. No engine or spec line changed, and the coverage record, regenerated after these fixes, came out byte-identical again (sha256 `27193027…3bef`).
+- **S3 notes.**
+  1. The cluster relations fall back silently to the PCC pair if the spec key is misspelt. Now pinned by the weekly-cadence test.
+  2. The S2-B wording was loose on two points. The run checks the input and draws hashes against `coverage.json`, not against the header, and nothing yet compared the hash of `coverage.json` itself. Separately, the capture pushes only when it has a capture to commit, and it commits the whole index. Both are corrected in the "Pushing" paragraph above. The hash of `coverage.json` is quoted in the header and in the vault's kickoff row, every frozen file is compared with the header before step 8 runs, and this session's commits name their paths.
+  3. Holding the run's outputs departs from step 8 of the signed-off brief, which says "Commit.". The session records it as a departure for the owner's ruling, not as an amendment, which it cannot make. To keep a stray `git add -A` from publishing them, the outputs are moved to the ignored folder `data_local/ws_fill_placement/held_outputs/` once written. Their sha256 are committed at step 8. `results.json` carries its run time, so a second run could not reproduce its hash; the hashes recorded at step 8 are the record.

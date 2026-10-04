@@ -428,6 +428,19 @@ def test_forward_offsets_lie_after_the_fill_only():
     assert len(eng.placebo_offsets(s, 250, SPEC, "forward")) < 57          # near the end the forward pool is short
 
 
+def test_the_forward_null_scores_sessions_after_the_fill(tmp_path):
+    days, arr = _line(260, dt.date(2025, 1, 6), "America/New_York", (9, 30), 50.0, 81)
+    i = 100
+    c = arr["c"].copy()
+    c[i + 4:] = c[i + 3] * np.cumprod(np.full(len(c) - i - 4, 1 - 0.005))      # flat to t+3, then falling 0.5 per cent a session
+    arr = dict(arr, c=c, o=np.concatenate([[c[0]], c[:-1]]))
+    arr["h"], arr["l"] = np.maximum(arr["o"], c) * 1.002, np.minimum(arr["o"], c) * 0.998
+    args = _write_inputs(tmp_path, {"A:AAA|AAA": (days, arr, "ARCA", "USD")}, [_fill("A:AAA|AAA", days[i], 1, c[i], "USD")])
+    ctx = eng.build(SPEC, args)
+    fwd = eng.simulate_placebo(ctx, np.random.default_rng(3), 200, blocked=True, direction="forward")
+    assert float(np.mean(fwd["post"][0])) > 0.01           # a buy placed before the fall: every forward placebo is adverse
+
+
 def _three_set_run_inputs(tmp_path):
     """Two lines from 2018-06: fills before the blend's inception, inside the
     confirmatory window and too late for a full forward pool."""
@@ -571,6 +584,16 @@ def test_the_verdict_reads_the_forward_null_and_the_coverage_prints_no_centre(tm
     post = eng.set_mask(ctx["complete"], "post_cutoff")
     assert post.any() and np.isnan(fwd["post"][post]).all()             # post-cutoff fills never enter the forward null
     assert res["H_D2"]["n"] == res["n_confirmatory"]                     # nor do pre-blend fills enter the verdict cell
+    _assert_the_verdict_arithmetic(ctx, fwd, cov, res)                   # with pre-blend and post-cutoff fills present
+
+
+def test_weekly_fills_on_one_line_form_one_cluster_per_date_through_the_spec(tmp_path):
+    days, arr = _line(200, dt.date(2025, 1, 6), "America/New_York", (9, 30), 50.0, 71)
+    idx = [60, 65, 70, 75]                                               # five sessions apart: their windows overlap
+    args = _write_inputs(tmp_path, {"A:AAA|AAA": (days, arr, "ARCA", "USD")},
+                         [_fill("A:AAA|AAA", days[i], 1 if j % 2 == 0 else -1, arr["c"][i], "USD") for j, i in enumerate(idx)])
+    ctx = eng.build(SPEC, args)
+    assert len(set(ctx["blocks"].tolist())) == len(idx)                  # the date relation alone, read from the spec
 
 
 def test_the_run_stops_when_the_frozen_null_is_not_drawn_again(tmp_path):
@@ -661,23 +684,27 @@ def test_derive_stops_unless_the_gate_model_reproduces_the_published_counts():
 # spec-freeze review): build, the nulls, coverage and run, with the cells
 # recomputed by hand from the forward null
 # ----------------------------------------------------------------------------
-def _planted_book(tmp_path, give_back, wick=None, n_lines=8, n=480, spacing=10, first=70, seed=5, sd=0.001):
+def _planted_book(tmp_path, give_back, wick=None, drift=None, n_lines=8, n=480, spacing=10, first=70, seed=5, sd=0.001):
     """Low-volatility synthetic lines from Monday 2019-01-07 (weekdays, bars at
     the New York open), one fill every `spacing` sessions on each line from bar
     `first`, side at random, sizes of 1, 2 or 3 NAV units so that notional
     weights vary. give_back(line, date) moves the t+3 close against the fill by
     that fraction of price. wick(line), if given, plants a wick on the bar
     before each fill, (near, far) of the close on the fill's worse and better
-    side, which fixes the window's range and so the fill's adverse rank u."""
+    side, which fixes the window's range and so the fill's adverse rank u.
+    drift(line), if given, adds that daily drift to the line, and every fill on
+    it then takes the drift's side, as a momentum book would, which moves the
+    forward null's centre well away from zero."""
     rng = np.random.default_rng(seed)
     days = _weekdays(dt.date(2019, 1, 7), n)
     last = n - 1 - 63                                        # every fill keeps its full forward pool
     lines, fills = {}, []
     for L in range(n_lines):
         key = f"S:L{L}|L{L}"
-        c = 50 * np.cumprod(1 + rng.normal(0, sd, n))
+        mu = 0.0 if drift is None else drift(L)
+        c = 50 * np.cumprod(1 + mu + rng.normal(0, sd, n))
         idx = list(range(first, last + 1, spacing))
-        sides = rng.choice([-1, 1], size=len(idx))
+        sides = rng.choice([-1, 1], size=len(idx)) if drift is None else np.full(len(idx), 1 if mu > 0 else -1)
         up, down = np.full(n, 0.002), np.full(n, 0.002)
         for i, s in zip(idx, sides):
             c[i + 3] *= 1 - s * give_back(L, days[i])
@@ -695,8 +722,8 @@ def _planted_book(tmp_path, give_back, wick=None, n_lines=8, n=480, spacing=10, 
     return _write_inputs(tmp_path, lines, fills)
 
 
-def _planted_run(tmp_path, give_back, wick=None):
-    args = _planted_book(tmp_path, give_back, wick)
+def _planted_run(tmp_path, give_back, wick=None, drift=None, seed=5):
+    args = _planted_book(tmp_path, give_back, wick, drift, seed=seed)
     small = _small_spec()
     ctx = eng.build(small, args)
     fwd, two, ind, ch = eng.simulate_all(ctx, small, uniform_variant=True)
@@ -706,47 +733,63 @@ def _planted_run(tmp_path, give_back, wick=None):
 
 
 def _assert_the_verdict_arithmetic(ctx, fwd, cov, res):
+    """Every expected value below is computed with plain numpy from the forward
+    null's matrix, not with the engine's helpers; rounded figures are compared to
+    within one unit of their last decimal, since the engine's matrix-vector mean
+    and numpy's mean may differ in the last bit."""
     F = ctx["complete"]
     conf = eng.set_mask(F, "confirmatory")
     apost = np.array([f["post"] for f in F])
     a = float(apost[conf].mean()) * 100
-    nm = eng.masked_means(fwd["post"], conf) * 100
+    per_draw = fwd["post"][conf].mean(axis=0)                                           # the null's mean post leg, per draw
+    nm = per_draw * 100
     H, vi = res["H_D2"], res["verdict_inputs"]
     assert H["n"] == int(conf.sum())
-    assert H["actual"] == round(a, 4) and H["null_mean"] == round(float(nm.mean()), 4)
-    assert H["effect"] == round(a - float(nm.mean()), 4)                                 # actual less the forward null's centre
-    assert H["p_one_sided_worse"] == round(float((np.sum(nm >= a) + 1) / (len(nm) + 1)), 4)   # the worse tail, with the +1
+    assert H["actual"] == pytest.approx(round(a, 4), abs=1.01e-4)
+    assert H["null_mean"] == pytest.approx(round(float(nm.mean()), 4), abs=1.01e-4)
+    assert H["effect"] == pytest.approx(round(a - float(nm.mean()), 4), abs=1.01e-4)     # actual less the forward null's centre
+    assert H["p_one_sided_worse"] == pytest.approx(round(float((np.sum(nm >= a) + 1) / (len(nm) + 1)), 4), abs=1.01e-4)   # worse tail, +1
     assert vi["floor_delta_pct"] == 0.1                                                   # 10 bp, in the effect's per-cent units
-    sd = float(eng.masked_means(fwd["post"], conf).std(ddof=1))
+    sd = float(per_draw.std(ddof=1))
     nd = NormalDist()
-    assert cov["power"]["H_D2"]["sd_mean_post"] == round(sd, 8)                           # the equal-weighted forward spread
-    assert cov["power"]["H_D2"]["power_at_delta"] == round(nd.cdf(0.001 / sd - nd.inv_cdf(0.95)), 4)
+    assert cov["power"]["H_D2"]["sd_mean_post"] == pytest.approx(sd, abs=1.01e-8)         # the equal-weighted forward spread
+    assert cov["power"]["H_D2"]["power_at_delta"] == pytest.approx(nd.cdf(0.001 / sd - nd.inv_cdf(0.95)), abs=1.01e-4)
     null_by_fill = fwd["post"].mean(axis=1)                                               # every draw, per fill
     for key, groups in (("line", np.array([f["yf"] for f in F])), ("year", np.array([f["session_date"][:4] for f in F]))):
         g_conf, detail = groups[conf], {d["dropped"]: d["effect"] for d in res["thinness"]["H_D2"][key]["detail"]}
         for g in sorted(set(g_conf.tolist())):
             keep = g_conf != g
-            assert detail[g] == round(float(apost[conf][keep].mean() - null_by_fill[conf][keep].mean()) * 100, 4)
+            if keep.any():
+                assert detail[g] == pytest.approx(round(float(apost[conf][keep].mean() - null_by_fill[conf][keep].mean()) * 100, 4), abs=1.01e-4)
     th = res["thinness"]["H_D2"]
     assert vi["thinness_fires"] == bool(th["line"]["sign_flips"] or th["year"]["sign_flips"])
 
 
-PLANTED = {
-    "a give-back of 50 bp on every fill": (lambda L, d: 0.005, None, "PASS", "GIVE-BACK-AT-SIZE"),
-    "a give-back of 5 bp on every fill": (lambda L, d: 0.0005, None, "DETECTED-BELOW-FLOOR", "GIVE-BACK-BELOW-SIZE"),
-    "one line carries the give-back": (lambda L, d: 0.02 if L == 0 else -0.001, None, "PASS", "INCONCLUSIVE"),
-    "one calendar year carries the give-back": (lambda L, d: 0.006 if d.year == 2019 else -0.002, None, "PASS", "INCONCLUSIVE"),
-    "H-D1 thin, H-D2 not": (lambda L, d: 0.005, lambda L: (0.02, 0.5) if L == 0 else (0.6, 0.5), "PASS", "GIVE-BACK-AT-SIZE"),
+PLANTED = {   # give_back, wick, drift, seed, expected H-D2 status, expected verdict
+    "a give-back of 50 bp on every fill": (lambda L, d: 0.005, None, None, 5, "PASS", "GIVE-BACK-AT-SIZE"),
+    "a give-back of 5 bp on every fill": (lambda L, d: 0.0005, None, None, 5, "DETECTED-BELOW-FLOOR", "GIVE-BACK-BELOW-SIZE"),
+    "one line carries the give-back": (lambda L, d: 0.02 if L == 0 else -0.001, None, None, 5, "PASS", "INCONCLUSIVE"),
+    "one calendar year carries the give-back": (lambda L, d: 0.006 if d.year == 2019 else -0.002, None, None, 5, "PASS", "INCONCLUSIVE"),
+    "H-D1 thin, H-D2 not": (lambda L, d: 0.005, lambda L: (0.02, 0.5) if L == 0 else (0.6, 0.5), None, 5, "PASS", "GIVE-BACK-AT-SIZE"),
+    # no give-back at all; the seed puts p mid-range (0.56), where a wrong alpha would pass it
+    "no give-back": (lambda L, d: 0.0, None, None, 9, "FAIL", "NO-GIVE-BACK"),
+    # a momentum book: the forward null's centre sits near -30 bp, so the raw mean (about -15 bp) and the effect
+    # (about +15 bp) lie on opposite sides of the 10 bp floor
+    "the side follows the drift": (lambda L, d: 0.0015, None, lambda L: 0.001 if L % 2 == 0 else -0.001, 5, "PASS", "GIVE-BACK-AT-SIZE"),
 }
 
 
 @pytest.mark.parametrize("case", list(PLANTED))
 def test_planted_books_reach_the_registered_verdict_by_the_registered_arithmetic(tmp_path, case):
-    give_back, wick, status, verdict = PLANTED[case]
-    ctx, fwd, cov, res = _planted_run(tmp_path, give_back, wick)
+    give_back, wick, drift, seed, status, verdict = PLANTED[case]
+    ctx, fwd, cov, res = _planted_run(tmp_path, give_back, wick, drift, seed)
     _assert_the_verdict_arithmetic(ctx, fwd, cov, res)
-    vi, th = res["verdict_inputs"], res["thinness"]
+    vi, th, H = res["verdict_inputs"], res["thinness"], res["H_D2"]
     assert vi["powered_p_test"] is True and vi["H_D2_status"] == status and res["verdict"] == verdict
+    if case == "no give-back":
+        assert 0.2 < H["p_one_sided_worse"] < 0.7
+    if case == "the side follows the drift":
+        assert H["null_mean"] < -0.2 and H["actual"] < 0.1 < H["effect"]
     if case == "one line carries the give-back":
         assert th["H_D2"]["line"]["sign_flips"] and not th["H_D2"]["year"]["sign_flips"]
     if case == "one calendar year carries the give-back":
