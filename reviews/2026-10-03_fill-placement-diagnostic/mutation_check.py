@@ -95,6 +95,11 @@ MUTANTS = {
                                      '            sc = score_many(s, i - pick, unif, fills[r]["side"], k, price_rule=price_rule)'),
     "the cluster relations key misread": ('spec["placebo"].get("block_relations", BLOCK_RELATIONS_PCC)',
                                           'spec["placebo"].get("block_relation", BLOCK_RELATIONS_PCC)'),
+    # the fourth spec-freeze pass: the cluster-wide draw that 7,767 of the 7,768 confirmatory fills take
+    "the cluster's offset drawn backwards": ('            pick_block = rng.choice(np.array(sorted(common), dtype=int), size=draws, replace=True)',
+                                             '            pick_block = -rng.choice(np.array(sorted(common), dtype=int), size=draws, replace=True)'),
+    "the cluster's offsets the union of its members'": ('        common = set.intersection(*per) if per else set()',
+                                                        '        common = set.union(*per) if per else set()'),
 }
 # Not planted, by reading: the engine also applies thinness to a demoted pass (SUGGESTIVE), which amendment 4's
 # parenthetical does not name; it cannot arise at the frozen p-test power (0.883), and is flagged in the PREREG.

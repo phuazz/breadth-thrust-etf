@@ -428,17 +428,46 @@ def test_forward_offsets_lie_after_the_fill_only():
     assert len(eng.placebo_offsets(s, 250, SPEC, "forward")) < 57          # near the end the forward pool is short
 
 
-def test_the_forward_null_scores_sessions_after_the_fill(tmp_path):
-    days, arr = _line(260, dt.date(2025, 1, 6), "America/New_York", (9, 30), 50.0, 81)
-    i = 100
-    c = arr["c"].copy()
-    c[i + 4:] = c[i + 3] * np.cumprod(np.full(len(c) - i - 4, 1 - 0.005))      # flat to t+3, then falling 0.5 per cent a session
-    arr = dict(arr, c=c, o=np.concatenate([[c[0]], c[:-1]]))
-    arr["h"], arr["l"] = np.maximum(arr["o"], c) * 1.002, np.minimum(arr["o"], c) * 0.998
-    args = _write_inputs(tmp_path, {"A:AAA|AAA": (days, arr, "ARCA", "USD")}, [_fill("A:AAA|AAA", days[i], 1, c[i], "USD")])
+def _after_the_fill_lines(tmp_path, steps, seed, dead_from=None, i=100):
+    """Two lines (one rebalance date, so one cluster) with a buy at bar i,
+    following their own path to t+3 and then the per-session moves in
+    `steps` (a function of the session count after t+3). dead_from, if given,
+    marks line B's bars provisional every seventh session from t+dead_from+3,
+    which kills B's windows for every forward offset from dead_from on."""
+    lines, fills = {}, []
+    for j, key in enumerate(("A:AAA|AAA", "B:BBB|BBB")):
+        days, arr = _line(260, dt.date(2025, 1, 6), "America/New_York", (9, 30), 50.0, seed + j)
+        c = arr["c"].copy()
+        c[i + 4:] = c[i + 3] * np.cumprod([1 + steps(m) for m in range(len(c) - i - 4)])
+        arr = dict(arr, c=c, o=np.concatenate([[c[0]], c[:-1]]))
+        arr["h"], arr["l"] = np.maximum(arr["o"], c) * 1.002, np.minimum(arr["o"], c) * 0.998
+        lines[key] = (days, arr, "ARCA", "USD")
+        fills.append(_fill(key, days[i], 1, c[i], "USD"))
+    args = _write_inputs(tmp_path, lines, fills)
+    if dead_from is not None:
+        hist = json.loads(Path(args.history).read_text(encoding="utf-8"))
+        for jj in range(i + dead_from + 3, i + 64, 7):
+            hist["B:BBB|BBB"]["history"][jj]["p"] = True
+        Path(args.history).write_text(json.dumps(hist), encoding="utf-8")
     ctx = eng.build(SPEC, args)
-    fwd = eng.simulate_placebo(ctx, np.random.default_rng(3), 200, blocked=True, direction="forward")
-    assert float(np.mean(fwd["post"][0])) > 0.01           # a buy placed before the fall: every forward placebo is adverse
+    assert ctx["blocks"][0] == ctx["blocks"][1]                              # one cluster: the cluster-wide draw
+    return ctx
+
+
+def test_the_forward_null_scores_sessions_after_the_fill(tmp_path):
+    ctx = _after_the_fill_lines(tmp_path, lambda m: -0.005, 81)              # flat to t+3, then falling 0.5 per cent a session
+    for blocked in (True, False):                                            # the cluster-wide draw, and the per-fill draw
+        fwd = eng.simulate_placebo(ctx, np.random.default_rng(3), 200, blocked=blocked, direction="forward")
+        assert float(np.mean(fwd["post"][0])) > 0.01 and float(np.mean(fwd["post"][1])) > 0.01   # buys before the fall: adverse
+
+
+def test_a_cluster_draws_only_offsets_eligible_for_every_member(tmp_path):
+    # falling for the 17 sessions after t+3, rising after; line B's windows are dead from offset +18
+    ctx = _after_the_fill_lines(tmp_path, lambda m: -0.005 if m < 17 else 0.005, 91, dead_from=18)
+    s_b = ctx["series"]["B:BBB|BBB"]
+    assert eng.placebo_offsets(s_b, ctx["complete"][1]["session_index"], SPEC, "forward").max() == 17
+    fwd = eng.simulate_placebo(ctx, np.random.default_rng(4), 300, blocked=True, direction="forward")
+    assert float(np.mean(fwd["post"][0])) > 0.01                             # line A drew only offsets B could take: the falling stretch
 
 
 def _three_set_run_inputs(tmp_path):
