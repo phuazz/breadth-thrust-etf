@@ -52,7 +52,11 @@ def rel(p: Path) -> str:
 def hold_outputs() -> None:
     """Move whatever the run and the charts wrote into the ignored folder and
     print each file's sha256 and the log's (the fifth spec-freeze pass: on every
-    exit path once the marker is written, a late failure included)."""
+    exit path once the marker is written, a late failure included). A JSON file
+    written in Windows text mode carries CRLF endings, while the repository
+    stores *.json with LF (.gitattributes); each held JSON file is rewritten
+    with LF before it is hashed, its content unchanged, so that a later commit
+    stores the bytes the hash describes."""
     HELD.mkdir(parents=True, exist_ok=True)
     res = ENGINE_DIR / "results/results.json"
     charts = ENGINE_DIR / "charts"
@@ -60,6 +64,8 @@ def hold_outputs() -> None:
         dest = (HELD / "charts" / p.name) if p.parent == charts else (HELD / p.name)
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(p), str(dest))
+        if dest.suffix == ".json":
+            dest.write_bytes(dest.read_bytes().replace(b"\r\n", b"\n"))
         print(rel(dest), dest.stat().st_size, "bytes", sha(dest))
     if charts.exists() and not any(charts.iterdir()):
         charts.rmdir()
