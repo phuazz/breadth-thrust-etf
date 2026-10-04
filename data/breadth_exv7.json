@@ -1,147 +1,26 @@
 {
   "etf": "EXV7",
-  "computed_at_utc": "2026-10-03T05:11:55.334739+00:00",
+  "computed_at_utc": "2026-10-04T08:23:45.513135+00:00",
   "constituents_source": "data\\constituents_exv7.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
-  "end_date": "2026-10-01",
-  "tail_cap": {
-    "capped_at": "2026-10-01",
-    "venue_last_completed": "2026-10-02",
-    "constituents_priced_to": "2026-10-01",
-    "roster_end_friday": "2026-10-02",
-    "vendor_probe": {
-      "checked_at_utc": "2026-10-03T05:11:19+00:00",
-      "probe": "yfinance single-ticker history",
-      "last_populated": "2026-10-01",
-      "rows": [
-        {
-          "date": "2026-10-02",
-          "roster_held": 18,
-          "roster_priced": 2,
-          "live_unpriced": 15,
-          "sampled": [
-            "AI.PA",
-            "AKZA.AS",
-            "IMCD.AS",
-            "CRDA.L",
-            "SDF.DE"
-          ],
-          "sample_answered": 5,
-          "sample_served": 0,
-          "filled": 0,
-          "refused": [],
-          "requested": [
-            "AI.PA",
-            "BAS.DE",
-            "SY1.DE",
-            "HEN3.DE",
-            "AKZA.AS",
-            "BNR.DE",
-            "YAR.OL",
-            "IMCD.AS",
-            "EVK.DE",
-            "SYENS.BR",
-            "CRDA.L",
-            "UMI.BR",
-            "AKE.PA",
-            "FPE3.DE",
-            "SDF.DE"
-          ],
-          "unserved": [
-            "AI.PA",
-            "BAS.DE",
-            "SY1.DE",
-            "HEN3.DE",
-            "AKZA.AS",
-            "BNR.DE",
-            "YAR.OL",
-            "IMCD.AS",
-            "EVK.DE",
-            "SYENS.BR",
-            "CRDA.L",
-            "UMI.BR",
-            "AKE.PA",
-            "FPE3.DE",
-            "SDF.DE"
-          ],
-          "no_answer": [],
-          "not_attempted": [],
-          "heal_timed_out": false,
-          "verdict": "unserved_placeholder",
-          "reason": "15 live name(s) re-requested single-ticker, all answered, none carries a 2026-10-02 bar: the vendor is not serving this row for this roster. The 2 residual price(s) are what the batch left behind, so the row is not usable as a vendor-priced row. This says nothing about whether the exchange traded"
-        }
-      ],
-      "dropped": [
-        "2026-10-02"
-      ]
-    }
-  },
+  "end_date": "2026-10-02",
+  "tail_cap": null,
   "tail_verification": {
-    "checked_at_utc": "2026-10-03T05:11:19+00:00",
+    "checked_at_utc": "2026-10-04T08:23:17+00:00",
     "probe": "yfinance single-ticker history",
     "last_populated": "2026-10-01",
     "rows": [
       {
         "date": "2026-10-02",
         "roster_held": 18,
-        "roster_priced": 2,
-        "live_unpriced": 15,
-        "sampled": [
-          "AI.PA",
-          "AKZA.AS",
-          "IMCD.AS",
-          "CRDA.L",
-          "SDF.DE"
-        ],
-        "sample_answered": 5,
-        "sample_served": 0,
-        "filled": 0,
-        "refused": [],
-        "requested": [
-          "AI.PA",
-          "BAS.DE",
-          "SY1.DE",
-          "HEN3.DE",
-          "AKZA.AS",
-          "BNR.DE",
-          "YAR.OL",
-          "IMCD.AS",
-          "EVK.DE",
-          "SYENS.BR",
-          "CRDA.L",
-          "UMI.BR",
-          "AKE.PA",
-          "FPE3.DE",
-          "SDF.DE"
-        ],
-        "unserved": [
-          "AI.PA",
-          "BAS.DE",
-          "SY1.DE",
-          "HEN3.DE",
-          "AKZA.AS",
-          "BNR.DE",
-          "YAR.OL",
-          "IMCD.AS",
-          "EVK.DE",
-          "SYENS.BR",
-          "CRDA.L",
-          "UMI.BR",
-          "AKE.PA",
-          "FPE3.DE",
-          "SDF.DE"
-        ],
-        "no_answer": [],
-        "not_attempted": [],
-        "heal_timed_out": false,
-        "verdict": "unserved_placeholder",
-        "reason": "15 live name(s) re-requested single-ticker, all answered, none carries a 2026-10-02 bar: the vendor is not serving this row for this roster. The 2 residual price(s) are what the batch left behind, so the row is not usable as a vendor-priced row. This says nothing about whether the exchange traded"
+        "roster_priced": 17,
+        "live_unpriced": 0,
+        "verdict": "unverifiable",
+        "reason": "no live name to probe: every unpriced name is unpriced on the last populated row too, or sourced elsewhere"
       }
     ],
-    "dropped": [
-      "2026-10-02"
-    ]
+    "dropped": []
   },
   "current_capture": {
     "schema_version": 1,
@@ -153,34 +32,17 @@
     "roster_staleness": "fresh",
     "requested_price_source": "auto",
     "required_price_session": "2026-10-02",
-    "panel_through": "2026-10-01",
-    "panel_current": false,
+    "panel_through": "2026-10-02",
+    "panel_current": true,
     "n_active": 18,
-    "n_priced_through_required": 0,
+    "n_priced_through_required": 17,
     "no_price_history": [],
     "behind_required_session": {
-      "AI.PA": "2026-10-01",
-      "AKE.PA": "2026-10-01",
-      "AKZA.AS": "2026-10-01",
-      "BAS.DE": "2026-10-01",
-      "BNR.DE": "2026-10-01",
-      "CRDA.L": "2026-10-01",
-      "EMSN.SW": "2026-10-01",
-      "EVK.DE": "2026-10-01",
-      "FPE3.DE": "2026-10-01",
-      "GIVN.SW": "2026-10-01",
-      "HEN3.DE": "2026-10-01",
-      "IMCD.AS": "2026-10-01",
-      "JMAT.L": "2026-08-14",
-      "SDF.DE": "2026-10-01",
-      "SY1.DE": "2026-10-01",
-      "SYENS.BR": "2026-10-01",
-      "UMI.BR": "2026-10-01",
-      "YAR.OL": "2026-10-01"
+      "JMAT.L": "2026-08-14"
     },
     "note": "Availability of active constituents; breadth coverage rules are unchanged."
   },
-  "n_trading_days": 2219,
+  "n_trading_days": 2220,
   "n_signals": 54,
   "first_eligible_signal_date": "2019-01-08",
   "config": {
@@ -206,7 +68,7 @@
     "tickers_with_any_yf_data": 28,
     "tickers_with_no_yf_data": 3,
     "max_missing_constituent_pct": 0.33333333333333337,
-    "mean_missing_constituent_pct": 0.06477801843401929,
+    "mean_missing_constituent_pct": 0.06477386417146143,
     "first_date_below_10pct_missing": "2018-11-02",
     "note": "3 of 31 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. AKZAT.AS, DSM.AS, LINU.DE). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -3195,7 +3057,8 @@
       "2026-09-28",
       "2026-09-29",
       "2026-09-30",
-      "2026-10-01"
+      "2026-10-01",
+      "2026-10-02"
     ],
     "n_constituents": [
       24,
@@ -5412,6 +5275,7 @@
       19,
       19,
       19,
+      18,
       18,
       18,
       18,
@@ -7637,6 +7501,7 @@
       17,
       17,
       17,
+      17,
       17
     ],
     "n_with_rsi": [
@@ -9854,6 +9719,7 @@
       18,
       18,
       18,
+      17,
       17,
       17,
       17,
@@ -12079,6 +11945,7 @@
       17,
       17,
       17,
+      17,
       17
     ],
     "n_with_high63": [
@@ -14296,6 +14163,7 @@
       18,
       18,
       18,
+      17,
       17,
       17,
       17,
@@ -16521,6 +16389,7 @@
       0.058824,
       0.058824,
       0.058824,
+      0.058824,
       0.058824
     ],
     "ma_breadth": [
@@ -18742,7 +18611,8 @@
       0.529412,
       0.470588,
       0.470588,
-      0.294118
+      0.294118,
+      0.411765
     ],
     "highs_breadth": [
       0.285714,
@@ -20963,6 +20833,7 @@
       0.117647,
       0.117647,
       0.117647,
+      0.058824,
       0.058824
     ],
     "rsi_breadth_z": [
@@ -23184,7 +23055,8 @@
       0.03518,
       0.035172,
       0.035164,
-      0.035156
+      0.035156,
+      0.035148
     ],
     "ma_breadth_z": [
       null,
@@ -25405,7 +25277,8 @@
       0.015907,
       -0.198756,
       -0.198709,
-      -0.842918
+      -0.842918,
+      -0.413061
     ],
     "highs_breadth_z": [
       null,
@@ -27626,7 +27499,8 @@
       0.375873,
       0.375776,
       0.37568,
-      -0.180716
+      -0.180716,
+      -0.180674
     ],
     "composite_z": [
       null,
@@ -29847,7 +29721,8 @@
       0.14232,
       0.070731,
       0.070711,
-      -0.329493
+      -0.329493,
+      -0.186196
     ],
     "composite_p90": [
       null,
@@ -32068,7 +31943,8 @@
       1.051033,
       1.050975,
       1.050916,
-      1.050857
+      1.050857,
+      1.050799
     ],
     "composite_p10": [
       null,
@@ -34289,7 +34165,8 @@
       -0.944282,
       -0.944274,
       -0.944266,
-      -0.944258
+      -0.944258,
+      -0.94425
     ],
     "rsi_p90": [
       null,
@@ -36510,7 +36387,8 @@
       0.163158,
       0.162281,
       0.161404,
-      0.160526
+      0.160526,
+      0.159649
     ],
     "highs_p90": [
       null,
@@ -38724,6 +38602,7 @@
       0.218841,
       0.218357,
       0.217874,
+      0.217391,
       0.217391,
       0.217391,
       0.217391,
@@ -40952,6 +40831,7 @@
       0,
       0,
       0,
+      0,
       0
     ],
     "ma_zweig_trigger": [
@@ -43135,6 +43015,7 @@
       1,
       1,
       1,
+      0,
       0,
       0,
       0,
@@ -45394,6 +45275,7 @@
       0,
       0,
       0,
+      0,
       0
     ],
     "trigger_count": [
@@ -47578,6 +47460,7 @@
       3,
       3,
       1,
+      0,
       0,
       0,
       0,
@@ -49836,6 +49719,7 @@
       0,
       0,
       0,
+      0,
       0
     ],
     "composite_crosses_p90": [
@@ -52057,6 +51941,7 @@
       0,
       0,
       0,
+      0,
       0
     ],
     "signal_eligible": [
@@ -52312,6 +52197,7 @@
       0,
       0,
       0,
+      1,
       1,
       1,
       1,
@@ -56458,6 +56344,7 @@
       0,
       0,
       1,
+      0,
       0,
       0,
       0,
