@@ -2315,3 +2315,37 @@ list. The vendor lead-triage filter `2026-08-08-event-studies-3` — only price-
 leads reproduce on our data — is consistent with this outcome and was declared as a prior
 before the run. Reopening needs a genuinely new per-name object and a new registration,
 not a neighbour of this one.
+
+## WS23 — fill-placement diagnostic (registered 2026-10-03, run and read 2026-10-04): NO-GIVE-BACK
+
+Pointer section; the record is `reviews/2026-10-03_fill-placement-diagnostic/PREREG.md` (registration,
+owner decisions, eleven pre-freeze amendments, the build record, five red-team passes, the freeze and
+run entries with the frozen content hashes), `reviews/2026-10-03_fill-placement-diagnostic/FINDINGS.md`
+(the verdict in the lab's note format) and `reviews/2026-10-04_ws23_fill-placement-diagnostic.docx`
+(technical record). Register `2026-10-04-breadth-thrust-etf-1` (H-D2, no-effect) and `-2` (H-D1,
+descriptive); ledger rows 2026-10-03 (kickoff) and 2026-10-04 (verdict).
+
+Question, inherited from the Portfolio-Command-Centre fill-timing study of 2026-10-03 (the owner's
+discretionary fills at mean adverse rank 0.639 against 0.498, driven by trades placed after sharp
+three-session moves): scored by the same engine, where do the deployed engines' modelled Monday
+rebalance-close fills sit in their week, and do the lines bought or sold give anything back over the
+following three sessions? Only the give-back could justify a delay-rule registration.
+
+Verdict, on 7,768 confirmatory fills (2018-10-31 to 2026-07-06, 477 rebalance-date clusters, 58 lines)
+against a forward placebo (the same fill at the close of a random session 4 to 60 bars later, one offset
+per cluster per set, 10,000 sets): H-D2 mean post leg +0.08 bp of price against +0.53 bp, effect
+−0.45 bp, 95 per cent cluster-bootstrap interval −6.45 to +5.66 bp, one-sided p 0.546, p-test power
+0.883 at the 10 bp floor (the blend's modelled round trip). NO-GIVE-BACK, powered. H-D1 (descriptive)
+mean u 0.535 against 0.500 (+0.035, p 0.0001) after a +0.55 per cent three-session move in the trade's
+direction: the momentum signature at a tenth of the discretionary book's size, with nothing given back.
+Every disclosure null, side, sleeve and year agrees; sleeve C's post leg (+28 bp, p 0.050, one cell of
+some thirty) is a prior only. Predictions 2 of 3.
+
+Consequence, as fixed at the freeze: the delay question is closed for this book at diagnostic grade;
+no kickoff; the rebalance-close convention stands as WS12, WS13 and WS18 left it; no engine, parameter,
+published number or operating rule changes. Method lessons carried: on a weekly book the same-line
+window-overlap cluster rule chains the whole history (clusters by rebalance date only); for a
+signal-driven book placebos drawn from the pre-fill run-up bias the comparison by about a floor's worth
+(forward-only null); a parity guard on price levels across two vendors' back-adjusted series fails for
+drift that cannot reach a within-window statistic (test the window ratios). The full published history
+is SEEN for the fill-placement family as well as the fill-convention family.
