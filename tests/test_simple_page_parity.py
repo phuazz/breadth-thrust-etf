@@ -139,21 +139,28 @@ def test_non_europe_tickers_are_not_rewritten():
 # --------------------------------------------------------------------------
 
 def test_sleeve_split_matches_sleeve_membership(payload, live, overlay):
-    expected: dict[str, float] = {}
-    membership = {}
-    for key, sleeve in live["sleeve_extensions"].items():
-        for ticker in sleeve["weights"]:
-            membership[ticker] = key
-    membership[bsp.TILT_TICKER] = "tilt"
-    # The overlay holds two positions that belong to no strategy sleeve: the
-    # EEM tilt and the de-risk instrument. Resolved from config here, as the
-    # builder does, so a parameter change breaks both together or neither.
+    # Independently reconstruct NAV budgets. A last-owner membership map
+    # cannot serve as an oracle: SHY can belong to B, C AND the gate reserve.
+    scale = .5 if live["regime_state"] == "RISK_OFF" else 1.0
+    tilt = .1 * scale if live["eem_tilt_active"] else 0.0
+    budgets = {"strategy_a": .35 * scale, "strategy_b": .35 * scale - tilt,
+               "strategy_c": .10 * scale, "strategy_d": .20 * scale}
+    expected = {}
     fallback = (overlay.get("gate_parameters") or {}).get("fallback_ticker")
-    if fallback:
-        membership[fallback] = bsp.RESERVE_KEY
-    for ticker, weight in live["effective_weights"].items():
-        k = membership[ticker]
-        expected[k] = expected.get(k, 0.0) + weight
+    fallback_in_sleeves = 0.0
+    for key, sleeve in live["sleeve_extensions"].items():
+        held = {t: float(w) for t, w in sleeve["weights"].items() if w > 0}
+        total = sum(held.values())
+        # The existing monetary contract normalises serialization rounding,
+        # but preserves a deliberate cash floor.
+        divisor = total if abs(total - 1) <= .001 else 1
+        expected[key] = sum(w / divisor * budgets[key] for w in held.values())
+        fallback_in_sleeves += held.get(fallback, 0) / divisor * budgets[key]
+    if tilt:
+        expected["tilt"] = tilt
+    reserve = live["effective_weights"].get(fallback, 0) - fallback_in_sleeves
+    if reserve > TOL:
+        expected[bsp.RESERVE_KEY] = reserve
 
     published = {s["key"]: s["weight"] for s in payload["sleeves"]}
     assert set(published) == set(expected)
@@ -179,92 +186,102 @@ def _rebuild_with_weights(tmp_path, monkeypatch, live, overlay, weights):
     return bsp.build_payload()
 
 
-def test_a_traded_line_key_takes_the_registry_name(tmp_path, monkeypatch, live, overlay):
-    """BTC-USD is a book key with no constituent panel, traded as IBIT.
+def _coherent_synthetic_book(live, overlay, baskets, *, tilt_on=False,
+                             reserve=0.0):
+    """Independent NAV inputs, without inheriting the real book's positions.
 
-    etf_names.json carries no row for it, and the 2026-09-29 post-fill refresh
-    refused the page the first time sleeve C ranked Bitcoin in. The name must
-    come from the registry and describe what is bought, beside the traded
-    ticker, never the panel key.
+    A half-NAV reserve is the registered defensive state. A one-basis-point
+    reserve models deliberate sleeve underweight, which must remain visible.
     """
-    key = "BTC-USD"
+    gate_on = reserve == 0.5
+    scale = 0.5 if gate_on else 1.0
+    tilt_nav = (0.10 * scale) if tilt_on else 0.0
+    budgets = dict(zip(('strategy_a', 'strategy_b', 'strategy_c', 'strategy_d'),
+                       (0.35 * scale, 0.35 * scale - tilt_nav,
+                        0.10 * scale, 0.20 * scale)))
+    deployed = sum(budgets.values())
+    held_fraction = (1 - reserve - tilt_nav) / deployed
+    extensions = {}
+    weights = {}
+    for key, budget in budgets.items():
+        basket = baskets[key]
+        assert sum(basket.values()) == pytest.approx(1.0)
+        within = {ticker: weight * held_fraction
+                  for ticker, weight in basket.items()}
+        extensions[key] = {**live['sleeve_extensions'][key], 'weights': within}
+        for ticker, weight in within.items():
+            weights[ticker] = weights.get(ticker, 0.0) + budget * weight
+    if tilt_nav:
+        weights[bsp.TILT_TICKER] = weights.get(bsp.TILT_TICKER, 0.0) + tilt_nav
+    fallback = overlay['gate_parameters']['fallback_ticker']
+    if reserve:
+        weights[fallback] = weights.get(fallback, 0.0) + reserve
+    state = 'RISK_OFF' if gate_on else 'RISK_ON'
+    synthetic_live = {**live, 'sleeve_extensions': extensions,
+                      'effective_weights': weights, 'regime_state': state,
+                      'eem_tilt_active': tilt_on}
+    synthetic_overlay = {**overlay, 'current_state': state,
+                         'phase22_eem_tilt': {
+                             **overlay.get('phase22_eem_tilt', {}),
+                             'current_state': 'EM_TILT_ON' if tilt_on else 'EM_TILT_OFF'}}
+    assert sum(weights.values()) == pytest.approx(1.0)
+    return synthetic_live, synthetic_overlay, weights
+
+
+@pytest.mark.parametrize('cash_only_c', (True, False),
+                         ids=('all_shy_c', 'mixed_c'))
+def test_a_traded_line_key_takes_the_registry_name(
+        tmp_path, monkeypatch, live, overlay, cash_only_c):
+    """The registry names BTC-USD as its traded line, in either C cash state."""
+    key = 'BTC-USD'
     cfg = ETF_REGISTRY[key]
-    assert cfg.get("constituent_panel") is False
-    ext = {k: dict(v) for k, v in live["sleeve_extensions"].items()}
-    ext["strategy_c"]["weights"] = {**ext["strategy_c"]["weights"], key: 0.02}
-    weights = {t: w * 0.98 for t, w in live["effective_weights"].items()
-               if t != key}
-    weights[key] = 0.02
-    live = {**live, "sleeve_extensions": ext}
+    assert cfg.get('constituent_panel') is False
+    c_before = {'SHY': 1.0} if cash_only_c else {'SHY': 0.5, 'QQQ': 0.5}
+    c_after = {ticker: weight * 0.98 for ticker, weight in c_before.items()}
+    c_after[key] = 0.02
+    baskets = {'strategy_a': {'SOXX': 1.0},
+               'strategy_b': {'SPY': 0.8, 'SHY': 0.2},
+               'strategy_c': c_after, 'strategy_d': {'EXV1': 1.0}}
+    live, overlay, weights = _coherent_synthetic_book(live, overlay, baskets)
     payload = _rebuild_with_weights(tmp_path, monkeypatch, live, overlay, weights)
-    row = next(h for h in payload["holdings"] if h["panel_key"] == key)
-    assert row["name"] == cfg["name"]
-    assert row["ticker"] == cfg["yfinance_trading_proxy"]
-    assert row["name"] != key
+    row = next(h for h in payload['holdings'] if h['panel_key'] == key)
+    assert row['name'] == cfg['name']
+    assert row['ticker'] == cfg['yfinance_trading_proxy']
+    assert row['name'] != key
+    shy = next(h for h in payload['holdings'] if h['panel_key'] == 'SHY')
+    parts = {p['key']: p['weight'] for p in shy['contributions']}
+    assert parts['strategy_b'] == pytest.approx(0.07, abs=TOL)
+    assert parts['strategy_c'] == pytest.approx(
+        0.098 if cash_only_c else 0.049, abs=TOL)
 
 
-@pytest.mark.parametrize("tilt_held", (True, False), ids=("tilt_on", "tilt_off"))
+@pytest.mark.parametrize('tilt_held', (True, False), ids=('tilt_on', 'tilt_off'))
 def test_derisk_reserve_is_shown_at_both_ends_of_its_range(
         tmp_path, monkeypatch, live, overlay, tilt_held):
-    """The overlay's de-risk instrument must reach the page whether it holds
-    one basis point or half the book.
-
-    Both failure modes were live options on 2026-08-15. Folding it into the
-    tilt bucket would have made a 50% cash position read as an emerging-market
-    tilt; dropping it as a sub-threshold residual would have made the split
-    stop summing to NAV the moment the gate fired. The residual case is the
-    one that occurs in calm markets and the large case is the one that occurs
-    when a reader most needs the page to be right, so both are pinned.
-
-    BOTH TILT STATES ARE NOW CONSTRUCTED (2026-09-18). This read the tilt leg
-    out of whatever the live book happened to hold, so it only ever exercised
-    the state of the day. The EEM tilt crossed to EM_TILT_OFF on 2026-09-15,
-    EEM left `effective_weights`, and the assertion below stopped being an
-    assertion at all — it raised KeyError on `weights["EEM"]` before it could
-    compare anything. The tilt is a signal that switches; a test over the
-    reserve bucket has to hold on both sides of it, and a refresh that trips
-    over the switch blocks the scheduled publish for the whole book.
-    """
-    fallback = (overlay.get("gate_parameters") or {}).get("fallback_ticker")
-    assert fallback, "risk_overlay.json carries no gate_parameters.fallback_ticker"
-
-    sleeve_only = {t: w for t, w in live["effective_weights"].items()
-                   if t not in (fallback, bsp.TILT_TICKER)}
-    assert sleeve_only, "live book carries no sleeve weights to rescale"
-    if tilt_held:
-        # A tenth of NAV is the deployed tilt size. The figure is immaterial —
-        # what is pinned is that the bucket accounts for exactly it.
-        sleeve_only[bsp.TILT_TICKER] = 0.10
-    scale = sum(sleeve_only.values())
-
+    """Reserve stays separate from sleeve cash and tilt at one bp and 50% NAV."""
+    fallback = overlay['gate_parameters']['fallback_ticker']
+    # Reserve-only SHY has no sleeve owners. All inputs describe the same book,
+    # including the gated, proportionally smaller tilt at 50% reserve.
+    baskets = {'strategy_a': {'SOXX': 1.0}, 'strategy_b': {'SPY': 1.0},
+               'strategy_c': {'QQQ': 1.0}, 'strategy_d': {'EXV1': 1.0}}
     for reserve_w in (0.0001, 0.5):
-        weights = {t: w / scale * (1 - reserve_w) for t, w in sleeve_only.items()}
-        weights[fallback] = reserve_w
-        payload = _rebuild_with_weights(tmp_path, monkeypatch, live, overlay, weights)
-
-        split = {s["key"]: s["weight"] for s in payload["sleeves"]}
-        assert bsp.RESERVE_KEY in split, (
-            f"reserve bucket vanished at {reserve_w:.2%} of NAV")
+        book, risk, weights = _coherent_synthetic_book(
+            live, overlay, baskets, tilt_on=tilt_held, reserve=reserve_w)
+        payload = _rebuild_with_weights(tmp_path, monkeypatch, book, risk, weights)
+        split = {s['key']: s['weight'] for s in payload['sleeves']}
         assert split[bsp.RESERVE_KEY] == pytest.approx(reserve_w, abs=TOL)
-        # SCALE THE TOLERANCE TO THE NUMBER OF ROUNDED TERMS. Each sleeve
-        # weight is rounded to 6dp independently, so their SUM can sit up to
-        # len(split) half-ulps from 1.0 — with six buckets, ~3e-6. A flat TOL
-        # of 1e-6 on the sum was always too tight and passed by luck; the WS18
-        # restatement moved the weights enough to expose it. The per-bucket
-        # assertions above still use TOL, which is where it belongs.
         assert sum(split.values()) == pytest.approx(1.0, abs=TOL * len(split))
-        # It must not be quietly filed under the tilt: that bucket carries the
-        # tilt's own weight and nothing else. With the tilt off there is no
-        # such bucket, and an empty one appearing would mean the reserve or a
-        # sleeve had been filed there.
-        if bsp.TILT_TICKER in weights:
-            assert split.get("tilt") == pytest.approx(weights[bsp.TILT_TICKER], abs=TOL)
+        if tilt_held:
+            expected_tilt = 0.05 if reserve_w == 0.5 else 0.10
+            assert weights[bsp.TILT_TICKER] == pytest.approx(expected_tilt)
+            assert split['tilt'] == pytest.approx(expected_tilt, abs=TOL)
         else:
-            assert "tilt" not in split, (
-                f"tilt bucket present at {split.get('tilt')} of NAV with no "
-                f"{bsp.TILT_TICKER} held — something else has been filed under it")
-        held = {h["panel_key"] for h in payload["holdings"]}
-        assert fallback in held, f"{fallback} dropped from holdings at {reserve_w:.2%}"
+            assert 'tilt' not in split
+        reserve_row = next(h for h in payload['holdings']
+                           if h['panel_key'] == fallback)
+        assert reserve_row['contributions'] == [
+            {'key': bsp.RESERVE_KEY, 'label': bsp.SLEEVE_LABELS[bsp.RESERVE_KEY],
+             'weight': reserve_w}]
 
 
 def test_sleeve_order_is_the_validated_palette_order(payload):

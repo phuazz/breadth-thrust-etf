@@ -292,33 +292,14 @@ def build_payload() -> dict:
     if not effective:
         raise SimplePageError("live_track.json carries no effective_weights")
 
-    # ---- sleeve membership -------------------------------------------------
-    # Derived, never hardcoded: a ticker's sleeve is whichever sleeve's own
-    # weights contain it. EEM is the one position held purely by the overlay.
-    membership: dict[str, str] = {}
-    duplicates: list[str] = []
-    for sleeve_key, sleeve in (live.get("sleeve_extensions") or {}).items():
-        for ticker in sleeve.get("weights") or {}:
-            if ticker in membership:
-                duplicates.append(ticker)
-            membership[ticker] = sleeve_key
-    if duplicates:
-        raise SimplePageError(
-            f"tickers claimed by more than one sleeve: {sorted(set(duplicates))} — "
-            f"the sleeve split on the page would double-count them"
-        )
-    if TILT_TICKER in effective:
-        membership.setdefault(TILT_TICKER, "tilt")
-
+    # One holding can have several NAV contributors (B and C both hold SHY).
+    # The holding remains aggregated; the split uses each contributor once.
+    from simple_attribution import holding_contributions
     fallback_ticker = (overlay.get("gate_parameters") or {}).get("fallback_ticker")
-    if fallback_ticker and fallback_ticker in effective:
-        membership.setdefault(fallback_ticker, RESERVE_KEY)
-
-    unassigned = sorted(set(effective) - set(membership))
-    if unassigned:
-        raise SimplePageError(
-            f"held but in no sleeve: {unassigned} — the split would not sum to NAV"
-        )
+    try:
+        contributions = holding_contributions(live, fallback_ticker, TILT_TICKER, RESERVE_KEY)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise SimplePageError(str(exc)) from exc
 
     # ---- holdings ----------------------------------------------------------
     holdings = []
@@ -338,14 +319,18 @@ def build_payload() -> dict:
         if not name:
             missing_names.append(ticker)
             continue
-        sleeve_key = membership[ticker]
+        parts = contributions[ticker]
+        keys = [k for k in SLEEVE_ORDER if k in parts]
+        sleeve_key = keys[0] if len(keys) == 1 else "shared"
         holdings.append({
             "ticker": display_ticker(ticker),
             # The registry key, kept for price-series resolution. Never shown.
             "panel_key": ticker,
             "name": name,
             "sleeve": sleeve_key,
-            "sleeve_label": SLEEVE_LABELS[sleeve_key],
+            "sleeve_label": " + ".join(SLEEVE_LABELS[k] for k in keys),
+            "contributions": [{"key": k, "label": SLEEVE_LABELS[k],
+                               "weight": round(parts[k], 6)} for k in keys],
             "weight": round(weight, 6),
         })
     if missing_names:
@@ -357,8 +342,9 @@ def build_payload() -> dict:
 
     # ---- sleeve split ------------------------------------------------------
     totals: dict[str, float] = {}
-    for ticker, weight in effective.items():
-        totals[membership[ticker]] = totals.get(membership[ticker], 0.0) + weight
+    for parts in contributions.values():
+        for key, weight in parts.items():
+            totals[key] = totals.get(key, 0.0) + weight
     sleeves = [
         {"key": k, "label": SLEEVE_LABELS[k], "weight": round(totals[k], 6)}
         for k in SLEEVE_ORDER if k in totals

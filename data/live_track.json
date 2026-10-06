@@ -1,102 +1,93 @@
 {
-  "computed_at_utc": "2026-10-06 01:49 UTC",
+  "computed_at_utc": "2026-10-06 14:10 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-10-02",
-  "anchor_equity": 2.945938,
+  "anchor_equity": 2.945073,
   "regime_state": "RISK_ON",
   "eem_tilt_active": false,
   "eem_tilt_signal_as_of": "2026-10-02",
   "eem_tilt_signal_stale": false,
   "effective_weights": {
-    "SOXX": 0.117133,
-    "DBC": 0.106411,
-    "IUHC": 0.092076,
-    "IUES": 0.080597,
+    "SHY": 0.150015,
+    "SOXX": 0.1407,
+    "DBC": 0.09345,
+    "IUHC": 0.08078,
     "EXV1": 0.079112,
-    "QQQ": 0.076133,
+    "IUES": 0.076055,
+    "QQQ": 0.07406,
     "EXH1": 0.066493,
-    "EWJ": 0.057931,
+    "EWJ": 0.058765,
     "EXH3": 0.054395,
-    "SPY": 0.04974,
-    "EFA": 0.026078,
-    "CNDX": 0.025477,
-    "IUFS": 0.020333,
-    "ARKK": 0.02,
-    "CIBR": 0.02,
-    "SKYY": 0.02,
-    "ARKG": 0.02,
-    "BTC-USD": 0.02,
-    "IJR": 0.017397,
-    "VGK": 0.016312,
-    "IDP6": 0.011479,
-    "CSP1": 0.002905
+    "SPY": 0.04403,
+    "CNDX": 0.028735,
+    "IJR": 0.01589,
+    "IDP6": 0.015225,
+    "EFA": 0.01379,
+    "IUFS": 0.005355,
+    "CSP1": 0.00315
   },
   "live_dates": [
     "2026-10-05"
   ],
   "live_equity": [
-    2.961573
+    2.953096
   ],
   "deployed_series_end": "2026-10-05",
   "sleeve_extensions": {
     "strategy_a": {
       "anchor_date": "2026-10-02",
-      "anchor_equity": 3.2833,
+      "anchor_equity": 3.2827,
       "weights": {
-        "SOXX": 0.3347,
-        "IUHC": 0.2631,
-        "IUES": 0.2303,
-        "CNDX": 0.0728,
-        "IUFS": 0.0581,
-        "IDP6": 0.0328,
-        "CSP1": 0.0083
+        "SOXX": 0.402,
+        "IUHC": 0.2308,
+        "IUES": 0.2173,
+        "CNDX": 0.0821,
+        "IDP6": 0.0435,
+        "IUFS": 0.0153,
+        "CSP1": 0.009
       },
       "dates": [
         "2026-10-05"
       ],
       "equity": [
-        3.30261
+        3.300107
       ]
     },
     "strategy_b": {
       "anchor_date": "2026-10-02",
       "anchor_equity": 2.3296,
       "weights": {
-        "DBC": 0.304,
-        "QQQ": 0.2175,
-        "EWJ": 0.1655,
-        "SPY": 0.1421,
-        "EFA": 0.0745,
-        "IJR": 0.0497,
-        "VGK": 0.0466
+        "DBC": 0.267,
+        "QQQ": 0.2116,
+        "EWJ": 0.1679,
+        "SHY": 0.1429,
+        "SPY": 0.1258,
+        "IJR": 0.0454,
+        "EFA": 0.0394
       },
       "dates": [
         "2026-10-05"
       ],
       "equity": [
-        2.334933
+        2.335132
       ]
     },
     "strategy_c": {
       "anchor_date": "2026-10-02",
-      "anchor_equity": 3.0318,
+      "anchor_equity": 3.0293,
       "weights": {
-        "ARKK": 0.2,
-        "CIBR": 0.2,
-        "SKYY": 0.2,
-        "ARKG": 0.2,
-        "BTC-USD": 0.2
+        "SHY": 1.0
       },
       "dates": [
         "2026-10-05"
       ],
       "equity": [
-        3.107078
+        3.030421
       ]
     },
     "strategy_d": {
       "anchor_date": "2026-10-02",
-      "anchor_equity": 3.5397,
+      "anchor_equity": 3.5373,
       "weights": {
         "EXV1": 0.3956,
         "EXH1": 0.3325,
@@ -106,7 +97,7 @@
         "2026-10-05"
       ],
       "equity": [
-        3.540054
+        3.537654
       ]
     }
   },

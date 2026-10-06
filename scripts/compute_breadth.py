@@ -954,6 +954,17 @@ def verify_price_tail(
                            and not refused
                            and not not_attempted
                            and len(unserved) == len(requested))
+            # Mainland holidays must not vote away real open-market quotes.
+            # This preserves raw observations only: priced_sessions still
+            # applies the unchanged whole-roster breadth floor.
+            from mixed_market_tail import is_closed, is_open
+            closed_names = [t for t in unpriced if is_closed(t, ts.date())]
+            open_priced = [t for t in held if pd.notna(close.at[ts, t])
+                           and is_open(t, ts.date())]
+            if closed_names and open_priced:
+                placeholder = False
+                rec.update(calendar_closed=closed_names,
+                           open_market_priced=open_priced)
             if placeholder:
                 dropped.append(ts)
                 rec.update(

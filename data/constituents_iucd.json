@@ -2,7 +2,7 @@
   "etf": "IUCD",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/280526/ishares-sp-500-consumer-discretionary-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUCD_holdings&dataType=fund",
-  "fetched_at_utc": "2026-10-03T01:18:03.855003+00:00",
+  "fetched_at_utc": "2026-10-06T13:21:41.903889+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-10-02",
   "n_target_fridays": 457,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-10-02",
-      "fallback_date": "2026-10-01",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-10-01",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-10-02",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -29644,7 +29638,7 @@
       ]
     },
     "2026-10-02": {
-      "actual_date": "2026-10-01",
+      "actual_date": "2026-10-02",
       "n_tickers": 47,
       "tickers": [
         "AMZN",
@@ -29658,18 +29652,18 @@
         "MAR",
         "ROST",
         "HLT",
-        "GM",
-        "ORLY",
         "DASH",
-        "ABNB",
         "RCL",
+        "ORLY",
+        "GM",
+        "ABNB",
         "F",
         "GRMN",
-        "AZO",
         "CVNA",
+        "AZO",
         "EBAY",
-        "NKE",
         "CMG",
+        "NKE",
         "YUM",
         "DHI",
         "CCL",
@@ -29679,8 +29673,8 @@
         "ULTA",
         "DRI",
         "PHM",
-        "BBY",
         "GPC",
+        "BBY",
         "TSCO",
         "LEN",
         "NVR",

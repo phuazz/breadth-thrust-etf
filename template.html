@@ -2878,7 +2878,7 @@
 
     <div class="verdict" style="border-left-color:var(--warn);background:rgba(183,110,0,0.04);">
       <h2>Honest assessment — Strategy D is a Sharpe lifter but raises drawdown</h2>
-      <p>Standalone Sharpe over the common 2018-11 → 2026-08 window is <strong><span data-fig="sleeveD.sharpe">+0.94</span></strong> — better than SPY's <span data-fig="spy.sharpe">+0.84</span> but below Strategy B's <span data-fig="sleeveB.sharpe">+1.02</span>. CAGR is <span data-fig="sleeveD.cagr">+17.3%</span> with max DD <strong><span data-fig="sleeveD.mdd">-35.0%</span></strong>. The DD is fully participatory in the 2020 and 2022 sell-offs; Europe sectors did not provide downside protection.</p>
+      <p>Standalone Sharpe over the common 2018-11 → 2026-08 window is <strong><span data-fig="sleeveD.sharpe">+0.94</span></strong> — better than SPY's <span data-fig="spy.sharpe">+0.85</span> but below Strategy B's <span data-fig="sleeveB.sharpe">+1.02</span>. CAGR is <span data-fig="sleeveD.cagr">+17.3%</span> with max DD <strong><span data-fig="sleeveD.mdd">-35.0%</span></strong>. The DD is fully participatory in the 2020 and 2022 sell-offs; Europe sectors did not provide downside protection.</p>
       <p>When blended at 20% with the existing 45/45/10 A:B:C baseline (35/35/10/20 A:B:C:D), Sharpe rises from <span data-fig="blend3.sharpe">+1.09</span> to <strong><span data-fig="blend4.sharpe">+1.17</span></strong> and CAGR from <span data-fig="blend3.cagr">+14.3%</span> to <span data-fig="blend4.cagr">+15.2%</span>, but max DD widens from <span data-fig="blend3.mdd">-18.6%</span> to <strong><span data-fig="blend4.mdd">-21.8%</span></strong>. This is not a free lunch — it is a real diversification trade: marginally better risk-adjusted returns at the cost of ~<span data-fig="blend4v3.dd_pp">3.2pp</span> deeper drawdowns. If drawdown floor is your priority, stay with the 3-way 45/45/10. If Sharpe is your priority, switch to 35/35/10/20. <em style="color:var(--ink-faint);">(Sharpe figures here are <strong>pre-overlay baselines</strong> on the common 2018-2026 window. The currently deployed blend with the breadth regime gate and EEM tilt active has Sharpe <strong><span data-fig="deployed.sharpe">+1.22</span></strong>.)</em></p>
       <p style="margin-top:14px;padding:10px 14px;background:var(--bg-card);border-radius:4px;font-size:13px;"><strong>Pipeline fix note</strong>: the `compute_ma200_breadth` function originally used `rolling(200, min_periods=200)` which dropped the MA for any constituent with even 1-2% missing days. US constituents (S&amp;P 500 via yfinance) have ~100% coverage so this was a no-op for Strategy A. Non-US constituents (.L / .DE / .PA / .AS / .MI) have sparse missing days from local holidays / dividend events, which caused breadth to silently freeze on a stale value (last good was 2023-04-06 in the broken version). Fix: relaxed `min_periods` to 90% of the window, allowing the typical sparse missingness. Strategy A Sharpe changed by &lt;0.01 (US is the universe where the fix is a no-op). All numbers above are on corrected data.</p>
     </div>
@@ -3412,7 +3412,7 @@
         <p><strong>The honest finding from the bootstrap CIs</strong>:</p>
         <ul>
           <li><strong>The 4-way deployed blend Sharpe (<span data-fig="blend4.sharpe">+1.17</span>) is NOT statistically distinguishable from the 3-way baseline (<span data-fig="blend3.sharpe">+1.09</span>) at 5% significance.</strong> The 95% CI on the differential is [-0.04, +0.17] — straddles zero. But the bootstrap gives the deployed blend a <strong>83% probability of being a real improvement</strong>, which combined with the mechanistic rationale (Europe orthogonality, Phase 4 retrospective) is meaningful but not conclusive evidence.</li>
-          <li><strong>Strategy C's 10% sleeve contributes essentially zero at the blend level vs just 50/50 A:B.</strong> The 3-way 45/45/10 vs 2-way 50/50 differential is <span data-fig="bootC.delta">+0.016</span> Sharpe with p(better) = <span data-fig="bootC.p_better">53.9%</span> — coin-flip. C earns its inclusion only as <em>optionality on the next thematic bull run</em>, not as a Sharpe lifter. This is now stated explicitly in the Multi-Strategy tab "How to choose your blend" section.</li>
+          <li><strong>Strategy C's 10% sleeve contributes essentially zero at the blend level vs just 50/50 A:B.</strong> The 3-way 45/45/10 vs 2-way 50/50 differential is <span data-fig="bootC.delta">+0.015</span> Sharpe with p(better) = <span data-fig="bootC.p_better">54.0%</span> — coin-flip. C earns its inclusion only as <em>optionality on the next thematic bull run</em>, not as a Sharpe lifter. This is now stated explicitly in the Multi-Strategy tab "How to choose your blend" section.</li>
           <li><strong>The Phase 4-6 cumulative Sharpe improvement (<span data-fig="blend3.sharpe">+1.09</span> → <span data-fig="blend4.sharpe">+1.17</span>, delta <span data-fig="blend4v3.lift">+0.08</span> before rounding) is consistent with real improvement</strong> but within the noise floor of 7.5 years of data. Confidence will grow with more OOS years. The point estimates are all positive, the directions are consistent across multiple comparison points, and the mechanistic stories (Europe orthogonality for Phase 4, equal-weighting in high-floor regime for Phase 6) suggest the improvements are structurally motivated rather than data-snooped.</li>
         </ul>
 
@@ -3974,11 +3974,29 @@ function hydrateFigures(root) {
 // container inside a hidden tab measures zero, which would bake a zero
 // width into the layout and produce a blank card on the next activation.
 // Hidden tabs are re-measured by activateTab when they become visible.
+// Compact mobile legends keep full descriptions in hover text. Metadata lets
+// the existing reflow restore full names on desktop and shorten on rotation.
+function _legendTrace(fullName, compactName) {
+  return {name: window.matchMedia('(max-width:1000px)').matches ? compactName : fullName,
+          meta: {fullLegend: fullName, compactLegend: compactName}};
+}
 function resizeVisiblePlots(root) {
   const scope = root || document;
   scope.querySelectorAll('.js-plotly-plot').forEach((gd) => {
     if (!gd.offsetParent) return;              // hidden -> measures 0, skip
-    try { Plotly.Plots.resize(gd); } catch (e) { /* chart not ready yet */ }
+    try {
+      const narrow = window.matchMedia('(max-width:1000px)').matches;
+      const names = (gd.data || []).map(t => t.meta?.fullLegend
+        ? (narrow ? t.meta.compactLegend : t.meta.fullLegend) : t.name);
+      const pending = (gd.data || []).some(t => t.meta?.fullLegend)
+        ? Plotly.restyle(gd, {name: names}) : Promise.resolve();
+      pending.then(() => {
+        if (gd.id === 'thematic-allocation-chart') {
+          return Plotly.relayout(gd, {'margin.b': narrow ? 120 : 100,
+                                     'legend.y': narrow ? -0.12 : -0.26});
+        }
+      }).then(() => Plotly.Plots.resize(gd)).catch(() => {});
+    } catch (e) { /* chart not ready yet */ }
   });
 }
 
@@ -8040,7 +8058,9 @@ function renderMomentumView(viewKey) {
       return {
         x: s.dates, y: s.equity,
         mode: 'lines',
-        name: `${_displaySym(etf)} — ${_bcLabel(etf)}`,
+        ...(view.ids.chart === 'detail-c-momentum-chart'
+          ? _legendTrace(`${_displaySym(etf)} - ${_bcLabel(etf)}`, _displaySym(etf))
+          : {name: `${_displaySym(etf)} - ${_bcLabel(etf)}`}),
         line: { color: _bcColour(etf), width: 1.5 },
         hovertemplate: _hoverLabel(etf, _bcLabel(etf)) + ': %{y:+.1f}%<extra></extra>',
       };
@@ -8623,6 +8643,7 @@ function renderPortfolio() {
         : `${c.label} — Shp ${fmtNum(c.sharpe, 2, true)}`;
       return {
         name: legendName,
+        compactName: c.isStrategyA ? `Strategy A — Shp ${fmtNum(c.sharpe, 2, true)}` : legendName,
         dates: datesSlice, equity: eqSlice,
         line: { color: c.color, width: c.width, dash: c.dash || 'solid' },
       };
@@ -8647,7 +8668,7 @@ function renderPortfolio() {
       const sliced = _sliceByPeriod(d.dates, d.equity, period);
       return {
         x: sliced.dates, y: _renormaliseAsReturn(sliced.equity),
-        mode: 'lines', name: d.name, line: d.line,
+        mode: 'lines', ..._legendTrace(d.name, d.compactName), line: d.line,
         hovertemplate: '%{y:+.2%}<extra>' + d.name + '</extra>',
       };
     });
@@ -10326,21 +10347,22 @@ function renderThematicCharts() {
     return {
       x: wkDates,
       y: (alloc[etf] || []).map(v => (v == null ? 0 : v * 100)),
-      name: label,
+      ..._legendTrace(label, _displaySym(etf)),
       stackgroup: 'one',
       mode: 'none',
       fillcolor: colours[etf] || '#999',
       hovertemplate: _hoverLabel(etf, meta.label) + ': %{y:.1f}%<extra></extra>',
     };
   });
+  const narrowLegend = window.matchMedia('(max-width:1000px)').matches;
   Plotly.newPlot('thematic-allocation-chart', stackedTraces, {
-    margin: { t: 8, r: 16, b: 100, l: 50 },
+    margin: { t: 8, r: 16, b: narrowLegend ? 120 : 100, l: 50 },
     xaxis: { showgrid: false, color: '#4a5159', hoverformat: '%d %b %Y' },
     yaxis: { gridcolor: '#eef0f3', color: '#4a5159',
               title: { text: 'Allocation %', font: { size: 11 } },
               range: [0, 100], ticksuffix: '%' },
     paper_bgcolor: '#fff', plot_bgcolor: '#fff',
-    legend: { orientation: 'h', y: -0.26, x: 0, font: { size: 11 } },
+    legend: { orientation: 'h', y: narrowLegend ? -0.12 : -0.26, x: 0, font: { size: 11 } },
     hovermode: 'x unified',
     font: { family: 'Inter', size: 12, color: '#4a5159' },
   }, { displayModeBar: false, responsive: true });

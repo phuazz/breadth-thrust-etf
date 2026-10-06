@@ -49,6 +49,7 @@ from build_panel_series import (  # noqa: E402
     OVERRIDE_ENV,
     StalePriceCacheError,
     check_cache_freshness,
+    check_price_frame_freshness,
 )
 from nyse_sessions import last_completed_session  # noqa: E402
 
@@ -313,6 +314,7 @@ def _latest_holdings_detail(etf: str, actual_date: str | None,
     #    session, and min_periods then voids the window — the documented bug
     #    that once erased ~40% of European ma_breadth coverage.
     ma_state: dict[str, tuple] = {}
+    price_dates: dict[str, str] = {}
     pq = DATA_DIR / f"prices_cache_{etf.lower()}.parquet"
     if pq.exists():
         try:
@@ -324,7 +326,8 @@ def _latest_holdings_detail(etf: str, actual_date: str | None,
             # the honest degradation; reporting a three-day-old close as
             # current is the failure being guarded.
             try:
-                check_cache_freshness(etf, px.index.max().date(), _expected())
+                from build_panel_series import _current_roster
+                check_price_frame_freshness(etf, px, _expected(), _current_roster(etf, DATA_DIR))
             except StalePriceCacheError:
                 if etf not in _stale_caches:
                     _stale_caches.append(etf)
@@ -373,6 +376,7 @@ def _latest_holdings_detail(etf: str, actual_date: str | None,
                 m2 = last_ma200.get(sym)
                 m2 = None if m2 is None or pd.isna(m2) else float(m2)
                 ma_state[sym] = (float(p), float(m), m2)
+                price_dates[sym] = px[sym].last_valid_index().strftime("%Y-%m-%d")
         except Exception:
             ma_state = {}
 
@@ -397,6 +401,7 @@ def _latest_holdings_detail(etf: str, actual_date: str | None,
         price, mavg, mavg200 = ma_state.get(sym, (None, None, None))
         out.append({
             "sym": sym,
+            "price_as_of": price_dates.get(sym) if price is not None else None,
             "name": (nm[i] if nm else None),
             "sector": (sec[i] if sec else None),
             "w": round(float(wt[i]), 3) if wt and wt[i] is not None else None,

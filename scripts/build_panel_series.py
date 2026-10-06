@@ -124,14 +124,56 @@ def _round(v):
     return None if v is None or pd.isna(v) else round(float(v), _PRICE_DP)
 
 
-def _current_roster(etf: str) -> set[str] | None:
+def check_price_frame_freshness(etf, prices, expected, roster=None):
+    """Check active names individually when China spans several calendars.
+
+    A fresh minority cannot mask a stale open-market name. The existing
+    two-NYSE-session budget is retained; only a proven interval with NO
+    venue session is exempt. A missed venue session reinstates the full
+    original lag. Coverage and breadth calculations are unchanged.
+    """
+    from mixed_market_tail import is_mixed_china_roster, closed_since
+    import compute_breadth as cb
+    import pandas as pd
+    if expected is None or prices.empty:
+        return
+    held = [t for t in (roster if roster is not None else prices.columns)
+            if t in prices.columns]
+    if not is_mixed_china_roster(held):
+        check_cache_freshness(etf, prices.index.max().date(), expected)
+        return
+    good = cb.priced_sessions(prices, held)
+    if not len(good):
+        # Without a well-covered anchor, there is no defensible active roster.
+        check_cache_freshness(etf, prices.index.max().date(), expected)
+        raise StalePriceCacheError(f'{etf}: mixed-market cache has no priced anchor', [etf])
+    # Current-roster names with observed history remain accountable even if
+    # the newest well-covered row has already lost them. Treating that row
+    # as the active roster would hide precisely a stale minority. Names with
+    # no observation at all remain under the existing coverage contract.
+    active = [t for t in held if prices[t].notna().any()]
+    stale = []
+    for ticker in active:
+        observed = prices[ticker].dropna()
+        last = observed.index.max().date()
+        if not closed_since(ticker, last, expected):
+            lag = sessions_behind(last, expected)
+            if lag > MAX_CACHE_LAG_SESSIONS:
+                stale.append(f'{ticker}={last} ({lag} NYSE sessions)')
+    if stale:
+        raise StalePriceCacheError(
+            f'{etf}: stale active open-market names before {expected}: '
+            + ', '.join(stale), [etf])
+
+
+def _current_roster(etf: str, data_dir=None) -> set[str] | None:
     """Tickers in the panel's most recent snapshot, or None if unknown.
 
     None means "no filter" rather than "no names": if the roster cannot be
     read, emitting every series is the safe failure — a slightly larger file
     beats a chart that silently has no data behind it.
     """
-    p = DATA_DIR / f"constituents_{etf.lower()}.json"
+    p = (DATA_DIR if data_dir is None else data_dir) / f"constituents_{etf.lower()}.json"
     if not p.exists():
         return None
     try:
@@ -168,7 +210,7 @@ def build_panel(etf: str, expected: date | None = None) -> dict | None:
         return None
 
     # Before any resampling, so a stale bar never reaches a weekly label.
-    check_cache_freshness(etf, px.index.max().date(), expected)
+    check_price_frame_freshness(etf, px, expected, _current_roster(etf))
 
     # Daily MAs first — see the module docstring. per_ticker_apply keeps each
     # ticker on its own traded sessions, so a European name is not voided by
@@ -200,7 +242,7 @@ def build_panel(etf: str, expected: date | None = None) -> dict | None:
         p = [_round(v) for v in pw[sym]]
         if not any(v is not None for v in p):
             continue          # never traded in the window — no chart to draw
-        entry = {"p": p}
+        entry = {"p": p, "price_as_of": px[sym].last_valid_index().strftime("%Y-%m-%d")}
         for key, mw in mws.items():
             col = [_round(v) for v in mw[sym]]
             # Omit an average with no points rather than shipping 52 nulls.

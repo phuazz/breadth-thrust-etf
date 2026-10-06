@@ -526,7 +526,7 @@ function render(data) {
     return `
     <tr${attrs}>
       <td>${caret}<span class="tk">${h.ticker}</span><span class="nm">${h.name}</span></td>
-      <td><span class="chip"><span class="dot" style="background:var(--sleeve-${h.sleeve})"></span>${h.sleeve_label}</span></td>
+      <td>${(h.contributions || [{key:h.sleeve,label:h.sleeve_label,weight:h.weight}]).map(c => `<span class="chip" title="${fmtPct(c.weight)} of portfolio"><span class="dot" style="background:var(--sleeve-${c.key})"></span>${c.label}</span>`).join(' ')}</td>
       <td class="num">${fmtPct(h.weight)}</td>
     </tr>`;
   }).join('');
@@ -536,7 +536,7 @@ function render(data) {
 
   // ---- split bar + legend ----
   const counts = {};
-  data.holdings.forEach(h => { counts[h.sleeve] = (counts[h.sleeve] || 0) + 1; });
+  data.holdings.forEach(h => { (h.contributions || [{key:h.sleeve}]).forEach(c => { counts[c.key] = (counts[c.key] || 0) + 1; }); });
   document.getElementById('bar').innerHTML = data.sleeves.map(s => `
     <div class="seg" style="width:${s.weight * 100}%;background:var(--sleeve-${s.key})"
          title="${s.label} — ${fmtPct(s.weight, 0)}">${s.weight >= 0.12 ? fmtPct(s.weight, 0) : ''}</div>`).join('');
