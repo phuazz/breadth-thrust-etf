@@ -2,7 +2,6 @@
  "as_of": "2026-10-02",
  "calendars": {
   "c0": [
-   "2025-10-03",
    "2025-10-06",
    "2025-10-07",
    "2025-10-08",
@@ -255,7 +254,6 @@
    "2026-10-02"
   ],
   "c1": [
-   "2025-10-03",
    "2025-10-06",
    "2025-10-07",
    "2025-10-08",
@@ -513,7 +511,6 @@
   "SHY": {
    "cal": "c0",
    "px": [
-    79.88,
     79.86,
     79.9,
     79.89,
@@ -532,7 +529,7 @@
     80.17,
     80.18,
     80.02,
-    80.04,
+    80.03,
     80.06,
     80.07,
     80.1,
@@ -550,13 +547,13 @@
     80.27,
     80.37,
     80.38,
-    80.43,
     80.42,
-    80.42,
+    80.41,
+    80.41,
     80.35,
     80.39,
     80.44,
-    80.39,
+    80.38,
     80.36,
     80.34,
     80.3,
@@ -602,7 +599,7 @@
     80.93,
     80.95,
     81.0,
-    80.93,
+    80.92,
     81.0,
     81.13,
     81.1,
@@ -618,9 +615,9 @@
     81.09,
     81.04,
     80.99,
-    81.03,
-    81.06,
     81.02,
+    81.06,
+    81.01,
     80.94,
     80.8,
     80.85,
@@ -688,7 +685,7 @@
     81.12,
     81.1,
     81.14,
-    81.15,
+    81.16,
     80.91,
     81.02,
     80.94,
@@ -698,11 +695,11 @@
     81.22,
     81.2,
     81.14,
-    81.11,
+    81.1,
     81.2,
     81.24,
-    81.13,
-    81.11,
+    81.12,
+    81.1,
     81.17,
     81.14,
     81.06,
@@ -714,7 +711,7 @@
     81.15,
     81.1,
     81.04,
-    81.12,
+    81.11,
     81.13,
     81.2,
     81.25,
@@ -746,7 +743,7 @@
     81.47,
     81.45,
     81.42,
-    81.38,
+    81.39,
     81.18,
     81.13,
     81.1,
@@ -773,7 +770,6 @@
   "SOXX": {
    "cal": "c0",
    "px": [
-    279.1,
     287.4,
     281.0,
     290.6,
@@ -1033,7 +1029,6 @@
   "DBC": {
    "cal": "c0",
    "px": [
-    21.68,
     21.9,
     21.99,
     22.02,
@@ -1053,7 +1048,7 @@
     21.85,
     21.97,
     21.98,
-    22.13,
+    22.14,
     22.3,
     22.14,
     22.08,
@@ -1293,7 +1288,6 @@
   "IUHC": {
    "cal": "c0",
    "px": [
-    142.4,
     141.8,
     141.9,
     142.1,
@@ -1553,7 +1547,6 @@
   "EXV1": {
    "cal": "c1",
    "px": [
-    29.96,
     29.71,
     29.43,
     29.85,
@@ -1814,7 +1807,6 @@
   "IUES": {
    "cal": "c0",
    "px": [
-    43.22,
     43.44,
     43.5,
     43.25,
@@ -2074,7 +2066,6 @@
   "QQQ": {
    "cal": "c0",
    "px": [
-    600.4,
     604.9,
     601.7,
     608.6,
@@ -2334,7 +2325,6 @@
   "EXH1": {
    "cal": "c1",
    "px": [
-    37.7,
     38.18,
     38.23,
     38.43,
@@ -2595,7 +2585,6 @@
   "EWJ": {
    "cal": "c0",
    "px": [
-    78.4,
     79.83,
     78.58,
     78.38,
@@ -2639,7 +2628,7 @@
     79.07,
     79.2,
     80.17,
-    80.24,
+    80.25,
     79.76,
     79.87,
     80.45,
@@ -2855,7 +2844,6 @@
   "EXH4": {
    "cal": "c1",
    "px": [
-    108.1,
     107.5,
     107.1,
     108.3,
@@ -3116,12 +3104,11 @@
   "SPY": {
    "cal": "c0",
    "px": [
-    662.1,
     664.4,
     662.0,
     665.9,
     664.0,
-    646.1,
+    646.0,
     656.0,
     655.2,
     658.1,
@@ -3376,7 +3363,6 @@
   "CNDX": {
    "cal": "c0",
    "px": [
-    600.4,
     604.9,
     601.7,
     608.6,
@@ -3636,7 +3622,6 @@
   "IJR": {
    "cal": "c0",
    "px": [
-    118.5,
     118.2,
     116.7,
     117.8,
@@ -3896,7 +3881,6 @@
   "IDP6": {
    "cal": "c0",
    "px": [
-    118.5,
     118.2,
     116.7,
     117.8,
@@ -4156,7 +4140,6 @@
   "EFA": {
    "cal": "c0",
    "px": [
-    91.93,
     92.15,
     91.34,
     91.61,
@@ -4260,7 +4243,7 @@
     101.7,
     98.53,
     99.8,
-    97.61,
+    97.62,
     96.75,
     97.45,
     97.67,
@@ -4416,7 +4399,6 @@
   "IUFS": {
    "cal": "c0",
    "px": [
-    52.89,
     52.87,
     52.94,
     52.68,
@@ -4676,12 +4658,11 @@
   "CSP1": {
    "cal": "c0",
    "px": [
-    662.1,
     664.4,
     662.0,
     665.9,
     664.0,
-    646.1,
+    646.0,
     656.0,
     655.2,
     658.1,
@@ -4936,7 +4917,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-10-05",
- "computed_at_utc": "2026-10-06 14:10 UTC",
+ "computed_at_utc": "2026-10-07 00:51 UTC",
  "holdings": [
   {
    "ticker": "SHY",
@@ -5224,48 +5205,48 @@
  "n_positions": 17,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-10-06T14:10:31.187455+00:00",
-  "all_current": true,
+  "computed_at_utc": "2026-10-07T00:52:03.719920+00:00",
+  "all_current": false,
   "strategies": [
    {
     "sleeve": "A",
     "label": "US sectors",
     "data_through": "2026-10-05",
-    "venue_last_session": "2026-10-05",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-10-06",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-06 — it has not been rebuilt since."
    },
    {
     "sleeve": "B",
     "label": "Asset classes",
     "data_through": "2026-10-05",
-    "venue_last_session": "2026-10-05",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-10-06",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-06 — it has not been rebuilt since."
    },
    {
     "sleeve": "C",
     "label": "Thematic",
     "data_through": "2026-10-05",
-    "venue_last_session": "2026-10-05",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-10-06",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-06 — it has not been rebuilt since."
    },
    {
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-10-05",
-    "venue_last_session": "2026-10-05",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-10-06",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-06 — it has not been rebuilt since."
    }
   ]
  },
