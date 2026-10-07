@@ -196,7 +196,7 @@ def select_columns(base: pd.DataFrame, tickers: list[str], start: str, end: str,
     Returns ``(frame, report)``; the frame is a copy when anything changed.
     """
     report = {"replaced": [], "kept": [], "unresolved": [], "status": "ok"}
-    if base is None or base.empty or not tickers:
+    if base is None or not tickers:
         report["status"] = "skipped"
         return base, report
     if not available():
@@ -211,7 +211,11 @@ def select_columns(base: pd.DataFrame, tickers: list[str], start: str, end: str,
     if not served:
         return base, report
 
-    out = base.reindex(base.index.union(ng.index))
+    # Yahoo may return no rows (or columns) during an outage. There are then
+    # no incumbent dates to preserve, but the requested licensed columns must
+    # still be fetched and selected under the same whole-column superset rule.
+    out = base.reindex(columns=base.columns.union(pd.Index(tickers), sort=False))
+    out = out.reindex(base.index.union(ng.index))
     for t in served:
         if t not in out.columns:
             continue

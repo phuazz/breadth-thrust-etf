@@ -374,6 +374,19 @@ def apply_leverage_overlay(equity: pd.Series, weights: pd.DataFrame,
     return (1.0 + scaled_ret).cumprod()
 
 
+def spy_benchmark_problem(spy_close: pd.Series, index: pd.DatetimeIndex,
+                          eligible: pd.Timestamp) -> str | None:
+    """Require real benchmark prices for every session in the comparison."""
+    expected = index[index >= eligible]
+    window = spy_close.reindex(expected)
+    if window.empty:
+        return "no prices in the eligible comparison window"
+    valid = np.isfinite(window) & (window > 0)
+    if not valid.all():
+        return f"{int((~valid).sum())} session(s) lack a finite positive close"
+    return None
+
+
 def main() -> int:
     print("Loading panels (closes + ma200 breadth) for all ETFs ...", flush=True)
     closes, breadths, etfs_used = build_panels()
@@ -393,6 +406,12 @@ def main() -> int:
     # SPY benchmark
     spy_close = download_spy_close(closes.index.min().strftime("%Y-%m-%d"),
                                     (closes.index.max() + pd.Timedelta(days=5)).strftime("%Y-%m-%d"))
+    problem = spy_benchmark_problem(spy_close, closes.index, eligible)
+    if problem:
+        print(f"ERROR: SPY benchmark unavailable: {problem}. "
+              "Portfolio diagnostics were not written; the existing report "
+              "is unchanged.", file=sys.stderr)
+        return 1
     spy_close = spy_close.reindex(closes.index).ffill()
 
     results: dict[str, dict] = {}
