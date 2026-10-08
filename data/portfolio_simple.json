@@ -254,7 +254,6 @@
    "2026-10-02"
   ],
   "c1": [
-   "2025-10-06",
    "2025-10-07",
    "2025-10-08",
    "2025-10-09",
@@ -1547,7 +1546,6 @@
   "EXV1": {
    "cal": "c1",
    "px": [
-    29.71,
     29.43,
     29.85,
     29.38,
@@ -2325,7 +2323,6 @@
   "EXH1": {
    "cal": "c1",
    "px": [
-    38.18,
     38.23,
     38.43,
     38.52,
@@ -2844,7 +2841,6 @@
   "EXH4": {
    "cal": "c1",
    "px": [
-    107.5,
     107.1,
     108.3,
     107.9,
@@ -4917,7 +4913,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-10-05",
- "computed_at_utc": "2026-10-07 00:51 UTC",
+ "computed_at_utc": "2026-10-08 01:08 UTC",
  "holdings": [
   {
    "ticker": "SHY",
@@ -5205,48 +5201,48 @@
  "n_positions": 17,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-10-07T00:52:03.719920+00:00",
+  "computed_at_utc": "2026-10-08T01:08:40.352900+00:00",
   "all_current": false,
   "strategies": [
    {
     "sleeve": "A",
     "label": "US sectors",
     "data_through": "2026-10-05",
-    "venue_last_session": "2026-10-06",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-07",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-06 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-07 — it has not been rebuilt since."
    },
    {
     "sleeve": "B",
     "label": "Asset classes",
     "data_through": "2026-10-05",
-    "venue_last_session": "2026-10-06",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-07",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-06 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-07 — it has not been rebuilt since."
    },
    {
     "sleeve": "C",
     "label": "Thematic",
     "data_through": "2026-10-05",
-    "venue_last_session": "2026-10-06",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-07",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-06 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-07 — it has not been rebuilt since."
    },
    {
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-10-05",
-    "venue_last_session": "2026-10-06",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-07",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-06 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-05, while the market has traded to 2026-10-07 — it has not been rebuilt since."
    }
   ]
  },
