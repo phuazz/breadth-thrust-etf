@@ -1,8 +1,8 @@
 {
-  "computed_at_utc": "2026-10-09 01:18 UTC",
+  "computed_at_utc": "2026-10-09 12:32 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-10-07",
-  "anchor_equity": 2.962089,
+  "anchor_equity": 2.951956,
   "regime_state": "RISK_ON",
   "eem_tilt_active": false,
   "eem_tilt_signal_as_of": "2026-10-07",
@@ -26,9 +26,13 @@
     "IUFS": 0.005355,
     "CSP1": 0.00315
   },
-  "live_dates": [],
-  "live_equity": [],
-  "deployed_series_end": "2026-10-07",
+  "live_dates": [
+    "2026-10-08"
+  ],
+  "live_equity": [
+    2.941106
+  ],
+  "deployed_series_end": "2026-10-08",
   "sleeve_extensions": {
     "strategy_a": {
       "anchor_date": "2026-10-07",
@@ -42,8 +46,12 @@
         "IUFS": 0.0153,
         "CSP1": 0.009
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-10-08"
+      ],
+      "equity": [
+        3.262083
+      ]
     },
     "strategy_b": {
       "anchor_date": "2026-10-07",
@@ -57,8 +65,12 @@
         "IJR": 0.0454,
         "EFA": 0.0394
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-10-08"
+      ],
+      "equity": [
+        2.32901
+      ]
     },
     "strategy_c": {
       "anchor_date": "2026-10-07",
@@ -66,19 +78,27 @@
       "weights": {
         "SHY": 1.0
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-10-08"
+      ],
+      "equity": [
+        3.104729
+      ]
     },
     "strategy_d": {
       "anchor_date": "2026-10-07",
-      "anchor_equity": 3.5706,
+      "anchor_equity": 3.5097,
       "weights": {
         "EXV1": 0.3895,
         "EXH1": 0.3289,
         "EXV3": 0.2816
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-10-08"
+      ],
+      "equity": [
+        3.5097
+      ]
     }
   },
   "notes": "Daily mark-to-market overlay. Deployed-blend section uses the same effective NAV weights as renderPositionsPreview (EEM tilt + breadth-gate aware). Per-sleeve extensions (strategy_a/b/c/d) use within-sleeve weights anchored at each sleeve's multi.strategies last-date, so the Performance chart lines all advance through the live week."
