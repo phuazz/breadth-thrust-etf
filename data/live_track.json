@@ -1,56 +1,60 @@
 {
-  "computed_at_utc": "2026-10-10 01:03 UTC",
+  "computed_at_utc": "2026-10-10 02:01 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-10-07",
-  "anchor_equity": 2.951956,
+  "anchor_equity": 2.945107,
   "regime_state": "RISK_ON",
   "eem_tilt_active": false,
   "eem_tilt_signal_as_of": "2026-10-07",
   "eem_tilt_signal_stale": false,
   "effective_weights": {
     "SHY": 0.150015,
-    "SOXX": 0.1407,
+    "SOXX": 0.140175,
     "DBC": 0.09345,
-    "IUHC": 0.08078,
+    "IUHC": 0.08057,
     "EXV1": 0.0779,
-    "IUES": 0.076055,
+    "IUES": 0.07588,
     "QQQ": 0.07406,
     "EXH1": 0.06578,
     "EWJ": 0.058765,
     "EXV3": 0.05632,
     "SPY": 0.04403,
-    "CNDX": 0.028735,
+    "CNDX": 0.02884,
     "IJR": 0.01589,
-    "IDP6": 0.015225,
+    "IDP6": 0.015575,
     "EFA": 0.01379,
-    "IUFS": 0.005355,
-    "CSP1": 0.00315
+    "IUFS": 0.005565,
+    "CSP1": 0.003395
   },
   "live_dates": [
-    "2026-10-08"
+    "2026-10-08",
+    "2026-10-09"
   ],
   "live_equity": [
-    2.937404
+    2.930628,
+    2.935314
   ],
-  "deployed_series_end": "2026-10-08",
+  "deployed_series_end": "2026-10-09",
   "sleeve_extensions": {
     "strategy_a": {
       "anchor_date": "2026-10-07",
-      "anchor_equity": 3.2912,
+      "anchor_equity": 3.2702,
       "weights": {
-        "SOXX": 0.402,
-        "IUHC": 0.2308,
-        "IUES": 0.2173,
-        "CNDX": 0.0821,
-        "IDP6": 0.0435,
-        "IUFS": 0.0153,
-        "CSP1": 0.009
+        "SOXX": 0.4005,
+        "IUHC": 0.2302,
+        "IUES": 0.2168,
+        "CNDX": 0.0824,
+        "IDP6": 0.0445,
+        "IUFS": 0.0159,
+        "CSP1": 0.0097
       },
       "dates": [
-        "2026-10-08"
+        "2026-10-08",
+        "2026-10-09"
       ],
       "equity": [
-        3.262083
+        3.241392,
+        3.244941
       ]
     },
     "strategy_b": {
@@ -66,10 +70,12 @@
         "EFA": 0.0394
       },
       "dates": [
-        "2026-10-08"
+        "2026-10-08",
+        "2026-10-09"
       ],
       "equity": [
-        2.32901
+        2.32901,
+        2.337086
       ]
     },
     "strategy_c": {
@@ -79,9 +85,11 @@
         "SHY": 1.0
       },
       "dates": [
-        "2026-10-08"
+        "2026-10-08",
+        "2026-10-09"
       ],
       "equity": [
+        3.104729,
         3.104729
       ]
     },
@@ -94,9 +102,11 @@
         "EXV3": 0.2816
       },
       "dates": [
-        "2026-10-08"
+        "2026-10-08",
+        "2026-10-09"
       ],
       "equity": [
+        3.487698,
         3.487698
       ]
     }

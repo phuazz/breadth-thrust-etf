@@ -1,8 +1,8 @@
 {
-  "as_of": "2026-10-02",
+  "as_of": "2026-10-09",
   "gate_feed": "norgate-local",
-  "gate_input_date": "2026-10-02",
-  "tilt_input_date": "2026-10-02",
+  "gate_input_date": "2026-10-09",
+  "tilt_input_date": "2026-10-09",
   "gate_on": false,
   "tilt_on": false,
   "weights": {
