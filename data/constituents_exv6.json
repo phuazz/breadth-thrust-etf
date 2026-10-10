@@ -2,11 +2,11 @@
   "etf": "EXV6",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-10-04T08:21:41.875180+00:00",
+  "fetched_at_utc": "2026-10-10T02:16:54.281667+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-10-02",
-  "n_target_fridays": 457,
-  "n_snapshots_written": 457,
+  "end_friday": "2026-10-09",
+  "n_target_fridays": 458,
+  "n_snapshots_written": 458,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -32,8 +32,8 @@
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-10-02",
-      "fallback_date": "2026-10-01",
+      "target_friday": "2026-10-09",
+      "fallback_date": "2026-10-08",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
@@ -54,7 +54,7 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-10-01",
+    "last_real_fetch_date": "2026-10-08",
     "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
@@ -11536,8 +11536,8 @@
       ]
     },
     "2026-10-02": {
-      "actual_date": "2026-10-01",
-      "n_tickers": 21,
+      "actual_date": "2026-10-02",
+      "n_tickers": 22,
       "tickers": [
         "RIO.L",
         "AAL.L",
@@ -11550,14 +11550,43 @@
         "KGH.WA",
         "NHY.OL",
         "SKF-B.ST",
-        "SCA-B.ST",
         "FRES.L",
+        "SCA-B.ST",
+        "SSAB-B.ST",
+        "VOE.VI",
+        "NDA.DE",
+        "ACX.MC",
+        "PAF.L",
+        "HILS.L",
+        "KTY.WA",
+        "HOLM-B.ST",
+        "HOC.L"
+      ]
+    },
+    "2026-10-09": {
+      "actual_date": "2026-10-08",
+      "n_tickers": 22,
+      "tickers": [
+        "RIO.L",
+        "AAL.L",
+        "GLEN.L",
+        "MT.AS",
+        "ANTO.L",
+        "BOL.ST",
+        "UPM.HE",
+        "EDV.L",
+        "KGH.WA",
+        "NHY.OL",
+        "SKF-B.ST",
+        "FRES.L",
+        "SCA-B.ST",
         "SSAB-B.ST",
         "VOE.VI",
         "NDA.DE",
         "ACX.MC",
         "PAF.L",
         "KTY.WA",
+        "HILS.L",
         "HOLM-B.ST",
         "HOC.L"
       ]

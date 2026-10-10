@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-10-10T02:02:02+00:00",
+  "computed_at_utc": "2026-10-10T02:29:47+00:00",
   "as_of": "2026-10-09",
   "next_fill": {
     "summary": "13 moves at the next fill (NYSE Mon 12 Oct 2026, XETR Mon 12 Oct 2026), ranked on the Fri 9 Oct 2026 close; one-way turnover 6.88% of NAV; 1 new name; 1 exit. Signals compared with the previous decision close.",
@@ -619,12 +619,12 @@
     }
   },
   "week": {
-    "text": "Week Fri 2 Oct 2026 close \u2192 Fri 9 Oct 2026 close: the blend returned -0.11% against SPY +1.17%. By sleeve: Sleeve C +0.25pp (+2.49% at 10% of NAV), Sleeve B +0.11pp (+0.32% at 35% of NAV), Sleeve D -0.16pp (-0.78% at 20% of NAV), Sleeve A -0.19pp (-0.54% at 35% of NAV). Largest contributors: XLE (iShares S&P 500 Energy) +0.19pp (+2.6% at 7.6%); DBC (Broad Commodities) +0.16pp (+1.8% at 9.3%); XLV (iShares S&P 500 Health Care) +0.16pp (+2.0% at 8.1%). Largest detractors: SOXX (iShares Semiconductors) -0.72pp (-5.1% at 14.0%); EXV1.DE (STOXX Europe 600 Banks) -0.24pp (-3.1% at 7.8%); EWJ (MSCI Japan) -0.09pp (-1.5% at 5.9%). Holding contributions are weight \u00d7 return from the Mon 5 Oct 2026 close to the Fri 9 Oct 2026 close, 18 of 18 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 29.4% above the 50-day average (+4.6pp on the week).",
+    "text": "Week Fri 2 Oct 2026 close \u2192 Fri 9 Oct 2026 close: the blend returned -0.11% against SPY +1.17%. By sleeve: Sleeve C +0.25pp (+2.49% at 10% of NAV), Sleeve B +0.11pp (+0.32% at 35% of NAV), Sleeve A -0.19pp (-0.54% at 35% of NAV), Sleeve D -0.28pp (-1.40% at 20% of NAV). Largest contributors: XLE (iShares S&P 500 Energy) +0.19pp (+2.6% at 7.6%); DBC (Broad Commodities) +0.16pp (+1.8% at 9.3%); XLV (iShares S&P 500 Health Care) +0.16pp (+2.0% at 8.1%). Largest detractors: SOXX (iShares Semiconductors) -0.72pp (-5.1% at 14.0%); EXV1.DE (STOXX Europe 600 Banks) -0.24pp (-3.1% at 7.8%); EWJ (MSCI Japan) -0.09pp (-1.5% at 5.9%). Holding contributions are weight \u00d7 return from the Mon 5 Oct 2026 close to the Fri 9 Oct 2026 close, 18 of 18 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 36.2% above the 50-day average (+11.4pp on the week).",
     "headline": "Blend -0.11% \u00b7 SPY +1.17% \u00b7 Fri 2 Oct 2026 \u2192 Fri 9 Oct 2026 close",
     "lines": [
       {
         "label": "By sleeve",
-        "text": "C +0.25pp (+2.5% on 10%) \u00b7 B +0.11pp (+0.3% on 35%) \u00b7 D -0.16pp (-0.8% on 20%) \u00b7 A -0.19pp (-0.5% on 35%)"
+        "text": "C +0.25pp (+2.5% on 10%) \u00b7 B +0.11pp (+0.3% on 35%) \u00b7 A -0.19pp (-0.5% on 35%) \u00b7 D -0.28pp (-1.4% on 20%)"
       },
       {
         "label": "Helped",
@@ -636,13 +636,13 @@
       },
       {
         "label": "Regime",
-        "text": "RISK_ON since Tue 14 Apr 2026 \u00b7 S&P 500 breadth 29.4% (+4.6pp on the week)"
+        "text": "RISK_ON since Tue 14 Apr 2026 \u00b7 S&P 500 breadth 36.2% (+11.4pp on the week)"
       }
     ],
     "basis": "Holding contributions are weight \u00d7 return from the Mon 5 Oct 2026 close to the Fri 9 Oct 2026 close, 18 of 18 holdings priced from the one-year price panel.",
     "start": "2026-10-02",
     "end": "2026-10-09",
-    "blend_return": -0.0010770878403418838,
+    "blend_return": -0.001098187565127251,
     "spy_return": 0.011694386694386605,
     "holdings": [
       {
