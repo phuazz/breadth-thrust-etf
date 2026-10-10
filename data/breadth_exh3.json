@@ -1,6 +1,6 @@
 {
   "etf": "EXH3",
-  "computed_at_utc": "2026-10-10T03:03:53.829147+00:00",
+  "computed_at_utc": "2026-10-10T04:03:55.570679+00:00",
   "constituents_source": "data\\constituents_exh3.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
@@ -11,7 +11,7 @@
     "constituents_priced_to": "2026-10-08",
     "roster_end_friday": "2026-10-09",
     "vendor_probe": {
-      "checked_at_utc": "2026-10-10T03:03:34+00:00",
+      "checked_at_utc": "2026-10-10T04:03:36+00:00",
       "probe": "yfinance single-ticker history",
       "last_populated": "2026-10-08",
       "rows": [
@@ -244,7 +244,7 @@
     }
   },
   "tail_verification": {
-    "checked_at_utc": "2026-10-10T03:03:34+00:00",
+    "checked_at_utc": "2026-10-10T04:03:36+00:00",
     "probe": "yfinance single-ticker history",
     "last_populated": "2026-10-08",
     "rows": [

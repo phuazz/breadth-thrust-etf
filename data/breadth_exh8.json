@@ -1,6 +1,6 @@
 {
   "etf": "EXH8",
-  "computed_at_utc": "2026-10-10T03:14:25.471473+00:00",
+  "computed_at_utc": "2026-10-10T04:14:26.758662+00:00",
   "constituents_source": "data\\constituents_exh8.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
@@ -11,7 +11,7 @@
     "constituents_priced_to": "2026-10-08",
     "roster_end_friday": "2026-10-09",
     "vendor_probe": {
-      "checked_at_utc": "2026-10-10T03:14:16+00:00",
+      "checked_at_utc": "2026-10-10T04:14:17+00:00",
       "probe": "yfinance single-ticker history",
       "last_populated": "2026-10-08",
       "rows": [
@@ -38,7 +38,7 @@
     }
   },
   "tail_verification": {
-    "checked_at_utc": "2026-10-10T03:14:16+00:00",
+    "checked_at_utc": "2026-10-10T04:14:17+00:00",
     "probe": "yfinance single-ticker history",
     "last_populated": "2026-10-08",
     "rows": [
