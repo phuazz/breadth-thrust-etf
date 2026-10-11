@@ -39,6 +39,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from completed_prices import crypto_completed_through  # noqa: E402
 from venue_calendars import get_calendar as _venue_cal  # noqa: E402
 from session_bounds import last_completed_session_on  # noqa: E402
 
@@ -73,6 +74,19 @@ PROBES = [
     # source cannot reach, so the lag is a property of the schedule, not of
     # the feed choice. LIN is the liquid representative.
     ("LIN", "NYSE", "US constituent (foreign domicile)"),
+    # ADDED 2026-10-11. The two sleeve C lines Norgate cannot reach, and the
+    # two this log was blind on when it mattered. The 2026-10-10 core run
+    # held sleeve C because yfinance was not serving BTC-USD's Friday close
+    # (the engine's single-ticker re-probe answered without the bar); the
+    # vendor backfilled it by Sunday 01:16 UTC, and establishing those two
+    # facts took a log archaeology session because no probe row covered
+    # either name. "CRYPTO" is not an exchange venue: BTC-USD trades every
+    # UTC day, so its reference is the last COMPLETED UTC day
+    # (completed_prices.crypto_completed_through) and sessions_behind counts
+    # calendar days. 159801.SZ rides the SSE calendar (Shenzhen shares the
+    # holiday schedule), which is also what exonerates it on Golden Week.
+    ("BTC-USD", "CRYPTO", "C crypto line (UTC day bars)"),
+    ("159801.SZ", "SSE", "C China A-share line"),
 ]
 
 
@@ -83,6 +97,55 @@ def _sessions_behind(cal, last_bar, lcs) -> int | None:
     sched = cal.schedule(start_date=lo, end_date=hi)
     n = max(len(sched) - 1, 0)
     return n if pd.Timestamp(last_bar) <= pd.Timestamp(lcs) else -n
+
+
+def _days_behind(last_bar, lcs) -> int | None:
+    """Crypto variant of _sessions_behind: every UTC day is a session, so
+    behind is a plain calendar-day difference. Crypto callers pass a SETTLED
+    bar (at or before the completed bound), so the crypto row never reports
+    negative: an in-progress row beyond the bound is ignored outright rather
+    than read as "ahead" — a newer intraday bar proves nothing about the
+    settled days beneath it (adversarial review P2, 2026-10-11)."""
+    if last_bar is None or lcs is None:
+        return None
+    return int((pd.Timestamp(lcs).normalize()
+                - pd.Timestamp(last_bar).normalize()).days)
+
+
+# The trailing completed-day window the crypto row inspects for holes. Five
+# days spans a weekend plus the decision Friday with margin, and matches the
+# practical depth of the batch download the probe rides on.
+CRYPTO_HOLE_WINDOW_DAYS = 5
+
+
+def _settled_crypto(series: pd.Series, bound: pd.Timestamp,
+                    window_days: int = CRYPTO_HOLE_WINDOW_DAYS,
+                    ) -> tuple[pd.Timestamp | None, list[str], bool]:
+    """(settled last bar, missing completed days, bound-day bar present).
+
+    The settled bar is the newest FINITE POSITIVE value at or before
+    ``bound``. Rows after ``bound`` are in-progress bars and are ignored
+    entirely: the adversarial review reproduced a Sunday response carrying
+    8 and 11 October but neither 9 nor 10 October that the previous logic
+    read as sessions_behind=-1, current. Missing days are the completed UTC
+    days in the trailing window with no finite positive value, so an
+    internal hole stays visible even when a newer settled bar exists. A
+    non-finite or non-positive value is a hole, not a bar."""
+    bound = pd.Timestamp(bound).normalize()
+    s = series.dropna() if series is not None else pd.Series(dtype=float)
+    if len(s):
+        idx = pd.to_datetime(s.index)
+        if idx.tz is not None:
+            idx = idx.tz_localize(None)
+        s.index = idx.normalize()
+        s = s[(s > 0) & (s < float("inf"))]
+        s = s[~s.index.duplicated(keep="last")]
+    settled = s[s.index <= bound] if len(s) else s
+    last_bar = pd.Timestamp(settled.index.max()) if len(settled) else None
+    window = [bound - pd.Timedelta(days=i) for i in range(window_days)]
+    present = set(settled.index)
+    missing = sorted(d.date().isoformat() for d in window if d not in present)
+    return last_bar, missing, bound in present
 
 
 # SINGLE-TICKER RE-FETCH (2026-09-30). Every null last_bar in the log up to
@@ -113,11 +176,14 @@ def _close_frame(raw: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
     return raw[["Close"]].rename(columns={"Close": tickers[0]})
 
 
-def _refetch_single(download, tk: str, start: str, end: str,
-                    attempts: int = REFETCH_ATTEMPTS,
-                    pause: float = REFETCH_PAUSE_SECONDS,
-                    sleep=None) -> pd.Timestamp | None:
-    """Ask for one ticker alone, a few times, before recording it unserved."""
+def _refetch_single_series(download, tk: str, start: str, end: str,
+                           attempts: int = REFETCH_ATTEMPTS,
+                           pause: float = REFETCH_PAUSE_SECONDS,
+                           sleep=None) -> pd.Series | None:
+    """The single-ticker close series, or None when the vendor gave nothing.
+    The crypto row needs the SERIES (its verdict reads specific completed
+    days, not only the newest bar); the venue rows keep the last-bar shape
+    via _refetch_single below."""
     import time
     sleep = sleep or time.sleep
     for i in range(attempts):
@@ -128,10 +194,22 @@ def _refetch_single(download, tk: str, start: str, end: str,
                            progress=False, group_by="column")
         except Exception:  # noqa: BLE001 — a failed re-fetch is still unserved
             continue
-        bar = _last_bar(_close_frame(raw, [tk]), tk)
-        if bar is not None:
-            return bar
+        frame = _close_frame(raw, [tk])
+        if tk in frame.columns:
+            s = frame[tk].dropna()
+            if len(s):
+                return s
     return None
+
+
+def _refetch_single(download, tk: str, start: str, end: str,
+                    attempts: int = REFETCH_ATTEMPTS,
+                    pause: float = REFETCH_PAUSE_SECONDS,
+                    sleep=None) -> pd.Timestamp | None:
+    """Ask for one ticker alone, a few times, before recording it unserved."""
+    s = _refetch_single_series(download, tk, start, end,
+                               attempts=attempts, pause=pause, sleep=sleep)
+    return pd.Timestamp(s.index.max()).normalize() if s is not None and len(s) else None
 
 
 def probe(now_utc: datetime | None = None, download=None) -> dict:
@@ -148,6 +226,35 @@ def probe(now_utc: datetime | None = None, download=None) -> dict:
 
     rows = []
     for tk, venue, role in PROBES:
+        if venue == "CRYPTO":
+            # Not an exchange: the reference is the last completed UTC day,
+            # lateness counts calendar days, and the verdict reads SETTLED
+            # bars only — plus the explicit holes and bound-day presence the
+            # adversarial review required (see _settled_crypto). Holes
+            # trigger the single-ticker re-ask just as an empty batch line
+            # does, so "the batch missed it" and "the vendor has no bar"
+            # stay distinguishable in the record.
+            bound = pd.Timestamp(crypto_completed_through(now))
+            series = close[tk] if tk in close.columns else pd.Series(dtype=float)
+            last_bar, missing, required_present = _settled_crypto(series, bound)
+            refetched = False
+            if last_bar is None or missing:
+                again = _refetch_single_series(download, tk, start, end)
+                if again is not None:
+                    last_bar, missing, required_present = _settled_crypto(again, bound)
+                    refetched = True
+            row = {
+                "ticker": tk, "venue": venue, "role": role,
+                "last_bar": str(last_bar.date()) if last_bar is not None else None,
+                "last_completed_session": str(bound.date()),
+                "sessions_behind": _days_behind(last_bar, bound),
+                "required_day_bar_present": required_present,
+                "missing_completed_days": missing,
+            }
+            if refetched:
+                row["refetched"] = True
+            rows.append(row)
+            continue
         cal = _venue_cal(venue)
         lcs = last_completed_session_on(cal, now)
         last_bar = _last_bar(close, tk)

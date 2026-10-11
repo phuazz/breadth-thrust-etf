@@ -347,3 +347,235 @@ def test_missing_or_unreadable_log_is_undetermined_not_pass(tmp_path):
     bad = tmp_path / "bad.jsonl"
     bad.write_text("{not json\n", encoding="utf-8")
     assert g.evaluate(bad)["undetermined"] is True
+
+
+# ---------------------------------------------------------------------------
+# Europe-splice visibility (2026-10-11) — the discard is still the rule,
+# and it now says what it discarded.
+#
+# The weekend that motivated this: Saturday's core run held sleeve C because
+# the vendor served no BTC-USD Friday close (single-ticker re-probe answered
+# without the bar); the vendor backfilled overnight; Sunday's Europe run
+# recomputed a READY C from the backfilled data and silently replaced it
+# with the spliced HOLD. Component isolation is correct — the silence was
+# the defect. Python months are 1-indexed.
+# ---------------------------------------------------------------------------
+
+def _sleeve(name, status, missing=None, decided="2026-10-09", marker=0.0):
+    s = {"sleeve": name, "venue": "NYSE", "status": status,
+         "decision_session": decided, "weights": {"W": marker or 0.5}}
+    if missing is not None:
+        s["missing_signal_inputs"] = list(missing)
+        s["weights"] = {}
+    return s
+
+
+def test_splice_surfaces_a_repairable_hold():
+    previous = [_sleeve("A", "READY", marker=0.11),
+                _sleeve("B", "READY", marker=0.12),
+                _sleeve("C", "HOLD", missing=["BTC-USD"]),
+                _sleeve("D", "READY", marker=0.14)]
+    fresh = [_sleeve("A", "READY", marker=0.21),
+             _sleeve("B", "READY", marker=0.22),
+             _sleeve("C", "READY", marker=0.23),
+             _sleeve("D", "READY", marker=0.24)]
+    spliced, repairable = lt._splice_previous_core(fresh, previous, "2026-10-09")
+    assert [r["sleeve"] for r in repairable] == ["C"]
+    assert repairable[0]["missing_then"] == ["BTC-USD"]
+    assert repairable[0]["fresh_recompute_status"] == "READY"
+    assert repairable[0]["fresh_decision_session"] == "2026-10-09"
+
+
+def test_splice_is_quiet_while_the_vendor_still_does_not_serve():
+    """A hold the fresh recompute CANNOT clear is not repairable — flagging
+    it would train the operator to ignore the flag."""
+    previous = [_sleeve("C", "HOLD", missing=["BTC-USD"])]
+    fresh = [_sleeve("C", "HOLD", missing=["BTC-USD"])]
+    _, repairable = lt._splice_previous_core(fresh, previous, "2026-10-09")
+    assert repairable == []
+
+
+def test_splice_is_quiet_when_nothing_was_held():
+    previous = [_sleeve("A", "READY", marker=0.11)]
+    fresh = [_sleeve("A", "READY", marker=0.21)]
+    _, repairable = lt._splice_previous_core(fresh, previous, "2026-10-09")
+    assert repairable == []
+
+
+def test_splice_never_alters_the_previous_release_content():
+    """The spliced sleeves are the previous release's, byte for byte: the
+    flag changes visibility, never the decision. D stays the fresh run's
+    business and is excluded from the splice."""
+    previous = [_sleeve("A", "READY", marker=0.11),
+                _sleeve("C", "HOLD", missing=["BTC-USD"]),
+                _sleeve("D", "READY", marker=0.99)]
+    fresh = [_sleeve("A", "READY", marker=0.21),
+             _sleeve("C", "READY", marker=0.23),
+             _sleeve("D", "READY", marker=0.98)]
+    spliced, _ = lt._splice_previous_core(fresh, previous, "2026-10-09")
+    assert spliced == [previous[0], previous[1]]
+    assert all(s["sleeve"] != "D" for s in spliced)
+    # Identity, not equality by accident: the exact dicts are passed through.
+    assert spliced[0] is previous[0] and spliced[1] is previous[1]
+
+
+# ---------------------------------------------------------------------------
+# Probe roster: the two C lines Norgate cannot reach (2026-10-11)
+# ---------------------------------------------------------------------------
+
+def test_probe_covers_the_c_lines_norgate_cannot_reach():
+    """BTC-USD and 159801.SZ are the two sleeve C names outside Norgate's
+    reach, and the two the availability log was blind on when the 2026-10-10
+    core run held sleeve C. Both are sampled now."""
+    tickers = {t for t, _, _ in probe.PROBES}
+    assert "BTC-USD" in tickers
+    assert "159801.SZ" in tickers
+    venues = {t: v for t, v, _ in probe.PROBES}
+    assert venues["BTC-USD"] == "CRYPTO"
+    assert venues["159801.SZ"] == "SSE"
+
+
+def test_crypto_days_behind_boundaries():
+    """Calendar-day lateness for a 7-day instrument, with the month and year
+    boundaries the house date rules require. Python months are 1-indexed."""
+    assert probe._days_behind("2026-10-09", "2026-10-10") == 1   # weekend Sat
+    assert probe._days_behind("2026-10-10", "2026-10-10") == 0
+    assert probe._days_behind("2026-10-11", "2026-10-10") == -1  # in-progress bar
+    assert probe._days_behind("2026-10-31", "2026-11-01") == 1   # month boundary
+    assert probe._days_behind("2026-12-31", "2027-01-01") == 1   # year boundary
+    assert probe._days_behind(None, "2026-10-10") is None
+    assert probe._days_behind("2026-10-09", None) is None
+
+
+def _stub_download(bars_through_by_ticker):
+    """A yfinance.download stand-in serving daily closes through the given
+    date per ticker, on a ('Close', ticker) MultiIndex like group_by='column'."""
+    def download(tickers, start=None, end=None, **_kw):
+        tickers = list(tickers)
+        frames = {}
+        for tk in tickers:
+            end_date = pd.Timestamp(bars_through_by_ticker[tk])
+            idx = pd.date_range(end=end_date, periods=8, freq="D")
+            frames[("Close", tk)] = pd.Series(100.0, index=idx)
+        return pd.DataFrame(frames)
+    return download
+
+
+def test_probe_crypto_row_reads_utc_days_not_nyse_sessions():
+    """At Sunday 2026-10-11 01:16 UTC — the actual weekend run clock — a
+    BTC-USD series ending Friday is one completed UTC DAY behind (Saturday's
+    bar is owed), while SPY ending Friday is current on the NYSE calendar.
+    Conflating those two frames is exactly what a per-venue probe exists to
+    prevent."""
+    now = _utc(2026, 10, 11, 1, 16)
+    through = {t: "2026-10-09" for t, _, _ in probe.PROBES}
+    r = probe.probe(now_utc=now, download=_stub_download(through))
+    rows = {x["ticker"]: x for x in r["rows"]}
+    assert rows["SPY"]["sessions_behind"] == 0
+    assert rows["SPY"]["last_completed_session"] == "2026-10-09"
+    assert rows["BTC-USD"]["last_completed_session"] == "2026-10-10"
+    assert rows["BTC-USD"]["sessions_behind"] == 1
+    assert rows["159801.SZ"]["sessions_behind"] == 0  # SSE last session 10-09
+
+    through["BTC-USD"] = "2026-10-10"
+    r2 = probe.probe(now_utc=now, download=_stub_download(through))
+    rows2 = {x["ticker"]: x for x in r2["rows"]}
+    assert rows2["BTC-USD"]["sessions_behind"] == 0
+
+
+def test_splice_enforces_the_same_anchor_on_both_sides():
+    """Adversarial review P2 (2026-10-11): a delayed Europe run must not
+    recommend repairing a Friday instruction from a Monday decision, and an
+    old HOLD from an earlier week is not repaired by this week's READY."""
+    # Fresh recompute decided on a LATER session than the release anchor.
+    previous = [_sleeve("C", "HOLD", missing=["BTC-USD"], decided="2026-10-09")]
+    fresh = [_sleeve("C", "READY", decided="2026-10-12", marker=0.23)]
+    _, repairable = lt._splice_previous_core(fresh, previous, "2026-10-09")
+    assert repairable == []
+    # Prior HOLD from an EARLIER week than the release anchor.
+    previous = [_sleeve("C", "HOLD", missing=["BTC-USD"], decided="2026-10-02")]
+    fresh = [_sleeve("C", "READY", decided="2026-10-09", marker=0.23)]
+    _, repairable = lt._splice_previous_core(fresh, previous, "2026-10-09")
+    assert repairable == []
+    # Both sides on the anchor: flagged, and the anchor is recorded.
+    previous = [_sleeve("C", "HOLD", missing=["BTC-USD"], decided="2026-10-09")]
+    fresh = [_sleeve("C", "READY", decided="2026-10-09", marker=0.23)]
+    _, repairable = lt._splice_previous_core(fresh, previous, "2026-10-09")
+    assert [r["sleeve"] for r in repairable] == ["C"]
+    assert repairable[0]["anchor"] == "2026-10-09"
+
+
+def _stub_download_days(days_by_ticker):
+    """Like _stub_download, but with explicit bar dates per ticker, so a
+    response can carry internal holes and in-progress rows. Records every
+    call's ticker list so a test can assert the single-ticker re-ask."""
+    calls = []
+
+    def download(tickers, start=None, end=None, **_kw):
+        tickers = list(tickers)
+        calls.append(tuple(tickers))
+        frames = {}
+        for tk in tickers:
+            idx = pd.DatetimeIndex([pd.Timestamp(d) for d in days_by_ticker[tk]])
+            frames[("Close", tk)] = pd.Series(100.0, index=idx)
+        return pd.DataFrame(frames)
+
+    download.calls = calls
+    return download
+
+
+def test_crypto_settled_bar_ignores_intraday_and_sees_holes():
+    """The reviewer's reproduction: 8 and 11 October present, 9 and 10
+    October absent, probed Sunday 01:16 UTC. The old logic read the
+    in-progress 11 October row as sessions_behind=-1, current. The settled
+    logic must report two days behind, name both holes, flag the bound bar
+    absent — and must have re-asked the vendor single-ticker."""
+    now = _utc(2026, 10, 11, 1, 16)
+    days = {t: ["2026-10-07", "2026-10-08", "2026-10-09"] for t, _, _ in probe.PROBES}
+    days["BTC-USD"] = ["2026-10-06", "2026-10-07", "2026-10-08", "2026-10-11"]
+    dl = _stub_download_days(days)
+    r = probe.probe(now_utc=now, download=dl)
+    row = {x["ticker"]: x for x in r["rows"]}["BTC-USD"]
+    assert row["last_bar"] == "2026-10-08"
+    assert row["sessions_behind"] == 2
+    assert row["required_day_bar_present"] is False
+    assert row["missing_completed_days"] == ["2026-10-09", "2026-10-10"]
+    assert row.get("refetched") is True
+    assert ("BTC-USD",) in dl.calls  # the single-ticker re-ask happened
+
+
+def test_crypto_full_tail_reports_current_and_quiet():
+    now = _utc(2026, 10, 11, 1, 16)
+    days = {t: ["2026-10-08", "2026-10-09"] for t, _, _ in probe.PROBES}
+    days["BTC-USD"] = ["2026-10-06", "2026-10-07", "2026-10-08",
+                       "2026-10-09", "2026-10-10"]
+    r = probe.probe(now_utc=now, download=_stub_download_days(days))
+    row = {x["ticker"]: x for x in r["rows"]}["BTC-USD"]
+    assert row["sessions_behind"] == 0
+    assert row["required_day_bar_present"] is True
+    assert row["missing_completed_days"] == []
+    assert "refetched" not in row
+
+
+def test_crypto_non_finite_values_are_holes_not_bars():
+    """A zero, negative, infinite or NaN print on a completed day is a hole.
+    Checked directly on the settled helper. Python months are 1-indexed."""
+    idx = pd.DatetimeIndex([pd.Timestamp(d) for d in
+                            ["2026-10-06", "2026-10-07", "2026-10-08",
+                             "2026-10-09", "2026-10-10"]])
+    s = pd.Series([100.0, 0.0, float("inf"), float("nan"), -5.0], index=idx)
+    last_bar, missing, required = probe._settled_crypto(s, pd.Timestamp("2026-10-10"))
+    assert str(last_bar.date()) == "2026-10-06"
+    assert missing == ["2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10"]
+    assert required is False
+
+
+def test_crypto_settled_window_crosses_month_and_year_boundaries():
+    """Bound 2027-01-01: the five-day hole window reaches back into December
+    2026. Python months are 1-indexed."""
+    idx = pd.DatetimeIndex([pd.Timestamp("2026-12-29"), pd.Timestamp("2026-12-30")])
+    s = pd.Series([100.0, 101.0], index=idx)
+    last_bar, missing, required = probe._settled_crypto(s, pd.Timestamp("2027-01-01"))
+    assert str(last_bar.date()) == "2026-12-30"
+    assert missing == ["2026-12-28", "2026-12-31", "2027-01-01"]
+    assert required is False

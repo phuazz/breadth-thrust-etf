@@ -28,11 +28,20 @@ NOW = datetime(2026, 9, 30, 3, 45, tzinfo=timezone.utc)
 DATES = pd.to_datetime(["2026-09-25", "2026-09-28", "2026-09-29"])
 
 
+# The crypto line trades every UTC day, so its fixture must carry weekend
+# bars: an equity-shaped (weekday-only) BTC-USD series has genuine holes on
+# 26-27 September and the settled-bar logic would rightly re-ask for it,
+# polluting the single-call assertions these tests make about VENUE lines.
+CRYPTO_DAILY = pd.date_range("2026-09-23", "2026-09-29", freq="D")
+
+
 def _frame(tickers, empty=()):
-    cols = pd.MultiIndex.from_product([["Close"], tickers])
-    data = np.array([[np.nan if t in empty else 100.0 for t in tickers]
-                     for _ in DATES])
-    return pd.DataFrame(data, index=DATES, columns=cols)
+    cols = {}
+    for t in tickers:
+        idx = CRYPTO_DAILY if t == "BTC-USD" else DATES
+        value = np.nan if t in empty else 100.0
+        cols[("Close", t)] = pd.Series([value] * len(idx), index=idx)
+    return pd.DataFrame(cols)
 
 
 class FakeDownload:

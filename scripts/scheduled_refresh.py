@@ -968,6 +968,22 @@ def component_sequence(run_child, *, armed: bool, recover_first: bool = False) -
     return run_child("europe", capture_only=False)
 
 
+def repairable_held_core(released: dict) -> list[str]:
+    """Core sleeves (A/B/C) the verified release holds for MISSING SIGNAL
+    INPUTS — the one hold class a same-anchor recompute can clear once the
+    vendor serves the bar it withheld (2026-10-10 BTC-USD; precedent
+    2026-09-27). A risk-only or discretionary HOLD carries no
+    missing_signal_inputs and is deliberately NOT eligible: repairing it
+    would overrule a decision rather than refresh data. Sleeve D belongs to
+    the Europe component and is never repaired by a core run."""
+    out = []
+    for s in (released.get("book") or {}).get("sleeves") or []:
+        if (s.get("sleeve") in ("A", "B", "C") and s.get("status") == "HOLD"
+                and s.get("missing_signal_inputs")):
+            out.append(str(s.get("sleeve")))
+    return sorted(out)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--component", choices=("auto", "all", "core", "europe"), default="auto",
@@ -997,6 +1013,21 @@ def main(argv: list[str] | None = None) -> int:
                              "trigger outside the original Tue/Wed window "
                              "safe to add: the extra firings are free on a "
                              "healthy week and do the work on a broken one.")
+    parser.add_argument("--repair-core-hold", action="store_true",
+                        help="Narrowly scoped same-anchor repair (2026-10-11, "
+                             "adversarial review P1; precedent 2026-09-27): "
+                             "proceed past the verified-release skip ONLY when "
+                             "the committed release for the current weekly "
+                             "anchor records a core sleeve held for missing "
+                             "signal inputs. Requires an explicit --component "
+                             "core run. A wrong-anchor or unverifiable release "
+                             "REFUSES; a release with nothing eligible exits 0 "
+                             "without refreshing. Every downstream guard — "
+                             "strict Norgate, the coverage floor, held-basis "
+                             "and overlay validation, executed=false, the "
+                             "seals — runs unchanged, and ordinary "
+                             "deduplication is untouched because scheduled "
+                             "firings never carry this flag.")
     parser.add_argument("--cadence", choices=CADENCES, default="weekend",
                         help="Which pair this run belongs to. Affects the "
                              "commit message only — every guard is identical. "
@@ -1020,6 +1051,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.recover_europe_first and (args.component != "auto" or args.cadence != "weekend"
                                      or args.preflight_only or not (args.push or args.commit)):
         parser.error("--recover-europe-first requires the armed weekend auto sequence")
+    if args.repair_core_hold and (args.component != "core" or args.capture_only
+                                  or args.recover_europe_first or args.preflight_only):
+        parser.error("--repair-core-hold requires an explicit --component core run "
+                     "(no capture-only, recover-europe-first or preflight-only)")
 
     LOG_DIR.mkdir(exist_ok=True)
     now = datetime.now(timezone.utc)
@@ -1208,7 +1243,55 @@ def main(argv: list[str] | None = None) -> int:
     marker = GREEN_MARKER if component == "all" else LOG_DIR / f"last_green_{component}.json"
     if component == "core" and not args.preflight_only:
         release_path = REPO_ROOT / "data/component_release.json"
-        if release_path.exists():
+        # ----- Same-anchor core repair (2026-10-11) -----
+        # The verified-release skip below returns BEFORE any recomputation,
+        # so a core sleeve held for missing inputs could not be repaired by
+        # ANY ordinary invocation once the vendor backfilled the bar — the
+        # adversarial review's P1: the proposed recovery command simply
+        # exited here. The repair route is explicit and fail-closed: it
+        # must verify the committed release it claims to repair, the anchor
+        # must be the current weekly anchor, and at least one core sleeve
+        # must be held for missing signal inputs. Everything after this
+        # gate is the ordinary fully guarded core run; nothing deletes or
+        # weakens seals, markers or deduplication.
+        if args.repair_core_hold:
+            from component_release import verify
+            try:
+                released = verify(REPO_ROOT, now, committed=True)
+            except Exception as exc:  # noqa: BLE001 — refusal, with the cause named
+                return fail(2, "repair refused - committed release unverifiable",
+                            "A same-anchor repair must start from a verified "
+                            "committed release and this one did not verify: "
+                            f"{exc!r}. Changed sources require an ordinary "
+                            "guarded refresh, not the repair route.")
+            expected_anchor = week_final_anchor(now).isoformat()
+            if released["anchor"] != expected_anchor:
+                return fail(2, "repair refused - wrong anchor",
+                            f"The committed release is anchored "
+                            f"{released['anchor']} but the current weekly "
+                            f"anchor is {expected_anchor}. That is not a "
+                            f"same-anchor repair; run the ordinary refresh.")
+            eligible = repairable_held_core(released)
+            if not eligible:
+                msg = ("REPAIR: the verified release holds no core sleeve "
+                       "for missing signal inputs; nothing to repair.")
+                print(msg)
+                log.write(f"\n{msg}\n")
+                _record_run(run_status.run_ledger_path(REPO_ROOT),
+                            cadence=args.cadence, exit_code=0,
+                            subject="repair: nothing to repair",
+                            debt=None)
+                log.close()
+                return 0
+            msg = (f"SAME-ANCHOR REPAIR: core sleeve(s) {', '.join(eligible)} "
+                   f"held for missing signal inputs on anchor "
+                   f"{expected_anchor}; proceeding to a fully guarded core "
+                   f"recompute. The re-run re-verifies every input and may "
+                   f"legitimately hold again if the vendor has withdrawn "
+                   f"the bar.")
+            print(msg)
+            log.write(f"\n{msg}\n")
+        elif release_path.exists():
             try:
                 from component_release import verify
                 released = verify(REPO_ROOT, now, committed=True)

@@ -254,6 +254,57 @@ def _prev_decisions(sleeve_data) -> dict[str, str | None]:
     return out
 
 
+def _splice_previous_core(fresh_sleeves: list[dict],
+                          previous_sleeves: list[dict],
+                          anchor: str,
+                          ) -> tuple[list[dict], list[dict]]:
+    """Component isolation for a Europe refresh, with the discard made visible.
+
+    A Europe-component run recomputes every sleeve (the shared loaders make
+    that the cheap path) but must publish the PREVIOUS verified core release's
+    A/B/C verbatim — an independently refreshed core under a Europe label
+    would be a restatement nobody chose. That rule stands unchanged here.
+
+    What the silent form of it discarded on 2026-10-11 was evidence: the
+    Saturday core run held sleeve C because the vendor was not serving
+    BTC-USD's Friday close (the single-ticker re-probe confirmed "unserved"),
+    the vendor backfilled the bar overnight, and Sunday's Europe run
+    recomputed a READY sleeve C from the backfilled data — then replaced it
+    with the spliced HOLD without a word. The hold was repairable a full day
+    before the fill and no artefact said so.
+
+    Returns the spliced core sleeves (the previous release's dictionaries,
+    passed through untouched) and a record of every spliced HOLD whose fresh
+    recompute ranked READY on the SAME decision session as the release
+    anchor. The same-anchor condition is enforced on BOTH sides (adversarial
+    review P2, 2026-10-11): a delayed Europe run whose fresh recompute
+    decided on a LATER session says nothing about the delivered Friday
+    instruction, and an old HOLD from an EARLIER week is not repaired by
+    this week's READY. Decision content never changes here; only visibility,
+    and the flag is eligibility for the explicit repair route
+    (scheduled_refresh --component core --repair-core-hold), not a promise
+    that a re-run clears the hold — the re-run re-verifies every input.
+    """
+    anchor = str(anchor)
+    fresh = {s.get("sleeve"): s for s in fresh_sleeves if s.get("sleeve") != "D"}
+    spliced = [s for s in previous_sleeves if s.get("sleeve") != "D"]
+    repairable: list[dict] = []
+    for s in spliced:
+        f = fresh.get(s.get("sleeve"))
+        if (s.get("status") == "HOLD" and f is not None
+                and f.get("status") == "READY"
+                and str(s.get("decision_session")) == anchor
+                and str(f.get("decision_session")) == anchor):
+            repairable.append({
+                "sleeve": s.get("sleeve"),
+                "anchor": anchor,
+                "missing_then": list(s.get("missing_signal_inputs") or []),
+                "fresh_recompute_status": "READY",
+                "fresh_decision_session": f.get("decision_session"),
+            })
+    return spliced, repairable
+
+
 def build(now_utc: datetime | None = None) -> dict:
     now = now_utc or datetime.now(timezone.utc)
     import run_asset_class_rotation as ac
@@ -305,13 +356,27 @@ def build(now_utc: datetime | None = None) -> dict:
                          prev_session=prev.get("D")))
 
     import os
+    repairable_holds: list[dict] = []
     if os.environ.get("BTE_COMPONENT_REFRESH") == "europe":
         from component_release import read
         from nyse_sessions import week_final_anchor
         previous = read(DATA_DIR / "component_release.json")
         if previous["anchor"] != week_final_anchor(now).isoformat():
             raise ValueError("Europe refresh requires the current verified core first")
-        sleeves = [s for s in previous["book"]["sleeves"] if s["sleeve"] != "D"] + [sleeves[-1]]
+        core, repairable_holds = _splice_previous_core(
+            sleeves, previous["book"]["sleeves"], previous["anchor"])
+        for r in repairable_holds:
+            missing = ", ".join(r["missing_then"]) or "none recorded"
+            print(f"  NOTE: sleeve {r['sleeve']} is HOLD in the spliced core "
+                  f"release (missing then: {missing}) and this run's fresh "
+                  f"recompute ranked it READY on the same decision session "
+                  f"{r['anchor']} — eligible for the explicit same-anchor "
+                  f"repair route (scheduled_refresh --component core "
+                  f"--repair-core-hold), which re-verifies every input and "
+                  f"may still hold. The spliced sleeves are published "
+                  f"unchanged by design.",
+                  flush=True)
+        sleeves = core + [sleeves[-1]]
 
     # Effective NAV weights and the delta against what is currently held.
     from build_factsheet import sleeve_nav_weights
@@ -381,6 +446,10 @@ def build(now_utc: datetime | None = None) -> dict:
             "rounding_residual_nav": rounding_residual,
             "executed": False,
             "targets_final": final,
+            # Spliced HOLDs whose fresh recompute ranked READY on the same
+            # anchor (Europe component runs only; [] everywhere else). Purely
+            # informational — the spliced decision content is untouched.
+            "core_holds_repairable": repairable_holds,
             "next_fill": {
                 "by_venue": fills,
                 "date": distinct[0] if len(distinct) == 1 else None,
