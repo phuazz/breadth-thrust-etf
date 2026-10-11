@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-10-10T06:14:55.119200+00:00",
+ "computed_at_utc": "2026-10-11T01:16:50.849020+00:00",
  "as_of": "2026-10-09",
  "overlay_decision": {
   "as_of": "2026-10-09",
@@ -160,23 +160,23 @@
   {
    "sleeve": "D",
    "venue": "XETR",
-   "status": "HOLD",
-   "reason": "signal reaches 2026-10-08 but the last completed XETR session is 2026-10-09 \u2014 ranking now would use an earlier session",
-   "decision_session": "2026-10-08",
+   "status": "READY",
+   "reason": null,
+   "decision_session": "2026-10-09",
    "last_completed_session": "2026-10-09",
    "weights": {
-    "EXV1": 0.364163,
-    "EXH1": 0.328774,
-    "EXV3": 0.307063
+    "EXV1": 0.368941,
+    "EXH1": 0.321985,
+    "EXV3": 0.309075
    },
    "signal_kind": "breadth",
    "top_k": 3,
    "signals": {
-    "EXV1": 0.8056,
+    "EXV1": 0.8333,
     "EXH1": 0.7273,
-    "EXV3": 0.6792,
-    "EXH3": 0.4476,
-    "EXH9": 0.4
+    "EXV3": 0.6981,
+    "EXH3": 0.4965,
+    "EXH9": 0.4286
    },
    "signals_prev": {
     "EXV1": 0.8611,
@@ -357,35 +357,32 @@
    "sleeve": "D",
    "etf": "EXV3",
    "traded": "EXV3",
-   "within": 0.2816,
-   "target": 0.05632000000000001,
+   "within": 0.309075,
+   "target": 0.061815,
    "held": 0.05632000000000001,
-   "risk_adjustment": false,
-   "status": "HOLD",
-   "delta": 0.0
+   "status": "READY",
+   "delta": 0.005494999999999993
   },
   {
    "sleeve": "D",
    "etf": "EXV1",
    "traded": "EXV1",
-   "within": 0.3895,
-   "target": 0.07790000000000001,
+   "within": 0.368941,
+   "target": 0.07378820000000001,
    "held": 0.07790000000000001,
-   "risk_adjustment": false,
-   "status": "HOLD",
-   "delta": 0.0
+   "status": "READY",
+   "delta": -0.004111799999999999
   },
   {
    "sleeve": "D",
    "etf": "EXH1",
    "traded": "EXH1",
-   "within": 0.3289,
-   "target": 0.06578,
+   "within": 0.321985,
+   "target": 0.06439700000000001,
    "held": 0.06578,
-   "risk_adjustment": false,
-   "status": "HOLD",
-   "delta": 0.0
+   "status": "READY",
+   "delta": -0.0013829999999999953
   }
  ],
- "one_way_turnover": 0.06881979999999999
+ "one_way_turnover": 0.07431469999999998
 }
