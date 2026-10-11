@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-10-11T01:17:01+00:00",
+  "computed_at_utc": "2026-10-11T10:59:07+00:00",
   "as_of": "2026-10-09",
   "next_fill": {
     "summary": "16 moves at the next fill (NYSE Mon 12 Oct 2026, XETR Mon 12 Oct 2026), ranked on the Fri 9 Oct 2026 close; one-way turnover 7.43% of NAV; 1 new name; 1 exit. Signals compared with the previous decision close.",
@@ -753,9 +753,7 @@
         ]
       }
     ],
-    "holds": [
-      "Sleeve C is held and its book is unchanged: decision row carries 24 of 25 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one; missing signal inputs: BTC-USD."
-    ],
+    "holds": [],
     "notes": [],
     "decision_session": "2026-10-09",
     "fill_by_venue": {
