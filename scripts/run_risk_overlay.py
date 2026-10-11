@@ -276,6 +276,76 @@ def _load_norgate_states(
     return aligned, doc.get("last_bar")
 
 
+def _load_norgate_level() -> float | None:
+    """The vendor's current breadth scalar from NORGATE_STATES_PATH, or None.
+
+    publish_norgate_breadth.py writes one number (``current_breadth``, as at
+    ``last_bar``) beside the derived states; the daily series stays out of
+    the repo (licence). Any defect returns None so the caller falls back to
+    the scrape level and says so in ``current_breadth_source``.
+    """
+    try:
+        doc = json.loads(NORGATE_STATES_PATH.read_text(encoding="utf-8"))
+        v = doc.get("current_breadth")
+        return float(v) if isinstance(v, (int, float)) else None
+    except Exception:
+        return None
+
+
+def resolve_gate_level(gate_feed: str, norgate_level: float | None,
+                       norgate_last_bar: str | None,
+                       scrape_breadth: pd.Series,
+                       scrape_as_of: str | None) -> dict:
+    """The breadth level to publish beside the gate state, from the SAME
+    feed that decided the state.
+
+    Until 2026-10-11 ``current_breadth`` always came from the CSP1 scrape,
+    even when the norgate-local feed governed the state: the dashboards
+    showed 36.2% against the deciding 35.26% for the 9 Oct 2026 bar, and a
+    level near 20% could sit on the other side of the threshold from the
+    state. On the norgate feed the vendor scalar is used and the scrape
+    level is kept as ``scrape_current_breadth`` for diagnostics only.
+    """
+    scrape_now = (float(scrape_breadth.iloc[-1])
+                  if len(scrape_breadth) and pd.notna(scrape_breadth.iloc[-1])
+                  else None)
+    if gate_feed == "norgate-local" and norgate_level is not None:
+        return {"current_breadth": norgate_level,
+                "current_breadth_source": "norgate-local",
+                "current_breadth_as_of": norgate_last_bar,
+                "scrape_current_breadth": scrape_now}
+    return {"current_breadth": scrape_now,
+            "current_breadth_source": "csp1-scrape",
+            "current_breadth_as_of": scrape_as_of,
+            "scrape_current_breadth": scrape_now}
+
+
+def build_gate_events(states: pd.Series, scrape_breadth: pd.Series,
+                      gate_feed: str) -> list[dict]:
+    """One record per state transition.
+
+    On the norgate-local feed the state comes from the vendor series, whose
+    levels may not be committed, so ``breadth`` is None and the scrape level
+    travels as ``scrape_breadth`` (diagnostic, not the deciding value). The
+    2026-03-20 RISK_OFF was annotated 20.68% from the scrape while the
+    vendor read 19.09%: a de-risk printed beside a level above its own
+    threshold. On the scrape feed ``breadth`` is the deciding level.
+    """
+    transitions = states.diff().fillna(0)
+    out = []
+    for d in states.index[transitions != 0]:
+        lvl = _round(scrape_breadth.loc[d])
+        rec = {"date": d.strftime("%Y-%m-%d"),
+               "direction": "RISK_OFF" if states.loc[d] == 0.0 else "RISK_ON"}
+        if gate_feed == "norgate-local":
+            rec["breadth"] = None
+            rec["scrape_breadth"] = lvl
+        else:
+            rec["breadth"] = lvl
+        out.append(rec)
+    return out
+
+
 def _load_eem_data(required_session=None) -> tuple[pd.Series, pd.Series] | tuple[None, None]:
     """Load (EEM_close, EEM_SPY_ratio). Tries em_regime_context.parquet
     first, then falls back to yfinance. Returns (None, None) on failure
@@ -593,17 +663,14 @@ def main() -> int:
     last_change_date = (states.index[transitions != 0][-1]
                          if (transitions != 0).any() else states.index[0])
     current_state = "RISK_ON" if states.iloc[-1] == 1.0 else "RISK_OFF"
-    # NOTE (Stage 2): event `breadth` annotations always read the SCRAPE
-    # series — the derived-states file carries no levels (licence). On the
-    # norgate feed a flip date may therefore annotate a scrape level that
-    # sits on the other side of the threshold; the annotation is
-    # diagnostic only, never an input.
-    events = [
-        {"date": d.strftime("%Y-%m-%d"),
-         "direction": "RISK_OFF" if states.loc[d] == 0.0 else "RISK_ON",
-         "breadth": _round(breadth.loc[d])}
-        for d in states.index[transitions != 0]
-    ]
+    # Levels come from the feed that decided the state (2026-10-11): on the
+    # norgate feed current_breadth is the vendor scalar and event `breadth`
+    # is None (the vendor series is not committed; the scrape level rides
+    # as `scrape_breadth`). See resolve_gate_level / build_gate_events.
+    events = build_gate_events(states, breadth, gate_feed)
+    level = resolve_gate_level(gate_feed, _load_norgate_level(),
+                               norgate_last_bar, breadth,
+                               panel_end_date_str)
     # S2-2 (2026-10-04): the state on the first close, before any logged
     # event (see initial_state_fields); published beside the counts and
     # checked against them at write time below.
@@ -744,7 +811,10 @@ def main() -> int:
         },
         "current_state": current_state,
         "current_state_since": last_change_date.strftime("%Y-%m-%d"),
-        "current_breadth": _round(breadth.iloc[-1]),
+        "current_breadth": _round(level["current_breadth"]),
+        "current_breadth_source": level["current_breadth_source"],
+        "current_breadth_as_of": level["current_breadth_as_of"],
+        "scrape_current_breadth": _round(level["scrape_current_breadth"]),
         "history_start": initial_fields["history_start"],
         "initial_state": initial_fields["initial_state"],
         "n_switches": n_switches,
@@ -876,7 +946,8 @@ def main() -> int:
           f"DD {delta_dd*100:+.2f}pp")
     print(f"  Current state: {current_state} since "
           f"{last_change_date.strftime('%Y-%m-%d')}  "
-          f"(S&P 500 breadth {breadth.iloc[-1]*100:.1f}%)")
+          f"(S&P 500 50-day breadth {(level['current_breadth'] or 0)*100:.1f}%, "
+          f"{level['current_breadth_source']})")
     print(f"  Gate feed: {gate_feed} "
           f"(states last bar {payload['gate_feed_last_bar']})")
     print(f"  History: {n_switches} switches, "

@@ -1260,7 +1260,11 @@ def main(dashboard_only: bool = False, strict_capture: bool = False) -> int:
         # field that run_risk_overlay.py now emits (the source-of-truth
         # provenance); fall back to reading breadth_csp1.json directly
         # for older artefacts that pre-date the emission.
-        panel_end_iso = risk_overlay.get("panel_end_date")
+        # Since 2026-10-11 current_breadth comes from the feed that decided
+        # the state, and current_breadth_as_of dates it; judge staleness by
+        # that date so the level and its date share one feed.
+        panel_end_iso = (risk_overlay.get("current_breadth_as_of")
+                         or risk_overlay.get("panel_end_date"))
         if not panel_end_iso:
             try:
                 bp = json.loads(

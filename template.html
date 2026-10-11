@@ -6951,6 +6951,10 @@ function renderRiskOverlay() {
   const events = overlayData?.events || [];
   if (eventsCard && events.length) {
     // Show most recent 8 events, newest first
+    const histStart = overlayData?.history_start ? new Date(overlayData.history_start) : null;
+    const histEnd = new Date(events[events.length - 1].date > (overlayData?.gate_feed_last_bar || '') ? events[events.length - 1].date : overlayData.gate_feed_last_bar);
+    const histYears = histStart ? Math.max(0.1, (histEnd - histStart) / (365.25 * 24 * 3600 * 1000)) : 7.5;
+    const levelsWithheld = events.some(ev => ev.breadth == null);
     const recent = events.slice(-8).reverse();
     const rows = recent.map(ev => {
       const dirCls = ev.direction === 'RISK_OFF' ? 'dir-off' : 'dir-on';
@@ -6960,7 +6964,7 @@ function renderRiskOverlay() {
       return `<tr>
         <td>${ev.date}</td>
         <td class="${dirCls}">${ev.direction}</td>
-        <td>${(ev.breadth * 100).toFixed(1)}%</td>
+        <td>${ev.breadth != null ? (ev.breadth * 100).toFixed(1) + '%' : '—'}</td>
         <td style="color:var(--ink-soft);">${action}</td>
       </tr>`;
     }).join('');
@@ -6973,12 +6977,12 @@ function renderRiskOverlay() {
         <tbody>${rows}</tbody>
       </table>
       <div class="overlay-meta" style="margin-top:10px; font-size:12px;">
-        ${events.length} regime switches over 7.5 years
-        (~${(events.length / 7.5).toFixed(1)} per year on average,
+        ${events.length} regime switches over ${histYears.toFixed(1)} years
+        (~${(events.length / histYears).toFixed(1)} per year on average,
         ${(gate.pct_days_risk_off || 0).toFixed(1)}% of days defensive).
         The overlay correctly de-risked into the March 2020 COVID crash
         and the late-2022 inflation crash — the two largest market events
-        of the backtest window.
+        of the backtest window.${levelsWithheld ? ' Breadth at each switch is shown as — because the gate reads the Norgate 50-day series, whose daily values are licensed for use but not republication.' : ''}
       </div>
     `;
   }
@@ -11768,7 +11772,7 @@ function renderOverlayEventsHistory() {
   );
 
   const rows = episodes.map(ep => {
-    const offBreadthPct = (ep.off_breadth * 100).toFixed(1);
+    const offBreadthPct = ep.off_breadth != null ? (ep.off_breadth * 100).toFixed(1) : '—';
     const onBreadthPct = ep.on_breadth != null ? (ep.on_breadth * 100).toFixed(1) : '—';
     const sells = sleeveCount;
     const status = ep.open
@@ -11777,7 +11781,7 @@ function renderOverlayEventsHistory() {
     return `<tr>
       <td>${ep.off_date}</td>
       <td><span style="color:#b45309; font-weight:600;">↓ RISK_OFF</span></td>
-      <td class="num">${offBreadthPct}%</td>
+      <td class="num">${offBreadthPct}${ep.off_breadth != null ? '%' : ''}</td>
       <td style="font-size:12px;">${sells} sell tickets (proportional, half of each existing position) + 1 ${fallback} buy for ${(derisk*100).toFixed(0)}% NAV</td>
       <td>${ep.on_date || '—'}</td>
       <td class="num">${onBreadthPct}${ep.on_breadth != null ? '%' : ''}</td>
