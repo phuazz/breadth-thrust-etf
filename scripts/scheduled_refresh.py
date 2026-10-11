@@ -1241,6 +1241,17 @@ def main(argv: list[str] | None = None) -> int:
                                   recover_first=args.recover_europe_first)
     component = "all" if args.component == "auto" else args.component
     marker = GREEN_MARKER if component == "all" else LOG_DIR / f"last_green_{component}.json"
+    # True only once an explicit --repair-core-hold invocation has passed
+    # the verified-release, anchor and eligibility gates below. It is the
+    # ONE state allowed past the same-day green marker (policy 2026-10-11,
+    # second adversarial verification): a Saturday run that legitimately
+    # publishes a data HOLD writes that day's green marker, and when the
+    # vendor backfills the bar the same afternoon, the authorised repair
+    # must not be told "already ran today". Scheduled firings never carry
+    # the flag, so ordinary deduplication is untouched; once the repair
+    # succeeds the release holds nothing and the next invocation exits at
+    # "nothing to repair" before the marker is even consulted.
+    repair_run = False
     if component == "core" and not args.preflight_only:
         release_path = REPO_ROOT / "data/component_release.json"
         # ----- Same-anchor core repair (2026-10-11) -----
@@ -1291,6 +1302,7 @@ def main(argv: list[str] | None = None) -> int:
                    f"the bar.")
             print(msg)
             log.write(f"\n{msg}\n")
+            repair_run = True
         elif release_path.exists():
             try:
                 from component_release import verify
@@ -1504,7 +1516,7 @@ def main(argv: list[str] | None = None) -> int:
         log.close()
         return 0
 
-    if ran_today and not debt_requires_run:
+    if ran_today and not debt_requires_run and not repair_run:
         msg = (f"ALREADY RAN TODAY - a green {args.cadence} run completed "
                f"on {now.astimezone().date().isoformat()} (local); this "
                f"firing is an hourly retry. Nothing to do.")
@@ -1516,6 +1528,15 @@ def main(argv: list[str] | None = None) -> int:
                     debt=debt.as_dict() if debt else None)
         log.close()
         return 0
+    if ran_today and repair_run:
+        # The explicit eligible repair is the one state allowed past the
+        # same-day marker — see the repair_run policy note above. Logged
+        # so the override is loud in the run record, never inferred.
+        msg = ("same-day green marker overridden by the explicit eligible "
+               "--repair-core-hold invocation (policy 2026-10-11); every "
+               "downstream guard runs unchanged.")
+        print(msg)
+        log.write(f"\n{msg}\n")
 
     # ----- The daily budget on debt-driven work (2026-09-16) -----
     #

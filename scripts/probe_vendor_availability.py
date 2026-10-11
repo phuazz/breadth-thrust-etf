@@ -176,6 +176,23 @@ def _close_frame(raw: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
     return raw[["Close"]].rename(columns={"Close": tickers[0]})
 
 
+def decision_input_complete(row: dict) -> bool | None:
+    """Three different statements hide in one probe row: something was
+    SERVED (observation), the newest settled bar is FRESH (lag), and the
+    REQUIRED completed days are all PRESENT (completeness). Consumers that
+    collapse them re-create the 2026-10-11 false assurance, where a
+    Saturday bar over a missing Friday read as current.
+
+    True/False for rows that carry the hole fields (crypto rows since
+    2026-10-11); None for rows that do not (venue rows, and crypto rows
+    logged earlier) — unknown is never reported as complete."""
+    if ("missing_completed_days" not in row
+            and "required_day_bar_present" not in row):
+        return None
+    return (not row.get("missing_completed_days")
+            and row.get("required_day_bar_present") is not False)
+
+
 def _refetch_single_series(download, tk: str, start: str, end: str,
                            attempts: int = REFETCH_ATTEMPTS,
                            pause: float = REFETCH_PAUSE_SECONDS,
@@ -283,32 +300,52 @@ def summarise() -> None:
     recs = [json.loads(x) for x in LOG.read_text(encoding="utf-8").splitlines() if x.strip()]
     print(f"{len(recs)} probe(s) since {recs[0]['probed_at_utc'][:10]}\n")
     by: dict[str, list[int]] = {}
+    holes_latest: dict[str, list[str]] = {}
+    holes_count: dict[str, int] = {}
     for r in recs:
         for row in r["rows"]:
+            key = f"{row['ticker']} ({row['role']})"
             if row["sessions_behind"] is not None:
-                by.setdefault(f"{row['ticker']} ({row['role']})", []).append(
-                    row["sessions_behind"])
+                by.setdefault(key, []).append(row["sessions_behind"])
+            if decision_input_complete(row) is False:
+                holes_count[key] = holes_count.get(key, 0) + 1
+                holes_latest[key] = list(row.get("missing_completed_days") or [])
     print(f"  {'line':40s} {'n':>3s} {'mean':>6s} {'max':>4s}  distribution")
     for k, v in sorted(by.items()):
         dist = {b: v.count(b) for b in sorted(set(v))}
-        print(f"  {k:40s} {len(v):3d} {sum(v)/len(v):6.2f} {max(v):4d}  "
-              + ", ".join(f"{b}:{c}" for b, c in dist.items()))
-    print("\n  0 = current at probe time; 1 = one session late.")
+        line = (f"  {k:40s} {len(v):3d} {sum(v)/len(v):6.2f} {max(v):4d}  "
+                + ", ".join(f"{b}:{c}" for b, c in dist.items()))
+        if holes_count.get(k):
+            # Lag and completeness are different questions: a zero-lag row
+            # can still be missing a REQUIRED earlier day (the 2026-10-09
+            # Friday under a Saturday bar). The hole mark must sit on the
+            # same line the lag is read from, or the lag gets read alone.
+            line += (f"  !DECISION-INPUT HOLES in {holes_count[k]} probe(s); "
+                     f"latest missing: {', '.join(holes_latest[k]) or 'required day'}")
+        print(line)
+    print("\n  0 = newest settled bar is current at probe time; 1 = one "
+          "session late. Served, current and COMPLETE are three different "
+          "statements: a line whose required completed days are not all "
+          "present carries an inline hole mark with the missing days, "
+          "whatever the lag says.")
     print("  A cadence decision needs weeks of this, not days.")
 
-    # BY FIRING HOUR (2026-09-09). "How late is this line on average" and "by
-    # which hour of the day is it current" are different questions, and only
-    # the second one can move a refresh. The table above answers the first and
-    # was read as if it answered the second.
+    # BY FIRING HOUR (2026-09-09; completeness-aware 2026-10-11). "How late
+    # is this line on average" and "by which hour of the day is it usable"
+    # are different questions, and only the second one can move a refresh.
     #
-    # Each row is bucketed to the firing it belongs to (hour // 6 * 6), not to
-    # the hour it landed in: the cron is 00/06/12/18 UTC and GitHub runs it
-    # late, so the 02:50 row is the 00:00 firing. CURRENT means
-    # sessions_behind <= 0 — zero is the last completed session served, and -1
-    # is an in-progress bar ahead of it, which means the settled one is there
-    # too.
+    # Each row is bucketed to the firing it belongs to (hour // 6 * 6), not
+    # to the hour it landed in: the cron is 00/06/12/18 UTC and GitHub runs
+    # it late, so the 02:50 row is the 00:00 firing. CURRENT requires
+    # sessions_behind <= 0 AND no recorded decision-input hole: the second
+    # adversarial verification showed a Bitcoin row with Saturday served and
+    # Friday MISSING reading as current on lag alone, which is exactly the
+    # state a reader must not mistake for usable decision inputs. Rows that
+    # predate the hole fields carry no completeness verdict and keep the
+    # historical lag-only semantics (venue rows, and crypto rows logged
+    # before 2026-10-11).
     buckets = (0, 6, 12, 18)
-    hourly: dict[str, dict[int, list[int]]] = {}
+    hourly: dict[str, dict[int, list[bool]]] = {}
     for r in recs:
         try:
             fired = datetime.fromisoformat(r["probed_at_utc"]).hour // 6 * 6
@@ -316,16 +353,18 @@ def summarise() -> None:
             continue  # an unreadable stamp is one lost row, never a crash
         for row in r["rows"]:
             if row["sessions_behind"] is not None:
+                usable = (row["sessions_behind"] <= 0
+                          and decision_input_complete(row) is not False)
                 hourly.setdefault(f"{row['ticker']} ({row['role']})", {}) \
-                      .setdefault(fired, []).append(row["sessions_behind"])
-    print("\n  probes CURRENT (sessions_behind <= 0) / probes taken, "
-          "by firing hour")
+                      .setdefault(fired, []).append(usable)
+    print("\n  probes CURRENT (sessions_behind <= 0 and no decision-input "
+          "hole) / probes taken, by firing hour")
     print(f"  {'line':40s} " + " ".join(f"{b:02d}Z".rjust(8) for b in buckets))
     for k in sorted(hourly):
         cells = []
         for b in buckets:
             v = hourly[k].get(b, [])
-            cells.append((f"{sum(1 for x in v if x <= 0)}/{len(v)}"
+            cells.append((f"{sum(1 for x in v if x)}/{len(v)}"
                           if v else "-").rjust(8))
         print(f"  {k:40s} " + " ".join(cells))
     print("\n  The refresh fires at ~01:00 UTC, inside the 00Z bucket.")
@@ -342,12 +381,21 @@ def main(argv: list[str] | None = None) -> int:
 
     r = probe()
     print(f"vendor availability probe — {r['probed_at_utc']}\n")
-    print(f"  {'ticker':10s} {'venue':6s} {'last bar':11s} {'last close':11s} behind")
+    print(f"  {'ticker':10s} {'venue':6s} {'last bar':11s} {'last close':11s} "
+          f"{'behind':>6s}  decision inputs")
     for row in r["rows"]:
+        complete = decision_input_complete(row)
+        if complete is None:
+            note = "-"
+        elif complete:
+            note = "complete"
+        else:
+            missing = ", ".join(row.get("missing_completed_days") or [])
+            note = f"HOLES: {missing or 'required day absent'}"
         print(f"  {row['ticker']:10s} {row['venue']:6s} "
               f"{str(row['last_bar']):11s} "
               f"{str(row['last_completed_session']):11s} "
-              f"{row['sessions_behind']}")
+              f"{str(row['sessions_behind']):>6s}  {note}")
     LOG.parent.mkdir(parents=True, exist_ok=True)
     with LOG.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(r) + "\n")

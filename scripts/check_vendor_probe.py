@@ -331,8 +331,27 @@ def evaluate(log_path: Path, now_utc: datetime | None = None,
     anomalous = [r for r in retractions
                  if not r.get("routine") and not r.get("measuring")]
 
+    # Served is an OBSERVATION verdict; it says nothing about whether the
+    # decision inputs behind a line are complete. The hole fields the
+    # crypto rows carry since 2026-10-11 answer that second question, and
+    # the second adversarial verification showed this summary implying
+    # completeness ("10/10 lines served") over a missing Friday bar. The
+    # holes are surfaced here and in the result; they do NOT change ok,
+    # retracted or any workflow output — consequence routing stays with
+    # the alert-policy owner, and an informational gap must not become an
+    # unsolicited email.
+    decision_input_holes = {
+        r["ticker"]: list(r.get("missing_completed_days") or [])
+        for r in rows
+        if (r.get("missing_completed_days")
+            or r.get("required_day_bar_present") is False)
+    }
     summary = (f"{len(served)}/{len(rows)} lines served"
                + (f"; empty: {', '.join(empty)}" if empty else ""))
+    if decision_input_holes:
+        summary += ("; served is not complete — decision-input holes: "
+                    + "; ".join(f"{tk} missing {', '.join(days) or 'required day'}"
+                                for tk, days in sorted(decision_input_holes.items())))
     if anomalous:
         summary += (f"; RETRACTED: "
                     + ", ".join(f"{r['ticker']} {r['was']}->{r['now']}"
@@ -353,6 +372,8 @@ def evaluate(log_path: Path, now_utc: datetime | None = None,
         "anomalous": anomalous,
         "routine": routine,
         "measuring": measuring,
+        "decision_input_holes": decision_input_holes,
+        "decision_inputs_complete": not decision_input_holes,
         "summary": summary,
     }
 
