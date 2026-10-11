@@ -85,7 +85,7 @@ def load_breadth_panel(tickers: list[str]) -> pd.DataFrame:
           "etf": "SOXX",
           "series": {
             "dates": ["2018-01-05", ...],
-            "ma_breadth": [0.807, 0.846, ...]   # the % above 200d MA
+            "ma_breadth": [0.807, 0.846, ...]   # the % above 50d MA (not 200d)
           },
           ...
         }

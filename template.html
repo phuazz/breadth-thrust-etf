@@ -2473,7 +2473,7 @@
         </div>
         <div class="step">
           <div class="step-n">4</div>
-          <div class="step-body"><strong>Strategy B — which asset classes are in an uptrend?</strong> Compute distance above 200d MA for each of the 13 asset-class ETFs. Drop any with negative signal. Take the top 7. Weight by signal share. If fewer than 7 are positive, the deficit sits in SHY (1-3y Treasury — duration-neutral cash) as cash floor. <strong>Strategy C — same idea on 25 thematic ETFs</strong> but with a +5% signal floor, top K = 5, equal-weighted (1/K) across the top K, <strong>plus a sleeve-breadth gate</strong>: if fewer than 30% of the universe is above +5%, exit all C positions to SHY for the week. Same SHY cash floor for unfilled slots.</div>
+          <div class="step-body"><strong>Strategy B — which asset classes are in an uptrend?</strong> Compute distance above 200d MA for each of the 12 asset-class ETFs. Drop any with negative signal. Take the top 7. Weight by signal share. If fewer than 7 are positive, the deficit sits in SHY (1-3y Treasury — duration-neutral cash) as cash floor. <strong>Strategy C — same idea on 25 thematic ETFs</strong> but with a +5% signal floor, top K = 5, equal-weighted (1/K) across the top K, <strong>plus a sleeve-breadth gate</strong>: if fewer than 30% of the universe is above +5%, exit all C positions to SHY for the week. Same SHY cash floor for unfilled slots.</div>
         </div>
         <div class="step">
           <div class="step-n">5</div>
@@ -2660,10 +2660,10 @@
     <div class="recipe">
       <h3>Strategy B — Asset-class momentum</h3>
       <div class="recipe-title">Asset-class momentum rotation</div>
-      <p style="margin:0;color:var(--ink-soft);">A separate strategy that operates at the asset-class level instead of within US sectors. 13 broad ETFs across US equity, international developed, emerging markets, real estate, commodities, and bonds. Each Monday close, rank by distance above own 200d MA as at the previous session's (Friday's) close. Hold the top K with positive signal, weight by signal strength; idle capital sits in <strong>SHY (1-3y Treasury)</strong> as a duration-neutral cash floor. IEF remains in the rotation universe as a long-duration play, not as the cash proxy. This is "<em>which asset classes should I be in at all?</em>" — orthogonal to Strategy A's "<em>within US equities, which sector?</em>".</p>
+      <p style="margin:0;color:var(--ink-soft);">A separate strategy that operates at the asset-class level instead of within US sectors. 12 broad ETFs across US equity, international developed, real estate, commodities, and bonds (emerging markets enter only through the EEM tilt overlay). Each Monday close, rank by distance above own 200d MA as at the previous session's (Friday's) close. Hold the top K with positive signal, weight by signal strength; idle capital sits in <strong>SHY (1-3y Treasury)</strong> as a duration-neutral cash floor. IEF remains in the rotation universe as a long-duration play, not as the cash proxy. This is "<em>which asset classes should I be in at all?</em>" — orthogonal to Strategy A's "<em>within US equities, which sector?</em>".</p>
       <div class="recipe-stats" id="asset-recipe-stats"></div>
       <ol class="recipe-steps">
-        <li><strong>Each Monday close</strong>, compute (price − MA200) / MA200 for each of the 13 asset-class ETFs, as at the previous session's (Friday's) close.</li>
+        <li><strong>Each Monday close</strong>, compute (price − MA200) / MA200 for each of the 12 asset-class ETFs, as at the previous session's (Friday's) close.</li>
         <li><strong>Drop any ETF with negative signal</strong> (price below its 200d MA — in a downtrend).</li>
         <li><strong>Rank survivors</strong>. Take the top K = 7.</li>
         <li><strong>Weight by signal share</strong>. If only N &lt; K ETFs have positive signal, allocate (N/K) of capital to them and the remaining (K − N)/K to SHY (1-3y Treasury, duration-neutral) as cash floor. Built-in cash floor when the world is broadly weak — unlike Strategy A which stays 100% invested.</li>
@@ -2680,7 +2680,7 @@
 
     <section>
       <h2>Live signal — Asset class momentum (Strategy B universe)</h2>
-      <p class="section-sub">The live momentum signal that drives Strategy B rebalance decisions, across the 13 asset-class ETFs. Y-axis is distance above each ETF's own 200d MA (can be negative); the dashed guide at 0% is B's eligibility line — only names above their own 200d MA are ranked. Default: today's Strategy B leader + SPY as reference. Use the chips to add or remove ETFs, and the timeframe selector above the chart to switch between 3M / YTD / 1Y / 3Y / 5Y / MAX windows (drag across the plot to zoom into a custom date range, double-click to reset). The y-axis rescales to the selected window. <em>Strategy C applies the same signal definition to its own 25-ETF thematic universe under a stricter floor — that chart now lives on the Strategy C tab.</em></p>
+      <p class="section-sub">The live momentum signal that drives Strategy B rebalance decisions, across the 12 asset-class ETFs. Y-axis is distance above each ETF's own 200d MA (can be negative); the dashed guide at 0% is B's eligibility line — only names above their own 200d MA are ranked. Default: today's Strategy B leader + SPY as reference. Use the chips to add or remove ETFs, and the timeframe selector above the chart to switch between 3M / YTD / 1Y / 3Y / 5Y / MAX windows (drag across the plot to zoom into a custom date range, double-click to reset). The y-axis rescales to the selected window. <em>Strategy C applies the same signal definition to its own 25-ETF thematic universe under a stricter floor — that chart now lives on the Strategy C tab.</em></p>
       <div class="etf-chip-actions" id="detail-b-actions"></div>
       <div class="etf-chip-group" id="detail-b-chips"></div>
       <div id="detail-b-momentum-chart" class="chart tall"></div>
@@ -2760,7 +2760,7 @@
 
     <section>
       <h2>Strategy C — current selection<span id="c-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
-      <p class="section-sub full">What Strategy C actually holds right now, and why each theme qualified. The rule: rank every thematic ETF by distance above its own 200-day MA, keep only those at or above the <strong>+5% hard signal floor</strong>, then equal-weight (1/K) across the top K=5. If fewer than K names clear the floor, the deficit sits in SHY. The <strong>V6 sleeve-breadth gate</strong> trips when fewer than 30% of the 25-theme universe is above +5% — when active, the entire sleeve exits to SHY for the week. <strong>The signal shown here is the value at the last rebalance, not today</strong> — a name whose live signal has since crossed +5% or fallen below it is not acted on until the next rebalance. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
+      <p class="section-sub full">What Strategy C actually holds right now, and why each theme qualified. The rule: rank every thematic ETF by distance above its own 200-day MA, keep only those strictly above the <strong>+5% hard signal floor</strong>, then equal-weight (1/K) across the top K=5. If fewer than K names clear the floor, the deficit sits in SHY. The <strong>V6 sleeve-breadth gate</strong> trips when fewer than 30% of the 25-theme universe is above +5% — when active, the entire sleeve exits to SHY for the week. <strong>The signal shown here is the value at the last rebalance, not today</strong> — a name whose live signal has since crossed +5% or fallen below it is not acted on until the next rebalance. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
       <table class="small-table sleeve-holdings" id="c-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="c-holdings-note" style="margin-top:8px;font-size:12px;"></p>
     </section>
@@ -2934,7 +2934,7 @@
     <div class="recipe">
       <h3>Risk Overlay — defensive layer on top of the 4-way blend</h3>
       <div class="recipe-title">SPY constituent-breadth regime filter</div>
-      <p style="margin:0;color:var(--ink-soft);">A breadth-based regime gate that scales the deployed portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated 4-way blend and the deployed gated portfolio you actually hold. The gate fires on a single observable: the share of S&amp;P 500 constituents above their own 200d moving average. When this breadth falls below the regime threshold the blend de-risks to a 50/50 mix of the unchanged active blend + SHY (1-3y Treasury); when it crosses back above, it returns to fully-invested. The thresholds (off=20% / on=50% / derisk=50%) were chosen in-sample but walk-forward validated June 2026 — the parameter surface is stable.</p>
+      <p style="margin:0;color:var(--ink-soft);">A breadth-based regime gate that scales the deployed portfolio defensively when the broad US market is structurally weak. It is the difference between the un-gated 4-way blend and the deployed gated portfolio you actually hold. The gate fires on a single observable: the share of S&amp;P 500 constituents above their own 50-day moving average. When this breadth falls below the regime threshold the blend de-risks to a 50/50 mix of the unchanged active blend + SHY (1-3y Treasury); when it crosses back above, it returns to fully-invested. The thresholds (off=20% / on=50% / derisk=50%) were chosen in-sample but walk-forward validated June 2026 — the parameter surface is stable.</p>
       <p style="margin:10px 0 0 0;padding:10px 14px;background:rgba(217,119,6,0.06);border-left:3px solid #d97706;border-radius:4px;color:var(--ink-soft);font-size:13px;"><strong>Honest framing — insurance economics, not alpha.</strong> The gate's full-sample contribution of <span data-fig="gate.sharpe_add">+0.06</span> Sharpe and <span data-fig="gate.dd_cut_pp">6.6pp</span> max-DD reduction comes overwhelmingly from two events: the 2020-Q1 COVID crash and the 2022 inflation bear. On the 2024-2026 walk-forward OOS test windows the gate cost -0.13 Sharpe vs the un-gated blend because those years contained no major drawdowns. This is the structural shape of a rare-event insurance policy — pays off massively during crashes, bleeds slightly between them. Deploy it for drawdown protection conditional on future crashes resembling past ones, not as a walk-forward-validated alpha signal. Per-segment numbers in <code>data/risk_overlay_validation.json</code>.</p>
     </div>
 
@@ -3256,7 +3256,7 @@
         <div class="step-body"><strong>Re-check the next Monday.</strong> Some sectors will have weakened and dropped below the mean; others will have strengthened and entered. Sell what dropped out, buy what came in, adjust the rest. Costs are about 5 basis points (0.05%) per unit of weight change — a typical retail ETF brokerage fee. The Trade Explorer tab shows every single rebalance.</div>
       </div>
       <p style="margin-top:18px;"><strong>What this strategy is NOT doing.</strong> It is not trying to predict which individual sector will go up next. It is doing something simpler: <em>own whatever is leading, trim whatever is lagging</em>. Markets reward this pattern more often than they punish it, because trends in market breadth tend to persist for weeks-to-months at a time. Within Strategy A there is no cash view: the sleeve stays fully invested in whichever sectors sit above the cross-sectional mean, however few that turns out to be.</p>
-      <p><strong>The deployed portfolio, however, does step aside.</strong> Strategy A is one sleeve of a blend that sits under a breadth gate: when the share of S&amp;P 500 constituents above their own 200-day average falls below <span data-fig="gate.off_thresh">20%</span>, <span data-fig="gate.derisk_frac">50%</span> of the portfolio moves into short-dated Treasuries, and it re-engages once breadth recovers above <span data-fig="gate.on_thresh">50%</span>. That is a market-timing rule, it is switched on, and it is inside the headline numbers — the deployed series is the <em>gated</em> blend. It has held the book partly defensive on <span data-fig="gate.pct_days_off">13%</span> of all days since 2018, including December 2018, February 2020 and the 2022 drawdown. The Risk Overlay tab shows every switch.</p>
+      <p><strong>The deployed portfolio, however, does step aside.</strong> Strategy A is one sleeve of a blend that sits under a breadth gate: when the share of S&amp;P 500 constituents above their own 50-day average falls below <span data-fig="gate.off_thresh">20%</span>, <span data-fig="gate.derisk_frac">50%</span> of the portfolio moves into short-dated Treasuries, and it re-engages once breadth recovers above <span data-fig="gate.on_thresh">50%</span>. That is a market-timing rule, it is switched on, and it is inside the headline numbers — the deployed series is the <em>gated</em> blend. It has held the book partly defensive on <span data-fig="gate.pct_days_off">13%</span> of all days since 2018, including December 2018, February 2020 and the 2022 drawdown. The Risk Overlay tab shows every switch.</p>
       <p><strong>Why we trust it.</strong> The "Robustness" tab shows the strategy holds up when we apply the standard quant-research stress tests: walk-forward validation (refitting the only free parameter, K = the number of sectors to own, each year on out-of-sample data), bootstrap confidence intervals, sub-period decomposition through bear markets, sensitivity to the moving-average lookback and the rebalance frequency. The walk-forward Sharpe ratio is approximately 1.05 with no degradation from the in-sample number — that is unusual and is the main reason we picked this paradigm over per-ETF threshold tuning or fixed-threshold timing.</p>
       <p style="font-size:13px;color:var(--ink-faint);margin-top:14px;"><em>Caveats and what would kill it:</em> a regime where all 14 sectors fall together (2008-style systemic crisis) hurts the sleeve, because owning the "strongest" of a falling universe is still owning falling stuff. Strategy A on its own does not hedge that. The deployed blend does: the breadth gate described above moves <span data-fig="gate.derisk_frac">50%</span> of the portfolio into short Treasuries below <span data-fig="gate.off_thresh">20%</span> breadth. It is a partial de-risk, not a full exit, so a systemic decline still hurts — it is dampened, not neutralised.</p>
     </div>
@@ -5922,7 +5922,7 @@ function renderMonitor() {
   // ===== Strategy B panel =====
   document.getElementById('live-b-sub').textContent =
     _asofPrefix('b') +
-    `Rank 13 broad asset-class ETFs by distance above own 200d MA. Drop negatives. Take top K=${ac.headline.K}. Weight by signal share. Allocates ${(W_B*100).toFixed(0)}% of total NAV. (HYG removed — equity-correlated, never defensive.)`;
+    `Rank 12 broad asset-class ETFs by distance above own 200d MA. Drop negatives. Take top K=${ac.headline.K}. Weight by signal share. Allocates ${(W_B*100).toFixed(0)}% of total NAV. (HYG removed — equity-correlated, never defensive.)`;
   const bS = bStats || {};
   document.getElementById('live-b-stats').innerHTML = `
     <div class="panel-stat"><div class="v">${fmtNum(bS.sharpe, 2, true)}</div><div class="l">In-sample Sharpe</div></div>
@@ -6759,7 +6759,7 @@ function renderRiskOverlay() {
     const onSegPct = (onFrac - offFrac) * 100;
     const greenSegPct = (1 - onFrac) * 100;
     gaugeCard.innerHTML = `
-      <h3>S&amp;P 500 breadth — % of constituents above 200d MA</h3>
+      <h3>S&amp;P 500 breadth — % of constituents above 50d MA</h3>
       <div class="gauge-wrap">
         <div class="gauge-track">
           <div class="gauge-seg-off" style="width:${offSegPct}%;"></div>
@@ -6779,7 +6779,7 @@ function renderRiskOverlay() {
         <span style="color:var(--good);">full-blend zone</span>
       </div>
       <div class="overlay-meta" style="margin-top:12px;">
-        Today: <strong>${breadthPct}% of S&amp;P 500 constituents</strong> are above their own 200d MA.
+        Today: <strong>${breadthPct}% of S&amp;P 500 constituents</strong> are above their own 50d MA.
         ${isOn
           ? `Comfortably in the full-deployment zone; breadth would need to crash below ${offPct}% to trigger the overlay.`
           : `Below ${offPct}% triggered de-risk on ${sinceDate}; needs to recover above ${onPct}% before re-engaging full blend.`}
@@ -6795,13 +6795,13 @@ function renderRiskOverlay() {
       <div style="font-size:13px; line-height:1.55; color:var(--ink-soft);">
         <p style="margin:0 0 8px 0;">
           Each trading day we measure the <strong>breadth</strong> of the S&amp;P 500 —
-          the percentage of constituent stocks trading above their own 200-day moving
+          the percentage of constituent stocks trading above their own 50-day moving
           average. This is a clean read on whether the market is broad-based healthy
           or narrowly held up by a few names.
         </p>
         <p style="margin:0 0 8px 0;">
-          <strong>When breadth falls below ${offPct}%</strong> (rare — happens in real
-          stress events like Mar 2020 COVID and late-2022 inflation), we move
+          <strong>When breadth falls below ${offPct}%</strong> (the gate has been de-risked on ${m?.regime_gate?.pct_days_risk_off != null ? m.regime_gate.pct_days_risk_off.toFixed(1) + '% of' : 'a minority of'}
+          trading days since late 2018, in episodes including Mar 2020, 2022, Apr 2025 and Mar 2026), we move
           ${derisk}% of NAV to <code>${fallback}</code> (1-3y US Treasury — duration-neutral cash equivalent).
           The other ${100 - parseInt(derisk)}% stays in the blend at proportional
           weights. <strong>When breadth recovers above ${onPct}%</strong>, we restore
@@ -11598,7 +11598,7 @@ function _historyAssetClass(etf, sleeveKey) {
     CSP1: 'US Broad',        IDP6: 'US Broad',
     // Real Estate (A's REIT proxy)
     IUSP: 'Real Estate',
-    // ----- Strategy B's 13 asset-class ETFs (HYG removed Phase 24) -----
+    // ----- Strategy B's 12 asset-class ETFs, plus EEM (tilt overlay) and HYG (removed Phase 24) for history -----
     SPY: 'US Broad',     IJR: 'US Broad',     QQQ: 'US Broad',
     EFA: 'Intl Developed (ex-Europe)',
     VGK: 'Europe Equity',  // labelled "Intl Developed" in B's universe

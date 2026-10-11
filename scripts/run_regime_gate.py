@@ -2,7 +2,7 @@
 
 Apply a CSP1 (S&P 500) constituent-breadth gate on top of the deployed
 35/35/10/20 A:B:C:D blend. When market breadth (% of S&P 500
-constituents above their own 200d MA) collapses below the RISK_OFF
+constituents above their own 50d MA) collapses below the RISK_OFF
 threshold, switch the entire portfolio to IEF (7-10y Treasury). When
 breadth recovers above the RISK_ON threshold, switch back to the blend.
 Hysteresis (different thresholds for entering vs exiting RISK_OFF)

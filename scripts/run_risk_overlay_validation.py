@@ -99,7 +99,7 @@ def _load_blend_equity() -> tuple[pd.Series, str]:
 
 def _load_breadth() -> pd.Series:
     """Load the S&P 500 (CSP1) constituent breadth series — daily
-    fraction of S&P 500 constituents above their own 200d MA."""
+    fraction of S&P 500 constituents above their own 50d MA."""
     src_path = DATA_DIR / BREADTH_SOURCE
     with open(src_path, encoding="utf-8") as fh:
         d = json.load(fh)
