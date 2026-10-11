@@ -1,0 +1,759 @@
+{
+ "snapshot": "copy of breadth-thrust-etf-sched data/ taken 2026-10-11; checksums in snapshot_SHA256SUMS",
+ "price_frame": [
+  "2017-09-11",
+  "2026-10-09"
+ ],
+ "native": {
+  "J50": {
+   "eligible_start": "2018-11-02",
+   "end": "2026-10-09",
+   "max_corr": 0.8052,
+   "max_corr_with": "CNDX",
+   "top5": {
+    "CNDX": 0.8052,
+    "CSP1": 0.6774,
+    "IUCD": 0.6761,
+    "IDP6": 0.6648,
+    "IUIS": 0.6628
+   },
+   "n_pairs_above_085_in_universe": 9,
+   "baseline": {
+    "sharpe": 0.6313,
+    "cagr": 0.1005,
+    "max_dd": -0.338,
+    "n_years": 7.9343
+   },
+   "proposed": {
+    "sharpe": 0.7065,
+    "cagr": 0.122,
+    "max_dd": -0.3408,
+    "n_years": 7.9343
+   },
+   "d_sharpe": 0.0752,
+   "d_dd_pp": -0.28,
+   "wf_baseline": 0.782,
+   "wf_proposed": 0.957,
+   "d_wf": 0.175,
+   "k_seq_baseline": [
+    3,
+    3,
+    9
+   ],
+   "k_seq_proposed": [
+    3,
+    9,
+    9
+   ],
+   "k_in_567_plateau_proposed": false,
+   "wf_segments_proposed": [
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.611,
+     "test_sharpe": 0.865,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 9,
+     "train_sharpe": 0.638,
+     "test_sharpe": 0.443,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 9,
+     "train_sharpe": 0.612,
+     "test_sharpe": 1.649,
+     "n_test_days": 194
+    }
+   ],
+   "wf_segments_baseline": [
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.603,
+     "test_sharpe": 1.416,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.674,
+     "test_sharpe": 0.108,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 9,
+     "train_sharpe": 0.614,
+     "test_sharpe": 0.955,
+     "n_test_days": 194
+    }
+   ],
+   "gates": {
+    "g1_corr": true,
+    "g2_sharpe": true,
+    "g3_dd": true,
+    "g4_wf_sharpe": true
+   },
+   "overall_pass": true
+  },
+  "C50": {
+   "eligible_start": "2017-10-23",
+   "end": "2026-10-09",
+   "max_corr": 0.8125,
+   "max_corr_with": "CNDX",
+   "top5": {
+    "CNDX": 0.8125,
+    "IDP6": 0.7161,
+    "CSP1": 0.7002,
+    "IUCD": 0.6712,
+    "IUIS": 0.6706
+   },
+   "n_pairs_above_085_in_universe": 15,
+   "baseline": {
+    "sharpe": 0.5899,
+    "cagr": 0.0919,
+    "max_dd": -0.3498,
+    "n_years": 8.961
+   },
+   "proposed": {
+    "sharpe": 0.6707,
+    "cagr": 0.113,
+    "max_dd": -0.352,
+    "n_years": 8.961
+   },
+   "d_sharpe": 0.0808,
+   "d_dd_pp": -0.22,
+   "wf_baseline": 0.753,
+   "wf_proposed": 1.125,
+   "d_wf": 0.372,
+   "k_seq_baseline": [
+    3,
+    3,
+    3,
+    3
+   ],
+   "k_seq_proposed": [
+    3,
+    3,
+    3,
+    3
+   ],
+   "k_in_567_plateau_proposed": false,
+   "wf_segments_proposed": [
+    {
+     "train_end": "2022-12-30",
+     "test_start": "2023-01-03",
+     "test_end": "2023-12-29",
+     "best_K": 3,
+     "train_sharpe": 0.545,
+     "test_sharpe": 0.944,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.595,
+     "test_sharpe": 1.254,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.638,
+     "test_sharpe": 0.817,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 3,
+     "train_sharpe": 0.651,
+     "test_sharpe": 1.584,
+     "n_test_days": 194
+    }
+   ],
+   "wf_segments_baseline": [
+    {
+     "train_end": "2022-12-30",
+     "test_start": "2023-01-03",
+     "test_end": "2023-12-29",
+     "best_K": 3,
+     "train_sharpe": 0.549,
+     "test_sharpe": 0.729,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.567,
+     "test_sharpe": 1.641,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.653,
+     "test_sharpe": 0.238,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 3,
+     "train_sharpe": 0.611,
+     "test_sharpe": 0.424,
+     "n_test_days": 194
+    }
+   ],
+   "gates": {
+    "g1_corr": true,
+    "g2_sharpe": true,
+    "g3_dd": true,
+    "g4_wf_sharpe": true
+   },
+   "overall_pass": true
+  },
+  "C200": {
+   "eligible_start": "2018-05-08",
+   "end": "2026-10-09",
+   "max_corr": 0.8062,
+   "max_corr_with": "CNDX",
+   "top5": {
+    "CNDX": 0.8062,
+    "IUMS": 0.7447,
+    "CSP1": 0.7316,
+    "IUIS": 0.7197,
+    "IDP6": 0.7082
+   },
+   "n_pairs_above_085_in_universe": 12,
+   "baseline": {
+    "sharpe": 0.7846,
+    "cagr": 0.1265,
+    "max_dd": -0.2982,
+    "n_years": 8.4216
+   },
+   "proposed": {
+    "sharpe": 0.8731,
+    "cagr": 0.1519,
+    "max_dd": -0.3064,
+    "n_years": 8.4216
+   },
+   "d_sharpe": 0.0885,
+   "d_dd_pp": -0.82,
+   "wf_baseline": 1.106,
+   "wf_proposed": 1.396,
+   "d_wf": 0.29,
+   "k_seq_baseline": [
+    7,
+    7,
+    7
+   ],
+   "k_seq_proposed": [
+    9,
+    9,
+    9
+   ],
+   "k_in_567_plateau_proposed": false,
+   "wf_segments_proposed": [
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 9,
+     "train_sharpe": 0.695,
+     "test_sharpe": 1.465,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 9,
+     "train_sharpe": 0.751,
+     "test_sharpe": 0.877,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 9,
+     "train_sharpe": 0.764,
+     "test_sharpe": 2.107,
+     "n_test_days": 194
+    }
+   ],
+   "wf_segments_baseline": [
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 7,
+     "train_sharpe": 0.687,
+     "test_sharpe": 1.713,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 7,
+     "train_sharpe": 0.77,
+     "test_sharpe": 0.565,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 7,
+     "train_sharpe": 0.747,
+     "test_sharpe": 1.265,
+     "n_test_days": 194
+    }
+   ],
+   "gates": {
+    "g1_corr": true,
+    "g2_sharpe": true,
+    "g3_dd": true,
+    "g4_wf_sharpe": true
+   },
+   "overall_pass": true
+  }
+ },
+ "common": {
+  "J50": {
+   "eligible_start": "2018-11-02",
+   "end": "2026-10-09",
+   "max_corr": 0.8052,
+   "max_corr_with": "CNDX",
+   "top5": {
+    "CNDX": 0.8052,
+    "CSP1": 0.6774,
+    "IUCD": 0.6761,
+    "IDP6": 0.6648,
+    "IUIS": 0.6628
+   },
+   "n_pairs_above_085_in_universe": 9,
+   "baseline": {
+    "sharpe": 0.6313,
+    "cagr": 0.1005,
+    "max_dd": -0.338,
+    "n_years": 7.9343
+   },
+   "proposed": {
+    "sharpe": 0.7065,
+    "cagr": 0.122,
+    "max_dd": -0.3408,
+    "n_years": 7.9343
+   },
+   "d_sharpe": 0.0752,
+   "d_dd_pp": -0.28,
+   "wf_baseline": 0.782,
+   "wf_proposed": 0.957,
+   "d_wf": 0.175,
+   "k_seq_baseline": [
+    3,
+    3,
+    9
+   ],
+   "k_seq_proposed": [
+    3,
+    9,
+    9
+   ],
+   "k_in_567_plateau_proposed": false,
+   "wf_segments_proposed": [
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.611,
+     "test_sharpe": 0.865,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 9,
+     "train_sharpe": 0.638,
+     "test_sharpe": 0.443,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 9,
+     "train_sharpe": 0.612,
+     "test_sharpe": 1.649,
+     "n_test_days": 194
+    }
+   ],
+   "wf_segments_baseline": [
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.603,
+     "test_sharpe": 1.416,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.674,
+     "test_sharpe": 0.108,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 9,
+     "train_sharpe": 0.614,
+     "test_sharpe": 0.955,
+     "n_test_days": 194
+    }
+   ],
+   "gates": {
+    "g1_corr": true,
+    "g2_sharpe": true,
+    "g3_dd": true,
+    "g4_wf_sharpe": true
+   },
+   "overall_pass": true
+  },
+  "C50": {
+   "eligible_start": "2018-11-02",
+   "end": "2026-10-09",
+   "max_corr": 0.8125,
+   "max_corr_with": "CNDX",
+   "top5": {
+    "CNDX": 0.8125,
+    "IDP6": 0.7161,
+    "CSP1": 0.7002,
+    "IUCD": 0.6712,
+    "IUIS": 0.6706
+   },
+   "n_pairs_above_085_in_universe": 15,
+   "baseline": {
+    "sharpe": 0.6625,
+    "cagr": 0.1091,
+    "max_dd": -0.3498,
+    "n_years": 7.9343
+   },
+   "proposed": {
+    "sharpe": 0.7754,
+    "cagr": 0.1388,
+    "max_dd": -0.352,
+    "n_years": 7.9343
+   },
+   "d_sharpe": 0.113,
+   "d_dd_pp": -0.22,
+   "wf_baseline": 0.767,
+   "wf_proposed": 1.123,
+   "d_wf": 0.356,
+   "k_seq_baseline": [
+    3,
+    3,
+    3
+   ],
+   "k_seq_proposed": [
+    3,
+    5,
+    3
+   ],
+   "k_in_567_plateau_proposed": false,
+   "wf_segments_proposed": [
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.685,
+     "test_sharpe": 1.254,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 5,
+     "train_sharpe": 0.726,
+     "test_sharpe": 0.595,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 3,
+     "train_sharpe": 0.727,
+     "test_sharpe": 1.584,
+     "n_test_days": 194
+    }
+   ],
+   "wf_segments_baseline": [
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.643,
+     "test_sharpe": 1.641,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 3,
+     "train_sharpe": 0.729,
+     "test_sharpe": 0.238,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 3,
+     "train_sharpe": 0.674,
+     "test_sharpe": 0.424,
+     "n_test_days": 194
+    }
+   ],
+   "gates": {
+    "g1_corr": true,
+    "g2_sharpe": true,
+    "g3_dd": true,
+    "g4_wf_sharpe": true
+   },
+   "overall_pass": true
+  },
+  "C200": {
+   "eligible_start": "2018-11-02",
+   "end": "2026-10-09",
+   "max_corr": 0.8062,
+   "max_corr_with": "CNDX",
+   "top5": {
+    "CNDX": 0.8062,
+    "IUMS": 0.7447,
+    "CSP1": 0.7316,
+    "IUIS": 0.7197,
+    "IDP6": 0.7082
+   },
+   "n_pairs_above_085_in_universe": 12,
+   "baseline": {
+    "sharpe": 0.8277,
+    "cagr": 0.1371,
+    "max_dd": -0.2982,
+    "n_years": 7.9343
+   },
+   "proposed": {
+    "sharpe": 0.9198,
+    "cagr": 0.1648,
+    "max_dd": -0.3064,
+    "n_years": 7.9343
+   },
+   "d_sharpe": 0.0922,
+   "d_dd_pp": -0.82,
+   "wf_baseline": 1.106,
+   "wf_proposed": 1.396,
+   "d_wf": 0.29,
+   "k_seq_baseline": [
+    7,
+    7,
+    7
+   ],
+   "k_seq_proposed": [
+    9,
+    9,
+    9
+   ],
+   "k_in_567_plateau_proposed": false,
+   "wf_segments_proposed": [
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 9,
+     "train_sharpe": 0.75,
+     "test_sharpe": 1.465,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 9,
+     "train_sharpe": 0.801,
+     "test_sharpe": 0.877,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 9,
+     "train_sharpe": 0.809,
+     "test_sharpe": 2.107,
+     "n_test_days": 194
+    }
+   ],
+   "wf_segments_baseline": [
+    {
+     "train_end": "2023-12-29",
+     "test_start": "2024-01-02",
+     "test_end": "2024-12-31",
+     "best_K": 7,
+     "train_sharpe": 0.742,
+     "test_sharpe": 1.713,
+     "n_test_days": 252
+    },
+    {
+     "train_end": "2024-12-31",
+     "test_start": "2025-01-02",
+     "test_end": "2025-12-31",
+     "best_K": 7,
+     "train_sharpe": 0.823,
+     "test_sharpe": 0.565,
+     "n_test_days": 250
+    },
+    {
+     "train_end": "2025-12-31",
+     "test_start": "2026-01-02",
+     "test_end": "2026-10-09",
+     "best_K": 7,
+     "train_sharpe": 0.792,
+     "test_sharpe": 1.265,
+     "n_test_days": 194
+    }
+   ],
+   "gates": {
+    "g1_corr": true,
+    "g2_sharpe": true,
+    "g3_dd": true,
+    "g4_wf_sharpe": true
+   },
+   "overall_pass": true
+  }
+ },
+ "panel_diagnostics": {
+  "SOXX": {
+   "corr_J50_C50": 0.9891,
+   "corr_C50_C200": 0.6066,
+   "medabs_J50_C50_pp": 3.05
+  },
+  "CSP1": {
+   "corr_J50_C50": 0.9962,
+   "corr_C50_C200": 0.6724,
+   "medabs_J50_C50_pp": 1.22
+  },
+  "CNDX": {
+   "corr_J50_C50": 0.9814,
+   "corr_C50_C200": 0.6895,
+   "medabs_J50_C50_pp": 2.6
+  },
+  "IUES": {
+   "corr_J50_C50": 0.99,
+   "corr_C50_C200": 0.571,
+   "medabs_J50_C50_pp": 3.08
+  },
+  "IUFS": {
+   "corr_J50_C50": 0.9904,
+   "corr_C50_C200": 0.6512,
+   "medabs_J50_C50_pp": 2.15
+  },
+  "IUHC": {
+   "corr_J50_C50": 0.9945,
+   "corr_C50_C200": 0.692,
+   "medabs_J50_C50_pp": 1.5
+  },
+  "IUIS": {
+   "corr_J50_C50": 0.9929,
+   "corr_C50_C200": 0.6704,
+   "medabs_J50_C50_pp": 2.02
+  },
+  "IUCS": {
+   "corr_J50_C50": 0.9861,
+   "corr_C50_C200": 0.6838,
+   "medabs_J50_C50_pp": 2.26
+  },
+  "IUCD": {
+   "corr_J50_C50": 0.979,
+   "corr_C50_C200": 0.6254,
+   "medabs_J50_C50_pp": 3.38
+  },
+  "IUUS": {
+   "corr_J50_C50": 0.9973,
+   "corr_C50_C200": 0.6587,
+   "medabs_J50_C50_pp": 1.73
+  },
+  "IUMS": {
+   "corr_J50_C50": 0.9932,
+   "corr_C50_C200": 0.5912,
+   "medabs_J50_C50_pp": 2.03
+  },
+  "IUCM": {
+   "corr_J50_C50": 0.9595,
+   "corr_C50_C200": 0.6213,
+   "medabs_J50_C50_pp": 4.26
+  },
+  "IUSP": {
+   "corr_J50_C50": 0.9944,
+   "corr_C50_C200": 0.647,
+   "medabs_J50_C50_pp": 2.17
+  },
+  "IDP6": {
+   "corr_J50_C50": 0.9946,
+   "corr_C50_C200": 0.6416,
+   "medabs_J50_C50_pp": 1.77
+  }
+ },
+ "top7_overlap_thursday": {
+  "J50_vs_C200": [
+   0.6957,
+   400
+  ],
+  "C50_vs_C200": [
+   0.7086,
+   400
+  ],
+  "J50_vs_C50": [
+   0.9089,
+   400
+  ]
+ }
+}

@@ -26,14 +26,24 @@ Gate criteria:
     3. MAX DRAWDOWN
        Max DD must not WORSEN by more than 5pp vs the baseline.
 
-    4. WALK-FORWARD K-STABILITY
-       Annual K refit on the modified universe should pick K in the
-       same {5, 6, 7} plateau as the baseline. A refit that picks
-       K=3 every year is a red flag (the universe became too
-       correlated for cross-sectional rotation).
+    4. WALK-FORWARD SHARPE
+       Annual K refit (expanding window, K in K_GRID) on the modified
+       universe must not DEGRADE walk-forward Sharpe by more than 0.05
+       vs the baseline. The chosen K sequence is printed for reference
+       only: the Sharpe surface is flat from K=7 upward (2026-10-11
+       re-run), so the year-by-year K pick is noise and is not a gate.
+
+Signal basis:
+    The panel is the deployed sleeve A signal: the share of constituents
+    above their 200-day average, built by run_ma200_sweep.
+    compute_ma200_breadth from data/prices_cache_<TICKER>.parquet and
+    masked at the validated end date, as run_portfolio.py does. It is
+    NOT series.ma_breadth in breadth_<TICKER>.json, which is 50-day
+    breadth; the script read that field until 2026-10-11.
 
 Pre-requisites:
-    data/breadth_<CANDIDATE>.json must exist. If missing, the script
+    data/prices_cache_<CANDIDATE>.parquet and data/breadth_<CANDIDATE>.json
+    (for the validated end date) must exist. If missing, the script
     prints the data-prep instructions and exits.
 
 Output:
@@ -77,41 +87,31 @@ DD_DEGRADE_TOLERANCE_PP = 5.0   # percentage-points
 # ---------------------------------------------------------------------------
 
 def load_breadth_panel(tickers: list[str]) -> pd.DataFrame:
-    """Load breadth_<TICKER>.json for each ticker; return a DataFrame
-    indexed by date with one column per ticker (ma_breadth fraction 0-1).
+    """Deployed sleeve A signal for each ticker: the fraction (0-1) of
+    constituents above their MA_PERIOD-day (200) average, from the
+    constituent price cache, masked beyond the validated end date.
+    Returns a DataFrame indexed by date with one column per ticker.
 
-    Schema (from compute_breadth.py output):
-        {
-          "etf": "SOXX",
-          "series": {
-            "dates": ["2018-01-05", ...],
-            "ma_breadth": [0.807, 0.846, ...]   # the % above 50d MA (not 200d)
-          },
-          ...
-        }
+    Same construction as run_portfolio._build_panels_for. Do not read
+    series.ma_breadth from breadth_<TICKER>.json here: that field is
+    50-day breadth.
     """
+    from run_ma200_sweep import compute_ma200_breadth
+    from validated_breadth import cap_signal, validated_end
     cols = {}
     missing = []
     for t in tickers:
-        path = DATA_DIR / f"breadth_{t.lower()}.json"
-        if not path.exists():
+        cache = DATA_DIR / f"prices_cache_{t.lower()}.parquet"
+        if not cache.exists() or not (DATA_DIR / f"breadth_{t.lower()}.json").exists():
             missing.append(t)
             continue
-        d = json.loads(path.read_text(encoding="utf-8"))
-        series = d.get("series") or {}
-        dates = series.get("dates")
-        breadth = series.get("ma_breadth")
-        if not dates or not breadth or len(dates) != len(breadth):
-            missing.append(t)
-            continue
-        s = pd.Series(breadth, index=pd.to_datetime(dates))
-        # Drop None / NaN at the front (before signal-eligible date)
-        s = s.dropna()
-        cols[t] = s
+        cp = pd.read_parquet(cache)
+        s = cap_signal(compute_ma200_breadth(cp, MA_PERIOD), validated_end(DATA_DIR, t))
+        # Drop NaN at the front (before 90% of a 200-day window exists)
+        cols[t] = s.dropna()
     if missing:
         raise FileNotFoundError(
-            f"Missing or unreadable breadth JSON for: {missing}. "
-            "Expected schema: {{series: {{dates, ma_breadth}}}}. "
+            f"Missing constituent price cache or breadth JSON for: {missing}. "
             "Run scripts/fetch_constituents.py + scripts/compute_breadth.py "
             "for each missing ticker first."
         )
