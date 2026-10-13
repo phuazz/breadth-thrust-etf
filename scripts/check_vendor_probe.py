@@ -226,7 +226,10 @@ def detect_retractions(history: list[dict],
     # Comparing against the row's own last_completed_session keeps the
     # tripwire on withdrawals of settled data, which is the only kind that
     # invalidates a refresh.
-    high_water: dict[str, tuple[date, str]] = {}
+    # The served close rides with the date (rows since 2026-10-13 carry
+    # last_close; older rows give None), so a retraction records WHAT was
+    # withdrawn as well as when it was seen.
+    high_water: dict[str, tuple[date, str, float | None]] = {}
     for row in earlier:
         stamp = row.get("probed_at_utc") or "?"
         for r in row.get("rows") or []:
@@ -238,7 +241,7 @@ def detect_retractions(history: list[dict],
                 continue  # in-progress bar, not yet a promise
             seen = high_water.get(r.get("ticker"))
             if seen is None or d > seen[0]:
-                high_water[r.get("ticker")] = (d, stamp)
+                high_water[r.get("ticker")] = (d, stamp, r.get("last_close"))
 
     probed_at = _as_datetime(newest.get("probed_at_utc"))
     out: list[dict] = []
@@ -255,6 +258,8 @@ def detect_retractions(history: list[dict],
             "now": r.get("last_bar"),
             "was": was[0].isoformat(),
             "was_seen_at": was[1],
+            "was_close": was[2],
+            "now_close": r.get("last_close"),
             "venue": r.get("venue"),
             # True when this is the vendor's measured overnight cycle rather
             # than an anomaly. Still a retraction, still recorded; the
@@ -434,10 +439,15 @@ def _retraction_detail(anomalous: list[dict],
         "correctly whose close is NaN.",
         "",
     ]
+    def _px(v) -> str:
+        return f" close {v:.6g}" if isinstance(v, (int, float)) else ""
+
     for r in anomalous:
         lines.append(f"  {r['ticker']} ({r.get('venue') or 'venue unknown'}): "
-                     f"last bar was {r['was']} (seen {r['was_seen_at']}), "
-                     f"now {r['now'] or 'no bar at all'}")
+                     f"last bar was {r['was']}{_px(r.get('was_close'))} "
+                     f"(seen {r['was_seen_at']}), "
+                     f"now {r['now'] or 'no bar at all'}"
+                     f"{_px(r.get('now_close'))}")
     lines += [
         "",
         "What this means in practice: compute_breadth's tail verification",

@@ -490,12 +490,20 @@ def filter_freshness(blob: dict) -> dict:
     """
     keep = ("sleeve", "label", "data_through", "venue_last_session",
             "sessions_behind", "status", "laggards", "why_plain")
-    return {
+    out = {
         "computed_at_utc": blob.get("computed_at_utc"),
         "all_current": blob.get("all_current"),
         "strategies": [{k: r.get(k) for k in keep}
                        for r in blob.get("strategies", [])],
     }
+    # The instant the verdict stops describing the market; the page compares
+    # it against the reader's clock (strategy_freshness.verdict_valid_until).
+    # A date, not a method detail. Passed only when the report carries it, so
+    # a report written before 2026-10-13 reduces exactly as it always did and
+    # the page treats the absence as "cannot confirm current".
+    if "verdict_valid_until_utc" in blob:
+        out["verdict_valid_until_utc"] = blob["verdict_valid_until_utc"]
+    return out
 
 
 def assert_payload_usable(payload: dict) -> None:

@@ -5245,6 +5245,19 @@ function renderMixedBasis() {
 // table says "not measured", where a default would assert what it does not
 // know.
 // ---------------------------------------------------------------------------
+// THE VERDICT EXPIRES IN THE READER'S CLOCK (2026-10-13). The build drops a
+// lapsed report, but a page built on Sunday stays live through Monday's
+// closes and is re-served by every Pages redeploy an unrelated data commit
+// triggers. verdict_valid_until_utc is the first venue close after the
+// sessions the report saw, from the venue calendars at build time; past it,
+// or when the field is absent, "current" is no longer a claim this page can
+// make. Fails closed.
+function freshnessVerdictLapsed(f) {
+  const until = f && f.verdict_valid_until_utc;
+  const t = until ? Date.parse(until) : NaN;
+  return !Number.isFinite(t) || Date.now() >= t;
+}
+
 function renderStrategyFreshness() {
   renderMixedBasis();
   const el = document.getElementById('live-freshness');
@@ -5253,6 +5266,8 @@ function renderStrategyFreshness() {
   if (!f || !Array.isArray(f.strategies) || !f.strategies.length) {
     el.innerHTML = ''; return;
   }
+  const verdictLapsed = freshnessVerdictLapsed(f);
+  const checkedAt = (f.computed_at_utc || '').slice(0, 16).replace('T', ' ');
   const lt = (window.DATA || {}).live_targets || null;
   const ltSleeves = (lt && Array.isArray(lt.sleeves)) ? lt.sleeves : [];
   const ltBySleeve = new Map(ltSleeves.map(s => [s.sleeve, s]));
@@ -5284,6 +5299,9 @@ function renderStrategyFreshness() {
     } else if (late) {
       reach = `<span class="ss-warn">${dl(s.data_through)}</span>`
         + sub(`${esc(s.venue)} closed ${dl(s.venue_last_session)} · ${behindText}${waiting}`);
+    } else if (s.status === 'current' && verdictLapsed) {
+      reach = `<span class="ss-warn">${dl(s.data_through)}</span>`
+        + sub(`${esc(s.venue)} last close at ${esc(checkedAt)} UTC · a newer session may have closed since · not confirmed current`);
     } else if (s.status === 'current') {
       reach = dl(s.data_through) + sub(`${esc(s.venue)} last close`);
     } else {
@@ -5343,6 +5361,12 @@ function renderStrategyFreshness() {
   // row says how far behind, the note says why, when the data knows.
   const notes = f.strategies.filter(s => s.status === 'behind' && s.why)
     .map(s => `<strong>${esc(s.label)}:</strong> ${esc(s.why)}`);
+  if (verdictLapsed) {
+    notes.unshift(`<strong>Data currency checked ${esc(checkedAt)} UTC.</strong> `
+      + 'At least one exchange has closed a session since that check, so no '
+      + 'sleeve is confirmed current; the dates shown are what the data reached '
+      + 'at the check.');
+  }
 
   el.innerHTML = `<div class="sleeve-status"><table class="small-table sleeve-status-table">
     <thead><tr>
