@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-10-13T02:44:11+00:00",
+  "built_at_utc": "2026-10-13T03:48:27+00:00",
   "as_of": "2026-10-13",
   "as_of_modal": "2026-10-12",
   "as_of_modal_share": "48/54",
@@ -10,7 +10,7 @@
     "US": "2026-10-12"
   },
   "etf_layer_observed_at": "2026-10-13",
-  "breadth_panel_as_of": "2026-10-09",
+  "breadth_panel_as_of": "2026-10-12",
   "n_rows": 54,
   "benchmark": "SPY",
   "percentile_window": 504,
@@ -20,21 +20,21 @@
     {
       "kind": "breadth_gate",
       "state": "RISK_ON",
-      "value": 0.362,
-      "label": "Breadth gate \u00b7 RISK_ON (SPX breadth 36%)",
+      "value": 0.3705,
+      "label": "Breadth gate \u00b7 RISK_ON (SPX breadth 37%)",
       "since": "2026-04-14",
       "thresholds": {
         "off": 0.2,
         "on": 0.5
       },
-      "as_of": "2026-10-09"
+      "as_of": "2026-10-12"
     },
     {
       "kind": "em_tilt",
       "state": "OFF",
       "stale": false,
       "label": "EM tilt \u00b7 EM_TILT_OFF",
-      "as_of": "2026-10-09"
+      "as_of": "2026-10-12"
     }
   ],
   "alerts": [
@@ -310,6 +310,48 @@
       "flow_alert": null
     },
     {
+      "ticker": "XLV",
+      "name": "State Street Health Care Select Sector SPDR ETF",
+      "long_name": "State Street Health Care Select Sector SPDR ETF",
+      "sleeves": [
+        "A"
+      ],
+      "engine_tickers": [
+        "IUHC"
+      ],
+      "proxy_notes": [
+        "registry yfinance_trading_proxy: IUHC -> XLV (UCITS line traded / breadth computed on IUHC)"
+      ],
+      "is_proxied": true,
+      "currency": "USD",
+      "fx": null,
+      "as_of": "2026-10-12",
+      "sessions_behind": 1,
+      "stale": false,
+      "rank": 6,
+      "rank_delta": 7,
+      "rank_truncated": false,
+      "trend": "Strong up",
+      "mom_12_1": 0.16153858108799724,
+      "vs_52w_high": -0.021004026277636978,
+      "rv_pctl": 16.17063492063492,
+      "rv_truncated": false,
+      "bbw_pctl": 20.33730158730159,
+      "bbw_truncated": false,
+      "atr_pct": 0.014726456595858216,
+      "ret_1d": 0.0069083071918289995,
+      "vol_ratio": 0.724827789958172,
+      "ret_1m": 0.040094369003028874,
+      "rs_1m": 0.018923570569985997,
+      "dev_200d": 0.09872714454845766,
+      "rsi14": 60.20726761268655,
+      "n_bars": 3213,
+      "pd_pct": 1.1182140143395358e-05,
+      "flow_5d": 0.0,
+      "pd_alert": null,
+      "flow_alert": null
+    },
+    {
       "ticker": "QQQ",
       "name": "NASDAQ-100 (US tech-heavy)",
       "long_name": "Invesco QQQ Trust",
@@ -330,8 +372,8 @@
       "as_of": "2026-10-12",
       "sessions_behind": 1,
       "stale": false,
-      "rank": 6,
-      "rank_delta": 12,
+      "rank": 7,
+      "rank_delta": 11,
       "rank_truncated": false,
       "trend": "Strong up",
       "mom_12_1": 0.1748669464457564,
@@ -349,48 +391,6 @@
       "rsi14": 56.58128567540249,
       "n_bars": 3213,
       "pd_pct": 5.3246009876994904e-05,
-      "flow_5d": 0.0,
-      "pd_alert": null,
-      "flow_alert": null
-    },
-    {
-      "ticker": "XLV",
-      "name": "State Street Health Care Select Sector SPDR ETF",
-      "long_name": "State Street Health Care Select Sector SPDR ETF",
-      "sleeves": [
-        "A"
-      ],
-      "engine_tickers": [
-        "IUHC"
-      ],
-      "proxy_notes": [
-        "registry yfinance_trading_proxy: IUHC -> XLV (UCITS line traded / breadth computed on IUHC)"
-      ],
-      "is_proxied": true,
-      "currency": "USD",
-      "fx": null,
-      "as_of": "2026-10-12",
-      "sessions_behind": 1,
-      "stale": false,
-      "rank": 7,
-      "rank_delta": 6,
-      "rank_truncated": false,
-      "trend": "Strong up",
-      "mom_12_1": 0.16153858108799724,
-      "vs_52w_high": -0.021004026277636978,
-      "rv_pctl": 16.17063492063492,
-      "rv_truncated": false,
-      "bbw_pctl": 20.33730158730159,
-      "bbw_truncated": false,
-      "atr_pct": 0.014726456595858216,
-      "ret_1d": 0.0069083071918289995,
-      "vol_ratio": 0.724827789958172,
-      "ret_1m": 0.040094369003028874,
-      "rs_1m": 0.018923570569985997,
-      "dev_200d": 0.09872714454845766,
-      "rsi14": 60.20726761268655,
-      "n_bars": 3213,
-      "pd_pct": 1.1182140143395358e-05,
       "flow_5d": 0.0,
       "pd_alert": null,
       "flow_alert": null
@@ -1445,18 +1445,18 @@
       "rank_truncated": false,
       "trend": "Down",
       "mom_12_1": 0.38914947506434405,
-      "vs_52w_high": -0.42810924110632176,
-      "rv_pctl": 60.21825396825397,
+      "vs_52w_high": -0.4196798078027384,
+      "rv_pctl": 56.448412698412696,
       "rv_truncated": false,
-      "bbw_pctl": 71.13095238095238,
+      "bbw_pctl": 69.5436507936508,
       "bbw_truncated": false,
-      "atr_pct": 0.047514107197382235,
-      "ret_1d": -0.04640242562506103,
-      "vol_ratio": 0.6112890409240285,
-      "ret_1m": -0.14340126961376598,
-      "rs_1m": -0.17517357384943508,
-      "dev_200d": -0.10817066899529815,
-      "rsi14": 28.678399035549816,
+      "atr_pct": 0.04683012786117113,
+      "ret_1d": -0.03234679170084365,
+      "vol_ratio": 0.6973700843197205,
+      "ret_1m": -0.1307753585399566,
+      "rs_1m": -0.1605415593085403,
+      "dev_200d": -0.09508494986306615,
+      "rsi14": 29.81767068394059,
       "n_bars": 1616,
       "pd_pct": null,
       "flow_5d": null,
@@ -2316,6 +2316,7 @@
     "failures": [],
     "stale": [],
     "notes": [
+      "snapshots not refreshed this run (--skip-snapshots)",
       "naive-recompute check passed on BLOK, BOTZ, CIBR"
     ],
     "stale_threshold_sessions": 3
