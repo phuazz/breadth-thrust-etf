@@ -2,7 +2,7 @@
   "etf": "EXV1",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251934/ishares-stoxx-europe-600-banks-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-10-11T01:00:42.151560+00:00",
+  "fetched_at_utc": "2026-10-13T01:31:11.619647+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-10-09",
   "n_target_fridays": 458,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-10-09",
-      "fallback_date": "2026-10-08",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-10-08",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-10-09",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -23653,7 +23647,7 @@
       ]
     },
     "2026-10-09": {
-      "actual_date": "2026-10-08",
+      "actual_date": "2026-10-09",
       "n_tickers": 62,
       "tickers": [
         "HSBA.L",
@@ -23666,13 +23660,13 @@
         "LLOY.L",
         "BARC.L",
         "NWG.L",
-        "NDA-FI.HE",
         "DBK.DE",
+        "NDA-FI.HE",
         "GLE.PA",
         "STAN.L",
         "CABK.MC",
-        "EBS.VI",
         "SWED-A.ST",
+        "EBS.VI",
         "SEB-A.ST",
         "DANSKE.CO",
         "KBC.BR",
@@ -23691,8 +23685,8 @@
         "ETE.AT",
         "FBK.MI",
         "BG.VI",
-        "EUROB.AT",
         "PEO.WA",
+        "EUROB.AT",
         "TPEIR.AT",
         "BCP.LS",
         "BKT.MC",
@@ -23708,9 +23702,9 @@
         "MBK.WA",
         "BCVN.SW",
         "UNI.MC",
+        "BGN.MI",
         "KBCA.BR",
         "INVP.L",
-        "BGN.MI",
         "ING.WA",
         "MIL.WA",
         "CMBN.SW",

@@ -201,6 +201,20 @@
       "cum_rotation_minus_ew_pp": 2.089,
       "cum_with_minus_without_pp": -0.215,
       "tripwire": false
+    },
+    {
+      "week_end": "2026-10-16",
+      "r_rotation": -0.000354,
+      "r_ew25": -0.011199,
+      "r_blend": -0.002142,
+      "r_without_c": -0.002341,
+      "w_c": 0.1,
+      "n_ew_names": 25,
+      "fx_fallback": false,
+      "computed_at_utc": "2026-10-13 02:23 UTC",
+      "cum_rotation_minus_ew_pp": 3.135,
+      "cum_with_minus_without_pp": -0.195,
+      "tripwire": false
     }
   ]
 }

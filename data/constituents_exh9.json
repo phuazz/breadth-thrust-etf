@@ -2,7 +2,7 @@
   "etf": "EXH9",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251967/ishares-stoxx-europe-600-utilities-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXH9_holdings&dataType=fund",
-  "fetched_at_utc": "2026-10-11T01:04:14.982343+00:00",
+  "fetched_at_utc": "2026-10-13T01:38:15.747879+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-10-09",
   "n_target_fridays": 458,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-10-09",
-      "fallback_date": "2026-10-08",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-10-08",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-10-09",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -15751,8 +15745,8 @@
       ]
     },
     "2026-10-09": {
-      "actual_date": "2026-10-08",
-      "n_tickers": 29,
+      "actual_date": "2026-10-09",
+      "n_tickers": 30,
       "tickers": [
         "IBE.MC",
         "NG.L",
@@ -15782,7 +15776,8 @@
         "DRX.L",
         "HER.MI",
         "BKW.SW",
-        "PNN.L"
+        "PNN.L",
+        "2689012D.L"
       ]
     }
   }

@@ -1,28 +1,120 @@
 {
   "etf": "EXV3",
-  "computed_at_utc": "2026-10-11T01:02:41.088514+00:00",
+  "computed_at_utc": "2026-10-13T01:35:14.656777+00:00",
   "constituents_source": "data\\constituents_exv3.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
   "end_date": "2026-10-09",
-  "tail_cap": null,
-  "tail_verification": null,
+  "tail_cap": {
+    "capped_at": "2026-10-09",
+    "venue_last_completed": "2026-10-12",
+    "constituents_priced_to": "2026-10-09",
+    "roster_end_friday": "2026-10-09",
+    "vendor_probe": {
+      "checked_at_utc": "2026-10-13T01:34:30+00:00",
+      "probe": "yfinance single-ticker history",
+      "last_populated": "2026-10-09",
+      "rows": [
+        {
+          "date": "2026-10-12",
+          "roster_held": 35,
+          "roster_priced": 0,
+          "live_unpriced": 35,
+          "sampled": [
+            "ASML.AS",
+            "HEXA-B.ST",
+            "G24.DE",
+            "TEMN.SW",
+            "SOP.PA"
+          ],
+          "sample_answered": 5,
+          "sample_served": 0,
+          "verdict": "unserved"
+        }
+      ],
+      "dropped": [
+        "2026-10-12"
+      ]
+    }
+  },
+  "tail_verification": {
+    "checked_at_utc": "2026-10-13T01:34:30+00:00",
+    "probe": "yfinance single-ticker history",
+    "last_populated": "2026-10-09",
+    "rows": [
+      {
+        "date": "2026-10-12",
+        "roster_held": 35,
+        "roster_priced": 0,
+        "live_unpriced": 35,
+        "sampled": [
+          "ASML.AS",
+          "HEXA-B.ST",
+          "G24.DE",
+          "TEMN.SW",
+          "SOP.PA"
+        ],
+        "sample_answered": 5,
+        "sample_served": 0,
+        "verdict": "unserved"
+      }
+    ],
+    "dropped": [
+      "2026-10-12"
+    ]
+  },
   "current_capture": {
     "schema_version": 1,
-    "roster_fingerprint": "5d22dd5954486f0b9a68713848994f94429a2e16f1192636be12e2c597d7acc4",
+    "roster_fingerprint": "b56dfdcaec5cb911cd1da2614b05e35e932003018a5705705f3700ed94894dae",
     "roster_target": "2026-10-09",
-    "roster_actual": "2026-10-08",
+    "roster_actual": "2026-10-09",
     "roster_carried": false,
     "roster_endpoint_status": "ok",
     "roster_staleness": "fresh",
     "requested_price_source": "auto",
-    "required_price_session": "2026-10-09",
+    "required_price_session": "2026-10-12",
     "panel_through": "2026-10-09",
-    "panel_current": true,
+    "panel_current": false,
     "n_active": 35,
-    "n_priced_through_required": 35,
+    "n_priced_through_required": 0,
     "no_price_history": [],
-    "behind_required_session": {},
+    "behind_required_session": {
+      "ACP.WA": "2026-10-09",
+      "AIXA.DE": "2026-10-09",
+      "AMS.MC": "2026-10-09",
+      "ASM.AS": "2026-10-09",
+      "ASML.AS": "2026-10-09",
+      "ATS.VI": "2026-10-09",
+      "AUTO.L": "2026-10-09",
+      "BC8.DE": "2026-10-09",
+      "BESI.AS": "2026-10-09",
+      "CAP.PA": "2026-10-09",
+      "CCC.L": "2026-10-09",
+      "COTN.SW": "2026-10-09",
+      "DSY.PA": "2026-10-09",
+      "G24.DE": "2026-10-09",
+      "HEXA-B.ST": "2026-10-09",
+      "IDR.MC": "2026-10-09",
+      "IFX.DE": "2026-10-09",
+      "LAGR-B.ST": "2026-10-09",
+      "LOGN.SW": "2026-10-09",
+      "MYCR.ST": "2026-10-09",
+      "NEM.DE": "2026-10-09",
+      "NOD.OL": "2026-10-09",
+      "OCTV-SDB.ST": "2026-10-09",
+      "PRX.AS": "2026-10-09",
+      "REL.L": "2026-10-09",
+      "REY.MI": "2026-10-09",
+      "SAP.DE": "2026-10-09",
+      "SCT.L": "2026-10-09",
+      "SGE.L": "2026-10-09",
+      "SOI.PA": "2026-10-09",
+      "SOP.PA": "2026-10-09",
+      "STMMI.MI": "2026-10-09",
+      "TEMN.SW": "2026-10-09",
+      "TPRO.MI": "2026-10-09",
+      "VEND.OL": "2026-10-09"
+    },
     "note": "Availability of active constituents; breadth coverage rules are unchanged."
   },
   "n_trading_days": 2225,

@@ -2,7 +2,7 @@
   "etf": "EXV3",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251961/ishares-stoxx-europe-600-technology-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV3_holdings&dataType=fund",
-  "fetched_at_utc": "2026-10-11T01:02:21.636968+00:00",
+  "fetched_at_utc": "2026-10-13T01:34:12.929469+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-10-09",
   "n_target_fridays": 458,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-10-09",
-      "fallback_date": "2026-10-08",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-10-08",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-10-09",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -17418,7 +17412,7 @@
       ]
     },
     "2026-10-09": {
-      "actual_date": "2026-10-08",
+      "actual_date": "2026-10-09",
       "n_tickers": 35,
       "tickers": [
         "ASML.AS",
@@ -17439,17 +17433,17 @@
         "IDR.MC",
         "ATS.VI",
         "G24.DE",
+        "SOI.PA",
         "MYCR.ST",
         "AUTO.L",
-        "SOI.PA",
         "CCC.L",
         "AIXA.DE",
-        "LAGR-B.ST",
         "NEM.DE",
+        "LAGR-B.ST",
         "OCTV-SDB.ST",
         "TEMN.SW",
-        "NOD.OL",
         "VEND.OL",
+        "NOD.OL",
         "COTN.SW",
         "REY.MI",
         "SCT.L",
