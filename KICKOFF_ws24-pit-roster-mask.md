@@ -464,3 +464,69 @@ All eight §11 gates (O1 to O8) countersigned by the owner on the amended
 draft. Frozen at this commit. No gate has been touched by evidence and no
 performance figure exists. Next: build the study script and selftests, and
 take the pinned snapshot outside a refresh window, per §5.3 and §7.
+
+**2026-10-14 (Wednesday — weekday verified). Built: study script and
+selftests; nothing scored.** `scripts/ws24_roster_mask.py` (pure library),
+`scripts/run_ws24_roster_mask.py` (`snapshot` and `run`), and
+`tests/test_ws24_roster_mask.py` (24 tests, run as a targeted file, all
+pass). No snapshot has been taken, no gate has been evaluated, and no masked
+arm (M0s, M1, M2) has been computed. Build clarifications, each fixed before
+any evidence touched a gate and **pending owner confirmation**:
+
+- **G4 identity rule.** A (roster symbol, membership run) cell holds the
+  member's own security when the cache column's daily returns correlate with
+  the dated resolver's Norgate TOTALRETURN series at 0.98 or above, on at
+  least 20 common returns. The resolver is asked at every snapshot key in the
+  run, so a run crossing a reuse or a rename splits by Norgate symbol. A cell
+  spans its first key to seven days after its last. Cells with no resolvable
+  symbol, no Norgate series, or fewer than 20 common returns are UNVERIFIED:
+  listed, and not excluded.
+- **G4 scope.** The 14 US panels only. Norgate carries no European product,
+  so sleeve D's five panels have no dated resolver, and the wrong-security
+  risk on sleeve D is unguarded in WS24. G4 passes when the scan exists for
+  all 14 US panels; failing cells are then excluded under O8, which is not a
+  stop.
+- **G2 reading.** G2 compares the §2 figures only:
+  - the SOXX levels;
+  - the SOXX, IUCD, IUMS and CNDX differences, on §2's stated convention
+    (unmasked minus masked);
+  - the four priced-not-on-roster counts;
+  - the unmasked top-7 set, and that the mask drops IUCS.
+
+  The generator holds the 2026-10-09 roster constant, matches by exact name
+  and uses no alias map, as the finding did. M1 is held to it on SOXX, IUCD,
+  IUMS and CNDX, where no share-class symbol appears. One risk is recorded:
+  the original brief gave the IUCD, IUMS and CNDX signs without a stated
+  convention. A G2 failure on sign alone is a HOLD, resolved before any
+  amendment.
+- **Blends.** Deployed: `run_risk_overlay._build_eem_tilted_blend` on the
+  arm's A and D, then the Phase 19 gate formula of `run_risk_overlay.main`,
+  unchanged. Ungated: the published `blend_35_35_10_20` construction
+  (`fixed_blend_4way`, its own W-FRI blend cadence and 5 bps). Sleeves B and C
+  are the published `multi_strategy.json` series, which no arm changes. The
+  decision band reads full-window Sharpe.
+- **Window end.** The earliest of the 19 validated breadth bounds, the 19
+  proxy closes, and the B and C published ends.
+
+**Plumbing checks before any snapshot.** These cover deployed construction
+only, so no masked figure exists. They were run on the scheduled clone at
+15:17-15:40 SGT, after the post-fill window closed, with no refresh live.
+- **Deployed blend from the published sleeves:** Sharpe 1.2178, against
+  1.2178 published (gate feed `norgate-local`).
+- **Ungated blend:** 1.1681 against 1.1679 published.
+- **Breadth builder:** the M0 breadth panel equals the deployed
+  `_build_panels_for` exactly (maximum difference 0.0, identical NaN
+  pattern).
+- **Proxy closes:** the pinned OHLC caches differ from a fresh download by at
+  most 0.15% a day (CNDX), which is vendor re-basing.
+- **M0 against the published sleeves (seen before the run, listed here as §6
+  requires):** A +0.8818 against +0.8857, D +0.9288 against +0.9262. The run
+  prints this drift and does not absorb it.
+
+**2026-10-14 (Wednesday — weekday verified). Build clarifications confirmed
+by the owner.** All five clarifications in the previous entry are confirmed
+as written: the G4 identity rule (0.98, 20 returns, unverified cells listed
+and not excluded), the G4 scope (US panels only, sleeve D unguarded), the G2
+reading and its sign-risk HOLD, the blend constructions, and the window end.
+They bind the run. Nothing in §4 moved, and no gate has been touched by
+evidence.
