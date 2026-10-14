@@ -437,3 +437,82 @@ def test_price_revisions_counts_a_norgate_cell_change_as_a_basis_change():
     without = pr.diff_frames(old, new, old_sidecar=bare, new_sidecar=bare)
     assert without["revisions"] + without["adjustments"] + without["ambiguous"] == 1
     assert without["basis_changes"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Red-team 2026-10-14 (cherry-pick onto the basis guard): the fill runs before
+# the guard, so its record is reconciled against the frame actually written.
+# ---------------------------------------------------------------------------
+
+def _guard_setup(tmp_path, monkeypatch):
+    import price_source
+    monkeypatch.setattr(cb, "DECLARATIONS_PATH", tmp_path / "none.json")
+    d = tmp_path / "root" / "data"
+    d.mkdir(parents=True)
+    return d / "prices_cache_iums.parquet", price_source
+
+
+def test_s3_1_a_fill_the_guard_hold_removed_is_not_claimed(tmp_path, monkeypatch):
+    """LIN's history arrives re-based x0.5 with no declaration: the guard
+    refuses it and the seam does not match, so the filled tail cell is not
+    written. The record must not name it."""
+    inc, ng, idx = _frames()
+    cache, price_source = _guard_setup(tmp_path, monkeypatch)
+    inc.iloc[:-1].to_parquet(cache)
+    price_source.write_cache_source(cache, "auto", {"replaced": NG_ROSTER, "kept": KEPT,
+                                                    "unresolved": []})
+    inc2 = inc.copy(); inc2["LIN"] = inc2["LIN"] * 0.5
+    ng2 = ng.copy(); ng2["LIN"] = ng2["LIN"] * 0.5
+    monkeypatch.setattr(cb, "yf", _yf(inc2))
+    _stub_norgate(monkeypatch, inc2, ng2)
+    monkeypatch.setattr(cb, "_single_ticker_closes", _unserving(inc2))
+    start, end = _span(idx)
+    cb.download_prices(ROSTER, start, end, cache_path=cache, roster=ROSTER, price_source="auto")
+    side = json.loads(price_source.sidecar_path(cache).read_text(encoding="utf-8"))
+    assert "LIN" in [r["column"] for r in side["basis_guard"]["refused"]]
+    assert pd.isna(pd.read_parquet(cache).at[idx[-1], "LIN"])
+    rec = side["tail_from_norgate"]
+    assert "LIN" not in rec["filled"]
+    assert "basis guard" in rec["declined"]["LIN"]
+    assert sorted(rec["filled"]) == ["AMCR", "CRH", "SW"]   # the others still named
+
+
+def test_s3_2_a_held_column_keeps_its_norgate_cell_named(tmp_path, monkeypatch):
+    """yfinance now serves the date, but the guard holds LIN on its cached
+    history, so the cached Norgate close stays and must stay named."""
+    inc, ng, idx = _frames()
+    cache, price_source = _guard_setup(tmp_path, monkeypatch)
+    d = idx[-1]
+    prior = inc.copy(); prior.at[d, "LIN"] = ng.at[d, "LIN"] * (1 + 1e-4)
+    prior.to_parquet(cache)
+    price_source.write_cache_source(cache, "auto", {
+        "replaced": NG_ROSTER, "kept": KEPT, "unresolved": [],
+        "tail_from_norgate": {"filled": {"LIN": {"dates": [str(d.date())]}}, "declined": {}}})
+    inc2 = inc.copy(); inc2.at[d, "LIN"] = ng.at[d, "LIN"]; inc2["LIN"] = inc2["LIN"] * 0.5
+    ng2 = ng.copy(); ng2["LIN"] = ng2["LIN"] * 0.5
+    monkeypatch.setattr(cb, "yf", _yf(inc2))
+    _stub_norgate(monkeypatch, inc2, ng2)
+    monkeypatch.setattr(cb, "_single_ticker_closes", _unserving(inc2))
+    start, end = _span(idx)
+    cb.download_prices(ROSTER, start, end, cache_path=cache, roster=ROSTER, price_source="auto")
+    side = json.loads(price_source.sidecar_path(cache).read_text(encoding="utf-8"))
+    assert pd.read_parquet(cache).at[d, "LIN"] == prior.at[d, "LIN"]
+    assert str(d.date()) in (side.get("tail_from_norgate") or {}).get("carried", {}).get("LIN", [])
+
+
+def test_the_fill_does_not_trip_the_guard_on_a_normal_run(tmp_path, monkeypatch):
+    inc, ng, idx = _frames()
+    cache, price_source = _guard_setup(tmp_path, monkeypatch)
+    inc.iloc[:-1].to_parquet(cache)
+    price_source.write_cache_source(cache, "auto", {"replaced": NG_ROSTER, "kept": KEPT,
+                                                    "unresolved": []})
+    monkeypatch.setattr(cb, "yf", _yf(inc))
+    _stub_norgate(monkeypatch, inc, ng)
+    monkeypatch.setattr(cb, "_single_ticker_closes", _unserving(inc))
+    start, end = _span(idx)
+    out = cb.download_prices(ROSTER, start, end, cache_path=cache, roster=ROSTER, price_source="auto")
+    side = json.loads(price_source.sidecar_path(cache).read_text(encoding="utf-8"))
+    assert side["basis_guard"]["refused"] == [] and side["basis_guard"]["admitted"] == []
+    assert out.loc[idx[-1], ROSTER].notna().all()
+    assert sorted(side["columns_kept_on_incumbent"]) == sorted(KEPT)
+    assert sorted(side["tail_from_norgate"]["filled"]) == sorted(KEPT)

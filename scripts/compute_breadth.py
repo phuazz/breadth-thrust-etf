@@ -1192,17 +1192,63 @@ def resource_tail_from_norgate(
                           f"closes within {rtol:.0e}")}
 
 
+def _reconcile_filled(fresh: dict | None, close: pd.DataFrame,
+                      norgate: pd.DataFrame | None) -> dict | None:
+    """Drop from ``fresh['filled']`` any cell the finished frame does not hold.
+
+    The fill runs before the basis guard, and a guard hold on a refused column
+    restores the cached history and appends only across an exact seam, so a
+    filled cell can be blanked or replaced after it was recorded (red-team
+    S3-1, 2026-10-14). The record must describe the frame that is written.
+    Pure; returns ``fresh`` itself when nothing changes.
+    """
+    if not fresh or not fresh.get("filled"):
+        return fresh
+    filled, declined, changed = {}, dict(fresh.get("declined") or {}), False
+    for t, f in fresh["filled"].items():
+        keep = []
+        for d in f.get("dates", []):
+            ts = pd.Timestamp(d)
+            v = close.at[ts, t] if (t in close.columns and ts in close.index) else np.nan
+            want = (norgate.at[ts, t] if norgate is not None and t in norgate.columns
+                    and ts in norgate.index else np.nan)
+            if pd.notna(v) and (pd.isna(want) or math.isclose(float(v), float(want),
+                                                               rel_tol=1e-12, abs_tol=0.0)):
+                keep.append(d)
+        if keep == list(f.get("dates", [])):
+            filled[t] = f
+            continue
+        changed = True
+        if keep:
+            filled[t] = {**f, "dates": keep}
+        else:
+            declined[t] = ("filled, then removed or replaced by the basis guard's "
+                           "hold on this column")
+    if not changed:
+        return fresh
+    return {**fresh, "filled": filled, "declined": declined}
+
+
 def _carry_norgate_cells(fresh: dict | None, prior: dict | None,
                          close: pd.DataFrame, yf_served: pd.DataFrame,
-                         norgate_columns) -> dict | None:
-    """This run's Norgate tail record plus the prior run's Norgate cells that
-    are still in the cache and still unserved by yfinance, as ``carried``.
+                         norgate_columns, held=(),
+                         norgate: pd.DataFrame | None = None) -> dict | None:
+    """This run's Norgate tail record, reconciled against the finished frame,
+    plus the prior run's Norgate cells that are still in the cache and still
+    Norgate's close, as ``carried``.
 
-    Pure. Returns ``fresh`` unchanged when nothing is carried, and a minimal
-    record when only carried cells remain.
+    A prior cell is still Norgate's while yfinance has not served its date,
+    or, for a column in ``held`` (refused by the basis guard, whose hold keeps
+    the cached value whatever yfinance served; red-team S3-2), while it is
+    still priced.
+
+    Pure. Returns ``fresh`` unchanged when nothing is carried or reconciled,
+    and a minimal record when only carried cells remain.
     """
+    fresh = _reconcile_filled(fresh, close, norgate)
     if not prior:
         return fresh
+    held = set(held or ())
     whole = set(norgate_columns or ())
     new_cells = {(t, d) for t, f in ((fresh or {}).get("filled") or {}).items()
                  for d in f.get("dates", [])}
@@ -1223,7 +1269,7 @@ def _carry_norgate_cells(fresh: dict | None, prior: dict | None,
                 continue
             served = (t in yf_served.columns and ts in yf_served.index
                       and bool(yf_served.at[ts, t]))
-            if not served:
+            if not served or t in held:
                 carried.setdefault(t, []).append(d)
     if not carried:
         return fresh
@@ -1602,7 +1648,9 @@ def download_prices(
     # finished frame and the guard's final split of norgate_columns.
     tail_from_norgate = _carry_norgate_cells(
         tail_from_norgate, prior_tail_from_norgate, close, yf_served,
-        norgate_columns)
+        norgate_columns,
+        held=[str(r.get("column")) for r in (guard_record or {}).get("refused", [])],
+        norgate=norgate_frame)
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     # ----- Cache-change diagnostic (2026-09-16), BEFORE the write -----
