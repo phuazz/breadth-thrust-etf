@@ -277,7 +277,8 @@ def normalise_for_yfinance(ticker: str) -> str:
     Logic: if the substring after the LAST dot matches one of the known
     yfinance exchange suffixes (Tokyo .T, London .L, Paris .PA, etc.), leave
     the ticker untouched. Otherwise (e.g. BRK.B share class) convert dot to
-    dash. Tickers without dots are returned as-is.
+    dash. Numeric Hong Kong roots use Yahoo's four-digit format. Explicit
+    aliases cover issuer share-class spellings; other whitespace is not guessed.
     """
     if ticker in YF_TICKER_OVERRIDES:
         return YF_TICKER_OVERRIDES[ticker]
@@ -286,6 +287,8 @@ def normalise_for_yfinance(ticker: str) -> str:
     base, _, suffix = ticker.rpartition(".")
     if suffix in _YF_EXCHANGE_SUFFIXES:
         clean_base = base.rstrip(".")
+        if suffix == "HK" and clean_base.isascii() and clean_base.isdigit():
+            clean_base = clean_base.zfill(4)
         # Spanish .D entitlement marker on the local root (e.g. REP.D.MC → REP.MC)
         if suffix == "MC" and clean_base.endswith(".D"):
             clean_base = clean_base[:-2]
@@ -397,6 +400,10 @@ ERA_BARRIERS = {
 # history (WS16 finding, IUCS).
 YF_TICKER_OVERRIDES = {
     "BFB": "BF-B",
+    # Issuer roster spellings verified against the named vendor securities.
+    "BF B": "BF-B",
+    "BRK B": "BRK-B",
+    "BT.A.L": "BT-A.L",
     # NDIA, 2026-08-15. Three current constituents carried no price history
     # at all — zero observations, not merely thin. Identified from the
     # iShares holdings payload (issueName + ISIN + exchange) and confirmed
@@ -1290,6 +1297,7 @@ def download_prices(
     tail_probe: bool = True,
     required_through=None,
     calendar: str = "NYSE",
+    refresh: bool = False,
 ) -> pd.DataFrame:
     """Download adjusted-close history. Cache to parquet so reruns are free.
 
@@ -1304,7 +1312,9 @@ def download_prices(
     requested = set(tickers)
     start_ts = pd.Timestamp(start)
     end_ts = pd.Timestamp(end)
-    if not force and cache_path.exists():
+    # Refresh the vendor observation without discarding incumbent history or
+    # bypassing the basis and tail guards. force retains its legacy semantics.
+    if not (force or refresh) and cache_path.exists():
         try:
             cached = pd.read_parquet(cache_path)
             covers_dates = (
@@ -1354,7 +1364,7 @@ def download_prices(
         except Exception as e:
             print(f"  Cache read failed ({e}); re-downloading.", flush=True)
 
-    yf_syms = [normalise_for_yfinance(t) for t in tickers]
+    yf_syms = list(dict.fromkeys(normalise_for_yfinance(t) for t in tickers))
     print(f"  Downloading {len(yf_syms)} tickers from yfinance "
           f"({start} -> {end}) ...", flush=True)
     # Deadline, not a circuit. yf.download is one opaque call over the whole
@@ -1394,15 +1404,16 @@ def download_prices(
         close = raw[["Close"]].copy()
         close.columns = [yf_syms[0]]
 
-    # Reverse the dot->dash normalisation so column names match input tickers.
-    rev_map = {normalise_for_yfinance(t): t for t in tickers}
-    close = close.rename(columns=rev_map)
-
-    # Ensure all requested tickers exist as columns (NaN if yfinance returned nothing).
-    for t in tickers:
-        if t not in close.columns:
-            close[t] = np.nan
-    close = close[list(tickers)]
+    # Several historical roster spellings can identify the SAME vendor symbol.
+    # A reverse dictionary loses all but one spelling and leaves the others
+    # unpriced. Fan the vendor series out to each original roster key, without
+    # merging memberships or filling any date the vendor did not serve.
+    close = pd.DataFrame({
+        t: close[normalise_for_yfinance(t)]
+        if normalise_for_yfinance(t) in close.columns
+        else pd.Series(np.nan, index=close.index)
+        for t in tickers
+    }, index=close.index)
     close.index = pd.to_datetime(close.index).tz_localize(None)
 
     # ----- Vendor observation (2026-09-16), BEFORE anything transforms it ---
@@ -1692,6 +1703,10 @@ def download_prices(
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
+        "--refresh-prices", action="store_true",
+        help="Request fresh vendor prices while preserving cached history and all price guards.",
+    )
+    p.add_argument(
         "--etf", default=DEFAULT_ETF,
         help=f"ETF symbol to compute breadth for. Default: {DEFAULT_ETF}",
     )
@@ -1798,7 +1813,8 @@ def main() -> int:
         universe, dl_start, dl_end, cache_path=prices_cache,
         price_source=args.price_source, roster=roster_now,
         required_through=panel_end, calendar=cal_name,
-        tail_probe=os.environ.get("BTE_TAIL_PROBE", "1").strip() != "0")
+        tail_probe=os.environ.get("BTE_TAIL_PROBE", "1").strip() != "0",
+        **({"refresh": True} if getattr(args, "refresh_prices", False) else {}))
     verification = getattr(prices, "attrs", {}).get("tail_verification")
     tail_from_norgate = getattr(prices, "attrs", {}).get("tail_from_norgate")
     n_with_any_data = int((prices.notna().any(axis=0)).sum())

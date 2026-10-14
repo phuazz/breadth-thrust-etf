@@ -415,7 +415,9 @@ def test_legacy_csv_cache_still_wins(monkeypatch, tmp_path):
         src.read_text(encoding="utf-8"), encoding="utf-8")
 
     tickers = fc.load_snapshot_tickers(date(2026, 7, 10), get_etf("CSP1"))
-    assert len(tickers) == 504
+    # The fixture includes an unlisted HOLX entitlement, not common stock.
+    assert len(tickers) == 503
+    assert "HOLX" not in tickers
     assert "BRK-B" in tickers          # ticker_overrides still applied
 
 

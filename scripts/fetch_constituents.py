@@ -557,6 +557,10 @@ def parse_holdings_json(
         n_equity += 1
         exchange = text_cell("exchange", i)
         location = text_cell("countryOfRisk", i)
+        # The default US path must honour this too. An unlisted CVR can reuse
+        # the former common-stock ticker (HOLX), whose history is unrelated.
+        if exchange.strip() in _UNLISTED_EXCHANGE_MARKERS:
+            continue
         if apply_exchange_suffix:
             sym = _resolve_yf_symbol(
                 raw, exchange.strip() or None, overrides,
@@ -1142,6 +1146,11 @@ def _resolve_yf_symbol(raw_ticker: str, exchange: str | None,
         rights) that has no stable yfinance history.
         """
         root = symbol_root.rstrip(".")
+        # Yahoo requires four digits for numeric Hong Kong listing codes.
+        # Padding is format normalisation, not a different security; retain
+        # longer codes and do not guess a numeric identity for other strings.
+        if suffix == ".HK" and root.isascii() and root.isdigit():
+            return root.zfill(4)
         # Rights / entitlement rows do not have stable yfinance histories.
         if root.endswith(".RI"):
             return None
@@ -1295,6 +1304,8 @@ def parse_holdings(body: str, ticker_overrides: dict | None = None,
         location = (row[location_idx].strip() if location_idx is not None
                                               and len(row) > location_idx
                                               else None)
+        if exchange in _UNLISTED_EXCHANGE_MARKERS:
+            continue
         if apply_exchange_suffix:
             sym = _resolve_yf_symbol(raw, exchange, overrides,
                                      location=location, unmapped=unmapped)

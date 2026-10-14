@@ -61,6 +61,19 @@ def _row(health: dict, file_name: str) -> dict:
 BUILD = date(2026, 9, 9)  # Wednesday — the build that shipped the bug
 
 
+def test_known_delisting_remains_a_visible_capture_warning(tmp_path, monkeypatch):
+    blob = {"end_date": "2026-10-13", "current_capture": {
+        "panel_current": True, "required_price_session": "2026-10-13",
+        "no_price_history": ["2418.TW"], "behind_required_session": {}}}
+    check = {"key": "breadth_itwn", "file": "panel.json", "group": "breadth",
+             "label": "Taiwan", "warn": 8, "stale": 14, "obs": ["end_date"]}
+    health = _health_for(tmp_path, monkeypatch, {"panel.json": blob}, [check], date(2026, 10, 14))
+    row = _row(health, "panel.json")
+    assert row["status"] == "warn"
+    assert "2418.TW: no history" in row["note"]
+    assert row["price_gaps"][0]["category"] == "delisted_security"
+
+
 # ---------------------------------------------------------------------------
 # 1. phase8_right_tail: a month-end window label must not become Last Data
 # ---------------------------------------------------------------------------

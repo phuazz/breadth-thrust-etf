@@ -92,7 +92,7 @@ OBSERVED_VENUES: list[tuple[str, str, str]] = [
     ("XVTX", "PGHN", "PGHN.SW"),
     # --- Asia ----------------------------------------------------------
     ("Tokyo Stock Exchange", "6592", "6592.T"),
-    ("Hong Kong Exchanges And Clearing Ltd", "700", "700.HK"),
+    ("Hong Kong Exchanges And Clearing Ltd", "700", "0700.HK"),
     ("Shanghai Stock Exchange", "600519", "600519.SS"),
     ("Shenzhen Stock Exchange", "000858", "000858.SZ"),
     ("National Stock Exchange Of India", "INFY", "INFY.NS"),

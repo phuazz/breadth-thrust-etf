@@ -34,6 +34,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import ETF_REGISTRY, display_ticker_map  # noqa: E402
 from strategy_freshness import verdict_has_lapsed  # noqa: E402
+from price_gap_context import gap_context  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -942,6 +943,10 @@ def _compute_data_health(today: date) -> dict:
                 detail = (f"Active-member price gaps at {capture.get('required_price_session')}: "
                           + "; ".join(gaps) + ". Registered breadth coverage rules are unchanged.")
                 note = f"{note} {detail}" if note else detail
+                row["price_gaps"] = gap_context(check["key"], absent, behind)
+                context = " ".join(g["detail"] for g in row["price_gaps"] if g.get("detail"))
+                if context:
+                    note += " " + context
         if check["group"] == "constituents":
             endpoint = (blob.get("endpoint_health") or {}).get("status")
             stale = (blob.get("staleness") or {}).get("status")

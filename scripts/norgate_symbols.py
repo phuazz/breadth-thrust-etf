@@ -150,6 +150,13 @@ RENAMED: dict[str, str] = {
                                 #   from 2026-06-22 — era barrier applies)
     "BFB":   "BF.B",            # Brown-Forman Class B: iShares prints
                                 #   "BFB", Norgate "BF.B", yfinance "BF-B"
+    # Same share classes, not successor securities. Retained roster spellings
+    # must resolve without rewriting historical memberships. Verified against
+    # Norgate security_name and Yahoo's named share-class listings.
+    "BF B":  "BF.B",
+    "BF-B":  "BF.B",
+    "BRK B": "BRK.B",
+    "BRK-B": "BRK.B",
     "WPG":   "WPGGQ-202110",    # Washington Prime Group (bankruptcy OTC
                                 #   line to 2021-10)
     "RVI":   "RVIC-202304",     # Retail Value Inc (SITE Centers spin,

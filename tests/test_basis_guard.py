@@ -548,7 +548,8 @@ def test_download_prices_holds_the_cached_basis_against_the_raw_cliff(site, monk
     assert pr.summarise(pr.cache_ledger_path(root))["prices_cache_t"]["basis_refused"] == 1
 
 
-def test_download_prices_refuses_an_undeclared_rebasing_and_freezes_at_the_seam(site, monkeypatch, capsys):
+@pytest.mark.parametrize("refresh", [False, True])
+def test_download_prices_refuses_an_undeclared_rebasing_and_freezes_at_the_seam(site, monkeypatch, capsys, refresh):
     """The 01:21 UTC 2026-10-03 shape with the guard in place: a raw cache,
     the adjusted series arriving, nothing declared. The cache is unchanged
     byte for byte and the log says what would decide it."""
@@ -556,7 +557,7 @@ def test_download_prices_refuses_an_undeclared_rebasing_and_freezes_at_the_seam(
     raw, adjusted = _pair()
     old = pd.DataFrame({"AAA": raw.loc[:"2026-09-30"]})
     old.to_parquet(cache)
-    out = _run(monkeypatch, cache, pd.DataFrame({"AAA": adjusted}))
+    out = _run(monkeypatch, cache, pd.DataFrame({"AAA": adjusted}), refresh=refresh)
     written = pd.read_parquet(cache)
     assert np.array_equal(written["AAA"].reindex(old.index).to_numpy(), old["AAA"].to_numpy())
     assert written["AAA"].dropna().index.max() == pd.Timestamp("2026-09-30")
