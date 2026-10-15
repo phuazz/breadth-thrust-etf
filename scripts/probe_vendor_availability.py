@@ -161,11 +161,41 @@ REFETCH_ATTEMPTS = 2
 REFETCH_PAUSE_SECONDS = 3.0
 
 
-def _last_bar(close: pd.DataFrame, tk: str) -> pd.Timestamp | None:
-    if tk not in close.columns:
-        return None
-    s = close[tk].dropna()
-    return pd.Timestamp(s.index.max()).normalize() if len(s) else None
+def _settled_venue(series: pd.Series | None, lcs: pd.Timestamp | None,
+                   ) -> tuple[pd.Timestamp | None, float | None, str | None]:
+    """(settled last bar, its close, newest in-progress bar date or None).
+
+    SETTLED ONLY, as the crypto row has been since 2026-10-11. The venue rows
+    took the newest non-null close in the response, so a probe firing while a
+    venue was open logged the in-progress bar as ``last_bar`` with a negative
+    sessions_behind: 159801.SZ at 2026-10-12 04:05 UTC (the Shenzhen lunch
+    break), and every NYSE and Xetra line at 14:17 UTC the same day. The
+    tripwire already skipped those, but the firing-hour summary counted them
+    as CURRENT. The close is recorded beside the date, so a later withdrawal
+    can be compared against the value that was served, not only its date:
+    the 2026-10-12 159801.SZ retraction left a date and no price. A
+    non-finite or non-positive value is a hole, not a bar."""
+    if series is None:
+        return None, None, None
+    s = series.dropna()
+    if not len(s):
+        return None, None, None
+    idx = pd.to_datetime(s.index)
+    if idx.tz is not None:
+        idx = idx.tz_localize(None)
+    s.index = idx.normalize()
+    s = s[(s > 0) & (s < float("inf"))]
+    s = s[~s.index.duplicated(keep="last")]
+    if lcs is None:
+        settled, ahead = s, s.iloc[0:0]
+    else:
+        bound = pd.Timestamp(lcs).normalize()
+        settled, ahead = s[s.index <= bound], s[s.index > bound]
+    in_progress = str(ahead.index.max().date()) if len(ahead) else None
+    if not len(settled):
+        return None, None, in_progress
+    return (pd.Timestamp(settled.index.max()), float(settled.iloc[-1]),
+            in_progress)
 
 
 def _close_frame(raw: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
@@ -260,9 +290,12 @@ def probe(now_utc: datetime | None = None, download=None) -> dict:
                 if again is not None:
                     last_bar, missing, required_present = _settled_crypto(again, bound)
                     refetched = True
+            used = again if refetched else series
+            _, crypto_close, _ = _settled_venue(used, bound)
             row = {
                 "ticker": tk, "venue": venue, "role": role,
                 "last_bar": str(last_bar.date()) if last_bar is not None else None,
+                "last_close": crypto_close,
                 "last_completed_session": str(bound.date()),
                 "sessions_behind": _days_behind(last_bar, bound),
                 "required_day_bar_present": required_present,
@@ -274,14 +307,18 @@ def probe(now_utc: datetime | None = None, download=None) -> dict:
             continue
         cal = _venue_cal(venue)
         lcs = last_completed_session_on(cal, now)
-        last_bar = _last_bar(close, tk)
+        series = close[tk] if tk in close.columns else None
+        last_bar, last_close, in_progress = _settled_venue(series, lcs)
         refetched = False
         if last_bar is None:
-            last_bar = _refetch_single(download, tk, start, end)
-            refetched = last_bar is not None
+            again = _refetch_single_series(download, tk, start, end)
+            if again is not None:
+                last_bar, last_close, in_progress = _settled_venue(again, lcs)
+                refetched = last_bar is not None
         row = {
             "ticker": tk, "venue": venue, "role": role,
             "last_bar": str(last_bar.date()) if last_bar is not None else None,
+            "last_close": last_close,
             "last_completed_session": str(lcs.date()) if lcs is not None else None,
             "sessions_behind": _sessions_behind(cal, last_bar, lcs),
         }
@@ -289,6 +326,10 @@ def probe(now_utc: datetime | None = None, download=None) -> dict:
         # call missed; absent on the ordinary path.
         if refetched:
             row["refetched"] = True
+        # An unfinished session the vendor already serves, kept out of
+        # last_bar and recorded by date only: it is not a close yet.
+        if in_progress:
+            row["in_progress_bar"] = in_progress
         rows.append(row)
     return {"probed_at_utc": now.isoformat(timespec="seconds"), "rows": rows}
 

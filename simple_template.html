@@ -612,10 +612,26 @@ function renderFreshness(f) {
   sec.hidden = false;
 
   const behind = f.strategies.filter(s => s.status === 'behind');
+  // "Every part is current" is a claim about EVERY row, so a row that was
+  // never measured cannot share it (2026-10-13). And the claim expires: past
+  // verdict_valid_until_utc an exchange has closed a session the check never
+  // saw, and this page may be re-served long after its build. Absent or
+  // unreadable expiry fails closed.
+  const allCurrent = f.strategies.every(s => s.status === 'current');
+  const until = f.verdict_valid_until_utc ? Date.parse(f.verdict_valid_until_utc) : NaN;
+  const lapsed = !Number.isFinite(until) || Date.now() >= until;
+  const checked = f.computed_at_utc ? fmtDate(f.computed_at_utc.slice(0, 10)) : 'an unknown date';
   document.getElementById('fresh-lead').textContent = behind.length
     ? 'Not every part is equally up to date. The parts marked below are '
       + 'waiting on data and should not be read as refreshed.'
-    : 'Every part is current to the last close on its own exchange.';
+    : lapsed
+      ? `Checked on ${checked}. An exchange has closed since that check, so `
+        + 'no part is confirmed current; the dates below are what the data '
+        + 'reached at the check.'
+      : allCurrent
+        ? 'Every part is current to the last close on its own exchange.'
+        : 'Not every part could be checked against its exchange. The parts '
+          + 'marked below are not confirmed current.';
 
   const rows = ['<div class="fr-h">Part</div>',
                 '<div class="fr-h fr-d">Data to</div>',
@@ -627,12 +643,14 @@ function renderFreshness(f) {
     const n = s.sessions_behind;
     const chip = late
       ? `${n === 1 ? 'One session' : n + ' sessions'} behind`
-      : (s.status === 'current' ? 'Current' : 'Not measured');
+      : (s.status === 'current' ? (lapsed ? 'Not confirmed' : 'Current')
+                                : 'Not measured');
     const shown = s.data_through ? fmtDate(s.data_through) : '—';
     rows.push(`<div class="fr-l">${esc(s.label)}`
               + `<span class="fr-dm">${shown}</span></div>`);
     rows.push(`<div class="fr-d">${shown}</div>`);
-    rows.push(`<div class="fr-s"><span class="fresh-chip${late ? ' behind' : ''}">`
+    const warn = late || (s.status === 'current' && lapsed);
+    rows.push(`<div class="fr-s"><span class="fresh-chip${warn ? ' behind' : ''}">`
               + `${esc(chip)}</span></div>`);
   }
   document.getElementById('fresh-rows').innerHTML = rows.join('');

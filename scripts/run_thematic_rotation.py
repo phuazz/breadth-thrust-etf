@@ -83,6 +83,7 @@ from rebalance_calendar import engine_rebalance_dates  # noqa: E402
 from rebalance_records import latest_rebalance_record  # noqa: E402
 import btc_basis  # noqa: E402
 import completed_prices  # noqa: E402
+import price_revisions  # noqa: E402
 import price_source as price_source_mod  # noqa: E402
 import vendor_tail  # noqa: E402
 from nyse_sessions import (  # noqa: E402
@@ -481,6 +482,32 @@ def _reindex_crypto_to_equity_calendar(df: pd.DataFrame) -> pd.DataFrame:
     return df.loc[df.index.isin(equity_cal) | df.index.isin(df[CASH_PROXY].dropna().index)]
 
 
+# The venue calendar each non-NYSE ``trading_calendar`` tag answers to.
+# Shenzhen shares the SSE holiday schedule.
+_NATIVE_VENUE_CALENDAR = {"sse_szse": "SSE"}
+
+
+def _unserved_native_sessions(native_last: pd.Timestamp,
+                              index: pd.DatetimeIndex,
+                              venue: str) -> pd.DatetimeIndex:
+    """Native-venue sessions after ``native_last`` and on or before the
+    frame's last date: sessions the venue held and the vendor did not
+    serve a close for. Empty when the venue has been closed since its last
+    served bar (a holiday or weekend), which is the only case in which
+    carrying that bar forward is a valuation rather than a relabel.
+
+    pandas_market_calendars does the calendar arithmetic, never a weekday
+    count. Python datetime months are 1-indexed.
+    """
+    from venue_calendars import get_calendar as _venue_cal
+    later = index[index > native_last]
+    if not len(later):
+        return pd.DatetimeIndex([])
+    sched = _venue_cal(venue).schedule(
+        start_date=native_last + pd.Timedelta(days=1), end_date=later.max())
+    return pd.DatetimeIndex(sched.index).normalize()
+
+
 def _fx_convert_to_usd(df: pd.DataFrame) -> pd.DataFrame:
     """For any UNIVERSE entry with currency != 'USD', FX-convert the
     native-currency price series to USD and reindex onto the equity
@@ -490,6 +517,21 @@ def _fx_convert_to_usd(df: pd.DataFrame) -> pd.DataFrame:
 
     Currently supports CNY (via USDCNY=X). Extend to other currencies
     by adding the FX-pair mapping below.
+
+    THE STALE-FILL MAY BRIDGE A CLOSED VENUE, NEVER AN UNSERVED SESSION
+    (2026-10-13). The fill cannot tell a Shenzhen holiday from a Shenzhen
+    session the vendor did not serve. On 2026-10-12 yfinance served
+    159801.SZ's close at 14:17 UTC and by 00:05 UTC the next day had
+    replaced it with a row carrying open and volume but a null close. The
+    fill then priced the NYSE 10-12 row with the 10-09 close, under the
+    drag a few parts per million away from it, so the coverage floor in
+    live_targets saw a priced row and could not HOLD. A missing close on
+    the trailing edge, where the native venue held a session after its
+    last served bar, now stays blank and the floor HOLDs the sleeve.
+    Interior gaps keep the historical carry: a bracketed gap accrues its
+    move on the next served bar, and masking it would restate the
+    published record (2025-10-24 is the one interior Shenzhen session
+    without a close since 2020-02).
     """
     sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
     from alignment import align_series_to_index  # noqa: E402
@@ -528,8 +570,23 @@ def _fx_convert_to_usd(df: pd.DataFrame) -> pd.DataFrame:
         # Reindex to NYSE equity calendar with a 10-day stale-fill cap.
         # 10 days covers the Chinese National Day week (Oct 1-7) plus a
         # buffer; Chinese New Year (typically 7 trading days off) also fits.
-        df[ticker] = align_series_to_index(usd_native, equity_cal,
-                                            max_stale_days=10)
+        aligned = align_series_to_index(usd_native, equity_cal,
+                                        max_stale_days=10)
+        venue = _NATIVE_VENUE_CALENDAR.get(meta.get("trading_calendar"))
+        served = native_prices[(native_prices > 0)
+                               & (native_prices < float("inf"))]
+        if venue and len(served):
+            native_last = pd.Timestamp(served.index.max()).normalize()
+            unserved = _unserved_native_sessions(native_last, aligned.index,
+                                                 venue)
+            if len(unserved):
+                aligned = aligned.mask(aligned.index >= unserved.min())
+                print(f"  WARN: {ticker} last served close {native_last.date()}; "
+                      f"{venue} session(s) "
+                      f"{', '.join(str(d.date()) for d in unserved)} carry no "
+                      f"close from the vendor — left blank, not carried "
+                      f"forward", flush=True)
+        df[ticker] = aligned
     return df
 
 
@@ -703,6 +760,19 @@ def download_prices() -> pd.DataFrame:
     df = pd.DataFrame(closes).reindex(columns=fetch_names)
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.sort_index()
+
+    # ----- Vendor observation (2026-10-13), BEFORE anything transforms it ---
+    # The same served -> withheld -> restored ledger compute_breadth keeps for
+    # the constituent panels (price_revisions), taken here from the raw batch
+    # before the Norgate overlay, the tail heal, the FX fill and the drag. The
+    # 2026-10-12 159801.SZ close was served and withdrawn with no record of
+    # its value anywhere; the next one leaves the value, the session and the
+    # retrieval time in logs/vendor_state. Diagnostic only: never raises.
+    price_revisions.record_vendor_observation(
+        df, panel=PRICE_CACHE.stem,
+        root=Path(PRICE_CACHE).resolve().parent.parent,
+        source=price_revisions.YFINANCE,
+        required_through=current_through)
 
     # ----- Norgate price source, opt-in (2026-08-30) -----
     # Same mechanism, same reasoning and the same default as Strategy B; see

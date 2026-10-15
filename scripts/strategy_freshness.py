@@ -341,6 +341,10 @@ def build(now_utc: datetime | None = None) -> dict:
     behind = [r for r in rows if r["status"] == BEHIND]
     return {
         "computed_at_utc": now.isoformat(),
+        # When this verdict stops describing the market (verdict_valid_until).
+        # Published so a page built from it can expire its own claim: the
+        # build-time lapse check cannot reach a page that is already live.
+        "verdict_valid_until_utc": verdict_valid_until(rows),
         "strategies": rows,
         "all_current": bool(rows) and all(r["status"] == CURRENT for r in rows),
         "n_unknown": sum(r["status"] == UNKNOWN for r in rows),
@@ -431,6 +435,44 @@ def verdict_has_lapsed(report: dict | None,
         if lcs is not None and str(lcs.date()) > seen:
             return True
     return False
+
+
+def verdict_valid_until(rows: list[dict]) -> str | None:
+    """UTC instant at which ``verdict_has_lapsed`` turns True for these rows:
+    the earliest close, on any row's venue, of the first session after the
+    ``venue_last_session`` that row was judged against.
+
+    THE PUBLISHED PAGE OUTLIVES THE BUILD (2026-10-13). The dashboard built on
+    Sun 2026-10-11 at 10:59 UTC carried all four sleeves `current` to Fri
+    10-09, which was true. It stayed live, unchanged, through Monday's NYSE,
+    Xetra and Shenzhen closes, and every Pages redeploy triggered by an
+    unrelated data commit re-served it. ``verdict_has_lapsed`` withholds a
+    lapsed report at BUILD time; it cannot reach a page that is already
+    published. This instant, carried in the payload, lets the page compare
+    the reader's clock against the venue calendars as they stood at build
+    time, holidays included.
+
+    Fails closed: a calendar that cannot answer returns ``None``, which every
+    renderer treats as "cannot confirm current", never as "no expiry".
+    """
+    ends = []
+    for row in rows or []:
+        seen, venue = row.get("venue_last_session"), row.get("venue")
+        if not seen or not venue:
+            continue
+        try:
+            start = pd.Timestamp(seen) + pd.Timedelta(days=1)
+            sched = _venue_cal(venue).schedule(
+                start_date=start.strftime("%Y-%m-%d"),
+                end_date=(start + pd.Timedelta(days=21)).strftime("%Y-%m-%d"))
+        except Exception:  # noqa: BLE001 — fail closed, see the docstring
+            return None
+        if sched.empty or "market_close" not in sched.columns:
+            return None
+        ends.append(pd.Timestamp(sched["market_close"].iloc[0]).tz_convert("UTC"))
+    if not ends:
+        return None
+    return min(ends).isoformat()
 
 
 def _uniform_stale_reason(reach: str | None, venue_last: str | None,
