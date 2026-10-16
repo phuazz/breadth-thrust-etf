@@ -226,10 +226,18 @@ def detect_retractions(history: list[dict],
     # Comparing against the row's own last_completed_session keeps the
     # tripwire on withdrawals of settled data, which is the only kind that
     # invalidates a refresh.
+    #
+    # A row whose calendar could not place the required session (schema 2,
+    # ``calendar_error``) is no observation of that line at all: its null
+    # last_bar is not a withdrawal, and it sets no high-water mark. Schema-2
+    # rows already record last_bar as the newest VALID bar at or before the
+    # completed session, so an unfinished row never reaches this comparison.
     high_water: dict[str, tuple[date, str]] = {}
     for row in earlier:
         stamp = row.get("probed_at_utc") or "?"
         for r in row.get("rows") or []:
+            if r.get("calendar_error"):
+                continue
             d = _as_date(r.get("last_bar"))
             if d is None:
                 continue
@@ -245,7 +253,7 @@ def detect_retractions(history: list[dict],
     for r in newest.get("rows") or []:
         ticker = r.get("ticker")
         was = high_water.get(ticker)
-        if was is None:
+        if was is None or r.get("calendar_error"):
             continue
         now_bar = _as_date(r.get("last_bar"))
         if now_bar is not None and now_bar >= was[0]:
@@ -346,8 +354,14 @@ def evaluate(log_path: Path, now_utc: datetime | None = None,
         if (r.get("missing_completed_days")
             or r.get("required_day_bar_present") is False)
     }
+    # Schema 2 (2026-10-15): a line whose venue calendar could not place the
+    # required session carries no verdict. Named, never counted current.
+    undetermined = sorted(r["ticker"] for r in rows if r.get("calendar_error"))
     summary = (f"{len(served)}/{len(rows)} lines served"
                + (f"; empty: {', '.join(empty)}" if empty else ""))
+    if undetermined:
+        summary += ("; verdict unknown (venue calendar cannot place the "
+                    "required session): " + ", ".join(undetermined))
     if decision_input_holes:
         summary += ("; served is not complete — decision-input holes: "
                     + "; ".join(f"{tk} missing {', '.join(days) or 'required day'}"
@@ -373,7 +387,8 @@ def evaluate(log_path: Path, now_utc: datetime | None = None,
         "routine": routine,
         "measuring": measuring,
         "decision_input_holes": decision_input_holes,
-        "decision_inputs_complete": not decision_input_holes,
+        "decision_inputs_complete": not decision_input_holes and not undetermined,
+        "undetermined": undetermined,
         "summary": summary,
     }
 

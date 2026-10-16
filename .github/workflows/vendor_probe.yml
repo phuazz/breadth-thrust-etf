@@ -108,8 +108,36 @@ jobs:
       # `measuring_count`, and do not email until the exemption in
       # check_vendor_probe.MEASURING_UNTIL lapses. SPY and XLF are not
       # exempt, so a US-wide withdrawal still arrives here.
+      #
+      # ----- Incident memory (vendor-resilience Phase 1, 2026-10-15) -----
+      # The step above DETECTS. alert_policy.py remembers. In its default
+      # `tripwire` routing it mails exactly the set the tripwire mailed
+      # (every anomalous withdrawal; routine and under-measurement stay
+      # quiet), once per incident episode once delivery is CONFIRMED, and
+      # routes a pending alert or recovery notice again until it is.
+      # Consequence routing is NOT enabled here: it suppresses more than the
+      # tripwire did and needs the owner's approval first.
+      #
+      # THREE STEPS, IN THIS ORDER, ON PURPOSE. Route writes the exact event
+      # set to a frozen batch file and builds the mail from it; the mail is
+      # attempted; record stamps the mail step's own outcome onto THAT batch
+      # and never re-evaluates, so a newer event set cannot inherit an older
+      # send's result. Only outcome 'success' confirms; failure, skipped and
+      # cancelled stay pending and are routed again.
+      #
+      # If routing fails, the tripwire's own verdict still mails (the deployed
+      # behaviour) and nothing is recorded, so the next probe routes again:
+      # every failure here points toward a duplicate, never toward silence.
+      - name: Route the observation (incident memory)
+        id: policy
+        continue-on-error: true
+        run: python scripts/alert_policy.py --batch-out "${{ runner.temp }}/alert_batch.json"
+
       - name: Email retraction alert (vendor withdrew a settled bar)
-        if: steps.guard.outputs.retracted == 'true'
+        id: mail
+        if: >-
+          steps.policy.outputs.mail == 'true' ||
+          (steps.policy.outcome != 'success' && steps.guard.outputs.retracted == 'true')
         continue-on-error: true
         uses: dawidd6/action-send-mail@v18
         with:
@@ -118,15 +146,29 @@ jobs:
           secure: true
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '[WARN] Vendor RETRACTED a settled bar — ${{ steps.guard.outputs.retracted_summary }}'
+          subject: ${{ steps.policy.outputs.subject || format('[WARN] Vendor RETRACTED a settled bar - {0}', steps.guard.outputs.retracted_summary) }}
           # Operator only, never RECIPIENT_EMAIL — the factsheet distribution
           # list does not receive plumbing email.
           to: ${{ secrets.GMAIL_USER }}
           from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
           body: |
+            ${{ steps.policy.outputs.detail }}
+
+            Detection detail:
             ${{ steps.guard.outputs.retracted_detail }}
 
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      # Records the frozen batch only when routing produced one. A failure
+      # here (lock, IO, a tampered batch) writes nothing, and the commit below
+      # still carries the probe row; the events are routed again next probe.
+      - name: Record the routed batch and what the mail achieved
+        if: always() && steps.policy.outcome == 'success'
+        continue-on-error: true
+        run: >-
+          python scripts/alert_policy.py
+          --record-batch "${{ runner.temp }}/alert_batch.json"
+          --mail-outcome "${{ steps.mail.outcome }}"
 
       # Hard-fail the push (2026-08-13, external review F1): a swallowed push
       # rejection loses the observation on the runner, which is the silent hole
@@ -135,7 +177,10 @@ jobs:
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "Vendor Availability Probe"
-          git add data/vendor_availability_log.jsonl
+          # The operations log travels with the probe log. It is the incident
+          # memory: if it is not committed, the next run reads no history and
+          # a delivered alert mails again — a duplicate, never a silence.
+          git add data/vendor_availability_log.jsonl data/ops_alert_log.jsonl
           if git diff --cached --quiet; then
             echo "No new observation to commit."
             exit 0
