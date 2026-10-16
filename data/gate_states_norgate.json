@@ -1,10 +1,10 @@
 {
- "generated_at_utc": "2026-10-14T23:15:22+00:00",
+ "generated_at_utc": "2026-10-16T23:15:05+00:00",
  "source": "norgate-local #SPX%MA50 (derived states plus the current scalar; the vendor SERIES is never committed \u2014 licence)",
  "state_machine": "run_risk_overlay._compute_states (off 0.2, on 0.5)",
- "last_bar": "2026-10-13",
+ "last_bar": "2026-10-16",
  "current_state": "RISK_ON",
- "current_breadth": 0.3824999928474426,
+ "current_breadth": 0.45019999146461487,
  "series": {
   "dates": [
    "1957-03-04",
@@ -17527,7 +17527,10 @@
    "2026-10-08",
    "2026-10-09",
    "2026-10-12",
-   "2026-10-13"
+   "2026-10-13",
+   "2026-10-14",
+   "2026-10-15",
+   "2026-10-16"
   ],
   "state": [
    1,
@@ -19650,7 +19653,7 @@
    0,
    0,
    0,
-   0,
+   1,
    1,
    1,
    1,
@@ -22803,7 +22806,7 @@
    0,
    0,
    0,
-   1,
+   0,
    1,
    1,
    1,
@@ -23771,7 +23774,7 @@
    1,
    1,
    1,
-   1,
+   0,
    0,
    0,
    0,
@@ -34924,6 +34927,9 @@
    0,
    0,
    0,
+   1,
+   1,
+   1,
    1,
    1,
    1,
