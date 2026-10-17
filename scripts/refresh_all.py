@@ -96,12 +96,14 @@ import os
 import subprocess
 import sys
 import time
+from datetime import date
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etf_registry import EUROPE_SUPERSECTORS_CANDIDATE  # noqa: E402
+from fetch_constituents import latest_completed_friday  # noqa: E402
 
 ETFS_NON_SOXX = [
     "CSP1", "CNDX",
@@ -318,6 +320,11 @@ def main() -> int:
                          f"served from cache. Pass 0 to disable — only "
                          f"sensible on a fully warm cache.")
     args = p.parse_args()
+    # Python's date months are 1-indexed. Freeze the roster target before
+    # the multi-hour run: local midnight must not make late panels and the
+    # final guard judge a newer Friday than the panels captured at its start.
+    target_friday = latest_completed_friday(date.today())
+    print(f"settled roster target for this run: {target_friday}", flush=True)
     if args.capture_only and args.component != "europe":
         p.error("--capture-only requires --component europe")
     if args.component != "all" and args.no_tests:
@@ -384,7 +391,8 @@ def main() -> int:
         else:
             ok, dt = run_step(
                 f"[{i}/{len(_panels)}] {etf} fetch_constituents",
-                [py, "scripts/fetch_constituents.py", "--etf", etf],
+                [py, "scripts/fetch_constituents.py", "--etf", etf,
+                 "--end-friday", target_friday.isoformat()],
             )
             timings.append((f"fetch_constituents {etf}", dt))
             if not ok:
@@ -665,7 +673,8 @@ def main() -> int:
         ("VERIFY pair integrity (fund vs own constituents)",
             [py, "scripts/check_pair_integrity.py"]),
         ("VERIFY refresh guard (cross-panel coherence)",
-            [py, "scripts/check_refresh_guard.py", "--component", args.component]),
+            [py, "scripts/check_refresh_guard.py", "--component", args.component,
+             "--end-friday", target_friday.isoformat()]),
         ("VERIFY engine price panels (sleeve vs the prices it backtested on)",
             [py, "scripts/check_engine_price_panels.py"]),
         ("VERIFY coverage depth (US panels vs the filed basis; delisted probes)",

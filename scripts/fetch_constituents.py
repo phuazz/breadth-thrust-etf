@@ -2164,6 +2164,11 @@ def parse_args() -> argparse.Namespace:
         help=f"ETF symbol to fetch (must be in etf_registry). Default: {DEFAULT_ETF}",
     )
     p.add_argument(
+        "--end-friday", type=date.fromisoformat, default=None,
+        help="Settled target Friday YYYY-MM-DD, frozen by refresh_all for "
+             "the entire run. Defaults to the latest completed Friday.",
+    )
+    p.add_argument(
         "--carry-forward-on-outage", action="store_true",
         help="Carry the last known-good roster forward across Fridays that "
              "the endpoint could not serve. OFF by default: carrying forward "
@@ -2175,6 +2180,20 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
+def resolve_end_friday(today: date, requested: date | None) -> date:
+    """Accept a settled Friday no later than the local clock's target.
+
+    Python's date months are 1-indexed. A run that crosses local midnight
+    retains its starting target; an explicit future or unsettled target fails.
+    """
+    latest = latest_completed_friday(today)
+    if requested is None:
+        return latest
+    if requested.weekday() != 4 or requested > latest:
+        raise ValueError(f"--end-friday must be a settled Friday on or before {latest}")
+    return requested
+
+
 def main() -> int:
     args = parse_args()
     etf_cfg = get_etf(args.etf)
@@ -2183,7 +2202,7 @@ def main() -> int:
     out_path = DATA_DIR / f"constituents_{symbol.lower()}.json"
 
     today = date.today()
-    end_friday = latest_completed_friday(today)
+    end_friday = resolve_end_friday(today, getattr(args, "end_friday", None))
     fridays = fridays_between(start_friday, end_friday)
     print(
         f"Fetching {symbol} point-in-time holdings for {len(fridays)} Fridays "

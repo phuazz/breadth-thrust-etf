@@ -704,6 +704,11 @@ def download_prices() -> pd.DataFrame:
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.sort_index()
 
+    # A partial US/crypto row from Yahoo is not a completed session that
+    # Norgate must match. Remove it before the whole-column superset test;
+    # the final equity and crypto completion guards still run below.
+    df = df.loc[:pd.Timestamp(current_through)]
+
     # ----- Norgate price source, opt-in (2026-08-30) -----
     # Same mechanism, same reasoning and the same default as Strategy B; see
     # run_asset_class_rotation.load_prices for the full note. Set

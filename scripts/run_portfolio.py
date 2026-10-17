@@ -50,6 +50,7 @@ from run_ma200_sweep import (  # noqa: E402
 from rebalance_calendar import engine_rebalance_dates  # noqa: E402
 from session_bounds import (  # noqa: E402
     decision_session_report,
+    last_completed_session_on,
     trim_to_completed,
 )
 
@@ -103,6 +104,9 @@ def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, 
     bounds = {}
     from validated_breadth import validated_end, cap_signal
     used = []
+    # One observation time for the whole panel; a venue close during this
+    # loop must not give later ETFs a different completed-session bound.
+    capture_now = datetime.now(timezone.utc)
     for etf in universe:
         cfg = get_etf(etf)
         proxy = cfg.get("yfinance_trading_proxy") or etf
@@ -114,7 +118,11 @@ def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, 
         ma200_b = cap_signal(compute_ma200_breadth(cp, MA_PERIOD), bounds[etf])
         dl_start = (cp.index.min() - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
         dl_end = (cp.index.max() + pd.Timedelta(days=5)).strftime("%Y-%m-%d")
-        ohlc = download_soxx_ohlc(dl_start, dl_end, etf=proxy, yf_symbol=proxy)
+        cal = _venue_cal(cfg.get("trading_calendar", "NYSE"))
+        completed_through = last_completed_session_on(cal, capture_now)
+        ohlc = download_soxx_ohlc(
+            dl_start, dl_end, etf=proxy, yf_symbol=proxy,
+            completed_through=completed_through)
         ohlc = ohlc[~ohlc.index.duplicated(keep="first")]
         # Drop any bar from a session that has not closed. On 2026-08-14 at
         # 13:15 UTC yfinance served a bar stamped that day for the .DE lines
@@ -122,8 +130,7 @@ def _build_panels_for(universe: list[str]) -> tuple[pd.DataFrame, pd.DataFrame, 
         # Historically a no-op — every bar in a finished session is complete —
         # so this removes a tail and cannot move a backtest.
         ohlc, _dropped = trim_to_completed(
-            ohlc, _venue_cal(cfg.get("trading_calendar", "NYSE")),
-            datetime.now(timezone.utc), label=f"{etf} ({proxy}) closes")
+            ohlc, cal, capture_now, label=f"{etf} ({proxy}) closes")
         closes[etf] = ohlc["Close"].astype(float)
         breadths[etf] = ma200_b
         used.append(etf)
