@@ -1,8 +1,8 @@
 {
-  "computed_at_utc": "2026-10-17T03:48:22+00:00",
+  "computed_at_utc": "2026-10-17T05:01:58+00:00",
   "as_of": "2026-10-16",
   "next_fill": {
-    "summary": "16 moves at the next fill (NYSE Mon 19 Oct 2026, XETR Mon 19 Oct 2026), ranked on the Fri 16 Oct 2026 close; one-way turnover 21.33% of NAV; 2 new names; 2 exits. Signals compared with the previous decision close.",
+    "summary": "16 moves at the next fill (NYSE Mon 19 Oct 2026, XETR Mon 19 Oct 2026), ranked on the Fri 16 Oct 2026 close; one-way turnover 21.32% of NAV; 2 new names; 2 exits. Signals compared with the previous decision close.",
     "moves": [
       {
         "sleeve": "A",
@@ -13,9 +13,9 @@
         "held": 0.10472000000000001,
         "target": 0.0,
         "delta": -0.10472000000000001,
-        "signal_now": -0.0519,
+        "signal_now": -0.051,
         "signal_prev": 0.2986,
-        "signal_now_fmt": "-5.2",
+        "signal_now_fmt": "-5.1",
         "signal_prev_fmt": "+29.9",
         "rank_now": 8,
         "rank_prev": 1,
@@ -24,7 +24,7 @@
         "cash_proxy": false,
         "driver": "signal",
         "signal_kind": "breadth_relative",
-        "text": "SOXX (iShares Semiconductors) exits from 10.5% of NAV: breadth +29.9pp \u2192 -5.2pp against the sector average, rank 1 \u2192 8 of 14, out of the top 7."
+        "text": "SOXX (iShares Semiconductors) exits from 10.5% of NAV: breadth +29.9pp \u2192 -5.1pp against the sector average, rank 1 \u2192 8 of 14, out of the top 7."
       },
       {
         "sleeve": "B",
@@ -55,11 +55,11 @@
         "name": "iShares S&P 500 Consumer Staples",
         "action": "ADD",
         "held": 0.0008049999999999999,
-        "target": 0.06958384999999999,
-        "delta": 0.06877884999999999,
-        "signal_now": 0.1727,
+        "target": 0.0695093,
+        "delta": 0.0687043,
+        "signal_now": 0.1736,
         "signal_prev": -0.0088,
-        "signal_now_fmt": "+17.3",
+        "signal_now_fmt": "+17.4",
         "signal_prev_fmt": "-0.9",
         "rank_now": 3,
         "rank_prev": 7,
@@ -68,7 +68,7 @@
         "cash_proxy": false,
         "driver": "signal",
         "signal_kind": "breadth_relative",
-        "text": "IUCS (iShares S&P 500 Consumer Staples) 0.1% \u2192 7.0% of NAV (+6.9pp): breadth -0.9pp \u2192 +17.3pp against the sector average, rank 7 \u2192 3 of 14."
+        "text": "IUCS (iShares S&P 500 Consumer Staples) 0.1% \u2192 7.0% of NAV (+6.9pp): breadth -0.9pp \u2192 +17.4pp against the sector average, rank 7 \u2192 3 of 14."
       },
       {
         "sleeve": "B",
@@ -99,11 +99,11 @@
         "name": "iShares S&P 500 Financials",
         "action": "ADD",
         "held": 0.02422,
-        "target": 0.05195785,
-        "delta": 0.02773785,
-        "signal_now": 0.129,
+        "target": 0.051993899999999996,
+        "delta": 0.027773899999999997,
+        "signal_now": 0.1299,
         "signal_prev": 0.0742,
-        "signal_now_fmt": "+12.9",
+        "signal_now_fmt": "+13.0",
         "signal_prev_fmt": "+7.4",
         "rank_now": 4,
         "rank_prev": 5,
@@ -112,7 +112,7 @@
         "cash_proxy": false,
         "driver": "signal",
         "signal_kind": "breadth_relative",
-        "text": "IUFS (iShares S&P 500 Financials) 2.4% \u2192 5.2% of NAV (+2.8pp): breadth +7.4pp \u2192 +12.9pp against the sector average, rank 5 \u2192 4 of 14."
+        "text": "IUFS (iShares S&P 500 Financials) 2.4% \u2192 5.2% of NAV (+2.8pp): breadth +7.4pp \u2192 +13.0pp against the sector average, rank 5 \u2192 4 of 14."
       },
       {
         "sleeve": "B",
@@ -143,11 +143,11 @@
         "name": "iShares S&P 500 Health Care",
         "action": "ADD",
         "held": 0.10227,
-        "target": 0.12458249999999998,
-        "delta": 0.022312499999999985,
-        "signal_now": 0.3092,
+        "target": 0.1241625,
+        "delta": 0.021892499999999995,
+        "signal_now": 0.3101,
         "signal_prev": 0.2917,
-        "signal_now_fmt": "+30.9",
+        "signal_now_fmt": "+31.0",
         "signal_prev_fmt": "+29.2",
         "rank_now": 1,
         "rank_prev": 2,
@@ -156,7 +156,7 @@
         "cash_proxy": false,
         "driver": "signal",
         "signal_kind": "breadth_relative",
-        "text": "IUHC (iShares S&P 500 Health Care) 10.2% \u2192 12.5% of NAV (+2.2pp): breadth +29.2pp \u2192 +30.9pp against the sector average, rank 2 \u2192 1 of 14."
+        "text": "IUHC (iShares S&P 500 Health Care) 10.2% \u2192 12.4% of NAV (+2.2pp): breadth +29.2pp \u2192 +31.0pp against the sector average, rank 2 \u2192 1 of 14."
       },
       {
         "sleeve": "A",
@@ -165,11 +165,11 @@
         "name": "iShares NASDAQ-100",
         "action": "TRIM",
         "held": 0.028874999999999998,
-        "target": 0.01308405,
-        "delta": -0.015790949999999998,
-        "signal_now": 0.0325,
+        "target": 0.0133644,
+        "delta": -0.015510599999999998,
+        "signal_now": 0.0334,
         "signal_prev": 0.0827,
-        "signal_now_fmt": "+3.2",
+        "signal_now_fmt": "+3.3",
         "signal_prev_fmt": "+8.3",
         "rank_now": 5,
         "rank_prev": 4,
@@ -178,7 +178,7 @@
         "cash_proxy": false,
         "driver": "signal",
         "signal_kind": "breadth_relative",
-        "text": "CNDX (iShares NASDAQ-100) 2.9% \u2192 1.3% of NAV (-1.6pp): breadth +8.3pp \u2192 +3.2pp against the sector average, rank 4 \u2192 5 of 14."
+        "text": "CNDX (iShares NASDAQ-100) 2.9% \u2192 1.3% of NAV (-1.6pp): breadth +8.3pp \u2192 +3.3pp against the sector average, rank 4 \u2192 5 of 14."
       },
       {
         "sleeve": "B",
@@ -297,9 +297,9 @@
         "name": "iShares S&P 500 Energy",
         "action": "TRIM",
         "held": 0.08113,
-        "target": 0.0779541,
-        "delta": -0.0031758999999999954,
-        "signal_now": 0.1935,
+        "target": 0.07782705,
+        "delta": -0.003302949999999999,
+        "signal_now": 0.1944,
         "signal_prev": 0.2315,
         "signal_now_fmt": "+19.4",
         "signal_prev_fmt": "+23.2",
@@ -319,9 +319,9 @@
         "name": "iShares Core S&P 500",
         "action": "ADD",
         "held": 0.007945,
-        "target": 0.010844749999999998,
-        "delta": 0.002899749999999998,
-        "signal_now": 0.0269,
+        "target": 0.01079995,
+        "delta": 0.0028549499999999985,
+        "signal_now": 0.027,
         "signal_prev": 0.0231,
         "signal_now_fmt": "+2.7",
         "signal_prev_fmt": "+2.3",
@@ -341,11 +341,11 @@
         "name": "iShares S&P 500 Materials",
         "action": "BUY",
         "held": 0.0,
-        "target": 0.00199255,
-        "delta": 0.00199255,
-        "signal_now": 0.0049,
+        "target": 0.00234255,
+        "delta": 0.00234255,
+        "signal_now": 0.0059,
         "signal_prev": -0.2298,
-        "signal_now_fmt": "+0.5",
+        "signal_now_fmt": "+0.6",
         "signal_prev_fmt": "-23.0",
         "rank_now": 7,
         "rank_prev": 13,
@@ -354,7 +354,7 @@
         "cash_proxy": false,
         "driver": "signal",
         "signal_kind": "breadth_relative",
-        "text": "IUMS (iShares S&P 500 Materials) enters at 0.2% of NAV: breadth -23.0pp \u2192 +0.5pp against the sector average, rank 13 \u2192 7 of 14, into the top 7."
+        "text": "IUMS (iShares S&P 500 Materials) enters at 0.2% of NAV: breadth -23.0pp \u2192 +0.6pp against the sector average, rank 13 \u2192 7 of 14, into the top 7."
       }
     ],
     "sleeves": [
@@ -379,9 +379,9 @@
             "held": 0.10472000000000001,
             "target": 0.0,
             "delta": -0.10472000000000001,
-            "signal_now": -0.0519,
+            "signal_now": -0.051,
             "signal_prev": 0.2986,
-            "signal_now_fmt": "-5.2",
+            "signal_now_fmt": "-5.1",
             "signal_prev_fmt": "+29.9",
             "rank_now": 8,
             "rank_prev": 1,
@@ -390,7 +390,7 @@
             "cash_proxy": false,
             "driver": "signal",
             "signal_kind": "breadth_relative",
-            "text": "SOXX (iShares Semiconductors) exits from 10.5% of NAV: breadth +29.9pp \u2192 -5.2pp against the sector average, rank 1 \u2192 8 of 14, out of the top 7."
+            "text": "SOXX (iShares Semiconductors) exits from 10.5% of NAV: breadth +29.9pp \u2192 -5.1pp against the sector average, rank 1 \u2192 8 of 14, out of the top 7."
           },
           {
             "sleeve": "A",
@@ -399,11 +399,11 @@
             "name": "iShares S&P 500 Consumer Staples",
             "action": "ADD",
             "held": 0.0008049999999999999,
-            "target": 0.06958384999999999,
-            "delta": 0.06877884999999999,
-            "signal_now": 0.1727,
+            "target": 0.0695093,
+            "delta": 0.0687043,
+            "signal_now": 0.1736,
             "signal_prev": -0.0088,
-            "signal_now_fmt": "+17.3",
+            "signal_now_fmt": "+17.4",
             "signal_prev_fmt": "-0.9",
             "rank_now": 3,
             "rank_prev": 7,
@@ -412,7 +412,7 @@
             "cash_proxy": false,
             "driver": "signal",
             "signal_kind": "breadth_relative",
-            "text": "IUCS (iShares S&P 500 Consumer Staples) 0.1% \u2192 7.0% of NAV (+6.9pp): breadth -0.9pp \u2192 +17.3pp against the sector average, rank 7 \u2192 3 of 14."
+            "text": "IUCS (iShares S&P 500 Consumer Staples) 0.1% \u2192 7.0% of NAV (+6.9pp): breadth -0.9pp \u2192 +17.4pp against the sector average, rank 7 \u2192 3 of 14."
           },
           {
             "sleeve": "A",
@@ -421,11 +421,11 @@
             "name": "iShares S&P 500 Financials",
             "action": "ADD",
             "held": 0.02422,
-            "target": 0.05195785,
-            "delta": 0.02773785,
-            "signal_now": 0.129,
+            "target": 0.051993899999999996,
+            "delta": 0.027773899999999997,
+            "signal_now": 0.1299,
             "signal_prev": 0.0742,
-            "signal_now_fmt": "+12.9",
+            "signal_now_fmt": "+13.0",
             "signal_prev_fmt": "+7.4",
             "rank_now": 4,
             "rank_prev": 5,
@@ -434,7 +434,7 @@
             "cash_proxy": false,
             "driver": "signal",
             "signal_kind": "breadth_relative",
-            "text": "IUFS (iShares S&P 500 Financials) 2.4% \u2192 5.2% of NAV (+2.8pp): breadth +7.4pp \u2192 +12.9pp against the sector average, rank 5 \u2192 4 of 14."
+            "text": "IUFS (iShares S&P 500 Financials) 2.4% \u2192 5.2% of NAV (+2.8pp): breadth +7.4pp \u2192 +13.0pp against the sector average, rank 5 \u2192 4 of 14."
           },
           {
             "sleeve": "A",
@@ -443,11 +443,11 @@
             "name": "iShares S&P 500 Health Care",
             "action": "ADD",
             "held": 0.10227,
-            "target": 0.12458249999999998,
-            "delta": 0.022312499999999985,
-            "signal_now": 0.3092,
+            "target": 0.1241625,
+            "delta": 0.021892499999999995,
+            "signal_now": 0.3101,
             "signal_prev": 0.2917,
-            "signal_now_fmt": "+30.9",
+            "signal_now_fmt": "+31.0",
             "signal_prev_fmt": "+29.2",
             "rank_now": 1,
             "rank_prev": 2,
@@ -456,7 +456,7 @@
             "cash_proxy": false,
             "driver": "signal",
             "signal_kind": "breadth_relative",
-            "text": "IUHC (iShares S&P 500 Health Care) 10.2% \u2192 12.5% of NAV (+2.2pp): breadth +29.2pp \u2192 +30.9pp against the sector average, rank 2 \u2192 1 of 14."
+            "text": "IUHC (iShares S&P 500 Health Care) 10.2% \u2192 12.4% of NAV (+2.2pp): breadth +29.2pp \u2192 +31.0pp against the sector average, rank 2 \u2192 1 of 14."
           },
           {
             "sleeve": "A",
@@ -465,11 +465,11 @@
             "name": "iShares NASDAQ-100",
             "action": "TRIM",
             "held": 0.028874999999999998,
-            "target": 0.01308405,
-            "delta": -0.015790949999999998,
-            "signal_now": 0.0325,
+            "target": 0.0133644,
+            "delta": -0.015510599999999998,
+            "signal_now": 0.0334,
             "signal_prev": 0.0827,
-            "signal_now_fmt": "+3.2",
+            "signal_now_fmt": "+3.3",
             "signal_prev_fmt": "+8.3",
             "rank_now": 5,
             "rank_prev": 4,
@@ -478,7 +478,7 @@
             "cash_proxy": false,
             "driver": "signal",
             "signal_kind": "breadth_relative",
-            "text": "CNDX (iShares NASDAQ-100) 2.9% \u2192 1.3% of NAV (-1.6pp): breadth +8.3pp \u2192 +3.2pp against the sector average, rank 4 \u2192 5 of 14."
+            "text": "CNDX (iShares NASDAQ-100) 2.9% \u2192 1.3% of NAV (-1.6pp): breadth +8.3pp \u2192 +3.3pp against the sector average, rank 4 \u2192 5 of 14."
           },
           {
             "sleeve": "A",
@@ -487,9 +487,9 @@
             "name": "iShares S&P 500 Energy",
             "action": "TRIM",
             "held": 0.08113,
-            "target": 0.0779541,
-            "delta": -0.0031758999999999954,
-            "signal_now": 0.1935,
+            "target": 0.07782705,
+            "delta": -0.003302949999999999,
+            "signal_now": 0.1944,
             "signal_prev": 0.2315,
             "signal_now_fmt": "+19.4",
             "signal_prev_fmt": "+23.2",
@@ -509,9 +509,9 @@
             "name": "iShares Core S&P 500",
             "action": "ADD",
             "held": 0.007945,
-            "target": 0.010844749999999998,
-            "delta": 0.002899749999999998,
-            "signal_now": 0.0269,
+            "target": 0.01079995,
+            "delta": 0.0028549499999999985,
+            "signal_now": 0.027,
             "signal_prev": 0.0231,
             "signal_now_fmt": "+2.7",
             "signal_prev_fmt": "+2.3",
@@ -531,11 +531,11 @@
             "name": "iShares S&P 500 Materials",
             "action": "BUY",
             "held": 0.0,
-            "target": 0.00199255,
-            "delta": 0.00199255,
-            "signal_now": 0.0049,
+            "target": 0.00234255,
+            "delta": 0.00234255,
+            "signal_now": 0.0059,
             "signal_prev": -0.2298,
-            "signal_now_fmt": "+0.5",
+            "signal_now_fmt": "+0.6",
             "signal_prev_fmt": "-23.0",
             "rank_now": 7,
             "rank_prev": 13,
@@ -544,7 +544,7 @@
             "cash_proxy": false,
             "driver": "signal",
             "signal_kind": "breadth_relative",
-            "text": "IUMS (iShares S&P 500 Materials) enters at 0.2% of NAV: breadth -23.0pp \u2192 +0.5pp against the sector average, rank 13 \u2192 7 of 14, into the top 7."
+            "text": "IUMS (iShares S&P 500 Materials) enters at 0.2% of NAV: breadth -23.0pp \u2192 +0.6pp against the sector average, rank 13 \u2192 7 of 14, into the top 7."
           }
         ]
       },
@@ -740,7 +740,6 @@
       }
     ],
     "holds": [
-      "Sleeve C is held and its book is unchanged: decision row carries 24 of 25 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one; missing signal inputs: BTC-USD.",
       "Sleeve D is held and its book is unchanged: signal reaches 2026-10-15 but the last completed XETR session is 2026-10-16 \u2014 ranking now would use an earlier session."
     ],
     "notes": [],

@@ -2,7 +2,7 @@
   "etf": "IUHC",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/280507/ishares-sp-500-health-care-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUHC_holdings&dataType=fund",
-  "fetched_at_utc": "2026-10-17T02:13:45.003621+00:00",
+  "fetched_at_utc": "2026-10-17T04:22:32.345433+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-10-16",
   "n_target_fridays": 459,

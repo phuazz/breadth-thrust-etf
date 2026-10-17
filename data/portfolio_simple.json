@@ -4690,7 +4690,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-10-16",
- "computed_at_utc": "2026-10-17 03:47 UTC",
+ "computed_at_utc": "2026-10-17 05:01 UTC",
  "holdings": [
   {
    "ticker": "SHY",
@@ -4963,7 +4963,7 @@
  "n_positions": 16,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-10-17T03:48:00.905643+00:00",
+  "computed_at_utc": "2026-10-17T05:01:44.798345+00:00",
   "all_current": false,
   "strategies": [
    {
@@ -4989,13 +4989,11 @@
    {
     "sleeve": "C",
     "label": "Thematic",
-    "data_through": "2026-10-15",
+    "data_through": "2026-10-16",
     "venue_last_session": "2026-10-16",
-    "sessions_behind": 1,
-    "status": "behind",
-    "laggards": [
-     "BTC-USD"
-    ],
+    "sessions_behind": 0,
+    "status": "current",
+    "laggards": [],
     "why_plain": null
    },
    {
