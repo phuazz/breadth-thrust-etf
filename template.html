@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
   <title>Breadth-Thrust ETF Research</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -415,6 +416,7 @@
       padding: 14px 18px; border-radius: 6px; border: 1px solid var(--border);
       background: var(--bg-card); margin-bottom: 14px;
     }
+    #health-sleeve-readiness p { max-width: 66ch; }
     .health-stat-strip {
       /* auto-fit/minmax, matching every other stat grid on this page
          (:294, :1092, :1173, :1691). The old `repeat(5, 1fr)` could not
@@ -3652,6 +3654,8 @@
     <p class="section-sub">Every data feed the dashboard reads, with freshness status as of the last pipeline build. A red row means the signal panels that read from it could be stale — do not deploy off that signal until the row turns green. Click <code>fix command</code> on a red row to see exactly which script to run.</p>
 
     <div id="health-stat-strip" class="health-stat-strip"></div>
+
+    <div id="health-sleeve-readiness" class="health-card" style="display:none;"></div>
 
     <div id="health-overall-card" class="health-card" style="display:none;"></div>
 
@@ -12246,6 +12250,7 @@ function renderDataHealth() {
   const stripEl = document.getElementById('health-stat-strip');
   const tbody = document.querySelector('#health-table tbody');
   const overall = document.getElementById('health-overall-card');
+  const readiness = document.getElementById('health-sleeve-readiness');
   if (!h || !stripEl || !tbody) return;
 
   // Stat strip: 5 cards (Overall, OK, Warn, Stale, Broken)
@@ -12273,6 +12278,39 @@ function renderDataHealth() {
       <div class="n">${c.broken || 0}</div><div class="lbl">Broken / missing</div>
     </div>
   `;
+
+  // Readiness is separate from the monitored-feed warning count. The repair
+  // note is emitted only when the C decision gate and repair date agree.
+  if (readiness) {
+    const sleeves = ((window.DATA || {}).live_targets || {}).sleeves || [];
+    const c = sleeves.find(s => s.sleeve === 'C');
+    const d = sleeves.find(s => s.sleeve === 'D');
+    const repair = h.btc_repair_for_live_decision;
+    const lines = [];
+    if (c) {
+      lines.push(`C ${c.status}: decision session ${c.decision_session || 'unknown'}`
+        + (repair && repair.date === c.decision_session
+          ? `; Bitcoin close on that date uses a ${repair.method} from ${repair.source}`
+          : ''));
+    }
+    if (d) {
+      lines.push(`D ${d.status}: signal through ${d.decision_session || 'unknown'}`
+        + `; required Xetra session ${d.last_completed_session || 'unknown'}`);
+    }
+    readiness.replaceChildren();
+    const title = document.createElement('strong');
+    title.textContent = 'Sleeve readiness and price source';
+    readiness.appendChild(title);
+    for (const line of lines) {
+      const p = document.createElement('p');
+      p.textContent = line;
+      readiness.appendChild(p);
+    }
+    const note = document.createElement('p');
+    note.textContent = 'Feed warnings remain counted below even when a sleeve has a verified alternate price. A HOLD sleeve keeps its last book and has no new fill.';
+    readiness.appendChild(note);
+    readiness.style.display = lines.length ? 'block' : 'none';
+  }
 
   // Overall card: only shown when something is wrong, with a clear "what to do"
   if (overallStatus !== 'ok') {

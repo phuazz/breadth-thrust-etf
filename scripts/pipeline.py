@@ -27,8 +27,9 @@ Run:
 from __future__ import annotations
 
 import json
+import math
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -1023,6 +1024,62 @@ def _compute_data_health(today: date) -> dict:
     }
 
 
+def _btc_repair_for_live_decision(live_targets: dict | None,
+                                  ledger_path: Path | None = None,
+                                  *, now_utc: datetime | None = None) -> dict | None:
+    """Expose provenance only for the verified C decision date on this build.
+
+    The ledger does not establish readiness. The live-targets gate must have
+    declared C READY on the same completed decision session first.
+    """
+    sleeves = [s for s in (live_targets or {}).get("sleeves", [])
+               if isinstance(s, dict) and s.get("sleeve") == "C"]
+    if len(sleeves) != 1 or sleeves[0].get("status") != "READY":
+        return None
+    sleeve = sleeves[0]
+    day = sleeve.get("decision_session")
+    if not day or day != sleeve.get("last_completed_session"):
+        return None
+    now = now_utc if now_utc is not None else datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        return None
+    path = ledger_path if ledger_path is not None else DATA_DIR / "price_gap_repairs.jsonl"
+    try:
+        session_day = date.fromisoformat(day)
+        if session_day >= now.astimezone(timezone.utc).date():
+            return None
+        with path.open(encoding="utf-8") as fh:
+            entries = [json.loads(line) for line in fh if line.strip()]
+        if not all(isinstance(e, dict) for e in entries):
+            return None
+        matched = [e for e in entries
+                   if e.get("cache") == "thematic" and e.get("ticker") == "BTC-USD"
+                   and e.get("date") == day]
+        if len(matched) != 1:
+            return None
+        repair = matched[0]
+        previous = float(repair["prev_value"])
+        value = float(repair["value"])
+        movement = float(repair["implied_return"])
+        applied_at = datetime.fromisoformat(repair["applied_at_utc"])
+        if applied_at.tzinfo is None:
+            return None
+        applied_utc = applied_at.astimezone(timezone.utc)
+        if (repair.get("source") != "binance:BTCUSDT"
+                or repair.get("method") != "return_splice"
+                or not date.fromisoformat(repair["prev_date"]) < session_day
+                or applied_utc.date() <= session_day
+                or applied_utc > now.astimezone(timezone.utc) + timedelta(minutes=5)
+                or not all(math.isfinite(v) for v in (previous, value, movement))
+                or previous <= 0 or value <= 0
+                or not math.isclose(value, previous * (1 + movement), rel_tol=1e-9)):
+            return None
+    except (OSError, ValueError, TypeError, KeyError, OverflowError):
+        return None
+    return {"date": day, "source": "Binance BTCUSDT",
+            "method": "recorded return splice"}
+
+
 def inject(template_text: str, data: dict) -> str:
     payload_json = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     replacement = (
@@ -1529,6 +1586,8 @@ def main(dashboard_only: bool = False, strict_capture: bool = False) -> int:
     # + persistent header badge. Computed AFTER every other load so the
     # report reflects what was actually published.
     data_health = _compute_data_health(date.today())
+    data_health["btc_repair_for_live_decision"] = _btc_repair_for_live_decision(
+        live_targets)
     print(f"\nData health: overall={data_health['overall_status']}  "
            f"OK={data_health['counts']['ok']}  "
            f"WARN={data_health['counts']['warn']}  "
