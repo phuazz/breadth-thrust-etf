@@ -408,6 +408,17 @@ def test_the_banner_lists_prior_and_new_targets_and_what_stands(tmp_path, delive
     assert render_pdf(decision, current).startswith(b"%PDF")
 
 
+def test_restatement_banner_shows_small_real_target_changes():
+    from component_factsheet_view import restatement_banner
+    decision = {"anchor": "2026-09-11", "restated_lines": [{
+        "sleeve": "A", "etf": "SPY", "traded": "SPY", "label": "S&P 500",
+        "prior_target": 0.0108000, "new_target": 0.0108004,
+    }]}
+    banner = restatement_banner(decision, {"anchor": "2026-09-11"})
+    assert "from 1.08000% to 1.08004%" in banner
+    assert "from 1.08% to 1.08%" not in banner
+
+
 def test_restatement_workflow_is_manual_dry_by_default_and_reserves_before_send():
     workflow = (Path(__file__).resolve().parents[1]
                 / ".github/workflows/factsheet_restatement.yml").read_text(encoding="utf-8")

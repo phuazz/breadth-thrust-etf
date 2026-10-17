@@ -60,8 +60,9 @@ def fixture_book(now=NOW, d_ready=False, gate=False, tilt=False, rounded_d=False
     return book, basis
 
 
-def install(root, monkeypatch, *, now=NOW, ready=False, gate=False, rounded_d=False):
-    book, basis = fixture_book(now, ready, gate, rounded_d=rounded_d)
+def install(root, monkeypatch, *, now=NOW, ready=False, gate=False, rounded_d=False,
+            hold=()):
+    book, basis = fixture_book(now, ready, gate, rounded_d=rounded_d, hold=hold)
     for p in cr.source_paths(root):
         cr.write(p, {})
     cr.write(root / "data/live_targets.json", book)
@@ -87,6 +88,14 @@ def test_no_send_rehearsal_writes_preview_but_no_ledger(tmp_path, monkeypatch):
     install(tmp_path, monkeypatch)
     assert sender.prepare(tmp_path, NOW)["action"] == "preview"
     assert (tmp_path / sender.OUT / "preview.html").exists()
+    assert not (tmp_path / sender.LEDGER).exists()
+
+
+@pytest.mark.parametrize("d_ready", [False, True])
+def test_c_hold_cannot_prepare_a_distribution_candidate(tmp_path, monkeypatch, d_ready):
+    install(tmp_path, monkeypatch, ready=d_ready, hold=("C",))
+    assert sender.prepare(tmp_path, NOW)["action"] == "wait"
+    assert not (tmp_path / sender.OUT / "candidate.json").exists()
     assert not (tmp_path / sender.LEDGER).exists()
 
 

@@ -701,9 +701,19 @@ def restatement_banner(decision, release):
     labels = {**{r["etf"]: r["label"] for r in lines if r.get("label")},
               **(release.get("labels") or {})}
     named = {"labels": labels}
+    def displayed_pair(row):
+        # Show enough precision to distinguish a real correction that rounds
+        # to the same two-decimal percentage on both sides.
+        for decimals in range(2, 7):
+            before = pct(row["prior_target"], dp=decimals)
+            after = pct(row["new_target"], dp=decimals)
+            if before != after:
+                return before, after
+        raise ValueError("restated targets are indistinguishable at display precision")
+
     listed = "; ".join(
         f"{_strategy_list([r['sleeve']]) if r['sleeve'] in ('A', 'B', 'C', 'D') else NAMES.get(r['sleeve'], r['sleeve'])}: "
-        f"{position_name(r, named)} from {pct(r['prior_target'])} to {pct(r['new_target'])} of NAV"
+        f"{position_name(r, named)} from {displayed_pair(r)[0]} to {displayed_pair(r)[1]} of NAV"
         for r in lines)
     parts = [f"RESTATED INSTRUCTION for the week of {long_date(decision.get('anchor') or release['anchor'])}. "
              "This email arrives after the factsheet already sent for this week and supersedes "

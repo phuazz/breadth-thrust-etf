@@ -83,33 +83,29 @@ def _held_c_site(tmp_path, monkeypatch, *, d_ready):
 
 @pytest.mark.parametrize("d_ready", [True, False])
 def test_the_held_c_reaches_html_text_and_pdf(tmp_path, monkeypatch, d_ready):
-    """THROUGH THE ACTUAL SENDER, not the wording function alone."""
-    from component_factsheet_view import render_pdf, render_text
+    """A held C can be sealed but cannot reach any distribution surface."""
     release = _held_c_site(tmp_path, monkeypatch, d_ready=d_ready)
     assert release["held_sleeves"] == ["C"] if d_ready else \
         release["held_sleeves"] == ["C", "D"]
 
     decision = sender.prepare(tmp_path, NOW, reserve=True)
     assert "C" in decision["core_held"], decision
-    html = sender.render(decision, release)
-    text = render_text(decision, release)
-    pdf = render_pdf(decision, release)
-
-    for surface, body in (("html", html), ("text", text)):
-        assert "C on HOLD" in body or "C is on HOLD" in body, surface
-        assert "A-C ready" not in body, surface
-    assert b"%PDF" == pdf[:4]
-    assert len(pdf) > 1000
-    # The held sleeve has no row in the changes table, which is exactly why
-    # the sentence has to exist.
+    assert decision["action"] == "wait"
+    assert decision["audience"] is None
+    assert "C is on HOLD" in decision["reason"]
+    with pytest.raises(ValueError, match="approved send decision"):
+        sender.render(decision, release)
+    assert not (tmp_path / sender.OUT / "candidate.json").exists()
+    assert not (tmp_path / sender.LEDGER).exists()
     changed = [r for r in release["book"]["lines"]
                if r["sleeve"] == "C" and abs(r["delta"]) > 1e-8]
     assert not changed, "a held C should propose no trade"
 
 
 def test_delivery_deduplication_and_changed_core_review_survive(tmp_path, monkeypatch):
-    """The wording changed; the routing, ledger keys and dedup must not."""
-    release = _held_c_site(tmp_path, monkeypatch, d_ready=True)
+    """A ready core still deduplicates, and a changed core triggers review."""
+    install(tmp_path, monkeypatch, ready=True)
+    release = cr.seal(tmp_path, now=NOW)
     sent = []
     decision = sender.prepare(tmp_path, NOW, reserve=True)
     assert decision["action"] == "regular"
@@ -129,11 +125,20 @@ def test_delivery_deduplication_and_changed_core_review_survive(tmp_path, monkey
         core=Snapshot("a-different-core-identity", True, anchor, anchor),
         europe=Snapshot(release["europe_identity"], release["d_ready"],
                         anchor, anchor),
-        sent=sent_ledger, core_held=("C",))
+        sent=sent_ledger, core_held=())
     assert again["action"] == "alert" and again["audience"] == "operator"
     assert "review required" in again["reason"]
-    # And the held sleeve rides along without disturbing the routing.
-    assert again["core_held"] == ("C",)
+    # A later C HOLD also retains the changed-core alarm after distribution.
+    held_again = email_decision(
+        NOW, anchor=anchor,
+        core=Snapshot("a-different-core-identity", True, anchor, anchor),
+        europe=Snapshot(release["europe_identity"], release["d_ready"],
+                        anchor, anchor),
+        sent=sent_ledger, core_held=("C",))
+    assert held_again["action"] == "alert"
+    assert held_again["audience"] == "operator"
+    assert "review required" in held_again["reason"]
+    assert held_again["core_held"] == ("C",)
 
 
 # ---------------------------------------------------------------------------
