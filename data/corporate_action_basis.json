@@ -26,6 +26,16 @@
       "decided_on": "2026-10-17",
       "decided_by": "owner",
       "note": "Owner approved an adjusted-basis repair on 2026-10-17. The effective field identifies the first already-adjusted incumbent cache bar, not the issuer ex-date. Across shared pre-2026-09-30 cells the new Yahoo auto-adjusted series is 0.6653927 times the incumbent; from 2026-09-30 through 2026-10-09 it is 0.9914352 times the incumbent, consistent with the separate dividend adjustment. The Yahoo split calendar reports 1.49 on 2026-10-12. Exchange filing: https://static.sse.com.cn/disclosure/listedinfo/announcement/c/new/2026-09-29/688110_20260929_06I9.pdf. Admit the complete adjusted series only after the basis guard matches this seam and factor."
+    },
+    {
+      "ticker": "JMAT.L",
+      "event": "2026-08-17 issuer effective date: three new ordinary shares for four existing shares, alongside a special dividend; the incumbent cache began carrying split-adjusted bars on 2026-08-06 while older bars remained on the prior basis",
+      "effective": "2026-08-06",
+      "factor": 0.75,
+      "basis": "adjusted",
+      "decided_on": "2026-10-17",
+      "decided_by": "owner",
+      "note": "Owner approved an adjusted-basis repair on 2026-10-17. The effective field identifies the first already-adjusted incumbent cache bar, not the issuer effective date. Across 2,171 shared cells through 2026-08-05, Yahoo's current auto-adjusted series is 1.331163 times the incumbent; across seven shared cells from 2026-08-06 through 2026-08-14 the ratio is 0.998373. Yahoo's split calendar reports 0.75 on 2026-08-17. Issuer source: https://matthey.com/investors/shareholder-services/shareholder-meetings/general-meeting-2026. Admit the complete adjusted series only after the basis guard matches this seam and factor."
     }
   ]
 }
