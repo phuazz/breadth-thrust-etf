@@ -1,13 +1,13 @@
 {
   "etf": "EXV7",
-  "computed_at_utc": "2026-10-17T03:31:06.445231+00:00",
+  "computed_at_utc": "2026-10-17T06:08:14.056808+00:00",
   "constituents_source": "data\\constituents_exv7.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
   "end_date": "2026-10-16",
   "tail_cap": null,
   "tail_verification": {
-    "checked_at_utc": "2026-10-17T03:30:33+00:00",
+    "checked_at_utc": "2026-10-17T06:08:01+00:00",
     "probe": "yfinance single-ticker history",
     "last_populated": "2026-10-15",
     "rows": [
