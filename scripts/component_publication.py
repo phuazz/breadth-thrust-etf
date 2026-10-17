@@ -71,10 +71,9 @@ def email_decision(now: datetime, *, anchor: str, core: Snapshot,
     local = now.astimezone(SGT)
     # `core_held` names the A/B/C sleeves the VERIFIED release records on an
     # authorised HOLD (2026-09-19). A verified core no longer means three
-    # ranked sleeves - C holds whenever the coverage floor refuses a partial
-    # decision row - and the cover text said "A-C ready" regardless. It
-    # changes no decision, only what the reader is told: routing, ledger keys
-    # and deduplication are untouched.
+    # ranked sleeves: C can remain held when its coverage floor refuses a
+    # partial decision row. A C HOLD now blocks distribution as well as being
+    # carried in the decision for operator review.
     result = {"action": "wait", "audience": None, "d_hold": not europe.ready,
               "core_held": tuple(sorted(core_held)),
               "anchor": anchor, "core_identity": core.identity,
@@ -96,6 +95,10 @@ def email_decision(now: datetime, *, anchor: str, core: Snapshot,
     if sent.get("core") and sent["core"] != core.identity:
         return {**result, "action": "alert", "audience": "operator",
                 "reason": "core changed after distribution; review required"}
+    if "C" in core_held:
+        return {**result, "action": "alert" if local >= regular_at else "wait",
+                "audience": "operator" if local >= regular_at else None,
+                "reason": "Strategy C is on HOLD; no factsheet distribution"}
     supersession = sent.get("preview_supersession")
     if supersession:
         # A correction receipt does not impersonate an ordinary delivery.

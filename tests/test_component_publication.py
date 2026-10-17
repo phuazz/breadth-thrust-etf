@@ -9,16 +9,31 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 from component_publication import Snapshot, email_decision, email_wording, resize_held_basket, review_window
 
 
-def decide(at, *, d_ready=False, sent=None, core_ok=True, operator_hold=False):
+def decide(at, *, d_ready=False, sent=None, core_ok=True, operator_hold=False,
+           core_held=()):
     return email_decision(datetime.fromisoformat(at), anchor="2026-09-11",
         core=Snapshot("core1", core_ok, "2026-09-11", "2026-09-11"),
         europe=Snapshot("d1", d_ready, "2026-09-11", "2026-09-11"),
-        sent=sent or {}, operator_hold=operator_hold)
+        sent=sent or {}, operator_hold=operator_hold, core_held=core_held)
 
 
 def test_distribution_preview_does_not_wait_for_europe():
     r = decide("2026-09-12T16:00:00+08:00")
     assert (r["action"], r["audience"], r["d_hold"]) == ("preview", "distribution", True)
+
+
+@pytest.mark.parametrize("d_ready", [False, True])
+def test_c_hold_blocks_preview_and_regular_until_c_is_ready(d_ready):
+    saturday = "2026-09-12T16:00:00+08:00"
+    sunday = "2026-09-13T18:00:00+08:00"
+    for when, expected in ((saturday, "wait"), (sunday, "alert")):
+        held = decide(when, core_held=("C",), d_ready=d_ready)
+        assert held["action"] == expected
+        assert held["audience"] != "distribution"
+        assert "C is on HOLD" in held["reason"]
+    assert decide(saturday, d_ready=d_ready)["action"] == (
+        "regular" if d_ready else "preview")
+    assert decide(sunday)["action"] == "regular"
 
 
 def test_both_stages_use_distribution_but_failures_are_operator_only():
