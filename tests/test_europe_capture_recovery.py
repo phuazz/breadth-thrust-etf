@@ -65,7 +65,8 @@ def test_capture_only_never_prepares_book_or_runs_engines(monkeypatch, capture_f
         return (not capture_fails or "fetch_constituents.py" not in cmd[1]), 0
     monkeypatch.setattr(refresh, "run_step", step)
     assert refresh.main() == (1 if capture_fails else 0)
-    assert calls[0][-1] == "EXV1"
+    assert calls[0][calls[0].index("--etf") + 1] == "EXV1"
+    assert "--end-friday" in calls[0]
     assert calls[-1][1:] == ["scripts/export_holdings_prices.py", "--refresh-caches-only",
                             "--component", "europe"]
     assert all(c[1] in {"scripts/fetch_constituents.py", "scripts/compute_breadth.py",

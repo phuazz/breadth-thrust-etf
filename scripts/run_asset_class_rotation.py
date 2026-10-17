@@ -259,7 +259,8 @@ def download_prices() -> pd.DataFrame:
     ad-hoc midweek run, silently rebalancing on stale closes.
     """
     needed = TICKERS + CASH_ONLY_TICKERS
-    current_through = last_completed_session(datetime.now(timezone.utc))
+    acquisition_started = datetime.now(timezone.utc)
+    current_through = last_completed_session(acquisition_started)
     # Resolved FIRST, so a request for Norgate that cannot be met fails here
     # rather than after a silent fallback (price_source.py, 2026-09-03).
     price_source, why = price_source_mod.resolve_source(
@@ -330,6 +331,11 @@ def download_prices() -> pd.DataFrame:
     df = pd.DataFrame(closes).reindex(columns=needed)
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.sort_index().dropna(how="all")
+
+    # The batch can contain an unfinished US session. Do not let that row
+    # disqualify a complete Norgate column under the date-superset rule.
+    # Keep the final cap below as a guard on the selected source too.
+    df = df.loc[:pd.Timestamp(current_through)]
 
     # ----- Norgate price source, opt-in (2026-08-30) -----
     # Set BTE_PRICE_SOURCE=norgate to prefer the locally licensed feed for the

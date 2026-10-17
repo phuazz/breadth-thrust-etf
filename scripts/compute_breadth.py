@@ -1485,6 +1485,13 @@ def download_prices(
                          f"{whole[:8]}" if whole else ""), flush=True)
             close = close.sort_index()
 
+    # The vendor observation above remains raw, but an unfinished row is not
+    # a date the alternate source must cover. Cap the merged base before the
+    # whole-column Norgate superset test; the final cap below still checks the
+    # selected frame. This does not fill or overwrite any historical cell.
+    if required_through is not None:
+        close = close.loc[:pd.Timestamp(required_through)]
+
     # ----- WS19/WS19b price-source selection (2026-08-30, pre-registered) -----
     #
     # POSITION IS LOAD-BEARING. This runs LAST, after the WS15 step-defect

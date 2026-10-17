@@ -66,6 +66,31 @@ def test_latest_completed_friday_year_boundary():
     assert latest_completed_friday(date(2026, 1, 4)) == date(2026, 1, 2)
 
 
+def test_frozen_roster_friday_survives_month_boundary():
+    # Python date months are 1-indexed. A run starts on Friday 2026-01-30
+    # and its later fetches run after midnight on Saturday 2026-01-31.
+    frozen = fc.resolve_end_friday(date(2026, 1, 30), None)
+    assert frozen == date(2026, 1, 23)
+    assert fc.resolve_end_friday(date(2026, 1, 31), frozen) == frozen
+
+
+def test_frozen_roster_friday_survives_year_boundary():
+    # Python date months are 1-indexed. New Year's Friday is not settled
+    # until the next local day, but the earlier target survives the rollover.
+    frozen = fc.resolve_end_friday(date(2027, 1, 1), None)
+    assert frozen == date(2026, 12, 25)
+    assert fc.resolve_end_friday(date(2027, 1, 2), frozen) == frozen
+
+
+def test_roster_target_rejects_unsettled_or_non_friday():
+    import pytest
+
+    with pytest.raises(ValueError, match="settled Friday"):
+        fc.resolve_end_friday(date(2026, 10, 16), date(2026, 10, 16))
+    with pytest.raises(ValueError, match="settled Friday"):
+        fc.resolve_end_friday(date(2026, 10, 17), date(2026, 10, 15))
+
+
 def test_parse_holdings_empty_template():
     """iShares returns this preamble pattern when no data exists for a date."""
     body = (

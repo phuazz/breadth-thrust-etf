@@ -185,7 +185,8 @@ def _degenerate_ohlc_reason(frame: "pd.DataFrame | None",
 
 
 def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
-                       yf_symbol: str | None = None) -> pd.DataFrame:
+                       yf_symbol: str | None = None,
+                       completed_through: pd.Timestamp | None = None) -> pd.DataFrame:
     """Download the parent ETF's OHLC + Close, with parquet cache.
 
     Despite the legacy name, this function is ETF-parameterised. Callers that
@@ -234,6 +235,14 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
                       progress=False, threads=False)
     if isinstance(raw.columns, pd.MultiIndex):
         raw.columns = raw.columns.get_level_values(0)
+    # A live Yahoo response may include an unfinished session that the
+    # completed Norgate series cannot cover. The caller's venue bound is
+    # frozen before acquisition; compare and cache completed bars only.
+    # Apply the existing degenerate-response guard to the capped frame.
+    if completed_through is not None and raw is not None and len(raw):
+        raw = raw.copy()
+        raw.index = pd.to_datetime(raw.index).tz_localize(None)
+        raw = raw.loc[:pd.Timestamp(completed_through)]
     why = _degenerate_ohlc_reason(raw, require_ohlc=True)
     if why is None:
         raw = raw[["Open", "High", "Low", "Close"]].copy()
