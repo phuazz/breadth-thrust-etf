@@ -1,33 +1,32 @@
 {
   "etf": "IUHC",
-  "computed_at_utc": "2026-10-14T04:14:02.706363+00:00",
+  "computed_at_utc": "2026-10-17T02:14:44.841337+00:00",
   "constituents_source": "data\\constituents_iuhc.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
-  "end_date": "2026-10-13",
+  "end_date": "2026-10-16",
   "tail_cap": null,
   "tail_verification": null,
+  "tail_from_norgate": null,
   "current_capture": {
     "schema_version": 1,
-    "roster_fingerprint": "f64df2a8b2937f94215a90e18dce3d197091f317cd725bb8bc56b3e5007919dd",
-    "roster_target": "2026-10-09",
-    "roster_actual": "2026-10-09",
+    "roster_fingerprint": "edd9470914e325bf2fb8890114fbd039b1853fde6be0e5c168738dffd7bdb9c1",
+    "roster_target": "2026-10-16",
+    "roster_actual": "2026-10-15",
     "roster_carried": false,
     "roster_endpoint_status": "ok",
     "roster_staleness": "fresh",
     "requested_price_source": "auto",
-    "required_price_session": "2026-10-13",
-    "panel_through": "2026-10-13",
+    "required_price_session": "2026-10-16",
+    "panel_through": "2026-10-16",
     "panel_current": true,
-    "n_active": 61,
+    "n_active": 60,
     "n_priced_through_required": 60,
     "no_price_history": [],
-    "behind_required_session": {
-      "HOLX": "2026-04-06"
-    },
+    "behind_required_session": {},
     "note": "Availability of active constituents; breadth coverage rules are unchanged."
   },
-  "n_trading_days": 2204,
+  "n_trading_days": 2207,
   "n_signals": 34,
   "first_eligible_signal_date": "2019-01-08",
   "config": {
@@ -46,16 +45,16 @@
     "price_warmup_calendar_days": 180
   },
   "data_quality": {
-    "roster_coverage_latest": 0.9836065573770492,
+    "roster_coverage_latest": 1.0,
     "roster_coverage_warn_floor": 0.9,
     "roster_coverage_fail_floor": 0.5,
-    "universe_size": 87,
+    "universe_size": 86,
     "tickers_with_any_yf_data": 86,
-    "tickers_with_no_yf_data": 1,
+    "tickers_with_no_yf_data": 0,
     "max_missing_constituent_pct": 0.016949152542372836,
-    "mean_missing_constituent_pct": 0.0007045959745135719,
+    "mean_missing_constituent_pct": 0.00010172824072562793,
     "first_date_below_10pct_missing": "2018-01-05",
-    "note": "1 of 87 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. HOLX US). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
+    "note": "0 of 86 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
   "signals": [
     {
@@ -523,7 +522,7 @@
         "rsi",
         "highs"
       ],
-      "n_constituents": 60,
+      "n_constituents": 59,
       "n_with_price": 59
     },
     {
@@ -537,7 +536,7 @@
         "rsi",
         "highs"
       ],
-      "n_constituents": 60,
+      "n_constituents": 59,
       "n_with_price": 59
     }
   ],
@@ -2746,7 +2745,10 @@
       "2026-10-08",
       "2026-10-09",
       "2026-10-12",
-      "2026-10-13"
+      "2026-10-13",
+      "2026-10-14",
+      "2026-10-15",
+      "2026-10-16"
     ],
     "n_constituents": [
       61,
@@ -4873,6 +4875,68 @@
       59,
       59,
       59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
+      59,
       60,
       60,
       60,
@@ -4893,66 +4957,7 @@
       60,
       60,
       60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      60,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61,
-      61
+      60
     ],
     "n_with_price": [
       61,
@@ -7141,6 +7146,9 @@
       59,
       59,
       59,
+      60,
+      60,
+      60,
       60,
       60,
       60,
@@ -9364,6 +9372,9 @@
       60,
       60,
       60,
+      60,
+      60,
+      60,
       60
     ],
     "n_with_ma50": [
@@ -11553,6 +11564,9 @@
       59,
       59,
       59,
+      60,
+      60,
+      60,
       60,
       60,
       60,
@@ -13776,6 +13790,9 @@
       60,
       60,
       60,
+      60,
+      60,
+      60,
       60
     ],
     "rsi_breadth": [
@@ -15982,7 +15999,10 @@
       0.0,
       0.033333,
       0.016667,
-      0.05
+      0.05,
+      0.05,
+      0.166667,
+      0.116667
     ],
     "ma_breadth": [
       0.901639,
@@ -18188,7 +18208,10 @@
       0.483333,
       0.566667,
       0.583333,
-      0.583333
+      0.583333,
+      0.616667,
+      0.766667,
+      0.733333
     ],
     "highs_breadth": [
       0.393443,
@@ -20394,7 +20417,10 @@
       0.066667,
       0.133333,
       0.116667,
-      0.083333
+      0.083333,
+      0.2,
+      0.383333,
+      0.133333
     ],
     "rsi_breadth_z": [
       null,
@@ -22600,7 +22626,10 @@
       -0.861886,
       -0.458814,
       -0.660089,
-      -0.257019
+      -0.257019,
+      -0.256957,
+      1.153695,
+      0.548592
     ],
     "ma_breadth_z": [
       null,
@@ -24806,7 +24835,10 @@
       -0.337107,
       0.035446,
       0.109948,
-      0.109923
+      0.109923,
+      0.258985,
+      0.929959,
+      0.780442
     ],
     "highs_breadth_z": [
       null,
@@ -27012,7 +27044,10 @@
       -0.231766,
       0.477075,
       0.299715,
-      -0.054887
+      -0.054887,
+      1.186255,
+      3.135774,
+      0.474086
     ],
     "composite_z": [
       null,
@@ -29218,7 +29253,10 @@
       -0.476919,
       0.017902,
       -0.083475,
-      -0.067328
+      -0.067328,
+      0.396094,
+      1.739809,
+      0.60104
     ],
     "composite_p90": [
       null,
@@ -31424,7 +31462,10 @@
       0.995127,
       0.994905,
       0.994615,
-      0.994325
+      0.994325,
+      0.994035,
+      0.993745,
+      0.996016
     ],
     "composite_p10": [
       null,
@@ -33630,7 +33671,10 @@
       -1.031649,
       -1.031568,
       -1.031472,
-      -1.031375
+      -1.031375,
+      -1.031278,
+      -1.031182,
+      -1.031085
     ],
     "rsi_p90": [
       null,
@@ -35684,6 +35728,9 @@
       0.188393,
       0.188095,
       0.187798,
+      0.1875,
+      0.1875,
+      0.1875,
       0.1875,
       0.1875,
       0.1875,
@@ -38042,6 +38089,9 @@
       0.222222,
       0.222222,
       0.222222,
+      0.222222,
+      0.222222,
+      0.222222,
       0.222222
     ],
     "rsi_trigger": [
@@ -40248,6 +40298,9 @@
       0,
       0,
       0,
+      0,
+      0,
+      0,
       0
     ],
     "ma_zweig_trigger": [
@@ -42394,6 +42447,9 @@
       1,
       1,
       1,
+      0,
+      0,
+      0,
       0,
       0,
       0,
@@ -44660,6 +44716,9 @@
       0,
       0,
       0,
+      0,
+      0,
+      1,
       0
     ],
     "trigger_count": [
@@ -46866,6 +46925,9 @@
       0,
       0,
       0,
+      0,
+      0,
+      1,
       0
     ],
     "composite_above_p90": [
@@ -49072,6 +49134,9 @@
       0,
       0,
       0,
+      0,
+      0,
+      1,
       0
     ],
     "composite_crosses_p90": [
@@ -51278,6 +51343,9 @@
       0,
       0,
       0,
+      0,
+      0,
+      1,
       0
     ],
     "signal_eligible": [
@@ -51533,6 +51601,9 @@
       0,
       0,
       0,
+      1,
+      1,
+      1,
       1,
       1,
       1,
@@ -55653,6 +55724,9 @@
       0,
       0,
       1,
+      0,
+      0,
+      0,
       0,
       0,
       0,
