@@ -2,11 +2,11 @@
   "etf": "EXV7",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-10-11T01:06:32.318669+00:00",
+  "fetched_at_utc": "2026-10-17T03:30:24.318414+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-10-09",
-  "n_target_fridays": 458,
-  "n_snapshots_written": 458,
+  "end_friday": "2026-10-16",
+  "n_target_fridays": 459,
+  "n_snapshots_written": 459,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -38,8 +38,8 @@
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-10-09",
-      "fallback_date": "2026-10-08",
+      "target_friday": "2026-10-16",
+      "fallback_date": "2026-10-15",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
@@ -60,7 +60,7 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-10-08",
+    "last_real_fetch_date": "2026-10-15",
     "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
@@ -12833,7 +12833,7 @@
       ]
     },
     "2026-10-09": {
-      "actual_date": "2026-10-08",
+      "actual_date": "2026-10-09",
       "n_tickers": 18,
       "tickers": [
         "AI.PA",
@@ -12843,8 +12843,32 @@
         "HEN3.DE",
         "AKZA.AS",
         "BNR.DE",
-        "YAR.OL",
         "EMSN.SW",
+        "YAR.OL",
+        "IMCD.AS",
+        "EVK.DE",
+        "SYENS.BR",
+        "CRDA.L",
+        "UMI.BR",
+        "JMAT.L",
+        "AKE.PA",
+        "FPE3.DE",
+        "SDF.DE"
+      ]
+    },
+    "2026-10-16": {
+      "actual_date": "2026-10-15",
+      "n_tickers": 18,
+      "tickers": [
+        "AI.PA",
+        "GIVN.SW",
+        "BAS.DE",
+        "SY1.DE",
+        "HEN3.DE",
+        "AKZA.AS",
+        "BNR.DE",
+        "EMSN.SW",
+        "YAR.OL",
         "IMCD.AS",
         "SYENS.BR",
         "EVK.DE",

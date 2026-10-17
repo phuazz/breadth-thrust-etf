@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-10-17T03:00:39+00:00",
+  "computed_at_utc": "2026-10-17T03:48:22+00:00",
   "as_of": "2026-10-16",
   "next_fill": {
     "summary": "16 moves at the next fill (NYSE Mon 19 Oct 2026, XETR Mon 19 Oct 2026), ranked on the Fri 16 Oct 2026 close; one-way turnover 21.33% of NAV; 2 new names; 2 exits. Signals compared with the previous decision close.",
@@ -741,7 +741,7 @@
     ],
     "holds": [
       "Sleeve C is held and its book is unchanged: decision row carries 24 of 25 names \u2014 below the 100% coverage floor; a partial row is a different signal, not a smaller one; missing signal inputs: BTC-USD.",
-      "Sleeve D is held and its book is unchanged: signal reaches 2026-10-12 but the last completed XETR session is 2026-10-16 \u2014 ranking now would use an earlier session."
+      "Sleeve D is held and its book is unchanged: signal reaches 2026-10-15 but the last completed XETR session is 2026-10-16 \u2014 ranking now would use an earlier session."
     ],
     "notes": [],
     "decision_session": "2026-10-16",
@@ -751,12 +751,12 @@
     }
   },
   "week": {
-    "text": "Week Fri 9 Oct 2026 close \u2192 Fri 16 Oct 2026 close: the blend returned -1.28% against SPY -1.98%. By sleeve: Sleeve D +0.13pp (+0.64% at 20% of NAV), Sleeve C +0.02pp (+0.20% at 10% of NAV), Sleeve B -0.46pp (-1.32% at 35% of NAV), Sleeve A -0.81pp (-2.30% at 35% of NAV). Largest contributors: XLV (iShares S&P 500 Health Care) +0.28pp (+2.7% at 10.2%); XLE (iShares S&P 500 Energy) +0.27pp (+3.4% at 8.1%); DBC (Broad Commodities) +0.12pp (+1.2% at 10.1%). Largest detractors: SOXX (iShares Semiconductors) -0.98pp (-9.4% at 10.4%); QQQ (NASDAQ-100 (US tech-heavy)) -0.37pp (-4.9% at 7.6%); EXV3.DE (STOXX Europe 600 Technology) -0.19pp (-3.1% at 6.2%). Holding contributions are weight \u00d7 return from the Mon 12 Oct 2026 close to the Fri 16 Oct 2026 close, 17 of 17 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 45.0% above the 50-day average (+8.8pp on the week).",
-    "headline": "Blend -1.28% \u00b7 SPY -1.98% \u00b7 Fri 9 Oct 2026 \u2192 Fri 16 Oct 2026 close",
+    "text": "Week Fri 9 Oct 2026 close \u2192 Fri 16 Oct 2026 close: the blend returned -1.40% against SPY -1.98%. By sleeve: Sleeve C +0.02pp (+0.20% at 10% of NAV), Sleeve D -0.16pp (-0.78% at 20% of NAV), Sleeve B -0.46pp (-1.32% at 35% of NAV), Sleeve A -0.81pp (-2.30% at 35% of NAV). Largest contributors: XLV (iShares S&P 500 Health Care) +0.28pp (+2.7% at 10.2%); XLE (iShares S&P 500 Energy) +0.27pp (+3.4% at 8.1%); DBC (Broad Commodities) +0.12pp (+1.2% at 10.1%). Largest detractors: SOXX (iShares Semiconductors) -0.98pp (-9.4% at 10.4%); QQQ (NASDAQ-100 (US tech-heavy)) -0.37pp (-4.9% at 7.6%); EXV3.DE (STOXX Europe 600 Technology) -0.19pp (-3.1% at 6.2%). Holding contributions are weight \u00d7 return from the Mon 12 Oct 2026 close to the Fri 16 Oct 2026 close, 17 of 17 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 45.0% above the 50-day average (+8.8pp on the week).",
+    "headline": "Blend -1.40% \u00b7 SPY -1.98% \u00b7 Fri 9 Oct 2026 \u2192 Fri 16 Oct 2026 close",
     "lines": [
       {
         "label": "By sleeve",
-        "text": "D +0.13pp (+0.6% on 20%) \u00b7 C +0.02pp (+0.2% on 10%) \u00b7 B -0.46pp (-1.3% on 35%) \u00b7 A -0.81pp (-2.3% on 35%)"
+        "text": "C +0.02pp (+0.2% on 10%) \u00b7 D -0.16pp (-0.8% on 20%) \u00b7 B -0.46pp (-1.3% on 35%) \u00b7 A -0.81pp (-2.3% on 35%)"
       },
       {
         "label": "Helped",
@@ -774,7 +774,7 @@
     "basis": "Holding contributions are weight \u00d7 return from the Mon 12 Oct 2026 close to the Fri 16 Oct 2026 close, 17 of 17 holdings priced from the one-year price panel.",
     "start": "2026-10-09",
     "end": "2026-10-16",
-    "blend_return": -0.012773785769483625,
+    "blend_return": -0.014019785374617455,
     "spy_return": -0.019779090675571487,
     "holdings": [
       {
