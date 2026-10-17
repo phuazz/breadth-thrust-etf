@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-10-16T23:48:23+00:00",
+  "built_at_utc": "2026-10-17T01:30:15+00:00",
   "as_of": "2026-10-16",
   "as_of_modal": "2026-10-16",
   "as_of_modal_share": "48/54",
@@ -2412,6 +2412,7 @@
     "failures": [],
     "stale": [],
     "notes": [
+      "snapshots not refreshed this run (--skip-snapshots)",
       "naive-recompute check passed on COPX, CQQQ, DBC"
     ],
     "stale_threshold_sessions": 3
