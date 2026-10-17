@@ -636,6 +636,9 @@ def download_prices() -> pd.DataFrame:
     cache_crypto_ok = not crypto_names
     if PRICE_CACHE.exists():
         cached = pd.read_parquet(PRICE_CACHE)
+        from repair_price_gaps import LEDGER, verify_auto_btc_cache
+        verify_auto_btc_cache(
+            cached, price_source_mod.read_cache_sidecar(PRICE_CACHE) or {}, LEDGER)
         cache_crypto_ok = completed_prices.cache_crypto_verified(
             PRICE_CACHE, crypto_names, current_through)
         cached = completed_prices.mask_uncompleted_crypto(
@@ -781,6 +784,38 @@ def download_prices() -> pd.DataFrame:
     # the same fee, so charging it again here would double-count it.
     if btc_declared:
         df = _splice_btc_column(df)
+    else:
+        from repair_price_gaps import (  # noqa: E402
+            LEDGER, RepairError, recover_completed_btc_tail,
+            restore_recorded_btc_gaps,
+        )
+        prior_sidecar = price_source_mod.read_cache_sidecar(PRICE_CACHE) or {}
+        prior_crypto_bound = (prior_sidecar.get("completed_crypto_through") or {}).get(
+            btc_basis.SPOT_KEY)
+        df, retained_gap_repairs = restore_recorded_btc_gaps(
+            df, cached, ledger=LEDGER, completed_through=crypto_bound,
+            cache_proved_through=prior_crypto_bound,
+            decision_session=current_through,
+            same_source_and_basis=(
+                cache_source == price_source and
+                (prior_sidecar.get("column_basis") or {}).get(btc_basis.SPOT_KEY)
+                is None))
+        if retained_gap_repairs:
+            print(f"  Retained {len(retained_gap_repairs)} previously applied "
+                  "Bitcoin gap repair(s) with matching cache and ledger")
+        try:
+            df, new_btc_repair = recover_completed_btc_tail(
+                df, required_session=current_through,
+                completed_through=crypto_bound,
+                annual_fee_bps=UNIVERSE["BTC-USD"]["expense_ratio_bps"])
+        except RepairError as exc:
+            new_btc_repair = None
+            print(f"  BTC automatic tail repair REFUSED: {exc}", flush=True)
+        if new_btc_repair:
+            print(f"  BTC completed tail repaired from "
+                  f"{new_btc_repair['source']} return; "
+                  f"{new_btc_repair['overlap_returns']} overlap checks passed",
+                  flush=True)
     # REFUSE A DEGENERATE WRITE. Same rule as the SOXX OHLC path and the
     # sibling in run_asset_class_rotation: an empty or shrunken fetch is a
     # sourcing fault and must not replace a good cache.
@@ -819,6 +854,11 @@ def download_prices() -> pd.DataFrame:
             return cached[needed]
         raise RuntimeError(
             f"price fetch unusable and no cache to fall back on: {worse}")
+    if not btc_declared and new_btc_repair:
+        from repair_price_gaps import record_auto_btc_repair
+        # Check the tracked ledger before replacing the last usable cache.
+        # The durable append still follows the cache and sidecar write.
+        record_auto_btc_repair(new_btc_repair, LEDGER, check_only=True)
     df.to_parquet(PRICE_CACHE)
     _sidecar = dict(_ngrep or {})
     if crypto_names:
@@ -826,6 +866,10 @@ def download_prices() -> pd.DataFrame:
             t: str(crypto_bound.date()) for t in crypto_names}
     if _heal:
         _sidecar["tail_heal"] = _heal
+    if not btc_declared and retained_gap_repairs:
+        _sidecar["retained_gap_repairs"] = retained_gap_repairs
+    if not btc_declared and new_btc_repair:
+        _sidecar["auto_btc_repair"] = new_btc_repair
     if btc_declared:
         # The declared per-column basis. Without it the first rebuild under the
         # flag changes every populated cell from the cut-over onward and the
@@ -843,6 +887,9 @@ def download_prices() -> pd.DataFrame:
                                  if c != btc_basis.TRADED]
     price_source_mod.write_cache_source(PRICE_CACHE, price_source,
                                         _sidecar or None)
+    if not btc_declared and new_btc_repair:
+        from repair_price_gaps import record_auto_btc_repair
+        record_auto_btc_repair(new_btc_repair, LEDGER)
     print(f"  Downloaded {df.shape[0]} rows x {df.shape[1]} tickers "
           f"(source recorded: {price_source})")
     return df

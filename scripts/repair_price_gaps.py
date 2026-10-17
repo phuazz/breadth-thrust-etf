@@ -105,6 +105,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
+import statistics
 import sys
 import urllib.request
 from datetime import datetime, timezone
@@ -122,6 +124,7 @@ LEDGER = DATA_DIR / "price_gap_repairs.jsonl"
 # than this intraday, so this is not "impossible" -- it is the line past which
 # a machine should stop and a human should look.
 MAX_PLAUSIBLE_MOVE = 0.25
+MAX_BACKFILL_DIFFERENCE = 0.01
 
 # How far back to bother looking. Older gaps are already baked into a
 # published record; repairing them would restate history silently.
@@ -331,6 +334,259 @@ def _splice_from(series: pd.Series, label: str, g: pd.Timestamp,
     rec.update(source=label, method="return_splice", value=v,
                implied_return=float(series.loc[g] / series.loc[prev] - 1))
     return True
+
+
+def restore_recorded_btc_gaps(fresh: pd.DataFrame, cached: pd.DataFrame | None,
+                              *, ledger: Path, completed_through,
+                              cache_proved_through, decision_session,
+                              same_source_and_basis: bool
+                              ) -> tuple[pd.DataFrame, list[dict]]:
+    """Carry already-published BTC repairs through a later primary download.
+
+    A ledger row alone is not proof: the incumbent cache, its completed-day
+    attestation and the rebuilt preceding price must all agree. A materially
+    different primary backfill needs review before historical output changes.
+    """
+    ticker = "BTC-USD"
+    if not ledger.exists() or ticker not in fresh.columns:
+        return fresh, []
+    try:
+        with ledger.open(encoding="utf-8") as fh:
+            records = [json.loads(line) for line in fh if line.strip()]
+    except (OSError, ValueError, TypeError) as exc:
+        raise RepairError("cannot verify the applied BTC repair ledger") from exc
+    decision = pd.Timestamp(decision_session)
+    bound = pd.Timestamp(completed_through)
+    if (not same_source_and_basis or cached is None
+            or ticker not in cached.columns):
+        for rec in records:
+            if rec.get("cache") != "thematic" or rec.get("ticker") != ticker:
+                continue
+            day = pd.Timestamp(rec.get("date"))
+            if day <= bound and day < decision:
+                raise RepairError("historical BTC repair has no matching "
+                                  "completed cache to prove published history")
+        return fresh, []
+    proof_bound = pd.Timestamp(cache_proved_through)
+    relevant = [r for r in records
+                if r.get("cache") == "thematic" and r.get("ticker") == ticker
+                and pd.Timestamp(r.get("date")) <= min(bound, decision)]
+    if not relevant:
+        return fresh, []
+    if pd.isna(proof_bound):
+        raise RepairError("applied BTC repair has no cache completion attestation")
+
+    out = fresh.copy()
+    retained = []
+    seen = set()
+    for rec in relevant:
+        try:
+            day = pd.Timestamp(rec["date"])
+            prev = pd.Timestamp(rec["prev_date"])
+            value = float(rec["value"])
+            previous = float(rec["prev_value"])
+            movement = float(rec["implied_return"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RepairError("invalid applied BTC repair record") from exc
+        if day in seen:
+            raise RepairError(f"duplicate applied BTC repair for {day.date()}")
+        seen.add(day)
+        if (rec.get("method") != "return_splice"
+                or rec.get("source") not in ("primary:yfinance", "binance:BTCUSDT")
+                or not prev < day <= bound or day > proof_bound
+                or not all(math.isfinite(v) and v > 0 for v in (value, previous))
+                or not math.isfinite(movement)
+                or abs(movement) > MAX_PLAUSIBLE_MOVE
+                or not math.isclose(value, previous * (1 + movement), rel_tol=1e-9)
+                or day not in cached.index or prev not in cached.index
+                or prev not in out.index
+                or not math.isclose(float(cached.at[prev, ticker]), previous,
+                                    rel_tol=1e-9)
+                or not math.isclose(float(out.at[prev, ticker]), previous,
+                                    rel_tol=1e-9)):
+            raise RepairError(f"applied BTC repair {day.date()} no longer matches "
+                              "its completed cache and price basis")
+        incumbent = float(cached.at[day, ticker])
+        drift = abs(incumbent / value - 1)
+        if (not math.isfinite(drift) or incumbent <= 0
+                or drift > MAX_BACKFILL_DIFFERENCE
+                or (day == decision
+                    and not math.isclose(incumbent, value, rel_tol=1e-9))):
+            raise RepairError(f"BTC cache for {day.date()} conflicts with its "
+                              "applied repair; review before restatement")
+        if day in out.index and pd.notna(out.at[day, ticker]):
+            difference = abs(float(out.at[day, ticker]) / incumbent - 1)
+            if not math.isfinite(difference) or difference > MAX_BACKFILL_DIFFERENCE:
+                raise RepairError(f"BTC primary backfill for {day.date()} differs "
+                                  "materially from the published repair; review "
+                                  "before restatement")
+            # The released value stays fixed even after a modest backfill.
+            # Publication history must not depend on when Yahoo serves a date.
+        out.loc[day, ticker] = incumbent
+        retained.append({"ticker": ticker, "date": str(day.date()),
+                         "value": incumbent,
+                         "source": (rec["source"] if math.isclose(incumbent, value,
+                                                                rel_tol=1e-9)
+                                    else "cache:completed"),
+                         "method": (rec["method"] if math.isclose(incumbent, value,
+                                                                rel_tol=1e-9)
+                                    else "preserve_published_history")})
+    return out.sort_index(), retained
+
+
+def verify_auto_btc_cache(cached: pd.DataFrame, sidecar: dict,
+                          ledger: Path) -> None:
+    """An interrupted cache write cannot make an unlogged fallback reusable."""
+    auto = sidecar.get("auto_btc_repair")
+    retained = sidecar.get("retained_gap_repairs") or []
+    if not auto and not retained:
+        return
+    try:
+        with ledger.open(encoding="utf-8") as fh:
+            matches = [json.loads(line) for line in fh if line.strip()]
+        for rec in ([auto] if auto else []) + retained:
+            day = pd.Timestamp(rec["date"])
+            value = float(rec["value"])
+            if (rec.get("ticker") != "BTC-USD" or day not in cached.index
+                    or not math.isfinite(value) or value <= 0
+                    or not math.isclose(float(cached.at[day, "BTC-USD"]), value,
+                                        rel_tol=1e-9)):
+                raise RepairError("BTC cache record does not match its price")
+            applied = [r for r in matches
+                       if r.get("cache") == "thematic"
+                       and r.get("ticker") == "BTC-USD"
+                       and r.get("date") == rec["date"]
+                       and r.get("method") == "return_splice"
+                       and r.get("applied_at_utc")]
+            if len(applied) != 1:
+                raise RepairError("BTC cache has no unique applied ledger record")
+            prior = applied[0]
+            if rec is auto or rec.get("source") != "cache:completed":
+                if (prior.get("source") != rec.get("source")
+                        or not math.isclose(float(prior["value"]), value,
+                                            rel_tol=1e-9)):
+                    raise RepairError("BTC cache provenance conflicts with ledger")
+            elif (abs(value / float(prior["value"]) - 1)
+                  > MAX_BACKFILL_DIFFERENCE):
+                raise RepairError("BTC published cache drift exceeds repair guard")
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        raise RepairError("automatic BTC cache provenance is unverifiable") from exc
+
+
+def record_auto_btc_repair(record: dict, ledger: Path = LEDGER,
+                           *, check_only: bool = False) -> bool:
+    """Durably append a new repair, or verify an identical applied record.
+
+    A clean checkout has no ignored price cache, but it can carry the tracked
+    ledger from an earlier run. Re-deriving that cell must not duplicate its
+    identity or accept a different price under the same date.
+    """
+    try:
+        with ledger.open(encoding="utf-8") as fh:
+            prior = [json.loads(line) for line in fh if line.strip()]
+    except FileNotFoundError:
+        prior = []
+    except (OSError, ValueError, TypeError) as exc:
+        raise RepairError("cannot verify the applied BTC repair ledger") from exc
+    matches = [r for r in prior
+               if r.get("cache") == "thematic" and r.get("ticker") == "BTC-USD"
+               and r.get("date") == record["date"]]
+    if matches:
+        if (len(matches) != 1 or matches[0].get("source") != record["source"]
+                or matches[0].get("method") != record["method"]
+                or matches[0].get("prev_date") != record["prev_date"]
+                or not matches[0].get("applied_at_utc")
+                or not math.isclose(float(matches[0].get("prev_value", float("nan"))),
+                                    record["prev_value"], rel_tol=1e-9)
+                or not math.isclose(float(matches[0].get("value", float("nan"))),
+                                    record["value"], rel_tol=1e-9)):
+            raise RepairError("BTC repair date already has a different applied record")
+        return False
+    if check_only:
+        return True
+    with ledger.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({**record,
+                             "applied_at_utc": datetime.now(timezone.utc).isoformat()})
+                 + "\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+    return True
+
+
+def recover_completed_btc_tail(frame: pd.DataFrame, *, required_session,
+                               completed_through, fetch=fetch_binance,
+                               annual_fee_bps: float = 0.0
+                               ) -> tuple[pd.DataFrame, dict | None]:
+    """Fill one missing completed BTC decision close from Binance returns.
+
+    The primary batch and single-name retry have already failed. This uses
+    only the current NYSE decision session, never an earlier hole or an
+    unfinished UTC day. The caller records the result after its cache write.
+    """
+    ticker = "BTC-USD"
+    required = pd.Timestamp(required_session)
+    if (ticker not in frame.columns or required > pd.Timestamp(completed_through)
+            or required not in frame.index
+            or pd.notna(frame.at[required, ticker])):
+        return frame, None
+    sessions = nyse_sessions_for(frame)
+    if (len(sessions) < 7 or sessions[-1] != required
+            or find_gaps(frame, ticker, sessions=sessions) !=
+            [(required, sessions[-2])]):
+        raise RepairError("BTC tail is not one isolated completed-session gap")
+    prev = sessions[-2]
+    previous = float(frame.at[prev, ticker])
+    if not math.isfinite(previous) or previous <= 0:
+        raise RepairError("BTC preceding cached-basis close is not usable")
+    try:
+        secondary = fetch("BTCUSDT", sessions[-7], required)
+    except Exception as exc:
+        raise RepairError("BTC secondary source unavailable") from exc
+    secondary = secondary.dropna()
+    if prev not in secondary.index or required not in secondary.index:
+        raise RepairError("BTC secondary lacks a required completed daily bar")
+    # Require agreement on recent returns, not raw levels: the cache carries
+    # modelled fee drag while Binance quotes BTC in USDT.
+    overlap = []
+    for left, right in zip(sessions[-7:-2], sessions[-6:-1]):
+        if (left in secondary.index and right in secondary.index
+                and left in frame.index and right in frame.index
+                and pd.notna(frame.at[left, ticker])
+                and pd.notna(frame.at[right, ticker])):
+            values = (float(frame.at[left, ticker]),
+                      float(frame.at[right, ticker]),
+                      float(secondary.at[left]), float(secondary.at[right]))
+            if not all(math.isfinite(v) and v > 0 for v in values):
+                raise RepairError("non-finite or non-positive BTC overlap close")
+            ref = values[1] / values[0] - 1
+            alt = values[3] / values[2] - 1
+            if not all(math.isfinite(v) for v in (ref, alt)):
+                raise RepairError("non-finite BTC overlap return")
+            overlap.append(abs(ref - alt))
+    if (len(overlap) < 3 or statistics.median(overlap) > 0.005
+            or max(overlap) > 0.01):
+        raise RepairError("BTC secondary return basis failed the overlap check")
+    gross_return = float(secondary.at[required] / secondary.at[prev] - 1)
+    if not math.isfinite(annual_fee_bps) or not 0 <= annual_fee_bps < 10_000:
+        raise RepairError("invalid BTC annual fee basis")
+    fee_factor = (1 - annual_fee_bps / 10_000) ** (
+        (required - prev).days / 365)
+    value = splice_value(previous, float(secondary.at[prev]),
+                         float(secondary.at[required])) * fee_factor
+    if abs(value / previous - 1) > MAX_PLAUSIBLE_MOVE:
+        raise RepairError("BTC fee-adjusted secondary move is implausible")
+    out = frame.copy()
+    out.at[required, ticker] = value
+    record = {"cache": "thematic", "ticker": ticker,
+              "date": str(required.date()), "prev_date": str(prev.date()),
+              "prev_value": previous, "source": "binance:BTCUSDT",
+              "method": "return_splice", "value": value,
+              "implied_return": value / previous - 1,
+              "secondary_return": gross_return,
+              "annual_fee_bps": annual_fee_bps,
+              "overlap_returns": len(overlap),
+              "max_overlap_return_difference": max(overlap)}
+    return out, record
 
 
 def repair_cache(key: str, only_ticker: str | None = None,
