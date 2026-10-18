@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-10-17T07:19:37.542737+00:00",
+ "computed_at_utc": "2026-10-18T01:18:34.552506+00:00",
  "as_of": "2026-10-16",
  "overlay_decision": {
   "as_of": "2026-10-16",
@@ -22,7 +22,7 @@
  },
  "rounding_residual_nav": 0.0,
  "executed": false,
- "targets_final": false,
+ "targets_final": true,
  "core_holds_repairable": [],
  "next_fill": {
   "by_venue": {
@@ -226,22 +226,22 @@
   {
    "sleeve": "D",
    "venue": "XETR",
-   "status": "HOLD",
-   "reason": "signal reaches 2026-10-15 but the last completed XETR session is 2026-10-16 \u2014 ranking now would use an earlier session",
-   "decision_session": "2026-10-15",
+   "status": "READY",
+   "reason": null,
+   "decision_session": "2026-10-16",
    "last_completed_session": "2026-10-16",
    "weights": {
-    "EXV1": 0.370031,
-    "EXV3": 0.315243,
-    "EXH1": 0.314726
+    "EXV1": 0.361083,
+    "EXH1": 0.325994,
+    "EXV3": 0.312923
    },
    "signal_kind": "breadth",
    "top_k": 3,
    "signals": {
-    "EXV1": 0.8194,
-    "EXH1": 0.697,
+    "EXV1": 0.8056,
+    "EXH1": 0.7273,
     "EXV3": 0.6981,
-    "EXH3": 0.5524,
+    "EXH3": 0.5944,
     "EXH9": 0.5143
    },
    "signals_prev": {
@@ -432,35 +432,32 @@
    "sleeve": "D",
    "etf": "EXV1",
    "traded": "EXV1",
-   "within": 0.36889999999999995,
-   "target": 0.07378,
+   "within": 0.361083,
+   "target": 0.0722166,
    "held": 0.07378,
-   "risk_adjustment": false,
-   "status": "HOLD",
-   "delta": 0.0
+   "status": "READY",
+   "delta": -0.0015633999999999926
   },
   {
    "sleeve": "D",
    "etf": "EXH1",
    "traded": "EXH1",
-   "within": 0.32199999999999995,
-   "target": 0.0644,
+   "within": 0.325994,
+   "target": 0.0651988,
    "held": 0.0644,
-   "risk_adjustment": false,
-   "status": "HOLD",
-   "delta": 0.0
+   "status": "READY",
+   "delta": 0.0007988000000000023
   },
   {
    "sleeve": "D",
    "etf": "EXV3",
    "traded": "EXV3",
-   "within": 0.3091,
-   "target": 0.06182,
+   "within": 0.312923,
+   "target": 0.0625846,
    "held": 0.06182,
-   "risk_adjustment": false,
-   "status": "HOLD",
-   "delta": 0.0
+   "status": "READY",
+   "delta": 0.0007646000000000042
   }
  ],
- "one_way_turnover": 0.2131619
+ "one_way_turnover": 0.21472529999999998
 }
