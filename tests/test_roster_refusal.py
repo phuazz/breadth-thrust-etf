@@ -396,6 +396,33 @@ def raw_dir(monkeypatch, tmp_path):
     return d
 
 
+def _pin_today(monkeypatch, today):
+    class FrozenDate(date):
+        @classmethod
+        def today(cls):
+            return today
+
+    monkeypatch.setattr(fc, "date", FrozenDate)
+
+
+@pytest.fixture(params=[30, 31], ids=["age-30", "age-31"])
+def roster_age(request, monkeypatch):
+    # Python datetime months are 1-indexed; use timedelta for age arithmetic.
+    _pin_today(monkeypatch, FRI_2 + timedelta(days=request.param))
+    return request.param
+
+
+def _assert_no_positive_cache(raw_dir, target, age):
+    path = raw_dir / f"EXV1_{target:%Y%m%d}.json"
+    if age == 30:
+        assert not path.exists()
+    else:
+        marker = json.loads(path.read_text("utf-8"))
+        assert marker["_no_holdings"] is True
+        assert marker["requested_as_of"] == target.strftime("%Y%m%d")
+        assert "componentsByNameMap" not in marker
+
+
 def _cfg(symbol="EXV1"):
     return {"symbol": symbol, "apply_exchange_suffix": True, "product_id": "x"}
 
@@ -479,7 +506,7 @@ def test_retained_response_is_not_overwritten_by_a_later_capture(raw_dir):
 
 
 def test_wrong_date_response_never_becomes_a_positive_cache(monkeypatch,
-                                                            raw_dir):
+                                                            raw_dir, roster_age):
     """Date parity holds, and no sidecar is written for a non-refusal.
 
     The API silently falls back to the LATEST available date for a weekend,
@@ -491,31 +518,55 @@ def test_wrong_date_response_never_becomes_a_positive_cache(monkeypatch,
         lambda t, c: _payload_for(FRI_3, _rows_with_unmapped_venue()))
     # Asked for FRI_2, served FRI_3: an empty result, not a roster.
     assert fc.load_snapshot_tickers(FRI_2, _cfg()) == []
-    assert not (raw_dir / "EXV1_20260918.json").exists()
+    _assert_no_positive_cache(raw_dir, FRI_2, roster_age)
     assert not fc.refused_payload_path("EXV1", FRI_2).exists()
 
 
-def test_empty_and_malformed_responses_are_unaffected(monkeypatch, raw_dir):
+def test_empty_response_is_unaffected(monkeypatch, raw_dir, roster_age):
     monkeypatch.setattr(fc, "fetch_product_data",
                         lambda t, c: _payload_for(FRI_2, []))
     assert fc.load_snapshot_tickers(FRI_2, _cfg()) == []
+    _assert_no_positive_cache(raw_dir, FRI_2, roster_age)
     assert not fc.refused_payload_path("EXV1", FRI_2).exists()
 
-    monkeypatch.setattr(fc, "fetch_product_data", lambda t, c: {"nope": 1})
+
+def test_malformed_response_is_unaffected(monkeypatch, raw_dir, roster_age):
+    # A fresh directory ensures an earlier empty-result marker cannot bypass
+    # the malformed payload. Assert the transport stub was actually reached.
+    calls = []
+
+    def malformed(target, cfg):
+        calls.append(target)
+        return {"nope": 1}
+
+    monkeypatch.setattr(fc, "fetch_product_data", malformed)
     with pytest.raises(fc.PayloadContractError):
         fc.load_snapshot_tickers(FRI_2, _cfg())
+    assert calls == [FRI_2]
+    assert not (raw_dir / "EXV1_20260918.json").exists()
     assert not fc.refused_payload_path("EXV1", FRI_2).exists(), \
         "a malformed payload must never be retained as a holdings response"
 
 
-def test_negative_cache_behaviour_is_preserved(monkeypatch, raw_dir):
-    """A settled no-data date still writes its marker; a recent one does not."""
-    old = date(2020, 1, 3)  # a Friday, far older than the 30-day floor
-    monkeypatch.setattr(fc, "fetch_product_data",
-                        lambda t, c: _payload_for(old, []))
-    assert fc.load_snapshot_tickers(old, _cfg()) == []
-    marker = json.loads((raw_dir / "EXV1_20200103.json").read_text("utf-8"))
-    assert marker["_no_holdings"] is True
+@pytest.mark.parametrize("target", [FRI_2, date(2026, 1, 30), date(2026, 12, 25)],
+                         ids=["incident", "month-boundary", "year-boundary"])
+@pytest.mark.parametrize("age", [30, 31])
+def test_negative_cache_behaviour_is_preserved(monkeypatch, raw_dir, target, age):
+    """At 30 days retry; at 31 days retain and reuse only a no-data marker."""
+    assert fc.NEGATIVE_CACHE_MIN_AGE_DAYS == 30
+    _pin_today(monkeypatch, target + timedelta(days=age))
+    calls = []
+
+    def empty(requested, cfg):
+        calls.append(requested)
+        return _payload_for(target, [])
+
+    monkeypatch.setattr(fc, "fetch_product_data", empty)
+    assert fc.load_snapshot_tickers(target, _cfg()) == []
+    _assert_no_positive_cache(raw_dir, target, age)
+    assert fc.load_snapshot_tickers(target, _cfg()) == []
+    assert calls == [target] * (2 if age == 30 else 1)
+    assert not fc.refused_payload_path("EXV1", target).exists()
 
 
 def test_corrupt_sidecar_refuses_and_is_quarantined(monkeypatch, raw_dir):
@@ -910,14 +961,15 @@ def test_malformed_columns_beat_the_refusal_and_nothing_is_retained(raw_dir,
 
 
 def test_wrong_date_beats_the_refusal_and_nothing_is_retained(raw_dir,
-                                                              monkeypatch):
-    """Unmapped venues AND a wrong date echo: parity wins, no retention."""
+                                                              monkeypatch,
+                                                              roster_age):
+    """Wrong date wins over unmapped venues; only an old no-data marker is allowed."""
     monkeypatch.setattr(
         fc, "fetch_product_data",
         lambda t, c: _payload_for(FRI_3, _rows_with_unmapped_venue()))
     assert fc.load_snapshot_tickers(FRI_2, _cfg()) == []
     assert not fc.refused_payload_path("EXV1", FRI_2).exists()
-    assert not (raw_dir / "EXV1_20260918.json").exists()
+    _assert_no_positive_cache(raw_dir, FRI_2, roster_age)
 
 
 def test_refusal_is_raised_after_the_checks_so_retained_payloads_are_valid(
