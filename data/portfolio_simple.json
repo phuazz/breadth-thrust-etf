@@ -2,7 +2,6 @@
  "as_of": "2026-10-16",
  "calendars": {
   "c0": [
-   "2025-10-17",
    "2025-10-20",
    "2025-10-21",
    "2025-10-22",
@@ -766,7 +765,6 @@
   "SHY": {
    "cal": "c0",
    "px": [
-    80.17,
     80.18,
     80.2,
     80.2,
@@ -1026,7 +1024,6 @@
   "SOXX": {
    "cal": "c0",
    "px": [
-    287.2,
     292.0,
     290.4,
     283.2,
@@ -1286,7 +1283,6 @@
   "IUHC": {
    "cal": "c0",
    "px": [
-    140.9,
     142.4,
     142.7,
     143.6,
@@ -1546,7 +1542,6 @@
   "DBC": {
    "cal": "c0",
    "px": [
-    21.4,
     21.61,
     21.39,
     21.73,
@@ -1806,7 +1801,6 @@
   "IUES": {
    "cal": "c0",
    "px": [
-    41.8,
     42.24,
     42.14,
     42.68,
@@ -2066,7 +2060,6 @@
   "QQQ": {
    "cal": "c0",
    "px": [
-    601.1,
     608.7,
     608.5,
     602.7,
@@ -3367,7 +3360,6 @@
   "EWJ": {
    "cal": "c0",
    "px": [
-    78.62,
     80.09,
     79.16,
     78.79,
@@ -3627,7 +3619,6 @@
   "CNDX": {
    "cal": "c0",
    "px": [
-    601.1,
     608.7,
     608.5,
     602.7,
@@ -3887,7 +3878,6 @@
   "IUFS": {
    "cal": "c0",
    "px": [
-    51.37,
     51.97,
     51.91,
     51.62,
@@ -4147,7 +4137,6 @@
   "IJR": {
    "cal": "c0",
    "px": [
-    116.1,
     117.9,
     118.3,
     117.4,
@@ -4407,7 +4396,6 @@
   "EFA": {
    "cal": "c0",
    "px": [
-    91.38,
     92.14,
     91.46,
     91.32,
@@ -4928,7 +4916,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-10-16",
- "computed_at_utc": "2026-10-20 13:37 UTC",
+ "computed_at_utc": "2026-10-20 23:59 UTC",
  "holdings": [
   {
    "ticker": "SHY",
@@ -5201,48 +5189,48 @@
  "n_positions": 16,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-10-20T13:37:44.264584+00:00",
+  "computed_at_utc": "2026-10-20T23:59:48.253382+00:00",
   "all_current": false,
   "strategies": [
    {
     "sleeve": "A",
     "label": "US sectors",
     "data_through": "2026-10-16",
-    "venue_last_session": "2026-10-19",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-20",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-16, while the market has traded to 2026-10-19 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-16, while the market has traded to 2026-10-20 — it has not been rebuilt since."
    },
    {
     "sleeve": "B",
     "label": "Asset classes",
     "data_through": "2026-10-16",
-    "venue_last_session": "2026-10-19",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-20",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-16, while the market has traded to 2026-10-19 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-16, while the market has traded to 2026-10-20 — it has not been rebuilt since."
    },
    {
     "sleeve": "C",
     "label": "Thematic",
     "data_through": "2026-10-16",
-    "venue_last_session": "2026-10-19",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-20",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-16, while the market has traded to 2026-10-19 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-16, while the market has traded to 2026-10-20 — it has not been rebuilt since."
    },
    {
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-10-16",
-    "venue_last_session": "2026-10-19",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-10-20",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-16, while the market has traded to 2026-10-19 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-16, while the market has traded to 2026-10-20 — it has not been rebuilt since."
    }
   ]
  },
