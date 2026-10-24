@@ -1,28 +1,28 @@
 {
-  "computed_at_utc": "2026-10-23 23:54 UTC",
+  "computed_at_utc": "2026-10-24 11:48 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-10-19",
-  "anchor_equity": 2.91346,
+  "anchor_equity": 2.913459,
   "regime_state": "RISK_ON",
   "eem_tilt_active": false,
   "eem_tilt_signal_as_of": "2026-10-19",
   "eem_tilt_signal_stale": false,
   "effective_weights": {
     "DBC": 0.175245,
-    "IUHC": 0.124155,
+    "IUHC": 0.124145,
     "SHY": 0.1,
-    "IUES": 0.077824,
+    "IUES": 0.077805,
     "EXV1": 0.07222,
-    "IUCS": 0.069496,
+    "IUCS": 0.06951,
     "EXH1": 0.0652,
     "EXV3": 0.06258,
     "SPY": 0.057085,
     "QQQ": 0.053445,
-    "IUFS": 0.052,
+    "IUFS": 0.05201,
     "EWJ": 0.04305,
     "EFA": 0.01428,
-    "CNDX": 0.013367,
-    "CSP1": 0.010813,
+    "CNDX": 0.01337,
+    "CSP1": 0.010815,
     "VGK": 0.005635,
     "IUMS": 0.002345,
     "IJR": 0.00126
@@ -34,10 +34,10 @@
     "2026-10-23"
   ],
   "live_equity": [
-    2.920001,
-    2.930853,
+    2.92,
+    2.930852,
     2.919196,
-    2.920718
+    2.92276
   ],
   "deployed_series_end": "2026-10-23",
   "sleeve_extensions": {
@@ -45,8 +45,8 @@
       "anchor_date": "2026-10-19",
       "anchor_equity": 3.2085,
       "weights": {
-        "IUHC": 0.3548,
-        "IUES": 0.2224,
+        "IUHC": 0.3547,
+        "IUES": 0.2223,
         "IUCS": 0.1986,
         "IUFS": 0.1486,
         "CNDX": 0.0382,
@@ -60,10 +60,10 @@
         "2026-10-23"
       ],
       "equity": [
-        3.247943,
-        3.244187,
-        3.275035,
-        3.260644
+        3.247293,
+        3.243537,
+        3.274384,
+        3.259988
       ]
     },
     "strategy_b": {
@@ -128,7 +128,7 @@
         3.470096,
         3.530304,
         3.440717,
-        3.440717
+        3.453008
       ]
     }
   },

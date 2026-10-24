@@ -1,24 +1,24 @@
 {
   "etf": "IUES",
-  "computed_at_utc": "2026-10-21T06:27:38.897388+00:00",
+  "computed_at_utc": "2026-10-24T10:57:29.890397+00:00",
   "constituents_source": "data\\constituents_iues.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
-  "end_date": "2026-10-20",
+  "end_date": "2026-10-23",
   "tail_cap": null,
   "tail_verification": null,
   "tail_from_norgate": null,
   "current_capture": {
     "schema_version": 1,
-    "roster_fingerprint": "06f2b701a30ca40ea0f3b19256a1e12b0e705270ddf0643a02e89853a2aa769a",
-    "roster_target": "2026-10-16",
-    "roster_actual": "2026-10-16",
+    "roster_fingerprint": "ee28925fccb8a4f9999b9e7379abe026488bfbdea566fd765bca864736d65c90",
+    "roster_target": "2026-10-23",
+    "roster_actual": "2026-10-22",
     "roster_carried": false,
     "roster_endpoint_status": "ok",
     "roster_staleness": "fresh",
     "requested_price_source": "auto",
-    "required_price_session": "2026-10-20",
-    "panel_through": "2026-10-20",
+    "required_price_session": "2026-10-23",
+    "panel_through": "2026-10-23",
     "panel_current": true,
     "n_active": 21,
     "n_priced_through_required": 21,
@@ -26,8 +26,8 @@
     "behind_required_session": {},
     "note": "Availability of active constituents; breadth coverage rules are unchanged."
   },
-  "n_trading_days": 2209,
-  "n_signals": 49,
+  "n_trading_days": 2212,
+  "n_signals": 50,
   "first_eligible_signal_date": "2019-01-08",
   "config": {
     "rsi_period": 14,
@@ -52,7 +52,7 @@
     "tickers_with_any_yf_data": 39,
     "tickers_with_no_yf_data": 3,
     "max_missing_constituent_pct": 0.045454545454545414,
-    "mean_missing_constituent_pct": 0.0004111315473922992,
+    "mean_missing_constituent_pct": 0.0004105739548777527,
     "first_date_below_10pct_missing": "2018-01-05",
     "note": "3 of 42 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. 1812473D, OXY WS, OXY WS WI). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -751,6 +751,21 @@
       "highs_breadth": 0.5238095238095238,
       "triggered_components": [
         "rsi",
+        "highs"
+      ],
+      "n_constituents": 21,
+      "n_with_price": 21
+    },
+    {
+      "date": "2026-10-23",
+      "composite_z": 1.41183859368913,
+      "composite_p90": 1.1932368418177097,
+      "rsi_breadth": 0.23809523809523808,
+      "ma_breadth": 0.8571428571428571,
+      "highs_breadth": 0.42857142857142855,
+      "triggered_components": [
+        "rsi",
+        "ma_zweig",
         "highs"
       ],
       "n_constituents": 21,
@@ -2967,7 +2982,10 @@
       "2026-10-15",
       "2026-10-16",
       "2026-10-19",
-      "2026-10-20"
+      "2026-10-20",
+      "2026-10-21",
+      "2026-10-22",
+      "2026-10-23"
     ],
     "n_constituents": [
       32,
@@ -5178,6 +5196,9 @@
       21,
       21,
       21,
+      21,
+      21,
+      21,
       21
     ],
     "n_with_price": [
@@ -7275,6 +7296,9 @@
       22,
       22,
       22,
+      21,
+      21,
+      21,
       21,
       21,
       21,
@@ -9600,6 +9624,9 @@
       21,
       21,
       21,
+      21,
+      21,
+      21,
       21
     ],
     "n_with_ma50": [
@@ -11697,6 +11724,9 @@
       22,
       22,
       22,
+      21,
+      21,
+      21,
       21,
       21,
       21,
@@ -14022,6 +14052,9 @@
       21,
       21,
       21,
+      21,
+      21,
+      21,
       21
     ],
     "rsi_breadth": [
@@ -16232,6 +16265,9 @@
       0.285714,
       0.047619,
       0.285714,
+      0.238095,
+      0.238095,
+      0.190476,
       0.238095,
       0.238095
     ],
@@ -18444,7 +18480,10 @@
       0.52381,
       0.761905,
       0.714286,
-      0.761905
+      0.761905,
+      0.809524,
+      0.714286,
+      0.857143
     ],
     "highs_breadth": [
       0.3,
@@ -20655,7 +20694,10 @@
       0.0,
       0.285714,
       0.047619,
-      0.095238
+      0.095238,
+      0.047619,
+      0.0,
+      0.428571
     ],
     "rsi_breadth_z": [
       null,
@@ -22866,7 +22908,10 @@
       -0.162196,
       1.519829,
       1.182392,
-      1.18175
+      1.18175,
+      0.844872,
+      1.180804,
+      1.180165
     ],
     "ma_breadth_z": [
       null,
@@ -25077,7 +25122,10 @@
       -0.07936,
       0.646868,
       0.501399,
-      0.646542
+      0.646542,
+      0.79164,
+      0.500714,
+      0.936598
     ],
     "highs_breadth_z": [
       null,
@@ -27288,7 +27336,10 @@
       -0.56748,
       1.222472,
       -0.269537,
-      0.028855
+      0.028855,
+      -0.269546,
+      -0.567937,
+      2.118753
     ],
     "composite_z": [
       null,
@@ -29499,7 +29550,10 @@
       -0.269678,
       1.129723,
       0.471418,
-      0.619049
+      0.619049,
+      0.455655,
+      0.371194,
+      1.411839
     ],
     "composite_p90": [
       null,
@@ -31710,7 +31764,10 @@
       1.19333,
       1.193314,
       1.193299,
-      1.193283
+      1.193283,
+      1.193268,
+      1.193252,
+      1.193237
     ],
     "composite_p10": [
       null,
@@ -33921,7 +33978,10 @@
       -0.77911,
       -0.779093,
       -0.779077,
-      -0.779061
+      -0.779061,
+      -0.779044,
+      -0.779028,
+      -0.779012
     ],
     "rsi_p90": [
       null,
@@ -36132,6 +36192,9 @@
       0.238095,
       0.238095,
       0.238095,
+      0.238095,
+      0.238095,
+      0.238095,
       0.238095
     ],
     "highs_p90": [
@@ -38171,6 +38234,9 @@
       0.3,
       0.303043,
       0.302609,
+      0.304348,
+      0.304348,
+      0.304348,
       0.304348,
       0.304348,
       0.304348,
@@ -40554,6 +40620,9 @@
       0,
       1,
       1,
+      1,
+      0,
+      1,
       1
     ],
     "ma_zweig_trigger": [
@@ -42765,7 +42834,10 @@
       0,
       0,
       0,
-      0
+      0,
+      1,
+      0,
+      1
     ],
     "highs_trigger": [
       0,
@@ -44976,7 +45048,10 @@
       0,
       0,
       0,
-      0
+      0,
+      0,
+      0,
+      1
     ],
     "trigger_count": [
       0,
@@ -47187,7 +47262,10 @@
       0,
       1,
       1,
-      1
+      1,
+      1,
+      1,
+      3
     ],
     "composite_above_p90": [
       0,
@@ -49398,7 +49476,10 @@
       0,
       0,
       0,
-      0
+      0,
+      0,
+      0,
+      1
     ],
     "composite_crosses_p90": [
       0,
@@ -51609,7 +51690,10 @@
       0,
       0,
       0,
-      0
+      0,
+      0,
+      0,
+      1
     ],
     "signal_eligible": [
       0,
@@ -51864,6 +51948,9 @@
       0,
       0,
       0,
+      1,
+      1,
+      1,
       1,
       1,
       1,
@@ -56031,7 +56118,10 @@
       0,
       0,
       0,
-      0
+      0,
+      0,
+      0,
+      1
     ]
   }
 }
