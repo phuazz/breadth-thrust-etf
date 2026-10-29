@@ -27,10 +27,25 @@ source. Third-party "2027 holiday" tables, and pandas_market_calendars' SSE
 projection (its own docstring calls the rules guesses), are not.
 
 HOW TO PIN A YEAR. When the notice is published (the 2026 notice appeared on
-2025-11-04), put that year's WEEKDAY exchange closures in PINNED_CLOSURES with
-the notice in PINNED_SOURCES. Weekend days are omitted: the exchanges never
-trade weekends, including the make-up working Saturdays and Sundays the
-notice lists. validate_year runs at import and refuses a malformed year.
+2025-11-04), put that year's WEEKDAY exchange closures in PINNED_CLOSURES and
+the review record in PINNED_SOURCES (see _check_source for its fields).
+Weekend days are omitted: the exchanges never trade weekends, including the
+make-up working Saturdays and Sundays the notice lists.
+
+WHAT THE CODE CAN AND CANNOT ESTABLISH (2026-10-29 review). Two layers are
+enforced. At import, validate_year and _check_source refuse a year whose
+dates are malformed (outside the year, weekends, duplicates, a statutory
+fixed-date holiday missing, more weekday closures than any year the library
+lists) or whose source record is incomplete (no title, issuer, issue date, a
+URL on gov.cn / sse.com.cn / szse.cn, reviewer, review date). At use,
+checked_pins refuses every pin for a venue once any pinned year disagrees
+with the library's own list for that year: adding one traded day to an
+otherwise correct year is caught there, and the native check fails closed.
+None of this establishes that the dates ARE the notice's. For a year the
+library does not yet list -- the only year a pin changes anything -- the
+dates rest on the named reviewer having read them against the official
+notice; the record says who and when, so the review can be audited, not
+assumed.
 
 Python datetime months are 1-indexed (January = 1). Weekdays are read with
 datetime, never computed by hand.
@@ -38,7 +53,9 @@ datetime, never computed by hand.
 
 from __future__ import annotations
 
+import re
 from datetime import date
+from urllib.parse import urlsplit
 
 import pandas as pd
 
@@ -50,8 +67,20 @@ PINNED_VENUES = frozenset({"XSHG", "SSE"})
 # had not been published.
 PINNED_CLOSURES: dict[int, tuple[str, ...]] = {}
 
-# year -> where those dates came from (title, publisher, date, URL).
-PINNED_SOURCES: dict[int, str] = {}
+# year -> the review record for those dates: {"title", "issuer",
+# "issued_on" (YYYY-MM-DD), "url", "reviewed_by", "reviewed_on" (YYYY-MM-DD)}.
+# A form check only (_check_source); see the module docstring.
+PINNED_SOURCES: dict[int, dict] = {}
+
+# Where an official notice can be published: the State Council's site and
+# the two exchanges'. Hosts only; a URL elsewhere is refused.
+_OFFICIAL_HOSTS = ("gov.cn", "sse.com.cn", "szse.cn")
+
+# More weekday closures than this in one year is not a notice. The library's
+# XSHG list (1991-2026) peaks at 24, in 2002, and stays within 15-20 since
+# 2015 (measured 2026-10-29 on pandas_market_calendars 5.3.2 and 5.4.0), so a
+# longer list is refused.
+MAX_WEEKDAY_CLOSURES = 24
 
 # Fixed Gregorian days that are statutory holidays under the State Council's
 # national holiday regulations as revised for 2025 on: 1 January; 1-2 May;
@@ -85,6 +114,9 @@ def validate_year(year: int, closures) -> list[date]:
         days.append(d)
     if len(set(days)) != len(days):
         raise HolidayPinError(f"{year}: duplicate dates")
+    if len(days) > MAX_WEEKDAY_CLOSURES:
+        raise HolidayPinError(f"{year}: {len(days)} weekday closures exceeds "
+                              f"{MAX_WEEKDAY_CLOSURES}; not a single notice")
     for month, day in _STATUTORY_FIXED:
         d = date(year, month, day)
         if d.weekday() < 5 and d not in days:
@@ -93,11 +125,50 @@ def validate_year(year: int, closures) -> list[date]:
     return sorted(days)
 
 
+def _iso(value) -> date | None:
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _check_source(year: int, src) -> None:
+    """Refuse a review record that is not complete in form. Passing proves
+    the record names a notice and a reviewer; it does not prove the dates
+    are the notice's (module docstring)."""
+    if not src:
+        raise HolidayPinError(f"{year}: pinned without a source")
+    if not isinstance(src, dict):
+        raise HolidayPinError(f"{year}: the source must be a review record "
+                              f"(title, issuer, issued_on, url, reviewed_by, "
+                              f"reviewed_on), not free text")
+    for field in ("title", "issuer", "reviewed_by"):
+        if not isinstance(src.get(field), str) or not src[field].strip():
+            raise HolidayPinError(f"{year}: source field {field!r} is missing")
+    issued, reviewed = _iso(src.get("issued_on")), _iso(src.get("reviewed_on"))
+    if issued is None or reviewed is None:
+        raise HolidayPinError(f"{year}: issued_on and reviewed_on must be "
+                              f"YYYY-MM-DD dates")
+    if not (date(year - 1, 1, 1) <= issued <= date(year, 12, 31)):
+        raise HolidayPinError(f"{year}: a notice issued on {issued} is not "
+                              f"that year's notice")
+    if reviewed < issued:
+        raise HolidayPinError(f"{year}: reviewed on {reviewed}, before the "
+                              f"notice was issued on {issued}")
+    parts = urlsplit(src.get("url") or "")
+    host = (parts.hostname or "").lower()
+    if parts.scheme not in ("http", "https") or not any(
+            host == h or host.endswith("." + h) for h in _OFFICIAL_HOSTS):
+        raise HolidayPinError(f"{year}: source URL {src.get('url')!r} is not on "
+                              f"{', '.join(_OFFICIAL_HOSTS)}")
+
+
 def _validated() -> dict[int, list[date]]:
     out = {}
     for year, closures in PINNED_CLOSURES.items():
-        if not PINNED_SOURCES.get(year):
-            raise HolidayPinError(f"{year}: pinned without a source")
+        _check_source(year, PINNED_SOURCES.get(year))
         out[year] = validate_year(year, closures)
     return out
 
@@ -107,11 +178,31 @@ _PINNED = _validated()
 
 
 def pinned_closures(venue: str | None) -> pd.DatetimeIndex:
-    """Every pinned closure for ``venue`` (empty for other venues)."""
+    """Every pinned closure for ``venue`` (empty for other venues). Not
+    checked against the library: callers that remove closures from a
+    schedule use checked_pins."""
     if venue not in PINNED_VENUES:
         return pd.DatetimeIndex([])
     return pd.DatetimeIndex(sorted(pd.Timestamp(d) for ds in _PINNED.values()
                                    for d in ds))
+
+
+def checked_pins(cal, venue: str | None) -> pd.DatetimeIndex:
+    """pinned_closures, or HolidayPinError if any pinned year disagrees with
+    the library's own list for that year (library_conflicts).
+
+    A pin can only EXCUSE a missing bar, so a disagreement is resolved by a
+    person against the notice, never by preferring either list: every pin
+    for the venue is refused until then, and native_sessions fails closed.
+    """
+    conflicts = library_conflicts(cal, venue)
+    if conflicts:
+        raise HolidayPinError(
+            "pinned closures disagree with the calendar library "
+            + "; ".join(f"{y}: pinned only {c['pinned_only']}, library only "
+                        f"{c['library_only']}" for y, c in sorted(conflicts.items()))
+            + " -- resolve against the official notice")
+    return pinned_closures(venue)
 
 
 def holiday_data_through(cal, venue: str | None) -> pd.Timestamp | None:
@@ -140,7 +231,8 @@ def library_conflicts(cal, venue: str | None) -> dict[int, dict[str, list[str]]]
     """Where a pinned year disagrees with the library's own list for that
     year, if the library has since learnt it. Empty when they agree or the
     library has nothing for the year. A disagreement is for a person to
-    resolve against the notice; it is reported, never merged silently."""
+    resolve against the notice; checked_pins refuses the pins until then,
+    and nothing is merged silently."""
     if venue not in PINNED_VENUES:
         return {}
     # Not ``... or []``: a DatetimeIndex has no truth value (the probe's

@@ -89,6 +89,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -277,9 +278,10 @@ def native_reach(cache_path: Path, tickers: list[str], *,
     Rows are the cache's own index -- the rows compute_signal averages over --
     not the line's non-blank rows, so the window is counted as the signal
     counts it. The record comes from the cache sidecar and must belong to THIS
-    cache (parse_sidecar checks ``through``, every line and the record's
-    length); otherwise each line is unknown with the reason in ``error``.
-    Never reads the filled column as evidence.
+    cache (parse_sidecar checks the construction, ``through``, every line, the
+    record's length and the digest of the cache's rows and native values);
+    otherwise each line is unknown with the reason in ``error``. Never reads
+    the filled column as evidence.
     """
     frame = pd.read_parquet(cache_path)
     if not len(frame):
@@ -287,7 +289,7 @@ def native_reach(cache_path: Path, tickers: list[str], *,
                 for t in tickers}
     through = native_sessions.session_dates([frame.index.max()])[0]
     observed = native_sessions.parse_sidecar(
-        price_source.read_cache_sidecar(cache_path), tickers, through=through)
+        price_source.read_cache_sidecar(cache_path), frame, tickers)
     floor = through - pd.Timedelta(days=native_sessions.SIDECAR_WINDOW_DAYS)
     out: dict[str, dict] = {}
     for t in tickers:
@@ -385,6 +387,22 @@ def cache_reach_or_carried(
         f"cache is not present on this checkout"), True
 
 
+_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _strict_date(value) -> date | None:
+    """``value`` as a date only if it is exactly ``YYYY-MM-DD`` and a real
+    calendar date; otherwise None. date.fromisoformat alone is too lenient on
+    Python 3.11+ (it takes "20261028" and week dates), hence the pattern.
+    Python datetime months are 1-indexed (January = 1)."""
+    if not isinstance(value, str) or not _ISO_DATE.fullmatch(value):
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
 def native_cache_reach_or_carried(
         cache_path: Path, tickers: list[str], native_tickers: list[str],
         sleeve: str, source: str, *, window_rows: int,
@@ -417,13 +435,22 @@ def native_cache_reach_or_carried(
     prior = (_prior_row(sleeve)[0] or {}).get("native_provenance") or {}
     recs = {t: prior.get(t) for t in native_tickers}
 
-    def _covers(r) -> bool:
+    def _covers(t, r) -> bool:
+        """A record for this line's venue, measured over at least this
+        window, whose ``last_valid`` is a real date no earlier than the
+        carried bound. Dates are PARSED, never compared as strings: until
+        2026-10-29 "2026-9-01" and "garbled" both sorted after "2026-10-28"
+        and carried sleeve C as current (review finding 2)."""
+        if not isinstance(r, dict) or r.get("venue") != native_sessions.venue_for(t):
+            return False
         w = r.get("window_rows")
-        return (isinstance(w, int) and not isinstance(w, bool)
-                and w >= window_rows)
+        if not (isinstance(w, int) and not isinstance(w, bool) and w >= window_rows):
+            return False
+        valid = _strict_date(r.get("last_valid"))
+        return valid is not None and bound is not None and valid >= bound
 
-    if all(isinstance(r, dict) and r.get("last_valid") and _covers(r)
-           and str(r["last_valid"]) >= reach for r in recs.values()):
+    bound = _strict_date(reach)
+    if all(_covers(t, r) for t, r in recs.items()):
         return reach, laggards, src, True, recs
     return None, sorted(native_tickers), source, False, {
         t: _blank_native(t, "the cache is not present on this checkout and the "

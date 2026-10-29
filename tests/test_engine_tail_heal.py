@@ -369,7 +369,7 @@ def test_sleeve_c_reuses_a_genuinely_current_cache(thematic_site, monkeypatch, c
     import native_sessions
     native = native_sessions.sidecar_record(
         {t: full[t].dropna().index for t in th._native_tickers() if t in full},
-        through=full.index.max())
+        full)
     ps.write_cache_source(cache, "norgate", {
         "completed_crypto_through": {"BTC-USD": str(FRI.date())},
         native_sessions.SIDECAR_KEY: native})

@@ -365,7 +365,7 @@ def test_cache_record_round_trip_carries_an_older_gap(tmp_path, monkeypatch):
     gap = _back(130)
 
     def _hit(observed):
-        rec = ns.sidecar_record({CN: observed}, through=ROWS.max())
+        rec = ns.sidecar_record({CN: observed}, frame)
         price_source.write_cache_source(cache, "yfinance", {ns.SIDECAR_KEY: rec})
         monkeypatch.setattr(th, "NATIVE_OBSERVATIONS",
                             th._cached_native_observations(frame))
@@ -381,20 +381,20 @@ def test_a_sixty_day_record_from_the_first_cut_is_not_provenance(tmp_path,
     """A cache written by the ten-row first cut kept sixty days. It cannot
     reach over a 200-row window, so it reads as absent: refresh, or HOLD."""
     import run_thematic_rotation as th
-    rec = ns.sidecar_record({CN: XSHG}, through=ROWS.max())
+    frame = pd.DataFrame({CN: 1.0}, index=ROWS)
+    rec = ns.sidecar_record({CN: XSHG}, frame)
     rec["window_days"] = 60
     rec["lines"][CN]["dates"] = [d for d in rec["lines"][CN]["dates"]
                                  if d >= "2026-08-29"]
     side = {ns.SIDECAR_KEY: rec}
-    assert ns.parse_sidecar(side, [CN], through=ROWS.max()) is None
+    assert ns.parse_sidecar(side, frame, [CN]) is None
     for bad in (None, "400", True):
         rec["window_days"] = bad
-        assert ns.parse_sidecar(side, [CN], through=ROWS.max()) is None
+        assert ns.parse_sidecar(side, frame, [CN]) is None
     cache = tmp_path / "thematic_prices_cache.parquet"
     rec["window_days"] = 60
     price_source.write_cache_source(cache, "yfinance", side)
     monkeypatch.setattr(th, "PRICE_CACHE", cache)
-    frame = pd.DataFrame({CN: 1.0}, index=ROWS)
     assert th._cached_native_observations(frame) is None
     monkeypatch.setattr(th, "NATIVE_OBSERVATIONS", None)
     r = lt._rank(_panel(ROWS), _must_not_rank, "NYSE", NOW, "C",
@@ -426,8 +426,9 @@ def test_a_clipped_record_just_after_lunar_new_year_still_ranks_ready():
     enough for a decision right after a long closure."""
     rows = _sessions("NYSE", "2024-06-03", "2026-03-02")
     full = _sessions("XSHG", "2024-06-03", "2026-03-02")
-    rec = ns.sidecar_record({CN: full}, through=rows.max())
-    obs = ns.parse_sidecar({ns.SIDECAR_KEY: rec}, [CN], through=rows.max())[CN]
+    frame = pd.DataFrame({CN: 1.0}, index=rows)
+    rec = ns.sidecar_record({CN: full}, frame)
+    obs = ns.parse_sidecar({ns.SIDECAR_KEY: rec}, frame, [CN])[CN]
     assert obs.min() > full.min()                        # clipped
     r = _rank(obs, rows=rows, now=_utc(2026, 3, 3, 3))
     assert r["status"] == "READY"
@@ -446,7 +447,7 @@ def _cache(tmp_path, rows=ROWS):
 
 def _measure(tmp_path, observed, rows=ROWS):
     cache = _cache(tmp_path, rows)
-    rec = ns.sidecar_record({CN: observed}, through=rows.max())
+    rec = ns.sidecar_record({CN: observed}, pd.read_parquet(cache))
     price_source.write_cache_source(cache, "yfinance", {ns.SIDECAR_KEY: rec})
     return sf.native_cache_reach_or_carried(
         cache, ["X", CN], [CN], "C", "price cache (thematic ETFs)",
@@ -508,7 +509,7 @@ def test_freshness_build_holds_c_behind_on_an_older_gap(tmp_path, monkeypatch):
     th_cache = tmp_path / "th.parquet"
     pd.DataFrame({t: 1.0 for t in th.TICKERS}, index=ROWS).to_parquet(th_cache)
     gap = _back(25)
-    rec = ns.sidecar_record({CN: _without(gap)}, through=ROWS.max())
+    rec = ns.sidecar_record({CN: _without(gap)}, pd.read_parquet(th_cache))
     price_source.write_cache_source(th_cache, "yfinance", {ns.SIDECAR_KEY: rec})
     monkeypatch.setattr(th, "PRICE_CACHE", th_cache)
 

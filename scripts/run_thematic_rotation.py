@@ -572,12 +572,14 @@ def native_inputs() -> dict[str, dict]:
 
 def _cached_native_observations(cached: pd.DataFrame | None):
     """The sidecar's native record for ``cached``, or None if it does not
-    belong to that frame (see native_sessions.parse_sidecar)."""
+    belong to that frame: another last row, other native values or rows (a
+    parquet replaced without its sidecar), or an older construction (see
+    native_sessions.parse_sidecar)."""
     if cached is None or not len(cached):
         return None
     return native_sessions.parse_sidecar(
-        price_source_mod.read_cache_sidecar(PRICE_CACHE), _native_tickers(),
-        through=cached.index.max())
+        price_source_mod.read_cache_sidecar(PRICE_CACHE), cached,
+        _native_tickers())
 
 
 def _universe_label(ticker: str) -> str:
@@ -731,9 +733,11 @@ def download_prices() -> pd.DataFrame:
             elif _cached_native_observations(cached) is None:
                 # The cached native columns are already forward-filled onto
                 # NYSE; without the sidecar's record of which dates were really
-                # observed, a withdrawn Shenzhen bar reads as current.
+                # observed, a withdrawn Shenzhen bar reads as current. A record
+                # for another generation of the parquet, or built before the
+                # 2026-10-29 conversion order, is no record.
                 print("  Cache has no native-observation record matching its "
-                      "last row - refreshing")
+                      "rows, native values and construction - refreshing")
             else:
                 print(f"  Using cached prices ({cached.index.min().date()} -> "
                       f"{cache_end}, current through {current_through}, "
@@ -937,8 +941,11 @@ def download_prices() -> pd.DataFrame:
     if not btc_declared and new_btc_repair:
         _sidecar["auto_btc_repair"] = new_btc_repair
     if NATIVE_OBSERVATIONS:
+        # Bound to THIS frame's native values and rows: the parquet above is
+        # already replaced, so if this sidecar write fails the old record no
+        # longer matches and the next run refreshes (2026-10-29 review).
         _sidecar[native_sessions.SIDECAR_KEY] = native_sessions.sidecar_record(
-            NATIVE_OBSERVATIONS, through=df.index.max())
+            NATIVE_OBSERVATIONS, df)
     if btc_declared:
         # The declared per-column basis. Without it the first rebuild under the
         # flag changes every populated cell from the cut-over onward and the

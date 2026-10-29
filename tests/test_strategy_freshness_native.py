@@ -56,9 +56,12 @@ def _cache(tmp_path, rows=OCT_ROWS, tickers=TICKERS, name="th.parquet"):
 
 
 def _sidecar(cache, observed, through=None, lines=None):
-    rec = ns.sidecar_record(lines if lines is not None else {CN: observed},
-                            through=through if through is not None
-                            else pd.read_parquet(cache).index.max())
+    """Write the record a run would have written for ``cache``, or, with
+    ``through``, for the same cache cut at that row (another generation)."""
+    frame = pd.read_parquet(cache)
+    if through is not None:
+        frame = frame.loc[:pd.Timestamp(through)]
+    rec = ns.sidecar_record(lines if lines is not None else {CN: observed}, frame)
     price_source.write_cache_source(cache, "yfinance", {ns.SIDECAR_KEY: rec})
 
 

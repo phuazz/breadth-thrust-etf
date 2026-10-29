@@ -392,9 +392,15 @@ def test_unmapped_venue_fails_closed():
 # The cache sidecar: bounded, truthful, and tied to its own cache
 # ---------------------------------------------------------------------------
 
+def _frame(through):
+    """A cache frame ending on ``through``: the native line filled on every
+    NYSE row, as aligned."""
+    return pd.DataFrame({CN: 1.0}, index=_sessions("NYSE", "2025-01-02", through))
+
+
 def test_sidecar_record_lists_only_observed_dates_within_its_window():
     observed = _sessions("XSHG", "2025-01-02", "2026-10-27")
-    rec = ns.sidecar_record({CN: observed}, through="2026-10-28")
+    rec = ns.sidecar_record({CN: observed}, _frame("2026-10-28"))
     line = rec["lines"][CN]
     assert rec["through"] == "2026-10-28"
     assert rec["window_days"] == ns.SIDECAR_WINDOW_DAYS == 400
@@ -408,19 +414,21 @@ def test_sidecar_record_lists_only_observed_dates_within_its_window():
 
 def test_sidecar_round_trip_and_mismatch_is_absent(tmp_path):
     observed = _sessions("XSHG", "2025-10-09", "2026-10-27")
-    rec = ns.sidecar_record({CN: observed}, through="2026-10-28")
+    frame = _frame("2026-10-28")
+    rec = ns.sidecar_record({CN: observed}, frame)
     cache = tmp_path / "thematic_prices_cache.parquet"
     price_source.write_cache_source(cache, "yfinance",
                                     {ns.SIDECAR_KEY: rec})
     side = price_source.read_cache_sidecar(cache)
     assert side[ns.SIDECAR_KEY] == rec
-    got = ns.parse_sidecar(side, [CN], through=pd.Timestamp("2026-10-28"))
+    got = ns.parse_sidecar(side, frame, [CN])
     assert list(got[CN]) == list(observed)
     # Belongs to another cache, missing a line, or malformed: absent.
-    assert ns.parse_sidecar(side, [CN], through="2026-10-29") is None
-    assert ns.parse_sidecar(side, [CN, "OTHER.SS"], through="2026-10-28") is None
-    assert ns.parse_sidecar({ns.SIDECAR_KEY: {"lines": "x"}}, [CN], "2026-10-28") is None
-    assert ns.parse_sidecar(None, [CN], "2026-10-28") is None
+    assert ns.parse_sidecar(side, _frame("2026-10-29"), [CN]) is None
+    assert ns.parse_sidecar(side, frame, [CN, "OTHER.SS"]) is None
+    assert ns.parse_sidecar({ns.SIDECAR_KEY: {"lines": "x"}}, frame, [CN]) is None
+    assert ns.parse_sidecar(None, frame, [CN]) is None
+    assert ns.parse_sidecar(side, None, [CN]) is None
 
 
 def test_cached_frame_reads_its_own_native_record(tmp_path, monkeypatch):
@@ -429,8 +437,7 @@ def test_cached_frame_reads_its_own_native_record(tmp_path, monkeypatch):
     monkeypatch.setattr(th, "PRICE_CACHE", cache)
     frame = pd.DataFrame({CN: 1.0}, index=OCT_ROWS)
     assert th._cached_native_observations(frame) is None   # no sidecar yet
-    rec = ns.sidecar_record({CN: _sessions("XSHG", HIST, "2026-10-27")},
-                            through=OCT_ROWS.max())
+    rec = ns.sidecar_record({CN: _sessions("XSHG", HIST, "2026-10-27")}, frame)
     price_source.write_cache_source(cache, "yfinance", {ns.SIDECAR_KEY: rec})
     got = th._cached_native_observations(frame)
     assert str(got[CN][-1].date()) == "2026-10-27"

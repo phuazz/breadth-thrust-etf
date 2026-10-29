@@ -239,7 +239,7 @@ def test_freshness_labels_the_unannounced_session(tmp_path):
     import strategy_freshness as sf
     cache = tmp_path / "th.parquet"
     pd.DataFrame({"X": 1.0, CN: 1.0}, index=ROWS).to_parquet(cache)
-    rec = ns.sidecar_record({CN: TRUE_SZ}, through=ROWS.max())
+    rec = ns.sidecar_record({CN: TRUE_SZ}, pd.read_parquet(cache))
     price_source.write_cache_source(cache, "yfinance", {ns.SIDECAR_KEY: rec})
     reach, lag, _, _, native = sf.native_cache_reach_or_carried(
         cache, ["X", CN], [CN], "C", "price cache (thematic ETFs)", window_rows=W)

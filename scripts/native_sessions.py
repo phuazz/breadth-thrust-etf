@@ -54,14 +54,31 @@ the HOLD on the next run, since every run recomputes the requirement.
 
 Shenzhen shares Shanghai's date calendar (XSHG), as in mixed_market_tail.
 
+THE RECORD BELONGS TO ONE FRAME, BUILT ONE WAY (2026-10-29 review). The cache
+parquet and its sidecar are two files written one after the other, so a
+failure between the writes leaves a new frame beside an old record with the
+same last row; and a record written before the FX conversion moved ahead of
+the NYSE-only reindex omits every Shenzhen session on a US holiday. A record
+is therefore accepted only for the frame whose native columns and row index
+hash to its ``content_sha256`` (content_digest), and only when its
+``construction`` is SIDECAR_CONSTRUCTION. Either mismatch reads as no record:
+the cache is refreshed and the freshness row is unknown.
+
+ONE EFFECTIVE CALENDAR. native_schedule is the XSHG schedule with the
+validated pins removed (china_market_holidays). Anything that asks "did
+Shenzhen trade on this date" for sleeve C must ask it, so the window check and
+any other reader cannot disagree about a pinned closure.
+
 Python datetime months are 1-indexed (January = 1). Sessions come from
 pandas_market_calendars via venue_calendars, never a weekday count.
 """
 
 from __future__ import annotations
 
+import hashlib
 import math
 
+import numpy as np
 import pandas as pd
 
 import china_market_holidays
@@ -86,9 +103,16 @@ SIDECAR_MEANING = (
     "and converted to USD; the cached USD column is forward-filled onto NYSE "
     "rows between these dates and those filled rows are NOT native "
     "observations")
+# How the recorded dates were produced. Records without this value were
+# written by 30ac1ed (FX conversion AFTER the NYSE-only crypto reindex), which
+# dropped Shenzhen sessions on US holidays before they were recorded; they are
+# refused. Change the value whenever the conversion or the recording changes
+# what a record would list for the same vendor inputs.
+SIDECAR_CONSTRUCTION = "fx-before-nyse-reindex/2026-10-29"
 
 __all__ = ["venue_for", "session_dates", "observed_dates", "provenance",
-           "sidecar_record", "parse_sidecar"]
+           "native_schedule", "content_digest", "sidecar_record",
+           "parse_sidecar"]
 
 
 def session_dates(dates) -> pd.DatetimeIndex:
@@ -108,6 +132,27 @@ def observed_dates(series: pd.Series) -> pd.DatetimeIndex:
     vals = pd.to_numeric(series, errors="coerce").astype(float)
     ok = vals.notna() & (vals > 0) & ~vals.isin([math.inf, -math.inf])
     return session_dates(vals.index[ok.to_numpy()])
+
+
+def native_schedule(venue: str | None, start, end):
+    """``(schedule, holiday_data_through)`` for ``venue`` between ``start``
+    and ``end``: the library's schedule with the validated pinned closures
+    removed from a COPY (the shared calendar handle is never mutated).
+
+    Raises when the venue is unmapped, the calendar cannot be read, or a pin
+    disagrees with the library's own list for a year the library knows
+    (china_market_holidays.checked_pins). Callers that judge a sleeve must
+    treat a raise as "not established".
+    """
+    if not venue:
+        raise ValueError("no native venue is mapped for this line")
+    cal = get_calendar(venue)
+    sched = cal.schedule(start_date=pd.Timestamp(start).strftime("%Y-%m-%d"),
+                         end_date=pd.Timestamp(end).strftime("%Y-%m-%d"))
+    pins = china_market_holidays.checked_pins(cal, venue)
+    if len(pins):
+        sched = sched.loc[~pd.DatetimeIndex(sched.index).normalize().isin(pins)]
+    return sched, china_market_holidays.holiday_data_through(cal, venue)
 
 
 def provenance(rows, observed, venue: str | None,
@@ -158,18 +203,12 @@ def provenance(rows, observed, venue: str | None,
         ref = get_calendar(reference).schedule(
             start_date=rows.min().strftime("%Y-%m-%d"),
             end_date=rows.max().strftime("%Y-%m-%d"))
-        nat_cal = get_calendar(venue)
-        nat = nat_cal.schedule(
-            start_date=(rows.min() - pd.Timedelta(days=NATIVE_WINDOW_DAYS)
-                        ).strftime("%Y-%m-%d"),
-            end_date=(rows.max() + pd.Timedelta(days=1)).strftime("%Y-%m-%d"))
-        # Closures the library does not know yet, from the official notice
-        # (china_market_holidays). Removed from a COPY: the shared calendar
-        # handle is never mutated (venue_calendars).
-        pins = china_market_holidays.pinned_closures(venue)
-        if len(pins):
-            nat = nat.loc[~pd.DatetimeIndex(nat.index).normalize().isin(pins)]
-        bound = china_market_holidays.holiday_data_through(nat_cal, venue)
+        # Closures the library does not know yet come from the official
+        # notice (china_market_holidays); a pin that contradicts the library
+        # raises here and the row fails closed.
+        nat, bound = native_schedule(
+            venue, rows.min() - pd.Timedelta(days=NATIVE_WINDOW_DAYS),
+            rows.max() + pd.Timedelta(days=1))
         out.attrs["holiday_data_through"] = bound
     except Exception as exc:  # noqa: BLE001 — any calendar fault fails closed
         out.attrs["error"] = f"native calendar unavailable ({exc})"
@@ -212,14 +251,43 @@ def provenance(rows, observed, venue: str | None,
     return out
 
 
-def sidecar_record(observed_by_line: dict, through) -> dict:
+def content_digest(frame: pd.DataFrame, tickers) -> str:
+    """SHA-256 of ``frame``'s row index and its ``tickers`` columns.
+
+    What a native record attests to: which dates were observed for THESE
+    values on THESE rows. Other columns are left out on purpose, so a repair
+    to a US line (repair_price_gaps rewrites the parquet without touching the
+    sidecar) does not void the native record, while any change to a native
+    value, or any added or removed row, does. Canonical bytes, independent of
+    parquet encoding and of the index's datetime resolution: ISO stamps, then
+    each column's name and little-endian float64 values with one NaN form.
+    """
+    h = hashlib.sha256()
+    idx = pd.DatetimeIndex(frame.index)
+    h.update(f"tz={idx.tz}\n".encode())
+    h.update("\n".join(idx.strftime("%Y-%m-%dT%H:%M:%S.%f")).encode())
+    for t in sorted(str(x) for x in tickers):
+        h.update(f"\ncolumn={t}\n".encode())
+        if t not in frame.columns:
+            h.update(b"<absent>")
+            continue
+        vals = pd.to_numeric(frame[t], errors="coerce").to_numpy(
+            dtype="float64", na_value=np.nan).copy()
+        vals[np.isnan(vals)] = np.nan
+        h.update(vals.astype("<f8").tobytes())
+    return h.hexdigest()
+
+
+def sidecar_record(observed_by_line: dict, frame: pd.DataFrame) -> dict:
     """The bounded, truthful record of native observations beside a cache.
 
-    Only dates that WERE observed are listed; ``through`` is the cache's last
-    row, so a reader can tell whether this record belongs to the cache it sits
-    beside. Dates older than SIDECAR_WINDOW_DAYS before ``through`` are dropped.
+    Only dates that WERE observed are listed. ``frame`` is the frame written
+    to the cache: its last row is ``through``, and the digest of its index and
+    the recorded lines' columns is ``content_sha256``, so a reader can tell
+    whether this record belongs to the frame it sits beside (parse_sidecar).
+    Dates older than SIDECAR_WINDOW_DAYS before ``through`` are dropped.
     """
-    end = pd.Timestamp(through).normalize()
+    end = pd.Timestamp(frame.index.max()).normalize()
     start = end - pd.Timedelta(days=SIDECAR_WINDOW_DAYS)
     lines = {}
     for ticker, dates in (observed_by_line or {}).items():
@@ -231,30 +299,45 @@ def sidecar_record(observed_by_line: dict, through) -> dict:
             "last": str(d[-1].date()) if len(d) else None,
         }
     return {"meaning": SIDECAR_MEANING,
+            "construction": SIDECAR_CONSTRUCTION,
             "through": str(end.date()),
             "window_days": SIDECAR_WINDOW_DAYS,
+            "content_sha256": content_digest(frame, lines),
             "lines": lines}
 
 
-def parse_sidecar(sidecar: dict | None, tickers, through) -> dict | None:
+def parse_sidecar(sidecar: dict | None, frame: pd.DataFrame | None,
+                  tickers) -> dict | None:
     """``{ticker: DatetimeIndex}`` from a cache sidecar, or None.
 
-    None unless the record exists, has the minimum shape, names every one of
-    ``tickers``, was written for a cache ending at ``through`` and keeps at
-    least SIDECAR_WINDOW_DAYS of history. A partial, mismatched or too-short
-    record is treated as absent: provenance that does not belong to the frame
-    in hand, or cannot reach back over the signal window, is not provenance.
-    Never raises.
+    None unless the record exists, has the minimum shape, was built under
+    SIDECAR_CONSTRUCTION, names every one of ``tickers``, was written for a
+    frame ending on ``frame``'s last row, keeps at least SIDECAR_WINDOW_DAYS
+    of history, and its ``content_sha256`` is the digest of ``frame``'s rows
+    and recorded columns as they are now. A partial, mismatched, too-short or
+    differently built record is treated as absent: provenance that does not
+    belong to the frame in hand, or cannot reach back over the signal window,
+    is not provenance. Never raises.
     """
     try:
+        if frame is None or not len(frame):
+            return None
         rec = (sidecar or {}).get(SIDECAR_KEY)
         if not isinstance(rec, dict) or not isinstance(rec.get("lines"), dict):
             return None
-        if rec.get("through") != str(pd.Timestamp(through).normalize().date()):
+        if rec.get("construction") != SIDECAR_CONSTRUCTION:
+            return None
+        through = pd.Timestamp(frame.index.max()).normalize()
+        if rec.get("through") != str(through.date()):
             return None
         window = rec.get("window_days")
         if (not isinstance(window, int) or isinstance(window, bool)
                 or window < SIDECAR_WINDOW_DAYS):
+            return None
+        digest = rec.get("content_sha256")
+        if (not isinstance(digest, str)
+                or any(str(t) not in frame.columns for t in rec["lines"])
+                or digest != content_digest(frame, rec["lines"])):
             return None
         out = {}
         for t in tickers:

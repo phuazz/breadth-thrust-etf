@@ -353,7 +353,7 @@ def _hermetic_world(tmp_path, monkeypatch, *, panel_end: str, cache_end: str,
                                      native_sessions.sidecar_record(
                                          {t: _days("XSHG")
                                           for t in th._native_tickers()},
-                                         through=th_idx.max())})
+                                         pd.read_parquet(th.PRICE_CACHE))})
 
 
 # Tue 25 Aug 2026, 06:00 UTC. Both NYSE and Xetra last completed Mon 24 Aug:
