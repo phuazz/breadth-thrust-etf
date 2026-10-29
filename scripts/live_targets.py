@@ -93,6 +93,10 @@ DATA_DIR = PROJECT_ROOT / "data"
 # owner decision, not a tuning knob.
 ROW_COVERAGE_FLOOR = 1.0
 
+# How many decision-calendar rows back the native-session check looks for the
+# last row it can vouch for (about three calendar weeks of NYSE sessions).
+NATIVE_LOOKBACK_ROWS = 15
+
 
 def _breadth_panel(universe: list[str]) -> tuple[pd.DataFrame, list[str]]:
     """Constituent-derived breadth, on its OWN index.
@@ -130,7 +134,8 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
           label: str, coverage_floor: float = ROW_COVERAGE_FLOOR,
           signal_kind: str = "breadth", top_k: int | None = None,
           prev_session: str | None = None,
-          cash_proxy: str | None = None, gate_fn=None) -> dict:
+          cash_proxy: str | None = None, gate_fn=None,
+          native_inputs: dict[str, dict] | None = None) -> dict:
     """Rank on the last signal session at or before the venue's last close.
 
     Refuses twice, for two different failures. A row that stops SHORT of the
@@ -159,6 +164,18 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
     Without it the commentary can see five exits and no buy but not why, and
     it filled the gap by attributing each exit to the name's own rank — which
     on 2026-09-16 read "ARKG exits (rank 1 → 1, out of the top 5)".
+
+    A FILLED ROW IS NOT A CURRENT ROW (2026-10-28). `native_inputs` names the
+    lines priced off another venue and forward-filled onto this calendar —
+    sleeve C's 159801.SZ, ten days on NYSE. A withdrawn Shenzhen bar fills
+    exactly like Golden Week, so the coverage floor sees a full row. Each such
+    line must carry the close of the native session its venue completed by
+    this venue's close on the decision row and on every row the signal draws
+    on — the spec's ``window_rows``, sleeve C's 200-row average
+    (native_sessions.provenance) — or the sleeve is HOLD, again before the
+    weight function runs. A spec that does not state its window is HOLD. The
+    HOLD keeps the newest row it CAN vouch for under `last_valid`, as
+    information only.
     """
     cal = _venue_cal(venue)
     lcs = last_completed_session_on(cal, now_utc)
@@ -196,6 +213,14 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
                 "last_completed_session":
                     str(lcs.date()) if lcs is not None else None,
                 "weights": {}}
+    native = None
+    if native_inputs:
+        native = _native_check(signal[ranked], decided, native_inputs,
+                               have_floor=total * coverage_floor)
+        stale = [t for t, p in native["rows"][decided].items() if not p["current"]]
+        if stale:
+            return _native_hold(label, venue, decided, lcs, stale, native,
+                                signal_kind, top_k)
     reaches = lcs is not None and pd.Timestamp(decided) >= pd.Timestamp(lcs)
     w = weight_fn(row)
     w = w[w > 0].sort_values(ascending=False)
@@ -231,7 +256,136 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
         "signals_prev": prev_row,
         "decision_session_prev": prev_session if prev_row else None,
         "gate": gate_fn(row) if gate_fn else None,
+        **({"native_provenance": native["rows"][decided]} if native else {}),
     }
+
+
+def _native_check(panel: pd.DataFrame, decided: pd.Timestamp,
+                  native_inputs: dict[str, dict], have_floor: float) -> dict:
+    """Native-session provenance for the last NATIVE_LOOKBACK_ROWS rows to
+    ``decided``.
+
+    Returns ``{"rows": {row: {ticker: record}}, "last_valid": row | None}``,
+    where ``last_valid`` is the newest row before the decision row that is
+    both complete and native-current on every line — the last information the
+    sleeve can vouch for. Provenance is read over the PANEL's own index (the
+    rows the rolling signal ran over, warm-up rows included), ``window_rows -
+    1`` rows further back than the oldest row judged, so each judged row is
+    checked across its whole signal window.
+    """
+    import native_sessions
+    index = panel.index[panel.index <= decided]
+    prov = {}
+    for t, spec in native_inputs.items():
+        if t not in panel.columns:
+            continue
+        w = spec.get("window_rows")
+        span = (NATIVE_LOOKBACK_ROWS + w - 1
+                if isinstance(w, int) and not isinstance(w, bool) and w >= 1
+                else NATIVE_LOOKBACK_ROWS)
+        prov[t] = native_sessions.provenance(index[-span:], spec.get("observed"),
+                                             spec.get("venue"), window_rows=w)
+    window = index[-NATIVE_LOOKBACK_ROWS:]
+
+    def _d(ts):
+        return None if ts is None else str(pd.Timestamp(ts).date())
+
+    rows: dict = {}
+    for r in window:
+        key = native_sessions.session_dates([r])[0]
+        rows[r] = {}
+        for t, p in prov.items():
+            rows[r][t] = {
+                "venue": native_inputs[t].get("venue"),
+                "required_native_session": _d(p.at[key, "required_native_session"]),
+                "native_close_carried": _d(p.at[key, "native_close_carried"]),
+                "current": bool(p.at[key, "current"]),
+                "window_rows": p.attrs.get("window_rows"),
+                "window_complete": bool(p.at[key, "window_complete"]),
+                "missing_native_sessions": [
+                    _d(s) for s in p.at[key, "missing_native_sessions"]],
+                "holiday_data_through": _d(p.attrs.get("holiday_data_through")),
+                "error": p.attrs.get("error"),
+            }
+    last_valid = None
+    for r in reversed(window[:-1]):
+        if (all(rec["current"] for rec in rows[r].values())
+                and int(panel.loc[r].notna().sum()) >= have_floor):
+            last_valid = r
+            break
+    return {"rows": rows, "last_valid": last_valid,
+            "last_valid_signals": (None if last_valid is None
+                                   else _row_dict(panel.loc[last_valid]))}
+
+
+def _native_hold(label, venue, decided, lcs, stale, native,
+                 signal_kind, top_k) -> dict:
+    """HOLD for a decision row whose native line is filled, not observed.
+
+    No weights: nothing is ranked. `last_valid` carries the newest row the
+    sleeve can vouch for, with its signals, so the information stays visible —
+    it is not a book, and _intended_lines never reads it.
+    """
+    here = native["rows"][decided]
+    parts = []
+    for t in stale:
+        rec = here[t]
+        n = rec["window_rows"]
+        older = [s for s in rec["missing_native_sessions"]
+                 if s != rec["required_native_session"]]
+        if rec["error"] and not rec["required_native_session"]:
+            parts.append(f"{t}: required {rec['venue']} session unknown — "
+                         f"{rec['error']}")
+        elif rec["error"]:
+            parts.append(f"{t}: provenance unknown — {rec['error']}")
+        elif rec["native_close_carried"] is None:
+            parts.append(f"{t}: no observed {rec['venue']} close "
+                         f"(none in the record); required "
+                         f"{rec['required_native_session']}")
+        elif rec["native_close_carried"] != rec["required_native_session"]:
+            parts.append(f"{t}: newest observed {rec['venue']} close is "
+                         f"{rec['native_close_carried']} but the required "
+                         f"session is {rec['required_native_session']}"
+                         + (f"; also not observed inside its {n}-row signal "
+                            f"window: {', '.join(older)}" if older else ""))
+        elif older:
+            parts.append(f"{t}: the {rec['native_close_carried']} close was "
+                         f"observed, but the {rec['venue']} close for "
+                         f"{', '.join(older)} was not, so the {n}-row signal "
+                         f"window carries a forward-filled value there")
+        else:
+            parts.append(f"{t}: the record does not reach back over the "
+                         f"{n}-row signal window, so the rows it averages "
+                         f"cannot be vouched for")
+        bound = rec.get("holiday_data_through")
+        unannounced = [s for s in rec["missing_native_sessions"]
+                       if bound and s > bound]
+        if unannounced:
+            parts.append(f"{t}: {', '.join(unannounced)} lie past the "
+                         f"{rec['venue']} holiday data (through {bound}); if the "
+                         f"exchange was shut, pin the closure in "
+                         f"china_market_holidays.py from the official notice")
+    lv = native["last_valid"]
+    return {"sleeve": label, "venue": venue, "status": "HOLD",
+            "reason": (
+                f"decision row {decided.date()} carries a native-venue line "
+                f"that is forward-filled, or not shown to be observed, on that "
+                f"row or on a row its signal window averages — ranking it "
+                f"would trade a price the venue never printed; "
+                + "; ".join(parts)),
+            "missing_signal_inputs": list(stale),
+            "decision_session": str(decided.date()),
+            "last_completed_session":
+                str(lcs.date()) if lcs is not None else None,
+            "weights": {},
+            "signal_kind": signal_kind,
+            "top_k": top_k,
+            "native_provenance": here,
+            "last_valid": None if lv is None else {
+                "decision_session": str(lv.date()),
+                "signals": native["last_valid_signals"],
+                "native_provenance": native["rows"][lv],
+            }}
 
 
 def _row_dict(row: pd.Series) -> dict[str, float | None]:
@@ -347,7 +501,8 @@ def build(now_utc: datetime | None = None) -> dict:
                          signal_kind="ma_distance", top_k=th.HEADLINE_K,
                          prev_session=prev.get("C"),
                          cash_proxy=th.CASH_PROXY,
-                         gate_fn=th.sleeve_gate_state))
+                         gate_fn=th.sleeve_gate_state,
+                         native_inputs=th.native_inputs()))
 
     bd, used_d = _breadth_panel(UNIVERSE_EUROPE_SECTORS)
     sleeves.append(_rank(bd, eu.top_k_breadth_weight(eu.HEADLINE_K),

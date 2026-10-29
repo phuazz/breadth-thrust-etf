@@ -210,6 +210,12 @@ def write_cache_source(cache_path: Path, source: str,
         # carry a refused column under its CACHED basis.
         if report.get("basis_guard"):
             payload["basis_guard"] = report["basis_guard"]
+        # The dates a non-USD line's native close was actually observed
+        # (2026-10-28, native_sessions). The cached column is forward-filled
+        # onto NYSE, so without this a cache hit cannot tell a holiday fill
+        # from a withdrawn bar.
+        if report.get("native_observations"):
+            payload["native_observations"] = report["native_observations"]
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
 

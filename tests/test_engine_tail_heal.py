@@ -365,7 +365,14 @@ def test_sleeve_c_reuses_a_genuinely_current_cache(thematic_site, monkeypatch, c
     full = frame.copy()
     full.loc[FRI, "BTC-USD"] = 123.0
     full.to_parquet(cache)
-    ps.write_cache_source(cache, "norgate", {"completed_crypto_through": {"BTC-USD": str(FRI.date())}})
+    # A reusable cache carries its native-observation record (2026-10-28).
+    import native_sessions
+    native = native_sessions.sidecar_record(
+        {t: full[t].dropna().index for t in th._native_tickers() if t in full},
+        through=full.index.max())
+    ps.write_cache_source(cache, "norgate", {
+        "completed_crypto_through": {"BTC-USD": str(FRI.date())},
+        native_sessions.SIDECAR_KEY: native})
     monkeypatch.setenv("BTE_PRICE_SOURCE", "norgate")
 
     def must_not(t):

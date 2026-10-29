@@ -330,11 +330,30 @@ def _hermetic_world(tmp_path, monkeypatch, *, panel_end: str, cache_end: str,
     # Two rows so a straggler can be expressed as a trailing NaN rather than a
     # shorter frame — the BTC-USD shape cache_reach already handles.
     idx = pd.to_datetime(["2026-08-18", cache_end])
-    for mod, name in ((ac, "ac.parquet"), (th, "th.parquet")):
-        frame = pd.DataFrame({t: [1.0, 1.0] for t in mod.TICKERS}, index=idx)
+    # Sleeve C's native line is certified across its whole 200-row signal
+    # window (2026-10-29), so its cache carries real NYSE history to
+    # cache_end, and its record lists every Shenzhen session in that span
+    # (2026-10-28) so C behaves as before.
+    from venue_calendars import get_calendar
+
+    def _days(venue):
+        s = get_calendar(venue).schedule(start_date="2025-06-02", end_date=cache_end)
+        return pd.DatetimeIndex([pd.Timestamp(d).normalize() for d in s.index])
+
+    th_idx = _days("NYSE")
+    for mod, name, rows in ((ac, "ac.parquet", idx), (th, "th.parquet", th_idx)):
+        frame = pd.DataFrame({t: 1.0 for t in mod.TICKERS}, index=rows)
         p = tmp_path / name
         frame.to_parquet(p)
         monkeypatch.setattr(mod, "PRICE_CACHE", p)
+    import native_sessions
+    import price_source
+    price_source.write_cache_source(
+        th.PRICE_CACHE, "yfinance", {native_sessions.SIDECAR_KEY:
+                                     native_sessions.sidecar_record(
+                                         {t: _days("XSHG")
+                                          for t in th._native_tickers()},
+                                         through=th_idx.max())})
 
 
 # Tue 25 Aug 2026, 06:00 UTC. Both NYSE and Xetra last completed Mon 24 Aug:
@@ -444,7 +463,13 @@ def _prior(b_through: str | None = "2026-08-21",
             "strategies": [
                 {"sleeve": "B", "data_through": b_through,
                  "laggards": list(b_laggards)},
-                {"sleeve": "C", "data_through": c_through, "laggards": []},
+                {"sleeve": "C", "data_through": c_through, "laggards": [],
+                 # A carried C bound must have been measured on native
+                 # provenance (2026-10-28), not on the filled column, over
+                 # the whole 200-row signal window (2026-10-29).
+                 "native_provenance": {"159801.SZ": {
+                     "venue": "XSHG", "last_valid": c_through,
+                     "window_rows": 200}}},
             ]}
 
 
