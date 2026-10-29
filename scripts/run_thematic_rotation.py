@@ -502,6 +502,10 @@ def _fx_convert_to_usd(df: pd.DataFrame) -> pd.DataFrame:
     bar is filled exactly like a Golden Week closure. So the dates a native
     close was really observed and converted are recorded in
     NATIVE_OBSERVATIONS before alignment; the aligned column is unchanged.
+
+    Must run on the fetched frame BEFORE ``_reindex_crypto_to_equity_calendar``
+    drops the rows NYSE did not trade (2026-10-29), or a Shenzhen session on a
+    US holiday is neither converted nor recorded.
     """
     global NATIVE_OBSERVATIONS
     sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
@@ -817,14 +821,21 @@ def download_prices() -> pd.DataFrame:
     # The NYSE close cannot certify the later UTC-day Bitcoin close.
     # Use the bound captured BEFORE acquisition, even if a fetch crosses midnight.
     df = completed_prices.mask_uncompleted_crypto(df, crypto_names, acquisition_started)
+    # Phase 17.1: FX-convert any non-USD-denominated tickers (currently
+    # CNY-denominated A-share ETFs) onto the NYSE equity calendar before
+    # the expense-ratio drag, so the drag compounds on USD prices.
+    #
+    # BEFORE the crypto reindex below (2026-10-29), because that reindex keeps
+    # NYSE rows only. Run after it, a Shenzhen session on a US holiday never
+    # reached the conversion: Good Friday 2026-04-03 was served (0.803 CNY)
+    # and dropped, so the 2026-04-06 NYSE row, Qingming in Shenzhen, carried
+    # Thursday's close, and the native check held sleeve C on it. Converting
+    # first lets that row carry the close Shenzhen actually printed.
+    df = _fx_convert_to_usd(df)
     # Phase 15.2: reindex crypto to equity calendar BEFORE applying
     # expense-ratio drag, so the drag's elapsed-days arithmetic uses the
     # right base index.
     df = _reindex_crypto_to_equity_calendar(df)
-    # Phase 17.1: FX-convert any non-USD-denominated tickers (currently
-    # CNY-denominated A-share ETFs) onto the NYSE equity calendar before
-    # the expense-ratio drag, so the drag compounds on USD prices.
-    df = _fx_convert_to_usd(df)
     df = _apply_expense_ratio_drag(df)
     # WS21: build the composite Bitcoin column AFTER the crypto reindex, the FX
     # pass and the drag, and deliberately so. Each of those three loops keys off
