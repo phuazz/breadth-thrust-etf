@@ -5430,7 +5430,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-10-23",
- "computed_at_utc": "2026-10-28 15:11 UTC",
+ "computed_at_utc": "2026-10-29 01:06 UTC",
  "holdings": [
   {
    "ticker": "DBC",
@@ -5728,48 +5728,48 @@
  "n_positions": 18,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-10-28T15:11:47.637181+00:00",
+  "computed_at_utc": "2026-10-29T01:06:53.751311+00:00",
   "all_current": false,
   "strategies": [
    {
     "sleeve": "A",
     "label": "US sectors",
     "data_through": "2026-10-23",
-    "venue_last_session": "2026-10-27",
-    "sessions_behind": 2,
+    "venue_last_session": "2026-10-28",
+    "sessions_behind": 3,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-27 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-28 — it has not been rebuilt since."
    },
    {
     "sleeve": "B",
     "label": "Asset classes",
     "data_through": "2026-10-23",
-    "venue_last_session": "2026-10-27",
-    "sessions_behind": 2,
+    "venue_last_session": "2026-10-28",
+    "sessions_behind": 3,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-27 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-28 — it has not been rebuilt since."
    },
    {
     "sleeve": "C",
     "label": "Thematic",
     "data_through": "2026-10-23",
-    "venue_last_session": "2026-10-27",
-    "sessions_behind": 2,
+    "venue_last_session": "2026-10-28",
+    "sessions_behind": 3,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-27 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-28 — it has not been rebuilt since."
    },
    {
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-10-23",
-    "venue_last_session": "2026-10-27",
-    "sessions_behind": 2,
+    "venue_last_session": "2026-10-28",
+    "sessions_behind": 3,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-27 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-28 — it has not been rebuilt since."
    }
   ]
  },
