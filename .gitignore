@@ -57,3 +57,10 @@ pytest-output.txt
 
 # Local no-send rehearsals and CI mail payloads; never source inputs.
 .component-mail/
+
+# Combined-book risk runtime files (scripts/combined_book_risk.py): the writer
+# lock, the in-progress marker and the atomic-write temporary. The snapshot
+# data/combined_book_risk.json itself is committed.
+data/combined_book_risk.json.lock
+data/combined_book_risk.json.pending
+data/combined_book_risk.json.tmp

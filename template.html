@@ -509,6 +509,76 @@
     .data-chart-stats .up { color: #15803d; }
     .data-chart-stats .dn { color: #b91c1c; }
 
+    /* ----- Combined-book risk (2026-10-27) ----- */
+    .cbr-basis {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 8px 18px; margin: 0 0 14px; padding: 12px 14px;
+      background: var(--bg-soft); border: 1px solid var(--border); border-radius: 4px;
+      font-size: 12.5px; color: var(--ink-soft);
+    }
+    .cbr-basis div { min-width: 0; }
+    .cbr-basis b { display: block; color: var(--ink); font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+    .cbr-note {
+      margin: 0 0 14px; padding: 10px 14px; font-size: 13px; line-height: 1.5;
+      border-left: 3px solid var(--warn); background: rgba(183,110,0,0.08); max-width: 58ch;  /* 51ch of text after padding */
+    }
+    .cbr-note ul { margin: 6px 0 0 18px; padding: 0; }
+    .cbr-bars { margin: 0 0 12px; max-width: 760px; }
+    .cbr-bar-row {
+      display: grid; grid-template-columns: minmax(96px, 190px) 1fr; gap: 4px 12px;
+      align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .cbr-bar-label { color: var(--ink); font-weight: 600; }
+    .cbr-bar-pair { display: grid; gap: 3px; }
+    .cbr-track { position: relative; height: 14px; background: var(--bg-soft); }
+    .cbr-fill { position: absolute; top: 0; bottom: 0; }
+    .cbr-fill.cap { background: var(--border-strong); }
+    .cbr-fill.risk { background: var(--accent); }
+    .cbr-fill.neg { background: var(--bad); }
+    .cbr-zero { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--ink-faint); }
+    .cbr-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink-soft); margin: 0 0 6px; }
+    .cbr-legend i { display: inline-block; width: 12px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+    .cbr-scroll { overflow-x: auto; margin: 0 0 14px; }
+    /* Own table class, not table.holdings: that one hides columns 2-6 below
+       720px by nth-child, which would delete the numbers here on a phone. */
+    table.cbr-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    table.cbr-table caption { caption-side: top; text-align: left; font-size: 12px; color: var(--ink-faint); padding: 0 0 6px; }
+    table.cbr-table th {
+      text-align: left; padding: 8px 10px; background: var(--bg-soft); font-weight: 600;
+      color: var(--ink-soft); border-bottom: 1px solid var(--border-strong); font-size: 12px;
+    }
+    table.cbr-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    table.cbr-table td.num, table.cbr-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.cbr-table td.num { white-space: nowrap; }
+    /* Phone: every column must sit inside 390px, not behind a scroll. */
+    @media (max-width: 480px) {
+      table.cbr-table { font-size: 12px; }
+      table.cbr-table th, table.cbr-table td { padding: 6px 5px; }
+      .cbr-bar-row { grid-template-columns: 92px 1fr; }
+    }
+    table.cbr-table tr.cbr-total td { font-weight: 600; border-top: 1px solid var(--border-strong); }
+    .cbr-sub { display: block; font-size: 11.5px; color: var(--ink-faint); font-weight: 400; }
+    #cbr-section h3 { font-size: 15px; margin: 18px 0 6px; }
+    .cbr-limits { font-size: 13px; color: var(--ink-soft); line-height: 1.55; max-width: 51ch; margin: 6px 0 0 18px; padding: 0; }
+    .cbr-limits li { max-width: none; }
+    /* Measured, not assumed: ch is the width of "0", wider than average prose,
+       so these caps land at 65-75 rendered characters per line. */
+    section#cbr-section > p.section-sub { max-width: 52ch; }
+    section#cbr-section p.cbr-sub-prose { max-width: 51ch; }
+    #cbr-section summary { padding: 12px 0; cursor: pointer; font-weight: 600; font-size: 14px; }
+    /* Phone prose measure, this panel only (owner ruling 2026-10-28: no
+       page-wide type change). 14px in a 362px column ran 55-59 characters per
+       line against MOBILE_CHECK's 40-50; 15px capped at 20em measures inside it. */
+    @media (max-width: 480px) {
+      section#cbr-section > p.section-sub, section#cbr-section p.cbr-sub-prose,
+      #cbr-section .cbr-limits, #cbr-section .cbr-note { font-size: 15px; max-width: 20em; }
+      #cbr-section .cbr-note { max-width: 22em; }  /* its padding narrows the text box */
+    }
+
     /* ----- Combined portfolio holdings table ----- */
     table.holdings {
       width: 100%; border-collapse: collapse; font-size: 13px;
@@ -2410,6 +2480,16 @@
       <div style="overflow-x:auto;">
         <table class="holdings" id="live-holdings-table"><thead></thead><tbody></tbody></table>
       </div>
+    </section>
+
+    <!-- Combined-book risk (2026-10-27). Reporting only: rendered from
+         data/combined_book_risk.json (scripts/combined_book_risk.py), which
+         nothing in the engines, targets or overlays reads. Describes the
+         MODEL-HELD book, never the next-fill targets above. -->
+    <section id="cbr-section">
+      <h2>Combined-book risk</h2>
+      <p class="section-sub">Capital weight against estimated risk contribution for the model-held book, by sleeve, and where sleeves hold the same or closely related exposure. Reporting only: nothing on this panel feeds selection, sizing, gates or orders.</p>
+      <div id="cbr-root"></div>
     </section>
 
     <section>
@@ -5766,6 +5846,7 @@ function renderMonitor() {
     </td>
   </tr>`;
   el.querySelector('tbody').innerHTML = tbodyHtml + totalRow;
+  try { renderCombinedBookRisk(); } catch (e) { console.error('renderCombinedBookRisk', e); }
   // Wire up click-to-expand mini-chart on holdings rows (Phase 18.3).
   // Idempotent — bound once per render, replacing the previous handler
   // via dataset flag.
@@ -6534,6 +6615,159 @@ function _perfRender(period) {
 // 1Y price mini-chart for the underlying trade-as ticker. Data source:
 // window.DATA.holdings_prices.prices (built by
 // scripts/export_holdings_prices.py, ~265KB JSON across ~56 tickers).
+
+// Combined-book risk (2026-10-27; revised 2026-10-28 for the Codex review F1-F5).
+// Reporting only; see scripts/combined_book_risk.py. Every figure comes from
+// window.DATA.combined_book_risk. pipeline.py re-validates the saved snapshot
+// against the current files and sets display_state:
+//   current    - risk figures shown as the current model-held book
+//   historical - inputs for its own as-of still match; shown, labelled historical
+//   invalid    - risk withheld; capital and overlap labelled "as computed, unverified"
+// Undefined attribution (zero estimated variance) prints "undefined", never 0%.
+function renderCombinedBookRisk() {
+  const root = document.getElementById('cbr-root');
+  if (!root) return;
+  const v = window.DATA?.combined_book_risk;
+  const esc = _escapeHtml;
+  const num = x => typeof x === 'number' && Number.isFinite(x);
+  const pct = (x, dp = 1) => num(x) ? (x * 100).toFixed(dp) + '%' : '—';
+  const pp = x => num(x) ? (x * 100).toFixed(2) + ' pp' : '—';
+  if (!v) {
+    root.innerHTML = '<p class="cbr-note">The combined-book risk artefact (data/combined_book_risk.json) is not in this build.</p>';
+    return;
+  }
+  const state = v.display_state || 'invalid';
+  const b = v.basis || {};
+  const anchor = b.anchor || '—';
+  const riskShown = v.risk_status === 'available' && (state === 'current' || state === 'historical');
+  // Attribution is drawn only when the artefact records it as defined AND the
+  // variance is positive; numeric shares that arrive otherwise are ignored.
+  const attrDefined = riskShown && num(v.portfolio?.variance) && v.portfolio.variance > 0
+    && v.portfolio.attribution === 'defined';
+  const undefinedAttr = riskShown && !attrDefined;
+  const share = x => !riskShown ? 'unavailable' : (attrDefined && num(x) ? pct(x, 1) : 'undefined');
+  const scope = state === 'current' ? `Model-held book as at ${esc(anchor)}`
+    : state === 'historical' ? `Historical snapshot: model-held book as at ${esc(anchor)}`
+    : `As computed for ${esc(anchor)}; not verified against current files`;
+  const stateText = state === 'invalid' ? 'Snapshot invalid; risk withheld'
+    : (v.risk_status !== 'available' ? (state === 'historical' ? 'Historical; risk estimate unavailable' : 'Risk estimate unavailable')
+      : (state === 'historical' ? 'Historical snapshot' : (undefinedAttr ? 'Zero estimated variance; attribution undefined' : 'Estimate available')));
+  const rec = v.reconciliation || {};
+  const recText = rec.status === 'pass' ? `Pass (max ${(rec.max_abs_diff * 1e4).toFixed(2)} bp vs ${(rec.tolerance * 1e4).toFixed(0)} bp)`
+    : (rec.status ? rec.status.charAt(0).toUpperCase() + rec.status.slice(1) : '—');
+  const fx = b.fx;
+  const fxText = fx === null ? 'Not needed' : (fx && fx.label ? esc(fx.label) : 'Unavailable');
+  const fxSub = fx && fx.last ? 'Last ' + esc(fx.last) : (fx && fx.tried ? fx.tried.map(t => esc(t.id + ': ' + t.problem)).join('; ') : '');
+  const cell = (k, val, sub) => `<div>${esc(k)}<b>${val}</b>${sub ? `<span class="cbr-sub">${sub}</span>` : ''}</div>`;
+  let html = `<div class="cbr-basis" role="group" aria-label="Basis of the risk estimate">
+    ${cell('Book', 'Model-held, as at ' + esc(anchor), 'Decisions as of ' + esc(b.model_as_of || '—') + '. Not broker-confirmed; not the next-fill targets.')}
+    ${cell('Prices', 'Adjusted closes to ' + esc(b.price_cutoff || '—'), esc((b.price_source || '—') + (b.price_export_utc ? ', exported ' + b.price_export_utc : '')))}
+    ${cell('Estimator', 'Common-close return intervals, annualised ×252', 'Sample covariance; ' + esc(b.window || ''))}
+    ${cell('Observations', num(b.n_returns) ? `${b.n_returns} intervals` : '—', num(b.n_returns) ? `${esc(b.first_return_date)} to ${esc(b.last_return_date)}; ${b.extended_intervals} span a venue holiday; minimum ${b.min_returns}` : `Minimum ${b.min_returns ?? '—'}`)}
+    ${cell('NAV covered by the estimate', riskShown ? pct(b.nav_covered, 2) : '0% (none)', `Capital total ${pct(v.capital_total, 3)}`)}
+    ${cell('Reconciliation', esc(recText), esc(rec.detail || ''))}
+    ${cell('EUR/USD (Sleeve D)', fxText, fxSub)}
+    ${cell('State', esc(stateText), 'Computed ' + esc(v.computed_at_utc || '—'))}
+  </div>`;
+  const reasons = [...(v.display_reasons || []), ...(v.reasons || [])];
+  const notes = v.display_notes || [];
+  if (state !== 'current' || v.risk_status !== 'available' || undefinedAttr || notes.length) {
+    const lead = state === 'invalid'
+      ? (v.capital_status === 'available' && (v.sleeves || []).length
+        ? 'Risk figures are withheld. The capital and overlap tables show the book as computed and are not verified against the current files.'
+        : 'Risk figures are withheld; no capital or overlap tables are shown.')
+      : state === 'historical'
+        ? 'This snapshot describes an earlier model-held book. Its figures are dated and do not describe the current book.'
+        : (v.risk_status !== 'available'
+          ? 'Capital weights are from the validated held basis; risk figures are withheld rather than shown as zero.'
+          : (undefinedAttr
+            ? 'Estimated portfolio variance is zero, so risk shares are undefined and are not shown as 0%.'
+            : 'Re-verified against the current files, within the limits noted.'));
+    const items = [...reasons, ...notes];
+    html += `<div class="cbr-note" role="status"><strong>${esc(stateText)}.</strong> ${lead}${items.length ? '<ul>' + items.map(r => `<li>${esc(r)}</li>`).join('') + '</ul>' : ''}</div>`;
+  }
+  const sleeves = v.sleeves || [];
+  if (v.capital_status !== 'available' || !sleeves.length) {
+    root.innerHTML = html;
+    return;
+  }
+  // Paired bars on one shared scale with a zero line, so a negative risk
+  // share stays visible; no risk bar is drawn when the share is undefined.
+  const riskVals = attrDefined ? sleeves.map(s => s.share).filter(num) : [];
+  const vals = [...sleeves.map(s => s.capital).filter(num), ...riskVals];
+  const lo = Math.min(0, ...vals), hi = Math.max(0.0001, ...vals);
+  const pos = x => ((x - lo) / (hi - lo)) * 100;
+  const bar = (x, cls) => {
+    if (!num(x)) return '<div class="cbr-track"></div>';
+    const a = pos(Math.min(0, x)), z = pos(Math.max(0, x));
+    return `<div class="cbr-track"><span class="cbr-fill ${x < 0 ? 'neg' : cls}" style="left:${a}%;width:${Math.max(z - a, 0.3)}%"></span><span class="cbr-zero" style="left:${pos(0)}%"></span></div>`;
+  };
+  html += `<h3>Capital weight and estimated risk contribution by sleeve</h3>
+    <div class="cbr-legend" aria-hidden="true"><span><i style="background:var(--border-strong)"></i>Capital weight</span><span><i style="background:var(--accent)"></i>Estimated risk contribution</span><span><i style="background:var(--bad)"></i>Negative contribution</span></div>
+    <div class="cbr-bars" aria-hidden="true">${sleeves.map(s => `<div class="cbr-bar-row"><span class="cbr-bar-label">${esc(s.label || s.sleeve)}</span><div class="cbr-bar-pair">${bar(s.capital, 'cap')}${attrDefined ? bar(s.share, 'risk') : '<div class="cbr-track"></div>'}</div></div>`).join('')}</div>`;
+  const definedTotal = attrDefined ? sleeves.reduce((a, s) => a + (num(s.share) ? s.share : 0), 0) : null;
+  html += `<div class="cbr-scroll"><table class="cbr-table">
+    <caption>${scope}; USD; ${riskShown ? b.n_returns + ' common-close return intervals to ' + esc(b.last_return_date) : 'risk unavailable'}.</caption>
+    <thead><tr><th>Sleeve</th><th class="num">Capital weight</th><th class="num">Est. risk contri&shy;bution</th><th class="num">Vol contri&shy;bution</th></tr></thead><tbody>
+    ${sleeves.map(s => `<tr><td>${esc(s.label || s.sleeve)}</td><td class="num">${pct(s.capital, 2)}</td><td class="num">${share(s.share)}</td><td class="num">${!riskShown ? 'unavailable' : (attrDefined && num(s.vol_contrib) ? pp(s.vol_contrib) : 'undefined')}</td></tr>`).join('')}
+    <tr><td>Unallocated / rounding residual<span class="cbr-sub">No instrument; carries no risk contribution</span></td><td class="num">${pct(v.residual_nav, 3)}</td><td class="num">—</td><td class="num">—</td></tr>
+    <tr class="cbr-total"><td>Combined book</td><td class="num">${pct(v.capital_total, 2)}</td><td class="num">${!riskShown ? 'unavailable' : (num(definedTotal) ? pct(definedTotal, 1) : 'undefined')}</td><td class="num">${riskShown ? pct(v.portfolio.vol, 2) + ' vol' : 'unavailable'}</td></tr>
+    </tbody></table></div>`;
+
+  const sens = v.sensitivity;
+  if (riskShown && sens) {
+    const cols = ['A', 'B', 'C', 'D'].filter(k => sleeves.some(s => s.sleeve === k));
+    const sensShare = (r, k) => r && num(r.vol) && r.vol > 0 && r.sleeve_share && num(r.sleeve_share[k]) ? r.sleeve_share[k] : null;
+    const anyUndef = [sens.common_close, sens.weekly].some(r => r && cols.some(k => sensShare(r, k) === null));
+    // Sleeves are rows and conventions are columns, so a fourth sleeve adds
+    // height rather than width (render readiness D1, 390 px).
+    const runs = [['Common close, ×252', sens.common_close], ['Weekly, ×52', sens.weekly]].filter(([, r]) => r);
+    const across = f => runs.map(([, r]) => `<td class="num">${f(r)}</td>`).join('');
+    html += `<h3>Sampling sensitivity (report only)</h3>
+      <p class="section-sub cbr-sub-prose" style="margin:0 0 8px">The same held book, prices and FX over identical endpoints, ${esc(sens.endpoint_start)} to ${esc(sens.endpoint_end)}. Weekly uses the last common close of each week, annualised ×52. With about a fifth of the observations it is noisier; neither convention is ground truth${sens.status !== 'available' ? `, and the weekly estimate is below its ${sens.min_weekly_returns}-return minimum` : ''}.</p>
+      <div class="cbr-scroll"><table class="cbr-table"><caption>Estimated risk contribution by sampling convention${anyUndef ? '; — is undefined (zero estimated variance)' : ''}</caption>
+      <thead><tr><th>Sleeve</th>${runs.map(([n]) => `<th class="num">${n}</th>`).join('')}</tr></thead><tbody>
+      ${cols.map(k => `<tr><td>${k}</td>${across(r => sensShare(r, k) === null ? '—' : pct(sensShare(r, k), 1))}</tr>`).join('')}
+      <tr class="cbr-total"><td>Combined book vol</td>${across(r => num(r.vol) ? pct(r.vol, 2) : 'undefined')}</tr>
+      <tr><td>Returns used</td>${across(r => r.n_returns)}</tr>
+      </tbody></table></div>`;
+  }
+
+  const lineTxt = ls => ls.map(l => `${esc(l.sleeve)} ${esc(_displaySym(l.etf))} ${pct(l.held, 2)}`).join('<br>');
+  const ov = v.overlaps || {};
+  const hist = state === 'current' ? '' : ` (${state === 'historical' ? 'historical, as at ' + esc(anchor) : 'as computed for ' + esc(anchor) + ', unverified'})`;
+  html += `<h3>Cross-sleeve overlap</h3>
+    <p class="section-sub cbr-sub-prose" style="margin:0 0 8px">Exact shared instruments, then different traded instruments priced off the same return proxy, then cross-sleeve pairs with estimated correlation of at least ${(ov.corr_threshold ?? 0.8).toFixed(2)}. Each list stands alone; weights are not additive across lists.</p>
+    <div class="cbr-scroll"><table class="cbr-table"><caption>1. Exact shared instruments${hist}</caption>
+    <thead><tr><th>Instrument</th><th>Sleeve lines</th><th class="num">Combined weight</th></tr></thead><tbody>
+    ${(ov.exact || []).length ? ov.exact.map(r => `<tr><td>${esc(_displaySym(r.instrument))}</td><td>${lineTxt(r.lines)}</td><td class="num">${pct(r.combined, 2)}</td></tr>`).join('') : '<tr><td colspan="3">None in this book.</td></tr>'}
+    </tbody></table></div>
+    <div class="cbr-scroll"><table class="cbr-table"><caption>2. Shared modelling proxy (different instruments, one return series)${hist}</caption>
+    <thead><tr><th>Return proxy</th><th>Sleeve lines</th><th class="num">Combined weight</th></tr></thead><tbody>
+    ${(ov.proxy || []).length ? ov.proxy.map(r => `<tr><td>${esc(r.proxy)}</td><td>${lineTxt(r.lines)}</td><td class="num">${pct(r.combined, 2)}</td></tr>`).join('') : '<tr><td colspan="3">None in this book.</td></tr>'}
+    </tbody></table></div>
+    <div class="cbr-scroll"><table class="cbr-table"><caption>3. Correlated exposures across sleeves (estimated, same window)${hist}</caption>
+    <thead><tr><th>Pair (return proxies)</th><th>Sleeves</th><th class="num">Weights</th><th class="num">Corr.</th></tr></thead><tbody>
+    ${!riskShown ? '<tr><td colspan="4">Unavailable: needs the risk estimate.</td></tr>'
+      : ((ov.correlated || []).length ? ov.correlated.map(r => `<tr><td>${esc(r.a)} / ${esc(r.b)}</td><td>${esc(r.a_sleeves.join('+'))} / ${esc(r.b_sleeves.join('+'))}</td><td class="num">${pct(r.a_weight, 2)} / ${pct(r.b_weight, 2)}</td><td class="num">${num(r.corr) ? r.corr.toFixed(2) : 'undefined'}</td></tr>`).join('') : '<tr><td colspan="4">None at or above the threshold.</td></tr>')}
+    </tbody></table></div>`;
+
+  const inst = v.instruments || [];
+  html += `<details><summary>Instrument and return-proxy mapping (${inst.length} return series)</summary>
+    <div class="cbr-scroll" style="margin-top:8px"><table class="cbr-table"><caption>Held lines are labelled by the instrument held; the proxy is the price series used for risk only${hist}.</caption>
+    <thead><tr><th>Held lines</th><th>Return proxy</th><th class="num">Weight</th><th class="num">Vol</th><th class="num">Est. risk contri&shy;bution</th></tr></thead><tbody>
+    ${inst.map(i => `<tr><td>${lineTxt(i.lines)}</td><td>${esc(i.proxy)}<span class="cbr-sub">${i.fx === 'eur_to_usd' ? 'EUR→USD' : 'USD'}</span></td><td class="num">${pct(i.weight, 2)}</td><td class="num">${riskShown && num(i.vol) ? pct(i.vol, 1) : '—'}</td><td class="num">${share(i.share)}</td></tr>`).join('')}
+    </tbody></table></div></details>`;
+
+  html += `<h3>Limitations</h3><ul class="cbr-limits">
+    <li>Estimated from ETF-level return series. It does not establish constituent-level overlap: two ETFs can share stocks without showing it here, and no underlying stock weights are inferred.</li>
+    <li>Sleeve A's UCITS lines are priced off their US-listed registry proxies (for example IUHC on XLV); proxy identity is not legal instrument identity.</li>
+    <li>Returns run between dates on which every held instrument closed, so a venue holiday lengthens that interval for all lines; ×252 is a convention, not the observed interval rate. Xetra and US closes are not simultaneous, which can alter estimated covariances and risk shares in either direction.</li>
+    <li>Sleeve D is converted at the Sleeve D engine's own EUR/USD. Adjusted closes are stored to four significant figures.</li>
+    <li>A trailing-window estimate describes the past window, not future risk. It is a reporting convention, not a risk target.</li>
+  </ul>`;
+  root.innerHTML = html;
+}
 
 function _initHoldingsClickExpand(tableEl) {
   const tbody = tableEl.querySelector('tbody');

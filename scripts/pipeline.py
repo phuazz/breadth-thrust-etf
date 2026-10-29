@@ -261,6 +261,49 @@ def load_holdings_prices() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_combined_book_risk() -> dict | None:
+    """Reporting-only combined-book risk view (scripts/combined_book_risk.py).
+
+    Computed by a manual local run, not here. Every build re-validates the
+    saved snapshot against the CURRENT files (combined_book_risk.
+    validate_snapshot): held book, same-anchor reconciliation inputs, the
+    price and FX observations it used through its cutoff, and the calculator
+    version. The result is one of current / historical / invalid, and the
+    template shows risk figures only for current or (labelled) historical.
+    An artefact that cannot be read or validated is shown as invalid, with
+    the error printed here; it is never shown as current. Reading and
+    validation are one operation (combined_book_risk.read_snapshot): an
+    artefact replaced, or a run or recovery begun, while it was being
+    validated is re-read or withheld. Nothing reads this back into a
+    strategy decision.
+    """
+    import combined_book_risk as cbr
+    path = DATA_DIR / "combined_book_risk.json"
+    if not path.exists():
+        return None
+    try:
+        blob, check = cbr.read_snapshot(path, DATA_DIR)
+    except cbr.InputError as exc:
+        print(f"  WARNING: combined_book_risk.json rejected: {exc}", flush=True)
+        return {"display_state": "invalid", "display_reasons": [str(exc)], "display_notes": []}
+    if blob is None:
+        # Only a stable artefact that meets its own contract is passed on for
+        # display (labelled by state); otherwise reasons only.
+        print(f"  WARNING: combined_book_risk.json rejected: {check['reasons'][0]}", flush=True)
+        return {"display_state": "invalid", "display_reasons": check["reasons"],
+                "display_notes": []}
+    # The per-observation fingerprint is for validation here, not for display.
+    blob.pop("fingerprint", None)
+    blob["display_state"] = check["state"]
+    blob["display_reasons"] = check["reasons"]
+    blob["display_notes"] = check["notes"]
+    print(f"  combined_book_risk: snapshot {blob.get('basis', {}).get('anchor')} "
+          f"is {check['state']}; risk {blob.get('risk_status')}", flush=True)
+    for r in check["reasons"]:
+        print(f"    - {r}", flush=True)
+    return blob
+
+
 def load_live_track() -> dict | None:
     """Load data/live_track.json — daily mark-to-market overlay on the
     deployed blend (built by scripts/mark_to_market_live.py).
@@ -1660,6 +1703,7 @@ def main(dashboard_only: bool = False, strict_capture: bool = False) -> int:
         "execution_timing": execution_timing,
         "strategy_freshness": strategy_freshness,
         "live_targets": live_targets,
+        "combined_book_risk": load_combined_book_risk(),
         "commentary": load_commentary(),
     }
 
