@@ -449,8 +449,12 @@ def test_a_cache_hit_requires_a_matching_native_record():
     refused fetch's."""
     import run_thematic_rotation as th
     src = inspect.getsource(th.download_prices)
-    assert src.index("_cached_native_observations(cached) is None") < \
+    assert src.index("_cached_native_observations(cached)) is None") < \
         src.index("Using cached prices")
+    # One read: the record checked is the record adopted (2026-10-30).
+    hit = src[src.index("Using cached prices"):src.index("return cached[needed]")]
+    assert "NATIVE_OBSERVATIONS = cached_native" in hit
+    assert "_cached_native_observations" not in hit
     fallback = src[src.index("REFUSED cache write"):]
     assert fallback.index("NATIVE_OBSERVATIONS = _cached_native_observations") < \
         fallback.index("return cached[needed]")

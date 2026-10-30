@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -216,8 +218,58 @@ def write_cache_source(cache_path: Path, source: str,
         # from a withdrawn bar.
         if report.get("native_observations"):
             payload["native_observations"] = report["native_observations"]
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    publish_text(path, json.dumps(payload, indent=2))
     return path
+
+
+# Bounded retries for os.replace on Windows, where a reader holding the
+# published file open (no FILE_SHARE_DELETE) refuses the replace for a moment.
+_REPLACE_ATTEMPTS = 5
+_REPLACE_PAUSE_S = 0.05
+
+
+def publish_text(path: Path, text: str) -> None:
+    """Publish ``text`` at ``path`` whole, or leave ``path`` as it was.
+
+    WHY (2026-10-30 closing review). The sidecar was written in place with
+    Path.write_text. Two runs overlapping on it -- B truncates, A writes its
+    whole record, B writes a prefix and fails -- left valid JSON with B's
+    digest and A's observation dates, which B's frame accepted. Each write now
+    goes to its OWN temporary file in the same directory (mkstemp: concurrent
+    writers never share a name), is fully written, flushed, synced and closed,
+    then os.replace swaps it in. A failure at any step removes only this
+    writer's temporary file and re-raises; the published file is untouched.
+    """
+    path = Path(path)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".",
+                               suffix=".tmp")
+    published = False
+    try:
+        try:
+            handle = os.fdopen(fd, "w", encoding="utf-8")
+        except BaseException:
+            os.close(fd)
+            raise
+        with handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        for attempt in range(_REPLACE_ATTEMPTS):
+            try:
+                os.replace(tmp, path)
+                published = True
+                break
+            except PermissionError:
+                if attempt == _REPLACE_ATTEMPTS - 1:
+                    raise
+                time.sleep(_REPLACE_PAUSE_S)
+    except BaseException:
+        if not published:            # once replaced, the name is not ours
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+        raise
 
 
 def read_cache_column_basis(cache_path: Path) -> dict[str, str]:

@@ -502,21 +502,29 @@ def reconcile(lines: list[dict], data_dir: Path, anchor: str) -> tuple[dict, lis
 
 
 def expected_last_session(symbol: str, cutoff: date) -> date | None:
-    """The venue's last session on or before the cutoff (None if unknown)."""
-    from export_holdings_prices import venue_calendar_for
-    from venue_calendars import get_calendar
+    """The venue's last session on or before the cutoff (None if unknown).
+
+    Read from the exporter's calendar (export_holdings_prices._venue_calendar),
+    which for Shanghai/Shenzhen is the effective calendar less the validated
+    pinned closures, so this and sleeve C's window check agree on the days
+    Shenzhen traded (2026-10-30). A pin conflict or calendar fault is
+    reported by load_prices through calendar_problem.
+    """
+    from export_holdings_prices import _venue_calendar, venue_calendar_for
     name = venue_calendar_for(symbol)
     if not name:
         return None
-    sched = get_calendar(name).schedule(
+    sched = _venue_calendar(name).schedule(
         start_date=(cutoff - timedelta(days=14)).isoformat(), end_date=cutoff.isoformat())
     return sched.index[-1].date() if len(sched) else None
 
 
 def load_prices(prices: dict, symbols: list[str], cutoff: date
                 ) -> tuple[dict[str, pd.Series], list[str], dict]:
-    """Native-currency closes on or before the cutoff, with problems listed."""
-    from export_holdings_prices import interior_gaps
+    """Native-currency closes on or before the cutoff, with problems listed.
+    A calendar that cannot establish the expected sessions (a pin conflict or
+    a fault) is a problem, never a pass."""
+    from export_holdings_prices import interior_gap_check
     out, reasons, meta = {}, [], {}
     for sym in sorted(set(symbols)):
         entry = prices.get(sym)
@@ -533,10 +541,17 @@ def load_prices(prices: dict, symbols: list[str], cutoff: date
         if len(s) < 2:
             reasons.append(f"{sym}: fewer than two closes on or before {cutoff}")
             continue
-        gaps = interior_gaps({"dates": [d.strftime("%Y-%m-%d") for d in s.index]}, sym)
+        gaps, problem = interior_gap_check(
+            {"dates": [d.strftime("%Y-%m-%d") for d in s.index]}, sym)
         if gaps:
             reasons.append(f"{sym}: missing expected sessions {', '.join(gaps)}")
-        exp_last = expected_last_session(sym, cutoff)
+        if problem:
+            reasons.append(f"{sym}: expected sessions not established: {problem}")
+        try:
+            exp_last = expected_last_session(sym, cutoff)
+        except Exception as exc:  # noqa: BLE001 — a calendar fault is a reason
+            reasons.append(f"{sym}: last expected session not established ({exc})")
+            exp_last = None
         last = s.index[-1].date()
         if exp_last is not None and last != exp_last:
             reasons.append(f"{sym}: last close {last}, expected {exp_last}")

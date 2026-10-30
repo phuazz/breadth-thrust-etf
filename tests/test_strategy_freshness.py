@@ -348,12 +348,12 @@ def _hermetic_world(tmp_path, monkeypatch, *, panel_end: str, cache_end: str,
         monkeypatch.setattr(mod, "PRICE_CACHE", p)
     import native_sessions
     import price_source
+    th_frame = pd.read_parquet(th.PRICE_CACHE)
+    rec = native_sessions.sidecar_record(
+        {t: _days("XSHG") for t in th._native_tickers()}, th_frame)
+    th_frame.to_parquet(th.PRICE_CACHE)  # the run writes the frame that names rec
     price_source.write_cache_source(
-        th.PRICE_CACHE, "yfinance", {native_sessions.SIDECAR_KEY:
-                                     native_sessions.sidecar_record(
-                                         {t: _days("XSHG")
-                                          for t in th._native_tickers()},
-                                         pd.read_parquet(th.PRICE_CACHE))})
+        th.PRICE_CACHE, "yfinance", {native_sessions.SIDECAR_KEY: rec})
 
 
 # Tue 25 Aug 2026, 06:00 UTC. Both NYSE and Xetra last completed Mon 24 Aug:

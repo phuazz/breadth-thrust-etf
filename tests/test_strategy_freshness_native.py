@@ -62,6 +62,8 @@ def _sidecar(cache, observed, through=None, lines=None):
     if through is not None:
         frame = frame.loc[:pd.Timestamp(through)]
     rec = ns.sidecar_record(lines if lines is not None else {CN: observed}, frame)
+    if through is None:
+        frame.to_parquet(cache)          # the run writes the frame that names rec
     price_source.write_cache_source(cache, "yfinance", {ns.SIDECAR_KEY: rec})
 
 

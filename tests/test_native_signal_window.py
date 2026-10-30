@@ -447,7 +447,9 @@ def _cache(tmp_path, rows=ROWS):
 
 def _measure(tmp_path, observed, rows=ROWS):
     cache = _cache(tmp_path, rows)
-    rec = ns.sidecar_record({CN: observed}, pd.read_parquet(cache))
+    frame = pd.read_parquet(cache)
+    rec = ns.sidecar_record({CN: observed}, frame)
+    frame.to_parquet(cache)              # the run writes the frame that names rec
     price_source.write_cache_source(cache, "yfinance", {ns.SIDECAR_KEY: rec})
     return sf.native_cache_reach_or_carried(
         cache, ["X", CN], [CN], "C", "price cache (thematic ETFs)",
@@ -509,7 +511,9 @@ def test_freshness_build_holds_c_behind_on_an_older_gap(tmp_path, monkeypatch):
     th_cache = tmp_path / "th.parquet"
     pd.DataFrame({t: 1.0 for t in th.TICKERS}, index=ROWS).to_parquet(th_cache)
     gap = _back(25)
-    rec = ns.sidecar_record({CN: _without(gap)}, pd.read_parquet(th_cache))
+    th_frame = pd.read_parquet(th_cache)
+    rec = ns.sidecar_record({CN: _without(gap)}, th_frame)
+    th_frame.to_parquet(th_cache)
     price_source.write_cache_source(th_cache, "yfinance", {ns.SIDECAR_KEY: rec})
     monkeypatch.setattr(th, "PRICE_CACHE", th_cache)
 

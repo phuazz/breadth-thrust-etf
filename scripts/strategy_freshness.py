@@ -216,17 +216,21 @@ def panel_reach(universe: list[str]) -> tuple[str | None, list[str], dict]:
 def cache_reach(cache_path: Path,
                 tickers: list[str] | None = None,
                 override: dict[str, str | None] | None = None,
+                *, frame: pd.DataFrame | None = None,
                 ) -> tuple[str | None, list[str]]:
     """Stalest last-priced date across the tickers in a price cache.
 
     ``override`` replaces the column's own last date for the named tickers --
     the native-venue lines, whose cached column is forward-filled and cannot
     say how far it really reaches (see native_reach). A None there is unknown
-    and, like an empty column, makes the whole answer unknown.
+    and, like an empty column, makes the whole answer unknown. ``frame`` is
+    the cache already read by the caller; when given, the file is not read
+    again, so the answer and ``override`` describe one generation.
     """
-    if not cache_path.exists():
-        return None, []
-    frame = pd.read_parquet(cache_path)
+    if frame is None:
+        if not cache_path.exists():
+            return None, []
+        frame = pd.read_parquet(cache_path)
     cols = list(tickers if tickers is not None else frame.columns)
     override = override or {}
     missing = [c for c in cols if c not in frame.columns or not frame[c].notna().any()
@@ -264,7 +268,8 @@ def _iso(value) -> str | None:
 
 
 def native_reach(cache_path: Path, tickers: list[str], *,
-                 window_rows: int) -> dict[str, dict]:
+                 window_rows: int,
+                 frame: pd.DataFrame | None = None) -> dict[str, dict]:
     """How far each native-venue line in a cache REALLY reaches.
 
     Per ticker: ``last_valid`` is the newest cache row whose required native
@@ -281,9 +286,11 @@ def native_reach(cache_path: Path, tickers: list[str], *,
     cache (parse_sidecar checks the construction, ``through``, every line, the
     record's length and the digest of the cache's rows and native values);
     otherwise each line is unknown with the reason in ``error``. Never reads
-    the filled column as evidence.
+    the filled column as evidence. ``frame`` is the cache already read by the
+    caller (see cache_reach); the sidecar is read here and must match it.
     """
-    frame = pd.read_parquet(cache_path)
+    if frame is None:
+        frame = pd.read_parquet(cache_path)
     if not len(frame):
         return {t: _blank_native(t, "the cache has no rows", window_rows)
                 for t in tickers}
@@ -328,7 +335,14 @@ def native_reach(cache_path: Path, tickers: list[str], *,
 
 def _prior_row(sleeve: str) -> tuple[dict | None, str | None]:
     """The committed report's row for ``sleeve`` that measured a bound, and
-    the report's ``computed_at_utc``."""
+    the report's ``computed_at_utc``.
+
+    One read of the file, so every field a caller takes from the row comes
+    from one generation of the report. A report that is not an object, whose
+    ``strategies`` is not a list, or whose matching row is not an object is
+    treated as absent; non-object rows of other sleeves are skipped. Never
+    raises on the report's content.
+    """
     path = DATA_DIR / "strategy_freshness.json"
     if not path.exists():
         return None, None
@@ -336,10 +350,30 @@ def _prior_row(sleeve: str) -> tuple[dict | None, str | None]:
         blob = json.loads(path.read_text(encoding="utf-8"))
     except (ValueError, OSError):
         return None, None
-    for row in blob.get("strategies") or []:
-        if row.get("sleeve") == sleeve and row.get("data_through"):
-            return row, blob.get("computed_at_utc")
+    if not isinstance(blob, dict):
+        return None, None
+    rows = blob.get("strategies")
+    if not isinstance(rows, list):
+        return None, None
+    stamp = blob.get("computed_at_utc")
+    stamp = stamp if isinstance(stamp, str) else None
+    for row in rows:
+        if (isinstance(row, dict) and row.get("sleeve") == sleeve
+                and row.get("data_through")):
+            return row, stamp
     return None, None
+
+
+def _carried(row: dict | None, measured_at: str | None, source: str,
+             ) -> tuple[str | None, list[str], str, bool]:
+    """cache_reach_or_carried's answer from one prior-report row."""
+    if row is None:
+        return None, [], source, False
+    stamp = f" of {measured_at[:16]}Z" if measured_at else ""
+    lag = row.get("laggards")
+    return row["data_through"], list(lag) if isinstance(lag, list) else [], (
+        f"{source} — bound carried from the committed report{stamp}; the "
+        f"cache is not present on this checkout"), True
 
 
 def _last_measured(sleeve: str) -> tuple[str | None, list[str], str | None]:
@@ -352,7 +386,8 @@ def _last_measured(sleeve: str) -> tuple[str | None, list[str], str | None]:
     row, measured_at = _prior_row(sleeve)
     if row is None:
         return None, [], None
-    return row["data_through"], list(row.get("laggards") or []), measured_at
+    reach, laggards, _, _ = _carried(row, measured_at, "")
+    return reach, laggards, measured_at
 
 
 def cache_reach_or_carried(
@@ -378,13 +413,7 @@ def cache_reach_or_carried(
     reach, laggards = cache_reach(cache_path, tickers)
     if reach is not None or cache_path.exists():
         return reach, laggards, source, False
-    carried, laggards, measured_at = _last_measured(sleeve)
-    if carried is None:
-        return None, [], source, False
-    stamp = f" of {measured_at[:16]}Z" if measured_at else ""
-    return carried, laggards, (
-        f"{source} — bound carried from the committed report{stamp}; the "
-        f"cache is not present on this checkout"), True
+    return _carried(*_prior_row(sleeve), source)
 
 
 _ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -416,41 +445,77 @@ def native_cache_reach_or_carried(
     measured over at least the same window, and no later than it -- a bound
     measured on the filled column, or over a shorter window (the ten-row tail
     of 2026-10-28), is exactly the claim this must not repeat.
+
+    ONE SNAPSHOT PER VERDICT (2026-10-30 review). The parquet is read once and
+    that frame feeds both the native reach and the stalest-line date; the
+    prior report is read once and that row feeds the bound, the laggards and
+    the native records. Until then each was read twice, so a cache replaced
+    between the reads, or a report rewritten between them, could combine two
+    generations -- neither current on its own -- into a current verdict.
+    A malformed prior row or native record makes the line unknown; it never
+    raises, so the other sleeves are still reported.
     """
     native_tickers = [t for t in native_tickers if t in tickers]
     if not native_tickers:
         return (*cache_reach_or_carried(cache_path, tickers, sleeve, source), {})
-    if cache_path.exists():
-        native = native_reach(cache_path, native_tickers, window_rows=window_rows)
+    try:
+        frame = pd.read_parquet(cache_path) if cache_path.exists() else None
+    except FileNotFoundError:   # removed between the check and the read
+        frame = None
+    if frame is not None:
+        native = native_reach(cache_path, native_tickers,
+                              window_rows=window_rows, frame=frame)
         reach, laggards = cache_reach(
-            cache_path, tickers, {t: r["last_valid"] for t, r in native.items()})
+            cache_path, tickers, {t: r["last_valid"] for t, r in native.items()},
+            frame=frame)
         return reach, laggards, source, False, native
-    reach, laggards, src, carried = cache_reach_or_carried(
-        cache_path, tickers, sleeve, source)
+    row, measured_at = _prior_row(sleeve)
+    reach, laggards, src, carried = _carried(row, measured_at, source)
     if not carried:
         return reach, laggards, src, False, {
             t: _blank_native(t, "the cache is not present on this checkout and "
                                 "no prior bound was measured", window_rows)
             for t in native_tickers}
-    prior = (_prior_row(sleeve)[0] or {}).get("native_provenance") or {}
-    recs = {t: prior.get(t) for t in native_tickers}
+    prior = row.get("native_provenance")
+    recs = ({t: prior.get(t) for t in native_tickers}
+            if isinstance(prior, dict) else None)
+    lag = row.get("laggards")
+    lag_ok = lag is None or (isinstance(lag, list)
+                             and all(isinstance(x, str) for x in lag))
+
+    def _date_or_none(v) -> bool:
+        return v is None or _strict_date(v) is not None
 
     def _covers(t, r) -> bool:
         """A record for this line's venue, measured over at least this
         window, whose ``last_valid`` is a real date no earlier than the
         carried bound. Dates are PARSED, never compared as strings: until
         2026-10-29 "2026-9-01" and "garbled" both sorted after "2026-10-28"
-        and carried sleeve C as current (review finding 2)."""
+        and carried sleeve C as current (review finding 2). Every other field
+        the report and _native_reason read must have its documented shape
+        (a strict date or None; a list of strict dates or None; a string or
+        None), so a carried record is either usable whole or not at all."""
         if not isinstance(r, dict) or r.get("venue") != native_sessions.venue_for(t):
             return False
         w = r.get("window_rows")
         if not (isinstance(w, int) and not isinstance(w, bool) and w >= window_rows):
             return False
+        if not all(_date_or_none(r.get(k)) for k in (
+                "last_observed_native_close", "required_native_session",
+                "native_close_carried", "holiday_data_through")):
+            return False
+        missing = r.get("missing_native_sessions")
+        if missing is not None and not (
+                isinstance(missing, list)
+                and all(_strict_date(s) is not None for s in missing)):
+            return False
+        if not (r.get("error") is None or isinstance(r.get("error"), str)):
+            return False
         valid = _strict_date(r.get("last_valid"))
         return valid is not None and bound is not None and valid >= bound
 
     bound = _strict_date(reach)
-    if all(_covers(t, r) for t, r in recs.items()):
+    if recs is not None and lag_ok and all(_covers(t, r) for t, r in recs.items()):
         return reach, laggards, src, True, recs
     return None, sorted(native_tickers), source, False, {
         t: _blank_native(t, "the cache is not present on this checkout and the "

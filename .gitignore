@@ -17,6 +17,9 @@ data/asset_class_prices_cache.parquet
 data/thematic_prices_cache.parquet
 # Sidecars naming the source each engine cache was built from (price_source.py)
 data/*_prices_cache.source.json
+# A sidecar's unpublished temporary file (price_source.publish_text), left
+# only if the process is killed between creating and replacing it
+data/*.source.json.*.tmp
 data/holdings_monitor_prices.parquet
 # Scanner price cache: ~7MB of raw vendor OHLCV for 54 instruments over 10y,
 # rebuilt incrementally by run_scanner.py. The scanner's OUTPUT

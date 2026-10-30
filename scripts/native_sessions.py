@@ -64,10 +64,38 @@ hash to its ``content_sha256`` (content_digest), and only when its
 ``construction`` is SIDECAR_CONSTRUCTION. Either mismatch reads as no record:
 the cache is refreshed and the freshness row is unknown.
 
-ONE EFFECTIVE CALENDAR. native_schedule is the XSHG schedule with the
-validated pins removed (china_market_holidays). Anything that asks "did
-Shenzhen trade on this date" for sleeve C must ask it, so the window check and
-any other reader cannot disagree about a pinned closure.
+THE RECORD IS ONE PIECE (2026-10-30 closing review). The digest above binds
+the frame to the record, not the record's fields to each other. Two writers
+overlapping on the sidecar, one failing part-way, left valid JSON carrying
+B's ``content_sha256`` and A's observation dates; B's frame matched it and a
+withdrawn Good Friday bar ranked READY. price_source now publishes each
+sidecar whole (a unique temporary file, then an atomic replace), and every
+record carries ``record_sha256`` (record_digest) over the fields the reader
+uses, so a record not written in one piece is refused however it arose.
+
+THE FRAME NAMES ITS RECORD (2026-10-30 independent review). Both checks
+above pass for a whole record from ANOTHER acquisition whose native values
+happen to match: A serves Good Friday at Thursday's price, B withdraws it and
+the fill carries Thursday's price onto the same rows, so B's frame accepted
+A's record (B's sidecar write failing after its parquet, or two complete
+writers overlapping) and the withdrawn bar ranked READY. Two genuine
+parquets were even byte-identical. sidecar_record therefore stamps the
+record's ``record_sha256`` on the frame (``frame.attrs[FRAME_ATTR]``, which
+pandas writes into the parquet's own metadata and restores on read), the
+cache is written AFTER the record is built, and parse_sidecar accepts only
+the record the frame names. A frame without the name (a legacy cache, or a
+tool that drops attrs) has no record. repair_price_gaps reads, edits and
+rewrites the frame, which keeps attrs, so a US-only repair keeps the record;
+a native value or row change still fails content_sha256.
+
+ONE EFFECTIVE CALENDAR. effective_calendar is the XSHG calendar with the
+validated pins removed from its schedule (china_market_holidays), and
+native_schedule reads it. Anything that asks "did Shenzhen trade on this
+date" for sleeve C must ask it, so the window check and any other reader
+cannot disagree about a pinned closure. Since 2026-10-30 the holdings
+exporter and the combined-book risk reader do (completeness_calendar: on a
+pin conflict they fall back to the library, which demands more bars, and
+say so).
 
 Python datetime months are 1-indexed (January = 1). Sessions come from
 pandas_market_calendars via venue_calendars, never a weekday count.
@@ -76,6 +104,7 @@ pandas_market_calendars via venue_calendars, never a weekday count.
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 
 import numpy as np
@@ -109,10 +138,14 @@ SIDECAR_MEANING = (
 # refused. Change the value whenever the conversion or the recording changes
 # what a record would list for the same vendor inputs.
 SIDECAR_CONSTRUCTION = "fx-before-nyse-reindex/2026-10-29"
+# The frame attribute naming the record that belongs to it: the record's
+# record_sha256, persisted in the parquet metadata by pandas (df.attrs).
+FRAME_ATTR = "native_record_sha256"
 
 __all__ = ["venue_for", "session_dates", "observed_dates", "provenance",
-           "native_schedule", "content_digest", "sidecar_record",
-           "parse_sidecar"]
+           "EffectiveCalendar", "effective_calendar", "completeness_calendar",
+           "native_schedule", "content_digest", "record_digest",
+           "sidecar_record", "parse_sidecar"]
 
 
 def session_dates(dates) -> pd.DatetimeIndex:
@@ -134,6 +167,63 @@ def observed_dates(series: pd.Series) -> pd.DatetimeIndex:
     return session_dates(vals.index[ok.to_numpy()])
 
 
+class EffectiveCalendar:
+    """A venue calendar whose ``schedule`` omits the validated pinned closures.
+
+    Wraps the shared library handle without mutating it; every other
+    attribute passes through. ``schedule`` raises HolidayPinError when a pin
+    disagrees with the library (china_market_holidays.checked_pins), so a
+    caller cannot read a schedule that silently drops the conflict. Only the
+    ``schedule`` method is corrected: a reader that counts sessions some
+    other way (valid_days, holidays()) is not, and none here does.
+    """
+
+    def __init__(self, cal, venue: str):
+        self._cal = cal
+        self.venue = venue
+
+    def schedule(self, *args, **kwargs):
+        sched = self._cal.schedule(*args, **kwargs)
+        pins = china_market_holidays.checked_pins(self._cal, self.venue)
+        if len(pins):
+            sched = sched.loc[~pd.DatetimeIndex(sched.index).normalize().isin(pins)]
+        return sched
+
+    def __getattr__(self, name):
+        return getattr(self._cal, name)
+
+
+def effective_calendar(venue: str):
+    """The calendar every Shenzhen/Shanghai date check reads: the library's
+    calendar less the validated pins (EffectiveCalendar) for a pinned venue,
+    the library calendar unchanged for any other (NYSE, XETR)."""
+    cal = get_calendar(venue)
+    if venue in china_market_holidays.PINNED_VENUES:
+        return EffectiveCalendar(cal, venue)
+    return cal
+
+
+def completeness_calendar(venue: str):
+    """``(calendar, conflict)`` for readers asking "is a bar missing?".
+
+    Normally ``(effective_calendar(venue), None)``. When the pins conflict
+    with the library, the pins are refused and the LIBRARY calendar is
+    returned with the conflict message: the library lists at least every
+    session the pins would remove, so a completeness check on it demands
+    more bars, never fewer -- it can flag a gap or request a fetch the pins
+    would have excused, but cannot pass one they would not. The caller must
+    surface ``conflict``.
+    """
+    eff = effective_calendar(venue)
+    if not isinstance(eff, EffectiveCalendar):
+        return eff, None
+    try:
+        china_market_holidays.checked_pins(eff._cal, venue)
+    except china_market_holidays.HolidayPinError as exc:
+        return eff._cal, str(exc)
+    return eff, None
+
+
 def native_schedule(venue: str | None, start, end):
     """``(schedule, holiday_data_through)`` for ``venue`` between ``start``
     and ``end``: the library's schedule with the validated pinned closures
@@ -146,13 +236,11 @@ def native_schedule(venue: str | None, start, end):
     """
     if not venue:
         raise ValueError("no native venue is mapped for this line")
-    cal = get_calendar(venue)
+    cal = effective_calendar(venue)
     sched = cal.schedule(start_date=pd.Timestamp(start).strftime("%Y-%m-%d"),
                          end_date=pd.Timestamp(end).strftime("%Y-%m-%d"))
-    pins = china_market_holidays.checked_pins(cal, venue)
-    if len(pins):
-        sched = sched.loc[~pd.DatetimeIndex(sched.index).normalize().isin(pins)]
-    return sched, china_market_holidays.holiday_data_through(cal, venue)
+    return sched, china_market_holidays.holiday_data_through(
+        get_calendar(venue), venue)
 
 
 def provenance(rows, observed, venue: str | None,
@@ -259,13 +347,18 @@ def content_digest(frame: pd.DataFrame, tickers) -> str:
     to a US line (repair_price_gaps rewrites the parquet without touching the
     sidecar) does not void the native record, while any change to a native
     value, or any added or removed row, does. Canonical bytes, independent of
-    parquet encoding and of the index's datetime resolution: ISO stamps, then
-    each column's name and little-endian float64 values with one NaN form.
+    parquet encoding and of the index's datetime resolution: the stamps as
+    little-endian int64 nanoseconds since the epoch (exact at every pandas
+    resolution, s to ns), then each column's name and little-endian float64
+    values with one NaN form. Until 2026-10-30 the stamps were formatted with
+    ``%f`` (microseconds), so an index moved by under a microsecond kept its
+    digest (review finding 4); records hashed that way no longer match and
+    the cache is refreshed once.
     """
     h = hashlib.sha256()
     idx = pd.DatetimeIndex(frame.index)
-    h.update(f"tz={idx.tz}\n".encode())
-    h.update("\n".join(idx.strftime("%Y-%m-%dT%H:%M:%S.%f")).encode())
+    h.update(f"tz={idx.tz}\nns-epoch\n".encode())
+    h.update(idx.as_unit("ns").asi8.astype("<i8").tobytes())
     for t in sorted(str(x) for x in tickers):
         h.update(f"\ncolumn={t}\n".encode())
         if t not in frame.columns:
@@ -278,6 +371,25 @@ def content_digest(frame: pd.DataFrame, tickers) -> str:
     return h.hexdigest()
 
 
+# The record fields parse_sidecar relies on, bound together by record_sha256.
+_RECORD_FIELDS = ("construction", "through", "window_days", "content_sha256",
+                  "lines")
+
+
+def record_digest(rec: dict) -> str:
+    """SHA-256 of a record's own fields (_RECORD_FIELDS) as canonical JSON.
+
+    content_digest ties the record to the frame; this ties the record's
+    fields to one another, so dates from one write cannot stand beside the
+    digest of another (2026-10-30 closing review). Raises ValueError on a
+    value JSON cannot carry (NaN), which parse_sidecar reads as no record.
+    """
+    body = {k: rec.get(k) for k in _RECORD_FIELDS}
+    text = json.dumps(body, sort_keys=True, separators=(",", ":"),
+                      allow_nan=False)
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
 def sidecar_record(observed_by_line: dict, frame: pd.DataFrame) -> dict:
     """The bounded, truthful record of native observations beside a cache.
 
@@ -286,6 +398,9 @@ def sidecar_record(observed_by_line: dict, frame: pd.DataFrame) -> dict:
     the recorded lines' columns is ``content_sha256``, so a reader can tell
     whether this record belongs to the frame it sits beside (parse_sidecar).
     Dates older than SIDECAR_WINDOW_DAYS before ``through`` are dropped.
+
+    Stamps ``frame.attrs[FRAME_ATTR]`` with the record's ``record_sha256``,
+    so the frame names this record: write the cache AFTER calling this.
     """
     end = pd.Timestamp(frame.index.max()).normalize()
     start = end - pd.Timedelta(days=SIDECAR_WINDOW_DAYS)
@@ -298,12 +413,15 @@ def sidecar_record(observed_by_line: dict, frame: pd.DataFrame) -> dict:
             "dates": [str(x.date()) for x in kept],
             "last": str(d[-1].date()) if len(d) else None,
         }
-    return {"meaning": SIDECAR_MEANING,
-            "construction": SIDECAR_CONSTRUCTION,
-            "through": str(end.date()),
-            "window_days": SIDECAR_WINDOW_DAYS,
-            "content_sha256": content_digest(frame, lines),
-            "lines": lines}
+    rec = {"meaning": SIDECAR_MEANING,
+           "construction": SIDECAR_CONSTRUCTION,
+           "through": str(end.date()),
+           "window_days": SIDECAR_WINDOW_DAYS,
+           "content_sha256": content_digest(frame, lines),
+           "lines": lines}
+    rec["record_sha256"] = record_digest(rec)
+    frame.attrs[FRAME_ATTR] = rec["record_sha256"]
+    return rec
 
 
 def parse_sidecar(sidecar: dict | None, frame: pd.DataFrame | None,
@@ -313,8 +431,11 @@ def parse_sidecar(sidecar: dict | None, frame: pd.DataFrame | None,
     None unless the record exists, has the minimum shape, was built under
     SIDECAR_CONSTRUCTION, names every one of ``tickers``, was written for a
     frame ending on ``frame``'s last row, keeps at least SIDECAR_WINDOW_DAYS
-    of history, and its ``content_sha256`` is the digest of ``frame``'s rows
-    and recorded columns as they are now. A partial, mismatched, too-short or
+    of history, its ``content_sha256`` is the digest of ``frame``'s rows
+    and recorded columns as they are now, its ``record_sha256`` binds its
+    own fields together (record_digest), and ``frame`` names that
+    ``record_sha256`` (``frame.attrs[FRAME_ATTR]``, read from the same
+    parquet as the frame). A partial, mismatched, too-short, unnamed or
     differently built record is treated as absent: provenance that does not
     belong to the frame in hand, or cannot reach back over the signal window,
     is not provenance. Never raises.
@@ -326,6 +447,12 @@ def parse_sidecar(sidecar: dict | None, frame: pd.DataFrame | None,
         if not isinstance(rec, dict) or not isinstance(rec.get("lines"), dict):
             return None
         if rec.get("construction") != SIDECAR_CONSTRUCTION:
+            return None
+        if rec.get("record_sha256") != record_digest(rec):
+            return None
+        # Another acquisition's whole record can match the content checks
+        # when its native values happen to equal this frame's.
+        if frame.attrs.get(FRAME_ATTR) != rec["record_sha256"]:
             return None
         through = pd.Timestamp(frame.index.max()).normalize()
         if rec.get("through") != str(through.date()):

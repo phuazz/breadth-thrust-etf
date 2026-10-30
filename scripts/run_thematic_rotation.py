@@ -730,19 +730,23 @@ def download_prices() -> pd.DataFrame:
                       f"{btc_declared or 'incumbent'} — refreshing")
             elif not cache_crypto_ok:
                 print("  Cache crypto completion is unverified - refreshing")
-            elif _cached_native_observations(cached) is None:
+            elif (cached_native := _cached_native_observations(cached)) is None:
                 # The cached native columns are already forward-filled onto
                 # NYSE; without the sidecar's record of which dates were really
                 # observed, a withdrawn Shenzhen bar reads as current. A record
-                # for another generation of the parquet, or built before the
-                # 2026-10-29 conversion order, is no record.
+                # for another generation of the parquet, one the parquet does
+                # not name, or one built before the 2026-10-29 conversion
+                # order, is no record.
                 print("  Cache has no native-observation record matching its "
-                      "rows, native values and construction - refreshing")
+                      "rows, native values, name and construction - refreshing")
             else:
                 print(f"  Using cached prices ({cached.index.min().date()} -> "
                       f"{cache_end}, current through {current_through}, "
                       f"built from {cache_source or 'yfinance (unrecorded)'})")
-                NATIVE_OBSERVATIONS = _cached_native_observations(cached)
+                # The record checked above, not a second read: a writer
+                # publishing between two reads would hand over another
+                # generation's record (2026-10-30 independent review).
+                NATIVE_OBSERVATIONS = cached_native
                 return cached[needed]
         else:
             print(f"  Cache's least current column ends {cache_end} < last "
@@ -929,6 +933,16 @@ def download_prices() -> pd.DataFrame:
         # Check the tracked ledger before replacing the last usable cache.
         # The durable append still follows the cache and sidecar write.
         record_auto_btc_repair(new_btc_repair, LEDGER, check_only=True)
+    # The native record is built BEFORE the parquet is written: sidecar_record
+    # stamps the record's record_sha256 on df.attrs, which pandas writes into
+    # the parquet, so the frame names the one record that belongs to it. A
+    # whole record from another acquisition with the same native values (a
+    # failed sidecar write after this parquet, or an overlapping writer) is
+    # then refused (2026-10-30 independent review). With no record, no name.
+    native_record = (native_sessions.sidecar_record(NATIVE_OBSERVATIONS, df)
+                     if NATIVE_OBSERVATIONS else None)
+    if native_record is None:
+        df.attrs.pop(native_sessions.FRAME_ATTR, None)
     df.to_parquet(PRICE_CACHE)
     _sidecar = dict(_ngrep or {})
     if crypto_names:
@@ -940,12 +954,12 @@ def download_prices() -> pd.DataFrame:
         _sidecar["retained_gap_repairs"] = retained_gap_repairs
     if not btc_declared and new_btc_repair:
         _sidecar["auto_btc_repair"] = new_btc_repair
-    if NATIVE_OBSERVATIONS:
-        # Bound to THIS frame's native values and rows: the parquet above is
-        # already replaced, so if this sidecar write fails the old record no
-        # longer matches and the next run refreshes (2026-10-29 review).
-        _sidecar[native_sessions.SIDECAR_KEY] = native_sessions.sidecar_record(
-            NATIVE_OBSERVATIONS, df)
+    if native_record is not None:
+        # Bound to THIS frame's native values, rows and name: the parquet
+        # above is already replaced, so if this sidecar write fails the old
+        # record no longer matches and the next run refreshes (2026-10-29
+        # review; the name since 2026-10-30).
+        _sidecar[native_sessions.SIDECAR_KEY] = native_record
     if btc_declared:
         # The declared per-column basis. Without it the first rebuild under the
         # flag changes every populated cell from the cut-over onward and the

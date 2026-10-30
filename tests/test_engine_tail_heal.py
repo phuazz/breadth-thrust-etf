@@ -364,12 +364,13 @@ def test_sleeve_c_reuses_a_genuinely_current_cache(thematic_site, monkeypatch, c
     th, cache, frame, needed = thematic_site
     full = frame.copy()
     full.loc[FRI, "BTC-USD"] = 123.0
-    full.to_parquet(cache)
-    # A reusable cache carries its native-observation record (2026-10-28).
+    # A reusable cache carries its native-observation record (2026-10-28),
+    # built before the parquet so the parquet names it (2026-10-30).
     import native_sessions
     native = native_sessions.sidecar_record(
         {t: full[t].dropna().index for t in th._native_tickers() if t in full},
         full)
+    full.to_parquet(cache)
     ps.write_cache_source(cache, "norgate", {
         "completed_crypto_through": {"BTC-USD": str(FRI.date())},
         native_sessions.SIDECAR_KEY: native})
