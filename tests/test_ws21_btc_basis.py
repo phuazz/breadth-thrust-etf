@@ -41,6 +41,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import btc_basis  # noqa: E402
+import native_sessions  # noqa: E402
 import price_revisions as pr  # noqa: E402
 import price_source as ps  # noqa: E402
 import vendor_tail as vt  # noqa: E402
@@ -408,7 +409,15 @@ def engine(monkeypatch, tmp_path):
     monkeypatch.setattr(th, "last_completed_session", lambda now: last.date())
     monkeypatch.setattr(th, "cap_to_last_completed_session",
                         lambda df, now_utc=None: df)
-    monkeypatch.setattr(th, "_fx_convert_to_usd", lambda df: df)
+    def _no_fx(df):
+        # No FX pass here, but record the native observations it would have
+        # (2026-10-28): without that record the cache is never reused.
+        th.NATIVE_OBSERVATIONS = {
+            t: native_sessions.observed_dates(df[t])
+            for t in th._native_tickers() if t in df.columns}
+        return df
+
+    monkeypatch.setattr(th, "_fx_convert_to_usd", _no_fx)
     monkeypatch.setattr(npx, "available", lambda: True)
     monkeypatch.setattr(
         npx, "select_columns",

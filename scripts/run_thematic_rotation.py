@@ -77,12 +77,18 @@ OUT_PATH = DATA_DIR / "thematic_rotation.json"
 # The source download_prices() actually priced this run on; written into the
 # payload so the artefact states its own basis (2026-09-03).
 EFFECTIVE_PRICE_SOURCE: str | None = None
+# The dates each non-USD line's native close was actually observed, for the
+# frame download_prices() last returned (2026-10-28). None when that frame's
+# provenance is unknown; live_targets then holds the sleeve. See
+# native_sessions for why the aligned column cannot answer this itself.
+NATIVE_OBSERVATIONS: dict[str, pd.DatetimeIndex] | None = None
 
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 from rebalance_calendar import engine_rebalance_dates  # noqa: E402
 from rebalance_records import latest_rebalance_record  # noqa: E402
 import btc_basis  # noqa: E402
 import completed_prices  # noqa: E402
+import native_sessions  # noqa: E402
 import price_source as price_source_mod  # noqa: E402
 import vendor_tail  # noqa: E402
 from nyse_sessions import (  # noqa: E402
@@ -490,10 +496,22 @@ def _fx_convert_to_usd(df: pd.DataFrame) -> pd.DataFrame:
 
     Currently supports CNY (via USDCNY=X). Extend to other currencies
     by adding the FX-pair mapping below.
+
+    The fill is right for the backtest and is NOT evidence that the native
+    venue printed the NYSE row's session (2026-10-28): a withdrawn Shenzhen
+    bar is filled exactly like a Golden Week closure. So the dates a native
+    close was really observed and converted are recorded in
+    NATIVE_OBSERVATIONS before alignment; the aligned column is unchanged.
+
+    Must run on the fetched frame BEFORE ``_reindex_crypto_to_equity_calendar``
+    drops the rows NYSE did not trade (2026-10-29), or a Shenzhen session on a
+    US holiday is neither converted nor recorded.
     """
+    global NATIVE_OBSERVATIONS
     sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
     from alignment import align_series_to_index  # noqa: E402
 
+    NATIVE_OBSERVATIONS = {}
     fx_pair_for_currency = {
         "CNY": "CNY=X",  # yfinance returns CNY per 1 USD
     }
@@ -525,12 +543,43 @@ def _fx_convert_to_usd(df: pd.DataFrame) -> pd.DataFrame:
         merged = pd.concat([native_prices, fx], axis=1, sort=True).dropna()
         merged.columns = ["native", "fx"]
         usd_native = merged["native"] / merged["fx"]
+        NATIVE_OBSERVATIONS[ticker] = native_sessions.observed_dates(usd_native)
         # Reindex to NYSE equity calendar with a 10-day stale-fill cap.
         # 10 days covers the Chinese National Day week (Oct 1-7) plus a
         # buffer; Chinese New Year (typically 7 trading days off) also fits.
         df[ticker] = align_series_to_index(usd_native, equity_cal,
                                             max_stale_days=10)
     return df
+
+
+def _native_tickers() -> list[str]:
+    """Universe members priced off a non-USD native venue."""
+    return [t for t, m in UNIVERSE.items() if m.get("currency", "USD") != "USD"]
+
+
+def native_inputs() -> dict[str, dict]:
+    """What live_targets needs to check each native line's decision row: its
+    venue, the dates its native close was observed for the frame
+    download_prices() last returned, and how many rows compute_signal reads
+    back from each row (MA_PERIOD: the rolling window of ma_distance_signal).
+    ``observed`` is None when unknown, which the check treats as not current."""
+    obs = NATIVE_OBSERVATIONS
+    return {t: {"venue": native_sessions.venue_for(t),
+                "observed": None if obs is None else obs.get(t),
+                "window_rows": MA_PERIOD}
+            for t in _native_tickers()}
+
+
+def _cached_native_observations(cached: pd.DataFrame | None):
+    """The sidecar's native record for ``cached``, or None if it does not
+    belong to that frame: another last row, other native values or rows (a
+    parquet replaced without its sidecar), or an older construction (see
+    native_sessions.parse_sidecar)."""
+    if cached is None or not len(cached):
+        return None
+    return native_sessions.parse_sidecar(
+        price_source_mod.read_cache_sidecar(PRICE_CACHE), cached,
+        _native_tickers())
 
 
 def _universe_label(ticker: str) -> str:
@@ -629,8 +678,9 @@ def download_prices() -> pd.DataFrame:
     price_source, why = price_source_mod.resolve_source(
         price_source_mod.requested_source())
     print(f"  price source: {price_source} ({why})", flush=True)
-    global EFFECTIVE_PRICE_SOURCE
+    global EFFECTIVE_PRICE_SOURCE, NATIVE_OBSERVATIONS
     EFFECTIVE_PRICE_SOURCE = price_source
+    NATIVE_OBSERVATIONS = None
     cached = None
     cache_source = None
     cache_crypto_ok = not crypto_names
@@ -680,10 +730,23 @@ def download_prices() -> pd.DataFrame:
                       f"{btc_declared or 'incumbent'} — refreshing")
             elif not cache_crypto_ok:
                 print("  Cache crypto completion is unverified - refreshing")
+            elif (cached_native := _cached_native_observations(cached)) is None:
+                # The cached native columns are already forward-filled onto
+                # NYSE; without the sidecar's record of which dates were really
+                # observed, a withdrawn Shenzhen bar reads as current. A record
+                # for another generation of the parquet, one the parquet does
+                # not name, or one built before the 2026-10-29 conversion
+                # order, is no record.
+                print("  Cache has no native-observation record matching its "
+                      "rows, native values, name and construction - refreshing")
             else:
                 print(f"  Using cached prices ({cached.index.min().date()} -> "
                       f"{cache_end}, current through {current_through}, "
                       f"built from {cache_source or 'yfinance (unrecorded)'})")
+                # The record checked above, not a second read: a writer
+                # publishing between two reads would hand over another
+                # generation's record (2026-10-30 independent review).
+                NATIVE_OBSERVATIONS = cached_native
                 return cached[needed]
         else:
             print(f"  Cache's least current column ends {cache_end} < last "
@@ -766,14 +829,21 @@ def download_prices() -> pd.DataFrame:
     # The NYSE close cannot certify the later UTC-day Bitcoin close.
     # Use the bound captured BEFORE acquisition, even if a fetch crosses midnight.
     df = completed_prices.mask_uncompleted_crypto(df, crypto_names, acquisition_started)
+    # Phase 17.1: FX-convert any non-USD-denominated tickers (currently
+    # CNY-denominated A-share ETFs) onto the NYSE equity calendar before
+    # the expense-ratio drag, so the drag compounds on USD prices.
+    #
+    # BEFORE the crypto reindex below (2026-10-29), because that reindex keeps
+    # NYSE rows only. Run after it, a Shenzhen session on a US holiday never
+    # reached the conversion: Good Friday 2026-04-03 was served (0.803 CNY)
+    # and dropped, so the 2026-04-06 NYSE row, Qingming in Shenzhen, carried
+    # Thursday's close, and the native check held sleeve C on it. Converting
+    # first lets that row carry the close Shenzhen actually printed.
+    df = _fx_convert_to_usd(df)
     # Phase 15.2: reindex crypto to equity calendar BEFORE applying
     # expense-ratio drag, so the drag's elapsed-days arithmetic uses the
     # right base index.
     df = _reindex_crypto_to_equity_calendar(df)
-    # Phase 17.1: FX-convert any non-USD-denominated tickers (currently
-    # CNY-denominated A-share ETFs) onto the NYSE equity calendar before
-    # the expense-ratio drag, so the drag compounds on USD prices.
-    df = _fx_convert_to_usd(df)
     df = _apply_expense_ratio_drag(df)
     # WS21: build the composite Bitcoin column AFTER the crypto reindex, the FX
     # pass and the drag, and deliberately so. Each of those three loops keys off
@@ -851,6 +921,10 @@ def download_prices() -> pd.DataFrame:
             print(f"  REFUSED cache write: {worse}. Falling back to the "
                   f"cache on disk (built from {cache_src}).")
             EFFECTIVE_PRICE_SOURCE = cache_src
+            # The observations recorded above belong to the REFUSED fetch,
+            # not to the frame handed back. None (unknown) if the sidecar
+            # has no matching record.
+            NATIVE_OBSERVATIONS = _cached_native_observations(cached)
             return cached[needed]
         raise RuntimeError(
             f"price fetch unusable and no cache to fall back on: {worse}")
@@ -859,6 +933,16 @@ def download_prices() -> pd.DataFrame:
         # Check the tracked ledger before replacing the last usable cache.
         # The durable append still follows the cache and sidecar write.
         record_auto_btc_repair(new_btc_repair, LEDGER, check_only=True)
+    # The native record is built BEFORE the parquet is written: sidecar_record
+    # stamps the record's record_sha256 on df.attrs, which pandas writes into
+    # the parquet, so the frame names the one record that belongs to it. A
+    # whole record from another acquisition with the same native values (a
+    # failed sidecar write after this parquet, or an overlapping writer) is
+    # then refused (2026-10-30 independent review). With no record, no name.
+    native_record = (native_sessions.sidecar_record(NATIVE_OBSERVATIONS, df)
+                     if NATIVE_OBSERVATIONS else None)
+    if native_record is None:
+        df.attrs.pop(native_sessions.FRAME_ATTR, None)
     df.to_parquet(PRICE_CACHE)
     _sidecar = dict(_ngrep or {})
     if crypto_names:
@@ -870,6 +954,12 @@ def download_prices() -> pd.DataFrame:
         _sidecar["retained_gap_repairs"] = retained_gap_repairs
     if not btc_declared and new_btc_repair:
         _sidecar["auto_btc_repair"] = new_btc_repair
+    if native_record is not None:
+        # Bound to THIS frame's native values, rows and name: the parquet
+        # above is already replaced, so if this sidecar write fails the old
+        # record no longer matches and the next run refreshes (2026-10-29
+        # review; the name since 2026-10-30).
+        _sidecar[native_sessions.SIDECAR_KEY] = native_record
     if btc_declared:
         # The declared per-column basis. Without it the first rebuild under the
         # flag changes every populated cell from the cut-over onward and the

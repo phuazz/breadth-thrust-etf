@@ -66,6 +66,17 @@ THREE REASONS A SLEEVE STOPS SHORT, and each needs its own sentence:
      inverse fault: data dated PAST the venue's last close, which is a partial
      bar and must not be described as "not refreshed yet".
 
+A FILLED NATIVE ROW IS NOT A CURRENT ONE (2026-10-28). Sleeve C's 159801.SZ is
+a Shenzhen close forward-filled onto NYSE for up to ten days, so its cached
+column reaches the last NYSE row whether or not Shenzhen printed that session
+-- the same false-current live_targets now HOLDs on. Its reach is therefore
+read from the native-observation record beside the cache (native_sessions),
+never from the column: the newest row whose required native close, and that
+of every row in its 200-row signal window (MA_PERIOD), was observed
+(2026-10-29; the first cut checked ten rows). No matching record means
+unknown, not current; a carried bound is accepted only from a prior row that
+was itself measured that way, over at least the same window.
+
 Python datetime months are 1-indexed (January = 1). Session arithmetic goes
 through pandas_market_calendars via session_bounds -- never a manual weekday.
 
@@ -78,6 +89,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -93,6 +105,8 @@ from etf_registry import (  # noqa: E402
     get_etf,
 )
 from session_bounds import last_completed_session_on  # noqa: E402
+import native_sessions  # noqa: E402
+import price_source  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -200,17 +214,34 @@ def panel_reach(universe: list[str]) -> tuple[str | None, list[str], dict]:
 
 
 def cache_reach(cache_path: Path,
-                tickers: list[str] | None = None) -> tuple[str | None, list[str]]:
-    """Stalest last-priced date across the tickers in a price cache."""
-    if not cache_path.exists():
-        return None, []
-    frame = pd.read_parquet(cache_path)
+                tickers: list[str] | None = None,
+                override: dict[str, str | None] | None = None,
+                *, frame: pd.DataFrame | None = None,
+                ) -> tuple[str | None, list[str]]:
+    """Stalest last-priced date across the tickers in a price cache.
+
+    ``override`` replaces the column's own last date for the named tickers --
+    the native-venue lines, whose cached column is forward-filled and cannot
+    say how far it really reaches (see native_reach). A None there is unknown
+    and, like an empty column, makes the whole answer unknown. ``frame`` is
+    the cache already read by the caller; when given, the file is not read
+    again, so the answer and ``override`` describe one generation.
+    """
+    if frame is None:
+        if not cache_path.exists():
+            return None, []
+        frame = pd.read_parquet(cache_path)
     cols = list(tickers if tickers is not None else frame.columns)
-    missing = [c for c in cols if c not in frame.columns or not frame[c].notna().any()]
+    override = override or {}
+    missing = [c for c in cols if c not in frame.columns or not frame[c].notna().any()
+               or (c in override and override[c] is None)]
     if missing:
         return None, sorted(missing)
     last: dict[str, str] = {}
     for c in cols:
+        if c in override:
+            last[c] = override[c]
+            continue
         s = frame[c].dropna()
         if len(s):
             last[c] = str(pd.Timestamp(s.index[-1]).date())
@@ -223,6 +254,128 @@ def cache_reach(cache_path: Path,
     return stalest, laggards
 
 
+def _blank_native(ticker: str, error: str | None,
+                  window_rows: int | None = None) -> dict:
+    return {"venue": native_sessions.venue_for(ticker), "last_valid": None,
+            "last_observed_native_close": None,
+            "required_native_session": None, "native_close_carried": None,
+            "missing_native_sessions": None, "window_rows": window_rows,
+            "holiday_data_through": None, "error": error}
+
+
+def _iso(value) -> str | None:
+    return None if value is None or pd.isna(value) else str(pd.Timestamp(value).date())
+
+
+def native_reach(cache_path: Path, tickers: list[str], *,
+                 window_rows: int,
+                 frame: pd.DataFrame | None = None) -> dict[str, dict]:
+    """How far each native-venue line in a cache REALLY reaches.
+
+    Per ticker: ``last_valid`` is the newest cache row whose required native
+    session, and that of every row in its ``window_rows``-row signal window,
+    was observed (native_sessions.provenance) -- the line's reach, or None
+    when no row can be vouched for. ``required_native_session``,
+    ``native_close_carried`` and ``missing_native_sessions`` describe the
+    cache's last row; ``last_observed_native_close`` is the newest observed
+    native date.
+
+    Rows are the cache's own index -- the rows compute_signal averages over --
+    not the line's non-blank rows, so the window is counted as the signal
+    counts it. The record comes from the cache sidecar and must belong to THIS
+    cache (parse_sidecar checks the construction, ``through``, every line, the
+    record's length and the digest of the cache's rows and native values);
+    otherwise each line is unknown with the reason in ``error``. Never reads
+    the filled column as evidence. ``frame`` is the cache already read by the
+    caller (see cache_reach); the sidecar is read here and must match it.
+    """
+    if frame is None:
+        frame = pd.read_parquet(cache_path)
+    if not len(frame):
+        return {t: _blank_native(t, "the cache has no rows", window_rows)
+                for t in tickers}
+    through = native_sessions.session_dates([frame.index.max()])[0]
+    observed = native_sessions.parse_sidecar(
+        price_source.read_cache_sidecar(cache_path), frame, tickers)
+    floor = through - pd.Timedelta(days=native_sessions.SIDECAR_WINDOW_DAYS)
+    out: dict[str, dict] = {}
+    for t in tickers:
+        if observed is None:
+            out[t] = _blank_native(t, "no native-observation record in the cache "
+                                      "sidecar matching this cache", window_rows)
+            continue
+        rec = out[t] = _blank_native(t, None, window_rows)
+        obs = observed[t]
+        if len(obs):
+            rec["last_observed_native_close"] = str(obs[-1].date())
+        rows = (native_sessions.session_dates(frame.index)
+                if t in frame.columns and frame[t].notna().any()
+                else pd.DatetimeIndex([]))
+        # A suffix of the cache's rows, so window positions are unchanged.
+        rows = rows[rows >= floor]
+        if not len(rows):
+            rec["error"] = "no priced cache row within the record window"
+            continue
+        prov = native_sessions.provenance(rows, obs, rec["venue"],
+                                          window_rows=window_rows)
+        rec["required_native_session"] = _iso(prov["required_native_session"].iloc[-1])
+        rec["native_close_carried"] = _iso(prov["native_close_carried"].iloc[-1])
+        rec["missing_native_sessions"] = [
+            _iso(s) for s in prov["missing_native_sessions"].iloc[-1]]
+        rec["holiday_data_through"] = _iso(prov.attrs.get("holiday_data_through"))
+        ok = prov.index[prov["current"].astype(bool).to_numpy()]
+        if len(ok):
+            rec["last_valid"] = str(ok[-1].date())
+        rec["error"] = prov.attrs.get("error") or (
+            None if len(ok) else
+            f"no cache row within the record window carries its required "
+            f"native close across its {window_rows}-row signal window")
+    return out
+
+
+def _prior_row(sleeve: str) -> tuple[dict | None, str | None]:
+    """The committed report's row for ``sleeve`` that measured a bound, and
+    the report's ``computed_at_utc``.
+
+    One read of the file, so every field a caller takes from the row comes
+    from one generation of the report. A report that is not an object, whose
+    ``strategies`` is not a list, or whose matching row is not an object is
+    treated as absent; non-object rows of other sleeves are skipped. Never
+    raises on the report's content.
+    """
+    path = DATA_DIR / "strategy_freshness.json"
+    if not path.exists():
+        return None, None
+    try:
+        blob = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return None, None
+    if not isinstance(blob, dict):
+        return None, None
+    rows = blob.get("strategies")
+    if not isinstance(rows, list):
+        return None, None
+    stamp = blob.get("computed_at_utc")
+    stamp = stamp if isinstance(stamp, str) else None
+    for row in rows:
+        if (isinstance(row, dict) and row.get("sleeve") == sleeve
+                and row.get("data_through")):
+            return row, stamp
+    return None, None
+
+
+def _carried(row: dict | None, measured_at: str | None, source: str,
+             ) -> tuple[str | None, list[str], str, bool]:
+    """cache_reach_or_carried's answer from one prior-report row."""
+    if row is None:
+        return None, [], source, False
+    stamp = f" of {measured_at[:16]}Z" if measured_at else ""
+    lag = row.get("laggards")
+    return row["data_through"], list(lag) if isinstance(lag, list) else [], (
+        f"{source} — bound carried from the committed report{stamp}; the "
+        f"cache is not present on this checkout"), True
+
+
 def _last_measured(sleeve: str) -> tuple[str | None, list[str], str | None]:
     """``(data_through, laggards, computed_at_utc)`` as last measured on disk.
 
@@ -230,18 +383,11 @@ def _last_measured(sleeve: str) -> tuple[str | None, list[str], str | None]:
     real ``data_through`` counts -- carrying a None forward would launder
     "unknown" into "known", which is the one thing the fallback must not do.
     """
-    path = DATA_DIR / "strategy_freshness.json"
-    if not path.exists():
+    row, measured_at = _prior_row(sleeve)
+    if row is None:
         return None, [], None
-    try:
-        blob = json.loads(path.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
-        return None, [], None
-    for row in blob.get("strategies") or []:
-        if row.get("sleeve") == sleeve and row.get("data_through"):
-            return (row["data_through"], list(row.get("laggards") or []),
-                    blob.get("computed_at_utc"))
-    return None, [], None
+    reach, laggards, _, _ = _carried(row, measured_at, "")
+    return reach, laggards, measured_at
 
 
 def cache_reach_or_carried(
@@ -267,13 +413,175 @@ def cache_reach_or_carried(
     reach, laggards = cache_reach(cache_path, tickers)
     if reach is not None or cache_path.exists():
         return reach, laggards, source, False
-    carried, laggards, measured_at = _last_measured(sleeve)
-    if carried is None:
-        return None, [], source, False
-    stamp = f" of {measured_at[:16]}Z" if measured_at else ""
-    return carried, laggards, (
-        f"{source} — bound carried from the committed report{stamp}; the "
-        f"cache is not present on this checkout"), True
+    return _carried(*_prior_row(sleeve), source)
+
+
+_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _strict_date(value) -> date | None:
+    """``value`` as a date only if it is exactly ``YYYY-MM-DD`` and a real
+    calendar date; otherwise None. date.fromisoformat alone is too lenient on
+    Python 3.11+ (it takes "20261028" and week dates), hence the pattern.
+    Python datetime months are 1-indexed (January = 1)."""
+    if not isinstance(value, str) or not _ISO_DATE.fullmatch(value):
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def native_cache_reach_or_carried(
+        cache_path: Path, tickers: list[str], native_tickers: list[str],
+        sleeve: str, source: str, *, window_rows: int,
+) -> tuple[str | None, list[str], str, bool, dict[str, dict]]:
+    """cache_reach_or_carried for a cache holding native-venue lines.
+
+    The same four values, plus ``{ticker: native record}`` (see native_reach).
+    A present cache measures each native line from its observation record
+    across the ``window_rows``-row signal window. An absent one carries the
+    prior bound ONLY if that row recorded a valid native reach for every line,
+    measured over at least the same window, and no later than it -- a bound
+    measured on the filled column, or over a shorter window (the ten-row tail
+    of 2026-10-28), is exactly the claim this must not repeat.
+
+    ONE SNAPSHOT PER VERDICT (2026-10-30 review). The parquet is read once and
+    that frame feeds both the native reach and the stalest-line date; the
+    prior report is read once and that row feeds the bound, the laggards and
+    the native records. Until then each was read twice, so a cache replaced
+    between the reads, or a report rewritten between them, could combine two
+    generations -- neither current on its own -- into a current verdict.
+    A malformed prior row or native record makes the line unknown; it never
+    raises, so the other sleeves are still reported.
+    """
+    native_tickers = [t for t in native_tickers if t in tickers]
+    if not native_tickers:
+        return (*cache_reach_or_carried(cache_path, tickers, sleeve, source), {})
+    try:
+        frame = pd.read_parquet(cache_path) if cache_path.exists() else None
+    except FileNotFoundError:   # removed between the check and the read
+        frame = None
+    if frame is not None:
+        native = native_reach(cache_path, native_tickers,
+                              window_rows=window_rows, frame=frame)
+        reach, laggards = cache_reach(
+            cache_path, tickers, {t: r["last_valid"] for t, r in native.items()},
+            frame=frame)
+        return reach, laggards, source, False, native
+    row, measured_at = _prior_row(sleeve)
+    reach, laggards, src, carried = _carried(row, measured_at, source)
+    if not carried:
+        return reach, laggards, src, False, {
+            t: _blank_native(t, "the cache is not present on this checkout and "
+                                "no prior bound was measured", window_rows)
+            for t in native_tickers}
+    prior = row.get("native_provenance")
+    recs = ({t: prior.get(t) for t in native_tickers}
+            if isinstance(prior, dict) else None)
+    lag = row.get("laggards")
+    lag_ok = lag is None or (isinstance(lag, list)
+                             and all(isinstance(x, str) for x in lag))
+
+    def _date_or_none(v) -> bool:
+        return v is None or _strict_date(v) is not None
+
+    def _covers(t, r) -> bool:
+        """A record for this line's venue, measured over at least this
+        window, whose ``last_valid`` is a real date no earlier than the
+        carried bound. Dates are PARSED, never compared as strings: until
+        2026-10-29 "2026-9-01" and "garbled" both sorted after "2026-10-28"
+        and carried sleeve C as current (review finding 2). Every other field
+        the report and _native_reason read must have its documented shape
+        (a strict date or None; a list of strict dates or None; a string or
+        None), so a carried record is either usable whole or not at all."""
+        if not isinstance(r, dict) or r.get("venue") != native_sessions.venue_for(t):
+            return False
+        w = r.get("window_rows")
+        if not (isinstance(w, int) and not isinstance(w, bool) and w >= window_rows):
+            return False
+        if not all(_date_or_none(r.get(k)) for k in (
+                "last_observed_native_close", "required_native_session",
+                "native_close_carried", "holiday_data_through")):
+            return False
+        missing = r.get("missing_native_sessions")
+        if missing is not None and not (
+                isinstance(missing, list)
+                and all(_strict_date(s) is not None for s in missing)):
+            return False
+        if not (r.get("error") is None or isinstance(r.get("error"), str)):
+            return False
+        valid = _strict_date(r.get("last_valid"))
+        return valid is not None and bound is not None and valid >= bound
+
+    bound = _strict_date(reach)
+    if recs is not None and lag_ok and all(_covers(t, r) for t, r in recs.items()):
+        return reach, laggards, src, True, recs
+    return None, sorted(native_tickers), source, False, {
+        t: _blank_native(t, "the cache is not present on this checkout and the "
+                            "committed report records no native-observation "
+                            f"provenance over the {window_rows}-row signal "
+                            "window for this line", window_rows)
+        for t in native_tickers}
+
+
+def _native_reason(native: dict[str, dict], laggards: list[str],
+                   ) -> tuple[str | None, str | None]:
+    """Explain a row held back by a native-venue line, in both registers.
+
+    Only when that line is NAMED: a native line sharing the sleeve's date is
+    not the cause, and the ordinary channels speak for it.
+    """
+    named = [t for t in laggards if t in native]
+    if not named:
+        return None, None
+    technical, plain = [], []
+    for t in named:
+        r = native[t]
+        if r.get("last_valid") is None:
+            technical.append(
+                f"{t}: no {r.get('venue')} close is shown to be observed across "
+                f"a recent row's signal window ({r.get('error')}); its cached "
+                f"price is "
+                f"forward-filled and is not evidence {r.get('venue')} printed "
+                f"those sessions")
+            plain.append(
+                "one fund in this strategy trades on an overseas exchange, and "
+                "there is no record that its recent prices were actually "
+                "published there, so they are not counted as current")
+        elif r.get("missing_native_sessions"):
+            technical.append(
+                f"{t} is valid only through {r['last_valid']}: no "
+                f"{r.get('venue')} close was observed for "
+                f"{', '.join(r['missing_native_sessions'])}, so the cache "
+                f"carries a forward-filled price there and every later row "
+                f"whose {r.get('window_rows')}-row signal window reaches it "
+                f"draws on that price")
+            plain.append(
+                f"one fund in this strategy trades on an overseas exchange "
+                f"whose prices are confirmed only up to {r['last_valid']}; "
+                f"a later day repeats an earlier price")
+        else:
+            technical.append(
+                f"{t} is valid only through {r['last_valid']}: its newest "
+                f"observed {r.get('venue')} close is "
+                f"{r.get('native_close_carried')} while the cache's last row "
+                f"requires the {r.get('required_native_session')} session — "
+                f"later rows carry a forward-filled price")
+            plain.append(
+                f"one fund in this strategy trades on an overseas exchange "
+                f"whose prices are confirmed only up to {r['last_valid']}; "
+                f"later days repeat an earlier price")
+        bound = r.get("holiday_data_through")
+        unannounced = [s for s in (r.get("missing_native_sessions") or [])
+                       if bound and s > bound]
+        if unannounced:
+            technical.append(
+                f"{t}: {', '.join(unannounced)} lie past the {r.get('venue')} "
+                f"holiday data (through {bound}); if the exchange was shut, "
+                f"pin the closure in china_market_holidays.py from the "
+                f"official notice")
+    return "; ".join(technical) + ".", "; ".join(dict.fromkeys(plain)) + "."
 
 
 def build(now_utc: datetime | None = None) -> dict:
@@ -283,7 +591,7 @@ def build(now_utc: datetime | None = None) -> dict:
     def add(key: str, venue: str, reach: str | None, laggards: list[str],
             source: str, why: str | None = None,
             why_plain: str | None = None, *, inputs: str = "inputs",
-            carried: bool = False) -> None:
+            carried: bool = False, extra: dict | None = None) -> None:
         cal = _venue_cal(venue)
         lcs = last_completed_session_on(cal, now)
         venue_last = str(lcs.date()) if lcs is not None else None
@@ -310,6 +618,7 @@ def build(now_utc: datetime | None = None) -> dict:
             "carried": carried,
             "why": why,
             "why_plain": why_plain,
+            **(extra or {}),
         })
 
     # --- A: US sector breadth panels -------------------------------------
@@ -327,10 +636,14 @@ def build(now_utc: datetime | None = None) -> dict:
 
     # --- C: thematic prices ----------------------------------------------
     import run_thematic_rotation as th
-    c_reach, c_lag, c_source, c_carried = cache_reach_or_carried(
-        th.PRICE_CACHE, list(th.TICKERS), "C", "price cache (thematic ETFs)")
-    add("C", "NYSE", c_reach, c_lag, c_source, None,
-        inputs="cached price series", carried=c_carried)
+    # 159801.SZ's column is forward-filled onto NYSE; its reach comes from
+    # the cache's native-observation record instead (module docstring).
+    c_reach, c_lag, c_source, c_carried, c_native = native_cache_reach_or_carried(
+        th.PRICE_CACHE, list(th.TICKERS), th._native_tickers(), "C",
+        "price cache (thematic ETFs)", window_rows=th.MA_PERIOD)
+    add("C", "NYSE", c_reach, c_lag, c_source, *_native_reason(c_native, c_lag),
+        inputs="cached price series", carried=c_carried,
+        extra={"native_provenance": c_native})
 
     # --- D: European sector breadth panels --------------------------------
     d_reach, d_lag, d_caps = panel_reach(list(UNIVERSE_EUROPE_SECTORS))

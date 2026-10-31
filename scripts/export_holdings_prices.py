@@ -917,9 +917,53 @@ def _venue_calendar(name: str):
     name is kept because callers here read better for it; the maxsize=8 bound
     went with the move, the shared cache being unbounded over a small fixed
     set of venues.
+
+    Since 2026-10-30 a Shanghai/Shenzhen name returns the EFFECTIVE calendar
+    (native_sessions.completeness_calendar: the library less the validated
+    pinned closures), so this exporter and sleeve C's window check agree on
+    which days Shenzhen traded. When the pins conflict with the library they
+    are refused and the library calendar is used, which demands more bars,
+    never fewer; the conflict is reported by calendar_problem. NYSE and XETR
+    are the library calendars unchanged.
     """
-    from venue_calendars import get_calendar
-    return get_calendar(name)
+    import native_sessions
+    return native_sessions.completeness_calendar(name)[0]
+
+
+def calendar_problem(name: str | None) -> str | None:
+    """Why ``name``'s completeness answers cannot be fully trusted, or None:
+    a pin conflict (the library calendar is used instead) or a calendar that
+    cannot be built. A caller that judges a series must report it."""
+    if not name:
+        return None
+    try:
+        import native_sessions
+        conflict = native_sessions.completeness_calendar(name)[1]
+    except Exception as exc:  # noqa: BLE001 — any calendar fault is reported
+        return f"{name} calendar unavailable ({exc})"
+    return f"{name} holiday pins refused ({conflict})" if conflict else None
+
+
+def interior_gap_check(entry: dict | None, ticker: str
+                       ) -> tuple[list[str], str | None]:
+    """``(interior_gaps, problem)``: the gaps, and why they could not be
+    established in full (calendar_problem, or a schedule that raised). A
+    non-None problem means the series is NOT shown complete, whatever the
+    gap list says."""
+    dates = (entry or {}).get("dates") or []
+    if len(dates) < 3:
+        return [], None
+    cal_name = venue_calendar_for(ticker)
+    if not cal_name:
+        return [], None
+    problem = calendar_problem(cal_name)
+    try:
+        sched = _venue_calendar(cal_name).schedule(
+            start_date=dates[0], end_date=dates[-1])
+    except Exception as exc:  # noqa: BLE001
+        return [], problem or f"{cal_name} schedule unavailable ({exc})"
+    expected = {str(pd.Timestamp(d).date()) for d in sched.index}
+    return sorted(expected - set(dates)), problem
 
 
 def venue_calendar_for(ticker: str) -> str | None:
@@ -945,20 +989,11 @@ def interior_gaps(entry: dict | None, ticker: str) -> list[str]:
     Interior only, deliberately: the tail is where a legitimate publication lag
     lives (Europe routinely trails the US by a session), and flagging that would
     fire every night for a condition that is not a fault.
+
+    The gap list alone; a calendar that could not be read gives [] here, so a
+    caller that must not pass an unverified series reads interior_gap_check.
     """
-    dates = (entry or {}).get("dates") or []
-    if len(dates) < 3:
-        return []
-    cal_name = venue_calendar_for(ticker)
-    if not cal_name:
-        return []
-    try:
-        sched = _venue_calendar(cal_name).schedule(
-            start_date=dates[0], end_date=dates[-1])
-    except Exception:
-        return []
-    expected = {str(pd.Timestamp(d).date()) for d in sched.index}
-    return sorted(expected - set(dates))
+    return interior_gap_check(entry, ticker)[0]
 
 
 # --------------------------------------------------------------------------
@@ -1555,13 +1590,26 @@ def main(argv: list[str] | None = None) -> int:
     # without a word — and one did: see interior_gaps. This says so in the log
     # and carries it in the artefact, so a consumer can show the series as
     # holed instead of drawing a straight line across the gap.
-    holes = {tk: g for tk, g in ((t, interior_gaps(e, t))
-                                 for t, e in out.items()) if g}
+    holes: dict[str, list[str]] = {}
+    # A ticker whose completeness could not be established in full (a pin
+    # conflict, or a calendar that would not build), reported beside the gaps
+    # so an empty gap list is never read as "shown complete" (2026-10-30).
+    unverified: dict[str, str] = {}
+    for t, e in out.items():
+        g, problem = interior_gap_check(e, t)
+        if g:
+            holes[t] = g
+        if problem:
+            unverified[t] = problem
+    if unverified:
+        print("  CALENDAR: completeness not established for " + "; ".join(
+            f"{t} ({p})" for t, p in sorted(unverified.items())))
 
     payload = {
         "computed_at_utc": now_utc.isoformat(timespec="seconds"),
         "lookback_days": LOOKBACK_DAYS,
         "interior_gaps": holes,
+        "completeness_unverified": unverified,
         # {ticker: last bar} for each series this run re-sourced from Norgate
         # because yfinance withheld the published last bar. Empty on a normal run.
         "resourced_from_norgate": resourced,
