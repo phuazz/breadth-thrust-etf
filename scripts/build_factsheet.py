@@ -577,6 +577,35 @@ def _latest_rebalance_record(sleeve: dict | None) -> dict | None:
     return th[-1] if th else None
 
 
+def sleeve_gate_notes(live_targets: dict | None, asof_iso: str) -> dict:
+    """Sleeve-breadth gate sentences for the next fill, keyed by sleeve.
+
+    The engine payloads record SHY at weight 1.0 but not why, so the
+    factsheet printed C's gated SHY with a "—" signal and "unchanged this
+    week" while the dashboard called C ready (owner, 2026-11-01). The gate
+    is recorded only in live_targets.json, beside the next-fill decision;
+    it is used only when that file is on the factsheet's own as-of date and
+    the sleeve is READY and wholly in its cash proxy, so a stale or partial
+    decision prints nothing rather than a reason for a different week.
+    """
+    if not live_targets or live_targets.get("as_of") != asof_iso:
+        return {}
+    from component_factsheet_view import CASH_PROXIES, gate_of, gate_terms
+    notes = {}
+    for rec in live_targets.get("sleeves") or []:
+        gate = gate_of(rec)
+        weights = rec.get("weights") or {}
+        if (not gate or rec.get("status") != "READY" or len(weights) != 1
+                or next(iter(weights)) not in CASH_PROXIES):
+            continue
+        notes[rec["sleeve"]] = (
+            f"Sleeve {rec['sleeve']}: breadth gate on at the "
+            f"{rec.get('decision_session')} close, {gate_terms(gate)}, so the "
+            f"sleeve stays wholly in {next(iter(weights))} for the "
+            f"{rec.get('fill_date')} fill")
+    return notes
+
+
 # Maximum calendar-day lag between a per-ETF series' last bar and the build
 # as-of before its attribution row is treated as UNCOVERED rather than
 # silently plotted against a different week. The 2026-07-18 audit found the
@@ -1374,7 +1403,8 @@ def build_regime_panel(overlay, page_w, styles,
                    ]))
 
 
-def build_holdings_table(sleeves, overlay, asof_iso, page_w, styles):
+def build_holdings_table(sleeves, overlay, asof_iso, page_w, styles,
+                          gated_sleeves=()):
     # Single source of truth with the attribution chart — and, since
     # 2026-07-18, gate-aware: in a RISK_OFF week this table halves the
     # equity legs and carries the 50% SHY overlay row, matching
@@ -1395,7 +1425,12 @@ def build_holdings_table(sleeves, overlay, asof_iso, page_w, styles):
 
     data = [["TICKER", "SLEEVE", "SIGNAL", "TARGET WT", "$ ON $1.0M"]]
     for h in holdings:
-        sig = f"{h['signal']:+.1f}%" if h["signal"] is not None else "—"
+        if h["sleeve"] in gated_sleeves:
+            # A gated sleeve holds only its cash proxy; the reason is
+            # stated under REBALANCE THIS WEEK.
+            sig = "GATE"
+        else:
+            sig = f"{h['signal']:+.1f}%" if h["signal"] is not None else "—"
         cash = h["effective"] * 1_000_000
         data.append([
             # Print the traded ticker, not the panel key — sleeve D's EXH3 is
@@ -1431,7 +1466,8 @@ def build_holdings_table(sleeves, overlay, asof_iso, page_w, styles):
     return t
 
 
-def build_trades_table(sleeves, page_w, styles, overlay, as_of=None):
+def build_trades_table(sleeves, page_w, styles, overlay, as_of=None,
+                        gate_notes=None):
     """Phase 28.7b — filter to THIS WEEK's rebal activity only.
 
     Prior version included every sleeve's most recent rebalance regardless
@@ -1619,6 +1655,9 @@ def build_trades_table(sleeves, page_w, styles, overlay, as_of=None):
             for sl, d in sorted(set(stale_sleeves)))
         flows.append(Spacer(1, 2))
         flows.append(Paragraph(f"<i>{note}.</i>", styles["body_small"]))
+    for sl in sorted(gate_notes or {}):
+        flows.append(Spacer(1, 2))
+        flows.append(Paragraph(f"<i>{gate_notes[sl]}.</i>", styles["body_small"]))
     return flows
 
 
@@ -2070,6 +2109,10 @@ def build(out_path: Path):
     asof_iso = asof_date.strftime("%Y-%m-%d")
     computed_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     full_stats = window_stats(deployed_series)
+    lt_targets_path = DATA_DIR / "live_targets.json"
+    gate_notes = sleeve_gate_notes(
+        json.loads(lt_targets_path.read_text(encoding="utf-8"))
+        if lt_targets_path.exists() else None, asof_iso)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -2114,7 +2157,8 @@ def build(out_path: Path):
         styles)
     activity_left.extend(build_trades_table(sleeves, body_w / 2 - 6, styles,
                                               overlay,
-                                              as_of=deployed_series.index[-1]))
+                                              as_of=deployed_series.index[-1],
+                                              gate_notes=gate_notes))
     watchlist_right = section_header(
         "WATCHLIST — APPROACHING THRESHOLDS",
         "Signal levels relative to the next regime change",
@@ -2152,7 +2196,8 @@ def build(out_path: Path):
         "CURRENT TARGET PORTFOLIO",
         "What to own today, sorted by effective weight — sized for a $1.0M portfolio",
         styles) + [
-        build_holdings_table(sleeves, overlay, asof_iso, body_w, styles),
+        build_holdings_table(sleeves, overlay, asof_iso, body_w, styles,
+                             gated_sleeves=set(gate_notes)),
     ]))
     story.append(Spacer(1, 6 * mm))
 

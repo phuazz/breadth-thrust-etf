@@ -494,3 +494,27 @@ def test_a_strategy_without_an_attribution_source_is_shown_not_dropped(tmp_path,
     e=next(r for r in context['attribution'] if r['sleeve']=='E')
     assert e['weight']==.05 and e['contribution'] is None
     assert not context['coverage_complete'] and context['residual'] is None
+
+
+def test_house_factsheet_states_why_a_gated_sleeve_holds_cash():
+    """C sat wholly in SHY behind its breadth gate while the house factsheet
+    printed a "—" signal and "unchanged this week" (owner, 2026-11-01)."""
+    import build_factsheet as house
+    gate = {"enabled": True, "n_above": 6, "n_universe": 25, "breadth": .24,
+            "floor": .05, "threshold": .3, "fired": True}
+    c = {"sleeve": "C", "status": "READY", "weights": {"SHY": 1.0}, "gate": gate,
+         "decision_session": "2026-10-30", "fill_date": "2026-11-02"}
+    a = {"sleeve": "A", "status": "READY", "weights": {"IUHC": 1.0}, "gate": None}
+    lt = {"as_of": "2026-10-30", "sleeves": [a, c]}
+    assert house.sleeve_gate_notes(lt, "2026-10-30") == {"C": (
+        "Sleeve C: breadth gate on at the 2026-10-30 close, 6 of 25 names above the "
+        "+5% floor, under the 30% threshold (8 needed), so the sleeve stays wholly "
+        "in SHY for the 2026-11-02 fill")}
+    # A decision for another week, a held sleeve, an unfired gate or a sleeve
+    # not wholly in cash prints nothing rather than a borrowed reason.
+    assert house.sleeve_gate_notes(lt, "2026-10-23") == {}
+    assert house.sleeve_gate_notes(None, "2026-10-30") == {}
+    for change in ({"status": "HOLD"}, {"gate": dict(gate, fired=False)},
+                   {"weights": {"SHY": .6, "ARKG": .4}}, {"weights": {"ARKG": 1.0}}):
+        assert house.sleeve_gate_notes(
+            {"as_of": "2026-10-30", "sleeves": [dict(c, **change)]}, "2026-10-30") == {}
