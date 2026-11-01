@@ -1,65 +1,78 @@
 {
- "computed_at_utc": "2026-10-30T15:06:21.919113+00:00",
+ "computed_at_utc": "2026-11-01T01:58:06.811256+00:00",
  "strategies": [
   {
    "sleeve": "A",
    "label": "US sectors",
    "venue": "NYSE",
-   "data_through": "2026-10-23",
-   "venue_last_session": "2026-10-29",
-   "sessions_behind": 4,
-   "status": "behind",
+   "data_through": "2026-10-30",
+   "venue_last_session": "2026-10-30",
+   "sessions_behind": 0,
+   "status": "current",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
    "carried": false,
-   "why": "every one of the breadth panels stops at 2026-10-23 while NYSE has completed 2026-10-29 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-29 \u2014 it has not been rebuilt since."
+   "why": null,
+   "why_plain": null
   },
   {
    "sleeve": "B",
    "label": "Asset classes",
    "venue": "NYSE",
-   "data_through": "2026-10-23",
-   "venue_last_session": "2026-10-29",
-   "sessions_behind": 4,
-   "status": "behind",
+   "data_through": "2026-10-30",
+   "venue_last_session": "2026-10-30",
+   "sessions_behind": 0,
+   "status": "current",
    "laggards": [],
-   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-10-30T01:12Z; the cache is not present on this checkout",
-   "carried": true,
-   "why": "every one of the cached price series stops at 2026-10-23 while NYSE has completed 2026-10-29 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-29 \u2014 it has not been rebuilt since."
+   "source": "price cache (asset-class ETFs)",
+   "carried": false,
+   "why": null,
+   "why_plain": null
   },
   {
    "sleeve": "C",
    "label": "Thematic",
    "venue": "NYSE",
-   "data_through": "2026-10-23",
-   "venue_last_session": "2026-10-29",
-   "sessions_behind": 4,
-   "status": "behind",
+   "data_through": "2026-10-30",
+   "venue_last_session": "2026-10-30",
+   "sessions_behind": 0,
+   "status": "current",
    "laggards": [],
-   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-10-30T01:12Z; the cache is not present on this checkout",
-   "carried": true,
-   "why": "every one of the cached price series stops at 2026-10-23 while NYSE has completed 2026-10-29 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-29 \u2014 it has not been rebuilt since."
+   "source": "price cache (thematic ETFs)",
+   "carried": false,
+   "why": null,
+   "why_plain": null,
+   "native_provenance": {
+    "159801.SZ": {
+     "venue": "XSHG",
+     "last_valid": "2026-10-30",
+     "last_observed_native_close": "2026-10-30",
+     "required_native_session": "2026-10-30",
+     "native_close_carried": "2026-10-30",
+     "missing_native_sessions": [],
+     "window_rows": 200,
+     "holiday_data_through": "2026-12-31",
+     "error": null
+    }
+   }
   },
   {
    "sleeve": "D",
    "label": "Europe sectors",
    "venue": "XETR",
    "data_through": "2026-10-23",
-   "venue_last_session": "2026-10-29",
-   "sessions_behind": 4,
+   "venue_last_session": "2026-10-30",
+   "sessions_behind": 5,
    "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
    "carried": false,
-   "why": "every one of the breadth panels stops at 2026-10-23 while XETR has completed 2026-10-29 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-29 \u2014 it has not been rebuilt since."
+   "why": "every one of the breadth panels stops at 2026-10-23 while XETR has completed 2026-10-30 \u2014 none lags the others, so they have not been rebuilt since.",
+   "why_plain": "the data behind this strategy stops on 2026-10-23, while the market has traded to 2026-10-30 \u2014 it has not been rebuilt since."
   }
  ],
  "all_current": false,
  "n_unknown": 0,
  "stalest": "2026-10-23",
- "n_behind": 4
+ "n_behind": 1
 }
