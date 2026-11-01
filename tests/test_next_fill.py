@@ -568,3 +568,19 @@ def test_the_pipeline_ships_only_the_dating_fields_of_the_basis(tmp_path, monkey
          "lines": [{"sleeve": "B", "etf": "SHY", "held": 1.0}]}), encoding="utf-8")
     assert pipeline.load_held_basis() == {"anchor": "2026-10-30", "model_as_of": "2026-10-26",
                                           "held_after_fill": fills}
+
+
+# ---------------------------------------------------------------------------
+# The complete proposed book (2026-11-01)
+# ---------------------------------------------------------------------------
+def test_the_card_carries_the_complete_book_without_a_dollar_column():
+    """The PDF's section 04 on the page: one line per instrument at its
+    combined weight, summed from the same lines the move list prints, and
+    collapsed with the rest of the detail while the book is provisional."""
+    t = _template_text()
+    assert 'id="nf-book"' in t and "function renderNextFillBook(lt, lbl)" in t
+    assert "renderNextFillBook(lt, lbl);" in t
+    assert ".prev-card.next-fill.nf-collapsed #nf-book," in t
+    assert "Target by strategy:" in t
+    block = t[t.index('id="nf-book"'):t.index('id="nf-book-note"')]
+    assert "$1.0M" not in block and "ON $1" not in block

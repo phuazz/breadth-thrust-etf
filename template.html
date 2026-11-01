@@ -1647,7 +1647,21 @@
     .prev-card.next-fill.nf-collapsed #preview-nextfill-table,
     .prev-card.next-fill.nf-collapsed #preview-nextfill-net,
     .prev-card.next-fill.nf-collapsed #nf-hold-note,
+    .prev-card.next-fill.nf-collapsed #nf-book,
     .prev-card.next-fill.nf-collapsed #nf-why { display: none; }
+    /* Complete proposed book (2026-11-01), the PDF's section 04 on the page. */
+    .nf-book { margin: 12px 0 0; }
+    .nf-book > summary {
+      cursor: pointer; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--ink-soft); padding: 4px 0; min-height: 32px;
+      display: list-item;
+    }
+    .nf-book > summary:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
+    #nf-book-table th.th-num, #nf-book-table td.num { text-align: right; white-space: nowrap; }
+    #nf-book-table td.nf-buy  { color: var(--good); }
+    #nf-book-table td.nf-sell { color: var(--bad); }
+    #nf-book-table td.nf-flat { color: var(--ink-faint); }
+    #nf-book-table .nf-split { display: block; font-size: 11px; color: var(--ink-faint); margin-top: 1px; }
     /* Why these moves (2026-09-06): running prose under the target book,
        one derived sentence per move. Prose measure, not table width. */
     .nf-why { margin: 10px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--ink); max-width: 66ch; }
@@ -2349,6 +2363,26 @@
         </table>
         <div class="prev-card-net" id="preview-nextfill-net"></div>
         <div id="nf-hold-note"></div>
+        <!-- Complete proposed book (2026-11-01): every instrument once, at its
+             combined weight across strategies, held -> target, as in section
+             04 of the PDF factsheet. The move list above shows only what
+             trades; this shows the whole book the fill leaves in place. -->
+        <details class="nf-book" id="nf-book" open hidden>
+          <summary id="nf-book-summary">Complete proposed book</summary>
+          <table class="prev-table" id="nf-book-table">
+            <thead>
+              <tr>
+                <th class="th-tk">Ticker &amp; name</th>
+                <th class="th-sl">Strategy</th>
+                <th class="th-num">Held</th>
+                <th class="th-num">Target</th>
+                <th class="th-num">Change</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="prev-card-net" id="nf-book-note"></div>
+        </details>
         <!-- Why these moves (2026-09-06): derived sentences from
              data/commentary.json, one per planned move, with the signal it
              followed; rendered only when computed for the same decision
@@ -5219,8 +5253,63 @@ function renderNextFill(labelMap) {
   // the whole book is still provisional.
   setOpen(isFinal || partlyHeld);
 
+  renderNextFillBook(lt, lbl);
   renderNextFillWhy(lt);
   card.style.display = '';
+}
+
+// ---------------------------------------------------------------------------
+// COMPLETE PROPOSED BOOK (2026-11-01). The PDF factsheet's section 04 on the
+// page, without its $1.0M column: every instrument once at its combined
+// weight across strategies, sorted by target, so an instrument two strategies
+// hold (SHY in B and C) reads as one position with its split beneath. Exit
+// lines stay at zero target; lines neither held nor targeted are omitted.
+// Everything is summed from live_targets.lines, which the card above prints,
+// so the two cannot disagree.
+// ---------------------------------------------------------------------------
+function renderNextFillBook(lt, lbl) {
+  const box = document.getElementById('nf-book');
+  if (!box) return;
+  const by = new Map();
+  for (const l of lt.lines) {
+    if (!(l.held > 0) && !(l.target > 0)) continue;
+    const key = l.traded || l.etf;
+    const g = by.get(key) || { etf: l.etf, held: 0, target: 0, parts: [] };
+    g.held += l.held; g.target += l.target; g.parts.push(l);
+    by.set(key, g);
+  }
+  const rows = [...by.values()].sort((a, b) => (b.target - a.target) || (b.held - a.held));
+  if (!rows.length) { box.hidden = true; return; }
+  const pct = (x) => `${(x * 100).toFixed(2)}%`;
+  document.querySelector('#nf-book-table tbody').innerHTML = rows.map(g => {
+    const delta = g.target - g.held;
+    const flat = Math.abs(delta) < 5e-5;
+    const cls = flat ? 'nf-flat' : (delta > 0 ? 'nf-buy' : 'nf-sell');
+    const sleeves = [...new Set(g.parts.map(p => p.sleeve))];
+    const split = g.parts.length > 1
+      ? `<span class="nf-split">Target by strategy: ${g.parts.map(p =>
+          `${_escapeHtml(p.sleeve)} ${pct(p.target)}`).join(' + ')}</span>` : '';
+    const name = lbl(g.etf) ? `<span class="tk-label">${_escapeHtml(lbl(g.etf))}</span>` : '';
+    return `<tr>
+      <td class="tk">${_displaySym(g.etf)}${name}</td>
+      <td class="sl">${_escapeHtml(sleeves.join('+'))}${split}</td>
+      <td class="num">${pct(g.held)}</td>
+      <td class="num"><strong>${pct(g.target)}</strong></td>
+      <td class="num ${cls}">${flat ? '0.00pp' : `${delta > 0 ? '+' : ''}${(delta * 100).toFixed(2)}pp`}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('nf-book-summary').textContent =
+    `Complete proposed book (${rows.length} instrument${rows.length === 1 ? '' : 's'})`;
+  const hb = (window.DATA || {}).held_basis;
+  const heldWhen = hb && hb.anchor === lt.as_of && hb.model_as_of
+    ? (hb.held_after_fill ? `after the ${fmtDateLongSafe(hb.model_as_of)} fill`
+                          : `as at ${fmtDateLongSafe(hb.model_as_of)}`)
+    : null;
+  document.getElementById('nf-book-note').textContent =
+    `Percentages of total NAV. Held is the model book${heldWhen ? ' ' + heldWhen : ''}, `
+    + `not broker holdings; target is for the next fill, not a trade already made. `
+    + `An instrument held by more than one strategy is one line at the combined weight.`;
+  box.hidden = false;
 }
 
 // ---------------------------------------------------------------------------
