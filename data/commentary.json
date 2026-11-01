@@ -1,8 +1,8 @@
 {
-  "computed_at_utc": "2026-11-01T01:58:19+00:00",
+  "computed_at_utc": "2026-11-01T12:15:11+00:00",
   "as_of": "2026-10-30",
   "next_fill": {
-    "summary": "15 moves at the next fill (NYSE Mon 2 Nov 2026, XETR Mon 2 Nov 2026), ranked on the Fri 30 Oct 2026 close; one-way turnover 9.75% of NAV; 1 new name; 2 exits. Signals compared with the previous decision close.",
+    "summary": "18 moves at the next fill (NYSE Mon 2 Nov 2026, XETR Mon 2 Nov 2026), ranked on the Fri 30 Oct 2026 close; one-way turnover 10.73% of NAV; 1 new name; 2 exits. Signals compared with the previous decision close.",
     "moves": [
       {
         "sleeve": "B",
@@ -181,6 +181,28 @@
         "text": "VNQ (US Real Estate (REITs)) enters at 1.0% of NAV: -0.4% \u2192 +0.8% against its 200-day average, rank 7 of 12."
       },
       {
+        "sleeve": "D",
+        "etf": "EXV1",
+        "traded": "EXV1",
+        "name": "STOXX Europe 600 Banks",
+        "action": "TRIM",
+        "held": 0.07221999999999999,
+        "target": 0.0624706,
+        "delta": -0.009749399999999991,
+        "signal_now": 0.6389,
+        "signal_prev": 0.625,
+        "signal_now_fmt": "63.9",
+        "signal_prev_fmt": "62.5",
+        "rank_now": 3,
+        "rank_prev": 3,
+        "n": 5,
+        "cut": null,
+        "cash_proxy": false,
+        "driver": "signal",
+        "signal_kind": "breadth",
+        "text": "EXV1 (STOXX Europe 600 Banks) 7.2% \u2192 6.2% of NAV (-1.0pp): breadth 62.5% \u2192 63.9%, rank 3 of 5."
+      },
+      {
         "sleeve": "A",
         "etf": "IUES",
         "traded": "IUES",
@@ -225,6 +247,28 @@
         "text": "CSP1 (iShares Core S&P 500) 1.1% \u2192 1.9% of NAV (+0.8pp): breadth +3.6pp \u2192 +4.0pp against the sector average, rank 5 of 14."
       },
       {
+        "sleeve": "D",
+        "etf": "EXH1",
+        "traded": "EXH1",
+        "name": "STOXX Europe 600 Oil & Gas",
+        "action": "ADD",
+        "held": 0.06520000000000001,
+        "target": 0.0711128,
+        "delta": 0.005912799999999996,
+        "signal_now": 0.7273,
+        "signal_prev": 0.7273,
+        "signal_now_fmt": "72.7",
+        "signal_prev_fmt": "72.7",
+        "rank_now": 1,
+        "rank_prev": 1,
+        "n": 5,
+        "cut": null,
+        "cash_proxy": false,
+        "driver": "signal",
+        "signal_kind": "breadth",
+        "text": "EXH1 (STOXX Europe 600 Oil & Gas) 6.5% \u2192 7.1% of NAV (+0.6pp): breadth 72.7% \u2192 72.7%, rank 1 of 5."
+      },
+      {
         "sleeve": "B",
         "etf": "VGK",
         "traded": "VGK",
@@ -245,6 +289,28 @@
         "driver": "signal",
         "signal_kind": "ma_distance",
         "text": "VGK (FTSE Europe) exits from 0.6% of NAV: -0.7% \u2192 +0.7% against its 200-day average, rank 9 \u2192 8 of 12."
+      },
+      {
+        "sleeve": "D",
+        "etf": "EXV3",
+        "traded": "EXV3",
+        "name": "STOXX Europe 600 Technology",
+        "action": "ADD",
+        "held": 0.06258000000000001,
+        "target": 0.0664166,
+        "delta": 0.0038365999999999956,
+        "signal_now": 0.6792,
+        "signal_prev": 0.6604,
+        "signal_now_fmt": "67.9",
+        "signal_prev_fmt": "66.0",
+        "rank_now": 2,
+        "rank_prev": 2,
+        "n": 5,
+        "cut": null,
+        "cash_proxy": false,
+        "driver": "signal",
+        "signal_kind": "breadth",
+        "text": "EXV3 (STOXX Europe 600 Technology) 6.3% \u2192 6.6% of NAV (+0.4pp): breadth 66.0% \u2192 67.9%, rank 2 of 5."
       },
       {
         "sleeve": "A",
@@ -693,11 +759,89 @@
             "text": "EFA (MSCI EAFE (Intl developed)) 1.4% \u2192 1.2% of NAV (-0.2pp): +0.4% \u2192 +0.9% against its 200-day average, rank 6 of 12."
           }
         ]
+      },
+      {
+        "sleeve": "D",
+        "label": "Europe sectors",
+        "signal_kind": "breadth",
+        "signal_unit": "breadth (%)",
+        "signal_desc": "share of constituents above their 200-day average",
+        "top_k": 3,
+        "n": 5,
+        "heading": "Sleeve D \u00b7 Europe sectors \u00b7 ranks 5 on share of constituents above their 200-day average, holds the top 3",
+        "story": "Largest add EXH1 +0.6pp; largest trim EXV1 -1.0pp; 1 smaller resize under 0.5pp of NAV follow the signal.",
+        "gate": null,
+        "moves": [
+          {
+            "sleeve": "D",
+            "etf": "EXV1",
+            "traded": "EXV1",
+            "name": "STOXX Europe 600 Banks",
+            "action": "TRIM",
+            "held": 0.07221999999999999,
+            "target": 0.0624706,
+            "delta": -0.009749399999999991,
+            "signal_now": 0.6389,
+            "signal_prev": 0.625,
+            "signal_now_fmt": "63.9",
+            "signal_prev_fmt": "62.5",
+            "rank_now": 3,
+            "rank_prev": 3,
+            "n": 5,
+            "cut": null,
+            "cash_proxy": false,
+            "driver": "signal",
+            "signal_kind": "breadth",
+            "text": "EXV1 (STOXX Europe 600 Banks) 7.2% \u2192 6.2% of NAV (-1.0pp): breadth 62.5% \u2192 63.9%, rank 3 of 5."
+          },
+          {
+            "sleeve": "D",
+            "etf": "EXH1",
+            "traded": "EXH1",
+            "name": "STOXX Europe 600 Oil & Gas",
+            "action": "ADD",
+            "held": 0.06520000000000001,
+            "target": 0.0711128,
+            "delta": 0.005912799999999996,
+            "signal_now": 0.7273,
+            "signal_prev": 0.7273,
+            "signal_now_fmt": "72.7",
+            "signal_prev_fmt": "72.7",
+            "rank_now": 1,
+            "rank_prev": 1,
+            "n": 5,
+            "cut": null,
+            "cash_proxy": false,
+            "driver": "signal",
+            "signal_kind": "breadth",
+            "text": "EXH1 (STOXX Europe 600 Oil & Gas) 6.5% \u2192 7.1% of NAV (+0.6pp): breadth 72.7% \u2192 72.7%, rank 1 of 5."
+          },
+          {
+            "sleeve": "D",
+            "etf": "EXV3",
+            "traded": "EXV3",
+            "name": "STOXX Europe 600 Technology",
+            "action": "ADD",
+            "held": 0.06258000000000001,
+            "target": 0.0664166,
+            "delta": 0.0038365999999999956,
+            "signal_now": 0.6792,
+            "signal_prev": 0.6604,
+            "signal_now_fmt": "67.9",
+            "signal_prev_fmt": "66.0",
+            "rank_now": 2,
+            "rank_prev": 2,
+            "n": 5,
+            "cut": null,
+            "cash_proxy": false,
+            "driver": "signal",
+            "signal_kind": "breadth",
+            "text": "EXV3 (STOXX Europe 600 Technology) 6.3% \u2192 6.6% of NAV (+0.4pp): breadth 66.0% \u2192 67.9%, rank 2 of 5."
+          }
+        ]
       }
     ],
-    "holds": [
-      "Sleeve D is held and its book is unchanged: signal reaches 2026-10-23 but the last completed XETR session is 2026-10-30 \u2014 ranking now would use an earlier session."
-    ],
+    "holds": [],
     "notes": [],
     "decision_session": "2026-10-30",
     "fill_by_venue": {
@@ -706,30 +850,30 @@
     }
   },
   "week": {
-    "text": "Week Fri 23 Oct 2026 close \u2192 Fri 30 Oct 2026 close: the blend returned +0.26% against SPY -0.57%. By sleeve: Sleeve A +0.59pp (+1.68% at 35% of NAV), Sleeve C +0.02pp (+0.25% at 10% of NAV), Sleeve B -0.33pp (-0.93% at 35% of NAV). Largest contributors: XLV (iShares S&P 500 Health Care) +0.39pp (+3.1% at 12.6%); XLP (iShares S&P 500 Consumer Staples) +0.09pp (+1.7% at 5.3%); EXV3.DE (STOXX Europe 600 Technology) +0.06pp (+1.0% at 6.3%). Largest detractors: QQQ (NASDAQ-100 (US tech-heavy)) -0.12pp (-3.0% at 3.9%); DBC (Broad Commodities) -0.08pp (-0.5% at 16.7%); EXV1.DE (STOXX Europe 600 Banks) -0.07pp (-1.0% at 7.2%). Holding contributions are weight \u00d7 return from each sleeve's own fill close (Fri 23 Oct 2026, Mon 26 Oct 2026) to the Fri 30 Oct 2026 close, 17 of 17 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 60.2% above the 50-day average (+1.2pp on the week).",
-    "headline": "Blend +0.26% \u00b7 SPY -0.57% \u00b7 Fri 23 Oct 2026 \u2192 Fri 30 Oct 2026 close",
+    "text": "Week Fri 23 Oct 2026 close \u2192 Fri 30 Oct 2026 close: the blend returned +0.31% against SPY -0.57%. By sleeve: Sleeve A +0.59pp (+1.68% at 35% of NAV), Sleeve C +0.02pp (+0.25% at 10% of NAV), Sleeve D +0.02pp (+0.10% at 20% of NAV), Sleeve B -0.33pp (-0.93% at 35% of NAV). Largest contributors: XLV (iShares S&P 500 Health Care) +0.39pp (+3.1% at 12.6%); XLP (iShares S&P 500 Consumer Staples) +0.09pp (+1.7% at 5.3%); EXH1.DE (STOXX Europe 600 Oil & Gas) +0.08pp (+1.2% at 7.2%). Largest detractors: EXV1.DE (STOXX Europe 600 Banks) -0.14pp (-2.3% at 6.2%); QQQ (NASDAQ-100 (US tech-heavy)) -0.12pp (-3.0% at 3.9%); DBC (Broad Commodities) -0.08pp (-0.5% at 16.7%). Holding contributions are weight \u00d7 return from the Mon 26 Oct 2026 close to the Fri 30 Oct 2026 close, 17 of 17 holdings priced from the one-year price panel. Regime RISK_ON since Tue 14 Apr 2026, S&P 500 breadth 60.2% above the 50-day average (+1.2pp on the week).",
+    "headline": "Blend +0.31% \u00b7 SPY -0.57% \u00b7 Fri 23 Oct 2026 \u2192 Fri 30 Oct 2026 close",
     "lines": [
       {
         "label": "By sleeve",
-        "text": "A +0.59pp (+1.7% on 35%) \u00b7 C +0.02pp (+0.2% on 10%) \u00b7 B -0.33pp (-0.9% on 35%)"
+        "text": "A +0.59pp (+1.7% on 35%) \u00b7 C +0.02pp (+0.2% on 10%) \u00b7 D +0.02pp (+0.1% on 20%) \u00b7 B -0.33pp (-0.9% on 35%)"
       },
       {
         "label": "Helped",
-        "text": "iShares S&P 500 Health Care +0.39pp (+3.1%) \u00b7 iShares S&P 500 Consumer Staples +0.09pp (+1.7%) \u00b7 STOXX Europe 600 Technology +0.06pp (+1.0%)"
+        "text": "iShares S&P 500 Health Care +0.39pp (+3.1%) \u00b7 iShares S&P 500 Consumer Staples +0.09pp (+1.7%) \u00b7 STOXX Europe 600 Oil & Gas +0.08pp (+1.2%)"
       },
       {
         "label": "Hurt",
-        "text": "NASDAQ-100 (US tech-heavy) -0.12pp (-3.0%) \u00b7 Broad Commodities -0.08pp (-0.5%) \u00b7 STOXX Europe 600 Banks -0.07pp (-1.0%)"
+        "text": "STOXX Europe 600 Banks -0.14pp (-2.3%) \u00b7 NASDAQ-100 (US tech-heavy) -0.12pp (-3.0%) \u00b7 Broad Commodities -0.08pp (-0.5%)"
       },
       {
         "label": "Regime",
         "text": "RISK_ON since Tue 14 Apr 2026 \u00b7 S&P 500 breadth 60.2% (+1.2pp on the week)"
       }
     ],
-    "basis": "Holding contributions are weight \u00d7 return from each sleeve's own fill close (Fri 23 Oct 2026, Mon 26 Oct 2026) to the Fri 30 Oct 2026 close, 17 of 17 holdings priced from the one-year price panel.",
+    "basis": "Holding contributions are weight \u00d7 return from the Mon 26 Oct 2026 close to the Fri 30 Oct 2026 close, 17 of 17 holdings priced from the one-year price panel.",
     "start": "2026-10-23",
     "end": "2026-10-30",
-    "blend_return": 0.0026221133152459775,
+    "blend_return": 0.003076296457526606,
     "spy_return": -0.005657894736842084,
     "holdings": [
       {
@@ -751,22 +895,13 @@
         "from": "2026-10-26"
       },
       {
-        "etf": "EXV3",
-        "traded": "EXV3.DE",
-        "sleeve": "D",
-        "weight": 0.06258000000000001,
-        "ret": 0.010340192327577213,
-        "contrib": 0.0006470892358597821,
-        "from": "2026-10-23"
-      },
-      {
         "etf": "EXH1",
         "traded": "EXH1.DE",
         "sleeve": "D",
-        "weight": 0.06520000000000001,
-        "ret": 0.009307835505161677,
-        "contrib": 0.0006068708749365414,
-        "from": "2026-10-23"
+        "weight": 0.07228,
+        "ret": 0.011533242876526462,
+        "contrib": 0.0008336227951153326,
+        "from": "2026-10-26"
       },
       {
         "etf": "IUES",
@@ -793,6 +928,15 @@
         "weight": 0.1,
         "ret": 0.002708358980672232,
         "contrib": 0.0002708358980672232,
+        "from": "2026-10-26"
+      },
+      {
+        "etf": "EXV3",
+        "traded": "EXV3.DE",
+        "sleeve": "D",
+        "weight": 0.06562,
+        "ret": 0.002668034889687032,
+        "contrib": 0.00017507644946126305,
         "from": "2026-10-26"
       },
       {

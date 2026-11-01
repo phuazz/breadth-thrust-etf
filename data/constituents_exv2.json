@@ -2,11 +2,11 @@
   "etf": "EXV2",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-10-25T01:23:41.934005+00:00",
+  "fetched_at_utc": "2026-11-01T12:10:24.256510+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-10-23",
-  "n_target_fridays": 460,
-  "n_snapshots_written": 460,
+  "end_friday": "2026-10-30",
+  "n_target_fridays": 461,
+  "n_snapshots_written": 461,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -32,8 +32,8 @@
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-10-23",
-      "fallback_date": "2026-10-22",
+      "target_friday": "2026-10-30",
+      "fallback_date": "2026-10-29",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
@@ -54,7 +54,7 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-10-22",
+    "last_real_fetch_date": "2026-10-29",
     "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
@@ -12024,7 +12024,33 @@
       ]
     },
     "2026-10-23": {
-      "actual_date": "2026-10-22",
+      "actual_date": "2026-10-23",
+      "n_tickers": 20,
+      "tickers": [
+        "DTE.DE",
+        "NOKIA.HE",
+        "VOD.L",
+        "ORA.PA",
+        "ERIC-B.ST",
+        "SCMN.SW",
+        "BT.A.L",
+        "KPN.AS",
+        "TEF.MC",
+        "CLNX.MC",
+        "TELIA.ST",
+        "TEL2-B.ST",
+        "TEL.OL",
+        "ELISA.HE",
+        "ZEG.L",
+        "SUNN.SW",
+        "HTO.AT",
+        "FNTN.DE",
+        "HUBN.SW",
+        "AAF.L"
+      ]
+    },
+    "2026-10-30": {
+      "actual_date": "2026-10-29",
       "n_tickers": 20,
       "tickers": [
         "DTE.DE",
@@ -12038,14 +12064,14 @@
         "TEF.MC",
         "CLNX.MC",
         "TELIA.ST",
-        "TEL2-B.ST",
         "TEL.OL",
+        "TEL2-B.ST",
         "ELISA.HE",
         "ZEG.L",
         "SUNN.SW",
-        "HTO.AT",
-        "FNTN.DE",
         "HUBN.SW",
+        "FNTN.DE",
+        "HTO.AT",
         "AAF.L"
       ]
     }
