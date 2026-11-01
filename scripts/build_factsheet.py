@@ -27,6 +27,7 @@ import math
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from xml.sax.saxutils import escape as xml_escape
 
 # Allow importing sibling scripts/ modules when build_factsheet is run as a
 # script (PROJECT_ROOT/scripts/build_factsheet.py).
@@ -1019,12 +1020,19 @@ class _PageCanvas(canvas.Canvas):
         self.setStrokeColor(BORDER); self.setLineWidth(0.4)
         self.line(0, band_h, w, band_h)
         self.setFillColor(INK_FAINT); self.setFont("Helvetica", 6.5)
-        self.drawString(15 * mm, 4.5 * mm,
-                          "Personal research artefact · NOT investment advice · "
-                          "Past simulated performance is not indicative of future returns")
-        self.drawRightString(w - 15 * mm, 4.5 * mm,
-                                f"Generated {self._computed_at}   ·   "
-                                f"github.com/phuazz/breadth-thrust-etf")
+        left = ("Personal research artefact · NOT investment advice · "
+                "Past simulated performance is not indicative of future returns")
+        right = (f"Generated {self._computed_at}   ·   "
+                 f"github.com/phuazz/breadth-thrust-etf")
+        # Side by side the two ran into each other (2026-11-01); stack them
+        # whenever they do not fit with a gap.
+        fits = (self.stringWidth(left, "Helvetica", 6.5)
+                + self.stringWidth(right, "Helvetica", 6.5) + 12) <= w - 30 * mm
+        self.drawString(15 * mm, 4.5 * mm if fits else 5.6 * mm, left)
+        if fits:
+            self.drawRightString(w - 15 * mm, 4.5 * mm, right)
+        else:
+            self.drawString(15 * mm, 2.4 * mm, right)
 
 
 # ----- Section builders ----------------------------------------------------
@@ -1131,7 +1139,9 @@ def build_hero_strip(deployed_series, full_stats, page_w, styles,
         else:
             sub_html = "—"
         ct = Table([
-            [Paragraph(c["label"], styles["kpi_label"])],
+            # Labels are plain text; ReportLab's markup parser printed a
+            # bare "P&L" as "P&L;".
+            [Paragraph(xml_escape(c["label"]), styles["kpi_label"])],
             [col_p(c["value"], c["colour"], fontname="Helvetica-Bold",
                     fontsize=22, align=TA_LEFT)],
             [Paragraph(sub_html, styles["kpi_sub"])],
@@ -1630,9 +1640,11 @@ def build_trades_table(sleeves, page_w, styles, overlay, as_of=None,
             col_p(fmt_pct(d, dp=1), colour_for(d),
                    fontname="Courier-Bold", fontsize=8.5, align=TA_RIGHT),
         ])
-    # Widen PRIOR/NEW/Δ columns so percentages do not wrap to 2 rows.
-    t = Table(data, colWidths=[page_w * 0.10, page_w * 0.17, page_w * 0.17,
-                                  page_w * 0.18, page_w * 0.18, page_w * 0.20])
+    # Widen PRIOR/NEW/Δ columns so percentages do not wrap to 2 rows. The
+    # SLEEVE column was 10% and its header ran into ACTION (2026-11-01);
+    # the figure columns still clear "17.5%" plus padding at 16.5-17%.
+    t = Table(data, colWidths=[page_w * 0.16, page_w * 0.17, page_w * 0.17,
+                                  page_w * 0.165, page_w * 0.165, page_w * 0.17])
     t.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, 0), 7),
@@ -1745,7 +1757,7 @@ def build_watchlist(overlay, page_w, styles,
         # Middle row: big value (left) | margin (right)
         # Bottom row: trigger description (full width, italic)
         card_inner = Table([
-            [Paragraph(it["label"], styles["card_label"]),
+            [Paragraph(xml_escape(it["label"]), styles["card_label"]),
              col_p(it["status"], it["status_col"],
                     fontname="Helvetica-Bold", fontsize=8, align=TA_RIGHT)],
             [col_p(it["value"], INK, fontname="Helvetica-Bold", fontsize=14),
@@ -1887,8 +1899,8 @@ def build_parameters_footer(overlay, sleeves, breadth_end_date,
         # "Weekly Friday close" until 2026-09-03, a fortnight after the move.
         ["REBALANCE",   "Weekly, Monday close; each sleeve ranks on the last "
                          "session its venue closed before the fill"],
-        ["RISK OVERLAY", f"De-risk to {derisk:.0f}% NAV when S&P 500 breadth < "
-                          f"{off_thr:.0f}%; re-engage when breadth > {on_thr:.0f}%"],
+        ["RISK OVERLAY", f"De-risk to {derisk:.0f}% NAV when S&amp;P 500 breadth &lt; "
+                          f"{off_thr:.0f}%; re-engage when breadth &gt; {on_thr:.0f}%"],
         ["EM TILT",     "Activates on EEM/SPY 50d &gt; 200d MA golden cross "
                          "(funded by reducing Strategy B's 35% &rarr; 25%)"],
         # Two layers, stated separately (2026-09-03): the blend tables charge

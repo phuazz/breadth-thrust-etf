@@ -1308,7 +1308,14 @@ def main(argv: list[str] | None = None) -> int:
                 from component_release import verify
                 released = verify(REPO_ROOT, now, committed=True)
                 if released["anchor"] == week_final_anchor(now).isoformat():
-                    print("CORE ALREADY VERIFIED for this weekly decision; proceeding to Europe.")
+                    # Logged as well as printed: Task Scheduler discards
+                    # stdout, so the log showed this child only as a bare
+                    # second "start" banner between the parent and the
+                    # Europe child (three starts per hourly firing, read
+                    # as a fault on 2026-11-01).
+                    msg = "CORE ALREADY VERIFIED for this weekly decision; proceeding to Europe."
+                    print(msg)
+                    log.write(f"\n{msg}\n")
                     log.close()
                     return 0
             except Exception:

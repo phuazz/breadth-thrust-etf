@@ -243,6 +243,8 @@ def test_behaviour_ordinary_repeat_skips_at_verified_release(tmp_path, monkeypat
     out, _ = _drive(tmp_path, monkeypatch, _gate_release(), repair=False, ran_today=False)
     assert out == 0
     assert "CORE ALREADY VERIFIED" in capsys.readouterr().out
+    # Task Scheduler discards stdout; the skip must be in the run log too.
+    assert "CORE ALREADY VERIFIED" in (tmp_path / "gate-test.log").read_text(encoding="utf-8")
 
 
 def test_behaviour_eligible_repair_runs_with_stale_marker(tmp_path, monkeypatch, capsys):
