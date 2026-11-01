@@ -211,6 +211,21 @@ def _strategies(sleeves):
     return ("Strategies " + ", ".join(sleeves[:-1]) + " and " + sleeves[-1], "are", "their")
 
 
+def _held_basis_phrase(held_basis):
+    """The book the delivered changes were measured from, named by the fill it missed.
+
+    Python dates are 1-indexed months; the weekday comes from the library.
+    """
+    fills = sorted(set((held_basis.get("fills") or {}).values()))
+    if len(fills) == 1:
+        day = date.fromisoformat(fills[0]).strftime("%a %d %b %Y")
+        return f"the model book before the {day} fill", "the book after that fill"
+    if held_basis.get("delivered") and held_basis.get("restated"):
+        return (f"the model book as at {held_basis['delivered']}",
+                f"the model book as at {held_basis['restated']}")
+    return "an earlier model book", "the current model book"
+
+
 def _restatement_wording(decision, core_sentence):
     """Cover text for a restated instruction, derived from the decision.
 
@@ -222,7 +237,8 @@ def _restatement_wording(decision, core_sentence):
     released = sorted(decision.get("released_holds") or ())
     imposed = sorted(decision.get("imposed_holds") or ())
     lined = {r["sleeve"] for r in decision.get("restated_lines") or ()}
-    touched = sorted((lined | set(released) | set(imposed)) & set("ABCD"))
+    corrected = {r["sleeve"] for r in decision.get("corrected_lines") or ()}
+    touched = sorted((lined | corrected | set(released) | set(imposed)) & set("ABCD"))
     fresh = sorted(decision.get("first_issue") or ())
     if fresh:
         f_names, f_verb, f_their = _strategies(fresh)
@@ -243,6 +259,17 @@ def _restatement_wording(decision, core_sentence):
         heading = f"Restated for this week: {names} {verb} now on HOLD"
         difference = (f"The factsheet sent earlier for this week showed {names} ranked. The book "
                       f"was rebuilt on the same close and {names} {verb} now on HOLD. " + supersede)
+    elif corrected and not lined:
+        # Only the held side moved (2026-11-01). The targets stand, so this is
+        # a correction of the printed changes, and the cover says so plainly.
+        names = _strategies(sorted(corrected & set("ABCD")))[0]
+        before, after = _held_basis_phrase(decision.get("held_basis") or {})
+        heading = f"Corrected for this week: proposed changes for {names}; target weights unchanged"
+        difference = (f"The factsheet sent earlier for this week measured the proposed changes for "
+                      f"{names} from {before}, so the held weights and changes it printed were "
+                      "wrong. Every target weight is unchanged. The changes in this email are "
+                      f"measured from {after} and supersede the earlier ones; every other "
+                      "instruction is unchanged.")
     else:
         names = _strategies(touched)[0] if touched else "the portfolio overlays"
         heading = f"Restated for this week: revised instructions for {names}"
@@ -260,9 +287,11 @@ def _restatement_wording(decision, core_sentence):
         difference += (" No unchanged ordinary factsheet will be resent. Newly verified D retains its normal automatic follow-up before the original review checkpoint; changed core instructions require a new owner-reviewed correction."
                        if decision["followup_policy"] == "suppress_unchanged" else
                        " The ordinary scheduled factsheet may repeat this instruction. Newly verified D retains its normal automatic follow-up before the original review checkpoint; changed core instructions require a new owner-reviewed correction.")
+    held_only = bool(corrected) and not (lined or released or imposed)
     return {
         "subject": ("Restated instruction - supersedes the latest delivered instruction" if preview and decision.get("is_late_correction") else
                     "Restated instruction - supersedes the initial preview" if preview else
+                    "Corrected instruction - supersedes this week's factsheet" if held_only else
                     "Restated instruction - supersedes this week's factsheet"),
         "heading": heading,
         "summary": f"This email restates this week's instructions for {names}. The restated "
@@ -273,7 +302,9 @@ def _restatement_wording(decision, core_sentence):
                           "Strategy D's proposed changes are stated in full in this email; act "
                           "on them as shown." if "D" in fresh else
                           "Review the restated D lines; they supersede the earlier D instruction."
-                          if "D" in touched else
+                          if "D" in lined or "D" in released or "D" in imposed else
+                          "Review the corrected D changes; they supersede the earlier D changes."
+                          if "D" in corrected else
                           "Unchanged from the factsheet already delivered; no new D selection "
                           "is proposed."),
     }

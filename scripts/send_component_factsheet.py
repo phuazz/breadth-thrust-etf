@@ -465,6 +465,37 @@ def restatement_changes(prior, current):
     return released, imposed, lines
 
 
+def held_corrections(prior, current):
+    """Lines whose target stands but whose proposed change differs, from two books.
+
+    2026-11-01: the delivered changes were measured from the book before the
+    2026-10-26 fill. Every target stood, so restatement_changes found nothing,
+    yet a reader trading the printed changes would have missed B's SHY exit.
+    A line whose target moved is a restated line and is not repeated here. A
+    delivered line absent from the current book counts as a proposed change of
+    zero, so a printed exit that no longer applies is listed too.
+    """
+    old = {(r["sleeve"], r["etf"]): r for r in prior["book"]["lines"]}
+    new = {(r["sleeve"], r["etf"]): r for r in current["book"]["lines"]}
+    labels = {**(prior.get("labels") or {}), **(current.get("labels") or {})}
+    order = {s: i for i, s in enumerate(SLEEVE_SEQUENCE)}
+    rows = []
+    for key in sorted(set(old) | set(new), key=lambda k: (order.get(k[0], len(order)), k[1])):
+        was_target = float(old[key]["target"]) if key in old else 0.0
+        target = float(new[key]["target"]) if key in new else 0.0
+        if abs(target - was_target) > RESTATED_EPSILON:
+            continue
+        was = was_target - (float(old[key]["held"]) if key in old else 0.0)
+        now = target - (float(new[key]["held"]) if key in new else 0.0)
+        if abs(now - was) <= RESTATED_EPSILON:
+            continue
+        row = new.get(key) or old[key]
+        rows.append({"sleeve": key[0], "etf": key[1], "traded": row["traded"],
+                     "label": labels.get(key[1], key[1]), "target": target,
+                     "prior_change": was, "new_change": now})
+    return rows
+
+
 def first_issue_sleeves(value):
     """Normalise the owner's first-issue list: sleeves the earlier factsheet is
     to be treated as never having carried, so their instructions are stated in
@@ -536,11 +567,15 @@ def plan_restatement(root=ROOT, now=None, restatement=None, authority=None, comm
     if prior is None or not _reconstructs(prior, anchor, state.get("core"), state.get("europe")):
         return blocked("the delivered instruction cannot be reconstructed")
     released, imposed, lines = restatement_changes(prior, release)
-    if not (released or imposed or lines):
+    corrected = held_corrections(prior, release)
+    if not (released or imposed or lines or corrected):
         # The identities differ but nothing a reader acts on does. An email
         # announcing a restatement that lists nothing would mislead.
-        return blocked("the identities differ but no sleeve status or line target does; "
-                       "review required")
+        return blocked("the identities differ but no sleeve status, line target or proposed "
+                       "change does; review required")
+    held_basis = {"delivered": (prior.get("basis") or {}).get("model_as_of"),
+                  "restated": (release.get("basis") or {}).get("model_as_of"),
+                  "fills": ((release.get("basis") or {}).get("held_after_fill") or {}).get("fills")}
     return {"action": RESTATEMENT_ACTION, "audience": "distribution", "anchor": anchor,
             "restatement": restatement, "authority": authority, "d_hold": False,
             "core_held": _core_held(release),
@@ -549,6 +584,7 @@ def plan_restatement(root=ROOT, now=None, restatement=None, authority=None, comm
             "supersedes": {"core": state.get("core"), "europe": state.get("europe")},
             "prior_release": prior["identity"],
             "released_holds": released, "imposed_holds": imposed, "restated_lines": lines,
+            "corrected_lines": corrected, "held_basis": held_basis,
             "first_issue": fresh,
             "reason": f"restated instruction on owner authority: {authority}"}, release
 
@@ -612,7 +648,8 @@ def send_restatement(root=ROOT, now=None, restatement=None, authority=None, tran
         raise ValueError(f"restatement eligibility changed after reservation: {rechecked['reason']}")
     if release["identity"] != candidate["release_identity"] or release["book"] != candidate["book"]:
         raise ValueError("release changed after reservation")
-    derived = ("supersedes", "prior_release", "released_holds", "imposed_holds", "restated_lines")
+    derived = ("supersedes", "prior_release", "released_holds", "imposed_holds", "restated_lines",
+               "corrected_lines", "held_basis")
     if digest({k: rechecked[k] for k in derived}) != digest({k: decision.get(k) for k in derived}):
         raise ValueError("the derived difference changed after reservation")
     ledger = ledger_at(root)
@@ -643,6 +680,8 @@ def send_restatement(root=ROOT, now=None, restatement=None, authority=None, tran
         "released_holds": decision["released_holds"],
         "imposed_holds": decision["imposed_holds"],
         "restated_lines": decision["restated_lines"],
+        "corrected_lines": decision.get("corrected_lines") or [],
+        "held_basis": decision.get("held_basis"),
         "first_issue": decision["first_issue"]}
     state["core"] = release["core_identity"]
     state["europe"] = release["europe_identity"]

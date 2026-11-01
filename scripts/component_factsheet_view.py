@@ -329,6 +329,12 @@ def cash_reason(row, book, short=False):
         return f"sleeve-breadth gate: {gate_terms(gate)}"
     k = record.get("top_k")
     filled = sum(1 for etf in (record.get("weights") or {}) if etf not in CASH_PROXIES)
+    if k and filled >= k and action_of(row) == "EXIT":
+        # The floor is released, not applied: every slot qualifies again. On
+        # 2026-11-01 B's SHY exit read "the weight the signal floor leaves
+        # unfilled" in its row and "No comparable signal recorded" in the
+        # strategy sentence.
+        return f"cash floor released: all {k} slots qualify"
     if not k or filled >= k:
         return "cash floor: the weight the signal floor leaves unfilled"
     fallen = floor_fallers(row["sleeve"], book)
@@ -589,7 +595,7 @@ def sleeve_story(shift, release):
                      f"{pct(up['target'])} ({cash_reason(up, book) or signal_cell(up['etf'], record)}).")
     if down["delta"] < 0:
         parts.append(f"Largest reduction: {position_name(down, release)}, {pp(down['delta'])} to "
-                     f"{pct(down['target'])} ({signal_cell(down['etf'], record)}).")
+                     f"{pct(down['target'])} ({cash_reason(down, book) or signal_cell(down['etf'], record)}).")
     return " ".join(parts)
 
 
@@ -762,7 +768,15 @@ def restatement_banner(decision, release):
     if imposed:
         parts.append(f"{_strategy_list(imposed)} {'was' if len(imposed) == 1 else 'were'} ranked "
                      f"in the earlier factsheet and {'is' if len(imposed) == 1 else 'are'} now on HOLD.")
-    touched = {r["sleeve"] for r in lines} | set(released) | set(imposed)
+    corrected = decision.get("corrected_lines") or []
+    if corrected:
+        n = len(corrected)
+        parts.append(f"Every target weight stands as sent{' apart from the restated lines' if lines else ''}. "
+                     f"{n} proposed {'change differs' if n == 1 else 'changes differ'} from the earlier "
+                     "email because its held weights were wrong; the table below gives each change as "
+                     "sent and as corrected.")
+    touched = ({r["sleeve"] for r in lines} | {r["sleeve"] for r in corrected}
+               | set(released) | set(imposed))
     fresh = sorted(decision.get("first_issue") or [])
     if fresh:
         one = len(fresh) == 1
@@ -862,6 +876,47 @@ _ROW = "border-bottom:1px solid #e3e8ee;vertical-align:top"
 _LABEL = f"padding:8px 8px 8px 0;font-size:13px;font-weight:bold;color:#475569;{_ROW}"
 
 
+def correction_rows(decision, release):
+    """(strategy, position, sent change, corrected change, target) per corrected line.
+
+    Read off the decision's derived difference, like the banner, so the table
+    names exactly the lines whose printed change was wrong.
+    """
+    labels = {**{r["etf"]: r["label"] for r in decision.get("corrected_lines") or ()
+                 if r.get("label")}, **(release.get("labels") or {})}
+    named = {"labels": labels}
+    return [(r["sleeve"], position_name(r, named), r["prior_change"], r["new_change"], r["target"])
+            for r in decision.get("corrected_lines") or ()]
+
+
+def change_or_none(value):
+    """A corrected-table change; "none" where no trade was or is proposed,
+    which a reader would otherwise have to decode from "+0.00pp"."""
+    return "none" if abs(value) <= CHANGE_EPSILON else pp(value)
+
+
+def _correction_table(decision, release):
+    """The sent and corrected change side by side, so nothing is left to compare."""
+    rows = correction_rows(decision, release)
+    if not rows:
+        return ""
+    e = escape
+    cell = f"padding:6px;font-size:13px;{_ROW};overflow-wrap:anywhere"
+    num = f"padding:6px 0 6px 6px;font-size:13px;{_ROW};text-align:right;white-space:nowrap"
+    head = "padding:0 6px 4px;font-size:12px;color:#475569;text-align:right;border-bottom:1px solid #b5c3d3"
+    out = ["<table class='corrections' style='width:100%;table-layout:fixed;border-collapse:collapse;margin:0 0 14px'>"
+           f"<tr><th style='{head};text-align:left'>Position</th><th style='{head};width:17%'>Sent</th>"
+           f"<th style='{head};width:19%'>Corrected</th><th style='{head};width:15%'>Target</th></tr>"]
+    for sleeve, name, sent, now, target in rows:
+        out.append(f"<tr><td style='{cell};border-left:4px solid {SLEEVE_HEX.get(sleeve, '#8a8a82')}'>"
+                   f"{e(name)}<br><span class='note' style='font-size:12px;color:#475569'>"
+                   f"Strategy {e(sleeve)} · {e(NAMES.get(sleeve, sleeve))}</span></td>"
+                   f"<td style='{num};color:#475569'>{e(change_or_none(sent))}</td>"
+                   f"<td style='{num}'>{_toned(change_or_none(now), _money_tone(now), ';font-weight:bold')}</td>"
+                   f"<td style='{num}'>{e(pct(target))}</td></tr>")
+    return "".join(out) + "</table>"
+
+
 def _budget_strip(shifts):
     """The strategy budgets once, as four cells in each strategy's own hue."""
     cells = []
@@ -945,7 +1000,8 @@ def render_html(decision, release, include_unchanged=False):
     if restated:
         parts.insert(0, f"<div class='restated' style='border-left:4px solid {TONE['warn']};"
                         "background:#fdf6ea;padding:8px 14px;margin:0 0 12px'><p style='margin:4px 0;"
-                        f"font-size:16px;max-width:31em'><strong>{e(restatement_banner(decision, release))}</strong></p></div>")
+                        f"font-size:16px;max-width:31em'><strong>{e(restatement_banner(decision, release))}</strong></p></div>"
+                        + _correction_table(decision, release))
     if stats["series"].startswith("synthetic"):
         parts.insert(0, "<p><strong>SYNTHETIC NO-SEND REHEARSAL — not a live instruction.</strong></p>")
     if release.get("preview_only"):
@@ -1347,7 +1403,7 @@ def render_pdf(decision, release):
     from reportlab.lib.enums import TA_LEFT, TA_RIGHT
     from reportlab.pdfgen import canvas as pdfcanvas
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Table, TableStyle,
-                                    PageBreak, Spacer, KeepTogether)
+                                    PageBreak, Spacer, KeepTogether, CondPageBreak)
     house = _house()
     INK, SOFT, FAINT = house.INK, house.INK_SOFT, house.INK_FAINT
     PANEL, BORDER, STRONG = house.BG_PANEL, house.BORDER, house.BORDER_STRONG
@@ -1392,7 +1448,10 @@ def render_pdf(decision, release):
         rule = Table([[""]], colWidths=[width], rowHeights=[0.5], style=TableStyle([
             ("LINEABOVE", (0, 0), (-1, 0), 0.5, STRONG),
             ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
-        out = [Paragraph(escape(ascii_text(title.upper())), st("s", 10, INK, bold=True, space=1))]
+        # A heading never ends a page: on the restated edition "01 / The week
+        # in numbers" printed alone under the correction table (2026-11-01).
+        out = [CondPageBreak(90),
+               Paragraph(escape(ascii_text(title.upper())), st("s", 10, INK, bold=True, space=1))]
         if sub:
             out.append(Paragraph(escape(ascii_text(sub)), st("ss", 8, FAINT, italic=True, space=4)))
         return out + [rule, Spacer(1, 4)]
@@ -1483,6 +1542,24 @@ def render_pdf(decision, release):
     if decision.get("action") == "restatement":
         flow += [banner(restatement_banner(decision, release), WARN,
                         colors.HexColor("#fff7ea")), Spacer(1, 8)]
+        fixes = correction_rows(decision, release)
+        if fixes:
+            table = grid([[cell("POSITION", FAINT, 7.5, bold=True),
+                           cell("SENT", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                           cell("CORRECTED", FAINT, 7.5, bold=True, align=TA_RIGHT),
+                           cell("TARGET", FAINT, 7.5, bold=True, align=TA_RIGHT)],
+                          *[[[cell(name, INK, 8.5),
+                              cell(f"Strategy {sleeve} / {NAMES.get(sleeve, sleeve)}", SOFT, 7.5)],
+                             cell(change_or_none(sent), SOFT, 8.5, mono=True, align=TA_RIGHT),
+                             cell(change_or_none(now), GOOD if now > 0 else BAD if now < 0 else SOFT, 8.5,
+                                  bold=True, mono=True, align=TA_RIGHT),
+                             cell(pct(target), INK, 8.5, mono=True, align=TA_RIGHT)]
+                            for sleeve, name, sent, now, target in fixes]],
+                         [width - 210, 66, 78, 66], align=(1, 2, 3), pad=3)
+            table.setStyle(TableStyle([("LINEBEFORE", (0, i), (0, i), 3,
+                                        _sleeve_hex(house, row[0]))
+                                       for i, row in enumerate(fixes, start=1)]))
+            flow += [table, Spacer(1, 10)]
     flow += [Paragraph(escape(ascii_text(v["wording"]["heading"])),
                        st("t", 17, INK, bold=True, leading=21, space=3)),
              p(v["wording"]["difference"], st("d", 9, SOFT, space=10))]
@@ -1591,7 +1668,13 @@ def render_pdf(decision, release):
           "sizes the proposed weight at full precision for a $1.0M book, so it can differ slightly from the rounded percentage beside it.", note)]))
 
     if v["changed"]:
-        flow += [Spacer(1, 10)] + section("The largest moves at a glance", None)
+        # The table splits under its repeated header rather than moving whole:
+        # kept together it jumped to page 2 and left its heading alone on page
+        # 1 above half a blank page (2026-11-01). The conditional break keeps
+        # the heading with at least its first rows.
+        flow += [Spacer(1, 10), CondPageBreak(120)] + section("The largest moves at a glance", None)
+        # (section() adds its own smaller break; the larger one here also
+        # keeps the table's first rows with the heading.)
         # One row per position with change and target in aligned columns, as
         # in the email; the old "·"-joined sentences wrapped mid-name.
         moves = [[cell(" ", FAINT, 7.5), cell("POSITION", FAINT, 7.5, bold=True),
@@ -1618,7 +1701,7 @@ def render_pdf(decision, release):
         spans.append(len(moves) - 1)
         table = grid(moves, [70, width - 190, 60, 60], align=(2, 3), pad=4)
         table.setStyle(TableStyle([("SPAN", (1, r), (3, r)) for r in spans]))
-        flow.append(KeepTogether([table]))
+        flow.append(table)
         for shift in v["shifts"]:
             quiet = no_change_story(shift, release)
             if not shift["changed"] and not quiet:

@@ -496,3 +496,100 @@ def test_a_panel_less_registry_key_prints_its_traded_name():
     assert position_name({"etf": "XBI", "traded": "XBI"},
                          {"labels": {"XBI": "SPDR S&P Biotech (eq-weight)"}}) == \
         "SPDR S&P Biotech (eq-weight) (XBI)"
+
+
+# --- a correction of the held side only (2026-11-01) ---------------------
+# The delivered changes were measured from the book before the last fill:
+# every target stood, so no line was "restated", yet a reader trading the
+# printed changes would have missed an exit. The route now carries that.
+
+def _with_held(book, basis, held, **basis_extra):
+    import copy
+    book, basis = copy.deepcopy(book), copy.deepcopy(basis)
+    basis["lines"] = [{"sleeve": s, "etf": e, "held": w} for (s, e), w in held.items()]
+    basis.update(basis_extra)
+    weights = book["overlay_decision"]["weights"]
+    book["lines"] = _intended_lines(book["sleeves"], held, weights, adjust_overlays=True)
+    book["rounding_residual_nav"] = hold_rounding_residual(book["sleeves"], book["lines"], weights)
+    return book, basis
+
+
+# 2026-09-07 is the first Monday of September; Python months are 1-indexed.
+LAST_FILL = "2026-09-07"
+
+
+@pytest.fixture
+def held_corrected(tmp_path, monkeypatch):
+    """(prior with B measured from a pre-fill book, current measured after it)."""
+    book, basis = fixture_book(NOW, d_ready=True)
+    held = {(r["sleeve"], r["etf"]): r["held"] for r in basis["lines"]}
+    stale = {**held, ("B", "QQQ"): .30, ("B", "SHY"): .05}
+    prior = install_book(tmp_path / "delivered", monkeypatch, *_with_held(book, basis, stale))
+    current = install_book(tmp_path, monkeypatch, *_with_held(
+        book, basis, held, held_after_fill={"book_as_of": "2026-09-04",
+                                            "fills": {"NYSE": LAST_FILL, "XETR": LAST_FILL}}))
+    return prior, current
+
+
+def test_a_held_only_correction_is_derived_and_admitted(tmp_path, held_corrected):
+    prior, current = held_corrected
+    assert prior["core_identity"] != current["core_identity"]
+    settle(tmp_path, prior)
+    decision = plan(tmp_path, prior)
+    assert decision["action"] == sender.RESTATEMENT_ACTION
+    assert decision["restated_lines"] == [] and decision["released_holds"] == []
+    rows = {r["etf"]: r for r in decision["corrected_lines"]}
+    assert set(rows) == {"QQQ", "SHY"}
+    assert rows["QQQ"]["prior_change"] == pytest.approx(.05) and rows["QQQ"]["new_change"] == 0
+    # The printed exit no longer applies: the current book has no SHY line.
+    assert rows["SHY"]["prior_change"] == pytest.approx(-.05) and rows["SHY"]["new_change"] == 0
+    assert decision["held_basis"]["fills"] == {"NYSE": LAST_FILL, "XETR": LAST_FILL}
+
+
+def test_a_held_only_correction_says_so_and_keeps_the_targets(tmp_path, held_corrected):
+    prior, _ = held_corrected
+    settle(tmp_path, prior)
+    wording = email_wording(plan(tmp_path, prior))
+    assert wording["subject"] == "Corrected instruction - supersedes this week's factsheet"
+    assert wording["heading"] == ("Corrected for this week: proposed changes for Strategy B; "
+                                  "target weights unchanged")
+    assert "from the model book before the Mon 07 Sep 2026 fill" in wording["difference"]
+    assert "Every target weight is unchanged." in wording["difference"]
+    for text in wording.values():
+        assert not CONTRACTION.search(text), text
+
+
+def test_the_correction_table_gives_each_change_as_sent_and_corrected(tmp_path, held_corrected):
+    from component_factsheet_view import render_pdf, render_text, restatement_banner
+    prior, current = held_corrected
+    settle(tmp_path, prior)
+    decision = plan(tmp_path, prior)
+    banner = restatement_banner(decision, current)
+    assert "Every target weight stands as sent." in banner
+    assert "2 proposed changes differ from the earlier email" in banner
+    assert "Strategies A, C and D, and the portfolio overlays, stand as sent." in banner
+    text = render_text(decision, current)
+    qqq = next(line for line in text.splitlines() if "(QQQ)" in line and "pp" in line)
+    assert "+5.00pp" in qqq and "none" in qqq
+    shy = next(line for line in text.splitlines() if "(SHY)" in line and "pp" in line)
+    assert "-5.00pp" in shy and "none" in shy
+    assert render_pdf(decision, current).startswith(b"%PDF")
+
+
+def test_the_corrected_lines_are_reserved_and_recorded(tmp_path, held_corrected):
+    prior, current = held_corrected
+    settle(tmp_path, prior)
+    sent = deliver(tmp_path, prior)
+    assert len(sent) == 1
+    receipt = cr.read(tmp_path / sender.LEDGER)["anchors"][prior["anchor"]]["restatements"][RESTATEMENT]
+    assert {r["etf"] for r in receipt["corrected_lines"]} == {"QQQ", "SHY"}
+    assert receipt["held_basis"]["fills"]["NYSE"] == LAST_FILL
+
+
+def test_a_released_cash_floor_says_released():
+    from component_factsheet_view import cash_reason
+    book = {"sleeves": [{"sleeve": "B", "top_k": 2, "weights": {"QQQ": .5, "SPY": .5}}],
+            "lines": []}
+    exit_row = {"sleeve": "B", "etf": "SHY", "traded": "SHY", "held": .05, "target": 0.0,
+                "delta": -.05}
+    assert cash_reason(exit_row, book) == "cash floor released: all 2 slots qualify"
