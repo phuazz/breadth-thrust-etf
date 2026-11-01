@@ -1,7 +1,8 @@
-# derived from nasdaqtrader.com symbol directory; file creation time 2026-10-02T09:17:00
+# derived from nasdaqtrader.com symbol directory; file creation time 2026-10-30T18:02:00
 symbol,name,exchange
 AAA,Alternative Access First Priority CLO Bond ETF,P
 AAAA,Amplius Aggressive Asset Allocation ETF,Z
+AAAB,Corgi FTSE Aaa-A Intermediate Corporate Bond ETF,Z
 AAAC,Columbia AAA CLO ETF,P
 AAAD,PGIM AAA CLO Aggregate Duration ETF,P
 AAAP,Pacer Barings CLO Market Flex ETF,Q
@@ -44,14 +45,18 @@ ACEP,ARS Core Equity Portfolio ETF,Q
 ACES,ALPS Clean Energy ETF,P
 ACGO,Hartford Alpha Capture Growth ETF,Z
 ACGR,American Century Large Cap Growth ETF,P
+ACHP,Global X Asia Semiconductor ETF,Q
 ACHX,Corgi ACHR 2x Daily ETF,Z
 ACIG,Hartford Alpha Capture International Growth ETF,Z
 ACII,Innovator Index Autocallable Income Strategy ETF,P
+ACIN,Hartford Alpha Capture International Equity ETF,Z
 ACIO,Aptus Collared Investment Opportunity ETF,Z
+ACIV,Hartford Alpha Capture International Value ETF,Z
 ACKY,VistaShares Target 15 ACKtivist Distribution ETF,P
 ACLC,American Century Large Cap Equity ETF,P
 ACLO,TCW AAA CLO ETF,N
 ACLZ,Corgi ACLS 2x Daily ETF,Z
+ACMG,American Century Mid Cap Growth Insights ETF,Z
 ACMM,Corgi ACMR 2x Daily ETF,Z
 ACOM,Harbor Active Commodity ETF,P
 ACQQ,ProShares Nasdaq-100 Autocallable Income ETF,Q
@@ -68,19 +73,18 @@ ACVU,Hartford Alpha Capture Value ETF,Z
 ACWI,iShares MSCI ACWI ETF,Q
 ACWV,iShares MSCI Global Min Vol Factor ETF,Z
 ACWX,iShares MSCI ACWI ex U.S. ETF,Q
+ACYB,FT Vest Laddered Autocallable Buffer & Resilient Income ETF,P
 ACYN,FT Vest Laddered Autocallable Barrier & Income ETF,P
 ACYQ,FT Vest Autocallable Barrier & High Income ETF,P
 ACYS,FT Vest Laddered Autocallable Barrier & Resilient Income ETF,P
 ADBG,Leverage Shares 2X Long ADBE Daily ETF,Q
 ADBU,Direxion Daily ADBE Bull 2X ETF,P
-ADDS,Hedgeye Index Adds ETF,P
 ADIU,Leverage Shares 2X Long ADI Daily ETF,Z
 ADIV,Guinness Atkinson Asia Pacific Dividend Builder ETF,P
 ADME,Aptus Drawdown Managed Equity ETF,Z
 ADPV,Adaptiv Select ETF,P
 ADVE,Matthews Asia Dividend Active ETF,P
 AEHG,Leverage Shares 2X Long AEHR Daily ETF,Z
-AELV,Harbor AlphaEdge Large Cap Value ETF,P
 AEMC,Harbor AlphaEdge Mid Cap Core ETF,P
 AEMG,Harbor AlphaEdge Mid Cap Growth ETF,P
 AEMV,Harbor AlphaEdge Mid Cap Value ETF,P
@@ -88,7 +92,6 @@ AESB,Harbor AlphaEdge Small Cap Core ETF,P
 AESG,Harbor AlphaEdge Small Cap Growth ETF,P
 AESL,Harbor AlphaEdge Small Cap Value ETF,P
 AESR,Anfield U.S. Equity Sector Rotation ETF,Z
-AETH,Bitwise Trendwise Ether and Treasuries Rotation Strategy ETF,P
 AFDM,First Trust Active Factor International ETF,Q
 AFEM,First Trust Active Factor Emerging Markets ETF,Q
 AFGR,First Trust Multi-Manager Large Growth ETF,P
@@ -104,6 +107,7 @@ AFSM,First Trust Active Factor Small Cap ETF,P
 AGEM,abrdn Emerging Markets Dividend Active ETF,Q
 AGG,iShares Core U.S. Aggregate Bond ETF,P
 AGGA,EA Astoria Beacon Dynamic Core US Fixed Income ETF,Q
+AGGB,Corgi FTSE U.S. Aggregate Bond ETF,Z
 AGGH,Simplify Aggregate Bond ETF,P
 AGGM,iShares 1-10 Year U.S. Aggregate Bond ETF,P
 AGGS,Harbor Disciplined Bond ETF,P
@@ -120,13 +124,17 @@ AGZ,iShares  Agency Bond ETF,P
 AGZD,WisdomTree Interest Rate Hedged U.S. Aggregate Bond Fund,Q
 AHBM,Amplify Top 10 Asia Memory ETF,P
 AHD,GraniteShares Autocallable HOOD ETF,Q
+AHIC,Allspring Short-Term High Income Fund ETF,Q
 AHLT,AHL Trend ETF,P
 AHYB,American Century Select High Yield ETF,P
+AHYM,Allspring High Yield Municipal Bond Fund ETF,Q
 AIA,iShares Asia 50 ETF,Q
 AIBD,Direxion Daily AI and Big Data Bear 2X ETF,P
 AIBF,iShares Future AI Beneficiaries ETF,P
+AIBN,Defiance AI Infrastructure Bond ETF,P
 AIBU,Direxion Daily AI and Big Data Bull 2X ETF,P
 AICH,China AI ETF,Q
+AIED,Defiance LLM Catalyst Momentum ETF,P
 AIEQ,Amplify AI Powered Equity ETF,P
 AIFD,TCW Artificial Intelligence ETF,Q
 AIFR,Defiance Global Foundries ETF,Q
@@ -157,7 +165,6 @@ AKAL,T-REX 2X Long AKAM Daily Target ETF,Z
 AKRE,Akre Focus ETF,P
 ALA,Corgi ALAB 2x Daily ETF,Z
 ALAI,Alger AI Enablers & Adopters ETF,P
-ALBG,Leverage Shares 2X Long ALB Daily ETF,Q
 ALDB,Aptus Laddered Deep Buffer ETF,Z
 ALIL,Argent Focused Small Cap ETF,Q
 ALLW,State Street Bridgewater All Weather ETF,Q
@@ -184,7 +191,6 @@ AMKL,Defiance Daily Target 2X Long AMKR ETF,Z
 AMKX,Corgi AMKR 2x Daily ETF,Z
 AMLP,Alerian MLP ETF,P
 AMMO,VistaShares Defense Supercycle ETF,P
-AMOM,QRAFT AI-Enhanced U.S. Large Cap Momentum ETF,P
 AMPU,Defiance Daily Target 2X Long AMPX ETF,Z
 AMUN,abrdn Ultra Short Municipal Income Active ETF,Q
 AMUU,Direxion Daily AMD Bull 2X ETF,Q
@@ -199,13 +205,13 @@ AMZW,Roundhill AMZN WeeklyPay ETF,Z
 AMZY,YieldMax AMZN Option Income Strategy ETF,P
 AMZZ,GraniteShares 2x Long AMZN Daily ETF,Q
 ANEL,Defiance Daily Target 2x Long ANET ETF,Q
-ANEW,ProShares MSCI Transformational Changes ETF,P
+ANG,Corgi FTSE Fallen Angels Bond ETF,Z
 ANGL,VanEck Fallen Angel High Yield Bond ETF,Q
 ANGU,SEI Ang Research Enhanced U.S. Large Cap ETF,Q
 ANTW,Anthropic AI Lab Ecosystem ETF,P
 ANV,GraniteShares Autocallable NVDA ETF,Q
 AOA,iShares Core 80/20 Aggressive Allocation ETF,P
-AOCT,Innovator Equity Defined Protection ETF - 2 Yr to October 2026,Z
+AOCT,Innovator Equity Defined Protection ETF - 2 Yr to October 2028,Z
 AOHY,Angel Oak High Yield Opportunities ETF,Q
 AOK,iShares Core 30/70 Conservative Allocation ETF,P
 AOM,iShares Core 40/60 Moderate Allocation ETF,P
@@ -285,6 +291,7 @@ ASMU,Direxion Daily ASML Bull 2X ETF,Q
 ASMZ,Corgi ASML 2x Daily ETF,Z
 ASSX,T-REX 2X Long ASST Daily Target ETF,Z
 ASTG,Leverage Shares 2X Long ASTS Daily ETF,Z
+ASTM,Allspring Strategic Municipal Bond Fund ETF,Q
 ASTN,Defiance Daily Target 2X Short ASTS ETF,Z
 ASTT,Corgi ASTS 2x Daily ETF,Z
 ASTX,Tradr 2X Long ASTS Daily ETF,Z
@@ -345,6 +352,7 @@ AVSE,Avantis Responsible Emerging Markets Equity ETF,P
 AVSF,Avantis Short-Term Fixed Income ETF,P
 AVSU,Avantis Responsible U.S. Equity ETF,P
 AVTM,Avantis Total Equity Markets ETF,P
+AVUC,Avantis U.S. Core Equity ETF,P
 AVUQ,Avantis U.S. Quality ETF,Q
 AVUS,Avantis U.S. Equity ETF,P
 AVUV,Avantis U.S. Small Cap Value ETF,P
@@ -391,6 +399,7 @@ BAY,Corgi Bay Area Based ETF,Z
 BBAG,JPMorgan BetaBuilders U.S. Aggregate Bond ETF,Z
 BBAX,JPMorgan BetaBuilders Developed Asia Pacific-ex Japan ETF,Z
 BBB,CYBER HORNET S&P 500 and Bitcoin 75/25 Strategy ETF,Q
+BBBB,Corgi FTSE BBB Rated Corporate Bond ETF,Z
 BBBI,BondBloxx BBB Rated 5-10 Year Corporate Bond ETF,P
 BBBL,BondBloxx BBB Rated 10+ Year Corporate Bond ETF,P
 BBBS,BondBloxx BBB Rated 1-5 Year Corporate Bond ETF,P
@@ -547,7 +556,6 @@ BLES,Inspire Global Hope ETF,P
 BLGR,Bluemonte Large Cap Growth ETF,P
 BLOK,Amplify Blockchain Technology ETF,P
 BLOX,Nicholas Crypto Income ETF,P
-BLSG,Leverage Shares 2X Long BLSH Daily ETF,Q
 BLST,Bluemonte Short Term Bond ETF,P
 BLTD,Bluemonte Long Term Bond ETF,P
 BLUC,Bluemonte Large Cap Core ETF,P
@@ -676,10 +684,8 @@ BTCU,Direxion Daily Bitcoin Bull 2X ETF,P
 BTCW,WisdomTree Bitcoin Fund,Z
 BTCZ,T-Rex 2X Inverse Bitcoin Daily Target ETF,Z
 BTDL,GraniteShares 2x Long BTDR Daily ETF,Q
-BTF,CoinShares Bitcoin and Ether ETF,Q
 BTGD,STKd 100% Bitcoin & 100% Gold ETF,Q
 BTOT,iShares Total USD Fixed Income Market ETF,P
-BTRN,Global X Bitcoin Trend Strategy ETF,P
 BUCK,Simplify Treasury Option Income ETF,P
 BUFB,Innovator Laddered Allocation Buffer ETF,Z
 BUFC,AB Conservative Buffer ETF,Q
@@ -714,7 +720,6 @@ BUYZ,Franklin Disruptive Commerce ETF,Z
 BUZZ,VanEck Social Sentiment ETF,P
 BVAL,Bluemonte Large Cap Value ETF,P
 BWET,Breakwave Tanker Shipping ETF,P
-BWOW,Bitwise Dogecoin ETF,P
 BWQG,BWM Quality Growth ETF,Z
 BWTG,Brendan Wood TopGun Index ETF,Z
 BWX,State Street SPDR Bloomberg International Treasury Bond ETF,P
@@ -753,6 +758,7 @@ CATF,American Century California Municipal Bond ETF,P
 CATG,Leverage Shares 2X Long CAT Daily ETF,Z
 CATH,Global X S&P 500 Catholic Values ETF,Q
 CAUG,Corgi U.S. Equities 15% Structured Buffer ETF - August Series,Z
+CAYN,Calamos Least-Of Autocallable Income ETF,P
 CBIL,Corgi 3-12 Month T-Bill ETF,Z
 CBLS,Clough Hedged Equity ETF,P
 CBOA,Calamos Bitcoin Structured Alt Protection ETF - April,Z
@@ -789,7 +795,6 @@ CCSB,Carbon Collective Short Duration Green Bond ETF,Q
 CCSO,Carbon Collective Climate Solutions U.S. Equity ETF,Q
 CCUP,T-REX 2X Long CRCL Daily Target ETF,Z
 CDC,VictoryShares US EQ Income Enhanced Volatility Wtd ETF,Q
-CDEI,"Calvert US Large-Cap Diversity, Equity and Inclusion Index ETF",P
 CDIG,City Different Investments Global Equity ETF,Q
 CDL,VictoryShares US Large Cap High Div Volatility Wtd ETF,Q
 CDNG,Leverage Shares 2X Long CDNS Daily ETF,Z
@@ -867,7 +872,6 @@ CLCG,Crossmark Large Cap Growth ETF,P
 CLCV,Crossmark Large Cap Value ETF,P
 CLIM,Climate Global - Climate Resilient REIT Index ETF,P
 CLIP,Global X 1-3 Month T-Bill ETF,P
-CLIX,ProShares Long Online/Short Stores ETF,P
 CLNK,Common Shares of Beneficial Interest of Bitwise Chainlink ETF,P
 CLOA,iShares AAA CLO Active ETF,Q
 CLOB,VanEck AA-BB CLO ETF,P
@@ -887,7 +891,7 @@ CMAY,Corgi U.S. Equities 15% Structured Buffer ETF - May Series,Z
 CMBO,Wayfinder Dynamic U.S. Interest Rate ETF,Q
 CMBS,iShares CMBS Bond ETF,P
 CMCI,VanEck CMCI Commodity Strategy ETF,Z
-CMDT,PIMCO Commodity Strategy Active Exchange-Traded Fund,P
+CMDT,PIMCO Commodity and Bond Strategy Active Exchange-Traded Fund,P
 CMDY,iShares Bloomberg Roll Select Commodity Strategy ETF,P
 CMF,iShares California Muni Bond ETF,P
 CNAV,Mohr Company Nav ETF,Z
@@ -926,7 +930,7 @@ CORB,AB Core Bond ETF,P
 CORD,T-REX 2X Inverse CRWV Daily Target ETF,Z
 CORN,Teucrium Corn Fund ETV,P
 CORO,iShares International Country Rotation Active ETF,Q
-CORP,PIMCO Investment Grade Corporate Bond Index Exchange-Traded Fund,P
+CORP,PIMCO Investment Grade Corporate Bond Exchange-Traded Fund,P
 COSW,Roundhill COST WeeklyPay ETF,Z
 COTG,Leverage Shares 2X Long COST Daily ETF,Q
 COWG,Pacer US Large Cap Cash Cows Growth Leaders ETF,Q
@@ -945,7 +949,6 @@ CPNJ,Calamos Nasdaq - 100 Structured Alt Protection ETF -June,P
 CPNM,Calamos Nasdaq-100 Structured Alt Protection ETF - March,P
 CPNQ,Calamos Nasdaq-100 Structured Alt Protection ETF December,P
 CPNS,Calamos Nasdaq-100 Structured Alt Protection ETF  September,P
-CPNX,Tradr 2X Long CPNG Daily ETF,Z
 CPRA,Calamos Russell 2000 Structured Alt Protection ETF - April,P
 CPRJ,Calamos Russell 2000 Structured Alt Protection ETF  July,P
 CPRO,Calamos Russell 2000 Structured Alt Protection ETF - October,P
@@ -964,6 +967,7 @@ CPST,Calamos S&P 500 Structured Alt Protection ETF  September,P
 CPSU,Calamos S&P 500 Structured Alt Protection ETF June,P
 CPSY,Calamos S&P 500 Structured Alt Protection ETF January,P
 CPTL,Global X Morningstar Capital Allocation Leaders ETF,Q
+CPU,Amplify Top 10 Semiconductors ETF,P
 CPXR,USCF Daily Target 2X Copper Index ETF,P
 CQQQ,Invesco China Technology ETF,P
 CQTM,Corgi Quantum Computing ETF,Z
@@ -981,7 +985,6 @@ CRDU,Tradr 2X Long CRDO Daily ETF,Z
 CRDX,2x Cardano ETF,Z
 CRIB,Russell Investments Global Real Estate ETF,P
 CRMG,Leverage Shares 2X Long CRM Daily ETF,Q
-CRMU,Leverage Shares 2x Long CRML Daily ETF,Q
 CRMX,Tradr 2X Long CRML Daily ETF,Z
 CROB,Defiance China Robotics ETF,Q
 CRPT,First Trust SkyBridge Crypto Industry and Digital Economy ETF,P
@@ -1020,7 +1023,6 @@ CTAP,Simplify US Equity PLUS Managed Futures Strategy ETF,P
 CTAU,Corgi U.S. Equities 30% Structured Buffer ETF - August Series,Z
 CTEC,Global X ClimateTech ETF,Q
 CTEF,Castellan Targeted Equity ETF,Z
-CTEX,ProShares S&P Kensho Cleantech ETF,P
 CTIF,Castellan Targeted Income ETF,Z
 CTJL,Corgi U.S. Equities 30% Structured Buffer ETF - July Series,Z
 CTJN,Corgi U.S. Equities 30% Structured Buffer ETF - June Series,Z
@@ -1060,7 +1062,6 @@ DANA,Dana Limited Volatility ETF,P
 DAPP,VanEck Digital Transformation ETF,Q
 DAPR,FT Vest U.S. Equity Deep Buffer ETF - April,Z
 DARP,Grizzle Growth ETF,P
-DAT,ProShares Big Data Refiners ETF,P
 DAUG,FT Vest U.S. Equity Deep Buffer ETF - August,Z
 DAX,Global X DAX Germany ETF,Q
 DBA,Invesco DB Agriculture Fund,P
@@ -1137,13 +1138,13 @@ DESK,VanEck Office and Commercial REIT ETF,P
 DEUS,Xtrackers Russell US Multifactor ETF,P
 DEW,WisdomTree Global High Dividend Fund,P
 DEXC,Dimensional Emerging Markets ex China Core Equity ETF,P
-DFAC,Dimensional U.S. Core Equity 2 ETF,P
+DFAC,U.S. Core Equity 2 Portfolio ETF Class Shares,P
 DFAE,Dimensional Emerging Core Equity Market ETF,P
 DFAI,Dimensional International Core Equity Market ETF,P
 DFAL,Dimensional US Large Cap Core Equity Market ETF,Z
 DFAR,DFA Real Estate Securities Portfolio ETF Class Shares,P
-DFAS,Dimensional U.S. Small Cap ETF,P
-DFAT,Dimensional U.S. Targeted Value ETF,P
+DFAS,U.S. Small Cap Portfolio: ETF Class Shares,P
+DFAT,U.S. Targeted Value Portfolio ETF Class Shares,P
 DFAU,Dimensional US Core Equity Market ETF,P
 DFAW,Dimensional World Equity ETF,P
 DFAX,Dimensional World ex U.S. Core Equity 2 ETF,P
@@ -1156,6 +1157,7 @@ DFEN,Direxion Daily Aerospace & Defense Bull 3X ETF,P
 DFEV,Dimensional Emerging Markets Value ETF,P
 DFGP,Dimensional Global Core Plus Fixed Income ETF,Q
 DFGR,Dimensional Global Real Estate ETF,P
+DFGV,DFA Intermediate Government Fixed Income Portfolio: ETF Class Shares,Q
 DFGX,Dimensional International Core Fixed Income ETF,Q
 DFIC,Dimensional International Core Equity 2 ETF,Z
 DFII,FT Vest Bitcoin Strategy & Target Income ETF,P
@@ -1202,7 +1204,6 @@ DIEM,Franklin Emerging Market Core Dividend Tilt Index ETF,P
 DIG,ProShares Ultra Energy,P
 DIHP,Dimensional International High Profitability ETF,Z
 DIM,WisdomTree International MidCap Dividend Fund,P
-DIME,CoinShares Altcoins ETF,Q
 DINE,Simplify Tax Aware Diversified Income Strategy ETF,Q
 DINT,Davis Select International ETF,Z
 DIPR,Corgi Space & Satellite Communications ETF,Z
@@ -1307,7 +1308,6 @@ DUSG,U.S. Small Cap Growth Portfolio: ETF Class Shares,Q
 DUSL,Direxion Daily Industrials Bull 3X ETF,P
 DUST,Direxion Daily Gold Miners Index Bear 2X ETF,P
 DUTY,U.S. Defense ETF,P
-DVAL,BrandywineGLOBAL-Dynamic US Large Cap Value ETF,Q
 DVDN,Kingsbarn Dividend Opportunity ETF,P
 DVGR,DAC 3D Dividend Growth ETF,Q
 DVLU,First Trust Dorsey Wright Momentum & Value ETF,Q
@@ -1416,12 +1416,14 @@ EIS,iShares MSCI Israel ETF,P
 EJAN,Innovator Emerging Markets Power Buffer ETF January,P
 EJUL,Innovator Emerging Markets Power Buffer ETF July,P
 EKG,First Trust Nasdaq Lux Digital Health Solutions ETF,Q
+ELCF,Eventide Large Cap Focus ETF,P
 ELCV,Strategy Shares Eventide High Dividend ETF,P
 ELD,WisdomTree Emerging Markets Local Debt Fund,P
 ELFY,ALPS Electrification Infrastructure ETF,Q
 ELIL,Direxion Daily LLY Bull 2X ETF,Q
 ELM,Elm Market Navigator ETF,P
 ELOL,Leverage Shares 100% TSLA AND 100% SPCX Daily ETF,Q
+EMAG,Emerging Markets AI Mag 3 ETF,Q
 EMAU,Corgi Emerging Markets Equities 15% Structured Buffer ETF - August Series,Z
 EMB,iShares J.P. Morgan USD Emerging Markets Bond ETF,Q
 EMBD,Global X Emerging Markets Bond ETF,P
@@ -1432,7 +1434,6 @@ EMCR,Xtrackers Emerging Markets Carbon Reduction and Climate Improvers ETF,P
 EMCS,Xtrackers MSCI Emerging Markets Select ETF,P
 EMDM,First Trust Bloomberg Emerging Market Democracies ETF,P
 EMDV,ProShares MSCI Emerging Markets Dividend Growers ETF,Z
-EMEM,Sophus Capital Emerging Market ETF,Q
 EMEQ,Nomura Focused Emerging Markets Equity ETF,Q
 EMES,Harbor Emerging Markets Select ETF,P
 EMET,VanEck Copper and Electrification Metals ETF,P
@@ -1449,12 +1450,11 @@ EMLP,First Trust North American Energy Infrastructure Fund,P
 EMM,Global X Emerging Markets ex-China ETF,P
 EMMF,WisdomTree Emerging Markets Multifactor Fund,P
 EMMY,Corgi Emerging Markets Equities 15% Structured Buffer ETF - May Series,Z
-EMNT,PIMCO Enhanced Short Maturity Active ESG Exchange-Traded Fund,P
+EMNT,PIMCO Enhanced Short Maturity Active ESG and Bond Exchange-Traded Fund,P
 EMOP,AB Emerging Markets Opportunities ETF,P
 EMOT,First Trust S&P 500 Economic Moat ETF,P
 EMPB,Efficient Market Portfolio Plus ETF,P
 EMQQ,EMQQ The Emerging Markets Internet ETF,P
-EMSC,Sophus Capital Emerging Market Small Cap ETF,Q
 EMSE,Corgi Emerging Markets Equities 15% Structured Buffer ETF - September Series,Z
 EMSF,Matthews Emerging Markets Sustainable Future Active ETF,P
 EMTY,ProShares Decline of the Retail Store ETF,P
@@ -1517,6 +1517,7 @@ ESPO,VanEck Video Gaming and eSports ETF,Q
 ESSC,Eventide Small Cap ETF,P
 ESUM,Eventide US Market ETF,P
 ETCO,Grayscale Ethereum High Income ETF,P
+ETDG,Eventide Dividend Growth ETF,P
 ETEC,iShares Breakthrough Environmental Solutions ETF,Q
 ETFT,Fundsmith Equity ETF,P
 ETH,Grayscale Ethereum Staking Mini ETF Shares,P
@@ -1618,6 +1619,7 @@ FB,ProShares S&P 500 Dynamic Buffer ETF,Z
 FBCG,Fidelity Blue Chip Growth ETF,Z
 FBCV,Fidelity Blue Chip Value ETF,Z
 FBDC,FT Confluence BDC & Specialty Finance Income ETF,P
+FBEQ,Franklin US Equity Bitcoin Drip Index ETF,Q
 FBL,GraniteShares 2x Long META Daily ETF,Q
 FBND,Fidelity Total Bond ETF,P
 FBOT,Fidelity Disruptive Automation ETF,Q
@@ -1643,7 +1645,6 @@ FCTE,SMI 3Fourteen Full-Cycle Trend ETF,Q
 FCTR,First Trust Lunt U.S. Factor Rotation ETF,Z
 FCUS,Pinnacle Focused Opportunities ETF,P
 FCVT,First Trust SSI Strategic Convertible Securities ETF,Q
-FCXG,Leverage Shares 2x Long FCX Daily ETF,Q
 FDAT,Tactical Advantage ETF,P
 FDCF,Fidelity Disruptive Communications ETF,Q
 FDD,First Trust STOXX European Select Dividend Index Fund,P
@@ -1738,10 +1739,12 @@ FHLC,Fidelity MSCI Health Care Index ETF,P
 FHYS,Federated Hermes Short Duration High Yield ETF,P
 FIAT,YieldMax Short COIN Option Income Strategy ETF,P
 FIAX,Nicholas Fixed Income Alternative ETF,P
+FIBT,Franklin US Innovation Bitcoin DRIP Index ETF,Q
 FICS,First Trust International Developed Capital Strength ETF,Q
 FID,First Trust S&P International Dividend Aristocrats ETF,Q
 FIDI,Fidelity International High Dividend ETF,P
 FIDU,Fidelity MSCI Industrials Index ETF,P
+FIFT,HCM Select 50 ETF,F
 FIGB,Fidelity Investment Grade Bond ETF,P
 FIGG,Leverage Shares 2x Long FIG Daily ETF,Q
 FIIG,First Trust Intermediate Duration Investment Grade Corporate ETF,P
@@ -1930,6 +1933,7 @@ FTMH,Franklin Municipal High Yield ETF,P
 FTMN,Franklin Minnesota Municipal Income ETF,P
 FTMS,Franklin Short-Term Municipal Income ETF,P
 FTMU,Franklin Municipal Income ETF,P
+FTN,Corgi FTSE 5-10 Year IG Corporate Bond ETF,Z
 FTNJ,Franklin New Jersey Municipal Income ETF,P
 FTNY,Franklin New York Municipal Income ETF,P
 FTOH,Franklin Ohio Municipal Income ETF,P
@@ -1987,6 +1991,7 @@ GAIQ,Guinness Atkinson Global Innovators Fund: ETF Class Shares,P
 GAL,State Street Global Allocation ETF,P
 GALX,VistaShares Space Supercycle ETF,P
 GAMR,Amplify Video Game Leaders ETF,P
+GANZ,Tuttle Capital Thematic ETF,Z
 GAPR,FT Vest U.S. Equity Moderate Buffer ETF - April,Z
 GARA,Guinness Atkinson Real Assets Income ETF,P
 GARP,iShares MSCI USA Quality GARP ETF,Z
@@ -2001,6 +2006,7 @@ GBTC,Grayscale Bitcoin Trust (BTC),P
 GBUG,Sprott Active Gold & Silver Miners ETF,Q
 GCAD,Gabelli Commercial Aerospace and Defense ETF,P
 GCAL,Goldman Sachs Dynamic California Municipal Income ETF,P
+GCB,Corgi FTSE Intermediate Government/Credit Bond ETF,Z
 GCC,WisdomTree EnhancedContinuous Commodity Index Fund,P
 GCLO,Guggenheim Investment Grade CLO ETF,P
 GCOR,Goldman Sachs Access U.S. Aggregate Bond ETF,P
@@ -2027,7 +2033,6 @@ GEEQ,Guggenheim Enhanced Equity Income ETF,P
 GEM,Goldman Sachs ActiveBeta Emerging Markets Equity ETF,P
 GEMD,Goldman Sachs Access Emerging Markets USD Bond ETF,Z
 GEME,Pacific North of South EM Equity Active ETF,Q
-GEMG,Leverage Shares 2X Long GEMI Daily ETF,Q
 GEMQ,Goldman Sachs Data Enhanced Emerging Markets Equity ETF,Q
 GEND,Genter Capital Dividend Income ETF,P
 GENM,Genter Capital Municipal Quality Intermediate ETF,P
@@ -2040,7 +2045,6 @@ GEVG,Leverage Shares 2X Long GEV Daily ETF,Q
 GEVX,Tradr 2X Long GEV Daily ETF,Z
 GEW,Cambria Global EW ETF,Q
 GFEB,FT Vest U.S. Equity Moderate Buffer ETF - February,Z
-GFGF,Guru Favorite Stocks ETF,Q
 GFLW,VictoryShares Free Cash Flow Growth ETF,Q
 GFSG,Leverage Shares 2X Long GFS Daily ETF,Z
 GGLL,Direxion Daily GOOGL Bull 2X ETF,Q
@@ -2078,7 +2082,6 @@ GLDI,"ETRACS Gold Shares Covered Call ETNs due February 2, 2033",Q
 GLDM,SPDR Gold MiniShares Trust,P
 GLDN,Nicholas Gold Income ETF,P
 GLDW,Roundhill Gold WeeklyPay ETF,Z
-GLGG,Leverage Shares 2X Long GLXY Daily ETF,Q
 GLIN,VanEck India Growth Leaders ETF,P
 GLIX,Lazard Listed Infrastructure ETF,P
 GLL,ProShares UltraShort Gold,P
@@ -2090,12 +2093,14 @@ GLTR,abrdn Physical Precious Metals Basket Shares ETF,P
 GLWG,Leverage Shares 2X Long GLW Daily ETF,Q
 GLX,Corgi GLXY 2x Daily ETF,Z
 GLXU,T-REX 2X Long GLXY Daily Target ETF,Z
+GMAC,Simplify Brookwood Global Macro ETF,P
 GMAR,FT Vest U.S. Equity Moderate Buffer ETF - March,Z
 GMAY,FT Vest U.S. Equity Moderate Buffer ETF - May,Z
 GMEC,Corgi GME 2x Daily ETF,Z
 GMEU,T-REX 2X Long GME Daily Target ETF,Z
 GMEY,YieldMax GME Option Income Strategy ETF,P
 GMF,State Street SPDR S&P Emerging Asia Pacific ETF,P
+GMIE,"GMO International Equity Fund, ETF Class",P
 GMMA,GammaRoad Market Navigation ETF,P
 GMMF,iShares Government Money Market ETF,N
 GMNY,Goldman Sachs Dynamic New York Municipal Income ETF,P
@@ -2249,7 +2254,6 @@ HEFA,iShares Currency Hedged MSCI EAFE ETF,Z
 HEFT,Hedgeye Fourth Turning ETF,P
 HEGD,Swan Hedged Equity US Large Cap ETF,Z
 HELO,JPMorgan Hedged Equity Laddered Overlay ETF,P
-HELS,Hedgeye 130/30 Equity ETF,P
 HELX,Franklin Genomic Advancements ETF,Z
 HEMI,Hartford Equity Premium Income ETF,Z
 HEQQ,JPMorgan Nasdaq Hedged Equity Laddered Overlay ETF,Q
@@ -2262,6 +2266,7 @@ HF,DGA Core Plus Absolute Return ETF,N
 HFEQ,Unlimited HFEQ Equity Long/Short ETF,N
 HFGM,Unlimited HFGM Global Macro ETF,N
 HFGO,Hartford Large Cap Growth ETF,Z
+HFIX,Nomura High Yield Total Return ETF,P
 HFMF,Unlimited HFMF Managed Futures ETF,N
 HFND,Unlimited HFND Multi-Strategy Return Tracker ETF,N
 HFSI,Hartford Strategic Income ETF,Z
@@ -2269,6 +2274,7 @@ HFSP,TradersAI Large Cap Equity & Cash ETF,Q
 HFXI,NYLIM FTSE International Equity Currency Neutral ETF,P
 HGER,Harbor Commodity All-Weather Strategy ETF,N
 HGRO,Hedgeye Quality Growth ETF,P
+HH,Corgi FTSE High Yield Corporate Bond ETF,Z
 HIAI,Ai Funds High Conviction US Equity AI-Managed ETF,Z
 HIBL,Direxion Daily S&P 500 High Beta Bull 3X ETF,P
 HIBS,Direxion Daily S&P 500 High Beta Bear 3X ETF,P
@@ -2278,6 +2284,7 @@ HIGH,Simplify Enhanced Income ETF,P
 HIMC,Corgi HIMS 2x Daily ETF,Z
 HIMU,iShares High Yield Muni Active ETF,Z
 HIMZ,Defiance Daily Target 2X Long HIMS ETF,Q
+HINC,Hartford High Yield ETF,Q
 HIPS,GraniteShares HIPS US High Income ETF,P
 HIS,Humilis US Focused Opportunities ETF,Q
 HISF,First Trust High Income Strategic Focus ETF,Q
@@ -2292,10 +2299,10 @@ HMYY,GraniteShares YieldBoost HIMS ETF,Q
 HNDL,Strategy Shares Nasdaq 7HANDL Index ETF,Q
 HODL,VanEck Bitcoin Trust,Z
 HODU,Direxion Daily HOOD Bull 2X ETF,Q
+HOID,Tuttle - Rareview Humanoid Robotics ETF,Z
 HOLA,JPMorgan International Hedged Equity Laddered Overlay ETF,P
 HOLD,Harbor Alpha Layering ETF,P
 HOMZ,Hoya Capital Housing ETF,P
-HONG,Leverage Shares 2X Long HON Daily ETF,Z
 HOOC,Corgi HOOD 2x Daily ETF,Z
 HOOG,Leverage Shares 2X Long HOOD Daily ETF,Q
 HOOW,Roundhill HOOD WeeklyPay ETF,Z
@@ -2347,7 +2354,7 @@ HYGH,iShares Interest Rate Hedged High Yield Bond ETF,P
 HYGM,Amplify HYG High Yield 10% Target Income ETF,Z
 HYGU,MicroSectors 3x Long High Yield Corporate Bond (HYG) ETNs,Z
 HYGV,Northern Trust High Yield Value-Scored Bond ETF,P
-HYGW,iShares High Yield Corporate Bond BuyWrite Strategy ETF,Z
+HYGW,iShares HYG Premium Income+ ETF,Z
 HYHG,ProShares High Yield Interest Rate Hedged,Z
 HYIN,WisdomTree Private Credit and Alternative Income Fund,Z
 HYLB,Xtrackers USD High Yield Corporate Bond ETF,P
@@ -2356,7 +2363,7 @@ HYMB,State Street SPDR Nuveen ICE High Yield Municipal Bond ETF,P
 HYNX,T-REX 2X Long SKHY Daily Target ETF,P
 HYP,Golden Eagle Dynamic Hypergrowth ETF,Q
 HYPG,Grayscale Hyperliquid Staking ETF,Q
-HYS,PIMCO 0-5 Year High Yield Corporat Bond Index Exchange-Traded Fund,P
+HYS,PIMCO 0-5 Year High Yield Corporate Bond Exchange-Traded Fund,P
 HYSA,BondBloxx High Yield Income ETF,P
 HYSD,Columbia Short Duration High Yield ETF,P
 HYTI,FT Vest High Yield & Target Income ETF,P
@@ -2405,7 +2412,6 @@ IBHJ,iShares iBonds 2030 Term High Yield and Income ETF,Z
 IBHK,iShares iBonds 2031 Term High Yield and Income ETF,Z
 IBHL,iShares iBonds 2032 Term High Yield and Income ETF,Z
 IBHM,iShares iBonds 2033 Term High Yield and Income ETF,Z
-IBIC,iShares iBonds Oct 2026 Term TIPS ETF,P
 IBID,iShares iBonds Oct 2027 Term TIPS ETF,P
 IBIE,iShares iBonds Oct 2028 Term TIPS ETF,P
 IBIF,iShares iBonds Oct 2029 Term TIPS ETF,P
@@ -2450,6 +2456,7 @@ ICF,iShares Select U.S. REIT ETF,Z
 ICLN,iShares Global Clean Energy ETF,Q
 ICLO,Invesco AAA CLO Floating Rate Note ETF,Z
 ICMO,Symmetry Panoramic International Country Momentum ETF,Q
+ICOM,Tema Commodity Income ETF,F
 ICOP,iShares Copper and Metals Mining ETF,Q
 ICOW,Pacer Developed Markets International Cash Cows 100 ETF,Z
 ICPI,iShares 0-1 Year TIPS Bond ETF,P
@@ -2499,6 +2506,7 @@ IFLR,Innovator International Developed Managed Floor ETF,P
 IFRA,iShares U.S. Infrastructure ETF,Z
 IFV,First Trust Dorsey Wright International Focus 5 ETF,Q
 IG,Principal Investment Grade Corporate Active ETF,Z
+IGB,Corgi FTSE U.S. IG Corporate Bond ETF,Z
 IGBH,iShares Interest Rate Hedged Long-Term Corporate Bond ETF,P
 IGCB,TCW Corporate Bond ETF,N
 IGE,iShares North American Natural Resources ETF,Z
@@ -2532,7 +2540,6 @@ IJS,iShares S&P SmallCap 600 Value ETF,P
 IJT,iShares S&P SmallCap 600 Growth ETF,Q
 IJUL,Innovator International Developed Power Buffer ETF  July,P
 IJUN,Innovator International Developed Power Buffer ETF June,P
-ILCB,iShares Morningstar Large-Cap ETF,P
 ILCG,iShares Morningstar Large-Cap Growth ETF,P
 ILCV,iShares Morningstar Large-Cap  Value ETF,P
 ILDR,First Trust Innovation Leaders ETF,P
@@ -2620,9 +2627,7 @@ IREX,Tradr 2X Long IREN Daily ETF,Z
 IREZ,Tradr 2X Short IREN Daily ETF,Z
 IROC,Invesco Rochester High Yield Municipal ETF,Z
 IRTR,iShares LifePath Retirement ETF,P
-IRVH,Global X Interest Rate Volatility & Inflation Hedge ETF,P
 ISBG,IncomeSTKd 1x Bitcoin & 1x Gold Premium ETF,Z
-ISCB,iShares Morningstar Small-Cap ETF,P
 ISCF,iShares International Small-Cap Equity Factor ETF,P
 ISCG,iShares Morningstar Small-Cap Growth ETF,P
 ISCV,iShares Morningstar Small-Cap Value ETF,P
@@ -2675,7 +2680,7 @@ IVSX,Applied Finance IVS International SMID ETF,Q
 IVV,iShares Core S&P 500 ETF,P
 IVVB,iShares Large Cap Deep Quarterly Laddered ETF,Z
 IVVM,iShares Large Cap Moderate Quarterly Laddered ETF,Z
-IVVW,iShares S&P 500 BuyWrite ETF,Z
+IVVW,iShares IVV Premium Income+ ETF,Z
 IVW,iShares S&P 500 Growth ETF,P
 IWB,iShares Russell 1000 ETF,P
 IWC,iShares Microcap ETF,P
@@ -2686,7 +2691,7 @@ IWL,iShares Russell Top 200 ETF,P
 IWLG,NYLIM Winslow Large Cap Growth ETF,P
 IWM,iShares Russell 2000 Index Fund,P
 IWMI,NEOS Russell 2000 High Income ETF,Z
-IWMW,iShares Russell 2000 BuyWrite ETF,Z
+IWMW,iShares IWM Premium Income+ ETF,Z
 IWMY,Defiance R2000 Weekly Distribution ETF,P
 IWN,iShares Russell 2000 Value ETF,P
 IWO,iShares Russell 2000 Growth Fund,P
@@ -2874,8 +2879,6 @@ KAT,Scharf ETF,Q
 KATT,T-REX 2X Long PURR Daily Target ETF,Z
 KAUG,Innovator US Small Cap Power Buffer ETF - August,Z
 KBA,KraneShares Bosera MSCI China A 50 Connect Index ETF,P
-KBAB,KraneShares 2x Long BABA Daily ETF,Q
-KBDU,KraneShares 2x Long BIDU Daily ETF,Q
 KBE,State Street SPDR S&P Bank ETF,P
 KBFR,Innovator U.S. Small Cap Managed 10 Buffer ETF,P
 KBUF,KraneShares 90% KWEB Defined Outcome January 2027 ETF,P
@@ -2883,7 +2886,6 @@ KBWB,Invesco KBW Bank ETF,Q
 KBWD,Invesco KBW High Dividend Yield Financial ETF,Q
 KBWP,Invesco KBW Property & Casualty Insurance ETF,Q
 KBWY,Invesco KBW Premium Yield Equity REIT ETF,Q
-KCAI,KraneShares China Alpha Index ETF,P
 KCCA,KraneShares California Carbon Allowance Strategy ETF,P
 KCE,State Street SPDR S&P Capital Markets ETF,P
 KCHP,KICK Korea Semiconductor Index ETF,P
@@ -2904,11 +2906,9 @@ KFEB,Innovator U.S. Small Cap Power Buffer ETF - February,Z
 KGLD,Kurv Gold Enhanced Income ETF,Z
 KGRN,KraneShares MSCI China Clean Technology Index ETF,P
 KHPI,Kensington Hedged Premium Income ETF,Z
-KHYB,KraneShares Asia Pacific High Income USD Bond ETF,P
 KIE,State Street SPDR S&P Insurance ETF,P
 KIQQ,KraneShares InspereX Nasdaq Dynamic Buffered High Income Index ETF,Q
 KJAN,Innovator U.S. Small Cap Power Buffer ETF - January,Z
-KJD,KraneShares 2x Long JD Daily ETF,Q
 KJUL,Innovator U.S. Small Cap Power Buffer ETF - July,Z
 KJUN,Innovator U.S. Small Cap Power Buffer ETF - June,Z
 KLAG,Leverage Shares 2x Long KLAC Daily ETF,Q
@@ -2920,7 +2920,6 @@ KMAY,Innovator U.S. Small Cap Power Buffer ETF - May,Z
 KMCA,PLUS Korea Manufacturing Core Alliance Index ETF,P
 KMEM,Kurv Memory Select ETF,Z
 KMID,Virtus KAR Mid-Cap ETF,P
-KMLI,KraneShares 2x Long MELI Daily ETF,Q
 KMLM,KraneShares Mount Lucas Managed Futures Index Strategy ETF,P
 KNCT,Invesco Next Gen Connectivity ETF,P
 KNG,FT Vest S&P 500 Dividend Aristocrats Target Income ETF,Z
@@ -2938,7 +2937,6 @@ KONG,Formidable Fortress ETF,Z
 KOOL,North Shore Equity Rotation ETF,P
 KORP,American Century Diversified Corporate Bond ETF,P
 KORU,Direxion Daily South Korea Bull 3X ETF,P
-KPDD,KraneShares 2x Long PDD Daily ETF,Q
 KPHO,KraneShares Dragon Capital Growth of Vietnam Index ETF,P
 KPO,Kensington Premium Opportunities ETF,Z
 KPRO,KraneShares 100% KWEB Defined Outcome January 2027 ETF,P
@@ -3023,6 +3021,7 @@ LIAM,LifeX 2055 Inflation-Protected Longevity Income ETF,Z
 LIAU,LifeX 2060 Inflation-Protected Longevity Income ETF,Z
 LIBD,LifeX 2065 Inflation-Protected Longevity Income ETF,Z
 LIFT,LifeX 2028 Income Bucket ETF,Z
+LIGB,Corgi FTSE 10 Year IG Corporate Bond ETF,Z
 LINT,Direxion Daily INTC Bull 2X ETF,Q
 LIT,Global X Lithium & Battery Tech ETF,P
 LITC,Corgi LITE 2x Daily ETF,Z
@@ -3050,7 +3049,7 @@ LOFD,Direxion Daily SpaceX Bear 2X ETF,P
 LOFF,Direxion Daily SpaceX Bull 2X ETF,P
 LOGO,Alpha Brands Consumption Leaders ETF,Q
 LOHA,Roundhill HALO ETF,Z
-LONZ,PIMCO Senior Loan Active Exchange-Traded Fund,P
+LONZ,PIMCO Senior Loan and Short-Term Active ETF,P
 LOPP,Gabelli Love Our Planet & People ETF Gabelli Love Our Planet & People ETF,P
 LOTI,Liberty One Tactical Income ETF,Q
 LOUP,Innovator Deepwater Frontier Tech ETF,P
@@ -3066,7 +3065,7 @@ LQDH,iShares Interest Rate Hedged Corporate Bond ETF,P
 LQDI,iShares Inflation Hedged Corporate Bond ETF,Z
 LQDM,Amplify LQD Investment Grade 12% Target Income ETF,Z
 LQDU,MicroSectors 3x Long Investment Grade Corporate Bond (LQD) ETNs,Z
-LQDW,iShares Investment Grade Corporate Bond BuyWrite Strategy ETF,Z
+LQDW,iShares LQD Premium Income+ ETF,Z
 LQID,Kurv Enhanced Short Maturity ETF,Z
 LQTI,FT Vest Investment Grade & Target Income ETF,P
 LRCC,Corgi LRCX 2x Daily ETF,Z
@@ -3087,6 +3086,7 @@ LST,Leuthold Select Industries ETF,P
 LSTB,Natixis Loomis Sayles Total Return Bond ETF,P
 LSVD,LSV Disciplined Value ETF,P
 LTAX,Nomura Tax-Free USA ETF,P
+LTB,Corgi FTSE 20 Year U.S. Treasury Bond ETF,Z
 LTCC,Canary Litecoin ETF,Q
 LTL,ProShares Ultra Communication Services,P
 LTPZ,Pimco 15  Year U.S. TIPS Index Exchange-Traded Fund,P
@@ -3111,7 +3111,6 @@ MAGG,Madison Aggregate Bond ETF,P
 MAGS,Roundhill Magnificent Seven ETF,Z
 MAGX,Roundhill Daily 2X Long Magnificent Seven ETF,Z
 MAGY,Roundhill Magnificent Seven Covered Call ETF,Z
-MAKX,ProShares S&P Kensho Smart Factories ETF,P
 MAMB,Monarch Ambassador Income Index ETF,Z
 MANI,Man Active Income ETF,P
 MARM,FT Vest U.S. Equity Max Buffer ETF - March,Z
@@ -3203,6 +3202,7 @@ MGIN,Man Active Global Infrastructure ETF,P
 MGK,Vanguard Morningstar Mega Cap Growth ETF,P
 MGMT,Ballast Small/Mid Cap ETF,P
 MGNR,American Beacon Select Funds American Beacon GLG Natural Resources ETF,P
+MGOL,Leverage Shares MANGOS ETF,Q
 MGOV,First Trust Intermediate Government Opportunities ETF,P
 MGV,Vanguard Morningstar Mega Cap Value ETF,P
 MHIG,Milliman Healthcare Inflation Guard ETF,P
@@ -3210,7 +3210,6 @@ MHIP,Milliman Healthcare Inflation Plus ETF,P
 MHX,Corgi MARA 2x Daily ETF,Z
 MHY,Man Active High Yield ETF,P
 MIC,Corgi MU 2x Daily ETF,Z
-MID,American Century Mid Cap Growth Impact ETF,P
 MIDE,Xtrackers S&P MidCap 400 Scored & Screened ETF,P
 MIDU,Direxion Mid Cap Bull 3X ETF,P
 MIG,VanEck Moody's Analytics IG Corporate Bond ETF,Z
@@ -3238,10 +3237,12 @@ MLPD,Global X MLP & Energy Infrastructure Covered Call ETF,P
 MLPI,NEOS MLP & Energy Infrastructure High Income ETF,Z
 MLPR,ETRACS Quarterly Pay 1.5X Leveraged Alerian MLP Index ETN,P
 MLPX,Global X MLP & Energy Infrastructure ETF,P
+MLRG,iShares MSCI USA ETF,P
 MMAR,Pacer Swan SOS Moderate March ETF,Z
 MMAX,iShares Large Cap Max Buffer Mar ETF,Z
 MMAY,Pacer Swan SOS Moderate (May) ETF,Z
 MMCA,NYLIM MacKay California Muni Intermediate ETF,P
+MMF,Corgi Money Market ETF,Z
 MMHI,NYLIM MacKay Muni High Income ETF,P
 MMID,MFS Active Mid Cap ETF,N
 MMIN,NYLIM MacKay Muni Insured ETF,P
@@ -3302,6 +3303,7 @@ MSFX,T-Rex 2X Long Microsoft Daily Target ETF,Z
 MSFY,Kurv Yield Premium Strategy Microsoft (MSFT) ETF,Z
 MSIX,Corgi MSI 2x Daily ETF,Z
 MSLC,Morgan Stanley Pathway Large Cap Equity ETF,P
+MSML,iShares MSCI USA Small-Cap ETF,P
 MSMR,McElhenny Sheffield Managed Risk ETF,Z
 MSOL,Morgan Stanley Solana Trust,P
 MSOS,AdvisorShares Pure US Cannabis ETF,P
@@ -3324,6 +3326,7 @@ MSTY,YieldMax MSTR Option Income Strategy ETF,P
 MSTZ,T-Rex 2X Inverse MSTR Daily Target ETF,Z
 MTAW,Meta AI Lab Ecosystem ETF,P
 MTBA,Simplify MBS ETF,P
+MTGG,MayTech Global Growth ETF,Q
 MTGP,WisdomTree Mortgage Plus Bond Fund,P
 MTRA,Invesco International Growth Focus ETF,Z
 MTSG,Leverage Shares 2X Long MTSI Daily ETF,Z
@@ -3334,7 +3337,6 @@ MUD,Direxion Daily MU Bear 1X ETF,Q
 MUG,Leverage Shares 2X Long MU Daily ETF,Z
 MUIB,Direxion MU Defined Income Boost ETF,Z
 MULL,GraniteShares 2x Long MU Daily ETF,Q
-MULT,Franklin Multisector Income ETF,Q
 MUNA,Northern Trust 2030 Tax-Exempt Distributing Ladder ETF,P
 MUNB,Northern Trust 2035 Tax-Exempt Distributing Ladder ETF,P
 MUNC,Northern Trust 2045 Tax-Exempt Distributing Ladder ETF,P
@@ -3347,7 +3349,6 @@ MUNJ,Northern Trust 2031 Tax-Exempt Distributing Ladder ETF,P
 MUNX,AMG GW&K Muni Income ETF,P
 MUNY,Vanguard New York Tax-Exempt Bond ETF,Z
 MUSE,TCW Multisector Credit Income ETF,N
-MUSQ,MUSQ Global Music Industry Index ETF,P
 MUST,Columbia Multi-Sector Municipal Income ETF,P
 MUU,Direxion Daily MU Bull 2X ETF,Q
 MUY,YieldMax MU Option Income Strategy ETF,Q
@@ -3432,7 +3433,6 @@ NECK,xETFs AI Bottlenecks ETF,P
 NEHI,NEOS Ethereum High Income ETF,Z
 NELS,Nelson Select ETF,Z
 NEMD,Neuberger Emerging Markets Debt Hard Currency ETF,P
-NEMG,Leverage Shares 2x Long NEM Daily ETF,Q
 NERD,Roundhill Video Games ETF,Z
 NETG,Leverage Shares 2X Long NET Daily ETF,Q
 NETL,Colterpoint Net Lease Real Estate ETF,P
@@ -3507,7 +3507,6 @@ NUDG,Nuveen Dividend Growth Fund: ETF Class Shares,P
 NUDM,Nuveen ESG International Developed Markets Equity ETF,Z
 NUDV,Nuveen ESG Dividend ETF,Z
 NUEM,Nuveen ESG Emerging Markets Equity ETF,Z
-NUG,Leverage Shares 2X Long NU Daily ETF,Q
 NUGO,Nuveen Growth Opportunities ETF,P
 NUGT,Direxion Daily Gold Miners Index Bull 2X ETF,P
 NUGY,GraniteShares YieldBOOST Gold Miners ETF,Q
@@ -3553,7 +3552,6 @@ NVTC,Corgi NVTS 2x Daily ETF,Z
 NVTX,Tradr 2X Long NVTS Daily ETF,Z
 NVYY,GraniteShares YieldBOOST NVDA ETF,Q
 NXPG,Leverage Shares 2X Long NXPI Daily ETF,Z
-NXPX,Tradr 2X Long NXPI Daily ETF,Z
 NXTE,AXS Green Alpha ETF,P
 NXTG,First Trust Indxx NextG ETF,Q
 NXTI,Simplify Next Intangible Core Index ETF,Z
@@ -3570,6 +3568,7 @@ OAIM,OneAscent International Equity ETF,P
 OAIW,OpenAI Lab Ecosystem ETF,P
 OAKG,Oakmark Global Large Cap ETF,P
 OAKI,Oakmark International Large Cap ETF,P
+OAKL,Oakmark U.S. Concentrated ETF,P
 OAKM,Oakmark U.S. Large Cap ETF,P
 OALC,OneAscent Large Cap Core ETF,P
 OARK,YieldMax Innovation Option Income Strategy ETF,P
@@ -3612,7 +3611,6 @@ OKTG,Leverage Shares 2X Long OKTA Daily ETF,Q
 OMAH,VistaShares Target 15 Berkshire Select Income ETF,P
 OMFL,Invesco Russell 1000 Dynamic Multifactor ETF,Z
 OMFS,Invesco Russell 2000 Dynamic Multifactor ETF,Z
-OND,ProShares On-Demand ETF,P
 ONDC,Corgi ONDS 2x Daily ETF,Z
 ONDG,Leverage Shares 2X Long ONDS Daily ETF,Q
 ONDL,Defiance Daily Target 2X Long ONDS ETF,Z
@@ -3629,12 +3627,12 @@ ONOF,Global X Adaptive U.S. Risk Management ETF,P
 ONTX,Corgi ONTO 2x Daily ETF,Z
 ONX,Tradr 2X Long ON Daily ETF,Z
 OOSP,Obra Opportunistic Structured Products ETF,P
-OPEG,Leverage Shares 2X Long OPEN Daily ETF,Q
 OPER,ETF ClearShares Ultra-Short Maturity ETF,P
 OPEX,Tradr 2X Long OPEN Daily ETF,Z
 OPPE,WisdomTree European Opportunities Fund,P
 OPPG,WisdomTree GeoAlpha Opportunities Fund,P
 OPPJ,WisdomTree Japan Opportunities Fund,Q
+OPTO,Tuttle Capital Photonics Income Blast ETF,Z
 OPTZ,Optimize Strategy Index ETF,Q
 ORAC,Corgi ORCL 2x Daily ETF,Z
 ORBX,Global X Space Tech ETF,Q
@@ -3659,6 +3657,7 @@ OVF,Overlay Shares Foreign Equity ETF,Z
 OVL,Overlay Shares Large Cap Equity ETF,Z
 OVLH,Overlay Shares Hedged Large Cap Equity ETF,Z
 OVM,Overlay Shares Municipal Bond ETF,Z
+OVQ,Overlay Shares Nasdaq 100 Income ETF,Z
 OVS,Overlay Shares Small Cap Equity ETF,Z
 OVT,Overlay Shares Short Term Bond ETF,Z
 OWN,Inside Ownership 100 ETF,Z
@@ -3709,7 +3708,6 @@ PBOT,Pictet AI & Automation ETF,P
 PBP,Invesco S&P 500 BuyWrite ETF,Z
 PBPH,Portfolio Building Block World Pharma and Biotech Index ETF,Q
 PBQQ,PGIM Laddered Nasdaq-100 Buffer 12 ETF,Q
-PBRG,Leverage Shares 2X Long PBR Daily ETF,Q
 PBSC,Pacer Barings Secured Credit Flex ETF,Q
 PBSE,PGIM S&P 500 Buffer 20 ETF - September,Z
 PBTP,Invesco 0-5 Yr US TIPS ETF,Z
@@ -3746,6 +3744,7 @@ PEJ,Invesco Leisure and Entertainment ETF,P
 PEMX,Putnam Emerging Markets ex-China ETF,P
 PENU,T-REX 2X Long PENG Daily Target ETF,Z
 PEPS,Parametric Equity Plus ETF,Q
+PEPT,REX Peptide ETF,Q
 PEVC,Pacer PE/VC ETF,P
 PEX,ProShares Global Listed Private Equity ETF,Z
 PEXL,Pacer US Export Leaders ETF,P
@@ -3777,7 +3776,7 @@ PHDG,Invesco S&P 500 Downside Hedged ETF,P
 PHEQ,Parametric Hedged Equity ETF,P
 PHO,Invesco Water Resources ETF,Q
 PHOX,Aura AI Photonics ETF,P
-PHYL,PGIM Active High Yield Bond ETF,P
+PHYL,PGIM Active High Yield Bond ETF,Z
 PHYS,Sprott Physical Gold Trust ETV,P
 PICB,Invesco International Corporate Bond ETF,P
 PICK,iShares MSCI Global Select Metals & Mining Producers Fund,Z
@@ -3843,7 +3842,7 @@ PNOV,Innovator U.S. Equity Power Buffer ETF - November,Z
 PNQI,Invesco Nasdaq Internet ETF,Q
 POCT,Innovator U.S. Equity Power Buffer ETF - October,Z
 POEL,Defiance Daily Target 2X Long POET ETF,Z
-PONX,Tradr 2X Long PONY Daily ETF,Z
+POMG,PRIMECAP Odyssey Discovery ETF,P
 POW,VistaShares Electrification Supercycle ETF,P
 POWA,Invesco Bloomberg Pricing Power ETF,P
 POWR,iShares U.S. Power Infrastructure ETF,P
@@ -3900,7 +3899,6 @@ PSCW,Pacer Swan SOS Conservative (April) ETF,Z
 PSCX,Pacer Swan SOS Conservative (January) ETF,Z
 PSDM,PGIM Short Duration Multi-Sector Bond ETF,Z
 PSEP,Innovator U.S. Equity Power Buffer ETF - September,Z
-PSET,Principal Quality ETF,Q
 PSFD,Pacer Swan SOS Flex (January) ETF,Z
 PSFF,Pacer Swan SOS Fund of Funds ETF,Z
 PSFJ,Pacer Swan SOS Flex (July) ETF,Z
@@ -3996,7 +3994,6 @@ QCAP,FT Vest Nasdaq-100 Conservative Buffer ETF - April,Z
 QCJA,FT Vest Nasdaq-100 Conservative Buffer ETF - January,Z
 QCJL,FT Vest Nasdaq-100 Conservative Buffer ETF - July,Z
 QCLN,First Trust NASDAQ Clean Edge Green Energy Index Fund,Q
-QCLR,Global X NASDAQ 100 Collar 95-110 ETF,Q
 QCMD,Direxion Daily QCOM Bear 1X ETF,Q
 QCML,GraniteShares 2x Long QCOM Daily ETF,Q
 QCMU,Direxion Daily QCOM Bull 2X ETF,Q
@@ -4055,6 +4052,7 @@ QPX,AdvisorShares Q Dynamic Growth ETF,P
 QQA,Invesco QQQ Income Advantage ETF,Q
 QQAU,Corgi Growth & Technology 15% Structured Buffer ETF - August Series,Z
 QQBF,FT Vest Nasdaq-100 Quarterly 15 Buffer ETF,Z
+QQDH,Tuttle Capital Innovation 100 Income & Hedge ETF,Z
 QQDN,ProShares UltraShort QQQ Mega,Q
 QQEW,First Trust Nasdaq-100 Select Equal Weight ETF,Q
 QQH,HCM Defender 100 Index ETF,P
@@ -4127,6 +4125,7 @@ RAAR,Reckoner Yield Enhanced AAA CLO Reinvesting ETF,P
 RAAX,VanEck Real Assets ETF,P
 RAAY,Reckoner Yield Enhanced AAA CLO Annual ETF,P
 RACK,VanEck Data Center Supply Chain ETF,Z
+RADD,AB US Research Advanced ETF,Q
 RAFE,PIMCO RAFI ESG U.S. ETF,P
 RAM,Roundhill T-REX 2X Long DRAM Daily Target ETF,Z
 RAML,Leverage Shares 2X Long Memory Daily ETF,Z
@@ -4139,6 +4138,7 @@ RBIL,F/m Ultrashort Treasury Inflation-Protected Security (TIPS) ETF,Q
 RBLD,First Trust Alerian US NextGen Infrastructure ETF,P
 RBLU,T-REX 2X Long RBLX Daily Target ETF,Z
 RBLY,YieldMax RBLX Option Income Strategy ETF,P
+RBTX,iShares Future Robotics and Related Technologies Active ETF,P
 RBUF,Innovator U.S. Small Cap 10 Buffer ETF - Quarterly,Z
 RCAX,Defiance Daily Target 2x Long RCAT ETF,Q
 RCGE,RockCreek Global Equality ETF,Q
@@ -4199,6 +4199,7 @@ RIGS,ALPS Strategic Income Fund,P
 RILA,Indexperts Gorilla Aggressive Growth ETF,P
 RINF,ProShares Inflation Expectations ETF,P
 RING,iShares MSCI Global Gold Miners ETF,Q
+RINK,Russell Investments Multisector Bond ETF,P
 RINT,Russell Investments International Developed Equity ETF,Q
 RIOX,Defiance Daily Target 2X Long RIOT ETF,P
 RISE,Pictet Emerging Markets Rising Economies ETF,P
@@ -4282,6 +4283,7 @@ RSSX,Return Stacked U.S. Stocks & Gold/Bitcoin ETF,Z
 RSSY,Return Stacked U.S. Stocks & Futures Yield ETF,Z
 RTAI,Rareview Tax Advantaged Income ETF,Z
 RTH,VanEck Retail ETF,Q
+RTHY,F/m Long-Term Treasury Inflation-Protected Security (TIPS) ETF,Q
 RTOO,VistaShares Robotics Supercycle ETF,P
 RTRE,Rareview Total Return Bond ETF,Z
 RTXG,Leverage Shares 2X Long RTX Daily ETF,Q
@@ -4358,6 +4360,7 @@ SCHV,Schwab U.S. Large-Cap Value ETF,P
 SCHX,Schwab U.S. Large-Cap ETF,P
 SCHY,Schwab International Dividend Equity ETF,P
 SCHZ,Schwab US Aggregate Bond ETF,P
+SCIN,Schwab International Bond ETF,P
 SCIO,First Trust Structured Credit Income Opportunities ETF,P
 SCJ,iShares MSCI Japan Sm Cap,P
 SCJL,Corgi U.S. Small-Cap 15% Structured Buffer ETF - July Series,Z
@@ -4420,6 +4423,7 @@ SEPT,AllianzIM U.S. Large Cap Buffer10 Sep ETF,Z
 SEPU,AllianzIM U.S. Equity Buffer15 Uncapped Sep ETF,Z
 SEPW,AllianzIM U.S. Large Cap Buffer20 Sep ETF,Z
 SEPZ,TrueShares Structured Outcome (September) ETF,Z
+SEQ,Sequoia ETF,P
 SETH,ProShares Short Ether ETF,P
 SETM,Sprott Critical Materials ETF,Q
 SEUS,SEI QiM U.S. Equity Factor Allocation Active ETF,Q
@@ -4510,6 +4514,7 @@ SLON,ProShares Ultra Solana ETF,P
 SLQD,iShares 0-5 Year Investment Grade Corporate Bond ETF,Q
 SLTY,YieldMax Ultra Short Option Income Strategy ETF,P
 SLV,iShares Silver Trust,P
+SLVI,NEOS Silver High Income ETF,Z
 SLVO,"ETRACS Silver Shares Covered Call ETNs due April 21, 2033",Q
 SLVP,iShares MSCI Global Silver and Metals Miners ETF,Z
 SLVR,Sprott Silver Miners & Physical Silver ETF,Q
@@ -4548,6 +4553,7 @@ SMMD,iShares Russell 2500 ETF,Z
 SMMU,Short Term Municipal Bond Active Exchange-Traded Fund,P
 SMMV,iShares MSCI USA Small-Cap Min Vol Factor ETF,Z
 SMN,ProShares UltraShort Materials,P
+SMNG,xETFs Samsung Group ETF,Q
 SMOG,VanEck Low Carbon Energy ETF,P
 SMOM,Symmetry Panoramic Sector Momentum ETF,Q
 SMOT,VanEck Morningstar SMID Moat ETF,Z
@@ -4555,13 +4561,14 @@ SMOX,Horizon Small/Mid Cap Core Equity ETF,P
 SMRF,"ALPS Nautilus SMR, Nuclear & Technology ETF",P
 SMRI,Bushido Capital US Equity ETF,Q
 SMRX,Corgi SMR 2x Daily ETF,Z
+SMRZ,Global X Small Modular Reactor ETF,Z
 SMST,Defiance Daily Target 2x Short MSTR ETF,Q
 SMTG,Leverage Shares 2X Long SMTC Daily ETF,Z
 SMTH,ALPS Smith Core Plus Bond ETF,P
+SMTJ,Synera Funds Takumi+ ETF,P
 SMU,Tradr 2X Long SMR Daily ETF,Z
 SMUP,T-REX 2X Long SMR Daily Target ETF,Z
 SMYY,GraniteShares YieldBOOST SMCI ETF,Q
-SMZ,Tradr 2X Short SMR Daily ETF,Z
 SNAG,Leverage Shares 2x Long SNAP Daily ETF,Q
 SNAV,Mohr Sector Nav ETF,Z
 SNDC,Corgi SNDK 2x Daily ETF,Z
@@ -4666,6 +4673,7 @@ SPXD,Xtrackers S&P 500 Diversified Sector Weight ETF,Q
 SPXE,ProShares S&P 500 Ex-Energy ETF,P
 SPXL,Direxion Daily S&P 500 Bull 3X ETF,P
 SPXN,ProShares S&P 500 Ex-Financials ETF,P
+SPXP,Direxion U.S. 500 Plus ETF,P
 SPXS,Direxion Daily S&P 500 Bear 3X ETF,P
 SPXT,ProShares S&P 500 Ex-Technology ETF,P
 SPXU,ProShares UltraPro Short S&P500,P
@@ -4684,6 +4692,7 @@ SPYU,"MAX S&P 500 4X Leveraged ETNs due October 30, 2043",P
 SPYV,State Street SPDR Portfolio S&P 500 Value ETF,P
 SPYX,State Street SPDR S&P 500 Fossil Fuel Reserves Free ETF,P
 SQBA,FT Vest U.S. Equity Quarterly 15 Buffer ETF,Z
+SQBR,FT Vest U.S. Equity Quarterly 20 Barrier ETF,Z
 SQLT,iShares MSCI USA Small-Cap Quality Factor ETF,Z
 SQLV,Royce Quant Small-Cap Quality Value ETF,Q
 SQMX,FT Vest U.S. Equity Quarterly Max Buffer ETF,Z
@@ -4739,7 +4748,6 @@ STYL,Corgi Lifestyle Brands ETF,Z
 SUB,iShares Short-Term National Muni Bond ETF,P
 SUIL,2x Sui ETF,Z
 SUIS,Canary Staked SUI ETF,Q
-SUPL,ProShares Supply Chain Logistics ETF,P
 SUPP,TCW Transform Supply Chain ETF,Q
 SURE,AdvisorShares Insider Advantage ETF,P
 SURI,Simplify Propel Opportunities ETF,P
@@ -4750,6 +4758,7 @@ SUSL,iShares ESG MSCI USA Leaders ETF,Q
 SVAL,iShares US Small Cap Value Factor ETF,Z
 SVIX,-1x Short VIX Futures ETF,Z
 SVOL,Simplify Volatility Premium ETF,P
+SVTN,Corgi FTSE 7-10 Year U.S. Treasury Bond ETF,Z
 SVXY,ProShares Short VIX Short Term Futures ETF,Z
 SWAN,Amplify BlackSwan Growth & Treasury Core ETF,P
 SWP,SWP Growth & Income ETF,Q
@@ -4872,6 +4881,7 @@ THNQ,ROBO Global Artificial Intelligence ETF,P
 THNR,Amplify Weight Loss Drug & Treatment ETF,P
 THOR,Thornburg Premium Income Builder ETF,P
 THRO,iShares U.S. Thematic Rotation Active ETF,P
+THRU,Tema Commodity Infrastructure ETF,F
 THRV,Prospera Income ETF,Q
 THTA,SoFi Enhanced Yield ETF,P
 THY,Toews Agility Shares Dynamic Tactical Income ETF,P
@@ -4886,7 +4896,6 @@ TILL,Teucrium Agricultural Strategy No K-1 ETF,P
 TILT,Northern Trust Morningstar US Market Factor Tilt ETF,Z
 TIME,Clockwise U.S. Core Equity ETF,P
 TINS,Templeton International Insights ETF,P
-TINT,ProShares Smart Materials ETF,P
 TINY,ProShares Nanotechnology ETF,P
 TIP,iShares TIPS Bond ETF,P
 TIPA,Northern Trust 2030 Inflation-Linked Distributing Ladder ETF,P
@@ -4908,6 +4917,7 @@ TKNQ,Amplify Tokenization Technology Leaders ETF,P
 TKNS,21Shares Active Crypto ETF,Q
 TKNZ,T. Rowe Price Active Crypto ETF,P
 TLA,GraniteShares Autocallable TSLA ETF,Q
+TLCE,Thrivent Large Cap Stock ETF,Q
 TLCI,Touchstone International Equity ETF,P
 TLDR,The Laddered T-Bill ETF,Z
 TLG,Touchstone Large Company Growth ETF,Q
@@ -4918,7 +4928,7 @@ TLTD,Northern Trust Morningstar Developed Markets ex-US Factor Tilt ETF,P
 TLTE,Northern Trust Morningstar Emerging Markets Factor Tilt ETF,P
 TLTI,NEOS Enhanced Income 20+ Year Treasury Bond ETF,Z
 TLTP,Amplify TLT U.S. Treasury 12% Option Income ETF,Z
-TLTW,iShares 20+ Year Treasury Bond BuyWrite Strategy ETF,Z
+TLTW,iShares TLT Premium Income+ ETF,Z
 TLTX,Global X Treasury Bond Enhanced Income ETF,Z
 TMAR,FT Vest Emerging Markets Buffer ETF - March,Z
 TMAT,Main Thematic Innovation ETF,Z
@@ -4945,6 +4955,7 @@ TMVE,Thrivent Mid Cap Value ETF,P
 TMYY,GraniteShares YieldBOOST TSM ETF,Q
 TNA,Direxion Small Cap Bull 3X ETF,P
 TNGY,Tortoise Energy ETF,N
+TNTW,Corgi FTSE 10-20 Year U.S. Treasury Bond ETF,Z
 TNUK,Tortoise Nuclear Renaissance ETF,P
 TNXT,T. Rowe Price Innovation Leaders ETF,Q
 TOAK,Manager Directed Portfolios Twin Oak Short Horizon Absolute Return ETF,P
@@ -4959,7 +4970,6 @@ TOPT,iShares Top 20 U.S. Stocks ETF,P
 TOPW,Roundhill Top WeeklyPay ETF,Z
 TORK,KraneShares Actuator ETF,Q
 TOS,Twin Oak Strategic Solutions ETF,Z
-TOT,LionShares U.S. Equity Total Return ETF,P
 TOTL,State Street DoubleLine Total Return Tactical ETF,P
 TOTR,T. Rowe Price Total Return ETF,P
 TOUS,T. Rowe Price International Equity ETF,P
@@ -5015,9 +5025,9 @@ TSEG,Leverage Shares 2X Long TSEM Daily ETF,Z
 TSEL,Touchstone Sands Capital US Select Growth ETF,Q
 TSEP,FT Vest Emerging Market Buffer ETF - September,Z
 TSES,Truth Social American Energy Security ETF,P
-TSEU,Tradr 2X Long TSEM Daily ETF,Z
 TSIB,Direxion TSLA Defined Income Boost ETF,Z
 TSIC,Truth Social American Icons ETF,P
+TSIE,Thrivent Securitized Income ETF,Q
 TSII,REX TSLA Growth & Income ETF,Z
 TSL,GraniteShares 1.25x Long TSLA Daily ETF,Q
 TSLG,Leverage Shares 2X Long TSLA Daily ETF,Q
@@ -5055,6 +5065,7 @@ TTEQ,T. Rowe Price Technology ETF,Q
 TTMX,Tradr 2X Long TTMI Daily ETF,Z
 TTOP,21Shares FTSE Crypto 10 Index ETF,P
 TTT,ProShares UltraPro Short 20 Year Treasury,P
+TTTT,Corgi FTSE U.S. TIPS Bond ETF,Z
 TTXD,Direxion Daily Technology Top 5 Bear 2X ETF,P
 TTXU,Direxion Daily Technology Top 5 Bull 2X ETF,P
 TUA,Simplify Short Term Treasury Futures Strategy ETF,P
@@ -5088,7 +5099,9 @@ TZA,Direxion Small Cap Bear 3X ETF,P
 UAE,iShares MSCI UAE ETF,Q
 UAPR,Innovator U.S. Equity Ultra Buffer ETF - April,Z
 UAUG,Innovator U.S. Equity Ultra Buffer ETF - August,Z
+UB,Corgi FTSE U.S. Treasury Bond ETF,Z
 UBEW,Roundhill UBER WeeklyPay ETF,Z
+UBIQ,AAM Ubiquitous ETF,P
 UBND,VictoryShares Core Plus Bond ETF,Q
 UBOT,"Direxion Daily Robotics, Artificial Intelligence & Automation Index Bull 2X ETF",P
 UBR,ProShares Ultra MSCI Brazil Capped,P
@@ -5101,13 +5114,11 @@ UCON,First Trust Smith Unconstrained Bond ETF,P
 UCOP,ProShares Ultra Copper K-1 Free ETF,P
 UCRD,VictoryShares Corporate Bond ETF,Q
 UCTX,Corgi UCTT 2x Daily ETF,Z
-UCYB,ProShares Ultra Nasdaq Cybersecurity,Q
 UDEC,Innovator U.S. Equity Ultra Buffer ETF - December,Z
 UDI,USCF Dividend Income Fund,P
 UDIV,Franklin U.S. Core Dividend Tilt Index ETF,P
 UDN,Invesco DB USD Index Bearish ETF,P
 UDOW,ProShares UltraPro Dow30,P
-UECG,Leverage Shares 2x Long UEC Daily ETF,Q
 UEVM,VictoryShares Emerging Markets Value Momentum ETF,Q
 UFEB,Innovator U.S. Equity Ultra Buffer ETF - February,Z
 UFIV,US Treasury 5 Year Note ETF,Q
@@ -5180,7 +5191,6 @@ USE,USCF Energy Commodity Strategy Absolute Return Fund,P
 USEP,Innovator U.S. Equity Ultra Buffer ETF - September,Z
 USEW,Cambria US EW ETF,Z
 USFE,First Eagle US Equity ETF,P
-USFI,BrandywineGLOBAL - U.S. Fixed Income ETF,Q
 USFR,WisdomTree Floating Rate Treasury Fund,P
 USG,USCF Gold Strategy Plus Income Fund,P
 USGG,Leverage Shares 2X Long USAR Daily ETF,Q
@@ -5241,7 +5251,6 @@ UYM,ProShares Ultra Materials,P
 VABS,Virtus Newfleet ABS/MBS ETF,P
 VAIC,VegaShares US Equity Autocallable Conservative Income ETF,P
 VAIE,VegaShares US Equity Autocallable Income ETF,P
-VALG,Leverage Shares 2X Long VALE Daily ETF,Q
 VALQ,American Century U.S. Quality Value ETF,P
 VAMO,Cambria Value and Momentum ETF,Z
 VAVX,VanEck Avalanche ETF,Q
@@ -5288,7 +5297,6 @@ VEGX,International Vegan Climate ETF,Z
 VELL,Defiance Daily Target 2X Long VELO ETF,Z
 VEM,Virtus Emerging Markets Dividend ETF,P
 VEMY,Virtus Stone Harbor Emerging Markets High Yield Bond ETF,P
-VERS,ProShares Metaverse ETF,P
 VETZ,Academy Veteran Bond ETF,P
 VEU,Vanguard FTSE All World Ex US ETF,P
 VEXC,Vanguard Emerging Markets Ex-China ETF,P
@@ -5308,6 +5316,7 @@ VGRO,Virtus Silvant Growth Opportunities ETF,P
 VGSH,Vanguard Short-Term Treasury ETF,Q
 VGSR,Vert Global Sustainable Real Estate ETF,Q
 VGT,Vanguard Information Tech ETF,P
+VGTX,XFUNDS Technology Income ETF,P
 VGUS,Vanguard Ultra-Short Treasury ETF,Q
 VGVT,Vanguard Government Securities Active ETF,P
 VHT,Vanguard Health Care ETF,P
@@ -5409,10 +5418,13 @@ WANT,Direxion Daily Consumer Discretionary Bull 3X ETF,P
 WAR,U.S. Global Technology and Aerospace & Defense ETF,P
 WARP,VanEck Space ETF,Q
 WATS,Corgi Battery Energy Storage Systems ETF,Z
+WBEM,William Blair Emerging Markets Equity ETF,P
+WBIE,William Blair International Equity ETF,P
 WBIF,WBI BullBear Value 3000 ETF,P
 WBIG,WBI BullBear Yield 3000 ETF,P
 WBIL,WBI BullBear Quality 3000 ETF,P
 WBIY,WBI Power Factor High Dividend ETF,N
+WBMO,VanEck Wealth Builder ETF,P
 WCAP,WarCap Unconstrained Equity ETF,P
 WCBR,WisdomTree Cybersecurity Fund,Q
 WCEO,Hypatia Women CEO ETF,P
@@ -5445,6 +5457,7 @@ WELD,Tema U.S. Manufacturing & Reshoring ETF,P
 WEPN,Nicholas Defense and Rare Earth Income ETF,P
 WGMI,CoinShares Bitcoin Mining and Digital Power ETF,Q
 WIMA,WisdomTree International Adaptive Moving Average Fund,Q
+WINC,William Blair Emerging Income ETF,P
 WINN,Harbor Long-Term Growers ETF,N
 WIP,State Street SPDR FTSE International Government Inflation-Protected Bond ETF,P
 WISE,Themes Generative Artificial Intelligence ETF,Q
@@ -5463,10 +5476,12 @@ WRND,NYLIM Global Equity R&D Leaders ETF,Q
 WRTH,Worth Charting Options Income ETF,Q
 WSDB,Weitz Short Duration Bond ETF,P
 WSGE,Warren Street Global Equity ETF,Q
+WSLS,WisdomTree Efficient Long/Short U.S. SmallCap Equity Fund,F
 WSMD,Wasatch Small/Mid Cap ETF,P
 WSML,iShares MSCI World Small-Cap ETF,Q
 WSPC,WisdomTree Space Economy Fund,Q
 WTAI,WisdomTree Artificial Intelligence and Innovation Fund,Z
+WTAL,WisdomTree Global Alpha Fund,F
 WTBN,WisdomTree Bianco Total Return Fund,Q
 WTIB,USCF Oil Plus Bitcoin Strategy Fund,P
 WTID,MicroSectors Energy 3X Inverse Leveraged ETNs,P
@@ -5504,7 +5519,6 @@ XBIL,US Treasury 6 Month Bill ETF,Q
 XBIX,Corgi U.S. Biotech 2x Daily ETF,Z
 XBJA,Innovator U.S. Equity Accelerated 9 Buffer ETF - January,Z
 XBJL,Innovator U.S. Equity Accelerated 9 Buffer ETF - July,Z
-XBNB,Teucrium xETFs 2x Long Daily BNB ETF,P
 XBOC,Innovator U.S. Equity Accelerated 9 Buffer ETF - October,Z
 XBOX,Roundhill Ultra Short Duration No Dividend Target ETF,Z
 XBTY,GraniteShares YieldBOOST Bitcoin ETF,Q
@@ -5512,7 +5526,6 @@ XC,WisdomTree True Emerging Markets Fund,P
 XCCC,BondBloxx CCC-Rated USD High Yield Corporate Bond ETF,P
 XCEM,Columbia EM Core ex-China ETF,P
 XCHG,AB US Equity ETF,P
-XCLR,Global X S&P 500 Collar 95-110 ETF,P
 XCNY,State Street SPDR S&P Emerging Markets ex-China ETF,Q
 XCOM,Corgi All Commodities 2x Daily ETF,Z
 XCOR,FundX ETF,P
@@ -5560,6 +5573,7 @@ XLCI,State Street Communication Services Select Sector SPDR Premium Income ETF,P
 XLCU,MicroSectors 3x Long Communication Services (XLC) ETNs,Z
 XLE,State Street Energy Select Sector SPDR ETF,P
 XLEI,State Street Energy Select Sector SPDR Premium Income ETF,P
+XLEM,State Street S&P 500 Energy Market Sector SPDR ETF,P
 XLEX,Corgi U.S. Energy 2x Daily ETF,Z
 XLF,State Street Financial Select Sector SPDR ETF,P
 XLFI,State Street Financial Select Sector SPDR Premium Income ETF,P
@@ -5570,9 +5584,11 @@ XLII,State Street Industrial Select Sector SPDR Premium Income ETF,P
 XLIX,Corgi U.S. Industrials 2x Daily ETF,Z
 XLK,State Street Technology Select Sector SPDR ETF,P
 XLKI,State Street Technology Select Sector SPDR Premium Income ETF,P
+XLKM,State Street S&P 500 Technology Market Sector SPDR ETF,P
 XLKX,Corgi U.S. Technology 2x Daily ETF,Z
 XLP,State Street Consumer Staples Select Sector SPDR ETF,P
 XLPD,MicroSectors -3x Short Consumer Staples (XLP) ETNs,Z
+XLPM,State Street S&P 500 Consumer Staples Market Sector SPDR ETF,P
 XLPU,MicroSectors 3x Long Consumer Staples (XLP) ETNs,Z
 XLPX,Corgi U.S. Consumer Staples 2x Daily ETF,Z
 XLRE,State Street Real Estate Select Sector SPDR ETF,P
@@ -5587,6 +5603,7 @@ XLVI,State Street Health Care Select Sector SPDR Premium Income ETF,P
 XLVX,Corgi U.S. Healthcare 2x Daily ETF,Z
 XLY,State Street Consumer Discretionary Select Sector SPDR ETF,P
 XLYI,State Street Consumer Discretionary Select Sector SPDR Premium Income ETF,P
+XLYM,State Street S&P 500 Consumer Discretionary Market Sector SPDR ETF,P
 XLYX,Corgi U.S. Consumer Discretionary 2x Daily ETF,Z
 XMAG,Defiance Large Cap ex-Mag 7 ETF,Q
 XMAR,FT Vest U.S. Equity Enhance & Moderate Buffer ETF - March,Z
@@ -5674,7 +5691,9 @@ XVV,iShares ESG Select Screened S&P 500 ETF,Z
 XW,Corgi Ex-U.S. Equities 2x Daily ETF,Z
 XWNG,Amplify Top 10 Space ETF,P
 XX,"Roundhill S&P 500 Target 10,000 2030 ETF",Z
+XXQQ,Subversive Growth 100 Redacted ETF,Z
 XXRP,Teucrium 2x Long Daily XRP ETF,P
+XXSP,Subversive S&P 500 Redacted ETF,Z
 XXV,Simplify Ancorato Target 25 Distribution ETF,P
 XXX,CYBER HORNET S&P 500 and XRP 75/25 Strategy ETF,Q
 XYLD,Global X S&P 500 Covered Call ETF,P
@@ -5713,6 +5732,7 @@ YRAM,YieldMax Memory and Storage Portfolio Option Income ETF,Q
 YSAG,Y'all Street Physical Silver ETF,Q
 YSAU,Y'all Street Physical Gold ETF,Q
 YSEP,FT Vest International Equity Buffer ETF - September,Z
+YSKH,YieldMax SKHY Option Income Strategy ETF,Q
 YSPC,YieldMax SPCX Option Income Strategy ETF,P
 YSPY,GraniteShares YieldBOOST SPY ETF,Q
 YUNG,Corgi Longevity Consumer ETF,Z
@@ -5748,8 +5768,6 @@ ZMUN,F/m Ultrashort Tax-Free Municipal ETF,Q
 ZNOV,Innovator Equity Defined Protection ETF - 1 Yr November,Z
 ZOCT,Innovator Equity Defined Protection ETF - 1 Yr October,Z
 ZROZ,PIMCO 25  Year Zero Coupon U.S. Treasury Index Exchange-Traded Fund,P
-ZSB,USCF Sustainable Battery Metals Strategy Fund,P
-ZSC,USCF Sustainable Commodity Strategy Fund,P
 ZSEP,Innovator Equity Defined Protection ETF - 1 Yr September,Z
 ZSL,ProShares UltraShort Silver,P
 ZTAX,X-Square Municipal Income ETF,P
