@@ -518,3 +518,35 @@ def test_house_factsheet_states_why_a_gated_sleeve_holds_cash():
                    {"weights": {"SHY": .6, "ARKG": .4}}, {"weights": {"ARKG": 1.0}}):
         assert house.sleeve_gate_notes(
             {"as_of": "2026-10-30", "sleeves": [dict(c, **change)]}, "2026-10-30") == {}
+
+def test_a_strategy_with_no_change_says_why_rather_than_vanishing():
+    """2026-10-30: C sat wholly in SHY behind its sleeve-breadth gate and the
+    change section never mentioned it, which read as an error (owner,
+    2026-11-01)."""
+    from component_factsheet_view import _change_table, no_change_story, unchanged_sentence
+    gate = {"enabled": True, "n_above": 6, "n_universe": 25, "breadth": .24,
+            "floor": .05, "threshold": .3, "fired": True}
+    shy = {"sleeve": "C", "etf": "SHY", "traded": "SHY", "held": .1, "target": .1,
+           "delta": 0.0, "status": "READY"}
+    book = {"sleeves": [{"sleeve": "C", "status": "READY", "weights": {"SHY": 1.0}, "gate": gate},
+                        {"sleeve": "A", "status": "READY", "weights": {"IUHC": 1.0}, "gate": None},
+                        {"sleeve": "D", "status": "HOLD", "weights": {"EXV1": 1.0}, "gate": None}],
+            "lines": [shy], "overlay_decision": {"gate_on": False, "weights": {}}}
+    release = {"book": book, "labels": {}}
+    c = {"sleeve": "C", "name": "Thematic", "budget": .1, "held": .1, "target": .1, "net": 0.0,
+         "rows": [shy], "changed": []}
+    story = no_change_story(c, release)
+    assert story == ("No change. Sleeve-breadth gate on: 6 of 25 names above the +5% floor, "
+                     "under the 30% threshold (8 needed). The whole strategy stays in SHY at "
+                     "10.00% of NAV, as held.")
+    table, shown = _change_table([c], release)
+    assert "Strategy C · Thematic" in table and "6 of 25 names" in table and shown == 0
+    assert unchanged_sentence({"shifts": [c]}, book).startswith(
+        "Thematic 10.0% in SHY (sleeve-breadth gate: 6 of 25 above +5%, 8 needed)")
+    # An ungated quiet strategy still gets a line; a held one is left to the
+    # HOLD banner; a strategy with changes keeps its own story.
+    iuhc = dict(shy, sleeve="A", etf="IUHC", traded="IUHC")
+    a = dict(c, sleeve="A", name="US sectors", rows=[iuhc])
+    assert no_change_story(a, release) == "No change. The ranking keeps every position at its held weight."
+    assert no_change_story(dict(c, sleeve="D", rows=[dict(shy, sleeve="D")]), release) is None
+    assert no_change_story(dict(c, changed=[shy]), release) is None

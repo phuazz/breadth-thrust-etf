@@ -593,6 +593,27 @@ def sleeve_story(shift, release):
     return " ".join(parts)
 
 
+def no_change_story(shift, release):
+    """Why a ranked strategy with positions proposes no change.
+
+    Only strategies with changes had a group, so on 2026-10-30 Strategy C,
+    wholly in SHY behind its sleeve-breadth gate, appeared nowhere in the
+    change section and its absence read as an error (owner, 2026-11-01).
+    A held strategy is explained by the HOLD banner instead.
+    """
+    if shift["changed"] or not shift["rows"] or shift["sleeve"] in OVERLAY_SLEEVES:
+        return None
+    record = sleeve_record(release["book"], shift["sleeve"])
+    if record.get("status") == "HOLD":
+        return None
+    gate = gate_of(record)
+    cash = [r for r in shift["rows"] if r["etf"] in CASH_PROXIES and r["target"] > 0]
+    if gate and len(cash) == len(shift["rows"]) == 1:
+        return (f"No change. Sleeve-breadth gate on: {gate_terms(gate)}. The whole strategy "
+                f"stays in {cash[0]['traded']} at {pct(cash[0]['target'])} of NAV, as held.")
+    return "No change. The ranking keeps every position at its held weight."
+
+
 def sizing_note(shifts, book):
     """State the weighting once, and only when every ranked strategy agrees."""
     schemes = set()
@@ -626,8 +647,11 @@ def unchanged_sentence(v, book):
         if shift["changed"] or not shift["rows"]:
             continue
         count = len(shift["rows"])
+        only = shift["rows"][0] if count == 1 else None
+        reason = cash_reason(only, book, short=True) if only else None
         parts.append(f"{shift['name']} {pct(shift['target'], dp=1)}"
-                     + (f" across {count} positions" if count > 1 else ""))
+                     + (f" across {count} positions" if count > 1 else "")
+                     + (f" in {only['traded']} ({reason})" if reason else ""))
     overlay = book["overlay_decision"]
     # "Portfolio" because Strategy C has a breadth gate of its own, and
     # "no defensive allocation" read as false beside strategy-level SHY.
@@ -807,13 +831,14 @@ def _change_table(shifts, release, decision=None, limit=None, unchanged=False, r
     shown = 0
     for shift in shifts:
         rows = shift["rows"] if unchanged else shift["changed"]
-        if not rows:
+        quiet = no_change_story(shift, release)
+        if not rows and not quiet:
             continue
-        if limit is not None:
+        if limit is not None and rows:
             rows = rows[:max(0, limit - shown)]
             if not rows:
                 continue
-        story = sleeve_story(shift, release)
+        story = sleeve_story(shift, release) or quiet
         detail = f"<br><span class='note' style='font-size:13px;line-height:1.5'>{book_e(story)}</span>" if story else ""
         # The strategy's own hue, as a rule down the side of its heading.
         parts.append(f"<tr class='group'><td colspan='4' style='padding:12px 6px 8px 10px;font-size:13px;"
@@ -1595,7 +1620,8 @@ def render_pdf(decision, release):
         table.setStyle(TableStyle([("SPAN", (1, r), (3, r)) for r in spans]))
         flow.append(KeepTogether([table]))
         for shift in v["shifts"]:
-            if not shift["changed"]:
+            quiet = no_change_story(shift, release)
+            if not shift["changed"] and not quiet:
                 continue
             record = sleeve_record(book, shift["sleeve"])
             overlay_sleeve = shift["sleeve"] in OVERLAY_SLEEVES
@@ -1603,7 +1629,7 @@ def render_pdf(decision, release):
             head = ("Basis" if overlay_sleeve else
                     "Signal: " + name + (f" ({'percentage points' if suffix == 'pp' else 'per cent'})"
                                          if suffix else ""))
-            story = sleeve_story(shift, release)
+            story = sleeve_story(shift, release) or quiet
             colour = _sleeve_hex(house, shift["sleeve"])
             block = [Spacer(1, 12),
                      Table([[cell(group_heading(shift, book, decision), INK, 9.5, bold=True)]],
@@ -1615,6 +1641,9 @@ def render_pdf(decision, release):
                                ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))]
             if story:
                 block += [Spacer(1, 3), p(story, note)]
+            if not shift["changed"]:
+                flow.append(KeepTogether(block))
+                continue
             rows = [[cell("ACTION", FAINT, 7.5, bold=True), cell("POSITION", FAINT, 7.5, bold=True),
                      cell("HELD", FAINT, 7.5, bold=True, align=TA_RIGHT),
                      cell("TARGET", FAINT, 7.5, bold=True, align=TA_RIGHT),
