@@ -543,3 +543,28 @@ def test_overlay_lines_are_carried_as_held():
     line = lines[("TILT", "EEM")]
     assert line["target"] == line["held"] == 0.10
     assert line["within"] == 1.0 and line["delta"] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# The held side names its book (2026-11-01)
+# ---------------------------------------------------------------------------
+def test_the_held_side_names_the_book_it_is_measured_from():
+    """The held column had no date, so a held book frozen before the
+    2026-10-26 fill read as the current one. It is dated only when the basis
+    belongs to these targets."""
+    t = _template_text()
+    assert 'id="nf-th-delta"' in t
+    assert "hb.anchor === lt.as_of" in t
+    assert "after the ${fmtDateLongSafe(hb.model_as_of)} fill" in t
+
+
+def test_the_pipeline_ships_only_the_dating_fields_of_the_basis(tmp_path, monkeypatch):
+    import scripts.pipeline as pipeline
+    monkeypatch.setattr(pipeline, "DATA_DIR", tmp_path)
+    assert pipeline.load_held_basis() is None
+    fills = {"book_as_of": "2026-10-23", "fills": {"NYSE": "2026-10-26"}}
+    (tmp_path / "component_held_basis.json").write_text(json.dumps(
+        {"anchor": "2026-10-30", "model_as_of": "2026-10-26", "held_after_fill": fills,
+         "lines": [{"sleeve": "B", "etf": "SHY", "held": 1.0}]}), encoding="utf-8")
+    assert pipeline.load_held_basis() == {"anchor": "2026-10-30", "model_as_of": "2026-10-26",
+                                          "held_after_fill": fills}

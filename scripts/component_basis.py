@@ -31,7 +31,22 @@ def prepare(data_dir: Path, anchor: str):
         if prior.get("anchor") == anchor:
             return validate(prior, anchor)
     book = json.loads((data_dir / "live_targets.json").read_text(encoding="utf-8"))
-    rows = [{"sleeve": r["sleeve"], "etf": r["etf"], "held": float(r["held"])}
+    # A book whose fill falls on or before the new anchor describes positions
+    # from BEFORE that fill: its "held" is the pre-fill book and its "target" is
+    # what the fill left in place. The post-fill run normally republishes
+    # live_targets after the fill; on 2026-10-27..29 it failed on a dirty tree,
+    # so the 2026-11-01 refresh froze the pre-2026-10-26 book as held and every
+    # change for the 2026-11-02 fill was measured from it (B's 5% SHY entered
+    # on 2026-10-26 got no exit). Per venue, because XETR and NYSE fills can
+    # fall on different days. Not broker confirmation: the model book assumes
+    # the instructed fill was made.
+    venue_of = {s["sleeve"]: s["venue"] for s in book.get("sleeves") or []}
+    fills = (book.get("next_fill") or {}).get("by_venue") or {}
+    filled = {venue: day for venue, day in fills.items()
+              if day and date.fromisoformat(day) <= date.fromisoformat(anchor)}
+    rows = [{"sleeve": r["sleeve"], "etf": r["etf"],
+             "held": float(r["target"] if venue_of.get(r["sleeve"], "NYSE") in filled
+                           else r["held"])}
             for r in book["lines"]]
     keys = [(r["sleeve"], r["etf"]) for r in rows]
     if (not rows or len(set(keys)) != len(rows)
@@ -39,9 +54,12 @@ def prepare(data_dir: Path, anchor: str):
             or not math.isclose(sum(r["held"] for r in rows), 1.0, rel_tol=0,
                                 abs_tol=MODEL_WEIGHT_ROUNDING_TOL)):
         raise ValueError("model-held basis is incomplete, duplicated or does not conserve NAV")
-    result = {"anchor": anchor, "model_as_of": book["as_of"], "lines": rows,
+    result = {"anchor": anchor, "model_as_of": max([book["as_of"], *filled.values()]),
+              "lines": rows,
               "basis": "existing model-held positions; not broker execution confirmation",
               "rounding_residual_nav": sum(r["held"] for r in rows) - 1.0}
+    if filled:
+        result["held_after_fill"] = {"book_as_of": book["as_of"], "fills": dict(sorted(filled.items()))}
     validate(result, anchor)
     path.write_text(json.dumps(result, indent=2), encoding="utf-8")
     return result

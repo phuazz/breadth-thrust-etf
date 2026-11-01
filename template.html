@@ -2342,7 +2342,7 @@
               <th class="th-sl">Sleeve</th>
               <th class="th-tk">Ticker &amp; name</th>
               <th class="th-act">Action</th>
-              <th class="th-delta">Held &rarr; Target (% of total NAV)</th>
+              <th class="th-delta" id="nf-th-delta">Held &rarr; Target (% of total NAV)</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -5102,6 +5102,22 @@ function renderNextFill(labelMap) {
       + `between now and then re-ranks it. Shown for reference only — review it `
       + `after the ${rankedOn || 'decision'} close. The book below the fold is `
       + `what is actually held today.`;
+
+  // HELD AGAINST WHICH BOOK (2026-11-01). The held side had no date, so a
+  // held book frozen before the 2026-10-26 fill read as the current one. The
+  // basis is named only when it belongs to these targets; otherwise the
+  // column keeps its undated label rather than borrow another week's date.
+  const hb = (window.DATA || {}).held_basis;
+  if (hb && hb.anchor === lt.as_of && hb.model_as_of) {
+    const heldWhen = hb.held_after_fill
+      ? `after the ${fmtDateLongSafe(hb.model_as_of)} fill`
+      : `as at ${fmtDateLongSafe(hb.model_as_of)}`;
+    document.getElementById('nf-th-delta').textContent =
+      `Held (${heldWhen}) → Target (% of total NAV)`;
+    document.getElementById('nf-note').innerHTML +=
+      ` Held is the model book ${heldWhen}, as instructed; it is not broker `
+      + `confirmation.`;
+  }
 
   const held = new Map();
   for (const ln of lt.lines) held.set(ln.sleeve + '|' + ln.etf, ln);

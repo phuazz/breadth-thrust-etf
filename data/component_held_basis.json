@@ -1,81 +1,81 @@
 {
   "anchor": "2026-10-30",
-  "model_as_of": "2026-10-23",
+  "model_as_of": "2026-10-26",
   "lines": [
     {
       "sleeve": "A",
       "etf": "IUES",
-      "held": 0.07783999999999999
+      "held": 0.10281565
     },
     {
       "sleeve": "A",
       "etf": "IUCS",
-      "held": 0.06950999999999999
+      "held": 0.05290705
     },
     {
       "sleeve": "A",
       "etf": "CNDX",
-      "held": 0.013369999999999998
+      "held": 0.0067585
     },
     {
       "sleeve": "A",
       "etf": "IUFS",
-      "held": 0.05201
+      "held": 0.0480543
     },
     {
       "sleeve": "A",
       "etf": "CSP1",
-      "held": 0.010815
+      "held": 0.013874
     },
     {
       "sleeve": "A",
       "etf": "IUMS",
-      "held": 0.002345
+      "held": 0.0
     },
     {
       "sleeve": "A",
       "etf": "IUHC",
-      "held": 0.12418
+      "held": 0.12559085
     },
     {
       "sleeve": "B",
       "etf": "SHY",
-      "held": 0.0
+      "held": 0.04999995
     },
     {
       "sleeve": "B",
       "etf": "QQQ",
-      "held": 0.053445
+      "held": 0.039446749999999996
     },
     {
       "sleeve": "B",
       "etf": "EWJ",
-      "held": 0.04305
+      "held": 0.029111949999999998
     },
     {
       "sleeve": "B",
       "etf": "IJR",
-      "held": 0.0012599999999999998
+      "held": 0.0144102
     },
     {
       "sleeve": "B",
       "etf": "EFA",
-      "held": 0.01428
+      "held": 0.0033211499999999997
     },
     {
       "sleeve": "B",
       "etf": "SPY",
-      "held": 0.057085
+      "held": 0.0468132
     },
     {
       "sleeve": "B",
       "etf": "DBC",
-      "held": 0.175245
+      "held": 0.16689679999999998
     },
     {
       "sleeve": "B",
       "etf": "VGK",
-      "held": 0.005634999999999999
+      "held": 0.0
     },
     {
       "sleeve": "C",
@@ -85,19 +85,26 @@
     {
       "sleeve": "D",
       "etf": "EXV1",
-      "held": 0.07221999999999999
+      "held": 0.0621072
     },
     {
       "sleeve": "D",
       "etf": "EXH1",
-      "held": 0.06520000000000001
+      "held": 0.07227019999999999
     },
     {
       "sleeve": "D",
       "etf": "EXV3",
-      "held": 0.06258000000000001
+      "held": 0.0656226
     }
   ],
   "basis": "existing model-held positions; not broker execution confirmation",
-  "rounding_residual_nav": 7.00000000000145e-05
+  "rounding_residual_nav": 3.499999998712866e-07,
+  "held_after_fill": {
+    "book_as_of": "2026-10-23",
+    "fills": {
+      "NYSE": "2026-10-26",
+      "XETR": "2026-10-26"
+    }
+  }
 }

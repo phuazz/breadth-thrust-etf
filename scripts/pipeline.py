@@ -172,6 +172,26 @@ def load_live_targets() -> dict | None:
     return blob if blob.get("lines") else None
 
 
+def load_held_basis() -> dict | None:
+    """Which book the Next Fill card's "held" side is (2026-11-01).
+
+    The card printed held -> target with no date, so a held book frozen before
+    the 2026-10-26 fill read as the current one and nothing on the page said
+    otherwise. Only the dating fields are shipped; the template prints them
+    only when the basis anchor matches the targets' as_of.
+    """
+    path = DATA_DIR / "component_held_basis.json"
+    if not path.exists():
+        return None
+    try:
+        blob = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(blob, dict) or not blob.get("anchor") or not blob.get("model_as_of"):
+        return None
+    return {k: blob[k] for k in ("anchor", "model_as_of", "held_after_fill") if k in blob}
+
+
 def load_commentary() -> dict | None:
     """Derived commentary for the next fill and the week, written by
     scripts/build_commentary.py (2026-09-06). Every sentence in it is
@@ -1703,6 +1723,7 @@ def main(dashboard_only: bool = False, strict_capture: bool = False) -> int:
         "execution_timing": execution_timing,
         "strategy_freshness": strategy_freshness,
         "live_targets": live_targets,
+        "held_basis": load_held_basis(),
         "combined_book_risk": load_combined_book_risk(),
         "commentary": load_commentary(),
     }
