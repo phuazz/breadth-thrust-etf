@@ -9,7 +9,9 @@ unattended agent runs without a guard layer, this wrapper is nothing
 BUT guard layers around refresh_all.py:
 
   preflight   clean working tree required (a dirty automation clone
-              means a human or another process interfered — abort), then
+              means a human or another process interfered — abort; the
+              one exception is the debris of a run that was killed, proven
+              by its in-flight marker, see recover_interrupted_run), then
               git pull --rebase so the run starts from origin HEAD.
   refresh     scripts/refresh_all.py --price-source <source> (default
               norgate since 2026-09-03), plus --deployed-only for the
@@ -597,6 +599,183 @@ def restore_tracked_outputs(log, repo_root: Path = REPO_ROOT) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# A RUN KILLED FROM OUTSIDE (2026-11-01)
+#
+# restore_tracked_outputs covers a refresh that FAILS; it cannot cover one
+# that is KILLED, because a killed process runs no cleanup. On 2026-10-27 the
+# machine restarted at 09:43 SGT, sixteen minutes into the 09:27 post-fill
+# firing, which had rewritten eight panels and was fetching the ninth. Every
+# firing after it - 33 of them, 2026-10-27 10:00 to 2026-10-31 15:00 SGT,
+# Saturday's weekend refresh among them - refused the tree as a person's work
+# and emailed, until the clone was reset by hand.
+#
+# Each run past the preflight now leaves an in-flight marker under logs/
+# (gitignored, so it never dirties the tree, and untouched by the restore)
+# naming its process and the HEAD it started from. A run that RETURNS removes
+# it; a run that is killed or raises leaves it, which is the point. A later
+# firing that finds the tree dirty restores it ONLY when all of these hold:
+#   - the marker exists and its process is gone: no process has that pid with
+#     that creation time (a restart ends every pid, and a reused pid carries a
+#     different creation time); a process that cannot be inspected counts as
+#     alive;
+#   - HEAD is still the commit the dead run recorded, so nobody has committed
+#     on top of its debris;
+#   - every dirty path is an output the refresh writes. template.html is not
+#     admitted here, although restore_tracked_outputs restores it: people edit
+#     it, and a dead run's marker says nothing about who touched it.
+# Anything else is refused as a person's work, exactly as before, with the
+# marker's verdict added to the refusal so the operator sees why.
+# ---------------------------------------------------------------------------
+IN_FLIGHT_MARKER_NAME = "refresh_in_flight.json"
+INTERRUPTED_RESTORE_PATHS = ("data/", "docs/", "build/portfolio.html")
+_UNINSPECTABLE = "?"
+
+
+def in_flight_marker_path() -> Path:
+    return LOG_DIR / IN_FLIGHT_MARKER_NAME
+
+
+def _process_identity(pid: int) -> str | None:
+    """A token naming the process that has ``pid`` now (its creation time),
+    None when no such process exists, or _UNINSPECTABLE when one exists but
+    cannot be read. Callers treat _UNINSPECTABLE as alive: fail closed."""
+    if not isinstance(pid, int) or pid <= 0:
+        return None
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        k32.GetProcessTimes.argtypes = (wintypes.HANDLE,) + (ctypes.POINTER(wintypes.FILETIME),) * 4
+        k32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+        k32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        ERROR_ACCESS_DENIED = 5
+        STILL_ACTIVE = 259
+        handle = k32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if not handle:
+            return (_UNINSPECTABLE if ctypes.get_last_error() == ERROR_ACCESS_DENIED
+                    else None)
+        try:
+            code = wintypes.DWORD()
+            if not k32.GetExitCodeProcess(handle, ctypes.byref(code)):
+                return _UNINSPECTABLE
+            if code.value != STILL_ACTIVE:
+                return None   # exited; a handle can outlive the process
+            times = [wintypes.FILETIME() for _ in range(4)]
+            if not k32.GetProcessTimes(handle, *(ctypes.byref(t) for t in times)):
+                return _UNINSPECTABLE
+            created = times[0]
+            return str((created.dwHighDateTime << 32) | created.dwLowDateTime)
+        finally:
+            k32.CloseHandle(handle)
+    stat = Path(f"/proc/{pid}/stat")
+    try:
+        # Field 22 is the start time in clock ticks since boot; the command
+        # name (field 2) may contain spaces, so split after its closing ')'.
+        return "proc:" + stat.read_text().rsplit(")", 1)[1].split()[19]
+    except FileNotFoundError:
+        return None
+    except (OSError, IndexError):
+        pass
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return None
+    except PermissionError:
+        return _UNINSPECTABLE
+    return "alive"
+
+
+def claim_in_flight(log, repo_root: Path, *, cadence: str, component: str) -> None:
+    """Record that this process is now writing the clone. Best-effort: a
+    marker that cannot be written only loses the automatic recovery.
+
+    Not under pytest (_durable_state_enabled): the refresh runs the suite
+    from inside the clone, and a test driving main() against the real
+    REPO_ROOT would otherwise overwrite the live run's marker with the
+    pytest process's - a marker that would then authorise a restore."""
+    if not _durable_state_enabled():
+        return
+    head = _git(["rev-parse", "HEAD"], log, cwd=repo_root).stdout.strip()
+    record = {"pid": os.getpid(), "identity": _process_identity(os.getpid()),
+              "head": head, "cadence": cadence, "component": component,
+              "started_utc": datetime.now(timezone.utc).isoformat()}
+    path = in_flight_marker_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(record, sort_keys=True), encoding="utf-8")
+
+
+def release_in_flight() -> None:
+    """Remove the marker if this process wrote it. A waited child that
+    claimed after its parent owns it by then, and removes it itself."""
+    path = in_flight_marker_path()
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if isinstance(record, dict) and record.get("pid") == os.getpid():
+        path.unlink(missing_ok=True)
+
+
+def _porcelain_paths(porcelain: str) -> list[str] | None:
+    """The paths in ``git status --porcelain`` output, or None when an entry
+    is a rename, a copy or a quoted path - shapes a refresh never leaves,
+    and so not something to discard automatically."""
+    paths = []
+    for line in porcelain.splitlines():
+        if not line.strip():
+            continue
+        status, path = line[:2], line[3:]
+        if "R" in status or "C" in status or path.startswith('"'):
+            return None
+        paths.append(path)
+    return paths
+
+
+def recover_interrupted_run(log, porcelain: str,
+                            repo_root: Path = REPO_ROOT) -> tuple[bool, str]:
+    """Restore a tree a killed run left dirty, when the marker proves that is
+    what it is. Returns (restored, reason); see the section comment."""
+    if not _durable_state_enabled():
+        return False, "interrupted-run recovery is disabled under pytest"
+    path = in_flight_marker_path()
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return False, "no in-flight marker, so nothing shows a run was interrupted"
+    except (OSError, ValueError) as exc:
+        return False, f"in-flight marker unreadable ({type(exc).__name__})"
+    if not isinstance(record, dict):
+        return False, "in-flight marker malformed"
+    pid, started = record.get("pid"), record.get("started_utc")
+    who = f"run pid {pid} started {started} ({record.get('cadence')}/{record.get('component')})"
+    now_identity = _process_identity(pid)
+    if now_identity == _UNINSPECTABLE:
+        return False, f"{who}: its process cannot be inspected, so it may be alive"
+    if now_identity is not None and now_identity == record.get("identity"):
+        return False, f"{who} is still in flight"
+    head = _git(["rev-parse", "HEAD"], log, cwd=repo_root).stdout.strip()
+    if not head or head != record.get("head"):
+        return False, (f"{who} is gone, but HEAD moved from {record.get('head')} "
+                       f"to {head or '<unknown>'} since it started")
+    paths = _porcelain_paths(porcelain)
+    if paths is None:
+        return False, f"{who} is gone, but the tree holds a rename, copy or quoted path"
+    foreign = [p for p in paths if not p.startswith(INTERRUPTED_RESTORE_PATHS)]
+    if foreign:
+        return False, (f"{who} is gone, but these paths are not refresh outputs: "
+                       + ", ".join(foreign))
+    log.write(f"\ninterrupted run: {who} is gone and left only refresh outputs; "
+              "restoring them so this firing can run\n")
+    if not restore_tracked_outputs(log, repo_root):
+        return False, f"{who} is gone, but the restore left the tree dirty"
+    path.unlink(missing_ok=True)
+    return True, f"restored the outputs of {who}"
+
+
+# ---------------------------------------------------------------------------
 # PUBLISHING OVER A MOVED ORIGIN (2026-10-01)
 #
 # See the module docstring. Three pieces: abort whatever an earlier firing
@@ -984,6 +1163,15 @@ def repairable_held_core(released: dict) -> list[str]:
     return sorted(out)
 
 
+def cli(argv: list[str] | None = None) -> int:
+    """The script entry. The in-flight marker is released only on a RETURN:
+    a run killed or raising never gets here, and the marker it leaves is what
+    lets the next firing restore its debris; see recover_interrupted_run."""
+    rc = main(argv)
+    release_in_flight()
+    return rc
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--component", choices=("auto", "all", "core", "europe"), default="auto",
@@ -1136,10 +1324,16 @@ def main(argv: list[str] | None = None) -> int:
     if cp.returncode != 0:
         return fail(2, "git status failed", cp.stderr)
     if cp.stdout.strip():
-        return fail(2, "working tree not clean",
-                    "The automation clone has local changes; a human or "
-                    "another process interfered. Not touching anything.\n"
-                    + cp.stdout)
+        # A killed run's debris is restored; anything else is a person's.
+        # See recover_interrupted_run.
+        recovered, why = recover_interrupted_run(log, cp.stdout)
+        log.write(f"\ninterrupted-run check: {why}\n")
+        if not recovered:
+            return fail(2, "working tree not clean",
+                        "The automation clone has local changes; a human or "
+                        "another process interfered. Not touching anything.\n"
+                        f"In-flight marker: {why}.\n"
+                        + cp.stdout)
     # Commits an earlier firing could not push (exit 5) are published now,
     # before anything else: they passed every guard and only lost the push
     # race, and the debt reads origin, so they are still owed until they
@@ -1195,6 +1389,11 @@ def main(argv: list[str] | None = None) -> int:
                 [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
                 cwd=REPO_ROOT, env=env)
             return child.returncode
+
+    # From here the run writes the clone; see recover_interrupted_run.
+    if not args.preflight_only:
+        _safe(log, "in-flight marker", claim_in_flight, log, REPO_ROOT,
+              cadence=args.cadence, component=args.component)
 
     # Waited children preserve Task Scheduler single-instance protection.
     # Core is committed first; a Europe failure cannot roll it back.
@@ -1836,4 +2035,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(cli())
