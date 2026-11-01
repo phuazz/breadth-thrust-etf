@@ -17,7 +17,7 @@ import shutil
 import signal
 import subprocess
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from pathlib import Path
 
 import numpy as np
@@ -32,6 +32,8 @@ from venue_calendars import get_calendar  # noqa: E402
 
 RNG = np.random.default_rng(20261027)
 NOW = datetime(2026, 10, 27, 12, tzinfo=timezone.utc)
+# The repository's combined-book inputs at the 2026-10-23 anchor (commit 1dda2acc).
+REAL_BOOK = ROOT / "tests" / "fixtures" / "combined_book_2026-10-23"
 
 
 # --------------------------------------------------------------------------
@@ -1135,32 +1137,60 @@ def test_d2_control_invalid_with_capital_keeps_tables_and_original_lead(tmp_path
 # Invariance and the real book
 # --------------------------------------------------------------------------
 
+def live_now(data_dir):
+    """Noon UTC on the held-basis anchor. The weekly refresh moves the anchor to
+    the latest week-final session before the tests run, so a fixed date would
+    put the anchor in the future and withhold the capital view."""
+    basis = json.loads((data_dir / "component_held_basis.json").read_text(encoding="utf-8"))
+    return datetime.combine(date.fromisoformat(basis["anchor"]), time(12), tzinfo=timezone.utc)
+
+
 def test_build_does_not_touch_engine_files():
     data = ROOT / "data"
     before = {f: cbr.sha256(data / f) for f in cbr.ENGINE_FILES}
-    cbr.build(data, NOW)
+    cbr.build(data, live_now(data))
     assert {f: cbr.sha256(data / f) for f in cbr.ENGINE_FILES} == before
     assert cbr.OUT_PATH.name not in cbr.ENGINE_FILES
 
 
-def test_real_book_contract():
-    """On the repository data the capital view reconciles; the risk estimate
-    is withheld only for the named engine-FX dependency when that is missing."""
-    out = cbr.build(ROOT / "data", NOW)
+def test_frozen_book_contract():
+    """On the inputs frozen from the repository at the 2026-10-23 anchor (prices
+    trimmed to the held proxies) the capital view reconciles, and the risk
+    estimate is withheld only for the named engine-FX dependency."""
+    out = cbr.build(REAL_BOOK, NOW)
     cbr.validate_output(out)
     assert out["capital_status"] == "available"
+    assert out["basis"]["anchor"] == "2026-10-23"
     rec = out["reconciliation"]
     assert rec["status"] == "pass" and rec["max_abs_diff"] <= rec["tolerance"] == 1e-4
+    assert out["risk_status"] == "unavailable"
+    assert len(out["reasons"]) == 1 and "Missing dependency" in out["reasons"][0]
+    cache = out["basis"]["fx"]["tried"][1]
+    assert cache["last"] == "2026-06-19" and "provenance cannot be established" in cache["problem"]
+
+
+def test_live_book_smoke():
+    """On whatever the repository data holds, including the state a weekly
+    refresh tests before it commits: the output validates and the capital view
+    is available. At a weekly refresh the live_track anchor is still the
+    previous one (2026-10-19 against a held-basis anchor of 2026-10-23 at the
+    2026-10-24 refresh), so an anchor mismatch is the one permitted way for the
+    reconciliation to go unchecked; a failed reconciliation never passes."""
+    data = ROOT / "data"
+    out = cbr.build(data, live_now(data))
+    cbr.validate_output(out)
+    assert out["capital_status"] == "available", out["reasons"]
+    rec = out["reconciliation"]
+    assert rec["live_targets_held"] != "fail"
+    if rec["status"] != "pass":
+        assert rec["status"] == "not checked" and rec["detail"].startswith("live_track anchor "), rec
     if out["risk_status"] != "available":
-        assert len(out["reasons"]) == 1 and "Missing dependency" in out["reasons"][0]
-        cache = out["basis"]["fx"]["tried"][1]
-        assert cache["last"] == "2026-06-19" and "provenance cannot be established" in cache["problem"]
         return
-    prices = json.loads((ROOT / "data" / "holdings_prices_1y.json").read_text())["prices"]
+    prices = json.loads((data / "holdings_prices_1y.json").read_text())["prices"]
     cutoff = date.fromisoformat(out["basis"]["price_cutoff"])
     syms = [i["proxy"] for i in out["instruments"]]
     native, _, _ = cbr.load_prices(prices, syms, cutoff)
-    fx, _, _ = cbr.load_fx(cutoff, cbr.fx_sources(ROOT / "data"))
+    fx, _, _ = cbr.load_fx(cutoff, cbr.fx_sources(data))
     panel, _ = cbr.usd_panel(native, {i["proxy"]: i["fx"] for i in out["instruments"]}, fx)
     rets = panel[syms].pct_change().iloc[1:]
     w = np.array([i["weight"] for i in out["instruments"]])
