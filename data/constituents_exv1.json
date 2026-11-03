@@ -2,7 +2,7 @@
   "etf": "EXV1",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251934/ishares-stoxx-europe-600-banks-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-11-01T11:50:12.033316+00:00",
+  "fetched_at_utc": "2026-11-03T04:19:24.907553+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-10-30",
   "n_target_fridays": 461,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-10-30",
-      "fallback_date": "2026-10-29",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-10-29",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-10-30",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -23857,7 +23851,7 @@
       ]
     },
     "2026-10-30": {
-      "actual_date": "2026-10-29",
+      "actual_date": "2026-10-30",
       "n_tickers": 62,
       "tickers": [
         "HSBA.L",
@@ -23869,8 +23863,8 @@
         "INGA.AS",
         "BARC.L",
         "LLOY.L",
-        "NWG.L",
         "DBK.DE",
+        "NWG.L",
         "NDA-FI.HE",
         "GLE.PA",
         "STAN.L",
@@ -23880,8 +23874,8 @@
         "DANSKE.CO",
         "SEB-A.ST",
         "ABN.AS",
-        "KBC.BR",
         "DNB.OL",
+        "KBC.BR",
         "BMPS.MI",
         "A5G.IR",
         "PKO.WA",
@@ -23895,8 +23889,8 @@
         "ETE.AT",
         "FBK.MI",
         "BG.VI",
-        "PEO.WA",
         "EUROB.AT",
+        "PEO.WA",
         "TPEIR.AT",
         "BCP.LS",
         "BKT.MC",
@@ -23909,18 +23903,18 @@
         "BGEO.L",
         "SB1NO.OL",
         "MBK.WA",
-        "AZA.ST",
         "BCVN.SW",
+        "AZA.ST",
         "INVP.L",
-        "KBCA.BR",
         "UNI.MC",
+        "KBCA.BR",
         "BGN.MI",
         "ING.WA",
         "MIL.WA",
         "CMBN.SW",
         "SBNOR.OL",
-        "TBCG.L",
         "VONN.SW",
+        "TBCG.L",
         "VATN.SW"
       ]
     }

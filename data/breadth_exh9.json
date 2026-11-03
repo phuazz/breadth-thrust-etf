@@ -1,29 +1,115 @@
 {
   "etf": "EXH9",
-  "computed_at_utc": "2026-11-01T11:56:03.259657+00:00",
+  "computed_at_utc": "2026-11-03T04:24:32.386272+00:00",
   "constituents_source": "data\\constituents_exh9.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
   "end_date": "2026-10-30",
-  "tail_cap": null,
-  "tail_verification": null,
+  "tail_cap": {
+    "capped_at": "2026-10-30",
+    "venue_last_completed": "2026-11-02",
+    "constituents_priced_to": "2026-10-30",
+    "roster_end_friday": "2026-10-30",
+    "vendor_probe": {
+      "checked_at_utc": "2026-11-03T04:24:13+00:00",
+      "probe": "yfinance single-ticker history",
+      "last_populated": "2026-10-30",
+      "rows": [
+        {
+          "date": "2026-11-02",
+          "roster_held": 29,
+          "roster_priced": 0,
+          "live_unpriced": 29,
+          "sampled": [
+            "IBE.MC",
+            "VIE.PA",
+            "FORTUM.HE",
+            "MTLN.AT",
+            "BKW.SW"
+          ],
+          "sample_answered": 5,
+          "sample_served": 0,
+          "verdict": "unserved"
+        }
+      ],
+      "dropped": [
+        "2026-11-02"
+      ]
+    }
+  },
+  "tail_verification": {
+    "checked_at_utc": "2026-11-03T04:24:13+00:00",
+    "probe": "yfinance single-ticker history",
+    "last_populated": "2026-10-30",
+    "rows": [
+      {
+        "date": "2026-11-02",
+        "roster_held": 29,
+        "roster_priced": 0,
+        "live_unpriced": 29,
+        "sampled": [
+          "IBE.MC",
+          "VIE.PA",
+          "FORTUM.HE",
+          "MTLN.AT",
+          "BKW.SW"
+        ],
+        "sample_answered": 5,
+        "sample_served": 0,
+        "verdict": "unserved"
+      }
+    ],
+    "dropped": [
+      "2026-11-02"
+    ]
+  },
   "tail_from_norgate": null,
   "current_capture": {
     "schema_version": 1,
-    "roster_fingerprint": "98583f0207b2f3c752a3ccacf4f8b8498bbd61e3df9eb5ad09ad1392cb36d94e",
+    "roster_fingerprint": "c0afe4b6effb97b2bf49e60934fffb10c5d7549df70471a385d591adaf1ded21",
     "roster_target": "2026-10-30",
-    "roster_actual": "2026-10-29",
+    "roster_actual": "2026-10-30",
     "roster_carried": false,
     "roster_endpoint_status": "ok",
     "roster_staleness": "fresh",
     "requested_price_source": "auto",
-    "required_price_session": "2026-10-30",
+    "required_price_session": "2026-11-02",
     "panel_through": "2026-10-30",
-    "panel_current": true,
+    "panel_current": false,
     "n_active": 29,
-    "n_priced_through_required": 29,
+    "n_priced_through_required": 0,
     "no_price_history": [],
-    "behind_required_session": {},
+    "behind_required_session": {
+      "A2A.MI": "2026-10-30",
+      "BKW.SW": "2026-10-30",
+      "CNA.L": "2026-10-30",
+      "DRX.L": "2026-10-30",
+      "EDP.LS": "2026-10-30",
+      "EDPR.LS": "2026-10-30",
+      "ELE.MC": "2026-10-30",
+      "ELI.BR": "2026-10-30",
+      "ENEL.MI": "2026-10-30",
+      "ENGI.PA": "2026-10-30",
+      "EOAN.DE": "2026-10-30",
+      "FORTUM.HE": "2026-10-30",
+      "HER.MI": "2026-10-30",
+      "IBE.MC": "2026-10-30",
+      "IG.MI": "2026-10-30",
+      "MTLN.AT": "2026-10-30",
+      "NG.L": "2026-10-30",
+      "NTGY.MC": "2026-10-30",
+      "ORSTED.CO": "2026-10-30",
+      "PNN.L": "2026-10-30",
+      "PPC.AT": "2026-10-30",
+      "RED.MC": "2026-10-30",
+      "RWE.DE": "2026-10-30",
+      "SSE.L": "2026-10-30",
+      "SVT.L": "2026-10-30",
+      "TRN.MI": "2026-10-30",
+      "UU.L": "2026-10-30",
+      "VER.VI": "2026-10-30",
+      "VIE.PA": "2026-10-30"
+    },
     "note": "Availability of active constituents; breadth coverage rules are unchanged."
   },
   "n_trading_days": 2240,

@@ -2,7 +2,7 @@
   "etf": "EXH1",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251954/ishares-stoxx-europe-600-oil-gas-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXH1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-11-01T11:51:39.072794+00:00",
+  "fetched_at_utc": "2026-11-03T04:20:31.919355+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-10-30",
   "n_target_fridays": 461,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-10-30",
-      "fallback_date": "2026-10-29",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-10-29",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-10-30",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -12855,7 +12849,7 @@
       ]
     },
     "2026-10-30": {
-      "actual_date": "2026-10-29",
+      "actual_date": "2026-10-30",
       "n_tickers": 27,
       "tickers": [
         "SHELL.AS",
@@ -12879,9 +12873,9 @@
         "VAR.OL",
         "NDX1.DE",
         "SBMO.AS",
+        "MOH.AT",
         "TE.PA",
         "VK.PA",
-        "MOH.AT",
         "ENG.MC",
         "VPK.AS",
         "TGS.OL"
