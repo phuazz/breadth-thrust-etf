@@ -554,6 +554,13 @@ def signal_range(signal: float, extent: dict | None, window_rows: int,
     its average when it trades above it (a filled close is read at today's
     level; the term is about 0.05% per filled row at the 10% bound). None
     when either input is unknown or the average's bound reaches 100%.
+
+    APPROXIMATE IN THE AVERAGE TERM (red-team S3-1, 2026-11-03). The strict
+    scale is the highest filled close in the window over the average, which
+    needs the closes; a line that has fallen can carry earlier filled closes
+    above both. At 1.3x the term is understated by about 0.015pp per filled
+    row, so it matters only for a corner within hundredths of a point of a
+    flip. The row's own term (``depth``) is exact.
     """
     if extent is None or move_bound is None or not (0 < move_bound < 1) \
             or signal is None or not math.isfinite(signal):

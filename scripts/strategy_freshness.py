@@ -462,9 +462,10 @@ def native_cache_reach_or_carried(
     ``materiality(frame, native)`` (owner, 2026-11-03) returns
     ``{ticker: range record}`` for filled lines that could not change the
     sleeve's book at the cache's last row; those lines do not cap the reach and
-    their record carries ``immaterial``. It applies to a present cache only --
-    a carried bound is never relaxed -- and a materiality fault leaves every
-    line capping as before.
+    their record carries ``immaterial``. It is tested on a present cache only;
+    an absent one carries the prior row whole, immaterial records included,
+    and never relaxes a line itself. A materiality fault leaves every line
+    capping as before.
     """
     native_tickers = [t for t in native_tickers if t in tickers]
     if not native_tickers:
@@ -531,8 +532,16 @@ def native_cache_reach_or_carried(
             return False
         if not (r.get("error") is None or isinstance(r.get("error"), str)):
             return False
+        if bound is None:
+            return False
+        # A line the prior run found immaterial did not cap that bound, so its
+        # last_valid sits behind it by construction. Carrying the row repeats
+        # that measurement whole; it relaxes nothing new (red-team S2-1,
+        # 2026-11-03 -- refusing it dropped C to unknown on every CI rebuild).
+        if isinstance(r.get("immaterial"), dict) and r["immaterial"]:
+            return _date_or_none(r.get("last_valid"))
         valid = _strict_date(r.get("last_valid"))
-        return valid is not None and bound is not None and valid >= bound
+        return valid is not None and valid >= bound
 
     bound = _strict_date(reach)
     if recs is not None and lag_ok and all(_covers(t, r) for t, r in recs.items()):

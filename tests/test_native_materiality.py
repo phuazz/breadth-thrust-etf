@@ -300,6 +300,40 @@ def test_a_materiality_fault_never_relaxes_the_cap(tmp_path):
     assert "immaterial" not in native[CN]
 
 
+def _carry(monkeypatch, tmp_path, native, reach):
+    """Carry ``native`` from a committed row through an absent cache, as CI
+    does (the cache is gitignored)."""
+    row = {"sleeve": "C", "venue": "NYSE", "data_through": reach, "laggards": [],
+           "source": "price cache (thematic ETFs)", "status": "current",
+           "native_provenance": json.loads(json.dumps(native))}
+    monkeypatch.setattr(sf, "_prior_row", lambda s: (row, "2026-10-29T01:00:00Z"))
+    return _measure(tmp_path / "absent.parquet", None)
+
+
+def test_ci_carries_a_bound_relaxed_on_the_local_run(monkeypatch, tmp_path):
+    # red-team S2-1: CI took C to unknown after every relaxed local run.
+    info = {"signal_range": [-0.34, -0.19]}
+    reach, _, _, _, native = _measure(_cache(tmp_path), lambda f, n: {CN: info})
+    reach2, lag2, _, carried, native2 = _carry(monkeypatch, tmp_path, native, reach)
+    assert (reach2, lag2, carried) == ("2026-10-28", [], True)
+    assert native2[CN]["immaterial"] == info
+
+
+def test_ci_still_refuses_a_line_behind_the_bound_without_the_finding(monkeypatch, tmp_path):
+    reach, _, _, _, native = _measure(_cache(tmp_path), lambda f, n: {CN: {"x": 1}})
+    del native[CN]["immaterial"]
+    reach2, lag2, _, carried, _ = _carry(monkeypatch, tmp_path, native, reach)
+    assert (reach2, lag2, carried) == (None, [CN], False)
+
+
+@pytest.mark.parametrize("bad", [{}, "yes", ["x"]])
+def test_ci_refuses_a_malformed_finding(monkeypatch, tmp_path, bad):
+    reach, _, _, _, native = _measure(_cache(tmp_path), lambda f, n: {CN: {"x": 1}})
+    native[CN]["immaterial"] = bad
+    reach2, lag2, _, carried, _ = _carry(monkeypatch, tmp_path, native, reach)
+    assert (reach2, carried) == (None, False)
+
+
 def _thematic(monkeypatch, cn, n_above, extent):
     row = _row(cn, n_above=n_above, others=len(th.TICKERS) - 1)
     names = [t for t in th.TICKERS if t != CN]
