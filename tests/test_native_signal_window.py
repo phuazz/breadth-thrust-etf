@@ -526,3 +526,14 @@ def test_freshness_build_holds_c_behind_on_an_older_gap(tmp_path, monkeypatch):
     assert str(gap.date()) in c["why"]
     assert r["all_current"] is False
     json.dumps(r)
+
+
+@pytest.fixture(autouse=True)
+def _every_filled_line_is_material(monkeypatch):
+    """This module pins the HOLD path for a filled native line, so the ranker
+    must never be reached. Since 2026-11-03 a filled line holds only when it
+    could change the book (native_sessions.decision_unchanged, which calls the
+    ranker); that path is tested in test_native_materiality.py."""
+    import native_sessions
+    monkeypatch.setattr(native_sessions, "decision_unchanged",
+                        lambda *a, **k: False)

@@ -483,3 +483,14 @@ def test_the_cache_write_path_still_publishes_through_write_cache_source():
     body = ps_src[ps_src.index("def write_cache_source"):
                   ps_src.index("def publish_text")]
     assert "write_text(" not in body and "publish_text(path" in body
+
+
+@pytest.fixture(autouse=True)
+def _every_filled_line_is_material(monkeypatch):
+    """This module pins the HOLD path for a filled native line, so the ranker
+    must never be reached. Since 2026-11-03 a filled line holds only when it
+    could change the book (native_sessions.decision_unchanged, which calls the
+    ranker); that path is tested in test_native_materiality.py."""
+    import native_sessions
+    monkeypatch.setattr(native_sessions, "decision_unchanged",
+                        lambda *a, **k: False)

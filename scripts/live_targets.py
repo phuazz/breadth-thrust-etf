@@ -176,6 +176,15 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
     weight function runs. A spec that does not state its window is HOLD. The
     HOLD keeps the newest row it CAN vouch for under `last_valid`, as
     information only.
+
+    ONLY WHEN IT COULD CHANGE THE BOOK (owner, 2026-11-03). A filled line no
+    longer holds the sleeve by itself: its signal is widened by the spec's
+    ``move_bound`` per missing session (native_sessions.signal_range) and the
+    weight and gate functions are rerun at both ends. If neither end changes
+    the weights or the gate count, the sleeve ranks and names the line under
+    `native_unconfirmed` with its range; otherwise, or when the extent or the
+    bound is unknown, it is HOLD as before. On 2026-11-02 C held on one
+    missing Shenzhen close while 159801.SZ stood 26.7% below its average.
     """
     cal = _venue_cal(venue)
     lcs = last_completed_session_on(cal, now_utc)
@@ -213,14 +222,17 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
                 "last_completed_session":
                     str(lcs.date()) if lcs is not None else None,
                 "weights": {}}
-    native = None
+    native = unconfirmed = None
     if native_inputs:
         native = _native_check(signal[ranked], decided, native_inputs,
                                have_floor=total * coverage_floor)
         stale = [t for t, p in native["rows"][decided].items() if not p["current"]]
         if stale:
-            return _native_hold(label, venue, decided, lcs, stale, native,
-                                signal_kind, top_k)
+            unconfirmed = _native_materiality(row, stale, native["rows"][decided],
+                                              native_inputs, weight_fn, gate_fn)
+            if unconfirmed is None:
+                return _native_hold(label, venue, decided, lcs, stale, native,
+                                    signal_kind, top_k)
     reaches = lcs is not None and pd.Timestamp(decided) >= pd.Timestamp(lcs)
     w = weight_fn(row)
     w = w[w > 0].sort_values(ascending=False)
@@ -257,7 +269,36 @@ def _rank(signal: pd.DataFrame, weight_fn, venue: str, now_utc: datetime,
         "decision_session_prev": prev_session if prev_row else None,
         "gate": gate_fn(row) if gate_fn else None,
         **({"native_provenance": native["rows"][decided]} if native else {}),
+        **({"native_unconfirmed": unconfirmed} if unconfirmed else {}),
     }
+
+
+def _native_materiality(row: pd.Series, stale: list[str], records: dict,
+                        native_inputs: dict[str, dict], weight_fn,
+                        gate_fn) -> dict | None:
+    """``{ticker: range record}`` when no filled line could change the
+    sleeve's weights or gate count, else None (material, or not measurable).
+    """
+    import native_sessions
+    ranges, out = {}, {}
+    for t in stale:
+        rec, spec = records[t], native_inputs[t]
+        s = row.get(t)
+        rng = native_sessions.signal_range(
+            None if pd.isna(s) else float(s), rec.get("stale_extent"),
+            rec.get("window_rows"), spec.get("move_bound"))
+        if rng is None:
+            return None
+        ranges[t] = rng
+        out[t] = {"signal_filled": round(float(s), 4),
+                  "signal_range": [round(rng[0], 4), round(rng[1], 4)],
+                  "move_bound": spec.get("move_bound"),
+                  "stale_extent": rec.get("stale_extent"),
+                  "required_native_session": rec.get("required_native_session"),
+                  "native_close_carried": rec.get("native_close_carried")}
+    if not native_sessions.decision_unchanged(row, ranges, weight_fn, gate_fn):
+        return None
+    return out
 
 
 def _native_check(panel: pd.DataFrame, decided: pd.Timestamp,
@@ -306,6 +347,8 @@ def _native_check(panel: pd.DataFrame, decided: pd.Timestamp,
                     _d(s) for s in p.at[key, "missing_native_sessions"]],
                 "holiday_data_through": _d(p.attrs.get("holiday_data_through")),
                 "error": p.attrs.get("error"),
+                "stale_extent": (None if p.at[key, "current"]
+                                 else native_sessions.stale_extent(p, r)),
             }
     last_valid = None
     for r in reversed(window[:-1]):
@@ -370,8 +413,10 @@ def _native_hold(label, venue, decided, lcs, stale, native,
             "reason": (
                 f"decision row {decided.date()} carries a native-venue line "
                 f"that is forward-filled, or not shown to be observed, on that "
-                f"row or on a row its signal window averages — ranking it "
-                f"would trade a price the venue never printed; "
+                f"row or on a row its signal window averages, and a price the "
+                f"venue could have printed there could change the sleeve's "
+                f"weights or gate count (or the extent cannot be measured) — "
+                f"ranking it would trade a price the venue never printed; "
                 + "; ".join(parts)),
             "missing_signal_inputs": list(stale),
             "decision_session": str(decided.date()),

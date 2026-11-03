@@ -326,6 +326,10 @@ def native_reach(cache_path: Path, tickers: list[str], *,
         ok = prov.index[prov["current"].astype(bool).to_numpy()]
         if len(ok):
             rec["last_valid"] = str(ok[-1].date())
+        # The filled extent at the cache's last row, for the materiality test
+        # (native_sessions.stale_extent); None there means unmeasurable.
+        if not bool(prov["current"].iloc[-1]):
+            rec["stale_extent"] = native_sessions.stale_extent(prov, prov.index[-1])
         rec["error"] = prov.attrs.get("error") or (
             None if len(ok) else
             f"no cache row within the record window carries its required "
@@ -434,7 +438,7 @@ def _strict_date(value) -> date | None:
 
 def native_cache_reach_or_carried(
         cache_path: Path, tickers: list[str], native_tickers: list[str],
-        sleeve: str, source: str, *, window_rows: int,
+        sleeve: str, source: str, *, window_rows: int, materiality=None,
 ) -> tuple[str | None, list[str], str, bool, dict[str, dict]]:
     """cache_reach_or_carried for a cache holding native-venue lines.
 
@@ -454,6 +458,13 @@ def native_cache_reach_or_carried(
     generations -- neither current on its own -- into a current verdict.
     A malformed prior row or native record makes the line unknown; it never
     raises, so the other sleeves are still reported.
+
+    ``materiality(frame, native)`` (owner, 2026-11-03) returns
+    ``{ticker: range record}`` for filled lines that could not change the
+    sleeve's book at the cache's last row; those lines do not cap the reach and
+    their record carries ``immaterial``. It applies to a present cache only --
+    a carried bound is never relaxed -- and a materiality fault leaves every
+    line capping as before.
     """
     native_tickers = [t for t in native_tickers if t in tickers]
     if not native_tickers:
@@ -465,8 +476,17 @@ def native_cache_reach_or_carried(
     if frame is not None:
         native = native_reach(cache_path, native_tickers,
                               window_rows=window_rows, frame=frame)
+        immaterial = {}
+        if materiality is not None:
+            try:
+                immaterial = materiality(frame, native) or {}
+            except Exception:  # noqa: BLE001 — a fault never relaxes the cap
+                immaterial = {}
+        for t, info in immaterial.items():
+            native[t]["immaterial"] = info
         reach, laggards = cache_reach(
-            cache_path, tickers, {t: r["last_valid"] for t, r in native.items()},
+            cache_path, tickers, {t: r["last_valid"] for t, r in native.items()
+                                  if t not in immaterial},
             frame=frame)
         return reach, laggards, source, False, native
     row, measured_at = _prior_row(sleeve)
@@ -523,6 +543,41 @@ def native_cache_reach_or_carried(
                             f"provenance over the {window_rows}-row signal "
                             "window for this line", window_rows)
         for t in native_tickers}
+
+
+def _thematic_native_materiality(frame: pd.DataFrame,
+                                 native: dict[str, dict]) -> dict[str, dict]:
+    """Sleeve C's filled native lines that could not change its book on the
+    cache's last row -- the same test live_targets._rank applies, on C's own
+    signal, weight and gate functions. Empty when any filled line is material
+    or unmeasurable, so nothing is relaxed unless every one is immaterial.
+    """
+    import run_thematic_rotation as th
+    last = native_sessions.session_dates([frame.index.max()])[0]
+    stale = {t: r for t, r in native.items()
+             if r.get("last_valid") is None
+             or pd.Timestamp(r["last_valid"]) < last}
+    if not stale:
+        return {}
+    cols = list(th.TICKERS) + ([th.CASH_PROXY] if th.CASH_PROXY not in th.TICKERS else [])
+    row = th.compute_signal(frame.reindex(columns=cols)).iloc[-1]
+    ranges, out = {}, {}
+    for t, r in stale.items():
+        s = row.get(t)
+        rng = native_sessions.signal_range(
+            None if pd.isna(s) else float(s), r.get("stale_extent"),
+            th.MA_PERIOD, th.NATIVE_DAILY_MOVE_BOUND)
+        if rng is None:
+            return {}
+        ranges[t] = rng
+        out[t] = {"signal_filled": round(float(s), 4),
+                  "signal_range": [round(rng[0], 4), round(rng[1], 4)],
+                  "move_bound": th.NATIVE_DAILY_MOVE_BOUND,
+                  "stale_extent": r.get("stale_extent")}
+    if not native_sessions.decision_unchanged(
+            row, ranges, th.top_k_equal_weight(th.HEADLINE_K), th.sleeve_gate_state):
+        return {}
+    return out
 
 
 def _native_reason(native: dict[str, dict], laggards: list[str],
@@ -640,7 +695,8 @@ def build(now_utc: datetime | None = None) -> dict:
     # the cache's native-observation record instead (module docstring).
     c_reach, c_lag, c_source, c_carried, c_native = native_cache_reach_or_carried(
         th.PRICE_CACHE, list(th.TICKERS), th._native_tickers(), "C",
-        "price cache (thematic ETFs)", window_rows=th.MA_PERIOD)
+        "price cache (thematic ETFs)", window_rows=th.MA_PERIOD,
+        materiality=_thematic_native_materiality)
     add("C", "NYSE", c_reach, c_lag, c_source, *_native_reason(c_native, c_lag),
         inputs="cached price series", carried=c_carried,
         extra={"native_provenance": c_native})

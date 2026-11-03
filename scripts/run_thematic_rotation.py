@@ -393,6 +393,13 @@ HEADLINE_FREQ = "W-MON"
 SLEEVE_GATE_ENABLED = True
 SLEEVE_GATE_THRESHOLD = 0.30
 
+# The most a native-venue line's printed close can move per session, for the
+# materiality test on a filled line (native_sessions.signal_range). 10% is the
+# Shenzhen daily price limit the owner set on 2026-11-03; a filled 159801.SZ
+# holds sleeve C only when a move of this size per missing session could
+# change C's weights or its gate count.
+NATIVE_DAILY_MOVE_BOUND = 0.10
+
 # Phase 6 (2026-05-24): the within-strategy weight function. Equal-weight
 # was empirically dominant for Strategy C across IS Sharpe, WF Sharpe,
 # CAGR, max DD, and turnover. Revert to top_k_by_signal_capped here if
@@ -561,12 +568,15 @@ def native_inputs() -> dict[str, dict]:
     """What live_targets needs to check each native line's decision row: its
     venue, the dates its native close was observed for the frame
     download_prices() last returned, and how many rows compute_signal reads
-    back from each row (MA_PERIOD: the rolling window of ma_distance_signal).
+    back from each row (MA_PERIOD: the rolling window of ma_distance_signal),
+    and the per-session move bound the materiality test applies to a filled
+    line (NATIVE_DAILY_MOVE_BOUND).
     ``observed`` is None when unknown, which the check treats as not current."""
     obs = NATIVE_OBSERVATIONS
     return {t: {"venue": native_sessions.venue_for(t),
                 "observed": None if obs is None else obs.get(t),
-                "window_rows": MA_PERIOD}
+                "window_rows": MA_PERIOD,
+                "move_bound": NATIVE_DAILY_MOVE_BOUND}
             for t in _native_tickers()}
 
 

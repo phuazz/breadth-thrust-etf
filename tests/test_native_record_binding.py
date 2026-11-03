@@ -506,3 +506,14 @@ def test_native_schedule_applies_the_pin_under_either_name(monkeypatch, venue):
 def test_native_schedule_refuses_an_unmapped_venue():
     with pytest.raises(ValueError):
         ns.native_schedule(None, "2026-01-01", "2026-01-31")
+
+
+@pytest.fixture(autouse=True)
+def _every_filled_line_is_material(monkeypatch):
+    """This module pins the HOLD path for a filled native line, so the ranker
+    must never be reached. Since 2026-11-03 a filled line holds only when it
+    could change the book (native_sessions.decision_unchanged, which calls the
+    ranker); that path is tested in test_native_materiality.py."""
+    import native_sessions
+    monkeypatch.setattr(native_sessions, "decision_unchanged",
+                        lambda *a, **k: False)

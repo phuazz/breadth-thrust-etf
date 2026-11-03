@@ -97,6 +97,19 @@ exporter and the combined-book risk reader do (completeness_calendar: on a
 pin conflict they fall back to the library, which demands more bars, and
 say so).
 
+A FILLED LINE HOLDS THE SLEEVE ONLY WHEN IT COULD CHANGE THE BOOK (owner,
+2026-11-03). The window check above held sleeve C for the 2 November rank on
+one missing Shenzhen close while 159801.SZ sat 26.7% below its 200-day
+average: no price that line could plausibly have printed moves it to the +5%
+floor, so the hold protected nothing. stale_extent measures how far a row's
+filled price can be from the one the venue would have printed, signal_range
+turns that into the widest signal the line could carry under a per-session
+price-move bound, and decision_unchanged reruns the sleeve's own weight and
+gate functions at both ends. The sleeve ranks only when both ends give the
+same weights and the same gate count; an extent that cannot be established
+is material. Both ends suffice because selection and the gate count each
+move one way as one line's signal rises.
+
 Python datetime months are 1-indexed (January = 1). Sessions come from
 pandas_market_calendars via venue_calendars, never a weekday count.
 """
@@ -475,3 +488,92 @@ def parse_sidecar(sidecar: dict | None, frame: pd.DataFrame | None,
         return out
     except (TypeError, ValueError, AttributeError):
         return None
+
+
+def stale_extent(prov: pd.DataFrame, row) -> dict | None:
+    """How far ``row``'s filled native price can be from a printed one.
+
+    From a provenance() frame: ``depth`` is the number of required native
+    sessions after the close the row carries (the sessions its own price
+    skipped), ``missing`` the required sessions not carried anywhere in its
+    signal window, ``filled_rows`` the window's rows that are not row-current
+    (each averages in a filled price). None when the extent cannot be
+    established -- a provenance error, an incomplete window, no carried close,
+    or a filled row with no required session -- which callers read as
+    material.
+    """
+    if prov.attrs.get("error"):
+        return None
+    key = session_dates([row])[0]
+    if key not in prov.index or not bool(prov.at[key, "window_complete"]):
+        return None
+    w = prov.attrs.get("window_rows")
+    pos = prov.index.get_loc(key)
+    win = prov.iloc[max(0, pos - w + 1):pos + 1]
+    bad = win[~win["row_current"].astype(bool)]
+    if bad["required_native_session"].isna().any() \
+            or bad["native_close_carried"].isna().any():
+        return None
+    carried = prov.at[key, "native_close_carried"]
+    if carried is None:
+        return None
+    missing = list(prov.at[key, "missing_native_sessions"] or [])
+    return {"depth": sum(1 for s in missing if s > carried),
+            "missing": len(missing), "filled_rows": int(len(bad))}
+
+
+def signal_range(signal: float, extent: dict | None, window_rows: int,
+                 move_bound: float | None) -> tuple[float, float] | None:
+    """The widest 200-day-distance signal a filled line could carry.
+
+    ``signal`` is the distance computed on the filled column (price / average
+    - 1). The row's own price may be off by ``move_bound`` per skipped session,
+    compounded over ``depth``; each of the window's ``filled_rows`` may be off
+    by the same bound compounded over every ``missing`` session, which moves
+    the average by at most that share of the window (each filled close read as
+    near the average). None when either input is unknown or the average's
+    bound reaches 100%.
+    """
+    if extent is None or move_bound is None or not (0 < move_bound < 1) \
+            or signal is None or not math.isfinite(signal):
+        return None
+    e = (1 + move_bound) ** extent["missing"] - 1
+    d = extent["filled_rows"] * e / window_rows
+    if d >= 1:
+        return None
+    up, down = (1 + move_bound) ** extent["depth"], (1 - move_bound) ** extent["depth"]
+    return ((1 + signal) * down / (1 + d) - 1, (1 + signal) * up / (1 - d) - 1)
+
+
+def decision_unchanged(row: pd.Series, ranges: dict[str, tuple[float, float]],
+                       weight_fn, gate_fn=None) -> bool:
+    """True when every corner of ``ranges`` gives the sleeve the weights and
+    the gate count it gets on ``row`` as filled.
+
+    Weights are compared on the names they hold and their values; the gate on
+    ``n_above``, ``n_universe`` and ``fired``, so a line that could cross the
+    floor without flipping the gate still counts as material -- the count is
+    printed. Corners suffice: for one line, selection and the count are each
+    monotone in its signal.
+    """
+    import itertools
+
+    def _decide(r):
+        w = weight_fn(r)
+        w = w[w > 0].round(12)
+        g = gate_fn(r) if gate_fn else None
+        g = None if g is None else (g.get("n_above"), g.get("n_universe"),
+                                    bool(g.get("fired")))
+        return w.sort_index(), g
+
+    base_w, base_g = _decide(row)
+    names = sorted(ranges)
+    for corner in itertools.product(*(ranges[t] for t in names)):
+        r = row.copy()
+        for t, v in zip(names, corner):
+            r[t] = v
+        w, g = _decide(r)
+        if g != base_g or not w.index.equals(base_w.index) \
+                or not np.allclose(w.to_numpy(), base_w.to_numpy(), atol=1e-9):
+            return False
+    return True

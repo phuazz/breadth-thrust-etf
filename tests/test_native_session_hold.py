@@ -110,7 +110,9 @@ def test_fx_conversion_records_native_dates_before_alignment(monkeypatch):
     assert str(obs[-1].date()) == "2026-10-27"
     inputs = th.native_inputs()
     assert inputs[CN]["venue"] == "XSHG"
-    r = lt._rank(out[[CN, "X", th.CASH_PROXY]], _must_not_rank, "NYSE", OCT_NOW,
+    # _top2 weights by signal, so any move of the filled line changes the
+    # book: material, HOLD (the ranker is now called, on the bound's corners).
+    r = lt._rank(out[[CN, "X", th.CASH_PROXY]], _top2, "NYSE", OCT_NOW,
                  "C", cash_proxy=th.CASH_PROXY, native_inputs=inputs)
     assert r["status"] == "HOLD" and r["weights"] == {}
     assert r["missing_signal_inputs"] == [CN]
@@ -120,7 +122,8 @@ def test_unknown_provenance_reads_as_none_not_as_current(monkeypatch):
     import run_thematic_rotation as th
     monkeypatch.setattr(th, "NATIVE_OBSERVATIONS", None)
     assert th.native_inputs() == {CN: {"venue": "XSHG", "observed": None,
-                                       "window_rows": th.MA_PERIOD}}
+                                       "window_rows": th.MA_PERIOD,
+                                       "move_bound": th.NATIVE_DAILY_MOVE_BOUND}}
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +143,8 @@ def test_withdrawn_required_bar_holds_with_provenance_and_last_valid():
                  "native_close_carried": "2026-10-27", "current": False,
                  "window_rows": W, "window_complete": True,
                  "missing_native_sessions": ["2026-10-28"],
-                 "holiday_data_through": "2026-12-31", "error": None}
+                 "holiday_data_through": "2026-12-31", "error": None,
+                 "stale_extent": {"depth": 1, "missing": 1, "filled_rows": 1}}
     assert "forward-filled" in r["reason"] and "2026-10-27" in r["reason"]
     # Last valid information stays visible, with its own provenance.
     lv = r["last_valid"]

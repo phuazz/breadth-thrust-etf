@@ -95,7 +95,9 @@ def test_missing_native_bar_is_behind_and_names_the_line(tmp_path):
                           "native_close_carried": "2026-10-27",
                           "missing_native_sessions": ["2026-10-28"],
                           "window_rows": W,
-                          "holiday_data_through": "2026-12-31", "error": None}
+                          "holiday_data_through": "2026-12-31", "error": None,
+                          "stale_extent": {"depth": 1, "missing": 1,
+                                           "filled_rows": 1}}
     assert sf.classify(reach, "2026-10-28", "NYSE") == (sf.BEHIND, 1)
     why, plain = sf._native_reason(native, lag)
     assert CN in why and "2026-10-27" in why and "2026-10-28" in why

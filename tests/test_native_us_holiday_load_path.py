@@ -181,3 +181,14 @@ def test_us_only_rows_no_nyse_row_needs_change_nothing(load):
 def _top2(row):
     top = row.drop("SHY", errors="ignore").dropna().sort_values(ascending=False).head(2)
     return top / top.sum()
+
+
+@pytest.fixture(autouse=True)
+def _every_filled_line_is_material(monkeypatch):
+    """This module pins the HOLD path for a filled native line, so the ranker
+    must never be reached. Since 2026-11-03 a filled line holds only when it
+    could change the book (native_sessions.decision_unchanged, which calls the
+    ranker); that path is tested in test_native_materiality.py."""
+    import native_sessions
+    monkeypatch.setattr(native_sessions, "decision_unchanged",
+                        lambda *a, **k: False)

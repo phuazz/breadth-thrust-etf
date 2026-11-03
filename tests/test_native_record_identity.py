@@ -357,3 +357,14 @@ def test_a_native_change_on_disk_still_voids_the_record(site, capsys, change):
     assert _on_disk_freshness(th) == sf.UNKNOWN
     _, reused, _ = _restart(th, run, capsys)
     assert not reused
+
+
+@pytest.fixture(autouse=True)
+def _every_filled_line_is_material(monkeypatch):
+    """This module pins the HOLD path for a filled native line, so the ranker
+    must never be reached. Since 2026-11-03 a filled line holds only when it
+    could change the book (native_sessions.decision_unchanged, which calls the
+    ranker); that path is tested in test_native_materiality.py."""
+    import native_sessions
+    monkeypatch.setattr(native_sessions, "decision_unchanged",
+                        lambda *a, **k: False)
