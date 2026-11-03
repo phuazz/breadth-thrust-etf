@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-11-03T03:04:45+00:00",
+  "built_at_utc": "2026-11-03T04:00:29+00:00",
   "as_of": "2026-11-03",
   "as_of_modal": "2026-11-02",
   "as_of_modal_share": "48/54",
@@ -145,6 +145,12 @@
       "kind": "sigma_move",
       "label": "2.6-sigma move",
       "value": "+2.4%"
+    },
+    {
+      "ticker": "159801.SZ",
+      "kind": "rsi",
+      "label": "RSI 25 oversold",
+      "value": ""
     },
     {
       "ticker": "PHO",
@@ -2193,18 +2199,18 @@
       "rank_truncated": false,
       "trend": "Down",
       "mom_12_1": 0.3605744101487587,
-      "vs_52w_high": -0.5293122836339934,
+      "vs_52w_high": -0.5305215001416723,
       "rv_pctl": 60.01984126984127,
       "rv_truncated": false,
-      "bbw_pctl": 84.82142857142857,
+      "bbw_pctl": 85.01984126984127,
       "bbw_truncated": false,
-      "atr_pct": 0.052216243762315734,
-      "ret_1d": -0.007684772316138511,
-      "vol_ratio": 1.0681439958839205,
-      "ret_1m": -0.30770869007619694,
-      "rs_1m": -0.3446948131342028,
-      "dev_200d": -0.2698455384770787,
-      "rsi14": 25.015727295169555,
+      "atr_pct": 0.05244328551280231,
+      "ret_1d": -0.010234071803706724,
+      "vol_ratio": 1.1942955999496532,
+      "ret_1m": -0.30948721552093494,
+      "rs_1m": -0.34726716077569625,
+      "dev_200d": -0.271714505367716,
+      "rsi14": 24.871392981854626,
       "n_bars": 1631,
       "pd_pct": null,
       "flow_5d": null,
@@ -2376,6 +2382,7 @@
     "failures": [],
     "stale": [],
     "notes": [
+      "snapshots not refreshed this run (--skip-snapshots)",
       "naive-recompute check passed on BLOK, BOTZ, CIBR"
     ],
     "stale_threshold_sessions": 3
