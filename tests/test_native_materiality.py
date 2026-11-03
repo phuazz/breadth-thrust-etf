@@ -70,7 +70,7 @@ def test_one_withdrawn_close_at_the_tail():
     observed = _sessions("XSHG", HIST, "2026-10-27")
     p = ns.provenance(OCT_ROWS, observed, "XSHG", window_rows=W)
     assert ns.stale_extent(p, pd.Timestamp("2026-10-28")) == {
-        "depth": 1, "missing": 1, "filled_rows": 1}
+        "depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}
 
 
 def test_an_interior_gap_moves_only_the_average():
@@ -78,7 +78,7 @@ def test_an_interior_gap_moves_only_the_average():
     observed = full[full != pd.Timestamp("2026-10-27")]
     p = ns.provenance(OCT_ROWS, observed, "XSHG", window_rows=W)
     assert ns.stale_extent(p, pd.Timestamp("2026-10-28")) == {
-        "depth": 0, "missing": 1, "filled_rows": 1}
+        "depth": 0, "max_gap": 1, "missing": 1, "filled_rows": 1}
 
 
 def test_month_boundary_two_closes_withdrawn():
@@ -87,18 +87,32 @@ def test_month_boundary_two_closes_withdrawn():
     observed = _sessions("XSHG", HIST, "2026-10-29")
     p = ns.provenance(rows, observed, "XSHG", window_rows=W)
     assert ns.stale_extent(p, pd.Timestamp("2026-11-02")) == {
-        "depth": 2, "missing": 2, "filled_rows": 2}
+        "depth": 2, "max_gap": 2, "missing": 2, "filled_rows": 2}
+
+
+def test_a_shenzhen_session_on_a_us_holiday_still_counts():
+    """Thanksgiving 26 November 2026: Shenzhen trades, NYSE shuts, so no NYSE
+    row requires that session. With closes observed only through the 25th,
+    the 27 November price is two Shenzhen sessions stale, not one."""
+    rows = _sessions("NYSE", HIST, "2026-11-27")
+    observed = _sessions("XSHG", HIST, "2026-11-25")
+    p = ns.provenance(rows, observed, "XSHG", window_rows=W)
+    assert p.at[pd.Timestamp("2026-11-27"), "missing_native_sessions"] == [
+        pd.Timestamp("2026-11-27")]
+    assert ns.stale_extent(p, pd.Timestamp("2026-11-27")) == {
+        "depth": 2, "max_gap": 2, "missing": 1, "filled_rows": 1}
 
 
 def test_year_boundary_counts_unannounced_sessions_as_missing():
-    """Across New Year, past the Shenzhen holiday data: 4 and 5 January are
-    counted as missing. If either is an unannounced closure the true extent
-    is smaller, so counting it only widens the range (the safe direction)."""
+    """Across New Year, past the Shenzhen holiday data (2027 is not yet
+    announced): 1, 4 and 5 January all count as sessions the price may have
+    moved over. If any is a closure the true extent is smaller, so counting it
+    only widens the range (the safe direction)."""
     rows = _sessions("NYSE", HIST, "2027-01-05")
     observed = _sessions("XSHG", HIST, "2026-12-31")
     p = ns.provenance(rows, observed, "XSHG", window_rows=W)
     assert ns.stale_extent(p, pd.Timestamp("2027-01-05")) == {
-        "depth": 2, "missing": 2, "filled_rows": 2}
+        "depth": 3, "max_gap": 3, "missing": 2, "filled_rows": 2}
 
 
 def test_no_record_is_unmeasurable():
@@ -111,7 +125,7 @@ def test_no_record_is_unmeasurable():
 # ---------------------------------------------------------------------------
 
 def test_range_for_one_missing_close():
-    lo, hi = ns.signal_range(-0.267, {"depth": 1, "missing": 1, "filled_rows": 1},
+    lo, hi = ns.signal_range(-0.267, {"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1},
                              W, L)
     d = 1 * 0.10 / W
     assert lo == pytest.approx(0.733 * 0.9 / (1 + d) - 1)
@@ -119,16 +133,16 @@ def test_range_for_one_missing_close():
 
 
 def test_two_missing_closes_widen_the_range():
-    one = ns.signal_range(0.0, {"depth": 1, "missing": 1, "filled_rows": 1}, W, L)
-    two = ns.signal_range(0.0, {"depth": 2, "missing": 2, "filled_rows": 2}, W, L)
+    one = ns.signal_range(0.0, {"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}, W, L)
+    two = ns.signal_range(0.0, {"depth": 2, "max_gap": 2, "missing": 2, "filled_rows": 2}, W, L)
     assert two[0] < one[0] and two[1] > one[1]
 
 
 @pytest.mark.parametrize("extent, bound, signal", [
     (None, L, 0.0),
-    ({"depth": 1, "missing": 1, "filled_rows": 1}, None, 0.0),
-    ({"depth": 1, "missing": 1, "filled_rows": 1}, L, float("nan")),
-    ({"depth": 1, "missing": 60, "filled_rows": W}, L, 0.0),   # average unbounded
+    ({"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}, None, 0.0),
+    ({"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}, L, float("nan")),
+    ({"depth": 1, "max_gap": 60, "missing": 60, "filled_rows": W}, L, 0.0),   # average unbounded
 ])
 def test_unknown_inputs_give_no_range(extent, bound, signal):
     assert ns.signal_range(signal, extent, W, bound) is None
@@ -142,14 +156,14 @@ def test_far_below_the_floor_with_the_gate_fired_is_immaterial():
     """The 2 November shape: 6 of 25 clear +5%, the gate parks C in SHY, and
     159801.SZ sits 26.7% below its average."""
     row = _row(-0.267, n_above=6)
-    rng = ns.signal_range(-0.267, {"depth": 1, "missing": 1, "filled_rows": 1}, W, L)
+    rng = ns.signal_range(-0.267, {"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}, W, L)
     assert th.sleeve_gate_state(row)["fired"]
     assert ns.decision_unchanged(row, {CN: rng}, C_WEIGHTS, th.sleeve_gate_state)
 
 
 def test_near_the_floor_is_material():
     row = _row(0.03, n_above=9)
-    rng = ns.signal_range(0.03, {"depth": 1, "missing": 1, "filled_rows": 1}, W, L)
+    rng = ns.signal_range(0.03, {"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}, W, L)
     assert rng[1] > th.SIGNAL_FLOOR
     assert not ns.decision_unchanged(row, {CN: rng}, C_WEIGHTS, th.sleeve_gate_state)
 
@@ -160,7 +174,7 @@ def test_a_line_that_could_flip_the_gate_is_material():
     row = _row(0.06, n_above=7)
     assert th.sleeve_gate_state(row)["n_above"] == 8
     assert not th.sleeve_gate_state(row)["fired"]
-    rng = ns.signal_range(0.06, {"depth": 1, "missing": 1, "filled_rows": 1}, W, L)
+    rng = ns.signal_range(0.06, {"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}, W, L)
     assert not ns.decision_unchanged(row, {CN: rng}, C_WEIGHTS, th.sleeve_gate_state)
 
 
@@ -168,7 +182,7 @@ def test_a_held_line_that_cannot_leave_the_book_is_immaterial():
     """Equal weights: a line far above the floor and inside the top five keeps
     its one fifth at both ends, so even a held line can be immaterial."""
     row = _row(0.50, n_above=9)
-    rng = ns.signal_range(0.50, {"depth": 1, "missing": 1, "filled_rows": 1}, W, L)
+    rng = ns.signal_range(0.50, {"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}, W, L)
     assert rng[0] > th.SIGNAL_FLOOR      # cannot fall under the floor ...
     # ... and stays in the top five at both ends, so the book is unchanged.
     assert ns.decision_unchanged(row, {CN: rng}, C_WEIGHTS, th.sleeve_gate_state)
@@ -195,7 +209,7 @@ def test_rank_is_ready_when_the_filled_line_is_immaterial():
     assert CN not in r["weights"] and len(r["weights"]) == th.HEADLINE_K
     u = r["native_unconfirmed"][CN]
     assert u["signal_filled"] == -0.267 and u["move_bound"] == L
-    assert u["stale_extent"] == {"depth": 1, "missing": 1, "filled_rows": 1}
+    assert u["stale_extent"] == {"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}
     assert u["required_native_session"] == "2026-10-28"
     assert u["native_close_carried"] == "2026-10-27"
     assert r["native_provenance"][CN]["current"] is False
@@ -262,7 +276,7 @@ def _measure(cache, materiality):
 def test_freshness_records_the_extent(tmp_path):
     reach, lag, _, _, native = _measure(_cache(tmp_path), None)
     assert reach == "2026-10-27" and lag == [CN]
-    assert native[CN]["stale_extent"] == {"depth": 1, "missing": 1, "filled_rows": 1}
+    assert native[CN]["stale_extent"] == {"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}
 
 
 def test_freshness_does_not_cap_an_immaterial_line(tmp_path):
@@ -297,7 +311,7 @@ def _thematic(monkeypatch, cn, n_above, extent):
     return sf._thematic_native_materiality(frame, native)
 
 
-ONE = {"depth": 1, "missing": 1, "filled_rows": 1}
+ONE = {"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}
 
 
 def test_thematic_materiality_relaxes_the_2_november_shape(monkeypatch):

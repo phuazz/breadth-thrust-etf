@@ -283,6 +283,7 @@ def provenance(rows, observed, venue: str | None,
                        index=rows, dtype=object)
     out.attrs["error"] = None
     out.attrs["window_rows"] = window_rows
+    out.attrs["venue"] = venue
     # Last date the native venue's holiday data covers (china_market_holidays);
     # a required session after it may be an unannounced holiday.
     out.attrs["holiday_data_through"] = None
@@ -493,14 +494,17 @@ def parse_sidecar(sidecar: dict | None, frame: pd.DataFrame | None,
 def stale_extent(prov: pd.DataFrame, row) -> dict | None:
     """How far ``row``'s filled native price can be from a printed one.
 
-    From a provenance() frame: ``depth`` is the number of required native
-    sessions after the close the row carries (the sessions its own price
-    skipped), ``missing`` the required sessions not carried anywhere in its
-    signal window, ``filled_rows`` the window's rows that are not row-current
-    (each averages in a filled price). None when the extent cannot be
-    established -- a provenance error, an incomplete window, no carried close,
-    or a filled row with no required session -- which callers read as
-    material.
+    From a provenance() frame. A filled row's price can have moved over every
+    native session after the close it carries, up to and including the one it
+    requires -- counted on the venue's own schedule, so a Shenzhen session on
+    a US holiday (required by no NYSE row, as Thanksgiving 26 November 2026)
+    still counts. ``depth`` is that count on ``row`` itself, ``max_gap`` the
+    largest over the window's filled rows, ``filled_rows`` how many of the
+    window's rows are not row-current (each averages in a filled price), and
+    ``missing`` the required sessions not carried, as a record. None when the
+    extent cannot be established -- a provenance error, an incomplete window,
+    a filled row with no required session or no carried close, or a schedule
+    that cannot be read -- which callers read as material.
     """
     if prov.attrs.get("error"):
         return None
@@ -511,15 +515,31 @@ def stale_extent(prov: pd.DataFrame, row) -> dict | None:
     pos = prov.index.get_loc(key)
     win = prov.iloc[max(0, pos - w + 1):pos + 1]
     bad = win[~win["row_current"].astype(bool)]
+    missing = list(prov.at[key, "missing_native_sessions"] or [])
+    if not len(bad):
+        return {"depth": 0, "max_gap": 0, "missing": len(missing), "filled_rows": 0}
     if bad["required_native_session"].isna().any() \
             or bad["native_close_carried"].isna().any():
         return None
-    carried = prov.at[key, "native_close_carried"]
-    if carried is None:
+    try:
+        nat, _ = native_schedule(prov.attrs.get("venue"),
+                                 min(bad["native_close_carried"]),
+                                 max(bad["required_native_session"]) + pd.Timedelta(days=1))
+        sessions = session_dates(nat.index)
+    except Exception:  # noqa: BLE001 — an unreadable schedule is unmeasurable
         return None
-    missing = list(prov.at[key, "missing_native_sessions"] or [])
-    return {"depth": sum(1 for s in missing if s > carried),
-            "missing": len(missing), "filled_rows": int(len(bad))}
+
+    def _gap(carried, required) -> int:
+        return int(sessions.searchsorted(required, side="right")
+                   - sessions.searchsorted(carried, side="right"))
+
+    gaps = [_gap(c, r) for c, r in zip(bad["native_close_carried"],
+                                       bad["required_native_session"])]
+    here = (_gap(prov.at[key, "native_close_carried"],
+                 prov.at[key, "required_native_session"])
+            if key in bad.index else 0)
+    return {"depth": here, "max_gap": max(gaps), "missing": len(missing),
+            "filled_rows": int(len(bad))}
 
 
 def signal_range(signal: float, extent: dict | None, window_rows: int,
@@ -529,16 +549,17 @@ def signal_range(signal: float, extent: dict | None, window_rows: int,
     ``signal`` is the distance computed on the filled column (price / average
     - 1). The row's own price may be off by ``move_bound`` per skipped session,
     compounded over ``depth``; each of the window's ``filled_rows`` may be off
-    by the same bound compounded over every ``missing`` session, which moves
-    the average by at most that share of the window (each filled close read as
-    near the average). None when either input is unknown or the average's
-    bound reaches 100%.
+    by the same bound compounded over ``max_gap``, which moves the average by
+    at most that share of the window, scaled up by the line's level against
+    its average when it trades above it (a filled close is read at today's
+    level; the term is about 0.05% per filled row at the 10% bound). None
+    when either input is unknown or the average's bound reaches 100%.
     """
     if extent is None or move_bound is None or not (0 < move_bound < 1) \
             or signal is None or not math.isfinite(signal):
         return None
-    e = (1 + move_bound) ** extent["missing"] - 1
-    d = extent["filled_rows"] * e / window_rows
+    e = (1 + move_bound) ** extent["max_gap"] - 1
+    d = extent["filled_rows"] * e * max(1.0, 1 + signal) / window_rows
     if d >= 1:
         return None
     up, down = (1 + move_bound) ** extent["depth"], (1 - move_bound) ** extent["depth"]

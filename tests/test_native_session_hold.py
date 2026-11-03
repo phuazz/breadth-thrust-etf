@@ -144,7 +144,7 @@ def test_withdrawn_required_bar_holds_with_provenance_and_last_valid():
                  "window_rows": W, "window_complete": True,
                  "missing_native_sessions": ["2026-10-28"],
                  "holiday_data_through": "2026-12-31", "error": None,
-                 "stale_extent": {"depth": 1, "missing": 1, "filled_rows": 1}}
+                 "stale_extent": {"depth": 1, "max_gap": 1, "missing": 1, "filled_rows": 1}}
     assert "forward-filled" in r["reason"] and "2026-10-27" in r["reason"]
     # Last valid information stays visible, with its own provenance.
     lv = r["last_valid"]
