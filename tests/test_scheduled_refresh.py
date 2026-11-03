@@ -605,9 +605,11 @@ def test_restore_on_a_clean_tree_is_a_no_op(tmp_path, monkeypatch):
 
 
 def test_restore_is_wired_to_the_in_run_failures_only():
-    """Exit 2 found a tree a person dirtied and must leave it alone; exit 5
-    has already committed. Only a failure INSIDE the refresh restores."""
-    assert RESTORE_ON_EXIT_CODES == (3, 4)
+    """Exit 2 found a tree a person dirtied, or another run in flight, and
+    must leave it alone. Only a failure INSIDE the refresh restores, and
+    exit 5 is one since 2026-11-03: a failed `git add` or `git commit` leaves
+    this run's outputs on disk (tests/test_interrupted_run_recovery.py)."""
+    assert RESTORE_ON_EXIT_CODES == (3, 4, 5)
     src = inspect.getsource(_sr.main)
     assert "restore_tracked_outputs(log)" in src
     fail_body = src[src.index("def fail("):src.index("# ----- Preflight")]
