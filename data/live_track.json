@@ -1,11 +1,11 @@
 {
-  "computed_at_utc": "2026-11-04 01:31 UTC",
+  "computed_at_utc": "2026-11-04 03:18 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
-  "anchor_date": "2026-11-02",
-  "anchor_equity": 2.908997,
+  "anchor_date": "2026-11-03",
+  "anchor_equity": 2.897008,
   "regime_state": "RISK_ON",
   "eem_tilt_active": false,
-  "eem_tilt_signal_as_of": "2026-11-02",
+  "eem_tilt_signal_as_of": "2026-11-03",
   "eem_tilt_signal_stale": false,
   "effective_weights": {
     "DBC": 0.19558,
@@ -28,11 +28,11 @@
   },
   "live_dates": [],
   "live_equity": [],
-  "deployed_series_end": "2026-11-02",
+  "deployed_series_end": "2026-11-03",
   "sleeve_extensions": {
     "strategy_a": {
-      "anchor_date": "2026-11-02",
-      "anchor_equity": 3.2912,
+      "anchor_date": "2026-11-03",
+      "anchor_equity": 3.265,
       "weights": {
         "IUHC": 0.3574,
         "IUES": 0.2452,
@@ -45,8 +45,8 @@
       "equity": []
     },
     "strategy_b": {
-      "anchor_date": "2026-11-02",
-      "anchor_equity": 2.2503,
+      "anchor_date": "2026-11-03",
+      "anchor_equity": 2.25,
       "weights": {
         "DBC": 0.5588,
         "SPY": 0.1529,
@@ -60,8 +60,8 @@
       "equity": []
     },
     "strategy_c": {
-      "anchor_date": "2026-11-02",
-      "anchor_equity": 3.1244,
+      "anchor_date": "2026-11-03",
+      "anchor_equity": 3.1221,
       "weights": {
         "SHY": 1.0
       },
@@ -69,8 +69,8 @@
       "equity": []
     },
     "strategy_d": {
-      "anchor_date": "2026-11-02",
-      "anchor_equity": 3.4743,
+      "anchor_date": "2026-11-03",
+      "anchor_equity": 3.4542,
       "weights": {
         "EXH1": 0.3556,
         "EXV3": 0.3321,
