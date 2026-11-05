@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-11-05T01:33:50.959049+00:00",
+ "computed_at_utc": "2026-11-05T16:31:29.261560+00:00",
  "strategies": [
   {
    "sleeve": "A",
@@ -24,7 +24,7 @@
    "sessions_behind": 1,
    "status": "behind",
    "laggards": [],
-   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-11-04T03:18Z; the cache is not present on this checkout",
+   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-11-05T01:33Z; the cache is not present on this checkout",
    "carried": true,
    "why": "every one of the cached price series stops at 2026-11-03 while NYSE has completed 2026-11-04 \u2014 none lags the others, so they have not been rebuilt since.",
    "why_plain": "the data behind this strategy stops on 2026-11-03, while the market has traded to 2026-11-04 \u2014 it has not been rebuilt since."
@@ -38,7 +38,7 @@
    "sessions_behind": 1,
    "status": "behind",
    "laggards": [],
-   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-11-04T03:18Z; the cache is not present on this checkout",
+   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-11-05T01:33Z; the cache is not present on this checkout",
    "carried": true,
    "why": "every one of the cached price series stops at 2026-11-03 while NYSE has completed 2026-11-04 \u2014 none lags the others, so they have not been rebuilt since.",
    "why_plain": "the data behind this strategy stops on 2026-11-03, while the market has traded to 2026-11-04 \u2014 it has not been rebuilt since.",
@@ -83,8 +83,8 @@
    "label": "Europe sectors",
    "venue": "XETR",
    "data_through": "2026-11-02",
-   "venue_last_session": "2026-11-04",
-   "sessions_behind": 2,
+   "venue_last_session": "2026-11-05",
+   "sessions_behind": 3,
    "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
