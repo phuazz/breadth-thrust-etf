@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -247,6 +248,45 @@ def _sleeve_holdings_as_weights(sleeve: dict) -> dict[str, float]:
     return out
 
 
+def _observed_mark(prices: pd.DataFrame, ticker: str, day: pd.Timestamp):
+    """Require a positive observed mark; carry only across a proven venue closure.
+
+    Python/Pandas calendar months are 1-indexed. A missing trading-session row
+    is not a holiday. Unknown venues and calendar failures cannot authorise carry.
+    FX alignment retains its calculation cap, but an unobserved FX observation
+    cannot establish a fresh daily NAV.
+    """
+    from export_holdings_prices import venue_calendar_for
+    from native_sessions import native_schedule
+
+    if ticker not in prices:
+        return None
+    series = prices[ticker]
+    observed_day = day
+    symbol, _ = _resolve_yf_symbol(ticker, _load_registry())
+    venue = venue_calendar_for(symbol)
+    value = series.get(day)
+    # The caller supplies the NYSE session set. Foreign venues also need
+    # their own calendar even when a vendor supplies a non-null holiday row.
+    if venue not in (None, "NYSE") or value is None or pd.isna(value):
+        if venue is None:
+            return None
+        try:
+            schedule, _ = native_schedule(venue, day - pd.Timedelta(days=31), day)
+        except Exception as exc:  # Calendar faults cannot authorise publication.
+            print(f"  Calendar unavailable for {ticker}: {exc}")
+            return None
+        if schedule.empty:
+            return None
+        observed_day = pd.Timestamp(schedule.index[-1]).tz_localize(None)
+        value = series.get(observed_day)
+    if observed_day.strftime("%Y-%m-%d") in prices.attrs.get("missing_fx", {}).get(ticker, []):
+        return None
+    if value is None or not math.isfinite(float(value)) or value <= 0:
+        return None
+    return value
+
+
 def _project_daily_equity(
     weights: dict[str, float],
     anchor_equity: float,
@@ -258,9 +298,10 @@ def _project_daily_equity(
     """Compute weighted buy-and-hold NAV from anchor_ts forward.
 
     Returns parallel (dates, equity) lists for dates strictly AFTER
-    anchor_ts. Holdings without prices are treated as flat (0% return)
-    — their weight contributes 1.0x to the factor unchanged. Cash
-    residual (1 - sum(weights)) is also treated as flat.
+    anchor_ts. Every held instrument needs an observed anchor and session
+    mark. Stop at the first incomplete session, including an entirely absent
+    row. Only a proven venue holiday permits a prior-session mark. The cash
+    residual (1 - sum(weights)) remains flat.
 
     ``session_cap`` (the last completed NYSE session) bounds the output:
     no point is emitted for a price date after it. This keeps the deployed
@@ -279,42 +320,34 @@ def _project_daily_equity(
     extend any published series MUST pass it.
     """
     baselines: dict[str, float] = {}
+    weights = {e: w for e, w in weights.items() if w > 0}
     for etf in weights:
-        if etf not in prices.columns:
-            continue
-        s = prices[etf].loc[:anchor_ts].dropna()
-        if not s.empty:
-            baselines[etf] = s.iloc[-1]
-
-    held_without = [e for e in weights if e not in baselines]
-    missing_wt = sum(weights[e] for e in held_without)
+        value = _observed_mark(prices, etf, anchor_ts)
+        if value is None:
+            print(f"  Incomplete anchor {anchor_ts.date()}: {etf}; no extension")
+            return [], []
+        baselines[etf] = value
     cash_wt = max(0.0, 1.0 - sum(weights.values()))
 
     post_dates = prices.index[prices.index > anchor_ts]
+    if valid_sessions is not None:
+        # Enumerate the expected calendar, so an omitted whole row cannot
+        # disappear from the completeness check and leave an interior hole.
+        post_dates = pd.DatetimeIndex(sorted(
+            pd.Timestamp(d) for d in valid_sessions if pd.Timestamp(d) > anchor_ts))
     if session_cap is not None:
         post_dates = post_dates[post_dates <= session_cap]
-    if valid_sessions is not None:
-        non_sessions = [d for d in post_dates if d.date() not in valid_sessions]
-        if non_sessions:
-            print(f"  NYSE session filter: dropping "
-                  f"{[d.strftime('%Y-%m-%d') for d in non_sessions]} "
-                  f"(price bars on non-NYSE days, e.g. Europe-only holidays)")
-        post_dates = post_dates[[d.date() in valid_sessions
-                                  for d in post_dates]]
     dates_out: list[str] = []
     equity_out: list[float] = []
     for d in post_dates:
-        factor = missing_wt + cash_wt  # flat contributions
+        marks = {e: _observed_mark(prices, e, d) for e in weights}
+        missing = [e for e, value in marks.items() if value is None]
+        if missing:
+            print(f"  Incomplete session {d.date()}: {', '.join(missing)}; extension stopped")
+            break
+        factor = cash_wt
         for etf, w in weights.items():
-            if etf not in baselines:
-                continue
-            p_d = prices[etf].get(d)
-            if p_d is None or pd.isna(p_d):
-                s = prices[etf].loc[:d].dropna()
-                if s.empty:
-                    continue
-                p_d = s.iloc[-1]
-            factor += w * (p_d / baselines[etf])
+            factor += w * (marks[etf] / baselines[etf])
         dates_out.append(d.strftime("%Y-%m-%d"))
         equity_out.append(anchor_equity * factor)
     return dates_out, equity_out
@@ -331,8 +364,8 @@ def _fetch_usd_prices(
     is in USD terms, matching the deployed blend equity construction.
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    # Pad start by 2 calendar days to ensure anchor_date is included
-    start = (pd.Timestamp(anchor_date) - pd.Timedelta(days=2)).strftime("%Y-%m-%d")
+    # Cover the same bounded native-calendar window used for a holiday anchor.
+    start = (pd.Timestamp(anchor_date) - pd.Timedelta(days=31)).strftime("%Y-%m-%d")
     end = (pd.Timestamp(today) + pd.Timedelta(days=2)).strftime("%Y-%m-%d")
 
     # Resolve each ETF -> (yfinance_symbol, fx_handling)
@@ -369,18 +402,31 @@ def _fetch_usd_prices(
     usd_cny = raw["USDCNY=X"].dropna() if "USDCNY=X" in raw.columns else None
 
     out = {}
+    missing_fx = {}
     for etf, (sym, fx) in resolutions.items():
         if sym not in raw.columns:
             continue
         series = raw[sym].dropna()
         if series.empty:
             continue
-        if fx == "eur_to_usd" and eur_usd is not None:
+        fx_series = eur_usd if fx == "eur_to_usd" else usd_cny
+        if fx != "none":
+            # Keep the established capped conversion, but carry observation
+            # provenance into the publication guard. Missing FX must never
+            # leave an unconverted native price masquerading as USD.
+            observed_fx = (fx_series.reindex(series.index) if fx_series is not None
+                           else pd.Series(float("nan"), index=series.index))
+            missing_fx[etf] = [d.strftime("%Y-%m-%d") for d, value in observed_fx.items()
+                               if pd.isna(value) or not math.isfinite(float(value)) or value <= 0]
+            if fx_series is None:
+                out[etf] = series * float("nan")
+                continue
+        if fx == "eur_to_usd":
             # EUR price * (USD/EUR) -> USD price
             fx_aligned = align_series_to_index(eur_usd, series.index,
                                                max_stale_days=10)
             series = series * fx_aligned
-        elif fx == "cny_to_usd" and usd_cny is not None:
+        elif fx == "cny_to_usd":
             # CNY price * (1 / (CNY/USD)) -> USD price
             fx_aligned = align_series_to_index(usd_cny, series.index,
                                                max_stale_days=10)
@@ -388,6 +434,7 @@ def _fetch_usd_prices(
         out[etf] = series
 
     df = pd.DataFrame(out).sort_index()
+    df.attrs["missing_fx"] = missing_fx
     return df
 
 
@@ -405,6 +452,25 @@ def deployed_series_end(anchor_date: str, live_dates: list[str]) -> str:
     ISO dates sort chronologically, so max() is the later date.
     """
     return max([anchor_date, *live_dates])
+
+
+def _publication_retreat(previous: dict, candidate: dict) -> str | None:
+    """Refuse a shorter observed series without copying old marks into new NAV.
+
+    A later anchor may absorb the previous live extension. Each sleeve is
+    checked independently so a current deployed blend cannot hide its retreat.
+    """
+    pairs = [("deployed", previous, candidate, "live_dates")]
+    for key, old in previous.get("sleeve_extensions", {}).items():
+        pairs.append((key, old, candidate.get("sleeve_extensions", {}).get(key, {}), "dates"))
+    for label, old, new, dates_key in pairs:
+        old_anchor = old.get("anchor_date", "")
+        new_anchor = new.get("anchor_date", "")
+        old_end = deployed_series_end(old_anchor, old.get(dates_key, []))
+        new_end = deployed_series_end(new_anchor, new.get(dates_key, []))
+        if new_anchor < old_anchor or new_end < old_end:
+            return f"{label} would retreat from {old_anchor}/{old_end} to {new_anchor}/{new_end}"
+    return None
 
 
 def main() -> int:
@@ -483,7 +549,8 @@ def main() -> int:
     for sa in sleeve_anchors.values():
         for etf in sa["weights"]:
             union_weights.setdefault(etf, 0.0)
-    prices = _fetch_usd_prices(union_weights, anchor_date, registry)
+    fetch_anchor = min([anchor_date, *(sa["anchor_date"] for sa in sleeve_anchors.values())])
+    prices = _fetch_usd_prices(union_weights, fetch_anchor, registry)
     if prices.empty:
         print("\nERROR: no price data downloaded. Cannot compute mark-to-market.",
               file=sys.stderr)
@@ -516,17 +583,6 @@ def main() -> int:
 
     # --- Deployed-blend projection
     anchor_ts = pd.Timestamp(anchor_date)
-    if anchor_ts not in prices.index:
-        valid = prices.index[prices.index <= anchor_ts]
-        if len(valid) == 0:
-            print(f"\nERROR: no prices at-or-before anchor date {anchor_date}",
-                  file=sys.stderr)
-            return 1
-        actual_anchor = valid.max()
-        print(f"\nNote: shifted deployed anchor from {anchor_date} to "
-              f"{actual_anchor.strftime('%Y-%m-%d')}")
-        anchor_ts = actual_anchor
-
     daily_dates, daily_equity = _project_daily_equity(
         deployed_weights, anchor_equity, prices, anchor_ts,
         session_cap=session_cap, valid_sessions=valid_sessions)
@@ -543,11 +599,6 @@ def main() -> int:
     sleeve_extensions: dict[str, dict] = {}
     for k, sa in sleeve_anchors.items():
         s_anchor_ts = pd.Timestamp(sa["anchor_date"])
-        if s_anchor_ts not in prices.index:
-            valid = prices.index[prices.index <= s_anchor_ts]
-            if len(valid) == 0:
-                continue
-            s_anchor_ts = valid.max()
         s_dates, s_equity = _project_daily_equity(
             sa["weights"], sa["anchor_equity"], prices, s_anchor_ts,
             session_cap=session_cap, valid_sessions=valid_sessions)
@@ -597,6 +648,12 @@ def main() -> int:
     }
 
     out_path = Path(args.out)
+    if out_path.exists():
+        previous = json.loads(out_path.read_text(encoding="utf-8"))
+        retreat = _publication_retreat(previous, payload)
+        if retreat:
+            print(f"\nERROR: {retreat}; existing live track retained.", file=sys.stderr)
+            return 1
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"\nWrote {out_path.relative_to(PROJECT_ROOT)} "
