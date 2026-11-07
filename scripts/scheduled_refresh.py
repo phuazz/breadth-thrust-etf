@@ -296,6 +296,46 @@ def panel_is_week_current(panel_end: date, now_utc: datetime) -> bool:
     return panel_end >= week_final_anchor(now_utc)
 
 
+def refresh_failure_details(log_path: Path, start_offset: int = 0) -> tuple[str, str]:
+    """Explain this invocation only; never relax publication gates."""
+    import re
+
+    subject = "refresh_all.py reported failed steps"
+    body = ("One or more refresh steps failed; nothing was committed or pushed. "
+            "Re-run the failed steps manually (see the refresh summary in the log).")
+    seal_failed = False
+    missing = []
+    try:
+        with log_path.open(encoding="utf-8", errors="replace") as stream:
+            stream.seek(start_offset)
+            for line in stream:
+                if "ValueError: performance does not reach a required venue session" in line:
+                    seal_failed = True
+                match = re.search(r"Incomplete session (\d{4}-\d{2}-\d{2}): (.+); extension stopped", line)
+                if match:
+                    item = (match.group(1), match.group(2))
+                    if item not in missing:
+                        missing.append(item)
+    except (OSError, ValueError):
+        return subject, body
+    if not seal_failed:
+        return subject, body
+    subject = "component seal blocked by incomplete performance"
+    body = ("The component publication seal rejected the deployed performance series "
+            "because it did not reach a required venue session. Nothing was committed "
+            "or pushed.\n")
+    if missing:
+        body += "Live valuation reported missing held prices:\n" + "\n".join(
+            f"  Required session {session}: {symbols}" for session, symbols in missing)
+        body += "\n"
+    body += ("Check whether the missing session prices are now available from the vendor. "
+             "Once available, rerun the scheduled refresh so valuation and the publication "
+             "seal are rebuilt together. If prices remain unavailable, retain the last "
+             "published state and retry later; do not bypass the seal. "
+             "See the live valuation output and final seal traceback in the log.")
+    return subject, body
+
+
 def log_path_for(now_utc: datetime, tz=None) -> Path:
     """Log file for a run, named by LOCAL date.
 
@@ -1804,14 +1844,14 @@ def main(argv: list[str] | None = None) -> int:
             cmd.append("--deployed-only")
         log.write(f"\nrunning {' '.join(cmd[1:])} (output follows)\n")
         log.flush()
+        refresh_log_start = log.tell()
         rc = subprocess.run(
             cmd, cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT,
         ).returncode
         if rc != 0:
-            return fail(3, "refresh_all.py reported failed steps",
-                        "One or more refresh steps failed; nothing was "
-                        "committed or pushed. Re-run the failed steps "
-                        "manually (see the refresh summary in the log).")
+            log.flush()
+            subject, detail = refresh_failure_details(log_path, refresh_log_start)
+            return fail(3, subject, detail)
 
     # ----- Anchor + gate verdict (the silent-wrong guard) -----
     now = datetime.now(timezone.utc)  # refresh took hours; re-read clock

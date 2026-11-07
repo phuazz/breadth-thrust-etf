@@ -67,3 +67,8 @@ pytest-output.txt
 data/combined_book_risk.json.lock
 data/combined_book_risk.json.pending
 data/combined_book_risk.json.tmp
+
+data/*_yahoo_observed_*.parquet
+data/*_yahoo_observed_*.parquet.*.tmp
+
+data/*_yahoo_observed.lock

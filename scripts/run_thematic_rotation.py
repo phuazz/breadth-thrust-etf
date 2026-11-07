@@ -826,9 +826,20 @@ def download_prices() -> pd.DataFrame:
     if _missing:
         print(f"  Missing required-name recovery: {_missing}", flush=True)
     df = df.loc[START_DATE:END_DATE]
+    # Retain only actual native Yahoo observations before FX and alignment.
+    # A transformed USD cache cannot prove what Shenzhen originally printed.
+    from yahoo_observations import settle_native_yahoo
+    native_names = [t for t in fetch_names if t.endswith((".SZ", ".SS", ".DE"))]
+    for ticker in native_names:
+        native = settle_native_yahoo(
+            df[[ticker]].rename(columns={ticker: "Close"}), ticker,
+            PRICE_CACHE.parent, now_utc=acquisition_started, end=END_DATE,
+            through=current_through)
+        df = df.reindex(df.index.union(native.index))
+        df[ticker] = native["Close"].reindex(df.index)
     df, _heal = vendor_tail.heal_hollow_tail(
         df, fetch_names, through=current_through,
-        exclude=(_ngrep or {}).get("replaced", []))
+        exclude=[*(_ngrep or {}).get("replaced", []), *native_names])
     vendor_tail.report_heal(_heal, label="Strategy C")
 
     # Partial-bar guard: the padded fetch window may include today's

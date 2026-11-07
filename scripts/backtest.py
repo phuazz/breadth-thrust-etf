@@ -231,6 +231,7 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
                     and cached.index.max() >= pd.Timestamp(end)):
                 return cached.loc[start:end]
     sym = yf_symbol or etf
+    acquisition_started = datetime.now(timezone.utc)
     raw = yf.download(sym, start=start, end=end, auto_adjust=True,
                       progress=False, threads=False)
     if isinstance(raw.columns, pd.MultiIndex):
@@ -247,6 +248,11 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
     if why is None:
         raw = raw[["Open", "High", "Low", "Close"]].copy()
         raw.index = pd.to_datetime(raw.index).tz_localize(None)
+        if completed_through is not None:
+            from yahoo_observations import settle_native_yahoo
+            raw = settle_native_yahoo(
+                raw, sym, cache_path.parent, now_utc=acquisition_started,
+                end=end, through=completed_through)
 
         # ----- Norgate price source, opt-in (2026-08-30) -----
         # BTE_PRICE_SOURCE=norgate prefers the locally licensed feed for this

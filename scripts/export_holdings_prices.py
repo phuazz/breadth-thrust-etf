@@ -612,6 +612,7 @@ def fetch_missing_from_yfinance(tickers: list[str],
           f"(yfinance {getattr(yf, '__version__', 'unknown')}, from {start}): "
           f"{', '.join(tickers)}")
     out: dict[str, pd.Series] = {}
+    acquisition_started = datetime.now(timezone.utc)
     try:
         raw = yf.download(tickers, start=start, auto_adjust=True,
                           progress=False, threads=True, group_by="ticker")
@@ -668,7 +669,21 @@ def fetch_missing_from_yfinance(tickers: list[str],
             if ser.empty:
                 continue
             ser.index = pd.to_datetime(ser.index).tz_localize(None)
+            observed_cache = DATA_DIR / f"{tk.lower()}_yahoo_observed_close.parquet"
+            recovered_native = False
+            if tk.endswith((".DE", ".SZ", ".SS")) and observed_cache.exists():
+                from yahoo_observations import settle_native_yahoo
+                original_dates = ser.index
+                native = settle_native_yahoo(
+                    ser.to_frame("Close"), tk, DATA_DIR,
+                    now_utc=acquisition_started)
+                ser = native["Close"].dropna()
+                recovered_native = not ser.index.difference(original_dates).empty
             out[tk] = ser
+            if recovered_native:
+                # Export the certified close, but do not invent its missing
+                # OHLC fields in the engine cache. Its raw archive is separate.
+                continue
             # Persist as an OHLC-style cache so load_close_series finds it next
             # time and local runs stay network-free.
             #
@@ -1236,6 +1251,7 @@ def refresh_ohlc_caches(symbols: dict[str, str] | None = None) -> int:
     print(f"Refreshing {len(ordered)} engine-facing OHLC cache(s) "
           f"({start} -> {end or 'today'}) ...", flush=True)
 
+    acquisition_started = datetime.now(timezone.utc)
     fetched = _download_ohlc(ordered, start, end)
     written, refused, unfetched = [], [], []
     for sym in ordered:
@@ -1245,6 +1261,9 @@ def refresh_ohlc_caches(symbols: dict[str, str] | None = None) -> int:
         if frame is None:
             unfetched.append(sym)
             continue
+        from yahoo_observations import settle_native_yahoo
+        frame = settle_native_yahoo(
+            frame, sym, DATA_DIR, now_utc=acquisition_started, end=end)
         why = _fetched_frame_is_worse(frame, on_disk)
         if why:
             refused.append(f"{sym} ({why})")

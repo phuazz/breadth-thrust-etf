@@ -88,6 +88,12 @@ def _vendor(th, withdraw_good_friday=False, btc_last_missing=False):
 def site(request, monkeypatch, tmp_path):
     import norgate_prices as npx
     import run_thematic_rotation as th
+    import yahoo_observations
+    # These cases exercise corrupt transformed-frame/sidecar pairs. Keep the
+    # vendor gap unresolved here; certified RAW acquisition recovery has its
+    # own full-load regressions in test_yahoo_observations_integration.py.
+    monkeypatch.setattr(yahoo_observations, "settle_native_yahoo",
+                        lambda frame, *a, **k: frame)
     cache = tmp_path / "thematic_prices_cache.parquet"
     monkeypatch.setattr(th, "PRICE_CACHE", cache)
     monkeypatch.setattr(th, "last_completed_session", lambda now: lp.LAST.date())

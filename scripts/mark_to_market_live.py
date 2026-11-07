@@ -118,6 +118,7 @@ def _yf_close_series(symbols: list[str], start: str, end: str) -> pd.DataFrame:
     if not symbols:
         return pd.DataFrame()
     import yfinance as yf
+    acquisition_started = datetime.now(timezone.utc)
     raw = yf.download(
         symbols, start=start, end=end,
         auto_adjust=True, progress=False, threads=False,
@@ -129,12 +130,23 @@ def _yf_close_series(symbols: list[str], start: str, end: str) -> pd.DataFrame:
     if isinstance(raw.columns, pd.MultiIndex):
         for sym in symbols:
             if sym in raw.columns.get_level_values(0):
-                series = raw[sym]["Close"] if "Close" in raw[sym].columns else None
-                if series is not None and not series.empty:
-                    out[sym] = series
+                native = raw[sym]
+                fields = [c for c in ("Open", "High", "Low", "Close") if c in native]
+                if "Close" in fields:
+                    from yahoo_observations import settle_native_yahoo
+                    native = settle_native_yahoo(
+                        native[fields], sym, DATA_DIR,
+                        now_utc=acquisition_started, end=end)
+                    if not native.empty:
+                        out[sym] = native["Close"]
     else:
         if "Close" in raw.columns:
-            out[symbols[0]] = raw["Close"]
+            from yahoo_observations import settle_native_yahoo
+            fields = [c for c in ("Open", "High", "Low", "Close") if c in raw]
+            native = settle_native_yahoo(
+                raw[fields], symbols[0], DATA_DIR,
+                now_utc=acquisition_started, end=end)
+            out[symbols[0]] = native["Close"]
     df = pd.DataFrame(out)
     df.index = pd.to_datetime(df.index).tz_localize(None)
     return df.sort_index()

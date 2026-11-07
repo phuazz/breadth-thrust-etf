@@ -377,6 +377,11 @@ def _yf(frame: pd.DataFrame, needed):
 
 @pytest.fixture
 def engine(monkeypatch, tmp_path):
+    import yahoo_observations
+    # This Bitcoin construction fixture deliberately puts every line on NYSE.
+    # Native-source acquisition is independently covered with real venue dates.
+    monkeypatch.setattr(yahoo_observations, "settle_native_yahoo",
+                        lambda frame, *a, **k: frame)
     """Sleeve C over a window that straddles the cut-over, with the vendor,
     Norgate and the frozen artefact all stubbed."""
     import norgate_prices as npx
