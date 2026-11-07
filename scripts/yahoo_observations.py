@@ -87,13 +87,21 @@ def _settle_native_yahoo(frame, symbol, data_dir, *, now_utc, end=None,
     bound = pd.Timestamp(schedule.index[-1]).tz_localize(None).normalize()
     frame = frame.copy()
     frame.index = pd.to_datetime(frame.index).tz_localize(None).normalize()
+    after_cutoff = frame.index[(frame.index > bound) & frame.notna().any(axis=1)]
+    if len(after_cutoff):
+        print(f"  {symbol} observed-price cutoff: excluded after {bound.date()}: "
+              f"{[d.date().isoformat() for d in after_cutoff]}", flush=True)
     frame = frame.loc[frame.index <= bound].dropna(how="all")
     shape = "ohlc" if {"Open", "High", "Low", "Close"}.issubset(frame.columns) else "close"
     cache = Path(data_dir) / f"{symbol.lower()}_yahoo_observed_{shape}.parquet"
     cached = _read(cache)
     settled, record = settle_observed_prices(
         frame, symbol=symbol, venue=venue, through=bound, cached=cached,
-        fetch_window=fetch_window, now_utc=now_utc)
+        fetch_window=fetch_window, now_utc=now_utc, exclude_non_sessions=True)
+    if record.get("excluded_non_session_dates") or record.get("excluded_retry_non_session_dates"):
+        print(f"  {symbol} observed-price calendar: excluded non-trading dates "
+              f"fresh={record['excluded_non_session_dates']}; "
+              f"retry={record['excluded_retry_non_session_dates']}", flush=True)
     if record.get("retried_dates") or record.get("retained_dates") or record.get("unresolved_dates"):
         print(f"  {symbol} observed-price recovery: "
               f"retried={record.get('retried_dates', [])}; "

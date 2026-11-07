@@ -245,3 +245,93 @@ def test_flat_response_cannot_seed_durable_recovery_evidence(tmp_path):
     yo.settle_native_yahoo(flat, "EXH1.DE", tmp_path, now_utc=NOW,
                            fetch_window=no_answer)
     assert not list(tmp_path.glob("*.parquet"))
+
+
+@pytest.mark.parametrize("symbol", ["EXH1.DE", "EXH4.DE", "EXH9.DE", "EXV1.DE", "EXV3.DE"])
+def test_full_xetra_history_excludes_historical_vendor_holidays(tmp_path, capsys, symbol):
+    # Official Xetra calendars: these were settlement-only, not trading days.
+    # 2017: cashmarket.deutsche-boerse.com/resource/blob/336572/247517da046f56e5b4dae39723f29b00/data/trading-calendar-2017.pdf
+    # 2018: cashmarket.deutsche-boerse.com/resource/blob/154430/366c1c9be4ce7cdb923bbf246db1d1bf/data/trading-calendar-2018.pdf
+    holidays = pd.to_datetime(["2017-10-03", "2017-10-31", "2018-05-21"])
+    sessions = yo.effective_calendar("XETR").schedule(
+        start_date="2017-06-30", end_date="2026-11-06").index
+    assert not holidays.isin(sessions).any()
+    observed = pd.DataFrame({field: [100. + n / 100 for n in range(len(sessions))]
+                             for field in ["Open", "High", "Low", "Close"]}, index=sessions)
+    raw = observed.copy()
+    for day in holidays:
+        raw.loc[day] = 101.
+    raw = raw.sort_index()
+    untouched = raw.copy(deep=True)
+    out = yo.settle_native_yahoo(raw, symbol, tmp_path, now_utc=NOW,
+                                 fetch_window=no_answer)
+    pd.testing.assert_frame_equal(out, observed, check_freq=False)
+    pd.testing.assert_frame_equal(raw, untouched)
+    record = out.attrs["observed_price_provenance"]
+    assert record["excluded_non_session_dates"] == [d.date().isoformat() for d in holidays]
+    assert not holidays.isin(pd.to_datetime(list(record["rows"]))).any()
+    assert out.index[-1] == pd.Timestamp("2026-11-06")
+    archive = pd.read_parquet(tmp_path / f"{symbol.lower()}_yahoo_observed_ohlc.parquet")
+    pd.testing.assert_frame_equal(archive, out)
+    assert "excluded non-trading dates" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("dates", [
+    ["2017-10-30", "2017-10-31", "2017-11-01"],
+    ["2025-12-30", "2025-12-31", "2026-01-01", "2026-01-02"],
+])
+def test_acquisition_calendar_filter_month_and_year_boundaries(tmp_path, dates):
+    raw = pd.DataFrame({"Close": range(100, 100 + len(dates))}, index=pd.to_datetime(dates))
+    out = yo.settle_native_yahoo(raw, "EXH1.DE", tmp_path,
+                                 now_utc=NOW, through=dates[-1], fetch_window=no_answer)
+    assert list(out.index) == list(pd.to_datetime([dates[0], dates[-1]]))
+    assert out.attrs["observed_price_provenance"]["excluded_non_session_dates"] == dates[1:-1]
+
+
+def test_holiday_only_response_is_not_cached(tmp_path, capsys):
+    raw = pd.DataFrame({"Close": [100.]}, index=pd.to_datetime(["2017-10-03"]))
+    out = yo.settle_native_yahoo(raw, "EXH1.DE", tmp_path, now_utc=NOW,
+                                 through="2017-10-04", fetch_window=no_answer)
+    assert out.empty
+    assert not list(tmp_path.glob("*.parquet"))
+    assert "2017-10-03" in capsys.readouterr().out
+
+
+def test_after_cutoff_is_reported_separately_from_non_trading_filter(tmp_path, capsys):
+    out = yo.settle_native_yahoo(prices(), "EXH1.DE", tmp_path,
+                                 now_utc=pd.Timestamp("2026-11-06T10:00:00Z"),
+                                 fetch_window=no_answer)
+    assert DATES[-1] not in out.index
+    log = capsys.readouterr().out
+    assert "cutoff: excluded after 2026-11-05: ['2026-11-06']" in log
+    assert "excluded non-trading dates" not in log
+
+
+
+def test_engine_cache_refresh_handles_complete_history_with_off_session_rows(tmp_path, monkeypatch):
+    import export_holdings_prices as holdings
+    monkeypatch.setattr(holdings, "DATA_DIR", tmp_path)
+    class Clock:
+        @staticmethod
+        def now(tz):
+            return NOW
+    monkeypatch.setattr(holdings, "datetime", Clock)
+    sessions = yo.effective_calendar("XETR").schedule(
+        start_date="2017-06-30", end_date="2026-11-06").index
+    observed = pd.DataFrame({field: [100. + n / 100 for n in range(len(sessions))]
+                             for field in ["Open", "High", "Low", "Close"]}, index=sessions)
+    raw = observed.copy()
+    for day in ["2017-10-03", "2017-10-31", "2018-05-21"]:
+        raw.loc[pd.Timestamp(day)] = 101.
+    raw = raw.sort_index()
+    symbols = {s: s[:-3] for s in ["EXH1.DE", "EXH4.DE", "EXH9.DE", "EXV1.DE", "EXV3.DE"]}
+    for symbol in symbols:
+        # Existing unbound engine caches may still contain the holiday rows.
+        raw.to_parquet(tmp_path / f"{symbol.lower()}_ohlc_cache.parquet")
+    monkeypatch.setattr(holdings, "engine_cache_window", lambda key: ("2017-06-30", "2026-11-07"))
+    monkeypatch.setattr(holdings, "_download_ohlc", lambda *args: {s: raw.copy() for s in symbols})
+    assert holdings.refresh_ohlc_caches(symbols) == 0
+    for symbol in symbols:
+        updated = pd.read_parquet(tmp_path / f"{symbol.lower()}_ohlc_cache.parquet")
+        pd.testing.assert_frame_equal(updated, observed, check_freq=False)
+        assert len(updated.attrs["observed_price_provenance"]["excluded_non_session_dates"]) == 3

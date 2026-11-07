@@ -91,12 +91,15 @@ def project_close(frame):
 
 
 def settle_observed_prices(frame, *, symbol, venue, through, cached=None,
-                           fetch_window=None, now_utc=None, lookback_days=10):
+                           fetch_window=None, now_utc=None, lookback_days=10,
+                           exclude_non_sessions=False):
     """Return a new frame and audit record; unresolved gaps stay missing.
 
     ``fetch_window(start, end)`` receives ISO dates, with end exclusive. Transport
     failures are recorded, other errors propagate. One narrow request is made.
     ``through`` is an inclusive completed-session cutoff, not today's live bar.
+    Acquisition callers may exclude reported non-trading dates, with an audit.
+    This never filters unfinished trading sessions or relaxes cached evidence.
     Python date-library months are 1-indexed; arithmetic uses Timedelta only.
     """
     if not symbol or not venue or lookback_days < 1:
@@ -111,7 +114,8 @@ def settle_observed_prices(frame, *, symbol, venue, through, cached=None,
         raise ValueError("Observed frame symbol does not match the requested symbol")
     record = {"symbol": symbol, "venue": venue, "through": cap.date().isoformat(),
               "retried_dates": [], "retained_dates": [], "unresolved_dates": [],
-              "refusals": []}
+              "refusals": [], "excluded_non_session_dates": [],
+              "excluded_retry_non_session_dates": []}
     if out.empty:
         return out, record  # No span or anchors: never fabricate a cold history.
     start = out.index.min()
@@ -120,6 +124,21 @@ def settle_observed_prices(frame, *, symbol, venue, through, cached=None,
     sessions = pd.DatetimeIndex([_day(d) for d in completed])
     if cap not in sessions:
         raise ValueError("through must name a completed venue session")
+    calendar_sessions = pd.DatetimeIndex([_day(d) for d in schedule.index])
+
+    def screen_non_sessions(candidate, audit_key):
+        # Use the full venue calendar, not only completed sessions: an open
+        # intraday session is not a holiday and must still fail validation.
+        excluded = candidate.index[(candidate.index <= cap) &
+                                   ~candidate.index.isin(calendar_sessions)]
+        if not exclude_non_sessions or not len(excluded):
+            return candidate
+        record[audit_key] = [d.date().isoformat() for d in excluded]
+        return candidate.loc[~candidate.index.isin(excluded)].copy()
+
+    out = screen_non_sessions(out, "excluded_non_session_dates")
+    if out.empty:
+        return out, record  # A holiday-only response cannot become evidence.
     valid = _valid(out, sessions, cap)
     currency = out.attrs.get("currency")
     stamp = now.isoformat()
@@ -175,6 +194,7 @@ def settle_observed_prices(frame, *, symbol, venue, through, cached=None,
                 record["refusals"].append("retry: column mismatch")
             else:
                 retry = retry.loc[(retry.index >= start) & (retry.index <= cap), out.columns]
+                retry = screen_non_sessions(retry, "excluded_retry_non_session_dates")
                 rv = _valid(retry, sessions, cap)
                 if (retry.attrs.get("symbol", symbol) != symbol or
                         retry.attrs.get("currency", currency) != currency or
@@ -211,6 +231,8 @@ def settle_observed_prices(frame, *, symbol, venue, through, cached=None,
     record["unresolved_dates"] = [d.date().isoformat() for d in missing()]
     metadata = {"version": 1, "source": "yfinance", "basis": "auto_adjust=True",
                 "symbol": symbol, "venue": venue, "currency": currency,
-                "through": cap.date().isoformat(), "acquired_at": stamp, "rows": lineage}
+                "through": cap.date().isoformat(), "acquired_at": stamp, "rows": lineage,
+                "excluded_non_session_dates": record["excluded_non_session_dates"],
+                "excluded_retry_non_session_dates": record["excluded_retry_non_session_dates"]}
     out.attrs[PROVENANCE_ATTR] = dict(metadata, digest=_digest(out, metadata))
     return out, record

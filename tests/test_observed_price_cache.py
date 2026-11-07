@@ -255,3 +255,45 @@ def test_pinned_china_closures_never_requested_or_certified(monkeypatch):
     with pytest.raises(ValueError, match="completed venue session"):
         settle(fabricated, venue="XSHG", through="2027-01-04",
                now_utc="2027-01-05T12:00:00Z", fetch_window=unexpected)
+
+
+@pytest.mark.parametrize("later", ["2026-11-06", "2026-11-07"])
+def test_non_session_screen_does_not_hide_unfinished_or_future_rows(later):
+    fresh = prices(["2026-11-05", later])
+    with pytest.raises(ValueError, match="completed venue session"):
+        settle(fresh, through="2026-11-05", now_utc="2026-11-06T10:00:00Z",
+               exclude_non_sessions=True)
+
+
+def test_opted_acquisition_audits_retry_holiday_without_creating_observation():
+    dates = ["2017-10-02", "2017-10-03", "2017-10-04"]
+    retry = prices(dates)
+    fresh = retry.iloc[:1].copy()
+    out, record = settle(fresh, venue="XETR", through="2017-10-04",
+                         now_utc="2017-10-05T12:00:00Z",
+                         fetch_window=lambda s, e: retry,
+                         exclude_non_sessions=True)
+    assert record["excluded_retry_non_session_dates"] == ["2017-10-03"]
+    assert record["retried_dates"] == ["2017-10-04"]
+    assert list(out.index) == list(pd.to_datetime([dates[0], dates[-1]]))
+    assert dates[1] not in out.attrs[opc.PROVENANCE_ATTR]["rows"]
+    assert out.attrs[opc.PROVENANCE_ATTR]["excluded_retry_non_session_dates"] == [dates[1]]
+
+
+def test_non_session_screen_never_sanitises_cached_evidence():
+    original = prices(["2026-04-02", "2026-04-06", "2026-04-07"])
+    cached, _ = settle(original, through="2026-04-07", now_utc="2026-04-08T12:00:00Z")
+    # A bound record is still invalid if its calendar semantics are wrong.
+    cached.loc[pd.Timestamp("2026-04-03")] = original.iloc[0]
+    cached = cached.sort_index()
+    metadata = copy.deepcopy(cached.attrs[opc.PROVENANCE_ATTR])
+    metadata.pop("digest")
+    metadata["rows"]["2026-04-03"] = dict(metadata["rows"]["2026-04-02"])
+    cached.attrs[opc.PROVENANCE_ATTR] = dict(metadata, digest=opc._digest(cached, metadata))
+    out, record = settle(original.iloc[:-1], through="2026-04-07",
+                         now_utc="2026-04-08T12:00:00Z", cached=cached,
+                         exclude_non_sessions=True)
+    assert record["retained_dates"] == []
+    assert record["unresolved_dates"] == ["2026-04-07"]
+    assert "not a completed venue session" in record["refusals"][0]
+    assert pd.Timestamp("2026-04-03") not in out.index
