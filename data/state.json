@@ -1,7 +1,7 @@
 {
   "contract_version": "1",
   "emitted_by": "breadth-thrust-etf",
-  "emitted_at": "2026-11-06T12:29:56+00:00",
+  "emitted_at": "2026-11-07T01:04:08+00:00",
   "signals": {
     "engine_phase19_gate": {
       "as_of": "2026-11-03",
@@ -38,7 +38,7 @@
       "zone": "blend_35_35_10_20_gated_eem_tilted",
       "horizon": "weekly rebalance",
       "source_file": "data/live_track.json",
-      "computed_at": "2026-11-06 12:24 UTC",
+      "computed_at": "2026-11-07 01:00 UTC",
       "role": "engine-internal",
       "evidence_grade": "deployed-engine",
       "licence": "public",
