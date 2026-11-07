@@ -4913,7 +4913,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-11-03",
- "computed_at_utc": "2026-11-06 12:24 UTC",
+ "computed_at_utc": "2026-11-07 01:00 UTC",
  "holdings": [
   {
    "ticker": "DBC",
@@ -5196,45 +5196,45 @@
  "n_positions": 17,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-11-06T12:25:02.617600+00:00",
+  "computed_at_utc": "2026-11-07T01:00:41.497723+00:00",
   "all_current": false,
   "strategies": [
    {
     "sleeve": "A",
     "label": "US sectors",
     "data_through": "2026-11-03",
-    "venue_last_session": "2026-11-05",
-    "sessions_behind": 2,
+    "venue_last_session": "2026-11-06",
+    "sessions_behind": 3,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-11-03, while the market has traded to 2026-11-05 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-11-03, while the market has traded to 2026-11-06 — it has not been rebuilt since."
    },
    {
     "sleeve": "B",
     "label": "Asset classes",
     "data_through": "2026-11-03",
-    "venue_last_session": "2026-11-05",
-    "sessions_behind": 2,
+    "venue_last_session": "2026-11-06",
+    "sessions_behind": 3,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-11-03, while the market has traded to 2026-11-05 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-11-03, while the market has traded to 2026-11-06 — it has not been rebuilt since."
    },
    {
     "sleeve": "C",
     "label": "Thematic",
     "data_through": "2026-11-03",
-    "venue_last_session": "2026-11-05",
-    "sessions_behind": 2,
+    "venue_last_session": "2026-11-06",
+    "sessions_behind": 3,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-11-03, while the market has traded to 2026-11-05 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-11-03, while the market has traded to 2026-11-06 — it has not been rebuilt since."
    },
    {
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-11-02",
-    "venue_last_session": "2026-11-05",
-    "sessions_behind": 3,
+    "venue_last_session": "2026-11-06",
+    "sessions_behind": 4,
     "status": "behind",
     "laggards": [],
     "why_plain": "the shares held inside these funds are priced up to 2026-11-02, while the exchange itself has traded to 2026-11-03 — the newest day's prices were not available when this was built."
