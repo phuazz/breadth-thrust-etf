@@ -297,3 +297,79 @@ def test_non_session_screen_never_sanitises_cached_evidence():
     assert record["unresolved_dates"] == ["2026-04-07"]
     assert "not a completed venue session" in record["refusals"][0]
     assert pd.Timestamp("2026-04-03") not in out.index
+
+
+@pytest.mark.parametrize("boundary", [0.1, 1., 2., 128., 1e8])
+@pytest.mark.parametrize("direction", [-np.inf, np.inf])
+def test_adjacent_binary64_close_is_preserved_but_two_steps_rejected(boundary, direction):
+    raw = prices()
+    raw.loc[DATES[2], ["Open", "High", "Low", "Close"]] = boundary
+    adjacent = np.nextafter(boundary, direction)
+    raw.loc[DATES[2], "Close"] = adjacent
+    untouched = raw.to_numpy().view(np.uint64).copy()
+    out, _ = settle(raw)
+    assert np.array_equal(out.to_numpy().view(np.uint64), untouched)
+    assert np.array_equal(raw.to_numpy().view(np.uint64), untouched)
+    raw.loc[DATES[2], "Close"] = np.nextafter(adjacent, direction)
+    with pytest.raises(ValueError, match="Invalid OHLC relationships at 2026-11-04"):
+        settle(raw)
+
+
+@pytest.mark.parametrize("direction", [-np.inf, np.inf])
+def test_open_outside_range_remains_strict_even_by_one_step(direction):
+    raw = prices()
+    raw.loc[DATES[2], ["Open", "High", "Low", "Close"]] = 100.
+    raw.loc[DATES[2], "Open"] = np.nextafter(100., direction)
+    with pytest.raises(ValueError, match="OHLC"):
+        settle(raw)
+
+
+@pytest.mark.parametrize("direction", [-np.inf, np.inf])
+def test_float32_input_cannot_expand_binary64_roundoff_allowance(direction):
+    raw = prices().astype(np.float32)
+    raw.loc[DATES[2], ["Open", "High", "Low", "Close"]] = np.float32(100.)
+    raw.loc[DATES[2], "Close"] = np.nextafter(np.float32(100.), np.float32(direction))
+    with pytest.raises(ValueError, match="OHLC"):
+        settle(raw)
+
+
+@pytest.mark.parametrize("raw_close,adjusted_close,boundary", [(1.2, .7, "Low"), (10.1, .1, "High")])
+def test_actual_yfinance_adjustment_roundoff_not_a_price_mutation(raw_close, adjusted_close, boundary):
+    from yfinance.utils import auto_adjust
+    source = prices()
+    source["Adj Close"] = source.Close * .7
+    source.loc[DATES[2], "Open"] = raw_close
+    source.loc[DATES[2], "Close"] = raw_close
+    source.loc[DATES[2], "High"] = raw_close * 1.01
+    source.loc[DATES[2], "Low"] = raw_close * .99
+    source.loc[DATES[2], boundary] = raw_close
+    source.loc[DATES[2], "Adj Close"] = adjusted_close
+    adjusted = auto_adjust(source)
+    row = adjusted.loc[DATES[2]]
+    assert row.Close < row.Low if boundary == "Low" else row.Close > row.High
+    out, _ = settle(adjusted)
+    assert np.array_equal(out.to_numpy().view(np.uint64), adjusted.to_numpy().view(np.uint64))
+
+
+@pytest.mark.parametrize("method", ["cache", "retry"])
+def test_roundoff_allowance_never_relaxes_exact_adjustment_basis_matching(method):
+    original = prices()
+    cache, _ = settle(original)
+    changed = original.iloc[:-1].copy()
+    changed.loc[DATES[1], "Close"] = np.nextafter(changed.loc[DATES[1], "Close"], np.inf)
+    options = {"cached": cache} if method == "cache" else {"fetch_window": lambda s, e: original}
+    _, record = settle(changed, **options)
+    assert record["unresolved_dates"] == [DATES[-1]]
+    assert not record["retained_dates"] and not record["retried_dates"]
+    assert any("exact adjustment-basis overlap" in reason for reason in record["refusals"])
+
+
+@pytest.mark.parametrize("direction", [-np.inf, np.inf])
+def test_certified_roundoff_row_retains_unchanged(direction):
+    original = prices()
+    original.loc[DATES[-1], ["Open", "High", "Low", "Close"]] = 100.
+    original.loc[DATES[-1], "Close"] = np.nextafter(100., direction)
+    cache, _ = settle(original)
+    out, record = settle(original.iloc[:-1], cached=cache)
+    assert record["retained_dates"] == [DATES[-1]]
+    assert np.array_equal(out.to_numpy().view(np.uint64), original.to_numpy().view(np.uint64))

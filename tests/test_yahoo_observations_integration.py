@@ -335,3 +335,14 @@ def test_engine_cache_refresh_handles_complete_history_with_off_session_rows(tmp
         updated = pd.read_parquet(tmp_path / f"{symbol.lower()}_ohlc_cache.parquet")
         pd.testing.assert_frame_equal(updated, observed, check_freq=False)
         assert len(updated.attrs["observed_price_provenance"]["excluded_non_session_dates"]) == 3
+
+
+
+def test_invalid_ohlc_reports_symbol_date_and_does_not_publish_cache(tmp_path):
+    raw = prices()
+    raw.loc[DATES[2], "High"] = 101.
+    with pytest.raises(ValueError, match="EXH1.DE: Invalid OHLC relationships at 2026-11-04") as failure:
+        yo.settle_native_yahoo(raw, "EXH1.DE", tmp_path, now_utc=NOW,
+                               fetch_window=no_answer)
+    assert "High=101" in str(failure.value)
+    assert not list(tmp_path.glob("*.parquet"))

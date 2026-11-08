@@ -57,9 +57,26 @@ def _valid(frame, sessions, through):
         raise ValueError("Non-positive or non-finite observed price")
     complete = frame[prices].notna().all(axis=1)
     rows = frame.loc[complete]
-    if "Open" in frame and ((rows.High < rows[["Open", "Close", "Low"]].max(axis=1)) |
-                             (rows.Low > rows[["Open", "Close", "High"]].min(axis=1))).any():
-        raise ValueError("Invalid OHLC relationships")
+    if "Open" in frame:
+        opening, high, low, close = (rows[c].to_numpy(dtype=float)
+                                     for c in ("Open", "High", "Low", "Close"))
+        # yfinance computes O/H/L * (Adj Close / Close), but keeps Adj Close
+        # directly. An equal raw High/Close or Low/Close can therefore differ
+        # by one binary64 step after adjustment. Bound only that comparison
+        # by one representable value; never round prices or use a percentage
+        # tolerance. O/H/L share the same multiplication and stay strict.
+        invalid = ((opening > high) | (opening < low) | (low > high) |
+                   (close > np.nextafter(high, np.inf)) |
+                   (close < np.nextafter(low, -np.inf)))
+        if invalid.any():
+            bad = rows.loc[invalid]
+            details = "; ".join(
+                f"{day.date()}: " + ", ".join(f"{c}={float(row[c]):.17g}"
+                                             for c in ("Open", "High", "Low", "Close"))
+                for day, row in bad.iloc[:3].iterrows())
+            if len(bad) > 3:
+                details += f"; plus {len(bad) - 3} more row(s)"
+            raise ValueError("Invalid OHLC relationships at " + details)
     return complete
 
 

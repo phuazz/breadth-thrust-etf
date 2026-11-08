@@ -165,6 +165,9 @@ def settle_native_yahoo(frame, symbol, data_dir, *, now_utc, end=None,
         raise ValueError("invalid native observation cache symbol")
     lock = Path(data_dir) / f"{symbol.lower()}_yahoo_observed.lock"
     with _observation_lock(lock):
-        return _settle_native_yahoo(
-            frame, symbol, data_dir, now_utc=now_utc, end=end,
-            through=through, fetch_window=fetch_window)
+        try:
+            return _settle_native_yahoo(
+                frame, symbol, data_dir, now_utc=now_utc, end=end,
+                through=through, fetch_window=fetch_window)
+        except ValueError as exc:
+            raise ValueError(f"{symbol}: {exc}") from exc
