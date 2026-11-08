@@ -1,56 +1,56 @@
 {
- "computed_at_utc": "2026-11-07T01:00:41.497723+00:00",
+ "computed_at_utc": "2026-11-08T04:12:24.410015+00:00",
  "strategies": [
   {
    "sleeve": "A",
    "label": "US sectors",
    "venue": "NYSE",
-   "data_through": "2026-11-03",
+   "data_through": "2026-11-06",
    "venue_last_session": "2026-11-06",
-   "sessions_behind": 3,
-   "status": "behind",
+   "sessions_behind": 0,
+   "status": "current",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
    "carried": false,
-   "why": "every one of the breadth panels stops at 2026-11-03 while NYSE has completed 2026-11-06 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-11-03, while the market has traded to 2026-11-06 \u2014 it has not been rebuilt since."
+   "why": null,
+   "why_plain": null
   },
   {
    "sleeve": "B",
    "label": "Asset classes",
    "venue": "NYSE",
-   "data_through": "2026-11-03",
+   "data_through": "2026-11-06",
    "venue_last_session": "2026-11-06",
-   "sessions_behind": 3,
-   "status": "behind",
+   "sessions_behind": 0,
+   "status": "current",
    "laggards": [],
-   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-11-06T12:25Z; the cache is not present on this checkout",
-   "carried": true,
-   "why": "every one of the cached price series stops at 2026-11-03 while NYSE has completed 2026-11-06 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-11-03, while the market has traded to 2026-11-06 \u2014 it has not been rebuilt since."
+   "source": "price cache (asset-class ETFs)",
+   "carried": false,
+   "why": null,
+   "why_plain": null
   },
   {
    "sleeve": "C",
    "label": "Thematic",
    "venue": "NYSE",
-   "data_through": "2026-11-03",
+   "data_through": "2026-11-06",
    "venue_last_session": "2026-11-06",
-   "sessions_behind": 3,
-   "status": "behind",
+   "sessions_behind": 0,
+   "status": "current",
    "laggards": [],
-   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-11-06T12:25Z; the cache is not present on this checkout",
-   "carried": true,
-   "why": "every one of the cached price series stops at 2026-11-03 while NYSE has completed 2026-11-06 \u2014 none lags the others, so they have not been rebuilt since.",
-   "why_plain": "the data behind this strategy stops on 2026-11-03, while the market has traded to 2026-11-06 \u2014 it has not been rebuilt since.",
+   "source": "price cache (thematic ETFs)",
+   "carried": false,
+   "why": null,
+   "why_plain": null,
    "native_provenance": {
     "159801.SZ": {
      "venue": "XSHG",
-     "last_valid": "2026-11-02",
-     "last_observed_native_close": "2026-11-02",
-     "required_native_session": "2026-11-03",
-     "native_close_carried": "2026-11-02",
+     "last_valid": "2026-11-05",
+     "last_observed_native_close": "2026-11-05",
+     "required_native_session": "2026-11-06",
+     "native_close_carried": "2026-11-05",
      "missing_native_sessions": [
-      "2026-11-03"
+      "2026-11-06"
      ],
      "window_rows": 200,
      "holiday_data_through": "2026-12-31",
@@ -62,10 +62,10 @@
       "filled_rows": 1
      },
      "immaterial": {
-      "signal_filled": -0.2502,
+      "signal_filled": -0.1956,
       "signal_range": [
-       -0.3255,
-       -0.1748
+       -0.2764,
+       -0.1147
       ],
       "move_bound": 0.1,
       "stale_extent": {
@@ -96,5 +96,5 @@
  "all_current": false,
  "n_unknown": 0,
  "stalest": "2026-11-02",
- "n_behind": 4
+ "n_behind": 1
 }
