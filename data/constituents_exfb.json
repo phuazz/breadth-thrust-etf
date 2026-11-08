@@ -2,11 +2,11 @@
   "etf": "EXFB",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-11-01T12:02:02.456070+00:00",
+  "fetched_at_utc": "2026-11-08T04:37:42.276780+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-10-30",
-  "n_target_fridays": 461,
-  "n_snapshots_written": 461,
+  "end_friday": "2026-11-06",
+  "n_target_fridays": 462,
+  "n_snapshots_written": 462,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -32,8 +32,8 @@
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-10-30",
-      "fallback_date": "2026-10-29",
+      "target_friday": "2026-11-06",
+      "fallback_date": "2026-11-05",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
@@ -54,7 +54,7 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-10-29",
+    "last_real_fetch_date": "2026-11-05",
     "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
@@ -14871,7 +14871,7 @@
       ]
     },
     "2026-10-30": {
-      "actual_date": "2026-10-29",
+      "actual_date": "2026-10-30",
       "n_tickers": 24,
       "tickers": [
         "NESN.SW",
@@ -14882,8 +14882,38 @@
         "DSFIR.AS",
         "KRZ.IR",
         "RI.PA",
-        "CCH.L",
         "CARL-B.CO",
+        "CCH.L",
+        "MOWI.OL",
+        "LISP.SW",
+        "MICC.AS",
+        "HEIO.AS",
+        "ORK.OL",
+        "ABF.L",
+        "LOTB.BR",
+        "BARN.SW",
+        "GL9.IR",
+        "SALM.OL",
+        "CPR.MI",
+        "CWK.L",
+        "AAK.ST",
+        "RBREW.CO"
+      ]
+    },
+    "2026-11-06": {
+      "actual_date": "2026-11-05",
+      "n_tickers": 24,
+      "tickers": [
+        "NESN.SW",
+        "ABI.BR",
+        "DGE.L",
+        "BN.PA",
+        "HEIA.AS",
+        "DSFIR.AS",
+        "KRZ.IR",
+        "RI.PA",
+        "CARL-B.CO",
+        "CCH.L",
         "MOWI.OL",
         "LISP.SW",
         "HEIO.AS",
@@ -14892,8 +14922,8 @@
         "ABF.L",
         "LOTB.BR",
         "BARN.SW",
-        "SALM.OL",
         "GL9.IR",
+        "SALM.OL",
         "CPR.MI",
         "CWK.L",
         "AAK.ST",

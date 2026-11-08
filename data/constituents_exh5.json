@@ -2,11 +2,11 @@
   "etf": "EXH5",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-11-01T12:04:41.665981+00:00",
+  "fetched_at_utc": "2026-11-08T04:39:53.445725+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-10-30",
-  "n_target_fridays": 461,
-  "n_snapshots_written": 461,
+  "end_friday": "2026-11-06",
+  "n_target_fridays": 462,
+  "n_snapshots_written": 462,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -32,8 +32,8 @@
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-10-30",
-      "fallback_date": "2026-10-29",
+      "target_friday": "2026-11-06",
+      "fallback_date": "2026-11-05",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
@@ -54,7 +54,7 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-10-29",
+    "last_real_fetch_date": "2026-11-05",
     "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
@@ -17441,7 +17441,7 @@
       ]
     },
     "2026-10-30": {
-      "actual_date": "2026-10-29",
+      "actual_date": "2026-10-30",
       "n_tickers": 29,
       "tickers": [
         "ALV.DE",
@@ -17473,6 +17473,40 @@
         "GJF.OL",
         "MAP.MC",
         "UNIAXA.MI"
+      ]
+    },
+    "2026-11-06": {
+      "actual_date": "2026-11-05",
+      "n_tickers": 28,
+      "tickers": [
+        "ALV.DE",
+        "ZURN.SW",
+        "CS.PA",
+        "MUV2.DE",
+        "SREN.SW",
+        "G.MI",
+        "SLHN.SW",
+        "PRU.L",
+        "AV.L",
+        "SAMPO.HE",
+        "NN.AS",
+        "LGEN.L",
+        "HBAN.SW",
+        "HNR1.DE",
+        "ADM.L",
+        "UNI.MI",
+        "AGS.BR",
+        "ASRNL.AS",
+        "PZU.WA",
+        "AGN.AS",
+        "SDLF.L",
+        "STB.OL",
+        "TLX.DE",
+        "HSX.L",
+        "TRYG.CO",
+        "SCR.PA",
+        "GJF.OL",
+        "MAP.MC"
       ]
     }
   }
