@@ -1,0 +1,111 @@
+name: Post-fill miss alert
+
+# WHY THIS EXISTS (2026-11-10). The post-fill refresh runs only on the
+# owner's PC (BreadthThrust-PostFillRefresh Tue + Wed 09:00 SGT,
+# PostFillCatchup Thu + Fri hourly; WakeToRun off). A machine that is off
+# publishes nothing and says nothing, and before this the first signal was
+# the Saturday fleet_watch. This job asks origin/main, independently of that
+# machine, whether the latest weekly fill has reached the published record.
+#
+# The test is scripts/check_postfill_published.py: each obliged sleeve's
+# headline.latest_rebalance AND live_track.json's anchor_date and
+# deployed_series_end must reach the fill, derived per venue from the
+# engine's own holiday-roll calendar. deployed_series_end alone is not
+# enough: daily_live_track.yml (CI) advances it every weekday with no
+# post-fill run behind it. On Thu 29 Oct 2026 it read 27 Oct, past the
+# 26 Oct fill, while every sleeve record still sat on 19 Oct.
+#
+# THURSDAY 08:00 UTC = 16:00 SGT, after the last Thursday catch-up slot
+# (15:00 SGT) and with Friday's catch-ups still ahead, so a mail is
+# actionable the same day. Clear of the 09:00-15:00 SGT refresh window.
+#
+# VERDICTS: ok -> nothing; held (only authorised-HOLD sleeves behind) ->
+# job summary, no mail; missed / unknown -> mail. The job is green for every
+# verdict; a crash or a failed mail send fails it, and fleet_watch's
+# 'breadth-etf post-fill miss alert' run row keys on the last SUCCESSFUL
+# run, so a dead cron or a dead mailer goes stale there.
+
+on:
+  schedule:
+    - cron: '0 8 * * 4'
+  workflow_dispatch:
+    inputs:
+      asof:
+        description: 'Check date YYYY-MM-DD (UTC); blank = today'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: postfill-miss-alert
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          # Full history: the book a fill was ranked on is read from the
+          # commits that touched live_targets.json, because the daily CI
+          # run may already have rolled the current file to next week.
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Has origin/main recorded the latest fill?
+        id: check
+        env:
+          ASOF: ${{ inputs.asof }}
+        run: |
+          if [ -n "$ASOF" ]; then
+            python scripts/check_postfill_published.py --ref HEAD --asof "$ASOF" --body-out "$RUNNER_TEMP/postfill_body.txt"
+          else
+            python scripts/check_postfill_published.py --ref HEAD --body-out "$RUNNER_TEMP/postfill_body.txt"
+          fi
+
+      - name: Email the miss
+        if: steps.check.outputs.mail == 'true'
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: ${{ steps.check.outputs.subject }}
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: file://${{ steps.check.outputs.body_path }}
+
+      - name: Email failure alert
+        if: failure()
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[FAIL] Post-fill miss alert did not complete'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            The Thursday post-fill miss check crashed or could not send its
+            mail, so this week's publication of the fill is unconfirmed.
+
+            Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

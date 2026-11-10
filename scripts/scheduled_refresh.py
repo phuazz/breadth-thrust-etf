@@ -1926,8 +1926,15 @@ def main(argv: list[str] | None = None) -> int:
     # ----- Push (armed) or READY (soak) -----
     if args.push:
         msg = scheduled_commit_message(now.date(), panel_end, args.cadence)
+        # Whether THIS run created a commit (2026-11-10). The post-fill
+        # confirmation is sent only for new work: a Wednesday that finds
+        # nothing to record still pushes (earlier commits may be waiting),
+        # and used to mail "[OK] ... pushed" for a push that carried nothing.
+        created_commit = False
         for step in (["add", "data/", "docs/", "build/portfolio.html", "template.html"], ["commit", "-m", msg]):
             cp = _git(step, log)
+            if cp.returncode == 0 and step[0] == "commit":
+                created_commit = True
             if cp.returncode != 0:
                 # A no-change run is a CLEAN run, not a failure — the same
                 # tolerance the --commit branch below has always had. Without
@@ -2006,7 +2013,26 @@ def main(argv: list[str] | None = None) -> int:
         subject, body = refresh_success_notice(msg, args.cadence, gate,
                                               week_final_anchor(now),
                                               REPO_ROOT / "docs" / "component_delivery.json")
-        _email(subject, body, log)
+        if args.cadence == "post-fill":
+            # ONE confirmation per fill (2026-11-10), built from what the
+            # pushed commit records - fill date, deployed_series_end, hash,
+            # sleeves at the fill, any HOLD - and sent only for a commit this
+            # run created that is on origin/main. The fill key is recorded
+            # only when the server accepted the mail, so a failed Tuesday
+            # send is retried by Wednesday. The component-delivery status
+            # from the legacy notice rides along as the tail of the body.
+            import postfill_publication
+            state = (REPO_ROOT / postfill_publication.NOTICE_STATE
+                     if _durable_state_enabled()
+                     else Path(tempfile.mkdtemp()) / "postfill_notice.json")
+            action = postfill_publication.postfill_success_notice(
+                REPO_ROOT, created_commit=created_commit,
+                now_utc=datetime.now(timezone.utc),
+                send=lambda s, b: _email(s, b, log), sent_status=run_status.SENT,
+                state_path=state, log=log, extra=body)
+            log.write(f"\npost-fill notice: {action}\n")
+        else:
+            _email(subject, body, log)
     elif args.commit:
         # COMMIT LOCALLY, PUSH NOTHING. Added 2026-08-22 with the two-run
         # weekend (Saturday for sleeves A/B/C, Sunday once the European close
