@@ -86,6 +86,7 @@ from stall_guard import (  # noqa: E402
 import vendor_tail  # noqa: E402  (the single-ticker request, shared with B/C)
 import price_source as price_source_mod  # noqa: E402
 import price_revisions  # noqa: E402  (before/after capture on the cache write)
+import incremental_prices  # noqa: E402
 import basis_guard  # noqa: E402  (a re-based history is chosen, not suffered)
 from capture_status import describe_capture  # noqa: E402
 
@@ -1298,11 +1299,13 @@ def download_prices(
     required_through=None,
     calendar: str = "NYSE",
     refresh: bool = False,
+    full_history: bool = False,
 ) -> pd.DataFrame:
     """Download adjusted-close history. Cache to parquet so reruns are free.
 
     Cache hit policy: reuse cache when it covers the requested date range
-    and all requested tickers. Any change to either invalidates and re-pulls.
+    and all requested tickers. Refreshes request recent overlap plus new or
+    incomplete columns; adjusted overlap changes require full reconciliation.
 
     ``roster`` (the names in force on the newest snapshot) enables the tail
     verification above; without it the frame is written as downloaded. The
@@ -1314,7 +1317,7 @@ def download_prices(
     end_ts = pd.Timestamp(end)
     # Refresh the vendor observation without discarding incumbent history or
     # bypassing the basis and tail guards. force retains its legacy semantics.
-    if not (force or refresh) and cache_path.exists():
+    if not (force or refresh or full_history) and cache_path.exists():
         try:
             cached = pd.read_parquet(cache_path)
             covers_dates = (
@@ -1364,74 +1367,83 @@ def download_prices(
         except Exception as e:
             print(f"  Cache read failed ({e}); re-downloading.", flush=True)
 
-    yf_syms = list(dict.fromkeys(normalise_for_yfinance(t) for t in tickers))
-    print(f"  Downloading {len(yf_syms)} tickers from yfinance "
-          f"({start} -> {end}) ...", flush=True)
-    # Deadline, not a circuit. yf.download is one opaque call over the whole
-    # universe — there is no per-item boundary to time from out here, so the
-    # only available instrument is a wall clock. Placed AFTER the cache-hit
-    # return above, so a run whose prices are entirely cached still succeeds
-    # with the vendor unreachable; that is the same rule EndpointCircuit
-    # follows in declining to pre-probe.
-    #
-    # This has not yet been the failure. On 2026-08-14 the DNS outage cost
-    # compute_breadth 91s on a 373-ticker universe — yfinance's own timeouts
-    # bounded it, and the n_with_any_data == 0 guard below would have caught
-    # the total case. The four hours went to fetch_constituents. The deadline
-    # is here because the download is the one step in this file whose runtime
-    # is set by someone else's infrastructure, and an unbounded call in a
-    # Friday-morning pipeline is a schedule risk whether or not it has fired.
-    raw = run_with_deadline(
-        lambda: yf.download(
-            yf_syms,
-            start=start,
-            end=end,
-            auto_adjust=True,
-            threads=True,
-            progress=False,
-            group_by="column",
-        ),
-        seconds=(deadline_s if deadline_s is not None
-                 else DEFAULT_DOWNLOAD_DEADLINE_S),
-        label=f"yfinance download of {len(yf_syms)} tickers",
-    )
-    if isinstance(raw.columns, pd.MultiIndex):
-        if "Close" not in raw.columns.get_level_values(0):
-            raise RuntimeError("yfinance multi-index download lacks 'Close'")
-        close = raw["Close"].copy()
-    else:
-        # Single ticker — DataFrame has one level, with OHLCV columns.
-        close = raw[["Close"]].copy()
-        close.columns = [yf_syms[0]]
+    def fetch_closes(names, fetch_start, end):
+        yf_syms = list(dict.fromkeys(normalise_for_yfinance(t) for t in names))
+        print(f"  Downloading {len(yf_syms)} tickers from yfinance "
+              f"({fetch_start} -> {end}) ...", flush=True)
+        # Deadline, not a circuit. yf.download is one opaque call over the whole
+        # universe — there is no per-item boundary to time from out here, so the
+        # only available instrument is a wall clock. Placed AFTER the cache-hit
+        # return above, so a run whose prices are entirely cached still succeeds
+        # with the vendor unreachable; that is the same rule EndpointCircuit
+        # follows in declining to pre-probe.
+        #
+        # This has not yet been the failure. On 2026-08-14 the DNS outage cost
+        # compute_breadth 91s on a 373-ticker universe — yfinance's own timeouts
+        # bounded it, and the n_with_any_data == 0 guard below would have caught
+        # the total case. The four hours went to fetch_constituents. The deadline
+        # is here because the download is the one step in this file whose runtime
+        # is set by someone else's infrastructure, and an unbounded call in a
+        # Friday-morning pipeline is a schedule risk whether or not it has fired.
+        raw = run_with_deadline(
+            lambda: yf.download(
+                yf_syms,
+                start=fetch_start,
+                end=end,
+                auto_adjust=True,
+                threads=True,
+                progress=False,
+                group_by="column",
+            ),
+            seconds=(deadline_s if deadline_s is not None
+                     else DEFAULT_DOWNLOAD_DEADLINE_S),
+            label=f"yfinance download of {len(yf_syms)} tickers",
+        )
+        if isinstance(raw.columns, pd.MultiIndex):
+            if "Close" not in raw.columns.get_level_values(0):
+                raise RuntimeError("yfinance multi-index download lacks 'Close'")
+            close = raw["Close"].copy()
+        else:
+            # Single ticker — DataFrame has one level, with OHLCV columns.
+            close = raw[["Close"]].copy()
+            close.columns = [yf_syms[0]]
 
-    # Several historical roster spellings can identify the SAME vendor symbol.
-    # A reverse dictionary loses all but one spelling and leaves the others
-    # unpriced. Fan the vendor series out to each original roster key, without
-    # merging memberships or filling any date the vendor did not serve.
-    close = pd.DataFrame({
-        t: close[normalise_for_yfinance(t)]
-        if normalise_for_yfinance(t) in close.columns
-        else pd.Series(np.nan, index=close.index)
-        for t in tickers
-    }, index=close.index)
-    close.index = pd.to_datetime(close.index).tz_localize(None)
+        # Several historical roster spellings can identify the SAME vendor symbol.
+        # A reverse dictionary loses all but one spelling and leaves the others
+        # unpriced. Fan the vendor series out to each original roster key, without
+        # merging memberships or filling any date the vendor did not serve.
+        close = pd.DataFrame({
+            t: close[normalise_for_yfinance(t)]
+            if normalise_for_yfinance(t) in close.columns
+            else pd.Series(np.nan, index=close.index)
+            for t in names
+        }, index=close.index)
+        close.index = pd.to_datetime(close.index).tz_localize(None)
+        return close
 
-    # ----- Vendor observation (2026-09-16), BEFORE anything transforms it ---
-    # This is the only point in the function where the frame IS what the
-    # vendor served. Everything below changes it: the cell-preservation
-    # merge refills what the vendor withdrew from the cache's own previous
-    # value, the Norgate overlay replaces whole columns, and the tail
-    # verification drops or heals the newest row. Captured before the write
-    # instead, as the first version of this was, a raw withdrawal is already
-    # masked by its own preserved value and reads as no change at all.
-    #
-    # The basis here is unambiguous: this frame is the yfinance download,
-    # whatever --price-source was requested. Never raises.
-    price_revisions.record_vendor_observation(
-        close, panel=cache_path.stem,
-        root=Path(cache_path).resolve().parent.parent,
-        source=price_revisions.YFINANCE,
-        required_through=required_through)
+    incremental_prior = None
+    if not force and cache_path.exists():
+        try:
+            incremental_prior = pd.read_parquet(cache_path)
+        except Exception:
+            pass
+    close, observation_start, request_record = incremental_prices.download(
+        fetch_closes, list(tickers), start, end, incremental_prior,
+        price_source_mod.read_cache_sidecar(cache_path),
+        price_revisions.state_path(Path(cache_path).resolve().parent.parent,
+                                   cache_path.stem), calendar=calendar,
+        full_history=full_history,
+        observe=lambda raw: price_revisions.record_vendor_observation(
+            raw, panel=cache_path.stem,
+            root=Path(cache_path).resolve().parent.parent,
+            source=price_revisions.YFINANCE, required_through=required_through))
+    print(f"  Price request plan: {request_record['incremental_columns']} overlap, "
+          f"{request_record['full_columns']} full; observation starts "
+          f"{request_record['observation_start']}", flush=True)
+
+    # Raw vendor observation is recorded inside the request helper BEFORE
+    # reconciliation can refuse publication and BEFORE preservation/overlays.
+    # Only dates requested for every column are admitted to its state machine.
     # What yfinance itself served this run, kept for the Norgate tail record:
     # a Norgate-filled cell stays named until yfinance serves that date.
     yf_served = close.notna()
@@ -1688,8 +1700,14 @@ def download_prices(
     close.to_parquet(cache_path)
     # kept/unresolved were omitted until 2026-09-24, so every panel sidecar
     # recorded "0 kept" while the log reported the columns WS19b kept.
+    historical_scan = incremental_prices.carry_audits(
+        close, price_source_mod.read_cache_sidecar(cache_path), request_record,
+        {"source": price_source, "columns_from_norgate": norgate_columns,
+         "columns_kept_on_incumbent": kept_on_incumbent,
+         "tail_from_norgate": tail_from_norgate})
     price_source_mod.write_cache_source(cache_path, price_source,
-                                        {"replaced": norgate_columns,
+                                        {"historical_scan": historical_scan,
+                                         "replaced": norgate_columns,
                                          "kept": kept_on_incumbent,
                                          "unresolved": norgate_unresolved,
                                          "tail_heal": verification,
@@ -1709,6 +1727,10 @@ def download_prices(
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--full-price-history", action="store_true",
+        help="Audit full vendor history while retaining incumbent history and all price guards.",
+    )
     p.add_argument(
         "--refresh-prices", action="store_true",
         help="Request fresh vendor prices while preserving cached history and all price guards.",
@@ -1821,7 +1843,8 @@ def main() -> int:
         price_source=args.price_source, roster=roster_now,
         required_through=panel_end, calendar=cal_name,
         tail_probe=os.environ.get("BTE_TAIL_PROBE", "1").strip() != "0",
-        **({"refresh": True} if getattr(args, "refresh_prices", False) else {}))
+        **({"refresh": True} if getattr(args, "refresh_prices", False) else {}),
+        **({"full_history": True} if getattr(args, "full_price_history", False) else {}))
     verification = getattr(prices, "attrs", {}).get("tail_verification")
     tail_from_norgate = getattr(prices, "attrs", {}).get("tail_from_norgate")
     n_with_any_data = int((prices.notna().any(axis=0)).sum())

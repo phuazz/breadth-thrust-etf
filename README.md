@@ -9,6 +9,26 @@ sessions even when the batch omitted the entire row. A future or intraday
 bar cannot satisfy a missing required close. Historical membership rules,
 registered coverage floors and whole-column source selection are unchanged.
 
+Breadth price refreshes retain incumbent history and request a 20-session
+comparison window for explicitly recorded Yahoo-basis columns with a recent,
+fingerprint-matched historical audit. The first run and the first
+refresh after seven days request full history; unanswered or incomplete raw responses cannot
+renew audit evidence. New names, modified caches and uncertain or mixed-source
+columns receive full history requests. Recent missing sessions and open
+withdrawal cycles remain in scope. Old known gaps are retried at the full audit
+rather than causing the same full download every day. A changed overlap triggers
+whole-history reconciliation for the affected names. Incomplete reconciliation
+stops before cache publication. Existing source, corporate-action, coverage and
+freshness guards still apply.
+
+Use `compute_breadth.py --etf SYMBOL --full-price-history` for an immediate full
+historical audit without discarding cached observations. A short overlap cannot
+detect a provider correction confined to older dates; the seven-day audit
+bounds this delay. Audit before relying on a restated historical result. These
+records describe checked requests, not a guarantee that a provider supplied
+missing history. This change concerns constituent breadth requests, not every
+engine or holdings-price fetch. No source subscription or permission is changed.
+
 Each new breadth JSON includes `current_capture`: actual roster date,
 roster fingerprint, required price session, panel reach and named missing
 or lagging members. Price-source sidecars remain local and gitignored.

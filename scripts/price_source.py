@@ -216,6 +216,8 @@ def write_cache_source(cache_path: Path, source: str,
         # (2026-10-28, native_sessions). The cached column is forward-filled
         # onto NYSE, so without this a cache hit cannot tell a holiday fill
         # from a withdrawn bar.
+        if report.get("historical_scan"):
+            payload["historical_scan"] = report["historical_scan"]
         if report.get("native_observations"):
             payload["native_observations"] = report["native_observations"]
     publish_text(path, json.dumps(payload, indent=2))
