@@ -2689,7 +2689,8 @@
       <!-- The decided-but-unfilled selection, between the Friday decision
            close and the Monday fill. Rendered from live_targets.json by
            _renderPendingSelection; empty whenever the held table above is
-           current, the fill date has passed, or the ranking is not final. -->
+           current or the ranking is not final. After the fill date it stays,
+           relabelled, until the post-fill refresh re-anchors the table. -->
       <div id="a-pending-selection"></div>
     </section>
 
@@ -8649,28 +8650,50 @@ function _renderAHoldings() {
 // "All K slots were filled, so no cash is held" read as next week's book on
 // the weekend the 2 Oct close sent VGK out of B and all of C to SHY. This
 // line states what the decided-but-unfilled rebalance changes, from the same
-// live_targets the Next Fill card reads, under the card's lapse rule: nothing
-// once the fill date has passed on the reader's clock. Dates are ISO strings
-// compared as text; no month arithmetic.
+// live_targets the Next Fill card reads. It renders for as long as the held
+// table has not caught up with the fill (fill_date > heldDate), INCLUDING
+// after the fill date has passed (2026-11-10). It used to lapse with the card
+// once the fill date was behind the reader's clock, but the held table is
+// dated by the engines' latest_rebalance, which moves only when the post-fill
+// refresh (Tue 09:00 SGT, sometimes later or missed) publishes it: on Tue 10
+// Nov 2026 every sleeve tab read "as of the 2026-11-02 rebalance" after the
+// 9 Nov fill and nothing on the tab named the book that had traded. All four
+// sleeves' tables are dated that way, so B and C carry the same gap and take
+// the same rule. After the fill date the line leads with "Filled" and says
+// the table above is the previous book; before it, the wording is unchanged.
+// The payload that survives Monday night is the fill's own: the daily CI run
+// recomputes live_targets.json with --preserve-on-missing-panels, and the
+// constituent caches are gitignored, so CI never rolls next_fill forward —
+// only a local refresh does, and the post-fill refresh that rolls it is the
+// same run that re-anchors the held table. Dates are ISO strings compared as
+// text; no month arithmetic.
 function _pendingFillNote(sleeve, heldDate) {
   const lt = (window.DATA || {}).live_targets;
   if (!lt || !Array.isArray(lt.sleeves) || !Array.isArray(lt.lines)) return '';
   const s = lt.sleeves.find(x => x.sleeve === sleeve);
   if (!s || !s.fill_date || !heldDate || !(s.fill_date > heldDate)) return '';
   const today = new Date().toISOString().slice(0, 10);
-  if (s.fill_date < today) return '';
+  const filled = s.fill_date < today;
   // "Decided on" only once the sleeve is ranked on the close its fill uses.
   // Mid-week the payload is the latest ranking, re-ranked every session
   // until the decision close, and calling that "decided" is the card's
   // PROVISIONAL state misread as its FINAL one (2026-10-26).
-  const when = `<strong>Next fill ${fmtDateLongSafe(s.fill_date)}</strong>`
+  const lead = filled
+    ? `<strong>Filled ${fmtDateLongSafe(s.fill_date)}</strong>`
+    : `<strong>Next fill ${fmtDateLongSafe(s.fill_date)}</strong>`;
+  const when = lead
     + (!s.decision_session ? ''
       : _sleeveRankedOnFillClose(s, lt)
         ? ` (decided on the ${fmtDateLongSafe(s.decision_session)} close)`
         : ` (provisional: ranked on the ${fmtDateLongSafe(s.decision_session)} close,`
           + ` final after the ${fmtDateLongSafe(s.decision_session_for_fill)} close)`);
+  // After the fill the Next Fill card has lapsed to "out of date", so the
+  // line points at the refresh that will re-anchor the table instead.
+  const tail = filled
+    ? ` Not yet recorded by the post-fill refresh: the table above is the previous book until it lands.`
+    : ` See the Next Fill card.`;
   const wrap = (body) => `<div class="pending-fill-note" style="margin-top:8px;padding:4px 0 4px 10px;`
-    + `border-left:3px solid var(--accent);">${when}: ${body}. See the Next Fill card.</div>`;
+    + `border-left:3px solid var(--accent);">${when}: ${body}.${tail}</div>`;
   if (s.status !== 'READY') return wrap('selection held pending complete data; no new ranking');
   const EPS = 1e-6;
   const CASH = new Set(['SHY', 'IEF']);
@@ -8765,11 +8788,22 @@ function _sleeveRankedOnFillClose(s, lt) {
 // decision: on Mon 26 Oct 2026 the A tab still read "as of the 2026-10-19
 // rebalance" while the 26 Oct book was only in the Next Fill card. This
 // renders that sleeve's decided book from the same live_targets payload the
-// card reads, under the card's rules: nothing once the fill date has passed
-// on the reader's clock, nothing once the held table has caught up (its
-// date reaches the fill date), and nothing while the sleeve is HOLD or its
-// ranking is provisional — the pending-fill line above says so, and a table
-// of a ranking that every remaining session re-ranks reads as a selection.
+// card reads: nothing once the held table has caught up (its date reaches
+// the fill date), and nothing while the sleeve is HOLD or its ranking is
+// provisional — the pending-fill line above says so, and a table of a
+// ranking that every remaining session re-ranks reads as a selection.
+// It does NOT lapse with the card on the fill date (2026-11-10): the held
+// table re-anchors only when the post-fill refresh publishes the engines'
+// latest_rebalance, so between the fill and that refresh this table is the
+// only place on the tab that names the book that traded (Tue 10 Nov 2026:
+// "as of the 2026-11-02 rebalance" after the 9 Nov fill, nothing below it).
+// Three heads, by the reader's UTC date against the fill date: before it,
+// "not yet filled" (unchanged); on it, "for the fill due today", because
+// the US and Xetra opens fall inside that UTC day and the page cannot tell
+// whether the trade has happened; after it, "filled on ... and not yet
+// recorded by the post-fill refresh". CI never rolls next_fill forward
+// (see _pendingFillNote), so after the fill this is still the fill's own
+// payload, not next week's provisional ranking.
 // Units are the payload's own (see _sleeveSignalRule): sleeve A's column is
 // breadth minus the sector average in pp, the ranking variable, where the
 // held table prints absolute breadth — the caption says so rather than
@@ -8785,7 +8819,7 @@ function _renderPendingSelection(sleeve, heldDate) {
   const s = lt.sleeves.find(x => x.sleeve === sleeve);
   if (!s || !s.fill_date || !heldDate || !(s.fill_date > heldDate)) return;
   const today = new Date().toISOString().slice(0, 10);
-  if (s.fill_date < today) return;
+  const phase = s.fill_date > today ? 'pre' : s.fill_date === today ? 'due' : 'post';
   if (s.status !== 'READY' || !_sleeveRankedOnFillClose(s, lt)) return;
   const EPS = 1e-6;
   const CASH = new Set(['SHY', 'IEF']);
@@ -8811,9 +8845,18 @@ function _renderPendingSelection(sleeve, heldDate) {
   // without it this div ran 175 characters wide at 1280px.
   const head = `<div class="section-sub full pending-selection-head" style="margin-top:16px;margin-bottom:0;`
     + `padding:4px 0 4px 10px;border-left:3px solid var(--accent);font-size:13px;">`
-    + `<strong>Pending selection — the ${fmtDateLongSafe(s.fill_date)} rebalance, decided on the `
-    + `${fmtDateLongSafe(s.decision_session)} close and not yet filled.</strong> Nothing here has been `
-    + `traded: the table above is the held book until the fill, and this is what replaces it. `
+    + (phase === 'pre'
+      ? `<strong>Pending selection — the ${fmtDateLongSafe(s.fill_date)} rebalance, decided on the `
+        + `${fmtDateLongSafe(s.decision_session)} close and not yet filled.</strong> Nothing here has been `
+        + `traded: the table above is the held book until the fill, and this is what replaces it. `
+      : phase === 'due'
+      ? `<strong>Pending selection — the ${fmtDateLongSafe(s.fill_date)} rebalance, decided on the `
+        + `${fmtDateLongSafe(s.decision_session)} close, for the fill due today.</strong> The table above `
+        + `is the previous book until the post-fill refresh records the fill, and this is what replaces it. `
+      : `<strong>Latest selection — the ${fmtDateLongSafe(s.fill_date)} rebalance, filled on `
+        + `${fmtDateLongSafe(s.fill_date)} and not yet recorded by the post-fill refresh.</strong> The table `
+        + `above is the previous book until the refresh lands; this is the book decided on the `
+        + `${fmtDateLongSafe(s.decision_session)} close for that fill. `)
     + `Weights are within the sleeve, as above.</div>`;
   const rows = chosen.map((e, i) => {
     const x = _sleeveExpandAttrs(e);
@@ -8865,7 +8908,7 @@ function _renderPendingSelection(sleeve, heldDate) {
     if (notChosen.length) parts.push(`Below the cut: ${list(notChosen)}.`);
   }
   if (exits.length) {
-    parts.push(`Leaves the book at the fill: `
+    parts.push(`${phase === 'post' ? 'Left' : 'Leaves'} the book at the fill: `
       + `${exits.map(l => `${_displaySym(l.etf)} ${fmtSig(sig[l.etf])}`).join(', ')}.`);
   }
   parts.push(isA
