@@ -1,30 +1,29 @@
 {
-  "computed_at_utc": "2026-11-10 03:41 UTC",
+  "computed_at_utc": "2026-11-10 05:36 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-11-06",
-  "anchor_equity": 2.842665,
+  "anchor_equity": 2.842664,
   "regime_state": "RISK_ON",
   "eem_tilt_active": false,
   "eem_tilt_signal_as_of": "2026-11-06",
   "eem_tilt_signal_stale": false,
   "effective_weights": {
-    "DBC": 0.19558,
-    "IUHC": 0.125033,
-    "SHY": 0.1,
-    "IUES": 0.085794,
+    "SHY": 0.200005,
+    "DBC": 0.15461,
+    "IUHC": 0.135135,
+    "IUCS": 0.07728,
     "EXH1": 0.071113,
     "EXV3": 0.066413,
     "EXV1": 0.062474,
-    "IUCS": 0.054185,
-    "SPY": 0.053515,
-    "IUFS": 0.048165,
-    "IJR": 0.03619,
-    "QQQ": 0.02331,
-    "EWJ": 0.01953,
-    "CSP1": 0.018832,
-    "IUMS": 0.017992,
-    "EFA": 0.01204,
-    "VNQ": 0.009835
+    "IUFS": 0.060095,
+    "VNQ": 0.05373,
+    "CSP1": 0.023975,
+    "SPY": 0.022787,
+    "IUMS": 0.019705,
+    "IUCD": 0.019215,
+    "IUUS": 0.014595,
+    "IJR": 0.013161,
+    "VGK": 0.005706
   },
   "live_dates": [],
   "live_equity": [],
@@ -34,37 +33,37 @@
       "anchor_date": "2026-11-06",
       "anchor_equity": 3.209,
       "weights": {
-        "IUHC": 0.3572,
-        "IUES": 0.2451,
-        "IUCS": 0.1548,
-        "IUFS": 0.1376,
-        "CSP1": 0.0538,
-        "IUMS": 0.0514
+        "IUHC": 0.3861,
+        "IUCS": 0.2208,
+        "IUFS": 0.1717,
+        "CSP1": 0.0685,
+        "IUMS": 0.0563,
+        "IUCD": 0.0549,
+        "IUUS": 0.0417
       },
       "dates": [
         "2026-11-09"
       ],
       "equity": [
-        3.253087
+        3.262871
       ]
     },
     "strategy_b": {
       "anchor_date": "2026-11-06",
       "anchor_equity": 2.1896,
       "weights": {
-        "DBC": 0.5588,
-        "SPY": 0.1529,
-        "IJR": 0.1034,
-        "QQQ": 0.0666,
-        "EWJ": 0.0558,
-        "EFA": 0.0344,
-        "VNQ": 0.0281
+        "DBC": 0.4417,
+        "SHY": 0.2857,
+        "VNQ": 0.1535,
+        "SPY": 0.0651,
+        "IJR": 0.0376,
+        "VGK": 0.0163
       },
       "dates": [
         "2026-11-09"
       ],
       "equity": [
-        2.195413
+        2.184543
       ]
     },
     "strategy_c": {
