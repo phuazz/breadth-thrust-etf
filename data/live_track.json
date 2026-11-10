@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-11-08 04:48 UTC",
+  "computed_at_utc": "2026-11-10 03:41 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-11-06",
   "anchor_equity": 2.842665,
@@ -41,8 +41,12 @@
         "CSP1": 0.0538,
         "IUMS": 0.0514
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-11-09"
+      ],
+      "equity": [
+        3.253087
+      ]
     },
     "strategy_b": {
       "anchor_date": "2026-11-06",
@@ -56,8 +60,12 @@
         "EFA": 0.0344,
         "VNQ": 0.0281
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-11-09"
+      ],
+      "equity": [
+        2.195413
+      ]
     },
     "strategy_c": {
       "anchor_date": "2026-11-06",
@@ -65,8 +73,12 @@
       "weights": {
         "SHY": 1.0
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-11-09"
+      ],
+      "equity": [
+        3.129366
+      ]
     },
     "strategy_d": {
       "anchor_date": "2026-11-06",
