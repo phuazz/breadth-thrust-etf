@@ -13,7 +13,9 @@ against captured vendor responses showed two separate things:
 
 The first is a defect and is fixed. The second is the guard working as written:
 a real re-basing (smallest observed 6.9e-04) over cells the vendor cannot serve
-still stops the panel, and still cannot renew audit evidence.
+is still never spliced and still cannot renew audit evidence. What changed is
+its reach: the column is held on its cached history and the rest of the panel
+proceeds, where one such column used to stop the whole panel.
 
 Offline. Python datetime months are 1-indexed (January = 1).
 """
@@ -160,38 +162,127 @@ def test_download_prices_keeps_preserved_cells_through_vendor_noise(history, tmp
 
 # ------------------------------------------------- the guard, still in force
 
+def assert_held(out, rec, prior, column, appended=()):
+    """The column is the cached one cell for cell; nothing re-based came in."""
+    kept = prior[column].dropna()
+    got = out[column].dropna()
+    pd.testing.assert_series_equal(got.loc[kept.index], kept, check_freq=False)
+    assert list(got.index.difference(kept.index)) == list(appended)
+    assert column in rec["held_columns"]
+    assert column not in rec["full_answered"] and column not in rec["reconciled_columns"]
+
+
 @pytest.mark.parametrize("factor", [1 - OBSERVED_ADJUSTMENT, 1 - 1.7e-3, 0.998, 0.5])
-def test_real_rebasing_over_unserved_cells_still_stops_the_panel(history, factor):
+def test_real_rebasing_over_unserved_cells_is_held_not_spliced(history, factor):
     """SATS (reassigned symbol) and the three NDIA dividend payers of 2026-11-11."""
     prior = history.iloc[:-1].copy()
     vendor = history.copy()
     vendor.loc[vendor.index[:-1], "A"] *= factor
     vendor.iloc[:20, 0] = np.nan
-    with pytest.raises(RuntimeError, match="reconciliation incomplete"):
-        download(fetcher(vendor), list(history), START, END, prior, SIDE, full_history=True)
+    out, _, rec = download(fetcher(vendor), list(history), START, END, prior, SIDE, full_history=True)
+    # The seam does not match (the vendor's close on the last cached session is
+    # on the other basis), so not even the new session is taken.
+    assert_held(out, rec, prior, "A")
+    assert rec["held_columns"]["A"]["seam"]["matched"] is False
+    assert np.isnan(out["A"].iloc[-1])
+    # The rest of the panel is refreshed, new session included.
+    pd.testing.assert_series_equal(out["B"], vendor["B"], check_freq=False)
+    assert rec["full_answered"] == ["B"]
 
 
-def test_one_revised_close_over_truncated_history_still_stops_the_panel(history):
-    """MGPI shape: seven bars served after a rename, one of them restated."""
+def test_one_revised_close_over_truncated_history_is_held(history):
+    """MGPI shape: seven bars served after a rename, the last cached one restated."""
     prior = history.iloc[:-1].copy()
     vendor = history.copy()
     vendor.iloc[:-7, 0] = np.nan
     vendor.iloc[-2, 0] *= 1 + 1.08e-3
-    with pytest.raises(RuntimeError, match="reconciliation incomplete"):
-        download(fetcher(vendor), list(history), START, END, prior, SIDE)
+    out, _, rec = download(fetcher(vendor), list(history), START, END, prior, SIDE)
+    assert_held(out, rec, prior, "A")
+    assert rec["held_columns"]["A"]["unserved_before_vendor_start"] == len(prior) - 6
 
 
-def test_refusal_names_what_the_vendor_left_uncovered(history, capsys):
+def test_hold_appends_new_sessions_only_across_an_exact_seam(history):
+    """An older restatement beside unserved cells, the last cached close agreed."""
+    prior = history.iloc[:-1].copy()
+    vendor = history.copy()
+    vendor.iloc[:-7, 0] = np.nan
+    vendor.iloc[-5, 0] *= 1 + 1.08e-3      # restated, but not the seam session
+    out, _, rec = download(fetcher(vendor), list(history), START, END, prior, SIDE)
+    assert_held(out, rec, prior, "A", appended=[history.index[-1]])
+    assert out["A"].iloc[-1] == vendor["A"].iloc[-1]
+    # The restated close is NOT taken: the cached cell stands until the vendor
+    # can cover the column and it is reconciled whole.
+    restated = history.index[-5]
+    assert out["A"].loc[restated] == prior["A"].loc[restated] != vendor["A"].loc[restated]
+    assert rec["held_columns"]["A"]["seam"]["appended_sessions"] == [str(history.index[-1].date())]
+
+
+def test_vendor_series_sharing_no_cell_with_the_cache_is_held(history):
+    """A symbol reassigned today: the new occupant's first bar is not appended."""
+    prior = history.iloc[:-1].copy()
+    vendor = history.copy()
+    vendor.iloc[:-1, 0] = np.nan           # nothing but today's bar for A
+    out, _, rec = download(fetcher(vendor), list(history), START, END, prior, SIDE)
+    assert_held(out, rec, prior, "A")
+    assert rec["held_columns"]["A"]["shared_cells"] == 0
+
+
+def test_name_the_vendor_stopped_serving_is_kept_without_a_hold(history):
+    """A delisting: no vendor cell at all, so nothing to splice and nothing held."""
+    prior = history.iloc[:-1].copy()
+    vendor = history.copy()
+    vendor["A"] = np.nan
+    out, _, rec = download(fetcher(vendor), list(history), START, END, prior, SIDE)
+    assert rec["held_columns"] == {} and out["A"].isna().all()
+    assert "A" not in rec["full_answered"]
+
+
+def test_hold_names_what_the_vendor_left_uncovered(history, capsys):
     prior = history.iloc[:-1].copy()
     vendor = history.copy()
     vendor.loc[vendor.index[:-1], "A"] *= 1 - OBSERVED_ADJUSTMENT
     vendor.iloc[:20, 0] = np.nan
-    with pytest.raises(RuntimeError, match="reconciliation incomplete"):
-        download(fetcher(vendor), list(history), START, END, prior, SIDE, full_history=True)
-    line = next(l for l in capsys.readouterr().out.splitlines() if "Reconciliation incomplete A" in l)
+    download(fetcher(vendor), list(history), START, END, prior, SIDE, full_history=True)
+    line = next(l for l in capsys.readouterr().out.splitlines() if "Reconciliation HELD A" in l)
     assert "20 cached cell(s) not served" in line
     assert str(history.index[0].date()) in line and str(history.index[19].date()) in line
-    assert "before the vendor's first bar" in line
+    assert "before the vendor's first bar" in line and "no new session appended" in line
+
+
+def test_held_roster_name_is_not_healed_one_cell_at_a_time(history, tmp_path, monkeypatch):
+    """The tail heal must not put the unreconciled series back into a held column."""
+    import compute_breadth as cb
+    import price_source
+    cache = tmp_path / "data" / "prices_cache.parquet"
+    cache.parent.mkdir()
+    for name in "CDEFGH":                  # enough live names for a priced session
+        history[name] = np.arange(len(history)) + 300. + ord(name)
+    prior = history.iloc[:-1].copy()
+    prior.to_parquet(cache)
+    price_source.write_cache_source(cache, "yfinance")
+    vendor = history.copy()
+    vendor.loc[vendor.index[:-1], "A"] *= 0.998
+    vendor.iloc[:20, 0] = np.nan
+    asked = []
+
+    def yahoo(names, start, end, **kwargs):
+        raw = vendor.loc[start:pd.Timestamp(end) - pd.Timedelta(days=1), names]
+        return pd.concat({"Close": raw}, axis=1)
+
+    def single(ticker, **kwargs):
+        asked.append(ticker)
+        return vendor[ticker].dropna()
+    monkeypatch.setattr(cb.yf, "download", yahoo)
+    monkeypatch.setattr(cb, "run_with_deadline", lambda fn, **kw: fn())
+    monkeypatch.setattr(cb, "_single_ticker_closes", single)
+    monkeypatch.setattr(cb.vendor_tail, "single_ticker_closes", single)
+    monkeypatch.setattr(cb.price_revisions, "record_vendor_observation", lambda raw, **kw: None)
+    cb.download_prices(list(history), START, END, cache_path=cache, refresh=True,
+                       roster=list(history), required_through="2026-02-04")
+    written = pd.read_parquet(cache)
+    pd.testing.assert_series_equal(written["A"].dropna(), prior["A"], check_freq=False)
+    assert np.isnan(written["A"].iloc[-1]) and "A" not in asked
+    assert written["B"].iloc[-1] == history["B"].iloc[-1]
 
 
 def test_describe_unserved_separates_leading_from_interior_cells(history):

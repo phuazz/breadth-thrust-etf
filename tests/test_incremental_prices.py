@@ -24,6 +24,16 @@ def history():
 SIDE = {"source": "yfinance"}
 
 
+def assert_held(out, rec, prior, column, appended=()):
+    """The column is the cached one cell for cell; nothing re-based came in."""
+    kept = prior[column].dropna()
+    got = out[column].dropna()
+    pd.testing.assert_series_equal(got.loc[kept.index], kept, check_freq=False)
+    assert list(got.index.difference(kept.index)) == list(appended)
+    assert column in rec["held_columns"]
+    assert column not in rec["full_answered"] and column not in rec["reconciled_columns"]
+
+
 def run(history, prior=None, sidecar=SIDE):
     calls = []
     def fetch(names, start, end):
@@ -59,12 +69,15 @@ def test_split_or_dividend_reconciles_whole_column(history, factor):
     pd.testing.assert_series_equal(out["A"], changed["A"], check_freq=False)
 
 
-def test_incomplete_reconciliation_fails_before_splice(history):
+def test_incomplete_reconciliation_holds_the_column_before_splice(history):
     prior = history.iloc[:-1].copy()
     history["A"] *= .5
     history.iloc[0, 0] = np.nan
-    with pytest.raises(RuntimeError, match="reconciliation incomplete"):
-        run(history, prior)
+    out, _, rec, _ = run(history, prior)
+    assert_held(out, rec, prior, "A")
+    # The panel's other column is not held back with it.
+    pd.testing.assert_series_equal(out["B"].dropna().iloc[-21:], history["B"].iloc[-21:], check_freq=False)
+    assert "B" not in rec["held_columns"]
 
 
 def test_interior_cell_gap_only_retries_affected_symbol(history):
@@ -123,8 +136,8 @@ def test_initially_full_holed_column_cannot_mix_adjustment_bases(history):
     prior.iloc[5, 0] = np.nan
     history["A"] *= .998
     history.iloc[0, 0] = np.nan
-    with pytest.raises(RuntimeError, match="reconciliation incomplete"):
-        run(history, prior)
+    out, _, rec, _ = run(history, prior)
+    assert_held(out, rec, prior, "A")
 
 
 def test_download_prices_retains_history_and_raw_observation_scope(history, tmp_path, monkeypatch):
@@ -154,25 +167,34 @@ def test_download_prices_retains_history_and_raw_observation_scope(history, tmp_
     pd.testing.assert_frame_equal(pd.read_parquet(cache), history, check_freq=False)
 
 
-def test_failed_reconciliation_does_not_write_cache(history, tmp_path, monkeypatch):
+def test_held_reconciliation_writes_no_rebased_cell_to_the_cache(history, tmp_path, monkeypatch):
     import compute_breadth as cb
     import price_source
-    cache = tmp_path / "prices_cache.parquet"
+    cache = tmp_path / "data" / "prices_cache.parquet"
+    cache.parent.mkdir()
     prior = history.iloc[:-1]
     prior.to_parquet(cache)
-    before = cache.read_bytes()
     price_source.write_cache_source(cache, "yfinance")
-    history = history * .998
-    history.iloc[0, 0] = np.nan
+    changed = history.copy()
+    changed["A"] *= .998                   # A re-based, and one cached cell unserved
+    changed.iloc[0, 0] = np.nan
     def vendor(names, start, end, **kwargs):
-        raw = history.loc[start:pd.Timestamp(end) - pd.Timedelta(days=1), names]
+        raw = changed.loc[start:pd.Timestamp(end) - pd.Timedelta(days=1), names]
         return pd.concat({"Close": raw}, axis=1)
     monkeypatch.setattr(cb.yf, "download", vendor)
     monkeypatch.setattr(cb, "run_with_deadline", lambda fn, **kw: fn())
-    with pytest.raises(RuntimeError, match="reconciliation incomplete"):
-        cb.download_prices(list(history), "2025-11-03", "2026-02-05", cache_path=cache,
-                           refresh=True, tail_probe=False)
-    assert cache.read_bytes() == before
+    monkeypatch.setattr(cb.price_revisions, "record_vendor_observation", lambda raw, **kw: None)
+    cb.download_prices(list(history), "2025-11-03", "2026-02-05", cache_path=cache,
+                       refresh=True, tail_probe=False)
+    written = pd.read_parquet(cache)
+    # A: every cached cell exactly as it was, and no cell on the other basis.
+    pd.testing.assert_series_equal(written["A"].dropna(), prior["A"], check_freq=False)
+    # B: refreshed as usual, new session included.
+    pd.testing.assert_series_equal(written["B"], history["B"], check_freq=False)
+    sidecar = json.loads(price_source.sidecar_path(cache).read_text(encoding="utf-8"))
+    held = sidecar["reconciliation_held"]["A"]
+    assert held["unserved_cells"] == 1 and held["seam"]["matched"] is False
+    assert "A" not in sidecar.get("historical_scan", {})
 
 
 def test_leading_unpriced_prefix_is_retried(history):
@@ -194,36 +216,41 @@ def test_reconciliation_fetches_preserved_history_before_requested_start(history
     pd.testing.assert_frame_equal(out, changed, check_freq=False)
 
 
-def test_refused_reconciliation_still_records_raw_vendor_observation(history):
+def test_held_reconciliation_still_records_raw_vendor_observation(history):
     prior = history.iloc[:-1].copy()
     changed = history * .998
     changed.iloc[0, 0] = np.nan
     seen = []
     def fetch(names, start, end):
         return changed.loc[start:pd.Timestamp(end) - pd.Timedelta(days=1), names]
-    with pytest.raises(RuntimeError, match="reconciliation incomplete"):
-        download_without_audit(fetch, list(history), "2025-11-03", "2026-02-05", prior, SIDE, observe=seen.append)
+    out, _, rec = download_without_audit(fetch, list(history), "2025-11-03", "2026-02-05", prior, SIDE,
+                                         observe=seen.append)
+    assert_held(out, rec, prior, "A")
     assert len(seen) == 1
     assert seen[0].index.min() == history.index[-21]
+    # The observation is the vendor's answer, not the held column.
+    pd.testing.assert_series_equal(seen[0]["A"], changed["A"].loc[seen[0].index], check_freq=False)
 
 
 def test_changed_prefix_cannot_meet_preserved_unfetched_suffix(history):
     changed = history * .998
     def fetch(names, start, end):
         return changed.loc[start:pd.Timestamp(end) - pd.Timedelta(days=1), names]
-    with pytest.raises(RuntimeError, match="reconciliation incomplete"):
-        download_without_audit(fetch, list(history), "2025-11-03", "2026-02-03", history, SIDE)
+    out, _, rec = download_without_audit(fetch, list(history), "2025-11-03", "2026-02-03", history, SIDE)
+    for column in history:
+        assert_held(out, rec, history, column)
 
 
-def test_full_history_audit_keeps_reconciliation_guard(history):
+def test_full_history_audit_keeps_reconciliation_hold(history):
     changed = history * .998
     changed.iloc[0, 0] = np.nan
     def fetch(names, start, end):
         assert start == "2025-11-03"
         return changed.loc[start:pd.Timestamp(end) - pd.Timedelta(days=1), names]
-    with pytest.raises(RuntimeError, match="reconciliation incomplete"):
-        download_without_audit(fetch, list(history), "2025-11-03", "2026-02-05", history, SIDE,
-                    full_history=True)
+    out, _, rec = download_without_audit(fetch, list(history), "2025-11-03", "2026-02-05", history, SIDE,
+                                         full_history=True)
+    assert_held(out, rec, history, "A")
+    assert rec["full_answered"] == ["B"]
 
 
 from datetime import datetime, timezone, timedelta

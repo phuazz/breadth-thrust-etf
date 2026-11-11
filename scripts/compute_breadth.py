@@ -1440,6 +1440,17 @@ def download_prices(
     print(f"  Price request plan: {request_record['incremental_columns']} overlap, "
           f"{request_record['full_columns']} full; observation starts "
           f"{request_record['observation_start']}", flush=True)
+    # Columns the request helper HELD on their cached history because the
+    # vendor's full-history answer changed shared cells without covering the
+    # cached ones (incremental_prices.download, 2026-11-11). Each is already
+    # the cached column cell for cell, so the merge below leaves it alone.
+    # The tail heal further down must leave it alone too: a single-ticker
+    # request would put the same unreconciled series back one cell at a time.
+    reconciliation_held = dict(request_record.get("held_columns") or {})
+    if reconciliation_held:
+        print(f"  {len(reconciliation_held)} column(s) held on cached history, not "
+              f"refreshed from the vendor this run: {sorted(reconciliation_held)}",
+              flush=True)
 
     # Raw vendor observation is recorded inside the request helper BEFORE
     # reconciliation can refuse publication and BEFORE preservation/overlays.
@@ -1616,9 +1627,13 @@ def download_prices(
                       f"{f['max_rel_diff']:.1e})", flush=True)
             for t, why in tail_from_norgate["declined"].items():
                 print(f"  Norgate tail re-source {t} DECLINED: {why}", flush=True)
+    # A column Norgate has since taken whole is no longer the held one.
+    reconciliation_held = {t: v for t, v in reconciliation_held.items()
+                           if t not in norgate_columns}
+    untouchable = list(norgate_columns) + list(reconciliation_held)
     if roster and tail_probe and price_source != "norgate":
         close, missing_recovery = vendor_tail.recover_missing_columns(
-            close, roster, exclude=norgate_columns,
+            close, roster, exclude=untouchable,
             fetch_single=lambda t: vendor_tail.single_ticker_closes(
                 normalise_for_yfinance(t), period="max"))
         close = close.loc[start_ts:pd.Timestamp(end) - pd.Timedelta(days=1)]
@@ -1626,7 +1641,7 @@ def download_prices(
             close = close.loc[:pd.Timestamp(required_through)]
         expected = vendor_tail.expected_tail(close.index, required_through, calendar)
         close, verification = verify_price_tail(close, roster,
-                                                exclude=norgate_columns,
+                                                exclude=untouchable,
                                                 expected_sessions=expected)
         _report_tail_verification(verification)
         if missing_recovery:
@@ -1712,6 +1727,7 @@ def download_prices(
                                          "unresolved": norgate_unresolved,
                                          "tail_heal": verification,
                                          "basis_guard": guard_record,
+                                         "reconciliation_held": reconciliation_held,
                                          "tail_from_norgate": tail_from_norgate})
     # Carried on the returned frame for main() to record in the panel JSON;
     # the parquet does not need it.

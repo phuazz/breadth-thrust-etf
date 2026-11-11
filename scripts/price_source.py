@@ -196,6 +196,12 @@ def write_cache_source(cache_path: Path, source: str,
         # yfinance column carries Norgate cells, so it is named.
         if report.get("tail_from_norgate"):
             payload["tail_from_norgate"] = report["tail_from_norgate"]
+        # Columns held on their cached history because the vendor's full
+        # history changed shared cells without covering the cached ones
+        # (incremental_prices.download, 2026-11-11): which dates were left
+        # uncovered, how large the change was, and whether the seam matched.
+        if report.get("reconciliation_held"):
+            payload["reconciliation_held"] = report["reconciliation_held"]
         # A column whose CONSTRUCTION differs from the vendor download it came
         # from (WS21, 2026-09-19). The source fields above answer "which feed",
         # which is not the same question: sleeve C's Bitcoin line under

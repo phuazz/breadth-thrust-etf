@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import basis_guard
 import price_revisions
 
 OVERLAP_BARS = 20
@@ -212,8 +213,14 @@ def _unserved_line(ticker, d):
     change = ("no shared cell to compare" if d["max_rel_change"] is None else
               f"{d['changed_cells']} of {d['shared_cells']} shared cell(s) changed, "
               f"largest {d['max_rel_change']:.2e}, {d['changed_first']} to {d['changed_last']}")
-    return (f"  Reconciliation incomplete {ticker}: {d['unserved_cells']} cached cell(s) not served, "
-            f"{d['unserved_first']} to {d['unserved_last']} ({'; '.join(where)}); {change}")
+    seam = d.get("seam") or {}
+    appended = seam.get("appended_sessions") or []
+    outcome = (f"{len(appended)} new session(s) appended across an exact seam at {seam.get('seam_date')}"
+               if appended else
+               f"no new session appended ({seam.get('reason') or 'none after the cached history'})")
+    return (f"  Reconciliation HELD {ticker} on its cached history: {d['unserved_cells']} cached "
+            f"cell(s) not served, {d['unserved_first']} to {d['unserved_last']} "
+            f"({'; '.join(where)}); {change}; {outcome}")
 
 
 def download(fetch, tickers, start, end, prior, sidecar, state_file=None, calendar="NYSE",
@@ -222,7 +229,13 @@ def download(fetch, tickers, start, end, prior, sidecar, state_file=None, calend
 
     An adjusted overlap change (split, dividend or revision) causes a full
     same-source fetch. If that response cannot cover incumbent priced dates,
-    fail before cache publication rather than splice two adjustment bases.
+    the COLUMN is held on its cached history rather than spliced across two
+    adjustment bases: every cached cell as it was, and new sessions only
+    across an exact seam (``basis_guard.hold_column``, the method the basis
+    guard has applied to re-based columns since 2026-10-03). The other
+    columns of the panel proceed. A held column is named in the request
+    record under ``held_columns``, is never recorded as audited, and is
+    asked for full history again on every run until the vendor covers it.
     """
     recent, full = plan(prior, tickers, start, end, sidecar, state_file, calendar, audit_required, now)
     if full_history:
@@ -268,9 +281,10 @@ def download(fetch, tickers, start, end, prior, sidecar, state_file=None, calend
         # cache there is one basis and nothing to reconcile. Until 2026-11-11
         # an unserved cell alone refused the column whenever it reached this
         # loop, so one withdrawn close inside the overlap, or a name the
-        # vendor stopped serving, failed its whole panel. Refused now: a
-        # changed shared cell beside an unserved one, or a vendor series that
-        # shares no cell with the cache at all and so cannot be placed on it.
+        # vendor stopped serving, failed its whole panel. Unreconcilable now:
+        # a changed shared cell beside an unserved one, or a vendor series
+        # that shares no cell with the cache at all and so cannot be placed
+        # on it. Those columns are held below; they are never spliced.
         uncovered = {}
         for t in check:
             found = describe_unserved(prior[t], history[t])
@@ -282,15 +296,29 @@ def download(fetch, tickers, start, end, prior, sidecar, state_file=None, calend
         parts.append(history)
     out = pd.concat(parts, axis=1).reindex(columns=tickers).sort_index()
     if observe is not None:
+        # The observation is what the vendor served, before any hold below.
         observe(out.loc[recent:])
+    held = {}
     if failures:
-        # Name what the vendor left uncovered before refusing: the symbol
-        # list alone could not tell a reused ticker from a withdrawn bar on
-        # 2026-11-11, and the cache that could is the one left untouched.
+        # HOLD THE COLUMN, NOT THE PANEL (2026-11-11). Until this date one
+        # column here raised and its whole panel went unrefreshed: on the
+        # first scheduled run SATS, a symbol Yahoo had reassigned to another
+        # issuer's preferred share, stopped the S&P 500 panel, and with it
+        # every downstream calculation. Raising protected the cache from a
+        # splice; so does keeping the cached column cell for cell, and it
+        # protects the other columns' freshness as well. Nothing is filled or
+        # scaled: a seam that does not match exactly appends nothing, and the
+        # name is then blank on the newest rows, which the coverage floors
+        # and the tail checks already judge.
+        priced = prior[failures].dropna(how="all").index
+        out = out.reindex(out.index.union(priced)).sort_index()
         for t in failures:
-            print(_unserved_line(t, uncovered[t]), flush=True)
-        raise RuntimeError(f"{failures}: full-history reconciliation incomplete; incumbent cache untouched")
+            out[t], seam = basis_guard.hold_column(prior[t], history[t], out.index)
+            held[t] = {**uncovered[t], "seam": seam}
+            print(_unserved_line(t, held[t]), flush=True)
     return out, recent, {"incremental_columns": len(short), "full_columns": len(full),
-                         "reconciled_columns": retry, "observation_start": str(recent.date()),
+                         "reconciled_columns": [t for t in retry if t not in held],
+                         "observation_start": str(recent.date()),
                          "full_requested": full, "full_answered": answered,
-                         "incremental_requested": short, "full_start": full_start}
+                         "incremental_requested": short, "full_start": full_start,
+                         "held_columns": held}

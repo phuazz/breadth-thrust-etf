@@ -17,9 +17,10 @@ renew audit evidence. New names, modified caches and uncertain or mixed-source
 columns receive full history requests. Recent missing sessions and open
 withdrawal cycles remain in scope. Old known gaps are retried at the full audit
 rather than causing the same full download every day. A changed overlap triggers
-whole-history reconciliation for the affected names. Incomplete reconciliation
-stops before cache publication. Existing source, corporate-action, coverage and
-freshness guards still apply.
+whole-history reconciliation for the affected names. A column whose
+reconciliation is incomplete is held on its cached history; the rest of its
+panel proceeds. Existing source, corporate-action, coverage and freshness
+guards still apply.
 
 Reconciliation is incomplete only where two adjustment bases would meet: a
 shared cell changed beyond the comparison tolerance while the same column holds
@@ -29,8 +30,17 @@ always were (an earlier occupant of a reused ticker, a bar later withdrawn, a
 delisted name), and a column carrying them is never recorded as audited. The
 tolerance is 1e-05: two Yahoo responses for the same history differ by up to
 about 1e-06 in older adjusted closes (measured 2026-11-11), and the first
-scheduled run failed ten panels on that difference alone. Each refusal prints
-one line per column naming the uncovered dates and the size of the change.
+scheduled run failed ten panels on that difference alone.
+
+A held column keeps every cached cell as it was and takes new sessions only
+across an exact seam (the vendor's close on the last cached session equals the
+cached close); otherwise it takes nothing and the name is blank on the newest
+rows, where the coverage floors judge it. It is excluded from the tail heal,
+printed in the refresh log as `Reconciliation HELD`, recorded in the cache
+sidecar under `reconciliation_held` with the uncovered dates and the size of
+the change, and asked for full history again on every run. Until 2026-11-11 one
+such column stopped its whole panel. A held name that is in the current roster
+needs a decision: the hold is safe, not a repair.
 
 Use `compute_breadth.py --etf SYMBOL --full-price-history` for an immediate full
 historical audit without discarding cached observations. A short overlap cannot
