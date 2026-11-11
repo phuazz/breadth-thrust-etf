@@ -4672,7 +4672,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-11-09",
- "computed_at_utc": "2026-11-10 12:41 UTC",
+ "computed_at_utc": "2026-11-11 01:20 UTC",
  "holdings": [
   {
    "ticker": "SHY",
@@ -4945,45 +4945,45 @@
  "n_positions": 16,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-11-10T12:41:11.536910+00:00",
+  "computed_at_utc": "2026-11-11T01:20:53.010735+00:00",
   "all_current": false,
   "strategies": [
    {
     "sleeve": "A",
     "label": "US sectors",
     "data_through": "2026-11-09",
-    "venue_last_session": "2026-11-09",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-11-10",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-11-09, while the market has traded to 2026-11-10 — it has not been rebuilt since."
    },
    {
     "sleeve": "B",
     "label": "Asset classes",
     "data_through": "2026-11-09",
-    "venue_last_session": "2026-11-09",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-11-10",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-11-09, while the market has traded to 2026-11-10 — it has not been rebuilt since."
    },
    {
     "sleeve": "C",
     "label": "Thematic",
     "data_through": "2026-11-09",
-    "venue_last_session": "2026-11-09",
-    "sessions_behind": 0,
-    "status": "current",
+    "venue_last_session": "2026-11-10",
+    "sessions_behind": 1,
+    "status": "behind",
     "laggards": [],
-    "why_plain": null
+    "why_plain": "the data behind this strategy stops on 2026-11-09, while the market has traded to 2026-11-10 — it has not been rebuilt since."
    },
    {
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-11-06",
-    "venue_last_session": "2026-11-09",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-11-10",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
     "why_plain": "the shares held inside these funds are priced up to 2026-11-06, while the exchange itself has traded to 2026-11-09 — the newest day's prices were not available when this was built."
