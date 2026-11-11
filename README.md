@@ -21,6 +21,17 @@ whole-history reconciliation for the affected names. Incomplete reconciliation
 stops before cache publication. Existing source, corporate-action, coverage and
 freshness guards still apply.
 
+Reconciliation is incomplete only where two adjustment bases would meet: a
+shared cell changed beyond the comparison tolerance while the same column holds
+cached cells the response does not serve, or the response shares no cell with
+the cache at all. Cells the vendor does not serve are otherwise kept as they
+always were (an earlier occupant of a reused ticker, a bar later withdrawn, a
+delisted name), and a column carrying them is never recorded as audited. The
+tolerance is 1e-05: two Yahoo responses for the same history differ by up to
+about 1e-06 in older adjusted closes (measured 2026-11-11), and the first
+scheduled run failed ten panels on that difference alone. Each refusal prints
+one line per column naming the uncovered dates and the size of the change.
+
 Use `compute_breadth.py --etf SYMBOL --full-price-history` for an immediate full
 historical audit without discarding cached observations. A short overlap cannot
 detect a provider correction confined to older dates; the seven-day audit

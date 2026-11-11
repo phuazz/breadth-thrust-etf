@@ -15,7 +15,27 @@ import pandas as pd
 import price_revisions
 
 OVERLAP_BARS = 20
-RTOL = 1e-7
+# "The same adjusted close" between two requests for the same history.
+#
+# MEASURED 2026-11-11, the first scheduled run of this module. Yahoo's
+# adjusted closes are not reproducible to the last digit: one cached column
+# compared with a full-history response fetched a day later differed on up to
+# half of its older cells by a few float32 units. Across the 454 Yahoo-basis
+# columns with comparable cells in the ten panels that failed, 444 differed
+# by at most 9.6e-07 relative, ratio 1.0 throughout, with no difference at
+# all in the most recent 25 shared sessions of any of them; 327 of the 444
+# exceeded the original 1e-07, which therefore read a rounding difference as
+# an adjustment change. Two responses minutes apart disagree with each other
+# the same way: IUES passed at 15:22 SGT and failed at 16:29 on APC against
+# the cache the first run had just written.
+#
+# The other ten columns carried real changes, the smallest 6.9e-04 (SATS, a
+# reassigned symbol accruing a daily distribution), then 1.1e-03 (one
+# restated close) and 1.7e-03 (an NSE dividend). 1e-05 is ten times the
+# largest noise and about seventy times below the smallest real change. An
+# adjustment smaller than 0.001% of price is not separable from the vendor's
+# own serialisation, so nothing this module could act on is given up.
+RTOL = 1e-5
 AUDIT_DAYS = 7
 
 
@@ -144,6 +164,58 @@ def incompatible(prior, fresh, tickers):
     return retry
 
 
+def _iso(ts):
+    return None if ts is None or pd.isna(ts) else str(pd.Timestamp(ts).date())
+
+
+def describe_unserved(old, new):
+    """What a full-history response leaves uncovered in one cached column.
+
+    Evidence for the log and the request record; decides nothing. ``old`` is
+    the cached column and ``new`` the vendor's full-history answer. Cells
+    before the vendor's first bar are counted apart from interior ones: the
+    first is the shape of a reused or truncated symbol, the second of a bar
+    the vendor once served and later withdrew.
+    """
+    old, new = old.dropna(), new.dropna()
+    unserved = old.index.difference(new.index)
+    shared = old.index.intersection(new.index)
+    rel = (new.loc[shared] / old.loc[shared] - 1.0).abs()
+    changed = rel[rel > RTOL]
+    leading = unserved[unserved < new.index.min()] if len(new) else unserved
+    return {
+        "cached_cells": int(len(old)),
+        "vendor_cells": int(len(new)),
+        "vendor_first": _iso(new.index.min()) if len(new) else None,
+        "vendor_last": _iso(new.index.max()) if len(new) else None,
+        "unserved_cells": int(len(unserved)),
+        "unserved_first": _iso(unserved.min()) if len(unserved) else None,
+        "unserved_last": _iso(unserved.max()) if len(unserved) else None,
+        "unserved_before_vendor_start": int(len(leading)),
+        "shared_cells": int(len(shared)),
+        "changed_cells": int(len(changed)),
+        "changed_first": _iso(changed.index.min()) if len(changed) else None,
+        "changed_last": _iso(changed.index.max()) if len(changed) else None,
+        "max_rel_change": float(rel.max()) if len(rel) else None,
+    }
+
+
+def _unserved_line(ticker, d):
+    """One log line per column the vendor could not cover."""
+    interior = d["unserved_cells"] - d["unserved_before_vendor_start"]
+    where = []
+    if d["unserved_before_vendor_start"]:
+        where.append(f"{d['unserved_before_vendor_start']} before the vendor's first bar "
+                     f"({d['vendor_first']})")
+    if interior:
+        where.append(f"{interior} inside the vendor's own span")
+    change = ("no shared cell to compare" if d["max_rel_change"] is None else
+              f"{d['changed_cells']} of {d['shared_cells']} shared cell(s) changed, "
+              f"largest {d['max_rel_change']:.2e}, {d['changed_first']} to {d['changed_last']}")
+    return (f"  Reconciliation incomplete {ticker}: {d['unserved_cells']} cached cell(s) not served, "
+            f"{d['unserved_first']} to {d['unserved_last']} ({'; '.join(where)}); {change}")
+
+
 def download(fetch, tickers, start, end, prior, sidecar, state_file=None, calendar="NYSE",
              observe=None, full_history=False, audit_required=True, now=None):
     """Fetch raw closes plus observation scope; caller retains all existing guards.
@@ -187,16 +259,36 @@ def download(fetch, tickers, start, end, prior, sidecar, state_file=None, calend
                     if len(shared) and not np.isclose(prior.loc[shared, t], history.loc[shared, t],
                                                       rtol=RTOL, atol=1e-10).all():
                         check.append(t)
+        # A SPLICE NEEDS TWO BASES. The refusal below exists to stop cached
+        # cells on one adjustment basis meeting fresh cells on another. Cells
+        # the vendor does not serve are not that on their own: the caller's
+        # cell-preservation merge has always kept them (an earlier occupant
+        # of a reused ticker, a bar the vendor later withdrew, a delisted
+        # name), and where every cell the vendor DOES serve still equals the
+        # cache there is one basis and nothing to reconcile. Until 2026-11-11
+        # an unserved cell alone refused the column whenever it reached this
+        # loop, so one withdrawn close inside the overlap, or a name the
+        # vendor stopped serving, failed its whole panel. Refused now: a
+        # changed shared cell beside an unserved one, or a vendor series that
+        # shares no cell with the cache at all and so cannot be placed on it.
+        uncovered = {}
         for t in check:
-            old = prior[t].dropna()
-            new = history[t].dropna()
-            if not old.index.difference(new.index).empty:
+            found = describe_unserved(prior[t], history[t])
+            if found["unserved_cells"] and (
+                    found["changed_cells"]
+                    or (not found["shared_cells"] and found["vendor_cells"])):
                 failures.append(t)
+                uncovered[t] = found
         parts.append(history)
     out = pd.concat(parts, axis=1).reindex(columns=tickers).sort_index()
     if observe is not None:
         observe(out.loc[recent:])
     if failures:
+        # Name what the vendor left uncovered before refusing: the symbol
+        # list alone could not tell a reused ticker from a withdrawn bar on
+        # 2026-11-11, and the cache that could is the one left untouched.
+        for t in failures:
+            print(_unserved_line(t, uncovered[t]), flush=True)
         raise RuntimeError(f"{failures}: full-history reconciliation incomplete; incumbent cache untouched")
     return out, recent, {"incremental_columns": len(short), "full_columns": len(full),
                          "reconciled_columns": retry, "observation_start": str(recent.date()),
