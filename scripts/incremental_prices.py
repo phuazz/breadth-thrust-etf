@@ -71,9 +71,15 @@ def carry_audits(close, prior_sidecar, request_record, source_sidecar, now=None)
     old = (prior_sidecar or {}).get("historical_scan", {})
     if not isinstance(old, dict):
         old = {}
+    # A column held on its cached history was not reconciled, whatever
+    # evidence it carried before: dropped here, it is asked for full history
+    # on every run until the vendor covers it (2026-11-11). Without this the
+    # earlier audit rode along, and once the changed cell left the overlap
+    # the column went back to overlap-only requests with the hold forgotten.
+    held = set(request_record.get("held_columns") or ())
     result = {}
     for t in close:
-        if price_revisions.basis_of(basis, t) != "yfinance" or t in mixed:
+        if price_revisions.basis_of(basis, t) != "yfinance" or t in mixed or t in held:
             continue
         if t in request_record["full_answered"]:
             item = {"scanned_at_utc": now.isoformat(),
@@ -181,8 +187,14 @@ def describe_unserved(old, new):
     old, new = old.dropna(), new.dropna()
     unserved = old.index.difference(new.index)
     shared = old.index.intersection(new.index)
+    # The same test the caller uses to decide a column changed, so the two
+    # cannot disagree on a cell at the edge of the tolerance.
+    differs = ~np.isclose(old.loc[shared], new.loc[shared], rtol=RTOL, atol=1e-10)
     rel = (new.loc[shared] / old.loc[shared] - 1.0).abs()
-    changed = rel[rel > RTOL]
+    changed = rel[differs]
+    # A cached zero makes the ratio infinite; the count above still says the
+    # cell changed, and the sidecar stays standard JSON.
+    finite = rel[np.isfinite(rel)]
     leading = unserved[unserved < new.index.min()] if len(new) else unserved
     return {
         "cached_cells": int(len(old)),
@@ -197,7 +209,7 @@ def describe_unserved(old, new):
         "changed_cells": int(len(changed)),
         "changed_first": _iso(changed.index.min()) if len(changed) else None,
         "changed_last": _iso(changed.index.max()) if len(changed) else None,
-        "max_rel_change": float(rel.max()) if len(rel) else None,
+        "max_rel_change": float(finite.max()) if len(finite) else None,
     }
 
 
@@ -210,9 +222,10 @@ def _unserved_line(ticker, d):
                      f"({d['vendor_first']})")
     if interior:
         where.append(f"{interior} inside the vendor's own span")
-    change = ("no shared cell to compare" if d["max_rel_change"] is None else
+    largest = "not finite" if d["max_rel_change"] is None else f"{d['max_rel_change']:.2e}"
+    change = ("no shared cell to compare" if not d["shared_cells"] else
               f"{d['changed_cells']} of {d['shared_cells']} shared cell(s) changed, "
-              f"largest {d['max_rel_change']:.2e}, {d['changed_first']} to {d['changed_last']}")
+              f"largest {largest}, {d['changed_first']} to {d['changed_last']}")
     seam = d.get("seam") or {}
     appended = seam.get("appended_sessions") or []
     outcome = (f"{len(appended)} new session(s) appended across an exact seam at {seam.get('seam_date')}"
@@ -269,8 +282,17 @@ def download(fetch, tickers, start, end, prior, sidecar, state_file=None, calend
                 if (t in prior and t not in check and t not in mixed
                         and price_revisions.basis_of(basis, t) == "yfinance"):
                     shared = prior[t].dropna().index.intersection(history[t].dropna().index)
-                    if len(shared) and not np.isclose(prior.loc[shared, t], history.loc[shared, t],
-                                                      rtol=RTOL, atol=1e-10).all():
+                    # No shared cell at all, with cells on both sides, is a
+                    # vendor series that cannot be placed on the cached one
+                    # (a symbol reassigned since the last run). Examined on
+                    # this path too since 2026-11-11: before, only a column
+                    # with a current audit reached the test below, so the
+                    # same symbol was held while audited and had the new
+                    # occupant's bars appended once the audit lapsed.
+                    if ((len(shared) and not np.isclose(prior.loc[shared, t], history.loc[shared, t],
+                                                        rtol=RTOL, atol=1e-10).all())
+                            or (not len(shared) and prior[t].notna().any()
+                                and history[t].notna().any())):
                         check.append(t)
         # A SPLICE NEEDS TWO BASES. The refusal below exists to stop cached
         # cells on one adjustment basis meeting fresh cells on another. Cells

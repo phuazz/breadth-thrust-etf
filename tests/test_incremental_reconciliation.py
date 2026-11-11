@@ -227,6 +227,103 @@ def test_vendor_series_sharing_no_cell_with_the_cache_is_held(history):
     assert rec["held_columns"]["A"]["shared_cells"] == 0
 
 
+def test_unaudited_column_sharing_no_cell_is_held_too(history):
+    """The same reassigned symbol on the full-history path (no audit on file).
+
+    Review finding, 2026-11-11: the rule first applied only to a column with a
+    current audit, so the hold lapsed with the audit and the new occupant's
+    bars were then appended. Production default: ``audit_required=True``.
+    """
+    prior = history.iloc[:-1].copy()
+    vendor = history.copy()
+    vendor.iloc[:-1, 0] = np.nan
+    vendor.iloc[-1, 0] = 5.0               # another instrument's price level
+    out, _, rec = ip.download(fetcher(vendor), list(history), START, END, prior, SIDE)
+    assert rec["incremental_columns"] == 0  # nothing audited: all full history
+    assert_held(out, rec, prior, "A")
+    assert np.isnan(out["A"].iloc[-1])
+
+
+def test_held_column_loses_its_audit_evidence(history):
+    """Review finding, 2026-11-11: an audited column kept its audit when held."""
+    prior = history.iloc[:-1].copy()
+    scan = ip.carry_audits(prior, None, {"full_requested": list(prior), "full_answered": list(prior),
+                                         "incremental_requested": [], "full_start": START}, SIDE)
+    audited = {**SIDE, "historical_scan": scan}
+    since, full = ip.plan(prior, list(prior), START, END, audited)
+    assert full == []                       # both columns start out audited
+    vendor = history.copy()
+    vendor.iloc[-5, 0] *= 1 + 1.08e-3       # restated inside the overlap
+    vendor.iloc[-9, 0] = np.nan             # and one cached cell withdrawn
+    out, _, rec = ip.download(fetcher(vendor), list(history), START, END, prior, audited)
+    assert_held(out, rec, prior, "A", appended=[history.index[-1]])
+    carried = ip.carry_audits(out.combine_first(prior), audited, rec, SIDE)
+    assert "A" not in carried and "B" in carried
+    # So the next run asks for A's full history again instead of the overlap.
+    _, full_next = ip.plan(out.combine_first(prior), list(prior), START, END,
+                           {**SIDE, "historical_scan": carried})
+    assert full_next == ["A"]
+
+
+def test_held_roster_name_is_not_filled_from_the_norgate_tail(tmp_path, monkeypatch):
+    """Review finding, 2026-11-11 (blocking): Norgate filled a held column's tail.
+
+    The filled cell made the column "mixed", the next run exempted it from
+    reconciliation, and Yahoo's re-based history then met the cached cells.
+    """
+    import compute_breadth as cb
+    import norgate_prices
+    import price_source
+    names = ["LIN", "CRH", "ALB", "APD", "ECL", "SW"]      # plain US listings
+    idx = pd.bdate_range(start="2026-01-05", periods=40)
+    full = pd.DataFrame({t: 100.0 + 3 * i + np.arange(len(idx), dtype=float)
+                         for i, t in enumerate(names)}, index=idx)
+    cache = tmp_path / "data" / "prices_cache_iums.parquet"
+    cache.parent.mkdir()
+    prior = full.iloc[:-1].copy()
+    prior.to_parquet(cache)
+    price_source.write_cache_source(cache, "auto", {"replaced": [], "kept": ["LIN"], "unresolved": []})
+    yahoo = full.copy()
+    yahoo.loc[idx[:-1], "LIN"] *= 1 - 3e-4   # re-based...
+    yahoo.loc[idx[:5], "LIN"] = np.nan       # ...over cached cells it does not serve
+    yahoo.loc[idx[-1], "LIN"] = np.nan       # and the newest bar is not out yet
+    norgate = full[["LIN"]].iloc[15:]        # agrees with the CACHE through the tail
+    monkeypatch.setattr(cb, "yf", type("Y", (), {"download": staticmethod(
+        lambda symbols, start, end, **k: pd.concat(
+            {"Close": yahoo.loc[start:pd.Timestamp(end) - pd.Timedelta(days=1), symbols]}, axis=1))})())
+    monkeypatch.setattr(cb, "run_with_deadline", lambda fn, **kw: fn())
+    monkeypatch.setattr(norgate_prices, "available", lambda: True)
+    monkeypatch.setattr(norgate_prices, "fetch_closes",
+                        lambda tickers, start, end, verbose=True: (
+                            norgate, ["LIN"], [t for t in tickers if t != "LIN"]))
+    single = lambda t, **k: yahoo[t].dropna() if t in yahoo else None  # noqa: E731
+    monkeypatch.setattr(cb, "_single_ticker_closes", single)
+    monkeypatch.setattr(cb.vendor_tail, "single_ticker_closes", single)
+    out = cb.download_prices(names, str(idx[0].date()), str((idx[-1] + pd.Timedelta(days=3)).date()),
+                             cache_path=cache, roster=names, price_source="auto", refresh=True,
+                             required_through=str(idx[-1].date()))
+    written = pd.read_parquet(cache)
+    pd.testing.assert_series_equal(written["LIN"].dropna(), prior["LIN"], check_freq=False)
+    assert np.isnan(written.loc[idx[-1], "LIN"])
+    assert written.loc[idx[-1], names[1:]].notna().all()
+    side = json.loads(price_source.sidecar_path(cache).read_text(encoding="utf-8"))
+    assert "LIN" in side["reconciliation_held"]
+    assert "LIN" not in (side.get("tail_from_norgate") or {}).get("filled", {})
+    assert "LIN" not in (out.attrs.get("tail_from_norgate") or {}).get("filled", {})
+    # Not mixed, so the next run examines it again rather than exempting it.
+    assert "LIN" not in {t for t, _ in cb.price_revisions.norgate_tail_cells(side)}
+
+
+def test_cached_zero_does_not_put_infinity_in_the_record(history):
+    prior = history["A"].iloc[:-1].copy()
+    prior.iloc[3] = 0.0
+    vendor = history["A"].copy()
+    vendor.iloc[10] = np.nan
+    d = ip.describe_unserved(prior, vendor)
+    assert d["changed_cells"] == 1 and d["max_rel_change"] == 0.0
+    json.dumps(d, allow_nan=False)
+
+
 def test_name_the_vendor_stopped_serving_is_kept_without_a_hold(history):
     """A delisting: no vendor cell at all, so nothing to splice and nothing held."""
     prior = history.iloc[:-1].copy()

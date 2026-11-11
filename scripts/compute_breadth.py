@@ -1614,9 +1614,15 @@ def download_prices(
     # completes is simply a priced row there; after the WS19b selection and
     # the cell merge, so nothing later re-splices it. 'auto' only.
     tail_from_norgate = None
-    if price_source == "auto" and roster and norgate_kept:
+    # A held column is not a candidate (2026-11-11). Its blank newest cell
+    # is the hold, not a vendor lag; a Norgate cell written there would make
+    # the column "mixed", the next run would exempt it from reconciliation,
+    # and Yahoo's re-based history would then meet the cached cells the hold
+    # existed to keep apart.
+    tail_candidates = [t for t in norgate_kept if t not in reconciliation_held]
+    if price_source == "auto" and roster and tail_candidates:
         close, tail_from_norgate = resource_tail_from_norgate(
-            close, norgate_frame, norgate_kept, roster,
+            close, norgate_frame, tail_candidates, roster,
             through=min(pd.Timestamp(required_through) if required_through
                         is not None else pd.Timestamp.max,
                         pd.Timestamp(end) - pd.Timedelta(days=1)))
@@ -1631,6 +1637,13 @@ def download_prices(
     reconciliation_held = {t: v for t, v in reconciliation_held.items()
                            if t not in norgate_columns}
     untouchable = list(norgate_columns) + list(reconciliation_held)
+    held_on_roster = sorted(t for t in reconciliation_held if t in set(roster or ()))
+    if held_on_roster:
+        # The hold is safe, not a repair: a current constituent takes no new
+        # session until someone decides what its column should carry.
+        print(f"  WARN: {len(held_on_roster)} held column(s) are CURRENT roster "
+              f"names and are blank on new sessions until resolved: "
+              f"{held_on_roster}", flush=True)
     if roster and tail_probe and price_source != "norgate":
         close, missing_recovery = vendor_tail.recover_missing_columns(
             close, roster, exclude=untouchable,
