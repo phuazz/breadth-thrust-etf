@@ -8709,10 +8709,23 @@ function _pendingFillNote(sleeve, heldDate) {
     // Fires on breadth < threshold, so clearing it takes ceil(threshold x N).
     const need = Math.ceil(g.threshold * g.n_universe - 1e-9);
     const to = entries.find(l => CASH.has(l.etf));
-    parts.push(`sleeve-breadth gate on: ${g.n_above} of ${g.n_universe} themes above the `
-      + `+${Math.round(g.floor * 100)}% floor, ${need} needed. All ${exits.length} holdings exit `
-      + `(${exits.map(sym).join(', ')}) and `
-      + (to ? `${sym(to)} takes the whole ${nav(to.target)}` : 'the sleeve moves to cash'));
+    const head = `sleeve-breadth gate on: ${g.n_above} of ${g.n_universe} themes above the `
+      + `+${Math.round(g.floor * 100)}% floor, ${need} needed. `;
+    if (exits.length) {
+      parts.push(head + `All ${exits.length} holdings exit `
+        + `(${exits.map(sym).join(', ')}) and `
+        + (to ? `${sym(to)} takes the whole ${nav(to.target)}` : 'the sleeve moves to cash'));
+    } else if (to) {
+      // Nothing held to sell (an empty book): name the cash entry only.
+      parts.push(head + `No holdings to exit; ${sym(to)} takes the whole ${nav(to.target)}`);
+    } else {
+      // Gate already on at the last fill: the book is the cash line alone, so
+      // there is no exit set to list (9 Nov 2026 payload read "All 0 holdings
+      // exit ()"). Name the cash line actually held.
+      const cash = lines.find(l => CASH.has(l.etf) && l.held > EPS);
+      parts.push(head + 'No risk holdings to exit; the sleeve stays in cash'
+        + (cash ? ` (${sym(cash)}${cash.target > EPS ? ` at ${nav(cash.target)}` : ''})` : ''));
+    }
   } else {
     const sig = s.signals || {};
     const prev = s.signals_prev || {};
