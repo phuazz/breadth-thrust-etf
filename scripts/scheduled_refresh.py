@@ -155,8 +155,9 @@ Usage:
     python scripts/scheduled_refresh.py --push           # armed
     python scripts/scheduled_refresh.py --preflight-only # smoke test
 
-Exit codes: 0 ok (ready or pushed) / 2 preflight / 3 refresh failed /
-4 anchor / roster / gate failed / 5 push failed.
+Exit codes: 0 ok (ready or pushed) / 2 preflight, or another refresh in
+flight / 3 refresh failed / 4 anchor / roster / gate failed / 5 git add,
+commit or push failed / 1 unhandled exception (reported by cli()).
 
 Python datetime months are 1-indexed (January = 1).
 """
@@ -164,12 +165,14 @@ Python datetime months are 1-indexed (January = 1).
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
 import smtplib
 import subprocess
 import sys
 import tempfile
+import traceback
 from datetime import date, datetime, timezone
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -496,12 +499,33 @@ def _email(subject: str, body: str, log) -> str:
 # Restoring the committed state after a failure is what makes the next firing
 # a retry instead of a refusal.
 #
-# Only for failures INSIDE the refresh (exit 3 and 4). A preflight refusal
+# Only for failures INSIDE the refresh (exit 3, 4 and 5). A preflight refusal
 # (exit 2) found the tree dirty before this run touched it, and that is a
-# person's work to keep; a push failure (exit 5) has already committed, so
-# there is nothing to restore. The porcelain listing is logged before anything
-# is discarded, so nothing disappears without a record.
-RESTORE_ON_EXIT_CODES = (3, 4)
+# person's work to keep, and a second run refused by the in-flight marker
+# (also exit 2) is standing on the first run's live outputs. The porcelain
+# listing is logged before anything is discarded, so nothing disappears
+# without a record.
+#
+# EXIT 5 ADDED (2026-11-03, adversarial review item 4). The old reasoning was
+# that "a push failure has already committed, so there is nothing to
+# restore", which holds for the push but not for the other half of exit 5:
+# `git add` or `git commit` failing (an index.lock left by another git
+# process, a hook, a full disk). That leaves this run's outputs modified or
+# staged, cli() then releases the in-flight marker because main() returned,
+# and with no marker recover_interrupted_run cannot tell the debris from a
+# person's work: every later firing refused. Every fail(5) call site is safe
+# to restore at:
+#   - add/commit failure, both the --push and the --commit branch: the
+#     preflight proved the tree clean, so every tracked change under the
+#     output paths is this run's own output, and restoring it is what makes
+#     the next firing a retry;
+#   - push failure after three attempts, and push failure with the replay
+#     also failing: the commit landed (or there was nothing to commit) and
+#     replay_onto_origin puts the clone back at its own HEAD on any error,
+#     so the tree is clean and the restore logs "tree already clean" and
+#     does nothing. It restores to HEAD, which is the run's own commit, so
+#     even a dirty tree here could not lose the committed refresh.
+RESTORE_ON_EXIT_CODES = (3, 4, 5)
 RESTORE_PATHS = ("data/", "docs/", "build/portfolio.html", "template.html")
 
 
@@ -625,9 +649,31 @@ def restore_tracked_outputs(log, repo_root: Path = REPO_ROOT) -> bool:
         return True
     log.write("\nrestore: discarding the failed run's outputs:\n" + before.stdout)
     # One path per call: a pathspec that matches nothing aborts the whole
-    # checkout, and build/portfolio.html need not exist in every tree.
+    # checkout, and build/portfolio.html need not exist in every tree. A path
+    # absent from HEAD and the index fails its own call and nothing else; the
+    # return code is deliberately not read, because the porcelain listing
+    # below is the verdict.
+    #
+    # FROM HEAD, NOT FROM THE INDEX (2026-11-03, adversarial review item 3).
+    # This was `git checkout -- <path>`, which copies the INDEX into the
+    # working tree and leaves anything staged exactly where it was. A run
+    # killed, or failing, between `git add` and `git commit` leaves its
+    # outputs staged as `M ` entries; the restore then reported the tree
+    # still dirty, the marker could not help, and every later firing refused
+    # as before the 2026-11-01 recovery existed. `checkout HEAD --` rewrites
+    # index and working tree together.
+    #
+    # --no-overlay because `checkout HEAD --` on its own still leaves an `A `
+    # entry: a file the run CREATED and staged is in the index but not in
+    # HEAD, and the default overlay mode never removes a file. `git clean`
+    # cannot reach it either, as it is tracked by then. A new constituents
+    # file is exactly such a path (see _killed_run_debris in the tests).
+    # --no-overlay removes from index and tree whatever HEAD does not hold
+    # under the path; an untracked file it never touches. It needs git 2.22
+    # or later; an older git fails every call here, and the porcelain check
+    # below then reports the tree dirty, which refuses rather than discards.
     for path in RESTORE_PATHS:
-        _git(["checkout", "--", path], log, cwd=repo_root)
+        _git(["checkout", "--no-overlay", "HEAD", "--", path], log, cwd=repo_root)
     # -fd without -x: ignored files (the price caches, logs/) are untouched.
     _git(["clean", "-fd", "--", "data/", "docs/"], log, cwd=repo_root)
     after = _git(["status", "--porcelain"], log, cwd=repo_root)
@@ -728,23 +774,98 @@ def _process_identity(pid: int) -> str | None:
     return "alive"
 
 
-def claim_in_flight(log, repo_root: Path, *, cadence: str, component: str) -> None:
-    """Record that this process is now writing the clone. Best-effort: a
-    marker that cannot be written only loses the automatic recovery.
+# The pid of a process that hands the marker to a WAITED child: the weekend
+# auto parent (run_child) and the re-exec parent. The child reads it back in
+# claim_in_flight. os.getppid() alone is not enough on the production
+# machine: a venv python.exe on Windows is a launcher whose child is the real
+# interpreter (see test_combined_book_risk's CHILD), so the refresh child's
+# parent is the launcher, not the process whose pid the marker records.
+# Inherited by every descendant, which is harmless: only scheduled_refresh
+# claims, and a separate Task Scheduler firing starts without it.
+IN_FLIGHT_PARENT_ENV = "BTE_SCHED_IN_FLIGHT_PARENT"
+
+
+def _in_flight_parents() -> set[int]:
+    """Pids whose marker this process may take over: its own parent, and the
+    process that declared itself the handing-over parent (see above)."""
+    pids = {os.getppid()}
+    try:
+        pids.add(int(os.environ.get(IN_FLIGHT_PARENT_ENV, "")))
+    except ValueError:
+        pass
+    pids.discard(0)
+    return pids
+
+
+def _marker_holder(record: dict) -> str:
+    """One line naming the run a marker records, for logs and refusals."""
+    return (f"run pid {record.get('pid')} started {record.get('started_utc')} "
+            f"({record.get('cadence')}/{record.get('component')})")
+
+
+def claim_in_flight(log, repo_root: Path, *, cadence: str, component: str) -> bool:
+    """Record that this process is now writing the clone. Returns False when
+    ANOTHER live refresh holds the marker, which the caller turns into a
+    refusal; True otherwise.
+
+    REFUSE A LIVE FOREIGN MARKER (2026-11-03, adversarial review item 2).
+    This overwrote any marker unconditionally. Two live runs are possible
+    despite IgnoreNew, which is per TASK: a weekend firing delayed by
+    StartWhenAvailable can still be running when the Tuesday post-fill task
+    fires, and both find a clean tree if the first is between writes. The
+    second then took over the marker; if it was killed, the next firing saw
+    a dead pid, HEAD unchanged and only refresh outputs dirty, and restored
+    over the FIRST run's live outputs while that run was still writing them.
+    The marker is now taken only when its process is gone (no such pid, or a
+    reused one with another creation time), or when it is this process's
+    waited parent handing over (_in_flight_parents). A live holder, or one
+    that cannot be inspected, refuses: fail closed, as recover_interrupted_run
+    does. A malformed or unreadable marker names no live process and is
+    overwritten, as before.
+
+    Best-effort on the WRITE: a marker that cannot be written only loses the
+    automatic recovery, so a write failure is logged and returns True. A
+    claim REFUSED is not best-effort, and is never swallowed.
 
     Not under pytest (_durable_state_enabled): the refresh runs the suite
     from inside the clone, and a test driving main() against the real
     REPO_ROOT would otherwise overwrite the live run's marker with the
     pytest process's - a marker that would then authorise a restore."""
     if not _durable_state_enabled():
-        return
-    head = _git(["rev-parse", "HEAD"], log, cwd=repo_root).stdout.strip()
-    record = {"pid": os.getpid(), "identity": _process_identity(os.getpid()),
-              "head": head, "cadence": cadence, "component": component,
-              "started_utc": datetime.now(timezone.utc).isoformat()}
+        return True
     path = in_flight_marker_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(record, sort_keys=True), encoding="utf-8")
+    try:
+        held = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        held = None
+    if isinstance(held, dict) and held.get("pid") != os.getpid():
+        pid = held.get("pid")
+        if pid in _in_flight_parents():
+            log.write(f"\nin-flight marker: taking over from the waiting parent, "
+                      f"{_marker_holder(held)}\n")
+        else:
+            identity = _process_identity(pid)
+            if identity == _UNINSPECTABLE:
+                log.write(f"\nin-flight marker REFUSED: {_marker_holder(held)}; "
+                          "its process cannot be inspected, so it may be alive\n")
+                return False
+            if identity is not None and identity == held.get("identity"):
+                log.write(f"\nin-flight marker REFUSED: {_marker_holder(held)} "
+                          "is still in flight\n")
+                return False
+            log.write(f"\nin-flight marker: {_marker_holder(held)} is gone; "
+                      "overwriting it\n")
+    try:
+        head = _git(["rev-parse", "HEAD"], log, cwd=repo_root).stdout.strip()
+        record = {"pid": os.getpid(), "identity": _process_identity(os.getpid()),
+                  "head": head, "cadence": cadence, "component": component,
+                  "started_utc": datetime.now(timezone.utc).isoformat()}
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(record, sort_keys=True), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001 - the write is best-effort
+        log.write(f"\n[in-flight marker could not be written, ignored: "
+                  f"{type(exc).__name__}: {exc}]\n")
+    return True
 
 
 def release_in_flight() -> None:
@@ -789,8 +910,8 @@ def recover_interrupted_run(log, porcelain: str,
         return False, f"in-flight marker unreadable ({type(exc).__name__})"
     if not isinstance(record, dict):
         return False, "in-flight marker malformed"
-    pid, started = record.get("pid"), record.get("started_utc")
-    who = f"run pid {pid} started {started} ({record.get('cadence')}/{record.get('component')})"
+    pid = record.get("pid")
+    who = _marker_holder(record)
     now_identity = _process_identity(pid)
     if now_identity == _UNINSPECTABLE:
         return False, f"{who}: its process cannot be inspected, so it may be alive"
@@ -1203,11 +1324,102 @@ def repairable_held_core(released: dict) -> list[str]:
     return sorted(out)
 
 
+def _argv_cadence(argv: list[str] | None) -> str:
+    """The --cadence a raw argv carries, for a record written after main()
+    has raised and its parsed args are gone. Unknown when absent or bad."""
+    args = list(sys.argv[1:] if argv is None else argv)
+    for i, a in enumerate(args):
+        if a == "--cadence" and i + 1 < len(args):
+            return args[i + 1]
+        if a.startswith("--cadence="):
+            return a.split("=", 1)[1]
+    return "weekend"   # main()'s own default
+
+
+def report_unhandled_exception(exc: BaseException, argv: list[str] | None) -> None:
+    """What fail() does for a run that RAISED instead of returning a code:
+    the traceback into the run's log, a [FAIL] email, a run_status record,
+    and the in-flight marker released only if the tree is clean. Never
+    raises, so the caller's re-raise carries the ORIGINAL exception.
+
+    Until 2026-11-03 (adversarial review item 5) an exception out of main()
+    reached Task Scheduler as a non-zero exit and nothing else: no email, no
+    run ledger entry, so the independent watcher saw a firing that never
+    happened. The log handle main() opened is out of reach here, so the same
+    day's log is reopened in append mode (log_path_for is by local date, so
+    this is the file main() was writing unless the run crossed midnight).
+
+    THE MARKER. A run that raised with outputs on disk keeps its marker:
+    once this process has exited, the next firing sees a dead pid and
+    restores the debris (recover_interrupted_run). A run that raised with a
+    clean tree has nothing to restore, and a marker left behind would only
+    make the next firing look up a dead pid for no purpose, so it is
+    released. A status that cannot be read counts as dirty: keeping the
+    marker is the side that cannot discard anything by itself."""
+    try:
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        log = open(log_path_for(datetime.now(timezone.utc)), "a", encoding="utf-8")
+    except Exception:  # noqa: BLE001 - nowhere to log; still alert below
+        log = io.StringIO()
+    try:
+        tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+        log.write(f"\nUNHANDLED EXCEPTION out of main():\n{tb}")
+        log.flush()
+        cp = _safe(log, "git status after exception", _git,
+                   ["status", "--porcelain"], log, cwd=REPO_ROOT)
+        clean = cp is not None and cp.returncode == 0 and not cp.stdout.strip()
+        if clean:
+            release_in_flight()
+            log.write("\nin-flight marker released: the tree is clean\n")
+        else:
+            log.write("\nin-flight marker KEPT: the tree is dirty or unreadable, "
+                      "so the next firing can restore it once this process "
+                      "has exited\n")
+        if _durable_state_enabled():
+            _safe(log, "unhandled exception email", _email,
+                  "[FAIL] Scheduled refresh - unhandled exception",
+                  f"main() raised {type(exc).__name__}: {exc}\n\n"
+                  "The run stopped without its own failure handling. "
+                  + ("The tree is clean." if clean else
+                     "The tree is dirty; the in-flight marker is kept so the "
+                     "next firing restores it.")
+                  + f"\n\n{tb}\nLog: {getattr(log, 'name', '<unavailable>')}",
+                  log)
+            _safe(log, "run outcome record", run_status.record_run,
+                  run_status.run_ledger_path(REPO_ROOT),
+                  cadence=_argv_cadence(argv),
+                  exit_code=(exc.code if isinstance(exc, SystemExit)
+                             and isinstance(exc.code, int) else 1),
+                  subject=f"unhandled exception: {type(exc).__name__}")
+    except Exception:  # noqa: BLE001 - never mask the original exception
+        pass
+    finally:
+        try:
+            log.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def cli(argv: list[str] | None = None) -> int:
-    """The script entry. The in-flight marker is released only on a RETURN:
-    a run killed or raising never gets here, and the marker it leaves is what
-    lets the next firing restore its debris; see recover_interrupted_run."""
-    rc = main(argv)
+    """The script entry. On a RETURN the in-flight marker is released. A run
+    killed from outside never gets here, and the marker it leaves is what
+    lets the next firing restore its debris; see recover_interrupted_run. A
+    run that RAISES is reported and its marker kept or released on the state
+    of the tree; see report_unhandled_exception.
+
+    SystemExit(0) and SystemExit(None) are argparse's --help and a clean
+    sys.exit, not failures, and pass through untouched; any other SystemExit
+    (argparse's usage error is 2) is a run that did not happen and is
+    reported like any exception."""
+    try:
+        rc = main(argv)
+    except SystemExit as exc:
+        if exc.code not in (0, None):
+            report_unhandled_exception(exc, argv)
+        raise
+    except BaseException as exc:
+        report_unhandled_exception(exc, argv)
+        raise
     release_in_flight()
     return rc
 
@@ -1424,16 +1636,33 @@ def main(argv: list[str] | None = None) -> int:
             # fresh instance against the tree the detached run was writing.
             # A child this process WAITS for keeps it the scheduled instance
             # and returns the outcome that actually happened.
-            env = dict(os.environ, BTE_SCHED_REEXEC="1")
+            env = dict(os.environ, BTE_SCHED_REEXEC="1",
+                       **{IN_FLIGHT_PARENT_ENV: str(os.getpid())})
             child = subprocess.run(
                 [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
                 cwd=REPO_ROOT, env=env)
             return child.returncode
 
     # From here the run writes the clone; see recover_interrupted_run.
+    #
+    # A claim that RAISES is still best-effort (_safe returns None and the
+    # run proceeds without the recovery). A claim REFUSED returns False and
+    # refuses here: another refresh is live in this clone, and this run must
+    # neither write over it nor take the marker that protects its outputs.
+    # Exit 2, which does not restore (RESTORE_ON_EXIT_CODES), and cli()
+    # leaves the other run's marker alone because the pid is not ours.
     if not args.preflight_only:
-        _safe(log, "in-flight marker", claim_in_flight, log, REPO_ROOT,
-              cadence=args.cadence, component=args.component)
+        claimed = _safe(log, "in-flight marker", claim_in_flight, log, REPO_ROOT,
+                        cadence=args.cadence, component=args.component)
+        if claimed is False:
+            held = _safe(log, "in-flight marker read",
+                         in_flight_marker_path().read_text, encoding="utf-8")
+            return fail(2, "another refresh is in flight",
+                        "Another scheduled refresh holds the in-flight marker "
+                        "and its process is alive (or cannot be inspected). "
+                        "This firing did not touch the clone; the next one "
+                        "retries.\nIn-flight marker: "
+                        + (held.strip() if held else "<unreadable>"))
 
     # Waited children preserve Task Scheduler single-instance protection.
     # Core is committed first; a Europe failure cannot roll it back.
@@ -1474,7 +1703,10 @@ def main(argv: list[str] | None = None) -> int:
                 child_args.append("--commit")
             else:
                 print("Soak mode: validating core only; no commit, push or email.")
-            return subprocess.run(child_args, cwd=REPO_ROOT).returncode
+            # This process holds the marker and waits; the child takes it
+            # over rather than refusing it. See IN_FLIGHT_PARENT_ENV.
+            env = dict(os.environ, **{IN_FLIGHT_PARENT_ENV: str(os.getpid())})
+            return subprocess.run(child_args, cwd=REPO_ROOT, env=env).returncode
 
         return component_sequence(run_child, armed=bool(args.push or args.commit),
                                   recover_first=args.recover_europe_first)
