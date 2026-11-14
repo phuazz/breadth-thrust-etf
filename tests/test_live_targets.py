@@ -579,3 +579,78 @@ def test_crypto_settled_window_crosses_month_and_year_boundaries():
     assert str(last_bar.date()) == "2026-12-30"
     assert missing == ["2026-12-28", "2026-12-31", "2027-01-01"]
     assert required is False
+
+
+# 2026-11-14 weekend refresh: the exact weights _rank published for A and B
+# (each sums to 0.999998 after 6dp rounding), with D on HOLD at its unchanged
+# 20% budget. validate_target_nav refused this book three times.
+_A_20261114 = {"IUHC": 0.373022, "IUFS": 0.220006, "IUCS": 0.202418,
+               "IUUS": 0.117116, "CSP1": 0.073589, "IUES": 0.007442,
+               "IUCD": 0.006405}
+_B_20261114 = {"DBC": 0.208333, "SPY": 0.177579, "VNQ": 0.156018,
+               "SHY": 0.142857, "IJR": 0.12982, "VGK": 0.111291, "EFA": 0.0741}
+_NAV_20261114 = {"a": 0.35, "b": 0.35, "c": 0.1, "d": 0.2, "tilt_on": False,
+                 "derisk_on": False, "equity_scaler": 1.0, "tilt_nav": 0.0,
+                 "shy_overlay": 0.0}
+_HELD_20261114 = {("A", "IUHC"): 0.135135, ("A", "IUFS"): 0.060095,
+                  ("A", "IUCS"): 0.07728, ("A", "IUUS"): 0.014595,
+                  ("A", "CSP1"): 0.023975, ("A", "IUCD"): 0.019215,
+                  ("A", "IUMS"): 0.019705,
+                  ("B", "DBC"): 0.154595, ("B", "SPY"): 0.022785,
+                  ("B", "VNQ"): 0.053725, ("B", "SHY"): 0.099995,
+                  ("B", "IJR"): 0.01316, ("B", "VGK"): 0.005705,
+                  ("C", "SHY"): 0.1,
+                  ("D", "EXH1"): 0.05138, ("D", "EXH9"): 0.07536,
+                  ("D", "EXV1"): 0.07326}
+
+
+def _sleeves_20261114(a=_A_20261114):
+    return [{"sleeve": "A", "status": "READY", "weights": dict(a)},
+            {"sleeve": "B", "status": "READY", "weights": dict(_B_20261114)},
+            {"sleeve": "C", "status": "READY", "weights": {"SHY": 1.0}},
+            {"sleeve": "D", "status": "HOLD",
+             "weights": {"EXV1": 0.364611, "EXH9": 0.334584, "EXH1": 0.300804}}]
+
+
+def test_rounded_ready_weights_conserve_nav_2026_11_14():
+    """The 2026-11-14 refusal: two seven-name sleeves rounded to 6dp left the
+    book 1.4e-6 short of NAV, beyond the 1e-6 check. Rounding is absorbed per
+    sleeve, so the book conserves NAV and each READY sleeve hits its budget."""
+    lines = lt._intended_lines(_sleeves_20261114(), dict(_HELD_20261114),
+                               _NAV_20261114, adjust_overlays=True)
+    total = sum(ln["target"] for ln in lines)
+    assert abs(total - 1.0) < 1e-12
+    for sl, budget in (("A", 0.35), ("B", 0.35)):
+        got = sum(ln["target"] for ln in lines if ln["sleeve"] == sl)
+        assert abs(got - budget) < 1e-12
+    # Each target moves by no more than the rounding it absorbs.
+    for ln in lines:
+        if ln["sleeve"] == "A" and ln["etf"] in _A_20261114:
+            assert abs(ln["target"] - _A_20261114[ln["etf"]] * 0.35) < 1e-6
+            assert abs(ln["target"] - ln["within"] * 0.35) < 1e-15
+    # D held its unchanged budget exactly; IUMS, dropped by A's rank, exits.
+    assert all(ln["target"] == ln["held"] for ln in lines if ln["sleeve"] == "D")
+    assert [ln["target"] for ln in lines if ln["etf"] == "IUMS"] == [0.0]
+
+
+def test_a_genuinely_short_ready_sleeve_still_fails_the_nav_check():
+    """The rescale covers rounding only (n names x 5e-7). A sleeve missing a
+    name is a short book, passes through unscaled, and is refused."""
+    import pytest
+    short = {k: v for k, v in _A_20261114.items() if k != "IUCD"}  # -0.0064
+    with pytest.raises(ValueError, match="does not conserve NAV"):
+        lt._intended_lines(_sleeves_20261114(short), dict(_HELD_20261114),
+                           _NAV_20261114, adjust_overlays=True)
+
+
+def test_rounding_normalised_bound():
+    """Exactly at the bound the weights are rescaled; just past it they are
+    left alone. Python floats; no dates involved."""
+    n = 4
+    at = {f"T{i}": 0.25 for i in range(n - 1)}
+    at["T3"] = 0.25 - n * 0.5e-6
+    out = lt._rounding_normalised(at)
+    assert abs(sum(out.values()) - 1.0) < 1e-15
+    past = dict(at, T3=0.25 - n * 0.5e-6 - 1e-9)
+    assert lt._rounding_normalised(past) == past
+    assert lt._rounding_normalised({}) == {}
