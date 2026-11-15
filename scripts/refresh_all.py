@@ -169,6 +169,23 @@ THROTTLE_DEFAULT_S = 15
 # consuming the night and reaching none of them.
 STEP_TIMEOUT_S = 20 * 60
 
+# The regression suite gets its own ceiling (2026-11-15). STEP_TIMEOUT_S was
+# calibrated for vendor fetches, where a step past 20 minutes is throttled and
+# will not finish usefully. pytest makes no network calls; past 20 minutes it
+# is slow, not stuck. On 2026-11-15 three weekend runs in a row passed
+# live_targets and the release preflight and were then killed at 1200s with
+# the suite 86% done and nothing failing: the suite ran 489s by hand, but
+# about 1,390s under Task Scheduler at priority 7 (below-normal CPU, low I/O
+# and memory priority). The tasks now run at priority 4; this ceiling is the
+# second line, so a suite that has grown (3,512 tests in October, 4,670 now)
+# or a loaded machine costs a warning rather than a weekend.
+PYTEST_TIMEOUT_S = 40 * 60
+
+# Warn when the suite uses this share of its ceiling, so the drift is seen
+# in the summary and in logs/pytest_durations.jsonl before it fails a run.
+PYTEST_WARN_FRACTION = 0.7
+PYTEST_DURATIONS_LOG = REPO_ROOT / "logs" / "pytest_durations.jsonl"
+
 # Skip the pause after a step this fast, on the theory that it did no
 # fetching worth pacing.
 #
@@ -222,6 +239,39 @@ def run_step(label: str, cmd: list[str], cwd: Path = REPO_ROOT,
     status = "OK" if ok else "FAILED"
     print(f"  [{status}] {elapsed:6.1f}s", flush=True)
     return ok, elapsed
+
+
+def pytest_timing_note(elapsed: float, ok: bool,
+                       timeout_s: float = PYTEST_TIMEOUT_S,
+                       warn_fraction: float = PYTEST_WARN_FRACTION) -> str | None:
+    """The summary line for a suite close to, or past, its ceiling; None when
+    there is headroom."""
+    share = elapsed / timeout_s
+    if not ok and elapsed >= timeout_s:
+        return (f"pytest hit its {timeout_s:.0f}s ceiling ({elapsed:.0f}s). Check the "
+                "task priority and machine load before raising PYTEST_TIMEOUT_S.")
+    if share >= warn_fraction:
+        return (f"WARNING: pytest took {elapsed:.0f}s, {share:.0%} of its "
+                f"{timeout_s:.0f}s ceiling. Check the task priority and machine load, "
+                "or trim the suite, before it fails a run.")
+    return None
+
+
+def record_pytest_duration(elapsed: float, ok: bool, path: Path = PYTEST_DURATIONS_LOG,
+                           timeout_s: float = PYTEST_TIMEOUT_S) -> None:
+    """Append one row per suite run. Observability only: a failure to write
+    is reported and never changes the run's outcome."""
+    import json
+    from datetime import datetime, timezone
+    row = {"schema": 1,
+           "recorded_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+           "seconds": round(elapsed, 1), "ok": bool(ok), "timeout_s": timeout_s}
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8", newline="\n") as fh:
+            fh.write(json.dumps(row) + "\n")
+    except OSError as exc:
+        print(f"  (pytest duration not recorded: {exc})", flush=True)
 
 
 def _check_refusals_on_disk(panels: list[str]) -> list[str]:
@@ -688,10 +738,14 @@ def main() -> int:
         if not ok:
             failures.append(label)
 
+    pytest_note = None
     if not args.no_tests:
         ok, dt = run_step("pytest (regression suite)",
-                           [py, "-m", "pytest", "tests/", "-q"])
+                           [py, "-m", "pytest", "tests/", "-q"],
+                           timeout_s=PYTEST_TIMEOUT_S)
         timings.append(("pytest", dt))
+        record_pytest_duration(dt, ok)
+        pytest_note = pytest_timing_note(dt, ok)
         if not ok:
             failures.append("pytest")
 
@@ -700,6 +754,8 @@ def main() -> int:
     print(f"\n{'='*72}\nREFRESH SUMMARY (total {total:.0f}s = {total/60:.1f}m)\n{'='*72}")
     for label, dt in timings:
         print(f"  {dt:7.1f}s  {label}")
+    if pytest_note:
+        print(f"\n{pytest_note}")
     if failures:
         print(f"\n{len(failures)} FAILED STEP(S):")
         for f in failures:
