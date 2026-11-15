@@ -4,6 +4,39 @@ from component_basis import MODEL_WEIGHT_ROUNDING_TOL
 from overlay_state import BASE_SLEEVE_WEIGHTS, DEFAULT_TILT_WEIGHT, DEFAULT_DERISK_FRACTION
 
 
+# live_targets._rank publishes every weight rounded to 6dp, so each name can be
+# off by at most half a unit in the sixth place.
+RANKED_WEIGHT_DECIMALS = 6
+_RANKED_WEIGHT_HALF_UNIT = 0.5 * 10 ** -RANKED_WEIGHT_DECIMALS
+
+
+def rounding_normalised(weights):
+    """A READY sleeve's published weights, rescaled to sum to exactly 1 when
+    the only gap is _rank's 6dp rounding.
+
+    One contract for both sides: live_targets._intended_lines builds READY
+    targets from this, and component_release.validate_book re-derives the
+    expected position from this. On 2026-11-14 sleeves A and B each ranked
+    seven unequal names whose rounded weights summed to 0.999998; at 35% of
+    NAV apiece the target book came to 0.9999986 and validate_target_nav
+    (tolerance 1e-6) refused the weekend refresh. The first fix (d4a3ba2a)
+    rescaled in live_targets only, and on 2026-11-15 validate_book, still
+    deriving from the raw weights, refused the rescaled book at 1e-8.
+
+    The rounding is left at its source (sleeves[].weights, which digestkit
+    fingerprints through _rank) and absorbed here. The bound is the most
+    rounding can explain: n names x half a unit in the sixth place. A wider
+    gap is not rounding - a dropped name, an unallocated cash column - and
+    the weights pass through unchanged, so a genuinely short book is still
+    refused.
+    """
+    total = math.fsum(float(w) for w in weights.values())
+    bound = len(weights) * _RANKED_WEIGHT_HALF_UNIT + 1e-12
+    if total <= 0 or abs(total - 1.0) > bound:
+        return dict(weights)
+    return {k: float(w) / total for k, w in weights.items()}
+
+
 def expected_budgets(decision):
     if type(decision.get("gate_on")) is not bool or type(decision.get("tilt_on")) is not bool:
         raise ValueError("overlay states must be explicit booleans")

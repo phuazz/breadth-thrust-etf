@@ -663,35 +663,6 @@ def build(now_utc: datetime | None = None) -> dict:
             "one_way_turnover": sum(abs(x["delta"]) for x in lines) / 2}
 
 
-# _rank publishes every weight rounded to 6dp, so each name can be off by at
-# most half a unit in the sixth place.
-_WEIGHT_DECIMALS = 6
-_WEIGHT_HALF_UNIT = 0.5 * 10 ** -_WEIGHT_DECIMALS
-
-
-def _rounding_normalised(weights: dict[str, float]) -> dict[str, float]:
-    """A READY sleeve's published weights, rescaled to sum to exactly 1 when
-    the only gap is _rank's 6dp rounding.
-
-    On 2026-11-14 sleeves A and B each ranked seven unequal names whose
-    rounded weights summed to 0.999998; at 35% of NAV apiece the target book
-    came to 0.9999986 and validate_target_nav (tolerance 1e-6) refused to
-    publish the weekend refresh three times. The rounding is fixed at the
-    source of the artefact (sleeves[].weights, which digestkit fingerprints),
-    so it is absorbed here rather than there.
-
-    The bound is the most rounding can explain: n names x half a unit in the
-    sixth place. A gap wider than that is not rounding - a dropped name, an
-    unallocated cash column - and the weights pass through unchanged, so the
-    NAV check still refuses a book that is genuinely short.
-    """
-    total = math.fsum(float(w) for w in weights.values())
-    bound = len(weights) * _WEIGHT_HALF_UNIT + 1e-12
-    if total <= 0 or abs(total - 1.0) > bound:
-        return dict(weights)
-    return {k: float(w) / total for k, w in weights.items()}
-
-
 def _intended_lines(sleeves: list[dict], held: dict[tuple[str, str], float],
                     sleeve_nav: dict[str, float], *, adjust_overlays=False) -> list[dict]:
     """The intended book, line by line, against what is held.
@@ -723,7 +694,10 @@ def _intended_lines(sleeves: list[dict], held: dict[tuple[str, str], float],
         if s["sleeve"] not in ready:
             continue
         nav = sleeve_nav.get(s["sleeve"].lower(), 0.0)
-        for etf, w in _rounding_normalised(s["weights"]).items():
+        # The release audit (component_release.validate_book) re-derives these
+        # targets with the same function; the two must never diverge.
+        from component_contract import rounding_normalised
+        for etf, w in rounding_normalised(s["weights"]).items():
             lines.append({"sleeve": s["sleeve"], "etf": etf,
                           "traded": _traded(etf), "within": w,
                           "target": w * nav,

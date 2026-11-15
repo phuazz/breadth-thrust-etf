@@ -15,7 +15,8 @@ from pathlib import Path
 import subprocess
 import sys
 
-from component_contract import expected_budgets, risk_only_hold, validate_target_nav
+from component_contract import (expected_budgets, risk_only_hold, rounding_normalised,
+                                validate_target_nav)
 from component_basis import validate as validate_basis
 from nyse_sessions import week_final_anchor
 
@@ -214,8 +215,9 @@ def validate_book(book, basis, now):
     expected = {}
     for s in sleeves:
         if s["status"] == "READY":
+            # Same rounding contract live_targets built the targets with.
             expected.update({(s["sleeve"], e): w * budgets[s["sleeve"].lower()]
-                             for e, w in s["weights"].items()})
+                             for e, w in rounding_normalised(s["weights"]).items()})
     from run_risk_overlay import EEM_TICKER, FALLBACK_TICKER
     expected.update({("TILT", EEM_TICKER): budgets["tilt_nav"],
                      ("GATE", FALLBACK_TICKER): budgets["shy_overlay"]})

@@ -646,11 +646,37 @@ def test_a_genuinely_short_ready_sleeve_still_fails_the_nav_check():
 def test_rounding_normalised_bound():
     """Exactly at the bound the weights are rescaled; just past it they are
     left alone. Python floats; no dates involved."""
+    from component_contract import rounding_normalised
     n = 4
     at = {f"T{i}": 0.25 for i in range(n - 1)}
     at["T3"] = 0.25 - n * 0.5e-6
-    out = lt._rounding_normalised(at)
+    out = rounding_normalised(at)
     assert abs(sum(out.values()) - 1.0) < 1e-15
     past = dict(at, T3=0.25 - n * 0.5e-6 - 1e-9)
-    assert lt._rounding_normalised(past) == past
-    assert lt._rounding_normalised({}) == {}
+    assert rounding_normalised(past) == past
+    assert rounding_normalised({}) == {}
+
+
+def test_release_audit_derives_ready_targets_by_the_same_rounding_contract():
+    """2026-11-15: d4a3ba2a rescaled READY targets in live_targets only, and
+    component_release.validate_book, still multiplying the raw 6dp weights by
+    the budget, refused the rescaled book at 1e-8. Both sides now call
+    component_contract.rounding_normalised; this rebuilds the 2026-11-14 book
+    and checks every READY line against the audit's own expected value."""
+    import ast
+    import inspect
+    import component_release as cr
+    from component_contract import rounding_normalised
+    lines = lt._intended_lines(_sleeves_20261114(), dict(_HELD_20261114),
+                               _NAV_20261114, adjust_overlays=True)
+    for s in _sleeves_20261114():
+        if s["status"] != "READY":
+            continue
+        budget = _NAV_20261114[s["sleeve"].lower()]
+        expected = {e: w * budget for e, w in rounding_normalised(s["weights"]).items()}
+        for ln in lines:
+            if ln["sleeve"] == s["sleeve"]:
+                assert abs(ln["target"] - expected.get(ln["etf"], 0.0)) < 1e-12
+    calls = {n.func.id for n in ast.walk(ast.parse(inspect.getsource(cr.validate_book)))
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    assert "rounding_normalised" in calls
