@@ -2,11 +2,11 @@
   "etf": "EXV6",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": null,
-  "fetched_at_utc": "2026-11-08T04:33:32.348038+00:00",
+  "fetched_at_utc": "2026-11-15T06:42:32.986601+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-11-06",
-  "n_target_fridays": 462,
-  "n_snapshots_written": 462,
+  "end_friday": "2026-11-13",
+  "n_target_fridays": 463,
+  "n_snapshots_written": 463,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -32,8 +32,8 @@
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     },
     {
-      "target_friday": "2026-11-06",
-      "fallback_date": "2026-11-05",
+      "target_friday": "2026-11-13",
+      "fallback_date": "2026-11-12",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
@@ -54,7 +54,7 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-11-05",
+    "last_real_fetch_date": "2026-11-12",
     "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
@@ -11676,7 +11676,7 @@
       ]
     },
     "2026-11-06": {
-      "actual_date": "2026-11-05",
+      "actual_date": "2026-11-06",
       "n_tickers": 23,
       "tickers": [
         "RIO.L",
@@ -11696,12 +11696,40 @@
         "VOE.VI",
         "NDA.DE",
         "PAF.L",
-        "ACX.MC",
         "KTY.WA",
+        "ACX.MC",
         "HILS.L",
         "HOLM-B.ST",
         "HOC.L",
         "WISA.HE"
+      ]
+    },
+    "2026-11-13": {
+      "actual_date": "2026-11-12",
+      "n_tickers": 22,
+      "tickers": [
+        "RIO.L",
+        "AAL.L",
+        "GLEN.L",
+        "MT.AS",
+        "ANTO.L",
+        "BOL.ST",
+        "UPM.HE",
+        "EDV.L",
+        "KGH.WA",
+        "SKF-B.ST",
+        "NHY.OL",
+        "SCA-B.ST",
+        "FRES.L",
+        "SSAB-B.ST",
+        "VOE.VI",
+        "NDA.DE",
+        "ACX.MC",
+        "KTY.WA",
+        "PAF.L",
+        "HILS.L",
+        "HOLM-B.ST",
+        "HOC.L"
       ]
     }
   }
