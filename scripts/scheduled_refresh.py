@@ -1304,6 +1304,22 @@ def main(argv: list[str] | None = None) -> int:
     creds = _safe(log, "credential probe", run_status.credential_state) or {
         "configured": False, "missing": list(run_status.CREDENTIAL_VARS)}
     log.write(f"\nalert configuration: {json.dumps(creds)}\n")
+
+    # ----- Process priority (2026-11-15) -----
+    # Logged on every run; a low class mails one [WARN] from the top-level
+    # firing only (not its waited children). See task_priority.
+    import task_priority
+    prio = _safe(log, "process priority", task_priority.process_priority)
+    log.write(f"\nprocess priority: {prio[0] if prio else 'unknown'}\n")
+    prio_warning = _safe(log, "process priority warning", task_priority.process_priority_warning)
+    if prio_warning:
+        log.write(f"\nWARNING: {prio_warning}\n")
+        # Not under pytest: the suite runs inside a low-priority task too, and
+        # tests drive main() in-process.
+        if (_durable_state_enabled() and not os.environ.get("BTE_SCHED_REEXEC")
+                and not args.preflight_only and "--component" not in sys.argv[1:]):
+            _email("[WARN] Scheduled refresh running at low priority",
+                   prio_warning + f"\n\nLog: {log_path}", log)
     if not creds["configured"] and _durable_state_enabled():
         _safe(log, "startup alert record", run_status.record_alert,
               run_status.alert_state_path(REPO_ROOT),
