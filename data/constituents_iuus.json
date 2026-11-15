@@ -2,11 +2,11 @@
   "etf": "IUUS",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/287115/ishares-s-p-500-utilities-sector-ucits-etf-fund/1506575576011.ajax?fileType=csv&fileName=IUUS_holdings&dataType=fund",
-  "fetched_at_utc": "2026-11-12T09:30:10.294306+00:00",
+  "fetched_at_utc": "2026-11-15T05:47:14.819281+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-11-06",
-  "n_target_fridays": 462,
-  "n_snapshots_written": 462,
+  "end_friday": "2026-11-13",
+  "n_target_fridays": 463,
+  "n_snapshots_written": 463,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -36,6 +36,12 @@
       "fallback_date": "2024-08-01",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-11-13",
+      "fallback_date": "2026-11-12",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +60,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-11-06",
-    "days_since_last_real_fetch": 0,
+    "last_real_fetch_date": "2026-11-12",
+    "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -16390,6 +16396,43 @@
         "EVRG",
         "LNT",
         "NRG",
+        "PNW",
+        "AES"
+      ]
+    },
+    "2026-11-13": {
+      "actual_date": "2026-11-12",
+      "n_tickers": 31,
+      "tickers": [
+        "NEE",
+        "SO",
+        "DUK",
+        "CEG",
+        "AEP",
+        "D",
+        "ETR",
+        "SRE",
+        "XEL",
+        "EXC",
+        "ED",
+        "VST",
+        "WEC",
+        "PEG",
+        "AEE",
+        "ATO",
+        "AWK",
+        "DTE",
+        "PCG",
+        "CNP",
+        "ES",
+        "PPL",
+        "FE",
+        "EIX",
+        "NI",
+        "CMS",
+        "NRG",
+        "EVRG",
+        "LNT",
         "PNW",
         "AES"
       ]
