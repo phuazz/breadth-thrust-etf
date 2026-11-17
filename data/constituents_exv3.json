@@ -2,7 +2,7 @@
   "etf": "EXV3",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251961/ishares-stoxx-europe-600-technology-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV3_holdings&dataType=fund",
-  "fetched_at_utc": "2026-11-15T06:37:25.450547+00:00",
+  "fetched_at_utc": "2026-11-17T03:28:58.528248+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-11-13",
   "n_target_fridays": 463,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-11-13",
-      "fallback_date": "2026-11-12",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-11-12",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-11-13",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -17623,13 +17617,13 @@
       ]
     },
     "2026-11-13": {
-      "actual_date": "2026-11-12",
+      "actual_date": "2026-11-13",
       "n_tickers": 35,
       "tickers": [
         "ASML.AS",
         "SAP.DE",
-        "IFX.DE",
         "REL.L",
+        "IFX.DE",
         "PRX.AS",
         "ASM.AS",
         "STMMI.MI",
@@ -17645,18 +17639,18 @@
         "AUTO.L",
         "TEMN.SW",
         "LAGR-B.ST",
+        "OCTV-SDB.ST",
         "MYCR.ST",
         "TPRO.MI",
-        "OCTV-SDB.ST",
         "NEM.DE",
         "CCC.L",
-        "AIXA.DE",
         "VEND.OL",
+        "AIXA.DE",
         "REY.MI",
         "NOD.OL",
-        "SOI.PA",
         "ATS.VI",
         "SOP.PA",
+        "SOI.PA",
         "ACP.WA",
         "BC8.DE",
         "SCT.L",

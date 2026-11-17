@@ -2,7 +2,7 @@
   "etf": "EXV1",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251934/ishares-stoxx-europe-600-banks-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV1_holdings&dataType=fund",
-  "fetched_at_utc": "2026-11-15T06:35:30.988270+00:00",
+  "fetched_at_utc": "2026-11-17T03:26:12.546136+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-11-13",
   "n_target_fridays": 463,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-11-13",
-      "fallback_date": "2026-11-12",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-11-12",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-11-13",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -23993,7 +23987,7 @@
       ]
     },
     "2026-11-13": {
-      "actual_date": "2026-11-12",
+      "actual_date": "2026-11-13",
       "n_tickers": 62,
       "tickers": [
         "HSBA.L",
@@ -24006,13 +24000,13 @@
         "BARC.L",
         "LLOY.L",
         "DBK.DE",
-        "NDA-FI.HE",
         "NWG.L",
+        "NDA-FI.HE",
         "GLE.PA",
         "STAN.L",
         "CABK.MC",
-        "EBS.VI",
         "SWED-A.ST",
+        "EBS.VI",
         "DANSKE.CO",
         "SEB-A.ST",
         "ABN.AS",
@@ -24020,15 +24014,15 @@
         "DNB.OL",
         "BMPS.MI",
         "A5G.IR",
-        "SHB-A.ST",
         "PKO.WA",
+        "SHB-A.ST",
         "BPE.MI",
         "BIRG.IR",
         "SAB.MC",
         "ACA.PA",
         "CBK.DE",
-        "ETE.AT",
         "BAMI.MI",
+        "ETE.AT",
         "FBK.MI",
         "BG.VI",
         "EUROB.AT",
@@ -24047,16 +24041,16 @@
         "MBK.WA",
         "AZA.ST",
         "BCVN.SW",
-        "INVP.L",
         "UNI.MC",
-        "ING.WA",
+        "INVP.L",
         "KBCA.BR",
+        "ING.WA",
         "BGN.MI",
         "MIL.WA",
         "TBCG.L",
         "VONN.SW",
-        "SBNOR.OL",
         "CMBN.SW",
+        "SBNOR.OL",
         "VATN.SW"
       ]
     }

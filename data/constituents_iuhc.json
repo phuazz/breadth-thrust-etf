@@ -2,7 +2,7 @@
   "etf": "IUHC",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/280507/ishares-sp-500-health-care-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUHC_holdings&dataType=fund",
-  "fetched_at_utc": "2026-11-15T05:41:56.085058+00:00",
+  "fetched_at_utc": "2026-11-17T03:13:55.167923+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-11-13",
   "n_target_fridays": 463,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-11-13",
-      "fallback_date": "2026-11-12",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-11-12",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-11-13",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -31628,7 +31622,7 @@
       ]
     },
     "2026-11-13": {
-      "actual_date": "2026-11-12",
+      "actual_date": "2026-11-13",
       "n_tickers": 60,
       "tickers": [
         "LLY",
@@ -31667,12 +31661,12 @@
         "IQV",
         "BIIB",
         "GEHC",
-        "MTD",
         "CNC",
+        "MTD",
         "RMD",
         "ZTS",
-        "ILMN",
         "DXCM",
+        "ILMN",
         "LH",
         "WST",
         "DGX",
@@ -31685,8 +31679,8 @@
         "BAX",
         "SOLV",
         "COO",
-        "TECH",
         "ALGN",
+        "TECH",
         "PODD",
         "UHS",
         "HSIC",
