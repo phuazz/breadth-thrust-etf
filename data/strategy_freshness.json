@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-11-17T06:28:47.905888+00:00",
+ "computed_at_utc": "2026-11-17T17:40:34.777239+00:00",
  "strategies": [
   {
    "sleeve": "A",
@@ -24,8 +24,8 @@
    "sessions_behind": 0,
    "status": "current",
    "laggards": [],
-   "source": "price cache (asset-class ETFs)",
-   "carried": false,
+   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-11-17T06:28Z; the cache is not present on this checkout",
+   "carried": true,
    "why": null,
    "why_plain": null
   },
@@ -38,8 +38,8 @@
    "sessions_behind": 0,
    "status": "current",
    "laggards": [],
-   "source": "price cache (thematic ETFs)",
-   "carried": false,
+   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-11-17T06:28Z; the cache is not present on this checkout",
+   "carried": true,
    "why": null,
    "why_plain": null,
    "native_provenance": {
@@ -83,8 +83,8 @@
    "label": "Europe sectors",
    "venue": "XETR",
    "data_through": "2026-11-13",
-   "venue_last_session": "2026-11-16",
-   "sessions_behind": 1,
+   "venue_last_session": "2026-11-17",
+   "sessions_behind": 2,
    "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
