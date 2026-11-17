@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-11-17T04:08:09+00:00",
+  "built_at_utc": "2026-11-17T05:13:19+00:00",
   "as_of": "2026-11-17",
   "as_of_modal": "2026-11-16",
   "as_of_modal_share": "48/54",
@@ -10,7 +10,7 @@
     "US": "2026-11-16"
   },
   "etf_layer_observed_at": "2026-11-17",
-  "breadth_panel_as_of": "2026-11-13",
+  "breadth_panel_as_of": "2026-11-16",
   "n_rows": 54,
   "benchmark": "SPY",
   "percentile_window": 504,
@@ -20,21 +20,21 @@
     {
       "kind": "breadth_gate",
       "state": "RISK_ON",
-      "value": 0.7131,
-      "label": "Breadth gate \u00b7 RISK_ON (SPX breadth 71%)",
+      "value": 0.6494,
+      "label": "Breadth gate \u00b7 RISK_ON (SPX breadth 65%)",
       "since": "2026-04-14",
       "thresholds": {
         "off": 0.2,
         "on": 0.5
       },
-      "as_of": "2026-11-13"
+      "as_of": "2026-11-16"
     },
     {
       "kind": "em_tilt",
       "state": "OFF",
       "stale": false,
       "label": "EM tilt \u00b7 EM_TILT_OFF",
-      "as_of": "2026-11-13"
+      "as_of": "2026-11-16"
     }
   ],
   "alerts": [
@@ -2346,6 +2346,7 @@
     "failures": [],
     "stale": [],
     "notes": [
+      "snapshots not refreshed this run (--skip-snapshots)",
       "naive-recompute check passed on DBC, EEM, EFA"
     ],
     "stale_threshold_sessions": 3
