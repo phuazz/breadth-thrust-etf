@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-11-15 07:03 UTC",
+  "computed_at_utc": "2026-11-17 04:03 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-11-13",
   "anchor_equity": 2.867127,
@@ -41,8 +41,12 @@
         "IUCD": 0.0549,
         "IUUS": 0.0417
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-11-16"
+      ],
+      "equity": [
+        3.252925
+      ]
     },
     "strategy_b": {
       "anchor_date": "2026-11-13",
@@ -55,8 +59,12 @@
         "IJR": 0.0376,
         "VGK": 0.0163
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-11-16"
+      ],
+      "equity": [
+        2.160903
+      ]
     },
     "strategy_c": {
       "anchor_date": "2026-11-13",
@@ -64,8 +72,12 @@
       "weights": {
         "SHY": 1.0
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-11-16"
+      ],
+      "equity": [
+        3.115602
+      ]
     },
     "strategy_d": {
       "anchor_date": "2026-11-13",
