@@ -1,6 +1,6 @@
 {
   "etf": "IUCD",
-  "computed_at_utc": "2026-11-17T05:12:32.602489+00:00",
+  "computed_at_utc": "2026-11-17T06:10:34.320540+00:00",
   "constituents_source": "data\\constituents_iucd.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-01-05",
