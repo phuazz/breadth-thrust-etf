@@ -2,7 +2,7 @@
   "etf": "ITWN",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251878/ishares-msci-taiwan-ucits-etf/1506575576011.ajax?fileType=csv&fileName=ITWN_holdings&dataType=fund",
-  "fetched_at_utc": "2026-11-17T03:43:31.071055+00:00",
+  "fetched_at_utc": "2026-11-17T05:25:42.432313+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-11-13",
   "n_target_fridays": 463,
