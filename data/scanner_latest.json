@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-11-19T02:46:26+00:00",
+  "built_at_utc": "2026-11-19T04:27:59+00:00",
   "as_of": "2026-11-19",
   "as_of_modal": "2026-11-18",
   "as_of_modal_share": "48/54",
@@ -1708,6 +1708,46 @@
       "flow_alert": null
     },
     {
+      "ticker": "159801.SZ",
+      "name": "Bosera CSI Chip (China A-share semis \u2014 USD-adj from CNY)",
+      "long_name": "GF CNI Semi-Conductor Chip ETF",
+      "sleeves": [
+        "C"
+      ],
+      "engine_tickers": [
+        "159801.SZ"
+      ],
+      "proxy_notes": [],
+      "is_proxied": false,
+      "currency": "CNY",
+      "fx": "CNY->USD via USDCNY=X (divide)",
+      "as_of": "2026-11-19",
+      "sessions_behind": 0,
+      "stale": false,
+      "rank": 38,
+      "rank_delta": 9,
+      "rank_truncated": false,
+      "trend": "Strong down",
+      "mom_12_1": 0.12244004042578283,
+      "vs_52w_high": -0.49313658461463106,
+      "rv_pctl": 89.78174603174604,
+      "rv_truncated": false,
+      "bbw_pctl": 53.07539682539682,
+      "bbw_truncated": false,
+      "atr_pct": 0.050878630860110706,
+      "ret_1d": 0.019629834627802767,
+      "vol_ratio": 0.44558600929431963,
+      "ret_1m": -0.07376568713324383,
+      "rs_1m": -0.02479055360546918,
+      "dev_200d": -0.21065198158191922,
+      "rsi14": 43.66073996261933,
+      "n_bars": 1644,
+      "pd_pct": null,
+      "flow_5d": null,
+      "pd_alert": null,
+      "flow_alert": null
+    },
+    {
       "ticker": "ARKK",
       "name": "ARK Disruptive Innovation",
       "long_name": "ARK Innovation ETF",
@@ -1724,8 +1764,8 @@
       "as_of": "2026-11-18",
       "sessions_behind": 1,
       "stale": false,
-      "rank": 38,
-      "rank_delta": -14,
+      "rank": 39,
+      "rank_delta": -15,
       "rank_truncated": false,
       "trend": "Down",
       "mom_12_1": 0.1050470331114115,
@@ -1743,46 +1783,6 @@
       "rsi14": 33.865091524770605,
       "n_bars": 3030,
       "pd_pct": -0.0007617005670438326,
-      "flow_5d": null,
-      "pd_alert": null,
-      "flow_alert": null
-    },
-    {
-      "ticker": "159801.SZ",
-      "name": "Bosera CSI Chip (China A-share semis \u2014 USD-adj from CNY)",
-      "long_name": "GF CNI Semi-Conductor Chip ETF",
-      "sleeves": [
-        "C"
-      ],
-      "engine_tickers": [
-        "159801.SZ"
-      ],
-      "proxy_notes": [],
-      "is_proxied": false,
-      "currency": "CNY",
-      "fx": "CNY->USD via USDCNY=X (divide)",
-      "as_of": "2026-11-19",
-      "sessions_behind": 0,
-      "stale": false,
-      "rank": 39,
-      "rank_delta": 8,
-      "rank_truncated": false,
-      "trend": "Strong down",
-      "mom_12_1": 0.12244004042578283,
-      "vs_52w_high": -0.4998298453361474,
-      "rv_pctl": 89.38492063492063,
-      "rv_truncated": false,
-      "bbw_pctl": 53.07539682539682,
-      "bbw_truncated": false,
-      "atr_pct": 0.05103811215765941,
-      "ret_1d": 0.006165362512742689,
-      "vol_ratio": 0.31027395916022615,
-      "ret_1m": -0.08599684755447523,
-      "rs_1m": -0.03808377338277795,
-      "dev_200d": -0.2210349256839702,
-      "rsi14": 41.653474063357905,
-      "n_bars": 1644,
-      "pd_pct": null,
       "flow_5d": null,
       "pd_alert": null,
       "flow_alert": null
@@ -2394,6 +2394,7 @@
     "failures": [],
     "stale": [],
     "notes": [
+      "snapshots not refreshed this run (--skip-snapshots)",
       "naive-recompute check passed on EFA, EWJ, EXH1.DE"
     ],
     "stale_threshold_sessions": 3
