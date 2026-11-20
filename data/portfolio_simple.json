@@ -253,7 +253,6 @@
    "2026-11-16"
   ],
   "c1": [
-   "2025-11-21",
    "2025-11-24",
    "2025-11-25",
    "2025-11-26",
@@ -1282,7 +1281,6 @@
   "EXV1": {
    "cal": "c1",
    "px": [
-    29.93,
     30.15,
     30.67,
     31.22,
@@ -2056,7 +2054,6 @@
   "EXH9": {
    "cal": "c1",
    "px": [
-    48.07,
     47.93,
     47.95,
     48.51,
@@ -2572,7 +2569,6 @@
   "EXH1": {
    "cal": "c1",
    "px": [
-    38.91,
     39.0,
     38.98,
     39.43,
@@ -4894,7 +4890,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-11-17",
- "computed_at_utc": "2026-11-20 02:27 UTC",
+ "computed_at_utc": "2026-11-20 17:00 UTC",
  "holdings": [
   {
    "ticker": "SHY",
@@ -5182,7 +5178,7 @@
  "n_positions": 17,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-11-20T02:27:53.024993+00:00",
+  "computed_at_utc": "2026-11-20T17:00:56.795866+00:00",
   "all_current": false,
   "strategies": [
    {
@@ -5219,8 +5215,8 @@
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-11-16",
-    "venue_last_session": "2026-11-19",
-    "sessions_behind": 3,
+    "venue_last_session": "2026-11-20",
+    "sessions_behind": 4,
     "status": "behind",
     "laggards": [],
     "why_plain": "the shares held inside these funds are priced up to 2026-11-16, while the exchange itself has traded to 2026-11-17 — the newest day's prices were not available when this was built."
