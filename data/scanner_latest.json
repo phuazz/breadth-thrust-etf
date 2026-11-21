@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-11-21T02:44:28+00:00",
+  "built_at_utc": "2026-11-21T04:14:31+00:00",
   "as_of": "2026-11-20",
   "as_of_modal": "2026-11-20",
   "as_of_modal_share": "49/54",
@@ -2568,7 +2568,7 @@
     "failures": [],
     "stale": [],
     "notes": [
-      "ETF layer observed 2026-11-21, prices as of 2026-11-20",
+      "snapshots not refreshed this run (--skip-snapshots)",
       "naive-recompute check passed on ARKK, BLOK, BOTZ"
     ],
     "stale_threshold_sessions": 3
