@@ -1,0 +1,91 @@
+name: Overlay flip alert
+
+# Daily check of the risk-overlay gate and the EEM tilt against the overlay
+# decision the live book holds (scripts/check_overlay_flip.py; added
+# 2026-11-20).
+#
+# The live overlay is decided weekly (Friday-close anchor, Monday fill), while
+# the backtest trades a flip on the next session. This workflow mails the
+# operator when the daily signals disagree with the book, so a flip is never
+# discovered at the weekend. It changes nothing and commits nothing.
+#
+# Timing: Tue-Sat 04:30 UTC = 12:30 SGT, after the 07:15 SGT Norgate gate
+# publish and after Yahoo restores the US daily bar (it withdraws it from
+# 00:00 UTC to about 03:45 UTC; a run inside that window reads the tilt input
+# a session short and reports STALE, never a false flip). GitHub's cron delay
+# (2.5-3.6h observed) still lands well before the US open.
+#
+# Mail routing:
+#   FLIP  -> [OVERLAY] mail, repeated each morning until the book matches
+#   STALE -> [WARN] mail (the check cannot see current inputs; no all-clear)
+#   OK    -> no mail
+#   crash -> failure mail; the fleet-watch 'run' row sees the missing success
+
+on:
+  schedule:
+    - cron: '30 4 * * 2-6'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compare daily gate and tilt with the live book
+        id: flip
+        run: python scripts/check_overlay_flip.py
+
+      - name: Email overlay flip or stale warning
+        if: steps.flip.outputs.status == 'FLIP' || steps.flip.outputs.status == 'STALE'
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: ${{ steps.flip.outputs.subject }}
+          # Operator only, never the factsheet distribution list.
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            ${{ steps.flip.outputs.body }}
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Email on failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '[WARN] Overlay flip check failed - a gate or tilt flip would go unreported'
+          to: ${{ secrets.GMAIL_USER }}
+          from: 'Dashboard Ops <${{ secrets.GMAIL_USER }}>'
+          body: |
+            The daily overlay flip check did not complete, so today's gate and
+            tilt were not compared with the live book.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
