@@ -2,11 +2,11 @@
   "etf": "EXV3",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251961/ishares-stoxx-europe-600-technology-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV3_holdings&dataType=fund",
-  "fetched_at_utc": "2026-11-18T05:16:43.525615+00:00",
+  "fetched_at_utc": "2026-11-22T10:21:47.198910+00:00",
   "start_friday": "2018-01-05",
-  "end_friday": "2026-11-13",
-  "n_target_fridays": 463,
-  "n_snapshots_written": 463,
+  "end_friday": "2026-11-20",
+  "n_target_fridays": 464,
+  "n_snapshots_written": 464,
   "membership_assumption": "Constituents held static between weekly Friday snapshots. Index typically rebalances quarterly; weekly oversamples membership and protects against off-cycle add/drops.",
   "asset_class_filter": "Equity",
   "ticker_overrides_applied": {},
@@ -30,6 +30,12 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
+    },
+    {
+      "target_friday": "2026-11-20",
+      "fallback_date": "2026-11-19",
+      "days_back": 1,
+      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -48,8 +54,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-11-13",
-    "days_since_last_real_fetch": 0,
+    "last_real_fetch_date": "2026-11-19",
+    "days_since_last_real_fetch": 1,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -17655,6 +17661,47 @@
         "BC8.DE",
         "SCT.L",
         "COTN.SW"
+      ]
+    },
+    "2026-11-20": {
+      "actual_date": "2026-11-19",
+      "n_tickers": 35,
+      "tickers": [
+        "ASML.AS",
+        "SAP.DE",
+        "REL.L",
+        "IFX.DE",
+        "PRX.AS",
+        "ASM.AS",
+        "STMMI.MI",
+        "AMS.MC",
+        "CAP.PA",
+        "HEXA-B.ST",
+        "DSY.PA",
+        "LOGN.SW",
+        "SGE.L",
+        "BESI.AS",
+        "G24.DE",
+        "AUTO.L",
+        "IDR.MC",
+        "TEMN.SW",
+        "OCTV-SDB.ST",
+        "LAGR-B.ST",
+        "MYCR.ST",
+        "AIXA.DE",
+        "CCC.L",
+        "TPRO.MI",
+        "VEND.OL",
+        "NEM.DE",
+        "SOI.PA",
+        "NOD.OL",
+        "REY.MI",
+        "ATS.VI",
+        "SOP.PA",
+        "ACP.WA",
+        "BC8.DE",
+        "COTN.SW",
+        "SCT.L"
       ]
     }
   }
