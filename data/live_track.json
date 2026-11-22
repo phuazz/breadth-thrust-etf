@@ -1,8 +1,8 @@
 {
-  "computed_at_utc": "2026-11-21 02:38 UTC",
+  "computed_at_utc": "2026-11-22 01:32 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-11-16",
-  "anchor_equity": 2.845777,
+  "anchor_equity": 2.845728,
   "regime_state": "RISK_ON",
   "eem_tilt_active": false,
   "eem_tilt_signal_as_of": "2026-11-16",
@@ -29,18 +29,20 @@
   "live_dates": [
     "2026-11-17",
     "2026-11-18",
-    "2026-11-19"
+    "2026-11-19",
+    "2026-11-20"
   ],
   "live_equity": [
-    2.813633,
-    2.786849,
-    2.754858
+    2.813584,
+    2.786801,
+    2.75481,
+    2.722188
   ],
-  "deployed_series_end": "2026-11-19",
+  "deployed_series_end": "2026-11-20",
   "sleeve_extensions": {
     "strategy_a": {
       "anchor_date": "2026-11-16",
-      "anchor_equity": 3.2527,
+      "anchor_equity": 3.2523,
       "weights": {
         "IUHC": 0.373,
         "IUFS": 0.22,
@@ -57,10 +59,10 @@
         "2026-11-20"
       ],
       "equity": [
-        3.205112,
-        3.168829,
-        3.115121,
-        3.093603
+        3.204718,
+        3.168439,
+        3.114738,
+        3.093223
       ]
     },
     "strategy_b": {
@@ -118,12 +120,14 @@
       "dates": [
         "2026-11-17",
         "2026-11-18",
-        "2026-11-19"
+        "2026-11-19",
+        "2026-11-20"
       ],
       "equity": [
         3.356238,
         3.298112,
-        3.270342
+        3.270342,
+        3.210689
       ]
     }
   },

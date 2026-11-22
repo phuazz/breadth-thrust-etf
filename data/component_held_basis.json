@@ -1,86 +1,76 @@
 {
-  "anchor": "2026-11-13",
-  "model_as_of": "2026-11-11",
+  "anchor": "2026-11-20",
+  "model_as_of": "2026-11-17",
   "lines": [
     {
       "sleeve": "A",
-      "etf": "IUFS",
-      "held": 0.060094999999999996
-    },
-    {
-      "sleeve": "A",
       "etf": "IUUS",
-      "held": 0.014594999999999999
+      "held": 0.040984999999999994
     },
     {
       "sleeve": "A",
       "etf": "IUCD",
-      "held": 0.019215
-    },
-    {
-      "sleeve": "A",
-      "etf": "IUMS",
-      "held": 0.019705
-    },
-    {
-      "sleeve": "A",
-      "etf": "IUHC",
-      "held": 0.13513499999999998
-    },
-    {
-      "sleeve": "A",
-      "etf": "IUIS",
-      "held": 0.0
-    },
-    {
-      "sleeve": "A",
-      "etf": "CSP1",
-      "held": 0.023975
+      "held": 0.00224
     },
     {
       "sleeve": "A",
       "etf": "IUCS",
-      "held": 0.07727999999999999
+      "held": 0.07084
+    },
+    {
+      "sleeve": "A",
+      "etf": "IUHC",
+      "held": 0.13055
+    },
+    {
+      "sleeve": "A",
+      "etf": "IUFS",
+      "held": 0.077
+    },
+    {
+      "sleeve": "A",
+      "etf": "IUES",
+      "held": 0.00259
+    },
+    {
+      "sleeve": "A",
+      "etf": "CSP1",
+      "held": 0.025759999999999998
     },
     {
       "sleeve": "B",
       "etf": "SHY",
-      "held": 0.099995
-    },
-    {
-      "sleeve": "B",
-      "etf": "DBC",
-      "held": 0.15459499999999998
-    },
-    {
-      "sleeve": "B",
-      "etf": "IJR",
-      "held": 0.01316
+      "held": 0.050015
     },
     {
       "sleeve": "B",
       "etf": "SPY",
-      "held": 0.022785
+      "held": 0.06216
+    },
+    {
+      "sleeve": "B",
+      "etf": "IJR",
+      "held": 0.04543
     },
     {
       "sleeve": "B",
       "etf": "VGK",
-      "held": 0.005704999999999999
+      "held": 0.038955
     },
     {
       "sleeve": "B",
       "etf": "EFA",
-      "held": 0.0
+      "held": 0.025935
     },
     {
       "sleeve": "B",
-      "etf": "QQQ",
-      "held": 0.0
+      "etf": "DBC",
+      "held": 0.072905
     },
     {
       "sleeve": "B",
       "etf": "VNQ",
-      "held": 0.053724999999999995
+      "held": 0.054599999999999996
     },
     {
       "sleeve": "C",
@@ -89,18 +79,18 @@
     },
     {
       "sleeve": "D",
-      "etf": "EXH1",
-      "held": 0.05138000000000001
+      "etf": "EXV1",
+      "held": 0.07426
     },
     {
       "sleeve": "D",
       "etf": "EXH9",
-      "held": 0.07536000000000001
+      "held": 0.06364
     },
     {
       "sleeve": "D",
-      "etf": "EXV1",
-      "held": 0.07326
+      "etf": "EXH1",
+      "held": 0.0621
     }
   ],
   "basis": "existing model-held positions; not broker execution confirmation",
