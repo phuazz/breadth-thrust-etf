@@ -15,8 +15,8 @@ BUT guard layers around refresh_all.py:
               git pull --rebase so the run starts from origin HEAD.
   refresh     scripts/refresh_all.py --price-source <source> (default
               norgate since 2026-09-03), plus --deployed-only for the
-              post-fill cadence. Exit 0 there already requires every step
-              green INCLUDING pytest.
+              post-fill cadence and the Europe component. Exit 0 there
+              already requires every step green INCLUDING pytest.
   anchor      data/breadth_csp1.json end_date must reach
               nyse_sessions.last_completed_session(now) — catches the silent
               case where every step exits 0 on quietly-stale fetches
@@ -1833,30 +1833,15 @@ def main(argv: list[str] | None = None) -> int:
                   f"({'green marker overridden' if ran_today else 'catch-up'}); "
                   f"attempt {n}/{MAX_DEBT_ATTEMPTS_PER_DAY} today\n")
 
-    # ----- Refresh (the ~4.3 hour part) -----
+    # ----- Guarded refresh -----
     if not args.preflight_only:
-        # CADENCE DECIDES THE SCOPE (2026-09-02). The weekend run walks all
-        # 38 panels; the post-fill run walks only the 24 DEPLOYED ones.
-        #
-        # NOT a panel skip, which was tried first and was wrong. Skipping the
-        # panels outright let the engines advance to 2026-09-01 while the
-        # panels stayed at 2026-08-28, and build_simple_page refused the
-        # result — "freshness says sleeve B reaches 2026-09-01, past the
-        # newest data this refresh produced". Sleeve A ranks on those panels,
-        # so they are part of a coherent re-anchor, not an optional extra.
-        #
-        # The 14 Europe supersector CANDIDATES are a different matter: they
-        # are screened, never held, and cannot affect the book being
-        # re-anchored. Dropping them cuts step 1 by roughly a third and costs
-        # the post-fill run nothing it needs.
-        #
-        # The real protection against the 2026-09-01 stall is not scope but
-        # the per-step timeout now in run_step: one compute_breadth consumed
-        # 13.3 hours there once yfinance's limiter throttled it, and no
-        # narrowing of scope would have bounded that.
+        # Sleeve D ranks on the five deployed Europe panels. Research
+        # candidates are outside the component release's guard scope, and
+        # a failed candidate fetch must not prevent that release. The
+        # post-fill run also refreshes only deployed panels.
         cmd = [sys.executable, "scripts/refresh_all.py",
                "--price-source", args.price_source, "--component", component]
-        if args.cadence == "post-fill":
+        if args.cadence == "post-fill" or component == "europe":
             cmd.append("--deployed-only")
         log.write(f"\nrunning {' '.join(cmd[1:])} (output follows)\n")
         log.flush()

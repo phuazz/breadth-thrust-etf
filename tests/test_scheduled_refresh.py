@@ -327,44 +327,6 @@ def test_a_no_change_commit_is_not_a_failure():
     assert "nothing to commit" in _commit_branch()
 
 
-def test_post_fill_narrows_the_panel_set_but_never_skips_it():
-    """CADENCE DECIDES SCOPE (2026-09-02).
-
-    A Monday fill ranks on the FRIDAY close, which the committed panels
-    already carry, so a post-fill run has nothing to gain from re-fetching 38
-    rosters -- and step 1 is where the entire cost and the entire vendor
-    exposure sit. On 2026-09-01 a post-fill run spent 13.3 hours inside one
-    compute_breadth once the rate limiter throttled it, held the automation
-    clone dirty across two scheduled fires, and never reached the engines it
-    existed to re-anchor. The book sat on the 2026-08-24 rebalance for two
-    days because of it.
-
-    The weekend cadence must KEEP the full run: that is the one that rebuilds
-    rosters and panels, and quietly narrowing it would freeze the breadth
-    record while every guard stayed green.
-    """
-    src = inspect.getsource(_sr.main)
-    assert '"--deployed-only"' in src, "post-fill must narrow step 1's scope"
-    assert 'args.cadence == "post-fill"' in src, (
-        "the narrowing must be tied to the cadence, not unconditional")
-    # The weekend cadence must not acquire it by accident: it is the run that
-    # rebuilds the candidate panels, and narrowing it would freeze them while
-    # every guard stayed green.
-    guarded = src.split('args.cadence == "post-fill"')[1][:200]
-    assert "--deployed-only" in guarded, (
-        "--deployed-only must sit inside the post-fill branch")
-    # And it must NOT be a panel skip. Skipping the panels lets the engines
-    # advance past them; build_simple_page refused exactly that on 2026-09-02
-    # ("freshness says sleeve B reaches 2026-09-01, past the newest data this
-    # refresh produced"). Sleeve A ranks on the panels, so a re-anchor that
-    # omits them is incoherent by construction.
-    # Check the CALL, not any mention: the re-exec note below quotes the old
-    # flag by name when explaining the 2026-09-02 version skew, and a bare
-    # substring ban would fail on the history rather than on the behaviour.
-    assert 'append("--skip-panels")' not in src, (
-        "post-fill must NARROW the panel set, never skip it")
-
-
 def test_a_pull_that_rewrites_this_script_re_execs_once():
     """VERSION SKEW INSIDE ONE PROCESS (2026-09-02).
 
@@ -702,6 +664,23 @@ def _drive(monkeypatch, tmp_path, *, debt, argv, marker_day=None,
         _sr.record_green_run(marker_path, "post-fill",
                              datetime.now(timezone.utc))
     return rc, ran, (tmp_path / "run.log").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("cadence, component, expected_scope", [
+    ("weekend", "europe", ["--deployed-only"]),
+    ("weekend", "core", []),
+    ("weekend", "all", []),
+    ("post-fill", "all", ["--deployed-only"]),
+])
+def test_scheduled_refresh_preserves_the_required_panel_scope(
+        monkeypatch, tmp_path, cadence, component, expected_scope):
+    _, ran, _ = _drive(monkeypatch, tmp_path, debt=_report(cadence=cadence),
+                       argv=["--cadence", cadence, "--component", component])
+
+    assert [cmd[1:] for cmd in ran] == [
+        ["scripts/refresh_all.py", "--price-source", "norgate", "--component",
+         component, *expected_scope],
+    ]
 
 
 def test_catch_up_with_nothing_owed_exits_without_running(monkeypatch, tmp_path):

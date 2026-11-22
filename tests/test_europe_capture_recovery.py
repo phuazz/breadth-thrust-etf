@@ -50,6 +50,35 @@ def test_soak_does_not_start_another_child_on_dirty_outputs():
     assert calls == ["core"]
 
 
+@pytest.mark.parametrize("failed_etf, seals", [("EXH2", True), ("EXV1", False)])
+def test_deployed_europe_refresh_seals_only_after_required_panels_pass(
+        monkeypatch, failed_etf, seals):
+    calls = []
+    monkeypatch.setattr(sys, "argv", ["refresh_all.py", "--component", "europe",
+                                     "--deployed-only", "--throttle", "0"])
+    monkeypatch.setenv("BTE_COMPONENT_REFRESH", "core")
+    import component_basis
+    monkeypatch.setattr(component_basis, "prepare", lambda *args: None)
+    monkeypatch.setattr(refresh, "_check_refusals_on_disk", lambda panels: [])
+    monkeypatch.setattr(refresh, "record_pytest_duration", lambda *args: None)
+
+    def step(label, cmd, **kwargs):
+        calls.append(cmd[1:])
+        return (cmd[1] != "scripts/fetch_constituents.py" or failed_etf not in cmd, 0)
+
+    monkeypatch.setattr(refresh, "run_step", step)
+    assert refresh.main() == (0 if seals else 1)
+
+    fetched = [cmd[2] for cmd in calls if cmd[0] == "scripts/fetch_constituents.py"]
+    assert fetched == ["EXV1", "EXH1", "EXV3", "EXH3", "EXH9"]
+    seal = ["scripts/component_release.py", "seal", "--component", "europe"]
+    if seals:
+        assert ["-m", "pytest", "tests/", "-q"] in calls
+        assert calls[-1] == seal
+    else:
+        assert seal not in calls
+
+
 @pytest.mark.parametrize("capture_fails", [False, True])
 def test_capture_only_never_prepares_book_or_runs_engines(monkeypatch, capture_fails):
     calls = []
