@@ -2,7 +2,7 @@
   "etf": "IUCD",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/280526/ishares-sp-500-consumer-discretionary-sector-ucits-etf/1506575576011.ajax?fileType=csv&fileName=IUCD_holdings&dataType=fund",
-  "fetched_at_utc": "2026-11-22T01:11:32.092728+00:00",
+  "fetched_at_utc": "2026-11-24T03:39:15.666103+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-11-20",
   "n_target_fridays": 464,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-11-20",
-      "fallback_date": "2026-11-19",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-11-19",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-11-20",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -30015,7 +30009,7 @@
       ]
     },
     "2026-11-20": {
-      "actual_date": "2026-11-19",
+      "actual_date": "2026-11-20",
       "n_tickers": 47,
       "tickers": [
         "AMZN",
@@ -30028,19 +30022,19 @@
         "BKNG",
         "MAR",
         "HLT",
-        "RCL",
         "ORLY",
+        "RCL",
         "ABNB",
         "GM",
         "ROST",
         "DASH",
         "AZO",
-        "CVNA",
         "EBAY",
+        "CVNA",
         "CMG",
         "GRMN",
-        "F",
         "YUM",
+        "F",
         "NKE",
         "DHI",
         "CCL",
@@ -30055,8 +30049,8 @@
         "GPC",
         "HAS",
         "LEN",
-        "RL",
         "NVR",
+        "RL",
         "DPZ",
         "LULU",
         "DECK",

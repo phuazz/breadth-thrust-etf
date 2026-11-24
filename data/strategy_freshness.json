@@ -1,12 +1,12 @@
 {
- "computed_at_utc": "2026-11-22T10:25:20.929290+00:00",
+ "computed_at_utc": "2026-11-24T04:22:58.165510+00:00",
  "strategies": [
   {
    "sleeve": "A",
    "label": "US sectors",
    "venue": "NYSE",
-   "data_through": "2026-11-20",
-   "venue_last_session": "2026-11-20",
+   "data_through": "2026-11-23",
+   "venue_last_session": "2026-11-23",
    "sessions_behind": 0,
    "status": "current",
    "laggards": [],
@@ -19,8 +19,8 @@
    "sleeve": "B",
    "label": "Asset classes",
    "venue": "NYSE",
-   "data_through": "2026-11-20",
-   "venue_last_session": "2026-11-20",
+   "data_through": "2026-11-23",
+   "venue_last_session": "2026-11-23",
    "sessions_behind": 0,
    "status": "current",
    "laggards": [],
@@ -33,8 +33,8 @@
    "sleeve": "C",
    "label": "Thematic",
    "venue": "NYSE",
-   "data_through": "2026-11-20",
-   "venue_last_session": "2026-11-20",
+   "data_through": "2026-11-23",
+   "venue_last_session": "2026-11-23",
    "sessions_behind": 0,
    "status": "current",
    "laggards": [],
@@ -45,12 +45,12 @@
    "native_provenance": {
     "159801.SZ": {
      "venue": "XSHG",
-     "last_valid": "2026-11-19",
-     "last_observed_native_close": "2026-11-19",
-     "required_native_session": "2026-11-20",
-     "native_close_carried": "2026-11-19",
+     "last_valid": "2026-11-20",
+     "last_observed_native_close": "2026-11-20",
+     "required_native_session": "2026-11-23",
+     "native_close_carried": "2026-11-20",
      "missing_native_sessions": [
-      "2026-11-20"
+      "2026-11-23"
      ],
      "window_rows": 200,
      "holiday_data_through": "2026-12-31",
@@ -62,10 +62,10 @@
       "filled_rows": 1
      },
      "immaterial": {
-      "signal_filled": -0.2015,
+      "signal_filled": -0.2341,
       "signal_range": [
-       -0.2817,
-       -0.1212
+       -0.3111,
+       -0.1571
       ],
       "move_bound": 0.1,
       "stale_extent": {
@@ -83,18 +83,18 @@
    "label": "Europe sectors",
    "venue": "XETR",
    "data_through": "2026-11-20",
-   "venue_last_session": "2026-11-20",
-   "sessions_behind": 0,
-   "status": "current",
+   "venue_last_session": "2026-11-23",
+   "sessions_behind": 1,
+   "status": "behind",
    "laggards": [],
    "source": "breadth panels (constituents above their 200-day average)",
    "carried": false,
-   "why": null,
-   "why_plain": null
+   "why": "the constituents are priced to 2026-11-20 while the venue has traded to 2026-11-23 \u2014 the newest session was not available from the price source when this was built.",
+   "why_plain": "the shares held inside these funds are priced up to 2026-11-20, while the exchange itself has traded to 2026-11-23 \u2014 the newest day's prices were not available when this was built."
   }
  ],
- "all_current": true,
+ "all_current": false,
  "n_unknown": 0,
  "stalest": "2026-11-20",
- "n_behind": 0
+ "n_behind": 1
 }

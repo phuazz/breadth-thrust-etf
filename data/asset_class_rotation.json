@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-11-22T01:31:01.255377+00:00",
+  "computed_at_utc": "2026-11-24T04:18:42.912851+00:00",
   "price_source": "norgate",
   "universe": [
     {
@@ -73,211 +73,211 @@
   "rebalance_freq_grid": {
     "K=3": {
       "Daily": {
-        "sharpe": 0.6164524273515094,
-        "cagr": 0.08094378451625128,
-        "total_return": 3.41912494669614,
+        "sharpe": 0.6162081251783482,
+        "cagr": 0.08087985838972633,
+        "total_return": 3.4169590054317087,
         "max_dd": -0.23482778356545694,
-        "annual_turnover": 41.55186211750287,
+        "annual_turnover": 41.53399291074362,
         "n_flips": 4684
       },
       "Weekly Mon": {
-        "sharpe": 0.5564738265260661,
-        "cagr": 0.07298458040530087,
-        "total_return": 2.837612936056996,
+        "sharpe": 0.5619023651401971,
+        "cagr": 0.07382911918161383,
+        "total_return": 2.8979708044480383,
         "max_dd": -0.25554670170865895,
-        "annual_turnover": 18.13702193466831,
-        "n_flips": 978
+        "annual_turnover": 18.23393835298769,
+        "n_flips": 979
       },
       "Weekly Fri": {
-        "sharpe": 0.576960407206051,
-        "cagr": 0.07569556319935566,
-        "total_return": 3.0270123887496965,
+        "sharpe": 0.5767225019747112,
+        "cagr": 0.07563419880549116,
+        "total_return": 3.025038633218821,
         "max_dd": -0.22168384602347693,
-        "annual_turnover": 18.100648059565017,
+        "annual_turnover": 18.092863950594445,
         "n_flips": 981
       },
       "Bi-weekly Fri": {
-        "sharpe": 0.606580545903495,
-        "cagr": 0.08159764248259571,
-        "total_return": 3.4704375443747697,
+        "sharpe": 0.6063426152993265,
+        "cagr": 0.08153339643017232,
+        "total_return": 3.468246453318459,
         "max_dd": -0.24246707602944348,
-        "annual_turnover": 11.829644305839679,
+        "annual_turnover": 11.824557016143933,
         "n_flips": 493
       },
       "Month-end": {
-        "sharpe": 0.695090031109981,
-        "cagr": 0.09698493189625035,
-        "total_return": 4.854262473242318,
+        "sharpe": 0.7019071781443966,
+        "cagr": 0.09811252025477435,
+        "total_return": 4.9748100431147675,
         "max_dd": -0.21643268036942317,
-        "annual_turnover": 7.722599325048707,
+        "annual_turnover": 7.71927825309126,
         "n_flips": 226
       }
     },
     "K=4": {
       "Daily": {
-        "sharpe": 0.6616257418865701,
-        "cagr": 0.08122817938804872,
-        "total_return": 3.441374344176709,
+        "sharpe": 0.6613603923064393,
+        "cagr": 0.08116411413095781,
+        "total_return": 3.4391974978374735,
         "max_dd": -0.21225615408754753,
-        "annual_turnover": 36.62666713731961,
+        "annual_turnover": 36.610915990328216,
         "n_flips": 4684
       },
       "Weekly Mon": {
-        "sharpe": 0.6103859322736163,
-        "cagr": 0.07565319013894678,
-        "total_return": 3.023985070194848,
+        "sharpe": 0.6172610860852242,
+        "cagr": 0.07665560905619029,
+        "total_return": 3.098669200380696,
         "max_dd": -0.2306462082614684,
-        "annual_turnover": 15.986775348039425,
-        "n_flips": 978
+        "annual_turnover": 16.08461647102622,
+        "n_flips": 979
       },
       "Weekly Fri": {
-        "sharpe": 0.6306515625759367,
-        "cagr": 0.07769410165010382,
-        "total_return": 3.1722737292075402,
+        "sharpe": 0.6303918319957296,
+        "cagr": 0.0776317630354253,
+        "total_return": 3.170228776882001,
         "max_dd": -0.2041062658010633,
-        "annual_turnover": 16.59927146590226,
+        "annual_turnover": 16.59213301773745,
         "n_flips": 981
       },
       "Bi-weekly Fri": {
-        "sharpe": 0.6321446537858828,
-        "cagr": 0.07968228977761216,
-        "total_return": 3.3217000929513985,
+        "sharpe": 0.6318894710057318,
+        "cagr": 0.07961898040684434,
+        "total_return": 3.319581902432522,
         "max_dd": -0.23971074811375057,
-        "annual_turnover": 10.647879925575486,
+        "annual_turnover": 10.643300848772629,
         "n_flips": 493
       },
       "Month-end": {
-        "sharpe": 0.7363937555653166,
-        "cagr": 0.09556338753478455,
-        "total_return": 4.711116728013843,
+        "sharpe": 0.7442364439080387,
+        "cagr": 0.09676522386698116,
+        "total_return": 4.836344545994142,
         "max_dd": -0.22006589846358277,
-        "annual_turnover": 6.987488782416839,
+        "annual_turnover": 6.9844838417133905,
         "n_flips": 226
       }
     },
     "K=5": {
       "Daily": {
-        "sharpe": 0.7294589443244883,
-        "cagr": 0.08554429072506009,
-        "total_return": 3.792349976951783,
+        "sharpe": 0.7291733443568216,
+        "cagr": 0.08547811001459582,
+        "total_return": 3.7900011072787416,
         "max_dd": -0.19353810129811858,
-        "annual_turnover": 34.436553346017284,
+        "annual_turnover": 34.42174404842009,
         "n_flips": 4684
       },
       "Weekly Mon": {
-        "sharpe": 0.6661064157008674,
-        "cagr": 0.07873413586198819,
-        "total_return": 3.2498180122629368,
+        "sharpe": 0.6736411710435084,
+        "cagr": 0.07977377559637566,
+        "total_return": 3.3314261783121157,
         "max_dd": -0.20970692591051127,
-        "annual_turnover": 14.577556852699733,
-        "n_flips": 978
+        "annual_turnover": 14.676004004282573,
+        "n_flips": 979
       },
       "Weekly Fri": {
-        "sharpe": 0.6839072080173746,
-        "cagr": 0.08070530434070777,
-        "total_return": 3.400549108303747,
+        "sharpe": 0.6836298432802072,
+        "cagr": 0.08064149485774563,
+        "total_return": 3.3983922715962995,
         "max_dd": -0.18975754957538307,
-        "annual_turnover": 14.952556240769441,
+        "annual_turnover": 14.946125955688835,
         "n_flips": 981
       },
       "Bi-weekly Fri": {
-        "sharpe": 0.6988518161520545,
-        "cagr": 0.08438057976318714,
-        "total_return": 3.6952163599341086,
+        "sharpe": 0.6985771687994066,
+        "cagr": 0.08431497014927869,
+        "total_return": 3.6929150982630583,
         "max_dd": -0.22405407112729592,
-        "annual_turnover": 9.90440928626212,
+        "annual_turnover": 9.900149935938323,
         "n_flips": 493
       },
       "Month-end": {
-        "sharpe": 0.7722564685445454,
-        "cagr": 0.09549530190277644,
-        "total_return": 4.704344613084132,
+        "sharpe": 0.7812569326458343,
+        "cagr": 0.09681589689769665,
+        "total_return": 4.841496855837187,
         "max_dd": -0.20045213857959987,
-        "annual_turnover": 6.5247724922818655,
+        "annual_turnover": 6.521966540808694,
         "n_flips": 226
       }
     },
     "K=6": {
       "Daily": {
-        "sharpe": 0.7622164845484932,
-        "cagr": 0.08543098317530706,
-        "total_return": 3.7828092981486323,
+        "sharpe": 0.7619158026892837,
+        "cagr": 0.08536485809462158,
+        "total_return": 3.7804651046388944,
         "max_dd": -0.16567966004679258,
-        "annual_turnover": 31.771122934305794,
+        "annual_turnover": 31.75745989405308,
         "n_flips": 4684
       },
       "Weekly Mon": {
-        "sharpe": 0.6893977732369726,
-        "cagr": 0.07780866113779727,
-        "total_return": 3.180749036157346,
+        "sharpe": 0.6975759521713776,
+        "cagr": 0.07888444532146255,
+        "total_return": 3.2637955249479687,
         "max_dd": -0.1858674166836694,
-        "annual_turnover": 13.357683479964203,
-        "n_flips": 978
+        "annual_turnover": 13.456655233054816,
+        "n_flips": 979
       },
       "Weekly Fri": {
-        "sharpe": 0.7344786503799139,
-        "cagr": 0.08341066735154445,
-        "total_return": 3.6156873090478125,
+        "sharpe": 0.7341850657882162,
+        "cagr": 0.0833455333165305,
+        "total_return": 3.6134250268704653,
         "max_dd": -0.1659076712022171,
-        "annual_turnover": 13.600601359663115,
+        "annual_turnover": 13.594752477197662,
         "n_flips": 981
       },
       "Bi-weekly Fri": {
-        "sharpe": 0.7172474466489042,
-        "cagr": 0.08300822245182027,
-        "total_return": 3.583064562411085,
+        "sharpe": 0.7169606961604309,
+        "cagr": 0.08294328563879572,
+        "total_return": 3.580818269587728,
         "max_dd": -0.19345359849278887,
-        "annual_turnover": 9.119769334764598,
+        "annual_turnover": 9.115847415612606,
         "n_flips": 493
       },
       "Month-end": {
-        "sharpe": 0.7999387946450656,
-        "cagr": 0.09509980662385464,
-        "total_return": 4.665157042104949,
+        "sharpe": 0.809365007833903,
+        "cagr": 0.09642940297681202,
+        "total_return": 4.802307783594163,
         "max_dd": -0.17320713963881174,
-        "annual_turnover": 6.0402868862341,
+        "annual_turnover": 6.03768928579564,
         "n_flips": 226
       }
     },
     "K=7": {
       "Daily": {
-        "sharpe": 0.7689529254710199,
-        "cagr": 0.08244893981243706,
-        "total_return": 3.538090974712075,
+        "sharpe": 0.7686407510092621,
+        "cagr": 0.08238427697449868,
+        "total_return": 3.535866724748014,
         "max_dd": -0.1573476931437871,
-        "annual_turnover": 29.911611015245192,
+        "annual_turnover": 29.898747650416386,
         "n_flips": 4684
       },
       "Weekly Mon": {
-        "sharpe": 0.7114129175053646,
-        "cagr": 0.07707692121222665,
-        "total_return": 3.1268930863545723,
+        "sharpe": 0.7187616772830366,
+        "cagr": 0.07799112744852255,
+        "total_return": 3.1968698646852047,
         "max_dd": -0.17707125319883835,
-        "annual_turnover": 12.76267355740105,
-        "n_flips": 978
+        "annual_turnover": 12.846941739234572,
+        "n_flips": 979
       },
       "Weekly Fri": {
-        "sharpe": 0.73600551868088,
-        "cagr": 0.0800630961975739,
-        "total_return": 3.3508930767048106,
+        "sharpe": 0.7357016348804543,
+        "cagr": 0.07999960071395718,
+        "total_return": 3.348760577858176,
         "max_dd": -0.15779403835515513,
-        "annual_turnover": 12.970475754119532,
+        "annual_turnover": 12.964897854569307,
         "n_flips": 981
       },
       "Bi-weekly Fri": {
-        "sharpe": 0.7409474896990607,
-        "cagr": 0.08257246700306631,
-        "total_return": 3.5479880334506646,
+        "sharpe": 0.740648570419654,
+        "cagr": 0.08250774366370295,
+        "total_return": 3.54575893265116,
         "max_dd": -0.17131991622536852,
-        "annual_turnover": 8.509614977483391,
+        "annual_turnover": 8.505955452693762,
         "n_flips": 493
       },
       "Month-end": {
-        "sharpe": 0.8328892975957488,
-        "cagr": 0.09520387031759991,
-        "total_return": 4.675443367887548,
+        "sharpe": 0.8426774789386564,
+        "cagr": 0.09653210161340309,
+        "total_return": 4.812696674423663,
         "max_dd": -0.15958894733037626,
-        "annual_turnover": 5.698732421193953,
+        "annual_turnover": 5.696281704843096,
         "n_flips": 226
       }
     }
@@ -303,12 +303,12 @@
     ],
     "eligible_start": "2007-10-18",
     "headline_stats": {
-      "sharpe": 0.7114129175053646,
-      "cagr": 0.07707692121222665,
-      "total_return": 3.1268930863545723,
+      "sharpe": 0.7187616772830366,
+      "cagr": 0.07799112744852255,
+      "total_return": 3.1968698646852047,
       "max_dd": -0.17707125319883835,
-      "annual_turnover": 12.76267355740105,
-      "n_flips": 978
+      "annual_turnover": 12.846941739234572,
+      "n_flips": 979
     },
     "headline_equity_dates": [
       "2007-10-18",
@@ -5114,7 +5114,8 @@
       "2026-11-17",
       "2026-11-18",
       "2026-11-19",
-      "2026-11-20"
+      "2026-11-20",
+      "2026-11-23"
     ],
     "headline_equity": [
       1.0,
@@ -9920,10 +9921,11 @@
       4.2744,
       4.2483,
       4.2006,
-      4.1269
+      4.1269,
+      4.1969
     ],
-    "n_rebalances": 996,
-    "n_trades": 978,
+    "n_rebalances": 997,
+    "n_trades": 979,
     "trade_history": [
       {
         "date": "2007-10-22",
@@ -47762,65 +47764,46 @@
             "signal_pct": 1.4
           }
         ]
+      },
+      {
+        "date": "2026-11-23",
+        "decision_date": "2026-11-20",
+        "holdings": [
+          {
+            "etf": "SHY",
+            "weight": 1.0,
+            "signal_pct": 0.9
+          }
+        ]
       }
     ],
     "latest_rebalance": {
-      "date": "2026-11-16",
-      "decision_date": "2026-11-13",
+      "date": "2026-11-23",
+      "decision_date": "2026-11-20",
       "holdings": [
         {
-          "etf": "DBC",
-          "weight": 0.2083,
-          "signal_pct": 4.0
-        },
-        {
-          "etf": "SPY",
-          "weight": 0.1776,
-          "signal_pct": 3.4
-        },
-        {
-          "etf": "VNQ",
-          "weight": 0.156,
-          "signal_pct": 3.0
-        },
-        {
           "etf": "SHY",
-          "weight": 0.1429,
-          "signal_pct": 0.4
-        },
-        {
-          "etf": "IJR",
-          "weight": 0.1298,
-          "signal_pct": 2.5
-        },
-        {
-          "etf": "VGK",
-          "weight": 0.1113,
-          "signal_pct": 2.2
-        },
-        {
-          "etf": "EFA",
-          "weight": 0.0741,
-          "signal_pct": 1.4
+          "weight": 1.0,
+          "signal_pct": 0.9
         }
       ]
     },
     "attribution": {
       "SPY": {
-        "days_held": 3559,
+        "days_held": 3560,
         "pct_of_days": 74.1,
         "avg_weight_when_held": 0.1295,
-        "ann_return_when_held": 0.12074619675012355,
-        "contribution_to_total_return": 0.1725397029977156,
-        "pct_of_total_contribution": 10.9
+        "ann_return_when_held": 0.12445017086381949,
+        "contribution_to_total_return": 0.18090110067035342,
+        "pct_of_total_contribution": 11.3
       },
       "IJR": {
-        "days_held": 3028,
+        "days_held": 3029,
         "pct_of_days": 63.0,
         "avg_weight_when_held": 0.145,
-        "ann_return_when_held": 0.07564232044791908,
-        "contribution_to_total_return": 0.1360122845140529,
-        "pct_of_total_contribution": 8.6
+        "ann_return_when_held": 0.0783736288738679,
+        "contribution_to_total_return": 0.14000826460525395,
+        "pct_of_total_contribution": 8.7
       },
       "QQQ": {
         "days_held": 3708,
@@ -47828,23 +47811,23 @@
         "avg_weight_when_held": 0.1746,
         "ann_return_when_held": 0.15769979500259113,
         "contribution_to_total_return": 0.3324599227736778,
-        "pct_of_total_contribution": 20.9
+        "pct_of_total_contribution": 20.7
       },
       "EFA": {
-        "days_held": 2650,
+        "days_held": 2651,
         "pct_of_days": 55.2,
-        "avg_weight_when_held": 0.1179,
-        "ann_return_when_held": 0.0902157010174649,
-        "contribution_to_total_return": 0.1008326743706951,
-        "pct_of_total_contribution": 6.3
+        "avg_weight_when_held": 0.1178,
+        "ann_return_when_held": 0.09300700930383399,
+        "contribution_to_total_return": 0.10285205418680632,
+        "pct_of_total_contribution": 6.4
       },
       "VGK": {
-        "days_held": 2624,
+        "days_held": 2625,
         "pct_of_days": 54.6,
         "avg_weight_when_held": 0.1331,
-        "ann_return_when_held": 0.0628314979730551,
-        "contribution_to_total_return": 0.0988686050354769,
-        "pct_of_total_contribution": 6.2
+        "ann_return_when_held": 0.06520498483601522,
+        "contribution_to_total_return": 0.1014821577478349,
+        "pct_of_total_contribution": 6.3
       },
       "EWJ": {
         "days_held": 2345,
@@ -47855,12 +47838,12 @@
         "pct_of_total_contribution": 3.4
       },
       "VNQ": {
-        "days_held": 2500,
+        "days_held": 2501,
         "pct_of_days": 52.0,
         "avg_weight_when_held": 0.1571,
-        "ann_return_when_held": 0.05243562915805344,
-        "contribution_to_total_return": 0.06189047874146,
-        "pct_of_total_contribution": 3.9
+        "ann_return_when_held": 0.053686299737578214,
+        "contribution_to_total_return": 0.06376148301277622,
+        "pct_of_total_contribution": 4.0
       },
       "GLD": {
         "days_held": 2469,
@@ -47868,23 +47851,23 @@
         "avg_weight_when_held": 0.1754,
         "ann_return_when_held": 0.15369653968835517,
         "contribution_to_total_return": 0.2373097209599245,
-        "pct_of_total_contribution": 14.9
+        "pct_of_total_contribution": 14.8
       },
       "DBC": {
-        "days_held": 1778,
+        "days_held": 1779,
         "pct_of_days": 37.0,
-        "avg_weight_when_held": 0.1932,
-        "ann_return_when_held": 0.13231130231129162,
-        "contribution_to_total_return": 0.18300884448842591,
-        "pct_of_total_contribution": 11.5
+        "avg_weight_when_held": 0.1933,
+        "ann_return_when_held": 0.13108465792269808,
+        "contribution_to_total_return": 0.18151669122082625,
+        "pct_of_total_contribution": 11.3
       },
       "TLT": {
         "days_held": 1881,
-        "pct_of_days": 39.2,
+        "pct_of_days": 39.1,
         "avg_weight_when_held": 0.1616,
         "ann_return_when_held": 0.08651249428898189,
         "contribution_to_total_return": 0.12013360148519679,
-        "pct_of_total_contribution": 7.6
+        "pct_of_total_contribution": 7.5
       },
       "IEF": {
         "days_held": 1653,
@@ -47903,12 +47886,12 @@
         "pct_of_total_contribution": 0.7
       },
       "SHY": {
-        "days_held": 1345,
+        "days_held": 1346,
         "pct_of_days": 28.0,
-        "avg_weight_when_held": 0.4221,
-        "ann_return_when_held": 0.019926843447005682,
-        "contribution_to_total_return": 0.034408279827662876,
-        "pct_of_total_contribution": 2.2
+        "avg_weight_when_held": 0.4219,
+        "ann_return_when_held": 0.01981831462914685,
+        "contribution_to_total_return": 0.0343382613999503,
+        "pct_of_total_contribution": 2.1
       }
     },
     "weekly_allocation_dates": [
@@ -48907,7 +48890,8 @@
       "2026-10-26",
       "2026-11-02",
       "2026-11-09",
-      "2026-11-16"
+      "2026-11-16",
+      "2026-11-23"
     ],
     "weekly_allocation": {
       "SPY": [
@@ -49906,7 +49890,8 @@
         0.1338,
         0.1529,
         0.0651,
-        0.1776
+        0.1776,
+        0.0
       ],
       "IJR": [
         0.0,
@@ -50904,7 +50889,8 @@
         0.0412,
         0.1034,
         0.0376,
-        0.1298
+        0.1298,
+        0.0
       ],
       "QQQ": [
         0.2002,
@@ -51901,6 +51887,7 @@
         0.1527,
         0.1127,
         0.0666,
+        0.0,
         0.0,
         0.0
       ],
@@ -52900,7 +52887,8 @@
         0.0095,
         0.0344,
         0.0,
-        0.0741
+        0.0741,
+        0.0
       ],
       "VGK": [
         0.1036,
@@ -53898,7 +53886,8 @@
         0.0,
         0.0,
         0.0163,
-        0.1113
+        0.1113,
+        0.0
       ],
       "EWJ": [
         0.0,
@@ -54895,6 +54884,7 @@
         0.123,
         0.0832,
         0.0558,
+        0.0,
         0.0,
         0.0
       ],
@@ -55894,7 +55884,8 @@
         0.0,
         0.0281,
         0.1535,
-        0.156
+        0.156,
+        0.0
       ],
       "GLD": [
         0.227,
@@ -56867,6 +56858,7 @@
         0.0941,
         0.1021,
         0.0588,
+        0.0,
         0.0,
         0.0,
         0.0,
@@ -57890,7 +57882,8 @@
         0.4768,
         0.5588,
         0.4417,
-        0.2083
+        0.2083,
+        0.0
       ],
       "TLT": [
         0.0864,
@@ -58832,6 +58825,7 @@
         0.0,
         0.0,
         0.0654,
+        0.0,
         0.0,
         0.0,
         0.0,
@@ -59886,6 +59880,7 @@
         0.0,
         0.0,
         0.0,
+        0.0,
         0.0
       ],
       "TIP": [
@@ -60851,6 +60846,7 @@
         0.0,
         0.0,
         0.0118,
+        0.0,
         0.0,
         0.0,
         0.0,
@@ -61882,7 +61878,8 @@
         0.1429,
         0.0,
         0.2857,
-        0.1429
+        0.1429,
+        1.0
       ]
     }
   },
@@ -66693,7 +66690,8 @@
         "2026-11-17",
         "2026-11-18",
         "2026-11-19",
-        "2026-11-20"
+        "2026-11-20",
+        "2026-11-23"
       ],
       "equity": [
         1.0,
@@ -71499,11 +71497,12 @@
         6.7432,
         6.7226,
         6.5907,
-        6.3508
+        6.3508,
+        6.6498
       ],
-      "sharpe": 0.5898237228393555,
-      "cagr": 0.10167241096496582,
-      "total_return": 5.350754737854004,
+      "sharpe": 0.6013867259025574,
+      "cagr": 0.10428357124328613,
+      "total_return": 5.649782657623291,
       "max_dd": -0.5465885996818542
     },
     "equal_weight_14": {
@@ -76312,7 +76311,8 @@
         "2026-11-17",
         "2026-11-18",
         "2026-11-19",
-        "2026-11-20"
+        "2026-11-20",
+        "2026-11-23"
       ],
       "equity": [
         1.0,
@@ -81118,11 +81118,12 @@
         3.5113,
         3.4944,
         3.4585,
-        3.3964
+        3.3964,
+        3.4688
       ],
-      "sharpe": 0.6023346774564737,
-      "cagr": 0.06614178318000352,
-      "total_return": 2.3963810806734047,
+      "sharpe": 0.6112343395091109,
+      "cagr": 0.06729072458956065,
+      "total_return": 2.4687974972967632,
       "max_dd": -0.34963231032767383
     },
     "sixty_forty": {
@@ -85931,7 +85932,8 @@
         "2026-11-17",
         "2026-11-18",
         "2026-11-19",
-        "2026-11-20"
+        "2026-11-20",
+        "2026-11-23"
       ],
       "equity": [
         1.0,
@@ -90737,11 +90739,12 @@
         4.4474,
         4.4443,
         4.395,
-        4.315
+        4.315,
+        4.4367
       ],
-      "sharpe": 0.7324044838546616,
-      "cagr": 0.0795948502666648,
-      "total_return": 3.3150231496178497,
+      "sharpe": 0.7441845275262019,
+      "cagr": 0.08113276263290015,
+      "total_return": 3.436739545677617,
       "max_dd": -0.31393002647257595
     }
   },
@@ -90849,14 +90852,14 @@
       {
         "train_end": "2025-12-31",
         "test_start": "2026-01-02",
-        "test_end": "2026-11-20",
+        "test_end": "2026-11-23",
         "best_K": 7,
         "train_sharpe": 0.7563617408191834,
-        "test_sharpe": -0.10056058698318561,
-        "n_test_days": 224
+        "test_sharpe": 0.04153906861609397,
+        "n_test_days": 225
       }
     ],
-    "walk_forward_sharpe": 0.6602154975288127,
+    "walk_forward_sharpe": 0.6728318265388163,
     "wf_dates": [
       "2015-01-02",
       "2015-01-05",
@@ -93847,7 +93850,8 @@
       "2026-11-17",
       "2026-11-18",
       "2026-11-19",
-      "2026-11-20"
+      "2026-11-20",
+      "2026-11-23"
     ],
     "wf_equity": [
       1.0,
@@ -96839,7 +96843,8 @@
       2.2289,
       2.2153,
       2.1904,
-      2.152
+      2.152,
+      2.1885
     ]
   },
   "asset_class_colours": {

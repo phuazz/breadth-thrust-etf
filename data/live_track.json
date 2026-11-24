@@ -1,30 +1,23 @@
 {
-  "computed_at_utc": "2026-11-22 10:25 UTC",
+  "computed_at_utc": "2026-11-24 04:22 UTC",
   "deployed_key": "blend_35_35_10_20_gated_eem_tilted",
   "anchor_date": "2026-11-20",
-  "anchor_equity": 2.721841,
+  "anchor_equity": 2.721837,
   "regime_state": "RISK_ON",
   "eem_tilt_active": false,
   "eem_tilt_signal_as_of": "2026-11-20",
   "eem_tilt_signal_stale": false,
   "effective_weights": {
-    "SHY": 0.150015,
-    "IUHC": 0.130563,
-    "IUFS": 0.077008,
+    "SHY": 0.45,
+    "IUHC": 0.14168,
+    "IUCS": 0.13489,
     "EXV1": 0.07426,
-    "DBC": 0.072905,
-    "IUCS": 0.070847,
     "EXH9": 0.06364,
-    "SPY": 0.06216,
     "EXH1": 0.0621,
-    "VNQ": 0.0546,
-    "IJR": 0.04543,
-    "IUUS": 0.040989,
-    "VGK": 0.038955,
-    "EFA": 0.025935,
-    "CSP1": 0.025763,
-    "IUES": 0.00259,
-    "IUCD": 0.00224
+    "IUFS": 0.033075,
+    "CSP1": 0.01673,
+    "IUCD": 0.01386,
+    "IUUS": 0.009765
   },
   "live_dates": [],
   "live_equity": [],
@@ -34,31 +27,32 @@
       "anchor_date": "2026-11-20",
       "anchor_equity": 3.0932,
       "weights": {
-        "IUHC": 0.373,
-        "IUFS": 0.22,
-        "IUCS": 0.2024,
-        "IUUS": 0.1171,
-        "CSP1": 0.0736,
-        "IUES": 0.0074,
-        "IUCD": 0.0064
+        "IUHC": 0.4048,
+        "IUCS": 0.3854,
+        "IUFS": 0.0945,
+        "CSP1": 0.0478,
+        "IUCD": 0.0396,
+        "IUUS": 0.0279
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-11-23"
+      ],
+      "equity": [
+        3.126436
+      ]
     },
     "strategy_b": {
       "anchor_date": "2026-11-20",
       "anchor_equity": 2.0687,
       "weights": {
-        "DBC": 0.2083,
-        "SPY": 0.1776,
-        "VNQ": 0.156,
-        "SHY": 0.1429,
-        "IJR": 0.1298,
-        "VGK": 0.1113,
-        "EFA": 0.0741
+        "SHY": 1.0
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-11-23"
+      ],
+      "equity": [
+        2.067686
+      ]
     },
     "strategy_c": {
       "anchor_date": "2026-11-20",
@@ -66,8 +60,12 @@
       "weights": {
         "SHY": 1.0
       },
-      "dates": [],
-      "equity": []
+      "dates": [
+        "2026-11-23"
+      ],
+      "equity": [
+        3.128666
+      ]
     },
     "strategy_d": {
       "anchor_date": "2026-11-20",

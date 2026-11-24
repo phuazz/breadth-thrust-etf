@@ -2,7 +2,7 @@
   "etf": "EXV3",
   "source": "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data",
   "legacy_csv_source": "https://www.ishares.com/uk/individual/en/products/251961/ishares-stoxx-europe-600-technology-ucits-etf-de-fund/1506575576011.ajax?fileType=csv&fileName=EXV3_holdings&dataType=fund",
-  "fetched_at_utc": "2026-11-22T10:21:47.198910+00:00",
+  "fetched_at_utc": "2026-11-24T03:48:09.851616+00:00",
   "start_friday": "2018-01-05",
   "end_friday": "2026-11-20",
   "n_target_fridays": 464,
@@ -30,12 +30,6 @@
       "fallback_date": "2020-12-31",
       "days_back": 1,
       "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
-    },
-    {
-      "target_friday": "2026-11-20",
-      "fallback_date": "2026-11-19",
-      "days_back": 1,
-      "reason": "Friday holdings missing (likely US market holiday) \u2014 used nearest prior trading day"
     }
   ],
   "carry_forwards": [],
@@ -54,8 +48,8 @@
     "policy_ref": "DATA_INTEGRITY_POLICY.md"
   },
   "staleness": {
-    "last_real_fetch_date": "2026-11-19",
-    "days_since_last_real_fetch": 1,
+    "last_real_fetch_date": "2026-11-20",
+    "days_since_last_real_fetch": 0,
     "status": "fresh",
     "warn_threshold_days": 14,
     "critical_threshold_days": 30,
@@ -17664,7 +17658,7 @@
       ]
     },
     "2026-11-20": {
-      "actual_date": "2026-11-19",
+      "actual_date": "2026-11-20",
       "n_tickers": 35,
       "tickers": [
         "ASML.AS",
@@ -17673,8 +17667,8 @@
         "IFX.DE",
         "PRX.AS",
         "ASM.AS",
-        "STMMI.MI",
         "AMS.MC",
+        "STMMI.MI",
         "CAP.PA",
         "HEXA-B.ST",
         "DSY.PA",
@@ -17688,20 +17682,20 @@
         "OCTV-SDB.ST",
         "LAGR-B.ST",
         "MYCR.ST",
-        "AIXA.DE",
         "CCC.L",
-        "TPRO.MI",
         "VEND.OL",
+        "AIXA.DE",
+        "TPRO.MI",
         "NEM.DE",
-        "SOI.PA",
-        "NOD.OL",
         "REY.MI",
-        "ATS.VI",
         "SOP.PA",
-        "ACP.WA",
+        "NOD.OL",
+        "SOI.PA",
         "BC8.DE",
-        "COTN.SW",
-        "SCT.L"
+        "ACP.WA",
+        "SCT.L",
+        "ATS.VI",
+        "COTN.SW"
       ]
     }
   }
