@@ -1,0 +1,1319 @@
+{
+ "etf": "XBI",
+ "as_of": "2026-11-20",
+ "source": "ssga_xlsx",
+ "url": "https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/etfs/us/holdings-daily-us-en-xbi.xlsx",
+ "fetched_at_utc": "2026-11-24T01:19:34+00:00",
+ "n_holdings": 157,
+ "weight_sum_pct": 99.8503,
+ "holdings": [
+  {
+   "ticker": "MRNA",
+   "name": "MODERNA INC",
+   "weight_pct": 2.318563,
+   "shares": 1103892.0,
+   "cusip": "60770K107",
+   "sector": null
+  },
+  {
+   "ticker": "BIIB",
+   "name": "BIOGEN INC",
+   "weight_pct": 1.909334,
+   "shares": 710227.0,
+   "cusip": "09062X103",
+   "sector": null
+  },
+  {
+   "ticker": "TGTX",
+   "name": "TG THERAPEUTICS INC",
+   "weight_pct": 1.871596,
+   "shares": 2743320.0,
+   "cusip": "88322Q108",
+   "sector": null
+  },
+  {
+   "ticker": "GILD",
+   "name": "GILEAD SCIENCES INC",
+   "weight_pct": 1.845241,
+   "shares": 1029352.0,
+   "cusip": "375558103",
+   "sector": null
+  },
+  {
+   "ticker": "REGN",
+   "name": "REGENERON PHARMACEUTICALS",
+   "weight_pct": 1.840794,
+   "shares": 185624.0,
+   "cusip": "75886F107",
+   "sector": null
+  },
+  {
+   "ticker": "ABBV",
+   "name": "ABBVIE INC",
+   "weight_pct": 1.838838,
+   "shares": 596508.0,
+   "cusip": "00287Y109",
+   "sector": null
+  },
+  {
+   "ticker": "AMGN",
+   "name": "AMGEN INC",
+   "weight_pct": 1.794827,
+   "shares": 382505.0,
+   "cusip": "031162100",
+   "sector": null
+  },
+  {
+   "ticker": "EXEL",
+   "name": "EXELIXIS INC",
+   "weight_pct": 1.789204,
+   "shares": 2570207.0,
+   "cusip": "30161Q104",
+   "sector": null
+  },
+  {
+   "ticker": "INSM",
+   "name": "INSMED INC",
+   "weight_pct": 1.77191,
+   "shares": 1163991.0,
+   "cusip": "457669307",
+   "sector": null
+  },
+  {
+   "ticker": "UTHR",
+   "name": "UNITED THERAPEUTICS CORP",
+   "weight_pct": 1.764483,
+   "shares": 295310.0,
+   "cusip": "91307C102",
+   "sector": null
+  },
+  {
+   "ticker": "SYRE",
+   "name": "SPYRE THERAPEUTICS INC",
+   "weight_pct": 1.736258,
+   "shares": 1724584.0,
+   "cusip": "00773J202",
+   "sector": null
+  },
+  {
+   "ticker": "ORKA",
+   "name": "ORUKA THERAPEUTICS INC",
+   "weight_pct": 1.690867,
+   "shares": 1638479.0,
+   "cusip": "687604108",
+   "sector": null
+  },
+  {
+   "ticker": "BBIO",
+   "name": "BRIDGEBIO PHARMA INC",
+   "weight_pct": 1.613769,
+   "shares": 1970601.0,
+   "cusip": "10806X102",
+   "sector": null
+  },
+  {
+   "ticker": "ALKS",
+   "name": "ALKERMES PLC",
+   "weight_pct": 1.598456,
+   "shares": 3302250.0,
+   "cusip": "G01767105",
+   "sector": null
+  },
+  {
+   "ticker": "VRTX",
+   "name": "VERTEX PHARMACEUTICALS INC",
+   "weight_pct": 1.596003,
+   "shares": 287708.0,
+   "cusip": "92532F100",
+   "sector": null
+  },
+  {
+   "ticker": "NBIX",
+   "name": "NEUROCRINE BIOSCIENCES INC",
+   "weight_pct": 1.56723,
+   "shares": 966355.0,
+   "cusip": "64125C109",
+   "sector": null
+  },
+  {
+   "ticker": "BMRN",
+   "name": "BIOMARIN PHARMACEUTICAL INC",
+   "weight_pct": 1.514509,
+   "shares": 2327584.0,
+   "cusip": "09061G101",
+   "sector": null
+  },
+  {
+   "ticker": "ROIV",
+   "name": "ROIVANT SCIENCES LTD",
+   "weight_pct": 1.492993,
+   "shares": 3585869.0,
+   "cusip": "G76279101",
+   "sector": null
+  },
+  {
+   "ticker": "INCY",
+   "name": "INCYTE CORP",
+   "weight_pct": 1.468871,
+   "shares": 1189725.0,
+   "cusip": "45337C102",
+   "sector": null
+  },
+  {
+   "ticker": "RYTM",
+   "name": "RHYTHM PHARMACEUTICALS INC",
+   "weight_pct": 1.454231,
+   "shares": 1201611.0,
+   "cusip": "76243J105",
+   "sector": null
+  },
+  {
+   "ticker": "KRYS",
+   "name": "KRYSTAL BIOTECH INC",
+   "weight_pct": 1.433017,
+   "shares": 430715.0,
+   "cusip": "501147102",
+   "sector": null
+  },
+  {
+   "ticker": "PRAX",
+   "name": "PRAXIS PRECISION MEDICINES I",
+   "weight_pct": 1.404985,
+   "shares": 434181.0,
+   "cusip": "74006W207",
+   "sector": null
+  },
+  {
+   "ticker": "HALO",
+   "name": "HALOZYME THERAPEUTICS INC",
+   "weight_pct": 1.373597,
+   "shares": 1396025.0,
+   "cusip": "40637H109",
+   "sector": null
+  },
+  {
+   "ticker": "KOD",
+   "name": "KODIAK SCIENCES INC",
+   "weight_pct": 1.361291,
+   "shares": 1300652.0,
+   "cusip": "50015M109",
+   "sector": null
+  },
+  {
+   "ticker": "KYMR",
+   "name": "KYMERA THERAPEUTICS INC",
+   "weight_pct": 1.348435,
+   "shares": 1085689.0,
+   "cusip": "501575104",
+   "sector": null
+  },
+  {
+   "ticker": "PTCT",
+   "name": "PTC THERAPEUTICS INC",
+   "weight_pct": 1.348368,
+   "shares": 2218797.0,
+   "cusip": "69366J200",
+   "sector": null
+  },
+  {
+   "ticker": "PTGX",
+   "name": "PROTAGONIST THERAPEUTICS INC",
+   "weight_pct": 1.344604,
+   "shares": 1028296.0,
+   "cusip": "74366E102",
+   "sector": null
+  },
+  {
+   "ticker": "CGON",
+   "name": "CG ONCOLOGY INC",
+   "weight_pct": 1.338857,
+   "shares": 1564132.0,
+   "cusip": "156944100",
+   "sector": null
+  },
+  {
+   "ticker": "NTRA",
+   "name": "NATERA INC",
+   "weight_pct": 1.336699,
+   "shares": 453918.0,
+   "cusip": "632307104",
+   "sector": null
+  },
+  {
+   "ticker": "TWST",
+   "name": "TWIST BIOSCIENCE CORP",
+   "weight_pct": 1.329226,
+   "shares": 1194419.0,
+   "cusip": "90184D100",
+   "sector": null
+  },
+  {
+   "ticker": "MIRM",
+   "name": "MIRUM PHARMACEUTICALS INC",
+   "weight_pct": 1.291093,
+   "shares": 1246927.0,
+   "cusip": "604749101",
+   "sector": null
+  },
+  {
+   "ticker": "DNTH",
+   "name": "DIANTHUS THERAPEUTICS INC",
+   "weight_pct": 1.275537,
+   "shares": 1400625.0,
+   "cusip": "252828108",
+   "sector": null
+  },
+  {
+   "ticker": "RVMD",
+   "name": "REVOLUTION MEDICINES INC",
+   "weight_pct": 1.253509,
+   "shares": 721946.0,
+   "cusip": "76155X100",
+   "sector": null
+  },
+  {
+   "ticker": "ERAS",
+   "name": "ERASCA INC",
+   "weight_pct": 1.246538,
+   "shares": 8503346.0,
+   "cusip": "29479A108",
+   "sector": null
+  },
+  {
+   "ticker": "PCVX",
+   "name": "VAXCYTE INC",
+   "weight_pct": 1.204766,
+   "shares": 2019359.0,
+   "cusip": "92243G108",
+   "sector": null
+  },
+  {
+   "ticker": "CRSP",
+   "name": "CRISPR THERAPEUTICS AG",
+   "weight_pct": 1.160672,
+   "shares": 2755973.0,
+   "cusip": "H17182108",
+   "sector": null
+  },
+  {
+   "ticker": "TVTX",
+   "name": "TRAVERE THERAPEUTICS INC",
+   "weight_pct": 1.146124,
+   "shares": 2263999.0,
+   "cusip": "89422G107",
+   "sector": null
+  },
+  {
+   "ticker": "COGT",
+   "name": "COGENT BIOSCIENCES INC",
+   "weight_pct": 1.138841,
+   "shares": 3957766.0,
+   "cusip": "19240Q201",
+   "sector": null
+  },
+  {
+   "ticker": "MDGL",
+   "name": "MADRIGAL PHARMACEUTICALS INC",
+   "weight_pct": 1.119805,
+   "shares": 274240.0,
+   "cusip": "558868105",
+   "sector": null
+  },
+  {
+   "ticker": "CYTK",
+   "name": "CYTOKINETICS INC",
+   "weight_pct": 1.106509,
+   "shares": 2023040.0,
+   "cusip": "23282W605",
+   "sector": null
+  },
+  {
+   "ticker": "GRAL",
+   "name": "GRAIL INC",
+   "weight_pct": 1.062266,
+   "shares": 993677.0,
+   "cusip": "384747101",
+   "sector": null
+  },
+  {
+   "ticker": "CDNA",
+   "name": "CAREDX INC",
+   "weight_pct": 1.010734,
+   "shares": 1340545.0,
+   "cusip": "14167L103",
+   "sector": null
+  },
+  {
+   "ticker": "TNGX",
+   "name": "TANGO THERAPEUTICS INC",
+   "weight_pct": 0.965376,
+   "shares": 4124574.0,
+   "cusip": "87583X109",
+   "sector": null
+  },
+  {
+   "ticker": "SRRK",
+   "name": "SCHOLAR ROCK HOLDING CORP",
+   "weight_pct": 0.958987,
+   "shares": 1849861.0,
+   "cusip": "80706P103",
+   "sector": null
+  },
+  {
+   "ticker": "VKTX",
+   "name": "VIKING THERAPEUTICS INC",
+   "weight_pct": 0.932488,
+   "shares": 3495100.0,
+   "cusip": "92686J106",
+   "sector": null
+  },
+  {
+   "ticker": "RARE",
+   "name": "ULTRAGENYX PHARMACEUTICAL IN",
+   "weight_pct": 0.917772,
+   "shares": 5170351.0,
+   "cusip": "90400D108",
+   "sector": null
+  },
+  {
+   "ticker": "ALNY",
+   "name": "ALNYLAM PHARMACEUTICALS INC",
+   "weight_pct": 0.900228,
+   "shares": 581133.0,
+   "cusip": "02043Q107",
+   "sector": null
+  },
+  {
+   "ticker": "ARQT",
+   "name": "ARCUTIS BIOTHERAPEUTICS INC",
+   "weight_pct": 0.870047,
+   "shares": 3064359.0,
+   "cusip": "03969K108",
+   "sector": null
+  },
+  {
+   "ticker": "RLAY",
+   "name": "RELAY THERAPEUTICS INC",
+   "weight_pct": 0.856687,
+   "shares": 4934005.0,
+   "cusip": "75943R102",
+   "sector": null
+  },
+  {
+   "ticker": "IOVA",
+   "name": "IOVANCE BIOTHERAPEUTICS INC",
+   "weight_pct": 0.848364,
+   "shares": 11414989.0,
+   "cusip": "462260100",
+   "sector": null
+  },
+  {
+   "ticker": "SLS",
+   "name": "SELLAS LIFE SCIENCES GROUP I",
+   "weight_pct": 0.845832,
+   "shares": 5748783.0,
+   "cusip": "81642T209",
+   "sector": null
+  },
+  {
+   "ticker": "VRDN",
+   "name": "VIRIDIAN THERAPEUTICS INC",
+   "weight_pct": 0.817058,
+   "shares": 2531941.0,
+   "cusip": "92790C104",
+   "sector": null
+  },
+  {
+   "ticker": "ARWR",
+   "name": "ARROWHEAD PHARMACEUTICALS IN",
+   "weight_pct": 0.808504,
+   "shares": 1814426.0,
+   "cusip": "04280A100",
+   "sector": null
+  },
+  {
+   "ticker": "BEAM",
+   "name": "BEAM THERAPEUTICS INC",
+   "weight_pct": 0.78602,
+   "shares": 3491643.0,
+   "cusip": "07373V105",
+   "sector": null
+  },
+  {
+   "ticker": "IBRX",
+   "name": "IMMUNITYBIO INC",
+   "weight_pct": 0.769858,
+   "shares": 11872886.0,
+   "cusip": "45256X103",
+   "sector": null
+  },
+  {
+   "ticker": "IONS",
+   "name": "IONIS PHARMACEUTICALS INC",
+   "weight_pct": 0.766209,
+   "shares": 2676299.0,
+   "cusip": "462222100",
+   "sector": null
+  },
+  {
+   "ticker": "DYN",
+   "name": "DYNE THERAPEUTICS INC",
+   "weight_pct": 0.736798,
+   "shares": 4413253.0,
+   "cusip": "26818M108",
+   "sector": null
+  },
+  {
+   "ticker": "IMVT",
+   "name": "IMMUNOVANT INC",
+   "weight_pct": 0.731608,
+   "shares": 2137981.0,
+   "cusip": "45258J102",
+   "sector": null
+  },
+  {
+   "ticker": "CELC",
+   "name": "CELCUITY INC",
+   "weight_pct": 0.697958,
+   "shares": 1214611.0,
+   "cusip": "15102K100",
+   "sector": null
+  },
+  {
+   "ticker": "VCEL",
+   "name": "VERICEL CORP",
+   "weight_pct": 0.693695,
+   "shares": 1119675.0,
+   "cusip": "92346J108",
+   "sector": null
+  },
+  {
+   "ticker": "ADMA",
+   "name": "ADMA BIOLOGICS INC",
+   "weight_pct": 0.652585,
+   "shares": 4600378.0,
+   "cusip": "000899104",
+   "sector": null
+  },
+  {
+   "ticker": "VCYT",
+   "name": "VERACYTE INC",
+   "weight_pct": 0.640449,
+   "shares": 2366109.0,
+   "cusip": "92337F107",
+   "sector": null
+  },
+  {
+   "ticker": "DNLI",
+   "name": "DENALI THERAPEUTICS INC",
+   "weight_pct": 0.616041,
+   "shares": 3099956.0,
+   "cusip": "24823R105",
+   "sector": null
+  },
+  {
+   "ticker": "IRON",
+   "name": "DISC MEDICINE INC",
+   "weight_pct": 0.591043,
+   "shares": 730281.0,
+   "cusip": "254604101",
+   "sector": null
+  },
+  {
+   "ticker": "PVLA",
+   "name": "PALVELLA THERAPEUTICS INC",
+   "weight_pct": 0.565599,
+   "shares": 367596.0,
+   "cusip": "697947109",
+   "sector": null
+  },
+  {
+   "ticker": "BCRX",
+   "name": "BIOCRYST PHARMACEUTICALS INC",
+   "weight_pct": 0.543726,
+   "shares": 6991740.0,
+   "cusip": "09058V103",
+   "sector": null
+  },
+  {
+   "ticker": "REPL",
+   "name": "REPLIMUNE GROUP INC",
+   "weight_pct": 0.518506,
+   "shares": 2524324.0,
+   "cusip": "76029N106",
+   "sector": null
+  },
+  {
+   "ticker": "AGIO",
+   "name": "AGIOS PHARMACEUTICALS INC",
+   "weight_pct": 0.513836,
+   "shares": 1728454.0,
+   "cusip": "00847X104",
+   "sector": null
+  },
+  {
+   "ticker": "VERA",
+   "name": "VERA THERAPEUTICS INC",
+   "weight_pct": 0.510205,
+   "shares": 1861225.0,
+   "cusip": "92337R101",
+   "sector": null
+  },
+  {
+   "ticker": "BHVN",
+   "name": "BIOHAVEN LTD",
+   "weight_pct": 0.500901,
+   "shares": 3753386.0,
+   "cusip": "G1110E107",
+   "sector": null
+  },
+  {
+   "ticker": "PURR",
+   "name": "HYPERLIQUID STRATEGIES",
+   "weight_pct": 0.489836,
+   "shares": 6079832.0,
+   "cusip": "44916Y106",
+   "sector": null
+  },
+  {
+   "ticker": "CLDX",
+   "name": "CELLDEX THERAPEUTICS INC",
+   "weight_pct": 0.480398,
+   "shares": 1626584.0,
+   "cusip": "15117B202",
+   "sector": null
+  },
+  {
+   "ticker": "XNCR",
+   "name": "XENCOR INC",
+   "weight_pct": 0.473951,
+   "shares": 1322982.0,
+   "cusip": "98401F105",
+   "sector": null
+  },
+  {
+   "ticker": "NTLA",
+   "name": "INTELLIA THERAPEUTICS INC",
+   "weight_pct": 0.468431,
+   "shares": 4348985.0,
+   "cusip": "45826J105",
+   "sector": null
+  },
+  {
+   "ticker": "ACAD",
+   "name": "ACADIA PHARMACEUTICALS INC",
+   "weight_pct": 0.462324,
+   "shares": 2508640.0,
+   "cusip": "004225108",
+   "sector": null
+  },
+  {
+   "ticker": "RXRX",
+   "name": "RECURSION PHARMACEUTICALS A",
+   "weight_pct": 0.444748,
+   "shares": 16853525.0,
+   "cusip": "75629V104",
+   "sector": null
+  },
+  {
+   "ticker": "IDYA",
+   "name": "IDEAYA BIOSCIENCES INC",
+   "weight_pct": 0.443186,
+   "shares": 1609782.0,
+   "cusip": "45166A102",
+   "sector": null
+  },
+  {
+   "ticker": "SRPT",
+   "name": "SAREPTA THERAPEUTICS INC",
+   "weight_pct": 0.431169,
+   "shares": 3003028.0,
+   "cusip": "803607100",
+   "sector": null
+  },
+  {
+   "ticker": "QURE",
+   "name": "UNIQURE NV",
+   "weight_pct": 0.42963,
+   "shares": 2061370.0,
+   "cusip": "N90064101",
+   "sector": null
+  },
+  {
+   "ticker": "ABSI",
+   "name": "ABSCI CORP",
+   "weight_pct": 0.405966,
+   "shares": 5018716.0,
+   "cusip": "00091E109",
+   "sector": null
+  },
+  {
+   "ticker": "TRAX",
+   "name": "FIRST TRACKS BIOTHERAPEU W/I",
+   "weight_pct": 0.397796,
+   "shares": 886936.0,
+   "cusip": "337185102",
+   "sector": null
+  },
+  {
+   "ticker": "SMMT",
+   "name": "SUMMIT THERAPEUTICS INC",
+   "weight_pct": 0.395284,
+   "shares": 3688315.0,
+   "cusip": "86627T108",
+   "sector": null
+  },
+  {
+   "ticker": "STOK",
+   "name": "STOKE THERAPEUTICS INC",
+   "weight_pct": 0.384277,
+   "shares": 1330730.0,
+   "cusip": "86150R107",
+   "sector": null
+  },
+  {
+   "ticker": "NVAX",
+   "name": "NOVAVAX INC",
+   "weight_pct": 0.375821,
+   "shares": 4670926.0,
+   "cusip": "670002401",
+   "sector": null
+  },
+  {
+   "ticker": "RCUS",
+   "name": "ARCUS BIOSCIENCES INC",
+   "weight_pct": 0.35352,
+   "shares": 2101236.0,
+   "cusip": "03969F109",
+   "sector": null
+  },
+  {
+   "ticker": "IMNM",
+   "name": "IMMUNOME INC",
+   "weight_pct": 0.334575,
+   "shares": 1979764.0,
+   "cusip": "45257U108",
+   "sector": null
+  },
+  {
+   "ticker": "ANAB",
+   "name": "ANAPTYSBIO INC",
+   "weight_pct": 0.32632,
+   "shares": 649711.0,
+   "cusip": "032724106",
+   "sector": null
+  },
+  {
+   "ticker": "NKTR",
+   "name": "NEKTAR THERAPEUTICS",
+   "weight_pct": 0.321861,
+   "shares": 989474.0,
+   "cusip": "640268306",
+   "sector": null
+  },
+  {
+   "ticker": "NRIX",
+   "name": "NURIX THERAPEUTICS INC",
+   "weight_pct": 0.30791,
+   "shares": 2224659.0,
+   "cusip": "67080M103",
+   "sector": null
+  },
+  {
+   "ticker": "MNKD",
+   "name": "MANNKIND CORP",
+   "weight_pct": 0.301506,
+   "shares": 7270719.0,
+   "cusip": "56400P706",
+   "sector": null
+  },
+  {
+   "ticker": "JBIO",
+   "name": "JADE BIOSCIENCES INC",
+   "weight_pct": 0.286888,
+   "shares": 1739720.0,
+   "cusip": "008064206",
+   "sector": null
+  },
+  {
+   "ticker": "ZBIO",
+   "name": "ZENAS BIOPHARMA INC",
+   "weight_pct": 0.27046,
+   "shares": 1052827.0,
+   "cusip": "98937L105",
+   "sector": null
+  },
+  {
+   "ticker": "PGEN",
+   "name": "PRECIGEN INC",
+   "weight_pct": 0.26105,
+   "shares": 5756848.0,
+   "cusip": "74017N105",
+   "sector": null
+  },
+  {
+   "ticker": "TYRA",
+   "name": "TYRA BIOSCIENCES INC",
+   "weight_pct": 0.253929,
+   "shares": 1171727.0,
+   "cusip": "90240B106",
+   "sector": null
+  },
+  {
+   "ticker": "INBX",
+   "name": "INHIBRX BIOSCIENCES INC",
+   "weight_pct": 0.244811,
+   "shares": 329544.0,
+   "cusip": "45720N103",
+   "sector": null
+  },
+  {
+   "ticker": "SNDX",
+   "name": "SYNDAX PHARMACEUTICALS INC",
+   "weight_pct": 0.242746,
+   "shares": 2584506.0,
+   "cusip": "87164F105",
+   "sector": null
+  },
+  {
+   "ticker": "ARDX",
+   "name": "ARDELYX INC",
+   "weight_pct": 0.237642,
+   "shares": 7378949.0,
+   "cusip": "039697107",
+   "sector": null
+  },
+  {
+   "ticker": "VIR",
+   "name": "VIR BIOTECHNOLOGY INC",
+   "weight_pct": 0.233452,
+   "shares": 2583322.0,
+   "cusip": "92764N102",
+   "sector": null
+  },
+  {
+   "ticker": "VOR",
+   "name": "VOR BIOPHARMA INC",
+   "weight_pct": 0.228934,
+   "shares": 1107586.0,
+   "cusip": "929033207",
+   "sector": null
+  },
+  {
+   "ticker": "COAG",
+   "name": "HEMAB THERAPEUTICS HOLDINGS",
+   "weight_pct": 0.221069,
+   "shares": 522382.0,
+   "cusip": "423494103",
+   "sector": null
+  },
+  {
+   "ticker": "MLYS",
+   "name": "MINERALYS THERAPEUTICS INC",
+   "weight_pct": 0.219251,
+   "shares": 1490159.0,
+   "cusip": "603170101",
+   "sector": null
+  },
+  {
+   "ticker": "TSHA",
+   "name": "TAYSHA GENE THERAPIES INC",
+   "weight_pct": 0.208913,
+   "shares": 5213929.0,
+   "cusip": "877619106",
+   "sector": null
+  },
+  {
+   "ticker": "RIGL",
+   "name": "RIGEL PHARMACEUTICALS INC",
+   "weight_pct": 0.20758,
+   "shares": 480719.0,
+   "cusip": "766559702",
+   "sector": null
+  },
+  {
+   "ticker": "GLUE",
+   "name": "MONTE ROSA THERAPEUTICS INC",
+   "weight_pct": 0.198809,
+   "shares": 2136314.0,
+   "cusip": "61225M102",
+   "sector": null
+  },
+  {
+   "ticker": "ANNX",
+   "name": "ANNEXON INC",
+   "weight_pct": 0.198109,
+   "shares": 5933136.0,
+   "cusip": "03589W102",
+   "sector": null
+  },
+  {
+   "ticker": "ORIC",
+   "name": "ORIC PHARMACEUTICALS INC",
+   "weight_pct": 0.194458,
+   "shares": 2452961.0,
+   "cusip": "68622P109",
+   "sector": null
+  },
+  {
+   "ticker": "KURA",
+   "name": "KURA ONCOLOGY INC",
+   "weight_pct": 0.191916,
+   "shares": 2578548.0,
+   "cusip": "50127T109",
+   "sector": null
+  },
+  {
+   "ticker": "CRVS",
+   "name": "CORVUS PHARMACEUTICALS INC",
+   "weight_pct": 0.191449,
+   "shares": 1838103.0,
+   "cusip": "221015100",
+   "sector": null
+  },
+  {
+   "ticker": "DMRA",
+   "name": "DAMORA THERAPEUTICS INC",
+   "weight_pct": 0.183647,
+   "shares": 734283.0,
+   "cusip": "G2646Y104",
+   "sector": null
+  },
+  {
+   "ticker": "GERN",
+   "name": "GERON CORP",
+   "weight_pct": 0.171809,
+   "shares": 18319779.0,
+   "cusip": "374163103",
+   "sector": null
+  },
+  {
+   "ticker": "IRWD",
+   "name": "IRONWOOD PHARMACEUTICALS INC",
+   "weight_pct": 0.170574,
+   "shares": 3369431.0,
+   "cusip": "46333X108",
+   "sector": null
+  },
+  {
+   "ticker": "MYGN",
+   "name": "MYRIAD GENETICS INC",
+   "weight_pct": 0.169028,
+   "shares": 2874140.0,
+   "cusip": "62855J104",
+   "sector": null
+  },
+  {
+   "ticker": "OLMA",
+   "name": "OLEMA ONCOLOGY INC",
+   "weight_pct": 0.164568,
+   "shares": 2176466.0,
+   "cusip": "68062P106",
+   "sector": null
+  },
+  {
+   "ticker": "IMMX",
+   "name": "IMMIX BIOPHARMA INC",
+   "weight_pct": 0.156499,
+   "shares": 2087584.0,
+   "cusip": "45258H106",
+   "sector": null
+  },
+  {
+   "ticker": "VSTM",
+   "name": "VERASTEM INC",
+   "weight_pct": 0.155457,
+   "shares": 2280073.0,
+   "cusip": "92337C203",
+   "sector": null
+  },
+  {
+   "ticker": "RGNX",
+   "name": "REGENXBIO INC",
+   "weight_pct": 0.15502,
+   "shares": 2010103.0,
+   "cusip": "75901B107",
+   "sector": null
+  },
+  {
+   "ticker": "SVRA",
+   "name": "SAVARA INC",
+   "weight_pct": 0.148218,
+   "shares": 3230240.0,
+   "cusip": "805111101",
+   "sector": null
+  },
+  {
+   "ticker": "CAPR",
+   "name": "CAPRICOR THERAPEUTICS INC",
+   "weight_pct": 0.147606,
+   "shares": 1805530.0,
+   "cusip": "14070B309",
+   "sector": null
+  },
+  {
+   "ticker": "KLRA",
+   "name": "KAILERA THERAPEUTICS INC",
+   "weight_pct": 0.147152,
+   "shares": 1239729.0,
+   "cusip": "482931102",
+   "sector": null
+  },
+  {
+   "ticker": "PRME",
+   "name": "PRIME MEDICINE INC",
+   "weight_pct": 0.140369,
+   "shares": 3670996.0,
+   "cusip": "74168J101",
+   "sector": null
+  },
+  {
+   "ticker": "FDMT",
+   "name": "4D MOLECULAR THERAPEUTICS IN",
+   "weight_pct": 0.131348,
+   "shares": 1192040.0,
+   "cusip": "35104E100",
+   "sector": null
+  },
+  {
+   "ticker": "QUIT",
+   "name": "ACHIEVE LIFE SCIENCES INC",
+   "weight_pct": 0.127334,
+   "shares": 2126236.0,
+   "cusip": "004468500",
+   "sector": null
+  },
+  {
+   "ticker": "SGMT",
+   "name": "SAGIMET BIOSCIENCES INC A",
+   "weight_pct": 0.125351,
+   "shares": 1281694.0,
+   "cusip": "786700104",
+   "sector": null
+  },
+  {
+   "ticker": "JANX",
+   "name": "JANUX THERAPEUTICS INC",
+   "weight_pct": 0.124962,
+   "shares": 1150961.0,
+   "cusip": "47103J105",
+   "sector": null
+  },
+  {
+   "ticker": "ABUS",
+   "name": "ARBUTUS BIOPHARMA CORP",
+   "weight_pct": 0.122699,
+   "shares": 2833734.0,
+   "cusip": "03879J100",
+   "sector": null
+  },
+  {
+   "ticker": "CADL",
+   "name": "CANDEL THERAPEUTICS INC",
+   "weight_pct": 0.120052,
+   "shares": 2211471.0,
+   "cusip": "137404109",
+   "sector": null
+  },
+  {
+   "ticker": "SLDB",
+   "name": "SOLID BIOSCIENCES INC",
+   "weight_pct": 0.119528,
+   "shares": 1775542.0,
+   "cusip": "83422E204",
+   "sector": null
+  },
+  {
+   "ticker": "CGEM",
+   "name": "CULLINAN THERAPEUTICS INC",
+   "weight_pct": 0.119141,
+   "shares": 1244230.0,
+   "cusip": "230031106",
+   "sector": null
+  },
+  {
+   "ticker": "CTMX",
+   "name": "CYTOMX THERAPEUTICS INC",
+   "weight_pct": 0.112627,
+   "shares": 5150953.0,
+   "cusip": "23284F105",
+   "sector": null
+  },
+  {
+   "ticker": "AVTX",
+   "name": "AVALO THERAPEUTICS INC",
+   "weight_pct": 0.108642,
+   "shares": 1492083.0,
+   "cusip": "05338F306",
+   "sector": null
+  },
+  {
+   "ticker": "CLYM",
+   "name": "CLIMB BIO INC",
+   "weight_pct": 0.108085,
+   "shares": 1091925.0,
+   "cusip": "28658R106",
+   "sector": null
+  },
+  {
+   "ticker": "AVBP",
+   "name": "ARRIVENT BIOPHARMA INC",
+   "weight_pct": 0.10561,
+   "shares": 932032.0,
+   "cusip": "04272N102",
+   "sector": null
+  },
+  {
+   "ticker": "MNPR",
+   "name": "MONOPAR THERAPEUTICS INC",
+   "weight_pct": 0.103511,
+   "shares": 139277.0,
+   "cusip": "61023L207",
+   "sector": null
+  },
+  {
+   "ticker": "BCAX",
+   "name": "BICARA THERAPEUTICS INC",
+   "weight_pct": 0.100742,
+   "shares": 1108180.0,
+   "cusip": "055477103",
+   "sector": null
+  },
+  {
+   "ticker": "SANA",
+   "name": "SANA BIOTECHNOLOGY INC",
+   "weight_pct": 0.094909,
+   "shares": 5541809.0,
+   "cusip": "799566104",
+   "sector": null
+  },
+  {
+   "ticker": "DSGN",
+   "name": "DESIGN THERAPEUTICS INC",
+   "weight_pct": 0.092129,
+   "shares": 948270.0,
+   "cusip": "25056L103",
+   "sector": null
+  },
+  {
+   "ticker": "OCGN",
+   "name": "OCUGEN INC",
+   "weight_pct": 0.090885,
+   "shares": 10988247.0,
+   "cusip": "67577C105",
+   "sector": null
+  },
+  {
+   "ticker": "AKTS",
+   "name": "AKTIS ONCOLOGY INC",
+   "weight_pct": 0.089997,
+   "shares": 517364.0,
+   "cusip": "01021M104",
+   "sector": null
+  },
+  {
+   "ticker": "STTK",
+   "name": "SHATTUCK LABS INC",
+   "weight_pct": 0.089311,
+   "shares": 1859143.0,
+   "cusip": "82024L103",
+   "sector": null
+  },
+  {
+   "ticker": "EBS",
+   "name": "EMERGENT BIOSOLUTIONS INC",
+   "weight_pct": 0.089166,
+   "shares": 1639278.0,
+   "cusip": "29089Q105",
+   "sector": null
+  },
+  {
+   "ticker": "PRTA",
+   "name": "PROTHENA CORP PLC",
+   "weight_pct": 0.081224,
+   "shares": 917391.0,
+   "cusip": "G72800108",
+   "sector": null
+  },
+  {
+   "ticker": "EDIT",
+   "name": "EDITAS MEDICINE INC",
+   "weight_pct": 0.075803,
+   "shares": 4291239.0,
+   "cusip": "28106W103",
+   "sector": null
+  },
+  {
+   "ticker": "ASMB",
+   "name": "ASSEMBLY BIOSCIENCES INC",
+   "weight_pct": 0.073171,
+   "shares": 306144.0,
+   "cusip": "045396207",
+   "sector": null
+  },
+  {
+   "ticker": "AURA",
+   "name": "AURA BIOSCIENCES INC",
+   "weight_pct": 0.070434,
+   "shares": 951848.0,
+   "cusip": "05153U107",
+   "sector": null
+  },
+  {
+   "ticker": "SPRY",
+   "name": "ARS PHARMACEUTICALS INC",
+   "weight_pct": 0.070382,
+   "shares": 2207546.0,
+   "cusip": "82835W108",
+   "sector": null
+  },
+  {
+   "ticker": "VNDA",
+   "name": "VANDA PHARMACEUTICALS INC",
+   "weight_pct": 0.067344,
+   "shares": 1814894.0,
+   "cusip": "921659108",
+   "sector": null
+  },
+  {
+   "ticker": "OVID",
+   "name": "OVID THERAPEUTICS INC",
+   "weight_pct": 0.066732,
+   "shares": 2816155.0,
+   "cusip": "690469101",
+   "sector": null
+  },
+  {
+   "ticker": "ALT",
+   "name": "ALTIMMUNE INC",
+   "weight_pct": 0.064688,
+   "shares": 4515609.0,
+   "cusip": "02155H200",
+   "sector": null
+  },
+  {
+   "ticker": "NGNE",
+   "name": "NEUROGENE INC",
+   "weight_pct": 0.064637,
+   "shares": 270926.0,
+   "cusip": "64135M105",
+   "sector": null
+  },
+  {
+   "ticker": "ALLO",
+   "name": "ALLOGENE THERAPEUTICS INC",
+   "weight_pct": 0.063507,
+   "shares": 9393159.0,
+   "cusip": "019770106",
+   "sector": null
+  },
+  {
+   "ticker": "MDXG",
+   "name": "MIMEDX GROUP INC",
+   "weight_pct": 0.059979,
+   "shares": 1825754.0,
+   "cusip": "602496101",
+   "sector": null
+  },
+  {
+   "ticker": "LXEO",
+   "name": "LEXEO THERAPEUTICS INC",
+   "weight_pct": 0.051175,
+   "shares": 1605129.0,
+   "cusip": "52886X107",
+   "sector": null
+  },
+  {
+   "ticker": "CABA",
+   "name": "CABALETTA BIO INC",
+   "weight_pct": 0.050579,
+   "shares": 5016413.0,
+   "cusip": "12674W109",
+   "sector": null
+  },
+  {
+   "ticker": "CBIO",
+   "name": "CRESCENT BIOPHARMA INC",
+   "weight_pct": 0.047237,
+   "shares": 337352.0,
+   "cusip": "G2545C104",
+   "sector": null
+  },
+  {
+   "ticker": "CMPX",
+   "name": "COMPASS THERAPEUTICS INC",
+   "weight_pct": 0.036161,
+   "shares": 4878293.0,
+   "cusip": "20454B104",
+   "sector": null
+  },
+  {
+   "ticker": "FTH",
+   "name": "FAETH THERAPEUTICS INC",
+   "weight_pct": 0.018464,
+   "shares": 217538.0,
+   "cusip": "81728A207",
+   "sector": null
+  },
+  {
+   "ticker": "BBOT",
+   "name": "BRIDGEBIO ONCOLOGY THERAPEUT",
+   "weight_pct": 0.013025,
+   "shares": 668098.0,
+   "cusip": "107924102",
+   "sector": null
+  }
+ ],
+ "dropped": [
+  {
+   "raw": "-",
+   "name": "CONTRA METSERA INC",
+   "reason": "non-equity row"
+  },
+  {
+   "raw": "-",
+   "name": "SSI US GOV MONEY MARKET CLASS",
+   "reason": "non-equity row"
+  },
+  {
+   "raw": "-",
+   "name": "CONTRA AKERO THERAPEUT",
+   "reason": "non-equity row"
+  },
+  {
+   "raw": "-",
+   "name": "CONTRA INHIBRX INC",
+   "reason": "non-equity row"
+  },
+  {
+   "raw": "-",
+   "name": "CONTRA MIRATI THERAPEU",
+   "reason": "non-equity row"
+  },
+  {
+   "raw": "-",
+   "name": "CONTRA VERVE THERAPEUT",
+   "reason": "non-equity row"
+  },
+  {
+   "raw": "-",
+   "name": "CONTRA BLUEPRINT MEDIC",
+   "reason": "non-equity row"
+  },
+  {
+   "raw": "-",
+   "name": "US DOLLAR",
+   "reason": "non-equity row"
+  },
+  {
+   "raw": "2200963D",
+   "name": "OMNIAB INC   12.5 EARNOUT",
+   "reason": "not a US equity symbol"
+  },
+  {
+   "raw": "2200964D",
+   "name": "OMNIAB INC   15.00 EARNOUT",
+   "reason": "not a US equity symbol"
+  }
+ ]
+}
