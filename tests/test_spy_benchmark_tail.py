@@ -19,6 +19,7 @@ datetime months are 1-indexed (January = 1).
 """
 from __future__ import annotations
 
+import json
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -33,6 +34,7 @@ import backtest as bt  # noqa: E402
 import compute_breadth as cb  # noqa: E402
 import norgate_prices as npx  # noqa: E402
 import run_portfolio as rp  # noqa: E402
+import venue_calendars as vc  # noqa: E402
 from venue_calendars import get_calendar  # noqa: E402
 
 NYSE = get_calendar("NYSE")
@@ -208,13 +210,44 @@ def test_a_blank_row_after_the_cap_is_not_filled():
     assert out is yahoo and record is None
 
 
-def test_no_norgate_series_or_no_cap_changes_nothing():
+@pytest.mark.parametrize("case, reason", [
+    ("no_norgate", "no Norgate series was supplied"),
+    ("no_cap", "no completed session bounds the fill"),
+    ("yahoo_blank", "the Yahoo series has no finite close"),
+    ("norgate_blank", "the Norgate close column has no finite close"),
+    # Thursday 19 November 2026 appears twice in the Yahoo index.
+    ("duplicated_date", "the Yahoo index carries 2026-11-19 more than once, "
+                        "so its tail cannot be read"),
+    # Yahoo sent no row for Monday and Norgate has none either.
+    ("neither_has_a_row", "Norgate carries no session after 2026-11-20 either"),
+])
+def test_every_return_that_fills_nothing_names_its_reason(case, reason):
+    """Review of pull request 17: one fallback text used to cover a
+    duplicated Yahoo date and an entirely blank Norgate column as well as the
+    case it described."""
     truth, norgate = _pair(LIVE_SESSION)
     yahoo = truth.copy()
     yahoo.iloc[-1] = np.nan
-    for ng, cap in ((None, pd.Timestamp(LIVE_SESSION)), (norgate, None)):
-        out, record = bt.resource_spy_tail(yahoo, ng, cap)
-        assert out is yahoo and record is None
+    cap = pd.Timestamp(LIVE_SESSION)
+    if case == "no_norgate":
+        norgate = None
+    elif case == "no_cap":
+        cap = None
+    elif case == "yahoo_blank":
+        yahoo = yahoo * np.nan
+    elif case == "norgate_blank":
+        norgate = norgate * np.nan
+    elif case == "duplicated_date":
+        yahoo = pd.concat([yahoo.iloc[:-2], yahoo.iloc[-3:-2], yahoo.iloc[-2:]])
+        assert list(yahoo.index[yahoo.index.duplicated()]) == [pd.Timestamp("2026-11-19")]
+    else:
+        yahoo, norgate = truth.iloc[:-1], norgate.iloc[:-1]
+
+    out, record = bt.resource_spy_tail(yahoo, norgate, cap)
+
+    assert out is yahoo
+    assert record == {"filled": {}, "declined": {"SPY": reason}}
+    assert json.loads(json.dumps(record)) == record
 
 
 # ---------------------------------------------------------------------------
@@ -374,6 +407,83 @@ def test_a_session_dated_end_is_outside_the_request_and_not_added(site, monkeypa
     assert len(out) == len(yahoo)
 
 
+def _break_calendar(monkeypatch):
+    def broken(*a, **k):
+        raise RuntimeError("calendar unavailable")
+
+    # spy_tail_cap imports get_calendar from the module at call time.
+    monkeypatch.setattr(vc, "get_calendar", broken)
+
+
+def test_a_calendar_fault_leaves_a_complete_fetch_as_fetched(site, monkeypatch,
+                                                           capsys):
+    """The calendar is read on every fresh fetch, a complete one on a
+    yfinance run included, so a fault in it must not raise for the caller
+    (review of pull request 17)."""
+    truth, _ = _pair(LIVE_SESSION)
+    _serve(monkeypatch, truth)                    # fetch_ohlc still fails the test
+    _break_calendar(monkeypatch)
+
+    out = bt.download_spy_close("2026-06-01", "2026-11-28", now_utc=LIVE_NOW)
+
+    pd.testing.assert_series_equal(out, truth, check_names=False, check_freq=False)
+    assert "tail_from_norgate" not in out.attrs
+    assert ("NYSE calendar lookup failed (RuntimeError: calendar unavailable)"
+            in capsys.readouterr().out)
+
+
+def test_a_calendar_fault_on_a_norgate_run_fills_nothing_and_is_refused(
+        site, monkeypatch, capsys):
+    """Without a session bound nothing is filled and Norgate is not asked;
+    the blank row is still named and still reaches the guard."""
+    truth, _ = _pair(LIVE_SESSION)
+    yahoo = truth.copy()
+    yahoo.iloc[-1] = np.nan
+    _serve(monkeypatch, yahoo, source="norgate")  # fetch_ohlc still fails the test
+    _break_calendar(monkeypatch)
+
+    out = bt.download_spy_close("2026-06-01", "2026-11-28", now_utc=LIVE_NOW)
+
+    assert np.isnan(out.iloc[-1]) and "tail_from_norgate" not in out.attrs
+    said = capsys.readouterr().out
+    assert "row(s) present with a NaN close: 2026-11-23" in said
+    assert "NOT re-sourced: the NYSE calendar lookup failed." in said
+    assert rp.spy_benchmark_problem(out, truth.index, truth.index[0]) is not None
+
+
+def test_a_duplicated_yahoo_date_prints_its_own_reason(site, monkeypatch, capsys):
+    """Not "Norgate carries no session after it either": Norgate carries the
+    session, and the fault is in the Yahoo index."""
+    truth, norgate = _pair(LIVE_SESSION)
+    yahoo = truth.copy()
+    yahoo.iloc[-1] = np.nan
+    yahoo = pd.concat([yahoo.iloc[:-2], yahoo.iloc[-3:-2], yahoo.iloc[-2:]])
+    _serve(monkeypatch, yahoo, norgate, "norgate")
+
+    out = bt.download_spy_close("2026-06-01", "2026-11-28", now_utc=LIVE_NOW)
+
+    assert np.isnan(out.iloc[-1]) and len(out) == len(yahoo)
+    assert out.attrs["tail_from_norgate"]["filled"] == {}
+    said = capsys.readouterr().out
+    assert ("DECLINED: the Yahoo index carries 2026-11-19 more than once, "
+            "so its tail cannot be read") in said
+    assert "Norgate carries no session" not in said
+
+
+def test_a_row_neither_vendor_sent_prints_that_reason(site, monkeypatch, capsys):
+    """The one case the old fallback text described."""
+    truth, norgate = _pair(LIVE_SESSION)
+    yahoo = truth.iloc[:-1]
+    _serve(monkeypatch, yahoo, norgate.iloc[:-1], "norgate")
+
+    out = bt.download_spy_close("2026-06-01", "2026-11-28", now_utc=LIVE_NOW)
+
+    pd.testing.assert_series_equal(out, yahoo, check_names=False, check_freq=False)
+    assert ("DECLINED: Norgate carries no session after 2026-11-20 either"
+            in capsys.readouterr().out)
+    assert rp.spy_benchmark_problem(out, truth.index, truth.index[0]) is not None
+
+
 # ---------------------------------------------------------------------------
 # run_portfolio: the guard is kept, and now says which session
 # ---------------------------------------------------------------------------
@@ -451,3 +561,131 @@ def test_the_step_still_refuses_a_benchmark_missing_for_real(step, monkeypatch,
     assert "SPY benchmark unavailable: 1 session(s) lack a finite positive close" in err
     assert "2026-11-23" in err
     assert report.read_text(encoding="utf-8") == "previous verified report"
+
+
+# ---------------------------------------------------------------------------
+# run_portfolio: the provenance key describes the SPY line that is written
+# (review of pull request 17, 2026-11-24)
+# ---------------------------------------------------------------------------
+def _fill_record(dates: list[str]) -> dict:
+    return {"filled": {"SPY": {"dates": list(dates), "overlap_bars": 10,
+                               "max_rel_diff": 0.0}},
+            "declined": {}, "rule": "the rule, as text"}
+
+
+@pytest.mark.parametrize("panel_end, inside, outside", [
+    ("2026-11-20", "2026-11-20", "2026-11-23"),   # the live week
+    ("2026-11-30", "2026-11-30", "2026-12-01"),   # month boundary
+    ("2026-12-31", "2026-12-31", "2027-01-04"),   # year boundary
+])
+def test_only_filled_sessions_in_the_panel_are_published(panel_end, inside, outside):
+    panel = _sessions("2026-11-02", panel_end)
+    assert pd.Timestamp(inside) in panel and pd.Timestamp(outside) not in panel
+
+    # A fill wholly inside the panel is published as recorded.
+    whole = _fill_record([inside])
+    assert rp.spy_tail_in_panel(whole, panel) == whole
+    # A fill after the panel's last date is not in the SPY line.
+    assert rp.spy_tail_in_panel(_fill_record([outside]), panel) is None
+    # A fill that straddles the end keeps the session the line carries.
+    kept = rp.spy_tail_in_panel(_fill_record([inside, outside]), panel)
+    assert kept["filled"]["SPY"] == {"dates": [inside], "overlap_bars": 10,
+                                     "max_rel_diff": 0.0}
+    assert kept["rule"] == "the rule, as text"
+
+
+def test_a_decline_or_no_record_publishes_nothing():
+    panel = _sessions("2026-11-02", LIVE_SESSION)
+    assert rp.spy_tail_in_panel(None, panel) is None
+    declined = {"filled": {}, "declined": {"SPY": "two bases, not spliced"}}
+    assert rp.spy_tail_in_panel(declined, panel) is None
+
+
+@pytest.fixture
+def book(site, tmp_path, monkeypatch):
+    """run_portfolio.main() end to end on a small synthetic panel: the real
+    run_portfolio, every variant, and the real download_spy_close on a fixed
+    clock. Returns ``install(panel_end) -> (spy_truth, report)``; the SPY
+    truth always runs through Monday 23 November 2026."""
+    report = tmp_path / "portfolio_construction.json"
+    monkeypatch.setattr(rp, "OUT_PATH", report)
+    monkeypatch.setattr(rp, "DATA_DIR", tmp_path)       # no ma200_sweep.json here
+    monkeypatch.setattr(rp, "PROJECT_ROOT", tmp_path)   # main() prints OUT_PATH relative to it
+    monkeypatch.setattr(rp, "download_spy_close",
+                        lambda s, e: bt.download_spy_close(s, e, now_utc=LIVE_NOW))
+
+    def install(panel_end: str) -> tuple[pd.Series, Path]:
+        idx = _sessions("2025-11-03", panel_end)
+        names = ["AAA", "BBB", "CCC", "DDD"]
+        closes = pd.DataFrame(
+            {n: np.linspace(100.0, 110.0 + 5.0 * i, len(idx))
+             for i, n in enumerate(names)}, index=idx)
+        breadths = pd.DataFrame(
+            {n: 0.35 + 0.10 * i for i, n in enumerate(names)}, index=idx)
+        monkeypatch.setattr(rp, "build_panels", lambda: (closes, breadths, names))
+        return _series(_sessions("2025-11-03", LIVE_SESSION)), report
+
+    return install
+
+
+@pytest.mark.parametrize("shape", ["nan_row", "row_omitted"])
+def test_a_filled_session_is_written_and_reads_back_as_json(book, monkeypatch,
+                                                           shape):
+    """The write of a non-null key first runs in production on a morning
+    Yahoo withholds the close. json.dumps is called with no ``default``, so a
+    numpy scalar in the record would fail the step on exactly that morning."""
+    truth, report = book(LIVE_SESSION)
+    yahoo = truth.copy()
+    if shape == "nan_row":
+        yahoo.iloc[-1] = np.nan
+    else:
+        yahoo = yahoo.iloc[:-1]
+    _serve(monkeypatch, yahoo, truth.copy(), "norgate")
+
+    assert rp.main() == 0
+
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    tail = payload["spy_benchmark_tail_from_norgate"]
+    assert tail["filled"] == {"SPY": {"dates": [LIVE_SESSION],
+                                      "overlap_bars": cb.NORGATE_TAIL_OVERLAP_BARS,
+                                      "max_rel_diff": 0.0}}
+    assert tail["declined"] == {} and isinstance(tail["rule"], str)
+    spy = payload["results"]["spy_buy_hold"]
+    assert spy["dates"][-1] == LIVE_SESSION
+    # The line's last point is the filled close, not a carried one.
+    assert spy["equity"][-1] == round(truth.iloc[-1] / truth.loc[spy["dates"][0]], 4)
+
+
+def test_an_ordinary_run_writes_a_null_key(book, monkeypatch):
+    truth, report = book(LIVE_SESSION)
+    _serve(monkeypatch, truth, source="norgate")  # fetch_ohlc still fails the test
+
+    assert rp.main() == 0
+
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    assert payload["spy_benchmark_tail_from_norgate"] is None
+    assert payload["results"]["spy_buy_hold"]["dates"][-1] == LIVE_SESSION
+
+
+@pytest.mark.parametrize("norgate_has_monday", [True, False])
+def test_a_session_after_the_panel_is_not_reported_in_the_spy_line(
+        book, monkeypatch, capsys, norgate_has_monday):
+    """The panel is capped at Friday 20 November and Yahoo's SPY frame ends
+    there too. The fetch window runs five days on, so the fetch fills (or
+    declines) Monday 23 November, and the reindex onto the panel drops it.
+    The report must not say a Norgate close is in the SPY line."""
+    truth, report = book("2026-11-20")
+    yahoo = truth.iloc[:-1]
+    norgate = truth.copy() if norgate_has_monday else truth.iloc[:-1]
+    _serve(monkeypatch, yahoo, norgate, "norgate")
+
+    assert rp.main() == 0
+
+    said = capsys.readouterr().out
+    if norgate_has_monday:
+        assert f"Norgate tail re-source SPY (benchmark): {LIVE_SESSION}" in said
+    else:
+        assert "DECLINED: Norgate carries no session after 2026-11-20 either" in said
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    assert payload["spy_benchmark_tail_from_norgate"] is None
+    assert payload["results"]["spy_buy_hold"]["dates"][-1] == "2026-11-20"

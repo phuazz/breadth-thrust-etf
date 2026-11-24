@@ -40,7 +40,9 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from venue_calendars import get_calendar as _venue_cal  # noqa: E402
-from backtest import download_soxx_ohlc, download_spy_close  # noqa: E402
+from backtest import (  # noqa: E402
+    SPY_BENCHMARK_TICKER, download_soxx_ohlc, download_spy_close,
+)
 from etf_registry import get_etf, UNIVERSE_ETFS as ETFS  # noqa: E402
 from run_improvements import compute_stats  # noqa: E402
 from run_ma200_sweep import (  # noqa: E402
@@ -410,6 +412,28 @@ def spy_benchmark_problem(spy_close: pd.Series, index: pd.DatetimeIndex,
     return None
 
 
+def spy_tail_in_panel(record: dict | None,
+                      index: pd.DatetimeIndex) -> dict | None:
+    """The Norgate-sourced sessions that are in the published SPY line, or None.
+
+    ``record`` describes the fetch, and the fetch window runs five days past
+    the panel. A session it filled after the panel's last date is dropped by
+    the reindex onto the panel, and a decline fills nothing, so neither puts a
+    Norgate close into the line. Writing either would have the report say a
+    Norgate close is in the SPY line when none is (review of pull request 17,
+    2026-11-24). Returns the record with its filled dates narrowed to those in
+    ``index``, None when none remain. Pure.
+    """
+    fill = ((record or {}).get("filled") or {}).get(SPY_BENCHMARK_TICKER)
+    if not fill:
+        return None
+    kept = [d for d in fill.get("dates", []) if pd.Timestamp(d) in index]
+    if not kept:
+        return None
+    return {**record,
+            "filled": {SPY_BENCHMARK_TICKER: {**fill, "dates": kept}}}
+
+
 def main() -> int:
     print("Loading panels (closes + ma200 breadth) for all ETFs ...", flush=True)
     closes, breadths, etfs_used = build_panels()
@@ -436,8 +460,10 @@ def main() -> int:
               "is unchanged.", file=sys.stderr)
         return 1
     # Read before the reindex, which need not carry attrs: the record of any
-    # trailing session download_spy_close re-sourced from Norgate.
-    spy_tail_from_norgate = getattr(spy_close, "attrs", {}).get("tail_from_norgate")
+    # trailing session download_spy_close re-sourced from Norgate, narrowed
+    # to the sessions the reindex keeps.
+    spy_tail_from_norgate = spy_tail_in_panel(
+        getattr(spy_close, "attrs", {}).get("tail_from_norgate"), closes.index)
     spy_close = spy_close.reindex(closes.index).ffill()
 
     results: dict[str, dict] = {}
@@ -535,9 +561,11 @@ def main() -> int:
         "leverage_threshold_pct": int(LEVERAGE_THRESHOLD * 100),
         "rebalance_freq": "W-FRI",
         "top_k_values": TOP_K_VALUES,
-        # Provenance of the SPY line: None on an ordinary run; otherwise the
-        # sessions filled from Norgate because Yahoo withheld them, with the
-        # agreement measured on the shared closes (backtest.resource_spy_tail).
+        # Provenance of the SPY line: the sessions in it whose close came from
+        # Norgate because Yahoo withheld them, with the agreement measured on
+        # the shared closes (backtest.resource_spy_tail). None when every
+        # close in the line is Yahoo's, which includes a run whose fetch
+        # filled or declined a session after the panel's last date.
         "spy_benchmark_tail_from_norgate": spy_tail_from_norgate,
         "results": results,
     }
