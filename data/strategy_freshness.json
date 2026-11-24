@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-11-24T05:23:44.019471+00:00",
+ "computed_at_utc": "2026-11-24T06:20:02.589520+00:00",
  "strategies": [
   {
    "sleeve": "A",
@@ -24,8 +24,8 @@
    "sessions_behind": 0,
    "status": "current",
    "laggards": [],
-   "source": "price cache (asset-class ETFs) \u2014 bound carried from the committed report of 2026-11-24T04:22Z; the cache is not present on this checkout",
-   "carried": true,
+   "source": "price cache (asset-class ETFs)",
+   "carried": false,
    "why": null,
    "why_plain": null
   },
@@ -38,8 +38,8 @@
    "sessions_behind": 0,
    "status": "current",
    "laggards": [],
-   "source": "price cache (thematic ETFs) \u2014 bound carried from the committed report of 2026-11-24T04:22Z; the cache is not present on this checkout",
-   "carried": true,
+   "source": "price cache (thematic ETFs)",
+   "carried": false,
    "why": null,
    "why_plain": null,
    "native_provenance": {

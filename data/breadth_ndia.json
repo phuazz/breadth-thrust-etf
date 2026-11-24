@@ -1,6 +1,6 @@
 {
   "etf": "NDIA",
-  "computed_at_utc": "2026-11-24T03:56:20.630740+00:00",
+  "computed_at_utc": "2026-11-24T05:55:20.851820+00:00",
   "constituents_source": "data\\constituents_ndia.json",
   "trading_calendar": "NYSE",
   "start_date": "2018-05-25",
@@ -11,7 +11,7 @@
     "constituents_priced_to": "2026-11-20",
     "roster_end_friday": "2026-11-20",
     "vendor_probe": {
-      "checked_at_utc": "2026-11-24T03:55:34+00:00",
+      "checked_at_utc": "2026-11-24T05:54:32+00:00",
       "probe": "yfinance single-ticker history",
       "last_populated": "2026-11-20",
       "rows": [
@@ -122,7 +122,7 @@
     }
   },
   "tail_verification": {
-    "checked_at_utc": "2026-11-24T03:55:34+00:00",
+    "checked_at_utc": "2026-11-24T05:54:32+00:00",
     "probe": "yfinance single-ticker history",
     "last_populated": "2026-11-20",
     "rows": [
