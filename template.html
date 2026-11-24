@@ -1073,6 +1073,13 @@
       display: none; font-size: 11.5px; font-weight: 400;
       color: var(--ink-faint); margin-top: 2px; line-height: 1.3;
     }
+    /* Group line in a sleeve decision table: the cut the rule draws through
+       the ranked cross-section (held / not held, with the reason). One cell
+       spanning the table, so the mobile column drop below leaves it whole. */
+    table.sleeve-holdings tr.sleeve-group-row td {
+      background: var(--bg-soft); color: var(--ink-soft);
+      font-size: 12px; font-weight: 600; padding-top: 7px; padding-bottom: 7px;
+    }
     table.matrix .num, table.small-table .num {
       font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
       font-variant-numeric: tabular-nums; font-size: 13px;
@@ -2689,7 +2696,7 @@
 
     <section>
       <h2>Strategy A — current selection<span id="a-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
-      <p class="section-sub full">What Strategy A actually holds right now, and why each sector qualified. The rule: rank every US sector ETF by sector-relative breadth (breadth − cross-sectional mean), keep only those above the mean, hold the top K (up to 7) weighted by positive excess share. <strong>The breadth shown here is the value at the last rebalance, not today</strong> — so a sector whose breadth has since crossed the mean is not added until the next rebalance, and a held sector that has since fallen below is not dropped until then either. That is why the Live Signal chart below may show a different ordering than this table. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
+      <p class="section-sub full">What Strategy A holds, and how the signal produced it. Every sector the sleeve ranked is listed in rank order, held or not: its breadth (the share of its constituents above their own 200-day average), that breadth minus the average across the sectors, and the weight that follows. The rule: hold the sectors above the average, up to K = 7, each weighted by its share of the held excess. <strong>The figures are those at the last decision close, not today's</strong> — so a sector whose breadth has since crossed the average is not added until the next rebalance, and a held sector that has since fallen below is not dropped until then either. That is why the Live Signal chart below may show a different ordering than this table. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
       <table class="small-table sleeve-holdings" id="a-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="a-holdings-note" style="margin-top:8px;font-size:12px;"></p>
       <!-- The decided-but-unfilled selection, between the Friday decision
@@ -2801,9 +2808,11 @@
 
     <section>
       <h2>Strategy B — current selection<span id="b-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
-      <p class="section-sub full">What Strategy B actually holds right now, and why each name qualified. The rule: rank every asset-class ETF by how far it sits above its own 200-day average (the signal), keep only those above it, hold the top K weighted by signal share, and route any unfilled slots to cash. <strong>The signal shown here is the value at the last rebalance, not today</strong> — so a name whose live signal (see the Trend snapshot below) has since overtaken a held one is not added until the next rebalance. That is why an ETF can show a higher current signal yet still read "no" in that snapshot. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
+      <p class="section-sub full">What Strategy B holds, and how the signal produced it. Every asset-class ETF the sleeve ranked is listed in rank order, held or not. The rule: rank each by how far it sits above its own 200-day average (the signal), keep only those above it, hold the top K weighted by signal share, and route any unfilled slots to cash. <strong>The signal shown here is the value at the last decision close, not today's</strong> — so a name whose live signal (see the Trend snapshot below) has since overtaken a held one is not added until the next rebalance. That is why an ETF can show a higher current signal yet still read "no" in that snapshot. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
       <table class="small-table sleeve-holdings" id="b-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="b-holdings-note" style="margin-top:8px;font-size:12px;"></p>
+      <!-- Decided-but-unfilled selection; see the Strategy A block. -->
+      <div id="b-pending-selection"></div>
     </section>
 
     <section>
@@ -2888,9 +2897,11 @@
 
     <section>
       <h2>Strategy C — current selection<span id="c-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
-      <p class="section-sub full">What Strategy C actually holds right now, and why each theme qualified. The rule: rank every thematic ETF by distance above its own 200-day MA, keep only those strictly above the <strong>+5% hard signal floor</strong>, then equal-weight (1/K) across the top K=5. If fewer than K names clear the floor, the deficit sits in SHY. The <strong>V6 sleeve-breadth gate</strong> trips when fewer than 30% of the 25-theme universe is above +5% — when active, the entire sleeve exits to SHY for the week. <strong>The signal shown here is the value at the last rebalance, not today</strong> — a name whose live signal has since crossed +5% or fallen below it is not acted on until the next rebalance. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
+      <p class="section-sub full">What Strategy C holds, and how the signal produced it. Every thematic ETF the sleeve ranked is listed in rank order, held or not. The rule: rank each by distance above its own 200-day MA, keep only those strictly above the <strong>+5% hard signal floor</strong>, then equal-weight (1/K) across the top K=5. If fewer than K names clear the floor, the deficit sits in SHY. The <strong>V6 sleeve-breadth gate</strong> trips when fewer than 30% of the 25-theme universe is above +5% — when active, the entire sleeve exits to SHY for the week. <strong>The signal shown here is the value at the last decision close, not today's</strong> — a name whose live signal has since crossed +5% or fallen below it is not acted on until the next rebalance. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
       <table class="small-table sleeve-holdings" id="c-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="c-holdings-note" style="margin-top:8px;font-size:12px;"></p>
+      <!-- Decided-but-unfilled selection; see the Strategy A block. -->
+      <div id="c-pending-selection"></div>
     </section>
 
     <section>
@@ -2988,7 +2999,7 @@
 
     <section>
       <h2>Strategy D — current selection<span id="d-holdings-asof" style="color:var(--ink-faint);font-weight:400;"></span></h2>
-      <p class="section-sub full">What Strategy D actually holds right now, and why each Europe sector qualified. The rule: rank the 5 Stoxx Europe 600 sector UCITS by absolute breadth (% of constituents above their own 200-day MA), hold the top K=3 weighted by breadth share. The 5-sector universe is small enough that all three slots are always filled — there is no cash floor. Unlike Strategy A, D uses <em>absolute</em> breadth rather than sector-relative excess because the cross-sectional mean over only 5 sectors does not add reliable signal. <strong>The breadth shown here is the value at the last rebalance, not today</strong> — a sector whose breadth has since changed is not re-ranked until the next rebalance. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
+      <p class="section-sub full">What Strategy D holds, and how the signal produced it. All 5 Europe sectors the sleeve ranked are listed in rank order, held or not. The rule: rank the 5 Stoxx Europe 600 sector UCITS by absolute breadth (% of constituents above their own 200-day MA), hold the top K=3 weighted by breadth share. The 5-sector universe is small enough that all three slots are always filled — there is no cash floor. Unlike Strategy A, D uses <em>absolute</em> breadth rather than sector-relative excess because the cross-sectional mean over only 5 sectors does not add reliable signal. <strong>The breadth shown here is the value at the last decision close, not today's</strong> — a sector whose breadth has since changed is not re-ranked until the next rebalance. <em>Click any row to expand the underlying ticker's 1Y price chart.</em></p>
       <table class="small-table sleeve-holdings" id="d-holdings-table"><thead></thead><tbody></tbody></table>
       <p class="section-sub full" id="d-holdings-note" style="margin-top:8px;font-size:12px;"></p>
       <!-- Decided-but-unfilled selection; see the Strategy A block. -->
@@ -8662,7 +8673,7 @@ function _renderAHoldings() {
   const asOfEl = document.getElementById('a-holdings-asof');
   const noteEl = document.getElementById('a-holdings-note');
   if (!h || !Array.isArray(th) || !th.length) {
-    tbl.querySelector('tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--ink-faint);">Strategy A holdings unavailable.</td></tr>`;
+    tbl.querySelector('tbody').innerHTML = `<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--ink-faint);">Strategy A holdings unavailable.</td></tr>`;
     return;
   }
   const last = th[th.length - 1];
@@ -8670,40 +8681,10 @@ function _renderAHoldings() {
   // is a week or more old on a held week (2026-09-03).
   const latest = h.latest_rebalance || last;
   const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
-  const K = h.K;
-  const universe = h.etfs_used || [];
-  // Holdings already filtered by the engine to those above the cross-sectional
-  // mean at rebal — sort by absolute breadth desc for display.
-  const holds = (latest.holdings || []).slice().sort(
-    (a, b) => (b.breadth_pct ?? -1e9) - (a.breadth_pct ?? -1e9),
-  );
-  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (up to K=${K} above the mean)${heldSince}`;
-  tbl.querySelector('thead').innerHTML = `<tr>
-    <th class="num">#</th>
-    <th>ETF</th>
-    <th>Sector</th>
-    <th class="num">Breadth at rebalance</th>
-    <th class="num">Weight</th>
-  </tr>`;
-  tbl.querySelector('tbody').innerHTML = holds.map((r, i) => {
-    const x = _sleeveExpandAttrs(r.etf);
-    return `<tr ${x.attrs}>
-    <td class="num">${i + 1}</td>
-    <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong><span class="row-sub">${ETF_DESCRIPTIONS[r.etf] || ''}</span></td>
-    <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
-    <td class="num good"><strong>${r.breadth_pct.toFixed(1)}%</strong></td>
-    <td class="num">${(r.weight * 100).toFixed(1)}%</td>
-  </tr>`;
-  }).join('');
-  _initHoldingsClickExpand(tbl);
-  if (noteEl) {
-    const lowest = holds.length ? holds[holds.length - 1] : null;
-    const dropped = (universe.length || 14) - holds.length;
-    noteEl.innerHTML = lowest
-      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth, which sat above the cross-sectional mean at the ${latest.date} rebalance. ${dropped} of ${universe.length || 14} sectors were below the mean and dropped to keep the sleeve long-only — Strategy A holds <strong>${holds.length} of K=${K} max</strong>${holds.length < K ? ' (narrow leadership regime: most sectors clustered near the average)' : ' (all K slots filled)'}.`
-      : '';
-    noteEl.innerHTML += _pendingFillNote('A', latest.date);
-  }
+  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (up to K=${h.K} above the mean)${heldSince}`;
+  // Every ranked sector with its signal, the cut and the weight: see
+  // "Decision tables" below.
+  _renderHeldDecision('A', tbl, noteEl, latest, h.K);
   _renderPendingSelection('A', latest.date);
 }
 
@@ -8758,7 +8739,16 @@ function _pendingFillNote(sleeve, heldDate) {
     + `border-left:3px solid var(--accent);">${when}: ${body}.${tail}</div>`;
   if (s.status !== 'READY') return wrap('selection held pending complete data; no new ranking');
   const EPS = 1e-6;
-  const CASH = new Set(['SHY', 'IEF']);
+  // The cash line is the book line the sleeve did NOT rank: the payload
+  // ranks no cash proxy, so membership of `signals` is the test. A fixed
+  // list stood here until 2026-11-24 and named IEF, which is a ranked
+  // sleeve B name (the cash proxy has been SHY since Phase 19.1): with IEF
+  // as B's one name above its average this line read "IEF takes the 7
+  // unfilled slots" over a table that selected it. The list survives only
+  // for a payload that carries no signal row.
+  const rankedRow = s.signals || {};
+  const hasRow = Object.keys(rankedRow).length > 0;
+  const CASH = { has: (e) => (hasRow ? !(e in rankedRow) : (e === 'SHY' || e === 'IEF')) };
   const lines = lt.lines.filter(l => l.sleeve === sleeve);
   const sym = (l) => l.traded || _displaySym(l.etf);
   const nav = (v) => `${(v * 100).toFixed(1)}% of NAV`;
@@ -8835,8 +8825,11 @@ function _sleeveSignalRule(sleeve, s) {
   const k = (s && s.top_k) || 3;
   const pct = (dp, signed) => (v) => `${signed && v >= 0 ? '+' : ''}${(v * 100).toFixed(dp)}%`;
   const rules = {
+    // Two decimals since 2026-11-24: the decision table prints the level
+    // and the average beside this figure, and at one decimal the three did
+    // not subtract on the face of the table (60.6% less 60.2% read +0.5pp).
     A: { floor: 0, below: 'the sector average', plural: 'the sector average', word: 'signal',
-         fmt: (v) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(1)}pp` },
+         fmt: (v) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(2)}pp` },
     B: { floor: 0, below: 'its 200-day average', plural: 'their 200-day average', word: 'signal',
          fmt: pct(2, true) },
     C: { floor: 0.05, below: 'the +5% floor', plural: 'the +5% floor', word: 'signal',
@@ -8856,7 +8849,502 @@ function _sleeveRankedOnFillClose(s, lt) {
   return !!(lt && lt.targets_final === true);
 }
 
-// Pending selection under the A and D tables (owner, 2026-10-26). The held
+// ============= Decision tables (2026-11-24) =============================
+// WHY. The current-selection tables listed the held names and one input
+// each. On Tue 24 Nov 2026 the owner read sleeve A's six lines as "most
+// sectors are below their 200-day average" — a level test the sleeve does
+// not run — because the tab printed breadth beside weights that follow from
+// breadth MINUS the sector average, and never printed the average. A 47.9%
+// reading carried 4.0% and a 79.2% reading 40.5% with nothing on the page
+// to connect them, and the eight sectors that failed the cut were a count.
+// Each table is now the whole ranked cross-section at the decision close,
+// in rank order, cut into the groups the rule makes, with the weight that
+// follows: signal, test and outcome on one row, for all four sleeves.
+//
+// SOURCES. Nothing here recomputes a signal. The cross-section is the
+// payload's own row for that close (live_targets `signals`, or
+// `signals_prev` for the book already held; _rank writes both for every
+// ranked name). The weights are the book's: the engine's rebalance record
+// for a held table, the payload's for a pending one. What IS derived is the
+// grouping, and it is checked: the rule applied to the row must select the
+// held set and reproduce its weights to 0.5pp, or the note says it does
+// not. A held name is never relabelled to make the rule look obeyed.
+//
+// WHAT THE CHECK CANNOT SEE (red-team, 2026-11-24). For a HELD table the
+// row (`signals_prev`), the engine's record and sleeve A's weekly series
+// are all recomputed from the same caches by one refresh. After a vendor
+// restatement they still agree with each other, so the check passes on a
+// decision that reads differently from the ranking made before the fill:
+// on the 18 Oct 2026 state the table drops IUCS, which every pre-fill
+// payload for the 12 Oct fill held at 0.23%. The check is one of
+// consistency between published files, not of what was ranked at the
+// time, and the note under a held table says the figures are a re-read.
+// Showing the pre-fill row itself needs the refresh to store it.
+
+// Per-sleeve wording. `own` is the engine record's field for a held name's
+// signal, used only by the held-names-only fallback.
+function _sleeveTableCfg(sleeve) {
+  return ({
+    A: { col3: 'Sector', sigHead: 'Breadth minus sector average',
+         own: 'breadth_pct', ownHead: 'Breadth at rebalance', ownSigned: false },
+    B: { col3: 'Description / family', sigHead: 'Distance from 200-day average',
+         own: 'signal_pct', ownHead: 'Signal at rebalance', ownSigned: true },
+    C: { col3: 'Theme', sigHead: 'Distance from 200-day average',
+         own: 'signal_pct', ownHead: 'Signal at rebalance', ownSigned: true },
+    D: { col3: 'Sector', sigHead: 'Breadth at decision',
+         own: 'breadth_pct', ownHead: 'Breadth at rebalance', ownSigned: false },
+  })[sleeve];
+}
+
+// The ticker cell and its description. Sleeve B labels and colours come
+// from the asset-class universe; A, C and D from ETF_DESCRIPTIONS.
+function _sleeveRowLabel(sleeve, e, tag) {
+  const x = _sleeveExpandAttrs(e);
+  const desc = sleeve === 'B' ? _bcLabel(e) : (ETF_DESCRIPTIONS[e] || '');
+  const sw = sleeve === 'B'
+    ? `<span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(e)};margin-right:8px;vertical-align:middle;"></span>`
+    : _etfSwatch(e);
+  return {
+    x, desc,
+    cell: `<td class="row-label">${x.caret}${sw}<strong>${_displaySym(e)}</strong>${tag || ''}<span class="row-sub">${desc}</span></td>`,
+  };
+}
+
+// The ranked cross-section a book was decided on, from live_targets: the
+// sleeve's `signals` when its decision_session is that close, `signals_prev`
+// when its decision_session_prev is. decision_session_prev is read from the
+// engines' own rebalance records (live_targets._prev_decisions), so after
+// the post-fill refresh it IS the held book's decision close. null when
+// neither row is that close: an early HOLD payload carries no rows, and a
+// payload older than 2026-09 no previous one. Dates are ISO strings
+// compared as text; no date arithmetic.
+function _sleeveCrossSection(sleeve, decision) {
+  const lt = (window.DATA || {}).live_targets;
+  if (!decision || !lt || !Array.isArray(lt.sleeves)) return null;
+  const s = lt.sleeves.find(x => x.sleeve === sleeve);
+  if (!s) return null;
+  const has = (o) => !!o && Object.keys(o).length > 0;
+  const computed = lt.computed_at_utc || '';
+  if (s.decision_session === decision && has(s.signals)) {
+    return { s, sig: s.signals, current: true, computed };
+  }
+  if (s.decision_session_prev === decision && has(s.signals_prev)) {
+    return { s, sig: s.signals_prev, current: false, computed };
+  }
+  return null;
+}
+
+// Sleeve A's level column. The payload carries breadth MINUS the sector
+// average and not the average itself, so the level comes from the weekly
+// sector breadth series the Live Signal chart draws (ma200.per_etf_detail)
+// and is printed ONLY when it reproduces the payload: level minus average
+// must equal the signal for every ranked sector to within TOL. That is one
+// unknown against as many equations as there are sectors, so a series from
+// another feed, another roster or another close cannot pass; the column and
+// the average are then withheld rather than printed beside signals they do
+// not explain, and `why` names which of the two happened.
+// The series is weekly and labelled by the FRIDAY that ends its week
+// (run_ma200_sweep resamples W-FRI and keeps the week's last reading), so a
+// decision made on a Thursday because the Friday is a holiday sits under
+// the next day's label: 15 of 423 sleeve A decisions to 2026-11, and both
+// 24 Dec 2026 and 31 Dec 2026. The reading taken is therefore the first
+// label AT OR AFTER the decision close. ISO strings compare as text; there
+// is no date arithmetic. Whether that reading belongs to this close is
+// settled by the reconciliation and not by the label: a mid-week row finds
+// the coming Friday's reading and fails it.
+function _sleeveALevels(decision, sig) {
+  const det = ((window.DATA || {}).ma200 || {}).per_etf_detail;
+  const names = Object.keys(sig).filter(e => sig[e] != null);
+  if (!det || !decision || !names.length) {
+    return { ok: false, why: 'the weekly sector breadth series is not available' };
+  }
+  const level = {};
+  for (const e of names) {
+    const d = det[e];
+    const dates = (d && Array.isArray(d.breadth_dates)) ? d.breadth_dates : [];
+    const i = dates.findIndex(x => x >= decision);
+    const v = i >= 0 ? d.breadth_pct[i] : null;
+    if (v == null) {
+      return { ok: false, why: 'the weekly sector breadth series has no reading for this close' };
+    }
+    level[e] = v;
+  }
+  const avg = names.reduce((t, e) => t + (level[e] - 100 * sig[e]), 0) / names.length;
+  const TOL = 0.05;  // pp. Series and signals are each published to 0.01pp.
+  if (names.some(e => Math.abs(level[e] - 100 * sig[e] - avg) > TOL)) {
+    return { ok: false, why: 'the weekly sector breadth series does not reproduce these signals for this close' };
+  }
+  return { ok: true, level, avg };
+}
+
+// One decision as a table model: every ranked name in rank order, cut into
+// the groups the sleeve's rule makes, against the book. `book` is
+// {etf: weight}. A book line that is not a ranked name is the cash line
+// (the payload ranks no cash proxy). Groups follow the BOOK for what is
+// held and the RULE for why the rest is not; `reconciles` says whether the
+// rule applied to this row gives that book.
+//   A  top K by signal, then only those above 0 (the sector average);
+//      weight = signal / sum of held signals      (top_k_breadth_weight)
+//   B  above 0, top K; invested share n/K, weight by signal share;
+//      the rest in cash                           (top_k_by_signal)
+//   C  gate first: fewer than threshold x N above the floor -> all cash;
+//      else above the floor, top K, 1/K each      (top_k_equal_weight)
+//   D  top K by signal, then only those above 0 (the same function as A, on
+//      absolute breadth); weight = signal / sum of held signals
+// PUBLISHED PRECISION. The payload rounds signals to four decimals and, for
+// A, B and C after a Europe release, lists them alphabetically rather than
+// in the engine's panel order. Two things the page therefore cannot know
+// are settled by the book instead of guessed: which of two names tied at
+// four decimals the engine ranked first (the held one sorts first), and
+// whether a name printed exactly ON the cut was above it (it is, if held).
+function _decisionModel(sleeve, s, sig, book, opts) {
+  const EPS = 1e-6;
+  const o = opts || {};
+  const rule = _sleeveSignalRule(sleeve, s);
+  const isHeld = (e) => (book[e] || 0) > EPS;
+  const names = Object.keys(sig);
+  const order = {};
+  names.forEach((e, i) => { order[e] = i; });
+  const ranked = names.filter(e => sig[e] != null)
+    .sort((a, b) => (sig[b] - sig[a]) || (isHeld(b) - isHeld(a)) || (order[a] - order[b]));
+  const unranked = names.filter(e => sig[e] == null);
+  const K = (s && s.top_k) || o.K || ranked.length;
+  // Sleeve D has no eligibility floor, but its weight function drops a
+  // reading of zero from the top K (run_portfolio.top_k_breadth_weight).
+  const cut = rule.floor != null ? rule.floor : (sleeve === 'D' ? 0 : null);
+  const passes = (e) => cut == null || sig[e] > cut || (sig[e] === cut && isHeld(e));
+  const eligible = ranked.filter(passes);
+  // Sleeve C's gate ON THE ROW SHOWN: the payload's own record for its
+  // current row, the same count (sleeve_gate_state) for the previous one.
+  let gate = null;
+  if (sleeve === 'C') {
+    const g = (s && s.gate) || {};
+    const thr = g.threshold != null ? g.threshold : 0.30;
+    gate = (o.current && g.n_universe != null)
+      ? { n_above: g.n_above, n_universe: g.n_universe, threshold: thr, fired: !!g.fired }
+      : { n_above: eligible.length, n_universe: ranked.length, threshold: thr,
+          fired: g.enabled !== false && ranked.length > 0
+                 && (eligible.length / ranked.length) < thr };
+    gate.need = Math.ceil(gate.threshold * gate.n_universe - 1e-9);
+    // The engine counts on unrounded signals. A name printed at exactly
+    // the floor can sit either side of it, so the two counts can differ by
+    // such names; the note says so rather than show a count beside rows
+    // that do not add up to it.
+    gate.rowsAbove = ranked.filter(e => sig[e] > cut).length;
+  }
+  const ruleSel = (gate && gate.fired) ? [] : eligible.slice(0, K);
+  const held = ranked.filter(isHeld);
+  // A book line the sleeve did not rank. For B and C that is the cash
+  // proxy. A and D hold no cash, so there it is a line the row cannot
+  // explain, and it fails the reconciliation.
+  const offRow = Object.keys(book).filter(e => isHeld(e) && !(e in sig));
+  const cashSleeve = sleeve === 'B' || sleeve === 'C';
+  const cash = cashSleeve ? offRow : [];
+  const strays = cashSleeve ? [] : offRow;
+  const cashW = cash.reduce((t, e) => t + book[e], 0);
+  const sum = (arr) => arr.reduce((t, e) => t + sig[e], 0);
+  const sumSel = sum(ruleSel);
+  const n = ruleSel.length;
+  const expect = {};
+  ruleSel.forEach(e => {
+    expect[e] = sleeve === 'C' ? 1 / K
+      : sleeve === 'B' ? (n / K) * sig[e] / sumSel
+      : sig[e] / sumSel;
+  });
+  const expectCash = (sleeve === 'B' || sleeve === 'C') ? 1 - n / K : 0;
+  const TOLW = 0.005;
+  const extraHeld = held.filter(e => !(e in expect));
+  const missed = ruleSel.filter(e => !isHeld(e));
+  const weightsOff = !extraHeld.length && !missed.length
+    && (held.some(e => Math.abs(book[e] - expect[e]) > TOLW)
+        || Math.abs(cashW - expectCash) > TOLW);
+  const groupOf = (e) => isHeld(e) ? 'held'
+    : !passes(e) ? 'below'
+    : (gate && gate.fired) ? 'gated' : 'outside';
+  const groups = ['held', 'outside', 'gated', 'below']
+    .map(key => ({ key, rows: ranked.filter(e => groupOf(e) === key) }));
+  groups.push({ key: 'unranked', rows: unranked });
+  const rank = {};
+  ranked.forEach((e, i) => { rank[e] = i + 1; });
+  return {
+    sleeve, rule, K, sig, book, ranked, rank, passes, gate, held, cash, cashW, strays,
+    fmt: rule.fmt,
+    groups: groups.filter(g => g.rows.length),
+    nPass: eligible.length, n: ranked.length, sumHeld: sum(held),
+    extraHeld, missed, weightsOff,
+    reconciles: !extraHeld.length && !missed.length && !weightsOff && !strays.length,
+  };
+}
+
+function _decisionGroupLabel(m, key, pending) {
+  const yes = pending ? 'Selected' : 'Held';
+  const no = pending ? 'Not selected' : 'Not held';
+  if (key === 'unranked') return 'Not ranked: no signal at the decision close';
+  if (m.sleeve === 'D') {
+    if (key === 'held' && m.extraHeld.length) return `${yes}: not all inside the rule, see the check below`;
+    if (key === 'below') return `${no}: no constituent above its 200-day average`;
+    return key === 'held' ? `${yes}: top ${m.K} by breadth` : `${no}: outside the top ${m.K}`;
+  }
+  const cut = { A: 'the sector average', B: 'the 200-day average', C: 'the +5% floor' }[m.sleeve];
+  // A held group that includes a name the rule would not hold cannot carry
+  // the rule as its reason: it points at the check in the note instead.
+  if (key === 'held' && m.extraHeld.length) return `${yes}: not all inside the rule, see the check below`;
+  if (key === 'held') return `${yes}: above ${cut}`;
+  if (key === 'outside') return `${no}: above ${cut}, outside the top ${m.K}`;
+  if (key === 'gated') return `${no}: above ${cut}, sleeve gate on`;
+  return `${no}: below ${cut}`;
+}
+
+// thead and tbody for a decision model. `o.levels` adds sleeve A's level
+// column and puts the average in the signal column's heading, where the
+// reader needs it; `o.isNew` tags a selected name not in the held book.
+function _decisionTableHtml(m, o) {
+  const cfg = _sleeveTableCfg(m.sleeve);
+  const lv = o.levels || null;
+  const ncol = lv ? 6 : 5;
+  const pct = (w) => `${(w * 100).toFixed(1)}%`;
+  // Sleeve A's level, average and excess print to two decimals so that the
+  // three subtract on the face of the table.
+  const sigHead = (m.sleeve === 'A' && lv)
+    ? `Minus sector average (${lv.avg.toFixed(2)}%)` : cfg.sigHead;
+  // A line ranked on a close carried from another venue's earlier session
+  // (payload `native_unconfirmed`, current row only): marked, and the note
+  // gives the range its signal could take.
+  const carried = o.unconfirmed || {};
+  const thead = `<tr>
+    <th class="num">#</th>
+    <th>ETF</th>
+    <th>${cfg.col3}</th>${lv ? `
+    <th class="num">Breadth at decision</th>` : ''}
+    <th class="num">${sigHead}</th>
+    <th class="num">Weight in sleeve</th>
+  </tr>`;
+  let tbody = '';
+  m.groups.forEach(g => {
+    tbody += `<tr class="sleeve-group-row"><td colspan="${ncol}">`
+      + `${_decisionGroupLabel(m, g.key, o.pending)} (${g.rows.length})</td></tr>`;
+    g.rows.forEach(e => {
+      const v = m.sig[e];
+      const isHeld = g.key === 'held';
+      const tag = (isHeld && o.isNew && o.isNew(e))
+        ? '<span style="font-size:11px;color:var(--accent);margin-left:6px;">new</span>' : '';
+      const L = _sleeveRowLabel(m.sleeve, e, tag);
+      // Colour marks the CUT, not the holding: green clears it, red fails
+      // it. Sleeve D has no cut, so only its held rows are marked.
+      const cls = v == null ? ''
+        : m.rule.floor == null ? (isHeld ? 'good' : '')
+        : m.passes(e) ? 'good' : 'bad';
+      tbody += `<tr ${L.x.attrs}>
+      <td class="num">${m.rank[e] || '—'}</td>
+      ${L.cell}
+      <td style="color:var(--ink-faint);font-size:12px;">${L.desc}</td>${lv ? `
+      <td class="num">${lv.level[e] == null ? '—' : lv.level[e].toFixed(2) + '%'}</td>` : ''}
+      <td class="num ${cls}"><strong>${v == null ? '—' : m.fmt(v)}</strong>${carried[e] ? ' †' : ''}</td>
+      <td class="num">${isHeld ? pct(m.book[e]) : '—'}</td>
+    </tr>`;
+    });
+  });
+  // Sleeves A and D only: a book line the ranked row does not contain. It
+  // is listed with its weight and no signal; the note's check names it.
+  m.strays.forEach(e => {
+    const L = _sleeveRowLabel(m.sleeve, e, '');
+    tbody += `<tr ${L.x.attrs}>
+      <td class="num">—</td>
+      ${L.cell}
+      <td style="color:var(--ink-faint);font-size:12px;">In the book, not in the ranked row</td>${lv ? `
+      <td class="num">—</td>` : ''}
+      <td class="num">—</td>
+      <td class="num">${pct(m.book[e])}</td>
+    </tr>`;
+  });
+  if (m.cashW > 0.0005) {
+    const open = Math.max(0, m.K - m.held.length);
+    const why = (m.gate && m.gate.fired)
+      ? `Sleeve gate on: ${m.gate.n_above} of ${m.gate.n_universe} above the +5% floor, ${m.gate.need} needed`
+      : ((m.sleeve === 'B' || m.sleeve === 'C') && open > 0)
+        ? `${open} of ${m.K} slots unfilled`
+        : 'Cash line in the book';
+    tbody += `<tr class="sleeve-cash-row">
+      <td class="num">—</td>
+      <td class="row-label" style="color:var(--ink-faint);">${m.cash.map(e => _displaySym(e)).join(' + ')} (cash)<span class="row-sub">${why}</span></td>
+      <td style="color:var(--ink-faint);font-size:12px;">${why}</td>${lv ? `
+      <td class="num" style="color:var(--ink-faint);">—</td>` : ''}
+      <td class="num" style="color:var(--ink-faint);">—</td>
+      <td class="num">${pct(m.cashW)}</td>
+    </tr>`;
+  }
+  return { thead, tbody, ncol };
+}
+
+// How the weights follow from the row, in the sleeve's own units, with the
+// figure that bridges them (A: the average and the divisor; B: the invested
+// share; C: the gate count; D: the divisor). Every count is read off the
+// model, none is a canned gloss: the old held-table note said "most sectors
+// clustered near the average" whenever fewer than K were held, which on the
+// 20 Nov 2026 close described a cross-section running from 8.3% to 79.2%.
+function _decisionNote(m, o) {
+  const at = `at the ${fmtDateLongSafe(o.decision)} close`;
+  const K = m.K;
+  const n = m.held.length;
+  const verb = o.pending ? 'selects' : 'holds';
+  const done = o.pending ? 'selected' : 'held';
+  const cashName = m.cash.length ? m.cash.map(e => _displaySym(e)).join(' + ') : 'SHY';
+  const parts = [];
+  // "1 of 12 was", "6 of 12 were".
+  const were = (k) => (k === 1 ? 'was' : 'were');
+  if (m.sleeve === 'A') {
+    if (o.levels) {
+      // Equal-weighted across the sector funds, NOT a share of all their
+      // constituents pooled: the S&P 500 fund alone read 48.6% on the
+      // 20 Nov 2026 close against an average of 44.5%.
+      parts.push(`Average of the ${m.n} sector breadth readings ${at}, each fund counting equally: <strong>${o.levels.avg.toFixed(2)}%</strong>.`);
+    }
+    parts.push(`<strong>${m.nPass} of ${m.n}</strong> sectors ${were(m.nPass)} above the average${o.levels ? '' : ` ${at}`}; the sleeve ${verb} ${n}, against a maximum of ${K}.`);
+    if (n) {
+      parts.push(`Each weight is the sector's excess over the average divided by the sum of the ${done} excesses, ${(m.sumHeld * 100).toFixed(2)}pp.`);
+      if (!m.strays.length) {
+        parts.push(`Sleeve A holds no cash: the weights of the sectors above the average sum to 100% whatever the level of the average.`);
+      }
+    }
+    if (!o.levels) {
+      parts.push(`The breadth level and the average are not printed: ${o.levelsWhy || 'the weekly sector breadth series is not available'}.`);
+    }
+  } else if (m.sleeve === 'B') {
+    if (!n) {
+      parts.push(`<strong>None of the ${m.n}</strong> asset classes was above its 200-day average ${at}, so the whole sleeve is in ${cashName}.`);
+    } else {
+      parts.push(`<strong>${m.nPass} of ${m.n}</strong> asset classes ${were(m.nPass)} above ${m.nPass === 1 ? 'its' : 'their'} 200-day average ${at}.`);
+      parts.push(K - n > 0
+        ? `${n} of ${K} slots ${n === 1 ? 'is' : 'are'} taken, so ${n}/${K} of the sleeve is invested and ${K - n}/${K} is in ${cashName}.`
+        : `All ${K} slots are taken, so the sleeve is fully invested.`);
+      parts.push(`Within the invested share each weight is the name's signal divided by the sum of the ${done} signals, ${(m.sumHeld * 100).toFixed(2)}%.`);
+    }
+  } else if (m.sleeve === 'C') {
+    const g = m.gate;
+    parts.push(`<strong>${g.n_above} of ${g.n_universe}</strong> themes ${were(g.n_above)} above the +5% floor ${at}.`);
+    if (g.n_above !== g.rowsAbove) {
+      parts.push(`That is the engine's count on unrounded signals; ${g.rowsAbove} of the rows above print strictly over +5.00%, the difference being names printed exactly on the floor.`);
+    }
+    parts.push(`The sleeve gate needs ${g.need} (${Math.round(g.threshold * 100)}% of ${g.n_universe}).`);
+    parts.push(g.fired
+      ? `Gate on: the whole sleeve is in ${cashName}.`
+      : `Gate off: the top ${K} above the floor take 1/${K} of the sleeve each`
+        + (K - n > 0 ? `; ${K - n} unfilled ${K - n === 1 ? 'slot is' : 'slots are'} in ${cashName}` : '') + '.');
+  } else {
+    parts.push(`The top ${K} of ${m.n} sectors by breadth ${at} are ${done}, provided the reading is above zero; sleeve D holds no cash.`);
+    if (n) {
+      parts.push(`Each weight is the sector's breadth divided by the sum of the ${done} readings, ${(m.sumHeld * 100).toFixed(1)}%.`);
+    }
+  }
+  // Current row only: a line ranked on a close carried from its own venue's
+  // earlier session. The payload has already established that no value in
+  // the range changes the weights or the gate count (_native_materiality),
+  // or the sleeve would be HOLD and this table withheld.
+  const carried = o.unconfirmed || {};
+  Object.keys(carried).filter(e => e in m.sig).forEach(e => {
+    const u = carried[e] || {};
+    const r = Array.isArray(u.signal_range) ? u.signal_range : null;
+    parts.push(`† ${_displaySym(e)} is ranked on a close carried from ${fmtDateLongSafe(u.native_close_carried)}`
+      + (r ? `; its signal could lie between ${m.fmt(r[0])} and ${m.fmt(r[1])}, and no value in that range changes the book` : '')
+      + '.');
+  });
+  if (!m.reconciles) {
+    const list = (arr) => arr.map(e => `${_displaySym(e)} ${m.fmt(m.sig[e])}`).join(', ');
+    parts.push(`<strong>Check:</strong> this cross-section does not reproduce the book.`
+      + (m.extraHeld.length ? ` ${o.pending ? 'Selected' : 'Held'} outside the rule: ${list(m.extraHeld)}.` : '')
+      + (m.missed.length ? ` Inside the rule but not ${done}: ${list(m.missed)}.` : '')
+      + (m.strays.length ? ` In the book but not in the ranked row: ${m.strays.map(e => _displaySym(e)).join(', ')}.` : '')
+      + (m.weightsOff ? ` The rule's weights differ from the book's by more than 0.5pp.` : '')
+      + ` The weights printed are the ${o.pending ? "payload's" : "engine's"}, unchanged.`);
+  }
+  return parts.join(' ');
+}
+
+// Held-names-only table: the fallback when the payload has no row for the
+// held book's decision close. One input per held name, as the tables read
+// before 2026-11-24, and the note says the rest of the row is missing.
+function _heldOnlyTableHtml(sleeve, holds) {
+  const cfg = _sleeveTableCfg(sleeve);
+  const pct = (w) => `${(w * 100).toFixed(1)}%`;
+  const isCash = (r) => (sleeve === 'B' || sleeve === 'C') && r.etf === 'SHY';
+  const rows = holds.filter(r => !isCash(r))
+    .sort((a, b) => (b[cfg.own] ?? -1e9) - (a[cfg.own] ?? -1e9));
+  const cashW = holds.filter(isCash).reduce((t, r) => t + (r.weight || 0), 0);
+  const thead = `<tr>
+    <th class="num">#</th>
+    <th>ETF</th>
+    <th>${cfg.col3}</th>
+    <th class="num">${cfg.ownHead}</th>
+    <th class="num">Weight in sleeve</th>
+  </tr>`;
+  let tbody = rows.map((r, i) => {
+    const L = _sleeveRowLabel(sleeve, r.etf, '');
+    const v = r[cfg.own];
+    const txt = v == null ? '—' : `${cfg.ownSigned && v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+    return `<tr ${L.x.attrs}>
+      <td class="num">${i + 1}</td>
+      ${L.cell}
+      <td style="color:var(--ink-faint);font-size:12px;">${L.desc}</td>
+      <td class="num ${v != null && v < 0 ? 'bad' : 'good'}"><strong>${txt}</strong></td>
+      <td class="num">${pct(r.weight || 0)}</td>
+    </tr>`;
+  }).join('');
+  if (cashW > 0.0005) {
+    tbody += `<tr class="sleeve-cash-row">
+      <td class="num">—</td>
+      <td class="row-label" style="color:var(--ink-faint);">SHY (cash)</td>
+      <td style="color:var(--ink-faint);font-size:12px;">Cash line in the book</td>
+      <td class="num" style="color:var(--ink-faint);">—</td>
+      <td class="num">${pct(cashW)}</td>
+    </tr>`;
+  }
+  return { thead, tbody, ncol: 5 };
+}
+
+// Shared body of the four current-selection tables: the engine's rebalance
+// record against the cross-section it was decided on.
+function _renderHeldDecision(sleeve, tbl, noteEl, latest, K) {
+  const holds = (latest.holdings || []).slice();
+  const decision = latest.decision_date || null;
+  const xs = _sleeveCrossSection(sleeve, decision);
+  let t;
+  let note;
+  if (xs) {
+    const book = {};
+    holds.forEach(r => { book[r.etf] = (book[r.etf] || 0) + (r.weight || 0); });
+    const lv = sleeve === 'A' ? _sleeveALevels(decision, xs.sig) : null;
+    const levels = lv && lv.ok ? lv : null;
+    // `native_unconfirmed` describes the payload's CURRENT row only.
+    const unconfirmed = xs.current ? (xs.s.native_unconfirmed || {}) : {};
+    const m = _decisionModel(sleeve, xs.s, xs.sig, book, { current: xs.current, K });
+    t = _decisionTableHtml(m, { levels, unconfirmed });
+    const c = xs.computed.slice(0, 16);
+    // "Published", not "computed" or "ranked": the stamp is the payload's
+    // last write, and a later Europe release rewrites it while carrying the
+    // A, B and C rows through unchanged. "Re-read", because for a held book
+    // the row and the engine's record are both recomputed from current data
+    // at every refresh (see "What the check cannot see" above).
+    note = _decisionNote(m, { decision, levels, levelsWhy: lv && !lv.ok ? lv.why : null, unconfirmed })
+      + ` Sources: signals from live_targets.json`
+      + (c.length === 16 ? `, published ${fmtDateLongSafe(c.slice(0, 10))} ${c.slice(11, 16)} UTC` : '')
+      + `; weights from the engine's ${latest.date} rebalance record.`
+      + (levels ? ` Breadth levels from the weekly sector breadth series, printed because level minus average reproduces every signal to within 0.05pp.` : '')
+      + ` Both are re-read from current data at each refresh, so after a data restatement this shows the decision as it now reads, which can differ from the ranking made before the fill.`;
+  } else {
+    t = _heldOnlyTableHtml(sleeve, holds);
+    note = `Held names only: the ranked cross-section for `
+      + (decision ? `the ${fmtDateLongSafe(decision)} decision close` : 'this rebalance')
+      + ` is not in the published payload, so the names that were not held and the cut between them cannot be listed.`
+      + (sleeve === 'A' ? ` The column is the breadth level; the sleeve ranks on the level minus the sector average.` : '');
+  }
+  tbl.querySelector('thead').innerHTML = t.thead;
+  tbl.querySelector('tbody').innerHTML = t.tbody;
+  _initHoldingsClickExpand(tbl);
+  if (noteEl) noteEl.innerHTML = note + _pendingFillNote(sleeve, latest.date);
+}
+
+// Pending selection under the sleeve tables (owner, 2026-10-26; B and C
+// added 2026-11-24). The held
 // table is dated by the last rebalance the engine could MARK — a backtest
 // emits a rebalance only where the Monday execution bar exists — so between
 // the Friday decision close and the Monday fill it sits a week behind the
@@ -8879,12 +9367,13 @@ function _sleeveRankedOnFillClose(s, lt) {
 // recorded by the post-fill refresh". CI never rolls next_fill forward
 // (see _pendingFillNote), so after the fill this is still the fill's own
 // payload, not next week's provisional ranking.
-// Units are the payload's own (see _sleeveSignalRule): sleeve A's column is
-// breadth minus the sector average in pp, the ranking variable, where the
-// held table prints absolute breadth — the caption says so rather than
-// converting, because the average is not in the payload and a derived figure
-// would be a second source for one number. Sleeve D's is absolute breadth,
-// the held table's own basis. Dates are ISO strings compared as text.
+// The table is a decision table (see "Decision tables" above): every ranked
+// name with its signal in the payload's own units (_sleeveSignalRule), the
+// cut, and the weight. Sleeve A's signal is breadth minus the sector
+// average in pp; its level and the average are printed beside it only when
+// the weekly breadth series reproduces the payload (_sleeveALevels), so the
+// average is never a second, unchecked source for one number. Sleeve D's is
+// absolute breadth. Dates are ISO strings compared as text.
 function _renderPendingSelection(sleeve, heldDate) {
   const host = document.getElementById(`${sleeve.toLowerCase()}-pending-selection`);
   if (!host) return;
@@ -8897,25 +9386,22 @@ function _renderPendingSelection(sleeve, heldDate) {
   const phase = s.fill_date > today ? 'pre' : s.fill_date === today ? 'due' : 'post';
   if (s.status !== 'READY' || !_sleeveRankedOnFillClose(s, lt)) return;
   const EPS = 1e-6;
-  const CASH = new Set(['SHY', 'IEF']);
   const weights = s.weights || {};
   const sig = s.signals || {};
-  const rule = _sleeveSignalRule(sleeve, s);
-  const bySignal = (a, b) => ((sig[b] ?? -1e9) - (sig[a] ?? -1e9)) || ((weights[b] || 0) - (weights[a] || 0));
-  const chosen = Object.keys(weights).filter(e => (weights[e] || 0) > EPS && !CASH.has(e)).sort(bySignal);
-  if (!chosen.length) return;
-  const cashW = Object.keys(weights).filter(e => CASH.has(e)).reduce((t, e) => t + (weights[e] || 0), 0);
+  // A book with no line at all is not a selection. A book that is ALL cash
+  // is one (sleeves B and C on the 20 Nov 2026 close), and its table is the
+  // names that did not clear the cut.
+  if (!Object.keys(sig).length || !Object.keys(weights).some(e => (weights[e] || 0) > EPS)) return;
   const lines = lt.lines.filter(l => l.sleeve === sleeve);
   const wasHeld = new Set(lines.filter(l => l.held > EPS).map(l => l.etf));
-  const exits = lines.filter(l => l.held > EPS && l.target <= EPS && !CASH.has(l.etf))
+  // Ranked names only: the cash line is a destination, not an exit.
+  const exits = lines.filter(l => l.held > EPS && l.target <= EPS && (l.etf in sig))
     .sort((a, b) => (sig[b.etf] ?? -1e9) - (sig[a.etf] ?? -1e9));
-  const K = s.top_k || chosen.length;
-  const ranked = Object.keys(sig).filter(e => !CASH.has(e));
-  const notChosen = ranked.filter(e => !((weights[e] || 0) > EPS)).sort(bySignal);
-  const fmtSig = (v) => (v == null ? '—' : rule.fmt(v));
-  const list = (arr) => arr.map(e => `${_displaySym(e)} ${fmtSig(sig[e])}`).join(', ');
-  const isA = sleeve === 'A';
-  const sigHead = isA ? 'Breadth − sector avg at decision' : 'Breadth at decision';
+  const lv = sleeve === 'A' ? _sleeveALevels(s.decision_session, sig) : null;
+  const levels = lv && lv.ok ? lv : null;
+  const unconfirmed = s.native_unconfirmed || {};
+  const m = _decisionModel(sleeve, s, sig, weights, { current: true });
+  const t = _decisionTableHtml(m, { pending: true, levels, unconfirmed, isNew: (e) => !wasHeld.has(e) });
   // section-sub.full for the 66ch measure every prose run in a tab takes;
   // without it this div ran 175 characters wide at 1280px.
   const head = `<div class="section-sub full pending-selection-head" style="margin-top:16px;margin-bottom:0;`
@@ -8933,68 +9419,25 @@ function _renderPendingSelection(sleeve, heldDate) {
         + `above is the previous book until the refresh lands; this is the book decided on the `
         + `${fmtDateLongSafe(s.decision_session)} close for that fill. `)
     + `Weights are within the sleeve, as above.</div>`;
-  const rows = chosen.map((e, i) => {
-    const x = _sleeveExpandAttrs(e);
-    const v = sig[e];
-    const tag = wasHeld.has(e) ? '' : '<span style="font-size:11px;color:var(--accent);margin-left:6px;">new</span>';
-    const cls = v == null ? '' : (isA && v < 0 ? 'bad' : 'good');
-    return `<tr ${x.attrs}>
-      <td class="num">${i + 1}</td>
-      <td class="row-label">${x.caret}${_etfSwatch(e)}<strong>${_displaySym(e)}</strong>${tag}<span class="row-sub">${ETF_DESCRIPTIONS[e] || ''}</span></td>
-      <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[e] || ''}</td>
-      <td class="num ${cls}"><strong>${fmtSig(v)}</strong></td>
-      <td class="num">${((weights[e] || 0) * 100).toFixed(1)}%</td>
-    </tr>`;
-  }).join('');
-  const cashRow = cashW > 0.0005 ? `<tr class="sleeve-cash-row">
-      <td class="num">—</td>
-      <td class="row-label" style="color:var(--ink-faint);">Cash floor</td>
-      <td style="color:var(--ink-faint);font-size:12px;">Fewer than K=${K} names eligible</td>
-      <td class="num" style="color:var(--ink-faint);">—</td>
-      <td class="num">${(cashW * 100).toFixed(1)}%</td>
-    </tr>` : '';
   const tableId = `${sleeve.toLowerCase()}-pending-table`;
-  const table = `<table class="small-table sleeve-holdings" id="${tableId}" style="margin-top:8px;"><thead><tr>
-    <th class="num">#</th>
-    <th>ETF</th>
-    <th>Sector</th>
-    <th class="num">${sigHead}</th>
-    <th class="num">Weight</th>
-  </tr></thead><tbody>${rows}${cashRow}</tbody></table>`;
-  // The cutoff in the held table's form, then every ranked name the payload
-  // did not choose, with its signal: the margin is what a review looks for.
-  const parts = [];
-  const lowest = chosen[chosen.length - 1];
-  const open = Math.max(0, K - chosen.length);
-  if (isA) {
-    const above = ranked.filter(e => (sig[e] ?? -1) > 0).length;
-    const outsideK = notChosen.filter(e => (sig[e] ?? -1) > 0);
-    const belowMean = notChosen.filter(e => !((sig[e] ?? -1) > 0));
-    parts.push(`Cutoff: the lowest-ranked selection is <strong>${_displaySym(lowest)}</strong> at `
-      + `${fmtSig(sig[lowest])} vs the sector average. ${above} of ${ranked.length} sectors `
-      + `${above === 1 ? 'is' : 'are'} above the average — holds <strong>${chosen.length} of K=${K}</strong>`
-      + (open ? ` (${open} slot${open === 1 ? '' : 's'} unfilled; the weight is spread over the `
-                + `${chosen.length} by positive excess share)` : ' (all K slots filled)') + '.');
-    if (outsideK.length) parts.push(`Above the average but outside the top ${K}: ${list(outsideK)}.`);
-    if (belowMean.length) parts.push(`Below the sector average: ${list(belowMean)}.`);
-  } else {
-    parts.push(`Cutoff: the lowest-ranked selection is <strong>${_displaySym(lowest)}</strong> at `
-      + `${fmtSig(sig[lowest])} breadth — holds <strong>${chosen.length} of K=${K}</strong>.`);
-    if (notChosen.length) parts.push(`Below the cut: ${list(notChosen)}.`);
-  }
+  const table = `<table class="small-table sleeve-holdings" id="${tableId}" style="margin-top:8px;">`
+    + `<thead>${t.thead}</thead><tbody>${t.tbody}</tbody></table>`;
+  const parts = [_decisionNote(m, { pending: true, decision: s.decision_session, levels,
+                                    levelsWhy: lv && !lv.ok ? lv.why : null, unconfirmed })];
   if (exits.length) {
     parts.push(`${phase === 'post' ? 'Left' : 'Leaves'} the book at the fill: `
-      + `${exits.map(l => `${_displaySym(l.etf)} ${fmtSig(sig[l.etf])}`).join(', ')}.`);
+      + `${exits.map(l => `${_displaySym(l.etf)} ${sig[l.etf] == null ? '—' : m.fmt(sig[l.etf])}`).join(', ')}.`);
   }
-  parts.push(isA
-    ? `Basis: sleeve A ranks on breadth minus the cross-sectional sector average at the decision `
-      + `close, so this column is the ranking variable in pp; the held table above prints absolute breadth.`
-    : `Basis: absolute breadth (share of constituents above their 200-day average) at the decision `
-      + `close, as in the held table above.`);
+  // "Published": the stamp is the payload's last write. A Europe release
+  // rewrites it and carries the A, B and C rows through unchanged, so it is
+  // not the time those three were ranked (2026-11-22: 10:25 against 01:32).
   const computed = (lt.computed_at_utc || '').slice(0, 16);
-  parts.push(`Ranked by the local refresh`
-    + (computed.length === 16 ? ` on ${fmtDateLongSafe(computed.slice(0, 10))} ${computed.slice(11, 16)} UTC` : '')
-    + `, from live_targets.json — the same payload as the Next Fill card.`);
+  parts.push(`Source: live_targets.json`
+    + (computed.length === 16 ? `, published ${fmtDateLongSafe(computed.slice(0, 10))} ${computed.slice(11, 16)} UTC` : '')
+    + ` — the same payload as the Next Fill card.`);
+  if (levels) {
+    parts.push(`Breadth levels from the weekly sector breadth series, printed because level minus average reproduces every signal to within 0.05pp.`);
+  }
   host.innerHTML = head + table
     + `<p class="section-sub full" style="margin-top:8px;font-size:12px;">${parts.join(' ')}</p>`;
   _initHoldingsClickExpand(document.getElementById(tableId));
@@ -9018,55 +9461,13 @@ function _renderCHoldings() {
   // for a book the 31 Aug rebalance had held.
   const latest = h.latest_rebalance || last;
   const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
-  const K = h.K;
-  const holds = (latest.holdings || []).slice().sort(
-    (a, b) => (b.signal_pct ?? -1e9) - (a.signal_pct ?? -1e9),
-  );
-  const invested = holds.reduce((s, x) => s + (x.weight || 0), 0);
-  const cash = Math.max(0, 1 - invested);
-  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${K} above the +5% floor, equal-weighted)${heldSince}`;
-  tbl.querySelector('thead').innerHTML = `<tr>
-    <th class="num">#</th>
-    <th>ETF</th>
-    <th>Theme</th>
-    <th class="num">Signal at rebalance</th>
-    <th class="num">Weight</th>
-  </tr>`;
-  const rows = holds.map((r, i) => {
-    const sig = r.signal_pct;
-    const sgn = sig >= 0 ? '+' : '';
-    const x = _sleeveExpandAttrs(r.etf);
-    return `<tr ${x.attrs}>
-      <td class="num">${i + 1}</td>
-      <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong><span class="row-sub">${ETF_DESCRIPTIONS[r.etf] || ''}</span></td>
-      <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
-      <td class="num ${sig >= 0 ? 'good' : 'bad'}"><strong>${sgn}${sig.toFixed(1)}%</strong></td>
-      <td class="num">${(r.weight * 100).toFixed(1)}%</td>
-    </tr>`;
-  }).join('');
-  // If the entire sleeve is in cash, the holdings array is empty — that is
-  // the V6 sleeve-breadth gate having tripped (or every theme dropped below
-  // +5%); call it out explicitly.
-  const sleeveOff = holds.length === 0;
-  const cashRow = cash > 0.0005 ? `<tr class="sleeve-cash-row">
-      <td class="num">—</td>
-      <td class="row-label" style="color:var(--ink-faint);">Cash floor (SHY)</td>
-      <td style="color:var(--ink-faint);font-size:12px;">${sleeveOff ? 'V6 sleeve-breadth gate active OR no themes above +5%' : `Fewer than K=${K} themes above the +5% signal floor`}</td>
-      <td class="num" style="color:var(--ink-faint);">—</td>
-      <td class="num">${(cash * 100).toFixed(1)}%</td>
-    </tr>` : '';
-  tbl.querySelector('tbody').innerHTML = rows + cashRow;
-  _initHoldingsClickExpand(tbl);
-  if (noteEl) {
-    const lowest = holds.length ? holds[holds.length - 1] : null;
-    let txt = '';
-    if (sleeveOff) {
-      txt = `<strong>Entire sleeve in SHY this week</strong> — either the V6 sleeve-breadth gate tripped (fewer than 30% of the 25-theme universe above +5%) or no themes cleared the +5% floor. The whole 10% sleeve sits in 1-3y Treasuries until the next rebal.`;
-    } else if (lowest) {
-      txt = `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day MA — well above the +5% hard floor. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in SHY because fewer than K=${K} themes cleared the floor at the ${latest.date} rebalance.` : `All K=${K} slots were filled at the ${latest.date} rebalance, so no cash is held.`} Any theme whose live signal has since crossed +5% (or a held one that has since fallen below) is not acted on until the next rebal.`;
-    }
-    noteEl.innerHTML = txt + _pendingFillNote('C', latest.date);
-  }
+  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${h.K} above the +5% floor, equal-weighted)${heldSince}`;
+  // The engine's record carries the cash proxy as a holding. It used to be
+  // drawn as a ranked name, so a gated sleeve read "the lowest-ranked
+  // holding is SHY at +0.4% ... well above the +5% hard floor ... no cash is
+  // held". The decision table books it as the cash line it is.
+  _renderHeldDecision('C', tbl, noteEl, latest, h.K);
+  _renderPendingSelection('C', latest.date);
 }
 
 function _renderDHoldings() {
@@ -9084,36 +9485,8 @@ function _renderDHoldings() {
   // The last rebalance RUN; trade_history is the change log (2026-09-03).
   const latest = h.latest_rebalance || last;
   const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
-  const K = h.K;
-  const holds = (latest.holdings || []).slice().sort(
-    (a, b) => (b.breadth_pct ?? -1e9) - (a.breadth_pct ?? -1e9),
-  );
-  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${K} by breadth)${heldSince}`;
-  tbl.querySelector('thead').innerHTML = `<tr>
-    <th class="num">#</th>
-    <th>ETF</th>
-    <th>Sector</th>
-    <th class="num">Breadth at rebalance</th>
-    <th class="num">Weight</th>
-  </tr>`;
-  tbl.querySelector('tbody').innerHTML = holds.map((r, i) => {
-    const x = _sleeveExpandAttrs(r.etf);
-    return `<tr ${x.attrs}>
-    <td class="num">${i + 1}</td>
-    <td class="row-label">${x.caret}${_etfSwatch(r.etf)}<strong>${_displaySym(r.etf)}</strong><span class="row-sub">${ETF_DESCRIPTIONS[r.etf] || ''}</span></td>
-    <td style="color:var(--ink-faint);font-size:12px;">${ETF_DESCRIPTIONS[r.etf] || ''}</td>
-    <td class="num good"><strong>${r.breadth_pct.toFixed(1)}%</strong></td>
-    <td class="num">${(r.weight * 100).toFixed(1)}%</td>
-  </tr>`;
-  }).join('');
-  _initHoldingsClickExpand(tbl);
-  if (noteEl) {
-    const lowest = holds.length ? holds[holds.length - 1] : null;
-    noteEl.innerHTML = lowest
-      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at ${lowest.breadth_pct.toFixed(1)}% breadth at the ${latest.date} rebalance. The 2 Europe sectors not in the table sat below this — they are excluded until the next rebal. All K=${K} slots are always filled (the 5-ETF universe is larger than K), so no cash is held.`
-      : '';
-    noteEl.innerHTML += _pendingFillNote('D', latest.date);
-  }
+  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${h.K} by breadth)${heldSince}`;
+  _renderHeldDecision('D', tbl, noteEl, latest, h.K);
   _renderPendingSelection('D', latest.date);
 }
 
@@ -9132,46 +9505,11 @@ function _renderBHoldings() {
   // The last rebalance RUN; trade_history is the change log (2026-09-03).
   const latest = h.latest_rebalance || last;
   const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
-  const K = h.K;
-  const holds = (latest.holdings || []).slice().sort((a, b) => (b.signal_pct ?? -1e9) - (a.signal_pct ?? -1e9));
-  const invested = holds.reduce((s, x) => s + (x.weight || 0), 0);
-  const cash = Math.max(0, 1 - invested);
-  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${K} by trend)${heldSince}`;
-  tbl.querySelector('thead').innerHTML = `<tr>
-    <th class="num">#</th>
-    <th>ETF</th>
-    <th>Description / family</th>
-    <th class="num">Signal at rebalance</th>
-    <th class="num">Weight</th>
-  </tr>`;
-  const rows = holds.map((r, i) => {
-    const sig = r.signal_pct;
-    const sgn = sig >= 0 ? '+' : '';
-    const x = _sleeveExpandAttrs(r.etf);
-    return `<tr ${x.attrs}>
-      <td class="num">${i + 1}</td>
-      <td class="row-label">${x.caret}<span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${_bcColour(r.etf)};margin-right:8px;vertical-align:middle;"></span><strong>${_displaySym(r.etf)}</strong><span class="row-sub">${_bcLabel(r.etf)}</span></td>
-      <td style="color:var(--ink-faint);font-size:12px;">${_bcLabel(r.etf)}</td>
-      <td class="num ${sig >= 0 ? 'good' : 'bad'}"><strong>${sgn}${sig.toFixed(1)}%</strong></td>
-      <td class="num">${(r.weight * 100).toFixed(1)}%</td>
-    </tr>`;
-  }).join('');
-  const cashRow = cash > 0.0005 ? `<tr class="sleeve-cash-row">
-      <td class="num">—</td>
-      <td class="row-label" style="color:var(--ink-faint);">Cash floor</td>
-      <td style="color:var(--ink-faint);font-size:12px;">Fewer than K=${K} ETFs above their 200d trend</td>
-      <td class="num" style="color:var(--ink-faint);">—</td>
-      <td class="num">${(cash * 100).toFixed(1)}%</td>
-    </tr>` : '';
-  tbl.querySelector('tbody').innerHTML = rows + cashRow;
-  _initHoldingsClickExpand(tbl);
-  if (noteEl) {
-    const lowest = holds.length ? holds[holds.length - 1] : null;
-    noteEl.innerHTML = lowest
-      ? `Cutoff: the lowest-ranked holding is <strong>${_displaySym(lowest.etf)}</strong> at +${lowest.signal_pct.toFixed(1)}% above its 200-day average. Any positive-trend asset class ranked below it — or above the line only after ${latest.date} — is excluded until the next rebalance. ${cash > 0.0005 ? `${(cash * 100).toFixed(1)}% sits in cash because fewer than K=${K} names were in an uptrend.` : `All K=${K} slots were filled at the ${latest.date} rebalance, so no cash is held.`}`
-      : '';
-    noteEl.innerHTML += _pendingFillNote('B', latest.date);
-  }
+  if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${h.K} by trend)${heldSince}`;
+  // SHY in the engine's record is the cash line, not a ranked name: see
+  // _renderCHoldings.
+  _renderHeldDecision('B', tbl, noteEl, latest, h.K);
+  _renderPendingSelection('B', latest.date);
 }
 
 // ----------- Portfolio tab ---------------------------------------------
