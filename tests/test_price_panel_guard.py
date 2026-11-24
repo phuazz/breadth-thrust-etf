@@ -468,6 +468,9 @@ def test_spy_close_cache_is_never_truncated_by_a_short_fetch(tmp_path,
 
     spy_path = tmp_path / "spy_close_cache.parquet"
     monkeypatch.setattr(backtest, "SPY_CACHE", spy_path)
+    # A yfinance run: the benchmark tail re-source (2026-11-24) asks Norgate
+    # only when the environment does, and this test must not reach the feed.
+    monkeypatch.delenv("BTE_PRICE_SOURCE", raising=False)
     full = _ohlc()[["Close"]]
     full.to_parquet(spy_path)
     short = full.iloc[150:]
