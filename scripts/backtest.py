@@ -313,11 +313,174 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
     )
 
 
-def download_spy_close(start: str, end: str) -> pd.Series:
+# ---------------------------------------------------------------------------
+# Norgate tail re-source for the SPY benchmark (2026-11-24)
+#
+# THE FAILURE THIS CLOSES. The post-fill refresh starts at 01:00 UTC and
+# reaches run_portfolio.py about 80 minutes in. On 10, 17, 18 and 24 November
+# 2026 that step failed its first attempt with "SPY benchmark unavailable:
+# 1 session(s) lack a finite positive close". The cache the 24 November
+# attempt wrote at 02:22:17 UTC holds what Yahoo returned: the row for
+# 2026-11-23, the newest US session, present with a NaN close. Yahoo served
+# 722.2899780273438 for that session by 03:36 UTC, and Norgate carried the
+# same figure throughout. The traded lines never saw the hole, because
+# download_soxx_ohlc takes them whole from Norgate; this benchmark was the
+# one input of the step that still hung on a fresh Yahoo close.
+#
+# THE RULE is the one compute_breadth.resource_tail_from_norgate already
+# applies to kept US columns, reused rather than restated: only the trailing
+# sessions after the last close Yahoo did serve, at most
+# NORGATE_TAIL_MAX_SESSIONS of them, only when the last
+# NORGATE_TAIL_OVERLAP_BARS shared closes agree within NORGATE_TAIL_RTOL, and
+# never past the last completed NYSE session inside the requested window.
+# The Yahoo history is not touched, so no published benchmark figure moves.
+# Measured 2026-11-24 over 2017-06-30 -> 2026-11-20 (2362 sessions): level
+# ratio Yahoo/Norgate within 2.4e-4 (worst 2019-07-16), 0.0 on the last ten.
+#
+# WHAT IT DOES NOT DO. An interior hole, a zero or infinite close, a tail
+# Norgate does not carry, a feed that is down and a yfinance run are all
+# returned exactly as fetched, and run_portfolio.spy_benchmark_problem
+# refuses them as before. Callers that forward-fill the benchmark
+# (run_topk_robustness, run_europe_rotation) get the real close instead of a
+# carried one on a Norgate run and are otherwise unchanged.
+# ---------------------------------------------------------------------------
+SPY_BENCHMARK_TICKER = "SPY"
+_NORGATE_ASKING_SOURCES = ("norgate", "auto")
+
+
+def spy_tail_cap(end, now_utc: datetime) -> pd.Timestamp | None:
+    """Newest NYSE session a benchmark re-source may fill, or None.
+
+    The last session whose close has passed at ``now_utc`` and whose date is
+    before ``end``. yfinance treats ``end`` as exclusive, so a session dated
+    ``end`` was never part of the request and is not filled either. Read
+    from the venue calendar (pandas_market_calendars), never from a weekday
+    count: a holiday or an early close is the calendar's to know.
+    """
+    from session_bounds import last_completed_session_on  # noqa: PLC0415
+    from venue_calendars import get_calendar  # noqa: PLC0415
+
+    now = pd.Timestamp(now_utc)
+    now = now.tz_localize("UTC") if now.tz is None else now.tz_convert("UTC")
+    # Midnight UTC opening the date ``end``: every NYSE close on an earlier
+    # date has passed by then, and none on ``end`` itself has.
+    window_end = pd.Timestamp(str(end)[:10]).tz_localize("UTC")
+    return last_completed_session_on(get_calendar("NYSE"),
+                                     min(now, window_end).to_pydatetime())
+
+
+def resource_spy_tail(close: pd.Series, norgate_close: pd.Series | None,
+                      cap) -> tuple[pd.Series, dict | None]:
+    """Fill the benchmark's trailing sessions from Norgate, guarded. Pure.
+
+    ``close`` is the Yahoo series as fetched. A trailing session is one after
+    the last close it carries and on or before ``cap``, whether Yahoo sent
+    the row with a NaN (the 2026-11-24 shape) or left the row out. Returns
+    ``(series, record)``: the series is ``close`` itself unless a session was
+    filled, and the record is compute_breadth.resource_tail_from_norgate's,
+    None when there was nothing to consider.
+    """
+    import compute_breadth as cb  # noqa: PLC0415  (one rule, one implementation)
+
+    if norgate_close is None or cap is None or not close.index.is_unique:
+        return close, None
+    priced = pd.to_numeric(close, errors="coerce").dropna()
+    ng = pd.to_numeric(norgate_close, errors="coerce").dropna()
+    if priced.empty or ng.empty:
+        return close, None
+    cap = pd.Timestamp(cap)
+    last = priced.index.max()
+    # A row Yahoo left out is added blank, so both shapes reach the rule as
+    # the same thing: a session the incumbent's index has and its values lack.
+    omitted = ng.index[(ng.index > last) & (ng.index <= cap)]
+    t = SPY_BENCHMARK_TICKER
+    frame = close.reindex(close.index.union(omitted)).to_frame(t)
+    filled, record = cb.resource_tail_from_norgate(
+        frame, ng.to_frame(t), [t], [t], through=cap)
+    if not record or t not in record.get("filled", {}):
+        return close, record
+    return filled[t].rename(close.name), record
+
+
+def _settle_spy_tail(out: pd.DataFrame, start: str, end: str,
+                     now_utc: datetime) -> tuple[pd.DataFrame, dict | None]:
+    """Say what Yahoo returned at the benchmark's tail and, on a Norgate run,
+    re-source the sessions it withheld. Returns ``(frame, record)``."""
+    import os  # noqa: PLC0415
+
+    close = pd.to_numeric(out["Close"], errors="coerce")
+    priced = close.dropna()
+    if priced.empty:
+        return out, None
+    last = priced.index.max()
+    cap = spy_tail_cap(end, now_utc)
+    blank = [d for d in close.index[close.isna()]
+             if d > last and (cap is None or d <= cap)]
+    behind = cap is not None and last < cap
+    if not blank and not behind:
+        return out, None
+    # The fact a failed step could not state before 2026-11-24: which
+    # session, and whether the vendor sent a blank row or no row at all.
+    shape = (f"row(s) present with a NaN close: "
+             f"{', '.join(str(d.date()) for d in blank)}" if blank
+             else "no row after it in the response")
+    print(f"  SPY benchmark: Yahoo's last finite close is {last.date()}; "
+          f"last completed NYSE session in the window is "
+          f"{cap.date() if cap is not None else 'unknown'} ({shape}).",
+          flush=True)
+    source = os.environ.get("BTE_PRICE_SOURCE", "").strip().lower()
+    if source not in _NORGATE_ASKING_SOURCES:
+        print("  SPY benchmark tail NOT re-sourced: the run did not ask for "
+              "Norgate (BTE_PRICE_SOURCE).", flush=True)
+        return out, None
+    if cap is None:
+        print("  SPY benchmark tail NOT re-sourced: the NYSE calendar gave no "
+              "completed session to bound the fill.", flush=True)
+        return out, None
+    # A fault in the re-source must leave the series exactly as fetched: the
+    # callers that forward-fill would otherwise crash where they used to run,
+    # and run_portfolio's guard refuses the hole either way. The reason is
+    # printed, so the failure is no quieter than it was.
+    try:
+        import norgate_prices  # noqa: PLC0415
+        ng = norgate_prices.fetch_ohlc(SPY_BENCHMARK_TICKER, start, end)
+        if ng is None:
+            print("  SPY benchmark tail NOT re-sourced: Norgate returned "
+                  "nothing for SPY.", flush=True)
+            return out, None
+        settled, record = resource_spy_tail(close, ng["Close"], cap)
+    except Exception as exc:  # noqa: BLE001 — see the comment above
+        print(f"  SPY benchmark tail NOT re-sourced: {type(exc).__name__}: "
+              f"{exc}", flush=True)
+        return out, None
+    fill = (record or {}).get("filled", {}).get(SPY_BENCHMARK_TICKER)
+    if not fill:
+        why = (record or {}).get("declined", {}).get(
+            SPY_BENCHMARK_TICKER, "Norgate carries no session after it either")
+        print(f"  Norgate tail re-source SPY (benchmark) DECLINED: {why}",
+              flush=True)
+        return out, record
+    print(f"  Norgate tail re-source SPY (benchmark): "
+          f"{', '.join(fill['dates'])} (last {fill['overlap_bars']} shared "
+          f"closes within {fill['max_rel_diff']:.1e})", flush=True)
+    name = out.index.name
+    out = out.reindex(settled.index)
+    out["Close"] = settled.astype(float)
+    out.index.name = name
+    return out, record
+
+
+def download_spy_close(start: str, end: str,
+                       now_utc: datetime | None = None) -> pd.Series:
     """Download SPY adjusted close with parquet cache.
 
     Same span rule as ``download_soxx_ohlc`` (2026-08-19): a healthy fetch
     over a short window is returned but never written over a longer cache.
+
+    On a Norgate run the trailing sessions Yahoo withheld are re-sourced from
+    Norgate under the guards above; the record of what was filled or declined
+    rides on the returned series as ``attrs["tail_from_norgate"]``. ``now_utc``
+    is the observation time, for tests; the clock when None.
     """
     from price_panel_guard import fetched_frame_is_worse  # noqa: PLC0415
 
@@ -331,12 +494,14 @@ def download_spy_close(start: str, end: str) -> pd.Series:
             if (cached.index.min() <= pd.Timestamp(start)
                     and cached.index.max() >= pd.Timestamp(end)):
                 return cached["Close"].loc[start:end]
+    acquisition_started = now_utc or datetime.now(timezone.utc)
     raw = yf.download("SPY", start=start, end=end, auto_adjust=True,
                       progress=False, threads=False)
     if isinstance(raw.columns, pd.MultiIndex):
         raw.columns = raw.columns.get_level_values(0)
     out = raw[["Close"]].copy()
     out.index = pd.to_datetime(out.index).tz_localize(None)
+    out, tail_record = _settle_spy_tail(out, start, end, acquisition_started)
     shrink = fetched_frame_is_worse(out, cached)
     if shrink is None:
         out.to_parquet(SPY_CACHE)
@@ -344,7 +509,10 @@ def download_spy_close(start: str, end: str) -> pd.Series:
         print(f"  REFUSED cache write for SPY: {shrink}. The fetched window "
               f"is returned to the caller; {SPY_CACHE.name} keeps its longer "
               f"span.", flush=True)
-    return out["Close"]
+    series = out["Close"]
+    if tail_record is not None:
+        series.attrs["tail_from_norgate"] = tail_record
+    return series
 
 
 def compute_atr_wilder(high: pd.Series, low: pd.Series, close: pd.Series,

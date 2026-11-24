@@ -63,6 +63,7 @@ OUT_PATH = DATA_DIR / "portfolio_construction.json"
 
 TOP_K_VALUES = [3, 5, 7]
 LEVERAGE_THRESHOLD = 0.60  # If basket-average ma200_breadth > 0.6, lever to 150%
+SPY_PROBLEM_DATES_SHOWN = 10  # sessions named in a refused-benchmark message
 
 
 def _safe(v):
@@ -383,14 +384,29 @@ def apply_leverage_overlay(equity: pd.Series, weights: pd.DataFrame,
 
 def spy_benchmark_problem(spy_close: pd.Series, index: pd.DatetimeIndex,
                           eligible: pd.Timestamp) -> str | None:
-    """Require real benchmark prices for every session in the comparison."""
+    """Require real benchmark prices for every session in the comparison.
+
+    The message names the sessions and says, for each, whether the fetch
+    carried the row at all. On 10, 17, 18 and 24 November 2026 it gave only a
+    count, and which session Yahoo had withheld had to be recovered from a
+    cache file afterwards.
+    """
     expected = index[index >= eligible]
     window = spy_close.reindex(expected)
     if window.empty:
         return "no prices in the eligible comparison window"
     valid = np.isfinite(window) & (window > 0)
     if not valid.all():
-        return f"{int((~valid).sum())} session(s) lack a finite positive close"
+        bad = expected[~valid.to_numpy()]
+        shown = [
+            f"{d.date()} (close {float(spy_close.loc[d])!r} in the fetch)"
+            if d in spy_close.index else f"{d.date()} (absent from the fetch)"
+            for d in bad[:SPY_PROBLEM_DATES_SHOWN]
+        ]
+        more = (f", and {len(bad) - len(shown)} more"
+                if len(bad) > len(shown) else "")
+        return (f"{len(bad)} session(s) lack a finite positive close: "
+                f"{', '.join(shown)}{more}")
     return None
 
 
@@ -419,6 +435,9 @@ def main() -> int:
               "Portfolio diagnostics were not written; the existing report "
               "is unchanged.", file=sys.stderr)
         return 1
+    # Read before the reindex, which need not carry attrs: the record of any
+    # trailing session download_spy_close re-sourced from Norgate.
+    spy_tail_from_norgate = getattr(spy_close, "attrs", {}).get("tail_from_norgate")
     spy_close = spy_close.reindex(closes.index).ffill()
 
     results: dict[str, dict] = {}
@@ -516,6 +535,10 @@ def main() -> int:
         "leverage_threshold_pct": int(LEVERAGE_THRESHOLD * 100),
         "rebalance_freq": "W-FRI",
         "top_k_values": TOP_K_VALUES,
+        # Provenance of the SPY line: None on an ordinary run; otherwise the
+        # sessions filled from Norgate because Yahoo withheld them, with the
+        # agreement measured on the shared closes (backtest.resource_spy_tail).
+        "spy_benchmark_tail_from_norgate": spy_tail_from_norgate,
         "results": results,
     }
     OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
