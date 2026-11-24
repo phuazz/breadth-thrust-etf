@@ -133,17 +133,17 @@ def _yf_close_series(symbols: list[str], start: str, end: str) -> pd.DataFrame:
                 native = raw[sym]
                 fields = [c for c in ("Open", "High", "Low", "Close") if c in native]
                 if "Close" in fields:
-                    from yahoo_observations import settle_native_yahoo
-                    native = settle_native_yahoo(
+                    from yahoo_observations import settle_execution_prices
+                    native = settle_execution_prices(
                         native[fields], sym, DATA_DIR,
                         now_utc=acquisition_started, end=end)
                     if not native.empty:
                         out[sym] = native["Close"]
     else:
         if "Close" in raw.columns:
-            from yahoo_observations import settle_native_yahoo
+            from yahoo_observations import settle_execution_prices
             fields = [c for c in ("Open", "High", "Low", "Close") if c in raw]
-            native = settle_native_yahoo(
+            native = settle_execution_prices(
                 raw[fields], symbols[0], DATA_DIR,
                 now_utc=acquisition_started, end=end)
             out[symbols[0]] = native["Close"]

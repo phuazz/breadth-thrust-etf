@@ -672,9 +672,9 @@ def fetch_missing_from_yfinance(tickers: list[str],
             observed_cache = DATA_DIR / f"{tk.lower()}_yahoo_observed_close.parquet"
             recovered_native = False
             if tk.endswith((".DE", ".SZ", ".SS")) and observed_cache.exists():
-                from yahoo_observations import settle_native_yahoo
+                from yahoo_observations import settle_execution_prices
                 original_dates = ser.index
-                native = settle_native_yahoo(
+                native = settle_execution_prices(
                     ser.to_frame("Close"), tk, DATA_DIR,
                     now_utc=acquisition_started)
                 ser = native["Close"].dropna()
@@ -1261,8 +1261,8 @@ def refresh_ohlc_caches(symbols: dict[str, str] | None = None) -> int:
         if frame is None:
             unfetched.append(sym)
             continue
-        from yahoo_observations import settle_native_yahoo
-        frame = settle_native_yahoo(
+        from yahoo_observations import settle_execution_prices
+        frame = settle_execution_prices(
             frame, sym, DATA_DIR, now_utc=acquisition_started, end=end)
         why = _fetched_frame_is_worse(frame, on_disk)
         if why:

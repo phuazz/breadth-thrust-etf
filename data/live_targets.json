@@ -1,5 +1,5 @@
 {
- "computed_at_utc": "2026-11-24T08:14:23.018617+00:00",
+ "computed_at_utc": "2026-11-24T09:08:49.820913+00:00",
  "as_of": "2026-11-23",
  "overlay_decision": null,
  "rounding_residual_nav": 0.0,
@@ -259,13 +259,13 @@
     "EXH9": 0.5143
    },
    "signals_prev": {
-    "EXV1": 0.8333,
-    "EXH1": 0.697,
-    "EXV3": 0.5849,
-    "EXH3": 0.5986,
-    "EXH9": 0.7143
+    "EXV1": 0.6389,
+    "EXH1": 0.4545,
+    "EXV3": 0.4151,
+    "EXH3": 0.4406,
+    "EXH9": 0.5143
    },
-   "decision_session_prev": "2026-11-13",
+   "decision_session_prev": "2026-11-20",
    "gate": null,
    "fill_date": "2026-11-30",
    "decision_session_for_fill": "2026-11-27"
@@ -356,9 +356,9 @@
    "sleeve": "D",
    "etf": "EXV1",
    "traded": "EXV1",
-   "within": 0.3713,
-   "target": 0.07426,
-   "held": 0.07426,
+   "within": 0.3974,
+   "target": 0.07948,
+   "held": 0.07948,
    "risk_adjustment": false,
    "status": "HOLD",
    "delta": 0.0
@@ -367,9 +367,9 @@
    "sleeve": "D",
    "etf": "EXH9",
    "traded": "EXH9",
-   "within": 0.3182,
-   "target": 0.06364,
-   "held": 0.06364,
+   "within": 0.3199,
+   "target": 0.06398000000000001,
+   "held": 0.06398000000000001,
    "risk_adjustment": false,
    "status": "HOLD",
    "delta": 0.0
@@ -378,9 +378,9 @@
    "sleeve": "D",
    "etf": "EXH1",
    "traded": "EXH1",
-   "within": 0.3105,
-   "target": 0.0621,
-   "held": 0.0621,
+   "within": 0.2827,
+   "target": 0.05654000000000001,
+   "held": 0.05654000000000001,
    "risk_adjustment": false,
    "status": "HOLD",
    "delta": 0.0

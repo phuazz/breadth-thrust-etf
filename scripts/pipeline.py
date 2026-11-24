@@ -172,6 +172,30 @@ def load_live_targets() -> dict | None:
     return blob if blob.get("lines") else None
 
 
+def pending_europe_fill(europe, freshness, release):
+    """Keep a final instruction visible from venue close until the engine records it."""
+    if not release.get("d_ready"):
+        return None
+    from component_release import europe_identity
+    book = release["book"]
+    if release["europe_identity"] != europe_identity(book):
+        raise ValueError("Europe instruction differs from its sealed identity")
+    sleeve = next(s for s in book["sleeves"] if s["sleeve"] == "D")
+    fill = sleeve["fill_date"]
+    decision = sleeve["decision_session"]
+    if (sleeve["status"] != "READY" or decision != release["anchor"]
+            or decision != sleeve["decision_session_for_fill"] or decision >= fill):
+        return None
+    headline = (europe or {}).get("headline", {})
+    marks = headline.get("headline_equity_dates") or []
+    held = (headline.get("latest_rebalance") or {}).get("date")
+    venue = next((r.get("venue_last_session") for r in (freshness or {}).get("strategies", [])
+                  if r.get("sleeve") == "D"), None)
+    if held and marks and venue and held < fill and marks[-1] < fill <= venue:
+        return {"fill": fill, "decision": decision, "weights": sleeve["weights"]}
+    return None
+
+
 def load_held_basis() -> dict | None:
     """Which book the Next Fill card's "held" side is (2026-11-01).
 
@@ -1724,6 +1748,9 @@ def main(dashboard_only: bool = False, strict_capture: bool = False) -> int:
         "strategy_freshness": strategy_freshness,
         "live_targets": live_targets,
         "held_basis": load_held_basis(),
+        "pending_europe_fill": pending_europe_fill(europe, strategy_freshness,
+            json.loads((DATA_DIR / "component_release.json").read_text(encoding="utf-8"))
+            if (DATA_DIR / "component_release.json").is_file() else {}),
         "combined_book_risk": load_combined_book_risk(),
         "commentary": load_commentary(),
     }

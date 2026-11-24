@@ -171,3 +171,10 @@ def settle_native_yahoo(frame, symbol, data_dir, *, now_utc, end=None,
                 through=through, fetch_window=fetch_window)
         except ValueError as exc:
             raise ValueError(f"{symbol}: {exc}") from exc
+
+
+def settle_execution_prices(frame, symbol, data_dir, **kwargs):
+    """Settle Yahoo evidence first, then apply separately sourced Xetra bars."""
+    from xetra_recovery import apply_recoveries
+    settled = settle_native_yahoo(frame, symbol, data_dir, **kwargs)
+    return apply_recoveries(settled, symbol, data_dir)

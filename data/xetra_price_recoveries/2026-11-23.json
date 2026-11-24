@@ -1,0 +1,124 @@
+{
+  "venue": "XETR",
+  "currency": "EUR",
+  "session": "2026-11-23",
+  "overlap": "2026-11-20",
+  "acquired_at": "2026-11-24T09:00:36.937732+00:00",
+  "instruments": {
+    "EXV1.DE": {
+      "isin": "DE000A0F5UJ7",
+      "ariva_url": "https://www.ariva.de/etf/ishares-stoxx-europe-600-banks-ucits-etf-de/kurse/historische-kurse",
+      "ft_url": "https://markets.ft.com/data/etfs/tearsheet/historical?s=EXV1:GER:EUR",
+      "previous_close": 38.265,
+      "reference_quote_time": "2026-11-24T09:30:56+01:00",
+      "bars": {
+        "2026-11-20": {
+          "Open": 37.875,
+          "High": 38.03,
+          "Low": 37.26,
+          "Close": 37.26,
+          "Volume": 243756
+        },
+        "2026-11-23": {
+          "Open": 37.625,
+          "High": 38.4,
+          "Low": 37.47,
+          "Close": 38.265,
+          "Volume": 142764
+        }
+      }
+    },
+    "EXH1.DE": {
+      "isin": "DE000A0H08M3",
+      "ariva_url": "https://www.ariva.de/etf/ishares-stoxx-europe-600-oil-gas-ucits-etf-de/kurse/historische-kurse",
+      "ft_url": "https://markets.ft.com/data/etfs/tearsheet/historical?s=EXH1:GER:EUR",
+      "previous_close": 53.73,
+      "reference_quote_time": "2026-11-24T09:34:42+01:00",
+      "bars": {
+        "2026-11-20": {
+          "Open": 53.97,
+          "High": 54.0,
+          "Low": 53.24,
+          "Close": 53.45,
+          "Volume": 100102
+        },
+        "2026-11-23": {
+          "Open": 53.66,
+          "High": 53.87,
+          "Low": 53.42,
+          "Close": 53.73,
+          "Volume": 22193
+        }
+      }
+    },
+    "EXH9.DE": {
+      "isin": "DE000A0Q4R02",
+      "ariva_url": "https://www.ariva.de/etf/ishares-stoxx-europe-600-utilities-ucits-etf-de/kurse/historische-kurse",
+      "ft_url": "https://markets.ft.com/data/etfs/tearsheet/historical?s=EXH9:GER:EUR",
+      "previous_close": 58.16,
+      "reference_quote_time": "2026-11-24T09:45:23+01:00",
+      "bars": {
+        "2026-11-20": {
+          "Open": 57.7,
+          "High": 57.77,
+          "Low": 57.24,
+          "Close": 57.68,
+          "Volume": 29664
+        },
+        "2026-11-23": {
+          "Open": 57.68,
+          "High": 58.3,
+          "Low": 57.59,
+          "Close": 58.16,
+          "Volume": 15685
+        }
+      }
+    },
+    "EXV3.DE": {
+      "isin": "DE000A0H08Q4",
+      "ariva_url": "https://www.ariva.de/etf/ishares-stoxx-europe-600-technology-ucits-etf-de-eur-dis/kurse/historische-kurse",
+      "ft_url": "https://markets.ft.com/data/etfs/tearsheet/historical?s=EXV3:GER:EUR",
+      "previous_close": 90.4,
+      "reference_quote_time": "2026-11-24T09:26:59+01:00",
+      "bars": {
+        "2026-11-20": {
+          "Open": 88.75,
+          "High": 88.88,
+          "Low": 86.62,
+          "Close": 86.62,
+          "Volume": 3873
+        },
+        "2026-11-23": {
+          "Open": 87.41,
+          "High": 90.8,
+          "Low": 87.41,
+          "Close": 90.4,
+          "Volume": 14881
+        }
+      }
+    },
+    "EXH4.DE": {
+      "isin": "DE000A0H08J9",
+      "ariva_url": "https://www.ariva.de/etf/ishares-stoxx-europe-600-ind-goods-serv-ucits-etf-de/kurse/historische-kurse",
+      "ft_url": "https://markets.ft.com/data/etfs/tearsheet/historical?s=EXH4:GER:EUR",
+      "previous_close": 111.1,
+      "reference_quote_time": "2026-11-24T09:04:47+01:00",
+      "bars": {
+        "2026-11-20": {
+          "Open": 109.04,
+          "High": 109.28,
+          "Low": 107.7,
+          "Close": 107.7,
+          "Volume": 10019
+        },
+        "2026-11-23": {
+          "Open": 108.58,
+          "High": 111.42,
+          "Low": 108.56,
+          "Close": 111.1,
+          "Volume": 10793
+        }
+      }
+    }
+  }
+}

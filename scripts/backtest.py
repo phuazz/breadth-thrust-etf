@@ -249,8 +249,8 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
         raw = raw[["Open", "High", "Low", "Close"]].copy()
         raw.index = pd.to_datetime(raw.index).tz_localize(None)
         if completed_through is not None:
-            from yahoo_observations import settle_native_yahoo
-            raw = settle_native_yahoo(
+            from yahoo_observations import settle_execution_prices
+            raw = settle_execution_prices(
                 raw, sym, cache_path.parent, now_utc=acquisition_started,
                 end=end, through=completed_through)
 
