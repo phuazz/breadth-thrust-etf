@@ -3112,7 +3112,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-11-23",
- "computed_at_utc": "2026-11-25 11:31 UTC",
+ "computed_at_utc": "2026-11-25 14:05 UTC",
  "holdings": [
   {
    "ticker": "SHY",
@@ -3295,7 +3295,7 @@
  "n_positions": 10,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-11-25T11:31:28.087471+00:00",
+  "computed_at_utc": "2026-11-25T14:05:50.938801+00:00",
   "all_current": false,
   "strategies": [
    {
