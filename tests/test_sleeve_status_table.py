@@ -99,6 +99,20 @@ def test_the_verdict_has_all_four_states():
     assert "t.fill_date < today" in r, "the lapse rule of the next-fill card applies here too"
 
 
+def test_a_midweek_hold_does_not_skip_the_fill():
+    """A HOLD judged before the close its fill is ranked on is a preview that
+    could not be ranked, not a decision. On 25 Nov 2026 a Tuesday HOLD on D
+    printed "the Mon 30 Nov fill is skipped" ahead of the Fri 27 Nov close
+    that decides it."""
+    r = _renderer(_template_text())
+    assert "t.last_completed_session >= dFill" in r
+    i_mid = r.find("} else if (!holdDecides) {")
+    i_skip = r.find("fill is skipped", i_mid)
+    assert i_mid != -1 and i_skip > i_mid, "the skip wording survives in the deciding branch"
+    assert "fill is skipped" not in r[i_mid:r.find("} else {", i_mid)]
+    assert "computed_at_utc" in r, "the table says when each input was computed"
+
+
 def test_the_table_renders_nothing_without_the_freshness_block():
     r = _renderer(_template_text())
     assert "el.innerHTML = ''; return;" in r

@@ -5504,9 +5504,21 @@ function renderStrategyFreshness() {
       const lapsed = !!(t.fill_date && t.fill_date < today);
       const ranked = !!(t.decision_session && t.decision_session_for_fill
                         && t.decision_session === t.decision_session_for_fill);
+      const dFill = t.decision_session_for_fill;
+      // A HOLD decides the fill only when it was judged at or after the close
+      // that fill is ranked on. Judged earlier (mid-week), it says only that
+      // the preview could not be ranked; the fill is still open (25 Nov
+      // 2026: a Tuesday HOLD on D printed "the Mon 30 Nov fill is skipped"
+      // three sessions before the Fri 27 Nov close that decides it). Without
+      // the field the old reading stands.
+      const holdDecides = !dFill || !t.last_completed_session
+        || t.last_completed_session >= dFill;
+      const fillCell = t.fill_date ? `${dl(t.fill_date)} (${esc(t.venue)})` : '—';
       if (t.status === 'READY') {
-        next = (t.fill_date ? `${dl(t.fill_date)} (${esc(t.venue)})` : '—')
-          + sub(t.decision_session ? `ranked on the ${dl(t.decision_session)} close` : '');
+        next = fillCell + sub(ranked || !dFill
+          ? (t.decision_session ? `ranked on the ${dl(t.decision_session)} close` : '')
+          : `decided on the ${dl(dFill)} close`
+            + (t.decision_session ? `; preview ranked on the ${dl(t.decision_session)} close` : ''));
         if (lapsed) {
           status = pill('stale', 'stale')
             + sub(`the ${dl(t.fill_date)} fill has passed; run refresh_all.py`);
@@ -5514,8 +5526,18 @@ function renderStrategyFreshness() {
           status = pill('final', 'final');
         } else {
           status = pill('prov', 'provisional')
-            + sub(`re-ranks until the ${dl(t.decision_session_for_fill)} close`);
+            + sub(t.decision_session
+              ? `preview on the ${dl(t.decision_session)} close; final on the ${dl(dFill)} close`
+              : `final on the ${dl(dFill)} close`);
         }
+      } else if (!holdDecides) {
+        next = fillCell + sub(`decided on the ${dl(dFill)} close`
+          + (lr && lr.date ? `; keeps the ${dl(lr.date)} book if the signal is still short then` : ''));
+        status = lapsed
+          ? pill('stale', 'stale')
+            + sub(`the ${dl(t.fill_date)} fill has passed; run refresh_all.py`)
+          : pill('prov', 'no preview')
+            + sub(esc(t.reason || 'signal short of the last close'));
       } else {
         next = 'none' + sub(lr && lr.date
           ? `keeps the ${dl(lr.date)} book${t.fill_date ? `; the ${dl(t.fill_date)} fill is skipped` : ''}`
@@ -5544,6 +5566,22 @@ function renderStrategyFreshness() {
   // row says how far behind, the note says why, when the data knows.
   const notes = f.strategies.filter(s => s.status === 'behind' && s.why)
     .map(s => `<strong>${esc(s.label)}:</strong> ${esc(s.why)}`);
+
+  // The columns come from two files computed at different times; say when
+  // each was, in SGT, so a reason quoting an older "last session" than the
+  // reach column is readable as a snapshot gap, not a contradiction.
+  const sgt = (iso) => {
+    const d = iso ? new Date(iso) : null;
+    if (!d || isNaN(d)) return null;
+    return d.toLocaleString('en-GB', { timeZone: 'Asia/Singapore', weekday: 'short',
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) + ' SGT';
+  };
+  const ltAt = sgt(lt && lt.computed_at_utc);
+  const fAt = sgt(f.computed_at_utc);
+  if (ltAt || fAt) {
+    notes.unshift([ltAt ? `Status and next fill computed ${ltAt}` : '',
+                   fAt ? `signal reach measured ${fAt}` : ''].filter(Boolean).join('; ') + '.');
+  }
 
   el.innerHTML = `<div class="sleeve-status"><table class="small-table sleeve-status-table">
     <thead><tr>
