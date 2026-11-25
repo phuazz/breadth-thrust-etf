@@ -92,7 +92,7 @@ def test_reach_is_judged_against_the_venue_not_the_calendar():
 
 def test_the_verdict_has_all_four_states():
     r = _renderer(_template_text())
-    for cls in ("ss-final", "ss-hold", "ss-prov", "ss-stale"):
+    for cls in ("ss-final", "ss-hold", "ss-held", "ss-prov", "ss-stale"):
         # Pills are built as pill('<state>', ...) from the ss- prefix.
         assert f"pill('{cls[3:]}'" in r, cls
     assert "decision_session_for_fill" in r, "FINAL means ranked on the fill's own close"
@@ -111,6 +111,20 @@ def test_a_midweek_hold_does_not_skip_the_fill():
     assert i_mid != -1 and i_skip > i_mid, "the skip wording survives in the deciding branch"
     assert "fill is skipped" not in r[i_mid:r.find("} else {", i_mid)]
     assert "computed_at_utc" in r, "the table says when each input was computed"
+
+
+def test_between_fill_and_decision_close_the_sleeve_reads_held():
+    """After a fill and before the close that decides the next one, the
+    status is the settled book (HELD), with the preview in the sub-line.
+    PROVISIONAL survives only for a row with no deciding close on record."""
+    r = _renderer(_template_text())
+    assert "pill('held', 'held')" in r
+    assert r.count("pill('held', 'held')") == 2, "READY preview and no-preview HOLD both read HELD"
+    assert "next decision on the ${dl(dFill)} close" in r
+    i = r.find("pill('prov', 'provisional')")
+    assert i != -1 and "else if (!dFill)" in r[max(0, i - 200):i]
+    t = _template_text()
+    assert re.search(r"\.ss-pill\.ss-held\s*\{", t), "the HELD pill has its own style"
 
 
 def test_the_table_renders_nothing_without_the_freshness_block():
