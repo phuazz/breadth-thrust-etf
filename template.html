@@ -4545,14 +4545,12 @@ function renderPositionsPreview() {
   // back to the last trade for data built before the field existed. The
   // trade record is the change log and its last entry is a week or more old
   // on a held week.
-  const _lastRebalOf = (sleeve) => {
-    const trades = sleeve?.headline?.trade_history || [];
-    return sleeve?.headline?.latest_rebalance
-      || (trades.length ? trades[trades.length - 1] : null);
-  };
+  // Since 2026-11-25 this is the fill-date book: the verified release for
+  // a fill the engine has not priced yet (_heldRebalance).
+  const _lastRebalOf = (k) => _heldRebalance(k.toUpperCase());
   let latestRebal = '';
-  for (const sleeve of Object.values(sleeves)) {
-    const d = _lastRebalOf(sleeve)?.date || '';
+  for (const k of Object.keys(sleeves)) {
+    const d = _lastRebalOf(k)?.date || '';
     if (d > latestRebal) latestRebal = d;
   }
   const stNow = _sleeveNavWeightsOn(latestRebal || '9999-12-31');
@@ -4565,7 +4563,7 @@ function renderPositionsPreview() {
   const holdings = [];
   let mostRecentDate = '';
   for (const [k, sleeve] of Object.entries(sleeves)) {
-    const latest = _lastRebalOf(sleeve);
+    const latest = _lastRebalOf(k);
     if (!latest) continue;
     if (latest.date && latest.date > mostRecentDate) mostRecentDate = latest.date;
     for (const h of latest.holdings || []) {
@@ -5508,7 +5506,8 @@ function renderStrategyFreshness() {
     const lr = _momLatestRebal(engines[s.sleeve]);
     const last = lr && lr.date
       ? `filled ${dl(lr.date)}`
-        + sub(lr.decision_date ? `decided on the ${dl(lr.decision_date)} close` : '')
+        + sub((lr.decision_date ? `decided on the ${dl(lr.decision_date)} close` : '')
+          + (lr.basis === 'release' ? `${lr.decision_date ? '; ' : ''}fill close not yet priced` : ''))
       : '—';
 
     const t = ltBySleeve.get(s.sleeve);
@@ -5676,13 +5675,13 @@ function renderMonitor() {
   // for data built before the field existed.
   const aHist = topk.headline.trade_history;
   const bHist = ac.headline.trade_history;
-  const aLatest = topk.headline.latest_rebalance || aHist[aHist.length - 1];
-  const bLatest = ac.headline.latest_rebalance || bHist[bHist.length - 1];
+  const aLatest = _heldRebalance('A') || aHist[aHist.length - 1];
+  const bLatest = _heldRebalance('B') || bHist[bHist.length - 1];
   const aDate = aLatest.date;
   const bDate = bLatest.date;
-  const cLatest = hasC ? (tc.headline.latest_rebalance || tc.headline.trade_history[tc.headline.trade_history.length - 1]) : null;
+  const cLatest = hasC ? (_heldRebalance('C') || tc.headline.trade_history[tc.headline.trade_history.length - 1]) : null;
   const cDate = cLatest?.date;
-  const dLatest = hasD ? (eu.headline.latest_rebalance || eu.headline.trade_history[eu.headline.trade_history.length - 1]) : null;
+  const dLatest = hasD ? (_heldRebalance('D') || eu.headline.trade_history[eu.headline.trade_history.length - 1]) : null;
   const dDate = dLatest?.date;
 
   // Use the blend stats that match the actual deployment. Phase 19:
@@ -5703,6 +5702,14 @@ function renderMonitor() {
   if (hasC) asofHtml += ` + ${cLatest.holdings.length} C`;
   if (hasD) asofHtml += ` + ${dLatest.holdings.length} D`;
   asofHtml += ` positions.`;
+  // Fill-date book (2026-11-25): say which sleeves are shown on the release.
+  const unpriced = [['A', aLatest], ['B', bLatest], ['C', cLatest], ['D', dLatest]]
+    .filter(([, r]) => r && r.basis === 'release').map(([k]) => k);
+  if (unpriced.length) {
+    asofHtml += ` Sleeve${unpriced.length > 1 ? 's' : ''} ${unpriced.join(', ')}:`
+      + ` the book shown is the verified release for the fill, which the model assumes was executed in full;`
+      + ` the engine has not yet priced the fill close.`;
+  }
   const asof = document.getElementById('live-asof');
   asof.innerHTML = asofHtml;
   if (data.pending_europe_fill) {
@@ -6139,9 +6146,22 @@ function renderMonitor() {
       return Array.isArray(arr) && arr.length ? arr[arr.length - 1] : null;
     })
     .filter(v => v != null && isFinite(v));
-  const aMean = aAllBreadths.length
+  const aMeanLatest = aAllBreadths.length
     ? aAllBreadths.reduce((a, b) => a + b, 0) / aAllBreadths.length
     : 0;
+  // The mean the book was RANKED on (2026-11-25). The series' last row is the
+  // newest weekly reading, which is a later session than the decision for
+  // most of the week: on 25 Nov 2026 this box read "mean = 49.6%, sum of
+  // positive excess = 60.5pp" beside weights decided on the 20 Nov close,
+  // where the mean was 44.48% and the sum 85.69pp, so no row's arithmetic
+  // reproduced its weight. Read at the decision session, and only when the
+  // weekly series reproduces the ranked signals (_sleeveALevels); the last
+  // row stays as the fallback for a record with no ranked row.
+  const aXs = aLatest.basis === 'release' && aLatest.row
+    ? { sig: aLatest.row.signals || {} }
+    : _sleeveCrossSection('A', aLatest.decision_date || null);
+  const aLv = aXs ? _sleeveALevels(aLatest.decision_date || null, aXs.sig) : null;
+  const aMean = aLv && aLv.ok ? aLv.avg : aMeanLatest;
   const aSorted = aLatest.holdings.slice().sort((x, y) => y.weight - x.weight);
   // Per-holding relative breadth and the denominator (sum of positives).
   const aRelByEtf = {};
@@ -6235,19 +6255,19 @@ function renderMonitor() {
     .map((h, idx) => {
       const universe = ac.universe || [];
       const u = universe.find(x => x.etf === h.etf) || {};
-      const sgn = h.signal_pct >= 0 ? '+' : '';
+      const sgn = h.signal_pct == null ? '' : (h.signal_pct >= 0 ? '+' : '');
       const actualPct = h.weight * 100;
       const navEff = (h.weight * W_B * 100).toFixed(2);
       return `<div class="holding-row b">
         <div class="hrow-top">
           <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${_displaySym(h.etf)}</span>
-          <span class="hlabel">${u.label || ''} <span style="color:var(--ink-faint);font-weight:400;margin-left:6px;">${sgn}${h.signal_pct}% above 200d MA</span></span>
+          <span class="hlabel">${u.label || ''} <span style="color:var(--ink-faint);font-weight:400;margin-left:6px;">${h.signal_pct == null ? 'cash line, not ranked' : `${sgn}${h.signal_pct}% above 200d MA`}</span></span>
           <span class="hweight">${actualPct.toFixed(1)}%</span>
         </div>
         <div class="hcalc">
           <span class="lhs">rank ${idx+1}</span>
           <span class="arrow">·</span>
-          <span class="lhs">${h.signal_pct}% ÷ ${bSumSig.toFixed(1)}% × ${bPositive.length}/${bK}</span>
+          <span class="lhs">${h.signal_pct == null ? 'unfilled slots' : `${h.signal_pct}% ÷ ${bSumSig.toFixed(1)}% × ${bPositive.length}/${bK}`}</span>
           <span class="arrow">=</span>
           <span class="rhs">${actualPct.toFixed(1)}%</span>
           <span class="nav-eff">→ ${navEff}% NAV</span>
@@ -6292,13 +6312,13 @@ function renderMonitor() {
       .map((h, idx) => {
         const universe = tc.universe || [];
         const u = universe.find(x => x.etf === h.etf) || {};
-        const sgn = h.signal_pct >= 0 ? '+' : '';
+        const sgn = h.signal_pct == null ? '' : (h.signal_pct >= 0 ? '+' : '');
         const actualPct = h.weight * 100;
         const navEff = (h.weight * W_C * 100).toFixed(2);
         return `<div class="holding-row b">
           <div class="hrow-top">
             <span class="hsym"><span class="swatch" style="background:${colourFor(h.etf)};"></span>${_displaySym(h.etf)}</span>
-            <span class="hlabel">${u.label || ''} <span style="color:var(--ink-faint);font-weight:400;margin-left:6px;">${sgn}${h.signal_pct}% above 200d MA</span></span>
+            <span class="hlabel">${u.label || ''} <span style="color:var(--ink-faint);font-weight:400;margin-left:6px;">${h.signal_pct == null ? 'cash line, not ranked' : `${sgn}${h.signal_pct}% above 200d MA`}</span></span>
             <span class="hweight">${actualPct.toFixed(1)}%</span>
           </div>
           <div class="hcalc">
@@ -8320,9 +8340,10 @@ function _momUniverse(view) {
 
 // The last rebalance RUN, falling back to the last TRADE for data built
 // before latest_rebalance existed (2026-09-03). The two differ on a held week.
+// Since 2026-11-25 a sleeve root returns the fill-date book (_heldRebalance).
 function _momLatestRebal(root) {
-  const h = window.DATA?.[root]?.headline;
-  return h?.latest_rebalance || h?.trade_history?.slice(-1)[0] || null;
+  const sleeve = Object.keys(_SLEEVE_ROOTS).find(k => _SLEEVE_ROOTS[k] === root);
+  return sleeve ? _heldRebalance(sleeve) : _engineRebalance(root);
 }
 
 function _momHoldings(root) {
@@ -8679,8 +8700,9 @@ function _renderAHoldings() {
   const last = th[th.length - 1];
   // The last rebalance RUN; trade_history is the change log and its last entry
   // is a week or more old on a held week (2026-09-03).
-  const latest = h.latest_rebalance || last;
-  const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
+  const latest = _releaseFillRecord('A', h.latest_rebalance || last) || h.latest_rebalance || last;
+  const heldSince = latest.basis === 'release' ? ' · fill close not yet priced'
+    : (latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '');
   if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (up to K=${h.K} above the mean)${heldSince}`;
   // Every ranked sector with its signal, the cut and the weight: see
   // "Decision tables" below.
@@ -8918,6 +8940,98 @@ function _sleeveRowLabel(sleeve, e, tag) {
 // neither row is that close: an early HOLD payload carries no rows, and a
 // payload older than 2026-09 no previous one. Dates are ISO strings
 // compared as text; no date arithmetic.
+// ---------------------------------------------------------------------------
+// Fill-date book (owner, 2026-11-25).
+//
+// WHY. The model assumes every fill is executed in full, so from the fill
+// date the book it holds is the one decided on the Friday close. The engines
+// record a rebalance only where the fill session's close is in their price
+// panel, and a close that arrives late kept the previous book on screen:
+// after the fill of Mon 23 Nov 2026 sleeve D's tables read "as of the
+// 2026-11-16 rebalance" until 25 Nov, because Monday's Xetra closes were not
+// served at the refresh hour. The publication ledger shows the same lag, of
+// one, four and two days, on the three fills before it.
+//
+// THE RULE. A sleeve's held record is the verified release's book for a fill
+// when ALL of these hold, and the engine's own record otherwise:
+//   - the release is final (targets_final) and the sleeve is READY in it,
+//     ranked on the close its fill used, and not on an authorised HOLD
+//     (held_sleeves): a held sleeve was not rebalanced, so its book stands;
+//   - the fill session has COMPLETED on the sleeve's venue, read from the
+//     payload (live_targets last_completed_session), never from the reader's
+//     clock;
+//   - the engine's record is dated before that fill. Once the engine prices
+//     the fill its record wins: the return series is built on it.
+// Sleeve A is flipped only when the weekly breadth series reproduces the
+// release's signals (_sleeveALevels): every consumer of the record prints
+// the breadth LEVEL, and the release carries breadth minus the average.
+//
+// WHAT IT IS NOT. A valuation: the record carries basis 'release', every
+// surface that prints it says the fill close is not yet priced, and equity
+// curves, returns and the live track still stop at the last priced session.
+// Nor a record of execution: a discretionary hold of a rebalance is tracked
+// separately and never enters this book.
+//
+// Values are rounded as the engines round them (one decimal, in percent), so
+// the Monitor tab's arithmetic rows read the same on either basis. A
+// cash line carries no signal: the release ranks no cash proxy.
+// ---------------------------------------------------------------------------
+const _SLEEVE_ROOTS = { A: 'topk', B: 'asset_class', C: 'thematic', D: 'europe' };
+
+// The engine's own record: the last rebalance RUN, falling back to the last
+// TRADE for data built before latest_rebalance existed (2026-09-03).
+function _engineRebalance(root) {
+  const h = ((window.DATA || {})[root] || {}).headline;
+  if (!h) return null;
+  const th = h.trade_history;
+  return h.latest_rebalance || (Array.isArray(th) && th.length ? th[th.length - 1] : null);
+}
+
+function _releaseFillRecord(sleeve, engineRec) {
+  const D = window.DATA || {};
+  const rel = D.component_release;
+  const b = rel && rel.book;
+  if (!b || b.targets_final !== true || !Array.isArray(b.sleeves)) return null;
+  if (Array.isArray(rel.held_sleeves) && rel.held_sleeves.includes(sleeve)) return null;
+  const row = b.sleeves.find(x => x && x.sleeve === sleeve);
+  if (!row || row.status !== 'READY' || !row.fill_date || !row.decision_session) return null;
+  if (row.decision_session_for_fill && row.decision_session_for_fill !== row.decision_session) return null;
+  const now = ((D.live_targets || {}).sleeves || []).find(x => x && x.sleeve === sleeve);
+  if (!now || !now.last_completed_session || now.last_completed_session < row.fill_date) return null;
+  if (engineRec && engineRec.date && engineRec.date >= row.fill_date) return null;
+  const weights = row.weights || {};
+  const sig = row.signals || {};
+  const names = Object.keys(weights).filter(e => (weights[e] || 0) > 1e-9);
+  if (!names.length) return null;
+  let level = null;
+  if (sleeve === 'A') {
+    const lv = _sleeveALevels(row.decision_session, sig);
+    if (!lv || !lv.ok) return null;
+    level = lv.level;
+    if (names.some(e => level[e] == null)) return null;
+  }
+  const key = (sleeve === 'A' || sleeve === 'D') ? 'breadth_pct' : 'signal_pct';
+  // One decimal, half up, from whole basis points: the payload's signals are
+  // four-decimal fractions, and 0.5005 * 1000 is 500.49999999999994 in
+  // binary, which would print 50.0 for a reading of 50.05.
+  const val = (e) => (sleeve === 'A' ? Math.round(level[e] * 10) / 10
+    : (sig[e] == null ? null : Math.round(Math.round(sig[e] * 10000) / 10) / 10));
+  const holdings = names.map(e => ({ etf: e, weight: weights[e], [key]: val(e) }))
+    .sort((x, y) => (y.weight - x.weight) || (x.etf < y.etf ? -1 : 1));
+  return {
+    date: row.fill_date, decision_date: row.decision_session, holdings,
+    basis: 'release', row,
+    engine_date: (engineRec && engineRec.date) || null,
+    release_computed: b.computed_at_utc || '',
+  };
+}
+
+// The record every held-book surface reads.
+function _heldRebalance(sleeve) {
+  const eng = _engineRebalance(_SLEEVE_ROOTS[sleeve]);
+  return _releaseFillRecord(sleeve, eng) || eng;
+}
+
 function _sleeveCrossSection(sleeve, decision) {
   const lt = (window.DATA || {}).live_targets;
   if (!decision || !lt || !Array.isArray(lt.sleeves)) return null;
@@ -9306,7 +9420,13 @@ function _heldOnlyTableHtml(sleeve, holds) {
 function _renderHeldDecision(sleeve, tbl, noteEl, latest, K) {
   const holds = (latest.holdings || []).slice();
   const decision = latest.decision_date || null;
-  const xs = _sleeveCrossSection(sleeve, decision);
+  // Fill-date book (2026-11-25): a record built from the verified release
+  // carries its own ranked row, frozen before the fill.
+  const rel = latest.basis === 'release' && latest.row
+    && Object.keys(latest.row.signals || {}).length ? latest.row : null;
+  const xs = rel
+    ? { s: rel, sig: rel.signals, current: true, computed: latest.release_computed || '' }
+    : _sleeveCrossSection(sleeve, decision);
   let t;
   let note;
   if (xs) {
@@ -9325,11 +9445,19 @@ function _renderHeldDecision(sleeve, tbl, noteEl, latest, K) {
     // the row and the engine's record are both recomputed from current data
     // at every refresh (see "What the check cannot see" above).
     note = _decisionNote(m, { decision, levels, levelsWhy: lv && !lv.ok ? lv.why : null, unconfirmed })
-      + ` Sources: signals from live_targets.json`
-      + (c.length === 16 ? `, published ${fmtDateLongSafe(c.slice(0, 10))} ${c.slice(11, 16)} UTC` : '')
-      + `; weights from the engine's ${latest.date} rebalance record.`
+      + (rel
+        ? ` Sources: signals and weights from the verified release for this fill`
+          + (c.length === 16 ? `, computed ${fmtDateLongSafe(c.slice(0, 10))} ${c.slice(11, 16)} UTC, before the fill` : '')
+          + `. The model assumes the fill was executed in full on ${fmtDateLongSafe(latest.date)}.`
+          + ` The engine has not yet priced that close for this sleeve`
+          + (latest.engine_date ? `, and its own record still shows the ${fmtDateLongSafe(latest.engine_date)} fill` : '')
+          + `, so return figures on this page stop at the last priced session.`
+        : ` Sources: signals from live_targets.json`
+          + (c.length === 16 ? `, published ${fmtDateLongSafe(c.slice(0, 10))} ${c.slice(11, 16)} UTC` : '')
+          + `; weights from the engine's ${latest.date} rebalance record.`)
       + (levels ? ` Breadth levels from the weekly sector breadth series, printed because level minus average reproduces every signal to within 0.05pp.` : '')
-      + ` Both are re-read from current data at each refresh, so after a data restatement this shows the decision as it now reads, which can differ from the ranking made before the fill.`;
+      + (rel ? ` The row was frozen at the release and is not re-read.`
+        : ` Both are re-read from current data at each refresh, so after a data restatement this shows the decision as it now reads, which can differ from the ranking made before the fill.`);
   } else {
     t = _heldOnlyTableHtml(sleeve, holds);
     note = `Held names only: the ranked cross-section for `
@@ -9459,8 +9587,9 @@ function _renderCHoldings() {
   // holds the same names writes no trade_history entry; labelling that
   // entry "the rebalance" is how the block read "2026-08-24" on 3 Sep 2026
   // for a book the 31 Aug rebalance had held.
-  const latest = h.latest_rebalance || last;
-  const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
+  const latest = _releaseFillRecord('C', h.latest_rebalance || last) || h.latest_rebalance || last;
+  const heldSince = latest.basis === 'release' ? ' · fill close not yet priced'
+    : (latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '');
   if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${h.K} above the +5% floor, equal-weighted)${heldSince}`;
   // The engine's record carries the cash proxy as a holding. It used to be
   // drawn as a ranked name, so a gated sleeve read "the lowest-ranked
@@ -9483,8 +9612,9 @@ function _renderDHoldings() {
   }
   const last = th[th.length - 1];
   // The last rebalance RUN; trade_history is the change log (2026-09-03).
-  const latest = h.latest_rebalance || last;
-  const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
+  const latest = _releaseFillRecord('D', h.latest_rebalance || last) || h.latest_rebalance || last;
+  const heldSince = latest.basis === 'release' ? ' · fill close not yet priced'
+    : (latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '');
   if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${h.K} by breadth)${heldSince}`;
   _renderHeldDecision('D', tbl, noteEl, latest, h.K);
   _renderPendingSelection('D', latest.date);
@@ -9503,8 +9633,9 @@ function _renderBHoldings() {
   }
   const last = th[th.length - 1];
   // The last rebalance RUN; trade_history is the change log (2026-09-03).
-  const latest = h.latest_rebalance || last;
-  const heldSince = latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '';
+  const latest = _releaseFillRecord('B', h.latest_rebalance || last) || h.latest_rebalance || last;
+  const heldSince = latest.basis === 'release' ? ' · fill close not yet priced'
+    : (latest.date !== last.date ? ` · book unchanged since the ${last.date} trade` : '');
   if (asOfEl) asOfEl.textContent = ` — as of the ${latest.date} rebalance (top K=${h.K} by trend)${heldSince}`;
   // SHY in the engine's record is the cash line, not a ranked name: see
   // _renderCHoldings.

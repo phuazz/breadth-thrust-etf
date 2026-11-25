@@ -196,6 +196,50 @@ def pending_europe_fill(europe, freshness, release):
     return None
 
 
+def load_component_release() -> dict | None:
+    """The verified release for the most recent fill: the book as DECIDED.
+
+    Read by the template's fill-date book (2026-11-25). The engines record a
+    rebalance only where the fill session's close is in their price panel, so
+    a sleeve whose close arrives late kept showing the previous book after a
+    fill the model had already made (sleeve D, fill of 2026-11-23: its record
+    moved on 25 November). The release is frozen before the fill and carries
+    each sleeve's ranked row and weights, so the page can show the book the
+    model holds from the fill date and say that the fill close is not yet
+    priced.
+
+    Only the fields the template reads are passed through. An absent or
+    unreadable file returns None and the page falls back to the engines'
+    records, which is the behaviour before this existed.
+    """
+    path = DATA_DIR / "component_release.json"
+    if not path.exists():
+        return None
+    try:
+        blob = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    book = blob.get("book") if isinstance(blob, dict) else None
+    if not isinstance(book, dict) or not isinstance(book.get("sleeves"), list):
+        return None
+    keep = ("sleeve", "venue", "status", "decision_session",
+            "decision_session_for_fill", "fill_date", "signals", "weights",
+            "top_k", "gate", "signal_kind", "native_unconfirmed")
+    return {
+        "identity": blob.get("identity"),
+        "component": blob.get("component"),
+        "held_sleeves": list(blob.get("held_sleeves") or []),
+        "book": {
+            "as_of": book.get("as_of"),
+            "computed_at_utc": book.get("computed_at_utc"),
+            "targets_final": book.get("targets_final"),
+            "next_fill": book.get("next_fill"),
+            "sleeves": [{k: s[k] for k in keep if k in s}
+                        for s in book["sleeves"] if isinstance(s, dict)],
+        },
+    }
+
+
 def load_held_basis() -> dict | None:
     """Which book the Next Fill card's "held" side is (2026-11-01).
 
@@ -1748,6 +1792,7 @@ def main(dashboard_only: bool = False, strict_capture: bool = False) -> int:
         "strategy_freshness": strategy_freshness,
         "live_targets": live_targets,
         "held_basis": load_held_basis(),
+        "component_release": load_component_release(),
         "pending_europe_fill": pending_europe_fill(europe, strategy_freshness,
             json.loads((DATA_DIR / "component_release.json").read_text(encoding="utf-8"))
             if (DATA_DIR / "component_release.json").is_file() else {}),
