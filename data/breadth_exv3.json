@@ -1,224 +1,12 @@
 {
   "etf": "EXV3",
-  "computed_at_utc": "2026-11-24T07:46:20.123718+00:00",
+  "computed_at_utc": "2026-11-25T15:02:30.055388+00:00",
   "constituents_source": "data\\constituents_exv3.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
-  "end_date": "2026-11-20",
-  "tail_cap": {
-    "capped_at": "2026-11-20",
-    "venue_last_completed": "2026-11-23",
-    "constituents_priced_to": "2026-11-20",
-    "roster_end_friday": "2026-11-20",
-    "vendor_probe": {
-      "checked_at_utc": "2026-11-24T07:45:49+00:00",
-      "probe": "yfinance single-ticker history",
-      "last_populated": "2026-11-20",
-      "rows": [
-        {
-          "date": "2026-11-23",
-          "roster_held": 35,
-          "roster_priced": 1,
-          "live_unpriced": 34,
-          "sampled": [
-            "ASML.AS",
-            "CAP.PA",
-            "IDR.MC",
-            "REY.MI",
-            "COTN.SW"
-          ],
-          "sample_answered": 5,
-          "sample_served": 0,
-          "filled": 0,
-          "refused": [],
-          "requested": [
-            "ASML.AS",
-            "SAP.DE",
-            "REL.L",
-            "IFX.DE",
-            "PRX.AS",
-            "ASM.AS",
-            "AMS.MC",
-            "STMMI.MI",
-            "CAP.PA",
-            "HEXA-B.ST",
-            "DSY.PA",
-            "LOGN.SW",
-            "SGE.L",
-            "BESI.AS",
-            "G24.DE",
-            "AUTO.L",
-            "IDR.MC",
-            "OCTV-SDB.ST",
-            "LAGR-B.ST",
-            "MYCR.ST",
-            "CCC.L",
-            "VEND.OL",
-            "AIXA.DE",
-            "TPRO.MI",
-            "NEM.DE",
-            "REY.MI",
-            "SOP.PA",
-            "NOD.OL",
-            "SOI.PA",
-            "BC8.DE",
-            "ACP.WA",
-            "SCT.L",
-            "ATS.VI",
-            "COTN.SW"
-          ],
-          "unserved": [
-            "ASML.AS",
-            "SAP.DE",
-            "REL.L",
-            "IFX.DE",
-            "PRX.AS",
-            "ASM.AS",
-            "AMS.MC",
-            "STMMI.MI",
-            "CAP.PA",
-            "HEXA-B.ST",
-            "DSY.PA",
-            "LOGN.SW",
-            "SGE.L",
-            "BESI.AS",
-            "G24.DE",
-            "AUTO.L",
-            "IDR.MC",
-            "OCTV-SDB.ST",
-            "LAGR-B.ST",
-            "MYCR.ST",
-            "CCC.L",
-            "VEND.OL",
-            "AIXA.DE",
-            "TPRO.MI",
-            "NEM.DE",
-            "REY.MI",
-            "SOP.PA",
-            "NOD.OL",
-            "SOI.PA",
-            "BC8.DE",
-            "ACP.WA",
-            "SCT.L",
-            "ATS.VI",
-            "COTN.SW"
-          ],
-          "no_answer": [],
-          "not_attempted": [],
-          "heal_timed_out": false,
-          "verdict": "unserved_placeholder",
-          "reason": "34 live name(s) re-requested single-ticker, all answered, none carries a 2026-11-23 bar: the vendor is not serving this row for this roster. The 1 residual price(s) are what the batch left behind, so the row is not usable as a vendor-priced row. This says nothing about whether the exchange traded"
-        }
-      ],
-      "dropped": [
-        "2026-11-23"
-      ]
-    }
-  },
-  "tail_verification": {
-    "checked_at_utc": "2026-11-24T07:45:49+00:00",
-    "probe": "yfinance single-ticker history",
-    "last_populated": "2026-11-20",
-    "rows": [
-      {
-        "date": "2026-11-23",
-        "roster_held": 35,
-        "roster_priced": 1,
-        "live_unpriced": 34,
-        "sampled": [
-          "ASML.AS",
-          "CAP.PA",
-          "IDR.MC",
-          "REY.MI",
-          "COTN.SW"
-        ],
-        "sample_answered": 5,
-        "sample_served": 0,
-        "filled": 0,
-        "refused": [],
-        "requested": [
-          "ASML.AS",
-          "SAP.DE",
-          "REL.L",
-          "IFX.DE",
-          "PRX.AS",
-          "ASM.AS",
-          "AMS.MC",
-          "STMMI.MI",
-          "CAP.PA",
-          "HEXA-B.ST",
-          "DSY.PA",
-          "LOGN.SW",
-          "SGE.L",
-          "BESI.AS",
-          "G24.DE",
-          "AUTO.L",
-          "IDR.MC",
-          "OCTV-SDB.ST",
-          "LAGR-B.ST",
-          "MYCR.ST",
-          "CCC.L",
-          "VEND.OL",
-          "AIXA.DE",
-          "TPRO.MI",
-          "NEM.DE",
-          "REY.MI",
-          "SOP.PA",
-          "NOD.OL",
-          "SOI.PA",
-          "BC8.DE",
-          "ACP.WA",
-          "SCT.L",
-          "ATS.VI",
-          "COTN.SW"
-        ],
-        "unserved": [
-          "ASML.AS",
-          "SAP.DE",
-          "REL.L",
-          "IFX.DE",
-          "PRX.AS",
-          "ASM.AS",
-          "AMS.MC",
-          "STMMI.MI",
-          "CAP.PA",
-          "HEXA-B.ST",
-          "DSY.PA",
-          "LOGN.SW",
-          "SGE.L",
-          "BESI.AS",
-          "G24.DE",
-          "AUTO.L",
-          "IDR.MC",
-          "OCTV-SDB.ST",
-          "LAGR-B.ST",
-          "MYCR.ST",
-          "CCC.L",
-          "VEND.OL",
-          "AIXA.DE",
-          "TPRO.MI",
-          "NEM.DE",
-          "REY.MI",
-          "SOP.PA",
-          "NOD.OL",
-          "SOI.PA",
-          "BC8.DE",
-          "ACP.WA",
-          "SCT.L",
-          "ATS.VI",
-          "COTN.SW"
-        ],
-        "no_answer": [],
-        "not_attempted": [],
-        "heal_timed_out": false,
-        "verdict": "unserved_placeholder",
-        "reason": "34 live name(s) re-requested single-ticker, all answered, none carries a 2026-11-23 bar: the vendor is not serving this row for this roster. The 1 residual price(s) are what the batch left behind, so the row is not usable as a vendor-priced row. This says nothing about whether the exchange traded"
-      }
-    ],
-    "dropped": [
-      "2026-11-23"
-    ]
-  },
+  "end_date": "2026-11-24",
+  "tail_cap": null,
+  "tail_verification": null,
   "tail_from_norgate": null,
   "current_capture": {
     "schema_version": 1,
@@ -229,52 +17,16 @@
     "roster_endpoint_status": "ok",
     "roster_staleness": "fresh",
     "requested_price_source": "auto",
-    "required_price_session": "2026-11-23",
-    "panel_through": "2026-11-20",
-    "panel_current": false,
+    "required_price_session": "2026-11-24",
+    "panel_through": "2026-11-24",
+    "panel_current": true,
     "n_active": 35,
-    "n_priced_through_required": 0,
+    "n_priced_through_required": 35,
     "no_price_history": [],
-    "behind_required_session": {
-      "ACP.WA": "2026-11-20",
-      "AIXA.DE": "2026-11-20",
-      "AMS.MC": "2026-11-20",
-      "ASM.AS": "2026-11-20",
-      "ASML.AS": "2026-11-20",
-      "ATS.VI": "2026-11-20",
-      "AUTO.L": "2026-11-20",
-      "BC8.DE": "2026-11-20",
-      "BESI.AS": "2026-11-20",
-      "CAP.PA": "2026-11-20",
-      "CCC.L": "2026-11-20",
-      "COTN.SW": "2026-11-20",
-      "DSY.PA": "2026-11-20",
-      "G24.DE": "2026-11-20",
-      "HEXA-B.ST": "2026-11-20",
-      "IDR.MC": "2026-11-20",
-      "IFX.DE": "2026-11-20",
-      "LAGR-B.ST": "2026-11-20",
-      "LOGN.SW": "2026-11-20",
-      "MYCR.ST": "2026-11-20",
-      "NEM.DE": "2026-11-20",
-      "NOD.OL": "2026-11-20",
-      "OCTV-SDB.ST": "2026-11-20",
-      "PRX.AS": "2026-11-20",
-      "REL.L": "2026-11-20",
-      "REY.MI": "2026-11-20",
-      "SAP.DE": "2026-11-20",
-      "SCT.L": "2026-11-20",
-      "SGE.L": "2026-11-20",
-      "SOI.PA": "2026-11-20",
-      "SOP.PA": "2026-11-20",
-      "STMMI.MI": "2026-11-20",
-      "TEMN.SW": "2026-11-20",
-      "TPRO.MI": "2026-11-20",
-      "VEND.OL": "2026-11-20"
-    },
+    "behind_required_session": {},
     "note": "Availability of active constituents; breadth coverage rules are unchanged."
   },
-  "n_trading_days": 2255,
+  "n_trading_days": 2257,
   "n_signals": 52,
   "first_eligible_signal_date": "2019-01-08",
   "config": {
@@ -300,7 +52,7 @@
     "tickers_with_any_yf_data": 54,
     "tickers_with_no_yf_data": 24,
     "max_missing_constituent_pct": 0.5517241379310345,
-    "mean_missing_constituent_pct": 0.15782483349341314,
+    "mean_missing_constituent_pct": 0.15768497985274552,
     "first_date_below_10pct_missing": "2023-03-17",
     "note": "24 of 78 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. ALT.PA, ALTDS.PA, AMS1.SW, AMS2.SW, AVST.L, AVV.L, AVVN.L, BESIT.AS). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -3291,7 +3043,9 @@
       "2026-11-17",
       "2026-11-18",
       "2026-11-19",
-      "2026-11-20"
+      "2026-11-20",
+      "2026-11-23",
+      "2026-11-24"
     ],
     "n_constituents": [
       28,
@@ -5503,6 +5257,8 @@
       34,
       34,
       34,
+      35,
+      35,
       35,
       35,
       35,
@@ -7805,6 +7561,8 @@
       35,
       35,
       35,
+      35,
+      35,
       35
     ],
     "n_with_rsi": [
@@ -10056,6 +9814,8 @@
       35,
       35,
       34,
+      35,
+      35,
       35,
       35,
       35,
@@ -12319,6 +12079,8 @@
       35,
       35,
       35,
+      35,
+      35,
       35
     ],
     "n_with_high63": [
@@ -14570,6 +14332,8 @@
       35,
       35,
       34,
+      35,
+      35,
       35,
       35,
       35,
@@ -16833,6 +16597,8 @@
       0.0,
       0.0,
       0.0,
+      0.0,
+      0.0,
       0.0
     ],
     "ma_breadth": [
@@ -19090,7 +18856,9 @@
       0.428571,
       0.457143,
       0.428571,
-      0.285714
+      0.285714,
+      0.342857,
+      0.314286
     ],
     "highs_breadth": [
       0.157895,
@@ -21347,7 +21115,9 @@
       0.0,
       0.0,
       0.028571,
-      0.0
+      0.0,
+      0.0,
+      0.028571
     ],
     "rsi_breadth_z": [
       null,
@@ -23604,7 +23374,9 @@
       -0.74939,
       -0.74913,
       -0.748871,
-      -0.748611
+      -0.748611,
+      -0.748352,
+      -0.748094
     ],
     "ma_breadth_z": [
       null,
@@ -25861,7 +25633,9 @@
       -0.384421,
       -0.271336,
       -0.384282,
-      -0.949342
+      -0.949342,
+      -0.722874,
+      -0.835676
     ],
     "highs_breadth_z": [
       null,
@@ -28118,7 +27892,9 @@
       -0.803971,
       -0.803677,
       -0.536577,
-      -0.803272
+      -0.803272,
+      -0.802979,
+      -0.535796
     ],
     "composite_z": [
       null,
@@ -30375,7 +30151,9 @@
       -0.645927,
       -0.608048,
       -0.556577,
-      -0.833742
+      -0.833742,
+      -0.758068,
+      -0.706522
     ],
     "composite_p90": [
       null,
@@ -32632,7 +32410,9 @@
       1.080149,
       1.080012,
       1.079874,
-      1.079737
+      1.079737,
+      1.079599,
+      1.079462
     ],
     "composite_p10": [
       null,
@@ -34889,7 +34669,9 @@
       -1.007826,
       -1.007787,
       -1.007747,
-      -1.007707
+      -1.007707,
+      -1.007667,
+      -1.007627
     ],
     "rsi_p90": [
       null,
@@ -36873,6 +36655,8 @@
       0.207985,
       0.207623,
       0.20726,
+      0.206897,
+      0.206897,
       0.206897,
       0.206897,
       0.206897,
@@ -39403,7 +39187,9 @@
       0.230769,
       0.23042,
       0.23007,
-      0.22972
+      0.22972,
+      0.229371,
+      0.229021
     ],
     "rsi_trigger": [
       0,
@@ -41660,6 +41446,8 @@
       0,
       0,
       0,
+      0,
+      0,
       0
     ],
     "ma_zweig_trigger": [
@@ -43777,6 +43565,8 @@
       0,
       1,
       1,
+      0,
+      0,
       0,
       0,
       0,
@@ -46174,6 +45964,8 @@
       0,
       0,
       0,
+      0,
+      0,
       0
     ],
     "trigger_count": [
@@ -48431,6 +48223,8 @@
       0,
       0,
       0,
+      0,
+      0,
       0
     ],
     "composite_above_p90": [
@@ -50667,6 +50461,8 @@
       0,
       0,
       1,
+      0,
+      0,
       0,
       0,
       0,
@@ -52945,6 +52741,8 @@
       0,
       0,
       0,
+      0,
+      0,
       0
     ],
     "signal_eligible": [
@@ -53200,6 +52998,8 @@
       0,
       0,
       0,
+      1,
+      1,
       1,
       1,
       1,
@@ -57383,6 +57183,8 @@
       0,
       0,
       1,
+      0,
+      0,
       0,
       0,
       0,
