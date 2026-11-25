@@ -44,6 +44,10 @@ for (const c of cases) {
     _etfSwatch: () => '',
     _sleeveExpandAttrs: () => ({ attrs: '', caret: '' }),
     _initHoldingsClickExpand: () => {},
+    // Sleeve B rows label and colour from the asset-class universe; the
+    // pending table renders for B and C as well since 2026-11-24.
+    _bcLabel: (e) => e,
+    _bcColour: () => '#999',
     ETF_DESCRIPTIONS: {},
   };
   vm.createContext(ctx);
