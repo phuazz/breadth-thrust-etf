@@ -17,7 +17,7 @@ import shutil
 import signal
 import subprocess
 import sys
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -556,6 +556,27 @@ def test_f1_new_anchor_makes_snapshot_historical(tmp_path):
     edit_json(d / "live_track.json", lambda o: o.update(anchor_date="2026-10-30"))
     v = state(saved, d)
     assert v["state"] == "historical" and "2026-10-30" in v["notes"][0]
+
+
+def test_later_live_track_anchor_makes_snapshot_historical(tmp_path):
+    # A model rebalance re-anchors live_track days before the weekly refresh
+    # re-anchors the held basis: a new as-of, not a restatement.
+    d, saved = snapshot(tmp_path)
+    later = (date.fromisoformat(saved["fingerprint"]["anchor"]) + timedelta(days=4)).isoformat()
+    edit_json(d / "live_track.json", lambda o: (o.update(anchor_date=later),
+                                                o["effective_weights"].update(SPY=0.30)))
+    v = state(saved, d)
+    assert v["state"] == "historical" and v["reasons"] == [], v
+    assert any(f"to {later} (live_track)" in n for n in v["notes"]), v["notes"]
+
+
+def test_earlier_live_track_anchor_still_invalidates(tmp_path):
+    d, saved = snapshot(tmp_path)
+    earlier = (date.fromisoformat(saved["fingerprint"]["anchor"]) - timedelta(days=1)).isoformat()
+    edit_json(d / "live_track.json", lambda o: o.update(anchor_date=earlier))
+    v = state(saved, d)
+    assert v["state"] == "invalid"
+    assert v["reasons"] == ["live_track effective weights or anchor changed"]
 
 
 def test_f1_schema_violation_invalidates(tmp_path):

@@ -1420,6 +1420,7 @@ def validate_snapshot(saved: dict, data_dir: Path = DATA_DIR,
                 "notes": []}
     cutoff = date.fromisoformat(anchor)
     state = "current"
+    held_moved = False
     # The snapshot's own ETFs are re-resolved (never the newer book's), so a
     # proxy or FX handling the project resolvers would not produce is caught
     # whether the snapshot is current or historical.
@@ -1436,15 +1437,30 @@ def validate_snapshot(saved: dict, data_dir: Path = DATA_DIR,
         _check_basis_shape(basis)
         cur_anchor = basis["anchor"]
         if cur_anchor != anchor:
+            held_moved = True
             state = "historical"
             notes.append(f"the model-held book has moved from {anchor} to {cur_anchor}")
         elif canonical_sha(held_canonical(basis)) != fp.get("held_basis_sha256"):
             problems.append("held amounts changed for the same anchor")
     except InputError as exc:
         problems.append(f"current held basis unreadable: {exc}")
-    if state == "current":
+    if not held_moved:
+        # live_track re-anchors on every model rebalance (a Monday or Tuesday
+        # fill), days before the weekly refresh re-anchors the held basis. A
+        # LATER live_track anchor is a new as-of, not a restatement of the
+        # snapshot's: the snapshot is historical. A change at the same or an
+        # earlier anchor is still a problem.
         try:
-            if canonical_sha(live_track_canonical(data_dir)) != fp.get("live_track_sha256"):
+            track = live_track_canonical(data_dir)
+            try:
+                moved = date.fromisoformat(track["anchor_date"]) > cutoff
+            except ValueError:
+                moved = False
+            if moved:
+                state = "historical"
+                notes.append(f"the live book has moved from {anchor} to {track['anchor_date']} "
+                             "(live_track); the held basis has not been re-anchored yet")
+            elif canonical_sha(track) != fp.get("live_track_sha256"):
                 problems.append("live_track effective weights or anchor changed")
         except InputError as exc:
             problems.append(f"live_track cannot be verified: {exc}")
