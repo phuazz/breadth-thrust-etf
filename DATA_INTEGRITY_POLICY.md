@@ -40,6 +40,8 @@ This policy covers data-source identification, refresh cadence, staleness limits
 |--------|---------|-----------------|--------------|
 | yfinance (Yahoo Finance) | All ETF-level daily closes (Strategies B, C, D), all constituent prices (Strategies A, D) | Real-time on demand; on-disk parquet cache in `data/*_cache.parquet` (gitignored) | Occasional ticker resolution failures for delisted / renamed names — logged as `n_with_price < n_constituents` per day in the breadth output |
 
+For the five registered Xetra ETF listings, the native-price acquisition also checks Yahoo's one-session daily chart when the multi-day history lacks the completed session. It requires the EUR listing, a dated post-close quote, a positive traded volume, a complete daily OHLC bar, an explicit matching adjusted close and the preceding session on the same price basis. The response is archived under `data/yahoo_xetra_daily/` and rechecked on reuse. Conflicting or incomplete observations leave the gap open.
+
 For a missing Strategy D execution bar, run `python scripts/capture_xetra_session.py YYYY-MM-DD` during the following Xetra session. The command checks ARIVA's dated EUR bars against Financial Times history, Yahoo's previous close and the preceding adjusted session for all five listings. Review the dated file in `data/xetra_price_recoveries/` before publication. The engine, holdings charts and mark-to-market process read it when the daily feed has a gap. Constituent breadth retains its own observation date.
 
 ### 2.3 FX rates

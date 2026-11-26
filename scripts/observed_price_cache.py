@@ -109,7 +109,7 @@ def project_close(frame):
 
 def settle_observed_prices(frame, *, symbol, venue, through, cached=None,
                            fetch_window=None, now_utc=None, lookback_days=10,
-                           exclude_non_sessions=False):
+                           exclude_non_sessions=False, daily_store=None):
     """Return a new frame and audit record; unresolved gaps stay missing.
 
     ``fetch_window(start, end)`` receives ISO dates, with end exclusive. Transport
@@ -244,6 +244,9 @@ def settle_observed_prices(frame, *, symbol, venue, through, cached=None,
             merge(old, ov, "retained", att["rows"])
         except (ValueError, KeyError, TypeError) as exc:
             record["refusals"].append(f"cache: {exc}")
+    if daily_store is not None and venue == "XETR":
+        from xetra_daily_bar import recover_daily
+        recover_daily(out, missing(), schedule, cap, now, symbol, daily_store, lineage, record)
     out = out.sort_index()
     record["unresolved_dates"] = [d.date().isoformat() for d in missing()]
     metadata = {"version": 1, "source": "yfinance", "basis": "auto_adjust=True",
