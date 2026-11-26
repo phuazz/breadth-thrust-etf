@@ -33,9 +33,10 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from etf_registry import ETF_REGISTRY, display_ticker_map  # noqa: E402
+from etf_registry import (ETF_REGISTRY, EUROPE_SUPERSECTORS_CANDIDATE, UNIVERSE_COUNTRIES,
+                          UNIVERSE_ETFS, UNIVERSE_EUROPE_SECTORS, display_ticker_map)  # noqa: E402
 from strategy_freshness import verdict_has_lapsed  # noqa: E402
-from price_gap_context import gap_context  # noqa: E402
+from price_gap_context import gap_context, market_closure_context  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -950,6 +951,25 @@ def _classify(days_old: int | None, warn: int, stale: int) -> str:
     return "ok"
 
 
+def _health_scope(check: dict) -> str:
+    key, group = check["key"], check["group"]
+    if key == "live_track":
+        return "nav"
+    if group in ("breadth", "constituents"):
+        etf = key.partition("_")[2].upper()
+        if etf in UNIVERSE_ETFS or etf in UNIVERSE_EUROPE_SECTORS:
+            return "strategy"
+        if etf in EUROPE_SUPERSECTORS_CANDIDATE:
+            return "candidate"
+        if etf in UNIVERSE_COUNTRIES:
+            return "country"
+    if group == "strategy":
+        return "strategy"
+    if group == "derived" or key == "holdings_prices":
+        return "analytics"
+    return "review"
+
+
 def _compute_data_health(today: date) -> dict:
     """Build the centralised data health report. Walks every monitored
     file, computes status, returns a dict suitable for
@@ -966,6 +986,7 @@ def _compute_data_health(today: date) -> dict:
             "file": check["file"],
             "label": check["label"],
             "group": check["group"],
+            "scope": _health_scope(check),
             "fix": check.get("fix", ""),
             "thresholds": {"warn": check["warn"], "stale": check["stale"]},
         }
@@ -1076,6 +1097,10 @@ def _compute_data_health(today: date) -> dict:
                           + "; ".join(gaps) + ". Registered breadth coverage rules are unchanged.")
                 note = f"{note} {detail}" if note else detail
                 row["price_gaps"] = gap_context(check["key"], absent, behind)
+                row["capture_session"] = capture.get("required_price_session")
+                closure = market_closure_context(check["key"], row["capture_session"], row["price_gaps"])
+                if closure:
+                    row["market_closure"] = closure
                 context = " ".join(g["detail"] for g in row["price_gaps"] if g.get("detail"))
                 if context:
                     note += " " + context

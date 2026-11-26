@@ -72,6 +72,27 @@ def test_known_delisting_remains_a_visible_capture_warning(tmp_path, monkeypatch
     assert row["status"] == "warn"
     assert "2418.TW: no history" in row["note"]
     assert row["price_gaps"][0]["category"] == "delisted_security"
+    assert row["scope"] == "country"
+
+
+def test_feed_scope_follows_the_registered_use_even_for_a_broken_feed(tmp_path, monkeypatch):
+    scopes = {"breadth_exh1": "strategy", "breadth_exfb": "candidate", "breadth_ndia": "country",
+              "constituents_exv1": "strategy", "constituents_exv2": "candidate",
+              "breadth_unregistered": "review", "live_track": "nav"}
+    checks = [{"key": key, "file": key + ".json", "group": key.split("_")[0],
+               "label": key, "warn": 8, "stale": 14} for key in scopes]
+    health = _health_for(tmp_path, monkeypatch, {}, checks, BUILD)
+    assert {r["key"]: r["scope"] for r in health["rows"]} == scopes
+    assert health["counts"]["broken"] == len(scopes)
+
+
+def test_nse_closure_evidence_is_specific_to_capture_session_and_panel():
+    gaps = [{"last_price_date": d} for d in ("2026-11-23", "2026-11-16", None)]
+    context = P.market_closure_context("breadth_ndia", "2026-11-24", gaps)
+    assert context["at_previous_session"] == 1
+    assert context["previous_session"] == "2026-11-23"
+    assert not P.market_closure_context("breadth_itwn", "2026-11-24", gaps)
+    assert not P.market_closure_context("breadth_ndia", "2026-11-25", gaps)
 
 
 # ---------------------------------------------------------------------------

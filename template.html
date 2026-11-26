@@ -418,6 +418,7 @@
       background: var(--bg-card); margin-bottom: 14px;
     }
     #health-sleeve-readiness p { max-width: 54ch; }
+    #tab-health > .section-sub { font-size: 14px; max-width: 67ch; }
     .health-stat-strip {
       /* auto-fit/minmax, matching every other stat grid on this page
          (:294, :1092, :1173, :1691). The old `repeat(5, 1fr)` could not
@@ -3790,7 +3791,7 @@
 
   <div class="tab-content" id="tab-health">
     <h1 style="margin-top:8px;">Data Health</h1>
-    <p class="section-sub">Every data feed the dashboard reads, with freshness status as of the last pipeline build. A red row means the signal panels that read from it could be stale — do not deploy off that signal until the row turns green. Click <code>fix command</code> on a red row to see exactly which script to run.</p>
+    <p class="section-sub">A feed’s status measures freshness or coverage. Its use in the portfolio determines which decision it affects.</p>
 
     <div id="health-stat-strip" class="health-stat-strip"></div>
 
@@ -3808,7 +3809,7 @@
         <tr>
           <th style="width:80px;">Status</th>
           <th>Feed</th>
-          <th>Group</th>
+          <th>Used for</th>
           <th style="width:130px;">Last data</th>
           <th style="width:90px; text-align:right;">Days old</th>
           <th>Fix command</th>
@@ -3820,7 +3821,7 @@
 
     <p style="margin-top:14px; font-size:12px; color:var(--ink-faint);">
       <strong>Thresholds:</strong> live feeds warn at 3d, stale at 7d. Strategy / blend / overlay outputs warn at 8d, stale at 14d (weekly cadence). Per-ETF breadth panels warn at 8d, stale at 14d. Constituent rosters warn at 14d, stale at 60d. SOXX uses wider thresholds (breadth 21d/60d, roster 30d/90d) because the iShares-US holdings endpoint is Akamai-blocked from most IPs and the script automatically carries the most recent good roster forward.<br>
-      <strong>Fix:</strong> Most cases are resolved by <code>python scripts/refresh_all.py</code> from the repo root. Individual scripts shown per row let you target a single feed.
+      Refresh commands apply to the individual feed. Expand constituent evidence to inspect the observations behind a price-coverage warning.
     </p>
   </div>
 
@@ -13331,26 +13332,52 @@ function renderBlendAttribution() {
 // ----------- Tab navigation --------------------------------------------
 const TAB_RENDERED = new Set();
 // ============= Data Health (Phase 28.1) ===================================
+const HEALTH_USES = {
+  nav: 'Portfolio NAV', strategy: 'Deployed strategy', review: 'Scope unconfirmed',
+  analytics: 'Dashboard analytics', country: 'Country research', candidate: 'European candidate research'
+};
+function healthScope(row) {
+  return Object.hasOwn(HEALTH_USES, row.scope) ? row.scope : 'review';
+}
+function healthImpact(h) {
+  const flagged = (h.rows || []).filter(r => r.status !== 'ok');
+  const counts = {};
+  for (const row of flagged) {
+    const scope = healthScope(row);
+    counts[scope] = (counts[scope] || 0) + 1;
+  }
+  const groups = [[counts.nav, 'NAV'], [counts.strategy, 'strategy'], [counts.review, 'to review'],
+    [counts.analytics, 'analytics'], [(counts.country || 0) + (counts.candidate || 0), 'research']];
+  return {flagged, counts, badge: groups.filter(([n]) => n).map(([n, label]) => n + ' ' + label).join(' · ')};
+}
+
+function healthReasons(rows) {
+  const counts = new Map();
+  for (const r of rows) {
+    const reason = r.status === 'broken' ? 'missing or broken' : r.status === 'unknown' ? 'unconfirmed'
+      : r.price_gaps?.length ? 'with constituent price gaps'
+      : !r.note && r.days_old >= r.thresholds?.warn ? 'past the age threshold'
+      : r.status === 'stale' ? 'stale' : 'with capture or freshness warnings';
+    counts.set(reason, (counts.get(reason) || 0) + 1);
+  }
+  return Array.from(counts, ([reason, n]) => n + ' ' + reason).join(' · ');
+}
 function updateHealthBadge() {
   const h = (window.DATA && window.DATA.data_health) || null;
   const dot = document.getElementById('health-badge-dot');
   const sum = document.getElementById('health-badge-summary');
   if (!h || !dot) return;
-  const status = h.overall_status || 'ok';
+  const impact = healthImpact(h);
+  const status = h.overall_status === 'ok' && impact.badge ? 'warn' : h.overall_status || 'warn';
   dot.classList.remove('health-dot--ok', 'health-dot--warn', 'health-dot--stale');
   dot.classList.add('health-dot--' + status);
   const c = h.counts || {};
   if (status === 'ok') {
     sum.textContent = '(' + (c.ok || 0) + ' OK)';
     dot.title = 'All data feeds fresh';
-  } else if (status === 'warn') {
-    sum.textContent = '(' + (c.warn || 0) + ' warning' + (c.warn === 1 ? '' : 's') + ')';
-    dot.title = c.warn + ' feed(s) with capture or freshness warnings';
   } else {
-    const broken = c.broken || 0;
-    const stale = c.stale || 0;
-    sum.textContent = '(' + (stale + broken) + ' stale)';
-    dot.title = (stale + broken) + ' feed(s) stale or missing — open Data Health tab';
+    sum.textContent = '(' + (impact.badge || 'review feeds') + ')';
+    dot.title = 'Feed issues by use: ' + sum.textContent + '. Open Data Health for severity and dates.';
   }
 }
 
@@ -13364,15 +13391,13 @@ function renderDataHealth() {
 
   // Stat strip: 5 cards (Overall, OK, Warn, Stale, Broken)
   const c = h.counts || {};
-  const total = (c.ok || 0) + (c.warn || 0) + (c.stale || 0) + (c.broken || 0);
-  const overallStatus = h.overall_status || 'ok';
-  const overallLabel = overallStatus === 'ok' ? 'ALL CLEAR'
-                      : overallStatus === 'warn' ? 'WARNING'
-                      : 'STALE — DO NOT DEPLOY';
+  const total = (h.rows || []).length;
+  const impact = healthImpact(h);
+  const overallStatus = h.overall_status === 'ok' && impact.badge ? 'warn' : h.overall_status || 'warn';
   stripEl.innerHTML = `
     <div class="health-stat health-stat--${overallStatus}">
-      <div class="n">${overallLabel.split(' ')[0]}</div>
-      <div class="lbl">Overall — ${total} feeds monitored</div>
+      <div class="n">${total}</div>
+      <div class="lbl">Monitored feeds</div>
     </div>
     <div class="health-stat health-stat--ok">
       <div class="n">${c.ok || 0}</div><div class="lbl">Fresh</div>
@@ -13391,11 +13416,27 @@ function renderDataHealth() {
   // Readiness is separate from the monitored-feed warning count. The repair
   // note is emitted only when the C decision gate and repair date agree.
   if (readiness) {
-    const sleeves = ((window.DATA || {}).live_targets || {}).sleeves || [];
+    const data = window.DATA;
+    const targets = data.live_targets || {};
+    const sleeves = targets.sleeves || [];
     const c = sleeves.find(s => s.sleeve === 'C');
     const d = sleeves.find(s => s.sleeve === 'D');
     const repair = h.btc_repair_for_live_decision;
-    const lines = [];
+    const nav = data.live_track || {};
+    const next = targets.next_fill || {};
+    const navFeed = (h.rows || []).find(r => r.key === 'live_track');
+    const lines = ['Published NAV through ' + (nav.deployed_series_end || 'unknown')
+      + ' · NAV feed ' + (navFeed?.status || 'unknown').toUpperCase() + '.'];
+    const targetStatus = targets.targets_final === true ? 'Final' : targets.targets_final === false ? 'Provisional' : 'Unconfirmed';
+    lines.push(targetStatus + ' targets · decision session ' + (next.decision_session || 'unknown')
+      + ' · planned fill ' + (next.date || 'unknown') + '.');
+    const signals = data.strategy_freshness?.strategies || [];
+    if (signals.length) {
+      lines.push('Signal inputs through ' + signals.map(s => s.sleeve + ' ' + (s.data_through || 'unknown')).join(' · ') + '.');
+    }
+    for (const s of sleeves.filter(s => ['A', 'B'].includes(s.sleeve) && s.status !== 'READY')) {
+      lines.push(s.sleeve + ' ' + (s.status || 'unconfirmed') + (s.reason ? ' · ' + s.reason : ''));
+    }
     if (c) {
       lines.push(`C ${c.status}: decision session ${c.decision_session || 'unknown'}`
         + (repair && repair.date === c.decision_session
@@ -13408,7 +13449,7 @@ function renderDataHealth() {
     }
     readiness.replaceChildren();
     const title = document.createElement('strong');
-    title.textContent = 'Sleeve readiness and price source';
+    title.textContent = 'Portfolio valuation and next rebalance';
     readiness.appendChild(title);
     for (const line of lines) {
       const p = document.createElement('p');
@@ -13416,37 +13457,36 @@ function renderDataHealth() {
       readiness.appendChild(p);
     }
     const note = document.createElement('p');
-    note.textContent = 'Feed warnings remain counted below even when a sleeve has a verified alternate price. A HOLD sleeve keeps its last book and has no new fill.';
+    note.textContent = 'A HOLD sleeve keeps its last book. Use final targets for the next fill.';
     readiness.appendChild(note);
     readiness.style.display = lines.length ? 'block' : 'none';
   }
 
   // Overall card: only shown when something is wrong, with a clear "what to do"
   if (overallStatus !== 'ok') {
-    const stale = (h.rows || []).filter(r => r.status === 'stale' || r.status === 'broken');
-    const warn = (h.rows || []).filter(r => r.status === 'warn');
     overall.style.display = 'block';
     overall.style.background = overallStatus === 'stale' ? 'rgba(185,28,28,0.06)'
                                                           : 'rgba(217,119,6,0.06)';
     overall.style.borderColor = overallStatus === 'stale' ? 'rgba(185,28,28,0.30)'
                                                            : 'rgba(217,119,6,0.30)';
     overall.innerHTML = `
-      <strong style="font-size:14px;">${overallLabel}</strong>
-      <p style="margin:8px 0 0 0;font-size:13px;color:var(--ink-soft);">
-        ${stale.length} feed${stale.length === 1 ? '' : 's'} stale or missing,
-        ${warn.length} with capture or freshness warnings.
-        Run <code>python scripts/refresh_all.py</code> from the repo root
-        to refresh all monitored feeds (runtime depends on vendor availability).
-        Individual fix commands are shown per-row below.
-      </p>
+      <strong style="font-size:14px;">Feed issues by use</strong>
+      ${Object.entries(HEALTH_USES).filter(([k]) => impact.counts[k]).map(([k,label]) =>
+        `<p style="margin:4px 0;">${label} · ${healthReasons(impact.flagged.filter(r => healthScope(r) === k))}</p>`).join('')}
+      ${impact.badge && !Object.keys(impact.counts).some(k => k !== 'candidate' && k !== 'country')
+        ? '<p>These panels are outside the deployed sleeves. Check their dates and coverage before comparing research signals.</p>' : ''}
     `;
   } else {
     overall.style.display = 'none';
   }
 
   // Sort: stale + broken first, then warn, then ok by group + label
-  const order = { stale: 0, broken: 1, warn: 2, ok: 3, unknown: 4 };
+  const order = { broken: 0, stale: 1, unknown: 2, warn: 3, ok: 4 };
+  const scopes = Object.keys(HEALTH_USES);
   const rows = (h.rows || []).slice().sort((a, b) => {
+    if ((a.status === 'ok') !== (b.status === 'ok')) return a.status === 'ok' ? 1 : -1;
+    const priority = scopes.indexOf(healthScope(a)) - scopes.indexOf(healthScope(b));
+    if (priority) return priority;
     const da = order[a.status] ?? 5;
     const db = order[b.status] ?? 5;
     if (da !== db) return da - db;
@@ -13464,18 +13504,35 @@ function renderDataHealth() {
     const days = r.days_old == null ? '—' : r.days_old + 'd';
     const last = r.last_data_date || '<em style="color:var(--ink-faint);">unknown</em>';
     const fix = r.fix || '—';
-    const groupLabels = {
-      live: 'Live', strategy: 'Strategy', derived: 'Derived',
-      breadth: 'Breadth', constituents: 'Roster',
-    };
+    const gaps = r.price_gaps || [];
+    let reason = r.note ? _escapeHtml(r.note) : '';
+    if (gaps.length) {
+      const delisted = gaps.filter(g => g.category === 'delisted_security').length;
+      reason = 'Price coverage · ' + gaps.length + ' flagged at capture'
+        + (r.capture_session ? ' on ' + _escapeHtml(r.capture_session) : '')
+        + (delisted ? ', including ' + delisted + ' documented delisting' : '') + '.';
+      if (r.market_closure) {
+        const closure = r.market_closure;
+        const link = document.createElement('a');
+        link.href = closure.source;
+        link.textContent = closure.venue + ' was closed';
+        reason += ' ' + link.outerHTML + '. ' + closure.at_previous_session + ' have a price on '
+          + _escapeHtml(closure.previous_session) + ', the preceding session. '
+          + (gaps.length - closure.at_previous_session) + ' lack that observation.';
+      }
+      if (r.note) reason += '<details><summary>Constituent evidence</summary>' + _escapeHtml(r.note) + '</details>';
+    } else if (!reason && ['warn', 'stale'].includes(r.status)) {
+      reason = 'Age · ' + days + ' since the last observation. The ' + _escapeHtml(r.status)
+        + ' threshold is ' + (r.thresholds?.[r.status] ?? 'unknown') + ' days.';
+    }
     return `<tr class="${cls}">
       <td><span class="${pillCls}">${pillTxt}</span></td>
       <td>
         <div style="font-weight:500;">${r.label}</div>
         <div style="font-size:11px;color:var(--ink-faint);">${r.file}</div>
-        ${r.note ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:3px;">${r.note}</div>` : ''}
+        ${reason ? `<div style="font-size:12px;color:var(--ink-soft);margin-top:3px;">${reason}</div>` : ''}
       </td>
-      <td data-label="Group" style="font-size:12px;color:var(--ink-soft);">${groupLabels[r.group] || r.group}</td>
+      <td data-label="Used for" style="font-size:12px;color:var(--ink-soft);">${HEALTH_USES[healthScope(r)]}</td>
       <td data-label="Last data" style="font-size:12px;">${last}</td>
       <td data-label="Days old" style="text-align:right;font-variant-numeric:tabular-nums;">${days}</td>
       <td data-label="Fix command" style="font-size:11px;font-family:var(--mono,monospace);color:var(--ink-soft);">${fix}</td>

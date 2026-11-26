@@ -32,3 +32,14 @@ def gap_context(key: str, absent: list[str], behind: dict) -> list[dict]:
                        "last_price_date": behind.get(ticker),
                        **({k: v for k, v in evidence.items() if k != "category"} if evidence else {})})
     return result
+
+
+def market_closure_context(key, capture_session, gaps):
+    """Annotate only the venue and capture date covered by the cited circular."""
+    if (key, capture_session) != ("breadth_ndia", "2026-11-24"):
+        return None
+    # NSE capital-market circular CMTR71775. Both dates are ISO observations.
+    previous = "2026-11-23"
+    return {"venue": "NSE", "previous_session": previous,
+            "at_previous_session": sum(g["last_price_date"] == previous for g in gaps),
+            "source": "https://nsearchives.nseindia.com/content/circulars/CMTR71775.pdf"}
