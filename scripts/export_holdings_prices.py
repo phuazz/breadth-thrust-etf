@@ -77,6 +77,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from xetra_recovery import XETRA_ISINS
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 OUT_PATH = DATA_DIR / "holdings_prices_1y.json"
@@ -671,7 +673,7 @@ def fetch_missing_from_yfinance(tickers: list[str],
             ser.index = pd.to_datetime(ser.index).tz_localize(None)
             observed_cache = DATA_DIR / f"{tk.lower()}_yahoo_observed_close.parquet"
             recovered_native = False
-            if tk.endswith((".DE", ".SZ", ".SS")) and observed_cache.exists():
+            if tk in XETRA_ISINS or (tk.endswith((".DE", ".SZ", ".SS")) and observed_cache.exists()):
                 from yahoo_observations import settle_execution_prices
                 original_dates = ser.index
                 native = settle_execution_prices(

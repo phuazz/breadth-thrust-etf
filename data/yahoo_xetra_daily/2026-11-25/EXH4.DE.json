@@ -1,0 +1,98 @@
+{
+  "acquired_at": "2026-11-26T07:13:25.523225+00:00",
+  "chart": {
+    "meta": {
+      "currency": "EUR",
+      "symbol": "EXH4.DE",
+      "exchangeName": "GER",
+      "fullExchangeName": "XETRA",
+      "instrumentType": "ETF",
+      "firstTradeDate": 1199260800,
+      "regularMarketTime": 1795624566,
+      "hasPrePostMarketData": false,
+      "gmtoffset": 3600,
+      "timezone": "CET",
+      "exchangeTimezoneName": "Europe/Berlin",
+      "regularMarketPrice": 106.94,
+      "regularMarketChangePercent": -1.89,
+      "fulldayPrice": 106.94,
+      "fulldayChange": -2.06,
+      "fulldayChangePercent": -1.89,
+      "fiftyTwoWeekHigh": 124.2,
+      "fiftyTwoWeekLow": 100.86,
+      "regularMarketDayHigh": 109.76,
+      "regularMarketDayLow": 106.88,
+      "regularMarketVolume": 21305,
+      "longName": "iShares STOXX Europe 600 Industrial Goods & Services UCITS ETF (DE)",
+      "shortName": "iSh.ST.Eu.600 In.G.&S.U.ETF DEI",
+      "chartPreviousClose": 109.0,
+      "priceHint": 2,
+      "currentTradingPeriod": {
+        "pre": {
+          "timezone": "CET",
+          "start": 1795672800,
+          "end": 1795680000,
+          "gmtoffset": 3600
+        },
+        "regular": {
+          "timezone": "CET",
+          "start": 1795680000,
+          "end": 1795710600,
+          "gmtoffset": 3600
+        },
+        "post": {
+          "timezone": "CET",
+          "start": 1795710600,
+          "end": 1795721400,
+          "gmtoffset": 3600
+        }
+      },
+      "dataGranularity": "1d",
+      "range": "1d",
+      "validRanges": [
+        "1d",
+        "5d",
+        "1mo",
+        "3mo",
+        "6mo",
+        "1y",
+        "2y",
+        "5y",
+        "10y",
+        "ytd",
+        "max"
+      ]
+    },
+    "timestamp": [
+      1795624566
+    ],
+    "indicators": {
+      "quote": [
+        {
+          "open": [
+            109.0
+          ],
+          "low": [
+            106.87999725341797
+          ],
+          "volume": [
+            21305
+          ],
+          "close": [
+            106.94000244140625
+          ],
+          "high": [
+            109.76000213623047
+          ]
+        }
+      ],
+      "adjclose": [
+        {
+          "adjclose": [
+            106.94000244140625
+          ]
+        }
+      ]
+    }
+  }
+}

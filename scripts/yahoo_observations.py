@@ -97,7 +97,8 @@ def _settle_native_yahoo(frame, symbol, data_dir, *, now_utc, end=None,
     cached = _read(cache)
     settled, record = settle_observed_prices(
         frame, symbol=symbol, venue=venue, through=bound, cached=cached,
-        fetch_window=fetch_window, now_utc=now_utc, exclude_non_sessions=True)
+        fetch_window=fetch_window, now_utc=now_utc, exclude_non_sessions=True,
+        daily_store=data_dir if fetch_window is None else None)
     if record.get("excluded_non_session_dates") or record.get("excluded_retry_non_session_dates"):
         print(f"  {symbol} observed-price calendar: excluded non-trading dates "
               f"fresh={record['excluded_non_session_dates']}; "
