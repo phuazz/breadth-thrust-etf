@@ -673,11 +673,20 @@ def fetch_missing_from_yfinance(tickers: list[str],
             ser.index = pd.to_datetime(ser.index).tz_localize(None)
             observed_cache = DATA_DIR / f"{tk.lower()}_yahoo_observed_close.parquet"
             recovered_native = False
-            if tk in XETRA_ISINS or (tk.endswith((".DE", ".SZ", ".SS")) and observed_cache.exists()):
+            native_input = ser.to_frame("Close")
+            if tk in XETRA_ISINS:
+                # A cold batch may carry a partially populated OHLC bar. Keep
+                # every observed field for the conflict check. A Close-only
+                # backfill retains its existing export and cache semantics.
+                block = raw[tk] if isinstance(raw.columns, pd.MultiIndex) else raw
+                fields = ["Open", "High", "Low", "Close"]
+                if set(fields) <= set(block.columns):
+                    native_input = block[fields]
+            if tk.endswith((".DE", ".SZ", ".SS")) and (observed_cache.exists() or len(native_input.columns) == 4):
                 from yahoo_observations import settle_execution_prices
                 original_dates = ser.index
                 native = settle_execution_prices(
-                    ser.to_frame("Close"), tk, DATA_DIR,
+                    native_input, tk, DATA_DIR,
                     now_utc=acquisition_started)
                 ser = native["Close"].dropna()
                 recovered_native = not ser.index.difference(original_dates).empty
