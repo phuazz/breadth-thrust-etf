@@ -1,0 +1,98 @@
+{
+  "acquired_at": "2026-11-27T03:41:56.062762+00:00",
+  "chart": {
+    "meta": {
+      "currency": "EUR",
+      "symbol": "EXV1.DE",
+      "exchangeName": "GER",
+      "fullExchangeName": "XETRA",
+      "instrumentType": "ETF",
+      "firstTradeDate": 1199260800,
+      "regularMarketTime": 1795710966,
+      "hasPrePostMarketData": false,
+      "gmtoffset": 3600,
+      "timezone": "CET",
+      "exchangeTimezoneName": "Europe/Berlin",
+      "regularMarketPrice": 37.34,
+      "regularMarketChangePercent": 2.526,
+      "fulldayPrice": 37.34,
+      "fulldayChange": 0.92,
+      "fulldayChangePercent": 2.526,
+      "fiftyTwoWeekHigh": 43.435,
+      "fiftyTwoWeekLow": 30.89,
+      "regularMarketDayHigh": 37.54,
+      "regularMarketDayLow": 37.2,
+      "regularMarketVolume": 156887,
+      "longName": "iShares STOXX Europe 600 Banks UCITS ETF (DE) (Dist)",
+      "shortName": "iSh.ST.Euro.600 Banks U.ETF DEI",
+      "chartPreviousClose": 36.42,
+      "priceHint": 2,
+      "currentTradingPeriod": {
+        "pre": {
+          "timezone": "CET",
+          "end": 1795766400,
+          "start": 1795759200,
+          "gmtoffset": 3600
+        },
+        "regular": {
+          "timezone": "CET",
+          "end": 1795797000,
+          "start": 1795766400,
+          "gmtoffset": 3600
+        },
+        "post": {
+          "timezone": "CET",
+          "end": 1795807800,
+          "start": 1795797000,
+          "gmtoffset": 3600
+        }
+      },
+      "dataGranularity": "1d",
+      "range": "1d",
+      "validRanges": [
+        "1d",
+        "5d",
+        "1mo",
+        "3mo",
+        "6mo",
+        "1y",
+        "2y",
+        "5y",
+        "10y",
+        "ytd",
+        "max"
+      ]
+    },
+    "timestamp": [
+      1795710966
+    ],
+    "indicators": {
+      "quote": [
+        {
+          "volume": [
+            156887
+          ],
+          "high": [
+            37.540000915527344
+          ],
+          "low": [
+            37.20000076293945
+          ],
+          "open": [
+            37.3650016784668
+          ],
+          "close": [
+            37.34000015258789
+          ]
+        }
+      ],
+      "adjclose": [
+        {
+          "adjclose": [
+            37.34000015258789
+          ]
+        }
+      ]
+    }
+  }
+}

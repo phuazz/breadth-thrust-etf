@@ -1,0 +1,98 @@
+{
+  "acquired_at": "2026-11-27T03:41:56.062762+00:00",
+  "chart": {
+    "meta": {
+      "currency": "EUR",
+      "symbol": "EXH1.DE",
+      "exchangeName": "GER",
+      "fullExchangeName": "XETRA",
+      "instrumentType": "ETF",
+      "firstTradeDate": 1199260800,
+      "regularMarketTime": 1795710961,
+      "hasPrePostMarketData": false,
+      "gmtoffset": 3600,
+      "timezone": "CET",
+      "exchangeTimezoneName": "Europe/Berlin",
+      "regularMarketPrice": 53.5,
+      "regularMarketChangePercent": 1.963,
+      "fulldayPrice": 53.5,
+      "fulldayChange": 1.03,
+      "fulldayChangePercent": 1.963,
+      "fiftyTwoWeekHigh": 60.35,
+      "fiftyTwoWeekLow": 39.49,
+      "regularMarketDayHigh": 53.69,
+      "regularMarketDayLow": 53.1,
+      "regularMarketVolume": 98418,
+      "longName": "iShares STOXX Europe 600 Oil & Gas UCITS ETF (DE)",
+      "shortName": "iSh.ST.Eu.600 Oil&Gas U.ETF DEI",
+      "chartPreviousClose": 52.47,
+      "priceHint": 2,
+      "currentTradingPeriod": {
+        "pre": {
+          "timezone": "CET",
+          "start": 1795759200,
+          "end": 1795766400,
+          "gmtoffset": 3600
+        },
+        "regular": {
+          "timezone": "CET",
+          "start": 1795766400,
+          "end": 1795797000,
+          "gmtoffset": 3600
+        },
+        "post": {
+          "timezone": "CET",
+          "start": 1795797000,
+          "end": 1795807800,
+          "gmtoffset": 3600
+        }
+      },
+      "dataGranularity": "1d",
+      "range": "1d",
+      "validRanges": [
+        "1d",
+        "5d",
+        "1mo",
+        "3mo",
+        "6mo",
+        "1y",
+        "2y",
+        "5y",
+        "10y",
+        "ytd",
+        "max"
+      ]
+    },
+    "timestamp": [
+      1795710961
+    ],
+    "indicators": {
+      "quote": [
+        {
+          "volume": [
+            98418
+          ],
+          "low": [
+            53.099998474121094
+          ],
+          "open": [
+            53.099998474121094
+          ],
+          "close": [
+            53.5
+          ],
+          "high": [
+            53.689998626708984
+          ]
+        }
+      ],
+      "adjclose": [
+        {
+          "adjclose": [
+            53.5
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -255,7 +255,6 @@
    "2026-11-24"
   ],
   "c1": [
-   "2025-11-27",
    "2025-11-28",
    "2025-12-01",
    "2025-12-02",
@@ -1292,7 +1291,6 @@
   "EXV1": {
    "cal": "c1",
    "px": [
-    31.35,
     31.4,
     31.48,
     31.78,
@@ -1552,7 +1550,6 @@
   "EXH9": {
    "cal": "c1",
    "px": [
-    48.55,
     48.68,
     48.37,
     48.55,
@@ -1812,7 +1809,6 @@
   "EXH1": {
    "cal": "c1",
    "px": [
-    39.41,
     39.81,
     39.75,
     39.82,
@@ -3112,7 +3108,7 @@
  },
  "charts_unavailable": [],
  "panel_end_date": "2026-11-24",
- "computed_at_utc": "2026-11-26 07:39 UTC",
+ "computed_at_utc": "2026-11-27 03:41 UTC",
  "holdings": [
   {
    "ticker": "SHY",
@@ -3295,7 +3291,7 @@
  "n_positions": 10,
  "defensive_engaged": false,
  "freshness": {
-  "computed_at_utc": "2026-11-26T07:39:58.860130+00:00",
+  "computed_at_utc": "2026-11-27T03:42:05.393023+00:00",
   "all_current": false,
   "strategies": [
    {
@@ -3332,11 +3328,11 @@
     "sleeve": "D",
     "label": "Europe sectors",
     "data_through": "2026-11-24",
-    "venue_last_session": "2026-11-25",
-    "sessions_behind": 1,
+    "venue_last_session": "2026-11-26",
+    "sessions_behind": 2,
     "status": "behind",
     "laggards": [],
-    "why_plain": "the data behind this strategy stops on 2026-11-24, while the market has traded to 2026-11-25 — it has not been rebuilt since."
+    "why_plain": "the data behind this strategy stops on 2026-11-24, while the market has traded to 2026-11-26 — it has not been rebuilt since."
    }
   ]
  },
