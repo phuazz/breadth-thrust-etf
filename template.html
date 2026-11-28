@@ -2235,6 +2235,22 @@
       /* Live hero stats / panel stats: shrink for mobile */
       .hero-stat .v, .panel-stat .v { font-size: 16px; }
     }
+    /* Desktop: prose fills the column (owner decision 2026-11-25). The 54ch
+       and 58ch measures above still apply up to 1024px so tablets in either
+       orientation keep a readable line, and the 38ch phone rule is untouched.
+       Above 1024px every capped prose selector is released here, with the same
+       selectors so specificity matches and source order decides. Charts and
+       tables keep their own pixel caps (.cbr-bars, table.corr-matrix). */
+    @media (min-width: 1025px) {
+      section .section-sub, section .section-sub.full,
+      .tab-content p, .tab-content li, footer p,
+      #health-sleeve-readiness p, #tab-execution p, #tab-execution .step-body,
+      .live-hero .asof-caveat, .cbr-note, .cbr-limits,
+      section#cbr-section > p.section-sub, section#cbr-section p.cbr-sub-prose,
+      .sleeve-status-table .ss-sub,
+      header.top .sub, header.top .headline, header.top .footnote,
+      header.top .caveats-banner { max-width: none; }
+    }
   </style>
 </head>
 <body>
