@@ -1,5 +1,5 @@
 {
-  "built_at_utc": "2026-11-28T03:27:57+00:00",
+  "built_at_utc": "2026-11-28T04:56:07+00:00",
   "as_of": "2026-11-27",
   "as_of_modal": "2026-11-27",
   "as_of_modal_share": "49/54",
@@ -2304,7 +2304,7 @@
     "failures": [],
     "stale": [],
     "notes": [
-      "ETF layer observed 2026-11-28, prices as of 2026-11-27",
+      "snapshots not refreshed this run (--skip-snapshots)",
       "naive-recompute check passed on EEM, EFA, EWJ"
     ],
     "stale_threshold_sessions": 3
