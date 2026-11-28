@@ -1206,10 +1206,22 @@ def repairable_held_core(released: dict) -> list[str]:
 def cli(argv: list[str] | None = None) -> int:
     """The script entry. The in-flight marker is released only on a RETURN:
     a run killed or raising never gets here, and the marker it leaves is what
-    lets the next firing restore its debris; see recover_interrupted_run."""
-    rc = main(argv)
+    lets the next firing restore its debris; see recover_interrupted_run.
+
+    The keep-awake request (2026-11-26) is held here, around the whole run,
+    so the waited children it starts run under it too; see keep_awake. Tests
+    drive main() directly and never touch the machine's power state."""
+    global KEEP_AWAKE_STATE
+    import keep_awake
+    with keep_awake.held() as state:
+        KEEP_AWAKE_STATE = state
+        rc = main(argv)
     release_in_flight()
     return rc
+
+
+# Set by cli() for the log header; None when main() is driven in-process.
+KEEP_AWAKE_STATE = None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1311,6 +1323,8 @@ def main(argv: list[str] | None = None) -> int:
     import task_priority
     prio = _safe(log, "process priority", task_priority.process_priority)
     log.write(f"\nprocess priority: {prio[0] if prio else 'unknown'}\n")
+    if KEEP_AWAKE_STATE is not None:
+        log.write(f"\nkeep-awake: {KEEP_AWAKE_STATE.describe()}\n")
     prio_warning = _safe(log, "process priority warning", task_priority.process_priority_warning)
     if prio_warning:
         log.write(f"\nWARNING: {prio_warning}\n")
