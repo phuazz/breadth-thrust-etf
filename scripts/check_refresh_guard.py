@@ -616,7 +616,11 @@ def check_breadth_ends(breadth_ends: dict[str, str],
             try:
                 pd_date = date.fromisoformat(priced_to)
                 if pd_date < floor:
-                    floor = pd_date
+                    # Constituent data may advance on a foreign session
+                    # that the configured breadth calendar excludes.
+                    # Keep the cap, but require the last real panel session
+                    # on or before it, just as the writer's date grid does.
+                    floor = expected_panel_end(cal_name, pd_date)
             except (TypeError, ValueError):
                 pass
         try:

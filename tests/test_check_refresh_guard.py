@@ -790,3 +790,22 @@ def test_priced_sessions_is_the_writers_own_floor():
     nine = full.copy()
     nine.loc[idx[1], "T9"] = float("nan")          # 9 of 10 misses the floor
     assert list(guard.priced_sessions(nine, roster)) == [idx[0]]
+
+
+def test_g4_ndia_tail_uses_revision_free_nyse_grid_on_thanksgiving():
+    friday = date(2026, 11, 27)
+    now = datetime(2026, 11, 28, 3, tzinfo=timezone.utc)
+    cap = {"NDIA": {"capped_at": "2026-11-26",
+                    "constituents_priced_to": "2026-11-26",
+                    "venue_last_completed": "2026-11-27",
+                    "roster_end_friday": "2026-11-27"}}
+    calendar = {"NDIA": "NYSE"}
+    def verify(end, tail_caps):
+        return guard.check_breadth_ends({"NDIA": end}, calendar, friday,
+                                        now_utc=now, tail_caps=tail_caps)[0]
+
+    assert verify("2026-11-25", cap)["status"] == guard.OK
+    assert "TRUNCATED" in verify("2026-11-24", cap)["evidence"]
+    assert "not a NYSE session" in verify("2026-11-26", cap)["evidence"]
+    assert "TRUNCATED" in verify("2026-11-25", None)["evidence"]
+    assert "partial bar" in verify("2026-11-30", cap)["evidence"]
