@@ -340,7 +340,8 @@ def download_soxx_ohlc(start: str, end: str, etf: str = DEFAULT_ETF,
 # WHAT IT DOES NOT DO. An interior hole, a zero or infinite close, a tail
 # Norgate does not carry, a feed that is down and a yfinance run are all
 # returned exactly as fetched, and run_portfolio.spy_benchmark_problem
-# refuses them as before. Callers that forward-fill the benchmark
+# refuses them as before. A fault in the calendar lookup or in the re-source
+# does the same and prints its reason. Callers that forward-fill the benchmark
 # (run_topk_robustness, run_europe_rotation) get the real close instead of a
 # carried one on a Norgate run and are otherwise unchanged.
 # ---------------------------------------------------------------------------
@@ -377,27 +378,47 @@ def resource_spy_tail(close: pd.Series, norgate_close: pd.Series | None,
     the last close it carries and on or before ``cap``, whether Yahoo sent
     the row with a NaN (the 2026-11-24 shape) or left the row out. Returns
     ``(series, record)``: the series is ``close`` itself unless a session was
-    filled, and the record is compute_breadth.resource_tail_from_norgate's,
-    None when there was nothing to consider.
+    filled. The record is None only when the series already carries a close
+    on ``cap`` or later, so there was no tail to consider. Otherwise it has
+    the shape of compute_breadth.resource_tail_from_norgate's record, and
+    every return that fills nothing names its reason under ``declined``.
     """
     import compute_breadth as cb  # noqa: PLC0415  (one rule, one implementation)
 
-    if norgate_close is None or cap is None or not close.index.is_unique:
-        return close, None
+    t = SPY_BENCHMARK_TICKER
+
+    def declined(why: str) -> tuple[pd.Series, dict]:
+        return close, {"filled": {}, "declined": {t: why}}
+
+    if cap is None:
+        return declined("no completed session bounds the fill")
     priced = pd.to_numeric(close, errors="coerce").dropna()
-    ng = pd.to_numeric(norgate_close, errors="coerce").dropna()
-    if priced.empty or ng.empty:
-        return close, None
+    if priced.empty:
+        return declined("the Yahoo series has no finite close")
     cap = pd.Timestamp(cap)
     last = priced.index.max()
+    if last >= cap:
+        return close, None                 # nothing missing at the tail
+    if norgate_close is None:
+        return declined("no Norgate series was supplied")
+    if not close.index.is_unique:
+        dup = close.index[close.index.duplicated()][0]
+        return declined(f"the Yahoo index carries {str(dup)[:10]} more than "
+                        f"once, so its tail cannot be read")
+    ng = pd.to_numeric(norgate_close, errors="coerce").dropna()
+    if ng.empty:
+        return declined("the Norgate close column has no finite close")
     # A row Yahoo left out is added blank, so both shapes reach the rule as
     # the same thing: a session the incumbent's index has and its values lack.
     omitted = ng.index[(ng.index > last) & (ng.index <= cap)]
-    t = SPY_BENCHMARK_TICKER
     frame = close.reindex(close.index.union(omitted)).to_frame(t)
     filled, record = cb.resource_tail_from_norgate(
         frame, ng.to_frame(t), [t], [t], through=cap)
-    if not record or t not in record.get("filled", {}):
+    if record is None:
+        # The rule saw no trailing row: Yahoo sent none after ``last`` and
+        # Norgate has none in (last, cap] to add.
+        return declined(f"Norgate carries no session after {last.date()} either")
+    if t not in record.get("filled", {}):
         return close, record
     return filled[t].rename(close.name), record
 
@@ -413,7 +434,18 @@ def _settle_spy_tail(out: pd.DataFrame, start: str, end: str,
     if priced.empty:
         return out, None
     last = priced.index.max()
-    cap = spy_tail_cap(end, now_utc)
+    # The calendar is read on every fresh fetch, a complete one and a
+    # yfinance run included. A fault in it must not raise out of the fetch
+    # for every caller: the series is returned as fetched and the reason is
+    # printed (review of pull request 17, 2026-11-24).
+    cap_fault = None
+    try:
+        cap = spy_tail_cap(end, now_utc)
+    except Exception as exc:  # noqa: BLE001 — see the comment above
+        cap, cap_fault = None, f"{type(exc).__name__}: {exc}"
+        print(f"  SPY benchmark: the NYSE calendar lookup failed ({cap_fault}); "
+              f"no tail is re-sourced and the series is returned as fetched.",
+              flush=True)
     blank = [d for d in close.index[close.isna()]
              if d > last and (cap is None or d <= cap)]
     behind = cap is not None and last < cap
@@ -434,8 +466,9 @@ def _settle_spy_tail(out: pd.DataFrame, start: str, end: str,
               "Norgate (BTE_PRICE_SOURCE).", flush=True)
         return out, None
     if cap is None:
-        print("  SPY benchmark tail NOT re-sourced: the NYSE calendar gave no "
-              "completed session to bound the fill.", flush=True)
+        why = ("the NYSE calendar lookup failed" if cap_fault else
+               "the NYSE calendar gave no completed session to bound the fill")
+        print(f"  SPY benchmark tail NOT re-sourced: {why}.", flush=True)
         return out, None
     # A fault in the re-source must leave the series exactly as fetched: the
     # callers that forward-fill would otherwise crash where they used to run,
@@ -455,8 +488,10 @@ def _settle_spy_tail(out: pd.DataFrame, start: str, end: str,
         return out, None
     fill = (record or {}).get("filled", {}).get(SPY_BENCHMARK_TICKER)
     if not fill:
+        # resource_spy_tail names the reason on every return that fills
+        # nothing; the default is for a record that somehow carries none.
         why = (record or {}).get("declined", {}).get(
-            SPY_BENCHMARK_TICKER, "Norgate carries no session after it either")
+            SPY_BENCHMARK_TICKER, "no reason was recorded")
         print(f"  Norgate tail re-source SPY (benchmark) DECLINED: {why}",
               flush=True)
         return out, record
