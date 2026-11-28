@@ -1,32 +1,117 @@
 {
   "etf": "EXH1",
-  "computed_at_utc": "2026-11-25T15:01:05.288780+00:00",
+  "computed_at_utc": "2026-11-28T05:19:19.700944+00:00",
   "constituents_source": "data\\constituents_exh1.json",
   "trading_calendar": "XETR",
   "start_date": "2018-01-05",
-  "end_date": "2026-11-24",
-  "tail_cap": null,
-  "tail_verification": null,
+  "end_date": "2026-11-26",
+  "tail_cap": {
+    "capped_at": "2026-11-26",
+    "venue_last_completed": "2026-11-27",
+    "constituents_priced_to": "2026-11-26",
+    "roster_end_friday": "2026-11-27",
+    "vendor_probe": {
+      "checked_at_utc": "2026-11-28T05:19:09+00:00",
+      "probe": "yfinance single-ticker history",
+      "last_populated": "2026-11-26",
+      "rows": [
+        {
+          "date": "2026-11-27",
+          "roster_held": 28,
+          "roster_priced": 0,
+          "live_unpriced": 28,
+          "sampled": [
+            "SHELL.AS",
+            "VWS.CO",
+            "SUBC.OL",
+            "NDX1.DE",
+            "TGS.OL"
+          ],
+          "sample_answered": 5,
+          "sample_served": 0,
+          "verdict": "unserved"
+        }
+      ],
+      "dropped": [
+        "2026-11-27"
+      ]
+    }
+  },
+  "tail_verification": {
+    "checked_at_utc": "2026-11-28T05:19:09+00:00",
+    "probe": "yfinance single-ticker history",
+    "last_populated": "2026-11-26",
+    "rows": [
+      {
+        "date": "2026-11-27",
+        "roster_held": 28,
+        "roster_priced": 0,
+        "live_unpriced": 28,
+        "sampled": [
+          "SHELL.AS",
+          "VWS.CO",
+          "SUBC.OL",
+          "NDX1.DE",
+          "TGS.OL"
+        ],
+        "sample_answered": 5,
+        "sample_served": 0,
+        "verdict": "unserved"
+      }
+    ],
+    "dropped": [
+      "2026-11-27"
+    ]
+  },
   "tail_from_norgate": null,
   "current_capture": {
     "schema_version": 1,
-    "roster_fingerprint": "261e5be918880be67acc83782a30f7f1383f799d721c9227414a6b1c3f1081de",
-    "roster_target": "2026-11-20",
-    "roster_actual": "2026-11-20",
+    "roster_fingerprint": "a9011fbf3ba92e7012130baf70e2bf8f79226da3b79795c3a3773139e51cf169",
+    "roster_target": "2026-11-27",
+    "roster_actual": "2026-11-26",
     "roster_carried": false,
     "roster_endpoint_status": "ok",
     "roster_staleness": "fresh",
     "requested_price_source": "auto",
-    "required_price_session": "2026-11-24",
-    "panel_through": "2026-11-24",
-    "panel_current": true,
+    "required_price_session": "2026-11-27",
+    "panel_through": "2026-11-26",
+    "panel_current": false,
     "n_active": 28,
-    "n_priced_through_required": 28,
+    "n_priced_through_required": 0,
     "no_price_history": [],
-    "behind_required_session": {},
+    "behind_required_session": {
+      "AKRBP.OL": "2026-11-26",
+      "BP.L": "2026-11-26",
+      "ENG.MC": "2026-11-26",
+      "ENI.MI": "2026-11-26",
+      "ENR.DE": "2026-11-26",
+      "EQNR.OL": "2026-11-26",
+      "GALP.LS": "2026-11-26",
+      "GTT.PA": "2026-11-26",
+      "HBR.L": "2026-11-26",
+      "MOH.AT": "2026-11-26",
+      "NDX1.DE": "2026-11-26",
+      "NESTE.HE": "2026-11-26",
+      "OMV.VI": "2026-11-26",
+      "PKN.WA": "2026-11-26",
+      "REP.MC": "2026-11-26",
+      "SBMO.AS": "2026-11-26",
+      "SHELL.AS": "2026-11-26",
+      "SPM.MI": "2026-11-26",
+      "SRG.MI": "2026-11-26",
+      "SUBC.OL": "2026-11-26",
+      "TE.PA": "2026-11-26",
+      "TEN.MI": "2026-11-26",
+      "TGS.OL": "2026-11-26",
+      "TTE.PA": "2026-11-26",
+      "VAR.OL": "2026-11-26",
+      "VK.PA": "2026-11-26",
+      "VPK.AS": "2026-11-26",
+      "VWS.CO": "2026-11-26"
+    },
     "note": "Availability of active constituents; breadth coverage rules are unchanged."
   },
-  "n_trading_days": 2257,
+  "n_trading_days": 2259,
   "n_signals": 46,
   "first_eligible_signal_date": "2019-01-08",
   "config": {
@@ -52,7 +137,7 @@
     "tickers_with_any_yf_data": 33,
     "tickers_with_no_yf_data": 14,
     "max_missing_constituent_pct": 0.6,
-    "mean_missing_constituent_pct": 0.15199978740324616,
+    "mean_missing_constituent_pct": 0.1518652147716364,
     "first_date_below_10pct_missing": "2022-06-17",
     "note": "14 of 47 historical constituents have no yfinance price history (delisted or acquired names, plus identifiers yfinance does not resolve \u2014 e.g. 1583985D.PA, 1625306D.PA, 1655454D.PA, AKERBP.OL, FP.PA, FTI.PA, LUNE.ST, LUPE.ST). They are dropped from both numerator and denominator, which biases breadth toward survivors until a delisted-price source is integrated. Daily n_with_price vs n_constituents lets Step 3 quarantine suspect periods."
   },
@@ -2966,7 +3051,9 @@
       "2026-11-19",
       "2026-11-20",
       "2026-11-23",
-      "2026-11-24"
+      "2026-11-24",
+      "2026-11-25",
+      "2026-11-26"
     ],
     "n_constituents": [
       19,
@@ -5223,6 +5310,8 @@
       27,
       27,
       27,
+      28,
+      28,
       28,
       28,
       28
@@ -7484,6 +7573,8 @@
       27,
       28,
       28,
+      28,
+      28,
       28
     ],
     "n_with_rsi": [
@@ -9741,6 +9832,8 @@
       27,
       27,
       27,
+      28,
+      28,
       28,
       28,
       28
@@ -12002,6 +12095,8 @@
       27,
       28,
       28,
+      28,
+      28,
       28
     ],
     "n_with_high63": [
@@ -14261,6 +14356,8 @@
       27,
       28,
       28,
+      28,
+      28,
       28
     ],
     "rsi_breadth": [
@@ -16514,6 +16611,8 @@
       0.038462,
       0.037037,
       0.074074,
+      0.0,
+      0.0,
       0.0,
       0.0,
       0.0,
@@ -18779,7 +18878,9 @@
       0.222222,
       0.142857,
       0.178571,
-      0.178571
+      0.178571,
+      0.178571,
+      0.25
     ],
     "highs_breadth": [
       0.416667,
@@ -21033,6 +21134,8 @@
       0.111111,
       0.111111,
       0.037037,
+      0.0,
+      0.0,
       0.0,
       0.0,
       0.0,
@@ -23297,7 +23400,9 @@
       -0.663646,
       -0.663434,
       -0.663222,
-      -0.663011
+      -0.663011,
+      -0.662799,
+      -0.662588
     ],
     "ma_breadth_z": [
       null,
@@ -25556,7 +25661,9 @@
       -1.323151,
       -1.631117,
       -1.490897,
-      -1.489833
+      -1.489833,
+      -1.488771,
+      -1.210141
     ],
     "highs_breadth_z": [
       null,
@@ -27815,7 +27922,9 @@
       -0.758537,
       -0.758272,
       -0.758007,
-      -0.757743
+      -0.757743,
+      -0.757479,
+      -0.757215
     ],
     "composite_z": [
       null,
@@ -30074,7 +30183,9 @@
       -0.915111,
       -1.017608,
       -0.970709,
-      -0.970195
+      -0.970195,
+      -0.969683,
+      -0.876648
     ],
     "composite_p90": [
       null,
@@ -32333,7 +32444,9 @@
       1.254756,
       1.254509,
       1.254262,
-      1.254015
+      1.254015,
+      1.253767,
+      1.25352
     ],
     "composite_p10": [
       null,
@@ -34592,7 +34705,9 @@
       -0.792708,
       -0.793167,
       -0.793424,
-      -0.795104
+      -0.795104,
+      -0.796941,
+      -0.797513
     ],
     "rsi_p90": [
       null,
@@ -36796,6 +36911,8 @@
       0.204286,
       0.202857,
       0.201429,
+      0.2,
+      0.2,
       0.2,
       0.2,
       0.2,
@@ -39110,6 +39227,8 @@
       0.26087,
       0.26087,
       0.26087,
+      0.26087,
+      0.26087,
       0.26087
     ],
     "rsi_trigger": [
@@ -41369,6 +41488,8 @@
       0,
       0,
       0,
+      0,
+      0,
       0
     ],
     "ma_zweig_trigger": [
@@ -43602,6 +43723,8 @@
       1,
       0,
       1,
+      0,
+      0,
       0,
       0,
       0,
@@ -45887,6 +46010,8 @@
       0,
       0,
       0,
+      0,
+      0,
       0
     ],
     "trigger_count": [
@@ -48146,6 +48271,8 @@
       0,
       0,
       0,
+      0,
+      0,
       0
     ],
     "composite_above_p90": [
@@ -50384,6 +50511,8 @@
       0,
       0,
       1,
+      0,
+      0,
       0,
       0,
       0,
@@ -52664,6 +52793,8 @@
       0,
       0,
       0,
+      0,
+      0,
       0
     ],
     "signal_eligible": [
@@ -52919,6 +53050,8 @@
       0,
       0,
       0,
+      1,
+      1,
       1,
       1,
       1,
@@ -57161,6 +57294,8 @@
       0,
       0,
       1,
+      0,
+      0,
       0,
       0,
       0,
