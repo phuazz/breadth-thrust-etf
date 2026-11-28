@@ -1,5 +1,5 @@
 {
-  "computed_at_utc": "2026-11-28T06:05:09+00:00",
+  "computed_at_utc": "2026-11-28T07:05:07+00:00",
   "as_of": "2026-11-27",
   "next_fill": {
     "summary": "10 moves at the next fill (NYSE Mon 30 Nov 2026, XETR Mon 30 Nov 2026), ranked on the Fri 27 Nov 2026 close; one-way turnover 16.00% of NAV; 3 new names. Signals compared with the previous decision close.",
@@ -509,7 +509,7 @@
     "basis": "Holding contributions are weight \u00d7 return from the Mon 23 Nov 2026 close to the Fri 27 Nov 2026 close, 11 of 11 holdings priced from the one-year price panel.",
     "start": "2026-11-20",
     "end": "2026-11-27",
-    "blend_return": 0.024130026889927603,
+    "blend_return": 0.02413001802458492,
     "spy_return": 0.055813279211365696,
     "holdings": [
       {
