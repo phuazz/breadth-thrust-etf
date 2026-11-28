@@ -1,0 +1,98 @@
+{
+  "acquired_at": "2026-11-28T03:24:03.604035+00:00",
+  "chart": {
+    "meta": {
+      "currency": "EUR",
+      "symbol": "EXV3.DE",
+      "exchangeName": "GER",
+      "fullExchangeName": "XETRA",
+      "instrumentType": "ETF",
+      "firstTradeDate": 1199260800,
+      "regularMarketTime": 1795797370,
+      "hasPrePostMarketData": false,
+      "gmtoffset": 3600,
+      "timezone": "CET",
+      "exchangeTimezoneName": "Europe/Berlin",
+      "regularMarketPrice": 89.16,
+      "regularMarketChangePercent": 1.734,
+      "fulldayPrice": 89.16,
+      "fulldayChange": 1.52,
+      "fulldayChangePercent": 1.734,
+      "fiftyTwoWeekHigh": 103.94,
+      "fiftyTwoWeekLow": 74.52,
+      "regularMarketDayHigh": 89.77,
+      "regularMarketDayLow": 88.75,
+      "regularMarketVolume": 6505,
+      "longName": "iShares STOXX Europe 600 Technology UCITS ETF (DE) EUR dis",
+      "shortName": "iSh.ST.Eu.600 Technol.U.ETF DEI",
+      "chartPreviousClose": 87.64,
+      "priceHint": 2,
+      "currentTradingPeriod": {
+        "pre": {
+          "timezone": "CET",
+          "start": 1795759200,
+          "end": 1795766400,
+          "gmtoffset": 3600
+        },
+        "regular": {
+          "timezone": "CET",
+          "start": 1795766400,
+          "end": 1795797000,
+          "gmtoffset": 3600
+        },
+        "post": {
+          "timezone": "CET",
+          "start": 1795797000,
+          "end": 1795807800,
+          "gmtoffset": 3600
+        }
+      },
+      "dataGranularity": "1d",
+      "range": "1d",
+      "validRanges": [
+        "1d",
+        "5d",
+        "1mo",
+        "3mo",
+        "6mo",
+        "1y",
+        "2y",
+        "5y",
+        "10y",
+        "ytd",
+        "max"
+      ]
+    },
+    "timestamp": [
+      1795797370
+    ],
+    "indicators": {
+      "quote": [
+        {
+          "open": [
+            89.36000061035156
+          ],
+          "low": [
+            88.75
+          ],
+          "close": [
+            89.16000366210938
+          ],
+          "high": [
+            89.7699966430664
+          ],
+          "volume": [
+            6505
+          ]
+        }
+      ],
+      "adjclose": [
+        {
+          "adjclose": [
+            89.16000366210938
+          ]
+        }
+      ]
+    }
+  }
+}

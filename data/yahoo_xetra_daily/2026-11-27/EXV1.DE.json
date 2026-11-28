@@ -1,0 +1,98 @@
+{
+  "acquired_at": "2026-11-28T03:23:57.781490+00:00",
+  "chart": {
+    "meta": {
+      "currency": "EUR",
+      "symbol": "EXV1.DE",
+      "exchangeName": "GER",
+      "fullExchangeName": "XETRA",
+      "instrumentType": "ETF",
+      "firstTradeDate": 1199260800,
+      "regularMarketTime": 1795797365,
+      "hasPrePostMarketData": false,
+      "gmtoffset": 3600,
+      "timezone": "CET",
+      "exchangeTimezoneName": "Europe/Berlin",
+      "regularMarketPrice": 38.105,
+      "regularMarketChangePercent": 2.049,
+      "fulldayPrice": 38.105,
+      "fulldayChange": 0.765,
+      "fulldayChangePercent": 2.049,
+      "fiftyTwoWeekHigh": 43.435,
+      "fiftyTwoWeekLow": 30.89,
+      "regularMarketDayHigh": 38.145,
+      "regularMarketDayLow": 37.855,
+      "regularMarketVolume": 220885,
+      "longName": "iShares STOXX Europe 600 Banks UCITS ETF (DE) (Dist)",
+      "shortName": "iSh.ST.Euro.600 Banks U.ETF DEI",
+      "chartPreviousClose": 37.34,
+      "priceHint": 2,
+      "currentTradingPeriod": {
+        "pre": {
+          "timezone": "CET",
+          "start": 1795759200,
+          "end": 1795766400,
+          "gmtoffset": 3600
+        },
+        "regular": {
+          "timezone": "CET",
+          "start": 1795766400,
+          "end": 1795797000,
+          "gmtoffset": 3600
+        },
+        "post": {
+          "timezone": "CET",
+          "start": 1795797000,
+          "end": 1795807800,
+          "gmtoffset": 3600
+        }
+      },
+      "dataGranularity": "1d",
+      "range": "1d",
+      "validRanges": [
+        "1d",
+        "5d",
+        "1mo",
+        "3mo",
+        "6mo",
+        "1y",
+        "2y",
+        "5y",
+        "10y",
+        "ytd",
+        "max"
+      ]
+    },
+    "timestamp": [
+      1795797365
+    ],
+    "indicators": {
+      "quote": [
+        {
+          "open": [
+            37.900001525878906
+          ],
+          "high": [
+            38.14500045776367
+          ],
+          "volume": [
+            220885
+          ],
+          "close": [
+            38.10499954223633
+          ],
+          "low": [
+            37.85499954223633
+          ]
+        }
+      ],
+      "adjclose": [
+        {
+          "adjclose": [
+            38.10499954223633
+          ]
+        }
+      ]
+    }
+  }
+}
